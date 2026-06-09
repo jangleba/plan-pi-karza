@@ -179,6 +179,7 @@ function StartScreen() {
         <Link
           to="/sesja/$date"
           params={{ date: todaySession.date }}
+          search={{ slot: 1 }}
           className="soft-card block p-4"
         >
           <div className="flex items-center justify-between">
@@ -206,7 +207,11 @@ function StartScreen() {
           className="w-full"
           size="lg"
           onClick={() =>
-            navigate({ to: "/sesja/$date", params: { date: todaySession.date } })
+            navigate({
+              to: "/sesja/$date",
+              params: { date: todaySession.date },
+              search: { slot: 1 },
+            })
           }
         >
           Otwórz dzisiejszą sesję
