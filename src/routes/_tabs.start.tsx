@@ -205,6 +205,31 @@ function StartScreen() {
           </div>
         </Link>
 
+        {secondToday && (
+          <Link
+            to="/sesja/$date"
+            params={{ date: todaySession.date }}
+            search={{ slot: 2 }}
+            className="soft-card block p-4"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Druga sesja dzisiaj (lekka)
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <h3 className="mt-1.5 text-base font-semibold">
+              {secondToday.title}
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <IntensityBadge intensity={secondToday.intensity} />
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> {secondToday.durationMin} min
+              </span>
+            </div>
+          </Link>
+        )}
+
         <ReadinessDialog onSaved={() => force((n) => n + 1)} />
 
         <Button
