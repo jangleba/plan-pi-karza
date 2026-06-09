@@ -96,6 +96,9 @@ function Onboarding() {
     existing?.equipment ?? [],
   );
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
+  const [doubleSessions, setDoubleSessions] = useState<DoubleSessions | null>(
+    existing?.doubleSessionsAllowed ?? null,
+  );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
 
   const ageNum = parseInt(age, 10);
@@ -123,7 +126,7 @@ function Onboarding() {
   }
 
   function handleSubmit() {
-    if (!position || !level || !goal || !(ageNum >= 13)) {
+    if (!position || !level || !goal || !doubleSessions || !(ageNum >= 13)) {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
@@ -141,6 +144,7 @@ function Onboarding() {
       matchDate: matchDate || null,
       equipment,
       painInjury,
+      doubleSessionsAllowed: doubleSessions,
       guardianConsent: isMinor ? consent : true,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
