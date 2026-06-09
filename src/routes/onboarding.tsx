@@ -334,6 +334,22 @@ function Onboarding() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
+              <ChoiceGrid
+                options={["no", "light_only", "yes_if_safe"] as DoubleSessions[]}
+                value={doubleSessions}
+                onChange={setDoubleSessions}
+                labels={DOUBLE_SESSION_LABELS}
+                cols={1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Druga sesja zawsze jest lekka i dokładana tylko wtedy, gdy jest
+                bezpieczna (nigdy w dniu meczu/MD-1, przy bólu czy niskiej
+                gotowości).
+              </p>
+            </div>
+
             <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
               <Checkbox
                 checked={painInjury}
