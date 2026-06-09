@@ -6,7 +6,9 @@ import {
   POSITION_LABELS,
   LEVEL_LABELS,
   GOAL_LABELS,
+  DOUBLE_SESSION_LABELS,
 } from "@/lib/loadwise/labels";
+import type { DoubleSessions } from "@/lib/loadwise/types";
 import { Button } from "@/components/ui/button";
 import {
   User,
