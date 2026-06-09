@@ -9,38 +9,150 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
+import { Route as TabsStartRouteImport } from './routes/_tabs.start'
+import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
+import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
+import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
+import { Route as TabsAparatRouteImport } from './routes/_tabs.aparat'
 
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TabsRoute = TabsRouteImport.update({
+  id: '/_tabs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SesjaDateRoute = SesjaDateRouteImport.update({
+  id: '/sesja/$date',
+  path: '/sesja/$date',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TabsStartRoute = TabsStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsScoutingRoute = TabsScoutingRouteImport.update({
+  id: '/scouting',
+  path: '/scouting',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsProfilRoute = TabsProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsPlanRoute = TabsPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsAparatRoute = TabsAparatRouteImport.update({
+  id: '/aparat',
+  path: '/aparat',
+  getParentRoute: () => TabsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/aparat': typeof TabsAparatRoute
+  '/plan': typeof TabsPlanRoute
+  '/profil': typeof TabsProfilRoute
+  '/scouting': typeof TabsScoutingRoute
+  '/start': typeof TabsStartRoute
+  '/sesja/$date': typeof SesjaDateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/onboarding': typeof OnboardingRoute
+  '/aparat': typeof TabsAparatRoute
+  '/plan': typeof TabsPlanRoute
+  '/profil': typeof TabsProfilRoute
+  '/scouting': typeof TabsScoutingRoute
+  '/start': typeof TabsStartRoute
+  '/sesja/$date': typeof SesjaDateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_tabs': typeof TabsRouteWithChildren
+  '/onboarding': typeof OnboardingRoute
+  '/_tabs/aparat': typeof TabsAparatRoute
+  '/_tabs/plan': typeof TabsPlanRoute
+  '/_tabs/profil': typeof TabsProfilRoute
+  '/_tabs/scouting': typeof TabsScoutingRoute
+  '/_tabs/start': typeof TabsStartRoute
+  '/sesja/$date': typeof SesjaDateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/onboarding'
+    | '/aparat'
+    | '/plan'
+    | '/profil'
+    | '/scouting'
+    | '/start'
+    | '/sesja/$date'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/onboarding'
+    | '/aparat'
+    | '/plan'
+    | '/profil'
+    | '/scouting'
+    | '/start'
+    | '/sesja/$date'
+  id:
+    | '__root__'
+    | '/'
+    | '/_tabs'
+    | '/onboarding'
+    | '/_tabs/aparat'
+    | '/_tabs/plan'
+    | '/_tabs/profil'
+    | '/_tabs/scouting'
+    | '/_tabs/start'
+    | '/sesja/$date'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TabsRoute: typeof TabsRouteWithChildren
+  OnboardingRoute: typeof OnboardingRoute
+  SesjaDateRoute: typeof SesjaDateRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_tabs': {
+      id: '/_tabs'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof TabsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +160,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sesja/$date': {
+      id: '/sesja/$date'
+      path: '/sesja/$date'
+      fullPath: '/sesja/$date'
+      preLoaderRoute: typeof SesjaDateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_tabs/start': {
+      id: '/_tabs/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof TabsStartRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/_tabs/scouting': {
+      id: '/_tabs/scouting'
+      path: '/scouting'
+      fullPath: '/scouting'
+      preLoaderRoute: typeof TabsScoutingRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/_tabs/profil': {
+      id: '/_tabs/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof TabsProfilRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/_tabs/plan': {
+      id: '/_tabs/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof TabsPlanRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/_tabs/aparat': {
+      id: '/_tabs/aparat'
+      path: '/aparat'
+      fullPath: '/aparat'
+      preLoaderRoute: typeof TabsAparatRouteImport
+      parentRoute: typeof TabsRoute
+    }
   }
 }
 
+interface TabsRouteChildren {
+  TabsAparatRoute: typeof TabsAparatRoute
+  TabsPlanRoute: typeof TabsPlanRoute
+  TabsProfilRoute: typeof TabsProfilRoute
+  TabsScoutingRoute: typeof TabsScoutingRoute
+  TabsStartRoute: typeof TabsStartRoute
+}
+
+const TabsRouteChildren: TabsRouteChildren = {
+  TabsAparatRoute: TabsAparatRoute,
+  TabsPlanRoute: TabsPlanRoute,
+  TabsProfilRoute: TabsProfilRoute,
+  TabsScoutingRoute: TabsScoutingRoute,
+  TabsStartRoute: TabsStartRoute,
+}
+
+const TabsRouteWithChildren = TabsRoute._addFileChildren(TabsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TabsRoute: TabsRouteWithChildren,
+  OnboardingRoute: OnboardingRoute,
+  SesjaDateRoute: SesjaDateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
