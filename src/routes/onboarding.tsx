@@ -2,13 +2,20 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
-import type { Profile, Position, Level, Goal } from "@/lib/loadwise/types";
+import type {
+  Profile,
+  Position,
+  Level,
+  Goal,
+  DoubleSessions,
+} from "@/lib/loadwise/types";
 import {
   GOAL_LABELS,
   POSITION_LABELS,
   LEVEL_LABELS,
   ISO_DAY_LABELS,
   EQUIPMENT_OPTIONS,
+  DOUBLE_SESSION_LABELS,
 } from "@/lib/loadwise/labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
