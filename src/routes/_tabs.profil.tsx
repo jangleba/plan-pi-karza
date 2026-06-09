@@ -36,11 +36,17 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function ProfilScreen() {
-  const { state, resetAll } = useLoadwise();
+  const { state, resetAll, updateProfile } = useLoadwise();
   const navigate = useNavigate();
   const p = state.profile;
 
   if (!p) return null;
+
+  function setDouble(v: DoubleSessions) {
+    if (!p || p.doubleSessionsAllowed === v) return;
+    updateProfile({ ...p, doubleSessionsAllowed: v });
+    toast.success("Zaktualizowano podwójne sesje. Plan przeliczony.");
+  }
 
   const isMinor = p.age >= 13 && p.age <= 17;
 
