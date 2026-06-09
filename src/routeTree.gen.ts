@@ -13,6 +13,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
+import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -33,15 +34,22 @@ const TabsStartRoute = TabsStartRouteImport.update({
   path: '/start',
   getParentRoute: () => TabsRoute,
 } as any)
+const TabsPlanRoute = TabsPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => TabsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/plan': typeof TabsPlanRoute
   '/start': typeof TabsStartRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/plan': typeof TabsPlanRoute
   '/start': typeof TabsStartRoute
 }
 export interface FileRoutesById {
@@ -49,14 +57,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_tabs': typeof TabsRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/start': typeof TabsStartRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/onboarding' | '/start'
+  fullPaths: '/' | '/onboarding' | '/plan' | '/start'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/onboarding' | '/start'
-  id: '__root__' | '/' | '/_tabs' | '/onboarding' | '/_tabs/start'
+  to: '/' | '/onboarding' | '/plan' | '/start'
+  id:
+    | '__root__'
+    | '/'
+    | '/_tabs'
+    | '/onboarding'
+    | '/_tabs/plan'
+    | '/_tabs/start'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,14 +110,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsStartRouteImport
       parentRoute: typeof TabsRoute
     }
+    '/_tabs/plan': {
+      id: '/_tabs/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof TabsPlanRouteImport
+      parentRoute: typeof TabsRoute
+    }
   }
 }
 
 interface TabsRouteChildren {
+  TabsPlanRoute: typeof TabsPlanRoute
   TabsStartRoute: typeof TabsStartRoute
 }
 
 const TabsRouteChildren: TabsRouteChildren = {
+  TabsPlanRoute: TabsPlanRoute,
   TabsStartRoute: TabsStartRoute,
 }
 
