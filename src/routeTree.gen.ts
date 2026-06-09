@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 
@@ -27,6 +28,11 @@ const TabsRoute = TabsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SesjaDateRoute = SesjaDateRouteImport.update({
+  id: '/sesja/$date',
+  path: '/sesja/$date',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TabsStartRoute = TabsStartRouteImport.update({
@@ -45,12 +51,14 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof TabsPlanRoute
   '/start': typeof TabsStartRoute
+  '/sesja/$date': typeof SesjaDateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof TabsPlanRoute
   '/start': typeof TabsStartRoute
+  '/sesja/$date': typeof SesjaDateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +67,13 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/start': typeof TabsStartRoute
+  '/sesja/$date': typeof SesjaDateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/onboarding' | '/plan' | '/start'
+  fullPaths: '/' | '/onboarding' | '/plan' | '/start' | '/sesja/$date'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/onboarding' | '/plan' | '/start'
+  to: '/' | '/onboarding' | '/plan' | '/start' | '/sesja/$date'
   id:
     | '__root__'
     | '/'
@@ -72,12 +81,14 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/_tabs/plan'
     | '/_tabs/start'
+    | '/sesja/$date'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   TabsRoute: typeof TabsRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
+  SesjaDateRoute: typeof SesjaDateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -101,6 +112,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sesja/$date': {
+      id: '/sesja/$date'
+      path: '/sesja/$date'
+      fullPath: '/sesja/$date'
+      preLoaderRoute: typeof SesjaDateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_tabs/start': {
@@ -136,6 +154,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   TabsRoute: TabsRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
+  SesjaDateRoute: SesjaDateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
