@@ -8,6 +8,8 @@ export type Goal =
   | "return"
   | "matchready";
 
+export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
+
 export interface Profile {
   name: string;
   age: number;
@@ -18,6 +20,7 @@ export interface Profile {
   matchDate: string | null; // yyyy-MM-dd
   equipment: string[];
   painInjury: boolean;
+  doubleSessionsAllowed: DoubleSessions;
   guardianConsent: boolean;
   onboardingComplete: boolean;
   createdAt: string;
@@ -38,6 +41,10 @@ export interface Readiness {
 export interface ExerciseItem {
   name: string;
   prescription: string;
+  rest?: string;
+  cue?: string;
+  easier?: string;
+  harder?: string;
 }
 
 export type Intensity = "niska" | "umiarkowana" | "wysoka";
@@ -61,12 +68,20 @@ export interface SessionDay {
   reason: string;
   safetyNote: string | null;
   whyToday: string;
+  sessionType: string;
+  goalOfSession: string;
+  riskManaged: string;
+  avoidToday: string;
+  mdLabel: string | null;
+  slotLabel: string | null;
   sections: {
     warmup: ExerciseItem[];
     main: ExerciseItem[];
     accessory: ExerciseItem[];
+    footballTransfer: ExerciseItem[];
     cooldown: ExerciseItem[];
   };
+  secondSession: SessionDay | null;
 }
 
 export interface TestResult {

@@ -16,7 +16,7 @@ import type {
 import { generatePlan } from "./planEngine";
 import { warsawToday, isoDate } from "./labels";
 
-const STORAGE_KEY = "loadwise:v1";
+const STORAGE_KEY = "loadwise:v2";
 
 const emptyScouting: ScoutingData = {
   strengths: "",

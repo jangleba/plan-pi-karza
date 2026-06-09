@@ -1,4 +1,10 @@
-import type { Goal, Position, Level, Intensity } from "./types";
+import type { Goal, Position, Level, Intensity, DoubleSessions } from "./types";
+
+export const DOUBLE_SESSION_LABELS: Record<DoubleSessions, string> = {
+  no: "Nie",
+  light_only: "Tak, ale tylko lekko",
+  yes_if_safe: "Tak, jeśli plan ma sens",
+};
 
 const PL_DAYS = [
   "Niedziela",

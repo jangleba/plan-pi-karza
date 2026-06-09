@@ -2,13 +2,20 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
-import type { Profile, Position, Level, Goal } from "@/lib/loadwise/types";
+import type {
+  Profile,
+  Position,
+  Level,
+  Goal,
+  DoubleSessions,
+} from "@/lib/loadwise/types";
 import {
   GOAL_LABELS,
   POSITION_LABELS,
   LEVEL_LABELS,
   ISO_DAY_LABELS,
   EQUIPMENT_OPTIONS,
+  DOUBLE_SESSION_LABELS,
 } from "@/lib/loadwise/labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,6 +96,9 @@ function Onboarding() {
     existing?.equipment ?? [],
   );
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
+  const [doubleSessions, setDoubleSessions] = useState<DoubleSessions | null>(
+    existing?.doubleSessionsAllowed ?? null,
+  );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
 
   const ageNum = parseInt(age, 10);
@@ -116,7 +126,7 @@ function Onboarding() {
   }
 
   function handleSubmit() {
-    if (!position || !level || !goal || !(ageNum >= 13)) {
+    if (!position || !level || !goal || !doubleSessions || !(ageNum >= 13)) {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
@@ -134,6 +144,7 @@ function Onboarding() {
       matchDate: matchDate || null,
       equipment,
       painInjury,
+      doubleSessionsAllowed: doubleSessions,
       guardianConsent: isMinor ? consent : true,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
@@ -323,6 +334,22 @@ function Onboarding() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
+              <ChoiceGrid
+                options={["no", "light_only", "yes_if_safe"] as DoubleSessions[]}
+                value={doubleSessions}
+                onChange={setDoubleSessions}
+                labels={DOUBLE_SESSION_LABELS}
+                cols={1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Druga sesja zawsze jest lekka i dokładana tylko wtedy, gdy jest
+                bezpieczna (nigdy w dniu meczu/MD-1, przy bólu czy niskiej
+                gotowości).
+              </p>
+            </div>
+
             <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
               <Checkbox
                 checked={painInjury}
@@ -371,7 +398,7 @@ function Onboarding() {
           <Button
             className="w-full"
             size="lg"
-            disabled={isMinor && !consent}
+            disabled={(isMinor && !consent) || !doubleSessions}
             onClick={handleSubmit}
           >
             Zapisz i wygeneruj plan
