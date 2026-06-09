@@ -124,7 +124,12 @@ function StartScreen() {
   }
 
   const readiness = state.readiness[todayIso];
-  const { decision } = applyReadiness(todaySession, readiness, profile);
+  const { session: adjustedToday, decision } = applyReadiness(
+    todaySession,
+    readiness,
+    profile,
+  );
+  const secondToday = adjustedToday.secondSession;
 
   const matchDate = profile.matchDate;
 
