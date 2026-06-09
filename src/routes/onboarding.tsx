@@ -68,26 +68,28 @@ function ChoiceGrid<T extends string>({
 }
 
 function Onboarding() {
-  const { hydrated, state, completeOnboarding } = useLoadwise();
+  const { state, completeOnboarding } = useLoadwise();
   const navigate = useNavigate();
+  const existing = state.profile;
+  const isEditing = !!existing?.onboardingComplete;
   const [step, setStep] = useState(0);
 
-  const [name, setName] = useState("");
-  const [age, setAge] = useState("");
-  const [position, setPosition] = useState<Position | null>(null);
-  const [level, setLevel] = useState<Level | null>(null);
-  const [goal, setGoal] = useState<Goal | null>(null);
-  const [clubDays, setClubDays] = useState<number[]>([]);
-  const [matchDate, setMatchDate] = useState("");
-  const [equipment, setEquipment] = useState<string[]>([]);
-  const [painInjury, setPainInjury] = useState(false);
-  const [consent, setConsent] = useState(false);
-
-  useEffect(() => {
-    if (hydrated && state.profile?.onboardingComplete) {
-      navigate({ to: "/start", replace: true });
-    }
-  }, [hydrated, state.profile?.onboardingComplete, navigate]);
+  const [name, setName] = useState(existing?.name ?? "");
+  const [age, setAge] = useState(existing ? String(existing.age) : "");
+  const [position, setPosition] = useState<Position | null>(
+    existing?.position ?? null,
+  );
+  const [level, setLevel] = useState<Level | null>(existing?.level ?? null);
+  const [goal, setGoal] = useState<Goal | null>(existing?.goal ?? null);
+  const [clubDays, setClubDays] = useState<number[]>(
+    existing?.clubTrainingDays ?? [],
+  );
+  const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
+  const [equipment, setEquipment] = useState<string[]>(
+    existing?.equipment ?? [],
+  );
+  const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
+  const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
 
   const ageNum = parseInt(age, 10);
   const isMinor = ageNum >= 13 && ageNum <= 17;
