@@ -935,11 +935,7 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
   for (let i = 0; i < 7; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    let type = dayTypeFor(date, profile);
-
-    if (type === "training" && lastWasHard) {
-      type = "recovery";
-    }
+    const type = dayTypeFor(date, profile);
 
     let session: SessionDay;
 
