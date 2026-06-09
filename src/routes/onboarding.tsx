@@ -139,8 +139,10 @@ function Onboarding() {
       createdAt: new Date().toISOString(),
     };
     completeOnboarding(profile);
-    toast.success("Profil zapisany. Tworzę Twój plan…");
-    navigate({ to: "/plan", replace: true });
+    toast.success(
+      isEditing ? "Profil zaktualizowany." : "Profil zapisany. Tworzę Twój plan…",
+    );
+    navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
