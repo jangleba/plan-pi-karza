@@ -24,14 +24,20 @@ function isYoung(age: number): boolean {
 
 function warmup(): ExerciseItem[] {
   return [
-    { name: "Trucht i mobilizacja", prescription: "5 min, niska intensywność" },
+    {
+      name: "Trucht i mobilizacja",
+      prescription: "5 min, niska intensywność",
+      cue: "Spokojny oddech, stopniowo podnoś tętno.",
+    },
     {
       name: "Rozgrzewka dynamiczna (RAMP)",
       prescription: "wykroki, krążenia, otwieranie bioder — 6 min",
+      cue: "Pełen zakres ruchu, kontroluj tułów.",
     },
     {
       name: "Aktywacja z piłką",
       prescription: "lekkie podania i prowadzenie — 4 min",
+      cue: "Miękki pierwszy kontakt, głowa do góry.",
     },
   ];
 }
@@ -49,10 +55,15 @@ function cooldown(): ExerciseItem[] {
 
 interface Built {
   title: string;
+  sessionType: string;
   main: ExerciseItem[];
   accessory: ExerciseItem[];
+  footballTransfer: ExerciseItem[];
   intensity: Intensity;
   durationMin: number;
+  goalOfSession: string;
+  riskManaged: string;
+  avoidToday: string;
 }
 
 function buildByGoal(profile: Profile): Built {
@@ -63,121 +74,262 @@ function buildByGoal(profile: Profile): Built {
     case "speed":
       return {
         title: "Sesja szybkości i przyspieszeń",
+        sessionType: "Szybkość",
         intensity: "wysoka",
         durationMin: young ? 50 : 60,
+        goalOfSession:
+          "Rozwój przyspieszenia i prędkości maksymalnej przy wysokiej jakości każdego powtórzenia.",
+        riskManaged: `Limit objętości sprintów ${sprintCap} m i pełne przerwy chronią mechanikę i mięśnie tylne uda.`,
+        avoidToday:
+          "Nie łącz dziś z ciężkim treningiem nóg ani twardym kondycyjnym. Przerwij przy spadku jakości.",
         main: [
           {
             name: "Sprinty z piłką (akceleracja)",
             prescription: `6 × 20 m, pełna przerwa — łącznie ${Math.min(120, sprintCap)} m`,
+            rest: "90–120 s między powtórzeniami",
+            cue: "Mocny pierwszy krok, niski tułów na starcie.",
+            easier: "Skróć do 6 × 15 m lub zmniejsza intensywność.",
+            harder: young ? undefined : "Dodaj start z reakcji na sygnał.",
           },
           {
             name: "Sprinty liniowe",
             prescription: `${young ? 4 : 6} × 20 m, przerwa 90 s — łącznie ${Math.min(young ? 80 : 120, sprintCap)} m`,
+            rest: "90 s",
+            cue: "Pełen wymach ramion, nie spinaj barków.",
+            easier: "Zredukuj liczbę powtórzeń o połowę.",
+            harder: young ? undefined : "Sprinty lotne 2 × 20 m z najazdem.",
           },
         ],
         accessory: [
           {
             name: "Zwody i zmiana kierunku",
             prescription: "5 × przejście slalomu z piłką",
+            cue: "Niskie biodra, krótkie kroki w zwrocie.",
+          },
+        ],
+        footballTransfer: [
+          {
+            name: "Przyjęcie–zwrot–przyspieszenie",
+            prescription: "6 powtórzeń: przyjęcie tyłem, zwrot, 10 m sprintu",
+            cue: "Pierwszy kontakt w kierunku biegu.",
           },
         ],
       };
     case "strength":
       return {
         title: young ? "Sesja siły bazowej" : "Sesja siły piłkarskiej",
+        sessionType: "Siła",
         intensity: young ? "umiarkowana" : "wysoka",
         durationMin: 55,
+        goalOfSession: young
+          ? "Nauka wzorców ruchowych i siła bazowa z masą ciała oraz kontrola tułowia."
+          : "Rozwój siły dolnych partii i stabilizacji z zapasem 1–3 powtórzeń (RIR).",
+        riskManaged: young
+          ? "Bez ciężkiego treningu dorosłych i bez maksymalnych prób — priorytet to technika."
+          : "Kontrolowany ciężar i RIR ograniczają ryzyko przeciążenia.",
+        avoidToday:
+          "Nie planuj dziś dodatkowo twardych sprintów ani plyometrii. Bez ciężkich nóg na 48 h przed meczem.",
         main: young
           ? [
-              { name: "Przysiad z masą ciała", prescription: "4 × 10, technika" },
-              { name: "Wykroki w miejscu", prescription: "3 × 8 na nogę" },
-              { name: "Plank", prescription: "3 × 30 s" },
+              {
+                name: "Przysiad z masą ciała",
+                prescription: "4 × 10, technika",
+                rest: "60 s",
+                cue: "Kolana w linii stóp, pięty na ziemi.",
+                easier: "Przysiad do krzesła.",
+                harder: "Przysiad z lekkim obciążeniem (gdy technika pewna).",
+              },
+              {
+                name: "Wykroki w miejscu",
+                prescription: "3 × 8 na nogę",
+                rest: "45 s",
+                cue: "Tułów pionowo, kolano nie ucieka do środka.",
+                easier: "Mniejszy zakres / przytrzymaj się podpory.",
+              },
+              {
+                name: "Plank",
+                prescription: "3 × 30 s",
+                cue: "Napięty brzuch, biodra w linii.",
+                easier: "Plank z kolan.",
+                harder: "Plank z unoszeniem nogi.",
+              },
             ]
           : [
-              { name: "Przysiad", prescription: "4 × 6, ciężar kontrolowany" },
-              { name: "Martwy ciąg rumuński", prescription: "3 × 8" },
-              { name: "Wykrok bułgarski", prescription: "3 × 8 na nogę" },
+              {
+                name: "Przysiad",
+                prescription: "4 × 6, ciężar kontrolowany",
+                rest: "120 s",
+                cue: "Napnij tułów przed zejściem, pełny zakres.",
+                easier: "Przysiad goblet z lżejszym ciężarem.",
+                harder: "Tempo 3-1-1 lub +5% ciężaru.",
+              },
+              {
+                name: "Martwy ciąg rumuński",
+                prescription: "3 × 8",
+                rest: "90 s",
+                cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+                easier: "Mniejszy zakres / lżejszy ciężar.",
+              },
+              {
+                name: "Wykrok bułgarski",
+                prescription: "3 × 8 na nogę",
+                rest: "75 s",
+                cue: "Pion tułowia, stabilne kolano.",
+                easier: "Wykrok w miejscu.",
+              },
             ],
         accessory: [
-          { name: "Stabilizacja core", prescription: "3 × 40 s plank boczny" },
+          {
+            name: "Stabilizacja core",
+            prescription: "3 × 40 s plank boczny",
+            cue: "Linia ciała prosta, biodra wysoko.",
+          },
         ],
+        footballTransfer: [],
       };
     case "endurance":
       return {
         title: "Sesja wytrzymałości specjalnej",
+        sessionType: "Wytrzymałość",
         intensity: "umiarkowana",
         durationMin: young ? 45 : 55,
+        goalOfSession:
+          "Poprawa wytrzymałości specjalnej i zdolności do powtarzanego wysiłku z piłką.",
+        riskManaged:
+          "Kontrolowane interwały zamiast bezsensownej objętości — bez wyczerpania na ślepo.",
+        avoidToday:
+          "Bez twardych interwałów na 48 h przed meczem (MD-2/MD-1). Bez długich biegów na zmęczeniu przed meczem.",
         main: [
           {
             name: "Interwały biegowe z piłką",
             prescription: `${young ? 6 : 8} × 1 min bieg / 1 min trucht`,
+            rest: "1 min trucht",
+            cue: "Równe tempo, kontroluj oddech.",
+            easier: "Skróć do 4 powtórzeń.",
+            harder: young ? undefined : "Skróć przerwę do 45 s.",
           },
           {
             name: "Gra na małym polu (symulacja)",
             prescription: "4 × 3 min, przerwa 2 min",
+            rest: "2 min",
+            cue: "Aktywne ustawianie się, szybka decyzja.",
           },
         ],
         accessory: [
-          { name: "Prowadzenie piłki tempem", prescription: "6 × 40 m luźno" },
+          {
+            name: "Prowadzenie piłki tempem",
+            prescription: "6 × 40 m luźno",
+            cue: "Luźne barki, miękkie kontakty.",
+          },
+        ],
+        footballTransfer: [
+          {
+            name: "Obieg pozycyjny z podaniem",
+            prescription: "4 × bieg na pozycję + podanie",
+            cue: "Skan przed przyjęciem.",
+          },
         ],
       };
     case "mobility":
       return {
         title: "Sesja mobilności i techniki",
+        sessionType: "Mobilność",
         intensity: "niska",
         durationMin: 40,
+        goalOfSession:
+          "Poprawa zakresu ruchu i jakości pierwszego kontaktu bez generowania zmęczenia.",
+        riskManaged: "Niska intensywność — bezpieczne uzupełnienie obciążenia.",
+        avoidToday: "Bez zrywów maksymalnych i ciężkich obciążeń.",
         main: [
           {
             name: "Mobilność bioder i kostek",
             prescription: "6 ćwiczeń × 8 powtórzeń",
+            cue: "Powoli, kontroluj końcowy zakres.",
           },
           {
             name: "Technika podań obunóż",
             prescription: "10 min przy ścianie / z partnerem",
+            cue: "Równo obie nogi, celne podanie.",
+            harder: "Podanie po przyjęciu kierunkowym.",
           },
         ],
         accessory: [
-          { name: "Praca nad pierwszym kontaktem", prescription: "8 min" },
+          {
+            name: "Praca nad pierwszym kontaktem",
+            prescription: "8 min",
+            cue: "Przyjęcie w ruch, głowa do góry.",
+          },
         ],
+        footballTransfer: [],
       };
     case "return":
       return {
         title: "Powrót do rytmu — sesja kontrolowana",
+        sessionType: "Powrót do rytmu",
         intensity: "niska",
         durationMin: 40,
+        goalOfSession:
+          "Bezbolesny powrót do ruchu i lekka praca z piłką bez zrywów.",
+        riskManaged:
+          "Progresja jednej zmiennej naraz, brak sprintów/COD przy bólu kończyn dolnych.",
+        avoidToday:
+          "Bez sprintów, skoków, gwałtownych zmian kierunku i ciężkich nóg. Aplikacja nie diagnozuje ani nie leczy.",
         main: [
           {
             name: "Lekki bieg ciągły",
             prescription: "10 min, tętno komfortowe",
+            cue: "Tempo konwersacyjne, zero bólu.",
+            easier: "Marszobieg.",
           },
           {
             name: "Technika i podania",
             prescription: "10 min, bez zrywów",
+            cue: "Spokojne tempo, kontrola.",
           },
         ],
         accessory: [
           { name: "Lekka koordynacja w drabince", prescription: "5 min" },
         ],
+        footballTransfer: [],
       };
     case "matchready":
     default:
       return {
         title: "Sesja gotowości meczowej",
+        sessionType: "Gotowość meczowa",
         intensity: "umiarkowana",
         durationMin: 50,
+        goalOfSession:
+          "Ostrość piłkarska i akcje meczowe przy umiarkowanym obciążeniu.",
+        riskManaged: `Niska objętość zrywów (limit ${sprintCap} m) utrzymuje świeżość.`,
+        avoidToday: "Bez dużej objętości twardych sprintów i ciężkich nóg.",
         main: [
           {
             name: "Aktywacja szybkościowa",
             prescription: `4 × 15 m przyspieszeń — łącznie ${Math.min(60, sprintCap)} m`,
+            rest: "60 s",
+            cue: "Dynamiczny start, kontrola.",
           },
           {
             name: "Sytuacje meczowe 1v1 / podanie-odbiór",
             prescription: "12 min",
+            cue: "Decyzja przed przyjęciem.",
           },
-          { name: "Wykończenia akcji", prescription: "8 min, średnie tempo" },
+          {
+            name: "Wykończenia akcji",
+            prescription: "8 min, średnie tempo",
+            cue: "Spokojne wykończenie, celność.",
+          },
         ],
         accessory: [
           { name: "Koordynacja i zwinność", prescription: "6 min drabinka" },
+        ],
+        footballTransfer: [
+          {
+            name: "Akcja pozycyjna",
+            prescription: "8 min wg roli na boisku",
+            cue: "Realizuj zadania swojej pozycji.",
+          },
         ],
       };
   }
@@ -186,37 +338,193 @@ function buildByGoal(profile: Profile): Built {
 function md1Session(profile: Profile): Built {
   return {
     title: "Aktywacja przedmeczowa (MD-1)",
+    sessionType: "Aktywacja (primer)",
     intensity: "niska",
-    durationMin: 35,
+    durationMin: 30,
+    goalOfSession:
+      "Odświeżenie układu nerwowego, czucie piłki i pewność przed meczem.",
+    riskManaged:
+      "Tylko submaksymalne zrywy i lekka praca — kończysz świeży, bez zmęczenia.",
+    avoidToday: "Bez ciężkich nóg, twardych sprintów i kondycyjnego.",
     main: [
       {
-        name: "Krótkie zrywy aktywacyjne",
-        prescription: "4 × 10 m, luźno (bez maksymalnych sprintów)",
+        name: "Mobilność i aktywacja",
+        prescription: "8 min: biodra, kostki, pośladki",
+        cue: "Płynnie, pełen zakres.",
       },
       {
-        name: "Podania i pierwszy kontakt",
-        prescription: "10 min, spokojne tempo",
+        name: "Czucie piłki",
+        prescription: "8 min podań i przyjęć w spokojnym tempie",
+        cue: "Miękki kontakt, głowa do góry.",
       },
-      { name: "Stałe fragmenty / ustawienia", prescription: "8 min" },
+      {
+        name: "Krótkie zrywy submaksymalne",
+        prescription: "3–5 × 10–15 m na ok. 80%",
+        rest: "pełna przerwa",
+        cue: "Płynne, kontrolowane przyspieszenie — nie maksymalne.",
+      },
+      {
+        name: "Akcje pewności siebie",
+        prescription: "5 min ulubionych zagrań / wykończeń",
+        cue: "Pewnie i swobodnie, kończysz świeży.",
+      },
     ],
-    accessory: [
-      { name: "Lekka koordynacja", prescription: "5 min drabinka" },
-    ],
+    accessory: [],
+    footballTransfer: [],
   };
 }
 
 function recoverySession(): Built {
   return {
     title: "Regeneracja i mobilność",
+    sessionType: "Regeneracja",
     intensity: "niska",
     durationMin: 30,
+    goalOfSession:
+      "Przyspieszenie regeneracji i zmniejszenie sztywności bez dokładania obciążenia.",
+    riskManaged: "Brak intensywności — żadnego ukrytego kondycyjnego.",
+    avoidToday: "Bez interwałów, sprintów i ciężkich obciążeń.",
     main: [
-      { name: "Spacer / bardzo lekki trucht", prescription: "10 min" },
-      { name: "Mobilność całego ciała", prescription: "10 min" },
-      { name: "Oddech i wyciszenie", prescription: "5 min" },
+      {
+        name: "Spacer / bardzo lekki trucht lub rower",
+        prescription: "10–20 min, opcjonalnie",
+        cue: "Bardzo lekko, tylko rozruszanie.",
+      },
+      {
+        name: "Mobilność całego ciała",
+        prescription: "10 min",
+        cue: "Spokojnie, kontroluj zakres.",
+      },
+      {
+        name: "Oddech i wyciszenie (downregulation)",
+        prescription: "5 min wydłużony wydech",
+        cue: "Nos–wdech, długi wydech, rozluźnij barki.",
+      },
     ],
-    accessory: [
-      { name: "Lekka technika piłkarska", prescription: "5 min, bez wysiłku" },
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+// ---------- Drugie sesje (zawsze lekkie) ----------
+
+function secondBallMastery(): Built {
+  return {
+    title: "Lekkie czucie piłki (AM)",
+    sessionType: "Ball mastery (lekka)",
+    intensity: "niska",
+    durationMin: 20,
+    goalOfSession: "Utrzymanie czucia piłki bez generowania zmęczenia.",
+    riskManaged: "Bardzo niska intensywność — bezpieczne uzupełnienie dnia.",
+    avoidToday: "Bez zrywów, bez obciążeń. Kończysz świeży na sesję główną.",
+    main: [
+      {
+        name: "Żonglerka i prowadzenie",
+        prescription: "8 min, spokojnie",
+        cue: "Miękkie kontakty, obie nogi.",
+      },
+      {
+        name: "Podania o ścianę / odbojnik",
+        prescription: "8 min, różne kierunki",
+        cue: "Przyjęcie kierunkowe, skan przed kontaktem.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+function secondMobilityActivation(): Built {
+  return {
+    title: "Mobilność i aktywacja (AM)",
+    sessionType: "Mobilność / aktywacja (lekka)",
+    intensity: "niska",
+    durationMin: 20,
+    goalOfSession: "Przygotowanie ciała do sesji głównej bez zmęczenia.",
+    riskManaged: "Niska intensywność, fokus na jakość ruchu.",
+    avoidToday: "Bez intensywnych zrywów i obciążeń.",
+    main: [
+      {
+        name: "Mobilność bioder, kostek i kręgosłupa",
+        prescription: "10 min",
+        cue: "Pełen, kontrolowany zakres.",
+      },
+      {
+        name: "Aktywacja pośladków i tułowia",
+        prescription: "8 min: mostki, ptak-pies, dead bug",
+        cue: "Napięcie tułowia, spokojny oddech.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+function secondPrehab(): Built {
+  return {
+    title: "Prehab i stabilizacja (AM)",
+    sessionType: "Prehab (lekka)",
+    intensity: "niska",
+    durationMin: 20,
+    goalOfSession:
+      "Wzmocnienie odporności bioder, przywodzicieli, ścięgien i łydek.",
+    riskManaged: "Lekka praca prewencyjna — bez przeciążenia.",
+    avoidToday: "Bez ciężkich obciążeń i zrywów.",
+    main: [
+      {
+        name: "Copenhagen (przywodziciele) — lekko",
+        prescription: "2 × 6 na stronę",
+        cue: "Kontrola, bez bólu.",
+        easier: "Wersja z kolan.",
+      },
+      {
+        name: "Nordic curl ekscentryczny — lekko",
+        prescription: "2 × 4",
+        cue: "Powolne opuszczanie, kontrola.",
+        easier: "Mniejszy zakres / podpora.",
+      },
+      {
+        name: "Wspięcia na łydki",
+        prescription: "2 × 12",
+        cue: "Pełen zakres, pauza w górze.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+function secondLightTechnical(): Built {
+  return {
+    title: "Lekka praca techniczna (druga sesja)",
+    sessionType: "Technika (lekka)",
+    intensity: "niska",
+    durationMin: 25,
+    goalOfSession:
+      "Doskonalenie techniki i decyzji przy niskim obciążeniu fizycznym.",
+    riskManaged:
+      "Niska intensywność — bez zrywów maksymalnych i ciężkich nóg w drugiej sesji.",
+    avoidToday: "Bez sprintów i ciężkich obciążeń jako druga sesja dnia.",
+    main: [
+      {
+        name: "Pierwszy kontakt i skanowanie",
+        prescription: "10 min przyjęć kierunkowych",
+        cue: "Skan przed przyjęciem, kontakt w ruch.",
+      },
+      {
+        name: "Podania pod presją czasu",
+        prescription: "10 min, różne dystanse",
+        cue: "Szybka decyzja, celność przed siłą.",
+        harder: "Dodaj słabszą nogę co drugie powtórzenie.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [
+      {
+        name: "Akcja pozycyjna w spokojnym tempie",
+        prescription: "5 min wg roli",
+        cue: "Realizuj zadania swojej pozycji.",
+      },
     ],
   };
 }
@@ -228,17 +536,20 @@ function lowerIntensity(i: Intensity, steps: number): Intensity {
   return INTENSITY_ORDER[idx];
 }
 
-function applyPainSafety(built: Built, profile: Profile): {
+function applyPainSafety(
+  built: Built,
+  profile: Profile,
+): {
   built: Built;
   note: string | null;
 } {
   if (!profile.painInjury) return { built, note: null };
-  // Pain/injury override: blokuj intensywne sprinty, ciężkie nogi, ryzykowne plyo
   const safeMain = built.main.map((m) => {
     if (/sprint|zryw|przyspiesz|przysiad|martwy|wykrok|skok|plyo/i.test(m.name)) {
       return {
         name: "Lekka technika piłkarska (zastąpione)",
         prescription: "spokojne podania i prowadzenie — bez bólu",
+        cue: "Zero bólu, kontroluj tempo.",
       };
     }
     return m;
@@ -247,9 +558,11 @@ function applyPainSafety(built: Built, profile: Profile): {
     built: {
       ...built,
       title: "Sesja z ograniczeniami (ból/uraz)",
+      sessionType: "Sesja ograniczona (ból/uraz)",
       intensity: "niska",
       durationMin: Math.min(built.durationMin, 35),
       main: safeMain,
+      footballTransfer: [],
     },
     note: "Zgłoszony ból/uraz — usunięto sprinty, ciężkie obciążenia nóg i ryzykowne plyometrie. Skonsultuj się ze specjalistą, jeśli ból się utrzymuje.",
   };
@@ -267,10 +580,32 @@ function youthSafety(built: Built, profile: Profile, note: string | null) {
     built: {
       ...built,
       main: filtered.length ? filtered : built.main,
-      intensity: lowerIntensity(built.intensity, built.intensity === "wysoka" ? 1 : 0),
+      intensity: lowerIntensity(
+        built.intensity,
+        built.intensity === "wysoka" ? 1 : 0,
+      ),
     },
     note: note ? note : newNote,
   };
+}
+
+/** Liczba dni od `date` do meczu (dodatnia gdy mecz w przyszłości). */
+function daysToMatch(date: Date, profile: Profile): number | null {
+  if (!profile.matchDate) return null;
+  const match = parseIso(profile.matchDate);
+  const diff = Math.round(
+    (match.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return diff;
+}
+
+function mdLabelFor(date: Date, profile: Profile): string | null {
+  const diff = daysToMatch(date, profile);
+  if (diff === null) return null;
+  if (diff === 0) return "MD";
+  if (diff > 0 && diff <= 6) return `MD-${diff}`;
+  if (diff < 0 && diff >= -6) return `MD+${-diff}`;
+  return null;
 }
 
 function dayTypeFor(date: Date, profile: Profile): DayType {
@@ -285,12 +620,89 @@ function dayTypeFor(date: Date, profile: Profile): DayType {
   return "training";
 }
 
+function builtToSecondSession(
+  built: Built,
+  date: Date,
+  profile: Profile,
+): SessionDay {
+  return {
+    date: isoDate(date),
+    dayName: dayName(date),
+    dayType: built.sessionType.toLowerCase().includes("regener")
+      ? "recovery"
+      : "training",
+    title: built.title,
+    goalLabel: built.sessionType,
+    intensity: built.intensity,
+    durationMin: built.durationMin,
+    reason:
+      "Druga, lekka sesja dnia — dokładana tylko wtedy, gdy jest bezpieczna i sensowna.",
+    safetyNote:
+      "Druga sesja jest zawsze lekka: mobilność, aktywacja, czucie piłki, prehab lub lekka technika.",
+    whyToday:
+      "Twój profil pozwala na dwie sesje dziennie, a dzisiejszy dzień spełnia warunki bezpieczeństwa.",
+    sessionType: built.sessionType,
+    goalOfSession: built.goalOfSession,
+    riskManaged: built.riskManaged,
+    avoidToday: built.avoidToday,
+    mdLabel: mdLabelFor(date, profile),
+    slotLabel: "Druga sesja (lekka)",
+    sections: {
+      warmup: [],
+      main: built.main,
+      accessory: built.accessory,
+      footballTransfer: built.footballTransfer,
+      cooldown: [],
+    },
+    secondSession: null,
+  };
+}
+
+/** Zwraca lekką drugą sesję dnia lub null, zgodnie z regułami bezpieczeństwa. */
+function buildSecondSession(
+  primaryType: DayType,
+  date: Date,
+  profile: Profile,
+): SessionDay | null {
+  const mode = profile.doubleSessionsAllowed;
+  if (mode === "no") return null;
+  if (profile.painInjury) return null;
+  // Nigdy w dniu meczu ani MD-1
+  if (primaryType === "match" || primaryType === "md-1") return null;
+  // Nie dokładaj drugiej sesji do dnia regeneracji
+  if (primaryType === "recovery") return null;
+  // Mecz w ciągu 48 h (dziś, jutro, pojutrze)
+  const diff = daysToMatch(date, profile);
+  if (diff !== null && diff >= 0 && diff <= 2) return null;
+
+  const young = isYoung(profile.age);
+
+  if (primaryType === "club") {
+    // AM lekka + PM klub — kanoniczny, bezpieczny przykład
+    const choices = young
+      ? [secondMobilityActivation(), secondBallMastery()]
+      : [secondBallMastery(), secondMobilityActivation(), secondPrehab()];
+    const pick = choices[(date.getDate() + choices.length) % choices.length];
+    return builtToSecondSession(pick, date, profile);
+  }
+
+  // Dzień własnego treningu
+  if (primaryType === "training") {
+    // "light_only" dokłada drugie sesje tylko w dni klubowe; tu nic.
+    if (mode === "light_only") return null;
+    // "yes_if_safe": dołóż lekką pracę techniczną/mobilność, nigdy sprint+ciężkie nogi
+    const built = young ? secondMobilityActivation() : secondLightTechnical();
+    return builtToSecondSession(built, date, profile);
+  }
+
+  return null;
+}
+
 /** Główny generator — zawsze zwraca bezpieczny plan na 7 dni do przodu. */
 export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
   const startDate = start ?? warsawToday();
   const days: SessionDay[] = [];
 
-  // wzorzec rozłożenia obciążenia, by uniknąć śmieciowej objętości
   let lastWasHard = false;
 
   for (let i = 0; i < 7; i++) {
@@ -298,7 +710,6 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
     const iso = isoDate(date);
     let type = dayTypeFor(date, profile);
 
-    // unikaj dwóch ciężkich dni z rzędu we własnych treningach
     if (type === "training" && lastWasHard) {
       type = "recovery";
     }
@@ -320,14 +731,23 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
           "Brak dodatkowego ciężkiego treningu w dniu meczu. Dobra rozgrzewka i nawodnienie.",
         whyToday:
           "Mecz jest głównym bodźcem dnia. Reszta tygodnia była zaplanowana wokół tej daty.",
+        sessionType: "Mecz",
+        goalOfSession: "Występ meczowy zgodnie z rolą na boisku.",
+        riskManaged:
+          "Bez dodatkowego treningu i ciężkich obciążeń — pełna świeżość na mecz.",
+        avoidToday: "Bez dodatkowych sesji i ciężkich nóg.",
+        mdLabel: "MD",
+        slotLabel: null,
         sections: {
           warmup: [
             { name: "Rozgrzewka przedmeczowa", prescription: "15 min RAMP + piłka" },
           ],
           main: [{ name: "Mecz", prescription: "gra wg roli na boisku" }],
           accessory: [],
+          footballTransfer: [],
           cooldown: cooldown(),
         },
+        secondSession: null,
       };
       lastWasHard = true;
     } else if (type === "club") {
@@ -340,26 +760,27 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
         intensity: "umiarkowana",
         durationMin: 90,
         reason:
-          "Tego dnia masz trening z klubem — liczymy go jako obciążenie. Nie dokładamy własnej sesji.",
+          "Tego dnia masz trening z klubem — liczymy go jako obciążenie. Nie dokładamy ćwiczeń do samego treningu.",
         safetyNote:
           "Trening klubowy to realne obciążenie. Po nim monitoruj odczucia i sen.",
         whyToday:
-          "Trening klubowy jest wliczany do tygodniowego obciążenia, dlatego nie planujemy dodatkowych ćwiczeń.",
+          "Trening klubowy jest wliczany do tygodniowego obciążenia, dlatego to on jest sesją główną dnia.",
+        sessionType: "Trening klubowy (monitoring)",
+        goalOfSession: "Realizacja treningu klubowego jako głównego obciążenia.",
+        riskManaged:
+          "Nie dokładamy ćwiczeń do treningu klubowego — tylko monitoring obciążenia.",
+        avoidToday:
+          "Bez twardego kondycyjnego i ciężkich nóg dodatkowo w tym samym dniu.",
+        mdLabel: mdLabelFor(date, profile),
+        slotLabel: null,
         sections: {
           warmup: [],
-          main: [
-            {
-              name: "Monitoruj trening klubowy",
-              prescription: "oceń ciężkość sesji (RPE 1–10) po zakończeniu",
-            },
-            {
-              name: "Notuj minuty i odczucia",
-              prescription: "zapisz, jak czułeś nogi i intensywność",
-            },
-          ],
+          main: [],
           accessory: [],
+          footballTransfer: [],
           cooldown: [],
         },
+        secondSession: null,
       };
       lastWasHard = true;
     } else if (type === "md-1") {
@@ -383,12 +804,20 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
           "MD-1: tylko aktywacja, brak maksymalnych sprintów i ciężkiego dolnego partii ciała.",
         whyToday:
           "Dzień przed meczem ma Cię odświeżyć, a nie zmęczyć. Stąd lekka aktywacja zamiast ciężkiego treningu.",
+        sessionType: built.sessionType,
+        goalOfSession: built.goalOfSession,
+        riskManaged: built.riskManaged,
+        avoidToday: built.avoidToday,
+        mdLabel: "MD-1",
+        slotLabel: null,
         sections: {
           warmup: warmup(),
           main: built.main,
           accessory: built.accessory,
+          footballTransfer: built.footballTransfer,
           cooldown: cooldown(),
         },
+        secondSession: null,
       };
       lastWasHard = false;
     } else if (type === "recovery") {
@@ -406,16 +835,23 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
         safetyNote: null,
         whyToday:
           "Dzień wcześniej było duże obciążenie — regeneracja przyspiesza adaptację i chroni przed przeciążeniem.",
+        sessionType: built.sessionType,
+        goalOfSession: built.goalOfSession,
+        riskManaged: built.riskManaged,
+        avoidToday: built.avoidToday,
+        mdLabel: mdLabelFor(date, profile),
+        slotLabel: null,
         sections: {
           warmup: [],
           main: built.main,
           accessory: built.accessory,
+          footballTransfer: built.footballTransfer,
           cooldown: cooldown(),
         },
+        secondSession: null,
       };
       lastWasHard = false;
     } else {
-      // własny trening — jeden główny cel sesji
       let built = buildByGoal(profile);
       const pain = applyPainSafety(built, profile);
       built = pain.built;
@@ -432,14 +868,32 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
         reason: `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}. Jeden główny bodziec, bez zbędnej objętości.`,
         safetyNote: youth.note,
         whyToday: `Wybrano dziś, bo dzień jest wolny od meczu i klubu — to dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`,
+        sessionType: built.sessionType,
+        goalOfSession: built.goalOfSession,
+        riskManaged: built.riskManaged,
+        avoidToday: built.avoidToday,
+        mdLabel: mdLabelFor(date, profile),
+        slotLabel: null,
         sections: {
           warmup: warmup(),
           main: built.main,
           accessory: built.accessory,
+          footballTransfer: built.footballTransfer,
           cooldown: cooldown(),
         },
+        secondSession: null,
       };
       lastWasHard = built.intensity === "wysoka";
+    }
+
+    // Druga, lekka sesja (jeśli dozwolona i bezpieczna)
+    const second = buildSecondSession(session.dayType, date, profile);
+    if (second) {
+      session.secondSession = second;
+      session.slotLabel =
+        session.dayType === "club"
+          ? "Sesja główna (PM) — klub"
+          : "Sesja główna";
     }
 
     days.push(session);
@@ -452,6 +906,16 @@ export interface DecisionResult {
   headline: string;
   detail: string;
   adjustment: string | null;
+}
+
+/** Czy druga sesja może zostać dziś (na podstawie gotowości/bólu). */
+export function secondSessionAllowedToday(
+  readiness: Readiness | undefined,
+  profile: Profile,
+): boolean {
+  if (profile.painInjury) return false;
+  if (readiness && readiness.overall < 7) return false;
+  return true;
 }
 
 /** Nakłada logikę readiness/bólu na dzisiejszą sesję i zwraca decyzję. */
@@ -530,6 +994,7 @@ export function applyReadiness(
         warmup: [],
         main: built.main,
         accessory: built.accessory,
+        footballTransfer: [],
         cooldown: cooldown(),
       },
     };
@@ -556,6 +1021,11 @@ export function applyReadiness(
           : session.sections.main,
       },
     };
+  }
+
+  // Druga sesja: usuwana, jeśli gotowość < 7 lub ból
+  if (adjusted.secondSession && !secondSessionAllowedToday(readiness, profile)) {
+    adjusted = { ...adjusted, secondSession: null, slotLabel: null };
   }
 
   if (profile.painInjury) {
