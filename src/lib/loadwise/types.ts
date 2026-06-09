@@ -68,12 +68,20 @@ export interface SessionDay {
   reason: string;
   safetyNote: string | null;
   whyToday: string;
+  sessionType: string;
+  goalOfSession: string;
+  riskManaged: string;
+  avoidToday: string;
+  mdLabel: string | null;
+  slotLabel: string | null;
   sections: {
     warmup: ExerciseItem[];
     main: ExerciseItem[];
     accessory: ExerciseItem[];
+    footballTransfer: ExerciseItem[];
     cooldown: ExerciseItem[];
   };
+  secondSession: SessionDay | null;
 }
 
 export interface TestResult {
