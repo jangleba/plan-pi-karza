@@ -398,7 +398,7 @@ function Onboarding() {
           <Button
             className="w-full"
             size="lg"
-            disabled={isMinor && !consent}
+            disabled={(isMinor && !consent) || !doubleSessions}
             onClick={handleSubmit}
           >
             Zapisz i wygeneruj plan
