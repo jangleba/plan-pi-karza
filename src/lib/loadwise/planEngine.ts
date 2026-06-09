@@ -1075,7 +1075,36 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
       };
       lastWasHard = false;
     } else {
-      let built = buildByGoal(profile);
+      // type === "training": wybór sensownej sesji zamiast domyślnej regeneracji
+      const diff = daysToMatch(date, profile);
+      let built: Built;
+      let reason: string;
+      let whyToday: string;
+
+      if (diff === 2) {
+        built = buildSharpness(profile);
+        reason =
+          "Dwa dni przed meczem (MD-2): ostrość i lekka szybkość, kończysz świeży.";
+        whyToday =
+          "MD-2 to moment na ostrość piłkarską i aktywację — bez dokładania zmęczenia przed meczem.";
+      } else if (diff === -1) {
+        built = buildCompensation(profile);
+        reason =
+          "Dzień po meczu (MD+1): lekka kompensacja i rozruszanie zamiast biernej regeneracji.";
+        whyToday =
+          "Po meczu lekka praca pomaga się rozruszać. Jeśli grałeś dużo lub czujesz się słabo, check-in zmieni to w regenerację.";
+      } else if (lastWasHard && !profile.painInjury) {
+        built = buildLightAlternative(profile);
+        reason =
+          "Dzień po większym obciążeniu: kontrolowana, lżejsza praca zamiast biernej regeneracji.";
+        whyToday =
+          "Wczoraj było duże obciążenie — dziś lżejszy, sensowny bodziec utrzymuje rozwój bez przeciążenia.";
+      } else {
+        built = buildByGoal(profile);
+        reason = `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}. Jeden główny bodziec, bez zbędnej objętości.`;
+        whyToday = `Wybrano dziś, bo dzień jest wolny od meczu i klubu — to dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
+      }
+
       const pain = applyPainSafety(built, profile);
       built = pain.built;
       const youth = youthSafety(built, profile, pain.note);
@@ -1088,9 +1117,9 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
         goalLabel: GOAL_LABELS[profile.goal],
         intensity: built.intensity,
         durationMin: built.durationMin,
-        reason: `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}. Jeden główny bodziec, bez zbędnej objętości.`,
+        reason,
         safetyNote: youth.note,
-        whyToday: `Wybrano dziś, bo dzień jest wolny od meczu i klubu — to dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`,
+        whyToday,
         sessionType: built.sessionType,
         goalOfSession: built.goalOfSession,
         riskManaged: built.riskManaged,
@@ -1108,6 +1137,7 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
       };
       lastWasHard = built.intensity === "wysoka";
     }
+
 
     // Druga, lekka sesja (jeśli dozwolona i bezpieczna)
     const second = buildSecondSession(session.dayType, date, profile);
