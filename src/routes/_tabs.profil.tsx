@@ -115,6 +115,33 @@ function ProfilScreen() {
 
         <div className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Target className="h-3.5 w-3.5" /> Podwójne sesje
+          </div>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Czy możesz trenować 2 razy jednego dnia?
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-2">
+            {(["no", "light_only", "yes_if_safe"] as DoubleSessions[]).map(
+              (opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setDouble(opt)}
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                    p.doubleSessionsAllowed === opt
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-foreground"
+                  }`}
+                >
+                  {DOUBLE_SESSION_LABELS[opt]}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+
+        <div className="soft-card p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Dumbbell className="h-3.5 w-3.5" /> Sprzęt
           </div>
           {p.equipment.length ? (
