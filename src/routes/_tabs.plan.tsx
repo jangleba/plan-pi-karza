@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ShieldCheck,
   ClipboardList,
+  Layers,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/plan")({
