@@ -17,7 +17,6 @@ import {
   Dumbbell,
   ShieldCheck,
   FileDown,
-  Trash2,
   Pencil,
   CircleCheck,
   CircleAlert,
