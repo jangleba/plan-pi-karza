@@ -17,7 +17,10 @@ import {
   Users,
   Lock,
   ArrowRight,
+  Sparkles,
+  Layers,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_tabs/plan")({
   component: PlanScreen,
