@@ -1893,9 +1893,9 @@ function planBlock(
 
     const normal = avail.filter((it) => it.toMatch !== 2);
     const ordered = interleaveStimuli(
-      weeklyStimuli(profile, clubCount, matchCount, phase),
+      seasonWeeklyStimuli(profile, clubCount, matchCount, phase),
     );
-    const cap = profile.painInjury ? 2 : phase === "deload" ? 3 : 5;
+    const { cap } = weekLoadConfig(profile, phase, matchCount > 0);
     const ownCount = Math.min(normal.length, ordered.length, cap);
 
     normal.forEach((it, idx) => {
