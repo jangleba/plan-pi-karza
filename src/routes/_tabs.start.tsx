@@ -164,10 +164,12 @@ function ReadinessDialog({
 
 function StartScreen() {
   const lw = useLoadwise();
-  const { state, todaySession, todayIso } = lw;
+  const { state, todaySession, todayIso, undoModification } = lw;
   const profile = state.profile;
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [modifyOpen, setModifyOpen] = useState(false);
+
 
   if (!todaySession || !profile) {
     return (
