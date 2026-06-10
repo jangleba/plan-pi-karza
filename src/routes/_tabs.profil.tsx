@@ -212,9 +212,7 @@ function ProfilScreen() {
         >
           <LogOut className="h-4 w-4" /> Wyloguj się
         </Button>
-        <div className="pb-1">
-          <Trash2 className="hidden" />
-        </div>
+
 
       </div>
 
