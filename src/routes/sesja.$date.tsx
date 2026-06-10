@@ -180,31 +180,33 @@ function CompletionPanel({ session }: { session: SessionDay }) {
 function ClubMonitoring({ session }: { session: SessionDay }) {
   const [rpe, setRpe] = useState(6);
   const load = session.durationMin * rpe;
+  const steps = [
+    "Zrób trening z drużyną",
+    "Po treningu wpisz RPE",
+    "Zaznacz ból lub zmęczenie",
+    "Zapisz krótki komentarz",
+  ];
   return (
     <>
       <div className="soft-card p-4">
-        <h3 className="text-sm font-semibold">
-          To jest karta monitoringu treningu klubowego.
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Nie dokładamy ćwiczeń — to Twoje główne obciążenie dnia.
+        <h3 className="text-sm font-semibold">Trening klubowy</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          To główne obciążenie dnia.
         </p>
-        <div className="mt-3 flex items-center gap-1.5 text-sm">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          Planowany czas: {session.durationMin} min
-        </div>
+        <ol className="mt-3 space-y-2">
+          {steps.map((s, i) => (
+            <li key={i} className="flex items-center gap-2.5 text-sm">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+                {i + 1}
+              </span>
+              {s}
+            </li>
+          ))}
+        </ol>
       </div>
 
       <div className="soft-card p-4">
-        <h3 className="text-sm font-semibold">Przed treningiem</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Sprawdź swoją gotowość. Jeśli czujesz ból lub duże zmęczenie,
-          odpowiednio dawkuj wysiłek na treningu.
-        </p>
-      </div>
-
-      <div className="soft-card p-4">
-        <h3 className="text-sm font-semibold">Po treningu</h3>
+        <h3 className="text-sm font-semibold">Wpisz RPE po treningu</h3>
         <div className="mt-3">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-medium">RPE (ciężkość) 0–10</span>
@@ -220,21 +222,23 @@ function ClubMonitoring({ session }: { session: SessionDay }) {
         </div>
         <div className="mt-3 divide-y divide-border">
           <LogField label="Ból 0–10" />
-          <LogField label="Bolesność mięśni 0–10" />
-          <LogField label="Zmęczenie 0–10" />
+          <LogField label="Zmęczenie nóg 0–10" />
         </div>
         <div className="mt-3 space-y-2">
           <span className="text-sm text-muted-foreground">Sen / notatki</span>
           <Textarea placeholder="Minuty na boisku, sen, uwagi…" rows={2} />
         </div>
         <div className="mt-3 rounded-lg bg-primary/5 px-3 py-2 text-sm">
-          Szacowane obciążenie ={" "}
-          <span className="font-semibold">{session.durationMin} min × {rpe} RPE = {load}</span>
+          Obciążenie ={" "}
+          <span className="font-semibold">
+            {session.durationMin} min × {rpe} RPE = {load}
+          </span>
         </div>
       </div>
     </>
   );
 }
+
 
 // Krótki komunikat decyzji — max 1 zdanie, tylko jeśli naprawdę potrzebne.
 function shortDecisionNote(session: SessionDay): string | null {
