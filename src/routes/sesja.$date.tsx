@@ -378,54 +378,10 @@ function SessionDetail() {
           </div>
         )}
 
-        <div className="soft-card p-4">
-          <div className="text-sm font-semibold">Cel sesji</div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {session.goalOfSession}
-          </p>
-        </div>
-
-        <div className="soft-card flex gap-2.5 bg-primary/5 p-4">
-          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div>
-            <div className="text-sm font-semibold">Dlaczego dziś?</div>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {session.whyToday}
-            </p>
-          </div>
-        </div>
-
-        <div className="soft-card flex gap-2.5 p-4">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div>
-            <div className="text-sm font-semibold">Zarządzane ryzyko</div>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {session.riskManaged}
-            </p>
-          </div>
-        </div>
-
-        <div className="soft-card flex gap-2.5 p-4">
-          <Ban className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-          <div>
-            <div className="text-sm font-semibold">Czego dziś unikać</div>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {session.avoidToday}
-            </p>
-          </div>
-        </div>
-
-        {session.safetyNote && (
-          <div className="soft-card flex gap-2.5 bg-accent/30 p-4">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-accent-foreground" />
-            <div>
-              <div className="text-sm font-semibold">
-                Dostosowanie bezpieczeństwa
-              </div>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {session.safetyNote}
-              </p>
-            </div>
+        {/* Krótki komunikat decyzji — max 1 zdanie */}
+        {shortNote && (
+          <div className="soft-card bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
+            {shortNote}
           </div>
         )}
 
@@ -433,6 +389,9 @@ function SessionDetail() {
           <ClubMonitoring session={session} />
         ) : (
           <>
+            <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Do wykonania
+            </div>
             <Section title="Rozgrzewka" items={session.sections.warmup} />
             <Section title="Część główna" items={session.sections.main} />
             <Section
@@ -449,6 +408,9 @@ function SessionDetail() {
         )}
 
         <CompletionPanel session={session} />
+
+        {/* Logika decyzji — schowana, domyślnie zamknięta */}
+        <DecisionLogic session={session} />
       </div>
     </div>
   );
