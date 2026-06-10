@@ -36,7 +36,34 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 const positions: Position[] = ["goalkeeper", "defender", "midfielder", "forward"];
-const levels: Level[] = ["beginner", "intermediate", "advanced"];
+const levels: Level[] = ["beginner", "intermediate", "advanced", "elite"];
+const seasonPhases: SeasonPhase[] = [
+  "offseason",
+  "preseason",
+  "inseason",
+  "transition",
+  "return_injury",
+];
+const seasonStages: SeasonStage[] = [
+  "season_start",
+  "season_mid",
+  "season_end",
+  "winter_break",
+  "between_rounds",
+  "no_match_week",
+  "match_week",
+];
+const competitionLevels: CompetitionLevel[] = [
+  "academy",
+  "b_klasa",
+  "a_klasa",
+  "okregowka",
+  "iv_liga",
+  "iii_liga",
+  "ii_liga_plus",
+  "semi_pro",
+  "pro",
+];
 const goals: Goal[] = [
   "speed",
   "strength",
