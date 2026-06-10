@@ -17,7 +17,10 @@ import {
   Users,
   Lock,
   ArrowRight,
+  Sparkles,
+  Layers,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_tabs/plan")({
   component: PlanScreen,
@@ -85,6 +88,8 @@ function weekSummary(
 
   const ownSessions = week.filter((d) => d.dayType === "training").length;
   const clubSessions = week.filter((d) => d.dayType === "club").length;
+  const doubleDays = week.filter((d) => !!d.secondSession).length;
+  const microSessions = week.filter((d) => !!d.secondSession).length;
   const matchDay = week.find((d) => d.dayType === "match");
 
   // Obciążenie tygodnia = najwyższa częsta intensywność.
@@ -92,7 +97,16 @@ function weekSummary(
   const hasMod = week.some((d) => d.intensity === "umiarkowana");
   const load: Intensity = hasHigh ? "wysoka" : hasMod ? "umiarkowana" : "niska";
 
-  return { ...block, ownSessions, clubSessions, matchDay, load };
+  return {
+    ...block,
+    ownSessions,
+    clubSessions,
+    doubleDays,
+    microSessions,
+    matchDay,
+    load,
+  };
+
 }
 
 function PlanScreen() {
@@ -222,13 +236,22 @@ function PlanScreen() {
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Dumbbell className="h-4 w-4 shrink-0" />
-                <span>Sesje własne: {summary.ownSessions}</span>
+                <span>Sesje główne: {summary.ownSessions}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span>Mikrotreningi: {summary.microSessions}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>Treningi klubowe: {summary.clubSessions}</span>
               </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Layers className="h-4 w-4 shrink-0" />
+                <span>Podwójne dni: {summary.doubleDays}</span>
+              </div>
             </div>
+
           </div>
         </div>
       )}
