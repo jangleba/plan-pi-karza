@@ -179,14 +179,20 @@ function StartScreen() {
     );
   }
 
+  const todayMods = state.modifications[todayIso] ?? [];
+  const swapMod = todayMods.find((m) => m.type === "swap");
+  const addMods = todayMods.filter((m) => m.type === "add");
+
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const { session: adjustedToday } = applyReadiness(session, readiness, profile);
+  const { session: adjustedBase } = applyReadiness(session, readiness, profile);
+  const adjustedToday = swapMod ? swapMod.session : adjustedBase;
 
   const matchDate = profile.matchDate;
   const isMatch = session.dayType === "match";
   const isRestLike =
     session.dayType === "rest" || session.dayType === "recovery";
+
 
   function openSession() {
     navigate({
