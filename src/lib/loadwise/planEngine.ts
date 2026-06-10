@@ -190,7 +190,7 @@ function buildByGoal(profile: Profile): Built {
       };
     case "endurance":
       return {
-        title: "Sesja wytrzymałości specjalnej",
+        title: "Interwały piłkarskie kontrolowane",
         sessionType: "Wytrzymałość",
         intensity: "umiarkowana",
         durationMin: young ? 45 : 55,
@@ -650,7 +650,7 @@ function dayTypeFor(date: Date, profile: Profile): DayType {
   if (daysSinceMatch(date, profile) === 1) return "recovery";
   // 6. Wt–czw nie są domyślnie pustymi placeholderami: jeśli nie ma bólu,
   // meczu, klubu ani MD+1, wstawiamy aktywny niski bodziec zamiast "wolne".
-  if (!profile.painInjury && [2, 3, 4].includes(isoDayOfWeek(date)))
+  if (!profile.painInjury && [1, 2, 3, 4].includes(isoDayOfWeek(date)))
     return "training";
   // 7. Pełne wolne zostaje głównie na koniec tygodnia lub realne ograniczenia.
   return "rest";
@@ -663,6 +663,11 @@ function isPlannedIndividualDay(date: Date, profile: Profile): boolean {
 function activeMidweekStimulus(date: Date, phase: WeekPhase): Stimulus {
   const dow = isoDayOfWeek(date);
   if (phase === "deload") return dow === 3 ? "ball" : "prehab";
+  if (dow === 1) {
+    if (phase === "adaptation") return "prehab";
+    if (phase === "development") return "ball";
+    return "endurance_light";
+  }
   if (dow === 2) return "ball";
   if (dow === 3) return "prehab";
   return "endurance_light";
