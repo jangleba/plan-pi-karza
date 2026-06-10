@@ -747,10 +747,10 @@ function buildSecondSession(
   const young = isYoung(profile.age);
 
   if (primaryType === "club") {
-    // AM lekka + PM klub — kanoniczny, bezpieczny przykład
+    // Club day + krótka, lekka sesja własna (technika/prehab) — dobra para.
     const choices = young
-      ? [secondMobilityActivation(), secondBallMastery()]
-      : [secondBallMastery(), secondMobilityActivation(), secondPrehab()];
+      ? [secondFootballTouch(), secondMobilityPrehab()]
+      : [secondFootballTouch(), secondMobilityPrehab(), secondBallTechnique()];
     const pick = choices[(date.getDate() + choices.length) % choices.length];
     return builtToSecondSession(pick, date, profile);
   }
@@ -759,8 +759,9 @@ function buildSecondSession(
   if (primaryType === "training") {
     // "light_only" dokłada drugie sesje tylko w dni klubowe; tu nic.
     if (mode === "light_only") return null;
-    // "yes_if_safe": dołóż lekką pracę techniczną/mobilność, nigdy sprint+ciężkie nogi
-    const built = young ? secondMobilityActivation() : secondLightTechnical();
+    // "yes_if_safe": druga sesja uzupełnia bodziec główny wg celu,
+    // nigdy sprint + ciężkie nogi tego samego dnia.
+    const built = young ? secondMobilityPrehab() : pickSecondForTraining(profile);
     return builtToSecondSession(built, date, profile);
   }
 
