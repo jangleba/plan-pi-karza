@@ -155,7 +155,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes, logRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes, modRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("athlete_profiles")
@@ -174,6 +174,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .from("session_logs")
           .select("session_id, completed, rpe, notes")
           .eq("user_id", user.id),
+        supabase
+          .from("session_modifications" as never)
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .order("created_at", { ascending: true }),
       ]);
 
       const profile = buildProfile(
