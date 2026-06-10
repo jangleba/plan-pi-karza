@@ -654,6 +654,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completeSession,
         applyModification,
         undoModification,
+        confirmWeeklyTransition,
         saveReadiness,
         addTest,
         updateScouting,
