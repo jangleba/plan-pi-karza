@@ -14,6 +14,9 @@ import type {
   ScoutingData,
   SessionDay,
   SessionCompletion,
+  SessionModification,
+  ModificationType,
+  SessionStatus,
 } from "./types";
 import { generatePlan } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
