@@ -262,7 +262,7 @@ function Onboarding() {
       </div>
 
       <div className="px-5 pt-6">
-        {step === 0 && (
+        {step === 1 && (
           <div className="space-y-5">
             <div>
               <h2 className="text-xl font-semibold">Zaczynamy</h2>
