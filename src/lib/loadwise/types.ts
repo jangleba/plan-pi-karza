@@ -130,6 +130,14 @@ export interface SessionModification {
   createdAt: string;
 }
 
+export interface WeeklyTransition {
+  id: string;
+  weekNumber: number; // 1-based index of the week that was just finished
+  nextMatchDate: string | null; // yyyy-MM-dd
+  noMatchNextWeek: boolean;
+  confirmedAt: string;
+}
+
 export interface LoadwiseState {
   profile: Profile | null;
   plan: SessionDay[];
@@ -139,4 +147,5 @@ export interface LoadwiseState {
   tests: TestResult[];
   scouting: ScoutingData;
   modifications: Record<string, SessionModification[]>; // keyed by date
+  transitions: Record<number, WeeklyTransition>; // keyed by week_number
 }
