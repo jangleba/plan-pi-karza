@@ -413,6 +413,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         pain_injury: profile.painInjury,
         double_sessions_allowed: profile.doubleSessionsAllowed,
         guardian_consent: profile.guardianConsent,
+        season_phase: profile.seasonPhase,
+        season_stage: profile.seasonStage,
+        competition_level: profile.competitionLevel,
+        weekly_matches: profile.weeklyMatches,
+        has_gym: profile.hasGym,
+        has_pitch: profile.hasPitch,
+        has_sprint_space: profile.hasSprintSpace,
       },
       { onConflict: "user_id" },
     );
