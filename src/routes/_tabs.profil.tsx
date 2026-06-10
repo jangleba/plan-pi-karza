@@ -207,11 +207,23 @@ function ProfilScreen() {
 
         <Button
           variant="outline"
+          className="w-full gap-2"
+          onClick={async () => {
+            await restartOnboarding();
+            navigate({ to: "/onboarding" });
+          }}
+        >
+          <Pencil className="h-4 w-4" /> Resetuj onboarding (od nowa)
+        </Button>
+
+        <Button
+          variant="outline"
           className="w-full gap-2 text-destructive"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" /> Wyloguj się
         </Button>
+
 
 
       </div>
