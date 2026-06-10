@@ -512,7 +512,68 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .eq("id", id);
   }
 
-  function saveReadiness(r: Readiness) {
+  // Weekly gate: zapisuje datę kolejnego meczu i przebudowuje kolejny tydzień planu.
+  async function confirmWeeklyTransition(
+    weekNumber: number,
+    nextMatchDate: string | null,
+    noMatchNextWeek: boolean,
+  ) {
+    if (!user) return;
+    const profile = state.profile;
+    if (!profile) return;
+
+    // weekNumber jest 1-based dla ZAKOŃCZONEGO tygodnia.
+    // Kolejny tydzień zaczyna się od indeksu weekNumber*7 (0-based).
+    const startIdx = weekNumber * 7;
+    const current = state.plan;
+    let newPlan = current;
+
+    if (current[startIdx]) {
+      const weekStart = parseIso(current[startIdx].date);
+      // Profil tymczasowy: tylko podana data meczu steruje taperem.
+      const tempProfile: Profile = {
+        ...profile,
+        usualMatchDay: "no_fixed_day",
+        matchDate: noMatchNextWeek ? null : nextMatchDate,
+      };
+      const regenDays = Math.min(7, current.length - startIdx);
+      const fresh = generatePlan(tempProfile, weekStart, regenDays);
+      newPlan = [
+        ...current.slice(0, startIdx),
+        ...fresh,
+        ...current.slice(startIdx + regenDays),
+      ];
+      // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
+      await persistMonthlyPlan(user.id, profile, newPlan);
+    }
+
+    const id =
+      state.transitions[weekNumber]?.id ?? crypto.randomUUID();
+    const transition: WeeklyTransition = {
+      id,
+      weekNumber,
+      nextMatchDate: noMatchNextWeek ? null : nextMatchDate,
+      noMatchNextWeek,
+      confirmedAt: new Date().toISOString(),
+    };
+
+    setState((s) => ({
+      ...s,
+      plan: newPlan,
+      transitions: { ...s.transitions, [weekNumber]: transition },
+    }));
+
+    await supabase.from("weekly_transitions" as never).upsert(
+      {
+        id,
+        user_id: user.id,
+        week_number: weekNumber,
+        next_match_date: transition.nextMatchDate,
+        no_match_next_week: noMatchNextWeek,
+        confirmed_at: transition.confirmedAt,
+      } as never,
+      { onConflict: "user_id,week_number" } as never,
+    );
     setState((s) => {
       const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
       persistLocal(next);
