@@ -139,7 +139,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("athlete_profiles")
@@ -154,6 +154,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("session_logs")
+          .select("session_id, completed, rpe, notes")
+          .eq("user_id", user.id),
       ]);
 
       const profile = buildProfile(
@@ -170,12 +174,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
       }
 
+      const completions: Record<string, SessionCompletion> = {};
+      for (const row of (logRes.data as AnyRow[] | null) ?? []) {
+        const sid = row.session_id as string | null;
+        if (!sid) continue;
+        completions[sid] = {
+          completed: Boolean(row.completed),
+          rpe: (row.rpe as number) ?? null,
+          notes: (row.notes as string) ?? "",
+        };
+      }
+
       if (cancelled) return;
       setState({
         profile,
         plan,
         planGeneratedFor,
         readiness: local.readiness,
+        completions,
         tests: local.tests,
         scouting: local.scouting,
       });
@@ -200,17 +216,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   async function savePlanToDb(profile: Profile): Promise<SessionDay[]> {
     const plan = generatePlan(profile, warsawToday());
     if (user) {
-      await supabase
-        .from("training_plans")
-        .update({ status: "archived" })
-        .eq("user_id", user.id)
-        .eq("status", "active");
-      await supabase.from("training_plans").insert({
-        user_id: user.id,
-        goal: profile.goal,
-        plan_json: plan as unknown as never,
-        status: "active",
-      });
+      await persistMonthlyPlan(user.id, profile, plan);
     }
     return plan;
   }
