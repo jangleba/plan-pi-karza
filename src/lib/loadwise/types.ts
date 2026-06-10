@@ -101,11 +101,18 @@ export interface ScoutingData {
   opportunities: { id: string; title: string; detail: string }[];
 }
 
+export interface SessionCompletion {
+  completed: boolean;
+  rpe: number | null;
+  notes: string;
+}
+
 export interface LoadwiseState {
   profile: Profile | null;
   plan: SessionDay[];
   planGeneratedFor: string | null; // date plan starts
   readiness: Record<string, Readiness>;
+  completions: Record<string, SessionCompletion>; // keyed by session dbId
   tests: TestResult[];
   scouting: ScoutingData;
 }
