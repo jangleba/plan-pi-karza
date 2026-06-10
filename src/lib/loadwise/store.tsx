@@ -12,8 +12,10 @@ import type {
   TestResult,
   ScoutingData,
   SessionDay,
+  SessionCompletion,
 } from "./types";
 import { generatePlan } from "./planEngine";
+import { persistMonthlyPlan } from "./persist";
 import { warsawToday, isoDate } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
@@ -31,6 +33,7 @@ const initialState: LoadwiseState = {
   plan: [],
   planGeneratedFor: null,
   readiness: {},
+  completions: {},
   tests: [],
   scouting: emptyScouting,
 };
