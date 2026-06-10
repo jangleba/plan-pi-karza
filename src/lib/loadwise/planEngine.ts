@@ -961,60 +961,126 @@ type Stimulus =
   | "power" // moc/siła eksplozywna (plyo jako element, nie osobny trening)
   | "sprint" // sprint/akceleracja
   | "speed_micro" // krótki bodziec szybkościowy / technika biegu / reakcja
-  | "endurance" // główny bodziec biegowy/wydolnościowy
-  | "endurance_light" // krótszy bodziec tlenowy
+  | "endurance_aerobic" // baza tlenowa / tempo
+  | "endurance_special" // wytrzymałość specjalna / interwały ekstensywne / bieg pozycyjny
+  | "endurance_rsa" // zdolność do powtarzanego sprintu (RSA) / wysoka specyfika
+  | "endurance_deload" // wytrzymałość w deloadzie — ostrość, mała objętość
+  | "endurance_light" // krótszy bodziec tlenowy (wspierający)
   | "ball" // piłka / technika
   | "prehab"; // mobilność / prehab / stabilizacja
 
-const HARD_STIMULI: Stimulus[] = ["strength", "power", "sprint", "endurance"];
+const HARD_STIMULI: Stimulus[] = [
+  "strength",
+  "power",
+  "sprint",
+  "endurance_special",
+  "endurance_rsa",
+];
 
 function isHardStimulus(s: Stimulus): boolean {
   return HARD_STIMULI.includes(s);
 }
 
-/** Czy zawodnik ma realny dostęp do siłowni / wolnych ciężarów. */
-function hasGym(profile: Profile): boolean {
-  return profile.equipment.some((e) => /siłow|hantl|sztang|ciężar/i.test(e));
+export type WeekPhase = "adaptation" | "development" | "peak" | "deload";
+
+/** Rola tygodnia w periodyzacji 4-tygodniowej. */
+export function phaseOf(weekIndex: number, totalWeeks: number): WeekPhase {
+  if (totalWeeks <= 1) return "development";
+  if (weekIndex === totalWeeks - 1) return "deload";
+  if (weekIndex === 0) return "adaptation";
+  if (weekIndex === 1) return "development";
+  return "peak";
 }
 
-/** Uporządkowana lista bodźców na tydzień wg celu, z minimum coverage. */
+/** Rotujący główny bodziec wytrzymałościowy zależny od fazy tygodnia. */
+function enduranceMainForPhase(phase: WeekPhase): Stimulus {
+  switch (phase) {
+    case "adaptation":
+      return "endurance_aerobic";
+    case "development":
+      return "endurance_special";
+    case "peak":
+      return "endurance_rsa";
+    case "deload":
+    default:
+      return "endurance_deload";
+  }
+}
+
+/**
+ * Uporządkowana lista bodźców na tydzień wg celu i fazy periodyzacji.
+ * Każdy tydzień ma inną tożsamość: adaptacja → rozwój → szczyt → deload.
+ */
 function weeklyStimuli(
   profile: Profile,
   clubCount: number,
   matchCount: number,
+  phase: WeekPhase,
 ): Stimulus[] {
   const noClubOrMatch = clubCount + matchCount === 0;
   const clubCoversBall = clubCount >= 1 || matchCount >= 1;
-  const out: Stimulus[] = [];
+  const deload = phase === "deload";
+  let out: Stimulus[] = [];
 
   switch (profile.goal) {
     case "strength":
-      // 2 jednostki siła/moc, plus zachowane minimum.
-      out.push("strength", "power", "sprint", "ball");
-      if (noClubOrMatch) out.push("endurance_light");
-      out.push("prehab");
+      if (deload) {
+        out = ["strength", "ball", "speed_micro", "prehab"];
+      } else if (phase === "peak") {
+        out = ["strength", "power", "sprint", "ball", "prehab"];
+      } else if (phase === "development") {
+        out = ["strength", "power", "ball", "speed_micro", "prehab"];
+      } else {
+        out = ["strength", "ball", "speed_micro", "prehab"];
+      }
+      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
     case "speed":
-      out.push("sprint", "speed_micro", "power", "ball");
-      if (noClubOrMatch) out.push("endurance_light");
-      out.push("prehab");
+      if (deload) {
+        out = ["speed_micro", "ball", "power", "prehab"];
+      } else if (phase === "peak") {
+        out = ["sprint", "power", "speed_micro", "ball", "prehab"];
+      } else if (phase === "development") {
+        out = ["sprint", "speed_micro", "power", "ball", "prehab"];
+      } else {
+        out = ["speed_micro", "sprint", "ball", "prehab"];
+      }
+      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
-    case "endurance":
-      out.push("endurance", "endurance_light", "strength", "speed_micro");
-      if (!clubCoversBall) out.push("ball");
-      out.push("prehab");
+    case "endurance": {
+      const main = enduranceMainForPhase(phase);
+      if (deload) {
+        out = [main, "ball", "speed_micro", "prehab"];
+      } else if (phase === "peak") {
+        out = [main, "endurance_light", "speed_micro", "strength", "prehab"];
+      } else if (phase === "development") {
+        out = [main, "ball", "strength", "endurance_light", "prehab"];
+      } else {
+        // adaptation
+        out = [main, "ball", "speed_micro", "strength", "prehab"];
+      }
+      if (!clubCoversBall && !out.includes("ball")) out.splice(1, 0, "ball");
       break;
+    }
     case "mobility":
-      out.push("prehab", "ball", "endurance_light", "speed_micro", "strength");
+      out = ["prehab", "ball", "endurance_light", "speed_micro"];
+      if (!deload) out.push("strength");
       break;
     case "return":
-      out.push("prehab", "ball", "endurance_light");
+      out = ["prehab", "ball", "endurance_light"];
       break;
     case "matchready":
     default:
-      out.push("sprint", "strength", "ball");
-      if (noClubOrMatch) out.push("endurance_light");
-      out.push("speed_micro", "prehab");
+      if (deload) {
+        out = ["ball", "speed_micro", "prehab"];
+      } else if (phase === "peak") {
+        out = ["sprint", "ball", "strength", "speed_micro", "prehab"];
+      } else if (phase === "development") {
+        out = ["strength", "ball", "sprint", "speed_micro", "prehab"];
+      } else {
+        out = ["ball", "sprint", "speed_micro", "prehab"];
+      }
+      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
   }
   return out;
@@ -1033,7 +1099,11 @@ function planStimuli(
   const map: Record<string, Stimulus> = {};
   if (profile.goal === "return" || profile.painInjury) return map;
 
+  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+
   for (let blockStart = 0; blockStart < days; blockStart += 7) {
+    const weekIndex = Math.floor(blockStart / 7);
+    const phase = phaseOf(weekIndex, totalWeeks);
     const trainingDates: string[] = [];
     let clubCount = 0;
     let matchCount = 0;
@@ -1052,9 +1122,12 @@ function planStimuli(
 
     if (trainingDates.length === 0) continue;
 
-    const desired = weeklyStimuli(profile, clubCount, matchCount);
-    // Wypełniacze na wypadek większej liczby dni niż priorytetów.
-    const fillers: Stimulus[] = ["ball", "prehab", "endurance_light", "speed_micro"];
+    const desired = weeklyStimuli(profile, clubCount, matchCount, phase);
+    // Wypełniacze zależne od fazy — w deloadzie tylko lekkie bodźce.
+    const fillers: Stimulus[] =
+      phase === "deload"
+        ? ["ball", "prehab", "endurance_light"]
+        : ["ball", "prehab", "endurance_light", "speed_micro"];
 
     trainingDates.forEach((iso, idx) => {
       const stim =
