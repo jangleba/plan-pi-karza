@@ -243,6 +243,19 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         (modifications[mod.date] ??= []).push(mod);
       }
 
+      const transitions: Record<number, WeeklyTransition> = {};
+      for (const row of (transRes.data as AnyRow[] | null) ?? []) {
+        const wn = Number(row.week_number);
+        if (!Number.isFinite(wn)) continue;
+        transitions[wn] = {
+          id: row.id as string,
+          weekNumber: wn,
+          nextMatchDate: (row.next_match_date as string) ?? null,
+          noMatchNextWeek: Boolean(row.no_match_next_week),
+          confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
+        };
+      }
+
       if (cancelled) return;
       setState({
         profile,
@@ -253,6 +266,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         tests: local.tests,
         scouting: local.scouting,
         modifications,
+        transitions,
       });
       setHydrated(true);
     })();
