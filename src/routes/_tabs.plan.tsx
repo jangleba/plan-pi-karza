@@ -186,6 +186,7 @@ function weekSummary(
     ...block,
     ownSessions,
     clubSessions,
+    matchCount,
     doubleDays,
     recoveryDays,
     matchDay,
