@@ -313,7 +313,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }));
   }
 
-  // Generuje plan miesięczny TYLKO jeśli aktywnego planu jeszcze nie ma.
+  // Resetuje onboarding (np. do testów). Użytkownik wypełni go ponownie.
+  async function restartOnboarding() {
+    if (!user) return;
+    await supabase
+      .from("profiles")
+      .upsert(
+        { user_id: user.id, onboarding_completed: false },
+        { onConflict: "user_id" },
+      );
+    setState((s) => ({
+      ...s,
+      profile: s.profile ? { ...s.profile, onboardingComplete: false } : null,
+    }));
+  }
+
+
   // Nie regenerujemy planu przy każdym otwarciu ekranu.
   function refreshPlanIfNeeded() {
     const profile = state.profile;
