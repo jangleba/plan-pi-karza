@@ -1163,6 +1163,7 @@ function planStimuli(
   profile: Profile,
   startDate: Date,
   days: number,
+  weekOffset = 0,
 ): Record<string, Stimulus> {
   const map: Record<string, Stimulus> = {};
 
@@ -1170,7 +1171,8 @@ function planStimuli(
 
   for (let blockStart = 0; blockStart < days; blockStart += 7) {
     const weekIndex = Math.floor(blockStart / 7);
-    const phase = phaseOf(weekIndex, totalWeeks);
+    const phaseTotal = days <= 7 ? 4 : totalWeeks;
+    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
     const trainingDates: string[] = [];
     let clubCount = 0;
     let matchCount = 0;
@@ -1706,10 +1708,11 @@ export function generatePlan(
   profile: Profile,
   start?: Date,
   days = 28,
+  weekOffset = 0,
 ): SessionDay[] {
   const startDate = start ?? warsawToday();
   const out: SessionDay[] = [];
-  const stimulusMap = planStimuli(profile, startDate, days);
+  const stimulusMap = planStimuli(profile, startDate, days, weekOffset);
 
   let lastWasHard = false;
 
