@@ -1358,6 +1358,182 @@ function buildPrehab(_profile: Profile): Built {
   };
 }
 
+/** Tydz. 1 (adaptacja): baza tlenowa / tempo — wejście w rytm. */
+function buildEnduranceAerobic(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  return {
+    title: "Baza tlenowa i tempo",
+    sessionType: "Wytrzymałość tlenowa (baza)",
+    intensity: "umiarkowana",
+    durationMin: young ? 40 : 50,
+    goalOfSession:
+      "Budowa bazy tlenowej i ekonomii biegu — wejście w rytm na początku bloku.",
+    riskManaged:
+      "Tempo kontrolowane, ekstensywne — bez twardych interwałów na starcie bloku.",
+    avoidToday: "Bez maksymalnych zrywów i twardego kondycyjnego.",
+    main: [
+      {
+        name: "Ciągły bieg tlenowy",
+        prescription: `${young ? 14 : 18} min, tętno tlenowe`,
+        cue: "Równe, konwersacyjne tempo, kontroluj oddech.",
+        easier: "Marszobieg w blokach.",
+      },
+      {
+        name: "Tempo ekstensywne",
+        prescription: `${young ? 6 : 8} × 100 m luźnego tempa, trucht powrót`,
+        rest: "trucht 100 m",
+        cue: "Relaks w barkach, równe tempo, nie na czas.",
+        harder: young ? undefined : "Dołóż 2 powtórzenia.",
+      },
+    ],
+    accessory: [
+      {
+        name: "Prowadzenie piłki tempem",
+        prescription: "6 × 40 m luźno",
+        cue: "Miękkie kontakty, głowa do góry.",
+      },
+    ],
+    footballTransfer: [
+      {
+        name: "Obieg pozycyjny z podaniem",
+        prescription: "4 × bieg na pozycję + podanie",
+        cue: "Skan przed przyjęciem.",
+      },
+    ],
+  };
+}
+
+/** Tydz. 2 (rozwój): wytrzymałość specjalna / interwały ekstensywne / bieg pozycyjny. */
+function buildEnduranceSpecial(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  return {
+    title: "Wytrzymałość specjalna (interwały)",
+    sessionType: "Wytrzymałość specjalna",
+    intensity: young ? "umiarkowana" : "wysoka",
+    durationMin: young ? 45 : 55,
+    goalOfSession:
+      "Rozwój wytrzymałości specjalnej i zdolności do powtarzanego wysiłku z piłką.",
+    riskManaged:
+      "Kontrolowana objętość interwałów — bez twardej pracy na 48 h przed meczem.",
+    avoidToday: "Bez interwałów MD-2/MD-1 i długich biegów na zmęczeniu.",
+    main: [
+      {
+        name: "Interwały ekstensywne z piłką",
+        prescription: `${young ? 6 : 8} × 1 min bieg / 1 min trucht`,
+        rest: "1 min trucht",
+        cue: "Równe tempo, kontrola oddechu na każdym powtórzeniu.",
+        easier: "Skróć do 4–5 powtórzeń.",
+        harder: young ? undefined : "Skróć przerwę do 45 s.",
+      },
+      {
+        name: "Gra na małym polu (symulacja)",
+        prescription: "4 × 3 min, przerwa 2 min",
+        rest: "2 min",
+        cue: "Aktywne ustawianie się, szybka decyzja.",
+      },
+    ],
+    accessory: [
+      {
+        name: "Bieg pozycyjny wg roli",
+        prescription: "6 × powtarzalny obieg na pozycji",
+        cue: "Realizuj wzorce biegowe swojej pozycji.",
+      },
+    ],
+    footballTransfer: [
+      {
+        name: "Akcja pozycyjna z podaniem",
+        prescription: "8 min wg roli",
+        cue: "Skan przed przyjęciem, decyzja przed kontaktem.",
+      },
+    ],
+  };
+}
+
+/** Tydz. 3 (szczyt): RSA / wysoka specyfika, kontrolowana objętość. */
+function buildEnduranceRSA(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  const reps = young ? 6 : 10;
+  return {
+    title: "Powtarzalne sprinty (RSA)",
+    sessionType: "Zdolność do powtarzanego sprintu (RSA)",
+    intensity: "wysoka",
+    durationMin: young ? 40 : 50,
+    goalOfSession:
+      "Zdolność do powtarzanego wysiłku sprinterskiego — najwyższy specyficzny bodziec bloku.",
+    riskManaged: `Kontrolowana objętość (${reps} powtórzeń) i pełne przerwy chronią mechanikę — przerwij przy spadku jakości.`,
+    avoidToday:
+      "Nie dla 13–15 lat domyślnie w pełnej formie. Bez RSA na MD-2/MD-1 i przy zmęczeniu nóg.",
+    main: [
+      {
+        name: "Powtarzalne sprinty",
+        prescription: `${reps} × 20–25 m, przerwa 30–40 s`,
+        rest: "30–40 s aktywnej przerwy",
+        cue: "Maksymalna jakość biegu, utrzymaj mechanikę do końca.",
+        easier: "Skróć do 6 × 20 m lub wydłuż przerwy.",
+        harder: young ? undefined : "Seria 2 × (5 × 20 m), 3 min między seriami.",
+      },
+      {
+        name: "Powtarzalny wysiłek z piłką",
+        prescription: "4 × 45 s prowadzenie + akcja / 45 s trucht",
+        rest: "45 s trucht",
+        cue: "Wysoka intensywność z kontrolą piłki.",
+      },
+    ],
+    accessory: [
+      {
+        name: "Mobilność i prehab tylnej taśmy",
+        prescription: "6 min: przywodziciele, tylne uda, łydki",
+        cue: "Kontrola, przygotuj się na kolejne powtórzenia.",
+      },
+    ],
+    footballTransfer: [
+      {
+        name: "Sprint + akcja wg pozycji",
+        prescription: "4 × sprint + wykończenie/podanie",
+        cue: "Decyzja pod zmęczeniem, jakość ponad ilość.",
+      },
+    ],
+  };
+}
+
+/** Tydz. 4 (deload): ostrość wytrzymałościowa, mała objętość, świeżość. */
+function buildEnduranceDeload(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  return {
+    title: "Ostrość wytrzymałościowa (deload)",
+    sessionType: "Wytrzymałość — deload / ostrość",
+    intensity: "umiarkowana",
+    durationMin: young ? 30 : 35,
+    goalOfSession:
+      "Podtrzymanie wydolności przy małej objętości — konsolidacja i świeżość na końcu bloku.",
+    riskManaged:
+      "Wyraźnie obniżona objętość względem szczytu — utrzymujesz formę bez zmęczenia.",
+    avoidToday: "Bez dużej objętości interwałów i biegów na zmęczeniu.",
+    main: [
+      {
+        name: "Krótkie tempo z piłką",
+        prescription: `${young ? 4 : 6} × 40 m tempo, trucht powrót`,
+        rest: "trucht 40 m",
+        cue: "Płynnie i lekko, jakość ruchu ponad objętość.",
+      },
+      {
+        name: "Gra/technika w tempie",
+        prescription: "2 × 3 min lekkiej gry, przerwa 2 min",
+        rest: "2 min",
+        cue: "Aktywnie, ale kończysz świeży.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [
+      {
+        name: "Akcja pozycyjna w spokojnym tempie",
+        prescription: "6 min wg roli",
+        cue: "Realizuj zadania swojej pozycji.",
+      },
+    ],
+  };
+}
+
 /** Buduje sesję dla danego bodźca tygodniowego. */
 function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
   switch (stimulus) {
@@ -1369,8 +1545,14 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
       return buildByGoal({ ...profile, goal: "speed" });
     case "speed_micro":
       return buildSpeedMicro(profile);
-    case "endurance":
-      return buildByGoal({ ...profile, goal: "endurance" });
+    case "endurance_aerobic":
+      return buildEnduranceAerobic(profile);
+    case "endurance_special":
+      return buildEnduranceSpecial(profile);
+    case "endurance_rsa":
+      return buildEnduranceRSA(profile);
+    case "endurance_deload":
+      return buildEnduranceDeload(profile);
     case "endurance_light":
       return buildEnduranceLight(profile);
     case "ball":
