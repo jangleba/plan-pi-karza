@@ -150,6 +150,24 @@ function Onboarding() {
   const [individualDays, setIndividualDays] = useState<number[]>(
     existing?.individualTrainingDays ?? [],
   );
+  const [seasonPhase, setSeasonPhase] = useState<SeasonPhase | null>(
+    existing?.seasonPhase ?? null,
+  );
+  const [seasonStage, setSeasonStage] = useState<SeasonStage | null>(
+    existing?.seasonStage ?? null,
+  );
+  const [competitionLevel, setCompetitionLevel] =
+    useState<CompetitionLevel | null>(existing?.competitionLevel ?? null);
+  const [weeklyMatches, setWeeklyMatches] = useState(
+    existing?.weeklyMatches ?? true,
+  );
+  const [hasGym, setHasGym] = useState(
+    existing?.hasGym ?? false,
+  );
+  const [hasPitch, setHasPitch] = useState(existing?.hasPitch ?? true);
+  const [hasSprintSpace, setHasSprintSpace] = useState(
+    existing?.hasSprintSpace ?? true,
+  );
   const [matchDayChoice, setMatchDayChoice] = useState<
     "sat" | "sun" | "other" | "none" | null
   >(
