@@ -225,7 +225,13 @@ function Onboarding() {
     if (step === 0) return requiredConsentsOk;
     if (step === 1)
       return name.trim().length > 0 && ageNum >= 13 && ageNum <= 60;
-    if (step === 2) return position !== null && level !== null;
+    if (step === 2)
+      return (
+        position !== null &&
+        level !== null &&
+        seasonPhase !== null &&
+        competitionLevel !== null
+      );
     if (step === 3) return goal !== null;
     if (step === 4) return doubleSessions !== null && individualDays.length > 0;
     return true;
