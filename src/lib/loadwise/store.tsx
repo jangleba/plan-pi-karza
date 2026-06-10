@@ -296,19 +296,46 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }));
   }
 
+  // Generuje plan miesięczny TYLKO jeśli aktywnego planu jeszcze nie ma.
+  // Nie regenerujemy planu przy każdym otwarciu ekranu.
   function refreshPlanIfNeeded() {
-    setState((s) => {
-      if (!s.profile?.onboardingComplete) return s;
-      if (s.planGeneratedFor === todayIso && s.plan.length > 0) return s;
-      const profile = s.profile;
-      // regenerate + persist asynchronously
-      savePlanToDb(profile);
-      return {
-        ...s,
-        plan: generatePlan(profile, warsawToday()),
-        planGeneratedFor: todayIso,
-      };
-    });
+    const profile = state.profile;
+    if (!profile?.onboardingComplete) return;
+    if (state.plan.length > 0) return;
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    (async () => {
+      try {
+        const plan = await savePlanToDb(profile);
+        setState((s) => ({ ...s, plan, planGeneratedFor: todayIso }));
+      } finally {
+        generatingRef.current = false;
+      }
+    })();
+  }
+
+  async function completeSession(
+    session: SessionDay,
+    rpe: number | null,
+    notes: string,
+  ) {
+    const sid = session.dbId;
+    if (!user || !sid) return;
+    const completion: SessionCompletion = { completed: true, rpe, notes };
+    setState((s) => ({
+      ...s,
+      completions: { ...s.completions, [sid]: completion },
+    }));
+    await supabase.from("session_logs").upsert(
+      {
+        user_id: user.id,
+        session_id: sid,
+        completed: true,
+        rpe,
+        notes,
+      },
+      { onConflict: "user_id,session_id" },
+    );
   }
 
   function saveReadiness(r: Readiness) {
