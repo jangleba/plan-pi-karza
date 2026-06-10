@@ -662,7 +662,10 @@ function isPlannedIndividualDay(date: Date, profile: Profile): boolean {
 
 function activeMidweekStimulus(date: Date, phase: WeekPhase): Stimulus {
   const dow = isoDayOfWeek(date);
-  if (phase === "deload") return dow === 3 ? "ball" : "prehab";
+  if (phase === "deload") {
+    if (dow === 1) return "endurance_light";
+    return dow === 3 ? "ball" : "prehab";
+  }
   if (dow === 1) {
     if (phase === "adaptation") return "prehab";
     if (phase === "development") return "ball";
