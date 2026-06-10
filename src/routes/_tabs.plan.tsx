@@ -498,7 +498,7 @@ function PlanScreen() {
         />
       )}
 
-      <div className="h-[120px]" />
+      <div className="h-[140px]" />
     </div>
 
   );

@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-periodized-global-v3";
+export const PLAN_ENGINE_VERSION = "loadwise-microcycle-v4";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -648,45 +648,7 @@ function mdLabelFor(date: Date, profile: Profile): string | null {
   return null;
 }
 
-function dayTypeFor(date: Date, profile: Profile): DayType {
-  // 1. Mecz ma priorytet nad wszystkim.
-  if (isMatchDay(date, profile)) return "match";
-  // 2. MD-1 (dzień przed meczem) — lekki.
-  if (daysToMatch(date, profile) === 1) return "md-1";
-  // 3. Trening klubowy = realne obciążenie.
-  if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
-  // 4. Sesje Loadwise w wybranych dniach indywidualnych.
-  if (profile.individualTrainingDays.includes(isoDayOfWeek(date)))
-    return "training";
-  // 5. MD+1 zwykle regeneracja/niska intensywność.
-  if (daysSinceMatch(date, profile) === 1) return "recovery";
-  // 6. Wt–czw nie są domyślnie pustymi placeholderami: jeśli nie ma bólu,
-  // meczu, klubu ani MD+1, wstawiamy aktywny niski bodziec zamiast "wolne".
-  if (!profile.painInjury && [1, 2, 3, 4].includes(isoDayOfWeek(date)))
-    return "training";
-  // 7. Pełne wolne zostaje głównie na koniec tygodnia lub realne ograniczenia.
-  return "rest";
-}
 
-function isPlannedIndividualDay(date: Date, profile: Profile): boolean {
-  return profile.individualTrainingDays.includes(isoDayOfWeek(date));
-}
-
-function activeMidweekStimulus(date: Date, phase: WeekPhase): Stimulus {
-  const dow = isoDayOfWeek(date);
-  if (phase === "deload") {
-    if (dow === 1) return "endurance_light";
-    return dow === 3 ? "ball" : "prehab";
-  }
-  if (dow === 1) {
-    if (phase === "adaptation") return "prehab";
-    if (phase === "development") return "ball";
-    return "endurance_light";
-  }
-  if (dow === 2) return "ball";
-  if (dow === 3) return "prehab";
-  return "endurance_light";
-}
 
 function builtToSecondSession(
   built: Built,
@@ -1184,65 +1146,7 @@ function weeklyStimuli(
   return out;
 }
 
-/**
- * Przypisuje bodziec do każdego indywidualnego dnia treningowego w obrębie
- * każdego 7-dniowego bloku planu. MD-2 i MD+1 zostają obsłużone osobno
- * (ostrość / kompensacja), więc nie biorą udziału w dystrybucji.
- */
-function planStimuli(
-  profile: Profile,
-  startDate: Date,
-  days: number,
-  weekOffset = 0,
-): Record<string, Stimulus> {
-  const map: Record<string, Stimulus> = {};
 
-  const totalWeeks = Math.max(1, Math.ceil(days / 7));
-
-  for (let blockStart = 0; blockStart < days; blockStart += 7) {
-    const weekIndex = Math.floor(blockStart / 7);
-    const phaseTotal = days <= 7 ? 4 : totalWeeks;
-    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
-    const trainingDates: string[] = [];
-    let clubCount = 0;
-    let matchCount = 0;
-
-    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
-      const date = addDays(startDate, i);
-      const type = dayTypeFor(date, profile);
-      if (type === "club") clubCount++;
-      if (type === "match") matchCount++;
-      if (type !== "training") continue;
-      if (!isPlannedIndividualDay(date, profile)) {
-        map[isoDate(date)] = activeMidweekStimulus(date, phase);
-        continue;
-      }
-      // MD-2 (ostrość) i MD+1 (kompensacja) mają dedykowane sesje.
-      if (daysToMatch(date, profile) === 2) continue;
-      if (daysSinceMatch(date, profile) === 1) continue;
-      trainingDates.push(isoDate(date));
-    }
-
-    if (trainingDates.length === 0) continue;
-
-    const desired = weeklyStimuli(profile, clubCount, matchCount, phase);
-    // Wypełniacze zależne od fazy — w deloadzie tylko lekkie bodźce.
-    const fillers: Stimulus[] =
-      phase === "deload"
-        ? ["ball", "prehab", "endurance_light"]
-        : ["ball", "prehab", "endurance_light", "speed_exposure"];
-
-    trainingDates.forEach((iso, idx) => {
-      const stim =
-        idx < desired.length
-          ? desired[idx]
-          : fillers[(idx - desired.length) % fillers.length];
-      map[iso] = stim;
-    });
-  }
-
-  return map;
-}
 
 // ---------- Buildery sesji wg bodźca ----------
 
@@ -1733,6 +1637,109 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
   }
 }
 
+// ============================================================
+// Tygodniowy planer mikrocyklu (week-level microcycle planner)
+// Zamiast oznaczać każdy dzień osobno (co dawało 7 "treningów własnych",
+// 5 podwójnych dni i wolne weekendy), budujemy realny mikrocykl:
+// mecz / MD-1 / klub / MD+1 są stałe, a dni dostępne dostają bodźce celu
+// (siła, sprint/COD, kondycja, piłka, prehab) + regenerację, bez losowych
+// dni wolnych i bez powtarzanych placeholderów.
+// ============================================================
+
+type BaseDayType = "match" | "md-1" | "club" | "md+1" | "available";
+
+function baseDayType(date: Date, profile: Profile): BaseDayType {
+  if (isMatchDay(date, profile)) return "match";
+  if (daysToMatch(date, profile) === 1) return "md-1";
+  if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
+  if (daysSinceMatch(date, profile) === 1) return "md+1";
+  return "available";
+}
+
+/** Rozdziela bodźce tak, by twarde nie wypadały dzień po dniu. */
+function interleaveStimuli(list: Stimulus[]): Stimulus[] {
+  const hard = list.filter(isHardStimulus);
+  const soft = list.filter((s) => !isHardStimulus(s));
+  const out: Stimulus[] = [];
+  while (hard.length || soft.length) {
+    if (hard.length) out.push(hard.shift()!);
+    if (soft.length) out.push(soft.shift()!);
+  }
+  return out;
+}
+
+interface PlanCell {
+  type: DayType;
+  stimulus?: Stimulus;
+}
+
+/**
+ * Buduje mapę dni planu (per 7-dniowy blok). Każdy dzień dostaje konkretny
+ * typ, a dni treningowe — konkretny bodziec. Bez losowych dni wolnych:
+ * nadmiarowe dni dostępne stają się aktywną regeneracją, nie pustym "wolne".
+ */
+function planBlock(
+  profile: Profile,
+  startDate: Date,
+  days: number,
+  weekOffset = 0,
+): Record<string, PlanCell> {
+  const result: Record<string, PlanCell> = {};
+  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+
+  for (let blockStart = 0; blockStart < days; blockStart += 7) {
+    const weekIndex = Math.floor(blockStart / 7);
+    const phaseTotal = days <= 7 ? 4 : totalWeeks;
+    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+
+    const items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[] = [];
+    let clubCount = 0;
+    let matchCount = 0;
+
+    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
+      const date = addDays(startDate, i);
+      const base = baseDayType(date, profile);
+      if (base === "club") clubCount++;
+      if (base === "match") matchCount++;
+      items.push({ iso: isoDate(date), date, base, toMatch: daysToMatch(date, profile) });
+    }
+
+    // Dni stałe: mecz / MD-1 / klub / MD+1 (regeneracja).
+    for (const it of items) {
+      if (it.base === "match") result[it.iso] = { type: "match" };
+      else if (it.base === "md-1") result[it.iso] = { type: "md-1" };
+      else if (it.base === "club") result[it.iso] = { type: "club" };
+      else if (it.base === "md+1") result[it.iso] = { type: "recovery" };
+    }
+
+    const avail = items.filter((it) => it.base === "available");
+    // MD-2 zawsze zostaje dniem ostrości (sesja specjalna w głównej pętli).
+    const md2 = avail.filter((it) => it.toMatch === 2);
+    for (const it of md2) result[it.iso] = { type: "training" };
+
+    const normal = avail.filter((it) => it.toMatch !== 2);
+    const ordered = interleaveStimuli(
+      weeklyStimuli(profile, clubCount, matchCount, phase),
+    );
+    const cap = profile.painInjury ? 2 : phase === "deload" ? 3 : 5;
+    const ownCount = Math.min(normal.length, ordered.length, cap);
+
+    normal.forEach((it, idx) => {
+      if (idx < ownCount) {
+        result[it.iso] = { type: "training", stimulus: ordered[idx] };
+      } else {
+        // Nadmiarowe dni dostępne → aktywna regeneracja (nie losowe "wolne").
+        result[it.iso] = { type: "recovery" };
+      }
+    });
+  }
+
+  return result;
+}
+
+/** Maks. liczba podwójnych dni w tygodniu — bez automatycznych 5 dubli. */
+const MAX_DOUBLES_PER_WEEK = 2;
+
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 export function generatePlan(
   profile: Profile,
@@ -1742,15 +1749,18 @@ export function generatePlan(
 ): SessionDay[] {
   const startDate = start ?? warsawToday();
   const out: SessionDay[] = [];
-  const stimulusMap = planStimuli(profile, startDate, days, weekOffset);
+  const blockMap = planBlock(profile, startDate, days, weekOffset);
 
   let lastWasHard = false;
+  let doublesThisWeek = 0;
 
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    const type = dayTypeFor(date, profile);
+    if (i % 7 === 0) doublesThisWeek = 0;
+    const cell = blockMap[iso];
+    const type: DayType = cell?.type ?? "rest";
 
     let session: SessionDay;
 
@@ -1943,7 +1953,7 @@ export function generatePlan(
         whyToday =
           "Po meczu lekka praca pomaga się rozruszać. Jeśli grałeś dużo lub czujesz się słabo, check-in zmieni to w regenerację.";
       } else {
-        const stimulus = stimulusMap[iso];
+        const stimulus = cell?.stimulus;
         if (
           lastWasHard &&
           !profile.painInjury &&
@@ -2001,14 +2011,19 @@ export function generatePlan(
     }
 
 
-    // Druga, lekka sesja (jeśli dozwolona i bezpieczna)
-    const second = buildSecondSession(session.dayType, date, profile);
-    if (second) {
-      session.secondSession = second;
-      session.slotLabel =
-        session.dayType === "club"
-          ? "Sesja główna (PM) — klub"
-          : "Sesja główna";
+    // Druga, lekka sesja — tylko jeśli dozwolona, bezpieczna i w limicie
+    // tygodniowym (bez automatycznych 5 podwójnych dni).
+    if (doublesThisWeek < MAX_DOUBLES_PER_WEEK) {
+      const second = buildSecondSession(session.dayType, date, profile);
+      if (second) {
+        session.secondSession = second;
+        session.slotLabel =
+          session.dayType === "club"
+            ? "Sesja 1 (PM) — klub"
+            : "Sesja 1";
+        second.slotLabel = "Sesja 2 (lekka)";
+        doublesThisWeek++;
+      }
     }
 
     session.generatorVersion = PLAN_ENGINE_VERSION;
