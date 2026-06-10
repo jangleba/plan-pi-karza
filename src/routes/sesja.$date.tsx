@@ -4,6 +4,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { applyReadiness } from "@/lib/loadwise/planEngine";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
+import { ModifySheet } from "@/components/loadwise/ModifySheet";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import type { ExerciseItem, SessionDay } from "@/lib/loadwise/types";
@@ -13,6 +15,9 @@ import {
   Target,
   Flag,
   CheckCircle2,
+  Plus,
+  Repeat,
+  Undo2,
 } from "lucide-react";
 import {
   Accordion,
@@ -20,6 +25,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
   slot: Number(s.slot) === 2 ? 2 : 1,
