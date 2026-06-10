@@ -207,6 +207,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      const modifications: Record<string, SessionModification[]> = {};
+      for (const row of (modRes.data as AnyRow[] | null) ?? []) {
+        const mod = rowToModification(row);
+        if (!mod) continue;
+        (modifications[mod.date] ??= []).push(mod);
+      }
+
       if (cancelled) return;
       setState({
         profile,
@@ -216,6 +223,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completions,
         tests: local.tests,
         scouting: local.scouting,
+        modifications,
       });
       setHydrated(true);
     })();
