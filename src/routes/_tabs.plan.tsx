@@ -333,7 +333,62 @@ function PlanScreen() {
         })}
       </div>
 
+      {/* Podsumowanie tygodnia + weekly gate */}
+      {hasNext && current.length > 0 && (
+        <div className="px-5 pt-5">
+          <div className="soft-card p-4">
+            <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {nextConfirmed
+                ? nextTransition?.noMatchNextWeek
+                  ? "Brak meczu — tydzień bez taperu."
+                  : `Kolejny mecz: ${formatDate(nextTransition!.nextMatchDate!)}.`
+                : "Zanim ruszysz dalej, podaj kolejny mecz."}
+            </p>
+
+            <Button
+              className="mt-3 w-full"
+              onClick={() => {
+                if (nextConfirmed) setActiveWeek(nextIndex);
+                else setGateWeek(nextIndex);
+              }}
+            >
+              Przejdź do kolejnego tygodnia
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+
+            {nextConfirmed && (
+              <button
+                type="button"
+                onClick={() => setGateWeek(nextIndex)}
+                className="mt-2 w-full text-center text-xs font-medium text-primary"
+              >
+                Zmień datę meczu
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {gateWeek !== null && gateWeekDays.length > 0 && (
+        <WeeklyGateSheet
+          open={gateWeek !== null}
+          onOpenChange={(v) => {
+            if (!v) setGateWeek(null);
+          }}
+          weekNumber={gateWeek}
+          nextWeekStart={gateWeekDays[0].date}
+          nextWeekEnd={gateWeekDays[gateWeekDays.length - 1].date}
+          onConfirmed={() => {
+            const target = gateWeek;
+            setGateWeek(null);
+            if (target !== null) setActiveWeek(target);
+          }}
+        />
+      )}
+
       <div className="h-[120px]" />
     </div>
+
   );
 }
