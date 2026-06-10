@@ -19,7 +19,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-50"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
     >
-      <div className="app-shell">
+      <div className="mx-auto w-full max-w-[30rem]">
         <div className="mx-3 flex items-center justify-between gap-1 rounded-[1.6rem] border border-border/60 bg-card/80 px-1.5 py-1.5 shadow-[0_10px_40px_oklch(0.21_0.04_258_/_0.18)] backdrop-blur-xl">
           {items.map((item) => {
             const active =
