@@ -957,10 +957,13 @@ function buildLightAlternative(profile: Profile): Built {
 // ============================================================
 
 type Stimulus =
+  | "strength_base" // technika / baza siły
   | "strength" // główna siła (gym lub bazowa)
+  | "strength_deload" // podtrzymanie siły w deloadzie
   | "power" // moc/siła eksplozywna (plyo jako element, nie osobny trening)
   | "sprint" // sprint/akceleracja
-  | "speed_micro" // krótki bodziec szybkościowy / technika biegu / reakcja
+  | "speed_exposure" // krótka ekspozycja szybkościowa / technika biegu / reakcja
+  | "cod" // zmiana kierunku / hamowanie / zwinność
   | "endurance_aerobic" // baza tlenowa / tempo
   | "endurance_special" // wytrzymałość specjalna / interwały ekstensywne / bieg pozycyjny
   | "endurance_rsa" // zdolność do powtarzanego sprintu (RSA) / wysoka specyfika
@@ -970,9 +973,11 @@ type Stimulus =
   | "prehab"; // mobilność / prehab / stabilizacja
 
 const HARD_STIMULI: Stimulus[] = [
+  "strength_base",
   "strength",
   "power",
   "sprint",
+  "cod",
   "endurance_special",
   "endurance_rsa",
 ];
