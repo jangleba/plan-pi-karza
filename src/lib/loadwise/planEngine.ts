@@ -1165,6 +1165,10 @@ function planStimuli(
       if (type === "club") clubCount++;
       if (type === "match") matchCount++;
       if (type !== "training") continue;
+      if (!isPlannedIndividualDay(date, profile)) {
+        map[isoDate(date)] = activeMidweekStimulus(date, phase);
+        continue;
+      }
       // MD-2 (ostrość) i MD+1 (kompensacja) mają dedykowane sesje.
       if (daysToMatch(date, profile) === 2) continue;
       if (daysSinceMatch(date, profile) === 1) continue;
