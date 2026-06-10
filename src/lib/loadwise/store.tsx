@@ -416,7 +416,76 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  function saveReadiness(r: Readiness) {
+  async function applyModification(
+    date: string,
+    type: ModificationType,
+    session: SessionDay,
+    originalSession: SessionDay | null,
+    reason: string,
+  ) {
+    if (!user) return;
+    const id = crypto.randomUUID();
+    const safetyStatus: SessionStatus =
+      type === "swap" ? "swapped_by_user" : "added_by_user";
+    const mod: SessionModification = {
+      id,
+      date,
+      type,
+      reason,
+      safetyStatus,
+      session,
+      originalSession,
+      createdAt: new Date().toISOString(),
+    };
+    setState((s) => {
+      const existing = s.modifications[date] ?? [];
+      // Tylko jedna zamiana naraz na dany dzień.
+      const filtered =
+        type === "swap" ? existing.filter((m) => m.type !== "swap") : existing;
+      return {
+        ...s,
+        modifications: { ...s.modifications, [date]: [...filtered, mod] },
+      };
+    });
+    if (type === "swap") {
+      await supabase
+        .from("session_modifications" as never)
+        .update({ active: false } as never)
+        .eq("user_id", user.id)
+        .eq("date", date)
+        .eq("type", "swap");
+    }
+    await supabase.from("session_modifications" as never).insert({
+      id,
+      user_id: user.id,
+      date,
+      type,
+      reason,
+      safety_status: safetyStatus,
+      original_session_id: originalSession?.dbId ?? null,
+      new_session_id: session.dbId ?? null,
+      original_session_json: originalSession,
+      new_session_json: session,
+      active: true,
+    } as never);
+  }
+
+  async function undoModification(date: string, id: string) {
+    if (!user) return;
+    setState((s) => {
+      const existing = s.modifications[date] ?? [];
+      const next = existing.filter((m) => m.id !== id);
+      const map = { ...s.modifications };
+      if (next.length) map[date] = next;
+      else delete map[date];
+      return { ...s, modifications: map };
+    });
+    await supabase
+      .from("session_modifications" as never)
+      .update({ active: false } as never)
+      .eq("user_id", user.id)
+      .eq("id", id);
+  }
     setState((s) => {
       const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
       persistLocal(next);
