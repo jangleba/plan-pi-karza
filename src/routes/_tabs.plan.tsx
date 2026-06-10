@@ -191,8 +191,9 @@ function PlanScreen() {
   const monthGoal = profile ? GOAL_LABELS[profile.goal] : "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
   const summary = current.length
-    ? weekSummary(activeWeek, weeks.length, current)
+    ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
     : null;
+
 
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
