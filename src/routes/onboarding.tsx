@@ -243,6 +243,11 @@ function Onboarding() {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
+    if (!seasonPhase || !competitionLevel) {
+      toast.error("Wybierz okres sezonu i poziom rozgrywkowy.");
+      setStep(2);
+      return;
+    }
     if (isMinor && !consent) {
       toast.error("Potrzebna jest zgoda rodzica/opiekuna.");
       return;
