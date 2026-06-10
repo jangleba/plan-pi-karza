@@ -319,21 +319,20 @@ function PlanScreen() {
                 <span>
                   {summary.matchDay
                     ? `Mecz: ${formatDate(summary.matchDay.date)}`
-                    : "Mecz: brak"}
+                    : "Mecze: brak"}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Dumbbell className="h-4 w-4 shrink-0" />
-                <span>Sesje Loadwise: {summary.ownSessions}</span>
+                <span>Treningi własne: {summary.ownSessions}</span>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Leaf className="h-4 w-4 shrink-0" />
-                <span>Regeneracja / aktywacja: {summary.recoveryDays}</span>
-              </div>
-
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>Treningi klubowe: {summary.clubSessions}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Leaf className="h-4 w-4 shrink-0" />
+                <span>Regeneracja / prehab: {summary.recoveryDays}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Layers className="h-4 w-4 shrink-0" />
