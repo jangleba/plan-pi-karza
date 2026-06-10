@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { LoadwiseProvider } from "../lib/loadwise/store";
+import { AuthProvider } from "../lib/loadwise/auth";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
