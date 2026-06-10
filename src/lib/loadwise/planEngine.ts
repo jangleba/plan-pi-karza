@@ -1733,6 +1733,109 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
   }
 }
 
+// ============================================================
+// Tygodniowy planer mikrocyklu (week-level microcycle planner)
+// Zamiast oznaczać każdy dzień osobno (co dawało 7 "treningów własnych",
+// 5 podwójnych dni i wolne weekendy), budujemy realny mikrocykl:
+// mecz / MD-1 / klub / MD+1 są stałe, a dni dostępne dostają bodźce celu
+// (siła, sprint/COD, kondycja, piłka, prehab) + regenerację, bez losowych
+// dni wolnych i bez powtarzanych placeholderów.
+// ============================================================
+
+type BaseDayType = "match" | "md-1" | "club" | "md+1" | "available";
+
+function baseDayType(date: Date, profile: Profile): BaseDayType {
+  if (isMatchDay(date, profile)) return "match";
+  if (daysToMatch(date, profile) === 1) return "md-1";
+  if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
+  if (daysSinceMatch(date, profile) === 1) return "md+1";
+  return "available";
+}
+
+/** Rozdziela bodźce tak, by twarde nie wypadały dzień po dniu. */
+function interleaveStimuli(list: Stimulus[]): Stimulus[] {
+  const hard = list.filter(isHardStimulus);
+  const soft = list.filter((s) => !isHardStimulus(s));
+  const out: Stimulus[] = [];
+  while (hard.length || soft.length) {
+    if (hard.length) out.push(hard.shift()!);
+    if (soft.length) out.push(soft.shift()!);
+  }
+  return out;
+}
+
+interface PlanCell {
+  type: DayType;
+  stimulus?: Stimulus;
+}
+
+/**
+ * Buduje mapę dni planu (per 7-dniowy blok). Każdy dzień dostaje konkretny
+ * typ, a dni treningowe — konkretny bodziec. Bez losowych dni wolnych:
+ * nadmiarowe dni dostępne stają się aktywną regeneracją, nie pustym "wolne".
+ */
+function planBlock(
+  profile: Profile,
+  startDate: Date,
+  days: number,
+  weekOffset = 0,
+): Record<string, PlanCell> {
+  const result: Record<string, PlanCell> = {};
+  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+
+  for (let blockStart = 0; blockStart < days; blockStart += 7) {
+    const weekIndex = Math.floor(blockStart / 7);
+    const phaseTotal = days <= 7 ? 4 : totalWeeks;
+    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+
+    const items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[] = [];
+    let clubCount = 0;
+    let matchCount = 0;
+
+    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
+      const date = addDays(startDate, i);
+      const base = baseDayType(date, profile);
+      if (base === "club") clubCount++;
+      if (base === "match") matchCount++;
+      items.push({ iso: isoDate(date), date, base, toMatch: daysToMatch(date, profile) });
+    }
+
+    // Dni stałe: mecz / MD-1 / klub / MD+1 (regeneracja).
+    for (const it of items) {
+      if (it.base === "match") result[it.iso] = { type: "match" };
+      else if (it.base === "md-1") result[it.iso] = { type: "md-1" };
+      else if (it.base === "club") result[it.iso] = { type: "club" };
+      else if (it.base === "md+1") result[it.iso] = { type: "recovery" };
+    }
+
+    const avail = items.filter((it) => it.base === "available");
+    // MD-2 zawsze zostaje dniem ostrości (sesja specjalna w głównej pętli).
+    const md2 = avail.filter((it) => it.toMatch === 2);
+    for (const it of md2) result[it.iso] = { type: "training" };
+
+    const normal = avail.filter((it) => it.toMatch !== 2);
+    const ordered = interleaveStimuli(
+      weeklyStimuli(profile, clubCount, matchCount, phase),
+    );
+    const cap = profile.painInjury ? 2 : phase === "deload" ? 3 : 5;
+    const ownCount = Math.min(normal.length, ordered.length, cap);
+
+    normal.forEach((it, idx) => {
+      if (idx < ownCount) {
+        result[it.iso] = { type: "training", stimulus: ordered[idx] };
+      } else {
+        // Nadmiarowe dni dostępne → aktywna regeneracja (nie losowe "wolne").
+        result[it.iso] = { type: "recovery" };
+      }
+    });
+  }
+
+  return result;
+}
+
+/** Maks. liczba podwójnych dni w tygodniu — bez automatycznych 5 dubli. */
+const MAX_DOUBLES_PER_WEEK = 2;
+
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 export function generatePlan(
   profile: Profile,
@@ -1742,9 +1845,10 @@ export function generatePlan(
 ): SessionDay[] {
   const startDate = start ?? warsawToday();
   const out: SessionDay[] = [];
-  const stimulusMap = planStimuli(profile, startDate, days, weekOffset);
+  const blockMap = planBlock(profile, startDate, days, weekOffset);
 
   let lastWasHard = false;
+  let doublesThisWeek = 0;
 
 
   for (let i = 0; i < days; i++) {
