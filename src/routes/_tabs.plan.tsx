@@ -4,6 +4,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
+import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
+import { Button } from "@/components/ui/button";
 import type { SessionDay, Intensity } from "@/lib/loadwise/types";
 import {
   Clock,
@@ -13,6 +15,8 @@ import {
   CalendarClock,
   Dumbbell,
   Users,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/plan")({
@@ -96,18 +100,53 @@ function PlanScreen() {
   const plan = state.plan;
   const completions = state.completions;
   const profile = state.profile;
+  const transitions = state.transitions;
   const [activeWeek, setActiveWeek] = useState(0);
+  const [gateWeek, setGateWeek] = useState<number | null>(null);
 
   const weeks: SessionDay[][] = [];
   for (let i = 0; i < plan.length; i += 7) {
     weeks.push(plan.slice(i, i + 7));
   }
 
+  // Tydzień 0 zawsze dostępny. Kolejny tydzień i dostępny tylko po
+  // potwierdzeniu weekly gate (transitions[i]).
+  const canAccess = (i: number) => i === 0 || !!transitions[i];
+
+  // Najwcześniejszy nieodblokowany tydzień na drodze do i.
+  const firstLockedUpTo = (i: number): number | null => {
+    for (let j = 1; j <= i; j++) {
+      if (!transitions[j]) return j;
+    }
+    return null;
+  };
+
+  const openTab = (i: number) => {
+    if (canAccess(i)) {
+      setActiveWeek(i);
+      return;
+    }
+    const locked = firstLockedUpTo(i);
+    if (locked !== null) setGateWeek(locked);
+  };
+
   const monthGoal = profile ? GOAL_LABELS[profile.goal] : "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
   const summary = current.length
     ? weekSummary(activeWeek, weeks.length, current)
     : null;
+
+  // Czy istnieje kolejny tydzień po aktywnym?
+  const nextIndex = activeWeek + 1;
+  const hasNext = nextIndex < weeks.length;
+  const nextConfirmed = !!transitions[nextIndex];
+  const nextTransition = transitions[nextIndex];
+
+  // Granice kolejnego tygodnia (dla bramki).
+  const gateNextIndex = gateWeek;
+  const gateWeekDays =
+    gateNextIndex !== null ? weeks[gateNextIndex] ?? [] : [];
+
 
   return (
     <div>
@@ -126,22 +165,29 @@ function PlanScreen() {
       {/* Przełącznik tygodni */}
       {weeks.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-5 pb-1 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {weeks.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setActiveWeek(i)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                i === activeWeek
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              Tydzień {i + 1}
-            </button>
-          ))}
+          {weeks.map((_, i) => {
+            const locked = !canAccess(i);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => openTab(i)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  i === activeWeek
+                    ? "bg-primary text-primary-foreground"
+                    : locked
+                      ? "bg-secondary/60 text-muted-foreground"
+                      : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                {locked && <Lock className="h-3.5 w-3.5" />}
+                Tydzień {i + 1}
+              </button>
+            );
+          })}
         </div>
       )}
+
 
       {/* Karta podsumowania tygodnia */}
       {summary && (
@@ -287,7 +333,62 @@ function PlanScreen() {
         })}
       </div>
 
+      {/* Podsumowanie tygodnia + weekly gate */}
+      {hasNext && current.length > 0 && (
+        <div className="px-5 pt-5">
+          <div className="soft-card p-4">
+            <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {nextConfirmed
+                ? nextTransition?.noMatchNextWeek
+                  ? "Brak meczu — tydzień bez taperu."
+                  : `Kolejny mecz: ${formatDate(nextTransition!.nextMatchDate!)}.`
+                : "Zanim ruszysz dalej, podaj kolejny mecz."}
+            </p>
+
+            <Button
+              className="mt-3 w-full"
+              onClick={() => {
+                if (nextConfirmed) setActiveWeek(nextIndex);
+                else setGateWeek(nextIndex);
+              }}
+            >
+              Przejdź do kolejnego tygodnia
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+
+            {nextConfirmed && (
+              <button
+                type="button"
+                onClick={() => setGateWeek(nextIndex)}
+                className="mt-2 w-full text-center text-xs font-medium text-primary"
+              >
+                Zmień datę meczu
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {gateWeek !== null && gateWeekDays.length > 0 && (
+        <WeeklyGateSheet
+          open={gateWeek !== null}
+          onOpenChange={(v) => {
+            if (!v) setGateWeek(null);
+          }}
+          weekNumber={gateWeek}
+          nextWeekStart={gateWeekDays[0].date}
+          nextWeekEnd={gateWeekDays[gateWeekDays.length - 1].date}
+          onConfirmed={() => {
+            const target = gateWeek;
+            setGateWeek(null);
+            if (target !== null) setActiveWeek(target);
+          }}
+        />
+      )}
+
       <div className="h-[120px]" />
     </div>
+
   );
 }

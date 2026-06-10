@@ -17,10 +17,11 @@ import type {
   SessionModification,
   ModificationType,
   SessionStatus,
+  WeeklyTransition,
 } from "./types";
 import { generatePlan } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
-import { warsawToday, isoDate } from "./labels";
+import { warsawToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
@@ -41,6 +42,7 @@ const initialState: LoadwiseState = {
   tests: [],
   scouting: emptyScouting,
   modifications: {},
+  transitions: {},
 };
 
 // ---- local-only state (readiness/tests/scouting), namespaced per user ----
@@ -149,6 +151,11 @@ interface LoadwiseContextValue {
     reason: string,
   ) => Promise<void>;
   undoModification: (date: string, id: string) => Promise<void>;
+  confirmWeeklyTransition: (
+    weekNumber: number,
+    nextMatchDate: string | null,
+    noMatchNextWeek: boolean,
+  ) => Promise<void>;
   saveReadiness: (r: Readiness) => void;
   addTest: (t: TestResult) => void;
   updateScouting: (s: Partial<ScoutingData>) => void;
@@ -178,7 +185,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes, logRes, modRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes, modRes, transRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("athlete_profiles")
@@ -203,6 +210,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .eq("user_id", user.id)
           .eq("active", true)
           .order("created_at", { ascending: true }),
+        supabase
+          .from("weekly_transitions" as never)
+          .select("*")
+          .eq("user_id", user.id),
       ]);
 
       const profile = buildProfile(
@@ -237,6 +248,19 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         (modifications[mod.date] ??= []).push(mod);
       }
 
+      const transitions: Record<number, WeeklyTransition> = {};
+      for (const row of (transRes.data as AnyRow[] | null) ?? []) {
+        const wn = Number(row.week_number);
+        if (!Number.isFinite(wn)) continue;
+        transitions[wn] = {
+          id: row.id as string,
+          weekNumber: wn,
+          nextMatchDate: (row.next_match_date as string) ?? null,
+          noMatchNextWeek: Boolean(row.no_match_next_week),
+          confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
+        };
+      }
+
       if (cancelled) return;
       setState({
         profile,
@@ -247,6 +271,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         tests: local.tests,
         scouting: local.scouting,
         modifications,
+        transitions,
       });
       setHydrated(true);
     })();
@@ -487,6 +512,70 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .eq("id", id);
   }
 
+  // Weekly gate: zapisuje datę kolejnego meczu i przebudowuje kolejny tydzień planu.
+  async function confirmWeeklyTransition(
+    weekNumber: number,
+    nextMatchDate: string | null,
+    noMatchNextWeek: boolean,
+  ) {
+    if (!user) return;
+    const profile = state.profile;
+    if (!profile) return;
+
+    // weekNumber jest 1-based dla ZAKOŃCZONEGO tygodnia.
+    // Kolejny tydzień zaczyna się od indeksu weekNumber*7 (0-based).
+    const startIdx = weekNumber * 7;
+    const current = state.plan;
+    let newPlan = current;
+
+    if (current[startIdx]) {
+      const weekStart = parseIso(current[startIdx].date);
+      // Profil tymczasowy: tylko podana data meczu steruje taperem.
+      const tempProfile: Profile = {
+        ...profile,
+        usualMatchDay: "no_fixed_day",
+        matchDate: noMatchNextWeek ? null : nextMatchDate,
+      };
+      const regenDays = Math.min(7, current.length - startIdx);
+      const fresh = generatePlan(tempProfile, weekStart, regenDays);
+      newPlan = [
+        ...current.slice(0, startIdx),
+        ...fresh,
+        ...current.slice(startIdx + regenDays),
+      ];
+      // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
+      await persistMonthlyPlan(user.id, profile, newPlan);
+    }
+
+    const id =
+      state.transitions[weekNumber]?.id ?? crypto.randomUUID();
+    const transition: WeeklyTransition = {
+      id,
+      weekNumber,
+      nextMatchDate: noMatchNextWeek ? null : nextMatchDate,
+      noMatchNextWeek,
+      confirmedAt: new Date().toISOString(),
+    };
+
+    setState((s) => ({
+      ...s,
+      plan: newPlan,
+      transitions: { ...s.transitions, [weekNumber]: transition },
+    }));
+
+    await supabase.from("weekly_transitions" as never).upsert(
+      {
+        id,
+        user_id: user.id,
+        week_number: weekNumber,
+        next_match_date: transition.nextMatchDate,
+        no_match_next_week: noMatchNextWeek,
+        confirmed_at: transition.confirmedAt,
+      } as never,
+      { onConflict: "user_id,week_number" } as never,
+    );
+  }
+
   function saveReadiness(r: Readiness) {
     setState((s) => {
       const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
@@ -565,6 +654,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completeSession,
         applyModification,
         undoModification,
+        confirmWeeklyTransition,
         saveReadiness,
         addTest,
         updateScouting,

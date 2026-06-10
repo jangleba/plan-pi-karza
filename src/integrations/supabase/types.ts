@@ -632,6 +632,39 @@ export type Database = {
           },
         ]
       }
+      weekly_transitions: {
+        Row: {
+          confirmed_at: string
+          created_at: string
+          id: string
+          next_match_date: string | null
+          no_match_next_week: boolean
+          updated_at: string
+          user_id: string
+          week_number: number
+        }
+        Insert: {
+          confirmed_at?: string
+          created_at?: string
+          id?: string
+          next_match_date?: string | null
+          no_match_next_week?: boolean
+          updated_at?: string
+          user_id: string
+          week_number: number
+        }
+        Update: {
+          confirmed_at?: string
+          created_at?: string
+          id?: string
+          next_match_date?: string | null
+          no_match_next_week?: boolean
+          updated_at?: string
+          user_id?: string
+          week_number?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
