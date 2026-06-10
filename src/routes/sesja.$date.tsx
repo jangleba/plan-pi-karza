@@ -11,13 +11,15 @@ import {
   ChevronLeft,
   Clock,
   Target,
-  Lightbulb,
-  ShieldCheck,
-  ShieldAlert,
-  Ban,
   Flag,
   CheckCircle2,
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
   slot: Number(s.slot) === 2 ? 2 : 1,
