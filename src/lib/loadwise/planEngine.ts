@@ -2201,7 +2201,7 @@ export function generatePlan(
 
     // Druga, lekka sesja — tylko jeśli dozwolona, bezpieczna i w limicie
     // tygodniowym (bez automatycznych 5 podwójnych dni).
-    if (doublesThisWeek < MAX_DOUBLES_PER_WEEK) {
+    if (doublesThisWeek < weeklyMaxDoubles) {
       const second = buildSecondSession(session.dayType, date, profile);
       if (second) {
         session.secondSession = second;
