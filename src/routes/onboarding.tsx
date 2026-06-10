@@ -114,9 +114,30 @@ function Onboarding() {
   const [individualDays, setIndividualDays] = useState<number[]>(
     existing?.individualTrainingDays ?? [],
   );
-  const [usualMatchDay, setUsualMatchDay] = useState<
-    number | "no_fixed_day" | null
-  >(existing?.usualMatchDay ?? null);
+  const [matchDayChoice, setMatchDayChoice] = useState<
+    "sat" | "sun" | "other" | "none" | null
+  >(
+    existing
+      ? existing.usualMatchDay === 6
+        ? "sat"
+        : existing.usualMatchDay === 7
+          ? "sun"
+          : existing.usualMatchDay === "no_fixed_day"
+            ? "none"
+            : existing.matchDate
+              ? "other"
+              : null
+      : null,
+  );
+
+  function matchDayChoiceToValue(
+    c: typeof matchDayChoice,
+  ): number | "no_fixed_day" | null {
+    if (c === "sat") return 6;
+    if (c === "sun") return 7;
+    if (c === "none") return "no_fixed_day";
+    return null;
+  }
 
   // Legal consents (RODO/GDPR).
   const [consents, setConsents] = useState<Record<string, boolean>>({});
