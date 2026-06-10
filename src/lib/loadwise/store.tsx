@@ -246,6 +246,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         main_goal: profile.goal,
         equipment: profile.equipment as unknown as never,
         club_training_days: profile.clubTrainingDays as unknown as never,
+        individual_training_days:
+          profile.individualTrainingDays as unknown as never,
+        usual_match_day:
+          profile.usualMatchDay === null
+            ? null
+            : String(profile.usualMatchDay),
         match_date: profile.matchDate,
         pain_injury: profile.painInjury,
         double_sessions_allowed: profile.doubleSessionsAllowed,
