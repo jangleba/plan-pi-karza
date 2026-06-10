@@ -135,6 +135,11 @@ function Onboarding() {
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
     );
   }
+  function toggleIndividualDay(d: number) {
+    setIndividualDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
+    );
+  }
   function toggleEquip(e: string) {
     setEquipment((prev) =>
       prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e],
@@ -146,7 +151,7 @@ function Onboarding() {
       return name.trim().length > 0 && ageNum >= 13 && ageNum <= 60;
     if (step === 1) return position !== null && level !== null;
     if (step === 2) return goal !== null;
-    if (step === 3) return doubleSessions !== null;
+    if (step === 3) return doubleSessions !== null && individualDays.length > 0;
     return true;
   }
 
