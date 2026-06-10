@@ -8,6 +8,8 @@ import {
   LEVEL_LABELS,
   GOAL_LABELS,
   DOUBLE_SESSION_LABELS,
+  SEASON_PHASE_LABELS,
+  COMPETITION_LEVEL_LABELS,
 } from "@/lib/loadwise/labels";
 import type { DoubleSessions } from "@/lib/loadwise/types";
 import { Button } from "@/components/ui/button";
