@@ -314,8 +314,8 @@ const CANDIDATES: Candidate[] = [
   },
   {
     category: "sprint",
-    title: "Mikrodawka przyspieszeń",
-    sessionType: "Szybkość (mikrodawka)",
+    title: "Krótka ekspozycja przyspieszeń",
+    sessionType: "Szybkość / technika biegu",
     intensity: "umiarkowana",
     intensityLabel: "umiarkowana",
     baseDuration: 25,

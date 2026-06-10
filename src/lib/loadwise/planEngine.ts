@@ -16,6 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
+export const PLAN_ENGINE_VERSION = "loadwise-periodized-global-v2";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -189,7 +190,7 @@ function buildByGoal(profile: Profile): Built {
       };
     case "endurance":
       return {
-        title: "Sesja wytrzymałości specjalnej",
+        title: "Interwały piłkarskie kontrolowane",
         sessionType: "Wytrzymałość",
         intensity: "umiarkowana",
         durationMin: young ? 45 : 55,
@@ -230,6 +231,12 @@ function buildByGoal(profile: Profile): Built {
           },
         ],
       };
+    case "power":
+      return buildPower(profile);
+    case "agility":
+      return buildCod(profile);
+    case "general":
+      return buildBall(profile);
     case "mobility":
       return {
         title: "Sesja mobilności i techniki",
@@ -636,13 +643,37 @@ function dayTypeFor(date: Date, profile: Profile): DayType {
   if (daysToMatch(date, profile) === 1) return "md-1";
   // 3. Trening klubowy = realne obciążenie.
   if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
-  // 4. Sesje Loadwise tylko w wybranych dniach indywidualnych.
+  // 4. Sesje Loadwise w wybranych dniach indywidualnych.
   if (profile.individualTrainingDays.includes(isoDayOfWeek(date)))
     return "training";
   // 5. MD+1 zwykle regeneracja/niska intensywność.
   if (daysSinceMatch(date, profile) === 1) return "recovery";
-  // 6. W pozostałe dni: wolne (bez dokładania sesji losowo).
+  // 6. Wt–czw nie są domyślnie pustymi placeholderami: jeśli nie ma bólu,
+  // meczu, klubu ani MD+1, wstawiamy aktywny niski bodziec zamiast "wolne".
+  if (!profile.painInjury && [1, 2, 3, 4].includes(isoDayOfWeek(date)))
+    return "training";
+  // 7. Pełne wolne zostaje głównie na koniec tygodnia lub realne ograniczenia.
   return "rest";
+}
+
+function isPlannedIndividualDay(date: Date, profile: Profile): boolean {
+  return profile.individualTrainingDays.includes(isoDayOfWeek(date));
+}
+
+function activeMidweekStimulus(date: Date, phase: WeekPhase): Stimulus {
+  const dow = isoDayOfWeek(date);
+  if (phase === "deload") {
+    if (dow === 1) return "endurance_light";
+    return dow === 3 ? "ball" : "prehab";
+  }
+  if (dow === 1) {
+    if (phase === "adaptation") return "prehab";
+    if (phase === "development") return "ball";
+    return "endurance_light";
+  }
+  if (dow === 2) return "ball";
+  if (dow === 3) return "prehab";
+  return "endurance_light";
 }
 
 function builtToSecondSession(
@@ -651,6 +682,7 @@ function builtToSecondSession(
   profile: Profile,
 ): SessionDay {
   return {
+    generatorVersion: PLAN_ENGINE_VERSION,
     date: isoDate(date),
     dayName: dayName(date),
     dayType: built.sessionType.toLowerCase().includes("regener")
@@ -818,8 +850,8 @@ function buildLightAlternative(profile: Profile): Built {
   switch (profile.goal) {
     case "speed":
       return {
-        title: "Mikrodawka szybkości",
-        sessionType: "Szybkość (mikrodawka)",
+        title: "Krótka ekspozycja szybkościowa",
+        sessionType: "Szybkość / technika biegu",
         intensity: "umiarkowana",
         durationMin: 25,
         goalOfSession:
@@ -957,10 +989,13 @@ function buildLightAlternative(profile: Profile): Built {
 // ============================================================
 
 type Stimulus =
+  | "strength_base" // technika / baza siły
   | "strength" // główna siła (gym lub bazowa)
+  | "strength_deload" // podtrzymanie siły w deloadzie
   | "power" // moc/siła eksplozywna (plyo jako element, nie osobny trening)
   | "sprint" // sprint/akceleracja
-  | "speed_micro" // krótki bodziec szybkościowy / technika biegu / reakcja
+  | "speed_exposure" // krótka ekspozycja szybkościowa / technika biegu / reakcja
+  | "cod" // zmiana kierunku / hamowanie / zwinność
   | "endurance_aerobic" // baza tlenowa / tempo
   | "endurance_special" // wytrzymałość specjalna / interwały ekstensywne / bieg pozycyjny
   | "endurance_rsa" // zdolność do powtarzanego sprintu (RSA) / wysoka specyfika
@@ -970,9 +1005,11 @@ type Stimulus =
   | "prehab"; // mobilność / prehab / stabilizacja
 
 const HARD_STIMULI: Stimulus[] = [
+  "strength_base",
   "strength",
   "power",
   "sprint",
+  "cod",
   "endurance_special",
   "endurance_rsa",
 ];
@@ -1017,70 +1054,115 @@ function weeklyStimuli(
   matchCount: number,
   phase: WeekPhase,
 ): Stimulus[] {
-  const noClubOrMatch = clubCount + matchCount === 0;
   const clubCoversBall = clubCount >= 1 || matchCount >= 1;
   const deload = phase === "deload";
   let out: Stimulus[] = [];
 
+  if (profile.painInjury) {
+    if (deload) return ["prehab", "ball", "endurance_light"];
+    if (phase === "development") return ["prehab", "endurance_light", "ball", "prehab"];
+    if (phase === "peak") return ["ball", "prehab", "endurance_light", "ball"];
+    return ["prehab", "ball", "endurance_light"];
+  }
+
   switch (profile.goal) {
     case "strength":
       if (deload) {
-        out = ["strength", "ball", "speed_micro", "prehab"];
+        out = ["strength_deload", "ball", "speed_exposure", "prehab"];
       } else if (phase === "peak") {
         out = ["strength", "power", "sprint", "ball", "prehab"];
       } else if (phase === "development") {
-        out = ["strength", "power", "ball", "speed_micro", "prehab"];
+        out = ["strength", "ball", "power", "endurance_light", "speed_exposure"];
       } else {
-        out = ["strength", "ball", "speed_micro", "prehab"];
+        out = ["strength_base", "ball", "speed_exposure", "endurance_light", "prehab"];
       }
-      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
     case "speed":
       if (deload) {
-        out = ["speed_micro", "ball", "power", "prehab"];
+        out = ["speed_exposure", "ball", "strength_deload", "prehab"];
       } else if (phase === "peak") {
-        out = ["sprint", "power", "speed_micro", "ball", "prehab"];
+        out = ["sprint", "cod", "power", "ball", "endurance_light"];
       } else if (phase === "development") {
-        out = ["sprint", "speed_micro", "power", "ball", "prehab"];
+        out = ["sprint", "speed_exposure", "power", "ball", "endurance_light"];
       } else {
-        out = ["speed_micro", "sprint", "ball", "prehab"];
+        out = ["speed_exposure", "strength_base", "sprint", "ball", "prehab"];
       }
-      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
     case "endurance": {
       const main = enduranceMainForPhase(phase);
       if (deload) {
-        out = [main, "ball", "speed_micro", "prehab"];
+        out = [main, "ball", "speed_exposure", "prehab"];
       } else if (phase === "peak") {
-        out = [main, "endurance_light", "speed_micro", "strength", "prehab"];
+        out = [main, "endurance_light", "speed_exposure", "strength", "ball"];
       } else if (phase === "development") {
         out = [main, "ball", "strength", "endurance_light", "prehab"];
       } else {
         // adaptation
-        out = [main, "ball", "speed_micro", "strength", "prehab"];
+        out = [main, "ball", "speed_exposure", "strength_base", "prehab"];
       }
       if (!clubCoversBall && !out.includes("ball")) out.splice(1, 0, "ball");
       break;
     }
+    case "power":
+      if (deload) {
+        out = ["strength_deload", "ball", "speed_exposure", "prehab"];
+      } else if (phase === "peak") {
+        out = ["power", "sprint", "cod", "strength", "ball"];
+      } else if (phase === "development") {
+        out = ["power", "ball", "strength", "sprint", "endurance_light"];
+      } else {
+        out = ["strength_base", "power", "ball", "speed_exposure", "endurance_light"];
+      }
+      break;
+    case "agility":
+      if (deload) {
+        out = ["ball", "prehab", "speed_exposure", "strength_deload"];
+      } else if (phase === "peak") {
+        out = ["cod", "ball", "cod", "power", "endurance_light"];
+      } else if (phase === "development") {
+        out = ["cod", "sprint", "ball", "power", "endurance_light"];
+      } else {
+        out = ["cod", "ball", "strength_base", "endurance_light", "prehab"];
+      }
+      break;
+    case "general":
+      if (deload) {
+        out = ["ball", "strength_deload", "endurance_deload", "prehab"];
+      } else if (phase === "peak") {
+        out = ["sprint", "power", "ball", "endurance_rsa", "prehab"];
+      } else if (phase === "development") {
+        out = ["strength", "ball", "sprint", "endurance_special", "prehab"];
+      } else {
+        out = ["ball", "strength_base", "endurance_aerobic", "speed_exposure", "prehab"];
+      }
+      break;
     case "mobility":
-      out = ["prehab", "ball", "endurance_light", "speed_micro"];
-      if (!deload) out.push("strength");
+      out = deload
+        ? ["prehab", "ball", "endurance_light"]
+        : ["prehab", "ball", "endurance_light", "speed_exposure", "strength_base"];
       break;
     case "return":
-      out = ["prehab", "ball", "endurance_light"];
+      if (deload) {
+        out = ["prehab", "ball", "endurance_light"];
+      } else if (phase === "peak") {
+        out = ["ball", "endurance_light", "prehab", "ball"];
+      } else if (phase === "development") {
+        out = ["prehab", "endurance_light", "ball", "prehab"];
+      } else {
+        out = ["prehab", "ball", "endurance_light"];
+      }
       break;
     case "matchready":
     default:
       if (deload) {
-        out = ["ball", "speed_micro", "prehab"];
+        out = ["ball", "speed_exposure", "prehab", "strength_deload"];
       } else if (phase === "peak") {
-        out = ["sprint", "ball", "strength", "speed_micro", "prehab"];
+        out = ["sprint", "ball", "strength", "cod", "prehab"];
       } else if (phase === "development") {
-        out = ["strength", "ball", "sprint", "speed_micro", "prehab"];
+        out = ["strength", "ball", "sprint", "endurance_light", "prehab"];
       } else {
-        out = ["ball", "sprint", "speed_micro", "prehab"];
+        out = ["ball", "sprint", "speed_exposure", "strength_base", "prehab"];
       }
-      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
   }
   return out;
@@ -1095,15 +1177,16 @@ function planStimuli(
   profile: Profile,
   startDate: Date,
   days: number,
+  weekOffset = 0,
 ): Record<string, Stimulus> {
   const map: Record<string, Stimulus> = {};
-  if (profile.goal === "return" || profile.painInjury) return map;
 
   const totalWeeks = Math.max(1, Math.ceil(days / 7));
 
   for (let blockStart = 0; blockStart < days; blockStart += 7) {
     const weekIndex = Math.floor(blockStart / 7);
-    const phase = phaseOf(weekIndex, totalWeeks);
+    const phaseTotal = days <= 7 ? 4 : totalWeeks;
+    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
     const trainingDates: string[] = [];
     let clubCount = 0;
     let matchCount = 0;
@@ -1114,6 +1197,10 @@ function planStimuli(
       if (type === "club") clubCount++;
       if (type === "match") matchCount++;
       if (type !== "training") continue;
+      if (!isPlannedIndividualDay(date, profile)) {
+        map[isoDate(date)] = activeMidweekStimulus(date, phase);
+        continue;
+      }
       // MD-2 (ostrość) i MD+1 (kompensacja) mają dedykowane sesje.
       if (daysToMatch(date, profile) === 2) continue;
       if (daysSinceMatch(date, profile) === 1) continue;
@@ -1127,7 +1214,7 @@ function planStimuli(
     const fillers: Stimulus[] =
       phase === "deload"
         ? ["ball", "prehab", "endurance_light"]
-        : ["ball", "prehab", "endurance_light", "speed_micro"];
+        : ["ball", "prehab", "endurance_light", "speed_exposure"];
 
     trainingDates.forEach((iso, idx) => {
       const stim =
@@ -1214,13 +1301,75 @@ function buildPower(profile: Profile): Built {
   };
 }
 
-/** Krótki bodziec szybkościowy: technika biegu, reakcja, microdose. */
-function buildSpeedMicro(profile: Profile): Built {
+function buildStrengthDeload(profile: Profile): Built {
+  const base = buildLightAlternative({ ...profile, goal: "strength" });
+  return {
+    ...base,
+    title: "Siła podtrzymująca (deload)",
+    sessionType: "Siła podtrzymująca",
+    intensity: "niska",
+    durationMin: Math.min(base.durationMin, 30),
+    goalOfSession:
+      "Podtrzymanie wzorców siłowych przy niskiej objętości i świeżości nóg.",
+  };
+}
+
+function buildCod(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  return {
+    title: "Zwinność, hamowanie i COD",
+    sessionType: "Agility / COD",
+    intensity: young ? "umiarkowana" : "wysoka",
+    durationMin: young ? 35 : 45,
+    goalOfSession:
+      "Zmiana kierunku, hamowanie i decyzja z piłką — jakość ruchu bez przypadkowego zmęczenia.",
+    riskManaged:
+      "Kontrolowana liczba powtórzeń, pełne przerwy i brak ostrego COD przy bólu kończyn dolnych.",
+    avoidToday:
+      "Bez łączenia z ciężkimi nogami, twardymi interwałami lub dużą plyometrią.",
+    main: [
+      {
+        name: "Mechanika hamowania",
+        prescription: "4 × 5 m wejście + stop w stabilnej pozycji",
+        rest: "60 s",
+        cue: "Nisko biodra, kolano stabilne, cichy kontakt stopy.",
+      },
+      {
+        name: young ? "Zmiana kierunku 45°" : "Zmiana kierunku 45°/90°",
+        prescription: `${young ? 5 : 6} powtórzeń na stronę, pełna kontrola`,
+        rest: "75–90 s",
+        cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku.",
+      },
+      {
+        name: "Reakcja z piłką",
+        prescription: "6 akcji: sygnał, przyjęcie, zmiana kierunku, podanie",
+        cue: "Decyzja przed kontaktem, piłka blisko stopy.",
+      },
+    ],
+    accessory: [
+      {
+        name: "Core i przywodziciele",
+        prescription: "2 × 30 s plank boczny + 2 × 8 przywodziciele",
+        cue: "Kontrola miednicy, bez bólu pachwiny.",
+      },
+    ],
+    footballTransfer: [
+      {
+        name: "Akcja pozycyjna po zmianie kierunku",
+        prescription: "8 min wg pozycji",
+        cue: "Skan, zwód, decyzja, podanie lub wykończenie.",
+      },
+    ],
+  };
+}
+
+/** Krótki bodziec szybkościowy: technika biegu, reakcja, mała objętość. */
+function buildSpeedExposure(profile: Profile): Built {
   const young = isYoung(profile.age);
   const sprintCap = young ? Math.min(120, MAX_SPRINT_M) : MAX_SPRINT_M;
   return {
-    title: "Mikrodawka szybkości i technika biegu",
-    sessionType: "Szybkość (mikrodawka)",
+    title: "Ekspozycja szybkościowa i technika biegu",
+    sessionType: "Szybkość / technika biegu",
     intensity: "umiarkowana",
     durationMin: young ? 25 : 30,
     goalOfSession:
@@ -1537,14 +1686,19 @@ function buildEnduranceDeload(profile: Profile): Built {
 /** Buduje sesję dla danego bodźca tygodniowego. */
 function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
   switch (stimulus) {
+    case "strength_base":
     case "strength":
       return buildByGoal({ ...profile, goal: "strength" });
+    case "strength_deload":
+      return buildStrengthDeload(profile);
     case "power":
       return buildPower(profile);
     case "sprint":
       return buildByGoal({ ...profile, goal: "speed" });
-    case "speed_micro":
-      return buildSpeedMicro(profile);
+    case "speed_exposure":
+      return buildSpeedExposure(profile);
+    case "cod":
+      return buildCod(profile);
     case "endurance_aerobic":
       return buildEnduranceAerobic(profile);
     case "endurance_special":
@@ -1568,10 +1722,11 @@ export function generatePlan(
   profile: Profile,
   start?: Date,
   days = 28,
+  weekOffset = 0,
 ): SessionDay[] {
   const startDate = start ?? warsawToday();
   const out: SessionDay[] = [];
-  const stimulusMap = planStimuli(profile, startDate, days);
+  const stimulusMap = planStimuli(profile, startDate, days, weekOffset);
 
   let lastWasHard = false;
 
@@ -1840,6 +1995,10 @@ export function generatePlan(
           : "Sesja główna";
     }
 
+    session.generatorVersion = PLAN_ENGINE_VERSION;
+    if (session.secondSession) {
+      session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+    }
     out.push(session);
   }
 

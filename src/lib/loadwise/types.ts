@@ -4,6 +4,9 @@ export type Goal =
   | "speed"
   | "strength"
   | "endurance"
+  | "power"
+  | "agility"
+  | "general"
   | "mobility"
   | "return"
   | "matchready";
@@ -62,6 +65,7 @@ export type DayType =
   | "rest"; // dzień wolny
 
 export interface SessionDay {
+  generatorVersion?: string;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   date: string; // yyyy-MM-dd
