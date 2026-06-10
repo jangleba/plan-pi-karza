@@ -834,8 +834,8 @@ function buildLightAlternative(profile: Profile): Built {
   switch (profile.goal) {
     case "speed":
       return {
-        title: "Mikrodawka szybkości",
-        sessionType: "Szybkość (mikrodawka)",
+        title: "Krótka ekspozycja szybkościowa",
+        sessionType: "Szybkość / technika biegu",
         intensity: "umiarkowana",
         durationMin: 25,
         goalOfSession:
