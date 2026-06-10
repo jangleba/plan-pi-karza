@@ -111,7 +111,21 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
   };
 }
 
-interface LoadwiseContextValue {
+function rowToModification(row: AnyRow): SessionModification | null {
+  const session = row.new_session_json as SessionDay | null;
+  if (!session) return null;
+  return {
+    id: row.id as string,
+    date: row.date as string,
+    type: (row.type as ModificationType) ?? "add",
+    reason: (row.reason as string) ?? "",
+    safetyStatus: (row.safety_status as SessionStatus) ?? "planned",
+    session,
+    originalSession: (row.original_session_json as SessionDay | null) ?? null,
+    createdAt: (row.created_at as string) ?? new Date().toISOString(),
+  };
+}
+
   state: LoadwiseState;
   hydrated: boolean;
   completeOnboarding: (
