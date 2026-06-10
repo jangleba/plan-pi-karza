@@ -92,6 +92,14 @@ function ProfilScreen() {
             <Row label="Poziom" value={LEVEL_LABELS[p.level]} />
             <Row label="Cel główny" value={GOAL_LABELS[p.goal]} />
             <Row
+              label="Okres sezonu"
+              value={SEASON_PHASE_LABELS[p.seasonPhase]}
+            />
+            <Row
+              label="Poziom rozgrywkowy"
+              value={COMPETITION_LEVEL_LABELS[p.competitionLevel]}
+            />
+            <Row
               label="Najbliższy mecz"
               value={p.matchDate ?? "Brak daty"}
             />
