@@ -349,27 +349,89 @@ function Onboarding() {
         {step === 3 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold">Kontekst i bezpieczeństwo</h2>
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Kalendarz tygodnia
+              </span>
+              <h2 className="mt-1 text-xl font-semibold">
+                Twój tydzień treningowy
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Większość pól jest opcjonalna — nie blokują wygenerowania planu.
+                Plan musi pasować do treningów klubowych, dni indywidualnych i
+                meczu. Loadwise nie powinien dokładać sesji losowo.
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Dni treningów klubowych</Label>
+              <Label>W jakie dni masz treningi klubowe?</Label>
               <div className="grid grid-cols-7 gap-1.5">
                 {ISO_DAY_LABELS.map((d) => (
                   <button
                     key={d.value}
                     type="button"
                     onClick={() => toggleClubDay(d.value)}
-                    className={`rounded-lg border py-2 text-xs font-medium transition-colors ${
+                    className={`rounded-full border py-2 text-xs font-medium transition-colors ${
                       clubDays.includes(d.value)
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-card text-foreground"
                     }`}
                   >
                     {d.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>W jakie dni chcesz trenować indywidualnie z Loadwise?</Label>
+              <div className="grid grid-cols-7 gap-1.5">
+                {ISO_DAY_LABELS.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => toggleIndividualDay(d.value)}
+                    className={`rounded-full border py-2 text-xs font-medium transition-colors ${
+                      individualDays.includes(d.value)
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    {d.short}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                W te dni Loadwise może zaplanować Twoje własne jednostki:
+                szybkość, siłę, boisko, regenerację albo technikę.
+              </p>
+              {individualDays.length === 0 && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz co najmniej jeden dzień treningu indywidualnego.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Kiedy zwykle grasz mecz?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { key: "sat", label: "Sobota" },
+                    { key: "sun", label: "Niedziela" },
+                    { key: "other", label: "Inny dzień" },
+                    { key: "none", label: "Nie mam stałego dnia meczu" },
+                  ] as { key: typeof matchDayChoice; label: string }[]
+                ).map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => setMatchDayChoice(o.key)}
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
+                      matchDayChoice === o.key
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    {o.label}
                   </button>
                 ))}
               </div>
@@ -384,6 +446,21 @@ function Onboarding() {
                 value={matchDate}
                 onChange={(e) => setMatchDate(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
+              <ChoiceGrid
+                options={["no", "light_only", "yes_if_safe"] as DoubleSessions[]}
+                value={doubleSessions}
+                onChange={setDoubleSessions}
+                labels={DOUBLE_SESSION_LABELS}
+                cols={1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Druga sesja może pojawić się tylko wtedy, gdy nie koliduje z
+                meczem, bólem, zmęczeniem ani treningiem klubowym.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -404,22 +481,6 @@ function Onboarding() {
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
-              <ChoiceGrid
-                options={["no", "light_only", "yes_if_safe"] as DoubleSessions[]}
-                value={doubleSessions}
-                onChange={setDoubleSessions}
-                labels={DOUBLE_SESSION_LABELS}
-                cols={1}
-              />
-              <p className="text-xs text-muted-foreground">
-                Druga sesja zawsze jest lekka i dokładana tylko wtedy, gdy jest
-                bezpieczna (nigdy w dniu meczu/MD-1, przy bólu czy niskiej
-                gotowości).
-              </p>
             </div>
 
             <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
