@@ -78,6 +78,13 @@ function saveLocal(userId: string, s: LocalState) {
 // ---- map DB rows <-> Profile ----
 type AnyRow = Record<string, unknown>;
 
+function parseUsualMatchDay(v: unknown): Profile["usualMatchDay"] {
+  if (v === null || v === undefined || v === "") return null;
+  if (v === "no_fixed_day") return "no_fixed_day";
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 && n <= 7 ? n : null;
+}
+
 function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
   if (!prof || !prof.onboarding_completed || !ath) return null;
   return {
