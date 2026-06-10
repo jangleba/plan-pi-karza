@@ -1022,7 +1022,6 @@ function weeklyStimuli(
   matchCount: number,
   phase: WeekPhase,
 ): Stimulus[] {
-  const noClubOrMatch = clubCount + matchCount === 0;
   const clubCoversBall = clubCount >= 1 || matchCount >= 1;
   const deload = phase === "deload";
   let out: Stimulus[] = [];
@@ -1030,46 +1029,78 @@ function weeklyStimuli(
   switch (profile.goal) {
     case "strength":
       if (deload) {
-        out = ["strength", "ball", "speed_micro", "prehab"];
+        out = ["strength_deload", "ball", "speed_exposure", "prehab"];
       } else if (phase === "peak") {
         out = ["strength", "power", "sprint", "ball", "prehab"];
       } else if (phase === "development") {
-        out = ["strength", "power", "ball", "speed_micro", "prehab"];
+        out = ["strength", "ball", "power", "endurance_light", "speed_exposure"];
       } else {
-        out = ["strength", "ball", "speed_micro", "prehab"];
+        out = ["strength_base", "ball", "speed_exposure", "endurance_light", "prehab"];
       }
-      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
     case "speed":
       if (deload) {
-        out = ["speed_micro", "ball", "power", "prehab"];
+        out = ["speed_exposure", "ball", "strength_deload", "prehab"];
       } else if (phase === "peak") {
-        out = ["sprint", "power", "speed_micro", "ball", "prehab"];
+        out = ["sprint", "cod", "power", "ball", "endurance_light"];
       } else if (phase === "development") {
-        out = ["sprint", "speed_micro", "power", "ball", "prehab"];
+        out = ["sprint", "speed_exposure", "power", "ball", "endurance_light"];
       } else {
-        out = ["speed_micro", "sprint", "ball", "prehab"];
+        out = ["speed_exposure", "strength_base", "sprint", "ball", "prehab"];
       }
-      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
     case "endurance": {
       const main = enduranceMainForPhase(phase);
       if (deload) {
-        out = [main, "ball", "speed_micro", "prehab"];
+        out = [main, "ball", "speed_exposure", "prehab"];
       } else if (phase === "peak") {
-        out = [main, "endurance_light", "speed_micro", "strength", "prehab"];
+        out = [main, "endurance_light", "speed_exposure", "strength", "ball"];
       } else if (phase === "development") {
         out = [main, "ball", "strength", "endurance_light", "prehab"];
       } else {
         // adaptation
-        out = [main, "ball", "speed_micro", "strength", "prehab"];
+        out = [main, "ball", "speed_exposure", "strength_base", "prehab"];
       }
       if (!clubCoversBall && !out.includes("ball")) out.splice(1, 0, "ball");
       break;
     }
+    case "power":
+      if (deload) {
+        out = ["strength_deload", "ball", "speed_exposure", "prehab"];
+      } else if (phase === "peak") {
+        out = ["power", "sprint", "cod", "strength", "ball"];
+      } else if (phase === "development") {
+        out = ["power", "ball", "strength", "sprint", "endurance_light"];
+      } else {
+        out = ["strength_base", "power", "ball", "speed_exposure", "endurance_light"];
+      }
+      break;
+    case "agility":
+      if (deload) {
+        out = ["ball", "prehab", "speed_exposure", "strength_deload"];
+      } else if (phase === "peak") {
+        out = ["cod", "ball", "cod", "power", "endurance_light"];
+      } else if (phase === "development") {
+        out = ["cod", "sprint", "ball", "power", "endurance_light"];
+      } else {
+        out = ["cod", "ball", "strength_base", "endurance_light", "prehab"];
+      }
+      break;
+    case "general":
+      if (deload) {
+        out = ["ball", "strength_deload", "endurance_deload", "prehab"];
+      } else if (phase === "peak") {
+        out = ["sprint", "power", "ball", "endurance_rsa", "prehab"];
+      } else if (phase === "development") {
+        out = ["strength", "ball", "sprint", "endurance_special", "prehab"];
+      } else {
+        out = ["ball", "strength_base", "endurance_aerobic", "speed_exposure", "prehab"];
+      }
+      break;
     case "mobility":
-      out = ["prehab", "ball", "endurance_light", "speed_micro"];
-      if (!deload) out.push("strength");
+      out = deload
+        ? ["prehab", "ball", "endurance_light"]
+        : ["prehab", "ball", "endurance_light", "speed_exposure", "strength_base"];
       break;
     case "return":
       out = ["prehab", "ball", "endurance_light"];
@@ -1077,15 +1108,14 @@ function weeklyStimuli(
     case "matchready":
     default:
       if (deload) {
-        out = ["ball", "speed_micro", "prehab"];
+        out = ["ball", "speed_exposure", "prehab", "strength_deload"];
       } else if (phase === "peak") {
-        out = ["sprint", "ball", "strength", "speed_micro", "prehab"];
+        out = ["sprint", "ball", "strength", "cod", "prehab"];
       } else if (phase === "development") {
-        out = ["strength", "ball", "sprint", "speed_micro", "prehab"];
+        out = ["strength", "ball", "sprint", "endurance_light", "prehab"];
       } else {
-        out = ["ball", "sprint", "speed_micro", "prehab"];
+        out = ["ball", "sprint", "speed_exposure", "strength_base", "prehab"];
       }
-      if (noClubOrMatch && !deload) out.push("endurance_light");
       break;
   }
   return out;
@@ -1132,7 +1162,7 @@ function planStimuli(
     const fillers: Stimulus[] =
       phase === "deload"
         ? ["ball", "prehab", "endurance_light"]
-        : ["ball", "prehab", "endurance_light", "speed_micro"];
+        : ["ball", "prehab", "endurance_light", "speed_exposure"];
 
     trainingDates.forEach((iso, idx) => {
       const stim =
