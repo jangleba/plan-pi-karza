@@ -100,18 +100,53 @@ function PlanScreen() {
   const plan = state.plan;
   const completions = state.completions;
   const profile = state.profile;
+  const transitions = state.transitions;
   const [activeWeek, setActiveWeek] = useState(0);
+  const [gateWeek, setGateWeek] = useState<number | null>(null);
 
   const weeks: SessionDay[][] = [];
   for (let i = 0; i < plan.length; i += 7) {
     weeks.push(plan.slice(i, i + 7));
   }
 
+  // Tydzień 0 zawsze dostępny. Kolejny tydzień i dostępny tylko po
+  // potwierdzeniu weekly gate (transitions[i]).
+  const canAccess = (i: number) => i === 0 || !!transitions[i];
+
+  // Najwcześniejszy nieodblokowany tydzień na drodze do i.
+  const firstLockedUpTo = (i: number): number | null => {
+    for (let j = 1; j <= i; j++) {
+      if (!transitions[j]) return j;
+    }
+    return null;
+  };
+
+  const openTab = (i: number) => {
+    if (canAccess(i)) {
+      setActiveWeek(i);
+      return;
+    }
+    const locked = firstLockedUpTo(i);
+    if (locked !== null) setGateWeek(locked);
+  };
+
   const monthGoal = profile ? GOAL_LABELS[profile.goal] : "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
   const summary = current.length
     ? weekSummary(activeWeek, weeks.length, current)
     : null;
+
+  // Czy istnieje kolejny tydzień po aktywnym?
+  const nextIndex = activeWeek + 1;
+  const hasNext = nextIndex < weeks.length;
+  const nextConfirmed = !!transitions[nextIndex];
+  const nextTransition = transitions[nextIndex];
+
+  // Granice kolejnego tygodnia (dla bramki).
+  const gateNextIndex = gateWeek;
+  const gateWeekDays =
+    gateNextIndex !== null ? weeks[gateNextIndex] ?? [] : [];
+
 
   return (
     <div>
