@@ -1103,20 +1103,54 @@ export function generatePlan(
         secondSession: null,
       };
       lastWasHard = false;
+    } else if (type === "rest") {
+      // Dzień wolny — bez dokładania sesji. Wyjątek: MD+1 trafia do gałęzi recovery.
+      session = {
+        date: iso,
+        dayName: dayName(date),
+        dayType: "rest",
+        title: "Dzień wolny",
+        goalLabel: "Wolne",
+        intensity: "niska",
+        durationMin: 0,
+        reason:
+          "Nie wybrałeś tego dnia jako dnia treningu indywidualnego — Loadwise nie dokłada sesji losowo.",
+        safetyNote: null,
+        whyToday:
+          "Plan respektuje Twój kalendarz: trenujesz indywidualnie tylko w wybrane dni, a regeneracja jest chroniona.",
+        sessionType: "Dzień wolny",
+        goalOfSession:
+          "Odpoczynek i regeneracja — w razie ochoty lekka mobilność lub spacer.",
+        riskManaged:
+          "Brak narzuconego obciążenia chroni przed przetrenowaniem i utrzymuje świeżość.",
+        avoidToday: "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.",
+        mdLabel: mdLabelFor(date, profile),
+        slotLabel: null,
+        sections: {
+          warmup: [],
+          main: [],
+          accessory: [],
+          footballTransfer: [],
+          cooldown: [],
+        },
+        secondSession: null,
+      };
+      lastWasHard = false;
     } else {
       // type === "training": wybór sensownej sesji zamiast domyślnej regeneracji
-      const diff = daysToMatch(date, profile);
+      const toMatch = daysToMatch(date, profile);
+      const sinceMatch = daysSinceMatch(date, profile);
       let built: Built;
       let reason: string;
       let whyToday: string;
 
-      if (diff === 2) {
+      if (toMatch === 2) {
         built = buildSharpness(profile);
         reason =
           "Dwa dni przed meczem (MD-2): ostrość i lekka szybkość, kończysz świeży.";
         whyToday =
           "MD-2 to moment na ostrość piłkarską i aktywację — bez dokładania zmęczenia przed meczem.";
-      } else if (diff === -1) {
+      } else if (sinceMatch === 1) {
         built = buildCompensation(profile);
         reason =
           "Dzień po meczu (MD+1): lekka kompensacja i rozruszanie zamiast biernej regeneracji.";
@@ -1131,7 +1165,7 @@ export function generatePlan(
       } else {
         built = buildByGoal(profile);
         reason = `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}. Jeden główny bodziec, bez zbędnej objętości.`;
-        whyToday = `Wybrano dziś, bo dzień jest wolny od meczu i klubu — to dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
+        whyToday = `Wybrano dziś, bo to Twój dzień treningu indywidualnego — dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
       }
 
       const pain = applyPainSafety(built, profile);
