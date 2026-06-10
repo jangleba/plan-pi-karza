@@ -365,6 +365,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           pain_status: r.jointPain >= 5,
         })
         .then(() => {});
+
+      // Zapisz powód korekty gotowości na dniu treningowym.
+      const day = state.plan.find((p) => p.date === r.date);
+      if (day?.dayDbId) {
+        const adj =
+          r.overall >= 8
+            ? `Gotowość ${r.overall}/10 — plan bez zmian`
+            : r.overall >= 6
+              ? `Gotowość ${r.overall}/10 — redukcja objętości 10–20%`
+              : r.overall >= 4
+                ? `Gotowość ${r.overall}/10 — redukcja 30–40%, bez pracy o wysokiej intensywności`
+                : `Gotowość ${r.overall}/10 — tylko regeneracja/mobilność`;
+        supabase
+          .from("training_days")
+          .update({ readiness_adjustment: adj })
+          .eq("id", day.dayDbId)
+          .then(() => {});
+      }
     }
   }
 
