@@ -180,7 +180,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes, logRes, modRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes, modRes, transRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("athlete_profiles")
