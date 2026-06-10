@@ -141,6 +141,14 @@ interface LoadwiseContextValue {
     rpe: number | null,
     notes: string,
   ) => Promise<void>;
+  applyModification: (
+    date: string,
+    type: ModificationType,
+    session: SessionDay,
+    originalSession: SessionDay | null,
+    reason: string,
+  ) => Promise<void>;
+  undoModification: (date: string, id: string) => Promise<void>;
   saveReadiness: (r: Readiness) => void;
   addTest: (t: TestResult) => void;
   updateScouting: (s: Partial<ScoutingData>) => void;
