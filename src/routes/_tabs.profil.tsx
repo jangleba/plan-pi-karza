@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import {
   POSITION_LABELS,
@@ -16,10 +17,13 @@ import {
   Dumbbell,
   ShieldCheck,
   FileDown,
-  Trash2,
   Pencil,
   CircleCheck,
   CircleAlert,
+  ShieldCheck as ShieldIcon,
+  FileText,
+  LogOut,
+  ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/profil")({
@@ -36,11 +40,18 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function ProfilScreen() {
-  const { state, resetAll, updateProfile } = useLoadwise();
+  const { state, updateProfile } = useLoadwise();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const p = state.profile;
 
   if (!p) return null;
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
 
   function setDouble(v: DoubleSessions) {
     if (!p || p.doubleSessionsAllowed === v) return;
@@ -50,34 +61,6 @@ function ProfilScreen() {
 
   const isMinor = p.age >= 13 && p.age <= 17;
 
-  function exportData() {
-    try {
-      const blob = new Blob([JSON.stringify(state, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "loadwise-dane.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Eksport danych gotowy.");
-    } catch {
-      toast.error("Nie udało się wyeksportować danych.");
-    }
-  }
-
-  function deleteData() {
-    if (
-      window.confirm(
-        "Czy na pewno chcesz usunąć wszystkie dane? Tej operacji nie można cofnąć.",
-      )
-    ) {
-      resetAll();
-      toast.success("Dane usunięte.");
-      navigate({ to: "/onboarding", replace: true });
-    }
-  }
 
   return (
     <div>
@@ -195,28 +178,42 @@ function ProfilScreen() {
           <Pencil className="h-4 w-4" /> Edytuj profil
         </Button>
 
-        <div className="soft-card p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Prywatność i dane
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            Twoje dane są przechowywane lokalnie na tym urządzeniu. Polityka
-            prywatności i regulamin pojawią się w pełnej wersji aplikacji.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportData}>
-              <FileDown className="h-4 w-4" /> Eksport
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-destructive"
-              onClick={deleteData}
-            >
-              <Trash2 className="h-4 w-4" /> Usuń dane
-            </Button>
-          </div>
+        <div className="soft-card divide-y divide-border p-0">
+          <button
+            onClick={() => navigate({ to: "/data-rights" })}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            <ShieldIcon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Moje dane i prawa (RODO)</span>
+            <FileDown className="ml-auto h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate({ to: "/privacy-policy" })}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            <FileText className="h-4 w-4 text-foreground" />
+            <span className="text-sm font-medium">Polityka prywatności</span>
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate({ to: "/terms" })}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            <FileText className="h-4 w-4 text-foreground" />
+            <span className="text-sm font-medium">Regulamin</span>
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
+
+        <Button
+          variant="outline"
+          className="w-full gap-2 text-destructive"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" /> Wyloguj się
+        </Button>
+
+
       </div>
 
       <Disclaimer />
