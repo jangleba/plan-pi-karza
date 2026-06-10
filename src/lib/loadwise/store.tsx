@@ -540,7 +540,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         matchDate: noMatchNextWeek ? null : nextMatchDate,
       };
       const regenDays = Math.min(7, current.length - startIdx);
-      const fresh = generatePlan(tempProfile, weekStart, regenDays);
+      const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
       newPlan = [
         ...current.slice(0, startIdx),
         ...fresh,
