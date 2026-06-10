@@ -233,13 +233,22 @@ function PlanScreen() {
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Dumbbell className="h-4 w-4 shrink-0" />
-                <span>Sesje własne: {summary.ownSessions}</span>
+                <span>Sesje główne: {summary.ownSessions}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span>Mikrotreningi: {summary.microSessions}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>Treningi klubowe: {summary.clubSessions}</span>
               </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Layers className="h-4 w-4 shrink-0" />
+                <span>Podwójne dni: {summary.doubleDays}</span>
+              </div>
             </div>
+
           </div>
         </div>
       )}
