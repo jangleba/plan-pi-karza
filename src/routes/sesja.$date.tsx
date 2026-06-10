@@ -447,6 +447,8 @@ function SessionDetail() {
             <PostSessionLog />
           </>
         )}
+
+        <CompletionPanel session={session} />
       </div>
     </div>
   );
