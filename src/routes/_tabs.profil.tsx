@@ -41,11 +41,18 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function ProfilScreen() {
-  const { state, resetAll, updateProfile } = useLoadwise();
+  const { state, updateProfile } = useLoadwise();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const p = state.profile;
 
   if (!p) return null;
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
 
   function setDouble(v: DoubleSessions) {
     if (!p || p.doubleSessionsAllowed === v) return;
