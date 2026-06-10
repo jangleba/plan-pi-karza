@@ -522,7 +522,7 @@ function Onboarding() {
             <div>
               <h2 className="text-xl font-semibold">Zgody i prywatność</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Zanim dokończysz, potrzebujemy Twoich zgód (RODO).
+                Zanim zaczniemy, potrzebujemy Twoich zgód (RODO).
               </p>
             </div>
 
