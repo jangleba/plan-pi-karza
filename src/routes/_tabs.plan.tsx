@@ -69,10 +69,14 @@ function whatToDo(day: SessionDay): string {
       const type = day.sessionType.toLowerCase();
       if (type.includes("wytrzymał") || type.includes("rsa"))
         return "Główne okno bodźca wytrzymałościowego.";
-      if (type.includes("siła") || type.includes("moc"))
-        return "Bodziec siły/mocy — kontrola techniki.";
+      if (type.includes("agility") || type.includes("cod") || type.includes("zwin"))
+        return "COD i hamowanie — jakość decyzji i ruchu.";
+      if (type.includes("moc"))
+        return "Moc jako bodziec główny, bez nadmiaru skoków.";
+      if (type.includes("siła"))
+        return "Siła jako bodziec główny, bez przeciążania przed meczem.";
       if (type.includes("szybko") || type.includes("sprint"))
-        return "Akcent szybkościowy — jakość ponad objętość.";
+        return "Dzień jakości szybkościowej, daleko od meczu.";
       if (type.includes("piłk") || type.includes("technik"))
         return "Praca z piłką: technika i decyzje.";
       if (type.includes("ostro"))
@@ -106,16 +110,45 @@ const PHASE_FOCUS: Record<WeekPhase, { goal: string; accent: string }> = {
 /** Akcent fazy dopasowany do celu zawodnika. */
 function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string } {
   const base = PHASE_FOCUS[phase];
-  if (goal === "endurance") {
-    const accent: Record<WeekPhase, string> = {
+  const accents: Partial<Record<Goal, Record<WeekPhase, string>>> = {
+    endurance: {
       adaptation: "Baza tlenowa i tempo",
       development: "Wytrzymałość specjalna i interwały",
       peak: "RSA / wysoka specyfika wytrzymałościowa",
       deload: "Ostrość wytrzymałościowa, mała objętość",
-    };
-    return { goal: base.goal, accent: accent[phase] };
-  }
-  return base;
+    },
+    speed: {
+      adaptation: "Technika biegu i kontrolowana akceleracja",
+      development: "Dwie ekspozycje szybkościowe + moc",
+      peak: "Najwyższa jakość sprintu i reakcja",
+      deload: "Krótka szybkość, świeżość i piłka",
+    },
+    strength: {
+      adaptation: "Technika siły i baza ruchu",
+      development: "Budowanie siły + podtrzymanie szybkości",
+      peak: "Najmocniejszy bodziec siłowo-mocowy",
+      deload: "Siła podtrzymująca i świeżość",
+    },
+    power: {
+      adaptation: "Baza siły i lekka moc",
+      development: "Moc + sprint + wsparcie siłowe",
+      peak: "Najwyższy bodziec mocy i COD",
+      deload: "Moc podtrzymująca, niska objętość",
+    },
+    agility: {
+      adaptation: "Hamowanie, kontrola i decyzja",
+      development: "COD + akceleracja + piłka",
+      peak: "Najwyższa specyfika zwinności",
+      deload: "Lekka zwinność i konsolidacja ruchu",
+    },
+    general: {
+      adaptation: "Technika, baza siły i tlen",
+      development: "Zbalansowany rozwój piłkarski",
+      peak: "Najmocniejszy mieszany bodziec",
+      deload: "Konsolidacja i świeżość",
+    },
+  };
+  return { goal: base.goal, accent: accents[goal]?.[phase] ?? base.accent };
 }
 
 /** Tygodniowe podsumowanie / periodyzacja. */

@@ -231,6 +231,12 @@ function buildByGoal(profile: Profile): Built {
           },
         ],
       };
+    case "power":
+      return buildPower(profile);
+    case "agility":
+      return buildCod(profile);
+    case "general":
+      return buildBall(profile);
     case "mobility":
       return {
         title: "Sesja mobilności i techniki",
