@@ -161,8 +161,16 @@ function weekSummary(
   const phase = phaseOf(weekIndex, totalWeeks);
   const block = focusFor(phase, goal);
 
-  const ownSessions = week.filter((d) => d.dayType === "training").length;
+  // Sesje własne = własne treningi rozwojowe (główne + druga sesja, jeśli to
+  // realny trening). Nie liczymy klubu, meczu, monitoringu ani czystej
+  // regeneracji jako sesji rozwojowych.
+  const ownPrimary = week.filter((d) => d.dayType === "training").length;
+  const ownSecond = week.filter(
+    (d) => d.secondSession && d.secondSession.dayType === "training",
+  ).length;
+  const ownSessions = ownPrimary + ownSecond;
   const clubSessions = week.filter((d) => d.dayType === "club").length;
+  const matchCount = week.filter((d) => d.dayType === "match").length;
   const doubleDays = week.filter((d) => !!d.secondSession).length;
   const recoveryDays = week.filter(
     (d) => d.dayType === "recovery" || d.dayType === "rest",
