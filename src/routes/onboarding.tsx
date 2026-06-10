@@ -346,7 +346,7 @@ function Onboarding() {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="space-y-6">
             <div>
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
