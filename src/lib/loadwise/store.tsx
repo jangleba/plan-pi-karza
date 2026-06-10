@@ -126,6 +126,7 @@ function rowToModification(row: AnyRow): SessionModification | null {
   };
 }
 
+interface LoadwiseContextValue {
   state: LoadwiseState;
   hydrated: boolean;
   completeOnboarding: (
