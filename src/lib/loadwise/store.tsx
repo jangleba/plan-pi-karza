@@ -21,7 +21,7 @@ import type {
 } from "./types";
 import { generatePlan } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
-import { warsawToday, isoDate } from "./labels";
+import { warsawToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
