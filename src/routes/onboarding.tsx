@@ -169,6 +169,11 @@ function Onboarding() {
       toast.error("Zaakceptuj wymagane zgody, aby kontynuować.");
       return;
     }
+    if (individualDays.length === 0) {
+      toast.error("Wybierz co najmniej jeden dzień treningu indywidualnego.");
+      setStep(3);
+      return;
+    }
     const profile: Profile = {
       name: name.trim(),
       age: ageNum,
@@ -176,6 +181,8 @@ function Onboarding() {
       level,
       goal,
       clubTrainingDays: clubDays,
+      individualTrainingDays: individualDays,
+      usualMatchDay,
       matchDate: matchDate || null,
       equipment,
       painInjury,
