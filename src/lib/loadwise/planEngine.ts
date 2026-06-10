@@ -1080,38 +1080,41 @@ function weeklyStimuli(
 
   switch (profile.goal) {
     case "strength":
+      // Cel siła: min. 2 jednostki siłowo-mocowe (front-load), gdy faza pozwala.
       if (deload) {
         out = ["strength_deload", "ball", "speed_exposure", "prehab"];
       } else if (phase === "peak") {
         out = ["strength", "power", "sprint", "ball", "prehab"];
       } else if (phase === "development") {
-        out = ["strength", "ball", "power", "endurance_light", "speed_exposure"];
+        out = ["strength", "power", "ball", "speed_exposure", "endurance_light"];
       } else {
-        out = ["strength_base", "ball", "speed_exposure", "endurance_light", "prehab"];
+        out = ["strength_base", "power", "ball", "speed_exposure", "prehab"];
       }
       break;
     case "speed":
+      // Cel szybkość: min. 2 bodźce sprint/szybkość (front-load).
       if (deload) {
         out = ["speed_exposure", "ball", "strength_deload", "prehab"];
       } else if (phase === "peak") {
-        out = ["sprint", "cod", "power", "ball", "endurance_light"];
+        out = ["sprint", "speed_exposure", "cod", "ball", "power"];
       } else if (phase === "development") {
         out = ["sprint", "speed_exposure", "power", "ball", "endurance_light"];
       } else {
-        out = ["speed_exposure", "strength_base", "sprint", "ball", "prehab"];
+        out = ["speed_exposure", "sprint", "strength_base", "ball", "prehab"];
       }
       break;
     case "endurance": {
+      // Cel wytrzymałość: min. 2 jednostki biegowe/kondycyjne (front-load).
       const main = enduranceMainForPhase(phase);
       if (deload) {
         out = [main, "ball", "speed_exposure", "prehab"];
       } else if (phase === "peak") {
         out = [main, "endurance_light", "speed_exposure", "strength", "ball"];
       } else if (phase === "development") {
-        out = [main, "ball", "strength", "endurance_light", "prehab"];
+        out = [main, "endurance_light", "ball", "strength", "prehab"];
       } else {
         // adaptation
-        out = [main, "ball", "speed_exposure", "strength_base", "prehab"];
+        out = [main, "endurance_light", "ball", "speed_exposure", "strength_base"];
       }
       if (!clubCoversBall && !out.includes("ball")) out.splice(1, 0, "ball");
       break;
