@@ -10,7 +10,7 @@ import {
   warsawToday,
   isoDate,
   addDays,
-  parseIso,
+  
   isoDayOfWeek,
   dayName,
   GOAL_LABELS,
@@ -589,35 +589,60 @@ function youthSafety(built: Built, profile: Profile, note: string | null) {
   };
 }
 
-/** Liczba dni od `date` do meczu (dodatnia gdy mecz w przyszłości). */
+/** Stały dzień meczu w tygodniu (1=pon..7=niedz) lub null. */
+function matchWeekday(profile: Profile): number | null {
+  return typeof profile.usualMatchDay === "number"
+    ? profile.usualMatchDay
+    : null;
+}
+
+/** Czy dany dzień jest dniem meczu (jednorazowa data lub stały dzień tygodnia). */
+function isMatchDay(date: Date, profile: Profile): boolean {
+  if (profile.matchDate && isoDate(date) === profile.matchDate) return true;
+  const mw = matchWeekday(profile);
+  if (mw !== null && isoDayOfWeek(date) === mw) return true;
+  return false;
+}
+
+/** Liczba dni do najbliższego meczu (0=dziś, 1..7), null jeśli brak w oknie. */
 function daysToMatch(date: Date, profile: Profile): number | null {
-  if (!profile.matchDate) return null;
-  const match = parseIso(profile.matchDate);
-  const diff = Math.round(
-    (match.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  return diff;
+  for (let i = 0; i <= 7; i++) {
+    if (isMatchDay(addDays(date, i), profile)) return i;
+  }
+  return null;
+}
+
+/** Liczba dni od ostatniego meczu (1..7), null jeśli brak w oknie. */
+function daysSinceMatch(date: Date, profile: Profile): number | null {
+  for (let i = 1; i <= 7; i++) {
+    if (isMatchDay(addDays(date, -i), profile)) return i;
+  }
+  return null;
 }
 
 function mdLabelFor(date: Date, profile: Profile): string | null {
-  const diff = daysToMatch(date, profile);
-  if (diff === null) return null;
-  if (diff === 0) return "MD";
-  if (diff > 0 && diff <= 6) return `MD-${diff}`;
-  if (diff < 0 && diff >= -6) return `MD+${-diff}`;
+  const fwd = daysToMatch(date, profile);
+  if (fwd === 0) return "MD";
+  if (fwd !== null && fwd >= 1 && fwd <= 6) return `MD-${fwd}`;
+  const back = daysSinceMatch(date, profile);
+  if (back !== null && back >= 1 && back <= 6) return `MD+${back}`;
   return null;
 }
 
 function dayTypeFor(date: Date, profile: Profile): DayType {
-  const iso = isoDate(date);
-  if (profile.matchDate && iso === profile.matchDate) return "match";
-  if (
-    profile.matchDate &&
-    iso === isoDate(addDays(parseIso(profile.matchDate), -1))
-  )
-    return "md-1";
+  // 1. Mecz ma priorytet nad wszystkim.
+  if (isMatchDay(date, profile)) return "match";
+  // 2. MD-1 (dzień przed meczem) — lekki.
+  if (daysToMatch(date, profile) === 1) return "md-1";
+  // 3. Trening klubowy = realne obciążenie.
   if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
-  return "training";
+  // 4. Sesje Loadwise tylko w wybranych dniach indywidualnych.
+  if (profile.individualTrainingDays.includes(isoDayOfWeek(date)))
+    return "training";
+  // 5. MD+1 zwykle regeneracja/niska intensywność.
+  if (daysSinceMatch(date, profile) === 1) return "recovery";
+  // 6. W pozostałe dni: wolne (bez dokładania sesji losowo).
+  return "rest";
 }
 
 function builtToSecondSession(
@@ -1078,20 +1103,54 @@ export function generatePlan(
         secondSession: null,
       };
       lastWasHard = false;
+    } else if (type === "rest") {
+      // Dzień wolny — bez dokładania sesji. Wyjątek: MD+1 trafia do gałęzi recovery.
+      session = {
+        date: iso,
+        dayName: dayName(date),
+        dayType: "rest",
+        title: "Dzień wolny",
+        goalLabel: "Wolne",
+        intensity: "niska",
+        durationMin: 0,
+        reason:
+          "Nie wybrałeś tego dnia jako dnia treningu indywidualnego — Loadwise nie dokłada sesji losowo.",
+        safetyNote: null,
+        whyToday:
+          "Plan respektuje Twój kalendarz: trenujesz indywidualnie tylko w wybrane dni, a regeneracja jest chroniona.",
+        sessionType: "Dzień wolny",
+        goalOfSession:
+          "Odpoczynek i regeneracja — w razie ochoty lekka mobilność lub spacer.",
+        riskManaged:
+          "Brak narzuconego obciążenia chroni przed przetrenowaniem i utrzymuje świeżość.",
+        avoidToday: "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.",
+        mdLabel: mdLabelFor(date, profile),
+        slotLabel: null,
+        sections: {
+          warmup: [],
+          main: [],
+          accessory: [],
+          footballTransfer: [],
+          cooldown: [],
+        },
+        secondSession: null,
+      };
+      lastWasHard = false;
     } else {
       // type === "training": wybór sensownej sesji zamiast domyślnej regeneracji
-      const diff = daysToMatch(date, profile);
+      const toMatch = daysToMatch(date, profile);
+      const sinceMatch = daysSinceMatch(date, profile);
       let built: Built;
       let reason: string;
       let whyToday: string;
 
-      if (diff === 2) {
+      if (toMatch === 2) {
         built = buildSharpness(profile);
         reason =
           "Dwa dni przed meczem (MD-2): ostrość i lekka szybkość, kończysz świeży.";
         whyToday =
           "MD-2 to moment na ostrość piłkarską i aktywację — bez dokładania zmęczenia przed meczem.";
-      } else if (diff === -1) {
+      } else if (sinceMatch === 1) {
         built = buildCompensation(profile);
         reason =
           "Dzień po meczu (MD+1): lekka kompensacja i rozruszanie zamiast biernej regeneracji.";
@@ -1106,7 +1165,7 @@ export function generatePlan(
       } else {
         built = buildByGoal(profile);
         reason = `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}. Jeden główny bodziec, bez zbędnej objętości.`;
-        whyToday = `Wybrano dziś, bo dzień jest wolny od meczu i klubu — to dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
+        whyToday = `Wybrano dziś, bo to Twój dzień treningu indywidualnego — dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
       }
 
       const pain = applyPainSafety(built, profile);

@@ -78,6 +78,13 @@ function saveLocal(userId: string, s: LocalState) {
 // ---- map DB rows <-> Profile ----
 type AnyRow = Record<string, unknown>;
 
+function parseUsualMatchDay(v: unknown): Profile["usualMatchDay"] {
+  if (v === null || v === undefined || v === "") return null;
+  if (v === "no_fixed_day") return "no_fixed_day";
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 && n <= 7 ? n : null;
+}
+
 function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
   if (!prof || !prof.onboarding_completed || !ath) return null;
   return {
@@ -87,6 +94,8 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
     level: ath.level as Profile["level"],
     goal: ath.main_goal as Profile["goal"],
     clubTrainingDays: (ath.club_training_days as number[]) ?? [],
+    individualTrainingDays: (ath.individual_training_days as number[]) ?? [],
+    usualMatchDay: parseUsualMatchDay(ath.usual_match_day),
     matchDate: (ath.match_date as string) ?? null,
     equipment: (ath.equipment as string[]) ?? [],
     painInjury: Boolean(ath.pain_injury),
@@ -243,6 +252,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         main_goal: profile.goal,
         equipment: profile.equipment as unknown as never,
         club_training_days: profile.clubTrainingDays as unknown as never,
+        individual_training_days:
+          profile.individualTrainingDays as unknown as never,
+        usual_match_day:
+          profile.usualMatchDay === null
+            ? null
+            : String(profile.usualMatchDay),
         match_date: profile.matchDate,
         pain_injury: profile.painInjury,
         double_sessions_allowed: profile.doubleSessionsAllowed,

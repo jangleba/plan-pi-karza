@@ -26,6 +26,7 @@ export type Database = {
           gym_access: boolean | null
           height_optional: number | null
           id: string
+          individual_training_days: number[]
           league_optional: string | null
           level: string | null
           main_goal: string | null
@@ -36,6 +37,7 @@ export type Database = {
           training_experience: string | null
           updated_at: string
           user_id: string
+          usual_match_day: string | null
           weight_optional: number | null
         }
         Insert: {
@@ -49,6 +51,7 @@ export type Database = {
           gym_access?: boolean | null
           height_optional?: number | null
           id?: string
+          individual_training_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
@@ -59,6 +62,7 @@ export type Database = {
           training_experience?: string | null
           updated_at?: string
           user_id: string
+          usual_match_day?: string | null
           weight_optional?: number | null
         }
         Update: {
@@ -72,6 +76,7 @@ export type Database = {
           gym_access?: boolean | null
           height_optional?: number | null
           id?: string
+          individual_training_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
@@ -82,6 +87,7 @@ export type Database = {
           training_experience?: string | null
           updated_at?: string
           user_id?: string
+          usual_match_day?: string | null
           weight_optional?: number | null
         }
         Relationships: []
