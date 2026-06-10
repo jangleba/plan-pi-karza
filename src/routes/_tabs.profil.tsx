@@ -21,6 +21,10 @@ import {
   Pencil,
   CircleCheck,
   CircleAlert,
+  ShieldCheck as ShieldIcon,
+  FileText,
+  LogOut,
+  ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/profil")({
