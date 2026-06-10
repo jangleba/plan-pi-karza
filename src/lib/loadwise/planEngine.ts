@@ -1854,7 +1854,9 @@ export function generatePlan(
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    const type = dayTypeFor(date, profile);
+    if (i % 7 === 0) doublesThisWeek = 0;
+    const cell = blockMap[iso];
+    const type: DayType = cell?.type ?? "rest";
 
     let session: SessionDay;
 
