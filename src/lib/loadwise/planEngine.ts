@@ -1184,65 +1184,7 @@ function weeklyStimuli(
   return out;
 }
 
-/**
- * Przypisuje bodziec do każdego indywidualnego dnia treningowego w obrębie
- * każdego 7-dniowego bloku planu. MD-2 i MD+1 zostają obsłużone osobno
- * (ostrość / kompensacja), więc nie biorą udziału w dystrybucji.
- */
-function planStimuli(
-  profile: Profile,
-  startDate: Date,
-  days: number,
-  weekOffset = 0,
-): Record<string, Stimulus> {
-  const map: Record<string, Stimulus> = {};
 
-  const totalWeeks = Math.max(1, Math.ceil(days / 7));
-
-  for (let blockStart = 0; blockStart < days; blockStart += 7) {
-    const weekIndex = Math.floor(blockStart / 7);
-    const phaseTotal = days <= 7 ? 4 : totalWeeks;
-    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
-    const trainingDates: string[] = [];
-    let clubCount = 0;
-    let matchCount = 0;
-
-    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
-      const date = addDays(startDate, i);
-      const type = dayTypeFor(date, profile);
-      if (type === "club") clubCount++;
-      if (type === "match") matchCount++;
-      if (type !== "training") continue;
-      if (!isPlannedIndividualDay(date, profile)) {
-        map[isoDate(date)] = activeMidweekStimulus(date, phase);
-        continue;
-      }
-      // MD-2 (ostrość) i MD+1 (kompensacja) mają dedykowane sesje.
-      if (daysToMatch(date, profile) === 2) continue;
-      if (daysSinceMatch(date, profile) === 1) continue;
-      trainingDates.push(isoDate(date));
-    }
-
-    if (trainingDates.length === 0) continue;
-
-    const desired = weeklyStimuli(profile, clubCount, matchCount, phase);
-    // Wypełniacze zależne od fazy — w deloadzie tylko lekkie bodźce.
-    const fillers: Stimulus[] =
-      phase === "deload"
-        ? ["ball", "prehab", "endurance_light"]
-        : ["ball", "prehab", "endurance_light", "speed_exposure"];
-
-    trainingDates.forEach((iso, idx) => {
-      const stim =
-        idx < desired.length
-          ? desired[idx]
-          : fillers[(idx - desired.length) % fillers.length];
-      map[iso] = stim;
-    });
-  }
-
-  return map;
-}
 
 // ---------- Buildery sesji wg bodźca ----------
 
