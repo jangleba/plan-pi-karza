@@ -30,14 +30,14 @@ export function BottomNav() {
                 key={item.to}
                 to={item.to}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-[48px] flex-1 select-none flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 text-[10px] font-medium transition-all duration-200 ease-out active:scale-[0.98] [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] ${
+                className={`flex min-h-[48px] min-w-0 flex-1 select-none flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 text-[10px] font-medium transition-all duration-200 ease-out active:scale-[0.98] [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] ${
                   active
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 1.9} />
-                <span className="leading-tight">{item.label}</span>
+                <span className="max-w-full truncate leading-tight">{item.label}</span>
               </Link>
             );
           })}
