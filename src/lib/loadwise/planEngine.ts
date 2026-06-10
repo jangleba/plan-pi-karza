@@ -636,13 +636,29 @@ function dayTypeFor(date: Date, profile: Profile): DayType {
   if (daysToMatch(date, profile) === 1) return "md-1";
   // 3. Trening klubowy = realne obciążenie.
   if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
-  // 4. Sesje Loadwise tylko w wybranych dniach indywidualnych.
+  // 4. Sesje Loadwise w wybranych dniach indywidualnych.
   if (profile.individualTrainingDays.includes(isoDayOfWeek(date)))
     return "training";
   // 5. MD+1 zwykle regeneracja/niska intensywność.
   if (daysSinceMatch(date, profile) === 1) return "recovery";
-  // 6. W pozostałe dni: wolne (bez dokładania sesji losowo).
+  // 6. Wt–czw nie są domyślnie pustymi placeholderami: jeśli nie ma bólu,
+  // meczu, klubu ani MD+1, wstawiamy aktywny niski bodziec zamiast "wolne".
+  if (!profile.painInjury && [2, 3, 4].includes(isoDayOfWeek(date)))
+    return "training";
+  // 7. Pełne wolne zostaje głównie na koniec tygodnia lub realne ograniczenia.
   return "rest";
+}
+
+function isPlannedIndividualDay(date: Date, profile: Profile): boolean {
+  return profile.individualTrainingDays.includes(isoDayOfWeek(date));
+}
+
+function activeMidweekStimulus(date: Date, phase: WeekPhase): Stimulus {
+  const dow = isoDayOfWeek(date);
+  if (phase === "deload") return dow === 3 ? "ball" : "prehab";
+  if (dow === 2) return "ball";
+  if (dow === 3) return "prehab";
+  return "endurance_light";
 }
 
 function builtToSecondSession(
