@@ -1265,6 +1265,68 @@ function buildPower(profile: Profile): Built {
   };
 }
 
+function buildStrengthDeload(profile: Profile): Built {
+  const base = buildLightAlternative({ ...profile, goal: "strength" });
+  return {
+    ...base,
+    title: "Siła podtrzymująca (deload)",
+    sessionType: "Siła podtrzymująca",
+    intensity: "niska",
+    durationMin: Math.min(base.durationMin, 30),
+    goalOfSession:
+      "Podtrzymanie wzorców siłowych przy niskiej objętości i świeżości nóg.",
+  };
+}
+
+function buildCod(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  return {
+    title: "Zwinność, hamowanie i COD",
+    sessionType: "Agility / COD",
+    intensity: young ? "umiarkowana" : "wysoka",
+    durationMin: young ? 35 : 45,
+    goalOfSession:
+      "Zmiana kierunku, hamowanie i decyzja z piłką — jakość ruchu bez przypadkowego zmęczenia.",
+    riskManaged:
+      "Kontrolowana liczba powtórzeń, pełne przerwy i brak ostrego COD przy bólu kończyn dolnych.",
+    avoidToday:
+      "Bez łączenia z ciężkimi nogami, twardymi interwałami lub dużą plyometrią.",
+    main: [
+      {
+        name: "Mechanika hamowania",
+        prescription: "4 × 5 m wejście + stop w stabilnej pozycji",
+        rest: "60 s",
+        cue: "Nisko biodra, kolano stabilne, cichy kontakt stopy.",
+      },
+      {
+        name: young ? "Zmiana kierunku 45°" : "Zmiana kierunku 45°/90°",
+        prescription: `${young ? 5 : 6} powtórzeń na stronę, pełna kontrola`,
+        rest: "75–90 s",
+        cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku.",
+      },
+      {
+        name: "Reakcja z piłką",
+        prescription: "6 akcji: sygnał, przyjęcie, zmiana kierunku, podanie",
+        cue: "Decyzja przed kontaktem, piłka blisko stopy.",
+      },
+    ],
+    accessory: [
+      {
+        name: "Core i przywodziciele",
+        prescription: "2 × 30 s plank boczny + 2 × 8 przywodziciele",
+        cue: "Kontrola miednicy, bez bólu pachwiny.",
+      },
+    ],
+    footballTransfer: [
+      {
+        name: "Akcja pozycyjna po zmianie kierunku",
+        prescription: "8 min wg pozycji",
+        cue: "Skan, zwód, decyzja, podanie lub wykończenie.",
+      },
+    ],
+  };
+}
+
 /** Krótki bodziec szybkościowy: technika biegu, reakcja, mała objętość. */
 function buildSpeedExposure(profile: Profile): Built {
   const young = isYoung(profile.age);
@@ -1588,14 +1650,19 @@ function buildEnduranceDeload(profile: Profile): Built {
 /** Buduje sesję dla danego bodźca tygodniowego. */
 function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
   switch (stimulus) {
+    case "strength_base":
     case "strength":
       return buildByGoal({ ...profile, goal: "strength" });
+    case "strength_deload":
+      return buildStrengthDeload(profile);
     case "power":
       return buildPower(profile);
     case "sprint":
       return buildByGoal({ ...profile, goal: "speed" });
-    case "speed_micro":
-      return buildSpeedMicro(profile);
+    case "speed_exposure":
+      return buildSpeedExposure(profile);
+    case "cod":
+      return buildCod(profile);
     case "endurance_aerobic":
       return buildEnduranceAerobic(profile);
     case "endurance_special":
