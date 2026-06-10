@@ -161,8 +161,16 @@ function weekSummary(
   const phase = phaseOf(weekIndex, totalWeeks);
   const block = focusFor(phase, goal);
 
-  const ownSessions = week.filter((d) => d.dayType === "training").length;
+  // Sesje własne = własne treningi rozwojowe (główne + druga sesja, jeśli to
+  // realny trening). Nie liczymy klubu, meczu, monitoringu ani czystej
+  // regeneracji jako sesji rozwojowych.
+  const ownPrimary = week.filter((d) => d.dayType === "training").length;
+  const ownSecond = week.filter(
+    (d) => d.secondSession && d.secondSession.dayType === "training",
+  ).length;
+  const ownSessions = ownPrimary + ownSecond;
   const clubSessions = week.filter((d) => d.dayType === "club").length;
+  const matchCount = week.filter((d) => d.dayType === "match").length;
   const doubleDays = week.filter((d) => !!d.secondSession).length;
   const recoveryDays = week.filter(
     (d) => d.dayType === "recovery" || d.dayType === "rest",
@@ -178,6 +186,7 @@ function weekSummary(
     ...block,
     ownSessions,
     clubSessions,
+    matchCount,
     doubleDays,
     recoveryDays,
     matchDay,
@@ -221,7 +230,8 @@ function PlanScreen() {
     if (locked !== null) setGateWeek(locked);
   };
 
-  const monthGoal = profile ? GOAL_LABELS[profile.goal] : "gotowość meczowa";
+  const monthGoal =
+    GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
   const summary = current.length
     ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
@@ -309,21 +319,20 @@ function PlanScreen() {
                 <span>
                   {summary.matchDay
                     ? `Mecz: ${formatDate(summary.matchDay.date)}`
-                    : "Mecz: brak"}
+                    : "Mecze: brak"}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Dumbbell className="h-4 w-4 shrink-0" />
-                <span>Sesje Loadwise: {summary.ownSessions}</span>
+                <span>Treningi własne: {summary.ownSessions}</span>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Leaf className="h-4 w-4 shrink-0" />
-                <span>Regeneracja / aktywacja: {summary.recoveryDays}</span>
-              </div>
-
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>Treningi klubowe: {summary.clubSessions}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Leaf className="h-4 w-4 shrink-0" />
+                <span>Regeneracja / prehab: {summary.recoveryDays}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Layers className="h-4 w-4 shrink-0" />
