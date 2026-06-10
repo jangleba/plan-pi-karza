@@ -115,6 +115,7 @@ interface LoadwiseContextValue {
     consents?: Record<string, boolean>,
   ) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
+  restartOnboarding: () => Promise<void>;
   refreshPlanIfNeeded: () => void;
   completeSession: (
     session: SessionDay,
