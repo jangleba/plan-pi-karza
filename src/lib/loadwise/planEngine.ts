@@ -2049,7 +2049,7 @@ export function generatePlan(
         whyToday =
           "Po meczu lekka praca pomaga się rozruszać. Jeśli grałeś dużo lub czujesz się słabo, check-in zmieni to w regenerację.";
       } else {
-        const stimulus = stimulusMap[iso];
+        const stimulus = cell?.stimulus;
         if (
           lastWasHard &&
           !profile.painInjury &&
