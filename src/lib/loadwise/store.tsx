@@ -151,6 +151,11 @@ interface LoadwiseContextValue {
     reason: string,
   ) => Promise<void>;
   undoModification: (date: string, id: string) => Promise<void>;
+  confirmWeeklyTransition: (
+    weekNumber: number,
+    nextMatchDate: string | null,
+    noMatchNextWeek: boolean,
+  ) => Promise<void>;
   saveReadiness: (r: Readiness) => void;
   addTest: (t: TestResult) => void;
   updateScouting: (s: Partial<ScoutingData>) => void;
