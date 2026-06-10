@@ -88,6 +88,8 @@ export const GOAL_LABELS: Record<Goal, string> = {
   speed: "Szybkość",
   strength: "Siła",
   endurance: "Wytrzymałość",
+  power: "Moc",
+  agility: "Zwinność / COD",
   mobility: "Mobilność",
   return: "Powrót do rytmu",
   matchready: "Gotowość meczowa",
