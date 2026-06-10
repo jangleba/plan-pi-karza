@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import {
   POSITION_LABELS,
