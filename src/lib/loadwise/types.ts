@@ -6,6 +6,7 @@ export type Goal =
   | "endurance"
   | "power"
   | "agility"
+  | "general"
   | "mobility"
   | "return"
   | "matchready";
