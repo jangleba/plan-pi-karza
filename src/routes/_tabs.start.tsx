@@ -269,7 +269,7 @@ function StartScreen() {
             onClick={() =>
               navigate({
                 to: "/sesja/$date",
-                params: { date: todaySession.date },
+                params: { date: session.date },
                 search: { slot: 2 },
               })
             }
