@@ -3,10 +3,11 @@ import { useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
+import { phaseOf, type WeekPhase } from "@/lib/loadwise/planEngine";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
-import type { SessionDay, Intensity } from "@/lib/loadwise/types";
+import type { SessionDay, Intensity, Goal } from "@/lib/loadwise/types";
 import {
   Clock,
   ChevronRight,
@@ -17,9 +18,10 @@ import {
   Users,
   Lock,
   ArrowRight,
-  Sparkles,
   Layers,
+  Leaf,
 } from "lucide-react";
+
 
 
 export const Route = createFileRoute("/_tabs/plan")({
