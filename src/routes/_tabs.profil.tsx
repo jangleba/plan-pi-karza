@@ -62,34 +62,6 @@ function ProfilScreen() {
 
   const isMinor = p.age >= 13 && p.age <= 17;
 
-  function exportData() {
-    try {
-      const blob = new Blob([JSON.stringify(state, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "loadwise-dane.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Eksport danych gotowy.");
-    } catch {
-      toast.error("Nie udało się wyeksportować danych.");
-    }
-  }
-
-  function deleteData() {
-    if (
-      window.confirm(
-        "Czy na pewno chcesz usunąć wszystkie dane? Tej operacji nie można cofnąć.",
-      )
-    ) {
-      resetAll();
-      toast.success("Dane usunięte.");
-      navigate({ to: "/onboarding", replace: true });
-    }
-  }
 
   return (
     <div>
