@@ -1265,13 +1265,13 @@ function buildPower(profile: Profile): Built {
   };
 }
 
-/** Krótki bodziec szybkościowy: technika biegu, reakcja, microdose. */
-function buildSpeedMicro(profile: Profile): Built {
+/** Krótki bodziec szybkościowy: technika biegu, reakcja, mała objętość. */
+function buildSpeedExposure(profile: Profile): Built {
   const young = isYoung(profile.age);
   const sprintCap = young ? Math.min(120, MAX_SPRINT_M) : MAX_SPRINT_M;
   return {
-    title: "Mikrodawka szybkości i technika biegu",
-    sessionType: "Szybkość (mikrodawka)",
+    title: "Ekspozycja szybkościowa i technika biegu",
+    sessionType: "Szybkość / technika biegu",
     intensity: "umiarkowana",
     durationMin: young ? 25 : 30,
     goalOfSession:
