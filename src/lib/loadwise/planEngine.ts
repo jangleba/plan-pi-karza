@@ -950,6 +950,364 @@ function buildLightAlternative(profile: Profile): Built {
   }
 }
 
+// ============================================================
+// Tygodniowa dystrybucja bodźców (week stimulus planner)
+// Cel główny zwiększa priorytet danego bodźca, ale plan zawsze
+// zachowuje minimum: siła/moc, sprint, bieganie, piłka, prehab.
+// ============================================================
+
+type Stimulus =
+  | "strength" // główna siła (gym lub bazowa)
+  | "power" // moc/siła eksplozywna (plyo jako element, nie osobny trening)
+  | "sprint" // sprint/akceleracja
+  | "speed_micro" // krótki bodziec szybkościowy / technika biegu / reakcja
+  | "endurance" // główny bodziec biegowy/wydolnościowy
+  | "endurance_light" // krótszy bodziec tlenowy
+  | "ball" // piłka / technika
+  | "prehab"; // mobilność / prehab / stabilizacja
+
+const HARD_STIMULI: Stimulus[] = ["strength", "power", "sprint", "endurance"];
+
+function isHardStimulus(s: Stimulus): boolean {
+  return HARD_STIMULI.includes(s);
+}
+
+/** Czy zawodnik ma realny dostęp do siłowni / wolnych ciężarów. */
+function hasGym(profile: Profile): boolean {
+  return profile.equipment.some((e) => /siłow|hantl|sztang|ciężar/i.test(e));
+}
+
+/** Uporządkowana lista bodźców na tydzień wg celu, z minimum coverage. */
+function weeklyStimuli(
+  profile: Profile,
+  clubCount: number,
+  matchCount: number,
+): Stimulus[] {
+  const noClubOrMatch = clubCount + matchCount === 0;
+  const clubCoversBall = clubCount >= 1 || matchCount >= 1;
+  const out: Stimulus[] = [];
+
+  switch (profile.goal) {
+    case "strength":
+      // 2 jednostki siła/moc, plus zachowane minimum.
+      out.push("strength", "power", "sprint", "ball");
+      if (noClubOrMatch) out.push("endurance_light");
+      out.push("prehab");
+      break;
+    case "speed":
+      out.push("sprint", "speed_micro", "power", "ball");
+      if (noClubOrMatch) out.push("endurance_light");
+      out.push("prehab");
+      break;
+    case "endurance":
+      out.push("endurance", "endurance_light", "strength", "speed_micro");
+      if (!clubCoversBall) out.push("ball");
+      out.push("prehab");
+      break;
+    case "mobility":
+      out.push("prehab", "ball", "endurance_light", "speed_micro", "strength");
+      break;
+    case "return":
+      out.push("prehab", "ball", "endurance_light");
+      break;
+    case "matchready":
+    default:
+      out.push("sprint", "strength", "ball");
+      if (noClubOrMatch) out.push("endurance_light");
+      out.push("speed_micro", "prehab");
+      break;
+  }
+  return out;
+}
+
+/**
+ * Przypisuje bodziec do każdego indywidualnego dnia treningowego w obrębie
+ * każdego 7-dniowego bloku planu. MD-2 i MD+1 zostają obsłużone osobno
+ * (ostrość / kompensacja), więc nie biorą udziału w dystrybucji.
+ */
+function planStimuli(
+  profile: Profile,
+  startDate: Date,
+  days: number,
+): Record<string, Stimulus> {
+  const map: Record<string, Stimulus> = {};
+  if (profile.goal === "return" || profile.painInjury) return map;
+
+  for (let blockStart = 0; blockStart < days; blockStart += 7) {
+    const trainingDates: string[] = [];
+    let clubCount = 0;
+    let matchCount = 0;
+
+    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
+      const date = addDays(startDate, i);
+      const type = dayTypeFor(date, profile);
+      if (type === "club") clubCount++;
+      if (type === "match") matchCount++;
+      if (type !== "training") continue;
+      // MD-2 (ostrość) i MD+1 (kompensacja) mają dedykowane sesje.
+      if (daysToMatch(date, profile) === 2) continue;
+      if (daysSinceMatch(date, profile) === 1) continue;
+      trainingDates.push(isoDate(date));
+    }
+
+    if (trainingDates.length === 0) continue;
+
+    const desired = weeklyStimuli(profile, clubCount, matchCount);
+    // Wypełniacze na wypadek większej liczby dni niż priorytetów.
+    const fillers: Stimulus[] = ["ball", "prehab", "endurance_light", "speed_micro"];
+
+    trainingDates.forEach((iso, idx) => {
+      const stim =
+        idx < desired.length
+          ? desired[idx]
+          : fillers[(idx - desired.length) % fillers.length];
+      map[iso] = stim;
+    });
+  }
+
+  return map;
+}
+
+// ---------- Buildery sesji wg bodźca ----------
+
+/** Sesja mocy: moc, praca unilateralna, core, prehab + plyo jako ELEMENT. */
+function buildPower(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  const beginner = profile.level === "beginner";
+  const gentle = young || beginner;
+  return {
+    title: gentle ? "Sesja mocy i stabilizacji" : "Sesja mocy (power/strength)",
+    sessionType: "Moc / siła eksplozywna",
+    intensity: gentle ? "umiarkowana" : "wysoka",
+    durationMin: gentle ? 45 : 50,
+    goalOfSession:
+      "Rozwój mocy i eksplozywności: praca unilateralna, akcent dynamiczny i plyometria jako element sesji (nie osobny trening).",
+    riskManaged: gentle
+      ? "Plyometria w lekkiej formie (lądowania, niskie skoki, kontrola), bez agresywnych skoków i ciężkich obciążeń dorosłych."
+      : "Plyometria jako element sesji: niska objętość i jakość lądowania, nie samodzielna jednostka plyo.",
+    avoidToday:
+      "Bez łączenia z ciężkim sprintem tego samego dnia. Bez ciężkich nóg na 48 h przed meczem.",
+    main: gentle
+      ? [
+          {
+            name: "Lądowania i mechanika skoku (plyo — element)",
+            prescription: "3 × 5 miękkich lądowań z niskiego podskoku",
+            rest: "60 s",
+            cue: "Ciche, miękkie lądowanie, kolana w linii stóp.",
+            easier: "Tylko zeskok i stabilne lądowanie bez podskoku.",
+          },
+          {
+            name: "Przysiad bułgarski (masa ciała)",
+            prescription: "3 × 8 na nogę",
+            rest: "60 s",
+            cue: "Pion tułowia, stabilne kolano.",
+          },
+          {
+            name: "Wyrzut piłki lekarskiej / dynamiczny mostek",
+            prescription: "3 × 6 dynamicznie",
+            rest: "60 s",
+            cue: "Akcent eksplozywny, kontrola powrotu.",
+          },
+        ]
+      : [
+          {
+            name: "Przysiad skoczny / trap-bar jump (lekko, plyo — element)",
+            prescription: "4 × 4 dynamicznie, lekki ciężar",
+            rest: "120 s",
+            cue: "Maksymalna szybkość koncentryczna, miękkie lądowanie.",
+            easier: "Bez ciężaru, sam wyskok pionowy.",
+          },
+          {
+            name: "Wykrok bułgarski z akcentem mocy",
+            prescription: "3 × 6 na nogę",
+            rest: "90 s",
+            cue: "Mocne wyjście w górę, stabilne kolano.",
+          },
+          {
+            name: "Wyrzut piłki lekarskiej",
+            prescription: "4 × 5 (klatka / zza głowy)",
+            rest: "75 s",
+            cue: "Cała kinetyka od bioder, dynamicznie.",
+          },
+        ],
+    accessory: [
+      {
+        name: "Core antyrotacyjny + prehab",
+        prescription: "3 × 30 s pallof + przywodziciele",
+        cue: "Napięty tułów, kontrola.",
+      },
+    ],
+    footballTransfer: [],
+  };
+}
+
+/** Krótki bodziec szybkościowy: technika biegu, reakcja, microdose. */
+function buildSpeedMicro(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  const sprintCap = young ? Math.min(120, MAX_SPRINT_M) : MAX_SPRINT_M;
+  return {
+    title: "Mikrodawka szybkości i technika biegu",
+    sessionType: "Szybkość (mikrodawka)",
+    intensity: "umiarkowana",
+    durationMin: young ? 25 : 30,
+    goalOfSession:
+      "Utrzymanie ekspozycji na szybkość, technika biegu i reakcja przy małej objętości.",
+    riskManaged: `Bardzo niska objętość zrywów (≤ ${Math.min(100, sprintCap)} m) chroni mięśnie tylne uda.`,
+    avoidToday:
+      "Bez dużej objętości sprintów i ciężkich nóg tego samego dnia.",
+    main: [
+      {
+        name: "Technika biegu (skip A/B, akcent)",
+        prescription: "6 min ćwiczeń biegowych",
+        cue: "Wysokie kolano, aktywna stopa, luźne barki.",
+      },
+      {
+        name: "Przyspieszenia",
+        prescription: `4 × 10 m — łącznie 40 m`,
+        rest: "90 s",
+        cue: "Mocny pierwszy krok, jakość ponad ilość.",
+      },
+      {
+        name: "Reakcja z piłką",
+        prescription: "3 × 15 m start na sygnał + przyjęcie",
+        cue: "Skup się na starcie i pierwszym kontakcie.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+/** Krótszy bodziec tlenowy. */
+function buildEnduranceLight(profile: Profile): Built {
+  const young = isYoung(profile.age);
+  return {
+    title: "Lekki bodziec tlenowy",
+    sessionType: "Wytrzymałość (lekka)",
+    intensity: "niska",
+    durationMin: young ? 25 : 30,
+    goalOfSession:
+      "Lekka praca tlenowa wspierająca bazę i regenerację, bez twardych interwałów.",
+    riskManaged: "Tempo konwersacyjne — utrzymuje wydolność bez zmęczenia.",
+    avoidToday: "Bez twardych interwałów na 48 h przed meczem.",
+    main: [
+      {
+        name: "Ciągły bieg / rower",
+        prescription: `${young ? 18 : 22} min, tętno komfortowe`,
+        cue: "Spokojne, równe tempo, konwersacyjnie.",
+        easier: "Marszobieg.",
+      },
+      {
+        name: "Prowadzenie piłki tempem",
+        prescription: "6 × 40 m luźno",
+        cue: "Miękkie kontakty, luźne barki.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+/** Sesja piłkarska / techniczna z akcentem wg celu. */
+function buildBall(profile: Profile): Built {
+  const speedy = profile.goal === "speed" || profile.goal === "matchready";
+  return {
+    title: "Trening piłkarski (technika i decyzje)",
+    sessionType: "Piłka / technika",
+    intensity: "umiarkowana",
+    durationMin: 45,
+    goalOfSession: speedy
+      ? "Technika i decyzje z akcentem szybkościowym: pierwszy kontakt, akcja po przyspieszeniu."
+      : "Doskonalenie pierwszego kontaktu, skanowania, słabszej nogi i decyzji.",
+    riskManaged:
+      "Praca techniczna o umiarkowanej objętości — bez fatygujących obwodów.",
+    avoidToday: "Bez bezsensownej objętości i twardego kondycyjnego.",
+    main: [
+      {
+        name: "Pierwszy kontakt i skanowanie",
+        prescription: "12 min przyjęć kierunkowych",
+        cue: "Skan przed przyjęciem, kontakt w ruch.",
+      },
+      {
+        name: speedy
+          ? "Przyjęcie–zwrot–przyspieszenie"
+          : "Podania obunóż i słabsza noga",
+        prescription: speedy
+          ? "8 powtórzeń: przyjęcie, zwrot, 8–10 m przyspieszenia"
+          : "12 min, różne dystanse",
+        cue: speedy
+          ? "Pierwszy kontakt w kierunek biegu."
+          : "Celność przed siłą, obie nogi.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [
+      {
+        name: "Akcja pozycyjna wg roli",
+        prescription: "10 min wg pozycji",
+        cue: "Realizuj zadania swojej pozycji.",
+      },
+    ],
+  };
+}
+
+/** Sesja prehab / mobilność / stabilizacja. */
+function buildPrehab(_profile: Profile): Built {
+  return {
+    title: "Prehab, mobilność i stabilizacja",
+    sessionType: "Prehab / mobilność",
+    intensity: "niska",
+    durationMin: 30,
+    goalOfSession:
+      "Odporność bioder, przywodzicieli, ścięgien udowych i łydek oraz jakość ruchu.",
+    riskManaged: "Lekka praca prewencyjna — bez przeciążenia.",
+    avoidToday: "Bez zrywów maksymalnych i ciężkich obciążeń.",
+    main: [
+      {
+        name: "Mobilność bioder, kostek i kręgosłupa",
+        prescription: "10 min",
+        cue: "Powoli, kontroluj końcowy zakres.",
+      },
+      {
+        name: "Copenhagen + Nordic (lekko)",
+        prescription: "2 × 6 przywodziciele, 2 × 4 nordic",
+        cue: "Kontrola, bez bólu.",
+        easier: "Wersje z kolan / mniejszy zakres.",
+      },
+      {
+        name: "Balans, lądowania i core",
+        prescription: "8 min: stabilizacja jednonóż, plank, dead bug",
+        cue: "Napięcie tułowia, miękkie lądowanie.",
+      },
+    ],
+    accessory: [],
+    footballTransfer: [],
+  };
+}
+
+/** Buduje sesję dla danego bodźca tygodniowego. */
+function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
+  switch (stimulus) {
+    case "strength":
+      return buildByGoal({ ...profile, goal: "strength" });
+    case "power":
+      return buildPower(profile);
+    case "sprint":
+      return buildByGoal({ ...profile, goal: "speed" });
+    case "speed_micro":
+      return buildSpeedMicro(profile);
+    case "endurance":
+      return buildByGoal({ ...profile, goal: "endurance" });
+    case "endurance_light":
+      return buildEnduranceLight(profile);
+    case "ball":
+      return buildBall(profile);
+    case "prehab":
+    default:
+      return buildPrehab(profile);
+  }
+}
+
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 export function generatePlan(
   profile: Profile,
@@ -958,8 +1316,10 @@ export function generatePlan(
 ): SessionDay[] {
   const startDate = start ?? warsawToday();
   const out: SessionDay[] = [];
+  const stimulusMap = planStimuli(profile, startDate, days);
 
   let lastWasHard = false;
+
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
