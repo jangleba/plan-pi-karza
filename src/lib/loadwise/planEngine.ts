@@ -668,6 +668,7 @@ function builtToSecondSession(
   profile: Profile,
 ): SessionDay {
   return {
+    generatorVersion: PLAN_ENGINE_VERSION,
     date: isoDate(date),
     dayName: dayName(date),
     dayType: built.sessionType.toLowerCase().includes("regener")
@@ -1963,6 +1964,10 @@ export function generatePlan(
           : "Sesja główna";
     }
 
+    session.generatorVersion = PLAN_ENGINE_VERSION;
+    if (session.secondSession) {
+      session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+    }
     out.push(session);
   }
 
