@@ -284,9 +284,10 @@ function PlanScreen() {
                 <span>Sesje główne: {summary.ownSessions}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span>Mikrotreningi: {summary.microSessions}</span>
+                <Leaf className="h-4 w-4 shrink-0" />
+                <span>Regeneracja/wolne: {summary.recoveryDays}</span>
               </div>
+
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>Treningi klubowe: {summary.clubSessions}</span>
