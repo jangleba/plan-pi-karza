@@ -146,6 +146,7 @@ export const LEVEL_LABELS: Record<Level, string> = {
   beginner: "Początkujący",
   intermediate: "Średniozaawansowany",
   advanced: "Zaawansowany",
+  elite: "Wysoki poziom / elite youth",
 };
 
 export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] =
