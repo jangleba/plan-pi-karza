@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-microcycle-v4";
+export const PLAN_ENGINE_VERSION = "loadwise-season-context-v5";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -1638,6 +1638,180 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
 }
 
 // ============================================================
+// Kontekst sezonu + poziom rozgrywkowy → intensywność tygodnia
+// Decyduje o liczbie sesji (cap), liczbie dni podwójnych (maxDoubles)
+// oraz o dystrybucji bodźców (kompletny tydzień rozwojowy vs. lżejszy).
+// ============================================================
+
+type LevelTier = "high" | "mid" | "low";
+
+/** Poziom organizacji/intensywności wg poziomu rozgrywkowego i poziomu zawodnika. */
+function levelTier(profile: Profile): LevelTier {
+  if (profile.level === "elite") return "high";
+  switch (profile.competitionLevel) {
+    case "iii_liga":
+    case "ii_liga_plus":
+    case "semi_pro":
+    case "pro":
+      return "high";
+    case "okregowka":
+    case "iv_liga":
+    case "a_klasa":
+      return "mid";
+    case "academy":
+    case "b_klasa":
+    default:
+      return "low";
+  }
+}
+
+interface WeekLoad {
+  cap: number; // maks. liczba własnych sesji rozwojowych w tygodniu
+  maxDoubles: number; // maks. liczba dni podwójnych
+}
+
+/** Liczba sesji i dni podwójnych na tydzień wg sezonu, poziomu i bliskości meczu. */
+function weekLoadConfig(
+  profile: Profile,
+  periodPhase: WeekPhase,
+  hasMatchThisWeek: boolean,
+): WeekLoad {
+  const tier = levelTier(profile);
+  let cap = tier === "high" ? 6 : tier === "mid" ? 5 : 4;
+  let maxDoubles = tier === "high" ? 4 : tier === "mid" ? 3 : 2;
+
+  switch (profile.seasonPhase) {
+    case "offseason":
+    case "preseason":
+      // Pełny, ambitny tydzień rozwojowy — tu pchamy rozwój najmocniej.
+      break;
+    case "inseason":
+      // Świeżość pod mecz; bez meczu zwiększamy gęstość.
+      cap = hasMatchThisWeek ? cap - 1 : cap;
+      maxDoubles = Math.min(maxDoubles, hasMatchThisWeek ? 2 : 3);
+      break;
+    case "transition":
+      cap = Math.min(cap, 3);
+      maxDoubles = 0;
+      break;
+    case "return_injury":
+      cap = Math.min(cap, 3);
+      maxDoubles = 0;
+      break;
+  }
+
+  if (profile.painInjury) {
+    cap = Math.min(cap, 2);
+    maxDoubles = 0;
+  }
+  if (periodPhase === "deload") {
+    cap = Math.min(cap, 3);
+    maxDoubles = Math.min(maxDoubles, 1);
+  }
+  // Młodsi i początkujący: bez agresywnego tygodnia podwójnych sesji.
+  if (isYoung(profile.age) || profile.level === "beginner") {
+    maxDoubles = Math.min(maxDoubles, 1);
+  }
+  if (profile.doubleSessionsAllowed === "no") maxDoubles = 0;
+
+  return { cap: Math.max(1, cap), maxDoubles };
+}
+
+/** Główny bodziec odpowiadający celowi zawodnika. */
+function primaryStimulusForGoal(goal: Profile["goal"], gym: boolean): Stimulus {
+  switch (goal) {
+    case "strength":
+      return gym ? "strength" : "strength_base";
+    case "power":
+      return "power";
+    case "speed":
+      return "sprint";
+    case "agility":
+      return "cod";
+    case "endurance":
+      return "endurance_special";
+    default:
+      return "ball";
+  }
+}
+
+/** Przesuwa bodziec celu na początek listy (front-load), bez duplikatów. */
+function frontLoadGoal(profile: Profile, list: Stimulus[]): Stimulus[] {
+  const prim = primaryStimulusForGoal(profile.goal, profile.hasGym);
+  const idx = list.indexOf(prim);
+  if (idx > 0) {
+    const copy = [...list];
+    copy.splice(idx, 1);
+    copy.unshift(prim);
+    return copy;
+  }
+  return list;
+}
+
+/**
+ * Tygodniowa lista bodźców z uwzględnieniem okresu sezonu.
+ * Offseason/przedsezon = kompletny tydzień rozwojowy (siła/moc, sprint/COD,
+ * kondycja, piłka, prehab). Okres przejściowy / powrót = lżej. W sezonie =
+ * istniejąca logika periodyzacji + zagęszczenie, gdy brak meczu.
+ */
+function seasonWeeklyStimuli(
+  profile: Profile,
+  clubCount: number,
+  matchCount: number,
+  phase: WeekPhase,
+): Stimulus[] {
+  if (profile.painInjury) {
+    return weeklyStimuli(profile, clubCount, matchCount, phase);
+  }
+  const gym = profile.hasGym;
+  const strengthMain: Stimulus = gym ? "strength" : "strength_base";
+
+  switch (profile.seasonPhase) {
+    case "offseason": {
+      const list: Stimulus[] = [
+        strengthMain,
+        "power",
+        "sprint",
+        "endurance_aerobic",
+        "ball",
+        "cod",
+        "ball",
+        "prehab",
+      ];
+      return frontLoadGoal(profile, list);
+    }
+    case "preseason": {
+      const list: Stimulus[] = [
+        strengthMain,
+        "power",
+        "sprint",
+        "endurance_special",
+        "endurance_aerobic",
+        "ball",
+        "ball",
+        "cod",
+        "prehab",
+      ];
+      return frontLoadGoal(profile, list);
+    }
+    case "transition":
+      return ["prehab", "endurance_light", "ball", "prehab", "strength_base", "ball"];
+    case "return_injury":
+      return ["prehab", "endurance_light", "ball", "prehab", "ball"];
+    case "inseason":
+    default: {
+      const base = weeklyStimuli(profile, clubCount, matchCount, phase);
+      if (matchCount === 0) {
+        // Brak meczu w tym tygodniu — zwiększ gęstość treningową.
+        base.push(primaryStimulusForGoal(profile.goal, gym));
+        base.push("ball");
+      }
+      return base;
+    }
+  }
+}
+
+// ============================================================
 // Tygodniowy planer mikrocyklu (week-level microcycle planner)
 // Zamiast oznaczać każdy dzień osobno (co dawało 7 "treningów własnych",
 // 5 podwójnych dni i wolne weekendy), budujemy realny mikrocykl:
@@ -1719,9 +1893,9 @@ function planBlock(
 
     const normal = avail.filter((it) => it.toMatch !== 2);
     const ordered = interleaveStimuli(
-      weeklyStimuli(profile, clubCount, matchCount, phase),
+      seasonWeeklyStimuli(profile, clubCount, matchCount, phase),
     );
-    const cap = profile.painInjury ? 2 : phase === "deload" ? 3 : 5;
+    const { cap } = weekLoadConfig(profile, phase, matchCount > 0);
     const ownCount = Math.min(normal.length, ordered.length, cap);
 
     normal.forEach((it, idx) => {
@@ -1737,10 +1911,8 @@ function planBlock(
   return result;
 }
 
-/** Maks. liczba podwójnych dni w tygodniu — bez automatycznych 5 dubli. */
-const MAX_DOUBLES_PER_WEEK = 2;
-
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
+
 export function generatePlan(
   profile: Profile,
   start?: Date,
@@ -1753,12 +1925,26 @@ export function generatePlan(
 
   let lastWasHard = false;
   let doublesThisWeek = 0;
-
+  let weeklyMaxDoubles = 0;
+  const totalWeeks = Math.max(1, Math.ceil(days / 7));
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    if (i % 7 === 0) doublesThisWeek = 0;
+    if (i % 7 === 0) {
+      doublesThisWeek = 0;
+      const weekIndex = Math.floor(i / 7);
+      const phaseTotal = days <= 7 ? 4 : totalWeeks;
+      const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+      let hasMatch = false;
+      for (let k = i; k < Math.min(i + 7, days); k++) {
+        if (isMatchDay(addDays(startDate, k), profile)) {
+          hasMatch = true;
+          break;
+        }
+      }
+      weeklyMaxDoubles = weekLoadConfig(profile, phase, hasMatch).maxDoubles;
+    }
     const cell = blockMap[iso];
     const type: DayType = cell?.type ?? "rest";
 
@@ -2013,7 +2199,7 @@ export function generatePlan(
 
     // Druga, lekka sesja — tylko jeśli dozwolona, bezpieczna i w limicie
     // tygodniowym (bez automatycznych 5 podwójnych dni).
-    if (doublesThisWeek < MAX_DOUBLES_PER_WEEK) {
+    if (doublesThisWeek < weeklyMaxDoubles) {
       const second = buildSecondSession(session.dayType, date, profile);
       if (second) {
         session.secondSession = second;

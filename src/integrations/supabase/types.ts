@@ -19,11 +19,15 @@ export type Database = {
           age: number | null
           club_name: string | null
           club_training_days: Json
+          competition_level: string | null
           created_at: string
           double_sessions_allowed: string | null
           equipment: Json
           guardian_consent: boolean | null
           gym_access: boolean | null
+          has_gym: boolean | null
+          has_pitch: boolean | null
+          has_sprint_space: boolean | null
           height_optional: number | null
           id: string
           individual_training_days: number[]
@@ -33,22 +37,29 @@ export type Database = {
           match_date: string | null
           pain_injury: boolean | null
           position: string | null
+          season_phase: string | null
+          season_stage: string | null
           sex_optional: string | null
           training_experience: string | null
           updated_at: string
           user_id: string
           usual_match_day: string | null
+          weekly_matches: boolean | null
           weight_optional: number | null
         }
         Insert: {
           age?: number | null
           club_name?: string | null
           club_training_days?: Json
+          competition_level?: string | null
           created_at?: string
           double_sessions_allowed?: string | null
           equipment?: Json
           guardian_consent?: boolean | null
           gym_access?: boolean | null
+          has_gym?: boolean | null
+          has_pitch?: boolean | null
+          has_sprint_space?: boolean | null
           height_optional?: number | null
           id?: string
           individual_training_days?: number[]
@@ -58,22 +69,29 @@ export type Database = {
           match_date?: string | null
           pain_injury?: boolean | null
           position?: string | null
+          season_phase?: string | null
+          season_stage?: string | null
           sex_optional?: string | null
           training_experience?: string | null
           updated_at?: string
           user_id: string
           usual_match_day?: string | null
+          weekly_matches?: boolean | null
           weight_optional?: number | null
         }
         Update: {
           age?: number | null
           club_name?: string | null
           club_training_days?: Json
+          competition_level?: string | null
           created_at?: string
           double_sessions_allowed?: string | null
           equipment?: Json
           guardian_consent?: boolean | null
           gym_access?: boolean | null
+          has_gym?: boolean | null
+          has_pitch?: boolean | null
+          has_sprint_space?: boolean | null
           height_optional?: number | null
           id?: string
           individual_training_days?: number[]
@@ -83,11 +101,14 @@ export type Database = {
           match_date?: string | null
           pain_injury?: boolean | null
           position?: string | null
+          season_phase?: string | null
+          season_stage?: string | null
           sex_optional?: string | null
           training_experience?: string | null
           updated_at?: string
           user_id?: string
           usual_match_day?: string | null
+          weekly_matches?: boolean | null
           weight_optional?: number | null
         }
         Relationships: []

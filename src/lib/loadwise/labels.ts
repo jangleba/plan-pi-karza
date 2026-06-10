@@ -1,4 +1,43 @@
-import type { Goal, Position, Level, Intensity, DoubleSessions } from "./types";
+import type {
+  Goal,
+  Position,
+  Level,
+  Intensity,
+  DoubleSessions,
+  SeasonPhase,
+  SeasonStage,
+  CompetitionLevel,
+} from "./types";
+
+export const SEASON_PHASE_LABELS: Record<SeasonPhase, string> = {
+  offseason: "Poza sezonem",
+  preseason: "Przedsezon",
+  inseason: "W sezonie",
+  transition: "Okres przejściowy / roztrenowanie",
+  return_injury: "Powrót po kontuzji",
+};
+
+export const SEASON_STAGE_LABELS: Record<SeasonStage, string> = {
+  season_start: "Początek sezonu",
+  season_mid: "Środek sezonu",
+  season_end: "Końcówka sezonu",
+  winter_break: "Przerwa zimowa",
+  between_rounds: "Przerwa między rundami",
+  no_match_week: "Tydzień bez meczu",
+  match_week: "Tydzień meczowy",
+};
+
+export const COMPETITION_LEVEL_LABELS: Record<CompetitionLevel, string> = {
+  academy: "Akademia / junior",
+  b_klasa: "B klasa",
+  a_klasa: "A klasa",
+  okregowka: "Okręgówka",
+  iv_liga: "IV liga",
+  iii_liga: "III liga",
+  ii_liga_plus: "II liga lub wyżej",
+  semi_pro: "Półprofesjonalny",
+  pro: "Profesjonalny",
+};
 
 export const DOUBLE_SESSION_LABELS: Record<DoubleSessions, string> = {
   no: "Nie",
@@ -107,6 +146,7 @@ export const LEVEL_LABELS: Record<Level, string> = {
   beginner: "Początkujący",
   intermediate: "Średniozaawansowany",
   advanced: "Zaawansowany",
+  elite: "Wysoki poziom / elite youth",
 };
 
 export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] =

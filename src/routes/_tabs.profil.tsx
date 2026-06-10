@@ -8,6 +8,8 @@ import {
   LEVEL_LABELS,
   GOAL_LABELS,
   DOUBLE_SESSION_LABELS,
+  SEASON_PHASE_LABELS,
+  COMPETITION_LEVEL_LABELS,
 } from "@/lib/loadwise/labels";
 import type { DoubleSessions } from "@/lib/loadwise/types";
 import { Button } from "@/components/ui/button";
@@ -89,6 +91,14 @@ function ProfilScreen() {
             <Row label="Pozycja" value={POSITION_LABELS[p.position]} />
             <Row label="Poziom" value={LEVEL_LABELS[p.level]} />
             <Row label="Cel główny" value={GOAL_LABELS[p.goal]} />
+            <Row
+              label="Okres sezonu"
+              value={SEASON_PHASE_LABELS[p.seasonPhase]}
+            />
+            <Row
+              label="Poziom rozgrywkowy"
+              value={COMPETITION_LEVEL_LABELS[p.competitionLevel]}
+            />
             <Row
               label="Najbliższy mecz"
               value={p.matchDate ?? "Brak daty"}

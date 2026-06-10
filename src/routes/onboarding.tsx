@@ -9,6 +9,9 @@ import type {
   Level,
   Goal,
   DoubleSessions,
+  SeasonPhase,
+  SeasonStage,
+  CompetitionLevel,
 } from "@/lib/loadwise/types";
 import {
   GOAL_LABELS,
@@ -17,6 +20,9 @@ import {
   ISO_DAY_LABELS,
   EQUIPMENT_OPTIONS,
   DOUBLE_SESSION_LABELS,
+  SEASON_PHASE_LABELS,
+  SEASON_STAGE_LABELS,
+  COMPETITION_LEVEL_LABELS,
 } from "@/lib/loadwise/labels";
 import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { Button } from "@/components/ui/button";
@@ -30,7 +36,34 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 const positions: Position[] = ["goalkeeper", "defender", "midfielder", "forward"];
-const levels: Level[] = ["beginner", "intermediate", "advanced"];
+const levels: Level[] = ["beginner", "intermediate", "advanced", "elite"];
+const seasonPhases: SeasonPhase[] = [
+  "offseason",
+  "preseason",
+  "inseason",
+  "transition",
+  "return_injury",
+];
+const seasonStages: SeasonStage[] = [
+  "season_start",
+  "season_mid",
+  "season_end",
+  "winter_break",
+  "between_rounds",
+  "no_match_week",
+  "match_week",
+];
+const competitionLevels: CompetitionLevel[] = [
+  "academy",
+  "b_klasa",
+  "a_klasa",
+  "okregowka",
+  "iv_liga",
+  "iii_liga",
+  "ii_liga_plus",
+  "semi_pro",
+  "pro",
+];
 const goals: Goal[] = [
   "speed",
   "strength",
@@ -117,6 +150,24 @@ function Onboarding() {
   const [individualDays, setIndividualDays] = useState<number[]>(
     existing?.individualTrainingDays ?? [],
   );
+  const [seasonPhase, setSeasonPhase] = useState<SeasonPhase | null>(
+    existing?.seasonPhase ?? null,
+  );
+  const [seasonStage, setSeasonStage] = useState<SeasonStage | null>(
+    existing?.seasonStage ?? null,
+  );
+  const [competitionLevel, setCompetitionLevel] =
+    useState<CompetitionLevel | null>(existing?.competitionLevel ?? null);
+  const [weeklyMatches, setWeeklyMatches] = useState(
+    existing?.weeklyMatches ?? true,
+  );
+  const [hasGym, setHasGym] = useState(
+    existing?.hasGym ?? false,
+  );
+  const [hasPitch, setHasPitch] = useState(existing?.hasPitch ?? true);
+  const [hasSprintSpace, setHasSprintSpace] = useState(
+    existing?.hasSprintSpace ?? true,
+  );
   const [matchDayChoice, setMatchDayChoice] = useState<
     "sat" | "sun" | "other" | "none" | null
   >(
@@ -174,7 +225,13 @@ function Onboarding() {
     if (step === 0) return requiredConsentsOk;
     if (step === 1)
       return name.trim().length > 0 && ageNum >= 13 && ageNum <= 60;
-    if (step === 2) return position !== null && level !== null;
+    if (step === 2)
+      return (
+        position !== null &&
+        level !== null &&
+        seasonPhase !== null &&
+        competitionLevel !== null
+      );
     if (step === 3) return goal !== null;
     if (step === 4) return doubleSessions !== null && individualDays.length > 0;
     return true;
@@ -184,6 +241,11 @@ function Onboarding() {
     if (busy) return;
     if (!position || !level || !goal || !doubleSessions || !(ageNum >= 13)) {
       toast.error("Uzupełnij wymagane pola.");
+      return;
+    }
+    if (!seasonPhase || !competitionLevel) {
+      toast.error("Wybierz okres sezonu i poziom rozgrywkowy.");
+      setStep(2);
       return;
     }
     if (isMinor && !consent) {
@@ -215,6 +277,13 @@ function Onboarding() {
       guardianConsent: isMinor ? consent : true,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
+      seasonPhase,
+      seasonStage: seasonStage,
+      competitionLevel,
+      weeklyMatches,
+      hasGym,
+      hasPitch,
+      hasSprintSpace,
     };
     setBusy(true);
     try {
@@ -327,6 +396,41 @@ function Onboarding() {
                 value={level}
                 onChange={setLevel}
                 labels={LEVEL_LABELS}
+                cols={1}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Okres sezonu</Label>
+              <ChoiceGrid
+                options={seasonPhases}
+                value={seasonPhase}
+                onChange={(v) => {
+                  setSeasonPhase(v);
+                  setSeasonStage(null);
+                }}
+                labels={SEASON_PHASE_LABELS}
+                cols={1}
+              />
+            </div>
+            {(seasonPhase === "inseason" || seasonPhase === "transition") && (
+              <div className="space-y-2">
+                <Label>Etap w sezonie</Label>
+                <ChoiceGrid
+                  options={seasonStages}
+                  value={seasonStage}
+                  onChange={setSeasonStage}
+                  labels={SEASON_STAGE_LABELS}
+                  cols={1}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Poziom rozgrywkowy</Label>
+              <ChoiceGrid
+                options={competitionLevels}
+                value={competitionLevel}
+                onChange={setCompetitionLevel}
+                labels={COMPETITION_LEVEL_LABELS}
                 cols={1}
               />
             </div>
@@ -465,6 +569,58 @@ function Onboarding() {
                 Druga sesja może pojawić się tylko wtedy, gdy nie koliduje z
                 meczem, bólem, zmęczeniem ani treningiem klubowym.
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Czy grasz mecze co tydzień?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { v: true, label: "Tak, co tydzień" },
+                  { v: false, label: "Nie / nieregularnie" },
+                ].map((o) => (
+                  <button
+                    key={String(o.v)}
+                    type="button"
+                    onClick={() => setWeeklyMatches(o.v)}
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
+                      weeklyMatches === o.v
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Warunki treningowe</Label>
+              <div className="space-y-2">
+                {(
+                  [
+                    { key: "gym", label: "Mam dostęp do siłowni", v: hasGym, set: setHasGym },
+                    { key: "pitch", label: "Mam dostęp do boiska", v: hasPitch, set: setHasPitch },
+                    {
+                      key: "sprint",
+                      label: "Mam miejsce do sprintu",
+                      v: hasSprintSpace,
+                      set: setHasSprintSpace,
+                    },
+                  ] as { key: string; label: string; v: boolean; set: (b: boolean) => void }[]
+                ).map((o) => (
+                  <label
+                    key={o.key}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+                  >
+                    <Checkbox
+                      checked={o.v}
+                      onCheckedChange={(c) => o.set(c === true)}
+                    />
+                    <span className="text-sm">{o.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2">
