@@ -234,7 +234,50 @@ function ClubMonitoring({ session }: { session: SessionDay }) {
   );
 }
 
-function SessionDetail() {
+// Krótki komunikat decyzji — max 1 zdanie, tylko jeśli naprawdę potrzebne.
+function shortDecisionNote(session: SessionDay): string | null {
+  if (session.dayType === "club") return "Klub = główne obciążenie.";
+  if (session.dayType === "match") return "Dziś mecz — bez dodatkowego treningu.";
+  if (session.mdLabel === "MD-1") return "MD-1 = tylko aktywacja, bez ciężkich nóg.";
+  if (session.dayType === "recovery") return "Regeneracja — bez intensywności.";
+  if (session.intensity === "wysoka") return "Mocny dzień — rozgrzej się solidnie.";
+  return null;
+}
+
+// Logika decyzji — schowana w accordionie, domyślnie zamknięta.
+function DecisionLogic({ session }: { session: SessionDay }) {
+  const rows: { label: string; value: string | null }[] = [
+    { label: "Cel sesji", value: session.goalOfSession },
+    { label: "Dlaczego dziś", value: session.whyToday },
+    { label: "Zarządzane ryzyko", value: session.riskManaged },
+    { label: "Czego unikać", value: session.avoidToday },
+    { label: "Bezpieczeństwo", value: session.safetyNote },
+  ].filter((r) => r.value);
+
+  if (!rows.length) return null;
+
+  return (
+    <Accordion type="single" collapsible className="soft-card px-4">
+      <AccordionItem value="logic" className="border-0">
+        <AccordionTrigger className="py-3 text-sm font-medium text-muted-foreground hover:no-underline">
+          Logika decyzji
+        </AccordionTrigger>
+        <AccordionContent className="space-y-2 pb-3">
+          {rows.map((r) => (
+            <div key={r.label}>
+              <div className="text-xs font-semibold text-foreground">
+                {r.label}
+              </div>
+              <p className="text-xs text-muted-foreground">{r.value}</p>
+            </div>
+          ))}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+}
+
+
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
