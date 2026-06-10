@@ -106,6 +106,11 @@ interface LoadwiseContextValue {
   ) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   refreshPlanIfNeeded: () => void;
+  completeSession: (
+    session: SessionDay,
+    rpe: number | null,
+    notes: string,
+  ) => Promise<void>;
   saveReadiness: (r: Readiness) => void;
   addTest: (t: TestResult) => void;
   updateScouting: (s: Partial<ScoutingData>) => void;
