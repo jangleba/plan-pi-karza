@@ -15,9 +15,12 @@ export function BottomNav() {
   });
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+    >
       <div className="app-shell">
-        <div className="mx-3 mb-3 flex items-center justify-between rounded-2xl border border-border bg-card/95 px-1.5 py-1.5 shadow-[0_8px_30px_oklch(0.21_0.04_258_/_0.12)] backdrop-blur">
+        <div className="mx-3 flex items-center justify-between gap-1 rounded-[1.6rem] border border-border/60 bg-card/80 px-1.5 py-1.5 shadow-[0_10px_40px_oklch(0.21_0.04_258_/_0.18)] backdrop-blur-xl">
           {items.map((item) => {
             const active =
               pathname === item.to || pathname.startsWith(item.to + "/");
@@ -26,10 +29,11 @@ export function BottomNav() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-colors ${
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-[48px] flex-1 select-none flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 text-[10px] font-medium transition-all duration-200 ease-out active:scale-[0.98] [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] ${
                   active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 1.9} />
