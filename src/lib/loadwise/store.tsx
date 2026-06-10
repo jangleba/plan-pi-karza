@@ -17,6 +17,7 @@ import type {
   SessionModification,
   ModificationType,
   SessionStatus,
+  WeeklyTransition,
 } from "./types";
 import { generatePlan } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
