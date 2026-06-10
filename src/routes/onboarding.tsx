@@ -399,6 +399,41 @@ function Onboarding() {
                 cols={1}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Okres sezonu</Label>
+              <ChoiceGrid
+                options={seasonPhases}
+                value={seasonPhase}
+                onChange={(v) => {
+                  setSeasonPhase(v);
+                  setSeasonStage(null);
+                }}
+                labels={SEASON_PHASE_LABELS}
+                cols={1}
+              />
+            </div>
+            {(seasonPhase === "inseason" || seasonPhase === "transition") && (
+              <div className="space-y-2">
+                <Label>Etap w sezonie</Label>
+                <ChoiceGrid
+                  options={seasonStages}
+                  value={seasonStage}
+                  onChange={setSeasonStage}
+                  labels={SEASON_STAGE_LABELS}
+                  cols={1}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Poziom rozgrywkowy</Label>
+              <ChoiceGrid
+                options={competitionLevels}
+                value={competitionLevel}
+                onChange={setCompetitionLevel}
+                labels={COMPETITION_LEVEL_LABELS}
+                cols={1}
+              />
+            </div>
           </div>
         )}
 
