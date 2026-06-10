@@ -19,7 +19,7 @@ import type {
   SessionStatus,
   WeeklyTransition,
 } from "./types";
-import { generatePlan } from "./planEngine";
+import { generatePlan, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
 import { warsawToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
@@ -401,10 +401,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const profile = state.profile;
     if (!profile?.onboardingComplete) return;
     // Regeneruj tylko, gdy brak planu lub plan pochodzi ze starej wersji
-    // (krótki tydzień / brak identyfikatorów sesji w bazie).
+    // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
     const hasMonthly =
       state.plan.length >= 14 && Boolean(state.plan[0]?.dbId);
-    if (hasMonthly) return;
+    const isCurrentEngine = state.plan.every(
+      (d) => d.generatorVersion === PLAN_ENGINE_VERSION,
+    );
+    if (hasMonthly && isCurrentEngine) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
