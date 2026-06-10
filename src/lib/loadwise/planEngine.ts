@@ -413,86 +413,85 @@ function recoverySession(): Built {
   };
 }
 
-// ---------- Drugie sesje (zawsze lekkie) ----------
+// ---------- Drugie sesje (lekkie, ale konkretne i sensowne) ----------
+// Druga sesja nigdy nie jest pustym wypełniaczem: ma typ, cel, czas,
+// intensywność i konkretne ćwiczenia. Dobiera się ją tak, by uzupełniała
+// sesję główną (np. AM siłownia → PM technika piłki), nie dokładając
+// zmęczenia.
 
-function secondBallMastery(): Built {
+/** PM: technika piłki — uzupełnia dzień siły/mocy/wytrzymałości. */
+function secondBallTechnique(): Built {
   return {
-    title: "Lekkie czucie piłki (AM)",
-    sessionType: "Ball mastery (lekka)",
+    title: "Technika: pierwszy kontakt + podania pod presją (PM)",
+    sessionType: "Technika piłki (lekka)",
     intensity: "niska",
-    durationMin: 20,
-    goalOfSession: "Utrzymanie czucia piłki bez generowania zmęczenia.",
-    riskManaged: "Bardzo niska intensywność — bezpieczne uzupełnienie dnia.",
-    avoidToday: "Bez zrywów, bez obciążeń. Kończysz świeży na sesję główną.",
+    durationMin: 25,
+    goalOfSession:
+      "Doskonalenie pierwszego kontaktu, skanowania i decyzji przy niskim obciążeniu fizycznym.",
+    riskManaged:
+      "Niska intensywność — bez zrywów maksymalnych i ciężkich nóg w drugiej sesji.",
+    avoidToday: "Bez sprintów i ciężkich obciążeń jako druga sesja dnia.",
     main: [
       {
-        name: "Żonglerka i prowadzenie",
-        prescription: "8 min, spokojnie",
-        cue: "Miękkie kontakty, obie nogi.",
+        name: "Pierwszy kontakt i skanowanie",
+        prescription: "10 min przyjęć kierunkowych",
+        rest: "luźno",
+        cue: "Skan przed przyjęciem, kontakt w kierunku gry.",
       },
       {
-        name: "Podania o ścianę / odbojnik",
-        prescription: "8 min, różne kierunki",
-        cue: "Przyjęcie kierunkowe, skan przed kontaktem.",
+        name: "Podania pod presją czasu",
+        prescription: "10 min, różne dystanse",
+        rest: "luźno",
+        cue: "Szybka decyzja, celność przed siłą.",
+        harder: "Co drugie powtórzenie słabszą nogą.",
       },
     ],
     accessory: [],
-    footballTransfer: [],
-  };
-}
-
-function secondMobilityActivation(): Built {
-  return {
-    title: "Mobilność i aktywacja (AM)",
-    sessionType: "Mobilność / aktywacja (lekka)",
-    intensity: "niska",
-    durationMin: 20,
-    goalOfSession: "Przygotowanie ciała do sesji głównej bez zmęczenia.",
-    riskManaged: "Niska intensywność, fokus na jakość ruchu.",
-    avoidToday: "Bez intensywnych zrywów i obciążeń.",
-    main: [
+    footballTransfer: [
       {
-        name: "Mobilność bioder, kostek i kręgosłupa",
-        prescription: "10 min",
-        cue: "Pełen, kontrolowany zakres.",
-      },
-      {
-        name: "Aktywacja pośladków i tułowia",
-        prescription: "8 min: mostki, ptak-pies, dead bug",
-        cue: "Napięcie tułowia, spokojny oddech.",
+        name: "Akcja pozycyjna w spokojnym tempie",
+        prescription: "5 min wg roli na boisku",
+        cue: "Realizuj zadania swojej pozycji.",
       },
     ],
-    accessory: [],
-    footballTransfer: [],
   };
 }
 
-function secondPrehab(): Built {
+/** PM: prehab i mobilność — uzupełnia dzień szybkości/COD. */
+function secondMobilityPrehab(): Built {
   return {
-    title: "Prehab i stabilizacja (AM)",
-    sessionType: "Prehab (lekka)",
+    title: "Prehab: biodra, przywodziciele, hamstring (PM)",
+    sessionType: "Prehab / mobilność (lekka)",
     intensity: "niska",
     durationMin: 20,
     goalOfSession:
-      "Wzmocnienie odporności bioder, przywodzicieli, ścięgien i łydek.",
-    riskManaged: "Lekka praca prewencyjna — bez przeciążenia.",
-    avoidToday: "Bez ciężkich obciążeń i zrywów.",
+      "Wzmocnienie odporności bioder, przywodzicieli, ścięgien udowych i łydek oraz jakość ruchu.",
+    riskManaged: "Lekka praca prewencyjna — bez przeciążenia po sesji głównej.",
+    avoidToday: "Bez intensywnych zrywów i ciężkich obciążeń.",
     main: [
+      {
+        name: "Mobilność bioder i kostek",
+        prescription: "8 min, kontrolowany zakres",
+        cue: "Powoli, kontroluj końcowy zakres ruchu.",
+      },
       {
         name: "Copenhagen (przywodziciele) — lekko",
         prescription: "2 × 6 na stronę",
+        rest: "45 s",
         cue: "Kontrola, bez bólu.",
         easier: "Wersja z kolan.",
       },
       {
         name: "Nordic curl ekscentryczny — lekko",
         prescription: "2 × 4",
-        cue: "Powolne opuszczanie, kontrola.",
+        rest: "60 s",
+        cue: "Powolne opuszczanie, pełna kontrola.",
         easier: "Mniejszy zakres / podpora.",
       },
       {
         name: "Wspięcia na łydki",
         prescription: "2 × 12",
+        rest: "45 s",
         cue: "Pełen zakres, pauza w górze.",
       },
     ],
@@ -501,39 +500,52 @@ function secondPrehab(): Built {
   };
 }
 
-function secondLightTechnical(): Built {
+/** PM: czucie piłki — najlżejszy wariant, do dni klubowych. */
+function secondFootballTouch(): Built {
   return {
-    title: "Lekka praca techniczna (druga sesja)",
-    sessionType: "Technika (lekka)",
+    title: "Technika: czucie piłki + podania o ścianę (PM)",
+    sessionType: "Czucie piłki (lekka)",
     intensity: "niska",
-    durationMin: 25,
+    durationMin: 20,
     goalOfSession:
-      "Doskonalenie techniki i decyzji przy niskim obciążeniu fizycznym.",
+      "Utrzymanie czucia piłki i jakości pierwszego kontaktu bez generowania zmęczenia.",
     riskManaged:
-      "Niska intensywność — bez zrywów maksymalnych i ciężkich nóg w drugiej sesji.",
-    avoidToday: "Bez sprintów i ciężkich obciążeń jako druga sesja dnia.",
+      "Bardzo niska intensywność — bezpieczne uzupełnienie dnia klubowego.",
+    avoidToday: "Bez zrywów i obciążeń. Kończysz świeży.",
     main: [
       {
-        name: "Pierwszy kontakt i skanowanie",
-        prescription: "10 min przyjęć kierunkowych",
-        cue: "Skan przed przyjęciem, kontakt w ruch.",
+        name: "Żonglerka i prowadzenie",
+        prescription: "8 min, spokojnie",
+        cue: "Miękkie kontakty, obie nogi.",
       },
       {
-        name: "Podania pod presją czasu",
-        prescription: "10 min, różne dystanse",
-        cue: "Szybka decyzja, celność przed siłą.",
-        harder: "Dodaj słabszą nogę co drugie powtórzenie.",
+        name: "Podania o ścianę / odbojnik",
+        prescription: "10 min, różne kierunki i dystanse",
+        cue: "Przyjęcie kierunkowe, skan przed kontaktem.",
+        harder: "Przyjęcie na słabszą nogę i podanie pierwszym kontaktem.",
       },
     ],
     accessory: [],
-    footballTransfer: [
-      {
-        name: "Akcja pozycyjna w spokojnym tempie",
-        prescription: "5 min wg roli",
-        cue: "Realizuj zadania swojej pozycji.",
-      },
-    ],
+    footballTransfer: [],
   };
+}
+
+/** Dobiera drugą sesję uzupełniającą sesję główną wg celu (dobre pary). */
+function pickSecondForTraining(profile: Profile): Built {
+  switch (profile.goal) {
+    case "strength":
+    case "power":
+    case "endurance":
+    case "general":
+      // AM ciężka / rozwojowa → PM lekka technika piłki
+      return secondBallTechnique();
+    case "speed":
+    case "agility":
+      // AM sprint/COD → PM mobilność i prehab (ochrona tylnej taśmy)
+      return secondMobilityPrehab();
+    default:
+      return secondBallTechnique();
+  }
 }
 
 const INTENSITY_ORDER: Intensity[] = ["niska", "umiarkowana", "wysoka"];
