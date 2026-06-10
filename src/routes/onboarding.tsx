@@ -193,7 +193,7 @@ function Onboarding() {
     }
     if (individualDays.length === 0) {
       toast.error("Wybierz co najmniej jeden dzień treningu indywidualnego.");
-      setStep(3);
+      setStep(4);
       return;
     }
     const profile: Profile = {
