@@ -277,7 +277,7 @@ function DecisionLogic({ session }: { session: SessionDay }) {
   );
 }
 
-
+function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
