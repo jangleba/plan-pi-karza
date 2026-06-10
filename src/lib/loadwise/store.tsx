@@ -486,6 +486,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .eq("user_id", user.id)
       .eq("id", id);
   }
+
+  function saveReadiness(r: Readiness) {
     setState((s) => {
       const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
       persistLocal(next);
