@@ -574,6 +574,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       } as never,
       { onConflict: "user_id,week_number" } as never,
     );
+  }
+
+  function saveReadiness(r: Readiness) {
     setState((s) => {
       const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
       persistLocal(next);
