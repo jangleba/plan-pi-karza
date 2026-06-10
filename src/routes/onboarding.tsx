@@ -9,6 +9,9 @@ import type {
   Level,
   Goal,
   DoubleSessions,
+  SeasonPhase,
+  SeasonStage,
+  CompetitionLevel,
 } from "@/lib/loadwise/types";
 import {
   GOAL_LABELS,
@@ -17,6 +20,9 @@ import {
   ISO_DAY_LABELS,
   EQUIPMENT_OPTIONS,
   DOUBLE_SESSION_LABELS,
+  SEASON_PHASE_LABELS,
+  SEASON_STAGE_LABELS,
+  COMPETITION_LEVEL_LABELS,
 } from "@/lib/loadwise/labels";
 import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { Button } from "@/components/ui/button";
