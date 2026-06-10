@@ -37,7 +37,7 @@ export function BottomNav() {
                 }`}
               >
                 <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 1.9} />
-                <span className="leading-tight">{item.label}</span>
+                <span className="max-w-full truncate leading-tight">{item.label}</span>
               </Link>
             );
           })}
