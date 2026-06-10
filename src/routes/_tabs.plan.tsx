@@ -4,6 +4,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
+import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
+import { Button } from "@/components/ui/button";
 import type { SessionDay, Intensity } from "@/lib/loadwise/types";
 import {
   Clock,
@@ -13,6 +15,8 @@ import {
   CalendarClock,
   Dumbbell,
   Users,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/plan")({
