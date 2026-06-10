@@ -3,10 +3,11 @@ import { useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
+import { phaseOf, type WeekPhase } from "@/lib/loadwise/planEngine";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
-import type { SessionDay, Intensity } from "@/lib/loadwise/types";
+import type { SessionDay, Intensity, Goal } from "@/lib/loadwise/types";
 import {
   Clock,
   ChevronRight,
@@ -17,9 +18,10 @@ import {
   Users,
   Lock,
   ArrowRight,
-  Sparkles,
   Layers,
+  Leaf,
 } from "lucide-react";
+
 
 
 export const Route = createFileRoute("/_tabs/plan")({
@@ -50,22 +52,70 @@ function dayStatus(day: SessionDay): string {
   }
 }
 
-/** Jedna linia „co robić". */
+/** Jedna krótka „decyzja dnia". */
 function whatToDo(day: SessionDay): string {
   switch (day.dayType) {
     case "match":
-      return "Co robić: zagraj mecz i wpisz minuty oraz RPE.";
+      return "Dzień meczu — zagraj i wpisz minuty oraz RPE.";
     case "md-1":
-      return "Co robić: tylko aktywacja, zostań świeży.";
+      return "Zachowaj świeżość przed meczem — tylko aktywacja.";
     case "club":
-      return "Co robić: zrób trening klubowy i wpisz RPE.";
+      return "Monitoring klubu + RPE po treningu.";
     case "recovery":
-      return "Co robić: lekka regeneracja, bez intensywności.";
+      return "Regeneracja po meczu, bez dokładania zmęczenia.";
     case "rest":
-      return "Co robić: odpocznij.";
-    default:
-      return "Co robić: wejdź w sesję i wykonaj plan.";
+      return "Dzień wolny — odpoczynek, ewentualnie lekki ruch.";
+    default: {
+      const type = day.sessionType.toLowerCase();
+      if (type.includes("wytrzymał") || type.includes("rsa"))
+        return "Główne okno bodźca wytrzymałościowego.";
+      if (type.includes("siła") || type.includes("moc"))
+        return "Bodziec siły/mocy — kontrola techniki.";
+      if (type.includes("szybko") || type.includes("sprint"))
+        return "Akcent szybkościowy — jakość ponad objętość.";
+      if (type.includes("piłk") || type.includes("technik"))
+        return "Praca z piłką: technika i decyzje.";
+      if (type.includes("ostro"))
+        return "Ostrość przed meczem — kończysz świeży.";
+      if (type.includes("prehab") || type.includes("mobil"))
+        return "Prehab i mobilność — odporność i jakość ruchu.";
+      return "Wykonaj zaplanowany bodziec dnia.";
+    }
   }
+}
+
+const PHASE_FOCUS: Record<WeekPhase, { goal: string; accent: string }> = {
+  adaptation: {
+    goal: "Wejście w rytm",
+    accent: "Adaptacja i baza — kontrolowane wejście w blok",
+  },
+  development: {
+    goal: "Budowanie obciążenia",
+    accent: "Rozwój głównego bodźca pod cel",
+  },
+  peak: {
+    goal: "Najmocniejszy tydzień",
+    accent: "Najwyższy specyficzny bodziec, kontrolowany overload",
+  },
+  deload: {
+    goal: "Deload i świeżość",
+    accent: "Konsolidacja, mniejsza objętość, wyostrzenie",
+  },
+};
+
+/** Akcent fazy dopasowany do celu zawodnika. */
+function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string } {
+  const base = PHASE_FOCUS[phase];
+  if (goal === "endurance") {
+    const accent: Record<WeekPhase, string> = {
+      adaptation: "Baza tlenowa i tempo",
+      development: "Wytrzymałość specjalna i interwały",
+      peak: "RSA / wysoka specyfika wytrzymałościowa",
+      deload: "Ostrość wytrzymałościowa, mała objętość",
+    };
+    return { goal: base.goal, accent: accent[phase] };
+  }
+  return base;
 }
 
 /** Tygodniowe podsumowanie / periodyzacja. */
@@ -73,23 +123,17 @@ function weekSummary(
   weekIndex: number,
   totalWeeks: number,
   week: SessionDay[],
+  goal: Goal,
 ) {
-  const blocks = [
-    { goal: "Wejście w rytm", accent: "Technika + monitoring obciążenia" },
-    { goal: "Budowanie bodźca", accent: "Siła i szybkość" },
-    { goal: "Najmocniejszy tydzień", accent: "Akcent pod cel" },
-    { goal: "Deload / taper", accent: "Regeneracja i wyostrzenie" },
-  ];
-  // Ostatni tydzień zawsze deload/taper.
-  const block =
-    weekIndex === totalWeeks - 1
-      ? blocks[3]
-      : blocks[Math.min(weekIndex, 2)];
+  const phase = phaseOf(weekIndex, totalWeeks);
+  const block = focusFor(phase, goal);
 
   const ownSessions = week.filter((d) => d.dayType === "training").length;
   const clubSessions = week.filter((d) => d.dayType === "club").length;
   const doubleDays = week.filter((d) => !!d.secondSession).length;
-  const microSessions = week.filter((d) => !!d.secondSession).length;
+  const recoveryDays = week.filter(
+    (d) => d.dayType === "recovery" || d.dayType === "rest",
+  ).length;
   const matchDay = week.find((d) => d.dayType === "match");
 
   // Obciążenie tygodnia = najwyższa częsta intensywność.
@@ -102,12 +146,12 @@ function weekSummary(
     ownSessions,
     clubSessions,
     doubleDays,
-    microSessions,
+    recoveryDays,
     matchDay,
     load,
   };
-
 }
+
 
 function PlanScreen() {
   const { state, todayIso } = useLoadwise();
@@ -147,8 +191,9 @@ function PlanScreen() {
   const monthGoal = profile ? GOAL_LABELS[profile.goal] : "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
   const summary = current.length
-    ? weekSummary(activeWeek, weeks.length, current)
+    ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
     : null;
+
 
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
@@ -239,9 +284,10 @@ function PlanScreen() {
                 <span>Sesje główne: {summary.ownSessions}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span>Mikrotreningi: {summary.microSessions}</span>
+                <Leaf className="h-4 w-4 shrink-0" />
+                <span>Regeneracja/wolne: {summary.recoveryDays}</span>
               </div>
+
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="h-4 w-4 shrink-0" />
                 <span>Treningi klubowe: {summary.clubSessions}</span>
