@@ -131,11 +131,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LoadwiseProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="top-center" />
-      </LoadwiseProvider>
+      <AuthProvider>
+        <LoadwiseProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster position="top-center" />
+        </LoadwiseProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
