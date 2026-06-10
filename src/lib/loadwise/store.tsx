@@ -87,6 +87,9 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
     level: ath.level as Profile["level"],
     goal: ath.main_goal as Profile["goal"],
     clubTrainingDays: (ath.club_training_days as number[]) ?? [],
+    individualTrainingDays: (ath.individual_training_days as number[]) ?? [],
+    usualMatchDay:
+      (ath.usual_match_day as Profile["usualMatchDay"]) ?? null,
     matchDate: (ath.match_date as string) ?? null,
     equipment: (ath.equipment as string[]) ?? [],
     painInjury: Boolean(ath.pain_injury),
