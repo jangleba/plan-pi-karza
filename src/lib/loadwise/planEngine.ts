@@ -1044,6 +1044,13 @@ function weeklyStimuli(
   const deload = phase === "deload";
   let out: Stimulus[] = [];
 
+  if (profile.painInjury) {
+    if (deload) return ["prehab", "ball", "endurance_light"];
+    if (phase === "development") return ["prehab", "endurance_light", "ball", "prehab"];
+    if (phase === "peak") return ["ball", "prehab", "endurance_light", "ball"];
+    return ["prehab", "ball", "endurance_light"];
+  }
+
   switch (profile.goal) {
     case "strength":
       if (deload) {
@@ -1121,7 +1128,15 @@ function weeklyStimuli(
         : ["prehab", "ball", "endurance_light", "speed_exposure", "strength_base"];
       break;
     case "return":
-      out = ["prehab", "ball", "endurance_light"];
+      if (deload) {
+        out = ["prehab", "ball", "endurance_light"];
+      } else if (phase === "peak") {
+        out = ["ball", "endurance_light", "prehab", "ball"];
+      } else if (phase === "development") {
+        out = ["prehab", "endurance_light", "ball", "prehab"];
+      } else {
+        out = ["prehab", "ball", "endurance_light"];
+      }
       break;
     case "matchready":
     default:
@@ -1150,7 +1165,6 @@ function planStimuli(
   days: number,
 ): Record<string, Stimulus> {
   const map: Record<string, Stimulus> = {};
-  if (profile.goal === "return" || profile.painInjury) return map;
 
   const totalWeeks = Math.max(1, Math.ceil(days / 7));
 
