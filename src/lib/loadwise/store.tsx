@@ -126,6 +126,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
+  const generatingRef = useRef(false);
 
   const todayIso = isoDate(warsawToday());
 
