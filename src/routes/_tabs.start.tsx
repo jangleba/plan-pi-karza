@@ -391,7 +391,7 @@ function StartScreen() {
         date={todayIso}
       />
 
-      <div className="h-[120px]" />
+      <div className="h-[140px]" />
 
     </div>
   );
