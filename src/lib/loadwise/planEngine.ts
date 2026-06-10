@@ -1911,10 +1911,8 @@ function planBlock(
   return result;
 }
 
-/** Maks. liczba podwójnych dni w tygodniu — bez automatycznych 5 dubli. */
-const MAX_DOUBLES_PER_WEEK = 2;
-
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
+
 export function generatePlan(
   profile: Profile,
   start?: Date,
