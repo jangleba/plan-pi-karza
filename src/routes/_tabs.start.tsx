@@ -19,7 +19,11 @@ import {
   Activity,
   Gauge,
   ChevronRight,
+  Plus,
+  Repeat,
+  Undo2,
 } from "lucide-react";
+import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
 
 export const Route = createFileRoute("/_tabs/start")({
