@@ -40,6 +40,7 @@ const initialState: LoadwiseState = {
   completions: {},
   tests: [],
   scouting: emptyScouting,
+  modifications: {},
 };
 
 // ---- local-only state (readiness/tests/scouting), namespaced per user ----
