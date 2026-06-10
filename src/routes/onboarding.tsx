@@ -572,6 +572,58 @@ function Onboarding() {
             </div>
 
             <div className="space-y-2">
+              <Label>Czy grasz mecze co tydzień?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { v: true, label: "Tak, co tydzień" },
+                  { v: false, label: "Nie / nieregularnie" },
+                ].map((o) => (
+                  <button
+                    key={String(o.v)}
+                    type="button"
+                    onClick={() => setWeeklyMatches(o.v)}
+                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
+                      weeklyMatches === o.v
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Warunki treningowe</Label>
+              <div className="space-y-2">
+                {(
+                  [
+                    { key: "gym", label: "Mam dostęp do siłowni", v: hasGym, set: setHasGym },
+                    { key: "pitch", label: "Mam dostęp do boiska", v: hasPitch, set: setHasPitch },
+                    {
+                      key: "sprint",
+                      label: "Mam miejsce do sprintu",
+                      v: hasSprintSpace,
+                      set: setHasSprintSpace,
+                    },
+                  ] as { key: string; label: string; v: boolean; set: (b: boolean) => void }[]
+                ).map((o) => (
+                  <label
+                    key={o.key}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+                  >
+                    <Checkbox
+                      checked={o.v}
+                      onCheckedChange={(c) => o.set(c === true)}
+                    />
+                    <span className="text-sm">{o.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Label>Dostępny sprzęt</Label>
               <div className="flex flex-wrap gap-2">
                 {EQUIPMENT_OPTIONS.map((e) => (
