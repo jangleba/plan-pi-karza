@@ -1153,10 +1153,10 @@ export function generatePlan(
           : "Sesja główna";
     }
 
-    days.push(session);
+    out.push(session);
   }
 
-  return days;
+  return out;
 }
 
 export interface DecisionResult {
