@@ -110,25 +110,90 @@ function parseUsualMatchDay(v: unknown): Profile["usualMatchDay"] {
   return Number.isFinite(n) && n >= 1 && n <= 7 ? n : null;
 }
 
+const VALID_SEASON_PHASES: Profile["seasonPhase"][] = [
+  "offseason",
+  "preseason",
+  "inseason",
+  "transition",
+  "return_injury",
+];
+
+function normalizeSeasonPhase(v: unknown): Profile["seasonPhase"] {
+  return VALID_SEASON_PHASES.includes(v as Profile["seasonPhase"])
+    ? (v as Profile["seasonPhase"])
+    : "inseason";
+}
+
+const VALID_COMP_LEVELS: Profile["competitionLevel"][] = [
+  "academy",
+  "b_klasa",
+  "a_klasa",
+  "okregowka",
+  "iv_liga",
+  "iii_liga",
+  "ii_liga_plus",
+  "semi_pro",
+  "pro",
+];
+
+function normalizeCompLevel(v: unknown): Profile["competitionLevel"] {
+  return VALID_COMP_LEVELS.includes(v as Profile["competitionLevel"])
+    ? (v as Profile["competitionLevel"])
+    : "okregowka";
+}
+
+const VALID_LEVELS: Profile["level"][] = [
+  "beginner",
+  "intermediate",
+  "advanced",
+  "elite",
+];
+
+function normalizeLevel(v: unknown): Profile["level"] {
+  return VALID_LEVELS.includes(v as Profile["level"])
+    ? (v as Profile["level"])
+    : "intermediate";
+}
+
 function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
   if (!prof || !prof.onboarding_completed || !ath) return null;
+  const equipment = (ath.equipment as string[]) ?? [];
   return {
     name: (prof.full_name as string) ?? "",
     age: (ath.age as number) ?? 0,
     position: ath.position as Profile["position"],
-    level: ath.level as Profile["level"],
+    level: normalizeLevel(ath.level),
     goal: normalizeGoal(ath.main_goal),
     clubTrainingDays: (ath.club_training_days as number[]) ?? [],
     individualTrainingDays: (ath.individual_training_days as number[]) ?? [],
     usualMatchDay: parseUsualMatchDay(ath.usual_match_day),
     matchDate: (ath.match_date as string) ?? null,
-    equipment: (ath.equipment as string[]) ?? [],
+    equipment,
     painInjury: Boolean(ath.pain_injury),
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
     onboardingComplete: true,
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
+    seasonPhase: normalizeSeasonPhase(ath.season_phase),
+    seasonStage: (ath.season_stage as Profile["seasonStage"]) ?? null,
+    competitionLevel: normalizeCompLevel(ath.competition_level),
+    weeklyMatches:
+      ath.weekly_matches === null || ath.weekly_matches === undefined
+        ? true
+        : Boolean(ath.weekly_matches),
+    hasGym:
+      ath.has_gym === null || ath.has_gym === undefined
+        ? equipment.includes("Dostęp do siłowni")
+        : Boolean(ath.has_gym),
+    hasPitch:
+      ath.has_pitch === null || ath.has_pitch === undefined
+        ? true
+        : Boolean(ath.has_pitch),
+    hasSprintSpace:
+      ath.has_sprint_space === null || ath.has_sprint_space === undefined
+        ? true
+        : Boolean(ath.has_sprint_space),
   };
 }
 
