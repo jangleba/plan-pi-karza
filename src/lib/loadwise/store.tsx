@@ -563,6 +563,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         restartOnboarding,
         refreshPlanIfNeeded,
         completeSession,
+        applyModification,
+        undoModification,
         saveReadiness,
         addTest,
         updateScouting,
