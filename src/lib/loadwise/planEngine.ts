@@ -1927,12 +1927,26 @@ export function generatePlan(
 
   let lastWasHard = false;
   let doublesThisWeek = 0;
-
+  let weeklyMaxDoubles = 0;
+  const totalWeeks = Math.max(1, Math.ceil(days / 7));
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    if (i % 7 === 0) doublesThisWeek = 0;
+    if (i % 7 === 0) {
+      doublesThisWeek = 0;
+      const weekIndex = Math.floor(i / 7);
+      const phaseTotal = days <= 7 ? 4 : totalWeeks;
+      const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+      let hasMatch = false;
+      for (let k = i; k < Math.min(i + 7, days); k++) {
+        if (isMatchDay(addDays(startDate, k), profile)) {
+          hasMatch = true;
+          break;
+        }
+      }
+      weeklyMaxDoubles = weekLoadConfig(profile, phase, hasMatch).maxDoubles;
+    }
     const cell = blockMap[iso];
     const type: DayType = cell?.type ?? "rest";
 
