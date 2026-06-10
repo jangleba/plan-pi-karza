@@ -111,6 +111,12 @@ function Onboarding() {
     existing?.doubleSessionsAllowed ?? null,
   );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
+  const [individualDays, setIndividualDays] = useState<number[]>(
+    existing?.individualTrainingDays ?? [],
+  );
+  const [usualMatchDay, setUsualMatchDay] = useState<
+    number | "no_fixed_day" | null
+  >(existing?.usualMatchDay ?? null);
 
   // Legal consents (RODO/GDPR).
   const [consents, setConsents] = useState<Record<string, boolean>>({});
