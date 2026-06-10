@@ -1,15 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { applyReadiness } from "@/lib/loadwise/planEngine";
-import {
-  formatDateFull,
-  formatDate,
-  POSITION_LABELS,
-  GOAL_LABELS,
-} from "@/lib/loadwise/labels";
-import { AppHeader, IntensityBadge, Disclaimer } from "@/components/loadwise/ui";
+import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
+import { AppHeader } from "@/components/loadwise/ui";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -19,8 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Clock, Target, CalendarClock, Activity, ChevronRight } from "lucide-react";
-import type { Readiness } from "@/lib/loadwise/types";
+import {
+  CalendarClock,
+  Activity,
+  Gauge,
+  ChevronRight,
+} from "lucide-react";
+import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -40,10 +40,65 @@ const readinessFields: {
   { key: "overall", label: "Ogólna gotowość" },
 ];
 
-function ReadinessDialog({ onSaved }: { onSaved: () => void }) {
+const LOAD_LABEL: Record<Intensity, string> = {
+  niska: "Niskie",
+  umiarkowana: "Umiarkowane",
+  wysoka: "Wysokie",
+};
+
+/** Duży tytuł decyzji dnia. */
+function dayHeadline(day: SessionDay): string {
+  switch (day.dayType) {
+    case "match":
+      return "Dziś: mecz";
+    case "md-1":
+      return "Dziś: aktywacja przedmeczowa";
+    case "club":
+      return "Dziś: trening klubowy";
+    case "recovery":
+      return "Dziś: regeneracja";
+    case "rest":
+      return "Dziś: dzień wolny";
+    default: {
+      const t = day.sessionType.toLowerCase();
+      if (t.includes("szybk")) return "Dziś: szybkość";
+      if (t.includes("sił")) return "Dziś: siła";
+      if (t.includes("wytrzym")) return "Dziś: wytrzymałość";
+      if (t.includes("piłk") || t.includes("techn")) return "Dziś: trening z piłką";
+      return "Dziś: trening";
+    }
+  }
+}
+
+/** Jedno krótkie zdanie pod tytułem. */
+function dayOneLiner(day: SessionDay): string {
+  switch (day.dayType) {
+    case "match":
+      return "Dzień meczowy. Bez dodatkowego treningu.";
+    case "md-1":
+      return "Tylko aktywacja. Po treningu oceń RPE.";
+    case "club":
+      return "To główne obciążenie dnia. Po treningu oceń RPE.";
+    case "recovery":
+      return "Lekka regeneracja. Bez intensywności.";
+    case "rest":
+      return "Odpoczynek — wróć jutro do planu.";
+    default:
+      return "To główne obciążenie dnia. Po treningu oceń RPE.";
+  }
+}
+
+function ReadinessDialog({
+  open,
+  onOpenChange,
+  trigger,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  trigger?: React.ReactNode;
+}) {
   const { todayIso, saveReadiness, state } = useLoadwise();
   const existing = state.readiness[todayIso];
-  const [open, setOpen] = useState(false);
   const [vals, setVals] = useState<Record<string, number>>(() => ({
     sleep: existing?.sleep ?? 7,
     energy: existing?.energy ?? 7,
@@ -67,18 +122,13 @@ function ReadinessDialog({ onSaved }: { onSaved: () => void }) {
       motivation: vals.motivation,
       overall: vals.overall,
     });
-    setOpen(false);
+    onOpenChange(false);
     toast.success("Zapisano check-in gotowości.");
-    onSaved();
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full" size="lg">
-          {existing ? "Zaktualizuj gotowość" : "Wypełnij check-in gotowości"}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Jak się dziś czujesz?</DialogTitle>
@@ -95,9 +145,7 @@ function ReadinessDialog({ onSaved }: { onSaved: () => void }) {
                 max={10}
                 step={1}
                 value={[vals[f.key]]}
-                onValueChange={(v) =>
-                  setVals((p) => ({ ...p, [f.key]: v[0] }))
-                }
+                onValueChange={(v) => setVals((p) => ({ ...p, [f.key]: v[0] }))}
               />
             </div>
           ))}
@@ -111,9 +159,11 @@ function ReadinessDialog({ onSaved }: { onSaved: () => void }) {
 }
 
 function StartScreen() {
-  const { state, todaySession, todayIso, profile } = useLoadwiseStart();
+  const lw = useLoadwise();
+  const { state, todaySession, todayIso } = lw;
+  const profile = state.profile;
   const navigate = useNavigate();
-  const [, force] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   if (!todaySession || !profile) {
     return (
@@ -123,137 +173,135 @@ function StartScreen() {
     );
   }
 
+  const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const { session: adjustedToday, decision } = applyReadiness(
-    todaySession,
-    readiness,
-    profile,
-  );
-  const secondToday = adjustedToday.secondSession;
+  const { session: adjustedToday } = applyReadiness(session, readiness, profile);
 
   const matchDate = profile.matchDate;
+  const isMatch = session.dayType === "match";
+  const isRestLike =
+    session.dayType === "rest" || session.dayType === "recovery";
+
+  function openSession() {
+    navigate({
+      to: "/sesja/$date",
+      params: { date: session.date },
+      search: { slot: 1 },
+    });
+  }
 
   return (
     <div>
       <AppHeader title={`Cześć, ${profile.name}`} subtitle={formatDateFull(todayIso)} />
 
       <div className="space-y-4 px-5">
-        {/* Decyzja dnia */}
-        <div className="soft-card p-4">
+        {/* Główna decyzja dnia */}
+        <div className="soft-card p-5">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <Activity className="h-3.5 w-3.5" /> Decyzja na dziś
           </div>
-          <h2 className="mt-1.5 text-lg font-semibold leading-snug">
-            {decision.headline}
+          <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight">
+            {dayHeadline(adjustedToday)}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{decision.detail}</p>
-          {decision.adjustment && (
-            <p className="mt-2 rounded-lg bg-accent/40 px-3 py-2 text-xs text-accent-foreground">
-              {decision.adjustment}
-            </p>
-          )}
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {dayOneLiner(adjustedToday)}
+          </p>
         </div>
 
-        {/* Mecz + Gotowość */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="soft-card p-3.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CalendarClock className="h-3.5 w-3.5" /> Najbliższy mecz
-            </div>
-            <div className="mt-1.5 text-sm font-semibold">
-              {matchDate ? formatDate(matchDate) : "Brak daty"}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {matchDate ? "Plan ułożony pod mecz" : "Plan ogólny 7 dni"}
+        {/* 3 kluczowe informacje */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="soft-card p-3">
+            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">Mecz</div>
+            <div className="text-sm font-semibold leading-tight">
+              {matchDate ? formatDate(matchDate) : "Brak"}
             </div>
           </div>
-          <div className="soft-card p-3.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Activity className="h-3.5 w-3.5" /> Gotowość
+          <div className="soft-card p-3">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              Gotowość
             </div>
-            <div className="mt-1.5 text-sm font-semibold">
-              {readiness ? `${readiness.overall}/10` : "Nieuzupełniona"}
+            <div className="text-sm font-semibold leading-tight">
+              {readiness ? "Uzupełniona" : "Brak"}
             </div>
-            <div className="text-xs text-muted-foreground">
-              {POSITION_LABELS[profile.position]} · {GOAL_LABELS[profile.goal]}
+          </div>
+          <div className="soft-card p-3">
+            <Gauge className="h-4 w-4 text-muted-foreground" />
+            <div className="mt-1.5 text-[11px] text-muted-foreground">
+              Obciążenie
+            </div>
+            <div className="text-sm font-semibold leading-tight">
+              {LOAD_LABEL[adjustedToday.intensity]}
             </div>
           </div>
         </div>
 
-        {/* Dzisiejsza sesja */}
-        <Link
-          to="/sesja/$date"
-          params={{ date: todaySession.date }}
-          search={{ slot: 1 }}
-          className="soft-card block p-4"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Dzisiejsza sesja
-            </span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <h3 className="mt-1.5 text-base font-semibold">{todaySession.title}</h3>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <IntensityBadge intensity={todaySession.intensity} />
-            <span className="inline-flex items-center gap-1">
-              <Target className="h-3.5 w-3.5" /> {todaySession.goalLabel}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" /> {todaySession.durationMin} min
-            </span>
-          </div>
-        </Link>
-
-        {secondToday && (
-          <Link
-            to="/sesja/$date"
-            params={{ date: todaySession.date }}
-            search={{ slot: 2 }}
-            className="soft-card block p-4"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Druga sesja dzisiaj (lekka)
-              </span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <h3 className="mt-1.5 text-base font-semibold">
-              {secondToday.title}
-            </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <IntensityBadge intensity={secondToday.intensity} />
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" /> {secondToday.durationMin} min
-              </span>
-            </div>
-          </Link>
+        {/* Główne CTA */}
+        {isMatch ? (
+          <Button className="w-full" size="lg" onClick={openSession}>
+            Zobacz zalecenia meczowe
+          </Button>
+        ) : isRestLike ? (
+          <Button className="w-full" size="lg" onClick={openSession}>
+            Zobacz regenerację
+          </Button>
+        ) : readiness ? (
+          <Button className="w-full" size="lg" onClick={openSession}>
+            Otwórz dzisiejszy trening
+          </Button>
+        ) : (
+          <ReadinessDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            trigger={
+              <Button className="w-full" size="lg">
+                Wypełnij check-in
+              </Button>
+            }
+          />
         )}
 
-        <ReadinessDialog onSaved={() => force((n) => n + 1)} />
+        {/* Druga sesja dziś */}
+        {adjustedToday.secondSession && (
+          <button
+            type="button"
+            onClick={() =>
+              navigate({
+                to: "/sesja/$date",
+                params: { date: session.date },
+                search: { slot: 2 },
+              })
+            }
+            className="soft-card flex w-full items-center justify-between p-4 text-left"
+          >
+            <div className="min-w-0">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                2. sesja dziś (lekka)
+              </div>
+              <div className="mt-0.5 truncate text-sm font-semibold">
+                {adjustedToday.secondSession.title}
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+        )}
 
-        <Button
-          variant="outline"
-          className="w-full"
-          size="lg"
-          onClick={() =>
-            navigate({
-              to: "/sesja/$date",
-              params: { date: todaySession.date },
-              search: { slot: 1 },
-            })
-          }
-        >
-          Otwórz dzisiejszą sesję
-        </Button>
+        {/* Drugorzędne CTA: aktualizacja gotowości, gdy już uzupełniona */}
+        {readiness && !isMatch && !isRestLike && (
+          <ReadinessDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            trigger={
+              <Button variant="outline" className="w-full" size="lg">
+                Zaktualizuj gotowość
+              </Button>
+            }
+          />
+        )}
       </div>
 
-      <Disclaimer />
+      <div className="h-[120px]" />
     </div>
   );
-}
-
-function useLoadwiseStart() {
-  const lw = useLoadwise();
-  return { ...lw, profile: lw.state.profile };
 }
