@@ -165,22 +165,29 @@ function PlanScreen() {
       {/* Przełącznik tygodni */}
       {weeks.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-5 pb-1 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {weeks.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setActiveWeek(i)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                i === activeWeek
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              Tydzień {i + 1}
-            </button>
-          ))}
+          {weeks.map((_, i) => {
+            const locked = !canAccess(i);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => openTab(i)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  i === activeWeek
+                    ? "bg-primary text-primary-foreground"
+                    : locked
+                      ? "bg-secondary/60 text-muted-foreground"
+                      : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                {locked && <Lock className="h-3.5 w-3.5" />}
+                Tydzień {i + 1}
+              </button>
+            );
+          })}
         </div>
       )}
+
 
       {/* Karta podsumowania tygodnia */}
       {summary && (
