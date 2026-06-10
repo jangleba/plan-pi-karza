@@ -85,6 +85,8 @@ function weekSummary(
 
   const ownSessions = week.filter((d) => d.dayType === "training").length;
   const clubSessions = week.filter((d) => d.dayType === "club").length;
+  const doubleDays = week.filter((d) => !!d.secondSession).length;
+  const microSessions = week.filter((d) => !!d.secondSession).length;
   const matchDay = week.find((d) => d.dayType === "match");
 
   // Obciążenie tygodnia = najwyższa częsta intensywność.
@@ -92,7 +94,16 @@ function weekSummary(
   const hasMod = week.some((d) => d.intensity === "umiarkowana");
   const load: Intensity = hasHigh ? "wysoka" : hasMod ? "umiarkowana" : "niska";
 
-  return { ...block, ownSessions, clubSessions, matchDay, load };
+  return {
+    ...block,
+    ownSessions,
+    clubSessions,
+    doubleDays,
+    microSessions,
+    matchDay,
+    load,
+  };
+
 }
 
 function PlanScreen() {
