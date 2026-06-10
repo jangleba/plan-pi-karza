@@ -230,7 +230,8 @@ function PlanScreen() {
     if (locked !== null) setGateWeek(locked);
   };
 
-  const monthGoal = profile ? GOAL_LABELS[profile.goal] : "gotowość meczowa";
+  const monthGoal =
+    GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
   const summary = current.length
     ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
