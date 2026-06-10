@@ -288,7 +288,7 @@ function PlanScreen() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Tydzień {activeWeek + 1}
+                  Fokus tygodnia · Tydzień {activeWeek + 1}
                 </div>
                 <h2 className="mt-1 text-lg font-semibold leading-tight">
                   {summary.goal}
@@ -314,11 +314,11 @@ function PlanScreen() {
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Dumbbell className="h-4 w-4 shrink-0" />
-                <span>Sesje główne: {summary.ownSessions}</span>
+                <span>Sesje Loadwise: {summary.ownSessions}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Leaf className="h-4 w-4 shrink-0" />
-                <span>Regeneracja/wolne: {summary.recoveryDays}</span>
+                <span>Regeneracja / aktywacja: {summary.recoveryDays}</span>
               </div>
 
               <div className="flex items-center gap-2 text-muted-foreground">
