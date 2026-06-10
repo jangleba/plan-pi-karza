@@ -303,7 +303,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   function refreshPlanIfNeeded() {
     const profile = state.profile;
     if (!profile?.onboardingComplete) return;
-    if (state.plan.length > 0) return;
+    // Regeneruj tylko, gdy brak planu lub plan pochodzi ze starej wersji
+    // (krótki tydzień / brak identyfikatorów sesji w bazie).
+    const hasMonthly =
+      state.plan.length >= 14 && Boolean(state.plan[0]?.dbId);
+    if (hasMonthly) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
