@@ -293,7 +293,8 @@ function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
-  const { state, todayIso } = useLoadwise();
+  const { state, todayIso, undoModification } = useLoadwise();
+  const [modifyOpen, setModifyOpen] = useState(false);
 
   const day = state.plan.find((p) => p.date === date);
 
@@ -312,13 +313,19 @@ function SessionDetail() {
   }
 
   const isToday = date === todayIso;
+  const mods = state.modifications[date] ?? [];
+  const swapMod = mods.find((m) => m.type === "swap");
+  const addMods = mods.filter((m) => m.type === "add");
 
-  // Dla dzisiejszego dnia nakładamy gotowość na sesję główną.
+  // Sesja główna: zamieniona (jeśli jest) lub zaplanowana z gotowością.
   let primary: SessionDay = day;
-  if (isToday) {
+  if (swapMod) {
+    primary = swapMod.session;
+  } else if (isToday) {
     primary = applyReadiness(day, state.readiness[todayIso], state.profile)
       .session;
   }
+
 
   let session: SessionDay = primary;
   if (slot === 2) {
