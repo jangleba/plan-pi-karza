@@ -173,22 +173,19 @@ function StartScreen() {
     );
   }
 
+  const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const { session: adjustedToday } = applyReadiness(
-    todaySession,
-    readiness,
-    profile,
-  );
+  const { session: adjustedToday } = applyReadiness(session, readiness, profile);
 
   const matchDate = profile.matchDate;
-  const isMatch = todaySession.dayType === "match";
+  const isMatch = session.dayType === "match";
   const isRestLike =
-    todaySession.dayType === "rest" || todaySession.dayType === "recovery";
+    session.dayType === "rest" || session.dayType === "recovery";
 
   function openSession() {
     navigate({
       to: "/sesja/$date",
-      params: { date: todaySession.date },
+      params: { date: session.date },
       search: { slot: 1 },
     });
   }
