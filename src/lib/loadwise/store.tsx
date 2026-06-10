@@ -14,6 +14,9 @@ import type {
   ScoutingData,
   SessionDay,
   SessionCompletion,
+  SessionModification,
+  ModificationType,
+  SessionStatus,
 } from "./types";
 import { generatePlan } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
@@ -37,6 +40,7 @@ const initialState: LoadwiseState = {
   completions: {},
   tests: [],
   scouting: emptyScouting,
+  modifications: {},
 };
 
 // ---- local-only state (readiness/tests/scouting), namespaced per user ----
@@ -107,6 +111,21 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
   };
 }
 
+function rowToModification(row: AnyRow): SessionModification | null {
+  const session = row.new_session_json as SessionDay | null;
+  if (!session) return null;
+  return {
+    id: row.id as string,
+    date: row.date as string,
+    type: (row.type as ModificationType) ?? "add",
+    reason: (row.reason as string) ?? "",
+    safetyStatus: (row.safety_status as SessionStatus) ?? "planned",
+    session,
+    originalSession: (row.original_session_json as SessionDay | null) ?? null,
+    createdAt: (row.created_at as string) ?? new Date().toISOString(),
+  };
+}
+
 interface LoadwiseContextValue {
   state: LoadwiseState;
   hydrated: boolean;
@@ -122,6 +141,14 @@ interface LoadwiseContextValue {
     rpe: number | null,
     notes: string,
   ) => Promise<void>;
+  applyModification: (
+    date: string,
+    type: ModificationType,
+    session: SessionDay,
+    originalSession: SessionDay | null,
+    reason: string,
+  ) => Promise<void>;
+  undoModification: (date: string, id: string) => Promise<void>;
   saveReadiness: (r: Readiness) => void;
   addTest: (t: TestResult) => void;
   updateScouting: (s: Partial<ScoutingData>) => void;
@@ -151,7 +178,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes, logRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes, modRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("athlete_profiles")
@@ -170,6 +197,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .from("session_logs")
           .select("session_id, completed, rpe, notes")
           .eq("user_id", user.id),
+        supabase
+          .from("session_modifications" as never)
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .order("created_at", { ascending: true }),
       ]);
 
       const profile = buildProfile(
@@ -197,6 +230,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      const modifications: Record<string, SessionModification[]> = {};
+      for (const row of (modRes.data as AnyRow[] | null) ?? []) {
+        const mod = rowToModification(row);
+        if (!mod) continue;
+        (modifications[mod.date] ??= []).push(mod);
+      }
+
       if (cancelled) return;
       setState({
         profile,
@@ -206,6 +246,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completions,
         tests: local.tests,
         scouting: local.scouting,
+        modifications,
       });
       setHydrated(true);
     })();
@@ -375,6 +416,77 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  async function applyModification(
+    date: string,
+    type: ModificationType,
+    session: SessionDay,
+    originalSession: SessionDay | null,
+    reason: string,
+  ) {
+    if (!user) return;
+    const id = crypto.randomUUID();
+    const safetyStatus: SessionStatus =
+      type === "swap" ? "swapped_by_user" : "added_by_user";
+    const mod: SessionModification = {
+      id,
+      date,
+      type,
+      reason,
+      safetyStatus,
+      session,
+      originalSession,
+      createdAt: new Date().toISOString(),
+    };
+    setState((s) => {
+      const existing = s.modifications[date] ?? [];
+      // Tylko jedna zamiana naraz na dany dzień.
+      const filtered =
+        type === "swap" ? existing.filter((m) => m.type !== "swap") : existing;
+      return {
+        ...s,
+        modifications: { ...s.modifications, [date]: [...filtered, mod] },
+      };
+    });
+    if (type === "swap") {
+      await supabase
+        .from("session_modifications" as never)
+        .update({ active: false } as never)
+        .eq("user_id", user.id)
+        .eq("date", date)
+        .eq("type", "swap");
+    }
+    await supabase.from("session_modifications" as never).insert({
+      id,
+      user_id: user.id,
+      date,
+      type,
+      reason,
+      safety_status: safetyStatus,
+      original_session_id: originalSession?.dbId ?? null,
+      new_session_id: session.dbId ?? null,
+      original_session_json: originalSession,
+      new_session_json: session,
+      active: true,
+    } as never);
+  }
+
+  async function undoModification(date: string, id: string) {
+    if (!user) return;
+    setState((s) => {
+      const existing = s.modifications[date] ?? [];
+      const next = existing.filter((m) => m.id !== id);
+      const map = { ...s.modifications };
+      if (next.length) map[date] = next;
+      else delete map[date];
+      return { ...s, modifications: map };
+    });
+    await supabase
+      .from("session_modifications" as never)
+      .update({ active: false } as never)
+      .eq("user_id", user.id)
+      .eq("id", id);
+  }
+
   function saveReadiness(r: Readiness) {
     setState((s) => {
       const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
@@ -451,6 +563,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         restartOnboarding,
         refreshPlanIfNeeded,
         completeSession,
+        applyModification,
+        undoModification,
         saveReadiness,
         addTest,
         updateScouting,

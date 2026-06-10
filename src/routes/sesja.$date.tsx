@@ -4,6 +4,8 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { applyReadiness } from "@/lib/loadwise/planEngine";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
+import { ModifySheet } from "@/components/loadwise/ModifySheet";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import type { ExerciseItem, SessionDay } from "@/lib/loadwise/types";
@@ -13,6 +15,9 @@ import {
   Target,
   Flag,
   CheckCircle2,
+  Plus,
+  Repeat,
+  Undo2,
 } from "lucide-react";
 import {
   Accordion,
@@ -20,6 +25,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
   slot: Number(s.slot) === 2 ? 2 : 1,
@@ -287,7 +293,8 @@ function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
-  const { state, todayIso } = useLoadwise();
+  const { state, todayIso, undoModification } = useLoadwise();
+  const [modifyOpen, setModifyOpen] = useState(false);
 
   const day = state.plan.find((p) => p.date === date);
 
@@ -306,13 +313,19 @@ function SessionDetail() {
   }
 
   const isToday = date === todayIso;
+  const mods = state.modifications[date] ?? [];
+  const swapMod = mods.find((m) => m.type === "swap");
+  const addMods = mods.filter((m) => m.type === "add");
 
-  // Dla dzisiejszego dnia nakładamy gotowość na sesję główną.
+  // Sesja główna: zamieniona (jeśli jest) lub zaplanowana z gotowością.
   let primary: SessionDay = day;
-  if (isToday) {
+  if (swapMod) {
+    primary = swapMod.session;
+  } else if (isToday) {
     primary = applyReadiness(day, state.readiness[todayIso], state.profile)
       .session;
   }
+
 
   let session: SessionDay = primary;
   if (slot === 2) {
@@ -459,9 +472,69 @@ function SessionDetail() {
 
         <CompletionPanel session={session} />
 
+        {/* Status zmiany + cofnij */}
+        {swapMod && slot === 1 && (
+          <div className="soft-card flex items-center justify-between p-3 text-xs">
+            <span className="text-muted-foreground">
+              Sesja zamieniona. {swapMod.reason}
+            </span>
+            <button
+              type="button"
+              onClick={() => undoModification(date, swapMod.id)}
+              className="inline-flex items-center gap-1 font-medium text-primary"
+            >
+              <Undo2 className="h-3.5 w-3.5" /> Cofnij
+            </button>
+          </div>
+        )}
+
+        {/* Sesje dodane przez zawodnika */}
+        {addMods.map((m) => (
+          <div key={m.id} className="soft-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-medium uppercase tracking-wide text-primary">
+                  Dodana sesja
+                </div>
+                <div className="mt-0.5 text-sm font-semibold">
+                  {m.session.title}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {m.session.durationMin} min · {m.session.intensity}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => undoModification(date, m.id)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Cofnij
+              </button>
+            </div>
+            <Section title="Rozgrzewka" items={m.session.sections.warmup} />
+            <Section title="Część główna" items={m.session.sections.main} />
+            <Section title="Wyciszenie" items={m.session.sections.cooldown} />
+          </div>
+        ))}
+
+        {/* Dodaj / zamień sesję */}
+        {!isClub && session.dayType !== "match" && (
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setModifyOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Dodaj trening
+            </Button>
+            <Button variant="outline" onClick={() => setModifyOpen(true)}>
+              <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
+            </Button>
+          </div>
+        )}
+
         {/* Logika decyzji — schowana, domyślnie zamknięta */}
         <DecisionLogic session={session} />
       </div>
+
+      <ModifySheet open={modifyOpen} onOpenChange={setModifyOpen} date={date} />
     </div>
   );
+
 }

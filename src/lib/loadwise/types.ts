@@ -111,6 +111,25 @@ export interface SessionCompletion {
   notes: string;
 }
 
+export type ModificationType = "add" | "swap";
+
+export type SessionStatus =
+  | "planned"
+  | "added_by_user"
+  | "swapped_by_user"
+  | "blocked_by_engine";
+
+export interface SessionModification {
+  id: string;
+  date: string; // yyyy-MM-dd
+  type: ModificationType;
+  reason: string;
+  safetyStatus: SessionStatus;
+  session: SessionDay; // new / added session
+  originalSession: SessionDay | null; // for swap
+  createdAt: string;
+}
+
 export interface LoadwiseState {
   profile: Profile | null;
   plan: SessionDay[];
@@ -119,4 +138,5 @@ export interface LoadwiseState {
   completions: Record<string, SessionCompletion>; // keyed by session dbId
   tests: TestResult[];
   scouting: ScoutingData;
+  modifications: Record<string, SessionModification[]>; // keyed by date
 }

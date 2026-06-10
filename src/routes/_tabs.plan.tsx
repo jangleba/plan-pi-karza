@@ -193,6 +193,9 @@ function PlanScreen() {
           const isToday = day.date === todayIso;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
+          const mods = state.modifications[day.date] ?? [];
+          const swapped = mods.some((m) => m.type === "swap");
+          const added = mods.some((m) => m.type === "add");
           return (
             <div
               key={day.date}
@@ -215,6 +218,16 @@ function PlanScreen() {
                           Dziś
                         </span>
                       )}
+                      {swapped && (
+                        <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                          Zamieniona
+                        </span>
+                      )}
+                      {added && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          + Dodana
+                        </span>
+                      )}
                       {done && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                           <CheckCircle2 className="h-3 w-3" /> Wykonane
@@ -230,6 +243,7 @@ function PlanScreen() {
                   </div>
                   <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                 </div>
+
 
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <IntensityBadge intensity={day.intensity} />

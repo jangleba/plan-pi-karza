@@ -19,7 +19,11 @@ import {
   Activity,
   Gauge,
   ChevronRight,
+  Plus,
+  Repeat,
+  Undo2,
 } from "lucide-react";
+import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
 
 export const Route = createFileRoute("/_tabs/start")({
@@ -160,10 +164,12 @@ function ReadinessDialog({
 
 function StartScreen() {
   const lw = useLoadwise();
-  const { state, todaySession, todayIso } = lw;
+  const { state, todaySession, todayIso, undoModification } = lw;
   const profile = state.profile;
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [modifyOpen, setModifyOpen] = useState(false);
+
 
   if (!todaySession || !profile) {
     return (
@@ -173,14 +179,20 @@ function StartScreen() {
     );
   }
 
+  const todayMods = state.modifications[todayIso] ?? [];
+  const swapMod = todayMods.find((m) => m.type === "swap");
+  const addMods = todayMods.filter((m) => m.type === "add");
+
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const { session: adjustedToday } = applyReadiness(session, readiness, profile);
+  const { session: adjustedBase } = applyReadiness(session, readiness, profile);
+  const adjustedToday = swapMod ? swapMod.session : adjustedBase;
 
   const matchDate = profile.matchDate;
   const isMatch = session.dayType === "match";
   const isRestLike =
     session.dayType === "rest" || session.dayType === "recovery";
+
 
   function openSession() {
     navigate({
@@ -287,6 +299,78 @@ function StartScreen() {
           </button>
         )}
 
+        {/* Sesje dodane przez zawodnika */}
+        {addMods.map((m) => (
+          <div key={m.id} className="soft-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({
+                    to: "/sesja/$date",
+                    params: { date: m.date },
+                    search: { slot: 1 },
+                  })
+                }
+                className="min-w-0 text-left"
+              >
+                <div className="text-xs font-medium uppercase tracking-wide text-primary">
+                  Dodana sesja
+                </div>
+                <div className="mt-0.5 truncate text-sm font-semibold">
+                  {m.session.title}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {m.session.durationMin} min · {m.session.intensity}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => undoModification(m.date, m.id)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Cofnij
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Informacja o zamianie + cofnij */}
+        {swapMod && (
+          <div className="soft-card flex items-center justify-between p-3 text-xs">
+            <span className="text-muted-foreground">
+              Sesja zamieniona przez Ciebie.
+            </span>
+            <button
+              type="button"
+              onClick={() => undoModification(swapMod.date, swapMod.id)}
+              className="inline-flex items-center gap-1 font-medium text-primary"
+            >
+              <Undo2 className="h-3.5 w-3.5" /> Cofnij zmianę
+            </button>
+          </div>
+        )}
+
+        {/* Dodaj / zamień sesję */}
+        {!isMatch && (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setModifyOpen(true)}
+            >
+              <Plus className="mr-1 h-4 w-4" /> Dodaj trening
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setModifyOpen(true)}
+            >
+              <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
+            </Button>
+          </div>
+        )}
+
         {/* Drugorzędne CTA: aktualizacja gotowości, gdy już uzupełniona */}
         {readiness && !isMatch && !isRestLike && (
           <ReadinessDialog
@@ -301,7 +385,14 @@ function StartScreen() {
         )}
       </div>
 
+      <ModifySheet
+        open={modifyOpen}
+        onOpenChange={setModifyOpen}
+        date={todayIso}
+      />
+
       <div className="h-[120px]" />
+
     </div>
   );
 }
