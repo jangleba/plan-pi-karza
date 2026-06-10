@@ -277,6 +277,13 @@ function Onboarding() {
       guardianConsent: isMinor ? consent : true,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
+      seasonPhase,
+      seasonStage: seasonStage,
+      competitionLevel,
+      weeklyMatches,
+      hasGym,
+      hasPitch,
+      hasSprintSpace,
     };
     setBusy(true);
     try {
