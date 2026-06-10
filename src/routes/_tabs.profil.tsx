@@ -40,7 +40,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function ProfilScreen() {
-  const { state, updateProfile } = useLoadwise();
+  const { state, updateProfile, restartOnboarding } = useLoadwise();
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const p = state.profile;
