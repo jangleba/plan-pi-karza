@@ -10,6 +10,8 @@ export type Goal =
 
 export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
 
+export type UsualMatchDay = number | "no_fixed_day" | null; // 1=Mon ... 7=Sun
+
 export interface Profile {
   name: string;
   age: number;
@@ -17,6 +19,8 @@ export interface Profile {
   level: Level;
   goal: Goal;
   clubTrainingDays: number[]; // 1=Mon ... 7=Sun
+  individualTrainingDays: number[]; // 1=Mon ... 7=Sun — Loadwise own sessions
+  usualMatchDay: UsualMatchDay; // weekday usually played, or no fixed day
   matchDate: string | null; // yyyy-MM-dd
   equipment: string[];
   painInjury: boolean;
