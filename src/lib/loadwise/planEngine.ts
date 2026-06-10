@@ -1516,17 +1516,30 @@ export function generatePlan(
           "Dzień po meczu (MD+1): lekka kompensacja i rozruszanie zamiast biernej regeneracji.";
         whyToday =
           "Po meczu lekka praca pomaga się rozruszać. Jeśli grałeś dużo lub czujesz się słabo, check-in zmieni to w regenerację.";
-      } else if (lastWasHard && !profile.painInjury) {
-        built = buildLightAlternative(profile);
-        reason =
-          "Dzień po większym obciążeniu: kontrolowana, lżejsza praca zamiast biernej regeneracji.";
-        whyToday =
-          "Wczoraj było duże obciążenie — dziś lżejszy, sensowny bodziec utrzymuje rozwój bez przeciążenia.";
       } else {
-        built = buildByGoal(profile);
-        reason = `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}. Jeden główny bodziec, bez zbędnej objętości.`;
-        whyToday = `Wybrano dziś, bo to Twój dzień treningu indywidualnego — dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
+        const stimulus = stimulusMap[iso];
+        if (
+          lastWasHard &&
+          !profile.painInjury &&
+          (stimulus === undefined || isHardStimulus(stimulus))
+        ) {
+          // Nie stawiamy ciężkiego bodźca dzień po dużym obciążeniu (np. po klubie).
+          built = buildLightAlternative(profile);
+          reason =
+            "Dzień po większym obciążeniu: kontrolowana, lżejsza praca zamiast ciężkiego bodźca.";
+          whyToday =
+            "Wczoraj było duże obciążenie — dziś lżejszy, sensowny bodziec utrzymuje rozwój bez przeciążenia.";
+        } else if (stimulus) {
+          built = buildStimulus(stimulus, profile);
+          reason = `Bodziec tygodnia: ${built.sessionType.toLowerCase()} — plan rozkłada zdolności tak, by cel (${GOAL_LABELS[profile.goal].toLowerCase()}) miał priorytet, ale bez gubienia siły, sprintu, biegania i piłki.`;
+          whyToday = `To Twój dzień treningu indywidualnego, a w tym tygodniu przypada na niego bodziec: ${built.sessionType.toLowerCase()}.`;
+        } else {
+          built = buildByGoal(profile);
+          reason = `Sesja ukierunkowana na Twój cel: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
+          whyToday = `Wybrano dziś, bo to Twój dzień treningu indywidualnego — dobry moment na rozwój w obszarze: ${GOAL_LABELS[profile.goal].toLowerCase()}.`;
+        }
       }
+
 
       const pain = applyPainSafety(built, profile);
       built = pain.built;
