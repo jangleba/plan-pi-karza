@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { useAuth } from "@/lib/loadwise/auth";
 import type {
   Profile,
   Position,
@@ -17,6 +18,7 @@ import {
   EQUIPMENT_OPTIONS,
   DOUBLE_SESSION_LABELS,
 } from "@/lib/loadwise/labels";
+import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,12 +78,21 @@ function ChoiceGrid<T extends string>({
 
 function Onboarding() {
   const { state, completeOnboarding } = useLoadwise();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const existing = state.profile;
   const isEditing = !!existing?.onboardingComplete;
   const [step, setStep] = useState(0);
+  const [busy, setBusy] = useState(false);
 
-  const [name, setName] = useState(existing?.name ?? "");
+  // Require auth.
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/auth", replace: true });
+  }, [loading, user, navigate]);
+
+  const [name, setName] = useState(
+    existing?.name ?? (user?.user_metadata?.full_name as string) ?? "",
+  );
   const [age, setAge] = useState(existing ? String(existing.age) : "");
   const [position, setPosition] = useState<Position | null>(
     existing?.position ?? null,
@@ -101,10 +112,17 @@ function Onboarding() {
   );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
 
+  // Legal consents (RODO/GDPR).
+  const [consents, setConsents] = useState<Record<string, boolean>>({});
+
   const ageNum = parseInt(age, 10);
   const isMinor = ageNum >= 13 && ageNum <= 17;
 
-  const totalSteps = 4;
+  const totalSteps = 5;
+
+  const requiredConsentsOk = CONSENTS.filter((c) => c.required).every(
+    (c) => consents[c.type],
+  );
 
   function toggleClubDay(d: number) {
     setClubDays((prev) =>
@@ -122,16 +140,22 @@ function Onboarding() {
       return name.trim().length > 0 && ageNum >= 13 && ageNum <= 60;
     if (step === 1) return position !== null && level !== null;
     if (step === 2) return goal !== null;
+    if (step === 3) return doubleSessions !== null;
     return true;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (busy) return;
     if (!position || !level || !goal || !doubleSessions || !(ageNum >= 13)) {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
     if (isMinor && !consent) {
       toast.error("Potrzebna jest zgoda rodzica/opiekuna.");
+      return;
+    }
+    if (!requiredConsentsOk) {
+      toast.error("Zaakceptuj wymagane zgody, aby kontynuować.");
       return;
     }
     const profile: Profile = {
@@ -149,11 +173,20 @@ function Onboarding() {
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
     };
-    completeOnboarding(profile);
-    toast.success(
-      isEditing ? "Profil zaktualizowany." : "Profil zapisany. Tworzę Twój plan…",
-    );
-    navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
+    setBusy(true);
+    try {
+      await completeOnboarding(profile, consents);
+      toast.success(
+        isEditing
+          ? "Profil zaktualizowany."
+          : "Profil zapisany. Tworzę Twój plan…",
+      );
+      navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
+    } catch {
+      toast.error("Nie udało się zapisać. Spróbuj ponownie.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -279,7 +312,7 @@ function Onboarding() {
             <div>
               <h2 className="text-xl font-semibold">Kontekst i bezpieczeństwo</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Te pola są opcjonalne — nie blokują wygenerowania planu.
+                Większość pól jest opcjonalna — nie blokują wygenerowania planu.
               </p>
             </div>
 
@@ -382,6 +415,59 @@ function Onboarding() {
             )}
           </div>
         )}
+
+        {step === 4 && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-xl font-semibold">Zgody i prywatność</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Zanim dokończysz, potrzebujemy Twoich zgód (RODO).
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-accent bg-accent/30 p-3.5 text-xs leading-relaxed text-muted-foreground">
+              {MEDICAL_DISCLAIMER}
+            </div>
+
+            <div className="space-y-2.5">
+              {CONSENTS.map((c) => (
+                <label
+                  key={c.type}
+                  className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5"
+                >
+                  <Checkbox
+                    checked={!!consents[c.type]}
+                    onCheckedChange={(v) =>
+                      setConsents((prev) => ({ ...prev, [c.type]: v === true }))
+                    }
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">
+                    {c.title}
+                    {c.required && (
+                      <span className="text-destructive"> *</span>
+                    )}
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {c.text}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Pełne dokumenty:{" "}
+              <Link to="/terms" className="underline">
+                Regulamin
+              </Link>{" "}
+              ·{" "}
+              <Link to="/privacy-policy" className="underline">
+                Polityka prywatności
+              </Link>
+              . Pola oznaczone * są wymagane.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="px-5 pt-8">
@@ -398,10 +484,15 @@ function Onboarding() {
           <Button
             className="w-full"
             size="lg"
-            disabled={(isMinor && !consent) || !doubleSessions}
+            disabled={
+              busy ||
+              (isMinor && !consent) ||
+              !doubleSessions ||
+              !requiredConsentsOk
+            }
             onClick={handleSubmit}
           >
-            Zapisz i wygeneruj plan
+            {busy ? "Zapisuję…" : "Zapisz i wygeneruj plan"}
           </Button>
         )}
       </div>
