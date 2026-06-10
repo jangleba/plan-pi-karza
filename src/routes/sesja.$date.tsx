@@ -287,9 +287,10 @@ function SessionDetail() {
   }
 
   const isClub = session.dayType === "club";
+  const shortNote = shortDecisionNote(session);
 
   return (
-    <div className="app-shell min-h-screen pb-12">
+    <div className="app-shell min-h-screen pb-[140px]">
       <div className="px-5 pt-6">
         <button
           onClick={() => router.history.back()}
