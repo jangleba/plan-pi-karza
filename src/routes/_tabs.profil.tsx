@@ -179,28 +179,44 @@ function ProfilScreen() {
           <Pencil className="h-4 w-4" /> Edytuj profil
         </Button>
 
-        <div className="soft-card p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Prywatność i dane
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            Twoje dane są przechowywane lokalnie na tym urządzeniu. Polityka
-            prywatności i regulamin pojawią się w pełnej wersji aplikacji.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportData}>
-              <FileDown className="h-4 w-4" /> Eksport
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-destructive"
-              onClick={deleteData}
-            >
-              <Trash2 className="h-4 w-4" /> Usuń dane
-            </Button>
-          </div>
+        <div className="soft-card divide-y divide-border p-0">
+          <button
+            onClick={() => navigate({ to: "/data-rights" })}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            <ShieldIcon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Moje dane i prawa (RODO)</span>
+            <FileDown className="ml-auto h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate({ to: "/privacy-policy" })}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            <FileText className="h-4 w-4 text-foreground" />
+            <span className="text-sm font-medium">Polityka prywatności</span>
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate({ to: "/terms" })}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            <FileText className="h-4 w-4 text-foreground" />
+            <span className="text-sm font-medium">Regulamin</span>
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
+
+        <Button
+          variant="outline"
+          className="w-full gap-2 text-destructive"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" /> Wyloguj się
+        </Button>
+        <div className="pb-1">
+          <Trash2 className="hidden" />
+        </div>
+
       </div>
 
       <Disclaimer />
