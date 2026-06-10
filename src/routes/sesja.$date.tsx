@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Ban,
   Flag,
+  CheckCircle2,
 } from "lucide-react";
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
@@ -104,6 +105,72 @@ function PostSessionLog() {
         <span className="text-sm text-muted-foreground">Sen / notatki</span>
         <Textarea placeholder="Jak spałeś? Dodatkowe uwagi…" rows={2} />
       </div>
+    </div>
+  );
+}
+
+function CompletionPanel({ session }: { session: SessionDay }) {
+  const { state, completeSession } = useLoadwise();
+  const existing = session.dbId ? state.completions[session.dbId] : undefined;
+  const [rpe, setRpe] = useState(existing?.rpe ?? 6);
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const done = existing?.completed ?? false;
+
+  if (!session.dbId) return null;
+
+  async function save() {
+    setSaving(true);
+    await completeSession(session, rpe, notes);
+    setSaving(false);
+  }
+
+  return (
+    <div className="soft-card p-4">
+      <div className="flex items-center gap-2">
+        <CheckCircle2
+          className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`}
+        />
+        <h3 className="text-sm font-semibold">
+          {done ? "Sesja oznaczona jako wykonana" : "Oznacz sesję jako wykonaną"}
+        </h3>
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-medium">RPE (ciężkość) 0–10</span>
+          <span className="text-muted-foreground">{rpe}/10</span>
+        </div>
+        <Slider
+          min={0}
+          max={10}
+          step={1}
+          value={[rpe]}
+          onValueChange={(v) => setRpe(v[0])}
+        />
+      </div>
+
+      <div className="mt-3 space-y-2">
+        <span className="text-sm text-muted-foreground">Notatki po sesji</span>
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Jak poszło? Sen, ból, dodatkowe uwagi…"
+          rows={2}
+        />
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="mt-3 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+      >
+        {saving
+          ? "Zapisywanie…"
+          : done
+            ? "Zaktualizuj wpis"
+            : "Oznacz jako wykonane"}
+      </button>
     </div>
   );
 }
@@ -380,6 +447,8 @@ function SessionDetail() {
             <PostSessionLog />
           </>
         )}
+
+        <CompletionPanel session={session} />
       </div>
     </div>
   );

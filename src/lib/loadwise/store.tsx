@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -12,8 +13,10 @@ import type {
   TestResult,
   ScoutingData,
   SessionDay,
+  SessionCompletion,
 } from "./types";
 import { generatePlan } from "./planEngine";
+import { persistMonthlyPlan } from "./persist";
 import { warsawToday, isoDate } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
@@ -31,6 +34,7 @@ const initialState: LoadwiseState = {
   plan: [],
   planGeneratedFor: null,
   readiness: {},
+  completions: {},
   tests: [],
   scouting: emptyScouting,
 };
@@ -103,6 +107,11 @@ interface LoadwiseContextValue {
   ) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   refreshPlanIfNeeded: () => void;
+  completeSession: (
+    session: SessionDay,
+    rpe: number | null,
+    notes: string,
+  ) => Promise<void>;
   saveReadiness: (r: Readiness) => void;
   addTest: (t: TestResult) => void;
   updateScouting: (s: Partial<ScoutingData>) => void;
@@ -117,6 +126,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
+  const generatingRef = useRef(false);
 
   const todayIso = isoDate(warsawToday());
 
@@ -131,7 +141,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("athlete_profiles")
@@ -146,6 +156,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("session_logs")
+          .select("session_id, completed, rpe, notes")
+          .eq("user_id", user.id),
       ]);
 
       const profile = buildProfile(
@@ -162,12 +176,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
       }
 
+      const completions: Record<string, SessionCompletion> = {};
+      for (const row of (logRes.data as AnyRow[] | null) ?? []) {
+        const sid = row.session_id as string | null;
+        if (!sid) continue;
+        completions[sid] = {
+          completed: Boolean(row.completed),
+          rpe: (row.rpe as number) ?? null,
+          notes: (row.notes as string) ?? "",
+        };
+      }
+
       if (cancelled) return;
       setState({
         profile,
         plan,
         planGeneratedFor,
         readiness: local.readiness,
+        completions,
         tests: local.tests,
         scouting: local.scouting,
       });
@@ -192,17 +218,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   async function savePlanToDb(profile: Profile): Promise<SessionDay[]> {
     const plan = generatePlan(profile, warsawToday());
     if (user) {
-      await supabase
-        .from("training_plans")
-        .update({ status: "archived" })
-        .eq("user_id", user.id)
-        .eq("status", "active");
-      await supabase.from("training_plans").insert({
-        user_id: user.id,
-        goal: profile.goal,
-        plan_json: plan as unknown as never,
-        status: "active",
-      });
+      await persistMonthlyPlan(user.id, profile, plan);
     }
     return plan;
   }
@@ -282,19 +298,50 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }));
   }
 
+  // Generuje plan miesięczny TYLKO jeśli aktywnego planu jeszcze nie ma.
+  // Nie regenerujemy planu przy każdym otwarciu ekranu.
   function refreshPlanIfNeeded() {
-    setState((s) => {
-      if (!s.profile?.onboardingComplete) return s;
-      if (s.planGeneratedFor === todayIso && s.plan.length > 0) return s;
-      const profile = s.profile;
-      // regenerate + persist asynchronously
-      savePlanToDb(profile);
-      return {
-        ...s,
-        plan: generatePlan(profile, warsawToday()),
-        planGeneratedFor: todayIso,
-      };
-    });
+    const profile = state.profile;
+    if (!profile?.onboardingComplete) return;
+    // Regeneruj tylko, gdy brak planu lub plan pochodzi ze starej wersji
+    // (krótki tydzień / brak identyfikatorów sesji w bazie).
+    const hasMonthly =
+      state.plan.length >= 14 && Boolean(state.plan[0]?.dbId);
+    if (hasMonthly) return;
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    (async () => {
+      try {
+        const plan = await savePlanToDb(profile);
+        setState((s) => ({ ...s, plan, planGeneratedFor: todayIso }));
+      } finally {
+        generatingRef.current = false;
+      }
+    })();
+  }
+
+  async function completeSession(
+    session: SessionDay,
+    rpe: number | null,
+    notes: string,
+  ) {
+    const sid = session.dbId;
+    if (!user || !sid) return;
+    const completion: SessionCompletion = { completed: true, rpe, notes };
+    setState((s) => ({
+      ...s,
+      completions: { ...s.completions, [sid]: completion },
+    }));
+    await supabase.from("session_logs").upsert(
+      {
+        user_id: user.id,
+        session_id: sid,
+        completed: true,
+        rpe,
+        notes,
+      },
+      { onConflict: "user_id,session_id" },
+    );
   }
 
   function saveReadiness(r: Readiness) {
@@ -318,6 +365,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           pain_status: r.jointPain >= 5,
         })
         .then(() => {});
+
+      // Zapisz powód korekty gotowości na dniu treningowym.
+      const day = state.plan.find((p) => p.date === r.date);
+      if (day?.dayDbId) {
+        const adj =
+          r.overall >= 8
+            ? `Gotowość ${r.overall}/10 — plan bez zmian`
+            : r.overall >= 6
+              ? `Gotowość ${r.overall}/10 — redukcja objętości 10–20%`
+              : r.overall >= 4
+                ? `Gotowość ${r.overall}/10 — redukcja 30–40%, bez pracy o wysokiej intensywności`
+                : `Gotowość ${r.overall}/10 — tylko regeneracja/mobilność`;
+        supabase
+          .from("training_days")
+          .update({ readiness_adjustment: adj })
+          .eq("id", day.dayDbId)
+          .then(() => {});
+      }
     }
   }
 
@@ -353,6 +418,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completeOnboarding,
         updateProfile,
         refreshPlanIfNeeded,
+        completeSession,
         saveReadiness,
         addTest,
         updateScouting,

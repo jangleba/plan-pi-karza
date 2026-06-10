@@ -334,9 +334,11 @@ export type Database = {
           exercise_id: string | null
           id: string
           load: string | null
+          name: string | null
           order_index: number | null
           reps: string | null
           rest: string | null
+          section: string | null
           session_id: string | null
           sets: number | null
           user_id: string
@@ -349,9 +351,11 @@ export type Database = {
           exercise_id?: string | null
           id?: string
           load?: string | null
+          name?: string | null
           order_index?: number | null
           reps?: string | null
           rest?: string | null
+          section?: string | null
           session_id?: string | null
           sets?: number | null
           user_id: string
@@ -364,9 +368,11 @@ export type Database = {
           exercise_id?: string | null
           id?: string
           load?: string | null
+          name?: string | null
           order_index?: number | null
           reps?: string | null
           rest?: string | null
+          section?: string | null
           session_id?: string | null
           sets?: number | null
           user_id?: string

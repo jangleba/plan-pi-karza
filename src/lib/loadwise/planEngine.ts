@@ -925,14 +925,18 @@ function buildLightAlternative(profile: Profile): Built {
   }
 }
 
-/** Główny generator — zawsze zwraca bezpieczny plan na 7 dni do przodu. */
-export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
+/** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
+export function generatePlan(
+  profile: Profile,
+  start?: Date,
+  days = 28,
+): SessionDay[] {
   const startDate = start ?? warsawToday();
-  const days: SessionDay[] = [];
+  const out: SessionDay[] = [];
 
   let lastWasHard = false;
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
     const type = dayTypeFor(date, profile);
@@ -1149,10 +1153,10 @@ export function generatePlan(profile: Profile, start?: Date): SessionDay[] {
           : "Sesja główna";
     }
 
-    days.push(session);
+    out.push(session);
   }
 
-  return days;
+  return out;
 }
 
 export interface DecisionResult {
