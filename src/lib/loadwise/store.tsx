@@ -205,6 +205,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .eq("user_id", user.id)
           .eq("active", true)
           .order("created_at", { ascending: true }),
+        supabase
+          .from("weekly_transitions" as never)
+          .select("*")
+          .eq("user_id", user.id),
       ]);
 
       const profile = buildProfile(
