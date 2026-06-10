@@ -424,6 +424,51 @@ export type Database = {
         }
         Relationships: []
       }
+      session_modifications: {
+        Row: {
+          active: boolean
+          created_at: string
+          date: string
+          id: string
+          new_session_id: string | null
+          new_session_json: Json | null
+          original_session_id: string | null
+          original_session_json: Json | null
+          reason: string | null
+          safety_status: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          date: string
+          id?: string
+          new_session_id?: string | null
+          new_session_json?: Json | null
+          original_session_id?: string | null
+          original_session_json?: Json | null
+          reason?: string | null
+          safety_status?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          date?: string
+          id?: string
+          new_session_id?: string | null
+          new_session_json?: Json | null
+          original_session_id?: string | null
+          original_session_json?: Json | null
+          reason?: string | null
+          safety_status?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       session_templates: {
         Row: {
           age_group: string | null
