@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Ban,
   Flag,
+  CheckCircle2,
 } from "lucide-react";
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
