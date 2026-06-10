@@ -2107,14 +2107,19 @@ export function generatePlan(
     }
 
 
-    // Druga, lekka sesja (jeśli dozwolona i bezpieczna)
-    const second = buildSecondSession(session.dayType, date, profile);
-    if (second) {
-      session.secondSession = second;
-      session.slotLabel =
-        session.dayType === "club"
-          ? "Sesja główna (PM) — klub"
-          : "Sesja główna";
+    // Druga, lekka sesja — tylko jeśli dozwolona, bezpieczna i w limicie
+    // tygodniowym (bez automatycznych 5 podwójnych dni).
+    if (doublesThisWeek < MAX_DOUBLES_PER_WEEK) {
+      const second = buildSecondSession(session.dayType, date, profile);
+      if (second) {
+        session.secondSession = second;
+        session.slotLabel =
+          session.dayType === "club"
+            ? "Sesja 1 (PM) — klub"
+            : "Sesja 1";
+        second.slotLabel = "Sesja 2 (lekka)";
+        doublesThisWeek++;
+      }
     }
 
     session.generatorVersion = PLAN_ENGINE_VERSION;
