@@ -1,5 +1,36 @@
 export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
-export type Level = "beginner" | "intermediate" | "advanced";
+export type Level = "beginner" | "intermediate" | "advanced" | "elite";
+
+/** Okres sezonu — steruje intensywnością i kompletnością tygodnia. */
+export type SeasonPhase =
+  | "offseason" // poza sezonem
+  | "preseason" // przedsezon
+  | "inseason" // w sezonie
+  | "transition" // okres przejściowy / roztrenowanie
+  | "return_injury"; // powrót po kontuzji
+
+/** Etap w sezonie — pokazywany tylko, gdy ma znaczenie. */
+export type SeasonStage =
+  | "season_start"
+  | "season_mid"
+  | "season_end"
+  | "winter_break"
+  | "between_rounds"
+  | "no_match_week"
+  | "match_week";
+
+/** Poziom rozgrywkowy — wyższy poziom = bardziej zorganizowany i intensywny plan. */
+export type CompetitionLevel =
+  | "academy" // akademia / junior
+  | "b_klasa"
+  | "a_klasa"
+  | "okregowka"
+  | "iv_liga"
+  | "iii_liga"
+  | "ii_liga_plus" // II liga lub wyżej
+  | "semi_pro" // półprofesjonalny
+  | "pro"; // profesjonalny
+
 export type Goal =
   | "speed"
   | "strength"
@@ -31,6 +62,14 @@ export interface Profile {
   guardianConsent: boolean;
   onboardingComplete: boolean;
   createdAt: string;
+  // --- Kontekst sezonu i rozgrywek (steruje generatorem) ---
+  seasonPhase: SeasonPhase;
+  seasonStage: SeasonStage | null;
+  competitionLevel: CompetitionLevel;
+  weeklyMatches: boolean; // czy mecze są co tydzień
+  hasGym: boolean; // dostęp do siłowni
+  hasPitch: boolean; // dostęp do boiska
+  hasSprintSpace: boolean; // miejsce do sprintu
 }
 
 export interface Readiness {
