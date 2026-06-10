@@ -84,6 +84,25 @@ function saveLocal(userId: string, s: LocalState) {
 // ---- map DB rows <-> Profile ----
 type AnyRow = Record<string, unknown>;
 
+const VALID_GOALS: Profile["goal"][] = [
+  "speed",
+  "strength",
+  "endurance",
+  "power",
+  "agility",
+  "general",
+  "mobility",
+  "return",
+  "matchready",
+];
+
+/** Cel zawsze musi być prawidłowy — nigdy undefined. Fallback: gotowość meczowa. */
+function normalizeGoal(v: unknown): Profile["goal"] {
+  return VALID_GOALS.includes(v as Profile["goal"])
+    ? (v as Profile["goal"])
+    : "matchready";
+}
+
 function parseUsualMatchDay(v: unknown): Profile["usualMatchDay"] {
   if (v === null || v === undefined || v === "") return null;
   if (v === "no_fixed_day") return "no_fixed_day";
