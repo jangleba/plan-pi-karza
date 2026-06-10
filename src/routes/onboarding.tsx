@@ -168,11 +168,12 @@ function Onboarding() {
   }
 
   function canNext(): boolean {
-    if (step === 0)
+    if (step === 0) return requiredConsentsOk;
+    if (step === 1)
       return name.trim().length > 0 && ageNum >= 13 && ageNum <= 60;
-    if (step === 1) return position !== null && level !== null;
-    if (step === 2) return goal !== null;
-    if (step === 3) return doubleSessions !== null && individualDays.length > 0;
+    if (step === 2) return position !== null && level !== null;
+    if (step === 3) return goal !== null;
+    if (step === 4) return doubleSessions !== null && individualDays.length > 0;
     return true;
   }
 
@@ -192,7 +193,7 @@ function Onboarding() {
     }
     if (individualDays.length === 0) {
       toast.error("Wybierz co najmniej jeden dzień treningu indywidualnego.");
-      setStep(3);
+      setStep(4);
       return;
     }
     const profile: Profile = {
@@ -262,7 +263,7 @@ function Onboarding() {
       </div>
 
       <div className="px-5 pt-6">
-        {step === 0 && (
+        {step === 1 && (
           <div className="space-y-5">
             <div>
               <h2 className="text-xl font-semibold">Zaczynamy</h2>
@@ -299,7 +300,7 @@ function Onboarding() {
           </div>
         )}
 
-        {step === 1 && (
+        {step === 2 && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold">Twoja gra</h2>
@@ -329,7 +330,7 @@ function Onboarding() {
           </div>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold">Główny cel</h2>
@@ -346,7 +347,7 @@ function Onboarding() {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="space-y-6">
             <div>
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -516,12 +517,12 @@ function Onboarding() {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 0 && (
           <div className="space-y-5">
             <div>
               <h2 className="text-xl font-semibold">Zgody i prywatność</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Zanim dokończysz, potrzebujemy Twoich zgód (RODO).
+                Zanim zaczniemy, potrzebujemy Twoich zgód (RODO).
               </p>
             </div>
 
