@@ -517,15 +517,34 @@ function SessionDetail() {
 
   const isClub = session.dayType === "club";
   const shortNote = shortDecisionNote(session);
-  const fallbackExercises =
+
+  const hasFlatSectionContent =
     session.sections.warmup.length +
       session.sections.main.length +
       session.sections.accessory.length +
       session.sections.footballTransfer.length +
-      session.sections.cooldown.length ===
-    0
-      ? session.exercises ?? []
-      : [];
+      session.sections.cooldown.length >
+    0;
+
+  const fallbackExercises = hasFlatSectionContent
+    ? []
+    : session.exercises ?? [];
+
+  // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
+  const structured: TrainingSection[] =
+    session.structuredSections && session.structuredSections.length
+      ? session.structuredSections
+      : hasFlatSectionContent
+        ? flatToStructured(session.sections)
+        : fallbackExercises.length
+          ? flatToStructured({
+              warmup: [],
+              main: fallbackExercises,
+              accessory: [],
+              footballTransfer: [],
+              cooldown: [],
+            })
+          : [];
 
   return (
     <div className="app-shell min-h-screen pb-[140px]">
