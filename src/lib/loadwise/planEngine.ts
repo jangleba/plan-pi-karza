@@ -34,7 +34,7 @@ import {
   type ContentCounters,
 } from "./sessionContent";
 
-export const PLAN_ENGINE_VERSION = "loadwise-variable-gym-v11";
+export const PLAN_ENGINE_VERSION = "loadwise-category-engine-v12";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
