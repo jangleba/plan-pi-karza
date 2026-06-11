@@ -2891,6 +2891,7 @@ export function generatePlan(
         second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
         second.whyToday =
           "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
+        if (/sił|moc|power/i.test(built.sessionType)) applyGymPlan(second);
       } else if (!isHealthyPerformanceProfile(profile)) {
         second = buildSecondSession(session.dayType, date, profile);
       }
