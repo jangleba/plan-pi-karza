@@ -2391,7 +2391,13 @@ function repairWeekCells(
   maxDoubles: number,
 ): void {
   if (!isHealthyPerformanceProfile(profile)) return;
+  // Klub i mecz pokrywają ekspozycję piłkarską. Gdy ich brak, tydzień MUSI
+  // zawierać własną sesję piłkarską (z piłką) jako osobną kategorię.
+  const footballExposure =
+    items.filter((it) => it.base === "club").length +
+    items.filter((it) => it.base === "match").length;
   const required: PerfCategory[] = ["strength_power", "speed", "conditioning", "athletic"];
+  if (footballExposure === 0) required.push("ball");
   const replacementFor: Record<PerfCategory, Stimulus> = {
     strength_power: profile.hasGym ? "strength" : "strength_base",
     speed: "sprint",
