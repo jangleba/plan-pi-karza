@@ -654,9 +654,8 @@ function SessionDetail() {
                 <Undo2 className="h-3.5 w-3.5" /> Cofnij
               </button>
             </div>
-            <Section title="Rozgrzewka" items={m.session.sections.warmup} />
-            <Section title="Część główna" items={m.session.sections.main} />
-            <Section title="Wyciszenie" items={m.session.sections.cooldown} />
+            <StructuredSections sections={flatToStructured(m.session.sections)} />
+
           </div>
         ))}
 
