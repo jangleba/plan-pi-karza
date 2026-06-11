@@ -330,7 +330,7 @@ function cooldownSection(): TrainingSection {
     type: "cooldown",
     blocks: [
       block({
-        title: "Downregulation",
+        title: "Wyciszenie",
         blockType: "single",
         intent: "mobility",
         exercises: [
@@ -502,10 +502,14 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
   const d = dosageFor(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
   const hinge = rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, avoid);
+  const uni = rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, avoid);
+  const hingeJump = pickJumps(ctx, ["horizontal", "vertical"], avoid);
   const sprintDrill = pickJumps(ctx, ["wall", "ankling"], avoid);
-  const stiff = pickJumps(ctx, ["pogo"], avoid);
+  const stiff = pickJumps(ctx, ["pogo", "snap"], avoid);
   const ham = rotatePick(POSTERIOR_ACC, ctx, avoid);
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
+  const core = rotatePick(CORE_ANTI, ctx, avoid);
+  const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
 
   const sections: TrainingSection[] = [
     warmupSection(),
@@ -514,7 +518,7 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
       type: "prep",
       blocks: [
         block({
-          title: "Sprint support — mechanika",
+          title: "Wsparcie sprintu — mechanika",
           blockType: "single",
           intent: "rfd",
           restAfterBlock: "60 s",
@@ -530,39 +534,75 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
       type: "main",
       blocks: [
         block({
-          title: "BLOK A — TYLNA TAŚMA (hinge)",
-          blockType: "single",
-          intent: "strength",
-          restAfterBlock: "Przerwa po bloku: 2 min",
-          exercises: [
-            ex({
-              label: "A",
-              name: hinge,
-              sets: d.mainSets,
-              reps: d.mainReps,
-              rpe: d.rpe,
-              tempo: "3-1-1",
-              restAfterExercise: "90–120 s",
-              cue: "Biodra w tył, plecy proste, czuj tylne uda.",
-              technique: "Neutralny kręgosłup, napięty tułów.",
-              regression: "Hip thrust / hamstring bridge.",
-              ageSafetyLevel: adult ? "all" : "youth_ok",
-            }),
-          ],
+          title: useContrast ? "BLOK A — SIŁA → MOC (hinge kontrast)" : "BLOK A — TYLNA TAŚMA (hinge)",
+          blockType: useContrast ? "contrast" : "single",
+          intent: "power",
+          restAfterBlock: "Przerwa po bloku: 2–3 min",
+          safetyNotes: useContrast ? "Ciężki hinge + skok. Wykonuj tylko świeży." : undefined,
+          exercises: useContrast
+            ? [
+                ex({
+                  label: "A1",
+                  name: hinge,
+                  sets: d.mainSets,
+                  reps: d.mainReps,
+                  rpe: d.rpe,
+                  tempo: "3-1-1",
+                  restAfterExercise: "30–45 s do A2",
+                  cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+                  technique: "Neutralny kręgosłup, napięty tułów.",
+                  regression: "Hip thrust / hamstring bridge.",
+                  ageSafetyLevel: adult ? "all" : "youth_ok",
+                }),
+                ex({
+                  label: "A2",
+                  name: hingeJump.name,
+                  sets: d.mainSets,
+                  reps: "3",
+                  groundContacts: contacts(hingeJump.contacts, d),
+                  restAfterPair: "2–3 min po parze",
+                  cue: hingeJump.cue,
+                  ageSafetyLevel: "advanced_only",
+                }),
+              ]
+            : [
+                ex({
+                  label: "A",
+                  name: hinge,
+                  sets: d.mainSets,
+                  reps: d.mainReps,
+                  rpe: d.rpe,
+                  tempo: "3-1-1",
+                  restAfterExercise: "90–120 s",
+                  cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+                  technique: "Neutralny kręgosłup, napięty tułów.",
+                  regression: "Hip thrust / hamstring bridge.",
+                  ageSafetyLevel: adult ? "all" : "youth_ok",
+                }),
+              ],
         }),
         block({
-          title: "BLOK B — HAMSTRING → STIFFNESS",
-          blockType: "stiffness",
-          intent: "stiffness",
-          restAfterBlock: "Przerwa po bloku: 90 s",
+          title: "BLOK B — JEDNONÓŻ + STIFFNESS",
+          blockType: "superset",
+          intent: "braking",
+          restAfterBlock: "Przerwa po bloku: 90–120 s",
           exercises: [
-            ex({ label: "B1", name: ham, sets: d.mainSets, reps: "5–6", cue: "Powolny ekscentryk, pełna kontrola.", ageSafetyLevel: "youth_ok" }),
+            ex({
+              label: "B1",
+              name: uni,
+              sets: "3",
+              reps: "5–8 / noga",
+              rpe: d.rpe,
+              restAfterExercise: "30–45 s do B2",
+              cue: "Pion tułowia, stabilne kolano, kontrola.",
+              regression: "Wykrok w miejscu / step-up.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
             ex({
               label: "B2",
               name: stiff.name,
               sets: "3",
-              reps: "10 kontaktów",
-              groundContacts: contacts(stiff.contacts, d),
+              reps: `${contacts(stiff.contacts, d)} kontaktów`,
               restAfterPair: "90 s po parze",
               cue: stiff.cue,
               ageSafetyLevel: "youth_ok",
@@ -576,17 +616,29 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
       type: "accessory",
       blocks: [
         block({
-          title: "Tułów i przywodziciele",
+          title: "Kontrolowana dawka tylnej taśmy",
+          blockType: "accessory",
+          intent: "strength",
+          restAfterBlock: "Przerwa po bloku: 60–90 s",
+          safetyNotes: "Tylko jedno ćwiczenie hamstring — bez przeciążenia tylnej taśmy.",
+          exercises: [
+            ex({ name: ham, sets: "2–3", reps: "5–6", cue: "Powolny ekscentryk, pełna kontrola, bez bólu.", ageSafetyLevel: "youth_ok" }),
+          ],
+        }),
+        block({
+          title: "Tułów, przywodziciele i kostka",
           blockType: "accessory",
           intent: "stability",
           restAfterBlock: "45–60 s",
           exercises: [
             ex({ name: adductor, sets: d.accSets, reps: "8 / strona", cue: "Kontrola, bez bólu." }),
-            ex({ name: rotatePick(CORE_ANTI, ctx, avoid), sets: "2", reps: d.accReps, cue: "Sztywny tułów." }),
+            ex({ name: core, sets: "2", reps: d.accReps, cue: "Sztywny tułów, anty-rotacja." }),
+            ex({ name: "Izometria łydki / soleus", sets: "2", reps: "20–30 s", cue: "Wsparcie sprintu i kostki." }),
           ],
         }),
       ],
     }),
+
     cooldownSection(),
   ];
 
@@ -1035,12 +1087,12 @@ export function flatToStructured(sections: {
       section({
         title: g.title,
         type: g.type,
-        blocks: g.items.map((it) =>
+        blocks: [
           block({
-            title: it.name,
+            title: "",
             blockType: "single",
             intent: "strength",
-            exercises: [
+            exercises: g.items.map((it) =>
               ex({
                 name: it.name,
                 reps: it.prescription,
@@ -1049,9 +1101,10 @@ export function flatToStructured(sections: {
                 regression: it.easier,
                 progression: it.harder,
               }),
-            ],
+            ),
           }),
-        ),
+        ],
       }),
     );
 }
+
