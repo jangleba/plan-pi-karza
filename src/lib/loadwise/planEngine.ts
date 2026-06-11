@@ -1730,6 +1730,10 @@ function primaryStimulusForGoal(goal: Profile["goal"], gym: boolean): Stimulus {
       return "cod";
     case "endurance":
       return "endurance_special";
+    case "general":
+    case "matchready":
+      // Rozwój piłkarski / gotowość = pełny rozwój wydolnościowy, nie tylko piłka.
+      return gym ? "strength" : "sprint";
     default:
       return "ball";
   }
