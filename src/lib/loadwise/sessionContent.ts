@@ -84,7 +84,7 @@ function txt(e: ExerciseItem): string {
 }
 
 const BALL_RE =
-  /piłk|podani|podań|przyjęci|prowadz|żonglerk|strzał|wykończ|dryblin|crossy|crossing|dośrodk|finish|odbojnik|ścian[aęy]|wall pass|jedno?kontakt|pierwszy kontakt|skanowani|narożnik|bramk/i;
+  /piłk|podani|podań|przyjęci|prowadzeni|prowadź|żonglerk|strzał|wykończ|dryblin|crossy|crossing|dośrodk|finish|odbojnik|ścian[aęy]|wall pass|jednokontakt|jedno-?dwa|pierwszy kontakt|skanowani|sole roll|kontakty obiema|narożnik|do bramki/i;
 const GYM_RE =
   /przysiad|martwy ciąg|\brdl\b|hip thrust|mostek biodrow|wyciskan|wiosłow|podciąg|bułgarski|hantl|sztang|ciężar|goblet|nordic|copenhagen|pallof|trap.?bar|deadlift|squat|split squat|przywodziciel|wspięcia na łydki/i;
 const SPRINT_RE =
