@@ -659,9 +659,11 @@ function builtToSecondSession(
     generatorVersion: PLAN_ENGINE_VERSION,
     date: isoDate(date),
     dayName: dayName(date),
-    dayType: built.sessionType.toLowerCase().includes("regener")
-      ? "recovery"
-      : "training",
+    dayType:
+      built.sessionType.toLowerCase().includes("regener") &&
+      !built.sessionType.toLowerCase().includes("prehab")
+        ? "recovery"
+        : "training",
     title: built.title,
     goalLabel: built.sessionType,
     intensity: built.intensity,
