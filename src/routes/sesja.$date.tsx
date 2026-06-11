@@ -646,25 +646,14 @@ function SessionDetail() {
         {isClub ? (
           <>
             <ClubMonitoring session={session} />
-            <Section title="Struktura sesji" items={fallbackExercises} />
+            {structured.length > 0 && <StructuredSections sections={structured} />}
           </>
         ) : (
           <>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <Section title="Rozgrzewka" items={session.sections.warmup} />
-            <Section title="Część główna" items={session.sections.main} />
-            <Section
-              title="Część dodatkowa / stabilizacja"
-              items={session.sections.accessory}
-            />
-            <Section
-              title="Transfer piłkarski"
-              items={session.sections.footballTransfer}
-            />
-            <Section title="Wyciszenie" items={session.sections.cooldown} />
-            <Section title="Struktura sesji" items={fallbackExercises} />
+            <StructuredSections sections={structured} />
             <PostSessionLog />
           </>
         )}
