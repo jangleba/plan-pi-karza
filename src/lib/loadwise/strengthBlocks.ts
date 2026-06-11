@@ -502,10 +502,14 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
   const d = dosageFor(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
   const hinge = rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, avoid);
+  const uni = rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, avoid);
+  const hingeJump = pickJumps(ctx, ["horizontal", "vertical"], avoid);
   const sprintDrill = pickJumps(ctx, ["wall", "ankling"], avoid);
-  const stiff = pickJumps(ctx, ["pogo"], avoid);
+  const stiff = pickJumps(ctx, ["pogo", "snap"], avoid);
   const ham = rotatePick(POSTERIOR_ACC, ctx, avoid);
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
+  const core = rotatePick(CORE_ANTI, ctx, avoid);
+  const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
 
   const sections: TrainingSection[] = [
     warmupSection(),
