@@ -204,10 +204,18 @@ function PlanScreen() {
   const [activeWeek, setActiveWeek] = useState(0);
   const [gateWeek, setGateWeek] = useState<number | null>(null);
 
+  // Grupowanie w tygodnie kalendarzowe (poniedziałek–niedziela). Pierwszy
+  // tydzień może być niepełny, jeśli plan startuje w środku tygodnia.
   const weeks: SessionDay[][] = [];
-  for (let i = 0; i < plan.length; i += 7) {
-    weeks.push(plan.slice(i, i + 7));
+  for (const day of plan) {
+    const isMonday = isoDayOfWeek(parseIso(day.date)) === 1;
+    if (weeks.length === 0 || (isMonday && weeks[weeks.length - 1].length > 0)) {
+      weeks.push([day]);
+    } else {
+      weeks[weeks.length - 1].push(day);
+    }
   }
+
 
   // Tydzień 0 zawsze dostępny. Kolejny tydzień i dostępny tylko po
   // potwierdzeniu weekly gate (transitions[i]).
