@@ -29,7 +29,7 @@ import {
   type GymWeekPhase,
 } from "./strengthBlocks";
 
-export const PLAN_ENGINE_VERSION = "loadwise-structured-blocks-v10";
+export const PLAN_ENGINE_VERSION = "loadwise-variable-gym-v11";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
