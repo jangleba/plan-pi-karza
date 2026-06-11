@@ -513,7 +513,7 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
   const hingeJump = pickJumps(ctx, ["horizontal", "vertical"], avoid);
   const sprintDrill = pickJumps(ctx, ["wall", "ankling"], avoid);
   const stiff = pickJumps(ctx, ["pogo", "snap"], avoid);
-  const ham = rotatePick(POSTERIOR_ACC, ctx, avoid);
+  const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
   const core = rotatePick(CORE_ANTI, ctx, avoid);
   const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
