@@ -1,6 +1,7 @@
 import type {
   Profile,
   Intensity,
+  ExerciseItem,
   TrainingSection,
   TrainingBlock,
   TrainingExercise,
@@ -975,17 +976,17 @@ export function buildStrengthPowerStructured(
 
 /** Spłaszcza strukturalne sekcje do płaskich list (persist + fallback UI). */
 export function structuredToFlat(sections: TrainingSection[]): {
-  warmup: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  main: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  accessory: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  footballTransfer: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  cooldown: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
+  warmup: ExerciseItem[];
+  main: ExerciseItem[];
+  accessory: ExerciseItem[];
+  footballTransfer: ExerciseItem[];
+  cooldown: ExerciseItem[];
 } {
   const toItem = (e: TrainingExercise) => {
     const parts = [e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps || e.sets, e.duration, e.rpe, e.loadTarget]
       .filter(Boolean)
       .join(", ");
-    return {
+    const item: ExerciseItem = {
       name: e.label ? `${e.label} — ${e.name}` : e.name,
       prescription: parts || "wg techniki",
       rest: e.restAfterExercise || e.restAfterPair || undefined,
@@ -993,13 +994,14 @@ export function structuredToFlat(sections: TrainingSection[]): {
       easier: e.regression,
       harder: e.progression,
     };
+    return item;
   };
   const out = {
-    warmup: [] as ReturnType<typeof toItem>[],
-    main: [] as ReturnType<typeof toItem>[],
-    accessory: [] as ReturnType<typeof toItem>[],
-    footballTransfer: [] as ReturnType<typeof toItem>[],
-    cooldown: [] as ReturnType<typeof toItem>[],
+    warmup: [] as ExerciseItem[],
+    main: [] as ExerciseItem[],
+    accessory: [] as ExerciseItem[],
+    footballTransfer: [] as ExerciseItem[],
+    cooldown: [] as ExerciseItem[],
   };
   for (const sec of sections) {
     const items = sec.blocks.flatMap((b) => b.exercises.map(toItem));
