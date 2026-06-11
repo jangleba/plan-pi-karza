@@ -421,7 +421,7 @@ function recoverySession(): Built {
         cue: "Spokojnie, kontroluj zakres.",
       },
       {
-        name: "Oddech i wyciszenie (downregulation)",
+        name: "Oddech i wyciszenie",
         prescription: "5 min wydłużony wydech",
         cue: "Nos–wdech, długi wydech, rozluźnij barki.",
       },
