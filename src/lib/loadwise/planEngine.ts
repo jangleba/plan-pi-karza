@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-category-engine-v7";
+export const PLAN_ENGINE_VERSION = "loadwise-hard-category-quotas-v8";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -236,7 +236,7 @@ function buildByGoal(profile: Profile): Built {
     case "agility":
       return buildCod(profile);
     case "general":
-      return buildBall(profile);
+      return buildByGoal({ ...profile, goal: profile.hasGym ? "strength" : "speed" });
     case "mobility":
       return {
         title: "Sesja mobilności i techniki",
@@ -422,8 +422,8 @@ function recoverySession(): Built {
 /** PM: technika piłki — uzupełnia dzień siły/mocy/wytrzymałości. */
 function secondBallTechnique(): Built {
   return {
-    title: "Technika: pierwszy kontakt + podania pod presją (PM)",
-    sessionType: "Technika piłki (lekka)",
+    title: "Technika i decyzje z piłką",
+    sessionType: "Piłka",
     intensity: "niska",
     durationMin: 25,
     goalOfSession:
@@ -503,8 +503,8 @@ function secondMobilityPrehab(): Built {
 /** PM: czucie piłki — najlżejszy wariant, do dni klubowych. */
 function secondFootballTouch(): Built {
   return {
-    title: "Technika: czucie piłki + podania o ścianę (PM)",
-    sessionType: "Czucie piłki (lekka)",
+    title: "Technika i decyzje z piłką",
+    sessionType: "Piłka",
     intensity: "niska",
     durationMin: 20,
     goalOfSession:
@@ -659,9 +659,11 @@ function builtToSecondSession(
     generatorVersion: PLAN_ENGINE_VERSION,
     date: isoDate(date),
     dayName: dayName(date),
-    dayType: built.sessionType.toLowerCase().includes("regener")
-      ? "recovery"
-      : "training",
+    dayType:
+      built.sessionType.toLowerCase().includes("regener") &&
+      !built.sessionType.toLowerCase().includes("prehab")
+        ? "recovery"
+        : "training",
     title: built.title,
     goalLabel: built.sessionType,
     intensity: built.intensity,
@@ -920,44 +922,7 @@ function buildLightAlternative(profile: Profile): Built {
         footballTransfer: [],
       };
     default:
-      return {
-        title: "Lekka praca techniczna i prehab",
-        sessionType: "Technika / prehab (lekka)",
-        intensity: "niska",
-        durationMin: young ? 30 : 35,
-        goalOfSession:
-          "Doskonalenie techniki i odporności przy niskim obciążeniu.",
-        riskManaged:
-          "Niska intensywność po cięższym dniu — bez zrywów i ciężkich nóg.",
-        avoidToday:
-          "Bez sprintów maksymalnych, ciężkich nóg i twardego kondycyjnego.",
-        main: [
-          {
-            name: "Pierwszy kontakt i skanowanie",
-            prescription: "10 min przyjęć kierunkowych",
-            cue: "Skan przed przyjęciem, kontakt w ruch.",
-          },
-          {
-            name: "Podania obunóż",
-            prescription: "10 min, różne dystanse",
-            cue: "Celność przed siłą, obie nogi.",
-          },
-        ],
-        accessory: [
-          {
-            name: "Prehab: przywodziciele, łydki, tylne uda",
-            prescription: "8 min, lekko",
-            cue: "Kontrola, bez bólu.",
-          },
-        ],
-        footballTransfer: [
-          {
-            name: "Akcja pozycyjna w spokojnym tempie",
-            prescription: "6 min wg roli",
-            cue: "Realizuj zadania swojej pozycji.",
-          },
-        ],
-      };
+      return buildPrehab(profile);
   }
 }
 
@@ -1609,6 +1574,7 @@ function buildEnduranceDeload(profile: Profile): Built {
 
 /** Buduje sesję dla danego bodźca tygodniowego. */
 function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
+  const built = (() => {
   switch (stimulus) {
     case "strength_base":
     case "strength":
@@ -1638,6 +1604,23 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
     case "prehab":
     default:
       return buildPrehab(profile);
+  }
+  })();
+
+  switch (categoryOf(stimulus)) {
+    case "strength_power":
+      return { ...built, title: "Siła / moc na siłowni", sessionType: "Siła / moc" };
+    case "speed":
+      return { ...built, title: "Sprint i przyspieszenie", sessionType: "Szybkość" };
+    case "conditioning":
+      return { ...built, title: "Baza tlenowa i tempo", sessionType: "Wydolność" };
+    case "athletic":
+      return stimulus === "prehab"
+        ? { ...built, title: "Prehab i mobilność", sessionType: "Regeneracja / prehab" }
+        : { ...built, title: "Zmiana kierunku i motoryka", sessionType: "Motoryka" };
+    case "ball":
+    default:
+      return { ...built, title: "Technika i decyzje z piłką", sessionType: "Piłka" };
   }
 }
 
@@ -1773,6 +1756,14 @@ type PerfCategory =
   | "athletic"
   | "ball";
 
+export type PlanSessionCategory =
+  | PerfCategory
+  | "club"
+  | "match"
+  | "activation"
+  | "recovery_prehab"
+  | "rest";
+
 function categoryOf(s: Stimulus): PerfCategory {
   switch (s) {
     case "strength_base":
@@ -1796,6 +1787,64 @@ function categoryOf(s: Stimulus): PerfCategory {
     default:
       return "ball";
   }
+}
+
+function textOfSession(session: SessionDay): string {
+  const exerciseText = [
+    ...session.sections.warmup,
+    ...session.sections.main,
+    ...session.sections.accessory,
+    ...session.sections.footballTransfer,
+    ...session.sections.cooldown,
+  ]
+    .map((e) => `${e.name} ${e.prescription} ${e.cue ?? ""}`)
+    .join(" ");
+  return `${session.title} ${session.goalLabel} ${session.sessionType} ${session.goalOfSession} ${exerciseText}`.toLowerCase();
+}
+
+function headerTextOfSession(session: SessionDay): string {
+  return `${session.title} ${session.goalLabel} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
+}
+
+export function sessionCategory(session: SessionDay): PlanSessionCategory {
+  if (session.dayType === "club") return "club";
+  if (session.dayType === "match") return "match";
+  if (session.dayType === "md-1") return "activation";
+  if (session.dayType === "recovery") return "recovery_prehab";
+  if (session.dayType === "rest") return "rest";
+
+  const header = headerTextOfSession(session);
+  if (/sił|moc|power/.test(header)) {
+    return "strength_power";
+  }
+  if (/wydol|tlen|tempo|interwa|rsa|kondyc/.test(header)) {
+    return "conditioning";
+  }
+  if (/sprint|szybko|przyspiesz|akceler|prędko/.test(header)) {
+    return "speed";
+  }
+  if (/cod|motory|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil/.test(header)) {
+    return "athletic";
+  }
+  const text = textOfSession(session);
+  if (/wydol|tlen|tempo|interwa|rsa|kondyc|ciągły bieg|biegowy|bieg /.test(text)) return "conditioning";
+  if (/sprint|szybko|przyspiesz|akceler|prędko|reakcja|flying/.test(text)) return "speed";
+  if (/sił|moc\s*\/|mocą|power|przysiad|martwy|split squat|rdl|trap-bar|goblet/.test(text)) return "strength_power";
+  if (/cod|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil|core|przywodziciel|copenhagen|nordic/.test(text)) return "athletic";
+  return "ball";
+}
+
+export function sessionContainsPrehab(session: SessionDay): boolean {
+  if (session.dayType === "recovery") return true;
+  const exerciseText = [
+    ...session.sections.main,
+    ...session.sections.accessory,
+    ...session.sections.footballTransfer,
+  ]
+    .map((e) => `${e.name} ${e.prescription} ${e.cue ?? ""}`)
+    .join(" ");
+  const text = `${headerTextOfSession(session)} ${exerciseText}`.toLowerCase();
+  return /prehab|mobil|regener|przywodziciel|copenhagen|nordic|oddech|łydk|hamstring/.test(text);
 }
 
 // Kolejność priorytetu dla dodatkowych sesji indywidualnych.
@@ -1977,6 +2026,149 @@ function interleaveStimuli(list: Stimulus[]): Stimulus[] {
 interface PlanCell {
   type: DayType;
   stimulus?: Stimulus;
+  secondStimulus?: Stimulus;
+}
+
+function isHealthyPerformanceProfile(profile: Profile): boolean {
+  return (
+    !profile.painInjury &&
+    profile.seasonPhase !== "transition" &&
+    profile.seasonPhase !== "return_injury" &&
+    profile.goal !== "mobility" &&
+    profile.goal !== "return" &&
+    profile.level !== "beginner"
+  );
+}
+
+function hardWeeklyQuota(
+  profile: Profile,
+  clubCount: number,
+  matchCount: number,
+  phase: WeekPhase,
+): Stimulus[] {
+  if (!isHealthyPerformanceProfile(profile)) {
+    return interleaveStimuli(seasonWeeklyStimuli(profile, clubCount, matchCount, phase));
+  }
+
+  const strengthMain: Stimulus = profile.hasGym ? "strength" : "strength_base";
+  const secondStrength: Stimulus = profile.hasGym ? "power" : "strength_base";
+  const conditioning: Stimulus =
+    matchCount > 0
+      ? "endurance_light"
+      : phase === "deload"
+        ? "endurance_deload"
+        : enduranceMainForPhase(phase);
+
+  const quota: Stimulus[] = [strengthMain, secondStrength, "sprint", conditioning, "prehab"];
+  if (matchCount > 0) {
+    return [strengthMain, "sprint", conditioning, "prehab", secondStrength];
+  }
+  if (clubCount + matchCount === 0) quota.push("ball");
+  return quota;
+}
+
+function canPrimaryStimulus(stimulus: Stimulus, it: { base: BaseDayType; toMatch: number | null }): boolean {
+  if (it.base !== "available") return false;
+  const category = categoryOf(stimulus);
+  if (it.toMatch === 1 || it.toMatch === 0) return false;
+  if (it.toMatch === 2 && category !== "speed" && category !== "athletic" && category !== "ball") {
+    return false;
+  }
+  if (it.toMatch !== null && it.toMatch <= 2 && (category === "strength_power" || category === "conditioning")) {
+    return false;
+  }
+  return true;
+}
+
+function canSecondStimulus(
+  stimulus: Stimulus,
+  it: { base: BaseDayType; toMatch: number | null },
+  primary?: Stimulus,
+): boolean {
+  if (it.base === "match" || it.base === "md-1" || it.base === "md+1") return false;
+  if (it.toMatch !== null && it.toMatch <= 2) return false;
+  const category = categoryOf(stimulus);
+  if (it.base === "club") return category === "athletic";
+  if (it.base !== "available") return false;
+  if (!primary) return false;
+  const primaryCategory = categoryOf(primary);
+  if (category === "strength_power" || category === "speed") return false;
+  if (primaryCategory === "strength_power" && category === "conditioning") return false;
+  return true;
+}
+
+function slotScore(stimulus: Stimulus, it: { date: Date; toMatch: number | null }, second = false): number {
+  const dow = isoDayOfWeek(it.date);
+  const category = categoryOf(stimulus);
+  let score = 100 - dow;
+  if (category === "strength_power") score += dow === 2 || dow === 6 ? 40 : 0;
+  if (category === "speed") score += it.toMatch === 3 ? 60 : dow === 4 ? 35 : 0;
+  if (category === "conditioning") score += dow === 4 || dow === 7 ? 30 : 0;
+  if (category === "athletic") score += dow === 1 || dow === 6 ? 25 : 0;
+  if (second) score -= category === "conditioning" ? 5 : 15;
+  if (it.toMatch !== null) score += Math.min(it.toMatch, 5) * 3;
+  return score;
+}
+
+function countCellCategories(cells: PlanCell[]): Record<PerfCategory, number> {
+  const counts: Record<PerfCategory, number> = {
+    strength_power: 0,
+    speed: 0,
+    conditioning: 0,
+    athletic: 0,
+    ball: 0,
+  };
+  for (const cell of cells) {
+    if (cell.stimulus) counts[categoryOf(cell.stimulus)]++;
+    if (cell.secondStimulus) counts[categoryOf(cell.secondStimulus)]++;
+  }
+  return counts;
+}
+
+function repairWeekCells(
+  profile: Profile,
+  items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
+  result: Record<string, PlanCell>,
+  maxDoubles: number,
+): void {
+  if (!isHealthyPerformanceProfile(profile)) return;
+  const required: PerfCategory[] = ["strength_power", "speed", "conditioning", "athletic"];
+  const replacementFor: Record<PerfCategory, Stimulus> = {
+    strength_power: profile.hasGym ? "strength" : "strength_base",
+    speed: "sprint",
+    conditioning: "endurance_light",
+    athletic: "prehab",
+    ball: "ball",
+  };
+
+  const cells = () => items.map((it) => result[it.iso]).filter(Boolean) as PlanCell[];
+  const doubles = () => cells().filter((c) => c.secondStimulus).length;
+
+  for (const category of required) {
+    if (countCellCategories(cells())[category] > 0) continue;
+    const stimulus = replacementFor[category];
+
+    const replaceablePrimary = items.find((it) => {
+      const cell = result[it.iso];
+      if (!cell || cell.type !== "training" || !cell.stimulus) return false;
+      const c = categoryOf(cell.stimulus);
+      return (c === "ball" || c === "athletic") && canPrimaryStimulus(stimulus, it);
+    });
+    if (replaceablePrimary) {
+      result[replaceablePrimary.iso].stimulus = stimulus;
+      continue;
+    }
+
+    if (doubles() >= maxDoubles) continue;
+    const secondSlot = [...items]
+      .sort((a, b) => slotScore(stimulus, b, true) - slotScore(stimulus, a, true))
+      .find((it) => {
+        const cell = result[it.iso];
+        if (!cell || cell.secondStimulus) return false;
+        return canSecondStimulus(stimulus, it, cell.stimulus);
+      });
+    if (secondSlot) result[secondSlot.iso].secondStimulus = stimulus;
+  }
 }
 
 /**
@@ -2019,25 +2211,49 @@ function planBlock(
     }
 
     const avail = items.filter((it) => it.base === "available");
-    // MD-2 zawsze zostaje dniem ostrości (sesja specjalna w głównej pętli).
-    const md2 = avail.filter((it) => it.toMatch === 2);
-    for (const it of md2) result[it.iso] = { type: "training" };
+    const { cap, maxDoubles } = weekLoadConfig(profile, phase, matchCount > 0);
+    const quota = hardWeeklyQuota(profile, clubCount, matchCount, phase).slice(0, cap);
+    let doublesUsed = 0;
 
-    const normal = avail.filter((it) => it.toMatch !== 2);
-    const ordered = interleaveStimuli(
-      seasonWeeklyStimuli(profile, clubCount, matchCount, phase),
-    );
-    const { cap } = weekLoadConfig(profile, phase, matchCount > 0);
-    const ownCount = Math.min(normal.length, ordered.length, cap);
+    for (const it of avail) {
+      result[it.iso] = it.toMatch === 2 ? { type: "training", stimulus: "speed_exposure" } : { type: "recovery" };
+    }
 
-    normal.forEach((it, idx) => {
-      if (idx < ownCount) {
-        result[it.iso] = { type: "training", stimulus: ordered[idx] };
-      } else {
-        // Nadmiarowe dni dostępne → aktywna regeneracja (nie losowe "wolne").
-        result[it.iso] = { type: "recovery" };
+    for (const stimulus of quota) {
+      const alreadyPlaced = items.some(
+        (it) =>
+          result[it.iso]?.stimulus === stimulus ||
+          result[it.iso]?.secondStimulus === stimulus,
+      );
+      if (alreadyPlaced && stimulus !== "strength_base") continue;
+
+      const primary = [...avail]
+        .sort((a, b) => slotScore(stimulus, b) - slotScore(stimulus, a))
+        .find((it) => {
+          const cell = result[it.iso];
+          return cell?.type === "recovery" && canPrimaryStimulus(stimulus, it);
+        });
+
+      if (primary) {
+        result[primary.iso] = { type: "training", stimulus };
+        continue;
       }
-    });
+
+      if (doublesUsed >= maxDoubles) continue;
+      const second = [...items]
+        .sort((a, b) => slotScore(stimulus, b, true) - slotScore(stimulus, a, true))
+        .find((it) => {
+          const cell = result[it.iso];
+          if (!cell || cell.secondStimulus) return false;
+          return canSecondStimulus(stimulus, it, cell.stimulus);
+        });
+      if (second) {
+        result[second.iso].secondStimulus = stimulus;
+        doublesUsed++;
+      }
+    }
+
+    repairWeekCells(profile, items, result, maxDoubles);
   });
 
   return result;
@@ -2151,8 +2367,8 @@ export function generatePlan(
         date: iso,
         dayName: dayName(date),
         dayType: "club",
-        title: "Trening klubowy (monitoring)",
-        goalLabel: "Obciążenie klubowe",
+        title: "Trening klubowy",
+        goalLabel: "Klub",
         intensity: "umiarkowana",
         durationMin: 90,
         reason:
@@ -2161,7 +2377,7 @@ export function generatePlan(
           "Trening klubowy to realne obciążenie. Po nim monitoruj odczucia i sen.",
         whyToday:
           "Trening klubowy jest wliczany do tygodniowego obciążenia, dlatego to on jest sesją główną dnia.",
-        sessionType: "Trening klubowy (monitoring)",
+        sessionType: "Klub",
         goalOfSession: "Realizacja treningu klubowego jako głównego obciążenia.",
         riskManaged:
           "Nie dokładamy ćwiczeń do treningu klubowego — tylko monitoring obciążenia.",
@@ -2302,12 +2518,9 @@ export function generatePlan(
           "Po meczu lekka praca pomaga się rozruszać. Jeśli grałeś dużo lub czujesz się słabo, check-in zmieni to w regenerację.";
       } else {
         const stimulus = cell?.stimulus;
-        if (
-          lastWasHard &&
-          !profile.painInjury &&
-          (stimulus === undefined || isHardStimulus(stimulus))
-        ) {
-          // Nie stawiamy ciężkiego bodźca dzień po dużym obciążeniu (np. po klubie).
+        if (lastWasHard && !profile.painInjury && stimulus === undefined) {
+          // Tylko brak bodźca może zostać zamieniony na lżejszą pracę. Jawne
+          // bodźce z kwot kategorii (siła/sprint/bieganie) nie mogą wypaść.
           built = buildLightAlternative(profile);
           reason =
             "Dzień po większym obciążeniu: kontrolowana, lżejsza praca zamiast ciężkiego bodźca.";
@@ -2359,10 +2572,19 @@ export function generatePlan(
     }
 
 
-    // Druga, lekka sesja — tylko jeśli dozwolona, bezpieczna i w limicie
-    // tygodniowym (bez automatycznych 5 podwójnych dni).
+    // Druga sesja: najpierw realizuje konkretną kategorię z tygodniowej kwoty.
+    // Dla zdrowych profili nie dokładamy już automatycznych fillerów.
     if (doublesThisWeek < weeklyMaxDoubles) {
-      const second = buildSecondSession(session.dayType, date, profile);
+      let second: SessionDay | null = null;
+      if (cell?.secondStimulus) {
+        const built = buildStimulus(cell.secondStimulus, profile);
+        second = builtToSecondSession(built, date, profile);
+        second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
+        second.whyToday =
+          "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
+      } else if (!isHealthyPerformanceProfile(profile)) {
+        second = buildSecondSession(session.dayType, date, profile);
+      }
       if (second) {
         session.secondSession = second;
         session.slotLabel =

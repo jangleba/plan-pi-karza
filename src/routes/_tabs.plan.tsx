@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso, isoDayOfWeek } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
-import { phaseOf, type WeekPhase } from "@/lib/loadwise/planEngine";
+import {
+  phaseOf,
+  sessionCategory,
+  sessionContainsPrehab,
+  type WeekPhase,
+} from "@/lib/loadwise/planEngine";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
@@ -161,19 +166,24 @@ function weekSummary(
   const phase = phaseOf(weekIndex, totalWeeks);
   const block = focusFor(phase, goal);
 
-  // Sesje własne = własne treningi rozwojowe (główne + druga sesja, jeśli to
-  // realny trening). Nie liczymy klubu, meczu, monitoringu ani czystej
-  // regeneracji jako sesji rozwojowych.
-  const ownPrimary = week.filter((d) => d.dayType === "training").length;
-  const ownSecond = week.filter(
-    (d) => d.secondSession && d.secondSession.dayType === "training",
-  ).length;
-  const ownSessions = ownPrimary + ownSecond;
+  const sessions = week.flatMap((d) =>
+    d.secondSession ? [d, d.secondSession] : [d],
+  );
+  const ownSessions = sessions.filter((s) => {
+    const category = sessionCategory(s);
+    return (
+      s.dayType === "training" &&
+      category !== "club" &&
+      category !== "match" &&
+      category !== "rest"
+    );
+  }).length;
   const clubSessions = week.filter((d) => d.dayType === "club").length;
   const matchCount = week.filter((d) => d.dayType === "match").length;
   const doubleDays = week.filter((d) => !!d.secondSession).length;
-  const recoveryDays = week.filter(
-    (d) => d.dayType === "recovery" || d.dayType === "rest",
+  const recoveryDays = sessions.filter(
+    (s) =>
+      sessionCategory(s) === "recovery_prehab" || sessionContainsPrehab(s),
   ).length;
   const matchDay = week.find((d) => d.dayType === "match");
 
