@@ -462,7 +462,9 @@ function PlanScreen() {
               {nextConfirmed
                 ? nextTransition?.noMatchNextWeek
                   ? "Brak meczu — tydzień bez taperu."
-                  : `Kolejny mecz: ${formatDate(nextTransition!.nextMatchDate!)}.`
+                  : nextTransition?.nextMatchDate
+                    ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
+                    : "Ustaw datę kolejnego meczu."
                 : "Ustaw datę kolejnego meczu."}
             </p>
 
