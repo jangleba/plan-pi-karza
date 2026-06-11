@@ -1035,10 +1035,10 @@ export function buildStrengthPowerStructured(
   // Walidacja programowania siłowni + naprawa przed renderem.
   // Jeśli zasady bezpieczeństwa dnia meczowego są złamane, schodzimy do primera.
   let issues = validateGymSession(plan, ctx);
-  if (issues.some((i) => i.code === "matchday_unsafe")) {
+  if (issues.some((i) => i.code === "matchday_unsafe" || i.code === "matchday_heavy_hamstring")) {
     return powerPrimer(profile, ctx);
   }
-  for (let pass = 0; pass < 3 && issues.length > 0; pass++) {
+  for (let pass = 0; pass < 4 && issues.length > 0; pass++) {
     repairGymSession(plan, ctx, issues);
     issues = validateGymSession(plan, ctx);
   }
