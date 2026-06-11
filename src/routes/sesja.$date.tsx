@@ -350,6 +350,15 @@ function SessionDetail() {
 
   const isClub = session.dayType === "club";
   const shortNote = shortDecisionNote(session);
+  const fallbackExercises =
+    session.sections.warmup.length +
+      session.sections.main.length +
+      session.sections.accessory.length +
+      session.sections.footballTransfer.length +
+      session.sections.cooldown.length ===
+    0
+      ? session.exercises ?? []
+      : [];
 
   return (
     <div className="app-shell min-h-screen pb-[140px]">
@@ -449,7 +458,10 @@ function SessionDetail() {
         )}
 
         {isClub ? (
-          <ClubMonitoring session={session} />
+          <>
+            <ClubMonitoring session={session} />
+            <Section title="Struktura sesji" items={fallbackExercises} />
+          </>
         ) : (
           <>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -466,6 +478,7 @@ function SessionDetail() {
               items={session.sections.footballTransfer}
             />
             <Section title="Wyciszenie" items={session.sections.cooldown} />
+            <Section title="Struktura sesji" items={fallbackExercises} />
             <PostSessionLog />
           </>
         )}

@@ -103,17 +103,86 @@ export type DayType =
   | "recovery" // regeneracja
   | "rest"; // dzień wolny
 
+export type PlanSessionType =
+  | "strength_power"
+  | "sprint_acceleration"
+  | "endurance_running"
+  | "football_technical"
+  | "cod_agility"
+  | "testing"
+  | "club_training"
+  | "match"
+  | "activation"
+  | "recovery"
+  | "prehab_mobility"
+  | "rest";
+
+export interface PlanSession {
+  id: string;
+  type: PlanSessionType;
+  title: string;
+  intensity: Intensity;
+  durationMin: number;
+  isClubSession: boolean;
+  isOwnSession: boolean;
+  isRecoveryOrPrehab: boolean;
+  isSupplemental: boolean;
+  exercises: ExerciseItem[];
+  source: SessionDay;
+}
+
+export interface PlanDay {
+  date: string;
+  dayOfWeek: number;
+  mdRelation: string | null;
+  sessions: PlanSession[];
+  outsideActivePlan?: boolean;
+  source: SessionDay;
+}
+
+export interface PlanWeek {
+  weekId: string;
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  days: PlanDay[];
+  matchDate: string | null;
+  matchDates: string[];
+  focus: string;
+  loadLevel: Intensity;
+  reasons: string[];
+}
+
+export interface WeekStats {
+  ownTrainingCount: number;
+  clubTrainingCount: number;
+  recoveryPrehabCount: number;
+  doubleDayCount: number;
+  hasMatch: boolean;
+  matchDateLabel: string;
+  weeklyLoadLabel: Intensity;
+}
+
 export interface SessionDay {
   generatorVersion?: string;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
+  sessionId?: string;
   date: string; // yyyy-MM-dd
+  dayOfWeek?: number;
+  mdRelation?: string | null;
   dayName: string;
   dayType: DayType;
+  type?: PlanSessionType;
   title: string;
   goalLabel: string;
   intensity: Intensity;
   durationMin: number;
+  isClubSession?: boolean;
+  isOwnSession?: boolean;
+  isRecoveryOrPrehab?: boolean;
+  isSupplemental?: boolean;
+  exercises?: ExerciseItem[];
   reason: string;
   safetyNote: string | null;
   whyToday: string;

@@ -110,7 +110,7 @@ function AparatScreen() {
   return (
     <div>
       <AppHeader
-        title="AI Aparat"
+        title="Aparat AI"
         subtitle="Testy sprawności — na razie ręczne wpisywanie wyników."
       />
 

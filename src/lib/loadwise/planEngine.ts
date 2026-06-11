@@ -5,6 +5,11 @@ import type {
   Intensity,
   DayType,
   Readiness,
+  PlanWeek,
+  PlanDay,
+  PlanSession,
+  PlanSessionType,
+  WeekStats,
 } from "./types";
 import {
   warsawToday,
@@ -14,9 +19,11 @@ import {
   isoDayOfWeek,
   dayName,
   GOAL_LABELS,
+  parseIso,
+  formatDate,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-hard-category-quotas-v8";
+export const PLAN_ENGINE_VERSION = "loadwise-real-week-stats-v9";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -608,18 +615,9 @@ function youthSafety(built: Built, profile: Profile, note: string | null) {
   };
 }
 
-/** Stały dzień meczu w tygodniu (1=pon..7=niedz) lub null. */
-function matchWeekday(profile: Profile): number | null {
-  return typeof profile.usualMatchDay === "number"
-    ? profile.usualMatchDay
-    : null;
-}
-
-/** Czy dany dzień jest dniem meczu (jednorazowa data lub stały dzień tygodnia). */
+/** Czy dany dzień jest dniem meczu. Jedynym źródłem prawdy jest konkretna data meczu. */
 function isMatchDay(date: Date, profile: Profile): boolean {
   if (profile.matchDate && isoDate(date) === profile.matchDate) return true;
-  const mw = matchWeekday(profile);
-  if (mw !== null && isoDayOfWeek(date) === mw) return true;
   return false;
 }
 
@@ -1847,6 +1845,253 @@ export function sessionContainsPrehab(session: SessionDay): boolean {
   return /prehab|mobil|regener|przywodziciel|copenhagen|nordic|oddech|łydk|hamstring/.test(text);
 }
 
+const OWN_TRAINING_TYPES: PlanSessionType[] = [
+  "strength_power",
+  "sprint_acceleration",
+  "endurance_running",
+  "football_technical",
+  "cod_agility",
+  "testing",
+];
+
+const RECOVERY_PREHAB_TYPES: PlanSessionType[] = [
+  "recovery",
+  "prehab_mobility",
+  "activation",
+];
+
+function allExercises(session: SessionDay): ExerciseItem[] {
+  const listed = [
+    ...session.sections.warmup,
+    ...session.sections.main,
+    ...session.sections.accessory,
+    ...session.sections.footballTransfer,
+    ...session.sections.cooldown,
+  ];
+  if (listed.length) return listed;
+  if (session.dayType === "club") {
+    return [
+      {
+        name: "Trening klubowy wg planu trenera",
+        prescription: `${session.durationMin} min — zapisz realny czas i RPE po zakończeniu`,
+        cue: "Traktuj klub jako główne obciążenie dnia, nie dokładaj ciężkich nóg.",
+      },
+      {
+        name: "Monitoring po treningu",
+        prescription: "RPE 0–10, ból 0–10, zmęczenie nóg 0–10, krótka notatka",
+        cue: "Dane po klubie sterują kolejnymi decyzjami Loadwise.",
+      },
+    ];
+  }
+  if (session.dayType === "rest") {
+    return [
+      {
+        name: "Wolne / lekki ruch opcjonalnie",
+        prescription: "10–20 min spaceru lub bardzo lekka mobilność, tylko jeśli chcesz",
+        cue: "Nie zamieniaj dnia wolnego w ukryty trening.",
+      },
+    ];
+  }
+  return [
+    {
+      name: "Sesja kontrolna",
+      prescription: `${session.durationMin} min zgodnie z opisem dnia`,
+      cue: "Zachowaj jakość ruchu i przerwij przy bólu.",
+    },
+  ];
+}
+
+export function planSessionType(session: SessionDay): PlanSessionType {
+  if (session.dayType === "club") return "club_training";
+  if (session.dayType === "match") return "match";
+  if (session.dayType === "md-1") return "activation";
+  if (session.dayType === "recovery") return "recovery";
+  if (session.dayType === "rest") return "rest";
+  const category = sessionCategory(session);
+  if (category === "strength_power") return "strength_power";
+  if (category === "speed") return "sprint_acceleration";
+  if (category === "conditioning") return "endurance_running";
+  if (category === "athletic") {
+    return sessionContainsPrehab(session) ? "prehab_mobility" : "cod_agility";
+  }
+  return "football_technical";
+}
+
+function decorateSession(session: SessionDay, slot: 1 | 2): SessionDay {
+  const type = planSessionType(session);
+  const exercises = allExercises(session);
+  return {
+    ...session,
+    sessionId: session.sessionId ?? `${session.date}-${slot}`,
+    dayOfWeek: isoDayOfWeek(parseIso(session.date)),
+    mdRelation: session.mdLabel,
+    type,
+    isClubSession: type === "club_training",
+    isOwnSession: OWN_TRAINING_TYPES.includes(type),
+    isRecoveryOrPrehab: RECOVERY_PREHAB_TYPES.includes(type),
+    isSupplemental: slot === 2,
+    exercises,
+  };
+}
+
+function sessionToPlanSession(session: SessionDay): PlanSession {
+  const type = session.type ?? planSessionType(session);
+  const exercises = session.exercises ?? allExercises(session);
+  return {
+    id: session.sessionId ?? `${session.date}-${session.isSupplemental ? 2 : 1}`,
+    type,
+    title: session.title,
+    intensity: session.intensity,
+    durationMin: session.durationMin,
+    isClubSession: Boolean(session.isClubSession ?? type === "club_training"),
+    isOwnSession: Boolean(session.isOwnSession ?? OWN_TRAINING_TYPES.includes(type)),
+    isRecoveryOrPrehab: Boolean(
+      session.isRecoveryOrPrehab ?? RECOVERY_PREHAB_TYPES.includes(type),
+    ),
+    isSupplemental: Boolean(session.isSupplemental),
+    exercises,
+    source: session,
+  };
+}
+
+function weekStartIso(date: Date): string {
+  return isoDate(addDays(date, 1 - isoDayOfWeek(date)));
+}
+
+function weekEndIso(date: Date): string {
+  return isoDate(addDays(date, 7 - isoDayOfWeek(date)));
+}
+
+function weekFocusFromSessions(sessions: PlanSession[]): string {
+  const labels: Partial<Record<PlanSessionType, string>> = {
+    strength_power: "siła",
+    sprint_acceleration: "sprint",
+    endurance_running: "wydolność",
+    football_technical: "piłka",
+    cod_agility: "motoryka",
+    club_training: "klub",
+    match: "mecz",
+    recovery: "regeneracja",
+    prehab_mobility: "prehab",
+    activation: "aktywacja",
+  };
+  const seen = sessions
+    .map((s) => labels[s.type])
+    .filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i)
+    .slice(0, 3);
+  return seen.length ? seen.join(" + ") : "mikrocykl";
+}
+
+export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
+  const buckets = new Map<string, SessionDay[]>();
+  for (const day of plan) {
+    const key = weekStartIso(parseIso(day.date));
+    const list = buckets.get(key) ?? [];
+    list.push(day);
+    buckets.set(key, list);
+  }
+
+  return [...buckets.entries()].map(([startDate, days], index) => {
+    const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+    const endDate = weekEndIso(parseIso(startDate));
+    const byDate = new Map(sorted.map((day) => [day.date, day]));
+    const planDays: PlanDay[] = Array.from({ length: 7 }, (_, offset) => {
+      const date = isoDate(addDays(parseIso(startDate), offset));
+      const day = byDate.get(date);
+      if (!day) {
+        return {
+          date,
+          dayOfWeek: isoDayOfWeek(parseIso(date)),
+          mdRelation: null,
+          sessions: [],
+          outsideActivePlan: true,
+          source: {
+            generatorVersion: PLAN_ENGINE_VERSION,
+            date,
+            dayName: dayName(parseIso(date)),
+            dayType: "rest",
+            title: "Poza aktywnym planem",
+            goalLabel: "Poza planem",
+            intensity: "niska",
+            durationMin: 0,
+            reason: "Plan zaczyna się w trakcie tygodnia — ten dzień nie wchodzi do obciążenia.",
+            safetyNote: null,
+            whyToday: "Dzień wcześniejszy niż start planu.",
+            sessionType: "Poza planem",
+            goalOfSession: "Brak zaplanowanej sesji.",
+            riskManaged: "Nie liczony do tygodniowego obciążenia.",
+            avoidToday: "Brak zaleceń treningowych w tym planie.",
+            mdLabel: null,
+            slotLabel: null,
+            sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+            secondSession: null,
+          },
+        };
+      }
+      const sessions = [day, day.secondSession]
+        .filter(Boolean)
+        .map((s) => sessionToPlanSession(s as SessionDay));
+      return {
+        date: day.date,
+        dayOfWeek: day.dayOfWeek ?? isoDayOfWeek(parseIso(day.date)),
+        mdRelation: day.mdRelation ?? day.mdLabel,
+        sessions,
+        outsideActivePlan: false,
+        source: day,
+      };
+    });
+    const sessions = planDays.flatMap((d) => d.sessions);
+    const matchDates = planDays
+      .filter((d) => d.source.dayType === "match")
+      .map((d) => d.date);
+    const hasHigh = sessions.some((s) => s.intensity === "wysoka");
+    const hasMod = sessions.some((s) => s.intensity === "umiarkowana");
+    const reasons: string[] = [];
+    if (planDays.length < 7) reasons.push("plan startuje w trakcie tygodnia");
+    return {
+      weekId: `${startDate}_${endDate}`,
+      weekNumber: index + 1,
+      startDate,
+      endDate,
+      days: planDays,
+      matchDate: matchDates[0] ?? null,
+      matchDates,
+      focus: weekFocusFromSessions(sessions),
+      loadLevel: hasHigh ? "wysoka" : hasMod ? "umiarkowana" : "niska",
+      reasons,
+    };
+  });
+}
+
+function isRealSession(session: PlanSession): boolean {
+  return session.type !== "rest" && session.durationMin >= 20 && session.exercises.length > 0;
+}
+
+export function computeWeekStats(week: PlanWeek): WeekStats {
+  const sessions = week.days.flatMap((d) => d.sessions);
+  const ownTrainingCount = sessions.filter(
+    (s) => OWN_TRAINING_TYPES.includes(s.type) && isRealSession(s),
+  ).length;
+  const clubTrainingCount = sessions.filter(
+    (s) => s.type === "club_training" && isRealSession(s),
+  ).length;
+  const recoveryPrehabCount = sessions.filter(
+    (s) => RECOVERY_PREHAB_TYPES.includes(s.type) && isRealSession(s),
+  ).length;
+  const doubleDayCount = week.days.filter(
+    (day) => day.sessions.filter(isRealSession).length >= 2,
+  ).length;
+  return {
+    ownTrainingCount,
+    clubTrainingCount,
+    recoveryPrehabCount,
+    doubleDayCount,
+    hasMatch: week.matchDates.length > 0,
+    matchDateLabel: week.matchDate ? formatDate(week.matchDate) : "brak",
+    weeklyLoadLabel: week.loadLevel,
+  };
+}
+
 // Kolejność priorytetu dla dodatkowych sesji indywidualnych.
 const CATEGORY_PRIORITY: PerfCategory[] = [
   "strength_power",
@@ -2059,7 +2304,10 @@ function hardWeeklyQuota(
         ? "endurance_deload"
         : enduranceMainForPhase(phase);
 
-  const quota: Stimulus[] = [strengthMain, secondStrength, "sprint", conditioning, "prehab"];
+  const quota: Stimulus[] =
+    profile.goal === "general"
+      ? [strengthMain, "sprint", conditioning, "ball", secondStrength, "prehab"]
+      : [strengthMain, secondStrength, "sprint", conditioning, "prehab"];
   if (matchCount > 0) {
     return [strengthMain, "sprint", conditioning, "prehab", secondStrength];
   }
@@ -2294,6 +2542,7 @@ export function generatePlan(
 
   let lastWasHard = false;
   let doublesThisWeek = 0;
+  let highDaysThisWeek = 0;
   let weeklyMaxDoubles = 0;
   const ranges = weekRanges(startDate, days);
   const totalWeeks = Math.max(1, ranges.length);
@@ -2320,6 +2569,7 @@ export function generatePlan(
     const iso = isoDate(date);
     if (maxDoublesAtStart.has(i)) {
       doublesThisWeek = 0;
+      highDaysThisWeek = 0;
       weeklyMaxDoubles = maxDoublesAtStart.get(i)!;
     }
 
@@ -2586,6 +2836,13 @@ export function generatePlan(
         second = buildSecondSession(session.dayType, date, profile);
       }
       if (second) {
+        if (second.intensity === "wysoka") {
+          second = {
+            ...second,
+            intensity: "umiarkowana",
+            reason: `${second.reason} Druga sesja nie jest liczona jako bardzo ciężka jednostka.`,
+          };
+        }
         session.secondSession = second;
         session.slotLabel =
           session.dayType === "club"
@@ -2596,10 +2853,26 @@ export function generatePlan(
       }
     }
 
-    session.generatorVersion = PLAN_ENGINE_VERSION;
+    session = decorateSession(session, 1);
     if (session.secondSession) {
-      session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+      session.secondSession = decorateSession(session.secondSession, 2);
     }
+    if (session.intensity === "wysoka") {
+      if (highDaysThisWeek >= 3) {
+        session = {
+          ...session,
+          intensity: "umiarkowana",
+          reason: `${session.reason} Obniżono intensywność, bo tydzień bez meczu nie powinien mieć więcej niż 3 bardzo ciężkich dni.`,
+          safetyNote:
+            session.safetyNote ??
+            "Limit wysokich obciążeń w mikrocyklu: maksymalnie 3 dni bardzo ciężkie.",
+        };
+      } else {
+        highDaysThisWeek++;
+      }
+    }
+    session.generatorVersion = PLAN_ENGINE_VERSION;
+    if (session.secondSession) session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
     out.push(session);
   }
 

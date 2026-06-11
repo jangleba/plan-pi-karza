@@ -121,7 +121,7 @@ function ScoutingScreen() {
   return (
     <div>
       <AppHeader
-        title="Scouting"
+        title="Analiza"
         subtitle="Twój profil rozwojowy i szanse na rozwój."
       />
 
