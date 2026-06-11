@@ -612,11 +612,13 @@ export function classifyContentCategory(session: SessionDay): SessionContentCate
   if (session.dayType === "recovery") return "recovery_prehab";
 
   const header = `${session.title} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
-  if (/sił|moc|power|gym|siłown/.test(header)) return "gym";
-  if (/wydol|tlen|tempo|interwa|rsa|kondyc|bieg/.test(header)) return "running_conditioning";
-  if (/sprint|szybko|przyspiesz|akceler|prędko|motory|cod|zmiana kierunku|hamowan/.test(header)) return "sport_performance";
-  if (/prehab|mobil|regener|stabil/.test(header)) return "recovery_prehab";
-  if (/piłk|technik|gotowo|ostrość|kompensac/.test(header)) return "football";
+  // Kolejność ma znaczenie: prehab/regeneracja przed bieganiem (mają "tlenowa"),
+  // a "\bsił" unika fałszywych trafień typu "wysiłek".
+  if (/prehab|mobiln|regener|stabiliz|kompensac/.test(header)) return "recovery_prehab";
+  if (/\bsił|siłow|\bmoc|power|\bgym\b/.test(header)) return "gym";
+  if (/sprint|szybko|przyspiesz|akceler|prędko|motory|\bcod\b|zmiana kierunku|hamowan/.test(header)) return "sport_performance";
+  if (/wydol|tlen|tempo|interwa|\brsa\b|kondyc|\bbieg/.test(header)) return "running_conditioning";
+  if (/piłk|technik|gotowo|ostrość/.test(header)) return "football";
 
   // fallback na podstawie treści
   const items = [
