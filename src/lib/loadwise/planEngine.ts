@@ -1947,25 +1947,34 @@ export function generatePlan(
   let lastWasHard = false;
   let doublesThisWeek = 0;
   let weeklyMaxDoubles = 0;
-  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+  const ranges = weekRanges(startDate, days);
+  const totalWeeks = Math.max(1, ranges.length);
+  // Limit podwójnych dni liczony per tydzień kalendarzowy (poniedziałek start).
+  const maxDoublesAtStart = new Map<number, number>();
+  ranges.forEach((range, weekIndex) => {
+    const phaseTotal = days <= 7 ? 4 : totalWeeks;
+    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+    let hasMatch = false;
+    for (let k = range.start; k < range.end; k++) {
+      if (isMatchDay(addDays(startDate, k), profile)) {
+        hasMatch = true;
+        break;
+      }
+    }
+    maxDoublesAtStart.set(
+      range.start,
+      weekLoadConfig(profile, phase, hasMatch).maxDoubles,
+    );
+  });
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    if (i % 7 === 0) {
+    if (maxDoublesAtStart.has(i)) {
       doublesThisWeek = 0;
-      const weekIndex = Math.floor(i / 7);
-      const phaseTotal = days <= 7 ? 4 : totalWeeks;
-      const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
-      let hasMatch = false;
-      for (let k = i; k < Math.min(i + 7, days); k++) {
-        if (isMatchDay(addDays(startDate, k), profile)) {
-          hasMatch = true;
-          break;
-        }
-      }
-      weeklyMaxDoubles = weekLoadConfig(profile, phase, hasMatch).maxDoubles;
+      weeklyMaxDoubles = maxDoublesAtStart.get(i)!;
     }
+
     const cell = blockMap[iso];
     const type: DayType = cell?.type ?? "rest";
 
