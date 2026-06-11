@@ -330,7 +330,7 @@ function cooldownSection(): TrainingSection {
     type: "cooldown",
     blocks: [
       block({
-        title: "Downregulation",
+        title: "Wyciszenie",
         blockType: "single",
         intent: "mobility",
         exercises: [
