@@ -175,9 +175,10 @@ function StructuredSections({ sections }: { sections: TrainingSection[] }) {
           <div className="mt-2 space-y-3">
             {sec.blocks.map((b) => {
               const hideHeader =
-                b.exercises.length === 1 &&
-                b.blockType === "single" &&
-                b.title === b.exercises[0].name;
+                !b.title ||
+                (b.exercises.length === 1 &&
+                  b.blockType === "single" &&
+                  b.title === b.exercises[0].name);
               const blockRest = b.restAfterBlock
                 ? /przerwa|rest|śwież|przejdź|pełna/i.test(b.restAfterBlock)
                   ? b.restAfterBlock
