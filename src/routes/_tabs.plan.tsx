@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
+import { formatDate, shortDayName, parseIso, isoDayOfWeek } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import { phaseOf, type WeekPhase } from "@/lib/loadwise/planEngine";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
