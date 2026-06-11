@@ -274,6 +274,8 @@ export interface SessionDay {
     footballTransfer: ExerciseItem[];
     cooldown: ExerciseItem[];
   };
+  /** Strukturalne sekcje z blokami (siła→moc itd.). Gdy obecne, ekran szczegółów renderuje bloki. */
+  structuredSections?: TrainingSection[];
   secondSession: SessionDay | null;
 }
 
