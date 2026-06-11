@@ -1572,6 +1572,7 @@ function buildEnduranceDeload(profile: Profile): Built {
 
 /** Buduje sesję dla danego bodźca tygodniowego. */
 function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
+  const built = (() => {
   switch (stimulus) {
     case "strength_base":
     case "strength":
@@ -1601,6 +1602,23 @@ function buildStimulus(stimulus: Stimulus, profile: Profile): Built {
     case "prehab":
     default:
       return buildPrehab(profile);
+  }
+  })();
+
+  switch (categoryOf(stimulus)) {
+    case "strength_power":
+      return { ...built, title: "Siła / moc na siłowni", sessionType: "Siła / moc" };
+    case "speed":
+      return { ...built, title: "Sprint i przyspieszenie", sessionType: "Szybkość" };
+    case "conditioning":
+      return { ...built, title: "Baza tlenowa i tempo", sessionType: "Wydolność" };
+    case "athletic":
+      return stimulus === "prehab"
+        ? { ...built, title: "Prehab i mobilność", sessionType: "Regeneracja / prehab" }
+        : { ...built, title: "Zmiana kierunku i motoryka", sessionType: "Motoryka" };
+    case "ball":
+    default:
+      return { ...built, title: "Technika i decyzje z piłką", sessionType: "Piłka" };
   }
 }
 
