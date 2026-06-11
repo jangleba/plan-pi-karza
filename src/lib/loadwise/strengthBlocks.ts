@@ -918,7 +918,7 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
           restAfterBlock: "45 s",
           exercises: [
             ex({ name: rotatePick(ADDUCTOR, ctx, avoid), sets: "2", reps: "8 / strona", cue: "Kontrola, bez bólu." }),
-            ex({ name: rotatePick(POSTERIOR_ACC, ctx, avoid), sets: "2", reps: "8", cue: "Lekko, pełna kontrola." }),
+            ex({ name: rotatePick(CONTROLLED_HAM, ctx, avoid), sets: "2", reps: "8", cue: "Lekko, pełna kontrola." }),
             ex({ name: rotatePick(CORE_ANTI, ctx, avoid), sets: "2", reps: "10", cue: "Spokojnie, sztywny tułów." }),
             ex({ name: "Aktywacja pośladków i łydek", sets: "2", reps: "12", cue: "Czuj mięsień, bez pośpiechu." }),
           ],
