@@ -8,9 +8,17 @@ import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import type { ExerciseItem, SessionDay } from "@/lib/loadwise/types";
+import type {
+  ExerciseItem,
+  SessionDay,
+  TrainingSection,
+  TrainingBlock,
+  TrainingExercise,
+} from "@/lib/loadwise/types";
+import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
+  ChevronDown,
   Clock,
   Target,
   Flag,
