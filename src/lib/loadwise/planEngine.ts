@@ -1890,50 +1890,53 @@ function seasonWeeklyStimuli(
   }
   const gym = profile.hasGym;
   const strengthMain: Stimulus = gym ? "strength" : "strength_base";
+  let raw: Stimulus[];
 
   switch (profile.seasonPhase) {
-    case "offseason": {
-      const list: Stimulus[] = [
+    case "offseason":
+      raw = frontLoadGoal(profile, [
         strengthMain,
         "power",
         "sprint",
         "endurance_aerobic",
-        "ball",
         "cod",
         "ball",
         "prehab",
-      ];
-      return frontLoadGoal(profile, list);
-    }
-    case "preseason": {
-      const list: Stimulus[] = [
+      ]);
+      break;
+    case "preseason":
+      raw = frontLoadGoal(profile, [
         strengthMain,
         "power",
         "sprint",
         "endurance_special",
         "endurance_aerobic",
-        "ball",
-        "ball",
         "cod",
+        "ball",
         "prehab",
-      ];
-      return frontLoadGoal(profile, list);
-    }
+      ]);
+      break;
     case "transition":
       return ["prehab", "endurance_light", "ball", "prehab", "strength_base", "ball"];
     case "return_injury":
       return ["prehab", "endurance_light", "ball", "prehab", "ball"];
     case "inseason":
     default: {
-      const base = weeklyStimuli(profile, clubCount, matchCount, phase);
+      raw = weeklyStimuli(profile, clubCount, matchCount, phase);
       if (matchCount === 0) {
-        // Brak meczu w tym tygodniu — zwiększ gęstość treningową.
-        base.push(primaryStimulusForGoal(profile.goal, gym));
-        base.push("ball");
+        // Brak meczu w tym tygodniu — zwiększ gęstość PRACY WYDOLNOŚCIOWEJ,
+        // nie piłkarskiej (klub i tak daje ekspozycję piłkarską).
+        raw.push(strengthMain);
+        raw.push("sprint");
+        raw.push(phase === "deload" ? "endurance_light" : enduranceMainForPhase(phase));
+        raw.push("cod");
       }
-      return base;
+      break;
     }
   }
+
+  // Walidacja + naprawa kategorii zanim tydzień trafi do grafiku.
+  return balanceWeeklyCategories(profile, raw, clubCount, matchCount, phase);
 }
 
 // ============================================================
