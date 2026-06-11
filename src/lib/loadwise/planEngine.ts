@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-category-engine-v7";
+export const PLAN_ENGINE_VERSION = "loadwise-hard-category-quotas-v8";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -236,7 +236,7 @@ function buildByGoal(profile: Profile): Built {
     case "agility":
       return buildCod(profile);
     case "general":
-      return buildBall(profile);
+      return buildByGoal({ ...profile, goal: profile.hasGym ? "strength" : "speed" });
     case "mobility":
       return {
         title: "Sesja mobilności i techniki",
@@ -920,44 +920,7 @@ function buildLightAlternative(profile: Profile): Built {
         footballTransfer: [],
       };
     default:
-      return {
-        title: "Lekka praca techniczna i prehab",
-        sessionType: "Technika / prehab (lekka)",
-        intensity: "niska",
-        durationMin: young ? 30 : 35,
-        goalOfSession:
-          "Doskonalenie techniki i odporności przy niskim obciążeniu.",
-        riskManaged:
-          "Niska intensywność po cięższym dniu — bez zrywów i ciężkich nóg.",
-        avoidToday:
-          "Bez sprintów maksymalnych, ciężkich nóg i twardego kondycyjnego.",
-        main: [
-          {
-            name: "Pierwszy kontakt i skanowanie",
-            prescription: "10 min przyjęć kierunkowych",
-            cue: "Skan przed przyjęciem, kontakt w ruch.",
-          },
-          {
-            name: "Podania obunóż",
-            prescription: "10 min, różne dystanse",
-            cue: "Celność przed siłą, obie nogi.",
-          },
-        ],
-        accessory: [
-          {
-            name: "Prehab: przywodziciele, łydki, tylne uda",
-            prescription: "8 min, lekko",
-            cue: "Kontrola, bez bólu.",
-          },
-        ],
-        footballTransfer: [
-          {
-            name: "Akcja pozycyjna w spokojnym tempie",
-            prescription: "6 min wg roli",
-            cue: "Realizuj zadania swojej pozycji.",
-          },
-        ],
-      };
+      return buildPrehab(profile);
   }
 }
 
