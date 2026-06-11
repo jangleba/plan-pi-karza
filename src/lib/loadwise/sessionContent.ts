@@ -610,6 +610,10 @@ export function classifyContentCategory(session: SessionDay): SessionContentCate
   if (session.dayType === "rest") return "rest";
   if (session.dayType === "md-1") return "primer";
   if (session.dayType === "recovery") return "recovery_prehab";
+  // Sesje okołomeczowe (MD-2 ostrość, MD+1 kompensacja) to świadomie mieszane
+  // jednostki przygotowania do/po meczu — traktujemy je jako "primer" i nie
+  // wymuszamy na nich czystości kategorii.
+  if (session.mdLabel === "MD-2" || session.mdLabel === "MD+1") return "primer";
 
   const header = `${session.title} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
   // Kolejność ma znaczenie: prehab/regeneracja przed bieganiem (mają "tlenowa"),
