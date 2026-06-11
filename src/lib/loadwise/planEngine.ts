@@ -1800,6 +1800,10 @@ function textOfSession(session: SessionDay): string {
   return `${session.title} ${session.goalLabel} ${session.sessionType} ${session.goalOfSession} ${exerciseText}`.toLowerCase();
 }
 
+function headerTextOfSession(session: SessionDay): string {
+  return `${session.title} ${session.goalLabel} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
+}
+
 export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (session.dayType === "club") return "club";
   if (session.dayType === "match") return "match";
@@ -1807,25 +1811,37 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (session.dayType === "recovery") return "recovery_prehab";
   if (session.dayType === "rest") return "rest";
 
-  const text = textOfSession(session);
-  if (/sił|moc\s*\/|mocą|power|przysiad|martwy|split squat|wykrok|rdl|trap-bar|goblet/.test(text)) {
+  const header = headerTextOfSession(session);
+  if (/sił|moc|power/.test(header)) {
     return "strength_power";
   }
-  if (/wydol|tlen|tempo|interwa|rsa|kondyc|ciągły bieg|biegowy|bieg /.test(text)) {
+  if (/wydol|tlen|tempo|interwa|rsa|kondyc/.test(header)) {
     return "conditioning";
   }
-  if (/sprint|szybko|przyspiesz|akceler|prędko|reakcja|flying/.test(text)) {
+  if (/sprint|szybko|przyspiesz|akceler|prędko/.test(header)) {
     return "speed";
   }
-  if (/cod|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil|core|przywodziciel|copenhagen|nordic/.test(text)) {
+  if (/cod|motory|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil/.test(header)) {
     return "athletic";
   }
+  const text = textOfSession(session);
+  if (/wydol|tlen|tempo|interwa|rsa|kondyc|ciągły bieg|biegowy|bieg /.test(text)) return "conditioning";
+  if (/sprint|szybko|przyspiesz|akceler|prędko|reakcja|flying/.test(text)) return "speed";
+  if (/sił|moc\s*\/|mocą|power|przysiad|martwy|split squat|rdl|trap-bar|goblet/.test(text)) return "strength_power";
+  if (/cod|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil|core|przywodziciel|copenhagen|nordic/.test(text)) return "athletic";
   return "ball";
 }
 
 export function sessionContainsPrehab(session: SessionDay): boolean {
   if (session.dayType === "recovery") return true;
-  const text = textOfSession(session);
+  const exerciseText = [
+    ...session.sections.main,
+    ...session.sections.accessory,
+    ...session.sections.footballTransfer,
+  ]
+    .map((e) => `${e.name} ${e.prescription} ${e.cue ?? ""}`)
+    .join(" ");
+  const text = `${headerTextOfSession(session)} ${exerciseText}`.toLowerCase();
   return /prehab|mobil|regener|stabil|core|przywodziciel|copenhagen|nordic|oddech|łydk|hamstring/.test(text);
 }
 
