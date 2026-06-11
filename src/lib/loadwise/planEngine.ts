@@ -1752,6 +1752,127 @@ function frontLoadGoal(profile: Profile, list: Stimulus[]): Stimulus[] {
   return list;
 }
 
+// ============================================================
+// Walidacja i naprawa kategorii tygodnia (category-based engine)
+// Każdy bodziec należy do kategorii wydolnościowej. Dla zdrowego
+// zawodnika tydzień MUSI być zbalansowany: siła/moc, szybkość,
+// wydolność i motoryka mają priorytet nad pracą stricte piłkarską,
+// bo klub i mecz już zapewniają ekspozycję piłkarską. Piłka jako
+// trening własny jest limitowana, a brakujące kategorie są dodawane
+// w kolejności priorytetu, zanim tydzień zostanie pokazany.
+// ============================================================
+
+type PerfCategory =
+  | "strength_power"
+  | "speed"
+  | "conditioning"
+  | "athletic"
+  | "ball";
+
+function categoryOf(s: Stimulus): PerfCategory {
+  switch (s) {
+    case "strength_base":
+    case "strength":
+    case "strength_deload":
+    case "power":
+      return "strength_power";
+    case "sprint":
+    case "speed_exposure":
+      return "speed";
+    case "endurance_aerobic":
+    case "endurance_special":
+    case "endurance_rsa":
+    case "endurance_deload":
+    case "endurance_light":
+      return "conditioning";
+    case "cod":
+    case "prehab":
+      return "athletic";
+    case "ball":
+    default:
+      return "ball";
+  }
+}
+
+// Kolejność priorytetu dla dodatkowych sesji indywidualnych.
+const CATEGORY_PRIORITY: PerfCategory[] = [
+  "strength_power",
+  "speed",
+  "conditioning",
+  "athletic",
+  "ball",
+];
+
+/**
+ * Naprawia tygodniową listę bodźców tak, by spełniała minima kategorii
+ * i nie była zdominowana przez piłkę. Zwraca listę uporządkowaną wg
+ * priorytetu (wydolność najpierw, piłka i prehab na końcu), dłuższą niż
+ * docelowy cap — dzięki temu po obcięciu w grafiku zostają sesje
+ * wydolnościowe, a nie piłkarskie.
+ */
+function balanceWeeklyCategories(
+  profile: Profile,
+  list: Stimulus[],
+  clubCount: number,
+  matchCount: number,
+  phase: WeekPhase,
+): Stimulus[] {
+  // Profile z bólem/urazem oraz okresy roztrenowania/powrotu zostają lekkie.
+  if (profile.painInjury) return list;
+  if (
+    profile.seasonPhase === "transition" ||
+    profile.seasonPhase === "return_injury"
+  ) {
+    return list;
+  }
+  if (profile.goal === "mobility" || profile.goal === "return") return list;
+
+  const gym = profile.hasGym;
+  const deload = phase === "deload";
+  const strengthMain: Stimulus = deload
+    ? "strength_deload"
+    : gym
+      ? "strength"
+      : "strength_base";
+  const condMain: Stimulus = deload
+    ? "endurance_deload"
+    : enduranceMainForPhase(phase);
+
+  // Klub i mecz to już ekspozycja piłkarska — limituj własne sesje piłki.
+  const footballExposure = clubCount + matchCount;
+  const maxBall = footballExposure >= 1 ? 1 : 2;
+
+  // 1. Ogranicz liczbę sesji stricte piłkarskich.
+  let ballSeen = 0;
+  const trimmed = list.filter((s) => {
+    if (s === "ball") {
+      ballSeen++;
+      return ballSeen <= maxBall;
+    }
+    return true;
+  });
+
+  // 2. Zapewnij obecność kategorii wydolnościowych (minimum bazowe).
+  const has = (c: PerfCategory) => trimmed.some((s) => categoryOf(s) === c);
+  const additions: Stimulus[] = [];
+  if (!has("strength_power")) additions.push(strengthMain);
+  if (!has("speed")) additions.push(deload ? "speed_exposure" : "sprint");
+  if (!has("conditioning")) additions.push(condMain);
+  if (!has("athletic")) additions.push(deload ? "prehab" : "cod");
+  if (footballExposure === 0 && !has("ball")) additions.push("ball");
+
+  const all = [...trimmed, ...additions];
+
+  // 3. Uporządkuj wg priorytetu kategorii (sort stabilny zachowuje kolejność
+  //    wewnątrz kategorii). Piłka ląduje na końcu i jako pierwsza wypada przy
+  //    obcinaniu do cap, więc tydzień nie jest zdominowany przez piłkę.
+  return [...all].sort(
+    (a, b) =>
+      CATEGORY_PRIORITY.indexOf(categoryOf(a)) -
+      CATEGORY_PRIORITY.indexOf(categoryOf(b)),
+  );
+}
+
 /**
  * Tygodniowa lista bodźców z uwzględnieniem okresu sezonu.
  * Offseason/przedsezon = kompletny tydzień rozwojowy (siła/moc, sprint/COD,
