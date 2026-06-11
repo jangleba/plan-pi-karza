@@ -2641,6 +2641,7 @@ export function generatePlan(
       gymHistory.usedMainThisWeek = [];
       gymHistory.usedRolesThisWeek = [];
       gymSessionsThisWeek = 0;
+      contentCounters = newContentCounters();
     }
 
     const cell = blockMap[iso];
