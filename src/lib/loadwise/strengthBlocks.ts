@@ -1679,6 +1679,8 @@ export function repairGymSession(
     }
   }
 }
+
+function collectMainPatterns(plan: GymSessionPlan): string[] {
   const out: string[] = [];
   for (const sec of plan.sections) {
     if (sec.type !== "main") continue;
