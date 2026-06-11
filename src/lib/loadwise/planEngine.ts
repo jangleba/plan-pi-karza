@@ -1808,7 +1808,7 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (session.dayType === "rest") return "rest";
 
   const text = textOfSession(session);
-  if (/sił|moc|power|przysiad|martwy|split squat|wykrok|rdl|trap-bar|goblet/.test(text)) {
+  if (/sił|moc\s*\/|mocą|power|przysiad|martwy|split squat|wykrok|rdl|trap-bar|goblet/.test(text)) {
     return "strength_power";
   }
   if (/wydol|tlen|tempo|interwa|rsa|kondyc|ciągły bieg|biegowy|bieg /.test(text)) {
