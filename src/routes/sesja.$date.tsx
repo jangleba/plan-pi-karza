@@ -570,46 +570,42 @@ function SessionDetail() {
       <div className="mt-5 space-y-3 px-5">
         {/* Sesje dnia — przełącznik gdy są dwie */}
         {primary.secondSession && (
-          <div className="soft-card p-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              2 sesje dzisiaj
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button
-                onClick={() =>
-                  router.navigate({
-                    to: "/sesja/$date",
-                    params: { date },
-                    search: { slot: 1 },
-                  })
-                }
-                className={`rounded-lg border px-3 py-2 text-xs font-medium ${
-                  slot === 1
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border"
-                }`}
-              >
-                1. {primary.title}
-              </button>
-              <button
-                onClick={() =>
-                  router.navigate({
-                    to: "/sesja/$date",
-                    params: { date },
-                    search: { slot: 2 },
-                  })
-                }
-                className={`rounded-lg border px-3 py-2 text-xs font-medium ${
-                  slot === 2
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border"
-                }`}
-              >
-                2. {primary.secondSession.title}
-              </button>
-            </div>
+          <div className="sticky top-2 z-10 flex gap-1 rounded-full border border-border bg-background/90 p-1 backdrop-blur">
+            <button
+              onClick={() =>
+                router.navigate({
+                  to: "/sesja/$date",
+                  params: { date },
+                  search: { slot: 1 },
+                })
+              }
+              className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
+                slot === 1
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
+              }`}
+            >
+              1. {primary.title}
+            </button>
+            <button
+              onClick={() =>
+                router.navigate({
+                  to: "/sesja/$date",
+                  params: { date },
+                  search: { slot: 2 },
+                })
+              }
+              className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
+                slot === 2
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
+              }`}
+            >
+              2. {primary.secondSession.title}
+            </button>
           </div>
         )}
+
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
         {shortNote && (
