@@ -987,7 +987,7 @@ export function structuredToFlat(sections: TrainingSection[]): {
       .join(", ");
     return {
       name: e.label ? `${e.label} — ${e.name}` : e.name,
-      prescription: parts || undefined,
+      prescription: parts || "wg techniki",
       rest: e.restAfterExercise || e.restAfterPair || undefined,
       cue: e.cue,
       easier: e.regression,
