@@ -709,11 +709,15 @@ function buildSecondSession(
   const young = isYoung(profile.age);
 
   if (primaryType === "club") {
-    // Club day + krótka, lekka sesja własna (technika/prehab) — dobra para.
-    const choices = young
-      ? [secondFootballTouch(), secondMobilityPrehab()]
-      : [secondFootballTouch(), secondMobilityPrehab(), secondBallTechnique()];
-    const pick = choices[(date.getDate() + choices.length) % choices.length];
+    // Dzień klubowy to już ekspozycja piłkarska — druga sesja to przede
+    // wszystkim prehab/mobilność (dobra para: klub + krótki prehab), tylko
+    // czasem lekki akcent techniczny. Nie dokładamy kolejnej pełnej piłki.
+    const choices = [
+      secondMobilityPrehab(),
+      secondMobilityPrehab(),
+      secondFootballTouch(),
+    ];
+    const pick = choices[date.getDate() % choices.length];
     return builtToSecondSession(pick, date, profile);
   }
 
