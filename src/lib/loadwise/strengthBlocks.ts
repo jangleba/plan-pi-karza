@@ -198,7 +198,14 @@ const POSTERIOR_ACC = [
   "Nordic curl ekscentryczny",
   "Hamstring slider curl",
   "Glute bridge march",
-  "Wspięcia na łydki (nordic calf)",
+  "Wspięcia na łydki (ekscentryczne)",
+];
+
+/** Kontrolowane prace tylnej taśmy — bez wysokich stresorów (bez Nordic). */
+const CONTROLLED_HAM = [
+  "Hamstring slider curl",
+  "Glute bridge march",
+  "Hamstring bridge (kontrola)",
 ];
 
 const ADDUCTOR = [
