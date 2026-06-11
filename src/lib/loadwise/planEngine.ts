@@ -2894,6 +2894,14 @@ export function generatePlan(
         applyGymPlan(session);
         reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
         session.reason = reason;
+      } else if (toMatch !== 2 && sinceMatch !== 1) {
+        // Wymuszenie czystości kategorii: sprint/piłka/bieganie/prehab generowane
+        // z puli właściwej kategorii i walidowane (bez mieszania kategorii).
+        const cat = enforceSessionCategory(session, profile, {
+          weekIndex: curWeekIndex,
+          counters: contentCounters,
+        });
+        session.reason = `Sesja kategorii (${cat}) — kompletna w obrębie swojej kategorii, bez mieszania z innymi. ${reason}`;
       }
       lastWasHard = built.intensity === "wysoka";
     }
