@@ -2554,6 +2554,8 @@ export function generatePlan(
   const totalWeeks = Math.max(1, ranges.length);
   // Limit podwójnych dni liczony per tydzień kalendarzowy (poniedziałek start).
   const maxDoublesAtStart = new Map<number, number>();
+  // Kontekst periodyzacji per początek tygodnia (faza + indeks tygodnia).
+  const weekContextAtStart = new Map<number, { weekIndex: number; phase: GymWeekPhase }>();
   ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
     const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
@@ -2568,7 +2570,52 @@ export function generatePlan(
       range.start,
       weekLoadConfig(profile, phase, hasMatch).maxDoubles,
     );
+    weekContextAtStart.set(range.start, {
+      weekIndex: weekOffset + weekIndex,
+      phase: phase as GymWeekPhase,
+    });
   });
+
+  // Stan tygodnia do różnicowania i anty-powtórzeń sesji siłowni.
+  let curWeekIndex = weekOffset;
+  let curPhase: GymWeekPhase = "development";
+  let gymSessionsThisWeek = 0;
+  const gymHistory: GymHistory = {
+    usedRolesThisWeek: [],
+    usedMainThisWeek: [],
+    usedMainLastWeek: [],
+  };
+
+  /** Buduje sesję siłowni z wariacją i wpisuje ją do session/secondSession. */
+  const applyGymPlan = (target: SessionDay, readiness?: number): void => {
+    const plan = buildStrengthPowerStructured(profile, {
+      mdLabel: target.mdLabel,
+      powerFocus: profile.goal === "power" || /moc|power/i.test(target.sessionType),
+      weekPhase: curPhase,
+      weekIndex: curWeekIndex,
+      gymSessionIndexInWeek: gymSessionsThisWeek,
+      readiness,
+      history: gymHistory,
+    });
+    if (!plan) return;
+    target.title = plan.title;
+    target.sessionType = plan.sessionType;
+    target.goalOfSession = plan.goalOfSession;
+    target.intensity = plan.intensity;
+    target.durationMin = plan.durationMin;
+    target.structuredSections = plan.sections;
+    const flat = structuredToFlat(plan.sections);
+    target.sections = {
+      warmup: flat.warmup,
+      main: flat.main,
+      accessory: flat.accessory,
+      footballTransfer: [],
+      cooldown: flat.cooldown,
+    };
+    gymHistory.usedRolesThisWeek.push(plan.role);
+    gymHistory.usedMainThisWeek.push(...plan.mainPatterns);
+    gymSessionsThisWeek++;
+  };
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
