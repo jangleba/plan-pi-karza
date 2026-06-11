@@ -422,8 +422,8 @@ function recoverySession(): Built {
 /** PM: technika piłki — uzupełnia dzień siły/mocy/wytrzymałości. */
 function secondBallTechnique(): Built {
   return {
-    title: "Technika: pierwszy kontakt + podania pod presją (PM)",
-    sessionType: "Technika piłki (lekka)",
+    title: "Technika i decyzje z piłką",
+    sessionType: "Piłka",
     intensity: "niska",
     durationMin: 25,
     goalOfSession:
@@ -503,8 +503,8 @@ function secondMobilityPrehab(): Built {
 /** PM: czucie piłki — najlżejszy wariant, do dni klubowych. */
 function secondFootballTouch(): Built {
   return {
-    title: "Technika: czucie piłki + podania o ścianę (PM)",
-    sessionType: "Czucie piłki (lekka)",
+    title: "Technika i decyzje z piłką",
+    sessionType: "Piłka",
     intensity: "niska",
     durationMin: 20,
     goalOfSession:
