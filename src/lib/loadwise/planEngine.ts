@@ -1906,10 +1906,31 @@ function planBlock(
         result[it.iso] = { type: "recovery" };
       }
     });
-  }
+  });
 
   return result;
 }
+
+/**
+ * Dzieli okres planu na tygodnie kalendarzowe (poniedziałek–niedziela).
+ * Pierwszy tydzień może być niepełny, jeśli plan startuje w środku tygodnia.
+ * Zwraca przedziały indeksów dni [start, end) względem startDate.
+ */
+export function weekRanges(
+  startDate: Date,
+  days: number,
+): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = [];
+  let i = 0;
+  while (i < days) {
+    let j = i + 1;
+    while (j < days && isoDayOfWeek(addDays(startDate, j)) !== 1) j++;
+    ranges.push({ start: i, end: j });
+    i = j;
+  }
+  return ranges;
+}
+
 
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 
