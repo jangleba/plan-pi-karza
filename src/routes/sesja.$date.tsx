@@ -92,6 +92,166 @@ function Section({ title, items }: { title: string; items: ExerciseItem[] }) {
   );
 }
 
+// ---------- Renderowanie strukturalne (bloki) ----------
+
+function compactPrescription(e: TrainingExercise): string {
+  const parts: string[] = [];
+  if (e.sets && e.reps) parts.push(`${e.sets} × ${e.reps}`);
+  else if (e.reps) parts.push(e.reps);
+  if (e.duration) parts.push(e.duration);
+  if (e.rpe) parts.push(e.rpe);
+  if (e.rir) parts.push(e.rir);
+  if (e.tempo) parts.push(`tempo ${e.tempo}`);
+  if (e.loadTarget) parts.push(e.loadTarget);
+  if (typeof e.groundContacts === "number")
+    parts.push(`${e.groundContacts} kontaktów`);
+  const rest = e.restAfterPair ?? e.restAfterExercise;
+  if (rest) parts.push(`przerwa ${rest}`);
+  return parts.join(" · ");
+}
+
+function ExerciseDetails({ e }: { e: TrainingExercise }) {
+  const rows: { label: string; value?: string }[] = [
+    { label: "Wskazówka", value: e.cue },
+    { label: "Technika", value: e.technique },
+    { label: "Regresja (łatwiej)", value: e.regression },
+    { label: "Progresja (trudniej)", value: e.progression },
+    { label: "Częsty błąd", value: e.commonMistake },
+    { label: "Przeciwwskazania", value: e.contraindications },
+    { label: "Ograniczenie meczowe", value: e.matchDayRestriction },
+  ].filter((r) => r.value);
+  if (!rows.length) return null;
+  return (
+    <Accordion type="single" collapsible className="mt-2">
+      <AccordionItem value="d" className="border-0">
+        <AccordionTrigger className="py-1 text-xs font-medium text-muted-foreground hover:no-underline">
+          Szczegóły
+        </AccordionTrigger>
+        <AccordionContent className="space-y-1.5 pb-2">
+          {rows.map((r) => (
+            <div key={r.label}>
+              <div className="text-[11px] font-semibold text-foreground">
+                {r.label}
+              </div>
+              <p className="text-xs text-muted-foreground">{r.value}</p>
+            </div>
+          ))}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+}
+
+function ExerciseRow({
+  e,
+  done,
+  onToggle,
+}: {
+  e: TrainingExercise;
+  done: boolean;
+  onToggle: () => void;
+}) {
+  const presc = compactPrescription(e);
+  return (
+    <div className="rounded-xl border border-border bg-card/40 p-3">
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Zrobione"
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+            done
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border"
+          }`}
+        >
+          {done && <CheckCircle2 className="h-3.5 w-3.5" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-1.5">
+            {e.label && (
+              <span className="text-xs font-bold text-primary">{e.label}</span>
+            )}
+            <span
+              className={`text-sm font-medium ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+            >
+              {e.name}
+            </span>
+          </div>
+          {presc && (
+            <div className="mt-0.5 text-xs text-muted-foreground">{presc}</div>
+          )}
+          <ExerciseDetails e={e} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BlockCard({
+  block,
+  done,
+  toggle,
+}: {
+  block: TrainingBlock;
+  done: Record<string, boolean>;
+  toggle: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-secondary/30 p-3">
+      <div className="flex items-center gap-1.5">
+        <h4 className="text-sm font-bold tracking-tight text-foreground">
+          {block.title}
+        </h4>
+      </div>
+      {block.safetyNotes && (
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          {block.safetyNotes}
+        </p>
+      )}
+      <div className="mt-2.5 space-y-2">
+        {block.exercises.map((e) => (
+          <ExerciseRow
+            key={e.id}
+            e={e}
+            done={!!done[e.id]}
+            onToggle={() => toggle(e.id)}
+          />
+        ))}
+      </div>
+      {block.restAfterBlock && (
+        <div className="mt-2.5 rounded-lg bg-primary/5 px-3 py-1.5 text-xs font-medium text-foreground">
+          {block.restAfterBlock}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StructuredSections({ sections }: { sections: TrainingSection[] }) {
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) =>
+    setDone((p) => ({ ...p, [id]: !p[id] }));
+  return (
+    <>
+      {sections.map((sec) => (
+        <div key={sec.id} className="soft-card p-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {sec.title}
+          </h3>
+          <div className="mt-3 space-y-2.5">
+            {sec.blocks.map((b) => (
+              <BlockCard key={b.id} block={b} done={done} toggle={toggle} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+
+
 function LogField({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-between py-2">
