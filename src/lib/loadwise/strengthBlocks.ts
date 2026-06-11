@@ -1608,9 +1608,77 @@ export function repairGymSession(
       );
     }
   }
-}
 
-function collectMainPatterns(plan: GymSessionPlan): string[] {
+  // 4) Nadmiarowe stresory tylnej taśmy (RDL+Nordic / >1 stresor) →
+  //    podmień zgłoszone na kontrolowany, niestresorowy slider leg curl.
+  for (const issue of issues) {
+    if (
+      (issue.code === "rdl_and_nordic" || issue.code === "too_many_hamstring_stressors") &&
+      issue.exerciseId
+    ) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        target.ex.name = "Hamstring slider curl";
+        target.ex.sets = "2";
+        target.ex.reps = "6–8";
+        target.ex.rpe = "RPE 5–6 (kontrola)";
+        target.ex.tempo = undefined;
+        target.ex.groundContacts = undefined;
+        target.ex.cue = "Powolny ekscentryk, kontrola tylnej taśmy, bez bólu.";
+      }
+    }
+  }
+
+  // 5) Ciężki jednonóż po ciężkim bilateralnym lifcie → lekka praca techniczna.
+  for (const issue of issues) {
+    if (issue.code === "heavy_unilateral_after_compound" && issue.exerciseId) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        demoteToLight(target.ex);
+        target.ex.reps = "6 / strona";
+        if (target.block.intent === "strength" || target.block.intent === "power") {
+          target.block.intent = "braking";
+          target.block.blockType = "accessory";
+        }
+      }
+    }
+  }
+
+  // 6) Brak ekspozycji quad/glute w sesji dolnej → dołóż kontrolowany goblet squat.
+  if (issues.some((i) => i.code === "missing_quad_glute")) {
+    const mainSec = plan.sections.find((s) => s.type === "main") ?? plan.sections.find((s) => s.type === "accessory");
+    if (mainSec) {
+      mainSec.blocks.push(
+        block({
+          title: "BLOK QUAD/GLUTE",
+          blockType: "single",
+          intent: "strength",
+          restAfterBlock: "90 s",
+          exercises: [
+            ex({ name: "Goblet squat (tempo)", sets: "3", reps: "8–10", rpe: "RPE 6–7", cue: "Pełen zakres, pięty na ziemi, kontrola." }),
+          ],
+        }),
+      );
+    }
+  }
+
+  // 7) Niespójna prescription → uzupełnij sensowne domyślne wartości.
+  for (const issue of issues) {
+    if (issue.code === "prescription_inconsistent" && issue.exerciseId) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (!target) continue;
+      if (target.pattern === "power") {
+        if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "3";
+        if (target.ex.groundContacts === undefined || target.ex.groundContacts <= 0) {
+          target.ex.groundContacts = contacts(8, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+        }
+      } else {
+        if (!target.ex.sets || !target.ex.sets.trim()) target.ex.sets = "3";
+        if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "5";
+      }
+    }
+  }
+}
   const out: string[] = [];
   for (const sec of plan.sections) {
     if (sec.type !== "main") continue;
