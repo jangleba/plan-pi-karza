@@ -198,7 +198,14 @@ const POSTERIOR_ACC = [
   "Nordic curl ekscentryczny",
   "Hamstring slider curl",
   "Glute bridge march",
-  "Wspięcia na łydki (nordic calf)",
+  "Wspięcia na łydki (ekscentryczne)",
+];
+
+/** Kontrolowane prace tylnej taśmy — bez wysokich stresorów (bez Nordic). */
+const CONTROLLED_HAM = [
+  "Hamstring slider curl",
+  "Glute bridge march",
+  "Hamstring bridge (kontrola)",
 ];
 
 const ADDUCTOR = [
@@ -506,7 +513,7 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
   const hingeJump = pickJumps(ctx, ["horizontal", "vertical"], avoid);
   const sprintDrill = pickJumps(ctx, ["wall", "ankling"], avoid);
   const stiff = pickJumps(ctx, ["pogo", "snap"], avoid);
-  const ham = rotatePick(POSTERIOR_ACC, ctx, avoid);
+  const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
   const core = rotatePick(CORE_ANTI, ctx, avoid);
   const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
@@ -911,7 +918,7 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
           restAfterBlock: "45 s",
           exercises: [
             ex({ name: rotatePick(ADDUCTOR, ctx, avoid), sets: "2", reps: "8 / strona", cue: "Kontrola, bez bólu." }),
-            ex({ name: rotatePick(POSTERIOR_ACC, ctx, avoid), sets: "2", reps: "8", cue: "Lekko, pełna kontrola." }),
+            ex({ name: rotatePick(CONTROLLED_HAM, ctx, avoid), sets: "2", reps: "8", cue: "Lekko, pełna kontrola." }),
             ex({ name: rotatePick(CORE_ANTI, ctx, avoid), sets: "2", reps: "10", cue: "Spokojnie, sztywny tułów." }),
             ex({ name: "Aktywacja pośladków i łydek", sets: "2", reps: "12", cue: "Czuj mięsień, bez pośpiechu." }),
           ],
@@ -1035,10 +1042,10 @@ export function buildStrengthPowerStructured(
   // Walidacja programowania siłowni + naprawa przed renderem.
   // Jeśli zasady bezpieczeństwa dnia meczowego są złamane, schodzimy do primera.
   let issues = validateGymSession(plan, ctx);
-  if (issues.some((i) => i.code === "matchday_unsafe")) {
+  if (issues.some((i) => i.code === "matchday_unsafe" || i.code === "matchday_heavy_hamstring")) {
     return powerPrimer(profile, ctx);
   }
-  for (let pass = 0; pass < 3 && issues.length > 0; pass++) {
+  for (let pass = 0; pass < 4 && issues.length > 0; pass++) {
     repairGymSession(plan, ctx, issues);
     issues = validateGymSession(plan, ctx);
   }
@@ -1069,7 +1076,13 @@ export type GymValidationCode =
   | "missing_hamstring"
   | "missing_support"
   | "repeated_power"
-  | "matchday_unsafe";
+  | "matchday_unsafe"
+  | "rdl_and_nordic"
+  | "too_many_hamstring_stressors"
+  | "heavy_unilateral_after_compound"
+  | "missing_quad_glute"
+  | "matchday_heavy_hamstring"
+  | "prescription_inconsistent";
 
 export interface GymValidationIssue {
   code: GymValidationCode;
@@ -1297,6 +1310,178 @@ function checkMatchDaySafety(plan: GymSessionPlan, ctx: StrengthBlockContext, re
     : [];
 }
 
+// ---------------------------------------------------------------------------
+// REGUŁY HAMSTRING + CIĘŻKICH LIFTÓW (twarde, reużywalne)
+// ---------------------------------------------------------------------------
+
+/** Czy ćwiczenie to RDL / ciężki hinge tylnej taśmy. */
+function isRDLName(name: string): boolean {
+  return hasAny(name.toLowerCase(), ["rdl", "rumuński", "rumunski", "romanian"]);
+}
+/** Czy ćwiczenie to Nordic curl. */
+function isNordicName(name: string): boolean {
+  return hasAny(name.toLowerCase(), ["nordic"]);
+}
+/** Czy ćwiczenie to klasyczny ciężki martwy ciąg (nie trap bar — ten jest squat). */
+function isConventionalDeadliftName(name: string): boolean {
+  const n = name.toLowerCase();
+  if (hasAny(n, ["trap bar", "trap-bar", "hex bar", "hex-bar", "trapbar"])) return false;
+  return hasAny(n, ["martwy ciąg klasyczny", "deadlift", "martwy ciąg"]);
+}
+/** Maksymalna prędkość / sprint jako stresor tylnej taśmy. */
+function isMaxVelocityName(name: string): boolean {
+  return hasAny(name.toLowerCase(), ["max velocity", "maksymalna prędkość", "flying", "sprint maks"]);
+}
+
+export type HamstringStressorKind = "rdl" | "nordic" | "heavy_hinge" | "deadlift" | "sprint";
+
+/**
+ * Zwraca rodzaj WYSOKIEGO stresora tylnej taśmy dla ćwiczenia lub null.
+ * Kontrolowane prace (slider curl, glute bridge march, hamstring bridge, lekki
+ * leg curl) NIE są wysokimi stresorami i zwracają null.
+ */
+function highHamstringStressor(ref: ExerciseRef): HamstringStressorKind | null {
+  const name = ref.ex.name;
+  if (isNordicName(name)) return "nordic";
+  if (isRDLName(name)) return "rdl";
+  if (isConventionalDeadliftName(name)) return "deadlift";
+  if (isMaxVelocityName(name)) return "sprint";
+  // Ciężki hinge (RPE ≥ 7) w części głównej/przygotowaniu = stresor.
+  if (ref.pattern === "hinge" && (ref.section.type === "main" || ref.section.type === "prep")) {
+    const rpe = rpeMax(ref.ex.rpe);
+    if (rpe !== null && rpe >= 7) return "heavy_hinge";
+  }
+  return null;
+}
+
+/** Ciężki jednonóż = bułgar/wykrok/step-up w głównej części z RPE ≥ 7. */
+function isHeavyUnilateral(ref: ExerciseRef): boolean {
+  if (ref.pattern !== "unilateral") return false;
+  if (ref.section.type !== "main" && ref.section.type !== "prep") return false;
+  const rpe = rpeMax(ref.ex.rpe);
+  return rpe !== null && rpe >= 7;
+}
+
+/** Ciężki bilateralny compound (przysiad, trap bar, martwy ciąg, RDL) z RPE ≥ 7. */
+function isHeavyBilateralCompound(ref: ExerciseRef): boolean {
+  if (ref.pattern !== "squat" && ref.pattern !== "hinge") return false;
+  if (ref.section.type !== "main" && ref.section.type !== "prep") return false;
+  const rpe = rpeMax(ref.ex.rpe);
+  return rpe !== null && rpe >= 7;
+}
+
+/** Spójność prescription: skok ma kontakty, lift główny ma serie i powtórzenia. */
+function hasInconsistentPrescription(ref: ExerciseRef): boolean {
+  const e = ref.ex;
+  if (ref.pattern === "power") {
+    const hasContacts = e.groundContacts !== undefined && e.groundContacts > 0;
+    const hasReps = !!(e.reps && e.reps.trim());
+    return !hasContacts && !hasReps;
+  }
+  if (
+    (ref.section.type === "main" || ref.section.type === "prep") &&
+    COMPOUND_PATTERNS.includes(ref.pattern)
+  ) {
+    return !(e.sets && e.sets.trim()) || !(e.reps && e.reps.trim());
+  }
+  return false;
+}
+
+/**
+ * Twarde reguły hamstring + ciężkich liftów. Reużywalna walidacja każdej sesji.
+ * Zwraca listę naruszeń (pusta = OK).
+ */
+export function validateHamstringAndHeavyLiftRules(
+  plan: GymSessionPlan,
+  ctx: StrengthBlockContext,
+): GymValidationIssue[] {
+  const refs = flattenExercises(plan);
+  const issues: GymValidationIssue[] = [];
+
+  const hasRDL = refs.some((r) => isRDLName(r.ex.name));
+  const hasNordic = refs.some((r) => isNordicName(r.ex.name));
+
+  // 1) RDL + Nordic nigdy w tej samej sesji.
+  if (hasRDL && hasNordic) {
+    const nordicRef = refs.find((r) => isNordicName(r.ex.name));
+    issues.push({
+      code: "rdl_and_nordic",
+      message: "RDL i Nordic curl nie mogą wystąpić w tej samej sesji.",
+      exerciseId: nordicRef?.ex.id,
+    });
+  }
+
+  // 2) Tylko JEDEN wysoki stresor tylnej taśmy na sesję.
+  const stressors = refs
+    .map((r) => ({ ref: r, kind: highHamstringStressor(r) }))
+    .filter((x) => x.kind !== null);
+  if (stressors.length > 1) {
+    // Pierwszy (główny) zostaje; pozostałe oznacz jako nadmiarowe.
+    for (let i = 1; i < stressors.length; i++) {
+      const s = stressors[i];
+      // Unikaj podwójnego zgłoszenia tej samej pary RDL+Nordic.
+      if (s.kind === "nordic" && hasRDL && hasNordic) continue;
+      issues.push({
+        code: "too_many_hamstring_stressors",
+        message: `Drugi wysoki stresor tylnej taśmy (${s.ref.ex.name}) — dozwolony tylko jeden.`,
+        exerciseId: s.ref.ex.id,
+      });
+    }
+  }
+
+  // 4) Ciężki bułgar/wykrok/step-up po ciężkim bilateralnym compound (squat/trap/deadlift/RDL).
+  const hasHeavyBilateral = refs.some(isHeavyBilateralCompound);
+  if (hasHeavyBilateral) {
+    for (const r of refs) {
+      if (isHeavyUnilateral(r)) {
+        issues.push({
+          code: "heavy_unilateral_after_compound",
+          message: `Ciężki jednonóż (${r.ex.name}) po ciężkim lifcie bilateralnym — zredukuj do lekkiej pracy technicznej.`,
+          exerciseId: r.ex.id,
+        });
+      }
+    }
+  }
+
+  if (LOWER_BODY_ROLES.includes(plan.role)) {
+    // 5) Sesja dolna musi mieć ekspozycję quad/glute (squat lub jednonóż).
+    const hasQuadGlute = refs.some((r) => r.pattern === "squat" || r.pattern === "unilateral");
+    if (!hasQuadGlute) {
+      issues.push({
+        code: "missing_quad_glute",
+        message: "Sesja dolna bez ekspozycji quad/glute (przysiad lub jednonóż).",
+      });
+    }
+  }
+
+  // 7) MD-2/MD-1/MD+1 nie może zawierać ciężkich hamstringów.
+  const md = ctx.mdLabel;
+  if (md === "MD-2" || md === "MD-1" || md === "MD+1") {
+    const heavyHam = stressors.some(
+      (s) => s.kind === "rdl" || s.kind === "heavy_hinge" || s.kind === "deadlift" || s.kind === "nordic",
+    );
+    if (heavyHam) {
+      issues.push({
+        code: "matchday_heavy_hamstring",
+        message: `Ciężkie hamstringi niedozwolone w ${md}.`,
+      });
+    }
+  }
+
+  // 8) Spójność prescription (reps / kontakty).
+  for (const r of refs) {
+    if (hasInconsistentPrescription(r)) {
+      issues.push({
+        code: "prescription_inconsistent",
+        message: `Niespójna prescription dla ${r.ex.name} (brak serii/powtórzeń lub kontaktów).`,
+        exerciseId: r.ex.id,
+      });
+    }
+  }
+
+  return issues;
+}
+
 /** Pełna walidacja sesji siłowni. Zwraca listę naruszeń (pusta = OK). */
 export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockContext): GymValidationIssue[] {
   const refs = flattenExercises(plan);
@@ -1308,8 +1493,10 @@ export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockConte
     ...checkCalfAdductorCoreSupport(plan, refs),
     ...checkNoRepeatedPowerExercise(refs),
     ...checkMatchDaySafety(plan, ctx, refs),
+    ...validateHamstringAndHeavyLiftRules(plan, ctx),
   ];
 }
+
 
 // --- Naprawa sesji (regeneracja problematycznych elementów) ---
 
@@ -1426,6 +1613,76 @@ export function repairGymSession(
           ],
         }),
       );
+    }
+  }
+
+  // 4) Nadmiarowe stresory tylnej taśmy (RDL+Nordic / >1 stresor) →
+  //    podmień zgłoszone na kontrolowany, niestresorowy slider leg curl.
+  for (const issue of issues) {
+    if (
+      (issue.code === "rdl_and_nordic" || issue.code === "too_many_hamstring_stressors") &&
+      issue.exerciseId
+    ) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        target.ex.name = "Hamstring slider curl";
+        target.ex.sets = "2";
+        target.ex.reps = "6–8";
+        target.ex.rpe = "RPE 5–6 (kontrola)";
+        target.ex.tempo = undefined;
+        target.ex.groundContacts = undefined;
+        target.ex.cue = "Powolny ekscentryk, kontrola tylnej taśmy, bez bólu.";
+      }
+    }
+  }
+
+  // 5) Ciężki jednonóż po ciężkim bilateralnym lifcie → lekka praca techniczna.
+  for (const issue of issues) {
+    if (issue.code === "heavy_unilateral_after_compound" && issue.exerciseId) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        demoteToLight(target.ex);
+        target.ex.reps = "6 / strona";
+        if (target.block.intent === "strength" || target.block.intent === "power") {
+          target.block.intent = "braking";
+          target.block.blockType = "accessory";
+        }
+      }
+    }
+  }
+
+  // 6) Brak ekspozycji quad/glute w sesji dolnej → dołóż kontrolowany goblet squat.
+  if (issues.some((i) => i.code === "missing_quad_glute")) {
+    const mainSec = plan.sections.find((s) => s.type === "main") ?? plan.sections.find((s) => s.type === "accessory");
+    if (mainSec) {
+      mainSec.blocks.push(
+        block({
+          title: "BLOK QUAD/GLUTE",
+          blockType: "single",
+          intent: "strength",
+          restAfterBlock: "90 s",
+          exercises: [
+            ex({ name: "Goblet squat (tempo)", sets: "3", reps: "8–10", rpe: "RPE 6–7", cue: "Pełen zakres, pięty na ziemi, kontrola." }),
+          ],
+        }),
+      );
+    }
+  }
+
+  // 7) Niespójna prescription → uzupełnij sensowne domyślne wartości.
+  for (const issue of issues) {
+    if (issue.code === "prescription_inconsistent" && issue.exerciseId) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (!target) continue;
+      if (target.pattern === "power") {
+        if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "3";
+        if (target.ex.groundContacts === undefined || target.ex.groundContacts <= 0) {
+          target.ex.groundContacts = contacts(8, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+        }
+      } else {
+        if (!target.ex.sets || !target.ex.sets.trim()) target.ex.sets = "3";
+        if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "5";
+      }
     }
   }
 }
