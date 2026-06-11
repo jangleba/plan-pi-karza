@@ -1,18 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { formatDate, shortDayName, parseIso, isoDayOfWeek } from "@/lib/loadwise/labels";
+import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import {
+  buildPlanWeeks,
+  computeWeekStats,
   phaseOf,
-  sessionCategory,
-  sessionContainsPrehab,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
-import type { SessionDay, Intensity, Goal } from "@/lib/loadwise/types";
+import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
 import {
   Clock,
   ChevronRight,
@@ -34,10 +34,20 @@ export const Route = createFileRoute("/_tabs/plan")({
 });
 
 const LOAD_LABEL: Record<Intensity, string> = {
-  niska: "Niskie",
-  umiarkowana: "Umiarkowane",
-  wysoka: "Wysokie",
+  niska: "niskie",
+  umiarkowana: "umiarkowane",
+  wysoka: "wysokie",
 };
+
+function pluralWeeks(n: number): string {
+  if (n === 1) return "1 tydzień";
+  const last = n % 10;
+  const lastTwo = n % 100;
+  if (last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) {
+    return `${n} tygodnie`;
+  }
+  return `${n} tygodni`;
+}
 
 /** Krótki status dnia na karcie. */
 function dayStatus(day: SessionDay): string {
@@ -61,13 +71,15 @@ function dayStatus(day: SessionDay): string {
 function whatToDo(day: SessionDay): string {
   switch (day.dayType) {
     case "match":
-      return "Dzień meczu — zagraj i wpisz minuty oraz RPE.";
+      return "Dzień meczu — wpisz minuty, RPE i krótką ocenę.";
     case "md-1":
-      return "Zachowaj świeżość przed meczem — tylko aktywacja.";
+      return "Krótka aktywacja, świeżość przed meczem, bez zmęczenia.";
     case "club":
       return "Monitoring klubu + RPE po treningu.";
     case "recovery":
-      return "Regeneracja po meczu, bez dokładania zmęczenia.";
+      return day.mdLabel === "MD+1"
+        ? "Regeneracja po meczu, mobilność i obniżenie napięcia."
+        : "Regeneracja, mobilność i obniżenie napięcia.";
     case "rest":
       return "Dzień wolny — odpoczynek, ewentualnie lekki ruch.";
     default: {
@@ -81,7 +93,9 @@ function whatToDo(day: SessionDay): string {
       if (type.includes("siła"))
         return "Siła jako bodziec główny, bez przeciążania przed meczem.";
       if (type.includes("szybko") || type.includes("sprint"))
-        return "Dzień jakości szybkościowej, daleko od meczu.";
+        return day.mdLabel === "MD-2"
+          ? "Krótka jakość piłkarska i szybkościowa, bez dokładania zmęczenia."
+          : "Dzień jakości szybkościowej — pełne przerwy i kontrola objętości.";
       if (type.includes("piłk") || type.includes("technik"))
         return "Praca z piłką: technika i decyzje.";
       if (type.includes("ostro"))
@@ -160,47 +174,20 @@ function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string 
 function weekSummary(
   weekIndex: number,
   totalWeeks: number,
-  week: SessionDay[],
+  week: PlanWeek,
   goal: Goal,
 ) {
   const phase = phaseOf(weekIndex, totalWeeks);
   const block = focusFor(phase, goal);
-
-  const sessions = week.flatMap((d) =>
-    d.secondSession ? [d, d.secondSession] : [d],
-  );
-  const ownSessions = sessions.filter((s) => {
-    const category = sessionCategory(s);
-    return (
-      s.dayType === "training" &&
-      category !== "club" &&
-      category !== "match" &&
-      category !== "rest"
-    );
-  }).length;
-  const clubSessions = week.filter((d) => d.dayType === "club").length;
-  const matchCount = week.filter((d) => d.dayType === "match").length;
-  const doubleDays = week.filter((d) => !!d.secondSession).length;
-  const recoveryDays = sessions.filter(
-    (s) =>
-      sessionCategory(s) === "recovery_prehab" || sessionContainsPrehab(s),
-  ).length;
-  const matchDay = week.find((d) => d.dayType === "match");
-
-  // Obciążenie tygodnia = najwyższa częsta intensywność.
-  const hasHigh = week.some((d) => d.intensity === "wysoka");
-  const hasMod = week.some((d) => d.intensity === "umiarkowana");
-  const load: Intensity = hasHigh ? "wysoka" : hasMod ? "umiarkowana" : "niska";
+  const stats = computeWeekStats(week);
 
   return {
     ...block,
-    ownSessions,
-    clubSessions,
-    matchCount,
-    doubleDays,
-    recoveryDays,
-    matchDay,
-    load,
+    stats,
+    focus: week.focus,
+    matchDate: week.matchDate,
+    reasons: week.reasons,
+    load: stats.weeklyLoadLabel,
   };
 }
 
@@ -214,17 +201,7 @@ function PlanScreen() {
   const [activeWeek, setActiveWeek] = useState(0);
   const [gateWeek, setGateWeek] = useState<number | null>(null);
 
-  // Grupowanie w tygodnie kalendarzowe (poniedziałek–niedziela). Pierwszy
-  // tydzień może być niepełny, jeśli plan startuje w środku tygodnia.
-  const weeks: SessionDay[][] = [];
-  for (const day of plan) {
-    const isMonday = isoDayOfWeek(parseIso(day.date)) === 1;
-    if (weeks.length === 0 || (isMonday && weeks[weeks.length - 1].length > 0)) {
-      weeks.push([day]);
-    } else {
-      weeks[weeks.length - 1].push(day);
-    }
-  }
+  const weeks = buildPlanWeeks(plan);
 
 
   // Tydzień 0 zawsze dostępny. Kolejny tydzień i dostępny tylko po
@@ -250,8 +227,8 @@ function PlanScreen() {
 
   const monthGoal =
     GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
-  const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? [];
-  const summary = current.length
+  const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? null;
+  const summary = current
     ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
     : null;
 
@@ -264,15 +241,14 @@ function PlanScreen() {
 
   // Granice kolejnego tygodnia (dla bramki).
   const gateNextIndex = gateWeek;
-  const gateWeekDays =
-    gateNextIndex !== null ? weeks[gateNextIndex] ?? [] : [];
+  const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
 
 
   return (
-    <div>
+    <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
       <AppHeader
         title="Plan treningowy"
-        subtitle={`${weeks.length} ${weeks.length === 1 ? "tydzień" : "tygodnie"} · cel: ${monthGoal}`}
+        subtitle={`${pluralWeeks(weeks.length)} · cel: ${monthGoal}`}
       />
 
       {plan.length === 0 && (
@@ -284,15 +260,15 @@ function PlanScreen() {
 
       {/* Przełącznik tygodni */}
       {weeks.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto px-5 pb-1 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {weeks.map((_, i) => {
+        <div className="flex gap-2 overflow-x-auto px-5 pb-1 pr-8 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {weeks.map((week, i) => {
             const locked = !canAccess(i);
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => openTab(i)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`flex shrink-0 flex-col items-start gap-0.5 rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
                   i === activeWeek
                     ? "bg-primary text-primary-foreground"
                     : locked
@@ -301,7 +277,10 @@ function PlanScreen() {
                 }`}
               >
                 {locked && <Lock className="h-3.5 w-3.5" />}
-                Tydzień {i + 1}
+                <span>Tydzień {i + 1}</span>
+                <span className="text-[11px] opacity-80">
+                  {formatDate(week.startDate)}–{formatDate(week.endDate)}
+                </span>
               </button>
             );
           })}
@@ -323,48 +302,60 @@ function PlanScreen() {
                 </h2>
               </div>
               <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                Load: {LOAD_LABEL[summary.load]}
+                Obciążenie: {LOAD_LABEL[summary.load]}
               </span>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2.5 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Flame className="h-4 w-4 shrink-0" />
-                <span className="truncate">{summary.accent}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <CalendarClock className="h-4 w-4 shrink-0" />
-                <span>
-                  {summary.matchDay
-                    ? `Mecz: ${formatDate(summary.matchDay.date)}`
-                    : "Mecze: brak"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Dumbbell className="h-4 w-4 shrink-0" />
-                <span>Treningi własne: {summary.ownSessions}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="h-4 w-4 shrink-0" />
-                <span>Treningi klubowe: {summary.clubSessions}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Leaf className="h-4 w-4 shrink-0" />
-                <span>Regeneracja / prehab: {summary.recoveryDays}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Layers className="h-4 w-4 shrink-0" />
-                <span>Podwójne dni: {summary.doubleDays}</span>
-              </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
+                <Flame className="h-3.5 w-3.5" /> {summary.focus}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
+                <CalendarClock className="h-3.5 w-3.5" /> Mecz: {summary.stats.matchDateLabel}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
+                <Dumbbell className="h-3.5 w-3.5" /> {summary.stats.ownTrainingCount} własne
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
+                <Users className="h-3.5 w-3.5" /> {summary.stats.clubTrainingCount} klubowe
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
+                <Leaf className="h-3.5 w-3.5" /> Recovery: {summary.stats.recoveryPrehabCount}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
+                <Layers className="h-3.5 w-3.5" /> Podwójne dni: {summary.stats.doubleDayCount}
+              </span>
             </div>
+
+            {summary.reasons.length > 0 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Plan skrócony: {summary.reasons[0]}.
+              </p>
+            )}
 
           </div>
         </div>
       )}
 
       {/* Dni tygodnia */}
-      <div className="space-y-3 px-5 pt-4">
-        {current.map((day) => {
+      <div
+        className="space-y-3 px-5 pt-4"
+        style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom))" }}
+      >
+        {current?.days.map(({ source: day, outsideActivePlan }) => {
+          if (outsideActivePlan) {
+            return (
+              <div key={day.date} className="soft-card p-4 opacity-70">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {shortDayName(parseIso(day.date))} · {formatDate(day.date)}
+                </div>
+                <h3 className="mt-1 text-base font-semibold">Poza aktywnym planem</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Plan zaczyna się w trakcie tygodnia — ten dzień nie liczy się do obciążenia.
+                </p>
+              </div>
+            );
+          }
           const isToday = day.date === todayIso;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
@@ -463,7 +454,7 @@ function PlanScreen() {
       </div>
 
       {/* Podsumowanie tygodnia + weekly gate */}
-      {hasNext && current.length > 0 && (
+      {hasNext && current && (
         <div className="px-5 pt-5">
           <div className="soft-card p-4">
             <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
@@ -472,7 +463,7 @@ function PlanScreen() {
                 ? nextTransition?.noMatchNextWeek
                   ? "Brak meczu — tydzień bez taperu."
                   : `Kolejny mecz: ${formatDate(nextTransition!.nextMatchDate!)}.`
-                : "Zanim ruszysz dalej, podaj kolejny mecz."}
+                : "Ustaw datę kolejnego meczu."}
             </p>
 
             <Button
@@ -499,15 +490,15 @@ function PlanScreen() {
         </div>
       )}
 
-      {gateWeek !== null && gateWeekDays.length > 0 && (
+      {gateWeek !== null && gateWeekData && (
         <WeeklyGateSheet
           open={gateWeek !== null}
           onOpenChange={(v) => {
             if (!v) setGateWeek(null);
           }}
           weekNumber={gateWeek}
-          nextWeekStart={gateWeekDays[0].date}
-          nextWeekEnd={gateWeekDays[gateWeekDays.length - 1].date}
+          nextWeekStart={gateWeekData.startDate}
+          nextWeekEnd={gateWeekData.endDate}
           onConfirmed={() => {
             const target = gateWeek;
             setGateWeek(null);

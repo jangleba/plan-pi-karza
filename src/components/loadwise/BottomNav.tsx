@@ -4,8 +4,8 @@ import { Home, CalendarDays, Camera, Telescope, User } from "lucide-react";
 const items = [
   { to: "/start", label: "Start", icon: Home },
   { to: "/plan", label: "Plan", icon: CalendarDays },
-  { to: "/aparat", label: "AI Aparat", icon: Camera },
-  { to: "/scouting", label: "Scouting", icon: Telescope },
+  { to: "/aparat", label: "Aparat AI", icon: Camera },
+  { to: "/scouting", label: "Analiza", icon: Telescope },
   { to: "/profil", label: "Profil", icon: User },
 ] as const;
 
