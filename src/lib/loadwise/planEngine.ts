@@ -2590,6 +2590,8 @@ export function generatePlan(
     usedMainThisWeek: [],
     usedMainLastWeek: [],
   };
+  // Anty-powtórzeniowe liczniki treści kategorii (reset co tydzień kalendarzowy).
+  let contentCounters: ContentCounters = newContentCounters();
 
   /** Buduje sesję siłowni z wariacją i wpisuje ją do session/secondSession. */
   const applyGymPlan = (target: SessionDay, readiness?: number): void => {
