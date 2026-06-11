@@ -28,8 +28,13 @@ import {
   type GymHistory,
   type GymWeekPhase,
 } from "./strengthBlocks";
+import {
+  enforceSessionCategory,
+  newContentCounters,
+  type ContentCounters,
+} from "./sessionContent";
 
-export const PLAN_ENGINE_VERSION = "loadwise-variable-gym-v11";
+export const PLAN_ENGINE_VERSION = "loadwise-category-engine-v12";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -2386,7 +2391,13 @@ function repairWeekCells(
   maxDoubles: number,
 ): void {
   if (!isHealthyPerformanceProfile(profile)) return;
+  // Klub i mecz pokrywają ekspozycję piłkarską. Gdy ich brak, tydzień MUSI
+  // zawierać własną sesję piłkarską (z piłką) jako osobną kategorię.
+  const footballExposure =
+    items.filter((it) => it.base === "club").length +
+    items.filter((it) => it.base === "match").length;
   const required: PerfCategory[] = ["strength_power", "speed", "conditioning", "athletic"];
+  if (footballExposure === 0) required.push("ball");
   const replacementFor: Record<PerfCategory, Stimulus> = {
     strength_power: profile.hasGym ? "strength" : "strength_base",
     speed: "sprint",
@@ -2401,6 +2412,23 @@ function repairWeekCells(
   for (const category of required) {
     if (countCellCategories(cells())[category] > 0) continue;
     const stimulus = replacementFor[category];
+
+    // Najpierw spróbuj zamienić bezczynny dzień regeneracji (bez bodźca) na
+    // brakującą kategorię — nie kosztem innej zaplanowanej kategorii.
+    const idleRecovery = [...items]
+      .sort((a, b) => slotScore(stimulus, b) - slotScore(stimulus, a))
+      .find((it) => {
+        const cell = result[it.iso];
+        return (
+          cell?.type === "recovery" &&
+          it.base === "available" &&
+          canPrimaryStimulus(stimulus, it)
+        );
+      });
+    if (idleRecovery) {
+      result[idleRecovery.iso] = { type: "training", stimulus };
+      continue;
+    }
 
     const replaceablePrimary = items.find((it) => {
       const cell = result[it.iso];
@@ -2585,6 +2613,8 @@ export function generatePlan(
     usedMainThisWeek: [],
     usedMainLastWeek: [],
   };
+  // Anty-powtórzeniowe liczniki treści kategorii (reset co tydzień kalendarzowy).
+  let contentCounters: ContentCounters = newContentCounters();
 
   /** Buduje sesję siłowni z wariacją i wpisuje ją do session/secondSession. */
   const applyGymPlan = (target: SessionDay, readiness?: number): void => {
@@ -2634,6 +2664,7 @@ export function generatePlan(
       gymHistory.usedMainThisWeek = [];
       gymHistory.usedRolesThisWeek = [];
       gymSessionsThisWeek = 0;
+      contentCounters = newContentCounters();
     }
 
     const cell = blockMap[iso];
@@ -2886,6 +2917,14 @@ export function generatePlan(
         applyGymPlan(session);
         reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
         session.reason = reason;
+      } else if (toMatch !== 2 && sinceMatch !== 1) {
+        // Wymuszenie czystości kategorii: sprint/piłka/bieganie/prehab generowane
+        // z puli właściwej kategorii i walidowane (bez mieszania kategorii).
+        const cat = enforceSessionCategory(session, profile, {
+          weekIndex: curWeekIndex,
+          counters: contentCounters,
+        });
+        session.reason = `Sesja kategorii (${cat}) — kompletna w obrębie swojej kategorii, bez mieszania z innymi. ${reason}`;
       }
       lastWasHard = built.intensity === "wysoka";
     }
@@ -2901,9 +2940,24 @@ export function generatePlan(
         second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
         second.whyToday =
           "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
-        if (/sił|moc|power/i.test(built.sessionType)) applyGymPlan(second);
+        if (/sił|moc|power/i.test(built.sessionType)) {
+          applyGymPlan(second);
+        } else {
+          enforceSessionCategory(second, profile, {
+            weekIndex: curWeekIndex,
+            counters: contentCounters,
+            light: true,
+          });
+        }
       } else if (!isHealthyPerformanceProfile(profile)) {
         second = buildSecondSession(session.dayType, date, profile);
+        if (second) {
+          enforceSessionCategory(second, profile, {
+            weekIndex: curWeekIndex,
+            counters: contentCounters,
+            light: true,
+          });
+        }
       }
       if (second) {
         if (second.intensity === "wysoka") {
