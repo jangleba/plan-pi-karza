@@ -43,53 +43,8 @@ export const Route = createFileRoute("/sesja/$date")({
   component: SessionDetail,
 });
 
-function ExerciseList({ items }: { items: ExerciseItem[] }) {
-  return (
-    <ul className="mt-3 space-y-3">
-      {items.map((it, i) => (
-        <li
-          key={i}
-          className="border-b border-border pb-3 last:border-0 last:pb-0"
-        >
-          <div className="text-sm font-medium text-foreground">{it.name}</div>
-          <div className="mt-0.5 text-sm text-muted-foreground">
-            {it.prescription}
-          </div>
-          {it.rest && (
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              Przerwa: {it.rest}
-            </div>
-          )}
-          {it.cue && (
-            <div className="mt-1 text-xs text-primary">Wskazówka: {it.cue}</div>
-          )}
-          {it.easier && (
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              Łatwiej: {it.easier}
-            </div>
-          )}
-          {it.harder && (
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              Trudniej: {it.harder}
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
 
-function Section({ title, items }: { title: string; items: ExerciseItem[] }) {
-  if (!items.length) return null;
-  return (
-    <div className="soft-card p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
-      <ExerciseList items={items} />
-    </div>
-  );
-}
+
 
 // ---------- Renderowanie strukturalne (bloki) ----------
 
