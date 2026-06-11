@@ -1009,21 +1009,436 @@ export function buildStrengthPowerStructured(
   }
 
   const role = pickGymRole(profile, ctx);
+  let plan: GymSessionPlan;
   switch (role) {
     case "lower_strength_power":
-      return lowerStrengthPower(profile, ctx);
+      plan = lowerStrengthPower(profile, ctx);
+      break;
     case "posterior_sprint":
-      return posteriorSprint(profile, ctx);
+      plan = posteriorSprint(profile, ctx);
+      break;
     case "unilateral_decel":
-      return unilateralDecel(profile, ctx);
+      plan = unilateralDecel(profile, ctx);
+      break;
     case "upper_core":
-      return upperCore(profile, ctx);
+      plan = upperCore(profile, ctx);
+      break;
     case "primer":
-      return powerPrimer(profile, ctx);
+      plan = powerPrimer(profile, ctx);
+      break;
     case "recovery_prehab":
     default:
-      return recoveryPrehab(profile, ctx);
+      plan = recoveryPrehab(profile, ctx);
+      break;
   }
+
+  // Walidacja programowania siłowni + naprawa przed renderem.
+  // Jeśli zasady bezpieczeństwa dnia meczowego są złamane, schodzimy do primera.
+  let issues = validateGymSession(plan, ctx);
+  if (issues.some((i) => i.code === "matchday_unsafe")) {
+    return powerPrimer(profile, ctx);
+  }
+  for (let pass = 0; pass < 3 && issues.length > 0; pass++) {
+    repairGymSession(plan, ctx, issues);
+    issues = validateGymSession(plan, ctx);
+  }
+  // Aktualizujemy mainPatterns po ewentualnych podmianach.
+  plan.mainPatterns = collectMainPatterns(plan);
+  return plan;
+}
+
+// ===========================================================================
+// WALIDATOR PROGRAMOWANIA SIŁOWNI (reużywalne reguły dla każdej sesji)
+// ===========================================================================
+
+export type MovementPattern =
+  | "squat"
+  | "hinge"
+  | "unilateral"
+  | "hamstring"
+  | "calf"
+  | "adductor"
+  | "core"
+  | "power"
+  | "other";
+
+export type GymValidationCode =
+  | "heavy_duplicate_pattern"
+  | "unilateral_not_light"
+  | "missing_power"
+  | "missing_hamstring"
+  | "missing_support"
+  | "repeated_power"
+  | "matchday_unsafe";
+
+export interface GymValidationIssue {
+  code: GymValidationCode;
+  message: string;
+  exerciseId?: string;
+}
+
+const LOWER_BODY_ROLES: GymRole[] = ["lower_strength_power", "posterior_sprint", "unilateral_decel"];
+
+function hasAny(name: string, keywords: string[]): boolean {
+  const n = name.toLowerCase();
+  return keywords.some((k) => n.includes(k));
+}
+
+/** Klasyfikacja ćwiczenia po nazwie do dominującego wzorca ruchowego. */
+export function classifyExercise(ex: TrainingExercise): MovementPattern {
+  const n = ex.name.toLowerCase();
+  if (
+    (ex.groundContacts !== undefined && ex.groundContacts > 0) ||
+    hasAny(n, [
+      "skok",
+      "jump",
+      "pogo",
+      "bound",
+      "slam",
+      "throw",
+      "rzut",
+      "ankling",
+      "a-skip",
+      "wall drive",
+      "wall-drive",
+      "band acceleration",
+      "drop ",
+      "snap-down",
+      "snap down",
+      "przeskok",
+      "hop",
+      "cmj",
+    ])
+  ) {
+    return "power";
+  }
+  if (hasAny(n, ["nordic", "leg curl", "slider", "hamstring", "glute bridge", "bridge march", "good morning", "ścięgn"]))
+    return "hamstring";
+  if (hasAny(n, ["rdl", "martwy ciąg", "hip thrust", "hip hinge", "hinge", "deadlift"])) return "hinge";
+  if (
+    hasAny(n, [
+      "bułgar",
+      "wykrok",
+      "lunge",
+      "split squat",
+      "step-up",
+      "step up",
+      "step-down",
+      "step down",
+      "jednonóż",
+      "jednej nodze",
+      "reverse lunge",
+      "lateral lunge",
+    ])
+  )
+    return "unilateral";
+  if (hasAny(n, ["przysiad", "squat", "goblet", "leg press"])) return "squat";
+  if (hasAny(n, ["łydk", "soleus", "calf", "kostk"])) return "calf";
+  if (hasAny(n, ["copenhagen", "przywodzic", "adduct", "suwak"])) return "adductor";
+  if (hasAny(n, ["pallof", "plank", "dead bug", "bird dog", "core", "tułów", "anty-rotacj", "carry", "farmer"]))
+    return "core";
+  return "other";
+}
+
+function rpeMax(s?: string): number | null {
+  if (!s) return null;
+  const nums = s.match(/\d+/g);
+  if (!nums) return null;
+  return Math.max(...nums.map((x) => parseInt(x, 10)));
+}
+
+function setsMax(s?: string): number | null {
+  if (!s) return null;
+  const nums = s.match(/\d+/g);
+  if (!nums) return null;
+  return Math.max(...nums.map((x) => parseInt(x, 10)));
+}
+
+interface ExerciseRef {
+  ex: TrainingExercise;
+  block: TrainingBlock;
+  section: TrainingSection;
+  pattern: MovementPattern;
+}
+
+function flattenExercises(plan: GymSessionPlan): ExerciseRef[] {
+  const out: ExerciseRef[] = [];
+  for (const sec of plan.sections) {
+    for (const blk of sec.blocks) {
+      for (const e of blk.exercises) {
+        out.push({ ex: e, block: blk, section: sec, pattern: classifyExercise(e) });
+      }
+    }
+  }
+  return out;
+}
+
+const COMPOUND_PATTERNS: MovementPattern[] = ["squat", "hinge", "unilateral", "hamstring"];
+
+/** Ciężka ekspozycja siłowa = compound w części głównej z RPE ≥ 7 (nie plyo). */
+function isHeavyStrength(ref: ExerciseRef): boolean {
+  if (ref.pattern === "power") return false;
+  if (!COMPOUND_PATTERNS.includes(ref.pattern)) return false;
+  if (ref.section.type !== "main" && ref.section.type !== "prep") return false;
+  const rpe = rpeMax(ref.ex.rpe);
+  return rpe !== null && rpe >= 7;
+}
+
+/** Grupa tkanki/wzorca: przysiad+jednonóż = kolano/quad; hinge+hamstring = tylna taśma. */
+function patternGroup(p: MovementPattern): "knee" | "hip" | null {
+  if (p === "squat" || p === "unilateral") return "knee";
+  if (p === "hinge" || p === "hamstring") return "hip";
+  return null;
+}
+
+function isPowerExercise(ref: ExerciseRef): boolean {
+  return ref.pattern === "power";
+}
+
+// --- Indywidualne reguły (zgodne z wymaganą strukturą walidatora) ---
+
+function checkMainHeavyPatternLimit(refs: ExerciseRef[]): GymValidationIssue[] {
+  // Maks. jedna ciężka ekspozycja na grupę (knee/hip).
+  const issues: GymValidationIssue[] = [];
+  const seenGroup: Record<string, boolean> = {};
+  for (const ref of refs) {
+    if (!isHeavyStrength(ref)) continue;
+    const g = patternGroup(ref.pattern);
+    if (!g) continue;
+    if (seenGroup[g]) {
+      issues.push({
+        code: "heavy_duplicate_pattern",
+        message: `Druga ciężka ekspozycja w grupie ${g} (${ref.ex.name}) — dozwolona tylko jedna.`,
+        exerciseId: ref.ex.id,
+      });
+    } else {
+      seenGroup[g] = true;
+    }
+  }
+  return issues;
+}
+
+function checkNoHeavyDuplicatePattern(refs: ExerciseRef[]): GymValidationIssue[] {
+  // Po ciężkim bilateralnym lifcie, jednonóż dozwolony tylko jako lekka praca (RPE ≤ 6).
+  const issues: GymValidationIssue[] = [];
+  const hasHeavyBilateral = refs.some(
+    (r) => isHeavyStrength(r) && (r.pattern === "squat" || r.pattern === "hinge"),
+  );
+  if (!hasHeavyBilateral) return issues;
+  for (const ref of refs) {
+    if (ref.pattern !== "unilateral") continue;
+    const rpe = rpeMax(ref.ex.rpe);
+    if (rpe !== null && rpe >= 7) {
+      issues.push({
+        code: "unilateral_not_light",
+        message: `Jednonóż po ciężkim lifcie musi być lekki (RPE 5–6): ${ref.ex.name}.`,
+        exerciseId: ref.ex.id,
+      });
+    }
+  }
+  return issues;
+}
+
+function checkComplementaryQualities(plan: GymSessionPlan, refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!LOWER_BODY_ROLES.includes(plan.role)) return [];
+  const hasPower = refs.some(isPowerExercise);
+  return hasPower
+    ? []
+    : [{ code: "missing_power", message: "Sesja dolna bez ćwiczenia mocy/RFD." }];
+}
+
+function checkHamstringExposure(plan: GymSessionPlan, refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!LOWER_BODY_ROLES.includes(plan.role)) return [];
+  const hasHam = refs.some((r) => r.pattern === "hamstring" || r.pattern === "hinge");
+  return hasHam
+    ? []
+    : [{ code: "missing_hamstring", message: "Sesja dolna bez ekspozycji tylnej taśmy / hamstring." }];
+}
+
+function checkCalfAdductorCoreSupport(plan: GymSessionPlan, refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!LOWER_BODY_ROLES.includes(plan.role)) return [];
+  const hasSupport = refs.some(
+    (r) => r.pattern === "calf" || r.pattern === "adductor" || r.pattern === "core",
+  );
+  return hasSupport
+    ? []
+    : [{ code: "missing_support", message: "Sesja dolna bez wsparcia tułów/przywodziciele/łydka." }];
+}
+
+function checkNoRepeatedPowerExercise(refs: ExerciseRef[]): GymValidationIssue[] {
+  const issues: GymValidationIssue[] = [];
+  const seen = new Set<string>();
+  for (const ref of refs) {
+    if (!isPowerExercise(ref)) continue;
+    const key = ref.ex.name.toLowerCase();
+    if (seen.has(key)) {
+      issues.push({
+        code: "repeated_power",
+        message: `Powtórzone ćwiczenie mocy: ${ref.ex.name}.`,
+        exerciseId: ref.ex.id,
+      });
+    } else {
+      seen.add(key);
+    }
+  }
+  return issues;
+}
+
+function checkMatchDaySafety(plan: GymSessionPlan, ctx: StrengthBlockContext, refs: ExerciseRef[]): GymValidationIssue[] {
+  const md = ctx.mdLabel;
+  const restricted = md === "MD-2" || md === "MD-1" || md === "MD" || md === "MD+1";
+  if (!restricted) return [];
+  const heavyLower = refs.some(isHeavyStrength);
+  return heavyLower
+    ? [{ code: "matchday_unsafe", message: `Ciężka praca dolna niedozwolona w ${md}.` }]
+    : [];
+}
+
+/** Pełna walidacja sesji siłowni. Zwraca listę naruszeń (pusta = OK). */
+export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockContext): GymValidationIssue[] {
+  const refs = flattenExercises(plan);
+  return [
+    ...checkMainHeavyPatternLimit(refs),
+    ...checkNoHeavyDuplicatePattern(refs),
+    ...checkComplementaryQualities(plan, refs),
+    ...checkHamstringExposure(plan, refs),
+    ...checkCalfAdductorCoreSupport(plan, refs),
+    ...checkNoRepeatedPowerExercise(refs),
+    ...checkMatchDaySafety(plan, ctx, refs),
+  ];
+}
+
+// --- Naprawa sesji (regeneracja problematycznych elementów) ---
+
+function altJumpByName(usedNames: string[]): JumpVariant {
+  const used = usedNames.map((n) => n.toLowerCase());
+  const pool = JUMPS.filter((j) => ["vertical", "horizontal", "lateral", "snap"].includes(j.kind));
+  const fresh = pool.find((j) => !used.includes(j.name.toLowerCase()));
+  return fresh ?? pool[0];
+}
+
+function demoteToLight(ex: TrainingExercise): void {
+  ex.rpe = "RPE 5–6 (kontrola)";
+  ex.sets = "2";
+  ex.reps = ex.reps && ex.reps.includes("noga") ? "6–8 / noga" : "6–8";
+  ex.tempo = undefined;
+  ex.cue = "Jakość ruchu, lekko — to nie kolejna ciężka ekspozycja.";
+  ex.label = undefined;
+}
+
+export function repairGymSession(
+  plan: GymSessionPlan,
+  ctx: StrengthBlockContext,
+  issues: GymValidationIssue[],
+): void {
+  const refs = flattenExercises(plan);
+
+  // 1) Powtórzone ćwiczenia mocy → podmień drugie na inny wariant skoku.
+  const usedPower: string[] = [];
+  for (const ref of refs) {
+    if (!isPowerExercise(ref)) continue;
+    const key = ref.ex.name.toLowerCase();
+    if (usedPower.includes(key)) {
+      const alt = altJumpByName([...usedPower, ref.ex.name]);
+      ref.ex.name = alt.name;
+      ref.ex.cue = alt.cue;
+      ref.ex.groundContacts = contacts(alt.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+      usedPower.push(alt.name.toLowerCase());
+    } else {
+      usedPower.push(key);
+    }
+  }
+
+  // 2) Druga ciężka ekspozycja w tej samej grupie + ciężki jednonóż po bilateralnym → demote do lekkiej.
+  for (const issue of issues) {
+    if (
+      (issue.code === "heavy_duplicate_pattern" || issue.code === "unilateral_not_light") &&
+      issue.exerciseId
+    ) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        demoteToLight(target.ex);
+        if (target.block.intent === "strength" || target.block.intent === "power") {
+          target.block.intent = "braking";
+          target.block.blockType = "accessory";
+        }
+      }
+    }
+  }
+
+  // 3) Brakujące jakości w sesji dolnej → dołóż blok wsparcia.
+  const needsHam = issues.some((i) => i.code === "missing_hamstring");
+  const needsSupport = issues.some((i) => i.code === "missing_support");
+  const needsPower = issues.some((i) => i.code === "missing_power");
+
+  if (needsHam || needsSupport) {
+    let accSec = plan.sections.find((s) => s.type === "accessory");
+    if (!accSec) {
+      accSec = section({ title: "Akcesoria", type: "accessory", blocks: [] });
+      const cdIdx = plan.sections.findIndex((s) => s.type === "cooldown");
+      if (cdIdx >= 0) plan.sections.splice(cdIdx, 0, accSec);
+      else plan.sections.push(accSec);
+    }
+    const exs: TrainingExercise[] = [];
+    if (needsHam) {
+      exs.push(
+        ex({
+          name: "Hamstring slider curl",
+          sets: "2",
+          reps: "6–8",
+          cue: "Kontrola tylnej taśmy, bez bólu.",
+          ageSafetyLevel: "youth_ok",
+        }),
+      );
+    }
+    if (needsSupport) {
+      exs.push(ex({ name: "Izometria łydki / soleus", sets: "2", reps: "20–30 s", cue: "Wsparcie kostki i sprintu." }));
+      exs.push(ex({ name: "Copenhagen plank", sets: "2", reps: "8 / strona", cue: "Kontrola przywodzicieli, bez bólu." }));
+      exs.push(ex({ name: "Pallof press (anty-rotacja)", sets: "2", reps: "10 / strona", cue: "Sztywny tułów." }));
+    }
+    accSec.blocks.push(
+      block({ title: "Wsparcie i robustność", blockType: "accessory", intent: "stability", restAfterBlock: "45–60 s", exercises: exs }),
+    );
+  }
+
+  if (needsPower) {
+    const mainSec = plan.sections.find((s) => s.type === "main");
+    if (mainSec) {
+      const alt = altJumpByName(usedPower);
+      mainSec.blocks.push(
+        block({
+          title: "BLOK MOCY — RFD",
+          blockType: "rfd",
+          intent: "power",
+          restAfterBlock: "Przerwa po bloku: 2 min",
+          exercises: [
+            ex({
+              name: alt.name,
+              sets: "3",
+              reps: "3",
+              groundContacts: contacts(alt.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx)),
+              cue: alt.cue,
+              ageSafetyLevel: "all",
+            }),
+          ],
+        }),
+      );
+    }
+  }
+}
+
+function collectMainPatterns(plan: GymSessionPlan): string[] {
+  const out: string[] = [];
+  for (const sec of plan.sections) {
+    if (sec.type !== "main") continue;
+    for (const blk of sec.blocks) {
+      for (const e of blk.exercises) {
+        const p = classifyExercise(e);
+        if (COMPOUND_PATTERNS.includes(p) || p === "power") out.push(e.name);
+      }
+    }
+  }
+  return Array.from(new Set(out));
 }
 
 /** Spłaszcza strukturalne sekcje do płaskich list (persist + fallback UI). */
