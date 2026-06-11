@@ -28,6 +28,11 @@ import {
   type GymHistory,
   type GymWeekPhase,
 } from "./strengthBlocks";
+import {
+  enforceSessionCategory,
+  newContentCounters,
+  type ContentCounters,
+} from "./sessionContent";
 
 export const PLAN_ENGINE_VERSION = "loadwise-variable-gym-v11";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
