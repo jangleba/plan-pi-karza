@@ -2917,9 +2917,24 @@ export function generatePlan(
         second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
         second.whyToday =
           "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
-        if (/sił|moc|power/i.test(built.sessionType)) applyGymPlan(second);
+        if (/sił|moc|power/i.test(built.sessionType)) {
+          applyGymPlan(second);
+        } else {
+          enforceSessionCategory(second, profile, {
+            weekIndex: curWeekIndex,
+            counters: contentCounters,
+            light: true,
+          });
+        }
       } else if (!isHealthyPerformanceProfile(profile)) {
         second = buildSecondSession(session.dayType, date, profile);
+        if (second) {
+          enforceSessionCategory(second, profile, {
+            weekIndex: curWeekIndex,
+            counters: contentCounters,
+            light: true,
+          });
+        }
       }
       if (second) {
         if (second.intensity === "wysoka") {
