@@ -22,9 +22,14 @@ import {
   parseIso,
   formatDate,
 } from "./labels";
-import { buildStrengthPowerStructured } from "./strengthBlocks";
+import {
+  buildStrengthPowerStructured,
+  structuredToFlat,
+  type GymHistory,
+  type GymWeekPhase,
+} from "./strengthBlocks";
 
-export const PLAN_ENGINE_VERSION = "loadwise-structured-blocks-v10";
+export const PLAN_ENGINE_VERSION = "loadwise-variable-gym-v11";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -2549,6 +2554,8 @@ export function generatePlan(
   const totalWeeks = Math.max(1, ranges.length);
   // Limit podwójnych dni liczony per tydzień kalendarzowy (poniedziałek start).
   const maxDoublesAtStart = new Map<number, number>();
+  // Kontekst periodyzacji per początek tygodnia (faza + indeks tygodnia).
+  const weekContextAtStart = new Map<number, { weekIndex: number; phase: GymWeekPhase }>();
   ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
     const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
@@ -2563,7 +2570,52 @@ export function generatePlan(
       range.start,
       weekLoadConfig(profile, phase, hasMatch).maxDoubles,
     );
+    weekContextAtStart.set(range.start, {
+      weekIndex: weekOffset + weekIndex,
+      phase: phase as GymWeekPhase,
+    });
   });
+
+  // Stan tygodnia do różnicowania i anty-powtórzeń sesji siłowni.
+  let curWeekIndex = weekOffset;
+  let curPhase: GymWeekPhase = "development";
+  let gymSessionsThisWeek = 0;
+  const gymHistory: GymHistory = {
+    usedRolesThisWeek: [],
+    usedMainThisWeek: [],
+    usedMainLastWeek: [],
+  };
+
+  /** Buduje sesję siłowni z wariacją i wpisuje ją do session/secondSession. */
+  const applyGymPlan = (target: SessionDay, readiness?: number): void => {
+    const plan = buildStrengthPowerStructured(profile, {
+      mdLabel: target.mdLabel,
+      powerFocus: profile.goal === "power" || /moc|power/i.test(target.sessionType),
+      weekPhase: curPhase,
+      weekIndex: curWeekIndex,
+      gymSessionIndexInWeek: gymSessionsThisWeek,
+      readiness,
+      history: gymHistory,
+    });
+    if (!plan) return;
+    target.title = plan.title;
+    target.sessionType = plan.sessionType;
+    target.goalOfSession = plan.goalOfSession;
+    target.intensity = plan.intensity;
+    target.durationMin = plan.durationMin;
+    target.structuredSections = plan.sections;
+    const flat = structuredToFlat(plan.sections);
+    target.sections = {
+      warmup: flat.warmup,
+      main: flat.main,
+      accessory: flat.accessory,
+      footballTransfer: [],
+      cooldown: flat.cooldown,
+    };
+    gymHistory.usedRolesThisWeek.push(plan.role);
+    gymHistory.usedMainThisWeek.push(...plan.mainPatterns);
+    gymSessionsThisWeek++;
+  };
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
@@ -2572,6 +2624,16 @@ export function generatePlan(
       doublesThisWeek = 0;
       highDaysThisWeek = 0;
       weeklyMaxDoubles = maxDoublesAtStart.get(i)!;
+      const wc = weekContextAtStart.get(i);
+      if (wc) {
+        curWeekIndex = wc.weekIndex;
+        curPhase = wc.phase;
+      }
+      // Przenieś historię tygodnia do "poprzedniego tygodnia" i wyzeruj bieżący.
+      gymHistory.usedMainLastWeek = gymHistory.usedMainThisWeek;
+      gymHistory.usedMainThisWeek = [];
+      gymHistory.usedRolesThisWeek = [];
+      gymSessionsThisWeek = 0;
     }
 
     const cell = blockMap[iso];
@@ -2819,14 +2881,11 @@ export function generatePlan(
         },
         secondSession: null,
       };
-      // Strukturalne bloki siła→moc dla sesji siłowych/mocowych (okno bez MD-1/MD-2).
+      // Strukturalne, wariantowe sesje siłowni (rola + periodyzacja + anty-powtórzenia).
       if (/sił|moc|power/i.test(built.sessionType)) {
-        const structured = buildStrengthPowerStructured(profile, {
-          mdLabel: session.mdLabel,
-          powerFocus:
-            profile.goal === "power" || /moc|power/i.test(built.sessionType),
-        });
-        if (structured) session.structuredSections = structured;
+        applyGymPlan(session);
+        reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
+        session.reason = reason;
       }
       lastWasHard = built.intensity === "wysoka";
     }
@@ -2842,6 +2901,7 @@ export function generatePlan(
         second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
         second.whyToday =
           "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
+        if (/sił|moc|power/i.test(built.sessionType)) applyGymPlan(second);
       } else if (!isHealthyPerformanceProfile(profile)) {
         second = buildSecondSession(session.dayType, date, profile);
       }
