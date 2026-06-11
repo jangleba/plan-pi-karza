@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-calendar-weeks-v6";
+export const PLAN_ENGINE_VERSION = "loadwise-category-engine-v7";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
