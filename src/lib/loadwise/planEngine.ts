@@ -2202,8 +2202,10 @@ function planBlock(
     }
 
     for (const stimulus of quota) {
-      const alreadyPlaced = Object.values(result).some(
-        (cell) => cell.stimulus === stimulus || cell.secondStimulus === stimulus,
+      const alreadyPlaced = items.some(
+        (it) =>
+          result[it.iso]?.stimulus === stimulus ||
+          result[it.iso]?.secondStimulus === stimulus,
       );
       if (alreadyPlaced && stimulus !== "strength_base") continue;
 
