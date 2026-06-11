@@ -22,7 +22,12 @@ import {
   parseIso,
   formatDate,
 } from "./labels";
-import { buildStrengthPowerStructured } from "./strengthBlocks";
+import {
+  buildStrengthPowerStructured,
+  structuredToFlat,
+  type GymHistory,
+  type GymWeekPhase,
+} from "./strengthBlocks";
 
 export const PLAN_ENGINE_VERSION = "loadwise-structured-blocks-v10";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
