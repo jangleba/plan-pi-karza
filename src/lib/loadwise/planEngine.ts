@@ -34,7 +34,7 @@ import {
   type ContentCounters,
 } from "./sessionContent";
 
-export const PLAN_ENGINE_VERSION = "loadwise-gym-validator-v15";
+export const PLAN_ENGINE_VERSION = "loadwise-hamstring-rules-v16";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
