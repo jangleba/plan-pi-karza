@@ -1069,7 +1069,13 @@ export type GymValidationCode =
   | "missing_hamstring"
   | "missing_support"
   | "repeated_power"
-  | "matchday_unsafe";
+  | "matchday_unsafe"
+  | "rdl_and_nordic"
+  | "too_many_hamstring_stressors"
+  | "heavy_unilateral_after_compound"
+  | "missing_quad_glute"
+  | "matchday_heavy_hamstring"
+  | "prescription_inconsistent";
 
 export interface GymValidationIssue {
   code: GymValidationCode;
