@@ -2498,12 +2498,9 @@ export function generatePlan(
           "Po meczu lekka praca pomaga się rozruszać. Jeśli grałeś dużo lub czujesz się słabo, check-in zmieni to w regenerację.";
       } else {
         const stimulus = cell?.stimulus;
-        if (
-          lastWasHard &&
-          !profile.painInjury &&
-          (stimulus === undefined || isHardStimulus(stimulus))
-        ) {
-          // Nie stawiamy ciężkiego bodźca dzień po dużym obciążeniu (np. po klubie).
+        if (lastWasHard && !profile.painInjury && stimulus === undefined) {
+          // Tylko brak bodźca może zostać zamieniony na lżejszą pracę. Jawne
+          // bodźce z kwot kategorii (siła/sprint/bieganie) nie mogą wypaść.
           built = buildLightAlternative(profile);
           reason =
             "Dzień po większym obciążeniu: kontrolowana, lżejsza praca zamiast ciężkiego bodźca.";
@@ -2555,10 +2552,19 @@ export function generatePlan(
     }
 
 
-    // Druga, lekka sesja — tylko jeśli dozwolona, bezpieczna i w limicie
-    // tygodniowym (bez automatycznych 5 podwójnych dni).
+    // Druga sesja: najpierw realizuje konkretną kategorię z tygodniowej kwoty.
+    // Dla zdrowych profili nie dokładamy już automatycznych fillerów.
     if (doublesThisWeek < weeklyMaxDoubles) {
-      const second = buildSecondSession(session.dayType, date, profile);
+      let second: SessionDay | null = null;
+      if (cell?.secondStimulus) {
+        const built = buildStimulus(cell.secondStimulus, profile);
+        second = builtToSecondSession(built, date, profile);
+        second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
+        second.whyToday =
+          "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
+      } else if (!isHealthyPerformanceProfile(profile)) {
+        second = buildSecondSession(session.dayType, date, profile);
+      }
       if (second) {
         session.secondSession = second;
         session.slotLabel =
