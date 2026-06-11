@@ -2871,14 +2871,11 @@ export function generatePlan(
         },
         secondSession: null,
       };
-      // Strukturalne bloki siła→moc dla sesji siłowych/mocowych (okno bez MD-1/MD-2).
+      // Strukturalne, wariantowe sesje siłowni (rola + periodyzacja + anty-powtórzenia).
       if (/sił|moc|power/i.test(built.sessionType)) {
-        const structured = buildStrengthPowerStructured(profile, {
-          mdLabel: session.mdLabel,
-          powerFocus:
-            profile.goal === "power" || /moc|power/i.test(built.sessionType),
-        });
-        if (structured) session.structuredSections = structured;
+        applyGymPlan(session);
+        reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
+        session.reason = reason;
       }
       lastWasHard = built.intensity === "wysoka";
     }
