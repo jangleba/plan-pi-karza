@@ -2367,8 +2367,8 @@ export function generatePlan(
         date: iso,
         dayName: dayName(date),
         dayType: "club",
-        title: "Trening klubowy (monitoring)",
-        goalLabel: "Obciążenie klubowe",
+        title: "Trening klubowy",
+        goalLabel: "Klub",
         intensity: "umiarkowana",
         durationMin: 90,
         reason:
@@ -2377,7 +2377,7 @@ export function generatePlan(
           "Trening klubowy to realne obciążenie. Po nim monitoruj odczucia i sen.",
         whyToday:
           "Trening klubowy jest wliczany do tygodniowego obciążenia, dlatego to on jest sesją główną dnia.",
-        sessionType: "Trening klubowy (monitoring)",
+        sessionType: "Klub",
         goalOfSession: "Realizacja treningu klubowego jako głównego obciążenia.",
         riskManaged:
           "Nie dokładamy ćwiczeń do treningu klubowego — tylko monitoring obciążenia.",
