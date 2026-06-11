@@ -320,7 +320,7 @@ function PlanScreen() {
                 <Users className="h-3.5 w-3.5" /> {summary.stats.clubTrainingCount} klubowe
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Leaf className="h-3.5 w-3.5" /> Recovery: {summary.stats.recoveryPrehabCount}
+                <Leaf className="h-3.5 w-3.5" /> Regeneracja: {summary.stats.recoveryPrehabCount}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
                 <Layers className="h-3.5 w-3.5" /> Podwójne dni: {summary.stats.doubleDayCount}
