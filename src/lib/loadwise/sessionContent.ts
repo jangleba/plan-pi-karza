@@ -235,7 +235,7 @@ export function buildSportPerformance(
             cue: "Najazd płynny, na odcinku lotnym wysoka częstość i luz.",
             easier: "Skróć odcinek lotny do 15 m.",
           },
-          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "prędkość maksymalna", ageSafety: "all" as AgeSafetyTag === "all" ? "youth_safe" : "youth_safe", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
+          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "prędkość maksymalna", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
         ),
         mk(
           {
