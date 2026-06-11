@@ -52,9 +52,8 @@ function compactPrescription(e: TrainingExercise): string {
   const repsHasContacts = /kontakt/i.test(e.reps ?? "");
   if (e.sets && e.reps) parts.push(`${e.sets} × ${e.reps}`);
   else if (e.reps) parts.push(e.reps);
-  else if (e.distance) parts.push(e.distance);
-  if (e.distance && e.reps) parts.push(e.distance);
   if (e.duration) parts.push(e.duration);
+
   if (typeof e.groundContacts === "number" && !repsHasContacts)
     parts.push(`${e.groundContacts} kontaktów`);
   if (e.rpe) parts.push(e.rpe);
