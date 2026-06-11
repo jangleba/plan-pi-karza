@@ -1811,11 +1811,11 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (/sił|moc|power|przysiad|martwy|split squat|wykrok|rdl|trap-bar|goblet/.test(text)) {
     return "strength_power";
   }
-  if (/sprint|szybko|przyspiesz|akceler|prędko|reakcja|flying/.test(text)) {
-    return "speed";
-  }
   if (/wydol|tlen|tempo|interwa|rsa|kondyc|ciągły bieg|biegowy|bieg /.test(text)) {
     return "conditioning";
+  }
+  if (/sprint|szybko|przyspiesz|akceler|prędko|reakcja|flying/.test(text)) {
+    return "speed";
   }
   if (/cod|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil|core|przywodziciel|copenhagen|nordic/.test(text)) {
     return "athletic";
