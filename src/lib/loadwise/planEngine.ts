@@ -2624,6 +2624,16 @@ export function generatePlan(
       doublesThisWeek = 0;
       highDaysThisWeek = 0;
       weeklyMaxDoubles = maxDoublesAtStart.get(i)!;
+      const wc = weekContextAtStart.get(i);
+      if (wc) {
+        curWeekIndex = wc.weekIndex;
+        curPhase = wc.phase;
+      }
+      // Przenieś historię tygodnia do "poprzedniego tygodnia" i wyzeruj bieżący.
+      gymHistory.usedMainLastWeek = gymHistory.usedMainThisWeek;
+      gymHistory.usedMainThisWeek = [];
+      gymHistory.usedRolesThisWeek = [];
+      gymSessionsThisWeek = 0;
     }
 
     const cell = blockMap[iso];
