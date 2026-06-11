@@ -1112,6 +1112,9 @@ export function classifyExercise(ex: TrainingExercise): MovementPattern {
   ) {
     return "power";
   }
+  // CORE RULE 3: trap bar / hex bar deadlift = hybrydowa siła kolanowo-dominująca
+  // (quady + pośladki + total force). NIE liczy się jako ekspozycja hamstring.
+  if (hasAny(n, ["trap bar", "trap-bar", "hex bar", "hex-bar", "trapbar"])) return "squat";
   if (hasAny(n, ["nordic", "leg curl", "slider", "hamstring", "glute bridge", "bridge march", "good morning", "ścięgn"]))
     return "hamstring";
   if (hasAny(n, ["rdl", "martwy ciąg", "hip thrust", "hip hinge", "hinge", "deadlift"])) return "hinge";
