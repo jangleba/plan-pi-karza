@@ -11,7 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import type {
   SessionDay,
   TrainingSection,
-  TrainingBlock,
+  
   TrainingExercise,
 } from "@/lib/loadwise/types";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
