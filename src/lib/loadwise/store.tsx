@@ -19,7 +19,7 @@ import type {
   SessionStatus,
   WeeklyTransition,
 } from "./types";
-import { generatePlan, PLAN_ENGINE_VERSION } from "./planEngine";
+import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
 import { warsawToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
