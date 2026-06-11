@@ -95,6 +95,81 @@ export interface ExerciseItem {
 
 export type Intensity = "niska" | "umiarkowana" | "wysoka";
 
+// ---------- Strukturalny model treningu (bloki) ----------
+
+export type BlockType =
+  | "single"
+  | "superset"
+  | "contrast"
+  | "complex"
+  | "rfd"
+  | "stiffness"
+  | "deceleration"
+  | "accessory";
+
+export type BlockIntent =
+  | "strength"
+  | "power"
+  | "braking"
+  | "stiffness"
+  | "rfd"
+  | "stability"
+  | "mobility";
+
+export type SectionType =
+  | "warmup"
+  | "prep"
+  | "main"
+  | "accessory"
+  | "cooldown"
+  | "log";
+
+export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
+
+export interface TrainingExercise {
+  id: string;
+  label?: string; // A1 | A2 | B1 | B2 ...
+  name: string;
+  sets?: string;
+  reps?: string;
+  duration?: string;
+  restAfterExercise?: string;
+  restAfterPair?: string;
+  tempo?: string;
+  rpe?: string;
+  rir?: string;
+  loadTarget?: string;
+  groundContacts?: number;
+  equipment?: string;
+  cue?: string;
+  technique?: string;
+  regression?: string;
+  progression?: string;
+  commonMistake?: string;
+  contraindications?: string;
+  ageSafetyLevel?: AgeSafetyLevel;
+  matchDayRestriction?: string;
+  completed?: boolean;
+}
+
+export interface TrainingBlock {
+  id: string;
+  title: string;
+  blockType: BlockType;
+  intent: BlockIntent;
+  exercises: TrainingExercise[];
+  restAfterBlock?: string;
+  eligibilityLevel?: AgeSafetyLevel;
+  safetyNotes?: string;
+}
+
+export interface TrainingSection {
+  id: string;
+  title: string;
+  type: SectionType;
+  blocks: TrainingBlock[];
+}
+
 export type DayType =
   | "match" // mecz
   | "md-1" // dzień przed meczem
