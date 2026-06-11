@@ -1035,12 +1035,12 @@ export function flatToStructured(sections: {
       section({
         title: g.title,
         type: g.type,
-        blocks: g.items.map((it) =>
+        blocks: [
           block({
-            title: it.name,
+            title: "",
             blockType: "single",
             intent: "strength",
-            exercises: [
+            exercises: g.items.map((it) =>
               ex({
                 name: it.name,
                 reps: it.prescription,
@@ -1049,9 +1049,10 @@ export function flatToStructured(sections: {
                 regression: it.easier,
                 progression: it.harder,
               }),
-            ],
+            ),
           }),
-        ),
+        ],
       }),
     );
 }
+
