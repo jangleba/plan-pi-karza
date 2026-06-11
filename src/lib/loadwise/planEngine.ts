@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-calendar-weeks-v6";
+export const PLAN_ENGINE_VERSION = "loadwise-category-engine-v7";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -709,11 +709,15 @@ function buildSecondSession(
   const young = isYoung(profile.age);
 
   if (primaryType === "club") {
-    // Club day + krótka, lekka sesja własna (technika/prehab) — dobra para.
-    const choices = young
-      ? [secondFootballTouch(), secondMobilityPrehab()]
-      : [secondFootballTouch(), secondMobilityPrehab(), secondBallTechnique()];
-    const pick = choices[(date.getDate() + choices.length) % choices.length];
+    // Dzień klubowy to już ekspozycja piłkarska — druga sesja to przede
+    // wszystkim prehab/mobilność (dobra para: klub + krótki prehab), tylko
+    // czasem lekki akcent techniczny. Nie dokładamy kolejnej pełnej piłki.
+    const choices = [
+      secondMobilityPrehab(),
+      secondMobilityPrehab(),
+      secondFootballTouch(),
+    ];
+    const pick = choices[date.getDate() % choices.length];
     return builtToSecondSession(pick, date, profile);
   }
 
@@ -1730,6 +1734,10 @@ function primaryStimulusForGoal(goal: Profile["goal"], gym: boolean): Stimulus {
       return "cod";
     case "endurance":
       return "endurance_special";
+    case "general":
+    case "matchready":
+      // Rozwój piłkarski / gotowość = pełny rozwój wydolnościowy, nie tylko piłka.
+      return gym ? "strength" : "sprint";
     default:
       return "ball";
   }
@@ -1746,6 +1754,127 @@ function frontLoadGoal(profile: Profile, list: Stimulus[]): Stimulus[] {
     return copy;
   }
   return list;
+}
+
+// ============================================================
+// Walidacja i naprawa kategorii tygodnia (category-based engine)
+// Każdy bodziec należy do kategorii wydolnościowej. Dla zdrowego
+// zawodnika tydzień MUSI być zbalansowany: siła/moc, szybkość,
+// wydolność i motoryka mają priorytet nad pracą stricte piłkarską,
+// bo klub i mecz już zapewniają ekspozycję piłkarską. Piłka jako
+// trening własny jest limitowana, a brakujące kategorie są dodawane
+// w kolejności priorytetu, zanim tydzień zostanie pokazany.
+// ============================================================
+
+type PerfCategory =
+  | "strength_power"
+  | "speed"
+  | "conditioning"
+  | "athletic"
+  | "ball";
+
+function categoryOf(s: Stimulus): PerfCategory {
+  switch (s) {
+    case "strength_base":
+    case "strength":
+    case "strength_deload":
+    case "power":
+      return "strength_power";
+    case "sprint":
+    case "speed_exposure":
+      return "speed";
+    case "endurance_aerobic":
+    case "endurance_special":
+    case "endurance_rsa":
+    case "endurance_deload":
+    case "endurance_light":
+      return "conditioning";
+    case "cod":
+    case "prehab":
+      return "athletic";
+    case "ball":
+    default:
+      return "ball";
+  }
+}
+
+// Kolejność priorytetu dla dodatkowych sesji indywidualnych.
+const CATEGORY_PRIORITY: PerfCategory[] = [
+  "strength_power",
+  "speed",
+  "conditioning",
+  "athletic",
+  "ball",
+];
+
+/**
+ * Naprawia tygodniową listę bodźców tak, by spełniała minima kategorii
+ * i nie była zdominowana przez piłkę. Zwraca listę uporządkowaną wg
+ * priorytetu (wydolność najpierw, piłka i prehab na końcu), dłuższą niż
+ * docelowy cap — dzięki temu po obcięciu w grafiku zostają sesje
+ * wydolnościowe, a nie piłkarskie.
+ */
+function balanceWeeklyCategories(
+  profile: Profile,
+  list: Stimulus[],
+  clubCount: number,
+  matchCount: number,
+  phase: WeekPhase,
+): Stimulus[] {
+  // Profile z bólem/urazem oraz okresy roztrenowania/powrotu zostają lekkie.
+  if (profile.painInjury) return list;
+  if (
+    profile.seasonPhase === "transition" ||
+    profile.seasonPhase === "return_injury"
+  ) {
+    return list;
+  }
+  if (profile.goal === "mobility" || profile.goal === "return") return list;
+
+  const gym = profile.hasGym;
+  const deload = phase === "deload";
+  const strengthMain: Stimulus = deload
+    ? "strength_deload"
+    : gym
+      ? "strength"
+      : "strength_base";
+  const condMain: Stimulus = deload
+    ? "endurance_deload"
+    : enduranceMainForPhase(phase);
+
+  // Klub i mecz to już ekspozycja piłkarska — limituj własne sesje piłki.
+  const footballExposure = clubCount + matchCount;
+  const maxBall = footballExposure >= 1 ? 1 : 2;
+
+  // 1. Ogranicz liczbę sesji stricte piłkarskich.
+  let ballSeen = 0;
+  const trimmed = list.filter((s) => {
+    if (s === "ball") {
+      ballSeen++;
+      return ballSeen <= maxBall;
+    }
+    return true;
+  });
+
+  // 2. Zapewnij obecność kategorii wydolnościowych (minimum bazowe).
+  const has = (c: PerfCategory) => trimmed.some((s) => categoryOf(s) === c);
+  const additions: Stimulus[] = [];
+  if (!has("strength_power")) additions.push(strengthMain);
+  if (!has("speed")) additions.push(deload ? "speed_exposure" : "sprint");
+  if (!has("conditioning")) additions.push(condMain);
+  if (!has("athletic")) additions.push(deload ? "prehab" : "cod");
+  if (footballExposure === 0 && !has("ball")) additions.push("ball");
+
+  const all = [...trimmed, ...additions];
+
+  // 3. Uporządkuj wg priorytetu kategorii (sort stabilny zachowuje kolejność
+  //    wewnątrz kategorii). Piłka ląduje na końcu i jako pierwsza wypada przy
+  //    obcinaniu do cap, więc tydzień nie jest zdominowany przez piłkę.
+  return [...all].sort(
+    (a, b) =>
+      CATEGORY_PRIORITY.indexOf(categoryOf(a)) -
+      CATEGORY_PRIORITY.indexOf(categoryOf(b)),
+  );
 }
 
 /**
@@ -1765,50 +1894,53 @@ function seasonWeeklyStimuli(
   }
   const gym = profile.hasGym;
   const strengthMain: Stimulus = gym ? "strength" : "strength_base";
+  let raw: Stimulus[];
 
   switch (profile.seasonPhase) {
-    case "offseason": {
-      const list: Stimulus[] = [
+    case "offseason":
+      raw = frontLoadGoal(profile, [
         strengthMain,
         "power",
         "sprint",
         "endurance_aerobic",
-        "ball",
         "cod",
         "ball",
         "prehab",
-      ];
-      return frontLoadGoal(profile, list);
-    }
-    case "preseason": {
-      const list: Stimulus[] = [
+      ]);
+      break;
+    case "preseason":
+      raw = frontLoadGoal(profile, [
         strengthMain,
         "power",
         "sprint",
         "endurance_special",
         "endurance_aerobic",
-        "ball",
-        "ball",
         "cod",
+        "ball",
         "prehab",
-      ];
-      return frontLoadGoal(profile, list);
-    }
+      ]);
+      break;
     case "transition":
       return ["prehab", "endurance_light", "ball", "prehab", "strength_base", "ball"];
     case "return_injury":
       return ["prehab", "endurance_light", "ball", "prehab", "ball"];
     case "inseason":
     default: {
-      const base = weeklyStimuli(profile, clubCount, matchCount, phase);
+      raw = weeklyStimuli(profile, clubCount, matchCount, phase);
       if (matchCount === 0) {
-        // Brak meczu w tym tygodniu — zwiększ gęstość treningową.
-        base.push(primaryStimulusForGoal(profile.goal, gym));
-        base.push("ball");
+        // Brak meczu w tym tygodniu — zwiększ gęstość PRACY WYDOLNOŚCIOWEJ,
+        // nie piłkarskiej (klub i tak daje ekspozycję piłkarską).
+        raw.push(strengthMain);
+        raw.push("sprint");
+        raw.push(phase === "deload" ? "endurance_light" : enduranceMainForPhase(phase));
+        raw.push("cod");
       }
-      return base;
+      break;
     }
   }
+
+  // Walidacja + naprawa kategorii zanim tydzień trafi do grafiku.
+  return balanceWeeklyCategories(profile, raw, clubCount, matchCount, phase);
 }
 
 // ============================================================
