@@ -95,7 +95,6 @@ function advancedSections(profile: Profile, ctx: StrengthBlockContext): Training
           }),
           ex({
             name: "Aktywacja pośladków i core",
-            prescription: undefined,
             sets: "2",
             reps: "10–12",
             cue: "Napięcie pośladka, neutralny kręgosłup.",
