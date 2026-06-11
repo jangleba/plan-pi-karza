@@ -2413,6 +2413,23 @@ function repairWeekCells(
     if (countCellCategories(cells())[category] > 0) continue;
     const stimulus = replacementFor[category];
 
+    // Najpierw spróbuj zamienić bezczynny dzień regeneracji (bez bodźca) na
+    // brakującą kategorię — nie kosztem innej zaplanowanej kategorii.
+    const idleRecovery = [...items]
+      .sort((a, b) => slotScore(stimulus, b) - slotScore(stimulus, a))
+      .find((it) => {
+        const cell = result[it.iso];
+        return (
+          cell?.type === "recovery" &&
+          it.base === "available" &&
+          canPrimaryStimulus(stimulus, it)
+        );
+      });
+    if (idleRecovery) {
+      result[idleRecovery.iso] = { type: "training", stimulus };
+      continue;
+    }
+
     const replaceablePrimary = items.find((it) => {
       const cell = result[it.iso];
       if (!cell || cell.type !== "training" || !cell.stimulus) return false;
