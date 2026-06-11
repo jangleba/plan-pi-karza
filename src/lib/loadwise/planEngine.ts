@@ -16,7 +16,7 @@ import {
   GOAL_LABELS,
 } from "./labels";
 
-export const PLAN_ENGINE_VERSION = "loadwise-season-context-v5";
+export const PLAN_ENGINE_VERSION = "loadwise-calendar-weeks-v6";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -1859,10 +1859,10 @@ function planBlock(
   weekOffset = 0,
 ): Record<string, PlanCell> {
   const result: Record<string, PlanCell> = {};
-  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+  const ranges = weekRanges(startDate, days);
+  const totalWeeks = Math.max(1, ranges.length);
 
-  for (let blockStart = 0; blockStart < days; blockStart += 7) {
-    const weekIndex = Math.floor(blockStart / 7);
+  ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
     const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
 
@@ -1870,7 +1870,7 @@ function planBlock(
     let clubCount = 0;
     let matchCount = 0;
 
-    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
+    for (let i = range.start; i < range.end; i++) {
       const date = addDays(startDate, i);
       const base = baseDayType(date, profile);
       if (base === "club") clubCount++;
@@ -1906,10 +1906,31 @@ function planBlock(
         result[it.iso] = { type: "recovery" };
       }
     });
-  }
+  });
 
   return result;
 }
+
+/**
+ * Dzieli okres planu na tygodnie kalendarzowe (poniedziałek–niedziela).
+ * Pierwszy tydzień może być niepełny, jeśli plan startuje w środku tygodnia.
+ * Zwraca przedziały indeksów dni [start, end) względem startDate.
+ */
+export function weekRanges(
+  startDate: Date,
+  days: number,
+): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = [];
+  let i = 0;
+  while (i < days) {
+    let j = i + 1;
+    while (j < days && isoDayOfWeek(addDays(startDate, j)) !== 1) j++;
+    ranges.push({ start: i, end: j });
+    i = j;
+  }
+  return ranges;
+}
+
 
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 
@@ -1926,25 +1947,34 @@ export function generatePlan(
   let lastWasHard = false;
   let doublesThisWeek = 0;
   let weeklyMaxDoubles = 0;
-  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+  const ranges = weekRanges(startDate, days);
+  const totalWeeks = Math.max(1, ranges.length);
+  // Limit podwójnych dni liczony per tydzień kalendarzowy (poniedziałek start).
+  const maxDoublesAtStart = new Map<number, number>();
+  ranges.forEach((range, weekIndex) => {
+    const phaseTotal = days <= 7 ? 4 : totalWeeks;
+    const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
+    let hasMatch = false;
+    for (let k = range.start; k < range.end; k++) {
+      if (isMatchDay(addDays(startDate, k), profile)) {
+        hasMatch = true;
+        break;
+      }
+    }
+    maxDoublesAtStart.set(
+      range.start,
+      weekLoadConfig(profile, phase, hasMatch).maxDoubles,
+    );
+  });
 
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
-    if (i % 7 === 0) {
+    if (maxDoublesAtStart.has(i)) {
       doublesThisWeek = 0;
-      const weekIndex = Math.floor(i / 7);
-      const phaseTotal = days <= 7 ? 4 : totalWeeks;
-      const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
-      let hasMatch = false;
-      for (let k = i; k < Math.min(i + 7, days); k++) {
-        if (isMatchDay(addDays(startDate, k), profile)) {
-          hasMatch = true;
-          break;
-        }
-      }
-      weeklyMaxDoubles = weekLoadConfig(profile, phase, hasMatch).maxDoubles;
+      weeklyMaxDoubles = maxDoublesAtStart.get(i)!;
     }
+
     const cell = blockMap[iso];
     const type: DayType = cell?.type ?? "rest";
 

@@ -19,7 +19,7 @@ import type {
   SessionStatus,
   WeeklyTransition,
 } from "./types";
-import { generatePlan, PLAN_ENGINE_VERSION } from "./planEngine";
+import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
 import { warsawToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
@@ -616,13 +616,16 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const profile = state.profile;
     if (!profile) return;
 
-    // weekNumber jest 1-based dla ZAKOŃCZONEGO tygodnia.
-    // Kolejny tydzień zaczyna się od indeksu weekNumber*7 (0-based).
-    const startIdx = weekNumber * 7;
+    // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
+    // Wyznaczamy jego przedział w planie wg granic poniedziałek–niedziela.
     const current = state.plan;
     let newPlan = current;
+    const planStart = current[0] ? parseIso(current[0].date) : null;
+    const ranges = planStart ? weekRanges(planStart, current.length) : [];
+    const range = ranges[weekNumber];
 
-    if (current[startIdx]) {
+    if (range && current[range.start]) {
+      const startIdx = range.start;
       const weekStart = parseIso(current[startIdx].date);
       // Profil tymczasowy: tylko podana data meczu steruje taperem.
       const tempProfile: Profile = {
@@ -630,7 +633,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         usualMatchDay: "no_fixed_day",
         matchDate: noMatchNextWeek ? null : nextMatchDate,
       };
-      const regenDays = Math.min(7, current.length - startIdx);
+      const regenDays = range.end - range.start;
       const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
       newPlan = [
         ...current.slice(0, startIdx),
@@ -640,6 +643,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
       await persistMonthlyPlan(user.id, profile, newPlan);
     }
+
 
     const id =
       state.transitions[weekNumber]?.id ?? crypto.randomUUID();
