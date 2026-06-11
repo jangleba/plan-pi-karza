@@ -518,7 +518,7 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
       type: "prep",
       blocks: [
         block({
-          title: "Sprint support — mechanika",
+          title: "Wsparcie sprintu — mechanika",
           blockType: "single",
           intent: "rfd",
           restAfterBlock: "60 s",
