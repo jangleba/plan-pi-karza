@@ -1844,7 +1844,7 @@ export function sessionContainsPrehab(session: SessionDay): boolean {
     .map((e) => `${e.name} ${e.prescription} ${e.cue ?? ""}`)
     .join(" ");
   const text = `${headerTextOfSession(session)} ${exerciseText}`.toLowerCase();
-  return /prehab|mobil|regener|stabil|core|przywodziciel|copenhagen|nordic|oddech|łydk|hamstring/.test(text);
+  return /prehab|mobil|regener|przywodziciel|copenhagen|nordic|oddech|łydk|hamstring/.test(text);
 }
 
 // Kolejność priorytetu dla dodatkowych sesji indywidualnych.
