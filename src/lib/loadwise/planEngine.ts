@@ -1859,10 +1859,10 @@ function planBlock(
   weekOffset = 0,
 ): Record<string, PlanCell> {
   const result: Record<string, PlanCell> = {};
-  const totalWeeks = Math.max(1, Math.ceil(days / 7));
+  const ranges = weekRanges(startDate, days);
+  const totalWeeks = Math.max(1, ranges.length);
 
-  for (let blockStart = 0; blockStart < days; blockStart += 7) {
-    const weekIndex = Math.floor(blockStart / 7);
+  ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
     const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
 
@@ -1870,7 +1870,7 @@ function planBlock(
     let clubCount = 0;
     let matchCount = 0;
 
-    for (let i = blockStart; i < Math.min(blockStart + 7, days); i++) {
+    for (let i = range.start; i < range.end; i++) {
       const date = addDays(startDate, i);
       const base = baseDayType(date, profile);
       if (base === "club") clubCount++;
