@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import type {
-  ExerciseItem,
   SessionDay,
   TrainingSection,
   TrainingBlock,
