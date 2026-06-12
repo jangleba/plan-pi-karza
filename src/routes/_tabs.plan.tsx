@@ -348,54 +348,62 @@ function PlanScreen() {
       )}
 
 
-      {/* Karta podsumowania tygodnia */}
+      {/* Hero — decyzja dnia */}
+      {todaySession &&
+        (() => {
+          const HeroIcon = sessionIcon(todaySession);
+          return (
+            <div className="px-5 pt-3">
+              <Link
+                to="/sesja/$date"
+                params={{ date: todaySession.date }}
+                search={{ slot: 1 }}
+                className="hero-card flex items-center gap-4 p-5 active:scale-[0.99] transition-transform"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand/20 text-brand-foreground">
+                  <HeroIcon className="h-7 w-7 text-[oklch(0.78_0.13_256)]" strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
+                    Decyzja dnia
+                  </div>
+                  <h2 className="mt-1 truncate text-xl font-bold leading-tight">
+                    {todaySession.title}
+                  </h2>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
+                      {INTENSITY_SHORT[todaySession.intensity]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
+                      {LOAD_SHORT[todaySession.intensity]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
+                      {todaySession.durationMin} min
+                    </span>
+                  </div>
+                </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground">
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+              </Link>
+            </div>
+          );
+        })()}
+
+      {/* Fokus tygodnia — jeden wiersz */}
       {summary && (
         <div className="px-5 pt-3">
-          <div className="soft-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Fokus tygodnia · Tydzień {activeWeek + 1}
-                </div>
-                <h2 className="mt-1 text-lg font-semibold leading-tight">
-                  {summary.goal}
-                </h2>
-              </div>
-              <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                Obciążenie: {LOAD_LABEL[summary.load]}
-              </span>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Flame className="h-3.5 w-3.5" /> {summary.focus}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <CalendarClock className="h-3.5 w-3.5" /> Mecz: {summary.stats.matchDateLabel}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Dumbbell className="h-3.5 w-3.5" /> {summary.stats.ownTrainingCount} własne
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Users className="h-3.5 w-3.5" /> {summary.stats.clubTrainingCount} klubowe
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Leaf className="h-3.5 w-3.5" /> Regeneracja: {summary.stats.recoveryPrehabCount}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Layers className="h-3.5 w-3.5" /> Podwójne dni: {summary.stats.doubleDayCount}
-              </span>
-            </div>
-
-            {summary.reasons.length > 0 && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Plan skrócony: {summary.reasons[0]}.
-              </p>
-            )}
-
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 px-4 py-2.5">
+            <span className="truncate text-sm font-medium text-secondary-foreground">
+              {summary.goal}
+            </span>
+            <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+              Obciążenie: {LOAD_LABEL[summary.load]}
+            </span>
           </div>
         </div>
       )}
+
 
       {/* Dni tygodnia */}
       <div
