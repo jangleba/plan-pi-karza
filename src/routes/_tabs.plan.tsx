@@ -504,29 +504,16 @@ function PlanScreen() {
 
 
               {hasTwo && day.secondSession && (
-                <div className="mt-3 rounded-xl bg-muted/60 p-2.5">
-                  <div className="px-1 pb-1.5 text-xs font-semibold">
-                    2 sesje dziś
-                  </div>
-                  <Link
-                    to="/sesja/$date"
-                    params={{ date: day.date }}
-                    search={{ slot: 1 }}
-                    className="flex items-center justify-between rounded-lg bg-card px-3 py-2 text-xs font-medium"
-                  >
-                    <span className="truncate">1. {day.title}</span>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                  <Link
-                    to="/sesja/$date"
-                    params={{ date: day.date }}
-                    search={{ slot: 2 }}
-                    className="mt-1.5 flex items-center justify-between rounded-lg bg-card px-3 py-2 text-xs font-medium"
-                  >
-                    <span className="truncate">2. {day.secondSession.title}</span>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                </div>
+                <Link
+                  to="/sesja/$date"
+                  params={{ date: day.date }}
+                  search={{ slot: 2 }}
+                  className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-foreground/60" />
+                  <span className="truncate">2. sesja: {day.secondSession.title}</span>
+                  <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
+                </Link>
               )}
             </div>
           );
