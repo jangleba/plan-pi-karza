@@ -244,7 +244,7 @@ function weekSummary(
 
 
 function PlanScreen() {
-  const { state, todayIso } = useLoadwise();
+  const { state, todayIso, todaySession } = useLoadwise();
   const plan = state.plan;
   const completions = state.completions;
   const profile = state.profile;
