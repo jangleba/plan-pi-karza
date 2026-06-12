@@ -298,8 +298,17 @@ function PlanScreen() {
   return (
     <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
       <AppHeader
-        title="Plan treningowy"
-        subtitle={`${pluralWeeks(weeks.length)} · cel: ${monthGoal}`}
+        title="Plan tygodnia"
+        subtitle={
+          current
+            ? `${formatDate(current.startDate)}–${formatDate(current.endDate)} · ${monthGoal}`
+            : monthGoal
+        }
+        right={
+          <span className="icon-bubble h-9 w-9 border border-border bg-card">
+            <CalendarDays className="h-4 w-4" />
+          </span>
+        }
       />
 
       {plan.length === 0 && (
