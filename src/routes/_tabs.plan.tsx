@@ -17,14 +17,17 @@ import {
   Clock,
   ChevronRight,
   CheckCircle2,
-  Flame,
   CalendarClock,
   Dumbbell,
-  Users,
   Lock,
   ArrowRight,
-  Layers,
   Leaf,
+  Zap,
+  Target,
+  Activity,
+  Gauge,
+  CalendarDays,
+  type LucideIcon,
 } from "lucide-react";
 
 
@@ -38,6 +41,54 @@ const LOAD_LABEL: Record<Intensity, string> = {
   umiarkowana: "umiarkowane",
   wysoka: "wysokie",
 };
+
+const LOAD_SHORT: Record<Intensity, string> = {
+  niska: "Niskie",
+  umiarkowana: "Średnie",
+  wysoka: "Wysokie",
+};
+
+const INTENSITY_SHORT: Record<Intensity, string> = {
+  niska: "Niska",
+  umiarkowana: "Średnia",
+  wysoka: "Wysoka",
+};
+
+/** Ikona w bańce dla typu dnia. */
+function sessionIcon(day: SessionDay): LucideIcon {
+  if (day.dayType === "match") return Target;
+  if (day.dayType === "recovery" || day.dayType === "rest") return Leaf;
+  const t = day.sessionType.toLowerCase();
+  if (t.includes("szybk") || t.includes("sprint")) return Zap;
+  if (t.includes("piłk") || t.includes("techn") || t.includes("ball")) return Target;
+  if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob")) return Activity;
+  return Dumbbell;
+}
+
+/** Jednowyrazowy tag pod nazwą sesji. */
+function shortTag(day: SessionDay): string {
+  switch (day.dayType) {
+    case "match":
+      return "Mecz";
+    case "md-1":
+      return "Aktywacja";
+    case "club":
+      return "Klub";
+    case "recovery":
+      return "Odpoczynek";
+    case "rest":
+      return "Wolne";
+    default: {
+      const t = day.sessionType.toLowerCase();
+      if (t.includes("szybk") || t.includes("sprint")) return "Szybkość";
+      if (t.includes("sił")) return "Główna jednostka";
+      if (t.includes("moc")) return "Moc";
+      if (t.includes("wytrzym")) return "Wytrzymałość";
+      if (t.includes("piłk") || t.includes("techn")) return "Technika";
+      return "Trening";
+    }
+  }
+}
 
 function pluralWeeks(n: number): string {
   if (n === 1) return "1 tydzień";
@@ -193,7 +244,7 @@ function weekSummary(
 
 
 function PlanScreen() {
-  const { state, todayIso } = useLoadwise();
+  const { state, todayIso, todaySession } = useLoadwise();
   const plan = state.plan;
   const completions = state.completions;
   const profile = state.profile;
@@ -247,8 +298,17 @@ function PlanScreen() {
   return (
     <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
       <AppHeader
-        title="Plan treningowy"
-        subtitle={`${pluralWeeks(weeks.length)} · cel: ${monthGoal}`}
+        title="Plan tygodnia"
+        subtitle={
+          current
+            ? `${formatDate(current.startDate)}–${formatDate(current.endDate)} · ${monthGoal}`
+            : monthGoal
+        }
+        right={
+          <span className="icon-bubble h-9 w-9 border border-border bg-card">
+            <CalendarDays className="h-4 w-4" />
+          </span>
+        }
       />
 
       {plan.length === 0 && (
@@ -288,54 +348,62 @@ function PlanScreen() {
       )}
 
 
-      {/* Karta podsumowania tygodnia */}
+      {/* Hero — decyzja dnia */}
+      {todaySession &&
+        (() => {
+          const HeroIcon = sessionIcon(todaySession);
+          return (
+            <div className="px-5 pt-3">
+              <Link
+                to="/sesja/$date"
+                params={{ date: todaySession.date }}
+                search={{ slot: 1 }}
+                className="hero-card flex items-center gap-4 p-5 active:scale-[0.99] transition-transform"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand/20 text-brand-foreground">
+                  <HeroIcon className="h-7 w-7 text-[oklch(0.78_0.13_256)]" strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
+                    Decyzja dnia
+                  </div>
+                  <h2 className="mt-1 truncate text-xl font-bold leading-tight">
+                    {todaySession.title}
+                  </h2>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
+                      {INTENSITY_SHORT[todaySession.intensity]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
+                      {LOAD_SHORT[todaySession.intensity]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
+                      {todaySession.durationMin} min
+                    </span>
+                  </div>
+                </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground">
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
+                </span>
+              </Link>
+            </div>
+          );
+        })()}
+
+      {/* Fokus tygodnia — jeden wiersz */}
       {summary && (
         <div className="px-5 pt-3">
-          <div className="soft-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Fokus tygodnia · Tydzień {activeWeek + 1}
-                </div>
-                <h2 className="mt-1 text-lg font-semibold leading-tight">
-                  {summary.goal}
-                </h2>
-              </div>
-              <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-secondary-foreground">
-                Obciążenie: {LOAD_LABEL[summary.load]}
-              </span>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Flame className="h-3.5 w-3.5" /> {summary.focus}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <CalendarClock className="h-3.5 w-3.5" /> Mecz: {summary.stats.matchDateLabel}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Dumbbell className="h-3.5 w-3.5" /> {summary.stats.ownTrainingCount} własne
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Users className="h-3.5 w-3.5" /> {summary.stats.clubTrainingCount} klubowe
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Leaf className="h-3.5 w-3.5" /> Regeneracja: {summary.stats.recoveryPrehabCount}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-                <Layers className="h-3.5 w-3.5" /> Podwójne dni: {summary.stats.doubleDayCount}
-              </span>
-            </div>
-
-            {summary.reasons.length > 0 && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Plan skrócony: {summary.reasons[0]}.
-              </p>
-            )}
-
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 px-4 py-2.5">
+            <span className="truncate text-sm font-medium text-secondary-foreground">
+              {summary.goal}
+            </span>
+            <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+              Obciążenie: {LOAD_LABEL[summary.load]}
+            </span>
           </div>
         </div>
       )}
+
 
       {/* Dni tygodnia */}
       <div
@@ -362,91 +430,90 @@ function PlanScreen() {
           const mods = state.modifications[day.date] ?? [];
           const swapped = mods.some((m) => m.type === "swap");
           const added = mods.some((m) => m.type === "add");
+          const d = parseIso(day.date);
+          const dayNum = d.getDate();
+          const monthShort = d
+            .toLocaleDateString("pl-PL", { month: "short" })
+            .replace(".", "");
+          const RowIcon = sessionIcon(day);
+          const isRest = day.dayType === "rest" || day.dayType === "recovery";
           return (
             <div
               key={day.date}
-              className={`soft-card p-4 ${isToday ? "ring-2 ring-primary" : ""}`}
+              className={`soft-card relative overflow-hidden ${
+                isToday ? "ring-1 ring-primary/40" : ""
+              }`}
             >
+              {isToday && (
+                <span className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-primary" />
+              )}
               <Link
                 to="/sesja/$date"
                 params={{ date: day.date }}
                 search={{ slot: 1 }}
-                className="block"
+                className="flex items-center gap-3.5 p-3.5 active:bg-secondary/40"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {shortDayName(parseIso(day.date))} · {formatDate(day.date)}
-                      </span>
-                      {isToday && (
-                        <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                          Dziś
-                        </span>
-                      )}
-                      {swapped && (
-                        <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
-                          Zamieniona
-                        </span>
-                      )}
-                      {added && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          + Dodana
-                        </span>
-                      )}
-                      {done && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          <CheckCircle2 className="h-3 w-3" /> Wykonane
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-sm font-medium text-muted-foreground">
-                      {dayStatus(day)}
-                    </div>
-                    <h3 className="mt-0.5 truncate text-base font-semibold">
+                <div className="w-11 shrink-0 text-center">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {shortDayName(d)}
+                  </div>
+                  <div className="text-xl font-bold leading-none text-foreground">
+                    {dayNum}
+                  </div>
+                  <div className="text-[10px] font-medium uppercase text-muted-foreground">
+                    {monthShort}
+                  </div>
+                </div>
+
+                <span
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                    isRest
+                      ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]"
+                      : "icon-bubble"
+                  }`}
+                >
+                  <RowIcon className="h-6 w-6" strokeWidth={2} />
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="truncate text-[15px] font-semibold text-foreground">
                       {day.title}
                     </h3>
+                    {isToday && (
+                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
+                        Dziś
+                      </span>
+                    )}
+                    {done && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    )}
                   </div>
-                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                    <span
+                      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                        isRest ? "bg-[oklch(0.6_0.13_150)]" : "bg-primary"
+                      }`}
+                    />
+                    {swapped ? "Zamieniona" : added ? "Dodana" : shortTag(day)}
+                  </p>
                 </div>
 
-
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <IntensityBadge intensity={day.intensity} />
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" /> {day.durationMin} min
-                  </span>
-                </div>
-
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {whatToDo(day)}
-                </p>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
 
+
               {hasTwo && day.secondSession && (
-                <div className="mt-3 rounded-xl bg-muted/60 p-2.5">
-                  <div className="px-1 pb-1.5 text-xs font-semibold">
-                    2 sesje dziś
-                  </div>
-                  <Link
-                    to="/sesja/$date"
-                    params={{ date: day.date }}
-                    search={{ slot: 1 }}
-                    className="flex items-center justify-between rounded-lg bg-card px-3 py-2 text-xs font-medium"
-                  >
-                    <span className="truncate">1. {day.title}</span>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                  <Link
-                    to="/sesja/$date"
-                    params={{ date: day.date }}
-                    search={{ slot: 2 }}
-                    className="mt-1.5 flex items-center justify-between rounded-lg bg-card px-3 py-2 text-xs font-medium"
-                  >
-                    <span className="truncate">2. {day.secondSession.title}</span>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </Link>
-                </div>
+                <Link
+                  to="/sesja/$date"
+                  params={{ date: day.date }}
+                  search={{ slot: 2 }}
+                  className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-foreground/60" />
+                  <span className="truncate">2. sesja: {day.secondSession.title}</span>
+                  <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
+                </Link>
               )}
             </div>
           );

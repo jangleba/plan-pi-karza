@@ -207,30 +207,42 @@ function StartScreen() {
       <AppHeader title={`Cześć, ${profile.name}`} subtitle={formatDateFull(todayIso)} />
 
       <div className="space-y-4 px-5">
-        {/* Główna decyzja dnia */}
-        <div className="soft-card p-5">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <Activity className="h-3.5 w-3.5" /> Decyzja na dziś
+        {/* Główna decyzja dnia — ciemna karta */}
+        <button
+          type="button"
+          onClick={openSession}
+          className="hero-card flex w-full items-center gap-4 p-5 text-left transition-transform active:scale-[0.99]"
+        >
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand/20">
+            <Activity className="h-7 w-7 text-[oklch(0.78_0.13_256)]" strokeWidth={2.2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
+              Decyzja na dziś
+            </div>
+            <h2 className="mt-1 text-xl font-bold leading-tight">
+              {dayHeadline(adjustedToday)}
+            </h2>
+            <p className="mt-1 truncate text-sm text-graphite-muted">
+              {dayOneLiner(adjustedToday)}
+            </p>
           </div>
-          <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight">
-            {dayHeadline(adjustedToday)}
-          </h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {dayOneLiner(adjustedToday)}
-          </p>
-        </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground">
+            <ChevronRight className="h-4 w-4" strokeWidth={2.4} />
+          </span>
+        </button>
 
         {/* 3 kluczowe informacje */}
         <div className="grid grid-cols-3 gap-3">
           <div className="soft-card p-3">
-            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+            <CalendarClock className="h-4 w-4 text-primary" />
             <div className="mt-1.5 text-[11px] text-muted-foreground">Mecz</div>
             <div className="text-sm font-semibold leading-tight">
               {matchDate ? formatDate(matchDate) : "Brak"}
             </div>
           </div>
           <div className="soft-card p-3">
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Activity className="h-4 w-4 text-primary" />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
               Gotowość
             </div>
@@ -239,7 +251,7 @@ function StartScreen() {
             </div>
           </div>
           <div className="soft-card p-3">
-            <Gauge className="h-4 w-4 text-muted-foreground" />
+            <Gauge className="h-4 w-4 text-primary" />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
               Obciążenie
             </div>
