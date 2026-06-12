@@ -17,14 +17,17 @@ import {
   Clock,
   ChevronRight,
   CheckCircle2,
-  Flame,
   CalendarClock,
   Dumbbell,
-  Users,
   Lock,
   ArrowRight,
-  Layers,
   Leaf,
+  Zap,
+  Target,
+  Activity,
+  Gauge,
+  CalendarDays,
+  type LucideIcon,
 } from "lucide-react";
 
 
