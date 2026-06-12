@@ -430,66 +430,78 @@ function PlanScreen() {
           const mods = state.modifications[day.date] ?? [];
           const swapped = mods.some((m) => m.type === "swap");
           const added = mods.some((m) => m.type === "add");
+          const d = parseIso(day.date);
+          const dayNum = d.getDate();
+          const monthShort = d
+            .toLocaleDateString("pl-PL", { month: "short" })
+            .replace(".", "");
+          const RowIcon = sessionIcon(day);
+          const isRest = day.dayType === "rest" || day.dayType === "recovery";
           return (
             <div
               key={day.date}
-              className={`soft-card p-4 ${isToday ? "ring-2 ring-primary" : ""}`}
+              className={`soft-card relative overflow-hidden ${
+                isToday ? "ring-1 ring-primary/40" : ""
+              }`}
             >
+              {isToday && (
+                <span className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-primary" />
+              )}
               <Link
                 to="/sesja/$date"
                 params={{ date: day.date }}
                 search={{ slot: 1 }}
-                className="block"
+                className="flex items-center gap-3.5 p-3.5 active:bg-secondary/40"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {shortDayName(parseIso(day.date))} · {formatDate(day.date)}
-                      </span>
-                      {isToday && (
-                        <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                          Dziś
-                        </span>
-                      )}
-                      {swapped && (
-                        <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
-                          Zamieniona
-                        </span>
-                      )}
-                      {added && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          + Dodana
-                        </span>
-                      )}
-                      {done && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                          <CheckCircle2 className="h-3 w-3" /> Wykonane
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-sm font-medium text-muted-foreground">
-                      {dayStatus(day)}
-                    </div>
-                    <h3 className="mt-0.5 truncate text-base font-semibold">
+                <div className="w-11 shrink-0 text-center">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {shortDayName(d)}
+                  </div>
+                  <div className="text-xl font-bold leading-none text-foreground">
+                    {dayNum}
+                  </div>
+                  <div className="text-[10px] font-medium uppercase text-muted-foreground">
+                    {monthShort}
+                  </div>
+                </div>
+
+                <span
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                    isRest
+                      ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]"
+                      : "icon-bubble"
+                  }`}
+                >
+                  <RowIcon className="h-6 w-6" strokeWidth={2} />
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="truncate text-[15px] font-semibold text-foreground">
                       {day.title}
                     </h3>
+                    {isToday && (
+                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
+                        Dziś
+                      </span>
+                    )}
+                    {done && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    )}
                   </div>
-                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                    <span
+                      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                        isRest ? "bg-[oklch(0.6_0.13_150)]" : "bg-primary"
+                      }`}
+                    />
+                    {swapped ? "Zamieniona" : added ? "Dodana" : shortTag(day)}
+                  </p>
                 </div>
 
-
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <IntensityBadge intensity={day.intensity} />
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" /> {day.durationMin} min
-                  </span>
-                </div>
-
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {whatToDo(day)}
-                </p>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
+
 
               {hasTwo && day.secondSession && (
                 <div className="mt-3 rounded-xl bg-muted/60 p-2.5">
