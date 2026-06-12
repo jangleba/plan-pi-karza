@@ -1,28 +1,43 @@
 import type { ReactNode } from "react";
 import type { Intensity, DayType } from "@/lib/loadwise/types";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Waves } from "lucide-react";
 
 export function AppHeader({
   title,
   subtitle,
   right,
+  brand = true,
 }: {
   title: string;
   subtitle?: string;
   right?: ReactNode;
+  brand?: boolean;
 }) {
   return (
-    <header className="px-5 pb-3 pt-6">
-      <div className="flex items-start justify-between gap-3">
+    <header className="px-5 pb-3 pt-5">
+      {brand && (
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="icon-bubble h-8 w-8">
+              <Waves className="h-4 w-4" strokeWidth={2.4} />
+            </span>
+            <span className="text-base font-semibold tracking-tight text-foreground">
+              Loadwise
+            </span>
+          </div>
+          {right}
+        </div>
+      )}
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-[28px] font-bold leading-none tracking-tight text-foreground">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
           )}
         </div>
-        {right}
+        {!brand && right}
       </div>
     </header>
   );
