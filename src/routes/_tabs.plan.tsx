@@ -42,6 +42,54 @@ const LOAD_LABEL: Record<Intensity, string> = {
   wysoka: "wysokie",
 };
 
+const LOAD_SHORT: Record<Intensity, string> = {
+  niska: "Niskie",
+  umiarkowana: "Średnie",
+  wysoka: "Wysokie",
+};
+
+const INTENSITY_SHORT: Record<Intensity, string> = {
+  niska: "Niska",
+  umiarkowana: "Średnia",
+  wysoka: "Wysoka",
+};
+
+/** Ikona w bańce dla typu dnia. */
+function sessionIcon(day: SessionDay): LucideIcon {
+  if (day.dayType === "match") return Target;
+  if (day.dayType === "recovery" || day.dayType === "rest") return Leaf;
+  const t = day.sessionType.toLowerCase();
+  if (t.includes("szybk") || t.includes("sprint")) return Zap;
+  if (t.includes("piłk") || t.includes("techn") || t.includes("ball")) return Target;
+  if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob")) return Activity;
+  return Dumbbell;
+}
+
+/** Jednowyrazowy tag pod nazwą sesji. */
+function shortTag(day: SessionDay): string {
+  switch (day.dayType) {
+    case "match":
+      return "Mecz";
+    case "md-1":
+      return "Aktywacja";
+    case "club":
+      return "Klub";
+    case "recovery":
+      return "Odpoczynek";
+    case "rest":
+      return "Wolne";
+    default: {
+      const t = day.sessionType.toLowerCase();
+      if (t.includes("szybk") || t.includes("sprint")) return "Szybkość";
+      if (t.includes("sił")) return "Główna jednostka";
+      if (t.includes("moc")) return "Moc";
+      if (t.includes("wytrzym")) return "Wytrzymałość";
+      if (t.includes("piłk") || t.includes("techn")) return "Technika";
+      return "Trening";
+    }
+  }
+}
+
 function pluralWeeks(n: number): string {
   if (n === 1) return "1 tydzień";
   const last = n % 10;
