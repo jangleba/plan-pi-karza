@@ -266,6 +266,11 @@ function Onboarding() {
       setStep(4);
       return;
     }
+    if (!matchDate) {
+      toast.error("Podaj datę najbliższego meczu");
+      setStep(4);
+      return;
+    }
     const profile: Profile = {
       name: name.trim(),
       age: ageNum,
