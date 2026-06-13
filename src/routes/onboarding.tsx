@@ -139,9 +139,7 @@ function Onboarding() {
     existing?.clubTrainingDays ?? [],
   );
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
-  const [equipment, setEquipment] = useState<string[]>(
-    existing?.equipment ?? [],
-  );
+  const equipment: string[] = existing?.equipment ?? [];
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
   const [doubleSessions, setDoubleSessions] = useState<DoubleSessions | null>(
     existing?.doubleSessionsAllowed ?? null,
