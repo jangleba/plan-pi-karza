@@ -279,7 +279,7 @@ function Onboarding() {
       goal,
       clubTrainingDays: clubDays,
       individualTrainingDays: individualDays,
-      usualMatchDay: matchDayChoiceToValue(matchDayChoice),
+      usualMatchDay: null,
       matchDate: matchDate || null,
       equipment,
       painInjury,
