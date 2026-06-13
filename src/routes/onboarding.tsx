@@ -193,11 +193,6 @@ function Onboarding() {
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
     );
   }
-  function toggleEquip(e: string) {
-    setEquipment((prev) =>
-      prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e],
-    );
-  }
 
   function canNext(): boolean {
     if (step === 0) return requiredConsentsOk;
