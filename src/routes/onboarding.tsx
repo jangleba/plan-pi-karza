@@ -233,7 +233,12 @@ function Onboarding() {
         competitionLevel !== null
       );
     if (step === 3) return goal !== null;
-    if (step === 4) return doubleSessions !== null && individualDays.length > 0;
+    if (step === 4)
+      return (
+        doubleSessions !== null &&
+        individualDays.length > 0 &&
+        matchDate.trim().length > 0
+      );
     return true;
   }
 
