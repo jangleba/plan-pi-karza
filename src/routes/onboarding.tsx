@@ -519,22 +519,36 @@ function Onboarding() {
             </div>
 
             <div className="space-y-2">
-              <Label>Kiedy zwykle grasz mecz?</Label>
+              <Label htmlFor="match">Data najbliższego meczu</Label>
+              <Input
+                id="match"
+                type="date"
+                min={todayStr}
+                value={matchDate}
+                onChange={(e) => setMatchDate(e.target.value)}
+              />
+              {!matchDate && (
+                <p className="text-xs font-medium text-destructive">
+                  Podaj datę najbliższego meczu
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    { key: "sat", label: "Sobota" },
-                    { key: "sun", label: "Niedziela" },
-                    { key: "other", label: "Inny dzień" },
-                    { key: "none", label: "Nie mam stałego dnia meczu" },
-                  ] as { key: typeof matchDayChoice; label: string }[]
+                    { v: "yes_if_safe", label: "Tak" },
+                    { v: "no", label: "Nie" },
+                  ] as { v: DoubleSessions; label: string }[]
                 ).map((o) => (
                   <button
-                    key={o.key}
+                    key={o.v}
                     type="button"
-                    onClick={() => setMatchDayChoice(o.key)}
-                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
-                      matchDayChoice === o.key
+                    onClick={() => setDoubleSessions(o.v)}
+                    className={`rounded-full border px-3 py-2.5 text-sm font-medium transition-colors ${
+                      doubleSessions === o.v
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-card text-foreground"
                     }`}
@@ -543,32 +557,6 @@ function Onboarding() {
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="match">Data najbliższego meczu (opcjonalnie)</Label>
-              <Input
-                id="match"
-                type="date"
-                min={todayStr}
-                value={matchDate}
-                onChange={(e) => setMatchDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
-              <ChoiceGrid
-                options={["no", "light_only", "yes_if_safe"] as DoubleSessions[]}
-                value={doubleSessions}
-                onChange={setDoubleSessions}
-                labels={DOUBLE_SESSION_LABELS}
-                cols={1}
-              />
-              <p className="text-xs text-muted-foreground">
-                Druga sesja może pojawić się tylko wtedy, gdy nie koliduje z
-                meczem, bólem, zmęczeniem ani treningiem klubowym.
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -601,12 +589,6 @@ function Onboarding() {
                   [
                     { key: "gym", label: "Mam dostęp do siłowni", v: hasGym, set: setHasGym },
                     { key: "pitch", label: "Mam dostęp do boiska", v: hasPitch, set: setHasPitch },
-                    {
-                      key: "sprint",
-                      label: "Mam miejsce do sprintu",
-                      v: hasSprintSpace,
-                      set: setHasSprintSpace,
-                    },
                   ] as { key: string; label: string; v: boolean; set: (b: boolean) => void }[]
                 ).map((o) => (
                   <label
@@ -623,25 +605,6 @@ function Onboarding() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Dostępny sprzęt</Label>
-              <div className="flex flex-wrap gap-2">
-                {EQUIPMENT_OPTIONS.map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => toggleEquip(e)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      equipment.includes(e)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
               <Checkbox
