@@ -215,7 +215,7 @@ function Onboarding() {
         seasonPhase !== null &&
         competitionLevel !== null
       );
-    if (step === 3) return goal !== null;
+    if (step === 3) return goal !== null && secondaryLimiter !== null;
     if (step === 4)
       return (
         doubleSessions !== null &&
