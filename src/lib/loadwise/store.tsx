@@ -181,6 +181,7 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
     position: ath.position as Profile["position"],
     level: normalizeLevel(ath.level),
     goal: normalizeGoal(ath.main_goal),
+    secondaryLimiter: normalizeLimiter(ath.secondary_limiter),
     clubTrainingDays: (ath.club_training_days as number[]) ?? [],
     individualTrainingDays: (ath.individual_training_days as number[]) ?? [],
     usualMatchDay: parseUsualMatchDay(ath.usual_match_day),
