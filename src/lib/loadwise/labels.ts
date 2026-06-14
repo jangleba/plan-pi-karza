@@ -125,15 +125,26 @@ export function formatDateFull(s: string): string {
 }
 
 export const GOAL_LABELS: Record<Goal, string> = {
+  speed: "Szybkość i przyspieszenie",
+  strength: "Siła i stabilność",
+  endurance: "Wytrzymałość piłkarska",
+  power: "Moc i eksplozywność",
+  agility: "Zwrotność i hamowanie",
+  general: "Rozwój z piłką",
+  mobility: "Mobilność / prehab",
+  return: "Powrót po przerwie lub kontuzji",
+  matchready: "Gotowość meczowa",
+};
+
+export const SECONDARY_LIMITER_LABELS: Record<SecondaryLimiter, string> = {
   speed: "Szybkość",
   strength: "Siła",
   endurance: "Wytrzymałość",
+  cod: "Zwrotność / hamowanie",
   power: "Moc",
-  agility: "Zwinność / COD",
-  general: "Rozwój piłkarski",
-  mobility: "Mobilność",
-  return: "Powrót do rytmu",
-  matchready: "Gotowość meczowa",
+  ball: "Gra z piłką",
+  fatigue: "Zmęczenie / przeciążenie",
+  return: "Powrót po przerwie",
 };
 
 export const POSITION_LABELS: Record<Position, string> = {
