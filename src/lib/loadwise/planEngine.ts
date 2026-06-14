@@ -1822,7 +1822,10 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (session.dayType === "recovery") return "recovery_prehab";
   if (session.dayType === "rest") return "rest";
 
-  const header = headerTextOfSession(session);
+  // Nie używamy goalLabel do klasyfikacji — etykieta celu (np. "Siła i
+  // stabilność") fałszywie kierowałaby każdą sesję do kategorii celu.
+  const header =
+    `${session.title} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
   if (/sił|moc|power/.test(header)) {
     return "strength_power";
   }
