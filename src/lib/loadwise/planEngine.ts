@@ -1822,6 +1822,16 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (session.dayType === "recovery") return "recovery_prehab";
   if (session.dayType === "rest") return "rest";
 
+  // Najpierw ufamy kanonicznemu typowi sesji (sessionType) — buildStimulus
+  // ustawia go spójnie z kategorią. To pewniejsze niż skan słów kluczowych.
+  const stype = session.sessionType.toLowerCase();
+  if (/piłka|technik/.test(stype)) return "ball";
+  if (/regener|prehab/.test(stype)) return "athletic";
+  if (/wytrzym|wydol|tlen|kondyc/.test(stype)) return "conditioning";
+  if (/sprint|szybko/.test(stype)) return "speed";
+  if (/sił|moc|power/.test(stype)) return "strength_power";
+  if (/cod|zwin|motory|hamowan/.test(stype)) return "athletic";
+
   // Nie używamy goalLabel do klasyfikacji — etykieta celu (np. "Siła i
   // stabilność") fałszywie kierowałaby każdą sesję do kategorii celu.
   const header =
