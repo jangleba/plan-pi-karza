@@ -42,6 +42,17 @@ export type Goal =
   | "return"
   | "matchready";
 
+/** Co najbardziej ogranicza zawodnika — dodatkowe wsparcie, nie zastępuje celu głównego. */
+export type SecondaryLimiter =
+  | "speed"
+  | "strength"
+  | "endurance"
+  | "cod"
+  | "power"
+  | "ball"
+  | "fatigue"
+  | "return";
+
 export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
 
 export type UsualMatchDay = number | "no_fixed_day" | null; // 1=Mon ... 7=Sun
