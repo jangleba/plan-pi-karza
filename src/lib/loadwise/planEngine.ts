@@ -2296,6 +2296,76 @@ function isHealthyPerformanceProfile(profile: Profile): boolean {
   );
 }
 
+/**
+ * Tygodniowe cele wg CELU GŁÓWNEGO (primary_goal) — to one decydują o tym,
+ * ile i jakich sesji ma być w tygodniu. Kolejność = priorytet: pierwsze
+ * pozycje to rdzeń celu (zawsze trafiają do planu), dalsze to uzupełnienie.
+ * Cel główny NIGDY nie jest wypierany przez limiter pomocniczy.
+ */
+function goalCoreQuota(
+  profile: Profile,
+  matchCount: number,
+  phase: WeekPhase,
+): Stimulus[] {
+  const strengthMain: Stimulus = profile.hasGym ? "strength" : "strength_base";
+  const power: Stimulus = profile.hasGym ? "power" : "strength_base";
+  const deload = phase === "deload";
+  // Główny bodziec wytrzymałości; przy meczu/deloadzie schodzimy do lekkiego.
+  const condMain: Stimulus =
+    matchCount > 0
+      ? "endurance_light"
+      : deload
+        ? "endurance_deload"
+        : enduranceMainForPhase(phase);
+
+  switch (profile.goal) {
+    case "endurance":
+      // min. 2 realne jednostki wytrzymałości + siła podtrzymująca + szybkość + piłka.
+      return [condMain, "endurance_special", strengthMain, "speed_exposure", "ball"];
+    case "strength":
+      // 2 jednostki siłowo-mocowe + szybkość + wytrzymałość podtrzymująca + piłka.
+      return [strengthMain, power, "sprint", "endurance_light", "ball"];
+    case "speed":
+      // 2 jednostki szybkości/sprintu + siła-moc + COD/piłka szybkościowa + lekka wytrzymałość.
+      return ["sprint", "speed_exposure", power, "cod", "endurance_light"];
+    case "power":
+      // 2 jednostki moc/siła + sprint + COD + lekka wytrzymałość.
+      return [power, strengthMain, "sprint", "cod", "endurance_light"];
+    case "agility":
+      // 2 jednostki COD/hamowanie + sprint + siła-moc + lekka wytrzymałość + piłka.
+      return ["cod", "sprint", strengthMain, "endurance_light", "ball"];
+    case "general":
+      return [strengthMain, "sprint", condMain, "ball", "cod"];
+    case "matchready":
+    default:
+      return ["sprint", "ball", strengthMain, "endurance_light", "prehab"];
+  }
+}
+
+/** Limiter pomocniczy → JEDEN dodatkowy bodziec wspierający (nie zastępuje celu). */
+function limiterSupportStimulus(profile: Profile): Stimulus | null {
+  const gym = profile.hasGym;
+  switch (profile.secondaryLimiter) {
+    case "speed":
+      return "speed_exposure";
+    case "strength":
+      return gym ? "strength" : "strength_base";
+    case "endurance":
+      return "endurance_light";
+    case "cod":
+      return "cod";
+    case "power":
+      return "power";
+    case "ball":
+      return "ball";
+    case "fatigue":
+    case "return":
+      return "prehab";
+    default:
+      return null;
+  }
+}
+
 function hardWeeklyQuota(
   profile: Profile,
   clubCount: number,
@@ -2306,24 +2376,47 @@ function hardWeeklyQuota(
     return interleaveStimuli(seasonWeeklyStimuli(profile, clubCount, matchCount, phase));
   }
 
-  const strengthMain: Stimulus = profile.hasGym ? "strength" : "strength_base";
-  const secondStrength: Stimulus = profile.hasGym ? "power" : "strength_base";
-  const conditioning: Stimulus =
-    matchCount > 0
-      ? "endurance_light"
-      : phase === "deload"
-        ? "endurance_deload"
-        : enduranceMainForPhase(phase);
+  const quota = goalCoreQuota(profile, matchCount, phase);
 
-  const quota: Stimulus[] =
-    profile.goal === "general"
-      ? [strengthMain, "sprint", conditioning, "ball", secondStrength, "prehab"]
-      : [strengthMain, secondStrength, "sprint", conditioning, "prehab"];
-  if (matchCount > 0) {
-    return [strengthMain, "sprint", conditioning, "prehab", secondStrength];
+  // Limiter dokładamy PO dwóch pierwszych (rdzeń celu), więc wypiera tylko
+  // dalsze uzupełnienia, nigdy celu głównego.
+  const support = limiterSupportStimulus(profile);
+  if (support && !quota.slice(0, 2).includes(support)) {
+    quota.splice(2, 0, support);
   }
-  if (clubCount + matchCount === 0) quota.push("ball");
+
+  // Brak klubu i meczu → tydzień musi mieć własną sesję z piłką.
+  if (clubCount + matchCount === 0 && !quota.includes("ball")) quota.push("ball");
+  // Zawsze zostaw prehab jako bezpieczne domknięcie.
+  if (!quota.includes("prehab")) quota.push("prehab");
   return quota;
+}
+
+/**
+ * Minimalne cele kategorii dla celu głównego — używane do walidacji tygodnia
+ * przed zapisaniem planu. Jeśli tydzień nie spełnia minimum, naprawiamy go.
+ */
+function primaryGoalTarget(
+  profile: Profile,
+): { category: PerfCategory; min: number; stimulus: Stimulus } | null {
+  switch (profile.goal) {
+    case "endurance":
+      return { category: "conditioning", min: 2, stimulus: "endurance_light" };
+    case "strength":
+      return {
+        category: "strength_power",
+        min: 2,
+        stimulus: profile.hasGym ? "power" : "strength_base",
+      };
+    case "power":
+      return { category: "strength_power", min: 2, stimulus: "power" };
+    case "speed":
+      return { category: "speed", min: 2, stimulus: "speed_exposure" };
+    case "agility":
+      return { category: "athletic", min: 2, stimulus: "cod" };
+    default:
+      return null;
+  }
 }
 
 function canPrimaryStimulus(stimulus: Stimulus, it: { base: BaseDayType; toMatch: number | null }): boolean {
