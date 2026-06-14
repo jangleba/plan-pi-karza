@@ -12,9 +12,11 @@ import type {
   SeasonPhase,
   SeasonStage,
   CompetitionLevel,
+  SecondaryLimiter,
 } from "@/lib/loadwise/types";
 import {
   GOAL_LABELS,
+  SECONDARY_LIMITER_LABELS,
   POSITION_LABELS,
   LEVEL_LABELS,
   ISO_DAY_LABELS,
