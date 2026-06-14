@@ -445,6 +445,26 @@ function Onboarding() {
               onChange={setGoal}
               labels={GOAL_LABELS}
             />
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">
+                Co najbardziej Cię ogranicza?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                To dodatkowe wsparcie w planie — nie zastępuje celu głównego.
+              </p>
+              <ChoiceGrid
+                options={limiters}
+                value={secondaryLimiter}
+                onChange={setSecondaryLimiter}
+                labels={SECONDARY_LIMITER_LABELS}
+              />
+              {secondaryLimiter === null && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz, co najbardziej Cię ogranicza.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
