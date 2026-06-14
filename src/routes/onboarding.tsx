@@ -145,6 +145,8 @@ function Onboarding() {
   );
   const [level, setLevel] = useState<Level | null>(existing?.level ?? null);
   const [goal, setGoal] = useState<Goal | null>(existing?.goal ?? null);
+  const [secondaryLimiter, setSecondaryLimiter] =
+    useState<SecondaryLimiter | null>(existing?.secondaryLimiter ?? null);
   const [clubDays, setClubDays] = useState<number[]>(
     existing?.clubTrainingDays ?? [],
   );
