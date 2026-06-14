@@ -7,6 +7,7 @@ import type {
   SeasonPhase,
   SeasonStage,
   CompetitionLevel,
+  SecondaryLimiter,
 } from "./types";
 
 export const SEASON_PHASE_LABELS: Record<SeasonPhase, string> = {
