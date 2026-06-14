@@ -2477,6 +2477,63 @@ function countCellCategories(cells: PlanCell[]): Record<PerfCategory, number> {
   return counts;
 }
 
+/**
+ * Walidacja przed zapisaniem planu: tydzień MUSI realizować minimum celu
+ * głównego (np. 2 jednostki wytrzymałości dla "Wytrzymałość piłkarska").
+ * Jeśli nie — naprawiamy, zamieniając dni piłki/prehabu lub bezczynnej
+ * regeneracji na bodziec celu głównego (z zachowaniem zasad bezpieczeństwa).
+ */
+function enforcePrimaryGoalTarget(
+  profile: Profile,
+  items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
+  result: Record<string, PlanCell>,
+): void {
+  if (!isHealthyPerformanceProfile(profile)) return;
+  const target = primaryGoalTarget(profile);
+  if (!target) return;
+
+  const cells = () =>
+    items.map((it) => result[it.iso]).filter(Boolean) as PlanCell[];
+  const count = () => countCellCategories(cells())[target.category];
+
+  let guard = 0;
+  while (count() < target.min && guard++ < 7) {
+    // 1. Bezczynny dzień regeneracji → bodziec celu głównego.
+    const idle = [...items]
+      .sort((a, b) => slotScore(target.stimulus, b) - slotScore(target.stimulus, a))
+      .find((it) => {
+        const cell = result[it.iso];
+        return (
+          cell?.type === "recovery" &&
+          it.base === "available" &&
+          canPrimaryStimulus(target.stimulus, it)
+        );
+      });
+    if (idle) {
+      result[idle.iso] = { type: "training", stimulus: target.stimulus };
+      continue;
+    }
+
+    // 2. Dzień piłki/prehabu (niższy priorytet) → bodziec celu głównego.
+    const replaceable = items.find((it) => {
+      const cell = result[it.iso];
+      if (!cell || cell.type !== "training" || !cell.stimulus) return false;
+      const c = categoryOf(cell.stimulus);
+      return (
+        (c === "ball" || c === "athletic") &&
+        c !== target.category &&
+        canPrimaryStimulus(target.stimulus, it)
+      );
+    });
+    if (replaceable) {
+      result[replaceable.iso].stimulus = target.stimulus;
+      continue;
+    }
+
+    break; // brak miejsca bez naruszania bezpieczeństwa lub innych kategorii
+  }
+}
+
 function repairWeekCells(
   profile: Profile,
   items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
