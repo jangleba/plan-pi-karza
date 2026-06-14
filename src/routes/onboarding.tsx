@@ -231,6 +231,11 @@ function Onboarding() {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
+    if (!secondaryLimiter) {
+      toast.error("Wybierz, co najbardziej Cię ogranicza.");
+      setStep(3);
+      return;
+    }
     if (!seasonPhase || !competitionLevel) {
       toast.error("Wybierz okres sezonu i poziom rozgrywkowy.");
       setStep(2);
