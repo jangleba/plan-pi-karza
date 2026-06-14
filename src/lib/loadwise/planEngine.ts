@@ -2686,6 +2686,7 @@ function planBlock(
     }
 
     repairWeekCells(profile, items, result, maxDoubles);
+    enforcePrimaryGoalTarget(profile, items, result);
   });
 
   return result;
