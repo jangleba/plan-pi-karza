@@ -39,6 +39,7 @@ export type Database = {
           position: string | null
           season_phase: string | null
           season_stage: string | null
+          secondary_limiter: string | null
           sex_optional: string | null
           training_experience: string | null
           updated_at: string
@@ -71,6 +72,7 @@ export type Database = {
           position?: string | null
           season_phase?: string | null
           season_stage?: string | null
+          secondary_limiter?: string | null
           sex_optional?: string | null
           training_experience?: string | null
           updated_at?: string
@@ -103,6 +105,7 @@ export type Database = {
           position?: string | null
           season_phase?: string | null
           season_stage?: string | null
+          secondary_limiter?: string | null
           sex_optional?: string | null
           training_experience?: string | null
           updated_at?: string
