@@ -63,6 +63,7 @@ export interface Profile {
   position: Position;
   level: Level;
   goal: Goal;
+  secondaryLimiter: SecondaryLimiter | null;
   clubTrainingDays: number[]; // 1=Mon ... 7=Sun
   individualTrainingDays: number[]; // 1=Mon ... 7=Sun — Loadwise own sessions
   usualMatchDay: UsualMatchDay; // weekday usually played, or no fixed day
