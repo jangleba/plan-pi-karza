@@ -260,6 +260,7 @@ function Onboarding() {
       position,
       level,
       goal,
+      secondaryLimiter,
       clubTrainingDays: clubDays,
       individualTrainingDays: individualDays,
       usualMatchDay: null,
