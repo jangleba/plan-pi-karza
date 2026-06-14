@@ -75,6 +75,16 @@ const goals: Goal[] = [
   "return",
   "matchready",
 ];
+const limiters: SecondaryLimiter[] = [
+  "speed",
+  "strength",
+  "endurance",
+  "cod",
+  "power",
+  "ball",
+  "fatigue",
+  "return",
+];
 
 function ChoiceGrid<T extends string>({
   options,
