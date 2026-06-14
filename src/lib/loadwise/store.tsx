@@ -419,6 +419,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         position: profile.position,
         level: profile.level,
         main_goal: profile.goal,
+        secondary_limiter: profile.secondaryLimiter,
         equipment: profile.equipment as unknown as never,
         club_training_days: profile.clubTrainingDays as unknown as never,
         individual_training_days:
