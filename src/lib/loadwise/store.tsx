@@ -103,6 +103,23 @@ function normalizeGoal(v: unknown): Profile["goal"] {
     : "matchready";
 }
 
+const VALID_LIMITERS: NonNullable<Profile["secondaryLimiter"]>[] = [
+  "speed",
+  "strength",
+  "endurance",
+  "cod",
+  "power",
+  "ball",
+  "fatigue",
+  "return",
+];
+
+function normalizeLimiter(v: unknown): Profile["secondaryLimiter"] {
+  return VALID_LIMITERS.includes(v as NonNullable<Profile["secondaryLimiter"]>)
+    ? (v as Profile["secondaryLimiter"])
+    : null;
+}
+
 function parseUsualMatchDay(v: unknown): Profile["usualMatchDay"] {
   if (v === null || v === undefined || v === "") return null;
   if (v === "no_fixed_day") return "no_fixed_day";
