@@ -12,9 +12,11 @@ import type {
   SeasonPhase,
   SeasonStage,
   CompetitionLevel,
+  SecondaryLimiter,
 } from "@/lib/loadwise/types";
 import {
   GOAL_LABELS,
+  SECONDARY_LIMITER_LABELS,
   POSITION_LABELS,
   LEVEL_LABELS,
   ISO_DAY_LABELS,
@@ -72,6 +74,16 @@ const goals: Goal[] = [
   "mobility",
   "return",
   "matchready",
+];
+const limiters: SecondaryLimiter[] = [
+  "speed",
+  "strength",
+  "endurance",
+  "cod",
+  "power",
+  "ball",
+  "fatigue",
+  "return",
 ];
 
 function ChoiceGrid<T extends string>({
@@ -133,6 +145,8 @@ function Onboarding() {
   );
   const [level, setLevel] = useState<Level | null>(existing?.level ?? null);
   const [goal, setGoal] = useState<Goal | null>(existing?.goal ?? null);
+  const [secondaryLimiter, setSecondaryLimiter] =
+    useState<SecondaryLimiter | null>(existing?.secondaryLimiter ?? null);
   const [clubDays, setClubDays] = useState<number[]>(
     existing?.clubTrainingDays ?? [],
   );
@@ -201,7 +215,7 @@ function Onboarding() {
         seasonPhase !== null &&
         competitionLevel !== null
       );
-    if (step === 3) return goal !== null;
+    if (step === 3) return goal !== null && secondaryLimiter !== null;
     if (step === 4)
       return (
         doubleSessions !== null &&
@@ -215,6 +229,11 @@ function Onboarding() {
     if (busy) return;
     if (!position || !level || !goal || !doubleSessions || !(ageNum >= 13)) {
       toast.error("Uzupełnij wymagane pola.");
+      return;
+    }
+    if (!secondaryLimiter) {
+      toast.error("Wybierz, co najbardziej Cię ogranicza.");
+      setStep(3);
       return;
     }
     if (!seasonPhase || !competitionLevel) {
@@ -246,6 +265,7 @@ function Onboarding() {
       position,
       level,
       goal,
+      secondaryLimiter,
       clubTrainingDays: clubDays,
       individualTrainingDays: individualDays,
       usualMatchDay: null,
@@ -430,6 +450,26 @@ function Onboarding() {
               onChange={setGoal}
               labels={GOAL_LABELS}
             />
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">
+                Co najbardziej Cię ogranicza?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                To dodatkowe wsparcie w planie — nie zastępuje celu głównego.
+              </p>
+              <ChoiceGrid
+                options={limiters}
+                value={secondaryLimiter}
+                onChange={setSecondaryLimiter}
+                labels={SECONDARY_LIMITER_LABELS}
+              />
+              {secondaryLimiter === null && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz, co najbardziej Cię ogranicza.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
