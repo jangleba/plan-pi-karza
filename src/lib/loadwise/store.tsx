@@ -45,6 +45,19 @@ const initialState: LoadwiseState = {
   transitions: {},
 };
 
+/**
+ * Sprawdza, czy zapisany plan jest zgodny z aktualnymi dniami treningu klubowego.
+ * Trening klubowy może wystąpić WYŁĄCZNIE w dniach wybranych w onboardingu
+ * (profile.clubTrainingDays, 1=pon ... 7=niedz). Jeśli plan zawiera klub w innym
+ * dniu, jest nieaktualny i musi zostać wygenerowany ponownie.
+ */
+function planMatchesClubDays(plan: SessionDay[], profile: Profile): boolean {
+  return plan.every((d) => {
+    if (d.dayType !== "club") return true;
+    return profile.clubTrainingDays.includes(isoDayOfWeek(parseIso(d.date)));
+  });
+}
+
 // ---- local-only state (readiness/tests/scouting), namespaced per user ----
 function localKey(userId: string) {
   return `loadwise:v3:${userId}`;
