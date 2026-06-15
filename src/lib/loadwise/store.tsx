@@ -530,7 +530,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const isCurrentEngine = state.plan.every(
       (d) => d.generatorVersion === PLAN_ENGINE_VERSION,
     );
-    if (hasMonthly && isCurrentEngine) return;
+    // Plan stworzony przy innych dniach klubowych jest nieaktualny — regeneruj,
+    // by trening klubowy nigdy nie pojawił się w dniu spoza onboardingu.
+    const clubDaysOk = planMatchesClubDays(state.plan, profile);
+    if (hasMonthly && isCurrentEngine && clubDaysOk) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
