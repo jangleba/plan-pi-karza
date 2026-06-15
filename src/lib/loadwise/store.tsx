@@ -21,7 +21,7 @@ import type {
 } from "./types";
 import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
-import { warsawToday, isoDate, parseIso } from "./labels";
+import { warsawToday, isoDate, parseIso, isoDayOfWeek } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
@@ -44,6 +44,19 @@ const initialState: LoadwiseState = {
   modifications: {},
   transitions: {},
 };
+
+/**
+ * Sprawdza, czy zapisany plan jest zgodny z aktualnymi dniami treningu klubowego.
+ * Trening klubowy może wystąpić WYŁĄCZNIE w dniach wybranych w onboardingu
+ * (profile.clubTrainingDays, 1=pon ... 7=niedz). Jeśli plan zawiera klub w innym
+ * dniu, jest nieaktualny i musi zostać wygenerowany ponownie.
+ */
+function planMatchesClubDays(plan: SessionDay[], profile: Profile): boolean {
+  return plan.every((d) => {
+    if (d.dayType !== "club") return true;
+    return profile.clubTrainingDays.includes(isoDayOfWeek(parseIso(d.date)));
+  });
+}
 
 // ---- local-only state (readiness/tests/scouting), namespaced per user ----
 function localKey(userId: string) {
@@ -517,7 +530,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const isCurrentEngine = state.plan.every(
       (d) => d.generatorVersion === PLAN_ENGINE_VERSION,
     );
-    if (hasMonthly && isCurrentEngine) return;
+    // Plan stworzony przy innych dniach klubowych jest nieaktualny — regeneruj,
+    // by trening klubowy nigdy nie pojawił się w dniu spoza onboardingu.
+    const clubDaysOk = planMatchesClubDays(state.plan, profile);
+    if (hasMonthly && isCurrentEngine && clubDaysOk) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
@@ -756,8 +772,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setState(initialState);
   }
 
-  const todaySession =
-    state.plan.find((p) => p.date === todayIso) ?? state.plan[0] ?? null;
+  // Decyzja dnia musi pochodzić z tego samego silnika co plan tygodnia i
+  // odpowiadać DZISIEJSZEJ dacie (strefa Europe/Warsaw). Nigdy nie pokazujemy
+  // pierwszego dnia planu jako "dziś" — to powodowało błędne "trening klubowy".
+  const planToday = state.plan.find((p) => p.date === todayIso) ?? null;
+  const todayValid =
+    planToday !== null &&
+    (planToday.dayType !== "club" ||
+      (state.profile?.clubTrainingDays.includes(isoDayOfWeek(parseIso(todayIso))) ??
+        false));
+  // Awaryjnie (brak wpisu na dziś lub nieaktualny klub) licz dzisiaj na żywo
+  // z silnika, zanim regeneracja zapisze nowy plan.
+  const liveToday =
+    state.profile?.onboardingComplete && !todayValid
+      ? generatePlan(state.profile, warsawToday(), 7).find(
+          (p) => p.date === todayIso,
+        ) ?? null
+      : null;
+  const todaySession = todayValid ? planToday : liveToday ?? planToday;
 
   return (
     <LoadwiseContext.Provider
