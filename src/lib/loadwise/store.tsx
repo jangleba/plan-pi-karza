@@ -772,8 +772,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setState(initialState);
   }
 
-  const todaySession =
-    state.plan.find((p) => p.date === todayIso) ?? state.plan[0] ?? null;
+  // Decyzja dnia musi pochodzić z tego samego silnika co plan tygodnia i
+  // odpowiadać DZISIEJSZEJ dacie (strefa Europe/Warsaw). Nigdy nie pokazujemy
+  // pierwszego dnia planu jako "dziś" — to powodowało błędne "trening klubowy".
+  const planToday = state.plan.find((p) => p.date === todayIso) ?? null;
+  const todayValid =
+    planToday !== null &&
+    (planToday.dayType !== "club" ||
+      (state.profile?.clubTrainingDays.includes(isoDayOfWeek(parseIso(todayIso))) ??
+        false));
+  // Awaryjnie (brak wpisu na dziś lub nieaktualny klub) licz dzisiaj na żywo
+  // z silnika, zanim regeneracja zapisze nowy plan.
+  const liveToday =
+    state.profile?.onboardingComplete && !todayValid
+      ? generatePlan(state.profile, warsawToday(), 7).find(
+          (p) => p.date === todayIso,
+        ) ?? null
+      : null;
+  const todaySession = todayValid ? planToday : liveToday ?? planToday;
 
   return (
     <LoadwiseContext.Provider
