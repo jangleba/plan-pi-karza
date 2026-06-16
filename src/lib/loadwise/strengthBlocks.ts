@@ -1176,9 +1176,19 @@ export function buildStrengthPowerStructured(
       : powerPrimer(profile, ctx);
   }
 
-  const role = pickGymRole(profile, ctx);
+  // Jedyna sesja gym w tygodniu → kompletna sesja pełnego ciała atletycznego.
+  const onlyGymSession =
+    ctx.gymSessionsThisWeekTotal === 1 &&
+    ctx.gymSessionIndexInWeek === 0 &&
+    !(ctx.readiness !== undefined && ctx.readiness <= 5) &&
+    ctx.mdLabel !== "MD-2";
+
+  const role = onlyGymSession ? "full_body_athletic" : pickGymRole(profile, ctx);
   let plan: GymSessionPlan;
   switch (role) {
+    case "full_body_athletic":
+      plan = fullBodyAthletic(profile, ctx);
+      break;
     case "lower_strength_power":
       plan = lowerStrengthPower(profile, ctx);
       break;
