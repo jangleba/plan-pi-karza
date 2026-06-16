@@ -2852,6 +2852,7 @@ export function generatePlan(
   let curWeekIndex = weekOffset;
   let curPhase: GymWeekPhase = "development";
   let gymSessionsThisWeek = 0;
+  let curGymTotal = gymTotalAtStart.get(0) ?? 0;
   const gymHistory: GymHistory = {
     usedRolesThisWeek: [],
     usedMainThisWeek: [],
