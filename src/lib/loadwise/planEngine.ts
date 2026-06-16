@@ -2905,6 +2905,7 @@ export function generatePlan(
         curWeekIndex = wc.weekIndex;
         curPhase = wc.phase;
       }
+      curGymTotal = gymTotalAtStart.get(i) ?? 0;
       // Przenieś historię tygodnia do "poprzedniego tygodnia" i wyzeruj bieżący.
       gymHistory.usedMainLastWeek = gymHistory.usedMainThisWeek;
       gymHistory.usedMainThisWeek = [];
