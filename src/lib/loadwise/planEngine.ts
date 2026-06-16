@@ -2774,6 +2774,7 @@ function planBlock(
 
     repairWeekCells(profile, items, result, maxDoubles);
     enforcePrimaryGoalTarget(profile, items, result);
+    enforceMinimumGymSession(profile, matchCount, items, result);
   });
 
   return result;
