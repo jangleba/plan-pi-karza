@@ -2547,7 +2547,79 @@ function enforcePrimaryGoalTarget(
   }
 }
 
-function repairWeekCells(
+/**
+ * TWARDA ZASADA: każdy normalny tydzień treningowy z dostępem do siłowni MUSI
+ * zawierać minimum 1 sesję siłowo-mocową (atletyczną full-body). Wyjątki:
+ *  - brak dostępu do siłowni (profile.hasGym === false),
+ *  - kontuzja / powrót / bardzo niska gotowość (isHealthyPerformanceProfile),
+ *  - kongestia meczowa (>=2 mecze w tygodniu) — wtedy gym bywa niebezpieczny.
+ * Tydzień z 0 sesjami gym przy dostępie do siłowni jest nieprawidłowy.
+ */
+function enforceMinimumGymSession(
+  profile: Profile,
+  matchCount: number,
+  items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
+  result: Record<string, PlanCell>,
+): void {
+  if (!profile.hasGym) return;
+  if (!isHealthyPerformanceProfile(profile)) return;
+  if (matchCount >= 2) return; // kongestia meczowa — bezpieczeństwo > gym
+
+  const gymStimulus: Stimulus = "strength";
+  const cells = () =>
+    items.map((it) => result[it.iso]).filter(Boolean) as PlanCell[];
+  const gymCount = () => countCellCategories(cells()).strength_power;
+
+  if (gymCount() >= 1) return;
+
+  // 1. Bezczynny dzień regeneracji (bez bodźca) → sesja gym, jeśli bezpieczny.
+  const idle = [...items]
+    .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
+    .find((it) => {
+      const cell = result[it.iso];
+      return (
+        cell?.type === "recovery" &&
+        it.base === "available" &&
+        canPrimaryStimulus(gymStimulus, it)
+      );
+    });
+  if (idle) {
+    result[idle.iso] = { type: "training", stimulus: gymStimulus };
+    return;
+  }
+
+  // 2. Dzień o niższym priorytecie (piłka / atletyka / wytrzymałość) → gym.
+  const replaceable = [...items]
+    .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
+    .find((it) => {
+      const cell = result[it.iso];
+      if (!cell || cell.type !== "training" || !cell.stimulus) return false;
+      const c = categoryOf(cell.stimulus);
+      return (
+        c !== "strength_power" &&
+        c !== "speed" &&
+        canPrimaryStimulus(gymStimulus, it)
+      );
+    });
+  if (replaceable) {
+    result[replaceable.iso].stimulus = gymStimulus;
+    return;
+  }
+
+  // 3. Jako druga jednostka dnia, jeśli istnieje bezpieczny slot.
+  const second = [...items]
+    .sort((a, b) => slotScore(gymStimulus, b, true) - slotScore(gymStimulus, a, true))
+    .find((it) => {
+      const cell = result[it.iso];
+      if (!cell || cell.secondStimulus) return false;
+      return canSecondStimulus(gymStimulus, it, cell.stimulus);
+    });
+  if (second) {
+    result[second.iso].secondStimulus = gymStimulus;
+  }
+  // Brak bezpiecznego slotu → tydzień jest realnie skongestionowany,
+  // gym pomijamy zgodnie z zasadami bezpieczeństwa.
+}
   profile: Profile,
   items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
   result: Record<string, PlanCell>,
