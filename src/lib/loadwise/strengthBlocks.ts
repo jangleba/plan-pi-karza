@@ -24,6 +24,7 @@ export type GymRole =
   | "posterior_sprint"
   | "unilateral_decel"
   | "upper_core"
+  | "full_body_athletic"
   | "primer"
   | "recovery_prehab";
 
