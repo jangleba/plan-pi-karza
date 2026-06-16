@@ -44,6 +44,8 @@ export interface StrengthBlockContext {
   weekIndex: number;
   /** Która to sesja siłowni w tym tygodniu (0-based). */
   gymSessionIndexInWeek: number;
+  /** Łączna liczba sesji siłowni zaplanowanych w tym tygodniu. */
+  gymSessionsThisWeekTotal?: number;
   /** Ogólna gotowość 1–10 (jeśli znana). */
   readiness?: number;
   /** Historia ćwiczeń — anty-powtórzenia w tygodniu i między tygodniami. */
