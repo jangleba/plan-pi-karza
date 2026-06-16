@@ -2823,15 +2823,19 @@ export function generatePlan(
   const maxDoublesAtStart = new Map<number, number>();
   // Kontekst periodyzacji per początek tygodnia (faza + indeks tygodnia).
   const weekContextAtStart = new Map<number, { weekIndex: number; phase: GymWeekPhase }>();
+  // Łączna liczba sesji siłowni w danym tygodniu (do decyzji full-body przy 1 sesji).
+  const gymTotalAtStart = new Map<number, number>();
   ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
     const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
     let hasMatch = false;
+    let gymTotal = 0;
     for (let k = range.start; k < range.end; k++) {
-      if (isMatchDay(addDays(startDate, k), profile)) {
-        hasMatch = true;
-        break;
-      }
+      const date = addDays(startDate, k);
+      if (isMatchDay(date, profile)) hasMatch = true;
+      const cell = blockMap[isoDate(date)];
+      if (cell?.stimulus && categoryOf(cell.stimulus) === "strength_power") gymTotal++;
+      if (cell?.secondStimulus && categoryOf(cell.secondStimulus) === "strength_power") gymTotal++;
     }
     maxDoublesAtStart.set(
       range.start,
@@ -2841,6 +2845,7 @@ export function generatePlan(
       weekIndex: weekOffset + weekIndex,
       phase: phase as GymWeekPhase,
     });
+    gymTotalAtStart.set(range.start, gymTotal);
   });
 
   // Stan tygodnia do różnicowania i anty-powtórzeń sesji siłowni.
