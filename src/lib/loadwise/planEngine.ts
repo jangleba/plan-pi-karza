@@ -2620,6 +2620,8 @@ function enforceMinimumGymSession(
   // Brak bezpiecznego slotu → tydzień jest realnie skongestionowany,
   // gym pomijamy zgodnie z zasadami bezpieczeństwa.
 }
+
+function repairWeekCells(
   profile: Profile,
   items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
   result: Record<string, PlanCell>,
