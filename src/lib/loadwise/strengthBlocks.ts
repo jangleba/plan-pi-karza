@@ -24,6 +24,7 @@ export type GymRole =
   | "posterior_sprint"
   | "unilateral_decel"
   | "upper_core"
+  | "full_body_athletic"
   | "primer"
   | "recovery_prehab";
 
@@ -44,6 +45,8 @@ export interface StrengthBlockContext {
   weekIndex: number;
   /** Która to sesja siłowni w tym tygodniu (0-based). */
   gymSessionIndexInWeek: number;
+  /** Łączna liczba sesji siłowni zaplanowanych w tym tygodniu. */
+  gymSessionsThisWeekTotal?: number;
   /** Ogólna gotowość 1–10 (jeśli znana). */
   readiness?: number;
   /** Historia ćwiczeń — anty-powtórzenia w tygodniu i między tygodniami. */
@@ -840,6 +843,164 @@ function upperCore(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan 
 }
 
 // ---------------------------------------------------------------------------
+// ROLA — PEŁNE CIAŁO ATLETYCZNE (jedyna sesja gym w tygodniu)
+// Power primer + główny lift + akcent kolanowy + akcent tylnej taśmy +
+// góra push/pull + core/robustność. Bez podwójnego ciężkiego obciążenia nóg
+// (nie łączymy ciężkiego RDL + Nordic ani przysiadu + ciężkiego Bułgara).
+// ---------------------------------------------------------------------------
+
+function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan {
+  const adult = isAdvancedEligible(profile);
+  const d = dosageFor(profile, ctx);
+  const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
+  const squat = rotatePick(adult ? SQUAT_ADULT : SQUAT_YOUTH, ctx, avoid);
+  const jump = pickJumps(ctx, ["horizontal", "vertical"], avoid);
+  // Tylna taśma kontrolowana (lekko) — bez Nordic, by nie dublować ciężkich nóg.
+  const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
+  const push = rotatePick(adult ? PUSH_ADULT : PUSH_YOUTH, ctx, avoid);
+  const pull = rotatePick(adult ? PULL_ADULT : PULL_YOUTH, ctx, avoid);
+  const core = rotatePick(CORE_ANTI, ctx, avoid);
+  const adductor = rotatePick(ADDUCTOR, ctx, avoid);
+
+  const sections: TrainingSection[] = [
+    warmupSection(),
+    section({
+      title: "Przygotowanie",
+      type: "prep",
+      blocks: [
+        block({
+          title: "Primer mocy (RFD)",
+          blockType: "rfd",
+          intent: "rfd",
+          restAfterBlock: "Przerwa po bloku: 90 s",
+          exercises: [
+            ex({
+              label: "P1",
+              name: jump.name,
+              sets: "3",
+              reps: "3–4",
+              groundContacts: contacts(jump.contacts, d),
+              cue: jump.cue,
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+          ],
+        }),
+      ],
+    }),
+    section({
+      title: "Część główna",
+      type: "main",
+      blocks: [
+        block({
+          title: "BLOK A — GŁÓWNY LIFT (kolanowo-dominujący)",
+          blockType: "single",
+          intent: "strength",
+          restAfterBlock: "Przerwa po bloku: 2–3 min",
+          eligibilityLevel: adult ? "advanced_only" : "youth_ok",
+          exercises: [
+            ex({
+              label: "A",
+              name: squat,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              tempo: "2-1-1",
+              restAfterExercise: "2–3 min",
+              cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              technique: "Kolana w linii stóp, pełen zakres.",
+              regression: "Goblet squat / przysiad do skrzyni.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+          ],
+        }),
+        block({
+          title: "BLOK B — TYLNA TAŚMA + GÓRA (superset)",
+          blockType: "superset",
+          intent: "strength",
+          restAfterBlock: "Przerwa po bloku: 90 s",
+          safetyNotes: "Hamstring kontrolowany, lekko — bez dublowania ciężkich nóg.",
+          exercises: [
+            ex({
+              label: "B1",
+              name: ham,
+              sets: d.accSets,
+              reps: d.accReps,
+              restAfterExercise: "30 s do B2",
+              cue: "Kontrola tylnej taśmy, bez bólu.",
+              ageSafetyLevel: "youth_ok",
+            }),
+            ex({
+              label: "B2",
+              name: pull,
+              sets: d.accSets,
+              reps: d.mainReps,
+              restAfterPair: "90 s po parze",
+              cue: "Ściągnij łopatki, kontrola.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+          ],
+        }),
+        block({
+          title: "BLOK C — PUSH / CORE (superset)",
+          blockType: "superset",
+          intent: "stability",
+          restAfterBlock: "Przerwa po bloku: 75 s",
+          exercises: [
+            ex({
+              label: "C1",
+              name: push,
+              sets: d.accSets,
+              reps: d.mainReps,
+              restAfterExercise: "30 s do C2",
+              cue: "Pełen zakres, łopatki ustawione.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "C2",
+              name: core,
+              sets: d.accSets,
+              reps: d.accReps,
+              restAfterPair: "60 s po parze",
+              cue: "Sztywny tułów, anty-rotacja.",
+              ageSafetyLevel: "all",
+            }),
+          ],
+        }),
+      ],
+    }),
+    section({
+      title: "Akcesoria",
+      type: "accessory",
+      blocks: [
+        block({
+          title: "Robustność i prewencja",
+          blockType: "accessory",
+          intent: "stability",
+          restAfterBlock: "45 s",
+          exercises: [
+            ex({ name: adductor, sets: "2", reps: "8 / strona", cue: "Kontrola, bez bólu." }),
+            ex({ name: "Wspięcia na palce (łydka)", sets: "2", reps: "12–15", cue: "Pełen zakres, kontrola." }),
+          ],
+        }),
+      ],
+    }),
+    cooldownSection(),
+  ];
+
+  return {
+    role: "full_body_athletic",
+    title: "Siłownia: pełne ciało atletyczne",
+    sessionType: "Siła / moc",
+    goalOfSession:
+      "Jedna kompletna sesja atletyczna: moc, główny lift, tylna taśma, góra i odporność — wsparcie sprintu, hamowania i prewencji.",
+    intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
+    durationMin: adult ? 60 : 50,
+    sections,
+    mainPatterns: [squat, jump.name],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // ROLA 5 — SPEED-STRENGTH / POWER PRIMER (niska objętość)
 // ---------------------------------------------------------------------------
 
@@ -1015,9 +1176,19 @@ export function buildStrengthPowerStructured(
       : powerPrimer(profile, ctx);
   }
 
-  const role = pickGymRole(profile, ctx);
+  // Jedyna sesja gym w tygodniu → kompletna sesja pełnego ciała atletycznego.
+  const onlyGymSession =
+    ctx.gymSessionsThisWeekTotal === 1 &&
+    ctx.gymSessionIndexInWeek === 0 &&
+    !(ctx.readiness !== undefined && ctx.readiness <= 5) &&
+    ctx.mdLabel !== "MD-2";
+
+  const role = onlyGymSession ? "full_body_athletic" : pickGymRole(profile, ctx);
   let plan: GymSessionPlan;
   switch (role) {
+    case "full_body_athletic":
+      plan = fullBodyAthletic(profile, ctx);
+      break;
     case "lower_strength_power":
       plan = lowerStrengthPower(profile, ctx);
       break;

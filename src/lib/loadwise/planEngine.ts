@@ -2547,6 +2547,80 @@ function enforcePrimaryGoalTarget(
   }
 }
 
+/**
+ * TWARDA ZASADA: każdy normalny tydzień treningowy z dostępem do siłowni MUSI
+ * zawierać minimum 1 sesję siłowo-mocową (atletyczną full-body). Wyjątki:
+ *  - brak dostępu do siłowni (profile.hasGym === false),
+ *  - kontuzja / powrót / bardzo niska gotowość (isHealthyPerformanceProfile),
+ *  - kongestia meczowa (>=2 mecze w tygodniu) — wtedy gym bywa niebezpieczny.
+ * Tydzień z 0 sesjami gym przy dostępie do siłowni jest nieprawidłowy.
+ */
+function enforceMinimumGymSession(
+  profile: Profile,
+  matchCount: number,
+  items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
+  result: Record<string, PlanCell>,
+): void {
+  if (!profile.hasGym) return;
+  if (!isHealthyPerformanceProfile(profile)) return;
+  if (matchCount >= 2) return; // kongestia meczowa — bezpieczeństwo > gym
+
+  const gymStimulus: Stimulus = "strength";
+  const cells = () =>
+    items.map((it) => result[it.iso]).filter(Boolean) as PlanCell[];
+  const gymCount = () => countCellCategories(cells()).strength_power;
+
+  if (gymCount() >= 1) return;
+
+  // 1. Bezczynny dzień regeneracji (bez bodźca) → sesja gym, jeśli bezpieczny.
+  const idle = [...items]
+    .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
+    .find((it) => {
+      const cell = result[it.iso];
+      return (
+        cell?.type === "recovery" &&
+        it.base === "available" &&
+        canPrimaryStimulus(gymStimulus, it)
+      );
+    });
+  if (idle) {
+    result[idle.iso] = { type: "training", stimulus: gymStimulus };
+    return;
+  }
+
+  // 2. Dzień o niższym priorytecie (piłka / atletyka / wytrzymałość) → gym.
+  const replaceable = [...items]
+    .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
+    .find((it) => {
+      const cell = result[it.iso];
+      if (!cell || cell.type !== "training" || !cell.stimulus) return false;
+      const c = categoryOf(cell.stimulus);
+      return (
+        c !== "strength_power" &&
+        c !== "speed" &&
+        canPrimaryStimulus(gymStimulus, it)
+      );
+    });
+  if (replaceable) {
+    result[replaceable.iso].stimulus = gymStimulus;
+    return;
+  }
+
+  // 3. Jako druga jednostka dnia, jeśli istnieje bezpieczny slot.
+  const second = [...items]
+    .sort((a, b) => slotScore(gymStimulus, b, true) - slotScore(gymStimulus, a, true))
+    .find((it) => {
+      const cell = result[it.iso];
+      if (!cell || cell.secondStimulus) return false;
+      return canSecondStimulus(gymStimulus, it, cell.stimulus);
+    });
+  if (second) {
+    result[second.iso].secondStimulus = gymStimulus;
+  }
+  // Brak bezpiecznego slotu → tydzień jest realnie skongestionowany,
+  // gym pomijamy zgodnie z zasadami bezpieczeństwa.
+}
+
 function repairWeekCells(
   profile: Profile,
   items: { iso: string; date: Date; base: BaseDayType; toMatch: number | null }[],
@@ -2700,6 +2774,7 @@ function planBlock(
 
     repairWeekCells(profile, items, result, maxDoubles);
     enforcePrimaryGoalTarget(profile, items, result);
+    enforceMinimumGymSession(profile, matchCount, items, result);
   });
 
   return result;
@@ -2748,15 +2823,19 @@ export function generatePlan(
   const maxDoublesAtStart = new Map<number, number>();
   // Kontekst periodyzacji per początek tygodnia (faza + indeks tygodnia).
   const weekContextAtStart = new Map<number, { weekIndex: number; phase: GymWeekPhase }>();
+  // Łączna liczba sesji siłowni w danym tygodniu (do decyzji full-body przy 1 sesji).
+  const gymTotalAtStart = new Map<number, number>();
   ranges.forEach((range, weekIndex) => {
     const phaseTotal = days <= 7 ? 4 : totalWeeks;
     const phase = phaseOf(weekOffset + weekIndex, phaseTotal);
     let hasMatch = false;
+    let gymTotal = 0;
     for (let k = range.start; k < range.end; k++) {
-      if (isMatchDay(addDays(startDate, k), profile)) {
-        hasMatch = true;
-        break;
-      }
+      const date = addDays(startDate, k);
+      if (isMatchDay(date, profile)) hasMatch = true;
+      const cell = blockMap[isoDate(date)];
+      if (cell?.stimulus && categoryOf(cell.stimulus) === "strength_power") gymTotal++;
+      if (cell?.secondStimulus && categoryOf(cell.secondStimulus) === "strength_power") gymTotal++;
     }
     maxDoublesAtStart.set(
       range.start,
@@ -2766,12 +2845,14 @@ export function generatePlan(
       weekIndex: weekOffset + weekIndex,
       phase: phase as GymWeekPhase,
     });
+    gymTotalAtStart.set(range.start, gymTotal);
   });
 
   // Stan tygodnia do różnicowania i anty-powtórzeń sesji siłowni.
   let curWeekIndex = weekOffset;
   let curPhase: GymWeekPhase = "development";
   let gymSessionsThisWeek = 0;
+  let curGymTotal = gymTotalAtStart.get(0) ?? 0;
   const gymHistory: GymHistory = {
     usedRolesThisWeek: [],
     usedMainThisWeek: [],
@@ -2788,6 +2869,7 @@ export function generatePlan(
       weekPhase: curPhase,
       weekIndex: curWeekIndex,
       gymSessionIndexInWeek: gymSessionsThisWeek,
+      gymSessionsThisWeekTotal: curGymTotal,
       readiness,
       history: gymHistory,
     });
@@ -2823,6 +2905,7 @@ export function generatePlan(
         curWeekIndex = wc.weekIndex;
         curPhase = wc.phase;
       }
+      curGymTotal = gymTotalAtStart.get(i) ?? 0;
       // Przenieś historię tygodnia do "poprzedniego tygodnia" i wyzeruj bieżący.
       gymHistory.usedMainLastWeek = gymHistory.usedMainThisWeek;
       gymHistory.usedMainThisWeek = [];
