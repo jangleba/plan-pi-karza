@@ -2869,6 +2869,7 @@ export function generatePlan(
       weekPhase: curPhase,
       weekIndex: curWeekIndex,
       gymSessionIndexInWeek: gymSessionsThisWeek,
+      gymSessionsThisWeekTotal: curGymTotal,
       readiness,
       history: gymHistory,
     });
