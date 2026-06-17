@@ -354,6 +354,60 @@ function cooldownSection(): TrainingSection {
 }
 
 // ---------------------------------------------------------------------------
+// Przezwyciężająca izometria (overcoming iso) — przed głównym blokiem kontrastu
+// ---------------------------------------------------------------------------
+
+/** Dobiera ćwiczenie izometryczne pasujące do głównego liftu. */
+function isoForMain(mainName: string): { name: string; cue: string } {
+  const n = mainName.toLowerCase();
+  if (n.includes("trap bar") || n.includes("martwy ciąg") || n.includes("rdl") || n.includes("hip thrust") || n.includes("good morning") || n.includes("hinge")) {
+    return {
+      name: "Izometria przezwyciężająca: trap bar pull / mid-thigh pull przy pinach",
+      cue: "Napieraj maksymalnie w pin przez 3–5 s, plecy proste, napięty tułów.",
+    };
+  }
+  if (n.includes("split") || n.includes("wykrok") || n.includes("step")) {
+    return {
+      name: "Izometria przezwyciężająca: split squat iso przy pinach",
+      cue: "Maksymalne napięcie w dół przez 3–5 s, pion tułowia, stabilne kolano.",
+    };
+  }
+  return {
+    name: "Izometria przezwyciężająca: przysiad przy pinach (overcoming iso)",
+    cue: "Napieraj maksymalnie w pin przez 3–5 s, napnij tułów, pchaj podłogę.",
+  };
+}
+
+/** Sekcja przygotowawcza z przezwyciężającą izometrią (przed kontrastem). */
+function overcomingIsoSection(mainName: string): TrainingSection {
+  const iso = isoForMain(mainName);
+  return section({
+    title: "Izometria przezwyciężająca",
+    type: "prep",
+    blocks: [
+      block({
+        title: "BLOK ISO — napęd nerwowy",
+        blockType: "single",
+        intent: "rfd",
+        restAfterBlock: "Przerwa po bloku: 90 s",
+        safetyNotes: "Krótkie, maksymalne napięcia. Bez bólu, pełna kontrola pozycji.",
+        exercises: [
+          ex({
+            label: "ISO",
+            name: iso.name,
+            sets: "3",
+            reps: "3 × 5 s",
+            restAfterExercise: "60–90 s",
+            cue: iso.cue,
+            ageSafetyLevel: "all",
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------
 // ROLA 1 — LOWER STRENGTH + POWER
 // ---------------------------------------------------------------------------
 
