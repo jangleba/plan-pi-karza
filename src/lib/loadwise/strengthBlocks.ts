@@ -354,6 +354,60 @@ function cooldownSection(): TrainingSection {
 }
 
 // ---------------------------------------------------------------------------
+// Przezwyciężająca izometria (overcoming iso) — przed głównym blokiem kontrastu
+// ---------------------------------------------------------------------------
+
+/** Dobiera ćwiczenie izometryczne pasujące do głównego liftu. */
+function isoForMain(mainName: string): { name: string; cue: string } {
+  const n = mainName.toLowerCase();
+  if (n.includes("trap bar") || n.includes("martwy ciąg") || n.includes("rdl") || n.includes("hip thrust") || n.includes("good morning") || n.includes("hinge")) {
+    return {
+      name: "Izometria przezwyciężająca: trap bar pull / mid-thigh pull przy pinach",
+      cue: "Napieraj maksymalnie w pin przez 3–5 s, plecy proste, napięty tułów.",
+    };
+  }
+  if (n.includes("split") || n.includes("wykrok") || n.includes("step")) {
+    return {
+      name: "Izometria przezwyciężająca: split squat iso przy pinach",
+      cue: "Maksymalne napięcie w dół przez 3–5 s, pion tułowia, stabilne kolano.",
+    };
+  }
+  return {
+    name: "Izometria przezwyciężająca: przysiad przy pinach (overcoming iso)",
+    cue: "Napieraj maksymalnie w pin przez 3–5 s, napnij tułów, pchaj podłogę.",
+  };
+}
+
+/** Sekcja przygotowawcza z przezwyciężającą izometrią (przed kontrastem). */
+function overcomingIsoSection(mainName: string): TrainingSection {
+  const iso = isoForMain(mainName);
+  return section({
+    title: "Izometria przezwyciężająca",
+    type: "prep",
+    blocks: [
+      block({
+        title: "BLOK ISO — napęd nerwowy",
+        blockType: "single",
+        intent: "rfd",
+        restAfterBlock: "Przerwa po bloku: 90 s",
+        safetyNotes: "Krótkie, maksymalne napięcia. Bez bólu, pełna kontrola pozycji.",
+        exercises: [
+          ex({
+            label: "ISO",
+            name: iso.name,
+            sets: "3",
+            reps: "3 × 5 s",
+            restAfterExercise: "60–90 s",
+            cue: iso.cue,
+            ageSafetyLevel: "all",
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------
 // ROLA 1 — LOWER STRENGTH + POWER
 // ---------------------------------------------------------------------------
 
@@ -369,104 +423,42 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
 
   const sections: TrainingSection[] = [
     warmupSection(),
-    section({
-      title: "Przygotowanie",
-      type: "prep",
-      blocks: [
-        block({
-          title: "Ramp-up + primer nerwowy",
-          blockType: "single",
-          intent: "rfd",
-          restAfterBlock: "60–90 s",
-          exercises: [
-            ex({
-              label: "P1",
-              name: `Serie wprowadzające — ${squat.toLowerCase()}`,
-              sets: "3",
-              reps: "5 → 3 → 2",
-              loadTarget: "progresja do ciężaru roboczego",
-              cue: "Każda seria pewniejsza technicznie i szybsza.",
-            }),
-          ],
-        }),
-      ],
-    }),
+    overcomingIsoSection(squat),
     section({
       title: "Część główna",
       type: "main",
       blocks: [
         block({
-          title: useContrast ? "BLOK A — SIŁA → MOC (kontrast)" : "BLOK A — SIŁA DOLNA",
-          blockType: useContrast ? "contrast" : "single",
+          title: useContrast ? "BLOK A — KONTRAST (moc + siła)" : "BLOK A — SIŁA DOLNA + MOC",
+          blockType: useContrast ? "contrast" : "complex",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–3 min",
           eligibilityLevel: adult ? "advanced_only" : "youth_ok",
-          safetyNotes: useContrast ? "Kontrast: ciężka siła + eksplozja. Tylko świeży." : undefined,
-          exercises: useContrast
-            ? [
-                ex({
-                  label: "A1",
-                  name: squat,
-                  sets: d.mainSets,
-                  reps: d.mainReps,
-                  rpe: d.rpe,
-                  tempo: "3-1-1",
-                  restAfterExercise: "30–45 s do A2",
-                  cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
-                  technique: "Kolana w linii stóp, pełen zakres.",
-                  regression: "Goblet squat / przysiad do skrzyni.",
-                  commonMistake: "Zaokrąglone plecy, kolana do środka.",
-                  ageSafetyLevel: "advanced_only",
-                }),
-                ex({
-                  label: "A2",
-                  name: jump.name,
-                  sets: d.mainSets,
-                  reps: "3",
-                  groundContacts: contacts(jump.contacts, d),
-                  restAfterPair: "2–3 min po parze",
-                  cue: jump.cue,
-                  ageSafetyLevel: "advanced_only",
-                }),
-              ]
-            : [
-                ex({
-                  label: "A",
-                  name: squat,
-                  sets: d.mainSets,
-                  reps: d.mainReps,
-                  rpe: d.rpe,
-                  tempo: "2-1-1",
-                  restAfterExercise: "90–120 s",
-                  cue: "Technika przede wszystkim, pełna kontrola.",
-                  technique: "Pięty na ziemi, kolana w linii stóp.",
-                  ageSafetyLevel: adult ? "all" : "youth_ok",
-                }),
-              ],
-        }),
-        block({
-          title: "BLOK B — MOC / EKSPLOZJA",
-          blockType: "rfd",
-          intent: "power",
-          restAfterBlock: "Przerwa po bloku: 2 min",
+          safetyNotes: "Para mocy + główny lift. Wykonuj tylko świeży, bez bólu.",
           exercises: [
             ex({
-              label: "B1",
+              label: "A1",
               name: jump.kind === "medball" ? "Skok pionowy (CMJ)" : jump.name,
-              sets: "3",
-              reps: "4",
+              sets: d.mainSets,
+              reps: "3",
               groundContacts: contacts(jump.contacts, d),
+              restAfterExercise: "30–45 s do A2",
               cue: jump.cue,
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
             ex({
-              label: "B2",
-              name: acc,
-              sets: d.accSets,
-              reps: d.accReps,
-              restAfterPair: "90 s po parze",
-              cue: "Kontrola tylnej taśmy, bez bólu.",
-              ageSafetyLevel: "youth_ok",
+              label: "A2",
+              name: squat,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              tempo: adult ? "3-1-1" : "2-1-1",
+              restAfterPair: "2–3 min po parze",
+              cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              technique: "Kolana w linii stóp, pełen zakres.",
+              regression: "Goblet squat / przysiad do skrzyni.",
+              commonMistake: "Zaokrąglone plecy, kolana do środka.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
           ],
         }),
@@ -476,6 +468,15 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
       title: "Akcesoria",
       type: "accessory",
       blocks: [
+        block({
+          title: "Akcesoria atletyczne",
+          blockType: "accessory",
+          intent: "strength",
+          restAfterBlock: "Przerwa po bloku: 60–90 s",
+          exercises: [
+            ex({ name: acc, sets: d.accSets, reps: d.accReps, cue: "Kontrola tylnej taśmy, bez bólu.", ageSafetyLevel: "youth_ok" }),
+          ],
+        }),
         block({
           title: "Tułów i robustność",
           blockType: "accessory",
@@ -490,6 +491,7 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
     }),
     cooldownSection(),
   ];
+
 
   return {
     role: "lower_strength_power",
@@ -539,58 +541,44 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
         }),
       ],
     }),
+    overcomingIsoSection(hinge),
     section({
       title: "Część główna",
       type: "main",
       blocks: [
         block({
-          title: useContrast ? "BLOK A — SIŁA → MOC (hinge kontrast)" : "BLOK A — TYLNA TAŚMA (hinge)",
-          blockType: useContrast ? "contrast" : "single",
+          title: useContrast ? "BLOK A — KONTRAST (moc + hinge)" : "BLOK A — TYLNA TAŚMA + MOC",
+          blockType: useContrast ? "contrast" : "complex",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–3 min",
-          safetyNotes: useContrast ? "Ciężki hinge + skok. Wykonuj tylko świeży." : undefined,
-          exercises: useContrast
-            ? [
-                ex({
-                  label: "A1",
-                  name: hinge,
-                  sets: d.mainSets,
-                  reps: d.mainReps,
-                  rpe: d.rpe,
-                  tempo: "3-1-1",
-                  restAfterExercise: "30–45 s do A2",
-                  cue: "Biodra w tył, plecy proste, czuj tylne uda.",
-                  technique: "Neutralny kręgosłup, napięty tułów.",
-                  regression: "Hip thrust / hamstring bridge.",
-                  ageSafetyLevel: adult ? "all" : "youth_ok",
-                }),
-                ex({
-                  label: "A2",
-                  name: hingeJump.name,
-                  sets: d.mainSets,
-                  reps: "3",
-                  groundContacts: contacts(hingeJump.contacts, d),
-                  restAfterPair: "2–3 min po parze",
-                  cue: hingeJump.cue,
-                  ageSafetyLevel: "advanced_only",
-                }),
-              ]
-            : [
-                ex({
-                  label: "A",
-                  name: hinge,
-                  sets: d.mainSets,
-                  reps: d.mainReps,
-                  rpe: d.rpe,
-                  tempo: "3-1-1",
-                  restAfterExercise: "90–120 s",
-                  cue: "Biodra w tył, plecy proste, czuj tylne uda.",
-                  technique: "Neutralny kręgosłup, napięty tułów.",
-                  regression: "Hip thrust / hamstring bridge.",
-                  ageSafetyLevel: adult ? "all" : "youth_ok",
-                }),
-              ],
+          safetyNotes: "Para mocy + główny hinge. Wykonuj tylko świeży, bez bólu.",
+          exercises: [
+            ex({
+              label: "A1",
+              name: hingeJump.name,
+              sets: d.mainSets,
+              reps: "3",
+              groundContacts: contacts(hingeJump.contacts, d),
+              restAfterExercise: "30–45 s do A2",
+              cue: hingeJump.cue,
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "A2",
+              name: hinge,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              tempo: "3-1-1",
+              restAfterPair: "2–3 min po parze",
+              cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+              technique: "Neutralny kręgosłup, napięty tułów.",
+              regression: "Hip thrust / hamstring bridge.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+          ],
         }),
+
         block({
           title: "BLOK B — JEDNONÓŻ + STIFFNESS",
           blockType: "superset",
@@ -864,48 +852,37 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
 
   const sections: TrainingSection[] = [
     warmupSection(),
-    section({
-      title: "Przygotowanie",
-      type: "prep",
-      blocks: [
-        block({
-          title: "Primer mocy (RFD)",
-          blockType: "rfd",
-          intent: "rfd",
-          restAfterBlock: "Przerwa po bloku: 90 s",
-          exercises: [
-            ex({
-              label: "P1",
-              name: jump.name,
-              sets: "3",
-              reps: "3–4",
-              groundContacts: contacts(jump.contacts, d),
-              cue: jump.cue,
-              ageSafetyLevel: adult ? "all" : "youth_ok",
-            }),
-          ],
-        }),
-      ],
-    }),
+    overcomingIsoSection(squat),
     section({
       title: "Część główna",
       type: "main",
       blocks: [
         block({
-          title: "BLOK A — GŁÓWNY LIFT (kolanowo-dominujący)",
-          blockType: "single",
-          intent: "strength",
+          title: "BLOK A — KONTRAST (moc + główny lift)",
+          blockType: "contrast",
+          intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–3 min",
           eligibilityLevel: adult ? "advanced_only" : "youth_ok",
+          safetyNotes: "Para mocy + główny lift. Wykonuj tylko świeży, bez bólu.",
           exercises: [
             ex({
-              label: "A",
+              label: "A1",
+              name: jump.name,
+              sets: d.mainSets,
+              reps: "3",
+              groundContacts: contacts(jump.contacts, d),
+              restAfterExercise: "30–45 s do A2",
+              cue: jump.cue,
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "A2",
               name: squat,
               sets: d.mainSets,
               reps: d.mainReps,
               rpe: d.rpe,
               tempo: "2-1-1",
-              restAfterExercise: "2–3 min",
+              restAfterPair: "2–3 min po parze",
               cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
               technique: "Kolana w linii stóp, pełen zakres.",
               regression: "Goblet squat / przysiad do skrzyni.",
@@ -913,6 +890,7 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
             }),
           ],
         }),
+
         block({
           title: "BLOK B — TYLNA TAŚMA + GÓRA (superset)",
           blockType: "superset",
