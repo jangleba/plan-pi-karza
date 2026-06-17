@@ -852,48 +852,37 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
 
   const sections: TrainingSection[] = [
     warmupSection(),
-    section({
-      title: "Przygotowanie",
-      type: "prep",
-      blocks: [
-        block({
-          title: "Primer mocy (RFD)",
-          blockType: "rfd",
-          intent: "rfd",
-          restAfterBlock: "Przerwa po bloku: 90 s",
-          exercises: [
-            ex({
-              label: "P1",
-              name: jump.name,
-              sets: "3",
-              reps: "3–4",
-              groundContacts: contacts(jump.contacts, d),
-              cue: jump.cue,
-              ageSafetyLevel: adult ? "all" : "youth_ok",
-            }),
-          ],
-        }),
-      ],
-    }),
+    overcomingIsoSection(squat),
     section({
       title: "Część główna",
       type: "main",
       blocks: [
         block({
-          title: "BLOK A — GŁÓWNY LIFT (kolanowo-dominujący)",
-          blockType: "single",
-          intent: "strength",
+          title: "BLOK A — KONTRAST (moc + główny lift)",
+          blockType: "contrast",
+          intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–3 min",
           eligibilityLevel: adult ? "advanced_only" : "youth_ok",
+          safetyNotes: "Para mocy + główny lift. Wykonuj tylko świeży, bez bólu.",
           exercises: [
             ex({
-              label: "A",
+              label: "A1",
+              name: jump.name,
+              sets: d.mainSets,
+              reps: "3",
+              groundContacts: contacts(jump.contacts, d),
+              restAfterExercise: "30–45 s do A2",
+              cue: jump.cue,
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "A2",
               name: squat,
               sets: d.mainSets,
               reps: d.mainReps,
               rpe: d.rpe,
               tempo: "2-1-1",
-              restAfterExercise: "2–3 min",
+              restAfterPair: "2–3 min po parze",
               cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
               technique: "Kolana w linii stóp, pełen zakres.",
               regression: "Goblet squat / przysiad do skrzyni.",
@@ -901,6 +890,7 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
             }),
           ],
         }),
+
         block({
           title: "BLOK B — TYLNA TAŚMA + GÓRA (superset)",
           blockType: "superset",
