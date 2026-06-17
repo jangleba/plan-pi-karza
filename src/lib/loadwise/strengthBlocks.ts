@@ -423,104 +423,42 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
 
   const sections: TrainingSection[] = [
     warmupSection(),
-    section({
-      title: "Przygotowanie",
-      type: "prep",
-      blocks: [
-        block({
-          title: "Ramp-up + primer nerwowy",
-          blockType: "single",
-          intent: "rfd",
-          restAfterBlock: "60–90 s",
-          exercises: [
-            ex({
-              label: "P1",
-              name: `Serie wprowadzające — ${squat.toLowerCase()}`,
-              sets: "3",
-              reps: "5 → 3 → 2",
-              loadTarget: "progresja do ciężaru roboczego",
-              cue: "Każda seria pewniejsza technicznie i szybsza.",
-            }),
-          ],
-        }),
-      ],
-    }),
+    overcomingIsoSection(squat),
     section({
       title: "Część główna",
       type: "main",
       blocks: [
         block({
-          title: useContrast ? "BLOK A — SIŁA → MOC (kontrast)" : "BLOK A — SIŁA DOLNA",
-          blockType: useContrast ? "contrast" : "single",
+          title: useContrast ? "BLOK A — KONTRAST (moc + siła)" : "BLOK A — SIŁA DOLNA + MOC",
+          blockType: useContrast ? "contrast" : "complex",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–3 min",
           eligibilityLevel: adult ? "advanced_only" : "youth_ok",
-          safetyNotes: useContrast ? "Kontrast: ciężka siła + eksplozja. Tylko świeży." : undefined,
-          exercises: useContrast
-            ? [
-                ex({
-                  label: "A1",
-                  name: squat,
-                  sets: d.mainSets,
-                  reps: d.mainReps,
-                  rpe: d.rpe,
-                  tempo: "3-1-1",
-                  restAfterExercise: "30–45 s do A2",
-                  cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
-                  technique: "Kolana w linii stóp, pełen zakres.",
-                  regression: "Goblet squat / przysiad do skrzyni.",
-                  commonMistake: "Zaokrąglone plecy, kolana do środka.",
-                  ageSafetyLevel: "advanced_only",
-                }),
-                ex({
-                  label: "A2",
-                  name: jump.name,
-                  sets: d.mainSets,
-                  reps: "3",
-                  groundContacts: contacts(jump.contacts, d),
-                  restAfterPair: "2–3 min po parze",
-                  cue: jump.cue,
-                  ageSafetyLevel: "advanced_only",
-                }),
-              ]
-            : [
-                ex({
-                  label: "A",
-                  name: squat,
-                  sets: d.mainSets,
-                  reps: d.mainReps,
-                  rpe: d.rpe,
-                  tempo: "2-1-1",
-                  restAfterExercise: "90–120 s",
-                  cue: "Technika przede wszystkim, pełna kontrola.",
-                  technique: "Pięty na ziemi, kolana w linii stóp.",
-                  ageSafetyLevel: adult ? "all" : "youth_ok",
-                }),
-              ],
-        }),
-        block({
-          title: "BLOK B — MOC / EKSPLOZJA",
-          blockType: "rfd",
-          intent: "power",
-          restAfterBlock: "Przerwa po bloku: 2 min",
+          safetyNotes: "Para mocy + główny lift. Wykonuj tylko świeży, bez bólu.",
           exercises: [
             ex({
-              label: "B1",
+              label: "A1",
               name: jump.kind === "medball" ? "Skok pionowy (CMJ)" : jump.name,
-              sets: "3",
-              reps: "4",
+              sets: d.mainSets,
+              reps: "3",
               groundContacts: contacts(jump.contacts, d),
+              restAfterExercise: "30–45 s do A2",
               cue: jump.cue,
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
             ex({
-              label: "B2",
-              name: acc,
-              sets: d.accSets,
-              reps: d.accReps,
-              restAfterPair: "90 s po parze",
-              cue: "Kontrola tylnej taśmy, bez bólu.",
-              ageSafetyLevel: "youth_ok",
+              label: "A2",
+              name: squat,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              tempo: adult ? "3-1-1" : "2-1-1",
+              restAfterPair: "2–3 min po parze",
+              cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              technique: "Kolana w linii stóp, pełen zakres.",
+              regression: "Goblet squat / przysiad do skrzyni.",
+              commonMistake: "Zaokrąglone plecy, kolana do środka.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
           ],
         }),
@@ -530,6 +468,15 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
       title: "Akcesoria",
       type: "accessory",
       blocks: [
+        block({
+          title: "Akcesoria atletyczne",
+          blockType: "accessory",
+          intent: "strength",
+          restAfterBlock: "Przerwa po bloku: 60–90 s",
+          exercises: [
+            ex({ name: acc, sets: d.accSets, reps: d.accReps, cue: "Kontrola tylnej taśmy, bez bólu.", ageSafetyLevel: "youth_ok" }),
+          ],
+        }),
         block({
           title: "Tułów i robustność",
           blockType: "accessory",
@@ -544,6 +491,7 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
     }),
     cooldownSection(),
   ];
+
 
   return {
     role: "lower_strength_power",
