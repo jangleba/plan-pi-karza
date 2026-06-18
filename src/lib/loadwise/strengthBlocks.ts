@@ -436,9 +436,22 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
   const adult = isAdvancedEligible(profile);
   const d = dosageFor(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
-  const squat = rotatePick(adult ? SQUAT_ADULT : SQUAT_YOUTH, ctx, avoid);
-  const jump = pickJumps(ctx, ctx.powerFocus ? ["horizontal", "vertical"] : ["vertical", "horizontal"], avoid);
-  const acc = rotatePick(adult ? POSTERIOR_ACC : POSTERIOR_ACC, ctx, avoid);
+  const trapBar = ctx.forcedMainFamily === "trap_bar";
+  // Sesja 1 = przysiad (knee-dominant). Sesja 2 = trap bar / hinge total-body.
+  const mainPool = trapBar
+    ? adult
+      ? TRAP_BAR_HINGE_ADULT
+      : TRAP_BAR_HINGE_YOUTH
+    : adult
+      ? SQUAT_ADULT
+      : SQUAT_YOUTH;
+  const squat = rotatePick(mainPool, ctx, avoid);
+  const jump = trapBar
+    ? pickJumps(ctx, ["horizontal", "vertical"], avoid)
+    : pickJumps(ctx, ctx.powerFocus ? ["horizontal", "vertical"] : ["vertical", "horizontal"], avoid);
+  // Trap bar to dominanta hinge → akcesoria tylnej taśmy MUSZĄ być kontrolowane
+  // (bez ciężkiego RDL / Nordic), żeby nie dublować obciążenia hinge.
+  const acc = trapBar ? rotatePick(CONTROLLED_HAM, ctx, avoid) : rotatePick(POSTERIOR_ACC, ctx, avoid);
   const core = rotatePick(CORE_ANTI, ctx, avoid);
   const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
 
