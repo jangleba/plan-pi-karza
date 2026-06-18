@@ -488,9 +488,15 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
               rpe: d.rpe,
               tempo: adult ? "3-1-1" : "2-1-1",
               restAfterPair: "2–3 min po parze",
-              cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
-              technique: "Kolana w linii stóp, pełen zakres.",
-              regression: "Goblet squat / przysiad do skrzyni.",
+              cue: trapBar
+                ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
+                : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              technique: trapBar
+                ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder."
+                : "Kolana w linii stóp, pełen zakres.",
+              regression: trapBar
+                ? "Trap bar z wysokich pinów / kettlebell deadlift."
+                : "Goblet squat / przysiad do skrzyni.",
               commonMistake: "Zaokrąglone plecy, kolana do środka.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
