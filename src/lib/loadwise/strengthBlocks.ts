@@ -51,6 +51,13 @@ export interface StrengthBlockContext {
   readiness?: number;
   /** Historia ćwiczeń — anty-powtórzenia w tygodniu i między tygodniami. */
   history: GymHistory;
+  /**
+   * Wymuszona rodzina głównego liftu dla sesji dolnej.
+   * Używane przy 2 sesjach gym w tygodniu:
+   * - "squat"    → sesja 1: dzień przysiadu (knee-dominant max strength)
+   * - "trap_bar" → sesja 2: dzień trap bar / hinge total-body
+   */
+  forcedMainFamily?: "squat" | "trap_bar";
 }
 
 export interface GymSessionPlan {
@@ -127,7 +134,7 @@ type PlyoKind =
 const SQUAT_ADULT = [
   "Przysiad ze sztangą (high bar)",
   "Przysiad czołowy (front squat)",
-  "Trap bar martwy ciąg",
+  "Safety bar squat (przysiad)",
   "Przysiad ze sztangą do skrzyni",
   "Przysiad ze sztangą (low bar)",
 ];
@@ -136,6 +143,20 @@ const SQUAT_YOUTH = [
   "Przysiad z hantlami (tempo)",
   "Przysiad do skrzyni",
   "Przysiad z masą ciała + pauza",
+];
+
+/** Sesja 2 przy 2 sesjach gym w tygodniu: trap bar / hinge total-body. */
+const TRAP_BAR_HINGE_ADULT = [
+  "Trap bar martwy ciąg",
+  "Trap bar jump (skok z trap bar)",
+  "Martwy ciąg klasyczny",
+  "Trap bar martwy ciąg (z wysokich pinów)",
+];
+const TRAP_BAR_HINGE_YOUTH = [
+  "Trap bar martwy ciąg (lekko, technika)",
+  "Hip hinge z hantlami",
+  "Kettlebell deadlift",
+  "Hip thrust z hantlami",
 ];
 
 const HINGE_ADULT = [
@@ -415,9 +436,22 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
   const adult = isAdvancedEligible(profile);
   const d = dosageFor(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
-  const squat = rotatePick(adult ? SQUAT_ADULT : SQUAT_YOUTH, ctx, avoid);
-  const jump = pickJumps(ctx, ctx.powerFocus ? ["horizontal", "vertical"] : ["vertical", "horizontal"], avoid);
-  const acc = rotatePick(adult ? POSTERIOR_ACC : POSTERIOR_ACC, ctx, avoid);
+  const trapBar = ctx.forcedMainFamily === "trap_bar";
+  // Sesja 1 = przysiad (knee-dominant). Sesja 2 = trap bar / hinge total-body.
+  const mainPool = trapBar
+    ? adult
+      ? TRAP_BAR_HINGE_ADULT
+      : TRAP_BAR_HINGE_YOUTH
+    : adult
+      ? SQUAT_ADULT
+      : SQUAT_YOUTH;
+  const squat = rotatePick(mainPool, ctx, avoid);
+  const jump = trapBar
+    ? pickJumps(ctx, ["horizontal", "vertical"], avoid)
+    : pickJumps(ctx, ctx.powerFocus ? ["horizontal", "vertical"] : ["vertical", "horizontal"], avoid);
+  // Trap bar to dominanta hinge → akcesoria tylnej taśmy MUSZĄ być kontrolowane
+  // (bez ciężkiego RDL / Nordic), żeby nie dublować obciążenia hinge.
+  const acc = trapBar ? rotatePick(CONTROLLED_HAM, ctx, avoid) : rotatePick(POSTERIOR_ACC, ctx, avoid);
   const core = rotatePick(CORE_ANTI, ctx, avoid);
   const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
 
@@ -454,9 +488,15 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
               rpe: d.rpe,
               tempo: adult ? "3-1-1" : "2-1-1",
               restAfterPair: "2–3 min po parze",
-              cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
-              technique: "Kolana w linii stóp, pełen zakres.",
-              regression: "Goblet squat / przysiad do skrzyni.",
+              cue: trapBar
+                ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
+                : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              technique: trapBar
+                ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder."
+                : "Kolana w linii stóp, pełen zakres.",
+              regression: trapBar
+                ? "Trap bar z wysokich pinów / kettlebell deadlift."
+                : "Goblet squat / przysiad do skrzyni.",
               commonMistake: "Zaokrąglone plecy, kolana do środka.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
@@ -495,9 +535,17 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
 
   return {
     role: "lower_strength_power",
-    title: adult ? "Siłownia: siła dolna + moc" : "Siłownia: siła dolna (technika)",
+    title: trapBar
+      ? adult
+        ? "Siłownia: trap bar / hinge total-body"
+        : "Siłownia: hinge total-body (technika)"
+      : adult
+        ? "Siłownia: przysiad — siła dolna + moc"
+        : "Siłownia: przysiad (technika)",
     sessionType: "Siła / moc",
-    goalOfSession: "Ciężka siła dolnych partii z transferem w eksplozję i skok.",
+    goalOfSession: trapBar
+      ? "Trap bar / hinge total-body: maksymalna siła i moc wyprostu bioder."
+      : "Dzień przysiadu: maksymalna siła dolnych partii z transferem w skok.",
     intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
     durationMin: adult ? 60 : 50,
     sections,
@@ -1161,7 +1209,28 @@ export function buildStrengthPowerStructured(
     !(ctx.readiness !== undefined && ctx.readiness <= 5) &&
     ctx.mdLabel !== "MD-2";
 
-  const role = onlyGymSession ? "full_body_athletic" : pickGymRole(profile, ctx);
+  // Dwie sesje gym w tygodniu → wymuszony, niepowtarzalny podział:
+  //   sesja 1 = dzień przysiadu (knee-dominant max strength)
+  //   sesja 2 = dzień trap bar / hinge total-body (strength-power)
+  const readyForHeavy = ctx.readiness === undefined || ctx.readiness >= 6;
+  const twoGymSplit =
+    ctx.gymSessionsThisWeekTotal === 2 &&
+    readyForHeavy &&
+    ctx.mdLabel !== "MD-2" &&
+    (ctx.gymSessionIndexInWeek === 0 || ctx.gymSessionIndexInWeek === 1);
+
+  if (twoGymSplit) {
+    ctx = {
+      ...ctx,
+      forcedMainFamily: ctx.gymSessionIndexInWeek === 0 ? "squat" : "trap_bar",
+    };
+  }
+
+  const role = onlyGymSession
+    ? "full_body_athletic"
+    : twoGymSplit
+      ? "lower_strength_power"
+      : pickGymRole(profile, ctx);
   let plan: GymSessionPlan;
   switch (role) {
     case "full_body_athletic":
