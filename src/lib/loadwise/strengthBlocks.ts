@@ -535,9 +535,17 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
 
   return {
     role: "lower_strength_power",
-    title: adult ? "Siłownia: siła dolna + moc" : "Siłownia: siła dolna (technika)",
+    title: trapBar
+      ? adult
+        ? "Siłownia: trap bar / hinge total-body"
+        : "Siłownia: hinge total-body (technika)"
+      : adult
+        ? "Siłownia: przysiad — siła dolna + moc"
+        : "Siłownia: przysiad (technika)",
     sessionType: "Siła / moc",
-    goalOfSession: "Ciężka siła dolnych partii z transferem w eksplozję i skok.",
+    goalOfSession: trapBar
+      ? "Trap bar / hinge total-body: maksymalna siła i moc wyprostu bioder."
+      : "Dzień przysiadu: maksymalna siła dolnych partii z transferem w skok.",
     intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
     durationMin: adult ? 60 : 50,
     sections,
