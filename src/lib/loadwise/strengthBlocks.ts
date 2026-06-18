@@ -1209,7 +1209,28 @@ export function buildStrengthPowerStructured(
     !(ctx.readiness !== undefined && ctx.readiness <= 5) &&
     ctx.mdLabel !== "MD-2";
 
-  const role = onlyGymSession ? "full_body_athletic" : pickGymRole(profile, ctx);
+  // Dwie sesje gym w tygodniu → wymuszony, niepowtarzalny podział:
+  //   sesja 1 = dzień przysiadu (knee-dominant max strength)
+  //   sesja 2 = dzień trap bar / hinge total-body (strength-power)
+  const readyForHeavy = ctx.readiness === undefined || ctx.readiness >= 6;
+  const twoGymSplit =
+    ctx.gymSessionsThisWeekTotal === 2 &&
+    readyForHeavy &&
+    ctx.mdLabel !== "MD-2" &&
+    (ctx.gymSessionIndexInWeek === 0 || ctx.gymSessionIndexInWeek === 1);
+
+  if (twoGymSplit) {
+    ctx = {
+      ...ctx,
+      forcedMainFamily: ctx.gymSessionIndexInWeek === 0 ? "squat" : "trap_bar",
+    };
+  }
+
+  const role = onlyGymSession
+    ? "full_body_athletic"
+    : twoGymSplit
+      ? "lower_strength_power"
+      : pickGymRole(profile, ctx);
   let plan: GymSessionPlan;
   switch (role) {
     case "full_body_athletic":
