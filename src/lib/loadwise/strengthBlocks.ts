@@ -51,6 +51,13 @@ export interface StrengthBlockContext {
   readiness?: number;
   /** Historia ćwiczeń — anty-powtórzenia w tygodniu i między tygodniami. */
   history: GymHistory;
+  /**
+   * Wymuszona rodzina głównego liftu dla sesji dolnej.
+   * Używane przy 2 sesjach gym w tygodniu:
+   * - "squat"    → sesja 1: dzień przysiadu (knee-dominant max strength)
+   * - "trap_bar" → sesja 2: dzień trap bar / hinge total-body
+   */
+  forcedMainFamily?: "squat" | "trap_bar";
 }
 
 export interface GymSessionPlan {
