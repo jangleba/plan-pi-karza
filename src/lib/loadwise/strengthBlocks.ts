@@ -239,6 +239,24 @@ const ADDUCTOR = [
   "Side-lying adduction",
 ];
 
+/** Wsparcie atletyczne — góra, łopatka, pull/press (BLOK D). */
+const UPPER_SUPPORT = [
+  "Face pull (guma / wyciąg)",
+  "Podciąganie / pull-up",
+  "Wiosłowanie hantlą jednorącz",
+  "Wyciskanie hantli nad głowę (OHP)",
+  "Praca rotatorów barku (guma)",
+];
+
+/** Opcjonalny finisher hipertroficzny (BLOK E) — tylko izolacja na końcu. */
+const HYPERTROPHY_FINISHER = [
+  "Uginanie ramion ze sztangielkami (biceps)",
+  "Prostowanie ramion na wyciągu (triceps)",
+  "Wznosy bokiem (lateral raise)",
+  "Młotki (biceps)",
+  "Triceps francuski (sztangielka)",
+];
+
 const JUMPS: JumpVariant[] = [
   { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal" },
   { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal" },
