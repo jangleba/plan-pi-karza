@@ -239,6 +239,24 @@ const ADDUCTOR = [
   "Side-lying adduction",
 ];
 
+/** Wsparcie atletyczne — góra, łopatka, pull/press (BLOK D). */
+const UPPER_SUPPORT = [
+  "Face pull (guma / wyciąg)",
+  "Podciąganie / pull-up",
+  "Wiosłowanie hantlą jednorącz",
+  "Wyciskanie hantli nad głowę (OHP)",
+  "Praca rotatorów barku (guma)",
+];
+
+/** Opcjonalny finisher hipertroficzny (BLOK E) — tylko izolacja na końcu. */
+const HYPERTROPHY_FINISHER = [
+  "Uginanie ramion ze sztangielkami (biceps)",
+  "Prostowanie ramion na wyciągu (triceps)",
+  "Wznosy bokiem (lateral raise)",
+  "Młotki (biceps)",
+  "Triceps francuski (sztangielka)",
+];
+
 const JUMPS: JumpVariant[] = [
   { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal" },
   { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal" },
@@ -1141,6 +1159,208 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
 }
 
 // ---------------------------------------------------------------------------
+// KANONICZNA SESJA SIŁOWNI — jedna, stała struktura dla każdej sesji siły:
+//   Rozgrzewka → Izometria przezwyciężająca →
+//   BLOK A: główny ciężki lift → ruch mocy
+//   BLOK B: uzupełniająca siła/hipertrofia dolna → ruch mocy
+//   BLOK C: wyłącznie core / stabilizacja
+//   BLOK D: wsparcie atletyczne (łydki, przywodziciele, hamstring, góra/łopatka)
+//   BLOK E: opcjonalny finisher hipertroficzny (biceps/triceps/lateral raise)
+// Brak osobnego bloku „primer mocy”. Biceps/triceps tylko w bloku E na końcu.
+// ---------------------------------------------------------------------------
+
+function canonicalGymSession(
+  profile: Profile,
+  ctx: StrengthBlockContext,
+  role: GymRole,
+): GymSessionPlan {
+  const adult = isAdvancedEligible(profile);
+  const d = dosageFor(profile, ctx);
+  const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
+
+  const trapBar = ctx.forcedMainFamily === "trap_bar";
+  // Główny lift: przysiad (knee) lub trap bar / hinge total-body.
+  const mainPool = trapBar
+    ? adult
+      ? TRAP_BAR_HINGE_ADULT
+      : TRAP_BAR_HINGE_YOUTH
+    : adult
+      ? SQUAT_ADULT
+      : SQUAT_YOUTH;
+  const main = rotatePick(mainPool, ctx, avoid);
+
+  // Uzupełnienie dolne: jeśli główny = przysiad → hinge; jeśli trap bar → jednonóż.
+  const compIsHinge = !trapBar;
+  const comp = compIsHinge
+    ? rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, [...avoid, main])
+    : rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, [...avoid, main]);
+
+  // Ruchy mocy: A2 pionowo/poziomo, B2 inny wariant (lateralny / snap).
+  const powerA = pickJumps(ctx, ctx.powerFocus ? ["vertical", "horizontal"] : ["horizontal", "vertical"], avoid);
+  const powerB = pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name]);
+
+  const calf = "Wspięcia na palce (łydka)";
+  const adductor = rotatePick(ADDUCTOR, ctx, avoid);
+  const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
+  const upper = rotatePick(UPPER_SUPPORT, ctx, avoid);
+  const core1 = rotatePick(CORE_ANTI, ctx, avoid);
+  const core2 = rotatePick(CORE_ANTI, ctx, [...avoid, core1]);
+  const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
+
+  // BLOK E (opcjonalny finisher) tylko dla dorosłych poza deloadem.
+  const includeFinisher = adult && ctx.weekPhase !== "deload";
+
+  const accessoryBlocks: TrainingBlock[] = [
+    // BLOK C — wyłącznie core / stabilizacja.
+    block({
+      title: "BLOK C — CORE / STABILIZACJA",
+      blockType: "accessory",
+      intent: "stability",
+      restAfterBlock: "Przerwa po bloku: 45–60 s",
+      safetyNotes: "Tylko praca tułowia / anty-rotacja — bez ćwiczeń na nogi czy ramiona.",
+      exercises: [
+        ex({ label: "C1", name: core1, sets: d.accSets, reps: d.accReps, cue: "Sztywny tułów, kontrola." }),
+        ex({ label: "C2", name: core2, sets: "2", reps: d.accReps, cue: "Anty-rotacja, nie obracaj się za oporem." }),
+      ],
+    }),
+    // BLOK D — wsparcie atletyczne (łydki, przywodziciele, hamstring, góra/łopatka).
+    block({
+      title: "BLOK D — WSPARCIE ATLETYCZNE",
+      blockType: "accessory",
+      intent: "stability",
+      restAfterBlock: "Przerwa po bloku: 45–60 s",
+      safetyNotes: "Robustność i prewencja: łydki, przywodziciele, tylna taśma (kontrola), góra / łopatka.",
+      exercises: [
+        ex({ label: "D1", name: calf, sets: "2–3", reps: "12–15", cue: "Pełen zakres, kontrola.", ageSafetyLevel: "all" }),
+        ex({ label: "D2", name: adductor, sets: "2", reps: "8 / strona", cue: "Kontrola przywodzicieli, bez bólu." }),
+        ex({ label: "D3", name: ham, sets: "2", reps: "6–8", cue: "Powolny ekscentryk, kontrola tylnej taśmy.", ageSafetyLevel: "youth_ok" }),
+        ex({ label: "D4", name: upper, sets: "2–3", reps: "10–12", cue: "Łopatki ustawione, pełen zakres." }),
+      ],
+    }),
+  ];
+
+  if (includeFinisher) {
+    // BLOK E — opcjonalny finisher hipertroficzny. Biceps/triceps WYŁĄCZNIE tutaj.
+    accessoryBlocks.push(
+      block({
+        title: "BLOK E — FINISHER (opcjonalny)",
+        blockType: "accessory",
+        intent: "strength",
+        restAfterBlock: "45–60 s",
+        safetyNotes: "Lekka izolacja na koniec (biceps / triceps / barki). Można pominąć przy zmęczeniu.",
+        exercises: [
+          ex({ label: "E1", name: finisher, sets: "2–3", reps: "12–15", rpe: "RPE 6–7", cue: "Czuj mięsień, kontrola, bez zarzucania." }),
+        ],
+      }),
+    );
+  }
+
+  const sections: TrainingSection[] = [
+    warmupSection(),
+    overcomingIsoSection(main),
+    section({
+      title: "Część główna",
+      type: "main",
+      blocks: [
+        // BLOK A — główny ciężki lift (A1) → ruch mocy (A2).
+        block({
+          title: "BLOK A — GŁÓWNY LIFT + MOC",
+          blockType: "contrast",
+          intent: "power",
+          restAfterBlock: "Przerwa po bloku: 2–3 min",
+          eligibilityLevel: adult ? "advanced_only" : "youth_ok",
+          safetyNotes: "Najpierw główny lift, potem ruch mocy. Wykonuj tylko świeży, bez bólu.",
+          exercises: [
+            ex({
+              label: "A1",
+              name: main,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              tempo: adult ? "3-1-1" : "2-1-1",
+              restAfterExercise: "60–90 s do A2",
+              cue: trapBar
+                ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
+                : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              technique: trapBar ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder." : "Kolana w linii stóp, pełen zakres.",
+              regression: trapBar ? "Trap bar z wysokich pinów / kettlebell deadlift." : "Goblet squat / przysiad do skrzyni.",
+              commonMistake: "Zaokrąglone plecy, kolana do środka.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "A2",
+              name: powerA.kind === "medball" ? "Skok pionowy (CMJ)" : powerA.name,
+              sets: d.mainSets,
+              reps: "3",
+              groundContacts: contacts(powerA.contacts, d),
+              restAfterPair: "2–3 min po parze",
+              cue: powerA.cue,
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+          ],
+        }),
+        // BLOK B — uzupełniająca siła/hipertrofia dolna (B1) → ruch mocy (B2).
+        block({
+          title: "BLOK B — UZUPEŁNIENIE DOLNE + MOC",
+          blockType: "contrast",
+          intent: "power",
+          restAfterBlock: "Przerwa po bloku: 90–120 s",
+          safetyNotes: "Uzupełniająca praca dolna (umiarkowana, hipertrofia) + ruch mocy. Bez drugiego maksymalnego liftu.",
+          exercises: [
+            ex({
+              label: "B1",
+              name: comp,
+              sets: "3",
+              reps: compIsHinge ? "8–10" : "6–8 / noga",
+              rpe: "RPE 6–7",
+              restAfterExercise: "30–45 s do B2",
+              cue: compIsHinge ? "Biodra w tył, plecy proste, czuj tylne uda." : "Pion tułowia, stabilne kolano, kontrola.",
+              technique: compIsHinge ? "Neutralny kręgosłup, napięty tułów." : "Kolano w linii stopy, kontrola.",
+              regression: compIsHinge ? "Hip thrust / hamstring bridge." : "Wykrok w miejscu / step-up.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "B2",
+              name: powerB.name,
+              sets: "3",
+              reps: `${contacts(powerB.contacts, d)} kontaktów`,
+              restAfterPair: "90 s po parze",
+              cue: powerB.cue,
+              ageSafetyLevel: "youth_ok",
+            }),
+          ],
+        }),
+      ],
+    }),
+    section({
+      title: "Akcesoria",
+      type: "accessory",
+      blocks: accessoryBlocks,
+    }),
+    cooldownSection(),
+  ];
+
+  return {
+    role,
+    title: trapBar
+      ? adult
+        ? "Siłownia: trap bar / hinge total-body"
+        : "Siłownia: hinge total-body (technika)"
+      : adult
+        ? "Siłownia: siła dolna + moc"
+        : "Siłownia: siła dolna (technika)",
+    sessionType: "Siła / moc",
+    goalOfSession: trapBar
+      ? "Trap bar / hinge total-body: maksymalna siła i moc wyprostu bioder + wsparcie atletyczne."
+      : "Dzień przysiadu: maksymalna siła dolnych partii z transferem w skok + wsparcie atletyczne.",
+    intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
+    durationMin: adult ? 60 : 50,
+    sections,
+    mainPatterns: [main, comp, powerA.name, powerB.name],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Wybór roli
 // ---------------------------------------------------------------------------
 
@@ -1233,20 +1453,14 @@ export function buildStrengthPowerStructured(
       : pickGymRole(profile, ctx);
   let plan: GymSessionPlan;
   switch (role) {
+    // Wszystkie sesje siły idą przez jedną kanoniczną strukturę
+    // (Rozgrzewka → Iso → A → B → C → D → opcjonalne E).
     case "full_body_athletic":
-      plan = fullBodyAthletic(profile, ctx);
-      break;
     case "lower_strength_power":
-      plan = lowerStrengthPower(profile, ctx);
-      break;
     case "posterior_sprint":
-      plan = posteriorSprint(profile, ctx);
-      break;
     case "unilateral_decel":
-      plan = unilateralDecel(profile, ctx);
-      break;
     case "upper_core":
-      plan = upperCore(profile, ctx);
+      plan = canonicalGymSession(profile, ctx, role);
       break;
     case "primer":
       plan = powerPrimer(profile, ctx);
