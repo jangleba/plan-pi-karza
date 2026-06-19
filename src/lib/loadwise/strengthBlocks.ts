@@ -1453,20 +1453,14 @@ export function buildStrengthPowerStructured(
       : pickGymRole(profile, ctx);
   let plan: GymSessionPlan;
   switch (role) {
+    // Wszystkie sesje siły idą przez jedną kanoniczną strukturę
+    // (Rozgrzewka → Iso → A → B → C → D → opcjonalne E).
     case "full_body_athletic":
-      plan = fullBodyAthletic(profile, ctx);
-      break;
     case "lower_strength_power":
-      plan = lowerStrengthPower(profile, ctx);
-      break;
     case "posterior_sprint":
-      plan = posteriorSprint(profile, ctx);
-      break;
     case "unilateral_decel":
-      plan = unilateralDecel(profile, ctx);
-      break;
     case "upper_core":
-      plan = upperCore(profile, ctx);
+      plan = canonicalGymSession(profile, ctx, role);
       break;
     case "primer":
       plan = powerPrimer(profile, ctx);
