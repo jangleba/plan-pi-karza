@@ -1195,9 +1195,15 @@ function canonicalGymSession(
     ? rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, [...avoid, main])
     : rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, [...avoid, main]);
 
-  // Ruchy mocy: A2 pionowo/poziomo, B2 inny wariant (lateralny / snap).
-  const powerA = pickJumps(ctx, ctx.powerFocus ? ["vertical", "horizontal"] : ["horizontal", "vertical"], avoid);
-  const powerB = pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name]);
+  // Ruchy mocy zależne od rodziny głównego liftu:
+  //  - dzień przysiadu (knee)  → A2 pionowo (box jump / CMJ), B2 poziomo / biodrowo
+  //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds), B2 lateral / stiffness
+  const powerA = trapBar
+    ? pickJumps(ctx, ["horizontal"], avoid)
+    : pickJumps(ctx, ["vertical"], avoid);
+  const powerB = trapBar
+    ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
+    : pickJumps(ctx, ["horizontal", "pogo"], [...avoid, powerA.name]);
 
   const calf = "Wspięcia na palce (łydka)";
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
@@ -1267,7 +1273,7 @@ function canonicalGymSession(
           title: "BLOK A — GŁÓWNY LIFT + MOC",
           blockType: "contrast",
           intent: "power",
-          restAfterBlock: "Przerwa po bloku: 2–3 min",
+          restAfterBlock: "Przerwa po bloku: 2–4 min",
           eligibilityLevel: adult ? "advanced_only" : "youth_ok",
           safetyNotes: "Najpierw główny lift, potem ruch mocy. Wykonuj tylko świeży, bez bólu.",
           exercises: [
@@ -1278,7 +1284,7 @@ function canonicalGymSession(
               reps: d.mainReps,
               rpe: d.rpe,
               tempo: adult ? "3-1-1" : "2-1-1",
-              restAfterExercise: "60–90 s do A2",
+              restAfterExercise: "60–180 s do A2",
               cue: trapBar
                 ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
                 : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
@@ -1293,19 +1299,21 @@ function canonicalGymSession(
               sets: d.mainSets,
               reps: "3",
               groundContacts: contacts(powerA.contacts, d),
-              restAfterPair: "2–3 min po parze",
+              restAfterPair: "2–4 min po parze",
               cue: powerA.cue,
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
           ],
         }),
-        // BLOK B — uzupełniająca siła/hipertrofia dolna (B1) → ruch mocy (B2).
+        // BLOK B — druga jakość dolna sparowana z mocą (B1) → ruch mocy (B2).
         block({
-          title: "BLOK B — UZUPEŁNIENIE DOLNE + MOC",
+          title: trapBar ? "BLOK B — UZUPEŁNIENIE (quad/jednonóż) + MOC" : "BLOK B — TYLNA TAŚMA + MOC BIODROWA",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 90–120 s",
-          safetyNotes: "Uzupełniająca praca dolna (umiarkowana, hipertrofia) + ruch mocy. Bez drugiego maksymalnego liftu.",
+          safetyNotes: trapBar
+            ? "Po trap bar bez ciężkiego RDL/Nordic — komplementarna praca quad/jednonóż/łydka/przywodziciele + moc lateralna/sztywność."
+            : "Tylna taśma (hamstrings/pośladki) + moc pozioma/biodrowa. Bez drugiego maksymalnego liftu.",
           exercises: [
             ex({
               label: "B1",
