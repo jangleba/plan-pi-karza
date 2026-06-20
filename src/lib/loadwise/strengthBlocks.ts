@@ -1299,7 +1299,7 @@ function canonicalGymSession(
               sets: d.mainSets,
               reps: "3",
               groundContacts: contacts(powerA.contacts, d),
-              restAfterPair: "2–3 min po parze",
+              restAfterPair: "2–4 min po parze",
               cue: powerA.cue,
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
