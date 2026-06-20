@@ -1284,7 +1284,7 @@ function canonicalGymSession(
               reps: d.mainReps,
               rpe: d.rpe,
               tempo: adult ? "3-1-1" : "2-1-1",
-              restAfterExercise: "60–90 s do A2",
+              restAfterExercise: "60–180 s do A2",
               cue: trapBar
                 ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
                 : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
