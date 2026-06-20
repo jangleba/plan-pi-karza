@@ -1195,9 +1195,15 @@ function canonicalGymSession(
     ? rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, [...avoid, main])
     : rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, [...avoid, main]);
 
-  // Ruchy mocy: A2 pionowo/poziomo, B2 inny wariant (lateralny / snap).
-  const powerA = pickJumps(ctx, ctx.powerFocus ? ["vertical", "horizontal"] : ["horizontal", "vertical"], avoid);
-  const powerB = pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name]);
+  // Ruchy mocy zależne od rodziny głównego liftu:
+  //  - dzień przysiadu (knee)  → A2 pionowo (box jump / CMJ), B2 poziomo / biodrowo
+  //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds), B2 lateral / stiffness
+  const powerA = trapBar
+    ? pickJumps(ctx, ["horizontal"], avoid)
+    : pickJumps(ctx, ["vertical"], avoid);
+  const powerB = trapBar
+    ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
+    : pickJumps(ctx, ["horizontal", "pogo"], [...avoid, powerA.name]);
 
   const calf = "Wspięcia na palce (łydka)";
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
