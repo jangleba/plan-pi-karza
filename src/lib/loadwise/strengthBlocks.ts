@@ -1305,13 +1305,15 @@ function canonicalGymSession(
             }),
           ],
         }),
-        // BLOK B — uzupełniająca siła/hipertrofia dolna (B1) → ruch mocy (B2).
+        // BLOK B — druga jakość dolna sparowana z mocą (B1) → ruch mocy (B2).
         block({
-          title: "BLOK B — UZUPEŁNIENIE DOLNE + MOC",
+          title: trapBar ? "BLOK B — UZUPEŁNIENIE (quad/jednonóż) + MOC" : "BLOK B — TYLNA TAŚMA + MOC BIODROWA",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 90–120 s",
-          safetyNotes: "Uzupełniająca praca dolna (umiarkowana, hipertrofia) + ruch mocy. Bez drugiego maksymalnego liftu.",
+          safetyNotes: trapBar
+            ? "Po trap bar bez ciężkiego RDL/Nordic — komplementarna praca quad/jednonóż/łydka/przywodziciele + moc lateralna/sztywność."
+            : "Tylna taśma (hamstrings/pośladki) + moc pozioma/biodrowa. Bez drugiego maksymalnego liftu.",
           exercises: [
             ex({
               label: "B1",
