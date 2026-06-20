@@ -1273,7 +1273,7 @@ function canonicalGymSession(
           title: "BLOK A — GŁÓWNY LIFT + MOC",
           blockType: "contrast",
           intent: "power",
-          restAfterBlock: "Przerwa po bloku: 2–3 min",
+          restAfterBlock: "Przerwa po bloku: 2–4 min",
           eligibilityLevel: adult ? "advanced_only" : "youth_ok",
           safetyNotes: "Najpierw główny lift, potem ruch mocy. Wykonuj tylko świeży, bez bólu.",
           exercises: [
