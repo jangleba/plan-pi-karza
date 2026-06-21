@@ -1472,18 +1472,22 @@ export function buildStrengthPowerStructured(
   ctx: StrengthBlockContext,
 ): GymSessionPlan | null {
   __uid = ctx.weekIndex * 1000 + ctx.gymSessionIndexInWeek * 100;
+  // Ustal maksymalny dozwolony poziom plyometrii dla tej sesji (progresja, nie losowo).
+  ctx = { ...ctx, maxPlyoLevel: ctx.maxPlyoLevel ?? computeMaxPlyoLevel(profile, ctx) };
   // Niska gotowość / ból / powrót po kontuzji → tylko regeneracja/prehab.
   if (profile.painInjury || profile.seasonPhase === "return_injury") {
-    return recoveryPrehab(profile, ctx);
+    return enrichLoadGuidance(recoveryPrehab(profile, ctx));
   }
   if (ctx.readiness !== undefined && ctx.readiness <= 3) {
-    return recoveryPrehab(profile, ctx);
+    return enrichLoadGuidance(recoveryPrehab(profile, ctx));
   }
   if (!structuredStrengthAllowed(ctx.mdLabel)) {
     // MD-1/MD-2/MD/MD+1: tylko primer/regeneracja, bez ciężkiej siły.
-    return ctx.mdLabel === "MD+1" || ctx.mdLabel === "MD"
-      ? recoveryPrehab(profile, ctx)
-      : powerPrimer(profile, ctx);
+    return enrichLoadGuidance(
+      ctx.mdLabel === "MD+1" || ctx.mdLabel === "MD"
+        ? recoveryPrehab(profile, ctx)
+        : powerPrimer(profile, ctx),
+    );
   }
 
   // Jedyna sesja gym w tygodniu → kompletna sesja pełnego ciała atletycznego.
