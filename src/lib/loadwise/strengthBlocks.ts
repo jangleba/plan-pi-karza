@@ -267,21 +267,37 @@ const HYPERTROPHY_FINISHER = [
 ];
 
 const JUMPS: JumpVariant[] = [
-  { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal" },
-  { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal" },
-  { name: "Skok pionowy (CMJ)", contacts: 5, cue: "Szybkie zejście, eksplozja w górę.", kind: "vertical" },
-  { name: "Box jump (niska skrzynia)", contacts: 5, cue: "Wejdź na skrzynię, ciche, stabilne lądowanie.", kind: "vertical" },
-  { name: "Pogo hops", contacts: 30, cue: "Krótki kontakt, sztywna kostka, sprężyna.", kind: "pogo" },
-  { name: "Ankling", contacts: 30, cue: "Praca kostek, lekkie, szybkie stopy.", kind: "ankling" },
-  { name: "Snap-down do stick", contacts: 9, cue: "Zatrzymaj się sztywno, niskie biodra, zamroź.", kind: "snap" },
-  { name: "Drop to stick (niska skrzynia)", contacts: 8, cue: "Miękkie lądowanie, natychmiastowe zatrzymanie.", kind: "snap" },
-  { name: "Lateral bound to stick", contacts: 8, cue: "Odbij w bok, wyląduj i zatrzymaj na jednej nodze.", kind: "lateral" },
-  { name: "Przeskok przez niski płotek do stick", contacts: 8, cue: "Kontrola w lądowaniu, kolano stabilne.", kind: "hurdle" },
-  { name: "Med ball slam", contacts: 8, cue: "Pełen wyrzut w dół, napięty tułów.", kind: "medball" },
-  { name: "Med ball rotacyjny rzut", contacts: 8, cue: "Obrót przez biodro, transfer w piłkę.", kind: "medball" },
-  { name: "Med ball chest pass", contacts: 8, cue: "Dynamiczny wyrzut, stabilny tułów.", kind: "medball" },
-  { name: "Wall drive (acceleration)", contacts: 0, cue: "Mocny napęd kolana, pochylenie tułowia.", kind: "wall" },
-  { name: "A-skip", contacts: 0, cue: "Wysokie kolano, aktywne lądowanie pod biodrem.", kind: "ankling" },
+  // --- POZIOM 1: lądowanie + sztywność ---
+  { name: "Snap-down do stick", contacts: 9, cue: "Zatrzymaj się sztywno, niskie biodra, zamroź.", kind: "snap", level: 1 },
+  { name: "Drop to stick (niska skrzynia)", contacts: 8, cue: "Miękkie lądowanie, natychmiastowe zatrzymanie.", kind: "snap", level: 1 },
+  { name: "Pogo hops (niskie)", contacts: 30, cue: "Krótki kontakt, sztywna kostka, sprężyna.", kind: "pogo", level: 1 },
+  { name: "Line hops (przeskoki przez linię)", contacts: 30, cue: "Szybkie, niskie, sztywna kostka.", kind: "pogo", level: 1 },
+  { name: "Ankle stiffness hops", contacts: 25, cue: "Praca samej kostki, minimalne zgięcie kolan.", kind: "pogo", level: 1 },
+  { name: "Ankling", contacts: 30, cue: "Praca kostek, lekkie, szybkie stopy.", kind: "ankling", level: 1 },
+  { name: "Wall drive (acceleration)", contacts: 0, cue: "Mocny napęd kolana, pochylenie tułowia.", kind: "wall", level: 1 },
+  { name: "A-skip", contacts: 0, cue: "Wysokie kolano, aktywne lądowanie pod biodrem.", kind: "ankling", level: 1 },
+  // --- POZIOM 2: wspomagane gumą / niski impakt reaktywny ---
+  { name: "Band-assisted pogo (guma)", contacts: 25, cue: "Guma odciąża lądowanie, krótki kontakt.", kind: "pogo", level: 2 },
+  { name: "Band-assisted jump (guma)", contacts: 6, cue: "Guma wspomaga wyskok, miękkie lądowanie.", kind: "vertical", level: 2 },
+  { name: "Niskie płotki — przeskoki", contacts: 10, cue: "Niskie płotki, kontrola lądowania, sztywna kostka.", kind: "hurdle", level: 2 },
+  { name: "Lateral pogo (boczne)", contacts: 20, cue: "Krótki kontakt w bok, stabilna kostka.", kind: "lateral", level: 2 },
+  { name: "Przeskok przez niski płotek do stick", contacts: 8, cue: "Kontrola w lądowaniu, kolano stabilne.", kind: "hurdle", level: 2 },
+  // --- POZIOM 3: normalne jakościowe skoki ---
+  { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal", level: 3 },
+  { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal", level: 3 },
+  { name: "Bounds (skoki zamaszyste)", contacts: 8, cue: "Długi lot, rytm, kontrola lądowania.", kind: "horizontal", level: 3 },
+  { name: "Skok pionowy (CMJ)", contacts: 5, cue: "Szybkie zejście, eksplozja w górę.", kind: "vertical", level: 3 },
+  { name: "Box jump (niska skrzynia)", contacts: 5, cue: "Wejdź na skrzynię, ciche, stabilne lądowanie.", kind: "vertical", level: 3 },
+  { name: "Single-leg pogo (jednonóż)", contacts: 16, cue: "Sprężyna na jednej nodze, sztywna kostka.", kind: "pogo", level: 3 },
+  { name: "Lateral bound to stick", contacts: 8, cue: "Odbij w bok, wyląduj i zatrzymaj na jednej nodze.", kind: "lateral", level: 3 },
+  { name: "Med ball slam", contacts: 8, cue: "Pełen wyrzut w dół, napięty tułów.", kind: "medball", level: 3 },
+  { name: "Med ball rotacyjny rzut", contacts: 8, cue: "Obrót przez biodro, transfer w piłkę.", kind: "medball", level: 3 },
+  { name: "Med ball chest pass", contacts: 8, cue: "Dynamiczny wyrzut, stabilny tułów.", kind: "medball", level: 3 },
+  // --- POZIOM 4: intensywne reaktywne / depth (tylko zaawansowani, świeży, nie blisko meczu) ---
+  { name: "Depth drop do stick", contacts: 5, cue: "Zejdź z niskiej skrzyni, wyląduj i zamroź sztywno.", kind: "depth", level: 4 },
+  { name: "Depth jump (skok głęboki)", contacts: 5, cue: "Krótki kontakt po zeskoku, natychmiast eksploduj w górę.", kind: "depth", level: 4 },
+  { name: "Hurdle rebound (reaktywne płotki)", contacts: 6, cue: "Minimalny czas kontaktu, sprężyna między płotkami.", kind: "depth", level: 4 },
+  { name: "Reactive bounds (reaktywne skoki)", contacts: 6, cue: "Maksymalna sprężyna, krótki kontakt, długi lot.", kind: "depth", level: 4 },
 ];
 
 // ---------------------------------------------------------------------------
