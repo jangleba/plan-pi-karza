@@ -1543,7 +1543,7 @@ export function buildStrengthPowerStructured(
   // Jeśli zasady bezpieczeństwa dnia meczowego są złamane, schodzimy do primera.
   let issues = validateGymSession(plan, ctx);
   if (issues.some((i) => i.code === "matchday_unsafe" || i.code === "matchday_heavy_hamstring")) {
-    return powerPrimer(profile, ctx);
+    return enrichLoadGuidance(powerPrimer(profile, ctx));
   }
   for (let pass = 0; pass < 4 && issues.length > 0; pass++) {
     repairGymSession(plan, ctx, issues);
@@ -1551,6 +1551,99 @@ export function buildStrengthPowerStructured(
   }
   // Aktualizujemy mainPatterns po ewentualnych podmianach.
   plan.mainPatterns = collectMainPatterns(plan);
+  return enrichLoadGuidance(plan);
+}
+
+// ---------------------------------------------------------------------------
+// Wytyczne obciążenia (%1RM / RPE) + jak dobrać i kiedy zmniejszyć ciężar.
+// Dodawane centralnie do wszystkich obciążonych ćwiczeń przed renderem.
+// ---------------------------------------------------------------------------
+
+interface LoadGuide {
+  loadTarget: string;
+  rir?: string;
+  loadGuidance: string;
+  loadReduceWhen: string;
+}
+
+const GUIDE_MAIN: LoadGuide = {
+  loadTarget: "80–90% 1RM lub RPE 7,5–9",
+  rir: "1–3 RIR",
+  loadGuidance: "Dobierz ciężar tak, by w zapasie zostały 1–3 powtórzenia, a technika była idealna.",
+  loadReduceWhen: "Zmniejsz przy bólu, spadku techniki, słabym śnie/gotowości lub blisko meczu.",
+};
+const GUIDE_BSTRENGTH: LoadGuide = {
+  loadTarget: "RPE 7–8,5",
+  rir: "2–3 RIR",
+  loadGuidance: "Ciężar na 6–12 powtórzeń bez upadku — zostaw zapas, kontroluj tempo.",
+  loadReduceWhen: "Zmniejsz, gdy gubisz technikę lub czujesz przeciążenie stawu.",
+};
+const GUIDE_ACCESSORY: LoadGuide = {
+  loadTarget: "RPE 6–8",
+  loadGuidance: "Lekko–umiarkowanie, pełna kontrola zakresu, bez bólu.",
+  loadReduceWhen: "Zmniejsz, gdy tracisz kontrolę lub pojawia się dyskomfort.",
+};
+const GUIDE_POWER: LoadGuide = {
+  loadTarget: "Maks. prędkość / intencja",
+  loadGuidance: "Niskie powtórzenia, bez obciążenia lub minimalne — liczy się jakość każdego odbicia.",
+  loadReduceWhen: "Przerwij serię, gdy spada wysokość/dystans skoku lub jakość lądowania.",
+};
+const GUIDE_CORE: LoadGuide = {
+  loadTarget: "Kontrola / jakość",
+  loadGuidance: "Opór taki, by utrzymać idealne napięcie tułowia — bez chaosu zmęczeniowego.",
+  loadReduceWhen: "Zmniejsz, gdy tracisz napięcie tułowia lub technikę.",
+};
+const GUIDE_FINISHER: LoadGuide = {
+  loadTarget: "RPE 7–8",
+  loadGuidance: "Lekka izolacja na 10–15 powtórzeń — czuj mięsień, bez zarzucania.",
+  loadReduceWhen: "Pomiń lub zmniejsz przy dużym zmęczeniu.",
+};
+
+function applyGuide(e: TrainingExercise, g: LoadGuide): void {
+  if (!e.loadTarget) e.loadTarget = g.loadTarget;
+  if (g.rir && !e.rir) e.rir = g.rir;
+  if (!e.loadGuidance) e.loadGuidance = g.loadGuidance;
+  if (!e.loadReduceWhen) e.loadReduceWhen = g.loadReduceWhen;
+}
+
+function isMobilityName(name: string): boolean {
+  return /mobil|oddech|rower|spacer|trucht|stretch|rozciąg|aktywacja|izometria/i.test(name);
+}
+
+function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
+  for (const sec of plan.sections) {
+    if (sec.type === "warmup" || sec.type === "cooldown" || sec.type === "log") continue;
+    for (const blk of sec.blocks) {
+      const isCoreBlock = blk.intent === "stability" && /core/i.test(blk.title);
+      const isFinisherBlock = /finisher/i.test(blk.title);
+      for (const e of blk.exercises) {
+        const isPower = (e.groundContacts ?? 0) > 0;
+        const pattern = classifyExercise(e);
+        if (isPower || pattern === "power") {
+          applyGuide(e, GUIDE_POWER);
+          continue;
+        }
+        if (isCoreBlock || pattern === "core") {
+          applyGuide(e, GUIDE_CORE);
+          continue;
+        }
+        if (isFinisherBlock) {
+          applyGuide(e, GUIDE_FINISHER);
+          continue;
+        }
+        // Obciążone ćwiczenie siłowe? (ma serie/powtórzenia, nie jest mobilnością/izometrią)
+        const loaded = !!e.reps && !isMobilityName(e.name);
+        if (!loaded) continue;
+        const isMainLift =
+          sec.type === "main" &&
+          e.label === "A1" &&
+          (pattern === "squat" || pattern === "hinge" || pattern === "unilateral" || pattern === "other");
+        if (isMainLift) applyGuide(e, GUIDE_MAIN);
+        else if (sec.type === "main") applyGuide(e, GUIDE_BSTRENGTH);
+        else applyGuide(e, GUIDE_ACCESSORY);
+      }
+    }
+  }
   return plan;
 }
 
