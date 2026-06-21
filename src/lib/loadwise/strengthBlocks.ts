@@ -58,6 +58,8 @@ export interface StrengthBlockContext {
    * - "trap_bar" → sesja 2: dzień trap bar / hinge total-body
    */
   forcedMainFamily?: "squat" | "trap_bar";
+  /** Maksymalny dozwolony poziom plyometrii (1–4). Ustawiany w buildStrengthPowerStructured. */
+  maxPlyoLevel?: number;
 }
 
 export interface GymSessionPlan {
@@ -118,6 +120,14 @@ interface JumpVariant {
   contacts: number;
   cue: string;
   kind: PlyoKind;
+  /**
+   * Poziom progresji plyometrycznej:
+   *  1 = lądowanie + sztywność (snap down, drop landing, pogo, line hops)
+   *  2 = wspomagane gumą / niski impakt (band pogo, niskie płotki, lateral pogo)
+   *  3 = normalne jakościowe skoki (box jump, CMJ, broad jump, bounds, single-leg pogo)
+   *  4 = intensywne reaktywne / depth (depth drop/jump, hurdle rebound, reactive bounds)
+   */
+  level: number;
 }
 
 type PlyoKind =
@@ -129,7 +139,8 @@ type PlyoKind =
   | "hurdle"
   | "medball"
   | "wall"
-  | "ankling";
+  | "ankling"
+  | "depth";
 
 const SQUAT_ADULT = [
   "Przysiad ze sztangą (high bar)",
@@ -258,21 +269,37 @@ const HYPERTROPHY_FINISHER = [
 ];
 
 const JUMPS: JumpVariant[] = [
-  { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal" },
-  { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal" },
-  { name: "Skok pionowy (CMJ)", contacts: 5, cue: "Szybkie zejście, eksplozja w górę.", kind: "vertical" },
-  { name: "Box jump (niska skrzynia)", contacts: 5, cue: "Wejdź na skrzynię, ciche, stabilne lądowanie.", kind: "vertical" },
-  { name: "Pogo hops", contacts: 30, cue: "Krótki kontakt, sztywna kostka, sprężyna.", kind: "pogo" },
-  { name: "Ankling", contacts: 30, cue: "Praca kostek, lekkie, szybkie stopy.", kind: "ankling" },
-  { name: "Snap-down do stick", contacts: 9, cue: "Zatrzymaj się sztywno, niskie biodra, zamroź.", kind: "snap" },
-  { name: "Drop to stick (niska skrzynia)", contacts: 8, cue: "Miękkie lądowanie, natychmiastowe zatrzymanie.", kind: "snap" },
-  { name: "Lateral bound to stick", contacts: 8, cue: "Odbij w bok, wyląduj i zatrzymaj na jednej nodze.", kind: "lateral" },
-  { name: "Przeskok przez niski płotek do stick", contacts: 8, cue: "Kontrola w lądowaniu, kolano stabilne.", kind: "hurdle" },
-  { name: "Med ball slam", contacts: 8, cue: "Pełen wyrzut w dół, napięty tułów.", kind: "medball" },
-  { name: "Med ball rotacyjny rzut", contacts: 8, cue: "Obrót przez biodro, transfer w piłkę.", kind: "medball" },
-  { name: "Med ball chest pass", contacts: 8, cue: "Dynamiczny wyrzut, stabilny tułów.", kind: "medball" },
-  { name: "Wall drive (acceleration)", contacts: 0, cue: "Mocny napęd kolana, pochylenie tułowia.", kind: "wall" },
-  { name: "A-skip", contacts: 0, cue: "Wysokie kolano, aktywne lądowanie pod biodrem.", kind: "ankling" },
+  // --- POZIOM 1: lądowanie + sztywność ---
+  { name: "Snap-down do stick", contacts: 9, cue: "Zatrzymaj się sztywno, niskie biodra, zamroź.", kind: "snap", level: 1 },
+  { name: "Drop to stick (niska skrzynia)", contacts: 8, cue: "Miękkie lądowanie, natychmiastowe zatrzymanie.", kind: "snap", level: 1 },
+  { name: "Pogo hops (niskie)", contacts: 30, cue: "Krótki kontakt, sztywna kostka, sprężyna.", kind: "pogo", level: 1 },
+  { name: "Line hops (przeskoki przez linię)", contacts: 30, cue: "Szybkie, niskie, sztywna kostka.", kind: "pogo", level: 1 },
+  { name: "Ankle stiffness hops", contacts: 25, cue: "Praca samej kostki, minimalne zgięcie kolan.", kind: "pogo", level: 1 },
+  { name: "Ankling", contacts: 30, cue: "Praca kostek, lekkie, szybkie stopy.", kind: "ankling", level: 1 },
+  { name: "Wall drive (acceleration)", contacts: 0, cue: "Mocny napęd kolana, pochylenie tułowia.", kind: "wall", level: 1 },
+  { name: "A-skip", contacts: 0, cue: "Wysokie kolano, aktywne lądowanie pod biodrem.", kind: "ankling", level: 1 },
+  // --- POZIOM 2: wspomagane gumą / niski impakt reaktywny ---
+  { name: "Band-assisted pogo (guma)", contacts: 25, cue: "Guma odciąża lądowanie, krótki kontakt.", kind: "pogo", level: 2 },
+  { name: "Band-assisted jump (guma)", contacts: 6, cue: "Guma wspomaga wyskok, miękkie lądowanie.", kind: "vertical", level: 2 },
+  { name: "Niskie płotki — przeskoki", contacts: 10, cue: "Niskie płotki, kontrola lądowania, sztywna kostka.", kind: "hurdle", level: 2 },
+  { name: "Lateral pogo (boczne)", contacts: 20, cue: "Krótki kontakt w bok, stabilna kostka.", kind: "lateral", level: 2 },
+  { name: "Przeskok przez niski płotek do stick", contacts: 8, cue: "Kontrola w lądowaniu, kolano stabilne.", kind: "hurdle", level: 2 },
+  // --- POZIOM 3: normalne jakościowe skoki ---
+  { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal", level: 3 },
+  { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal", level: 3 },
+  { name: "Bounds (skoki zamaszyste)", contacts: 8, cue: "Długi lot, rytm, kontrola lądowania.", kind: "horizontal", level: 3 },
+  { name: "Skok pionowy (CMJ)", contacts: 5, cue: "Szybkie zejście, eksplozja w górę.", kind: "vertical", level: 3 },
+  { name: "Box jump (niska skrzynia)", contacts: 5, cue: "Wejdź na skrzynię, ciche, stabilne lądowanie.", kind: "vertical", level: 3 },
+  { name: "Single-leg pogo (jednonóż)", contacts: 16, cue: "Sprężyna na jednej nodze, sztywna kostka.", kind: "pogo", level: 3 },
+  { name: "Lateral bound to stick", contacts: 8, cue: "Odbij w bok, wyląduj i zatrzymaj na jednej nodze.", kind: "lateral", level: 3 },
+  { name: "Med ball slam", contacts: 8, cue: "Pełen wyrzut w dół, napięty tułów.", kind: "medball", level: 3 },
+  { name: "Med ball rotacyjny rzut", contacts: 8, cue: "Obrót przez biodro, transfer w piłkę.", kind: "medball", level: 3 },
+  { name: "Med ball chest pass", contacts: 8, cue: "Dynamiczny wyrzut, stabilny tułów.", kind: "medball", level: 3 },
+  // --- POZIOM 4: intensywne reaktywne / depth (tylko zaawansowani, świeży, nie blisko meczu) ---
+  { name: "Depth drop do stick", contacts: 5, cue: "Zejdź z niskiej skrzyni, wyląduj i zamroź sztywno.", kind: "depth", level: 4 },
+  { name: "Depth jump (skok głęboki)", contacts: 5, cue: "Krótki kontakt po zeskoku, natychmiast eksploduj w górę.", kind: "depth", level: 4 },
+  { name: "Hurdle rebound (reaktywne płotki)", contacts: 6, cue: "Minimalny czas kontaktu, sprężyna między płotkami.", kind: "depth", level: 4 },
+  { name: "Reactive bounds (reaktywne skoki)", contacts: 6, cue: "Maksymalna sprężyna, krótki kontakt, długi lot.", kind: "depth", level: 4 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -286,12 +313,41 @@ function rotatePick(pool: string[], ctx: StrengthBlockContext, avoid: string[]):
   return fresh ?? ordered[0];
 }
 
+/**
+ * Maksymalny dozwolony poziom plyometrii dla zawodnika i kontekstu.
+ * Depth/poziom 4 tylko dla zaawansowanych, świeżych, bez bólu, nie blisko meczu,
+ * poza sezonem wysokoobciążeniowym i w niskiej objętości.
+ */
+function computeMaxPlyoLevel(profile: Profile, ctx: StrengthBlockContext): number {
+  if (profile.painInjury || profile.seasonPhase === "return_injury") return 1;
+  const young = isYoung(profile.age);
+  const beginner = profile.level === "beginner";
+  if (young || beginner) return 2;
+  // Zmęczenie / niska gotowość → bez normalnych intensywnych skoków.
+  if (ctx.readiness !== undefined && ctx.readiness <= 5) return 2;
+  const depthEligible =
+    isAdvancedEligible(profile) &&
+    (profile.level === "advanced" || profile.level === "elite") &&
+    (ctx.readiness === undefined || ctx.readiness >= 7) &&
+    profile.seasonPhase !== "inseason" &&
+    (ctx.weekPhase === "development" || ctx.weekPhase === "peak") &&
+    structuredStrengthAllowed(ctx.mdLabel);
+  return depthEligible ? 4 : 3;
+}
+
 function pickJumps(
   ctx: StrengthBlockContext,
   kinds: PlyoKind[],
   avoid: string[],
 ): JumpVariant {
-  const pool = JUMPS.filter((j) => kinds.includes(j.kind));
+  const maxLevel = ctx.maxPlyoLevel ?? 3;
+  let pool = JUMPS.filter((j) => kinds.includes(j.kind) && j.level <= maxLevel);
+  // Brak dopasowania na danym poziomie → zejdź do bezpiecznych wariantów
+  // lądowania / sztywności (poziom 1), nigdy nie eskaluj ponad limit.
+  if (pool.length === 0) {
+    pool = JUMPS.filter((j) => j.level <= Math.max(1, maxLevel) && (j.kind === "snap" || j.kind === "pogo"));
+  }
+  if (pool.length === 0) pool = JUMPS.filter((j) => j.level === 1);
   const seed = ctx.weekIndex * 3 + ctx.gymSessionIndexInWeek + 1;
   const ordered = pool.map((_, i) => pool[(seed + i) % pool.length]);
   const fresh = ordered.find((j) => !avoid.includes(j.name));
@@ -1198,9 +1254,13 @@ function canonicalGymSession(
   // Ruchy mocy zależne od rodziny głównego liftu:
   //  - dzień przysiadu (knee)  → A2 pionowo (box jump / CMJ), B2 poziomo / biodrowo
   //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds), B2 lateral / stiffness
-  const powerA = trapBar
-    ? pickJumps(ctx, ["horizontal"], avoid)
-    : pickJumps(ctx, ["vertical"], avoid);
+  // Depth/poziom 4 dopuszczamy w A2 tylko, gdy zawodnik jest do tego uprawniony
+  // (maxPlyoLevel === 4) — nigdy losowo dla młodych/początkujących/zmęczonych.
+  const allowDepth = (ctx.maxPlyoLevel ?? 3) >= 4;
+  const aKinds: PlyoKind[] = trapBar
+    ? (allowDepth ? ["horizontal", "depth"] : ["horizontal"])
+    : (allowDepth ? ["vertical", "depth"] : ["vertical"]);
+  const powerA = pickJumps(ctx, aKinds, avoid);
   const powerB = trapBar
     ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
     : pickJumps(ctx, ["horizontal", "pogo"], [...avoid, powerA.name]);
@@ -1416,18 +1476,22 @@ export function buildStrengthPowerStructured(
   ctx: StrengthBlockContext,
 ): GymSessionPlan | null {
   __uid = ctx.weekIndex * 1000 + ctx.gymSessionIndexInWeek * 100;
+  // Ustal maksymalny dozwolony poziom plyometrii dla tej sesji (progresja, nie losowo).
+  ctx = { ...ctx, maxPlyoLevel: ctx.maxPlyoLevel ?? computeMaxPlyoLevel(profile, ctx) };
   // Niska gotowość / ból / powrót po kontuzji → tylko regeneracja/prehab.
   if (profile.painInjury || profile.seasonPhase === "return_injury") {
-    return recoveryPrehab(profile, ctx);
+    return enrichLoadGuidance(recoveryPrehab(profile, ctx));
   }
   if (ctx.readiness !== undefined && ctx.readiness <= 3) {
-    return recoveryPrehab(profile, ctx);
+    return enrichLoadGuidance(recoveryPrehab(profile, ctx));
   }
   if (!structuredStrengthAllowed(ctx.mdLabel)) {
     // MD-1/MD-2/MD/MD+1: tylko primer/regeneracja, bez ciężkiej siły.
-    return ctx.mdLabel === "MD+1" || ctx.mdLabel === "MD"
-      ? recoveryPrehab(profile, ctx)
-      : powerPrimer(profile, ctx);
+    return enrichLoadGuidance(
+      ctx.mdLabel === "MD+1" || ctx.mdLabel === "MD"
+        ? recoveryPrehab(profile, ctx)
+        : powerPrimer(profile, ctx),
+    );
   }
 
   // Jedyna sesja gym w tygodniu → kompletna sesja pełnego ciała atletycznego.
@@ -1483,7 +1547,7 @@ export function buildStrengthPowerStructured(
   // Jeśli zasady bezpieczeństwa dnia meczowego są złamane, schodzimy do primera.
   let issues = validateGymSession(plan, ctx);
   if (issues.some((i) => i.code === "matchday_unsafe" || i.code === "matchday_heavy_hamstring")) {
-    return powerPrimer(profile, ctx);
+    return enrichLoadGuidance(powerPrimer(profile, ctx));
   }
   for (let pass = 0; pass < 4 && issues.length > 0; pass++) {
     repairGymSession(plan, ctx, issues);
@@ -1491,6 +1555,99 @@ export function buildStrengthPowerStructured(
   }
   // Aktualizujemy mainPatterns po ewentualnych podmianach.
   plan.mainPatterns = collectMainPatterns(plan);
+  return enrichLoadGuidance(plan);
+}
+
+// ---------------------------------------------------------------------------
+// Wytyczne obciążenia (%1RM / RPE) + jak dobrać i kiedy zmniejszyć ciężar.
+// Dodawane centralnie do wszystkich obciążonych ćwiczeń przed renderem.
+// ---------------------------------------------------------------------------
+
+interface LoadGuide {
+  loadTarget: string;
+  rir?: string;
+  loadGuidance: string;
+  loadReduceWhen: string;
+}
+
+const GUIDE_MAIN: LoadGuide = {
+  loadTarget: "80–90% 1RM lub RPE 7,5–9",
+  rir: "1–3 RIR",
+  loadGuidance: "Dobierz ciężar tak, by w zapasie zostały 1–3 powtórzenia, a technika była idealna.",
+  loadReduceWhen: "Zmniejsz przy bólu, spadku techniki, słabym śnie/gotowości lub blisko meczu.",
+};
+const GUIDE_BSTRENGTH: LoadGuide = {
+  loadTarget: "RPE 7–8,5",
+  rir: "2–3 RIR",
+  loadGuidance: "Ciężar na 6–12 powtórzeń bez upadku — zostaw zapas, kontroluj tempo.",
+  loadReduceWhen: "Zmniejsz, gdy gubisz technikę lub czujesz przeciążenie stawu.",
+};
+const GUIDE_ACCESSORY: LoadGuide = {
+  loadTarget: "RPE 6–8",
+  loadGuidance: "Lekko–umiarkowanie, pełna kontrola zakresu, bez bólu.",
+  loadReduceWhen: "Zmniejsz, gdy tracisz kontrolę lub pojawia się dyskomfort.",
+};
+const GUIDE_POWER: LoadGuide = {
+  loadTarget: "Maks. prędkość / intencja",
+  loadGuidance: "Niskie powtórzenia, bez obciążenia lub minimalne — liczy się jakość każdego odbicia.",
+  loadReduceWhen: "Przerwij serię, gdy spada wysokość/dystans skoku lub jakość lądowania.",
+};
+const GUIDE_CORE: LoadGuide = {
+  loadTarget: "Kontrola / jakość",
+  loadGuidance: "Opór taki, by utrzymać idealne napięcie tułowia — bez chaosu zmęczeniowego.",
+  loadReduceWhen: "Zmniejsz, gdy tracisz napięcie tułowia lub technikę.",
+};
+const GUIDE_FINISHER: LoadGuide = {
+  loadTarget: "RPE 7–8",
+  loadGuidance: "Lekka izolacja na 10–15 powtórzeń — czuj mięsień, bez zarzucania.",
+  loadReduceWhen: "Pomiń lub zmniejsz przy dużym zmęczeniu.",
+};
+
+function applyGuide(e: TrainingExercise, g: LoadGuide): void {
+  if (!e.loadTarget) e.loadTarget = g.loadTarget;
+  if (g.rir && !e.rir) e.rir = g.rir;
+  if (!e.loadGuidance) e.loadGuidance = g.loadGuidance;
+  if (!e.loadReduceWhen) e.loadReduceWhen = g.loadReduceWhen;
+}
+
+function isMobilityName(name: string): boolean {
+  return /mobil|oddech|rower|spacer|trucht|stretch|rozciąg|aktywacja|izometria/i.test(name);
+}
+
+function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
+  for (const sec of plan.sections) {
+    if (sec.type === "warmup" || sec.type === "cooldown" || sec.type === "log") continue;
+    for (const blk of sec.blocks) {
+      const isCoreBlock = blk.intent === "stability" && /core/i.test(blk.title);
+      const isFinisherBlock = /finisher/i.test(blk.title);
+      for (const e of blk.exercises) {
+        const isPower = (e.groundContacts ?? 0) > 0;
+        const pattern = classifyExercise(e);
+        if (isPower || pattern === "power") {
+          applyGuide(e, GUIDE_POWER);
+          continue;
+        }
+        if (isCoreBlock || pattern === "core") {
+          applyGuide(e, GUIDE_CORE);
+          continue;
+        }
+        if (isFinisherBlock) {
+          applyGuide(e, GUIDE_FINISHER);
+          continue;
+        }
+        // Obciążone ćwiczenie siłowe? (ma serie/powtórzenia, nie jest mobilnością/izometrią)
+        const loaded = !!e.reps && !isMobilityName(e.name);
+        if (!loaded) continue;
+        const isMainLift =
+          sec.type === "main" &&
+          e.label === "A1" &&
+          (pattern === "squat" || pattern === "hinge" || pattern === "unilateral" || pattern === "other");
+        if (isMainLift) applyGuide(e, GUIDE_MAIN);
+        else if (sec.type === "main") applyGuide(e, GUIDE_BSTRENGTH);
+        else applyGuide(e, GUIDE_ACCESSORY);
+      }
+    }
+  }
   return plan;
 }
 

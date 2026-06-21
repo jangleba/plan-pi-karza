@@ -73,7 +73,8 @@ function restLabel(e: TrainingExercise): string | null {
 
 function exerciseDetailRows(e: TrainingExercise) {
   return [
-    { label: "Wskazówka", value: e.cue },
+    { label: "Jak dobrać ciężar", value: e.loadGuidance },
+    { label: "Kiedy zmniejszyć", value: e.loadReduceWhen },
     { label: "Technika", value: e.technique },
     { label: "Łatwiej", value: e.regression },
     { label: "Trudniej", value: e.progression },
@@ -141,6 +142,9 @@ function ExerciseRow({
           )}
           {rest && (
             <div className="mt-0.5 text-[11px] font-medium text-primary/80">{rest}</div>
+          )}
+          {e.cue && (
+            <div className="mt-1 text-xs italic text-muted-foreground">💡 {e.cue}</div>
           )}
         </button>
       </div>
