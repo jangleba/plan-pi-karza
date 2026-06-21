@@ -1254,9 +1254,13 @@ function canonicalGymSession(
   // Ruchy mocy zależne od rodziny głównego liftu:
   //  - dzień przysiadu (knee)  → A2 pionowo (box jump / CMJ), B2 poziomo / biodrowo
   //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds), B2 lateral / stiffness
-  const powerA = trapBar
-    ? pickJumps(ctx, ["horizontal"], avoid)
-    : pickJumps(ctx, ["vertical"], avoid);
+  // Depth/poziom 4 dopuszczamy w A2 tylko, gdy zawodnik jest do tego uprawniony
+  // (maxPlyoLevel === 4) — nigdy losowo dla młodych/początkujących/zmęczonych.
+  const allowDepth = (ctx.maxPlyoLevel ?? 3) >= 4;
+  const aKinds: PlyoKind[] = trapBar
+    ? (allowDepth ? ["horizontal", "depth"] : ["horizontal"])
+    : (allowDepth ? ["vertical", "depth"] : ["vertical"]);
+  const powerA = pickJumps(ctx, aKinds, avoid);
   const powerB = trapBar
     ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
     : pickJumps(ctx, ["horizontal", "pogo"], [...avoid, powerA.name]);
