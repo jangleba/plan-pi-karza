@@ -143,6 +143,9 @@ function ExerciseRow({
           {rest && (
             <div className="mt-0.5 text-[11px] font-medium text-primary/80">{rest}</div>
           )}
+          {e.cue && (
+            <div className="mt-1 text-xs italic text-muted-foreground">💡 {e.cue}</div>
+          )}
         </button>
       </div>
       {expanded && rows.length > 0 && (
