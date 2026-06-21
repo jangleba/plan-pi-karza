@@ -118,6 +118,14 @@ interface JumpVariant {
   contacts: number;
   cue: string;
   kind: PlyoKind;
+  /**
+   * Poziom progresji plyometrycznej:
+   *  1 = lądowanie + sztywność (snap down, drop landing, pogo, line hops)
+   *  2 = wspomagane gumą / niski impakt (band pogo, niskie płotki, lateral pogo)
+   *  3 = normalne jakościowe skoki (box jump, CMJ, broad jump, bounds, single-leg pogo)
+   *  4 = intensywne reaktywne / depth (depth drop/jump, hurdle rebound, reactive bounds)
+   */
+  level: number;
 }
 
 type PlyoKind =
@@ -129,7 +137,8 @@ type PlyoKind =
   | "hurdle"
   | "medball"
   | "wall"
-  | "ankling";
+  | "ankling"
+  | "depth";
 
 const SQUAT_ADULT = [
   "Przysiad ze sztangą (high bar)",
