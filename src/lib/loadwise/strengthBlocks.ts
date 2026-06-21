@@ -311,12 +311,41 @@ function rotatePick(pool: string[], ctx: StrengthBlockContext, avoid: string[]):
   return fresh ?? ordered[0];
 }
 
+/**
+ * Maksymalny dozwolony poziom plyometrii dla zawodnika i kontekstu.
+ * Depth/poziom 4 tylko dla zaawansowanych, świeżych, bez bólu, nie blisko meczu,
+ * poza sezonem wysokoobciążeniowym i w niskiej objętości.
+ */
+function computeMaxPlyoLevel(profile: Profile, ctx: StrengthBlockContext): number {
+  if (profile.painInjury || profile.seasonPhase === "return_injury") return 1;
+  const young = isYoung(profile.age);
+  const beginner = profile.level === "beginner";
+  if (young || beginner) return 2;
+  // Zmęczenie / niska gotowość → bez normalnych intensywnych skoków.
+  if (ctx.readiness !== undefined && ctx.readiness <= 5) return 2;
+  const depthEligible =
+    isAdvancedEligible(profile) &&
+    (profile.level === "advanced" || profile.level === "elite") &&
+    (ctx.readiness === undefined || ctx.readiness >= 7) &&
+    profile.seasonPhase !== "inseason" &&
+    (ctx.weekPhase === "development" || ctx.weekPhase === "peak") &&
+    structuredStrengthAllowed(ctx.mdLabel);
+  return depthEligible ? 4 : 3;
+}
+
 function pickJumps(
   ctx: StrengthBlockContext,
   kinds: PlyoKind[],
   avoid: string[],
 ): JumpVariant {
-  const pool = JUMPS.filter((j) => kinds.includes(j.kind));
+  const maxLevel = ctx.maxPlyoLevel ?? 3;
+  let pool = JUMPS.filter((j) => kinds.includes(j.kind) && j.level <= maxLevel);
+  // Brak dopasowania na danym poziomie → zejdź do bezpiecznych wariantów
+  // lądowania / sztywności (poziom 1), nigdy nie eskaluj ponad limit.
+  if (pool.length === 0) {
+    pool = JUMPS.filter((j) => j.level <= Math.max(1, maxLevel) && (j.kind === "snap" || j.kind === "pogo"));
+  }
+  if (pool.length === 0) pool = JUMPS.filter((j) => j.level === 1);
   const seed = ctx.weekIndex * 3 + ctx.gymSessionIndexInWeek + 1;
   const ordered = pool.map((_, i) => pool[(seed + i) % pool.length]);
   const fresh = ordered.find((j) => !avoid.includes(j.name));
