@@ -150,7 +150,10 @@ export interface TrainingExercise {
   tempo?: string;
   rpe?: string;
   rir?: string;
-  loadTarget?: string;
+  loadTarget?: string; // %1RM lub RPE docelowe
+  loadGuidance?: string; // jak dobrać ciężar
+  loadReduceWhen?: string; // kiedy zmniejszyć obciążenie
+  plyoLevel?: number; // 1–4 poziom progresji plyometrycznej
   groundContacts?: number;
   equipment?: string;
   cue?: string;
