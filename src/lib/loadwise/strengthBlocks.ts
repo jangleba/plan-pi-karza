@@ -58,6 +58,8 @@ export interface StrengthBlockContext {
    * - "trap_bar" → sesja 2: dzień trap bar / hinge total-body
    */
   forcedMainFamily?: "squat" | "trap_bar";
+  /** Maksymalny dozwolony poziom plyometrii (1–4). Ustawiany w buildStrengthPowerStructured. */
+  maxPlyoLevel?: number;
 }
 
 export interface GymSessionPlan {
