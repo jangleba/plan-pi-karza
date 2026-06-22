@@ -307,6 +307,10 @@ function Onboarding() {
       seasonStage: seasonStage,
       competitionLevel,
       weeklyMatches,
+      seasonPhaseOverride,
+      seasonValidationStatus: seasonPhaseOverride
+        ? "override"
+        : seasonValidation.status,
       hasGym,
       hasPitch,
       hasSprintSpace,
