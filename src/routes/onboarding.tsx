@@ -437,11 +437,58 @@ function Onboarding() {
                 onChange={(v) => {
                   setSeasonPhase(v);
                   setSeasonStage(null);
+                  // Zmiana okresu = wyjście z trybu niestandardowego do ponownej walidacji.
+                  setSeasonPhaseOverride(false);
                 }}
                 labels={SEASON_PHASE_LABELS}
                 cols={1}
               />
+              {seasonPhase !== null &&
+                !seasonPhaseOverride &&
+                (seasonValidation.status === "invalid" ||
+                  seasonValidation.status === "incomplete") && (
+                  <div className="space-y-2 rounded-xl border border-destructive/50 bg-destructive/10 p-3">
+                    <p className="text-xs font-medium text-destructive">
+                      {seasonValidation.message}
+                    </p>
+                    {seasonValidation.suggestion && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSeasonPhase(seasonValidation.suggestion);
+                          setSeasonStage(null);
+                          setSeasonPhaseOverride(false);
+                        }}
+                        className="rounded-full border border-primary bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                      >
+                        Ustaw sugerowany:{" "}
+                        {SEASON_PHASE_LABELS[seasonValidation.suggestion]}
+                      </button>
+                    )}
+                    {seasonValidation.needsConfirm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ok = window.confirm(
+                            "Ten okres sezonu nie pasuje do kalendarza. Czy na pewno masz niestandardowy harmonogram (turniej, liga zagraniczna, akademia, plan indywidualny)?",
+                          );
+                          if (ok) setSeasonPhaseOverride(true);
+                        }}
+                        className="ml-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
+                      >
+                        Tryb niestandardowego sezonu
+                      </button>
+                    )}
+                  </div>
+                )}
+              {seasonPhaseOverride && (
+                <p className="text-xs font-medium text-primary">
+                  Tryb niestandardowego sezonu włączony — plan korzysta z Twojego
+                  kalendarza i daty meczu.
+                </p>
+              )}
             </div>
+
             {(seasonPhase === "inseason" || seasonPhase === "transition") && (
               <div className="space-y-2">
                 <Label>Etap w sezonie</Label>
