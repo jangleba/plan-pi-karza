@@ -183,6 +183,20 @@ function Onboarding() {
   const [hasSprintSpace, setHasSprintSpace] = useState(
     existing?.hasSprintSpace ?? true,
   );
+  const [seasonPhaseOverride, setSeasonPhaseOverride] = useState(
+    existing?.seasonPhaseOverride ?? false,
+  );
+
+  // Walidacja spójności stanu sezonu z kalendarzem i datą meczu.
+  const seasonValidation = validateSeason({
+    seasonPhase,
+    seasonStage,
+    nextMatchDate: matchDate || null,
+    weeklyMatches,
+    seasonPhaseOverride,
+  });
+  const seasonBlocksContinue =
+    !seasonPhaseOverride && seasonValidation.status === "invalid";
 
 
 
