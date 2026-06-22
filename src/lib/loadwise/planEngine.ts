@@ -2805,12 +2805,20 @@ export function weekRanges(
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
 
 export function generatePlan(
-  profile: Profile,
+  rawProfile: Profile,
   start?: Date,
   days = 28,
   weekOffset = 0,
 ): SessionDay[] {
   const startDate = start ?? warsawToday();
+  // Silnik korzysta z ZWALIDOWANEGO okresu sezonu: jeśli zapisany okres jest
+  // sprzeczny z kalendarzem i nie włączono trybu niestandardowego, używamy
+  // sugestii kalendarzowej, by load i dobór sesji były wiarygodne.
+  const effPhase = effectiveSeasonPhase(rawProfile, startDate);
+  const profile: Profile =
+    effPhase === rawProfile.seasonPhase
+      ? rawProfile
+      : { ...rawProfile, seasonPhase: effPhase };
   const out: SessionDay[] = [];
   const blockMap = planBlock(profile, startDate, days, weekOffset);
 
