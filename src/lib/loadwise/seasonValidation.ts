@@ -134,19 +134,12 @@ export function validateSeason(
   }
 
   // Poza sezonem / przejściowy + cotygodniowe mecze albo bliski mecz = sprzeczność.
-  const offLike =
-    input.seasonPhase === "offseason" ||
-    input.seasonPhase === "transition" ||
-    (input.seasonPhase === "preseason" && !WINTER_MONTHS.includes(month) === false
-      ? false
-      : false);
   if (
     (input.seasonPhase === "offseason" || input.seasonPhase === "transition") &&
     (input.weeklyMatches || (dToMatch != null && dToMatch >= 0 && dToMatch <= 10))
   ) {
     invalid = true;
   }
-  void offLike;
 
   if (invalid) {
     return {
