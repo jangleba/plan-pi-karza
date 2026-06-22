@@ -232,7 +232,8 @@ function Onboarding() {
         position !== null &&
         level !== null &&
         seasonPhase !== null &&
-        competitionLevel !== null
+        competitionLevel !== null &&
+        !seasonBlocksContinue
       );
     if (step === 3) return goal !== null && secondaryLimiter !== null;
     if (step === 4)
