@@ -79,6 +79,10 @@ export interface Profile {
   seasonStage: SeasonStage | null;
   competitionLevel: CompetitionLevel;
   weeklyMatches: boolean; // czy mecze są co tydzień
+  /** Świadomy tryb niestandardowego sezonu — wyłącza walidację kalendarzową. */
+  seasonPhaseOverride?: boolean;
+  /** Status walidacji spójności stanu sezonu (ok/invalid/incomplete/override). */
+  seasonValidationStatus?: "ok" | "invalid" | "incomplete" | "override";
   hasGym: boolean; // dostęp do siłowni
   hasPitch: boolean; // dostęp do boiska
   hasSprintSpace: boolean; // miejsce do sprintu
