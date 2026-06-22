@@ -261,6 +261,13 @@ function Onboarding() {
       setStep(2);
       return;
     }
+    if (seasonBlocksContinue) {
+      toast.error(
+        "Okres sezonu nie pasuje do kalendarza. Popraw go albo włącz tryb niestandardowego sezonu.",
+      );
+      setStep(2);
+      return;
+    }
     if (isMinor && !consent) {
       toast.error("Potrzebna jest zgoda rodzica/opiekuna.");
       return;
