@@ -1311,7 +1311,7 @@ function canonicalGymSession(
     // BLOK E — opcjonalny finisher hipertroficzny. Biceps/triceps WYŁĄCZNIE tutaj.
     accessoryBlocks.push(
       block({
-        title: "BLOK E — FINISHER (opcjonalny)",
+        title: "BLOK E — OPCJONALNA HIPERTROFIA",
         blockType: "accessory",
         intent: "strength",
         restAfterBlock: "45–60 s",
