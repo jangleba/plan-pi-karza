@@ -1369,7 +1369,7 @@ function canonicalGymSession(
         }),
         // BLOK B — druga jakość dolna sparowana z mocą (B1) → ruch mocy (B2).
         block({
-          title: trapBar ? "BLOK B — UZUPEŁNIENIE (quad/jednonóż) + MOC" : "BLOK B — TYLNA TAŚMA + MOC BIODROWA",
+          title: trapBar ? "BLOK B — UZUPEŁNIENIE DOLNE → MOC" : "BLOK B — TYLNA TAŚMA → MOC",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 90–120 s",
