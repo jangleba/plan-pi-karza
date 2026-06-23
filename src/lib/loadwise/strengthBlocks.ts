@@ -1265,7 +1265,7 @@ function canonicalGymSession(
   const powerA = pickJumps(ctx, aKinds, avoid);
   const powerB = trapBar
     ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
-    : pickJumps(ctx, ["horizontal", "pogo"], [...avoid, powerA.name]);
+    : pickJumps(ctx, ["horizontal"], [...avoid, powerA.name]);
 
   const calf = "Wspięcia na palce (łydka)";
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
