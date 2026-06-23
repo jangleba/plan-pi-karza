@@ -156,18 +156,20 @@ const SQUAT_YOUTH = [
   "Przysiad z masą ciała + pauza",
 ];
 
-/** Sesja 2 przy 2 sesjach gym w tygodniu: trap bar / hinge total-body. */
+/**
+ * Sesja 2 przy 2 sesjach gym w tygodniu: trap bar / hinge total-body.
+ * Główny lift to ZAWSZE trap bar martwy ciąg (warianty) — nie klasyczny
+ * martwy ciąg ani skok z trap bar (to ruch mocy, nie główny lift).
+ */
 const TRAP_BAR_HINGE_ADULT = [
   "Trap bar martwy ciąg",
-  "Trap bar jump (skok z trap bar)",
-  "Martwy ciąg klasyczny",
   "Trap bar martwy ciąg (z wysokich pinów)",
+  "Trap bar martwy ciąg (tempo)",
 ];
 const TRAP_BAR_HINGE_YOUTH = [
   "Trap bar martwy ciąg (lekko, technika)",
-  "Hip hinge z hantlami",
-  "Kettlebell deadlift",
-  "Hip thrust z hantlami",
+  "Trap bar martwy ciąg (tempo, technika)",
+  "Kettlebell deadlift (trap bar zastępczo)",
 ];
 
 const HINGE_ADULT = [
@@ -1263,7 +1265,7 @@ function canonicalGymSession(
   const powerA = pickJumps(ctx, aKinds, avoid);
   const powerB = trapBar
     ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
-    : pickJumps(ctx, ["horizontal", "pogo"], [...avoid, powerA.name]);
+    : pickJumps(ctx, ["horizontal"], [...avoid, powerA.name]);
 
   const calf = "Wspięcia na palce (łydka)";
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
@@ -1279,7 +1281,7 @@ function canonicalGymSession(
   const accessoryBlocks: TrainingBlock[] = [
     // BLOK C — wyłącznie core / stabilizacja.
     block({
-      title: "BLOK C — CORE / STABILIZACJA",
+      title: "BLOK C — CORE",
       blockType: "accessory",
       intent: "stability",
       restAfterBlock: "Przerwa po bloku: 45–60 s",
@@ -1291,7 +1293,7 @@ function canonicalGymSession(
     }),
     // BLOK D — wsparcie atletyczne (łydki, przywodziciele, hamstring, góra/łopatka).
     block({
-      title: "BLOK D — WSPARCIE ATLETYCZNE",
+      title: "BLOK D — SUPPORT ATLETYCZNY",
       blockType: "accessory",
       intent: "stability",
       restAfterBlock: "Przerwa po bloku: 45–60 s",
@@ -1309,7 +1311,7 @@ function canonicalGymSession(
     // BLOK E — opcjonalny finisher hipertroficzny. Biceps/triceps WYŁĄCZNIE tutaj.
     accessoryBlocks.push(
       block({
-        title: "BLOK E — FINISHER (opcjonalny)",
+        title: "BLOK E — OPCJONALNA HIPERTROFIA",
         blockType: "accessory",
         intent: "strength",
         restAfterBlock: "45–60 s",
@@ -1330,7 +1332,7 @@ function canonicalGymSession(
       blocks: [
         // BLOK A — główny ciężki lift (A1) → ruch mocy (A2).
         block({
-          title: "BLOK A — GŁÓWNY LIFT + MOC",
+          title: "BLOK A — SIŁA → MOC",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–4 min",
@@ -1367,7 +1369,7 @@ function canonicalGymSession(
         }),
         // BLOK B — druga jakość dolna sparowana z mocą (B1) → ruch mocy (B2).
         block({
-          title: trapBar ? "BLOK B — UZUPEŁNIENIE (quad/jednonóż) + MOC" : "BLOK B — TYLNA TAŚMA + MOC BIODROWA",
+          title: trapBar ? "BLOK B — UZUPEŁNIENIE DOLNE → MOC" : "BLOK B — TYLNA TAŚMA → MOC",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 90–120 s",
@@ -2110,7 +2112,7 @@ function demoteToLight(ex: TrainingExercise): void {
   ex.reps = ex.reps && ex.reps.includes("noga") ? "6–8 / noga" : "6–8";
   ex.tempo = undefined;
   ex.cue = "Jakość ruchu, lekko — to nie kolejna ciężka ekspozycja.";
-  ex.label = undefined;
+  // Zachowaj etykietę bloku (A1/B1/...) — bez niej UI renderuje pustą etykietę.
 }
 
 export function repairGymSession(
