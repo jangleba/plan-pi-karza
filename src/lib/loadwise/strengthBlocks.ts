@@ -1332,7 +1332,7 @@ function canonicalGymSession(
       blocks: [
         // BLOK A — główny ciężki lift (A1) → ruch mocy (A2).
         block({
-          title: "BLOK A — GŁÓWNY LIFT + MOC",
+          title: "BLOK A — SIŁA → MOC",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 2–4 min",
