@@ -1281,7 +1281,7 @@ function canonicalGymSession(
   const accessoryBlocks: TrainingBlock[] = [
     // BLOK C — wyłącznie core / stabilizacja.
     block({
-      title: "BLOK C — CORE / STABILIZACJA",
+      title: "BLOK C — CORE",
       blockType: "accessory",
       intent: "stability",
       restAfterBlock: "Przerwa po bloku: 45–60 s",
