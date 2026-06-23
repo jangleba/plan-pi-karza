@@ -156,18 +156,20 @@ const SQUAT_YOUTH = [
   "Przysiad z masą ciała + pauza",
 ];
 
-/** Sesja 2 przy 2 sesjach gym w tygodniu: trap bar / hinge total-body. */
+/**
+ * Sesja 2 przy 2 sesjach gym w tygodniu: trap bar / hinge total-body.
+ * Główny lift to ZAWSZE trap bar martwy ciąg (warianty) — nie klasyczny
+ * martwy ciąg ani skok z trap bar (to ruch mocy, nie główny lift).
+ */
 const TRAP_BAR_HINGE_ADULT = [
   "Trap bar martwy ciąg",
-  "Trap bar jump (skok z trap bar)",
-  "Martwy ciąg klasyczny",
   "Trap bar martwy ciąg (z wysokich pinów)",
+  "Trap bar martwy ciąg (tempo)",
 ];
 const TRAP_BAR_HINGE_YOUTH = [
   "Trap bar martwy ciąg (lekko, technika)",
-  "Hip hinge z hantlami",
-  "Kettlebell deadlift",
-  "Hip thrust z hantlami",
+  "Trap bar martwy ciąg (tempo, technika)",
+  "Kettlebell deadlift (trap bar zastępczo)",
 ];
 
 const HINGE_ADULT = [
