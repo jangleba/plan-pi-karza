@@ -2112,7 +2112,7 @@ function demoteToLight(ex: TrainingExercise): void {
   ex.reps = ex.reps && ex.reps.includes("noga") ? "6–8 / noga" : "6–8";
   ex.tempo = undefined;
   ex.cue = "Jakość ruchu, lekko — to nie kolejna ciężka ekspozycja.";
-  ex.label = undefined;
+  // Zachowaj etykietę bloku (A1/B1/...) — bez niej UI renderuje pustą etykietę.
 }
 
 export function repairGymSession(
