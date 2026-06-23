@@ -1293,7 +1293,7 @@ function canonicalGymSession(
     }),
     // BLOK D — wsparcie atletyczne (łydki, przywodziciele, hamstring, góra/łopatka).
     block({
-      title: "BLOK D — WSPARCIE ATLETYCZNE",
+      title: "BLOK D — SUPPORT ATLETYCZNY",
       blockType: "accessory",
       intent: "stability",
       restAfterBlock: "Przerwa po bloku: 45–60 s",
