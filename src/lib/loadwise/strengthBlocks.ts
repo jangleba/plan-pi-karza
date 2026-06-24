@@ -1514,39 +1514,45 @@ function canonicalGymSession(
             }),
           ],
         }),
-        // BLOK B — druga jakość dolna sparowana z mocą (B1) → ruch mocy (B2).
+        // BLOK B — DWÓJKI: tylna taśma / hamstring (B1) → moc pozioma/biodrowa (B2).
         block({
-          title: trapBar ? "BLOK B — UZUPEŁNIENIE DOLNE → MOC" : "BLOK B — TYLNA TAŚMA → MOC",
+          title: "BLOK B — DWÓJKI / TYLNA TAŚMA + MOC",
           blockType: "contrast",
           intent: "power",
           restAfterBlock: "Przerwa po bloku: 90–120 s",
-          safetyNotes: trapBar
-            ? "Po trap bar bez ciężkiego RDL/Nordic — komplementarna praca quad/jednonóż/łydka/przywodziciele + moc lateralna/sztywność."
-            : "Tylna taśma (hamstrings/pośladki) + moc pozioma/biodrowa. Bez drugiego maksymalnego liftu.",
+          safetyNotes:
+            "B1 = jedno ćwiczenie tylnej taśmy / odporności hamstring, B2 = kompatybilna moc pozioma/biodrowa. " +
+            "Nigdy nie łącz wielu ciężkich hamstringów w jednej sesji (np. ciężki martwy ciąg + RDL + Nordic). " +
+            (trapBar
+              ? "Po ciężkim trap bar B1 jest kontrolowany (assisted / eccentric-only / izometria), niska objętość."
+              : "Bez drugiego maksymalnego liftu — B1 to praca tylnej taśmy z zapasem."),
           exercises: [
             ex({
               label: "B1",
-              name: comp,
-              sets: "3",
-              reps: compIsHinge ? "8–10" : "6–8 / noga",
-              rpe: "RPE 6–7",
-              restAfterExercise: "30–45 s do B2",
-              cue: compIsHinge ? "Biodra w tył, plecy proste, czuj tylne uda." : "Pion tułowia, stabilne kolano, kontrola.",
-              technique: compIsHinge ? "Neutralny kręgosłup, napięty tułów." : "Kolano w linii stopy, kontrola.",
-              regression: compIsHinge ? "Hip thrust / hamstring bridge." : "Wykrok w miejscu / step-up.",
+              name: hamB1.name,
+              sets: hamDose.sets,
+              reps: hamDose.reps,
+              rpe: hamDose.rpe,
+              loadTarget: `${hamDose.rpe} — bez upadku`,
+              restAfterExercise: "60–90 s do B2",
+              cue: hamB1.cue,
+              technique: "Neutralny kręgosłup, napięty tułów, powolny i kontrolowany ekscentryk.",
+              regression: "Wariant wspomagany / izometryczny tylnej taśmy.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
             ex({
               label: "B2",
-              name: powerB.name,
+              name: powerPair.name,
               sets: "3",
-              reps: `${contacts(powerB.contacts, d)} kontaktów`,
+              reps: powerPair.reps,
+              groundContacts: contacts(powerPair.contacts, d),
               restAfterPair: "90 s po parze",
-              cue: powerB.cue,
+              cue: powerPair.cue,
               ageSafetyLevel: "youth_ok",
             }),
           ],
         }),
+
       ],
     }),
     section({
