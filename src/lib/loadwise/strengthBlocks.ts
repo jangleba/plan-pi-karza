@@ -1392,25 +1392,27 @@ function canonicalGymSession(
       : SQUAT_YOUTH;
   const main = rotatePick(mainPool, ctx, avoid);
 
-  // Uzupełnienie dolne: jeśli główny = przysiad → hinge; jeśli trap bar → jednonóż.
-  const compIsHinge = !trapBar;
-  const comp = compIsHinge
-    ? rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, [...avoid, main])
-    : rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, [...avoid, main]);
+  // BLOK B — DWÓJKI / tylna taśma + moc.
+  // B1 = jedno ćwiczenie hamstring / tylnej taśmy (siła lub odporność), dobierane
+  // wg progresji + zmęczenia. Po ciężkim hinge (trap bar) używamy kontrolowanej
+  // drabinki (assisted / eccentric-only / izometria), nigdy drugiego ciężkiego RDL.
+  const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
+  const fatigue = (ctx.readiness !== undefined && ctx.readiness <= 5) || profile.seasonPhase === "inseason";
+  const hamB1 = selectHamstringB1(profile, ctx, trapBar);
+  const hamDose = hamB1Dose(hamB1, { aHeavyHinge: trapBar, nearMatch, fatigue });
 
-  // Ruchy mocy zależne od rodziny głównego liftu:
-  //  - dzień przysiadu (knee)  → A2 pionowo (box jump / CMJ), B2 poziomo / biodrowo
-  //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds), B2 lateral / stiffness
-  // Depth/poziom 4 dopuszczamy w A2 tylko, gdy zawodnik jest do tego uprawniony
-  // (maxPlyoLevel === 4) — nigdy losowo dla młodych/początkujących/zmęczonych.
+  // Ruch mocy A2 zależny od rodziny głównego liftu:
+  //  - dzień przysiadu (knee)  → A2 pionowo (box jump / CMJ)
+  //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds)
+  // Depth/poziom 4 dopuszczamy w A2 tylko, gdy zawodnik jest do tego uprawniony.
   const allowDepth = (ctx.maxPlyoLevel ?? 3) >= 4;
   const aKinds: PlyoKind[] = trapBar
     ? (allowDepth ? ["horizontal", "depth"] : ["horizontal"])
     : (allowDepth ? ["vertical", "depth"] : ["vertical"]);
   const powerA = pickJumps(ctx, aKinds, avoid);
-  const powerB = trapBar
-    ? pickJumps(ctx, ["lateral", "snap", "pogo"], [...avoid, powerA.name])
-    : pickJumps(ctx, ["horizontal"], [...avoid, powerA.name]);
+  // B2 = kompatybilna moc pozioma / biodrowa (skok w dal, bounds, KB swing, pogo...).
+  const powerPair = selectHamPower(ctx, [...avoid, powerA.name]);
+
 
   const calf = "Wspięcia na palce (łydka)";
   const adductor = rotatePick(ADDUCTOR, ctx, avoid);
