@@ -1884,6 +1884,7 @@ export function classifyExercise(ex: TrainingExercise): MovementPattern {
       "snap down",
       "przeskok",
       "hop",
+      "swing",
       "cmj",
     ])
   ) {
