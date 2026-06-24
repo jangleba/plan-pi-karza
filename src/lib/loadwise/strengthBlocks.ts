@@ -245,6 +245,151 @@ const CONTROLLED_HAM = [
   "Hamstring bridge (kontrola)",
 ];
 
+// ---------------------------------------------------------------------------
+// Biblioteka hamstring / tylnej taśmy (sport performance) + dobór do BLOKU B
+// Kategorie:
+//  - knee_flexion / ekscentryk / odporność: Nordic, razor, GHR, slider/leg curl
+//  - hip_extension / długa dźwignia / transfer sprintu: RDL, hip thrust, pull-through
+//  - izometria / kontrola pozycyjna: long-lever bridge iso, heel-dig iso, slider iso
+//  - para mocy biodrowej/poziomej: skok w dal, bounds, KB swing, hurdle bound, pogo
+// ---------------------------------------------------------------------------
+
+type HamKind = "nordic" | "curl" | "hip" | "iso";
+
+interface HamEx {
+  name: string;
+  kind: HamKind;
+  cue: string;
+  /** Wariant wspomagany / o niższym stresie (assisted / eccentric-only / izometria). */
+  lowStress?: boolean;
+}
+
+interface HamPower {
+  name: string;
+  contacts: number;
+  reps: string;
+  cue: string;
+}
+
+// Progresja: początkujący / powrót do treningu.
+const HAM_LADDER_BEGINNER: HamEx[] = [
+  { name: "Long-lever hamstring bridge iso", kind: "iso", lowStress: true, cue: "Pięty wbite, biodra wysoko, trzymaj napięcie tylnej taśmy." },
+  { name: "Slider hamstring iso", kind: "iso", lowStress: true, cue: "Pięty na sliderach, biodra w górze, utrzymaj pozycję." },
+  { name: "Hamstring slider curl wspomagany", kind: "curl", lowStress: true, cue: "Powolny ekscentryk, dopomóż rękami w fazie powrotu." },
+  { name: "Nordic wspomagany (assisted)", kind: "nordic", lowStress: true, cue: "Opadaj powoli z asekuracją gumy/rąk, kontrola ekscentryka." },
+];
+
+// Progresja: średniozaawansowani.
+const HAM_LADDER_INTERMEDIATE: HamEx[] = [
+  { name: "Hamstring slider curl", kind: "curl", cue: "Powolny ekscentryk, biodra w linii, kontrola." },
+  { name: "Uginanie nóg siedząc — ekscentryka", kind: "curl", cue: "3 s opuszczania, pełna kontrola." },
+  { name: "Uginanie nóg leżąc — ekscentryka", kind: "curl", cue: "Powolny ekscentryk, biodra przy ławce." },
+  { name: "Hip thrust ze sztangą", kind: "hip", cue: "Pełny wyprost bioder, podbródek schowany." },
+  { name: "Martwy ciąg rumuński (RDL)", kind: "hip", cue: "Biodra w tył, plecy proste, czuj tylne uda." },
+  { name: "Nordic wspomagany (assisted)", kind: "nordic", lowStress: true, cue: "Opadaj powoli z asekuracją, kontrola ekscentryka." },
+];
+
+// Progresja: zaawansowani.
+const HAM_LADDER_ADVANCED: HamEx[] = [
+  { name: "Nordic hamstring", kind: "nordic", cue: "Maks. kontrola ekscentryka, biodra wyprostowane." },
+  { name: "Razor curl", kind: "nordic", cue: "Biodra zginają się aktywnie, kontrola opadania." },
+  { name: "Glute-ham raise (GHR)", kind: "nordic", cue: "Pełny zakres, napięta tylna taśma." },
+  { name: "RDL jednonóż", kind: "hip", cue: "Biodro w tył, miednica stabilna, czuj tylne udo." },
+  { name: "Martwy ciąg rumuński (RDL)", kind: "hip", cue: "Biodra w tył, plecy proste, mocny wyprost bioder." },
+];
+
+// Wysokie zmęczenie / blisko meczu / in-season / po ciężkim hinge:
+// niska objętość, izometria lub wariant wspomagany/ekscentryczny — bez pełnych Nordic eccentrics.
+const HAM_LADDER_FATIGUE: HamEx[] = [
+  { name: "Long-lever hamstring bridge iso", kind: "iso", lowStress: true, cue: "Pięty wbite, biodra wysoko, trzymaj napięcie." },
+  { name: "Heel-dig bridge iso", kind: "iso", lowStress: true, cue: "Wbij pięty, unieś biodra, utrzymaj pozycję." },
+  { name: "Slider hamstring iso", kind: "iso", lowStress: true, cue: "Pięty na sliderach, biodra w górze, kontrola." },
+  { name: "Hamstring slider curl", kind: "curl", cue: "Powolny ekscentryk, niska objętość, bez upadku." },
+  { name: "Nordic ekscentryczny (tylko ekscentryk)", kind: "nordic", lowStress: true, cue: "Sam ekscentryk, niska objętość, asekuracja." },
+];
+
+// Para mocy biodrowej / poziomej do B2.
+const HAM_POWER_PAIR: HamPower[] = [
+  { name: "Skok w dal z miejsca", contacts: 5, reps: "3–5 skoków", cue: "Maks. intencja, miękkie lądowanie na całej stopie." },
+  { name: "Bounds (skoki zamaszyste)", contacts: 6, reps: "4–6 odbić", cue: "Długi lot, rytm, kontrola lądowania." },
+  { name: "Kettlebell swing", contacts: 12, reps: "6–8", cue: "Napęd z bioder, ostry zamach, plecy proste." },
+  { name: "Skok w dal z oporem gumy (band-resisted)", contacts: 5, reps: "3–5 skoków", cue: "Eksplozja bioder mimo oporu gumy." },
+  { name: "Rzut piłką lekarską z bioder (hip-dominant)", contacts: 6, reps: "4–6 rzutów", cue: "Wyrzut z dynamicznego wyprostu bioder." },
+  { name: "Przeskoki przez niskie płotki (bound)", contacts: 6, reps: "4–6 odbić", cue: "Sprężyna, krótki kontakt, kontrola lądowania." },
+  { name: "Horizontal pogo (poziomy)", contacts: 14, reps: "10–14 kontaktów", cue: "Krótki kontakt, napęd do przodu." },
+];
+
+function hamProgressionLevel(profile: Profile): "beginner" | "intermediate" | "advanced" {
+  if (isYoung(profile.age) || profile.level === "beginner") return "beginner";
+  if (profile.level === "advanced" || profile.level === "elite") return "advanced";
+  return "intermediate";
+}
+
+/**
+ * Dobiera ćwiczenie hamstring/tylnej taśmy do B1 z uwzględnieniem progresji
+ * (rotacja po tygodniach), zmęczenia, bliskości meczu i tego, czy blok A był
+ * ciężkim hinge/trap bar. Po ciężkim hinge oraz przy zmęczeniu/in-season
+ * używamy kontrolowanej drabinki (izometria / assisted / eccentric-only).
+ */
+function selectHamstringB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHinge: boolean): HamEx {
+  const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
+  const highFatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
+  const inseason = profile.seasonPhase === "inseason";
+  let ladder: HamEx[];
+  if (aHeavyHinge || nearMatch || highFatigue || inseason) {
+    ladder = HAM_LADDER_FATIGUE;
+  } else {
+    const lvl = hamProgressionLevel(profile);
+    ladder =
+      lvl === "beginner" ? HAM_LADDER_BEGINNER : lvl === "intermediate" ? HAM_LADDER_INTERMEDIATE : HAM_LADDER_ADVANCED;
+  }
+  const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
+  const seed = ctx.weekIndex; // rotacja progresji w czasie
+  const ordered = ladder.map((_, i) => ladder[(seed + i) % ladder.length]);
+  return ordered.find((h) => !avoid.includes(h.name)) ?? ordered[0];
+}
+
+interface HamDose {
+  sets: string;
+  reps: string;
+  rpe: string;
+}
+
+/** Spójne dawkowanie B1 wg kategorii hamstring + reguła zmęczenia po ciężkim hinge. */
+function hamB1Dose(h: HamEx, opts: { aHeavyHinge: boolean; nearMatch: boolean; fatigue: boolean }): HamDose {
+  const lowDose = opts.nearMatch || opts.fatigue;
+  switch (h.kind) {
+    case "iso":
+      return { sets: lowDose ? "2" : "3", reps: "20–30 s utrzymania", rpe: "RPE 7" };
+    case "nordic": {
+      // Ekscentryk wysokostresowy — niska objętość, szczególnie po ciężkim hinge.
+      let sets = "3";
+      let reps = "4–6";
+      if (opts.aHeavyHinge) {
+        sets = "2–3";
+        reps = "3–6";
+      }
+      if (lowDose) {
+        sets = "2";
+        reps = "3–4";
+      }
+      return { sets, reps, rpe: "RPE 7–8" };
+    }
+    case "curl":
+      return { sets: lowDose ? "2–3" : "3", reps: lowDose ? "6–8" : "6–10", rpe: "RPE 7–8" };
+    case "hip":
+    default:
+      return { sets: lowDose ? "2–3" : "3–4", reps: "6–12", rpe: "RPE 7–8,5" };
+  }
+}
+
+function selectHamPower(ctx: StrengthBlockContext, avoidNames: string[]): HamPower {
+  const seed = ctx.weekIndex * 2 + ctx.gymSessionIndexInWeek + 1;
+  const ordered = HAM_POWER_PAIR.map((_, i) => HAM_POWER_PAIR[(seed + i) % HAM_POWER_PAIR.length]);
+  return ordered.find((p) => !avoidNames.includes(p.name)) ?? ordered[0];
+}
+
+
 const ADDUCTOR = [
   "Copenhagen plank",
   "Adductor squeeze (piłka)",
