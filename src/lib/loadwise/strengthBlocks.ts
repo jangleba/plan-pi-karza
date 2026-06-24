@@ -1579,7 +1579,7 @@ function canonicalGymSession(
     intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
     durationMin: adult ? 60 : 50,
     sections,
-    mainPatterns: [main, comp, powerA.name, powerB.name],
+    mainPatterns: [main, hamB1.name, powerA.name, powerPair.name],
   };
 }
 
