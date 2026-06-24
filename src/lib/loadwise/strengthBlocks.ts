@@ -1797,8 +1797,20 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
           sec.type === "main" &&
           e.label === "A1" &&
           (pattern === "squat" || pattern === "hinge" || pattern === "unilateral" || pattern === "other");
-        if (isMainLift) applyGuide(e, GUIDE_MAIN);
-        else if (sec.type === "main") applyGuide(e, GUIDE_BSTRENGTH);
+        if (isMainLift) {
+          // Spójne wytyczne głównego liftu — bez sprzecznych zakresów RPE/%1RM.
+          if (/technik/i.test(e.rpe ?? "")) {
+            // Sesja techniczna (młodzież / początkujący): lekko–umiarkowanie, nie %1RM.
+            e.loadTarget = "Lekko–umiarkowanie (technika)";
+            e.loadGuidance = "Dobierz ciężar, przy którym technika jest idealna, z dużym zapasem.";
+            e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
+          } else {
+            applyGuide(e, GUIDE_MAIN);
+            // Ujednolić wyświetlany RPE z celem obciążenia i utrzymać 2–5 powtórzeń.
+            e.rpe = "RPE 7,5–9";
+            if ((setsMax(e.reps) ?? 0) > 5) e.reps = "3–5";
+          }
+        } else if (sec.type === "main") applyGuide(e, GUIDE_BSTRENGTH);
         else applyGuide(e, GUIDE_ACCESSORY);
       }
     }
