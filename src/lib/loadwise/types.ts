@@ -293,6 +293,7 @@ export interface Mesocycle {
   allowedSubstitutions: string[]; // dozwolone zamiany przy bólu/zmęczeniu
 }
 
+export interface SessionDay {
   generatorVersion?: string;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
