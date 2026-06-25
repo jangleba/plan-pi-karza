@@ -331,6 +331,12 @@ export interface SessionDay {
   };
   /** Strukturalne sekcje z blokami (siła→moc itd.). Gdy obecne, ekran szczegółów renderuje bloki. */
   structuredSections?: TrainingSection[];
+  /** Tagi obciążenia sesji (scheduler + opis). */
+  loadTags?: LoadTag[];
+  /** Numer tygodnia w bloku mezocyklu (1-based). */
+  blockWeekNumber?: number;
+  /** Faza tygodnia w bloku (kalibracja/build/overload/deload). */
+  blockPhaseLabel?: string;
   secondSession: SessionDay | null;
 }
 
