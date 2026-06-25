@@ -10,6 +10,8 @@ import type {
   PlanSession,
   PlanSessionType,
   WeekStats,
+  LoadTag,
+  Mesocycle,
 } from "./types";
 import {
   warsawToday,
