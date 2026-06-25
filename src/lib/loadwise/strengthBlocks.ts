@@ -32,6 +32,13 @@ export interface GymHistory {
   usedRolesThisWeek: GymRole[];
   usedMainThisWeek: string[];
   usedMainLastWeek: string[];
+  /**
+   * Zablokowane główne ćwiczenia/tematy bloku (mezocyklu). Klucz = slot
+   * (np. "squat:0:main"), wartość = nazwa ćwiczenia. Raz wybrane w 1. tygodniu
+   * bloku jest utrzymane przez kolejne tygodnie — progresja idzie DAWKĄ, a nie
+   * losową zmianą ćwiczenia.
+   */
+  lockedThemes?: Record<string, string>;
 }
 
 export interface StrengthBlockContext {
