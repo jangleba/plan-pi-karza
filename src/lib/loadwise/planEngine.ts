@@ -2927,7 +2927,7 @@ function roleThemesForGoal(goal: Profile["goal"]): string[] {
 function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile): void {
   const highFreqAllowed =
     (profile.level === "advanced" || profile.level === "elite") &&
-    profile.canTrainTwiceADay === true;
+    profile.doubleSessionsAllowed === "yes_if_safe";
   for (let i = 1; i < out.length; i++) {
     const prev = out[i - 1];
     const cur = out[i];
