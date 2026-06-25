@@ -37,7 +37,7 @@ import {
 } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
 
-export const PLAN_ENGINE_VERSION = "loadwise-hamstring-rules-v16";
+export const PLAN_ENGINE_VERSION = "loadwise-mesocycle-block-v17";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
