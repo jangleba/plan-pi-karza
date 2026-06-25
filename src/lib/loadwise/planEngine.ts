@@ -10,6 +10,8 @@ import type {
   PlanSession,
   PlanSessionType,
   WeekStats,
+  LoadTag,
+  Mesocycle,
 } from "./types";
 import {
   warsawToday,
@@ -35,7 +37,7 @@ import {
 } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
 
-export const PLAN_ENGINE_VERSION = "loadwise-hamstring-rules-v16";
+export const PLAN_ENGINE_VERSION = "loadwise-mesocycle-block-v17";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -2802,7 +2804,169 @@ export function weekRanges(
 }
 
 
+// ---------------------------------------------------------------------------
+// Mezocykl / blok: tagi obciążenia + ochrona następstwa dni
+// ---------------------------------------------------------------------------
+
+/** Etykieta fazy tygodnia w bloku (kalibracja → build → overload → deload). */
+function blockPhaseLabel(phase: GymWeekPhase): string {
+  switch (phase) {
+    case "adaptation":
+      return "Tydz. 1 — kalibracja / wprowadzenie";
+    case "development":
+      return "Tydz. 2 — budowanie";
+    case "peak":
+      return "Tydz. 3 — przeciążenie / intensyfikacja";
+    case "deload":
+    default:
+      return "Tydz. 4 — deload / świeżość";
+  }
+}
+
+/** Czy sesja niesie wysokie obciążenie dolnej części ciała (siła/moc nóg). */
+function isLowerBodyHigh(session: SessionDay): boolean {
+  return (session.loadTags ?? []).includes("lower_body_high");
+}
+
+/** Wylicza tagi obciążenia sesji na podstawie typu, treści i intensywności. */
+function computeLoadTags(session: SessionDay): LoadTag[] {
+  const tags = new Set<LoadTag>();
+  const t = `${session.sessionType} ${session.title}`.toLowerCase();
+  const allText = [
+    ...session.sections.warmup,
+    ...session.sections.main,
+    ...session.sections.accessory,
+  ]
+    .map((e) => e.name.toLowerCase())
+    .join(" | ");
+
+  if (session.dayType === "match") {
+    tags.add("neural_high");
+    tags.add("lower_body_high");
+  } else if (session.dayType === "club") {
+    tags.add("neural_high");
+  } else if (session.dayType === "recovery" || session.dayType === "rest") {
+    tags.add("recovery_low");
+  } else if (session.dayType === "md-1") {
+    tags.add("technical_low");
+  }
+
+  const isGym = /sił|moc|power|strength/i.test(t);
+  if (isGym && session.intensity !== "niska") {
+    tags.add("lower_body_high");
+    tags.add("neural_high");
+    tags.add("axial_load");
+    if (/przysiad|squat|quad/i.test(t + " " + allText)) tags.add("squat_quad_dominant");
+    if (/trap bar|hinge|martwy|deadlift|rdl|biodr/i.test(t + " " + allText))
+      tags.add("hinge_posterior_chain");
+    if (/nordic|rdl|martwy|ghr|razor|ekscentry/i.test(allText)) tags.add("hamstring_eccentric");
+    if (/łydk|calf|pogo|wspięci/i.test(allText)) tags.add("calf_achilles_stiffness");
+    if (/skok|jump|bound|plyo|pogo|płotk|depth/i.test(allText)) tags.add("plyometric_contacts");
+    if (/przywodzic|adduct|copenhagen/i.test(allText)) tags.add("adductor_lateral");
+    if (/wiosł|podciąg|wyciskan|ohp|pull|press|biceps|triceps/i.test(allText)) tags.add("upper_body");
+    tags.add("core");
+  } else if (/sprint|przyspiesz|akcelerac|szybko/i.test(t)) {
+    tags.add("neural_high");
+    tags.add("plyometric_contacts");
+  } else if (/zwinno|cod|kierunk|agility|hamowan/i.test(t)) {
+    tags.add("neural_high");
+    tags.add("adductor_lateral");
+  } else if (/wytrzym|bieg|aerob|kondyc|endurance/i.test(t)) {
+    tags.add(session.intensity === "wysoka" ? "neural_high" : "recovery_low");
+  } else if (/prehab|mobiln|stabil/i.test(t)) {
+    tags.add("recovery_low");
+    tags.add("core");
+  }
+  return [...tags];
+}
+
+/** Buduje opis mezocyklu (4–5 tygodni) z zablokowanych tematów i celu. */
+export function buildMesocycle(
+  profile: Profile,
+  blockWeeks: number,
+  weekOffset: number,
+  lockedThemes: Record<string, string>,
+): Mesocycle {
+  const length = Math.min(5, Math.max(4, blockWeeks));
+  return {
+    blockId: `block-${profile.goal}-${weekOffset}`,
+    blockWeekNumber: 1,
+    blockLengthWeeks: length,
+    mainGoal: profile.goal,
+    lockedMainExercises: { ...lockedThemes },
+    lockedTrainingThemes: roleThemesForGoal(profile.goal),
+    progressionRules:
+      "W1 kalibracja (RPE 6–7), W2 budowanie, W3 przeciążenie (najwyższy bodziec), W4 deload. " +
+      "Główne ćwiczenia i tematy stałe; progresja przez serie/powtórzenia/RPE/obciążenie/kontakty/tempo/zakres.",
+    deloadWeek: length >= 5 ? 4 : 4,
+    allowedSubstitutions: [
+      "Ból/uraz → wariant regresywny tej samej rodziny (np. RDL → hip thrust, Nordic → ekscentryk wspomagany).",
+      "Niska gotowość → niższy poziom plyo i mniejsza objętość, ten sam wzorzec.",
+      "Blisko meczu → kontrolowany hamstring i brak ciężkiego dolnego obciążenia.",
+    ],
+  };
+}
+
+function roleThemesForGoal(goal: Profile["goal"]): string[] {
+  switch (goal) {
+    case "speed":
+      return ["tylna taśma + sprint", "siła dolna + moc"];
+    case "power":
+      return ["siła dolna + moc", "praca jednonóż + hamowanie"];
+    default:
+      return ["dzień przysiadu (siła + moc)", "dzień trap bar / hinge total-body"];
+  }
+}
+
+/**
+ * Scheduler post-pass: nie dopuszcza dwóch ciężkich dolnych dni (lower_body_high)
+ * dzień po dniu. Drugi taki dzień jest degradowany do lekkiej alternatywy
+ * (mobilność / lekka technika / góra-core), chyba że zawodnik jest zaawansowany
+ * z wysoką gotowością i jawnym ustawieniem wysokiej częstotliwości.
+ */
+function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile): void {
+  const highFreqAllowed =
+    (profile.level === "advanced" || profile.level === "elite") &&
+    profile.doubleSessionsAllowed === "yes_if_safe";
+  for (let i = 1; i < out.length; i++) {
+    const prev = out[i - 1];
+    const cur = out[i];
+    if (!isLowerBodyHigh(prev) || !isLowerBodyHigh(cur)) continue;
+    // Mecz/klub to stałe punkty kalendarza — ich nie ruszamy.
+    if (cur.dayType === "match" || cur.dayType === "club") continue;
+    if (prev.dayType === "match" || prev.dayType === "club") {
+      // Po meczu/klubie też nie chcemy ciężkich nóg następnego dnia (chyba że wyjątek).
+      if (highFreqAllowed) continue;
+    } else if (highFreqAllowed) {
+      continue;
+    }
+    if (cur.dayType !== "training") continue;
+    const light = buildLightAlternative(profile);
+    cur.title = light.title;
+    cur.sessionType = light.sessionType;
+    cur.goalOfSession = light.goalOfSession;
+    cur.intensity = "umiarkowana";
+    cur.durationMin = light.durationMin;
+    cur.structuredSections = undefined;
+    cur.sections = {
+      warmup: warmup(),
+      main: light.main,
+      accessory: light.accessory,
+      footballTransfer: light.footballTransfer,
+      cooldown: cooldown(),
+    };
+    cur.reason =
+      "Po ciężkim dniu dolnej części ciała nie wstawiamy drugiego z rzędu — dziś lżejsza, regeneracyjna praca chroni adaptację.";
+    cur.safetyNote =
+      cur.safetyNote ??
+      "Dwa ciężkie dolne dni z rzędu zwiększają ryzyko przeciążenia — zachowujemy odstęp.";
+    cur.loadTags = computeLoadTags(cur);
+  }
+}
+
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
+
+
 
 export function generatePlan(
   rawProfile: Profile,
@@ -2866,6 +3030,9 @@ export function generatePlan(
     usedRolesThisWeek: [],
     usedMainThisWeek: [],
     usedMainLastWeek: [],
+    // Blokada głównych ćwiczeń/tematów na cały blok (mezocykl) — utrzymywana
+    // przez wszystkie tygodnie generowane w tym wywołaniu generatePlan.
+    lockedThemes: {},
   };
   // Anty-powtórzeniowe liczniki treści kategorii (reset co tydzień kalendarzowy).
   let contentCounters: ContentCounters = newContentCounters();
@@ -3252,9 +3419,21 @@ export function generatePlan(
       }
     }
     session.generatorVersion = PLAN_ENGINE_VERSION;
-    if (session.secondSession) session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+    // Kontekst bloku/mezocyklu + tagi obciążenia (1-based numer tygodnia w bloku).
+    session.blockWeekNumber = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
+    session.blockPhaseLabel = blockPhaseLabel(curPhase);
+    session.loadTags = computeLoadTags(session);
+    if (session.secondSession) {
+      session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+      session.secondSession.blockWeekNumber = session.blockWeekNumber;
+      session.secondSession.blockPhaseLabel = session.blockPhaseLabel;
+      session.secondSession.loadTags = computeLoadTags(session.secondSession);
+    }
     out.push(session);
   }
+
+  // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
+  enforceConsecutiveLowerBodySafety(out, profile);
 
   return out;
 }

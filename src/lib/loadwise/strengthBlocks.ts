@@ -32,6 +32,13 @@ export interface GymHistory {
   usedRolesThisWeek: GymRole[];
   usedMainThisWeek: string[];
   usedMainLastWeek: string[];
+  /**
+   * Zablokowane główne ćwiczenia/tematy bloku (mezocyklu). Klucz = slot
+   * (np. "squat:0:main"), wartość = nazwa ćwiczenia. Raz wybrane w 1. tygodniu
+   * bloku jest utrzymane przez kolejne tygodnie — progresja idzie DAWKĄ, a nie
+   * losową zmianą ćwiczenia.
+   */
+  lockedThemes?: Record<string, string>;
 }
 
 export interface StrengthBlockContext {
@@ -458,6 +465,85 @@ function rotatePick(pool: string[], ctx: StrengthBlockContext, avoid: string[]):
   const ordered = pool.map((_, i) => pool[(seed + i) % pool.length]);
   const fresh = ordered.find((name) => !avoid.includes(name));
   return fresh ?? ordered[0];
+}
+
+/**
+ * Klucz slotu w obrębie bloku — stabilny między tygodniami (nie zależy od
+ * weekIndex), zależny od rodziny liftu i numeru sesji gym w tygodniu.
+ */
+function lockKey(ctx: StrengthBlockContext, slot: string): string {
+  return `${ctx.forcedMainFamily ?? "fb"}:${ctx.gymSessionIndexInWeek}:${slot}`;
+}
+
+/**
+ * Wybiera ćwiczenie i BLOKUJE je na cały blok. W 1. tygodniu wybiera świeże
+ * (rotatePick), w kolejnych zwraca to samo — progresja idzie dawką.
+ */
+function lockedPick(slot: string, pool: string[], ctx: StrengthBlockContext, avoid: string[]): string {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return rotatePick(pool, ctx, avoid);
+  const key = lockKey(ctx, slot);
+  const existing = lock[key];
+  if (existing && pool.includes(existing)) return existing;
+  const pick = rotatePick(pool, ctx, avoid);
+  lock[key] = pick;
+  return pick;
+}
+
+/** Jak lockedPick, ale dla wariantów plyo (zwraca obiekt JumpVariant). */
+function lockedJump(slot: string, ctx: StrengthBlockContext, kinds: PlyoKind[], avoid: string[]): JumpVariant {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return pickJumps(ctx, kinds, avoid);
+  const key = lockKey(ctx, slot);
+  const existing = lock[key];
+  if (existing) {
+    const found = JUMPS.find((j) => j.name === existing);
+    if (found && (ctx.maxPlyoLevel === undefined || found.level <= ctx.maxPlyoLevel)) return found;
+  }
+  const pick = pickJumps(ctx, kinds, avoid);
+  lock[key] = pick.name;
+  return pick;
+}
+
+/** Hamstring B1 zablokowany na blok (resolve po nazwie ze wszystkich drabinek). */
+function lockedHamB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHinge: boolean): HamEx {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return selectHamstringB1(profile, ctx, aHeavyHinge);
+  const key = lockKey(ctx, "hamB1");
+  const all: HamEx[] = [
+    ...HAM_LADDER_BEGINNER,
+    ...HAM_LADDER_INTERMEDIATE,
+    ...HAM_LADDER_ADVANCED,
+    ...HAM_LADDER_FATIGUE,
+  ];
+  // Po ciężkim hinge / blisko meczu wymuszamy kontrolowaną drabinkę — nie utrzymujemy
+  // zablokowanego wysokostresowego wariantu, jeśli kontekst go nie dopuszcza.
+  const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
+  const highFatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
+  const mustControl = aHeavyHinge || nearMatch || highFatigue || profile.seasonPhase === "inseason";
+  const existing = lock[key];
+  if (existing) {
+    const found = all.find((h) => h.name === existing);
+    if (found && (!mustControl || HAM_LADDER_FATIGUE.some((h) => h.name === existing))) return found;
+  }
+  const pick = selectHamstringB1(profile, ctx, aHeavyHinge);
+  if (!mustControl) lock[key] = pick.name;
+  return pick;
+}
+
+/** Para mocy B2 zablokowana na blok. */
+function lockedHamPower(ctx: StrengthBlockContext, avoidNames: string[]): HamPower {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return selectHamPower(ctx, avoidNames);
+  const key = lockKey(ctx, "powerPair");
+  const existing = lock[key];
+  if (existing) {
+    const found = HAM_POWER_PAIR.find((p) => p.name === existing);
+    if (found) return found;
+  }
+  const pick = selectHamPower(ctx, avoidNames);
+  lock[key] = pick.name;
+  return pick;
 }
 
 /**
@@ -1390,7 +1476,8 @@ function canonicalGymSession(
     : adult
       ? SQUAT_ADULT
       : SQUAT_YOUTH;
-  const main = rotatePick(mainPool, ctx, avoid);
+  // Główny lift ZABLOKOWANY na cały blok — progresja idzie dawką (fazą), nie zmianą ćwiczenia.
+  const main = lockedPick("main", mainPool, ctx, avoid);
 
   // BLOK B — DWÓJKI / tylna taśma + moc.
   // B1 = jedno ćwiczenie hamstring / tylnej taśmy (siła lub odporność), dobierane
@@ -1398,7 +1485,8 @@ function canonicalGymSession(
   // drabinki (assisted / eccentric-only / izometria), nigdy drugiego ciężkiego RDL.
   const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
   const fatigue = (ctx.readiness !== undefined && ctx.readiness <= 5) || profile.seasonPhase === "inseason";
-  const hamB1 = selectHamstringB1(profile, ctx, trapBar);
+  // Hamstring B1 zablokowany na blok (jeśli kontekst zmęczenia pozwala utrzymać wybór).
+  const hamB1 = lockedHamB1(profile, ctx, trapBar);
   const hamDose = hamB1Dose(hamB1, { aHeavyHinge: trapBar, nearMatch, fatigue });
 
   // Ruch mocy A2 zależny od rodziny głównego liftu:
@@ -1409,16 +1497,17 @@ function canonicalGymSession(
   const aKinds: PlyoKind[] = trapBar
     ? (allowDepth ? ["horizontal", "depth"] : ["horizontal"])
     : (allowDepth ? ["vertical", "depth"] : ["vertical"]);
-  const powerA = pickJumps(ctx, aKinds, avoid);
+  // Temat mocy A2 zablokowany na blok — progresja kontaktami/objętością.
+  const powerA = lockedJump("powerA", ctx, aKinds, avoid);
   // B2 = kompatybilna moc pozioma / biodrowa (skok w dal, bounds, KB swing, pogo...).
-  const powerPair = selectHamPower(ctx, [...avoid, powerA.name]);
+  const powerPair = lockedHamPower(ctx, [...avoid, powerA.name]);
 
 
   const calf = "Wspięcia na palce (łydka)";
-  const adductor = rotatePick(ADDUCTOR, ctx, avoid);
+  const adductor = lockedPick("adductor", ADDUCTOR, ctx, avoid);
   const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
-  const upper = rotatePick(UPPER_SUPPORT, ctx, avoid);
-  const core1 = rotatePick(CORE_ANTI, ctx, avoid);
+  const upper = lockedPick("upper", UPPER_SUPPORT, ctx, avoid);
+  const core1 = lockedPick("core", CORE_ANTI, ctx, avoid);
   const core2 = rotatePick(CORE_ANTI, ctx, [...avoid, core1]);
   const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
 
@@ -1613,8 +1702,10 @@ export function pickGymRole(profile: Profile, ctx: StrengthBlockContext): GymRol
   if (ctx.mdLabel === "MD-2") return "primer";
 
   const order = roleOrderFor(profile.goal);
-  // Rotacja: różne role w obrębie tygodnia i między tygodniami.
-  let idx = (ctx.weekIndex + ctx.gymSessionIndexInWeek) % order.length;
+  // Temat slotu jest STABILNY w obrębie bloku: slot 0 → rola[0], slot 1 → rola[1]...
+  // Nie zależy od numeru tygodnia, żeby główny temat nie zmieniał się co tydzień.
+  // (Anty-powtórzenia w obrębie tygodnia nadal przez usedRolesThisWeek.)
+  let idx = ctx.gymSessionIndexInWeek % order.length;
   for (let step = 0; step < order.length; step++) {
     const role = order[(idx + step) % order.length];
     if (!ctx.history.usedRolesThisWeek.includes(role)) return role;
