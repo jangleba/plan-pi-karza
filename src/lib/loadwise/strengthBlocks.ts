@@ -505,6 +505,47 @@ function lockedJump(slot: string, ctx: StrengthBlockContext, kinds: PlyoKind[], 
   return pick;
 }
 
+/** Hamstring B1 zablokowany na blok (resolve po nazwie ze wszystkich drabinek). */
+function lockedHamB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHinge: boolean): HamEx {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return selectHamstringB1(profile, ctx, aHeavyHinge);
+  const key = lockKey(ctx, "hamB1");
+  const all: HamEx[] = [
+    ...HAM_LADDER_BEGINNER,
+    ...HAM_LADDER_INTERMEDIATE,
+    ...HAM_LADDER_ADVANCED,
+    ...HAM_LADDER_FATIGUE,
+  ];
+  // Po ciężkim hinge / blisko meczu wymuszamy kontrolowaną drabinkę — nie utrzymujemy
+  // zablokowanego wysokostresowego wariantu, jeśli kontekst go nie dopuszcza.
+  const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
+  const highFatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
+  const mustControl = aHeavyHinge || nearMatch || highFatigue || profile.seasonPhase === "inseason";
+  const existing = lock[key];
+  if (existing) {
+    const found = all.find((h) => h.name === existing);
+    if (found && (!mustControl || HAM_LADDER_FATIGUE.some((h) => h.name === existing))) return found;
+  }
+  const pick = selectHamstringB1(profile, ctx, aHeavyHinge);
+  if (!mustControl) lock[key] = pick.name;
+  return pick;
+}
+
+/** Para mocy B2 zablokowana na blok. */
+function lockedHamPower(ctx: StrengthBlockContext, avoidNames: string[]): HamPower {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return selectHamPower(ctx, avoidNames);
+  const key = lockKey(ctx, "powerPair");
+  const existing = lock[key];
+  if (existing) {
+    const found = HAM_POWER_PAIR.find((p) => p.name === existing);
+    if (found) return found;
+  }
+  const pick = selectHamPower(ctx, avoidNames);
+  lock[key] = pick.name;
+  return pick;
+}
+
 /**
  * Maksymalny dozwolony poziom plyometrii dla zawodnika i kontekstu.
  * Depth/poziom 4 tylko dla zaawansowanych, świeżych, bez bólu, nie blisko meczu,
