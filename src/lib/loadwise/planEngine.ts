@@ -3419,9 +3419,21 @@ export function generatePlan(
       }
     }
     session.generatorVersion = PLAN_ENGINE_VERSION;
-    if (session.secondSession) session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+    // Kontekst bloku/mezocyklu + tagi obciążenia (1-based numer tygodnia w bloku).
+    session.blockWeekNumber = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
+    session.blockPhaseLabel = blockPhaseLabel(curPhase);
+    session.loadTags = computeLoadTags(session);
+    if (session.secondSession) {
+      session.secondSession.generatorVersion = PLAN_ENGINE_VERSION;
+      session.secondSession.blockWeekNumber = session.blockWeekNumber;
+      session.secondSession.blockPhaseLabel = session.blockPhaseLabel;
+      session.secondSession.loadTags = computeLoadTags(session.secondSession);
+    }
     out.push(session);
   }
+
+  // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
+  enforceConsecutiveLowerBodySafety(out, profile);
 
   return out;
 }
