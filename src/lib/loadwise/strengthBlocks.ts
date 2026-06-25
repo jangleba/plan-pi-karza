@@ -1435,7 +1435,8 @@ function canonicalGymSession(
     : adult
       ? SQUAT_ADULT
       : SQUAT_YOUTH;
-  const main = rotatePick(mainPool, ctx, avoid);
+  // Główny lift ZABLOKOWANY na cały blok — progresja idzie dawką (fazą), nie zmianą ćwiczenia.
+  const main = lockedPick("main", mainPool, ctx, avoid);
 
   // BLOK B — DWÓJKI / tylna taśma + moc.
   // B1 = jedno ćwiczenie hamstring / tylnej taśmy (siła lub odporność), dobierane
@@ -1443,7 +1444,8 @@ function canonicalGymSession(
   // drabinki (assisted / eccentric-only / izometria), nigdy drugiego ciężkiego RDL.
   const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
   const fatigue = (ctx.readiness !== undefined && ctx.readiness <= 5) || profile.seasonPhase === "inseason";
-  const hamB1 = selectHamstringB1(profile, ctx, trapBar);
+  // Hamstring B1 zablokowany na blok (jeśli kontekst zmęczenia pozwala utrzymać wybór).
+  const hamB1 = lockedHamB1(profile, ctx, trapBar);
   const hamDose = hamB1Dose(hamB1, { aHeavyHinge: trapBar, nearMatch, fatigue });
 
   // Ruch mocy A2 zależny od rodziny głównego liftu:
@@ -1454,16 +1456,17 @@ function canonicalGymSession(
   const aKinds: PlyoKind[] = trapBar
     ? (allowDepth ? ["horizontal", "depth"] : ["horizontal"])
     : (allowDepth ? ["vertical", "depth"] : ["vertical"]);
-  const powerA = pickJumps(ctx, aKinds, avoid);
+  // Temat mocy A2 zablokowany na blok — progresja kontaktami/objętością.
+  const powerA = lockedJump("powerA", ctx, aKinds, avoid);
   // B2 = kompatybilna moc pozioma / biodrowa (skok w dal, bounds, KB swing, pogo...).
-  const powerPair = selectHamPower(ctx, [...avoid, powerA.name]);
+  const powerPair = lockedHamPower(ctx, [...avoid, powerA.name]);
 
 
   const calf = "Wspięcia na palce (łydka)";
-  const adductor = rotatePick(ADDUCTOR, ctx, avoid);
+  const adductor = lockedPick("adductor", ADDUCTOR, ctx, avoid);
   const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
-  const upper = rotatePick(UPPER_SUPPORT, ctx, avoid);
-  const core1 = rotatePick(CORE_ANTI, ctx, avoid);
+  const upper = lockedPick("upper", UPPER_SUPPORT, ctx, avoid);
+  const core1 = lockedPick("core", CORE_ANTI, ctx, avoid);
   const core2 = rotatePick(CORE_ANTI, ctx, [...avoid, core1]);
   const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
 
