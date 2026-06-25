@@ -1702,8 +1702,10 @@ export function pickGymRole(profile: Profile, ctx: StrengthBlockContext): GymRol
   if (ctx.mdLabel === "MD-2") return "primer";
 
   const order = roleOrderFor(profile.goal);
-  // Rotacja: różne role w obrębie tygodnia i między tygodniami.
-  let idx = (ctx.weekIndex + ctx.gymSessionIndexInWeek) % order.length;
+  // Temat slotu jest STABILNY w obrębie bloku: slot 0 → rola[0], slot 1 → rola[1]...
+  // Nie zależy od numeru tygodnia, żeby główny temat nie zmieniał się co tydzień.
+  // (Anty-powtórzenia w obrębie tygodnia nadal przez usedRolesThisWeek.)
+  let idx = ctx.gymSessionIndexInWeek % order.length;
   for (let step = 0; step < order.length; step++) {
     const role = order[(idx + step) % order.length];
     if (!ctx.history.usedRolesThisWeek.includes(role)) return role;
