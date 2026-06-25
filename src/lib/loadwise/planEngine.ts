@@ -2866,6 +2866,9 @@ export function generatePlan(
     usedRolesThisWeek: [],
     usedMainThisWeek: [],
     usedMainLastWeek: [],
+    // Blokada głównych ćwiczeń/tematów na cały blok (mezocykl) — utrzymywana
+    // przez wszystkie tygodnie generowane w tym wywołaniu generatePlan.
+    lockedThemes: {},
   };
   // Anty-powtórzeniowe liczniki treści kategorii (reset co tydzień kalendarzowy).
   let contentCounters: ContentCounters = newContentCounters();
