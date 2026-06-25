@@ -257,7 +257,42 @@ export interface WeekStats {
   weeklyLoadLabel: Intensity;
 }
 
-export interface SessionDay {
+/**
+ * Tagi obciążenia sesji — używane przez scheduler do ochrony następstwa dni
+ * (np. brak dwóch ciężkich dolnych dni z rzędu) i do opisu bodźca.
+ */
+export type LoadTag =
+  | "neural_high"
+  | "lower_body_high"
+  | "axial_load"
+  | "squat_quad_dominant"
+  | "hinge_posterior_chain"
+  | "hamstring_eccentric"
+  | "calf_achilles_stiffness"
+  | "plyometric_contacts"
+  | "adductor_lateral"
+  | "upper_body"
+  | "core"
+  | "recovery_low"
+  | "technical_low";
+
+/**
+ * Mezocykl / blok treningowy (4–5 tygodni). Trzyma zablokowane główne
+ * ćwiczenia i tematy, tak by w obrębie bloku progresować dawką, a nie losową
+ * rotacją ćwiczeń.
+ */
+export interface Mesocycle {
+  blockId: string;
+  blockWeekNumber: number; // 1-based numer tygodnia w bloku
+  blockLengthWeeks: number; // 4 lub 5
+  mainGoal: Profile["goal"];
+  lockedMainExercises: Record<string, string>; // np. { main, powerA, hamB1, powerPair, core }
+  lockedTrainingThemes: string[]; // role/tematy slotów gym
+  progressionRules: string; // krótki opis logiki progresji dawką
+  deloadWeek: number; // który tydzień bloku jest deloadem
+  allowedSubstitutions: string[]; // dozwolone zamiany przy bólu/zmęczeniu
+}
+
   generatorVersion?: string;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
