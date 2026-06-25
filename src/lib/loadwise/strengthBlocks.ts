@@ -468,6 +468,44 @@ function rotatePick(pool: string[], ctx: StrengthBlockContext, avoid: string[]):
 }
 
 /**
+ * Klucz slotu w obrębie bloku — stabilny między tygodniami (nie zależy od
+ * weekIndex), zależny od rodziny liftu i numeru sesji gym w tygodniu.
+ */
+function lockKey(ctx: StrengthBlockContext, slot: string): string {
+  return `${ctx.forcedMainFamily ?? "fb"}:${ctx.gymSessionIndexInWeek}:${slot}`;
+}
+
+/**
+ * Wybiera ćwiczenie i BLOKUJE je na cały blok. W 1. tygodniu wybiera świeże
+ * (rotatePick), w kolejnych zwraca to samo — progresja idzie dawką.
+ */
+function lockedPick(slot: string, pool: string[], ctx: StrengthBlockContext, avoid: string[]): string {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return rotatePick(pool, ctx, avoid);
+  const key = lockKey(ctx, slot);
+  const existing = lock[key];
+  if (existing && pool.includes(existing)) return existing;
+  const pick = rotatePick(pool, ctx, avoid);
+  lock[key] = pick;
+  return pick;
+}
+
+/** Jak lockedPick, ale dla wariantów plyo (zwraca obiekt JumpVariant). */
+function lockedJump(slot: string, ctx: StrengthBlockContext, kinds: PlyoKind[], avoid: string[]): JumpVariant {
+  const lock = ctx.history.lockedThemes;
+  if (!lock) return pickJumps(ctx, kinds, avoid);
+  const key = lockKey(ctx, slot);
+  const existing = lock[key];
+  if (existing) {
+    const found = JUMPS.find((j) => j.name === existing);
+    if (found && (ctx.maxPlyoLevel === undefined || found.level <= ctx.maxPlyoLevel)) return found;
+  }
+  const pick = pickJumps(ctx, kinds, avoid);
+  lock[key] = pick.name;
+  return pick;
+}
+
+/**
  * Maksymalny dozwolony poziom plyometrii dla zawodnika i kontekstu.
  * Depth/poziom 4 tylko dla zaawansowanych, świeżych, bez bólu, nie blisko meczu,
  * poza sezonem wysokoobciążeniowym i w niskiej objętości.
