@@ -1856,6 +1856,46 @@ function applyGuide(e: TrainingExercise, g: LoadGuide): void {
   if (!e.loadReduceWhen) e.loadReduceWhen = g.loadReduceWhen;
 }
 
+// ---------------------------------------------------------------------------
+// Spójny model obciążenia (jeden RPE → %1RM zgodne z powtórzeniami → RIR z RPE).
+// Eliminuje sprzeczne zakresy typu "RPE 6–7 + 80–90% 1RM + RPE 7,5–9".
+// ---------------------------------------------------------------------------
+
+/** Orientacyjny %1RM dla pojedynczej liczby powtórzeń (im więcej powt., tym niżej). */
+function pctForReps(r: number): number {
+  if (r <= 2) return 92;
+  if (r <= 3) return 88;
+  if (r <= 4) return 85;
+  if (r <= 5) return 82;
+  if (r <= 6) return 80;
+  if (r <= 8) return 75;
+  if (r <= 10) return 68;
+  if (r <= 12) return 62;
+  return 55;
+}
+
+/** Zamienia zakres powtórzeń (np. "4–6") na spójny zakres %1RM (np. "80–85% 1RM"). */
+function pctRangeFromReps(reps?: string): string | null {
+  const nums = (reps?.match(/\d+/g) ?? []).map((x) => parseInt(x, 10)).filter((x) => x > 0 && x <= 30);
+  if (!nums.length) return null;
+  const lo = Math.min(...nums);
+  const hi = Math.max(...nums);
+  const high = pctForReps(lo); // mniej powtórzeń → wyższy %1RM
+  const low = pctForReps(hi);
+  return low === high ? `${low}% 1RM` : `${low}–${high}% 1RM`;
+}
+
+/** RIR spójny z RPE (RIR ≈ 10 − RPE). Jeden zakres, bez sprzeczności. */
+function rirFromRpe(rpe?: string): string | null {
+  const nums = (rpe?.match(/\d+/g) ?? []).map((x) => parseInt(x, 10)).filter((x) => x >= 1 && x <= 10);
+  if (!nums.length) return null;
+  const lo = Math.min(...nums);
+  const hi = Math.max(...nums);
+  const rirHi = Math.max(0, 10 - lo);
+  const rirLo = Math.max(0, 10 - hi);
+  return rirLo === rirHi ? `${rirLo} RIR` : `${rirLo}–${rirHi} RIR`;
+}
+
 function isMobilityName(name: string): boolean {
   return /mobil|oddech|rower|spacer|trucht|stretch|rozciąg|aktywacja|izometria/i.test(name);
 }
