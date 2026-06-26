@@ -1511,8 +1511,26 @@ function canonicalGymSession(
   const core2 = rotatePick(CORE_ANTI, ctx, [...avoid, core1]);
   const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
 
-  // BLOK E (opcjonalny finisher) tylko dla dorosłych poza deloadem.
-  const includeFinisher = adult && ctx.weekPhase !== "deload";
+  // Tydzień 1 (kalibracja) — bez metod zaawansowanych domyślnie.
+  const week1 = ctx.weekPhase === "adaptation";
+  const readyHigh = ctx.readiness === undefined || ctx.readiness >= 7;
+
+  // Przezwyciężająca izometria (overcoming iso) tylko dla uprawnionych i bramkowana:
+  // NIE w tygodniu 1, NIE po ciężkim hinge/trap bar, NIE in-season / blisko meczu,
+  // tylko przy dobrej gotowości i w fazie rozwoju/peak.
+  const includeIso =
+    adult &&
+    !week1 &&
+    !trapBar &&
+    readyHigh &&
+    (ctx.weekPhase === "development" || ctx.weekPhase === "peak") &&
+    profile.seasonPhase !== "inseason" &&
+    structuredStrengthAllowed(ctx.mdLabel);
+
+  // BLOK E (finisher hipertroficzny) NIE jest generowany domyślnie po sesji
+  // dolnej o wysokim napędzie nerwowym. Pozostaje tylko poza pracą dolną.
+  const includeFinisher = false;
+
 
   const accessoryBlocks: TrainingBlock[] = [
     // BLOK C — wyłącznie core / stabilizacja.
@@ -1561,7 +1579,8 @@ function canonicalGymSession(
 
   const sections: TrainingSection[] = [
     warmupSection(),
-    overcomingIsoSection(main),
+    ...(includeIso ? [overcomingIsoSection(main)] : []),
+
     section({
       title: "Część główna",
       type: "main",
@@ -1856,6 +1875,46 @@ function applyGuide(e: TrainingExercise, g: LoadGuide): void {
   if (!e.loadReduceWhen) e.loadReduceWhen = g.loadReduceWhen;
 }
 
+// ---------------------------------------------------------------------------
+// Spójny model obciążenia (jeden RPE → %1RM zgodne z powtórzeniami → RIR z RPE).
+// Eliminuje sprzeczne zakresy typu "RPE 6–7 + 80–90% 1RM + RPE 7,5–9".
+// ---------------------------------------------------------------------------
+
+/** Orientacyjny %1RM dla pojedynczej liczby powtórzeń (im więcej powt., tym niżej). */
+function pctForReps(r: number): number {
+  if (r <= 2) return 92;
+  if (r <= 3) return 88;
+  if (r <= 4) return 85;
+  if (r <= 5) return 82;
+  if (r <= 6) return 80;
+  if (r <= 8) return 75;
+  if (r <= 10) return 68;
+  if (r <= 12) return 62;
+  return 55;
+}
+
+/** Zamienia zakres powtórzeń (np. "4–6") na spójny zakres %1RM (np. "80–85% 1RM"). */
+function pctRangeFromReps(reps?: string): string | null {
+  const nums = (reps?.match(/\d+/g) ?? []).map((x) => parseInt(x, 10)).filter((x) => x > 0 && x <= 30);
+  if (!nums.length) return null;
+  const lo = Math.min(...nums);
+  const hi = Math.max(...nums);
+  const high = pctForReps(lo); // mniej powtórzeń → wyższy %1RM
+  const low = pctForReps(hi);
+  return low === high ? `${low}% 1RM` : `${low}–${high}% 1RM`;
+}
+
+/** RIR spójny z RPE (RIR ≈ 10 − RPE). Jeden zakres, bez sprzeczności. */
+function rirFromRpe(rpe?: string): string | null {
+  const nums = (rpe?.match(/\d+/g) ?? []).map((x) => parseInt(x, 10)).filter((x) => x >= 1 && x <= 10);
+  if (!nums.length) return null;
+  const lo = Math.min(...nums);
+  const hi = Math.max(...nums);
+  const rirHi = Math.max(0, 10 - lo);
+  const rirLo = Math.max(0, 10 - hi);
+  return rirLo === rirHi ? `${rirLo} RIR` : `${rirLo}–${rirHi} RIR`;
+}
+
 function isMobilityName(name: string): boolean {
   return /mobil|oddech|rower|spacer|trucht|stretch|rozciąg|aktywacja|izometria/i.test(name);
 }
@@ -1889,20 +1948,35 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
           e.label === "A1" &&
           (pattern === "squat" || pattern === "hinge" || pattern === "unilateral" || pattern === "other");
         if (isMainLift) {
-          // Spójne wytyczne głównego liftu — bez sprzecznych zakresów RPE/%1RM.
+          // Spójny model: JEDEN RPE (ten z ćwiczenia / fazy), %1RM zgodne z
+          // powtórzeniami, RIR wyliczone z RPE. Bez nadpisywania RPE i bez
+          // sprzecznych zakresów (np. "RPE 6–7 + 80–90% 1RM + RPE 7,5–9").
           if (/technik/i.test(e.rpe ?? "")) {
             // Sesja techniczna (młodzież / początkujący): lekko–umiarkowanie, nie %1RM.
             e.loadTarget = "Lekko–umiarkowanie (technika)";
+            e.rir = e.rir ?? "3–4 RIR";
             e.loadGuidance = "Dobierz ciężar, przy którym technika jest idealna, z dużym zapasem.";
             e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           } else {
-            applyGuide(e, GUIDE_MAIN);
-            // Ujednolić wyświetlany RPE z celem obciążenia i utrzymać 2–5 powtórzeń.
-            e.rpe = "RPE 7,5–9";
-            if ((setsMax(e.reps) ?? 0) > 5) e.reps = "3–5";
+            const pct = pctRangeFromReps(e.reps);
+            e.loadTarget = pct ?? (e.rpe ?? "RPE 7–8");
+            e.rir = rirFromRpe(e.rpe) ?? "2–3 RIR";
+            e.loadGuidance =
+              "Dobierz ciężar zgodny z docelowym RPE i %1RM — technika idealna, prędkość ruchu zachowana.";
+            e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           }
-        } else if (sec.type === "main") applyGuide(e, GUIDE_BSTRENGTH);
-        else applyGuide(e, GUIDE_ACCESSORY);
+        } else if (sec.type === "main") {
+          // Bloki B / drugorzędne: jeden RPE z ćwiczenia, RIR spójne z tym RPE.
+          if (e.rpe) {
+            e.rir = e.rir ?? (rirFromRpe(e.rpe) ?? "2–3 RIR");
+            if (!e.loadTarget) e.loadTarget = `Ciężar na ${e.reps ?? "powt."} przy ${e.rpe}`;
+            if (!e.loadGuidance) e.loadGuidance = GUIDE_BSTRENGTH.loadGuidance;
+            if (!e.loadReduceWhen) e.loadReduceWhen = GUIDE_BSTRENGTH.loadReduceWhen;
+          } else {
+            applyGuide(e, GUIDE_BSTRENGTH);
+          }
+        } else applyGuide(e, GUIDE_ACCESSORY);
+
       }
     }
   }
@@ -1937,7 +2011,11 @@ export type GymValidationCode =
   | "heavy_unilateral_after_compound"
   | "missing_quad_glute"
   | "matchday_heavy_hamstring"
-  | "prescription_inconsistent";
+  | "prescription_inconsistent"
+  | "week1_advanced_method"
+  | "overcoming_iso_stacking"
+  | "excessive_accessory_load"
+  | "excessive_plyo_after_heavy";
 
 export interface GymValidationIssue {
   code: GymValidationCode;
@@ -2166,6 +2244,76 @@ function checkMatchDaySafety(plan: GymSessionPlan, ctx: StrengthBlockContext, re
     : [];
 }
 
+/** Czy ćwiczenie to przezwyciężająca izometria (overcoming iso). */
+function isOvercomingIso(ref: ExerciseRef): boolean {
+  return hasAny(ref.ex.name.toLowerCase(), ["izometria przezwyciężająca", "overcoming iso", "overcoming isometric"]);
+}
+
+/** Czy ćwiczenie to zaawansowana reaktywna plyometria / depth (poziom 4). */
+function isAdvancedReactivePlyo(ref: ExerciseRef): boolean {
+  return hasAny(ref.ex.name.toLowerCase(), ["depth", "głęboki", "rebound", "reaktywn", "hurdle rebound"]);
+}
+
+/** Czy w sesji jest ciężka praca dolna o wysokim napędzie nerwowym. */
+function hasHeavyLower(refs: ExerciseRef[]): boolean {
+  return refs.some((r) => isHeavyStrength(r) && (r.pattern === "squat" || r.pattern === "hinge" || r.pattern === "unilateral"));
+}
+
+/** Tydzień 1 (kalibracja): bez metod zaawansowanych domyślnie. */
+function checkWeek1Safety(ctx: StrengthBlockContext, refs: ExerciseRef[]): GymValidationIssue[] {
+  if (ctx.weekPhase !== "adaptation") return [];
+  const issues: GymValidationIssue[] = [];
+  for (const r of refs) {
+    if (isOvercomingIso(r)) {
+      issues.push({ code: "week1_advanced_method", message: `Izometria przezwyciężająca w tygodniu 1 (${r.ex.name}) — odłóż na tydzień 2+.`, exerciseId: r.ex.id });
+    } else if (isAdvancedReactivePlyo(r)) {
+      issues.push({ code: "week1_advanced_method", message: `Zaawansowana plyometria w tygodniu 1 (${r.ex.name}) — użyj wariantu lądowanie/sztywność.`, exerciseId: r.ex.id });
+    } else if ((r.pattern === "squat" || r.pattern === "hinge") && (rpeMax(r.ex.rpe) ?? 0) >= 9) {
+      issues.push({ code: "week1_advanced_method", message: `Maksymalny ciężki lift w tygodniu 1 (${r.ex.name}) — utrzymaj RPE ≤ 8.`, exerciseId: r.ex.id });
+    }
+  }
+  return issues;
+}
+
+/** Bez overcoming iso + ciężki hinge/deadlift/RDL/trap bar w tej samej sesji domyślnie. */
+function checkOvercomingIsoStacking(refs: ExerciseRef[]): GymValidationIssue[] {
+  const hasIso = refs.some(isOvercomingIso);
+  if (!hasIso) return [];
+  const heavyHinge = refs.some(
+    (r) => isHeavyStrength(r) && (r.pattern === "hinge" || isConventionalDeadliftName(r.ex.name) || hasAny(r.ex.name.toLowerCase(), ["trap bar", "trap-bar", "trapbar", "hex bar"])),
+  );
+  if (!heavyHinge) return [];
+  const isoRef = refs.find(isOvercomingIso);
+  return [{ code: "overcoming_iso_stacking", message: "Overcoming iso + ciężki hinge/martwy ciąg/trap bar w jednej sesji — usuń izometrię.", exerciseId: isoRef?.ex.id }];
+}
+
+/** Akcesoria po ciężkiej pracy muszą być nisko/umiarkowanie obciążone (RPE ≤ 7). */
+function checkAccessoryStress(refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!hasHeavyLower(refs)) return [];
+  const issues: GymValidationIssue[] = [];
+  for (const r of refs) {
+    if (r.section.type !== "accessory") continue;
+    if (r.pattern === "power" || r.pattern === "core") continue;
+    if ((rpeMax(r.ex.rpe) ?? 0) >= 8) {
+      issues.push({ code: "excessive_accessory_load", message: `Akcesorium po ciężkiej pracy zbyt obciążone (${r.ex.name}) — obniż do RPE ≤ 7.`, exerciseId: r.ex.id });
+    }
+  }
+  return issues;
+}
+
+/** Po ciężkiej pracy dolnej: maks. 2 ćwiczenia mocy i kontrolowana liczba kontaktów. */
+function checkPlyoVolumeAfterHeavy(refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!hasHeavyLower(refs)) return [];
+  const powerRefs = refs.filter(isPowerExercise);
+  const issues: GymValidationIssue[] = [];
+  if (powerRefs.length > 2) {
+    for (let i = 2; i < powerRefs.length; i++) {
+      issues.push({ code: "excessive_plyo_after_heavy", message: `Nadmiarowy blok mocy po ciężkiej pracy dolnej (${powerRefs[i].ex.name}) — maks. 2.`, exerciseId: powerRefs[i].ex.id });
+    }
+  }
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // REGUŁY HAMSTRING + CIĘŻKICH LIFTÓW (twarde, reużywalne)
 // ---------------------------------------------------------------------------
@@ -2349,6 +2497,10 @@ export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockConte
     ...checkCalfAdductorCoreSupport(plan, refs),
     ...checkNoRepeatedPowerExercise(refs),
     ...checkMatchDaySafety(plan, ctx, refs),
+    ...checkWeek1Safety(ctx, refs),
+    ...checkOvercomingIsoStacking(refs),
+    ...checkAccessoryStress(refs),
+    ...checkPlyoVolumeAfterHeavy(refs),
     ...validateHamstringAndHeavyLiftRules(plan, ctx),
   ];
 }
@@ -2539,6 +2691,61 @@ export function repairGymSession(
         if (!target.ex.sets || !target.ex.sets.trim()) target.ex.sets = "3";
         if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "5";
       }
+    }
+  }
+
+  // Pomocnik: usuń ćwiczenie po id i wyczyść puste bloki / sekcje.
+  const removeExerciseById = (id: string): void => {
+    for (const sec of plan.sections) {
+      for (const blk of sec.blocks) {
+        blk.exercises = blk.exercises.filter((e) => e.id !== id);
+      }
+      sec.blocks = sec.blocks.filter((b) => b.exercises.length > 0);
+    }
+    plan.sections = plan.sections.filter((s) => s.blocks.length > 0);
+  };
+
+  // 8) Stacking overcoming iso + ciężki hinge/martwy ciąg/trap bar → usuń izometrię.
+  for (const issue of issues) {
+    if (issue.code === "overcoming_iso_stacking" && issue.exerciseId) {
+      removeExerciseById(issue.exerciseId);
+    }
+  }
+
+  // 9) Tydzień 1 — metody zaawansowane: usuń iso, zamień zaawansowane plyo na
+  //    lądowanie/sztywność, ogranicz RPE ciężkiego liftu.
+  for (const issue of issues) {
+    if (issue.code !== "week1_advanced_method" || !issue.exerciseId) continue;
+    const target = refs.find((r) => r.ex.id === issue.exerciseId);
+    if (!target) continue;
+    if (isOvercomingIso(target)) {
+      removeExerciseById(issue.exerciseId);
+    } else if (isAdvancedReactivePlyo(target)) {
+      const safe = JUMPS.find((j) => j.level === 1 && (j.kind === "pogo" || j.kind === "snap")) ?? JUMPS[0];
+      target.ex.name = safe.name;
+      target.ex.cue = safe.cue;
+      target.ex.groundContacts = contacts(safe.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+    } else {
+      target.ex.rpe = "RPE 7–8";
+    }
+  }
+
+  // 10) Akcesoria po ciężkiej pracy zbyt obciążone → demote do lekkiej/umiarkowanej.
+  for (const issue of issues) {
+    if (issue.code === "excessive_accessory_load" && issue.exerciseId) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        target.ex.rpe = "RPE 6–7";
+        target.ex.loadTarget = undefined;
+        target.ex.rir = undefined;
+      }
+    }
+  }
+
+  // 11) Nadmiarowe bloki mocy po ciężkiej pracy dolnej → usuń.
+  for (const issue of issues) {
+    if (issue.code === "excessive_plyo_after_heavy" && issue.exerciseId) {
+      removeExerciseById(issue.exerciseId);
     }
   }
 }
