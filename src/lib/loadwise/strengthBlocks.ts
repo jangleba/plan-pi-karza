@@ -2693,6 +2693,61 @@ export function repairGymSession(
       }
     }
   }
+
+  // Pomocnik: usuń ćwiczenie po id i wyczyść puste bloki / sekcje.
+  const removeExerciseById = (id: string): void => {
+    for (const sec of plan.sections) {
+      for (const blk of sec.blocks) {
+        blk.exercises = blk.exercises.filter((e) => e.id !== id);
+      }
+      sec.blocks = sec.blocks.filter((b) => b.exercises.length > 0);
+    }
+    plan.sections = plan.sections.filter((s) => s.blocks.length > 0);
+  };
+
+  // 8) Stacking overcoming iso + ciężki hinge/martwy ciąg/trap bar → usuń izometrię.
+  for (const issue of issues) {
+    if (issue.code === "overcoming_iso_stacking" && issue.exerciseId) {
+      removeExerciseById(issue.exerciseId);
+    }
+  }
+
+  // 9) Tydzień 1 — metody zaawansowane: usuń iso, zamień zaawansowane plyo na
+  //    lądowanie/sztywność, ogranicz RPE ciężkiego liftu.
+  for (const issue of issues) {
+    if (issue.code !== "week1_advanced_method" || !issue.exerciseId) continue;
+    const target = refs.find((r) => r.ex.id === issue.exerciseId);
+    if (!target) continue;
+    if (isOvercomingIso(target)) {
+      removeExerciseById(issue.exerciseId);
+    } else if (isAdvancedReactivePlyo(target)) {
+      const safe = JUMPS.find((j) => j.level === 1 && (j.kind === "pogo" || j.kind === "snap")) ?? JUMPS[0];
+      target.ex.name = safe.name;
+      target.ex.cue = safe.cue;
+      target.ex.groundContacts = contacts(safe.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+    } else {
+      target.ex.rpe = "RPE 7–8";
+    }
+  }
+
+  // 10) Akcesoria po ciężkiej pracy zbyt obciążone → demote do lekkiej/umiarkowanej.
+  for (const issue of issues) {
+    if (issue.code === "excessive_accessory_load" && issue.exerciseId) {
+      const target = refs.find((r) => r.ex.id === issue.exerciseId);
+      if (target) {
+        target.ex.rpe = "RPE 6–7";
+        target.ex.loadTarget = undefined;
+        target.ex.rir = undefined;
+      }
+    }
+  }
+
+  // 11) Nadmiarowe bloki mocy po ciężkiej pracy dolnej → usuń.
+  for (const issue of issues) {
+    if (issue.code === "excessive_plyo_after_heavy" && issue.exerciseId) {
+      removeExerciseById(issue.exerciseId);
+    }
+  }
 }
 
 function collectMainPatterns(plan: GymSessionPlan): string[] {
