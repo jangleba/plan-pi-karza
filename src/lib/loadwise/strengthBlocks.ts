@@ -1579,7 +1579,8 @@ function canonicalGymSession(
 
   const sections: TrainingSection[] = [
     warmupSection(),
-    overcomingIsoSection(main),
+    ...(includeIso ? [overcomingIsoSection(main)] : []),
+
     section({
       title: "Część główna",
       type: "main",
