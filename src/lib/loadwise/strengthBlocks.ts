@@ -1511,8 +1511,26 @@ function canonicalGymSession(
   const core2 = rotatePick(CORE_ANTI, ctx, [...avoid, core1]);
   const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
 
-  // BLOK E (opcjonalny finisher) tylko dla dorosłych poza deloadem.
-  const includeFinisher = adult && ctx.weekPhase !== "deload";
+  // Tydzień 1 (kalibracja) — bez metod zaawansowanych domyślnie.
+  const week1 = ctx.weekPhase === "adaptation";
+  const readyHigh = ctx.readiness === undefined || ctx.readiness >= 7;
+
+  // Przezwyciężająca izometria (overcoming iso) tylko dla uprawnionych i bramkowana:
+  // NIE w tygodniu 1, NIE po ciężkim hinge/trap bar, NIE in-season / blisko meczu,
+  // tylko przy dobrej gotowości i w fazie rozwoju/peak.
+  const includeIso =
+    adult &&
+    !week1 &&
+    !trapBar &&
+    readyHigh &&
+    (ctx.weekPhase === "development" || ctx.weekPhase === "peak") &&
+    profile.seasonPhase !== "inseason" &&
+    structuredStrengthAllowed(ctx.mdLabel);
+
+  // BLOK E (finisher hipertroficzny) NIE jest generowany domyślnie po sesji
+  // dolnej o wysokim napędzie nerwowym. Pozostaje tylko poza pracą dolną.
+  const includeFinisher = false;
+
 
   const accessoryBlocks: TrainingBlock[] = [
     // BLOK C — wyłącznie core / stabilizacja.
