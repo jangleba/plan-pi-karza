@@ -2497,6 +2497,10 @@ export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockConte
     ...checkCalfAdductorCoreSupport(plan, refs),
     ...checkNoRepeatedPowerExercise(refs),
     ...checkMatchDaySafety(plan, ctx, refs),
+    ...checkWeek1Safety(ctx, refs),
+    ...checkOvercomingIsoStacking(refs),
+    ...checkAccessoryStress(refs),
+    ...checkPlyoVolumeAfterHeavy(refs),
     ...validateHamstringAndHeavyLiftRules(plan, ctx),
   ];
 }
