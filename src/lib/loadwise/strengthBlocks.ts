@@ -2244,6 +2244,76 @@ function checkMatchDaySafety(plan: GymSessionPlan, ctx: StrengthBlockContext, re
     : [];
 }
 
+/** Czy ćwiczenie to przezwyciężająca izometria (overcoming iso). */
+function isOvercomingIso(ref: ExerciseRef): boolean {
+  return hasAny(ref.ex.name.toLowerCase(), ["izometria przezwyciężająca", "overcoming iso", "overcoming isometric"]);
+}
+
+/** Czy ćwiczenie to zaawansowana reaktywna plyometria / depth (poziom 4). */
+function isAdvancedReactivePlyo(ref: ExerciseRef): boolean {
+  return hasAny(ref.ex.name.toLowerCase(), ["depth", "głęboki", "rebound", "reaktywn", "hurdle rebound"]);
+}
+
+/** Czy w sesji jest ciężka praca dolna o wysokim napędzie nerwowym. */
+function hasHeavyLower(refs: ExerciseRef[]): boolean {
+  return refs.some((r) => isHeavyStrength(r) && (r.pattern === "squat" || r.pattern === "hinge" || r.pattern === "unilateral"));
+}
+
+/** Tydzień 1 (kalibracja): bez metod zaawansowanych domyślnie. */
+function checkWeek1Safety(ctx: StrengthBlockContext, refs: ExerciseRef[]): GymValidationIssue[] {
+  if (ctx.weekPhase !== "adaptation") return [];
+  const issues: GymValidationIssue[] = [];
+  for (const r of refs) {
+    if (isOvercomingIso(r)) {
+      issues.push({ code: "week1_advanced_method", message: `Izometria przezwyciężająca w tygodniu 1 (${r.ex.name}) — odłóż na tydzień 2+.`, exerciseId: r.ex.id });
+    } else if (isAdvancedReactivePlyo(r)) {
+      issues.push({ code: "week1_advanced_method", message: `Zaawansowana plyometria w tygodniu 1 (${r.ex.name}) — użyj wariantu lądowanie/sztywność.`, exerciseId: r.ex.id });
+    } else if ((r.pattern === "squat" || r.pattern === "hinge") && (rpeMax(r.ex.rpe) ?? 0) >= 9) {
+      issues.push({ code: "week1_advanced_method", message: `Maksymalny ciężki lift w tygodniu 1 (${r.ex.name}) — utrzymaj RPE ≤ 8.`, exerciseId: r.ex.id });
+    }
+  }
+  return issues;
+}
+
+/** Bez overcoming iso + ciężki hinge/deadlift/RDL/trap bar w tej samej sesji domyślnie. */
+function checkOvercomingIsoStacking(refs: ExerciseRef[]): GymValidationIssue[] {
+  const hasIso = refs.some(isOvercomingIso);
+  if (!hasIso) return [];
+  const heavyHinge = refs.some(
+    (r) => isHeavyStrength(r) && (r.pattern === "hinge" || isConventionalDeadliftName(r.ex.name) || hasAny(r.ex.name.toLowerCase(), ["trap bar", "trap-bar", "trapbar", "hex bar"])),
+  );
+  if (!heavyHinge) return [];
+  const isoRef = refs.find(isOvercomingIso);
+  return [{ code: "overcoming_iso_stacking", message: "Overcoming iso + ciężki hinge/martwy ciąg/trap bar w jednej sesji — usuń izometrię.", exerciseId: isoRef?.ex.id }];
+}
+
+/** Akcesoria po ciężkiej pracy muszą być nisko/umiarkowanie obciążone (RPE ≤ 7). */
+function checkAccessoryStress(refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!hasHeavyLower(refs)) return [];
+  const issues: GymValidationIssue[] = [];
+  for (const r of refs) {
+    if (r.section.type !== "accessory") continue;
+    if (r.pattern === "power" || r.pattern === "core") continue;
+    if ((rpeMax(r.ex.rpe) ?? 0) >= 8) {
+      issues.push({ code: "excessive_accessory_load", message: `Akcesorium po ciężkiej pracy zbyt obciążone (${r.ex.name}) — obniż do RPE ≤ 7.`, exerciseId: r.ex.id });
+    }
+  }
+  return issues;
+}
+
+/** Po ciężkiej pracy dolnej: maks. 2 ćwiczenia mocy i kontrolowana liczba kontaktów. */
+function checkPlyoVolumeAfterHeavy(refs: ExerciseRef[]): GymValidationIssue[] {
+  if (!hasHeavyLower(refs)) return [];
+  const powerRefs = refs.filter(isPowerExercise);
+  const issues: GymValidationIssue[] = [];
+  if (powerRefs.length > 2) {
+    for (let i = 2; i < powerRefs.length; i++) {
+      issues.push({ code: "excessive_plyo_after_heavy", message: `Nadmiarowy blok mocy po ciężkiej pracy dolnej (${powerRefs[i].ex.name}) — maks. 2.`, exerciseId: powerRefs[i].ex.id });
+    }
+  }
+  return issues;
+}
+
 // ---------------------------------------------------------------------------
 // REGUŁY HAMSTRING + CIĘŻKICH LIFTÓW (twarde, reużywalne)
 // ---------------------------------------------------------------------------
