@@ -1929,20 +1929,35 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
           e.label === "A1" &&
           (pattern === "squat" || pattern === "hinge" || pattern === "unilateral" || pattern === "other");
         if (isMainLift) {
-          // Spójne wytyczne głównego liftu — bez sprzecznych zakresów RPE/%1RM.
+          // Spójny model: JEDEN RPE (ten z ćwiczenia / fazy), %1RM zgodne z
+          // powtórzeniami, RIR wyliczone z RPE. Bez nadpisywania RPE i bez
+          // sprzecznych zakresów (np. "RPE 6–7 + 80–90% 1RM + RPE 7,5–9").
           if (/technik/i.test(e.rpe ?? "")) {
             // Sesja techniczna (młodzież / początkujący): lekko–umiarkowanie, nie %1RM.
             e.loadTarget = "Lekko–umiarkowanie (technika)";
+            e.rir = e.rir ?? "3–4 RIR";
             e.loadGuidance = "Dobierz ciężar, przy którym technika jest idealna, z dużym zapasem.";
             e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           } else {
-            applyGuide(e, GUIDE_MAIN);
-            // Ujednolić wyświetlany RPE z celem obciążenia i utrzymać 2–5 powtórzeń.
-            e.rpe = "RPE 7,5–9";
-            if ((setsMax(e.reps) ?? 0) > 5) e.reps = "3–5";
+            const pct = pctRangeFromReps(e.reps);
+            e.loadTarget = pct ?? (e.rpe ?? "RPE 7–8");
+            e.rir = rirFromRpe(e.rpe) ?? "2–3 RIR";
+            e.loadGuidance =
+              "Dobierz ciężar zgodny z docelowym RPE i %1RM — technika idealna, prędkość ruchu zachowana.";
+            e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           }
-        } else if (sec.type === "main") applyGuide(e, GUIDE_BSTRENGTH);
-        else applyGuide(e, GUIDE_ACCESSORY);
+        } else if (sec.type === "main") {
+          // Bloki B / drugorzędne: jeden RPE z ćwiczenia, RIR spójne z tym RPE.
+          if (e.rpe) {
+            e.rir = e.rir ?? (rirFromRpe(e.rpe) ?? "2–3 RIR");
+            if (!e.loadTarget) e.loadTarget = `Ciężar na ${e.reps ?? "powt."} przy ${e.rpe}`;
+            if (!e.loadGuidance) e.loadGuidance = GUIDE_BSTRENGTH.loadGuidance;
+            if (!e.loadReduceWhen) e.loadReduceWhen = GUIDE_BSTRENGTH.loadReduceWhen;
+          } else {
+            applyGuide(e, GUIDE_BSTRENGTH);
+          }
+        } else applyGuide(e, GUIDE_ACCESSORY);
+
       }
     }
   }
