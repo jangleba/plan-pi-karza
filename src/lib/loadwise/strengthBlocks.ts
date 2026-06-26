@@ -2011,7 +2011,11 @@ export type GymValidationCode =
   | "heavy_unilateral_after_compound"
   | "missing_quad_glute"
   | "matchday_heavy_hamstring"
-  | "prescription_inconsistent";
+  | "prescription_inconsistent"
+  | "week1_advanced_method"
+  | "overcoming_iso_stacking"
+  | "excessive_accessory_load"
+  | "excessive_plyo_after_heavy";
 
 export interface GymValidationIssue {
   code: GymValidationCode;
