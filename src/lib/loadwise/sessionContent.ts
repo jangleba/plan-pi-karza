@@ -851,9 +851,20 @@ export function enforceSessionCategory(
 
 /** Awaryjna naprawa: usuwa ćwiczenia łamiące reguły kategorii. */
 function repairInPlace(session: SessionDay, category: SessionContentCategory): void {
-  const filterList = (list: ExerciseItem[]): ExerciseItem[] =>
+  const filterList = (list: ExerciseItem[], isCooldown = false): ExerciseItem[] =>
     list.filter((e) => {
-      if (category === "sport_performance" || category === "running_conditioning") {
+      if (category === "sport_performance") {
+        // Jednostka sprinterska: bez piłki, siły, core i długiego kondycyjnego.
+        // Schłodzenie (trucht/rozciąganie) zostaje nietknięte.
+        if (isCooldown) return !exerciseRequiresBall(e) && !exerciseIsGymStrength(e) && !exerciseIsCore(e);
+        return (
+          !exerciseRequiresBall(e) &&
+          !exerciseIsGymStrength(e) &&
+          !exerciseIsCore(e) &&
+          !exerciseIsLongConditioning(e)
+        );
+      }
+      if (category === "running_conditioning") {
         return !exerciseRequiresBall(e) && !exerciseIsGymStrength(e);
       }
       if (category === "football") {
@@ -869,6 +880,40 @@ function repairInPlace(session: SessionDay, category: SessionContentCategory): v
     main: filterList(session.sections.main),
     accessory: filterList(session.sections.accessory),
     footballTransfer: filterList(session.sections.footballTransfer),
-    cooldown: filterList(session.sections.cooldown),
+    cooldown: filterList(session.sections.cooldown, true),
   };
+
+  // Po usunięciu zakazanych ćwiczeń jednostka sprinterska musi nadal mieć
+  // pracę techniczną/sprint/hamowanie — wstaw czyste odpowiedniki.
+  if (category === "sport_performance") {
+    const hasSprintWork =
+      session.sections.main.some(exerciseIsSprintSpecific) ||
+      session.sections.main.some(exerciseIsRunningBased);
+    if (!hasSprintWork) {
+      session.sections.main = [
+        ...session.sections.main,
+        {
+          name: "Sprinty z akceleracją 10–20 m",
+          prescription: "6 × (10–20 m), pełna przerwa — niska objętość",
+          rest: "pełna przerwa 90–120 s",
+          cue: "Niski tułów na starcie, mocny pierwszy krok, jakość ponad ilość.",
+        },
+        {
+          name: "Sprint 10 m + kontrolowane hamowanie",
+          prescription: "4 × 10 m + stabilny stop",
+          rest: "90 s",
+          cue: "Po przyspieszeniu obniż biodra i wyhamuj cicho, bez wyślizgu.",
+        },
+      ];
+    }
+    if (session.sections.warmup.length === 0) {
+      session.sections.warmup = [
+        {
+          name: "Dynamiczna rozgrzewka biegowa + A-skip/B-skip",
+          prescription: "10 min: mobilność dynamiczna, skipy, narastające przebieżki",
+          cue: "Stopniowo podnoś tętno, czysta technika kroku.",
+        },
+      ];
+    }
+  }
 }
