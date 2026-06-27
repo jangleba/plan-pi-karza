@@ -225,7 +225,7 @@ function sprintDrills(seed: number): CatExercise[] {
         { isSprintSpecific: true, primaryQuality: "mechanika biegu", allowedSessionTypes: ["sport_performance"] },
       ),
       mk(
-        { name: "Wall drill (przy ścianie, jeśli dostępna)", prescription: "3 × 6 napędów na nogę", rest: "45 s", cue: "Linia tułowia, mocny napęd kolana w dół-tył. Bez ściany: napęd kolana w miejscu." },
+        { name: "Wall drill — napęd kolana w podporze", prescription: "3 × 6 napędów na nogę", rest: "45 s", cue: "Linia tułowia, mocny napęd kolana w dół-tył, aktywna stopa. Opcjonalnie podpórka o pionową powierzchnię." },
         { isSprintSpecific: true, primaryQuality: "mechanika napędu", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["biodro"] },
       ),
     ],
