@@ -731,7 +731,6 @@ export function validateGeneratedSession(
         if (exerciseRequiresBall(e)) violations.push(`Sport-performance nie może zawierać ćwiczenia z piłką: "${e.name}".`);
         if (exerciseIsGymStrength(e)) violations.push(`Sport-performance nie może zawierać wzmacniania siłowego: "${e.name}".`);
         if (exerciseIsCore(e)) violations.push(`Jednostka sprinterska nie może zawierać core/brzucha: "${e.name}".`);
-        if (exerciseIsStrengthAccessory(e)) violations.push(`Jednostka sprinterska nie może zawierać prehabu/akcesoriów siłowych: "${e.name}".`);
         if (exerciseIsLongConditioning(e)) violations.push(`Jednostka sprinterska nie może zawierać długiego kondycyjnego biegania: "${e.name}".`);
       }
       const hasSprint = all.some(exerciseIsSprintSpecific) || all.some(exerciseIsRunningBased);
