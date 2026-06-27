@@ -91,15 +91,24 @@ const SPRINT_RE =
   /sprint|przyspiesz|akceler|wall drive|napęd|falling start|start z padania|flying|lotny|lotne|build.?up|narastając|wicket|płotk|ankling|\bskip\b|a-?skip|b-?skip|drive|prędko[śs]ć maks|max velocity|reakcja|hamowani|zmiana kierunku|cod|deceler/i;
 const RUN_RE =
   /\bbieg|trucht|tempo|interwa|aerob|rower|wytrzymał|kondyc|conversational|tlenow|rytmiczn/i;
-const PLYO_RE = /skok|plyo|pogo|bound|wieloskok|lądowani|snap.?down|zeskok/i;
+const PLYO_RE = /skok|plyo|pogo|bound|wieloskok|lądowani|snap.?down|zeskok|hop/i;
 const STRENGTH_ACC_RE =
   /core|plank|dead bug|stabiliz|przywodziciel|łydk|prehab|mobil|nordic|copenhagen|pallof/i;
+// Czysty CORE / brzuch — bezwzględnie zakazany w jednostce sprinterskiej.
+const CORE_RE =
+  /\bcore\b|plank|deska|dead.?bug|martwy robak|pallof|hollow|hold|brzuch|spięci.* tułow|russian twist|przenoszeni.* nóg/i;
+// Strukturalna siła / prehab siłowy (gumy, hantle, sztanga, maszyny, trap bar).
+const STRENGTH_PREHAB_RE =
+  /\bguma\b|gum[yi]\b|hantl|sztang|maszyn|trap.?bar|nordic|copenhagen|\brdl\b|hip thrust|mostek biodrow|przysiad|wykrok|split squat|martwy ciąg|wspięcia na łydki|calf raise/i;
+// Długie bieganie kondycyjne jako główna praca — zakazane w sprincie.
+const CONDITIONING_LONG_RE =
+  /tempo|interwa|aerob|kondyc|wytrzymał|powtarzalne sprinty|\brsa\b|conversational|tlenow/i;
 
 export function exerciseRequiresBall(e: ExerciseItem): boolean {
   return BALL_RE.test(txt(e));
 }
 export function exerciseIsGymStrength(e: ExerciseItem): boolean {
-  return GYM_RE.test(txt(e));
+  return GYM_RE.test(txt(e)) || STRENGTH_PREHAB_RE.test(txt(e));
 }
 export function exerciseIsSprintSpecific(e: ExerciseItem): boolean {
   return SPRINT_RE.test(txt(e));
@@ -112,6 +121,14 @@ export function exerciseIsPlyometric(e: ExerciseItem): boolean {
 }
 export function exerciseIsStrengthAccessory(e: ExerciseItem): boolean {
   return STRENGTH_ACC_RE.test(txt(e));
+}
+/** Czysty trening core/brzucha — zakazany w jednostce sprinterskiej. */
+export function exerciseIsCore(e: ExerciseItem): boolean {
+  return CORE_RE.test(txt(e));
+}
+/** Długie bieganie kondycyjne jako główna część — zakazane w sprincie. */
+export function exerciseIsLongConditioning(e: ExerciseItem): boolean {
+  return CONDITIONING_LONG_RE.test(txt(e));
 }
 
 // ---------- Wspólne klocki ----------
