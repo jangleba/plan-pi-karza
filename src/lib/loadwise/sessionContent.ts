@@ -91,15 +91,24 @@ const SPRINT_RE =
   /sprint|przyspiesz|akceler|wall drive|napęd|falling start|start z padania|flying|lotny|lotne|build.?up|narastając|wicket|płotk|ankling|\bskip\b|a-?skip|b-?skip|drive|prędko[śs]ć maks|max velocity|reakcja|hamowani|zmiana kierunku|cod|deceler/i;
 const RUN_RE =
   /\bbieg|trucht|tempo|interwa|aerob|rower|wytrzymał|kondyc|conversational|tlenow|rytmiczn/i;
-const PLYO_RE = /skok|plyo|pogo|bound|wieloskok|lądowani|snap.?down|zeskok/i;
+const PLYO_RE = /skok|plyo|pogo|bound|wieloskok|lądowani|snap.?down|zeskok|hop/i;
 const STRENGTH_ACC_RE =
   /core|plank|dead bug|stabiliz|przywodziciel|łydk|prehab|mobil|nordic|copenhagen|pallof/i;
+// Czysty CORE / brzuch — bezwzględnie zakazany w jednostce sprinterskiej.
+const CORE_RE =
+  /\bcore\b|plank|deska|dead.?bug|martwy robak|pallof|hollow|hold|brzuch|spięci.* tułow|russian twist|przenoszeni.* nóg/i;
+// Strukturalna siła / prehab siłowy (gumy, hantle, sztanga, maszyny, trap bar).
+const STRENGTH_PREHAB_RE =
+  /\bguma\b|gum[yi]\b|hantl|sztang|maszyn|trap.?bar|nordic|copenhagen|\brdl\b|hip thrust|mostek biodrow|przysiad|wykrok|split squat|martwy ciąg|wspięcia na łydki|calf raise/i;
+// Długie bieganie kondycyjne jako główna praca — zakazane w sprincie.
+const CONDITIONING_LONG_RE =
+  /tempo|interwa|aerob|kondyc|wytrzymał|powtarzalne sprinty|\brsa\b|conversational|tlenow/i;
 
 export function exerciseRequiresBall(e: ExerciseItem): boolean {
   return BALL_RE.test(txt(e));
 }
 export function exerciseIsGymStrength(e: ExerciseItem): boolean {
-  return GYM_RE.test(txt(e));
+  return GYM_RE.test(txt(e)) || STRENGTH_PREHAB_RE.test(txt(e));
 }
 export function exerciseIsSprintSpecific(e: ExerciseItem): boolean {
   return SPRINT_RE.test(txt(e));
@@ -112,6 +121,14 @@ export function exerciseIsPlyometric(e: ExerciseItem): boolean {
 }
 export function exerciseIsStrengthAccessory(e: ExerciseItem): boolean {
   return STRENGTH_ACC_RE.test(txt(e));
+}
+/** Czysty trening core/brzucha — zakazany w jednostce sprinterskiej. */
+export function exerciseIsCore(e: ExerciseItem): boolean {
+  return CORE_RE.test(txt(e));
+}
+/** Długie bieganie kondycyjne jako główna część — zakazane w sprincie. */
+export function exerciseIsLongConditioning(e: ExerciseItem): boolean {
+  return CONDITIONING_LONG_RE.test(txt(e));
 }
 
 // ---------- Wspólne klocki ----------
@@ -189,6 +206,66 @@ function sprintCooldown(): CatExercise[] {
 type SprintTheme = "acceleration" | "max_velocity" | "cod_decel" | "rhythm";
 const SPRINT_THEMES: SprintTheme[] = ["acceleration", "max_velocity", "cod_decel", "rhythm"];
 
+// Blok B — technika biegu / skipy (boisko/bieżnia, bez sprzętu).
+function sprintDrills(seed: number): CatExercise[] {
+  const variants: CatExercise[][] = [
+    [
+      mk(
+        { name: "A-skip + B-skip", prescription: "3 × 20 m każdego", rest: "trucht powrót", cue: "Wysokie kolano, aktywna stopa pod biodrem, luźne barki." },
+        { isSprintSpecific: true, primaryQuality: "mechanika biegu", allowedSessionTypes: ["sport_performance"] },
+      ),
+      mk(
+        { name: "Ankling + dribbles", prescription: "2 × 20 m każdego", rest: "trucht powrót", cue: "Szybkie, niskie kontakty, stopa pracuje pod biodrem." },
+        { isSprintSpecific: true, primaryQuality: "częstość kroku", allowedSessionTypes: ["sport_performance"] },
+      ),
+    ],
+    [
+      mk(
+        { name: "Marching + A-skip", prescription: "3 × 20 m każdego", rest: "trucht powrót", cue: "Kontrola postawy, wyprostowany tułów, aktywne ramiona." },
+        { isSprintSpecific: true, primaryQuality: "mechanika biegu", allowedSessionTypes: ["sport_performance"] },
+      ),
+      mk(
+        { name: "Wall drill — napęd kolana w podporze", prescription: "3 × 6 napędów na nogę", rest: "45 s", cue: "Linia tułowia, mocny napęd kolana w dół-tył, aktywna stopa. Opcjonalnie podpórka o pionową powierzchnię." },
+        { isSprintSpecific: true, primaryQuality: "mechanika napędu", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["biodro"] },
+      ),
+    ],
+  ];
+  return pick(variants, seed);
+}
+
+// Blok C — krótka plyometria / stiffness BEZ sprzętu (opcjonalna dla młodszych).
+function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] {
+  if (young || light) {
+    return [
+      mk(
+        { name: "Niskie pogo jumps", prescription: "3 × 6 kontaktów", rest: "60 s", cue: "Sztywna kostka, krótki, cichy kontakt z podłożem." },
+        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "stiffness", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka", "ścięgno Achillesa"] },
+      ),
+    ];
+  }
+  const variants: CatExercise[][] = [
+    [
+      mk(
+        { name: "Pogo jumps + snap down", prescription: "3 × 6 pogo + 3 snap down", rest: "60 s", cue: "Krótki kontakt, sztywna kostka, jakość ponad ilość." },
+        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "stiffness", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka", "ścięgno Achillesa"] },
+      ),
+    ],
+    [
+      mk(
+        { name: "Bounds (wieloskoki) — niska objętość", prescription: "3 × 4 wieloskoki", rest: "75 s", cue: "Daleki, sprężysty krok, lądowanie pod biodrem." },
+        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "moc reaktywna", ageSafety: "advanced_only", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka"] },
+      ),
+    ],
+    [
+      mk(
+        { name: "Single-leg hops + broad jump", prescription: "3 × 4 podskoki na nogę + 3 skoki w dal", rest: "75 s", cue: "Stabilne lądowanie, miękkie kolano, kontrola." },
+        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "moc / stabilność lądowania", ageSafety: "advanced_only", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano", "łydka"] },
+      ),
+    ],
+  ];
+  return pick(variants, seed);
+}
+
 export function buildSportPerformance(
   profile: Profile,
   opts: { seed: number; intensity?: string; durationMin?: number; light?: boolean },
@@ -198,101 +275,91 @@ export function buildSportPerformance(
   const light = Boolean(opts.light);
   const theme = pick(SPRINT_THEMES, opts.seed);
 
-  const mechanics: CatExercise[] = [
+  // Blok B (mechanika startu) — wspólny rdzeń techniki.
+  const startMechanics: CatExercise[] = [
     mk(
       {
-        name: "Wall drive (napęd o ścianę)",
-        prescription: "3 × 6 na nogę",
-        rest: "45 s",
-        cue: "Linia tułowia, mocny napęd kolana, aktywna stopa.",
-      },
-      { isSprintSpecific: true, primaryQuality: "mechanika startu", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["biodro"] },
-    ),
-    mk(
-      {
-        name: theme === "cod_decel" ? "Mechanika hamowania (bez piłki)" : "Falling start (start z padania)",
-        prescription: theme === "cod_decel" ? "4 × wejście 5 m + stabilny stop" : "4 × 10 m z padania",
+        name: theme === "cod_decel" ? "Falling start + split stance start" : "Falling start (start z padania)",
+        prescription: theme === "cod_decel" ? "4 × 10 m (różne pozycje startowe)" : "4 × 10 m z padania",
         rest: "60 s",
-        cue: theme === "cod_decel" ? "Nisko biodra, kolano stabilne, cichy kontakt." : "Pozwól ciału opaść, eksploduj w pierwszym kroku.",
+        cue: "Pozwól ciału opaść, eksploduj w pierwszym kroku, niski tułów.",
       },
-      { isSprintSpecific: true, isPlyometric: theme === "cod_decel", primaryQuality: theme === "cod_decel" ? "hamowanie" : "akceleracja", allowedSessionTypes: ["sport_performance"] },
+      { isSprintSpecific: true, primaryQuality: "mechanika startu", allowedSessionTypes: ["sport_performance"] },
     ),
   ];
 
+  // Blok D — krótkie sprinty jakościowe 5–20 m, pełne przerwy, niska objętość.
+  // Blok E — hamowanie / zmiana kierunku.
   let main: CatExercise[];
+  let decel: CatExercise[];
   let title: string;
   let goal: string;
   switch (theme) {
     case "max_velocity":
-      title = "Sprint — prędkość maksymalna";
-      goal = "Rozwój prędkości maksymalnej przy pełnej świeżości i jakości każdego biegu.";
+      title = "Sprint — wejście w prędkość";
+      goal = "Jakość kroku przy wejściu w wyższą prędkość, krótkie odcinki, pełna świeżość.";
       main = [
         mk(
           {
-            name: "Sprinty lotne (flying)",
-            prescription: `${young ? 3 : 4} × 20 m z najazdem 20 m — łącznie ≤ ${Math.min(cap, (young ? 3 : 4) * 20)} m`,
+            name: "Sprinty z najazdem (build-up → 20 m)",
+            prescription: `${young ? 3 : 4} × 20 m z płynnym najazdem — łącznie ≤ ${Math.min(cap, (young ? 3 : 4) * 20)} m`,
             rest: "pełna przerwa 2–4 min",
-            cue: "Najazd płynny, na odcinku lotnym wysoka częstość i luz.",
-            easier: "Skróć odcinek lotny do 15 m.",
+            cue: "Płynne narastanie, na docelowym odcinku wysoka częstość i luz.",
+            easier: "Skróć odcinek do 15 m.",
           },
-          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "prędkość maksymalna", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
+          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "prędkość", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
         ),
+      ];
+      decel = [
         mk(
-          {
-            name: "Wicket runs (płotki rytmiczne)",
-            prescription: "4 × 20 m nad niskimi znacznikami",
-            rest: "90 s",
-            cue: "Stały rytm, lądowanie pod biodrem, wysokie kolano.",
-          },
-          { isSprintSpecific: true, primaryQuality: "rytm biegu", allowedSessionTypes: ["sport_performance"] },
+          { name: "Sprint 15 m + kontrolowane hamowanie", prescription: `${young ? 3 : 4} × 15 m + stabilny stop`, rest: "90 s", cue: "Po sprincie obniż biodra, krótkie kroki, cichy kontrolowany stop." },
+          { isSprintSpecific: true, primaryQuality: "hamowanie", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
         ),
       ];
       break;
     case "cod_decel":
       title = "Zmiana kierunku i hamowanie (bez piłki)";
-      goal = "Hamowanie, reakcja i zmiana kierunku bez piłki — jakość ruchu, nie zmęczenie.";
+      goal = "Hamowanie, reakcja i zmiana kierunku — jakość ruchu, nie zmęczenie.";
       main = [
         mk(
           {
-            name: "Zmiana kierunku 45°/90° (bez piłki)",
-            prescription: `${young ? 5 : 6} powtórzeń na stronę`,
-            rest: "75–90 s",
-            cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku.",
-          },
-          { isSprintSpecific: true, primaryQuality: "zmiana kierunku", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
-        ),
-        mk(
-          {
-            name: "Sprint z reakcją na sygnał (bez piłki)",
-            prescription: "6 × 10–15 m start na sygnał wzrokowy",
+            name: "Sprint 10 m na sygnał",
+            prescription: `${young ? 5 : 6} × 10 m start na sygnał wzrokowy`,
             rest: "60–90 s",
             cue: "Reaguj natychmiast, mocny pierwszy krok.",
           },
           { isSprintSpecific: true, primaryQuality: "reakcja / akceleracja", allowedSessionTypes: ["sport_performance"] },
         ),
       ];
+      decel = [
+        mk(
+          { name: "Lateral cut / drop step 45°–90°", prescription: `${young ? 5 : 6} powtórzeń na stronę`, rest: "75–90 s", cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku." },
+          { isSprintSpecific: true, primaryQuality: "zmiana kierunku", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+        ),
+        mk(
+          { name: "5-0-5 entry (wejście w zwrot)", prescription: "4 × na stronę, kontrolowane wejście", rest: "90 s", cue: "Niskie biodra przy zwrocie, mocne odepchnięcie w nowym kierunku." },
+          { isSprintSpecific: true, primaryQuality: "zwrot", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+        ),
+      ];
       break;
     case "rhythm":
-      title = "Rytm i technika biegu";
-      goal = "Technika biegu, rytm i ekspozycja szybkościowa przy kontrolowanej objętości.";
+      title = "Technika i krótkie sprinty";
+      goal = "Technika sprintu i ekspozycja szybkościowa na krótkich odcinkach jakościowych.";
       main = [
         mk(
           {
-            name: "Rytmiczne przebieżki",
-            prescription: `${young ? 4 : 6} × 60 m na ~85%`,
-            rest: "trucht powrót",
-            cue: "Płynny, rytmiczny bieg, kontroluj postawę.",
+            name: "Sprinty 15 m z akcentem technicznym",
+            prescription: `${young ? 4 : 5} × 15 m — łącznie ≤ ${Math.min(cap, (young ? 4 : 5) * 15)} m`,
+            rest: "90–120 s",
+            cue: "Mechanika ponad maksymalny wysiłek, czysty pierwszy krok.",
           },
-          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "rytm biegu", allowedSessionTypes: ["sport_performance"] },
+          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "technika sprintu", allowedSessionTypes: ["sport_performance"] },
         ),
+      ];
+      decel = [
         mk(
-          {
-            name: "Przyspieszenia z technicznym akcentem",
-            prescription: `${young ? 3 : 4} × 20 m — łącznie ≤ ${Math.min(cap, 80)} m`,
-            rest: "90 s",
-            cue: "Stopniowa rozbudowa, mechanika ponad maksymalny wysiłek.",
-          },
-          { isSprintSpecific: true, primaryQuality: "technika sprintu", allowedSessionTypes: ["sport_performance"] },
+          { name: "Curved run + kontrolowany stop", prescription: `${young ? 4 : 5} × łuk 15 m`, rest: "90 s", cue: "Pochyl się do środka łuku, kontroluj postawę i wyhamowanie." },
+          { isSprintSpecific: true, primaryQuality: "bieg po łuku / hamowanie", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
         ),
       ];
       break;
@@ -303,59 +370,56 @@ export function buildSportPerformance(
       main = [
         mk(
           {
-            name: "Sprinty z akceleracją",
-            prescription: `${young ? 4 : 6} × 20 m, pełna przerwa — łącznie ≤ ${Math.min(cap, (young ? 4 : 6) * 20)} m`,
-            rest: "90–120 s",
+            name: "Sprinty z akceleracją 10–20 m",
+            prescription: `${young ? 4 : 6} × (10–20 m), pełna przerwa — łącznie ≤ ${Math.min(cap, (young ? 4 : 6) * 20)} m`,
+            rest: "pełna przerwa 90–120 s",
             cue: "Niski tułów na starcie, mocny pierwszy krok, stopniowy wzrost.",
-            easier: "Skróć do 15 m lub zmniejsz liczbę powtórzeń.",
+            easier: "Skróć do 10–15 m lub zmniejsz liczbę powtórzeń.",
           },
           { isSprintSpecific: true, isRunningBased: true, primaryQuality: "akceleracja", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
         ),
         mk(
           {
-            name: "Starty z różnych pozycji",
-            prescription: "4 × 10 m (z klęku, z siadu, z biegu w miejscu)",
+            name: "Starty z różnych pozycji (split / lateral / push-up start)",
+            prescription: "4 × 5–10 m, różne pozycje startowe",
             rest: "90 s",
             cue: "Eksplozja od pierwszego kontaktu, różne wzorce startu.",
           },
           { isSprintSpecific: true, primaryQuality: "pierwszy krok", allowedSessionTypes: ["sport_performance"] },
         ),
       ];
+      decel = [
+        mk(
+          { name: "Sprint 10 m + kontrolowane hamowanie", prescription: `${young ? 4 : 5} × 10 m + stabilny stop`, rest: "90 s", cue: "Po przyspieszeniu obniż biodra i wyhamuj cicho, bez wyślizgu." },
+          { isSprintSpecific: true, primaryQuality: "hamowanie", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+        ),
+      ];
       break;
   }
 
-  // Opcjonalna, NISKOOBJĘTOŚCIOWA plyometria specyficzna dla sprintu.
-  const accessory: CatExercise[] =
-    young || light
-      ? []
-      : [
-          mk(
-            {
-              name: theme === "max_velocity" ? "Wieloskoki (bounds) — niska objętość" : "Niskie pogo + snap-down (mechanika)",
-              prescription: theme === "max_velocity" ? "3 × 4 wieloskoki" : "3 × 5 niskich pogo + 3 snap-down",
-              rest: "60 s",
-              cue: "Krótki kontakt z podłożem, sztywna kostka, jakość ponad ilość.",
-            },
-            { isPlyometric: true, isSprintSpecific: true, ageSafety: "advanced_only", primaryQuality: "moc reaktywna", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka", "ścięgno Achillesa"] },
-          ),
-        ];
+  // Blok C — krótka plyometria / stiffness bez sprzętu (przed sprintami).
+  const plyo = fieldPlyo(opts.seed, young, light);
 
   return {
     title,
     sessionType: "Szybkość / sprint (motoryka)",
     goalOfSession: goal,
-    riskManaged: `Sesja sprinterska bez piłki i bez siłowni. Limit objętości zrywów ≤ ${cap} m i pełne przerwy chronią mechanikę i tylną taśmę.`,
+    riskManaged: `Czysta jednostka biegowa (boisko/bieżnia), bez siłowni, sprzętu i core. Limit objętości zrywów ≤ ${cap} m i pełne przerwy chronią mechanikę i tylną taśmę.`,
     avoidToday:
-      "Bez ćwiczeń z piłką, bez ciężkiego treningu siłowego i bez twardego kondycyjnego tego samego dnia. Przerwij przy spadku jakości biegu.",
+      "Bez ćwiczeń z piłką, bez siły/core/prehabu siłowego i bez długiego kondycyjnego biegania. Przerwij przy spadku jakości biegu.",
     sections: {
-      warmup: sprintWarmup().map(toItem),
-      main: [...mechanics, ...main].map(toItem),
-      accessory: accessory.map(toItem),
+      // Blok A: rozgrzewka, Blok B: technika/skipy + mechanika startu.
+      warmup: [...sprintWarmup(), ...sprintDrills(opts.seed)].map(toItem),
+      // Blok C: plyo, Blok D: sprinty jakościowe, Blok E: hamowanie/COD.
+      main: [...startMechanics, ...plyo, ...main, ...decel].map(toItem),
+      accessory: [],
       footballTransfer: [],
+      // Blok F: krótkie schłodzenie.
       cooldown: sprintCooldown().map(toItem),
     },
   };
 }
+
 
 // ============================================================
 // FOOTBALL / PIŁKARSKI — tylko z piłką, solo-compatible, wg pozycji
@@ -666,6 +730,8 @@ export function validateGeneratedSession(
       for (const e of all) {
         if (exerciseRequiresBall(e)) violations.push(`Sport-performance nie może zawierać ćwiczenia z piłką: "${e.name}".`);
         if (exerciseIsGymStrength(e)) violations.push(`Sport-performance nie może zawierać wzmacniania siłowego: "${e.name}".`);
+        if (exerciseIsCore(e)) violations.push(`Jednostka sprinterska nie może zawierać core/brzucha: "${e.name}".`);
+        if (exerciseIsLongConditioning(e)) violations.push(`Jednostka sprinterska nie może zawierać długiego kondycyjnego biegania: "${e.name}".`);
       }
       const hasSprint = all.some(exerciseIsSprintSpecific) || all.some(exerciseIsRunningBased);
       if (!hasSprint) violations.push("Sport-performance musi zawierać pracę sprint/bieg.");
@@ -785,9 +851,20 @@ export function enforceSessionCategory(
 
 /** Awaryjna naprawa: usuwa ćwiczenia łamiące reguły kategorii. */
 function repairInPlace(session: SessionDay, category: SessionContentCategory): void {
-  const filterList = (list: ExerciseItem[]): ExerciseItem[] =>
+  const filterList = (list: ExerciseItem[], isCooldown = false): ExerciseItem[] =>
     list.filter((e) => {
-      if (category === "sport_performance" || category === "running_conditioning") {
+      if (category === "sport_performance") {
+        // Jednostka sprinterska: bez piłki, siły, core i długiego kondycyjnego.
+        // Schłodzenie (trucht/rozciąganie) zostaje nietknięte.
+        if (isCooldown) return !exerciseRequiresBall(e) && !exerciseIsGymStrength(e) && !exerciseIsCore(e);
+        return (
+          !exerciseRequiresBall(e) &&
+          !exerciseIsGymStrength(e) &&
+          !exerciseIsCore(e) &&
+          !exerciseIsLongConditioning(e)
+        );
+      }
+      if (category === "running_conditioning") {
         return !exerciseRequiresBall(e) && !exerciseIsGymStrength(e);
       }
       if (category === "football") {
@@ -803,6 +880,40 @@ function repairInPlace(session: SessionDay, category: SessionContentCategory): v
     main: filterList(session.sections.main),
     accessory: filterList(session.sections.accessory),
     footballTransfer: filterList(session.sections.footballTransfer),
-    cooldown: filterList(session.sections.cooldown),
+    cooldown: filterList(session.sections.cooldown, true),
   };
+
+  // Po usunięciu zakazanych ćwiczeń jednostka sprinterska musi nadal mieć
+  // pracę techniczną/sprint/hamowanie — wstaw czyste odpowiedniki.
+  if (category === "sport_performance") {
+    const hasSprintWork =
+      session.sections.main.some(exerciseIsSprintSpecific) ||
+      session.sections.main.some(exerciseIsRunningBased);
+    if (!hasSprintWork) {
+      session.sections.main = [
+        ...session.sections.main,
+        {
+          name: "Sprinty z akceleracją 10–20 m",
+          prescription: "6 × (10–20 m), pełna przerwa — niska objętość",
+          rest: "pełna przerwa 90–120 s",
+          cue: "Niski tułów na starcie, mocny pierwszy krok, jakość ponad ilość.",
+        },
+        {
+          name: "Sprint 10 m + kontrolowane hamowanie",
+          prescription: "4 × 10 m + stabilny stop",
+          rest: "90 s",
+          cue: "Po przyspieszeniu obniż biodra i wyhamuj cicho, bez wyślizgu.",
+        },
+      ];
+    }
+    if (session.sections.warmup.length === 0) {
+      session.sections.warmup = [
+        {
+          name: "Dynamiczna rozgrzewka biegowa + A-skip/B-skip",
+          prescription: "10 min: mobilność dynamiczna, skipy, narastające przebieżki",
+          cue: "Stopniowo podnoś tętno, czysta technika kroku.",
+        },
+      ];
+    }
+  }
 }
