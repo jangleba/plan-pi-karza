@@ -553,19 +553,14 @@ function SessionDetail() {
   if (slot === 2) {
     if (!primary.secondSession) {
       return (
-        <div className="app-shell min-h-screen p-5">
-          <button
-            onClick={() => router.history.back()}
-            className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" /> Wstecz
-          </button>
+        <SessionScreenShell onBack={goBack}>
           <p className="text-sm text-muted-foreground">
             Druga sesja nie jest dziś dostępna (zbyt niska gotowość, ból lub
             bliskość meczu).
           </p>
-        </div>
+        </SessionScreenShell>
       );
+
     }
     session = primary.secondSession;
   }
