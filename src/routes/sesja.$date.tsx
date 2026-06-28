@@ -232,7 +232,60 @@ const StructuredSections = memo(function StructuredSections({
       ))}
     </>
   );
+});
+
+// ---------- Powłoka ekranu + skeleton (płynne ładowanie) ----------
+
+function SessionScreenShell({
+  onBack,
+  children,
+}: {
+  onBack: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="app-shell min-h-screen pb-[140px]">
+      <div className="px-5 pt-6">
+        <button
+          onClick={onBack}
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
+        >
+          <ChevronLeft className="h-4 w-4" /> Wstecz
+        </button>
+      </div>
+      <div className="space-y-3 px-5">{children}</div>
+    </div>
+  );
 }
+
+function SkeletonBar({ className = "" }: { className?: string }) {
+  return (
+    <div className={`animate-pulse rounded-md bg-muted ${className}`} />
+  );
+}
+
+function SessionSkeleton() {
+  return (
+    <>
+      <SkeletonBar className="h-4 w-32" />
+      <SkeletonBar className="h-8 w-56" />
+      <div className="flex gap-2">
+        <SkeletonBar className="h-6 w-20" />
+        <SkeletonBar className="h-6 w-20" />
+        <SkeletonBar className="h-6 w-24" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="soft-card space-y-3 p-4">
+          <SkeletonBar className="h-3 w-24" />
+          <SkeletonBar className="h-4 w-full" />
+          <SkeletonBar className="h-4 w-5/6" />
+          <SkeletonBar className="h-4 w-2/3" />
+        </div>
+      ))}
+    </>
+  );
+}
+
 
 
 
