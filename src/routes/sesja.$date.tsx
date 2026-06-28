@@ -1,6 +1,8 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
+
 import { applyReadiness } from "@/lib/loadwise/planEngine";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
