@@ -1,6 +1,8 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
+
 import { applyReadiness } from "@/lib/loadwise/planEngine";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
@@ -164,7 +166,12 @@ function ExerciseRow({
   );
 }
 
-function StructuredSections({ sections }: { sections: TrainingSection[] }) {
+const StructuredSections = memo(function StructuredSections({
+  sections,
+}: {
+  sections: TrainingSection[];
+}) {
+
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
@@ -225,7 +232,60 @@ function StructuredSections({ sections }: { sections: TrainingSection[] }) {
       ))}
     </>
   );
+});
+
+// ---------- Powłoka ekranu + skeleton (płynne ładowanie) ----------
+
+function SessionScreenShell({
+  onBack,
+  children,
+}: {
+  onBack: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="app-shell min-h-screen pb-[140px]">
+      <div className="px-5 pt-6">
+        <button
+          onClick={onBack}
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
+        >
+          <ChevronLeft className="h-4 w-4" /> Wstecz
+        </button>
+      </div>
+      <div className="space-y-3 px-5">{children}</div>
+    </div>
+  );
 }
+
+function SkeletonBar({ className = "" }: { className?: string }) {
+  return (
+    <div className={`animate-pulse rounded-md bg-muted ${className}`} />
+  );
+}
+
+function SessionSkeleton() {
+  return (
+    <>
+      <SkeletonBar className="h-4 w-32" />
+      <SkeletonBar className="h-8 w-56" />
+      <div className="flex gap-2">
+        <SkeletonBar className="h-6 w-20" />
+        <SkeletonBar className="h-6 w-20" />
+        <SkeletonBar className="h-6 w-24" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="soft-card space-y-3 p-4">
+          <SkeletonBar className="h-3 w-24" />
+          <SkeletonBar className="h-4 w-full" />
+          <SkeletonBar className="h-4 w-5/6" />
+          <SkeletonBar className="h-4 w-2/3" />
+        </div>
+      ))}
+    </>
+  );
+}
+
 
 
 
@@ -439,24 +499,40 @@ function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
-  const { state, todayIso, undoModification } = useLoadwise();
+  const { state, hydrated, todayIso, undoModification } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
+  const goBack = useInstantBack("/plan");
 
   const day = state.plan.find((p) => p.date === date);
 
+  // Dane jeszcze się ładują (np. po odświeżeniu / deep link) — nie pokazuj
+  // pustego białego ekranu. Skeleton w tym samym layoucie, z krótkim delay.
+  const stillLoading = !hydrated || (!day && !state.profile);
+  const showSkeleton = useDelayedFlag(stillLoading);
+
+  if (stillLoading) {
+    return <SessionScreenShell onBack={goBack}>{showSkeleton ? <SessionSkeleton /> : null}</SessionScreenShell>;
+  }
+
   if (!day || !state.profile) {
+    // Dane dotarły, ale sesji nie ma — czytelny stan błędu zamiast wiszącego loadera.
     return (
-      <div className="app-shell min-h-screen p-5">
-        <button
-          onClick={() => router.history.back()}
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" /> Wstecz
-        </button>
-        <p className="text-sm text-muted-foreground">Nie znaleziono sesji.</p>
-      </div>
+      <SessionScreenShell onBack={goBack}>
+        <div className="soft-card p-5 text-center">
+          <p className="text-sm font-medium text-foreground">
+            Nie znaleziono tej sesji.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Mogła zostać zmieniona w planie. Wróć do planu tygodnia.
+          </p>
+          <Button className="mt-4" onClick={goBack}>
+            Wróć do planu
+          </Button>
+        </div>
+      </SessionScreenShell>
     );
   }
+
 
   const isToday = date === todayIso;
   const mods = state.modifications[date] ?? [];
@@ -477,19 +553,14 @@ function SessionDetail() {
   if (slot === 2) {
     if (!primary.secondSession) {
       return (
-        <div className="app-shell min-h-screen p-5">
-          <button
-            onClick={() => router.history.back()}
-            className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" /> Wstecz
-          </button>
+        <SessionScreenShell onBack={goBack}>
           <p className="text-sm text-muted-foreground">
             Druga sesja nie jest dziś dostępna (zbyt niska gotowość, ból lub
             bliskość meczu).
           </p>
-        </div>
+        </SessionScreenShell>
       );
+
     }
     session = primary.secondSession;
   }
@@ -529,9 +600,10 @@ function SessionDetail() {
     <div className="app-shell min-h-screen pb-[140px]">
       <div className="px-5 pt-6">
         <button
-          onClick={() => router.history.back()}
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
+          onClick={goBack}
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
         >
+
           <ChevronLeft className="h-4 w-4" /> Wstecz
         </button>
 
