@@ -439,24 +439,40 @@ function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
-  const { state, todayIso, undoModification } = useLoadwise();
+  const { state, hydrated, todayIso, undoModification } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
+  const goBack = useInstantBack("/plan");
 
   const day = state.plan.find((p) => p.date === date);
 
+  // Dane jeszcze się ładują (np. po odświeżeniu / deep link) — nie pokazuj
+  // pustego białego ekranu. Skeleton w tym samym layoucie, z krótkim delay.
+  const stillLoading = !hydrated || (!day && !state.profile);
+  const showSkeleton = useDelayedFlag(stillLoading);
+
+  if (stillLoading) {
+    return <SessionScreenShell onBack={goBack}>{showSkeleton ? <SessionSkeleton /> : null}</SessionScreenShell>;
+  }
+
   if (!day || !state.profile) {
+    // Dane dotarły, ale sesji nie ma — czytelny stan błędu zamiast wiszącego loadera.
     return (
-      <div className="app-shell min-h-screen p-5">
-        <button
-          onClick={() => router.history.back()}
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" /> Wstecz
-        </button>
-        <p className="text-sm text-muted-foreground">Nie znaleziono sesji.</p>
-      </div>
+      <SessionScreenShell onBack={goBack}>
+        <div className="soft-card p-5 text-center">
+          <p className="text-sm font-medium text-foreground">
+            Nie znaleziono tej sesji.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Mogła zostać zmieniona w planie. Wróć do planu tygodnia.
+          </p>
+          <Button className="mt-4" onClick={goBack}>
+            Wróć do planu
+          </Button>
+        </div>
+      </SessionScreenShell>
     );
   }
+
 
   const isToday = date === todayIso;
   const mods = state.modifications[date] ?? [];
