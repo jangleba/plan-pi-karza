@@ -166,7 +166,12 @@ function ExerciseRow({
   );
 }
 
-function StructuredSections({ sections }: { sections: TrainingSection[] }) {
+const StructuredSections = memo(function StructuredSections({
+  sections,
+}: {
+  sections: TrainingSection[];
+}) {
+
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
