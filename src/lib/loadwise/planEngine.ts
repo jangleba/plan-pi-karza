@@ -36,8 +36,9 @@ import {
   type ContentCounters,
 } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
+import { normalizeSessionCategory } from "./sessionClassification";
 
-export const PLAN_ENGINE_VERSION = "loadwise-coherent-load-v18";
+export const PLAN_ENGINE_VERSION = "loadwise-classification-v19";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -3435,7 +3436,8 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
-  return out;
+  // Każda sesja musi przejść przez centralną klasyfikację przed zapisem.
+  return out.map((s) => normalizeSessionCategory(s));
 }
 
 export interface DecisionResult {
@@ -3571,7 +3573,7 @@ export function applyReadiness(
   }
 
   return {
-    session: adjusted,
+    session: normalizeSessionCategory(adjusted),
     decision: {
       headline: `Gotowość ${r}/10 — ${
         r >= 8
