@@ -443,6 +443,8 @@ export interface SessionDay {
   blockWeekNumber?: number;
   /** Faza tygodnia w bloku (kalibracja/build/overload/deload). */
   blockPhaseLabel?: string;
+  /** Znormalizowana, jednoznaczna klasyfikacja sesji (źródło prawdy). */
+  classification?: SessionClassification;
   secondSession: SessionDay | null;
 }
 
