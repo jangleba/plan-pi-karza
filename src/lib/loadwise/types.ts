@@ -293,7 +293,113 @@ export interface Mesocycle {
   allowedSubstitutions: string[]; // dozwolone zamiany przy bólu/zmęczeniu
 }
 
-export interface SessionDay {
+/**
+ * Centralna kategoria treningu — jednoznacznie rozpoznawana przez silnik.
+ * To jedyne źródło prawdy dla reguł typu "2 siłownie", wydolność, szybkość,
+ * klub i mecz.
+ */
+export type SessionCategory =
+  | "club"
+  | "gym_strength"
+  | "endurance_conditioning"
+  | "speed_sprint"
+  | "match"
+  | "recovery_prehab"
+  | "mobility"
+  | "rest"
+  | "other";
+
+export type SessionSubcategory =
+  // gym_strength
+  | "lower_strength"
+  | "upper_strength"
+  | "full_body_strength"
+  | "power_maintenance"
+  | "strength_maintenance"
+  // endurance_conditioning
+  | "easy_run"
+  | "tempo_aerobic"
+  | "extensive_intervals"
+  | "aerobic_intervals"
+  | "bike_conditioning"
+  | "pool_conditioning"
+  | "low_impact_conditioning"
+  | "repeated_tempo"
+  | "zone2_aerobic"
+  | "recovery_run"
+  | "short_aerobic_block"
+  // speed_sprint
+  | "acceleration"
+  | "deceleration"
+  | "braking"
+  | "first_step"
+  | "max_velocity"
+  | "flying_sprints"
+  | "sprint_mechanics"
+  | "change_of_direction"
+  | "agility_speed"
+  // club
+  | "club_general"
+  | "club_speed_focus"
+  // other
+  | "match"
+  | "recovery"
+  | "prehab"
+  | "mobility"
+  | "rest"
+  | "ball_technical"
+  | "unknown";
+
+export type SessionLoadLevel = "none" | "low" | "moderate" | "high";
+
+/** Skąd pochodzi sesja i dlaczego trafiła w to miejsce planu. */
+export type SessionGeneratedBy =
+  | "engine"
+  | "user_added"
+  | "user_swapped"
+  | "club_external"
+  | "match_external";
+
+/**
+ * Znormalizowana, jednoznaczna klasyfikacja sesji. Wyliczana przez
+ * normalizeSessionCategory() przed zapisaniem sesji do planu.
+ */
+export interface SessionClassification {
+  category: SessionCategory;
+  subcategory: SessionSubcategory;
+  intensity: Intensity;
+  loadLevel: SessionLoadLevel;
+  durationMinutes: number;
+  tags: string[];
+
+  countsAsStrength: boolean;
+  countsAsEndurance: boolean;
+  countsAsSpeed: boolean;
+  countsAsClub: boolean;
+  countsAsMatch: boolean;
+
+  isGym: boolean;
+  isClubSession: boolean;
+  isEndurance: boolean;
+  isSpeed: boolean;
+  isMatch: boolean;
+  isRecovery: boolean;
+  isPrehab: boolean;
+  isMobility: boolean;
+  isHeavyLegs: boolean;
+  isHighImpactRunning: boolean;
+  isMaxVelocity: boolean;
+  isAcceleration: boolean;
+  isDeceleration: boolean;
+  isChangeOfDirection: boolean;
+
+  canBeSecondSession: boolean;
+  generatedBy: SessionGeneratedBy;
+  placementReason: string;
+  sourceRule: string;
+}
+
+
   generatorVersion?: string;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
