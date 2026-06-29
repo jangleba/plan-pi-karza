@@ -3573,7 +3573,7 @@ export function applyReadiness(
   }
 
   return {
-    session: adjusted,
+    session: normalizeSessionCategory(adjusted),
     decision: {
       headline: `Gotowość ${r}/10 — ${
         r >= 8
