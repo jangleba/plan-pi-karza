@@ -3436,7 +3436,8 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
-  return out;
+  // Każda sesja musi przejść przez centralną klasyfikację przed zapisem.
+  return out.map((s) => normalizeSessionCategory(s));
 }
 
 export interface DecisionResult {
