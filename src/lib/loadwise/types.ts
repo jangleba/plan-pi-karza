@@ -107,6 +107,14 @@ export interface ExerciseItem {
   cue?: string;
   easier?: string;
   harder?: string;
+  /** Ćwiczenie zostało zmienione/zregresowane pod profil zawodnika. */
+  wasAdjustedForAthleteProfile?: boolean;
+  /** Powód dostosowania ćwiczenia do profilu zawodnika. */
+  athleteProfileAdjustmentReason?: string;
+  /** Powód zablokowania oryginalnego ćwiczenia. */
+  blockedExerciseReason?: string;
+  /** Nazwa oryginalnego (zablokowanego) ćwiczenia, które zastąpiono. */
+  replacementForBlockedExercise?: string;
 }
 
 export type Intensity = "niska" | "umiarkowana" | "wysoka";
