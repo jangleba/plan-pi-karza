@@ -139,7 +139,7 @@ describe("replaceUnsafeExercise", () => {
   it("swaps unsafe to a regression with reason", () => {
     const a = buildAthleteTrainingProfile(makeProfile({ age: 14, level: "beginner" }));
     const fixed = replaceUnsafeExercise(
-      { name: "Barbell deadlift ciężki", prescription: "5 × 3" },
+      { name: "Barbell deadlift ciężki", prescription: "5 × 3" } as import("./types").ExerciseItem,
       a,
     );
     expect(fixed.wasAdjustedForAthleteProfile).toBe(true);
