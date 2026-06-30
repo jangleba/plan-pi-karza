@@ -37,8 +37,9 @@ import {
 } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory } from "./sessionClassification";
+import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 
-export const PLAN_ENGINE_VERSION = "loadwise-classification-v19";
+export const PLAN_ENGINE_VERSION = "loadwise-athlete-profile-v20";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
 
 function isYoung(age: number): boolean {
@@ -3436,8 +3437,13 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
+  // Naprawa pod profil zawodnika: każde ćwiczenie niezgodne z wiekiem,
+  // poziomem, sprzętem lub bólem zostaje zamienione na bezpieczną regresję,
+  // zanim plan przejdzie przez centralną klasyfikację.
+  const { plan: safePlan } = repairUnsafeExercisesForAthleteProfile(out, profile);
+
   // Każda sesja musi przejść przez centralną klasyfikację przed zapisem.
-  return out.map((s) => normalizeSessionCategory(s));
+  return safePlan.map((s) => normalizeSessionCategory(s));
 }
 
 export interface DecisionResult {
