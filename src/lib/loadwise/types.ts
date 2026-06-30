@@ -86,7 +86,33 @@ export interface Profile {
   hasGym: boolean; // dostęp do siłowni
   hasPitch: boolean; // dostęp do boiska
   hasSprintSpace: boolean; // miejsce do sprintu
+  // --- Pola opcjonalne przygotowane pod rozszerzenie onboardingu ---
+  /** Doświadczenie na siłowni (jawnie z onboardingu, jeśli kiedyś dodane). */
+  gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced";
+  /** Staż treningu siłowego w miesiącach. */
+  strengthTrainingMonths?: number;
+  /** Jakość ruchu / kompetencja ruchowa zgłoszona w onboardingu. */
+  movementCompetence?: "low" | "medium" | "high";
+  /** Poziom nadzoru trenerskiego na treningach siłowych. */
+  supervisionLevel?: "none" | "some" | "full";
+  /** Lokalizacje bólu / kontuzji zgłoszone w onboardingu. */
+  painLocations?: PainLocation[];
+  /** Historia urazów (np. dwugłowy, kostka). */
+  injuryHistory?: PainLocation[];
+  /** Sprzęt domowy dostępny zawodnikowi. */
+  homeEquipment?: string[];
 }
+
+/** Lokalizacja bólu / kontuzji — steruje doborem i blokadą ćwiczeń. */
+export type PainLocation =
+  | "knee"
+  | "back"
+  | "ankle"
+  | "hamstring"
+  | "groin"
+  | "hip"
+  | "shoulder"
+  | "other";
 
 export interface Readiness {
   date: string; // yyyy-MM-dd
