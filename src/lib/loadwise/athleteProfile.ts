@@ -254,7 +254,9 @@ export function getExerciseSafetyProfile(
     a.gymExperienceLevel === "beginner" ||
     a.strengthTrainingAge < 6 ||
     a.movementCompetenceLevel === "low" ||
-    a.supervisionLevel === "none";
+    // Brak nadzoru ogranicza tylko zawodników niedorosłych (dorosły z
+    // doświadczeniem może trenować bez trenera).
+    (a.supervisionLevel === "none" && a.developmentStage !== "adult");
 
   const restrict = isYouth || lowExp;
 
