@@ -177,6 +177,14 @@ export interface TrainingExercise {
   ageSafetyLevel?: AgeSafetyLevel;
   matchDayRestriction?: string;
   completed?: boolean;
+  /** Ćwiczenie zostało zmienione/zregresowane pod profil zawodnika. */
+  wasAdjustedForAthleteProfile?: boolean;
+  /** Powód dostosowania ćwiczenia do profilu zawodnika. */
+  athleteProfileAdjustmentReason?: string;
+  /** Powód zablokowania oryginalnego ćwiczenia. */
+  blockedExerciseReason?: string;
+  /** Nazwa oryginalnego (zablokowanego) ćwiczenia, które zastąpiono. */
+  replacementForBlockedExercise?: string;
 }
 
 export interface TrainingBlock {
