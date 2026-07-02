@@ -38,6 +38,7 @@ import {
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
+import { getRequiredGymSessions } from "./weeklyRequirements";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
