@@ -38,6 +38,7 @@ import {
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
+import { getRequiredGymSessions } from "./weeklyRequirements";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
@@ -2575,55 +2576,70 @@ function enforceMinimumGymSession(
     items.map((it) => result[it.iso]).filter(Boolean) as PlanCell[];
   const gymCount = () => countCellCategories(cells()).strength_power;
 
-  if (gymCount() >= 1) return;
+  // Centralne źródło prawdy: ile sesji siłowni musi mieć ten tydzień.
+  const required = getRequiredGymSessions(
+    {
+      seasonPhase: profile.seasonPhase,
+      clubTrainingCount: profile.clubTrainingDays.length,
+      matchCount,
+      isFullWeek: matchCount < 2,
+    },
+    { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays },
+  );
 
-  // 1. Bezczynny dzień regeneracji (bez bodźca) → sesja gym, jeśli bezpieczny.
-  const idle = [...items]
-    .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
-    .find((it) => {
-      const cell = result[it.iso];
-      return (
-        cell?.type === "recovery" &&
-        it.base === "available" &&
-        canPrimaryStimulus(gymStimulus, it)
-      );
-    });
-  if (idle) {
-    result[idle.iso] = { type: "training", stimulus: gymStimulus };
-    return;
-  }
+  let guard = 0;
+  while (gymCount() < required && guard++ < 6) {
+    // 1. Bezczynny dzień regeneracji (bez bodźca) → sesja gym, jeśli bezpieczny.
+    const idle = [...items]
+      .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
+      .find((it) => {
+        const cell = result[it.iso];
+        return (
+          cell?.type === "recovery" &&
+          it.base === "available" &&
+          canPrimaryStimulus(gymStimulus, it)
+        );
+      });
+    if (idle) {
+      result[idle.iso] = { type: "training", stimulus: gymStimulus };
+      continue;
+    }
 
-  // 2. Dzień o niższym priorytecie (piłka / atletyka / wytrzymałość) → gym.
-  const replaceable = [...items]
-    .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
-    .find((it) => {
-      const cell = result[it.iso];
-      if (!cell || cell.type !== "training" || !cell.stimulus) return false;
-      const c = categoryOf(cell.stimulus);
-      return (
-        c !== "strength_power" &&
-        c !== "speed" &&
-        canPrimaryStimulus(gymStimulus, it)
-      );
-    });
-  if (replaceable) {
-    result[replaceable.iso].stimulus = gymStimulus;
-    return;
-  }
+    // 2. Dzień o niższym priorytecie (piłka / atletyka / wytrzymałość) → gym.
+    const replaceable = [...items]
+      .sort((a, b) => slotScore(gymStimulus, b) - slotScore(gymStimulus, a))
+      .find((it) => {
+        const cell = result[it.iso];
+        if (!cell || cell.type !== "training" || !cell.stimulus) return false;
+        const c = categoryOf(cell.stimulus);
+        return (
+          c !== "strength_power" &&
+          c !== "speed" &&
+          canPrimaryStimulus(gymStimulus, it)
+        );
+      });
+    if (replaceable) {
+      result[replaceable.iso].stimulus = gymStimulus;
+      continue;
+    }
 
-  // 3. Jako druga jednostka dnia, jeśli istnieje bezpieczny slot.
-  const second = [...items]
-    .sort((a, b) => slotScore(gymStimulus, b, true) - slotScore(gymStimulus, a, true))
-    .find((it) => {
-      const cell = result[it.iso];
-      if (!cell || cell.secondStimulus) return false;
-      return canSecondStimulus(gymStimulus, it, cell.stimulus);
-    });
-  if (second) {
-    result[second.iso].secondStimulus = gymStimulus;
+    // 3. Jako druga jednostka dnia, jeśli istnieje bezpieczny slot.
+    const second = [...items]
+      .sort((a, b) => slotScore(gymStimulus, b, true) - slotScore(gymStimulus, a, true))
+      .find((it) => {
+        const cell = result[it.iso];
+        if (!cell || cell.secondStimulus) return false;
+        return canSecondStimulus(gymStimulus, it, cell.stimulus);
+      });
+    if (second) {
+      result[second.iso].secondStimulus = gymStimulus;
+      continue;
+    }
+
+    // Brak bezpiecznego slotu → tydzień jest realnie skongestionowany,
+    // gym pomijamy zgodnie z zasadami bezpieczeństwa.
+    break;
   }
-  // Brak bezpiecznego slotu → tydzień jest realnie skongestionowany,
-  // gym pomijamy zgodnie z zasadami bezpieczeństwa.
 }
 
 function repairWeekCells(
