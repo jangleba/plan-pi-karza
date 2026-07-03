@@ -357,6 +357,14 @@ export function validateTwoADayCombination(
     };
   }
 
+  // Druga ciężka sesja u youth/beginner (sprawdzane przed ogólną regułą).
+  if (isYouthOrBeginner(athlete) && isHeavySession(newSession) && isHeavySession(other)) {
+    return {
+      allowed: false,
+      blockReason: "Zablokowano drugą ciężką sesję, bo zawodnik jest youth/beginner.",
+    };
+  }
+
   // Dwa bardzo ciężkie bodźce jednego dnia.
   if (isHeavySession(other) && isHeavySession(newSession)) {
     return { allowed: false, blockReason: "Dwa bardzo ciężkie bodźce jednego dnia są zablokowane." };
