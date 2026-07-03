@@ -387,13 +387,8 @@ export function validateTwoADayCombination(
     };
   }
 
-  // Druga ciężka sesja u youth/beginner.
-  if (isYouthOrBeginner(athlete) && isHeavySession(newSession) && isHeavySession(other)) {
-    return {
-      allowed: false,
-      blockReason: "Zablokowano drugą ciężką sesję, bo zawodnik jest youth/beginner.",
-    };
-  }
+
+
 
   void weekContext;
   return { allowed: true };
