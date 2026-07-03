@@ -647,10 +647,10 @@ export function findBestDayForEndurance(
     !hasEnduranceSession(day) &&
     dayHasSlot(day, userSettings);
 
-  // Tier 1 — dzień bez club i bez match.
+  // Tier 1 — całkowicie wolny dzień (bez club, bez match, bez innych sesji).
   for (let i = 0; i < (weekPlan ?? []).length; i++) {
     const day = weekPlan[i];
-    if (!eligible(day) || hasClubSession(day)) continue;
+    if (!eligible(day) || hasClubSession(day) || countSessionsForDay(day) > 0) continue;
     const check = canAddSessionToDay(
       day,
       candidate,
