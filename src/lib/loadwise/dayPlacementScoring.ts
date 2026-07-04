@@ -460,7 +460,7 @@ export function scoreDayForSpeed(
   if (empty && !isMatchDay(day)) score += 25; // świeży dzień
   if (!isDayAfterMatch(day, weekPlan)) score += 15; // nie po meczu
   if (!(prev && dayHasHeavyLegsGym(prev))) score += 10; // nie po ciężkich nogach
-  if (dayHasCategory(day, "gym_strength") && speedIsFirst(day)) score += 12; // szybkość przed siłownią
+  if (dayHasCategory(day, "gym_strength")) score += 12; // szybkość sortuje się przed siłownią
   if (hasClubSession(day)) score += 8; // krótka szybkość przed klubowym
   if (dayHasCategory(day, "endurance_conditioning")) {
     const endLight = (day.sessions ?? []).some(
