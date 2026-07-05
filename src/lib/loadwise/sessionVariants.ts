@@ -470,7 +470,7 @@ export function createEnduranceSessionVariant(
 // SZYBKOŚĆ
 // ---------------------------------------------------------------------------
 
-function youthSpeedSession(ctx: SessionGenContext): GeneratedSession {
+export function youthSpeedSession(ctx: SessionGenContext): GeneratedSession {
   return normalizeGeneratedSession({
     category: "speed_sprint",
     subcategory: "technical_speed",
