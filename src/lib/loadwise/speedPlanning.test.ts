@@ -426,7 +426,7 @@ const twoADay = { maxSessionsPerDay: 2 };
 function reqs(ctx: WeekRequirementContext, goal: string | null) {
   return calculateWeeklyMinimumRequirements(
     ctx,
-    { hasGym: true, clubTrainingDays: ctx.clubTrainingCount ?? 0, matchDate: null },
+    { hasGym: true, clubTrainingDays: [], matchDate: null },
     goal,
     { developmentStage: "adult", gymExperienceLevel: "intermediate" },
   );
@@ -474,7 +474,7 @@ describe("Twarda zasada: nigdy dwie szybkości jednego dnia", () => {
 
   it("2+3. Cel szybkość/przyspieszenie: 2 speed w tygodniu nie lądują tego samego dnia", () => {
     for (const goal of ["szybkość", "przyspieszenie"]) {
-      const ctx: WeekRequirementContext = { isFullWeek: true, clubTrainingCount: 0, matchCount: 0 };
+      const ctx: WeekRequirementContext = { seasonPhase: null, isFullWeek: true, clubTrainingCount: 0, matchCount: 0 };
       const wk = week();
       const profile: SpeedAthleteProfile = {
         athleteGoal: goal,
@@ -492,7 +492,7 @@ describe("Twarda zasada: nigdy dwie szybkości jednego dnia", () => {
   });
 
   it("6. Wymagane 2 speed → są na różnych dniach", () => {
-    const ctx: WeekRequirementContext = { isFullWeek: true, clubTrainingCount: 0, matchCount: 0 };
+    const ctx: WeekRequirementContext = { seasonPhase: null, isFullWeek: true, clubTrainingCount: 0, matchCount: 0 };
     const wk = week();
     const profile: SpeedAthleteProfile = {
       athleteGoal: "szybkość",
