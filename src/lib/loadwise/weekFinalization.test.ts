@@ -249,3 +249,73 @@ describe("weekFinalization — twarda zasada endurance", () => {
     expect(club.secondSession).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regresja: nigdy dwie jednostki speed_sprint jednego dnia (poziom SessionDay)
+// ---------------------------------------------------------------------------
+
+import {
+  repairDuplicateSpeedSameDay as repairDupSpeed,
+  countSpeedSessionsForDay as speedCountDay,
+} from "./weekFinalization";
+
+describe("Twarda zasada: dwie szybkości jednego dnia (SessionDay)", () => {
+  it("10. Plan z dniem 2×speed nie może mieć finalStatus = valid (przed naprawą)", () => {
+    const wk = [
+      speedDay(DATES[0]),
+      gymDay(DATES[1]),
+      speedDay(DATES[2]),
+      gymDay(DATES[3]),
+      speedDay(DATES[4]),
+      recoveryDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+    // Wstrzyknij drugą szybkość na dzień 0 jako secondSession.
+    wk[0].secondSession = speedDay(DATES[0]).secondSession
+      ? wk[0].secondSession
+      : { ...speedDay(DATES[0]), secondSession: null };
+    const p = profile();
+    const report = assertFinalPlanMeetsMinimums(wk, reqFor(wk, p));
+    expect(report.noDuplicateSpeedSameDay).toBe(false);
+    expect(report.finalStatus).toBe("invalid");
+  });
+
+  it("repairDuplicateSpeedSameDay przenosi drugą szybkość na wolny dzień", () => {
+    const dupDay = speedDay(DATES[1]);
+    dupDay.secondSession = { ...speedDay(DATES[1]), secondSession: null };
+    const wk = [
+      gymDay(DATES[0]),
+      dupDay,
+      gymDay(DATES[2]),
+      recoveryDay(DATES[3]),
+      recoveryDay(DATES[4]),
+      restDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+    const res = repairDupSpeed(wk);
+    expect(speedCountDay(wk[1])).toBe(1);
+    expect(wk.some((d) => speedCountDay(d) > 1)).toBe(false);
+    expect(res.moved).toBe(1);
+  });
+
+  it("validateAndRepairWeekPlan usuwa duplikat i po naprawie brak 2×speed; idempotentna", () => {
+    const dupDay = speedDay(DATES[1]);
+    dupDay.secondSession = { ...speedDay(DATES[1]), secondSession: null };
+    const wk = [
+      gymDay(DATES[0]),
+      dupDay,
+      gymDay(DATES[2]),
+      speedDay(DATES[3]),
+      recoveryDay(DATES[4]),
+      restDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+    const p = profile();
+    const r1 = validateAndRepairWeekPlan(wk, p);
+    expect(wk.some((d) => speedCountDay(d) > 1)).toBe(false);
+    expect(r1.report.noDuplicateSpeedSameDay).toBe(true);
+    const r2 = validateAndRepairWeekPlan(wk, p);
+    expect(wk.some((d) => speedCountDay(d) > 1)).toBe(false);
+    expect(r2.report.noDuplicateSpeedSameDay).toBe(true);
+  });
+});

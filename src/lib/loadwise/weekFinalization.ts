@@ -281,8 +281,77 @@ export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[]): { removed
 }
 
 // ---------------------------------------------------------------------------
-// Naprawa: dodanie brakujących endurance
+// Twarda blokada: nigdy dwie jednostki speed_sprint jednego dnia
 // ---------------------------------------------------------------------------
+
+export function countSpeedSessionsForDay(day: SessionDay): number {
+  return eachSession(day).filter((s) => isSpeedSession(s)).length;
+}
+
+/**
+ * Naprawa dni z dwiema jednostkami szybkościowymi (main + secondSession = speed).
+ * Zostawia główną szybkość, drugą próbuje przenieść na wolny dzień (rest) bez
+ * klubu/meczu/szybkości; jeśli się nie da — usuwa duplikat i dodaje unresolvedIssue.
+ * Nigdy nie zostawia dwóch speed_sprint w jednym dniu. Idempotentna.
+ */
+export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
+  weekPlan: SessionDay[];
+  moved: number;
+  removed: number;
+  unresolvedIssues: string[];
+} {
+  const unresolvedIssues: string[] = [];
+  let moved = 0;
+  let removed = 0;
+
+  for (const day of weekPlan) {
+    if (countSpeedSessionsForDay(day) <= 1) continue;
+    // main i secondSession to szybkość — zostaw main, wyjmij secondSession.
+    if (day.secondSession && isSpeedSession(day.secondSession)) {
+      const duplicate = day.secondSession;
+      day.secondSession = null;
+      day.slotLabel = null;
+
+      // Szukaj wolnego dnia (rest) bez klubu, meczu i bez szybkości; nie MD-1 dla pełnej szybkości.
+      const restTarget = weekPlan.find(
+        (d) =>
+          d !== day &&
+          d.dayType === "rest" &&
+          !isClubSession(d) &&
+          !isMatchSession(d) &&
+          countSpeedSessionsForDay(d) === 0 &&
+          !isDayBeforeMatch(d),
+      );
+      if (restTarget) {
+        const idx = weekPlan.indexOf(restTarget);
+        const relocated: SessionDay = {
+          ...duplicate,
+          date: restTarget.date,
+          dayName: restTarget.dayName || duplicate.dayName,
+          dayOfWeek: restTarget.dayOfWeek,
+          mdLabel: restTarget.mdLabel ?? null,
+          dayType: "training" as DayType,
+          slotLabel: null,
+          secondSession: null,
+          reason:
+            "Przeniesiono drugą szybkość na wolny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
+          whyToday:
+            "Przeniesiono drugą szybkość na wolny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
+        };
+        weekPlan[idx] = relocated;
+        moved += 1;
+      } else {
+        removed += 1;
+        unresolvedIssues.push(
+          `Usunięto zduplikowaną szybkość w dniu ${day.date} — brak wolnego dnia na przeniesienie (dwie szybkości jednego dnia są zabronione).`,
+        );
+      }
+    }
+  }
+
+  return { weekPlan, moved, removed, unresolvedIssues };
+}
+
 
 /**
  * Gwarantuje wymaganą liczbę endurance_conditioning w tygodniu.
@@ -520,6 +589,9 @@ export function validateAndRepairWeekPlan(
   const requirements = weeklyRequirements ?? requirementsFor(weekPlan, profile);
   const ctx = weekContextFor(weekPlan, profile);
 
+  // TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia — naprawa przed assertem.
+  repairDuplicateSpeedSameDay(weekPlan);
+
   validateNoEnduranceOnClubDays(weekPlan);
   addMissingEnduranceSessions(
     weekPlan,
@@ -529,6 +601,8 @@ export function validateAndRepairWeekPlan(
     profile,
   );
   validateNoEnduranceOnClubDays(weekPlan);
+  // Ponowna naprawa na wypadek, gdyby endurance zajęło slot (idempotentna).
+  repairDuplicateSpeedSameDay(weekPlan);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
   return { weekPlan, requirements, report };

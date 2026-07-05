@@ -171,6 +171,34 @@ export function hasMatchSession(day: SchedDay): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Szybkość — twarda zasada: nigdy dwie jednostki speed_sprint jednego dnia
+// ---------------------------------------------------------------------------
+
+/** Czy sesja liczy się jako bodziec szybkościowy (speed_sprint w każdym wariancie). */
+export function countsAsSpeed(s: SchedSession): boolean {
+  return s.category === "speed_sprint";
+}
+
+/** Czy dzień ma jakąkolwiek jednostkę speed_sprint. */
+export function hasSpeedSession(day: SchedDay): boolean {
+  return (day.sessions ?? []).some(countsAsSpeed);
+}
+
+/** Ile jednostek speed_sprint jest w danym dniu. */
+export function countSpeedSessionsForDay(day: SchedDay): number {
+  return (day.sessions ?? []).filter(countsAsSpeed).length;
+}
+
+/**
+ * Czy dodanie newSession stworzyłoby dzień z dwiema jednostkami szybkościowymi.
+ * Zwraca true, jeśli dzień już ma speed_sprint, a nowa sesja też liczy się jako speed.
+ */
+export function wouldCreateDuplicateSpeedDay(day: SchedDay, newSession: SchedSession): boolean {
+  if (!countsAsSpeed(newSession)) return false;
+  return hasSpeedSession(day);
+}
+
+// ---------------------------------------------------------------------------
 // Obciążenie sesji / klubu
 // ---------------------------------------------------------------------------
 
@@ -437,6 +465,16 @@ export function canAddSessionToDay(
         max === 1
           ? "Nie dodano drugiej sesji, bo maxSessionsPerDay = 1."
           : "Nie dodano trzeciej sesji, bo maxSessionsPerDay = 2.",
+    };
+  }
+
+  // 1b) TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia.
+  // Obowiązuje zawsze — niezależnie od celu, wieku i limitu 2 sesji.
+  if (wouldCreateDuplicateSpeedDay(day, session)) {
+    return {
+      allowed: false,
+      blockReason:
+        "Dzień ma już speed_sprint — druga jednostka szybkościowa tego samego dnia jest zablokowana.",
     };
   }
 

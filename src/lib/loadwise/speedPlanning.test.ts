@@ -404,3 +404,149 @@ describe("validateWeeklySpeedMinimum", () => {
     expect(bad.distinctFocusOk).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regresja: nigdy dwie jednostki speed_sprint jednego dnia + speed po ciężkich nogach
+// ---------------------------------------------------------------------------
+
+import {
+  validateNoDuplicateSpeedSameDay,
+  repairDuplicateSpeedSameDay,
+  findAlternativeDayForSpeed,
+} from "./speedPlanning";
+import {
+  canAddSessionToDay,
+  hasSpeedSession,
+  countSpeedSessionsForDay,
+  wouldCreateDuplicateSpeedDay,
+} from "./dailyScheduling";
+
+const twoADay = { maxSessionsPerDay: 2 };
+
+function reqs(ctx: WeekRequirementContext, goal: string | null) {
+  return calculateWeeklyMinimumRequirements(
+    ctx,
+    { hasGym: true, clubTrainingDays: [], matchDate: null },
+    goal,
+    { developmentStage: "adult", gymExperienceLevel: "intermediate" },
+  );
+}
+
+describe("Twarda zasada: nigdy dwie szybkości jednego dnia", () => {
+  it("1. Dzień nie może mieć dwóch speed_sprint (walidator wykrywa)", () => {
+    const wk = week();
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "high" }));
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "low" }));
+    const report = validateNoDuplicateSpeedSameDay(wk);
+    expect(report.ok).toBe(false);
+    expect(report.offendingDayIndices).toContain(1);
+  });
+
+  it("4. canAddSessionToDay zwraca false przy dodawaniu drugiej szybkości", () => {
+    const d = day({ dayOfWeek: 3 });
+    d.sessions.push(s("speed_sprint", { loadLevel: "high" }));
+    const res = canAddSessionToDay(d, s("speed_sprint", { loadLevel: "low" }), twoADay);
+    expect(res.allowed).toBe(false);
+    expect(hasSpeedSession(d)).toBe(true);
+    expect(wouldCreateDuplicateSpeedDay(d, s("speed_sprint"))).toBe(true);
+  });
+
+  it("5. repairDuplicateSpeedSameDay naprawia dzień z dwoma speed (przenosi)", () => {
+    const wk = week();
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "high", title: "A" }));
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "high", title: "B" }));
+    const res = repairDuplicateSpeedSameDay(wk, { userSettings: twoADay });
+    expect(countSpeedSessionsForDay(wk[1])).toBe(1);
+    expect(validateNoDuplicateSpeedSameDay(wk).ok).toBe(true);
+    expect(res.moved + res.removed).toBe(1);
+  });
+
+  it("9. Walidator uruchomiony dwa razy nie tworzy duplikatów", () => {
+    const wk = week();
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "high" }));
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "high" }));
+    repairDuplicateSpeedSameDay(wk, { userSettings: twoADay });
+    repairDuplicateSpeedSameDay(wk, { userSettings: twoADay });
+    expect(validateNoDuplicateSpeedSameDay(wk).ok).toBe(true);
+    const total = wk.reduce((n, d) => n + countSpeedSessionsForDay(d), 0);
+    expect(total).toBe(2);
+  });
+
+  it("2+3. Cel szybkość/przyspieszenie: 2 speed w tygodniu nie lądują tego samego dnia", () => {
+    for (const goal of ["szybkość", "przyspieszenie"]) {
+      const ctx: WeekRequirementContext = { seasonPhase: null, isFullWeek: true, clubTrainingCount: 0, matchCount: 0 };
+      const wk = week();
+      const profile: SpeedAthleteProfile = {
+        athleteGoal: goal,
+        readiness: 8,
+        developmentStage: "adult",
+        gymExperienceLevel: "intermediate",
+      };
+      const r = reqs(ctx, goal);
+      expect(r.requiredSpeedSessions).toBeGreaterThanOrEqual(2);
+      addMissingSpeedSessions(wk, { ...ctx }, twoADay, r, profile);
+      expect(validateNoDuplicateSpeedSameDay(wk).ok).toBe(true);
+      const speedDays = wk.filter((d) => countSpeedSessionsForDay(d) > 0).length;
+      expect(speedDays).toBe(countSpeedSessions(wk));
+    }
+  });
+
+  it("6. Wymagane 2 speed → są na różnych dniach", () => {
+    const ctx: WeekRequirementContext = { seasonPhase: null, isFullWeek: true, clubTrainingCount: 0, matchCount: 0 };
+    const wk = week();
+    const profile: SpeedAthleteProfile = {
+      athleteGoal: "szybkość",
+      readiness: 8,
+      developmentStage: "adult",
+      gymExperienceLevel: "intermediate",
+    };
+    const r = reqs(ctx, "szybkość");
+    addMissingSpeedSessions(wk, { ...ctx }, twoADay, r, profile);
+    expect(countSpeedSessions(wk)).toBe(2);
+    const days = wk.map((d, i) => (countSpeedSessionsForDay(d) > 0 ? i : -1)).filter((i) => i >= 0);
+    expect(new Set(days).size).toBe(2);
+  });
+});
+
+describe("Speed po ciężkich nogach: dozwolone, downgrade tylko przy ryzyku", () => {
+  it("7. Pełna szybkość MOŻE być dzień po heavy lower gdy readiness i load OK", () => {
+    const wk = week();
+    wk[1].sessions.push(s("gym_strength", { isHeavyLegs: true, loadLevel: "high" }));
+    const profile: SpeedAthleteProfile = {
+      athleteGoal: "szybkość",
+      readiness: 8,
+      developmentStage: "adult",
+      gymExperienceLevel: "intermediate",
+    };
+    const placements = getSafeSpeedPlacements(wk, { seasonPhase: null }, twoADay, "szybkość", profile);
+    const dayAfter = placements.find((p) => p.dayIndex === 2);
+    expect(dayAfter).toBeDefined();
+    expect(dayAfter!.forcedDowngrade).toBe(false);
+  });
+
+  it("8. Speed po heavy lower zostaje downgraded przy niskim readiness", () => {
+    const wk = week();
+    wk[1].sessions.push(s("gym_strength", { isHeavyLegs: true, loadLevel: "high" }));
+    const profile: SpeedAthleteProfile = {
+      athleteGoal: "szybkość",
+      readiness: 4,
+      developmentStage: "adult",
+      gymExperienceLevel: "intermediate",
+    };
+    const placements = getSafeSpeedPlacements(wk, { seasonPhase: null }, twoADay, "szybkość", profile);
+    const dayAfter = placements.find((p) => p.dayIndex === 2);
+    expect(dayAfter).toBeDefined();
+    expect(dayAfter!.forcedDowngrade).toBe(true);
+  });
+
+  it("findAlternativeDayForSpeed nigdy nie wskazuje dnia ze szybkością ani źródła", () => {
+    const wk = week();
+    wk[1].sessions.push(s("speed_sprint", { loadLevel: "high" }));
+    const alt = findAlternativeDayForSpeed(wk, s("speed_sprint"), {
+      userSettings: twoADay,
+      excludeDayIndex: 1,
+    });
+    expect(alt.dayIndex).not.toBe(1);
+    if (alt.dayIndex !== null) expect(hasSpeedSession(wk[alt.dayIndex])).toBe(false);
+  });
+});

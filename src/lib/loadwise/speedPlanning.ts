@@ -22,6 +22,9 @@ import {
   hasAvailableSecondSessionSlot,
   hasClubSession,
   hasMatchSession,
+  hasSpeedSession,
+  countSpeedSessionsForDay,
+  wouldCreateDuplicateSpeedDay,
   canAddSessionToDay,
   type AthleteSchedProfile,
   type SchedDay,
@@ -73,12 +76,15 @@ export interface SpeedPlacement {
   dayIndex: number;
   score: number;
   forcedPrimer: boolean;
+  /** Wymuszony downgrade pełnej szybkości do microdose/techniki (ryzyko obciążenia). */
+  forcedDowngrade: boolean;
   reason: string;
 }
 
 export interface FindSpeedDayResult {
   dayIndex: number | null;
   forcedPrimer: boolean;
+  forcedDowngrade?: boolean;
   placementReason?: string;
   unresolvedIssue?: string;
 }
@@ -167,7 +173,23 @@ function dayHasCategory(day: SchedDay, cat: SchedSession["category"]): boolean {
 }
 
 function dayHasSpeed(day: SchedDay): boolean {
-  return (day.sessions ?? []).some((s) => s.category === "speed_sprint");
+  return hasSpeedSession(day);
+}
+
+function prevDayHasHeavyLegs(day: SchedDay, weekPlan: SchedDay[]): boolean {
+  const i = weekPlan.indexOf(day);
+  const prev = i > 0 ? weekPlan[i - 1] : null;
+  return !!prev && dayHasHeavyLegsGym(prev);
+}
+
+function weekIsOverloaded(weekPlan: SchedDay[]): boolean {
+  let club = 0;
+  let match = 0;
+  for (const d of weekPlan ?? []) {
+    if (hasClubSession(d)) club += 1;
+    if (isMatchDay(d)) match += 1;
+  }
+  return club + match >= 4 || club >= 4 || match >= 2;
 }
 
 function dayHasHeavyLegsGym(day: SchedDay): boolean {
@@ -425,16 +447,35 @@ export function getSafeSpeedPlacements(
     if (isMatchDay(day)) return;
     if (dayHasSpeed(day)) return; // nie dwie szybkości tego samego dnia
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
-    // Nie po ciężkiej sile nóg / ciężkim conditioning tego samego dnia.
+    // Tego samego dnia: nie po ciężkiej sile nóg ani ciężkim conditioning
+    // (szybkość musi być świeża i pierwsza — dwa ciężkie bodźce blokuje canAddSessionToDay).
     if (dayHasHeavyLegsGym(day)) return;
     if (dayHasHeavyConditioning(day)) return;
 
+    // KOREKTA: pełna szybkość MOŻE być dzień PO ciężkiej sile nóg — nie blokujemy.
+    // Decyduje scoring + downgrade zależny od readiness/bólu/meczu/przeciążenia.
+    const afterHeavyLegs = prevDayHasHeavyLegs(day, weekPlan);
+    const readiness = resolveReadiness(athleteTrainingProfile);
+    const pain =
+      hasKneeAnklePain(athleteTrainingProfile) || hasHamstringHistory(athleteTrainingProfile);
+    const overloaded = weekIsOverloaded(weekPlan);
+    const youthHighLoad = isYouthOrBeginner(athleteTrainingProfile) && (overloaded || afterHeavyLegs);
+
     const forcedPrimer = isDayBeforeMatch(day);
+    // Downgrade pełnej szybkości tylko przy realnym ryzyku — inaczej pełna szybkość.
+    const forcedDowngrade =
+      forcedPrimer ||
+      readiness <= 5 ||
+      pain ||
+      overloaded ||
+      youthHighLoad ||
+      (afterHeavyLegs && (readiness <= 6 || isDayBeforeMatch(day)));
+
     const candidate: SchedSession = {
       category: "speed_sprint",
-      loadLevel: forcedPrimer ? "low" : "high",
-      isMaxVelocity: !forcedPrimer,
-      isFullSpeed: !forcedPrimer,
+      loadLevel: forcedPrimer || forcedDowngrade ? "low" : "high",
+      isMaxVelocity: !(forcedPrimer || forcedDowngrade),
+      isFullSpeed: !(forcedPrimer || forcedDowngrade),
     };
     const add = canAddSessionToDay(
       day,
@@ -455,17 +496,22 @@ export function getSafeSpeedPlacements(
     if (dayHasCategory(day, "endurance_conditioning")) score += 8; // szybkość przed lekką wydolnością
     if (goal.isSpeedGoal) score += 8;
     if (isDayAfterMatch(day, weekPlan)) score -= 20;
+    if (afterHeavyLegs) score -= 15; // dzień po ciężkich nogach: gorszy, ale dozwolony
     if (forcedPrimer) score -= 40; // MD-1 tylko primer
 
-    const reason = dayHasCategory(day, "gym_strength")
-      ? "Wybrano ten dzień dla szybkości — świeży, szybkość może być przed siłownią."
-      : hasClubSession(day)
-        ? "Wybrano krótką szybkość przed treningiem klubowym."
-        : dayHasCategory(day, "endurance_conditioning")
-          ? "Wybrano ten dzień dla szybkości — przed lekką wydolnością (szybkość pierwsza)."
-          : "Wybrano świeży dzień na szybkość.";
+    const reason = forcedDowngrade && afterHeavyLegs && !forcedPrimer
+      ? "Szybkość dzień po ciężkich nogach — obniżona do microdose/techniki (readiness/ból/przeciążenie)."
+      : afterHeavyLegs
+        ? "Wybrano ten dzień na pełną szybkość mimo ciężkich nóg wczoraj — readiness i obciążenie OK."
+        : dayHasCategory(day, "gym_strength")
+          ? "Wybrano ten dzień dla szybkości — świeży, szybkość może być przed siłownią."
+          : hasClubSession(day)
+            ? "Wybrano krótką szybkość przed treningiem klubowym."
+            : dayHasCategory(day, "endurance_conditioning")
+              ? "Wybrano ten dzień dla szybkości — przed lekką wydolnością (szybkość pierwsza)."
+              : "Wybrano świeży dzień na szybkość.";
 
-    placements.push({ dayIndex, score, forcedPrimer, reason });
+    placements.push({ dayIndex, score, forcedPrimer, forcedDowngrade, reason });
   });
 
   return placements.sort((a, b) => b.score - a.score);
@@ -497,6 +543,7 @@ export function findBestDayForSpeedSession(
   return {
     dayIndex: best.dayIndex,
     forcedPrimer: best.forcedPrimer,
+    forcedDowngrade: best.forcedDowngrade,
     placementReason: best.reason,
   };
 }
@@ -592,12 +639,21 @@ export function addMissingSpeedSessions(
       athleteTrainingProfile,
       best.placementReason,
     );
-    const gen = createSpeedSessionVariant(ctx, athleteTrainingProfile);
+    // Downgrade (readiness/ból/przeciążenie/po ciężkich nogach z ryzykiem) → microdose.
+    const gen = best.forcedDowngrade
+      ? createSpeedMicrodoseSession(ctx, athleteTrainingProfile as AthleteTrainingProfile | null | undefined)
+      : createSpeedSessionVariant(ctx, athleteTrainingProfile);
     if (!gen) {
       warnings.push(`Nie udało się zbudować sesji szybkości dla dnia ${best.dayIndex}.`);
       break;
     }
-    placeSpeedFirst(day, toSchedSession(gen));
+    // Defensywnie: nigdy nie twórz drugiej szybkości tego samego dnia.
+    const newSession = toSchedSession(gen);
+    if (wouldCreateDuplicateSpeedDay(day, newSession)) {
+      warnings.push(`Pominięto dodanie drugiej szybkości w dniu ${best.dayIndex}.`);
+      break;
+    }
+    placeSpeedFirst(day, newSession);
     added += 1;
   }
 
@@ -619,7 +675,138 @@ export function addMissingSpeedSessions(
 }
 
 // ---------------------------------------------------------------------------
-// Walidacja tygodniowa
+// TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia
+// (wykrywanie, znajdowanie alternatywnego dnia, naprawa)
+// ---------------------------------------------------------------------------
+
+export interface DuplicateSpeedDayValidationReport {
+  ok: boolean;
+  offendingDayIndices: number[];
+  totalExtraSpeedSessions: number;
+}
+
+/** Wykrywa dni z więcej niż 1 jednostką speed_sprint. */
+export function validateNoDuplicateSpeedSameDay(
+  weekPlan: SchedDay[],
+): DuplicateSpeedDayValidationReport {
+  const offendingDayIndices: number[] = [];
+  let totalExtraSpeedSessions = 0;
+  (weekPlan ?? []).forEach((day, i) => {
+    const n = countSpeedSessionsForDay(day);
+    if (n > 1) {
+      offendingDayIndices.push(i);
+      totalExtraSpeedSessions += n - 1;
+    }
+  });
+  return {
+    ok: offendingDayIndices.length === 0,
+    offendingDayIndices,
+    totalExtraSpeedSessions,
+  };
+}
+
+export interface SpeedRepairContext {
+  weekContext?: SchedWeekContext | null;
+  userSettings?: UserSchedulingSettings | null;
+  athleteGoal?: string | null;
+  athleteTrainingProfile?: SpeedAthleteProfile | null;
+  /** Indeks dnia, którego wykluczamy jako źródło (nie przenoś na ten sam dzień). */
+  excludeDayIndex?: number;
+}
+
+/**
+ * Znajduje inny bezpieczny dzień na przeniesioną jednostkę szybkości.
+ * Nigdy nie wskaże dnia, który już ma speed_sprint, ani dnia źródłowego.
+ */
+export function findAlternativeDayForSpeed(
+  weekPlan: SchedDay[],
+  _speedSession: SchedSession,
+  context: SpeedRepairContext,
+): FindSpeedDayResult {
+  const placements = getSafeSpeedPlacements(
+    weekPlan,
+    context.weekContext,
+    context.userSettings,
+    context.athleteGoal,
+    context.athleteTrainingProfile,
+  ).filter((p) => p.dayIndex !== context.excludeDayIndex);
+
+  const best = placements[0];
+  if (!best) {
+    return {
+      dayIndex: null,
+      forcedPrimer: false,
+      unresolvedIssue:
+        "Brak alternatywnego dnia na przeniesienie drugiej szybkości — nie tworzę duplikatu.",
+    };
+  }
+  return {
+    dayIndex: best.dayIndex,
+    forcedPrimer: best.forcedPrimer,
+    forcedDowngrade: best.forcedDowngrade,
+    placementReason: best.reason,
+  };
+}
+
+export interface RepairDuplicateSpeedResult {
+  weekPlan: SchedDay[];
+  moved: number;
+  removed: number;
+  unresolvedIssues: string[];
+}
+
+/**
+ * Naprawa dni z dwiema jednostkami szybkościowymi:
+ *  - zostawia pierwszą (główną) szybkość dnia,
+ *  - każdą kolejną próbuje PRZENIEŚĆ na inny bezpieczny dzień,
+ *  - jeśli nie da się przenieść → USUWA duplikat i dodaje unresolvedIssue,
+ *  - nigdy nie zostawia dwóch speed_sprint w jednym dniu.
+ * Idempotentna: uruchomiona dwa razy nie tworzy duplikatów.
+ */
+export function repairDuplicateSpeedSameDay(
+  weekPlan: SchedDay[],
+  context: SpeedRepairContext,
+): RepairDuplicateSpeedResult {
+  const unresolvedIssues: string[] = [];
+  let moved = 0;
+  let removed = 0;
+
+  (weekPlan ?? []).forEach((day, dayIndex) => {
+    let speeds = (day.sessions ?? []).filter((s) => s.category === "speed_sprint");
+    if (speeds.length <= 1) return;
+
+    // Zostaw pierwszą, przenoś/usuwaj kolejne.
+    const extras = speeds.slice(1);
+    for (const extra of extras) {
+      // Usuń z dnia źródłowego.
+      day.sessions = (day.sessions ?? []).filter((s) => s !== extra);
+
+      const alt = findAlternativeDayForSpeed(weekPlan, extra, {
+        ...context,
+        excludeDayIndex: dayIndex,
+      });
+      if (alt.dayIndex !== null && !wouldCreateDuplicateSpeedDay(weekPlan[alt.dayIndex], extra)) {
+        const relocated: SchedSession = {
+          ...extra,
+          placementReason:
+            "Przeniesiono drugą szybkość na inny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
+        };
+        placeSpeedFirst(weekPlan[alt.dayIndex], relocated);
+        moved += 1;
+      } else {
+        removed += 1;
+        unresolvedIssues.push(
+          `Usunięto zduplikowaną szybkość z dnia ${dayIndex} — brak alternatywnego dnia na przeniesienie.`,
+        );
+      }
+    }
+    speeds = (day.sessions ?? []).filter((s) => s.category === "speed_sprint");
+  });
+
+  return { weekPlan, moved, removed, unresolvedIssues };
+}
+
+
 // ---------------------------------------------------------------------------
 
 export function validateWeeklySpeedMinimum(
