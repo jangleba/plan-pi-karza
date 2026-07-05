@@ -351,9 +351,9 @@ export function createSpeedSessionVariant(
 ): GeneratedSession {
   const a = athleteTrainingProfile as AthleteTrainingProfile | null | undefined;
   if (isYouthOrBeginner(athleteTrainingProfile)) return youthSpeedSession(ctx);
-  if (resolveReadiness(athleteTrainingProfile) <= 5 && typeof ctx.readiness !== "number") {
-    return createSpeedMicrodoseSession({ ...ctx }, a);
-  }
+  const readiness =
+    typeof ctx.readiness === "number" ? ctx.readiness : resolveReadiness(athleteTrainingProfile);
+  if (readiness <= 5) return createSpeedMicrodoseSession(ctx, a);
   const slot = ctx.speedSlot ?? 1;
   if (slot === 2) return createMaxVelocityCODSession(ctx, athleteTrainingProfile);
   if (slot === 1 && (hasKneeAnklePain(athleteTrainingProfile) || hasHamstringHistory(athleteTrainingProfile))) {
