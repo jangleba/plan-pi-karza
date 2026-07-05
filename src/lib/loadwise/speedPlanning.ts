@@ -675,7 +675,138 @@ export function addMissingSpeedSessions(
 }
 
 // ---------------------------------------------------------------------------
-// Walidacja tygodniowa
+// TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia
+// (wykrywanie, znajdowanie alternatywnego dnia, naprawa)
+// ---------------------------------------------------------------------------
+
+export interface DuplicateSpeedDayValidationReport {
+  ok: boolean;
+  offendingDayIndices: number[];
+  totalExtraSpeedSessions: number;
+}
+
+/** Wykrywa dni z więcej niż 1 jednostką speed_sprint. */
+export function validateNoDuplicateSpeedSameDay(
+  weekPlan: SchedDay[],
+): DuplicateSpeedDayValidationReport {
+  const offendingDayIndices: number[] = [];
+  let totalExtraSpeedSessions = 0;
+  (weekPlan ?? []).forEach((day, i) => {
+    const n = countSpeedSessionsForDay(day);
+    if (n > 1) {
+      offendingDayIndices.push(i);
+      totalExtraSpeedSessions += n - 1;
+    }
+  });
+  return {
+    ok: offendingDayIndices.length === 0,
+    offendingDayIndices,
+    totalExtraSpeedSessions,
+  };
+}
+
+export interface SpeedRepairContext {
+  weekContext?: SchedWeekContext | null;
+  userSettings?: UserSchedulingSettings | null;
+  athleteGoal?: string | null;
+  athleteTrainingProfile?: SpeedAthleteProfile | null;
+  /** Indeks dnia, którego wykluczamy jako źródło (nie przenoś na ten sam dzień). */
+  excludeDayIndex?: number;
+}
+
+/**
+ * Znajduje inny bezpieczny dzień na przeniesioną jednostkę szybkości.
+ * Nigdy nie wskaże dnia, który już ma speed_sprint, ani dnia źródłowego.
+ */
+export function findAlternativeDayForSpeed(
+  weekPlan: SchedDay[],
+  _speedSession: SchedSession,
+  context: SpeedRepairContext,
+): FindSpeedDayResult {
+  const placements = getSafeSpeedPlacements(
+    weekPlan,
+    context.weekContext,
+    context.userSettings,
+    context.athleteGoal,
+    context.athleteTrainingProfile,
+  ).filter((p) => p.dayIndex !== context.excludeDayIndex);
+
+  const best = placements[0];
+  if (!best) {
+    return {
+      dayIndex: null,
+      forcedPrimer: false,
+      unresolvedIssue:
+        "Brak alternatywnego dnia na przeniesienie drugiej szybkości — nie tworzę duplikatu.",
+    };
+  }
+  return {
+    dayIndex: best.dayIndex,
+    forcedPrimer: best.forcedPrimer,
+    forcedDowngrade: best.forcedDowngrade,
+    placementReason: best.reason,
+  };
+}
+
+export interface RepairDuplicateSpeedResult {
+  weekPlan: SchedDay[];
+  moved: number;
+  removed: number;
+  unresolvedIssues: string[];
+}
+
+/**
+ * Naprawa dni z dwiema jednostkami szybkościowymi:
+ *  - zostawia pierwszą (główną) szybkość dnia,
+ *  - każdą kolejną próbuje PRZENIEŚĆ na inny bezpieczny dzień,
+ *  - jeśli nie da się przenieść → USUWA duplikat i dodaje unresolvedIssue,
+ *  - nigdy nie zostawia dwóch speed_sprint w jednym dniu.
+ * Idempotentna: uruchomiona dwa razy nie tworzy duplikatów.
+ */
+export function repairDuplicateSpeedSameDay(
+  weekPlan: SchedDay[],
+  context: SpeedRepairContext,
+): RepairDuplicateSpeedResult {
+  const unresolvedIssues: string[] = [];
+  let moved = 0;
+  let removed = 0;
+
+  (weekPlan ?? []).forEach((day, dayIndex) => {
+    let speeds = (day.sessions ?? []).filter((s) => s.category === "speed_sprint");
+    if (speeds.length <= 1) return;
+
+    // Zostaw pierwszą, przenoś/usuwaj kolejne.
+    const extras = speeds.slice(1);
+    for (const extra of extras) {
+      // Usuń z dnia źródłowego.
+      day.sessions = (day.sessions ?? []).filter((s) => s !== extra);
+
+      const alt = findAlternativeDayForSpeed(weekPlan, extra, {
+        ...context,
+        excludeDayIndex: dayIndex,
+      });
+      if (alt.dayIndex !== null && !wouldCreateDuplicateSpeedDay(weekPlan[alt.dayIndex], extra)) {
+        const relocated: SchedSession = {
+          ...extra,
+          placementReason:
+            "Przeniesiono drugą szybkość na inny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
+        };
+        placeSpeedFirst(weekPlan[alt.dayIndex], relocated);
+        moved += 1;
+      } else {
+        removed += 1;
+        unresolvedIssues.push(
+          `Usunięto zduplikowaną szybkość z dnia ${dayIndex} — brak alternatywnego dnia na przeniesienie.`,
+        );
+      }
+    }
+    speeds = (day.sessions ?? []).filter((s) => s.category === "speed_sprint");
+  });
+
+  return { weekPlan, moved, removed, unresolvedIssues };
+}
+
+
 // ---------------------------------------------------------------------------
 
 export function validateWeeklySpeedMinimum(
