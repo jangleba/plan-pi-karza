@@ -639,12 +639,21 @@ export function addMissingSpeedSessions(
       athleteTrainingProfile,
       best.placementReason,
     );
-    const gen = createSpeedSessionVariant(ctx, athleteTrainingProfile);
+    // Downgrade (readiness/ból/przeciążenie/po ciężkich nogach z ryzykiem) → microdose.
+    const gen = best.forcedDowngrade
+      ? createSpeedMicrodoseSession(ctx, athleteTrainingProfile as AthleteTrainingProfile | null | undefined)
+      : createSpeedSessionVariant(ctx, athleteTrainingProfile);
     if (!gen) {
       warnings.push(`Nie udało się zbudować sesji szybkości dla dnia ${best.dayIndex}.`);
       break;
     }
-    placeSpeedFirst(day, toSchedSession(gen));
+    // Defensywnie: nigdy nie twórz drugiej szybkości tego samego dnia.
+    const newSession = toSchedSession(gen);
+    if (wouldCreateDuplicateSpeedDay(day, newSession)) {
+      warnings.push(`Pominięto dodanie drugiej szybkości w dniu ${best.dayIndex}.`);
+      break;
+    }
+    placeSpeedFirst(day, newSession);
     added += 1;
   }
 
