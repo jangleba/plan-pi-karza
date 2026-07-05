@@ -260,9 +260,19 @@ describe("addMissingSpeedSessions", () => {
   it("szybkość w dzień siłowni jest pierwsza", () => {
     const w = week();
     w[2].sessions.push(s("gym_strength", { loadLevel: "moderate" }));
-    const req = reqFor(0, "szybkość", adult);
-    addMissingSpeedSessions(w, wctx(0), { maxSessionsPerDay: 2 }, req, adult);
-    const gymDay = w.find((d) => d.sessions.some((x) => x.category === "gym_strength"))!;
+    // wymuś dzień siłowni jako jedyny dostępny: reszta klub/mecz
+    [0, 1, 3, 4, 5].forEach((i) => w[i].sessions.push(s("club")));
+    w[6].toMatch = 0;
+    w[6].sessions.push(s("match"));
+    const req = reqFor(6, "szybkość", adult);
+    addMissingSpeedSessions(
+      w,
+      wctx(6, 1),
+      { maxSessionsPerDay: 2, clubTrainingDays: [1, 2, 3, 4, 5, 6] },
+      req,
+      adult,
+    );
+    const gymDay = w[2];
     expect(firstReal(gymDay)!.category).toBe("speed_sprint");
   });
 
@@ -287,9 +297,19 @@ describe("addMissingSpeedSessions", () => {
   it("szybkość w dzień wydolności jest pierwsza", () => {
     const w = week();
     w[3].sessions.push(s("endurance_conditioning", { loadLevel: "low" }));
-    const req = reqFor(0, "szybkość", adult);
-    addMissingSpeedSessions(w, wctx(0), { maxSessionsPerDay: 2 }, req, adult);
-    const endDay = w.find((d) => d.sessions.some((x) => x.category === "endurance_conditioning"))!;
+    // wymuś dzień wydolności jako jedyny dostępny
+    [0, 1, 2, 4, 5].forEach((i) => w[i].sessions.push(s("club")));
+    w[6].toMatch = 0;
+    w[6].sessions.push(s("match"));
+    const req = reqFor(6, "szybkość", adult);
+    addMissingSpeedSessions(
+      w,
+      wctx(6, 1),
+      { maxSessionsPerDay: 2, clubTrainingDays: [1, 2, 3, 4, 5, 6] },
+      req,
+      adult,
+    );
+    const endDay = w[3];
     expect(firstReal(endDay)!.category).toBe("speed_sprint");
   });
 
