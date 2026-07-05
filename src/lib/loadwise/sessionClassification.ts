@@ -413,6 +413,7 @@ export function classifySession(session: SessionDay): SessionClassification {
     generatedBy,
     placementReason: session.classification?.placementReason ?? session.whyToday ?? "",
     sourceRule,
+    repairTag: session.classification?.repairTag,
   };
 }
 
