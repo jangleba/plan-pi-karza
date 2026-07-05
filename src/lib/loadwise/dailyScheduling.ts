@@ -468,6 +468,16 @@ export function canAddSessionToDay(
     };
   }
 
+  // 1b) TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia.
+  // Obowiązuje zawsze — niezależnie od celu, wieku i limitu 2 sesji.
+  if (wouldCreateDuplicateSpeedDay(day, session)) {
+    return {
+      allowed: false,
+      blockReason:
+        "Dzień ma już speed_sprint — druga jednostka szybkościowa tego samego dnia jest zablokowana.",
+    };
+  }
+
   // 2) Kombinacja dwóch sesji.
   const combo = validateTwoADayCombination(
     day,
