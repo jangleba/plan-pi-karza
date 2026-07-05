@@ -414,7 +414,8 @@ export type SessionGeneratedBy =
   | "user_added"
   | "user_swapped"
   | "club_external"
-  | "match_external";
+  | "match_external"
+  | "final-week-validator";
 
 /**
  * Znormalizowana, jednoznaczna klasyfikacja sesji. Wyliczana przez
@@ -453,6 +454,8 @@ export interface SessionClassification {
   generatedBy: SessionGeneratedBy;
   placementReason: string;
   sourceRule: string;
+  /** Znacznik naprawy planu (np. "missing-endurance") ustawiany przez finalny walidator. */
+  repairTag?: string;
 }
 
 export interface SessionDay {
