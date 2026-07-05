@@ -170,7 +170,23 @@ function dayHasCategory(day: SchedDay, cat: SchedSession["category"]): boolean {
 }
 
 function dayHasSpeed(day: SchedDay): boolean {
-  return (day.sessions ?? []).some((s) => s.category === "speed_sprint");
+  return hasSpeedSession(day);
+}
+
+function prevDayHasHeavyLegs(day: SchedDay, weekPlan: SchedDay[]): boolean {
+  const i = weekPlan.indexOf(day);
+  const prev = i > 0 ? weekPlan[i - 1] : null;
+  return !!prev && dayHasHeavyLegsGym(prev);
+}
+
+function weekIsOverloaded(weekPlan: SchedDay[]): boolean {
+  let club = 0;
+  let match = 0;
+  for (const d of weekPlan ?? []) {
+    if (hasClubSession(d)) club += 1;
+    if (isMatchDay(d)) match += 1;
+  }
+  return club + match >= 4 || club >= 4 || match >= 2;
 }
 
 function dayHasHeavyLegsGym(day: SchedDay): boolean {
