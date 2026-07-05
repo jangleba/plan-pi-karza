@@ -129,12 +129,11 @@ function isDayAfterMatch(day: SessionDay): boolean {
   return day.mdLabel === "MD+1";
 }
 
-/** Tydzień przeciążony: dużo klubu/meczu lub wiele twardych dni. */
+/** Tydzień przeciążony: duża kongestia klubu/meczu. */
 function weekIsOverloaded(weekPlan: SessionDay[]): boolean {
   const club = weekPlan.filter((d) => isClubSession(d)).length;
   const match = weekPlan.filter((d) => isMatchSession(d)).length;
-  const hard = weekPlan.filter((d) => d.intensity === "wysoka").length;
-  return club + match >= 4 || hard >= 3 || club >= 4;
+  return club + match >= 4 || club >= 4 || match >= 2;
 }
 
 // ---------------------------------------------------------------------------
