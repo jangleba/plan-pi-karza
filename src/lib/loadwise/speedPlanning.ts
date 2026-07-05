@@ -543,6 +543,7 @@ export function findBestDayForSpeedSession(
   return {
     dayIndex: best.dayIndex,
     forcedPrimer: best.forcedPrimer,
+    forcedDowngrade: best.forcedDowngrade,
     placementReason: best.reason,
   };
 }
