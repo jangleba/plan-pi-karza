@@ -288,8 +288,8 @@ export function getSafeEndurancePlacements(
 
     let score = 50;
     const empty = countSessionsForDay(day) === 0;
-    if (empty) score += 35; // wolny dzień bez klubu/meczu
-    if (dayHasCategory(day, "gym_strength")) score += 15; // preferowane: endurance + siłownia
+    if (empty) score += 25; // wolny dzień bez klubu/meczu
+    if (dayHasCategory(day, "gym_strength")) score += 45; // preferowane: endurance + siłownia
     if (dayHasCategory(day, "speed_sprint") && speedIsFirst(day)) score += 10; // szybkość pierwsza
     if (goal.isEnduranceGoal) score += 8;
     if (isDayBeforeMatch(day)) score -= 40; // MD-1 mocno odradzane
