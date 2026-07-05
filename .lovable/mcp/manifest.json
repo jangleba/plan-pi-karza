@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "loadwise-mcp",
+      "version": "0.1.0",
+      "title": "Loadwise MCP"
+    },
+    "tools": [
+      {
+        "name": "recommend_day_pattern",
+        "title": "Rekomendacja dnia treningowego",
+        "description": "Rekomenduje typ dnia treningowego Loadwise na podstawie relacji do meczu (MD), celu zawodnika i gotowości (readiness 1–10).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "mdRelation": {
+              "type": "string",
+              "enum": [
+                "MD",
+                "MD-1",
+                "MD-2",
+                "MD-3",
+                "MD-4",
+                "MD+1",
+                "none"
+              ],
+              "description": "Relacja do dnia meczu, np. MD-3. 'none' gdy brak meczu w tygodniu."
+            },
+            "goal": {
+              "type": "string",
+              "enum": [
+                "speed",
+                "strength",
+                "endurance",
+                "power",
+                "agility",
+                "general",
+                "mobility",
+                "return",
+                "matchready"
+              ],
+              "description": "Główny cel zawodnika."
+            },
+            "readiness": {
+              "type": "number",
+              "description": "Gotowość zawodnika w skali 1–10."
+            }
+          },
+          "required": [
+            "mdRelation",
+            "goal",
+            "readiness"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "weekly_plan_shape",
+        "title": "Kształt tygodnia treningowego",
+        "description": "Wylicza minimalne wymagania tygodniowe Loadwise (siła, szybkość, wydolność, piłka, prehab) na podstawie celu, liczby treningów klubowych i obecności meczu. Zawsze wymaga min. 1 wydolności.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "goal": {
+              "type": "string",
+              "enum": [
+                "speed",
+                "strength",
+                "endurance",
+                "power",
+                "general",
+                "matchready",
+                "return"
+              ],
+              "description": "Główny cel zawodnika."
+            },
+            "clubTrainingDays": {
+              "type": "number",
+              "description": "Liczba treningów klubowych w tygodniu."
+            },
+            "hasMatch": {
+              "type": "boolean",
+              "description": "Czy w tygodniu jest mecz."
+            }
+          },
+          "required": [
+            "goal",
+            "clubTrainingDays",
+            "hasMatch"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_session_types",
+        "title": "Biblioteka sesji Loadwise",
+        "description": "Zwraca bibliotekę typów sesji treningowych Loadwise. Opcjonalnie filtruje po kategorii (strength, speed, endurance, ball).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": [
+                "strength",
+                "speed",
+                "endurance",
+                "ball",
+                "all"
+              ],
+              "description": "Kategoria sesji do wylistowania, 'all' zwraca wszystkie."
+            }
+          },
+          "required": [
+            "category"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
