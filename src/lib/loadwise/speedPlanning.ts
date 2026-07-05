@@ -76,12 +76,15 @@ export interface SpeedPlacement {
   dayIndex: number;
   score: number;
   forcedPrimer: boolean;
+  /** Wymuszony downgrade pełnej szybkości do microdose/techniki (ryzyko obciążenia). */
+  forcedDowngrade: boolean;
   reason: string;
 }
 
 export interface FindSpeedDayResult {
   dayIndex: number | null;
   forcedPrimer: boolean;
+  forcedDowngrade?: boolean;
   placementReason?: string;
   unresolvedIssue?: string;
 }
