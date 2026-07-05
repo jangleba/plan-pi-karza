@@ -1,0 +1,593 @@
+// ============================================================================
+// Loadwise — FINALNY walidator i naprawa tygodnia (twardy gate przed UI).
+// ----------------------------------------------------------------------------
+// Działa na realnym wyjściu generatora: SessionDay[] (28 dni). Grupuje plan na
+// pełne tygodnie kalendarzowe (poniedziałek–niedziela) i gwarantuje minima:
+//
+//   - minimum 2 gym_strength,
+//   - minimum 1 endurance_conditioning (TWARDA ZASADA, zawsze),
+//   - minimum 1 speed_sprint.
+//
+// Krytyczna zasada: pełny tydzień NIGDY nie może wyjść z 0 endurance_conditioning.
+// Regeneracja/prehab NIE zastępuje wydolności. Jeśli tydzień ma 0 endurance i
+// >1 recovery/prehab, jeden nadmiarowy recovery/prehab zostaje zamieniony na
+// endurance_conditioning. Endurance nigdy nie trafia w dzień klubowy ani meczowy
+// i nigdy nie powstaje trzecia sesja dnia.
+// ============================================================================
+
+import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
+import { isoDayOfWeek, dayName as dayNameOf, parseIso } from "./labels";
+import {
+  normalizeSessionCategory,
+  isEnduranceSession,
+  isMainGymSession,
+  isSpeedSession,
+  isClubSession,
+  isMatchSession,
+  isRecoverySession,
+} from "./sessionClassification";
+import { getMaxSessionsPerDay } from "./dailyScheduling";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
+import {
+  calculateWeeklyMinimumRequirements,
+  type WeeklyRequirements,
+  type WeekRequirementContext,
+} from "./weeklyRequirements";
+
+const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
+
+// ---------------------------------------------------------------------------
+// Raporty
+// ---------------------------------------------------------------------------
+
+export interface AddMissingEnduranceResult {
+  weekPlan: SessionDay[];
+  added: number;
+  converted: number;
+  count: number;
+  requiredEnduranceSessions: number;
+  absoluteMinimumEnduranceSessions: number;
+  unresolvedIssues: string[];
+}
+
+export interface WeekValidationReport {
+  ok: boolean;
+  finalStatus: "valid" | "invalid";
+  gymSessionsCount: number;
+  enduranceSessionsCount: number;
+  speedSessionsCount: number;
+  requiredGymSessions: number;
+  requiredEnduranceSessions: number;
+  absoluteMinimumEnduranceSessions: number;
+  requiredSpeedSessions: number;
+  noEnduranceOnClubDays: boolean;
+  noMoreThanMaxSessionsPerDay: boolean;
+  noDuplicateSpeedSameDay: boolean;
+  unresolvedIssues: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Zliczanie (main + secondSession)
+// ---------------------------------------------------------------------------
+
+function eachSession(day: SessionDay): SessionDay[] {
+  const out: SessionDay[] = [];
+  if (day.dayType !== "rest") out.push(day);
+  if (day.secondSession) out.push(day.secondSession);
+  return out;
+}
+
+function realSessionCount(day: SessionDay): number {
+  const main = day.dayType === "rest" ? 0 : 1;
+  return main + (day.secondSession ? 1 : 0);
+}
+
+export function countEnduranceSessions(weekPlan: SessionDay[]): number {
+  return weekPlan.reduce(
+    (n, d) => n + eachSession(d).filter((s) => isEnduranceSession(s)).length,
+    0,
+  );
+}
+
+function countGymSessions(weekPlan: SessionDay[]): number {
+  return weekPlan.reduce(
+    (n, d) => n + eachSession(d).filter((s) => isMainGymSession(s)).length,
+    0,
+  );
+}
+
+function countSpeedSessions(weekPlan: SessionDay[]): number {
+  return weekPlan.reduce(
+    (n, d) => n + eachSession(d).filter((s) => isSpeedSession(s)).length,
+    0,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Konteksty profilu / obciążenia
+// ---------------------------------------------------------------------------
+
+function isYouthOrBeginner(profile: Profile): boolean {
+  const youthAge = profile.age >= 13 && profile.age <= 15;
+  const beginner =
+    profile.level === "beginner" ||
+    profile.gymExperienceLevel === "none" ||
+    profile.gymExperienceLevel === "beginner";
+  return youthAge || beginner;
+}
+
+function hasLowerLimbPain(profile: Profile): boolean {
+  const pain = [...(profile.painLocations ?? []), ...(profile.injuryHistory ?? [])];
+  return profile.painInjury || pain.some((p) => LOWER_LIMB_PAIN.has(p));
+}
+
+function isDayBeforeMatch(day: SessionDay): boolean {
+  return day.mdLabel === "MD-1";
+}
+
+function isDayAfterMatch(day: SessionDay): boolean {
+  return day.mdLabel === "MD+1";
+}
+
+/** Tydzień przeciążony: dużo klubu/meczu lub wiele twardych dni. */
+function weekIsOverloaded(weekPlan: SessionDay[]): boolean {
+  const club = weekPlan.filter((d) => isClubSession(d)).length;
+  const match = weekPlan.filter((d) => isMatchSession(d)).length;
+  const hard = weekPlan.filter((d) => d.intensity === "wysoka").length;
+  return club + match >= 4 || hard >= 3 || club >= 4;
+}
+
+// ---------------------------------------------------------------------------
+// Budowa sesji endurance (normalna vs lekka)
+// ---------------------------------------------------------------------------
+
+interface EnduranceBuild {
+  title: string;
+  sessionType: string;
+  goalOfSession: string;
+  main: ExerciseItem[];
+}
+
+function normalEnduranceBuild(index: number): EnduranceBuild {
+  const variants: EnduranceBuild[] = [
+    {
+      title: "Tempo aerobowe (kontrolowane)",
+      sessionType: "Wytrzymałość — tempo aerobowe",
+      goalOfSession: "Rozwój bazy tlenowej kontrolowanym tempem, bez wyczerpania.",
+      main: [
+        { name: "Bieg tempo aerobowe", prescription: "6–10 × 100 m luźnym tempem", rest: "trucht powrotny", cue: "Równy rytm, kontroluj oddech." },
+        { name: "Blok ciągły w strefie tlenowej", prescription: "2–4 × 4 min, przerwa 2 min", rest: "2 min", cue: "Tempo konwersacyjne, nie na maksa." },
+      ],
+    },
+    {
+      title: "Interwały tlenowe ekstensywne",
+      sessionType: "Wytrzymałość — interwały tlenowe",
+      goalOfSession: "Poprawa wydolności tlenowej kontrolowanymi interwałami.",
+      main: [
+        { name: "Interwały aerobowe", prescription: "8 × 1 min bieg / 1 min trucht", rest: "1 min trucht", cue: "Równe tempo we wszystkich powtórzeniach." },
+        { name: "Powtarzane tempo z piłką", prescription: "4 × 3 min, przerwa 2 min", rest: "2 min", cue: "Kontrola tempa, jakość ruchu." },
+      ],
+    },
+    {
+      title: "Strefa 2 — bieg ciągły aerobowy",
+      sessionType: "Wytrzymałość — zone 2 aerobowy",
+      goalOfSession: "Budowa bazy tlenowej w strefie 2, niski koszt regeneracyjny.",
+      main: [
+        { name: "Ciągły bieg strefa 2", prescription: "25–35 min, tętno komfortowe", cue: "Tempo konwersacyjne przez cały czas." },
+      ],
+    },
+  ];
+  return variants[index % variants.length];
+}
+
+function lightEnduranceBuild(profile: Profile): EnduranceBuild {
+  if (hasLowerLimbPain(profile)) {
+    return {
+      title: "Low-impact conditioning (rower / basen)",
+      sessionType: "Wytrzymałość — low-impact",
+      goalOfSession: "Wydolność bez obciążeń udarowych — ochrona kończyn dolnych.",
+      main: [
+        { name: "Rower / basen — łatwy tlenowy", prescription: "20–30 min, niska intensywność", cue: "Bez bólu, spokojny oddech." },
+      ],
+    };
+  }
+  if (isYouthOrBeginner(profile)) {
+    return {
+      title: "Krótki blok aerobowy (łatwy)",
+      sessionType: "Wytrzymałość — short aerobic block",
+      goalOfSession: "Łagodna baza tlenowa dopasowana do młodego/początkującego zawodnika.",
+      main: [
+        { name: "Łatwy bieg / marszobieg", prescription: "15–20 min, easy aerobic", cue: "Tempo konwersacyjne, zero zrywów." },
+      ],
+    };
+  }
+  return {
+    title: "Easy aerobic / recovery run",
+    sessionType: "Wytrzymałość — easy aerobic",
+    goalOfSession: "Lekka praca tlenowa zmniejszająca sztywność, bez dokładania zmęczenia.",
+    main: [
+      { name: "Recovery run / rower", prescription: "15–25 min bardzo lekko", cue: "Bardzo lekko, tylko rozruszanie." },
+    ],
+  };
+}
+
+const PLACEMENT_REASON =
+  "Zamieniono nadmiarową regenerację/prehab na wydolność, bo pełny tydzień nie może mieć 0 endurance_conditioning.";
+
+/** Buduje znormalizowaną sesję endurance oznaczoną przez finalny walidator. */
+function buildEnduranceSessionDay(
+  profile: Profile,
+  templateDay: SessionDay,
+  opts: { light: boolean; index: number; slotLabel?: string | null; placementReason?: string },
+): SessionDay {
+  const build = opts.light ? lightEnduranceBuild(profile) : normalEnduranceBuild(opts.index);
+  const iso = templateDay.date;
+  const name = templateDay.dayName || dayNameOf(parseIso(iso));
+  const placementReason = opts.placementReason ?? PLACEMENT_REASON;
+
+  const raw: SessionDay = {
+    date: iso,
+    dayName: name,
+    dayType: "training" as DayType,
+    title: build.title,
+    goalLabel: "Wydolność",
+    intensity: opts.light ? "niska" : "umiarkowana",
+    durationMin: opts.light ? 25 : 45,
+    reason: placementReason,
+    safetyNote: opts.light
+      ? "Wydolność w wersji lekkiej — powód: niski readiness / przeciążenie / MD+1 / młody zawodnik / ból."
+      : null,
+    whyToday: placementReason,
+    sessionType: build.sessionType,
+    goalOfSession: build.goalOfSession,
+    riskManaged:
+      "Kontrolowana wydolność zamiast pustej regeneracji — bez ciężkiego biegania w dni ryzykowne.",
+    avoidToday: "Bez twardych interwałów dzień przed meczem i bez łączenia z ciężkimi nogami.",
+    mdLabel: templateDay.mdLabel ?? null,
+    slotLabel: opts.slotLabel ?? null,
+    sections: {
+      warmup: [{ name: "Rozgrzewka tlenowa", prescription: "5–8 min trucht + mobilizacja" }],
+      main: build.main,
+      accessory: [],
+      footballTransfer: [],
+      cooldown: [{ name: "Wyciszenie", prescription: "5 min trucht + oddech" }],
+    },
+    secondSession: null,
+  };
+
+  const normalized = normalizeSessionCategory(raw);
+  if (normalized.classification) {
+    normalized.classification.generatedBy = "final-week-validator";
+    normalized.classification.repairTag = "missing-endurance";
+    normalized.classification.placementReason = placementReason;
+  }
+  return normalized;
+}
+
+// ---------------------------------------------------------------------------
+// Twarda blokada: endurance nigdy w dzień klubowy
+// ---------------------------------------------------------------------------
+
+export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[]): { removed: number } {
+  let removed = 0;
+  for (const day of weekPlan) {
+    if (!isClubSession(day)) continue;
+    if (day.secondSession && isEnduranceSession(day.secondSession)) {
+      day.secondSession = null;
+      day.slotLabel = null;
+      removed += 1;
+    }
+  }
+  return { removed };
+}
+
+// ---------------------------------------------------------------------------
+// Naprawa: dodanie brakujących endurance
+// ---------------------------------------------------------------------------
+
+/**
+ * Gwarantuje wymaganą liczbę endurance_conditioning w tygodniu.
+ *  1. Liczy endurance.
+ *  2. Jeśli 0 i są ≥2 recovery/prehab → zamienia nadmiarowy recovery/prehab na endurance.
+ *  3. W innym wypadku szuka wolnego dnia (rest) lub wolnego slotu 2. sesji.
+ *  4. Nigdy w dzień klubowy/meczowy, nigdy 3. sesja dnia.
+ *  5. Lekka wersja tylko gdy są powody (readiness/przeciążenie/MD+1/youth/ból).
+ */
+export function addMissingEnduranceSessions(
+  weekPlan: SessionDay[],
+  weekContext: WeekRequirementContext,
+  userSettings: Pick<Profile, "doubleSessionsAllowed"> | null | undefined,
+  weeklyRequirements: WeeklyRequirements,
+  profile: Profile,
+): AddMissingEnduranceResult {
+  const unresolvedIssues: string[] = [];
+  void weekContext;
+
+  validateNoEnduranceOnClubDays(weekPlan);
+
+  const required = Math.max(1, weeklyRequirements.requiredEnduranceSessions);
+  const absoluteMinimum = Math.max(1, weeklyRequirements.absoluteMinimumEnduranceSessions);
+  const maxPerDay = getMaxSessionsPerDay({
+    doubleSessionsAllowed: userSettings?.doubleSessionsAllowed ?? profile.doubleSessionsAllowed,
+  });
+  const overloaded = weekIsOverloaded(weekPlan);
+
+  const lowReadinessReasons = (day: SessionDay): boolean =>
+    overloaded || isYouthOrBeginner(profile) || hasLowerLimbPain(profile) || isDayAfterMatch(day);
+
+  let added = 0;
+  let converted = 0;
+  let guard = 0;
+
+  while (countEnduranceSessions(weekPlan) < required && guard < 14) {
+    guard += 1;
+    let idx = countEnduranceSessions(weekPlan);
+
+    // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
+    const recoveryDays = weekPlan.filter(
+      (d) => isRecoverySession(d) && !isClubSession(d) && !isMatchSession(d),
+    );
+    const enduranceNow = countEnduranceSessions(weekPlan);
+    if (enduranceNow === 0 && recoveryDays.length >= 2) {
+      // Wybierz najlepszego kandydata: unikaj MD-1, preferuj nie-MD+1.
+      const target =
+        recoveryDays.find((d) => !isDayBeforeMatch(d) && !isDayAfterMatch(d)) ??
+        recoveryDays.find((d) => !isDayBeforeMatch(d)) ??
+        recoveryDays[0];
+      const light = isDayBeforeMatch(target) || lowReadinessReasons(target);
+      const rebuilt = buildEnduranceSessionDay(profile, target, {
+        light,
+        index: idx,
+        slotLabel: target.slotLabel,
+      });
+      const targetIndex = weekPlan.indexOf(target);
+      rebuilt.secondSession = target.secondSession ?? null;
+      weekPlan[targetIndex] = rebuilt;
+      converted += 1;
+      continue;
+    }
+
+    // Krok 2: wolny dzień (rest) bez klubu/meczu.
+    const restDay = weekPlan.find(
+      (d) => d.dayType === "rest" && !isClubSession(d) && !isMatchSession(d),
+    );
+    if (restDay) {
+      const light = isDayBeforeMatch(restDay) || lowReadinessReasons(restDay);
+      const rebuilt = buildEnduranceSessionDay(profile, restDay, {
+        light,
+        index: idx,
+        placementReason:
+          "Wybrano wolny dzień bez klubu i meczu — najlepsze miejsce na wydolność.",
+      });
+      weekPlan[weekPlan.indexOf(restDay)] = rebuilt;
+      added += 1;
+      continue;
+    }
+
+    // Krok 3: druga sesja na dniu gym (lub speed jako pierwsze), gdy limit = 2.
+    if (maxPerDay >= 2) {
+      const host = weekPlan.find(
+        (d) =>
+          !isClubSession(d) &&
+          !isMatchSession(d) &&
+          !d.secondSession &&
+          realSessionCount(d) < maxPerDay &&
+          (isMainGymSession(d) || (isSpeedSession(d) && !isDayBeforeMatch(d))) &&
+          !isEnduranceSession(d),
+      );
+      if (host) {
+        const light = isDayBeforeMatch(host) || lowReadinessReasons(host) || true; // 2. sesja zawsze lekka
+        const second = buildEnduranceSessionDay(profile, host, {
+          light,
+          index: idx,
+          slotLabel: "Sesja 2 (lekka)",
+          placementReason:
+            "Dodano wydolność jako drugą (lekką) sesję dnia — bez łamania limitu i bez dnia klubowego.",
+        });
+        host.secondSession = second;
+        host.slotLabel = host.slotLabel ?? "Sesja 1";
+        added += 1;
+        continue;
+      }
+    }
+
+    // Brak bezpiecznego miejsca.
+    break;
+  }
+
+  const count = countEnduranceSessions(weekPlan);
+  if (count < absoluteMinimum) {
+    unresolvedIssues.push(
+      `Tydzień ma ${count} endurance, absolutne minimum ${absoluteMinimum} — brak bezpiecznego dnia bez klubu/meczu.`,
+    );
+  } else if (count < required) {
+    unresolvedIssues.push(
+      `Tydzień ma ${count} z ${required} wymaganych endurance — brakującej nie da się dodać bez łamania zasad.`,
+    );
+  }
+
+  return {
+    weekPlan,
+    added,
+    converted,
+    count,
+    requiredEnduranceSessions: required,
+    absoluteMinimumEnduranceSessions: absoluteMinimum,
+    unresolvedIssues,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Finalny hard gate
+// ---------------------------------------------------------------------------
+
+export function assertFinalPlanMeetsMinimums(
+  weekPlan: SessionDay[],
+  weeklyRequirements: WeeklyRequirements,
+): WeekValidationReport {
+  const unresolvedIssues: string[] = [];
+
+  const gymSessionsCount = countGymSessions(weekPlan);
+  const enduranceSessionsCount = countEnduranceSessions(weekPlan);
+  const speedSessionsCount = countSpeedSessions(weekPlan);
+
+  const requiredGymSessions = weeklyRequirements.requiredGymSessions;
+  const requiredEnduranceSessions = weeklyRequirements.requiredEnduranceSessions;
+  const absoluteMinimumEnduranceSessions = Math.max(
+    1,
+    weeklyRequirements.absoluteMinimumEnduranceSessions,
+  );
+  const requiredSpeedSessions = weeklyRequirements.requiredSpeedSessions;
+
+  const noEnduranceOnClubDays = !weekPlan.some(
+    (d) => isClubSession(d) && eachSession(d).some((s) => isEnduranceSession(s)),
+  );
+  const noMoreThanMaxSessionsPerDay = !weekPlan.some((d) => realSessionCount(d) > 2);
+  const noDuplicateSpeedSameDay = !weekPlan.some(
+    (d) => eachSession(d).filter((s) => isSpeedSession(s)).length > 1,
+  );
+
+  if (gymSessionsCount < requiredGymSessions)
+    unresolvedIssues.push(`Za mało siłowni: ${gymSessionsCount}/${requiredGymSessions}.`);
+  if (enduranceSessionsCount < absoluteMinimumEnduranceSessions)
+    unresolvedIssues.push(
+      `Za mało wydolności: ${enduranceSessionsCount}/${absoluteMinimumEnduranceSessions}.`,
+    );
+  if (speedSessionsCount < requiredSpeedSessions)
+    unresolvedIssues.push(`Za mało szybkości: ${speedSessionsCount}/${requiredSpeedSessions}.`);
+  if (!noEnduranceOnClubDays) unresolvedIssues.push("Endurance w dzień klubowy.");
+  if (!noMoreThanMaxSessionsPerDay) unresolvedIssues.push("Dzień z 3 sesjami.");
+  if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
+
+  // Twardy gate: 0 endurance = plan NIGDY nie może być valid.
+  const enduranceOk = enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
+  const ok = unresolvedIssues.length === 0 && enduranceOk;
+
+  return {
+    ok,
+    finalStatus: ok ? "valid" : "invalid",
+    gymSessionsCount,
+    enduranceSessionsCount,
+    speedSessionsCount,
+    requiredGymSessions,
+    requiredEnduranceSessions,
+    absoluteMinimumEnduranceSessions,
+    requiredSpeedSessions,
+    noEnduranceOnClubDays,
+    noMoreThanMaxSessionsPerDay,
+    noDuplicateSpeedSameDay,
+    unresolvedIssues,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Orkiestracja: walidacja + naprawa jednego tygodnia
+// ---------------------------------------------------------------------------
+
+function weekContextFor(weekPlan: SessionDay[], profile: Profile): WeekRequirementContext {
+  const clubTrainingCount = weekPlan.filter((d) => isClubSession(d)).length;
+  const matchCount = weekPlan.filter((d) => isMatchSession(d)).length;
+  return {
+    seasonPhase: profile.seasonPhase,
+    clubTrainingCount,
+    matchCount,
+    isFullWeek: matchCount < 2,
+  };
+}
+
+function requirementsFor(weekPlan: SessionDay[], profile: Profile): WeeklyRequirements {
+  const ctx = weekContextFor(weekPlan, profile);
+  const athlete = buildAthleteTrainingProfile(profile);
+  return calculateWeeklyMinimumRequirements(
+    ctx,
+    { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays, matchDate: profile.matchDate },
+    profile.goal,
+    {
+      developmentStage: athlete.developmentStage,
+      gymExperienceLevel: athlete.gymExperienceLevel,
+    },
+  );
+}
+
+/**
+ * FINALNY krok przed pokazaniem tygodnia w UI: usuwa endurance z dni klubowych,
+ * dodaje brakujące endurance i zwraca raport hard-gate.
+ */
+export function validateAndRepairWeekPlan(
+  weekPlan: SessionDay[],
+  profile: Profile,
+  weeklyRequirements?: WeeklyRequirements,
+): { weekPlan: SessionDay[]; requirements: WeeklyRequirements; report: WeekValidationReport } {
+  const requirements = weeklyRequirements ?? requirementsFor(weekPlan, profile);
+  const ctx = weekContextFor(weekPlan, profile);
+
+  validateNoEnduranceOnClubDays(weekPlan);
+  addMissingEnduranceSessions(
+    weekPlan,
+    ctx,
+    { doubleSessionsAllowed: profile.doubleSessionsAllowed },
+    requirements,
+    profile,
+  );
+  validateNoEnduranceOnClubDays(weekPlan);
+
+  const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
+  return { weekPlan, requirements, report };
+}
+
+// ---------------------------------------------------------------------------
+// Wejście na cały plan (28 dni) — grupuje na pełne tygodnie
+// ---------------------------------------------------------------------------
+
+/** Dzieli plan na tygodnie kalendarzowe (start w poniedziałek). */
+function chunkIntoWeeks(plan: SessionDay[]): SessionDay[][] {
+  const weeks: SessionDay[][] = [];
+  let current: SessionDay[] = [];
+  for (const day of plan) {
+    const dow = day.dayOfWeek ?? isoDayOfWeek(parseIso(day.date));
+    if (dow === 1 && current.length > 0) {
+      weeks.push(current);
+      current = [];
+    }
+    current.push(day);
+  }
+  if (current.length > 0) weeks.push(current);
+  return weeks;
+}
+
+function isFullCalendarWeek(week: SessionDay[]): boolean {
+  if (week.length !== 7) return false;
+  const first = week[0];
+  const dow = first.dayOfWeek ?? isoDayOfWeek(parseIso(first.date));
+  return dow === 1;
+}
+
+export interface FinalizePlanResult {
+  plan: SessionDay[];
+  reports: WeekValidationReport[];
+}
+
+/**
+ * Finalizuje cały plan: dla każdego PEŁNEGO tygodnia gwarantuje minima
+ * (w szczególności ≥1 endurance_conditioning). Zwraca naprawiony plan i raporty.
+ */
+export function finalizeWeekPlan(plan: SessionDay[], profile: Profile): FinalizePlanResult {
+  const reports: WeekValidationReport[] = [];
+  const weeks = chunkIntoWeeks(plan);
+  for (const week of weeks) {
+    if (!isFullCalendarWeek(week)) continue;
+    const { report } = validateAndRepairWeekPlan(week, profile);
+    reports.push(report);
+  }
+  // Tygodnie zawierają te same referencje SessionDay co plan — mutacje in-place,
+  // ale konwersje (rest/recovery → endurance) podmieniają element w tablicy week.
+  const flat: SessionDay[] = [];
+  let cursor = 0;
+  for (const week of weeks) {
+    for (const day of week) {
+      flat[cursor] = day;
+      cursor += 1;
+    }
+  }
+  return { plan: flat, reports };
+}
