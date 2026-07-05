@@ -447,16 +447,35 @@ export function getSafeSpeedPlacements(
     if (isMatchDay(day)) return;
     if (dayHasSpeed(day)) return; // nie dwie szybkości tego samego dnia
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
-    // Nie po ciężkiej sile nóg / ciężkim conditioning tego samego dnia.
+    // Tego samego dnia: nie po ciężkiej sile nóg ani ciężkim conditioning
+    // (szybkość musi być świeża i pierwsza — dwa ciężkie bodźce blokuje canAddSessionToDay).
     if (dayHasHeavyLegsGym(day)) return;
     if (dayHasHeavyConditioning(day)) return;
 
+    // KOREKTA: pełna szybkość MOŻE być dzień PO ciężkiej sile nóg — nie blokujemy.
+    // Decyduje scoring + downgrade zależny od readiness/bólu/meczu/przeciążenia.
+    const afterHeavyLegs = prevDayHasHeavyLegs(day, weekPlan);
+    const readiness = resolveReadiness(athleteTrainingProfile);
+    const pain =
+      hasKneeAnklePain(athleteTrainingProfile) || hasHamstringHistory(athleteTrainingProfile);
+    const overloaded = weekIsOverloaded(weekPlan);
+    const youthHighLoad = isYouthOrBeginner(athleteTrainingProfile) && (overloaded || afterHeavyLegs);
+
     const forcedPrimer = isDayBeforeMatch(day);
+    // Downgrade pełnej szybkości tylko przy realnym ryzyku — inaczej pełna szybkość.
+    const forcedDowngrade =
+      forcedPrimer ||
+      readiness <= 5 ||
+      pain ||
+      overloaded ||
+      youthHighLoad ||
+      (afterHeavyLegs && (readiness <= 6 || isDayBeforeMatch(day)));
+
     const candidate: SchedSession = {
       category: "speed_sprint",
-      loadLevel: forcedPrimer ? "low" : "high",
-      isMaxVelocity: !forcedPrimer,
-      isFullSpeed: !forcedPrimer,
+      loadLevel: forcedPrimer || forcedDowngrade ? "low" : "high",
+      isMaxVelocity: !(forcedPrimer || forcedDowngrade),
+      isFullSpeed: !(forcedPrimer || forcedDowngrade),
     };
     const add = canAddSessionToDay(
       day,
@@ -477,17 +496,22 @@ export function getSafeSpeedPlacements(
     if (dayHasCategory(day, "endurance_conditioning")) score += 8; // szybkość przed lekką wydolnością
     if (goal.isSpeedGoal) score += 8;
     if (isDayAfterMatch(day, weekPlan)) score -= 20;
+    if (afterHeavyLegs) score -= 15; // dzień po ciężkich nogach: gorszy, ale dozwolony
     if (forcedPrimer) score -= 40; // MD-1 tylko primer
 
-    const reason = dayHasCategory(day, "gym_strength")
-      ? "Wybrano ten dzień dla szybkości — świeży, szybkość może być przed siłownią."
-      : hasClubSession(day)
-        ? "Wybrano krótką szybkość przed treningiem klubowym."
-        : dayHasCategory(day, "endurance_conditioning")
-          ? "Wybrano ten dzień dla szybkości — przed lekką wydolnością (szybkość pierwsza)."
-          : "Wybrano świeży dzień na szybkość.";
+    const reason = forcedDowngrade && afterHeavyLegs && !forcedPrimer
+      ? "Szybkość dzień po ciężkich nogach — obniżona do microdose/techniki (readiness/ból/przeciążenie)."
+      : afterHeavyLegs
+        ? "Wybrano ten dzień na pełną szybkość mimo ciężkich nóg wczoraj — readiness i obciążenie OK."
+        : dayHasCategory(day, "gym_strength")
+          ? "Wybrano ten dzień dla szybkości — świeży, szybkość może być przed siłownią."
+          : hasClubSession(day)
+            ? "Wybrano krótką szybkość przed treningiem klubowym."
+            : dayHasCategory(day, "endurance_conditioning")
+              ? "Wybrano ten dzień dla szybkości — przed lekką wydolnością (szybkość pierwsza)."
+              : "Wybrano świeży dzień na szybkość.";
 
-    placements.push({ dayIndex, score, forcedPrimer, reason });
+    placements.push({ dayIndex, score, forcedPrimer, forcedDowngrade, reason });
   });
 
   return placements.sort((a, b) => b.score - a.score);
