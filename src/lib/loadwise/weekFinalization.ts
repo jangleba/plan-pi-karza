@@ -589,6 +589,9 @@ export function validateAndRepairWeekPlan(
   const requirements = weeklyRequirements ?? requirementsFor(weekPlan, profile);
   const ctx = weekContextFor(weekPlan, profile);
 
+  // TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia — naprawa przed assertem.
+  repairDuplicateSpeedSameDay(weekPlan);
+
   validateNoEnduranceOnClubDays(weekPlan);
   addMissingEnduranceSessions(
     weekPlan,
@@ -598,6 +601,8 @@ export function validateAndRepairWeekPlan(
     profile,
   );
   validateNoEnduranceOnClubDays(weekPlan);
+  // Ponowna naprawa na wypadek, gdyby endurance zajęło slot (idempotentna).
+  repairDuplicateSpeedSameDay(weekPlan);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
   return { weekPlan, requirements, report };
