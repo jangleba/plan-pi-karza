@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as DataRightsRouteImport } from './routes/data-rights'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as TabsRouteImport } from './routes/_tabs'
@@ -22,6 +23,9 @@ import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as TabsAparatRouteImport } from './routes/_tabs.aparat'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -36,6 +40,11 @@ const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataRightsRoute = DataRightsRouteImport.update({
@@ -87,34 +96,60 @@ const TabsAparatRoute = TabsAparatRouteImport.update({
   path: '/aparat',
   getParentRoute: () => TabsRoute,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
+  '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/terms': typeof TermsRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/aparat': typeof TabsAparatRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
+  '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/terms': typeof TermsRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/aparat': typeof TabsAparatRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,15 +157,19 @@ export interface FileRoutesById {
   '/_tabs': typeof TabsRouteWithChildren
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
+  '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/terms': typeof TermsRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_tabs/aparat': typeof TabsAparatRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/profil': typeof TabsProfilRoute
   '/_tabs/scouting': typeof TabsScoutingRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -138,44 +177,56 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/data-rights'
+    | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
     | '/terms'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/aparat'
     | '/plan'
     | '/profil'
     | '/scouting'
     | '/start'
     | '/sesja/$date'
+    | '/.mcp/invoke-tool/$tool'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/data-rights'
+    | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
     | '/terms'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/aparat'
     | '/plan'
     | '/profil'
     | '/scouting'
     | '/start'
     | '/sesja/$date'
+    | '/.mcp/invoke-tool/$tool'
   id:
     | '__root__'
     | '/'
     | '/_tabs'
     | '/auth'
     | '/data-rights'
+    | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
     | '/terms'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_tabs/aparat'
     | '/_tabs/plan'
     | '/_tabs/profil'
     | '/_tabs/scouting'
     | '/_tabs/start'
     | '/sesja/$date'
+    | '/.mcp/invoke-tool/$tool'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,10 +234,14 @@ export interface RootRouteChildren {
   TabsRoute: typeof TabsRouteWithChildren
   AuthRoute: typeof AuthRoute
   DataRightsRoute: typeof DataRightsRoute
+  McpRoute: typeof McpRoute
   OnboardingRoute: typeof OnboardingRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   TermsRoute: typeof TermsRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   SesjaDateRoute: typeof SesjaDateRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -210,6 +265,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data-rights': {
@@ -282,6 +344,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsAparatRouteImport
       parentRoute: typeof TabsRoute
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -308,10 +391,15 @@ const rootRouteChildren: RootRouteChildren = {
   TabsRoute: TabsRouteWithChildren,
   AuthRoute: AuthRoute,
   DataRightsRoute: DataRightsRoute,
+  McpRoute: McpRoute,
   OnboardingRoute: OnboardingRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   TermsRoute: TermsRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   SesjaDateRoute: SesjaDateRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
