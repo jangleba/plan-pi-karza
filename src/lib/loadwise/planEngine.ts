@@ -39,6 +39,7 @@ import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import { getRequiredGymSessions } from "./weeklyRequirements";
+import { finalizeWeekPlan } from "./weekFinalization";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
@@ -3459,7 +3460,12 @@ export function generatePlan(
   const { plan: safePlan } = repairUnsafeExercisesForAthleteProfile(out, profile);
 
   // Każda sesja musi przejść przez centralną klasyfikację przed zapisem.
-  return safePlan.map((s) => normalizeSessionCategory(s));
+  const normalized = safePlan.map((s) => normalizeSessionCategory(s));
+
+  // FINALNY hard gate: dla każdego pełnego tygodnia gwarantuje minima
+  // (w szczególności ≥1 endurance_conditioning). Ostatni krok przed UI.
+  const { plan: finalPlan } = finalizeWeekPlan(normalized, profile);
+  return finalPlan;
 }
 
 export interface DecisionResult {
