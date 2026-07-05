@@ -202,11 +202,11 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
     };
   }
   return {
-    title: "Easy aerobic / recovery run",
+    title: "Easy aerobic — łatwy bieg tlenowy",
     sessionType: "Wytrzymałość — easy aerobic",
     goalOfSession: "Lekka praca tlenowa zmniejszająca sztywność, bez dokładania zmęczenia.",
     main: [
-      { name: "Recovery run / rower", prescription: "15–25 min bardzo lekko", cue: "Bardzo lekko, tylko rozruszanie." },
+      { name: "Łatwy bieg tlenowy / rower", prescription: "15–25 min bardzo lekko", cue: "Bardzo lekko, tylko rozruszanie." },
     ],
   };
 }
