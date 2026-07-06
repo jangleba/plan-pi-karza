@@ -519,6 +519,8 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
 }
 
 
+/**
+ * Gwarantuje wymaganą liczbę endurance_conditioning w tygodniu.
  *  1. Liczy endurance.
  *  2. Jeśli 0 i są ≥2 recovery/prehab → zamienia nadmiarowy recovery/prehab na endurance.
  *  3. W innym wypadku szuka wolnego dnia (rest) lub wolnego slotu 2. sesji.
