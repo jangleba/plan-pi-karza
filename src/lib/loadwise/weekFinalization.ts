@@ -466,15 +466,9 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
           "Przeniesiono szybkość, aby zachować min. 1 dzień przerwy — speed nie może być dzień po dniu.",
       };
       // Jeśli źródłem był główny dzień (nie secondSession), zamień go na rest.
-      if (!(weekPlan[laterIndex].secondSession === null && isSpeedSession(weekPlan[laterIndex]) === false)) {
-        // no-op guard
-      }
       if (isSpeedSession(laterDay) && laterDay === weekPlan[laterIndex]) {
         weekPlan[laterIndex] = {
-          date: laterDay.date,
-          dayName: laterDay.dayName,
-          dayOfWeek: laterDay.dayOfWeek,
-          mdLabel: laterDay.mdLabel ?? null,
+          ...laterDay,
           dayType: "rest" as DayType,
           title: "Odpoczynek",
           type: null,
@@ -485,17 +479,14 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
           exercises: [],
           reason: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
           whyToday: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
-        } as SessionDay;
+        };
       }
       moved += 1;
     } else {
       // Brak miejsca — zamień późniejszy dzień na rest (usuń szybkość).
       if (isSpeedSession(laterDay) && laterDay === weekPlan[laterIndex] && !laterDay.secondSession) {
         weekPlan[laterIndex] = {
-          date: laterDay.date,
-          dayName: laterDay.dayName,
-          dayOfWeek: laterDay.dayOfWeek,
-          mdLabel: laterDay.mdLabel ?? null,
+          ...laterDay,
           dayType: "rest" as DayType,
           title: "Odpoczynek",
           type: null,
@@ -506,7 +497,7 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
           exercises: [],
           reason: "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
           whyToday: "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
-        } as SessionDay;
+        };
       }
       removed += 1;
       unresolvedIssues.push(
