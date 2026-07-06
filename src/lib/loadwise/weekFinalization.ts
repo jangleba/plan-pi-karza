@@ -701,6 +701,8 @@ export function assertFinalPlanMeetsMinimums(
     noEnduranceOnClubDays,
     noMoreThanMaxSessionsPerDay,
     noDuplicateSpeedSameDay,
+    noBackToBackSpeedDays,
+    speedSessionsHaveMinimumOneDayGap,
     unresolvedIssues,
   };
 }
