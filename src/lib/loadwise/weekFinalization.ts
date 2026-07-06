@@ -63,6 +63,8 @@ export interface WeekValidationReport {
   noEnduranceOnClubDays: boolean;
   noMoreThanMaxSessionsPerDay: boolean;
   noDuplicateSpeedSameDay: boolean;
+  noBackToBackSpeedDays: boolean;
+  speedSessionsHaveMinimumOneDayGap: boolean;
   unresolvedIssues: string[];
 }
 
