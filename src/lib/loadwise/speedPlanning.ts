@@ -176,6 +176,17 @@ function dayHasSpeed(day: SchedDay): boolean {
   return hasSpeedSession(day);
 }
 
+/**
+ * Czy sąsiedni dzień (D-1 lub D+1) ma speed_sprint.
+ * TWARDA ZASADA: między dwiema jednostkami speed_sprint musi być min. 1 pełny
+ * dzień przerwy — więc dzień bezpośrednio przy istniejącej szybkości jest zablokowany.
+ */
+function adjacentDayHasSpeed(weekPlan: SchedDay[], dayIndex: number): boolean {
+  const prev = dayIndex > 0 ? weekPlan[dayIndex - 1] : null;
+  const next = dayIndex < weekPlan.length - 1 ? weekPlan[dayIndex + 1] : null;
+  return (!!prev && hasSpeedSession(prev)) || (!!next && hasSpeedSession(next));
+}
+
 function prevDayHasHeavyLegs(day: SchedDay, weekPlan: SchedDay[]): boolean {
   const i = weekPlan.indexOf(day);
   const prev = i > 0 ? weekPlan[i - 1] : null;
