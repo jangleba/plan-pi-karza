@@ -63,6 +63,8 @@ export interface WeekValidationReport {
   noEnduranceOnClubDays: boolean;
   noMoreThanMaxSessionsPerDay: boolean;
   noDuplicateSpeedSameDay: boolean;
+  noBackToBackSpeedDays: boolean;
+  speedSessionsHaveMinimumOneDayGap: boolean;
   unresolvedIssues: string[];
 }
 
@@ -352,6 +354,157 @@ export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
   return { weekPlan, moved, removed, unresolvedIssues };
 }
 
+// ---------------------------------------------------------------------------
+// TWARDA ZASADA: nigdy speed_sprint dzień po dniu (min. 1 dzień przerwy)
+// ---------------------------------------------------------------------------
+
+/** Czy dzień ma jakąkolwiek jednostkę speed_sprint (main lub secondSession). */
+export function hasSpeedSession(day: SessionDay): boolean {
+  return countSpeedSessionsForDay(day) > 0;
+}
+
+/** Indeksy dni ze szybkością. */
+export function getSpeedDays(weekPlan: SessionDay[]): number[] {
+  const out: number[] = [];
+  weekPlan.forEach((d, i) => {
+    if (hasSpeedSession(d)) out.push(i);
+  });
+  return out;
+}
+
+/** Dwa dni ze szybkością zbyt blisko = mniej niż 1 pełny dzień przerwy. */
+export function areSpeedDaysTooClose(dayIndexA: number, dayIndexB: number): boolean {
+  return Math.abs(dayIndexA - dayIndexB) <= 1;
+}
+
+/** Wykrywa speed dzień po dniu / gap < 1 dzień. */
+export function validateNoBackToBackSpeedDays(weekPlan: SessionDay[]): {
+  ok: boolean;
+  speedDays: number[];
+  tooClosePairs: [number, number][];
+} {
+  const speedDays = getSpeedDays(weekPlan);
+  const tooClosePairs: [number, number][] = [];
+  for (let i = 0; i < speedDays.length - 1; i += 1) {
+    if (areSpeedDaysTooClose(speedDays[i], speedDays[i + 1])) {
+      tooClosePairs.push([speedDays[i], speedDays[i + 1]]);
+    }
+  }
+  return { ok: tooClosePairs.length === 0, speedDays, tooClosePairs };
+}
+
+/** Alias jawny. */
+export const validateMinimumGapBetweenSpeedSessions = validateNoBackToBackSpeedDays;
+
+function adjacentDayHasSpeed(weekPlan: SessionDay[], dayIndex: number): boolean {
+  const prev = dayIndex > 0 ? weekPlan[dayIndex - 1] : null;
+  const next = dayIndex < weekPlan.length - 1 ? weekPlan[dayIndex + 1] : null;
+  return (!!prev && hasSpeedSession(prev)) || (!!next && hasSpeedSession(next));
+}
+
+/**
+ * Naprawa speed dzień po dniu na realnym planie (SessionDay[]):
+ *  - zostawia wcześniejszą szybkość z pary,
+ *  - drugą próbuje przenieść na wolny dzień (rest) z zachowaniem min. 1 dnia
+ *    przerwy, bez klubu/meczu/szybkości i nie MD-1 dla pełnej szybkości,
+ *  - jeśli się nie da → zamienia dzień na rest i dodaje unresolvedIssue.
+ * Idempotentna.
+ */
+export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
+  weekPlan: SessionDay[];
+  moved: number;
+  removed: number;
+  unresolvedIssues: string[];
+} {
+  const unresolvedIssues: string[] = [];
+  let moved = 0;
+  let removed = 0;
+
+  let guard = 0;
+  while (guard < 14) {
+    guard += 1;
+    const report = validateNoBackToBackSpeedDays(weekPlan);
+    if (report.ok) break;
+
+    const [, laterIndex] = report.tooClosePairs[0];
+    const laterDay = weekPlan[laterIndex];
+
+    // Preferuj wyjęcie szybkości będącej drugą sesją; inaczej cały główny dzień.
+    let duplicate: SessionDay | null = null;
+    if (laterDay.secondSession && isSpeedSession(laterDay.secondSession)) {
+      duplicate = laterDay.secondSession;
+      laterDay.secondSession = null;
+      laterDay.slotLabel = null;
+    } else if (isSpeedSession(laterDay)) {
+      duplicate = { ...laterDay };
+    }
+    if (!duplicate) break;
+
+    const restTarget = weekPlan.find(
+      (d, idx) =>
+        idx !== laterIndex &&
+        d.dayType === "rest" &&
+        !isClubSession(d) &&
+        !isMatchSession(d) &&
+        !hasSpeedSession(d) &&
+        !adjacentDayHasSpeed(weekPlan, idx) &&
+        !isDayBeforeMatch(d),
+    );
+
+    if (restTarget) {
+      const idx = weekPlan.indexOf(restTarget);
+      weekPlan[idx] = {
+        ...duplicate,
+        date: restTarget.date,
+        dayName: restTarget.dayName || duplicate.dayName,
+        dayOfWeek: restTarget.dayOfWeek,
+        mdLabel: restTarget.mdLabel ?? null,
+        dayType: "training" as DayType,
+        slotLabel: null,
+        secondSession: null,
+        reason:
+          "Przeniesiono szybkość, aby zachować min. 1 dzień przerwy — speed nie może być dzień po dniu.",
+        whyToday:
+          "Przeniesiono szybkość, aby zachować min. 1 dzień przerwy — speed nie może być dzień po dniu.",
+      };
+      // Jeśli źródłem był główny dzień (nie secondSession), zamień go na rest.
+      if (isSpeedSession(laterDay) && laterDay === weekPlan[laterIndex]) {
+        weekPlan[laterIndex] = {
+          ...laterDay,
+          dayType: "rest" as DayType,
+          title: "Odpoczynek",
+          slotLabel: null,
+          secondSession: laterDay.secondSession ?? null,
+          exercises: [],
+          reason: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
+          whyToday: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
+        };
+      }
+      moved += 1;
+    } else {
+      // Brak miejsca — zamień późniejszy dzień na rest (usuń szybkość).
+      if (isSpeedSession(laterDay) && laterDay === weekPlan[laterIndex] && !laterDay.secondSession) {
+        weekPlan[laterIndex] = {
+          ...laterDay,
+          dayType: "rest" as DayType,
+          title: "Odpoczynek",
+          slotLabel: null,
+          secondSession: null,
+          exercises: [],
+          reason: "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
+          whyToday: "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
+        };
+      }
+      removed += 1;
+      unresolvedIssues.push(
+        `Usunięto szybkość w dniu ${laterDay.date} — brak dnia z min. 1 dniem przerwy (speed nie może być dzień po dniu).`,
+      );
+    }
+  }
+
+  return { weekPlan, moved, removed, unresolvedIssues };
+}
+
 
 /**
  * Gwarantuje wymaganą liczbę endurance_conditioning w tygodniu.
@@ -514,6 +667,9 @@ export function assertFinalPlanMeetsMinimums(
   const noDuplicateSpeedSameDay = !weekPlan.some(
     (d) => eachSession(d).filter((s) => isSpeedSession(s)).length > 1,
   );
+  const gapReport = validateNoBackToBackSpeedDays(weekPlan);
+  const noBackToBackSpeedDays = gapReport.ok;
+  const speedSessionsHaveMinimumOneDayGap = gapReport.ok;
 
   if (gymSessionsCount < requiredGymSessions)
     unresolvedIssues.push(`Za mało siłowni: ${gymSessionsCount}/${requiredGymSessions}.`);
@@ -526,6 +682,7 @@ export function assertFinalPlanMeetsMinimums(
   if (!noEnduranceOnClubDays) unresolvedIssues.push("Endurance w dzień klubowy.");
   if (!noMoreThanMaxSessionsPerDay) unresolvedIssues.push("Dzień z 3 sesjami.");
   if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
+  if (!noBackToBackSpeedDays) unresolvedIssues.push("Szybkość dzień po dniu (brak min. 1 dnia przerwy).");
 
   // Twardy gate: 0 endurance = plan NIGDY nie może być valid.
   const enduranceOk = enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
@@ -544,6 +701,8 @@ export function assertFinalPlanMeetsMinimums(
     noEnduranceOnClubDays,
     noMoreThanMaxSessionsPerDay,
     noDuplicateSpeedSameDay,
+    noBackToBackSpeedDays,
+    speedSessionsHaveMinimumOneDayGap,
     unresolvedIssues,
   };
 }
@@ -591,6 +750,8 @@ export function validateAndRepairWeekPlan(
 
   // TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia — naprawa przed assertem.
   repairDuplicateSpeedSameDay(weekPlan);
+  // TWARDA ZASADA: nigdy speed dzień po dniu — min. 1 dzień przerwy.
+  repairBackToBackSpeedSessions(weekPlan);
 
   validateNoEnduranceOnClubDays(weekPlan);
   addMissingEnduranceSessions(
@@ -603,6 +764,7 @@ export function validateAndRepairWeekPlan(
   validateNoEnduranceOnClubDays(weekPlan);
   // Ponowna naprawa na wypadek, gdyby endurance zajęło slot (idempotentna).
   repairDuplicateSpeedSameDay(weekPlan);
+  repairBackToBackSpeedSessions(weekPlan);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
   return { weekPlan, requirements, report };

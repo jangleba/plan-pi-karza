@@ -319,3 +319,67 @@ describe("Twarda zasada: dwie szybkości jednego dnia (SessionDay)", () => {
     expect(r2.report.noDuplicateSpeedSameDay).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TWARDA ZASADA (SessionDay): nigdy speed dzień po dniu
+// ---------------------------------------------------------------------------
+
+import {
+  hasSpeedSession,
+  getSpeedDays,
+  validateNoBackToBackSpeedDays,
+  repairBackToBackSpeedSessions,
+} from "./weekFinalization";
+
+describe("SessionDay: min. 1 dzień przerwy między speed", () => {
+  it("wykrywa speed dzień po dniu", () => {
+    const wk = [
+      speedDay(DATES[0]),
+      speedDay(DATES[1]),
+      restDay(DATES[2]),
+      restDay(DATES[3]),
+      restDay(DATES[4]),
+      restDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+    expect(hasSpeedSession(wk[0])).toBe(true);
+    expect(getSpeedDays(wk)).toEqual([0, 1]);
+    expect(validateNoBackToBackSpeedDays(wk).ok).toBe(false);
+  });
+
+  it("naprawa rozdziela speed dzień po dniu (idempotentna)", () => {
+    const wk = [
+      speedDay(DATES[0]),
+      speedDay(DATES[1]),
+      restDay(DATES[2]),
+      restDay(DATES[3]),
+      restDay(DATES[4]),
+      restDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+    repairBackToBackSpeedSessions(wk);
+    repairBackToBackSpeedSessions(wk);
+    expect(validateNoBackToBackSpeedDays(wk).ok).toBe(true);
+  });
+
+  it("assertFinalPlanMeetsMinimums nie jest valid przy speed dzień po dniu", () => {
+    const wk = [
+      speedDay(DATES[0]),
+      speedDay(DATES[1]),
+      gymDay(DATES[2]),
+      gymDay(DATES[3]),
+      baseDay("training", { date: DATES[4], title: "Tempo aerobowe", sessionType: "Wydolność", intensity: "umiarkowana" }),
+      restDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+    const req = calculateWeeklyMinimumRequirements(
+      { seasonPhase: null, clubTrainingCount: 0, matchCount: 0 } as WeekRequirementContext,
+      { clubTrainingDays: [] },
+      "szybkość",
+      { developmentStage: "adult", gymExperienceLevel: "advanced" },
+    );
+    const rep = assertFinalPlanMeetsMinimums(wk, req);
+    expect(rep.noBackToBackSpeedDays).toBe(false);
+    expect(rep.finalStatus).toBe("invalid");
+  });
+});

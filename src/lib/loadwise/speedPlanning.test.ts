@@ -550,3 +550,130 @@ describe("Speed po ciężkich nogach: dozwolone, downgrade tylko przy ryzyku", (
     if (alt.dayIndex !== null) expect(hasSpeedSession(wk[alt.dayIndex])).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TWARDA ZASADA: nigdy speed_sprint dzień po dniu (min. 1 dzień przerwy)
+// ---------------------------------------------------------------------------
+
+import {
+  getSpeedDays,
+  areSpeedDaysTooClose,
+  validateMinimumGapBetweenSpeedSessions,
+  validateNoBackToBackSpeedDays,
+  repairBackToBackSpeedSessions,
+  findAlternativeDayForSpeedWithGap,
+} from "./speedPlanning";
+
+describe("Min. 1 dzień przerwy między speed_sprint", () => {
+  it("1. Plan nie może mieć dwóch speed_sprint jednego dnia (walidator duplikatów)", () => {
+    const w = week();
+    w[1].sessions.push(s("speed_sprint"));
+    w[1].sessions.push(s("speed_sprint"));
+    expect(validateNoDuplicateSpeedSameDay(w).ok).toBe(false);
+  });
+
+  it("2. Wykrywa speed_sprint dzień po dniu", () => {
+    const w = week();
+    w[0].sessions.push(s("speed_sprint"));
+    w[1].sessions.push(s("speed_sprint"));
+    const rep = validateNoBackToBackSpeedDays(w);
+    expect(rep.ok).toBe(false);
+    expect(rep.tooClosePairs).toContainEqual([0, 1]);
+  });
+
+  it("areSpeedDaysTooClose: sąsiednie true, z przerwą false", () => {
+    expect(areSpeedDaysTooClose(0, 1)).toBe(true);
+    expect(areSpeedDaysTooClose(0, 2)).toBe(false);
+    expect(getSpeedDays(week())).toEqual([]);
+  });
+
+  it("3. Cel szybkość → 2 speed rozdzielone min. 1 dniem", () => {
+    const w = week();
+    const req = reqFor(0, "szybkość", adult);
+    addMissingSpeedSessions(w, wctx(0), { maxSessionsPerDay: 2 }, req, adult);
+    expect(countSpeedSessions(w)).toBe(2);
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+  });
+
+  it("4. Cel przyspieszenie → 2 speed, nie dzień po dniu", () => {
+    const w = week();
+    const req = reqFor(0, "przyspieszenie", adult);
+    addMissingSpeedSessions(w, wctx(0), { maxSessionsPerDay: 2 }, req, adult);
+    expect(countSpeedSessions(w)).toBe(2);
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+  });
+
+  it("5. Speed w poniedziałek → drugi speed najwcześniej w środę", () => {
+    const w = week();
+    w[0].sessions.push(s("speed_sprint")); // poniedziałek
+    const req = reqFor(0, "szybkość", adult);
+    addMissingSpeedSessions(w, wctx(0), { maxSessionsPerDay: 2 }, req, adult);
+    const days = getSpeedDays(w);
+    expect(days[0]).toBe(0);
+    expect(days[1]).toBeGreaterThanOrEqual(2);
+  });
+
+  it("6. Generator nie kładzie speed we wtorek po poniedziałkowym speed", () => {
+    const w = week();
+    w[0].sessions.push(s("speed_sprint"));
+    const places = getSafeSpeedPlacements(w, {}, { maxSessionsPerDay: 2 }, "szybkość", adult);
+    expect(places.map((p) => p.dayIndex)).not.toContain(1);
+  });
+
+  it("repairBackToBackSpeedSessions rozdziela speed dzień po dniu", () => {
+    const w = week();
+    w[0].sessions.push(s("speed_sprint", { title: "A" }));
+    w[1].sessions.push(s("speed_sprint", { title: "B" }));
+    repairBackToBackSpeedSessions(w, { userSettings: { maxSessionsPerDay: 2 } });
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+  });
+
+  it("7. Dzień między speed może zawierać klubowy", () => {
+    const w = week([1]); // klubowy we wtorek
+    w[0].sessions.push(s("speed_sprint"));
+    const req = reqFor(1, "szybkość", adult);
+    addMissingSpeedSessions(w, wctx(1), { maxSessionsPerDay: 2, clubTrainingDays: [2] }, req, adult);
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+    expect(w[1].sessions.some((x) => x.category === "club")).toBe(true);
+  });
+
+  it("8. Dzień między speed może zawierać siłownię + klubowy", () => {
+    const w = week([1]);
+    w[1].sessions.push(s("gym_strength", { loadLevel: "moderate" }));
+    w[0].sessions.push(s("speed_sprint"));
+    const req = reqFor(1, "szybkość", adult);
+    addMissingSpeedSessions(w, wctx(1), { maxSessionsPerDay: 2, clubTrainingDays: [2] }, req, adult);
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+  });
+
+  it("9. Dzień między speed może zawierać siłownię + endurance", () => {
+    const w = week();
+    w[1].sessions.push(s("gym_strength", { loadLevel: "moderate" }));
+    w[1].sessions.push(s("endurance_conditioning", { loadLevel: "low" }));
+    w[0].sessions.push(s("speed_sprint"));
+    const req = reqFor(0, "szybkość", adult);
+    addMissingSpeedSessions(w, wctx(0), { maxSessionsPerDay: 2 }, req, adult);
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+  });
+
+  it("12. Walidator/naprawa dwa razy nie tworzy duplikatów", () => {
+    const w = week();
+    w[0].sessions.push(s("speed_sprint"));
+    w[1].sessions.push(s("speed_sprint"));
+    repairBackToBackSpeedSessions(w, { userSettings: { maxSessionsPerDay: 2 } });
+    repairBackToBackSpeedSessions(w, { userSettings: { maxSessionsPerDay: 2 } });
+    expect(validateNoBackToBackSpeedDays(w).ok).toBe(true);
+    expect(validateNoDuplicateSpeedSameDay(w).ok).toBe(true);
+  });
+
+  it("findAlternativeDayForSpeedWithGap nie wskazuje dnia sąsiadującego ze speed", () => {
+    const w = week();
+    w[2].sessions.push(s("speed_sprint"));
+    const alt = findAlternativeDayForSpeedWithGap(w, s("speed_sprint"), {
+      userSettings: { maxSessionsPerDay: 2 },
+    });
+    if (alt.dayIndex !== null) {
+      expect([1, 2, 3]).not.toContain(alt.dayIndex);
+    }
+  });
+});

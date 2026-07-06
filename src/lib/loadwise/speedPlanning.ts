@@ -176,6 +176,17 @@ function dayHasSpeed(day: SchedDay): boolean {
   return hasSpeedSession(day);
 }
 
+/**
+ * Czy sąsiedni dzień (D-1 lub D+1) ma speed_sprint.
+ * TWARDA ZASADA: między dwiema jednostkami speed_sprint musi być min. 1 pełny
+ * dzień przerwy — więc dzień bezpośrednio przy istniejącej szybkości jest zablokowany.
+ */
+function adjacentDayHasSpeed(weekPlan: SchedDay[], dayIndex: number): boolean {
+  const prev = dayIndex > 0 ? weekPlan[dayIndex - 1] : null;
+  const next = dayIndex < weekPlan.length - 1 ? weekPlan[dayIndex + 1] : null;
+  return (!!prev && hasSpeedSession(prev)) || (!!next && hasSpeedSession(next));
+}
+
 function prevDayHasHeavyLegs(day: SchedDay, weekPlan: SchedDay[]): boolean {
   const i = weekPlan.indexOf(day);
   const prev = i > 0 ? weekPlan[i - 1] : null;
@@ -446,6 +457,8 @@ export function getSafeSpeedPlacements(
   (weekPlan ?? []).forEach((day, dayIndex) => {
     if (isMatchDay(day)) return;
     if (dayHasSpeed(day)) return; // nie dwie szybkości tego samego dnia
+    // TWARDA ZASADA: min. 1 dzień przerwy między speed — nie dzień po dniu.
+    if (adjacentDayHasSpeed(weekPlan, dayIndex)) return;
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
     // Tego samego dnia: nie po ciężkiej sile nóg ani ciężkim conditioning
     // (szybkość musi być świeża i pierwsza — dwa ciężkie bodźce blokuje canAddSessionToDay).
@@ -704,6 +717,133 @@ export function validateNoDuplicateSpeedSameDay(
     totalExtraSpeedSessions,
   };
 }
+
+// ---------------------------------------------------------------------------
+// TWARDA ZASADA: nigdy speed_sprint dzień po dniu (min. 1 dzień przerwy)
+// ---------------------------------------------------------------------------
+
+/** Indeksy dni tygodnia, które mają jakąkolwiek jednostkę speed_sprint. */
+export function getSpeedDays(weekPlan: SchedDay[]): number[] {
+  const out: number[] = [];
+  (weekPlan ?? []).forEach((day, i) => {
+    if (hasSpeedSession(day)) out.push(i);
+  });
+  return out;
+}
+
+/**
+ * Czy dwa dni ze szybkością są zbyt blisko siebie.
+ * Zbyt blisko = mniej niż 1 pełny dzień przerwy (różnica indeksów <= 1).
+ */
+export function areSpeedDaysTooClose(dayIndexA: number, dayIndexB: number): boolean {
+  return Math.abs(dayIndexA - dayIndexB) <= 1;
+}
+
+export interface SpeedGapValidationReport {
+  ok: boolean;
+  speedDays: number[];
+  /** Pary dni ze szybkością zbyt blisko siebie (np. [ [0,1], [3,4] ]). */
+  tooClosePairs: [number, number][];
+}
+
+/**
+ * Sprawdza, czy między każdymi dwiema jednostkami speed_sprint jest min. 1 dzień
+ * przerwy. Wykrywa też speed dzień po dniu.
+ */
+export function validateMinimumGapBetweenSpeedSessions(
+  weekPlan: SchedDay[],
+): SpeedGapValidationReport {
+  const speedDays = getSpeedDays(weekPlan);
+  const tooClosePairs: [number, number][] = [];
+  for (let i = 0; i < speedDays.length - 1; i += 1) {
+    if (areSpeedDaysTooClose(speedDays[i], speedDays[i + 1])) {
+      tooClosePairs.push([speedDays[i], speedDays[i + 1]]);
+    }
+  }
+  return { ok: tooClosePairs.length === 0, speedDays, tooClosePairs };
+}
+
+/** Alias jawnie nazwany: speed nigdy dzień po dniu. */
+export function validateNoBackToBackSpeedDays(weekPlan: SchedDay[]): SpeedGapValidationReport {
+  return validateMinimumGapBetweenSpeedSessions(weekPlan);
+}
+
+/**
+ * Znajduje inny bezpieczny dzień na przeniesioną szybkość z zachowaniem min. 1
+ * dnia przerwy od pozostałych jednostek speed_sprint. getSafeSpeedPlacements już
+ * odrzuca dni sąsiadujące ze szybkością, więc wynik automatycznie ma odstęp.
+ */
+export function findAlternativeDayForSpeedWithGap(
+  weekPlan: SchedDay[],
+  speedSession: SchedSession,
+  context: SpeedRepairContext,
+): FindSpeedDayResult {
+  return findAlternativeDayForSpeed(weekPlan, speedSession, context);
+}
+
+export interface RepairBackToBackSpeedResult {
+  weekPlan: SchedDay[];
+  moved: number;
+  removed: number;
+  unresolvedIssues: string[];
+}
+
+/**
+ * Naprawa speed dzień po dniu:
+ *  - dla każdej pary zbyt blisko siebie zostawia wcześniejszą szybkość,
+ *  - drugą próbuje PRZENIEŚĆ na dzień z zachowaniem min. 1 dnia przerwy,
+ *  - jeśli się nie da → USUWA drugą szybkość i dodaje unresolvedIssue,
+ *  - nigdy nie zostawia dwóch speed_sprint dzień po dniu.
+ * Idempotentna: uruchomiona dwa razy nie tworzy duplikatów.
+ */
+export function repairBackToBackSpeedSessions(
+  weekPlan: SchedDay[],
+  context: SpeedRepairContext,
+): RepairBackToBackSpeedResult {
+  const unresolvedIssues: string[] = [];
+  let moved = 0;
+  let removed = 0;
+
+  let guard = 0;
+  while (guard < 14) {
+    guard += 1;
+    const report = validateMinimumGapBetweenSpeedSessions(weekPlan);
+    if (report.ok) break;
+
+    const [, laterIndex] = report.tooClosePairs[0];
+    const laterDay = weekPlan[laterIndex];
+    const extra = (laterDay.sessions ?? []).find((s) => s.category === "speed_sprint");
+    if (!extra) break;
+
+    // Wyjmij drugą szybkość z późniejszego dnia.
+    laterDay.sessions = (laterDay.sessions ?? []).filter((s) => s !== extra);
+
+    const alt = findAlternativeDayForSpeedWithGap(weekPlan, extra, {
+      ...context,
+      excludeDayIndex: laterIndex,
+    });
+    if (
+      alt.dayIndex !== null &&
+      !wouldCreateDuplicateSpeedDay(weekPlan[alt.dayIndex], extra) &&
+      !adjacentDayHasSpeed(weekPlan, alt.dayIndex)
+    ) {
+      placeSpeedFirst(weekPlan[alt.dayIndex], {
+        ...extra,
+        placementReason:
+          "Przeniesiono szybkość, aby zachować min. 1 dzień przerwy — speed nie może być dzień po dniu.",
+      });
+      moved += 1;
+    } else {
+      removed += 1;
+      unresolvedIssues.push(
+        `Usunięto szybkość z dnia ${laterIndex} — brak dnia z min. 1 dniem przerwy (speed nie może być dzień po dniu).`,
+      );
+    }
+  }
+
+  return { weekPlan, moved, removed, unresolvedIssues };
+}
+
 
 export interface SpeedRepairContext {
   weekContext?: SchedWeekContext | null;
