@@ -682,6 +682,7 @@ export function assertFinalPlanMeetsMinimums(
   if (!noEnduranceOnClubDays) unresolvedIssues.push("Endurance w dzień klubowy.");
   if (!noMoreThanMaxSessionsPerDay) unresolvedIssues.push("Dzień z 3 sesjami.");
   if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
+  if (!noBackToBackSpeedDays) unresolvedIssues.push("Szybkość dzień po dniu (brak min. 1 dnia przerwy).");
 
   // Twardy gate: 0 endurance = plan NIGDY nie może być valid.
   const enduranceOk = enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
