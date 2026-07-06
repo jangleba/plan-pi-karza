@@ -667,6 +667,9 @@ export function assertFinalPlanMeetsMinimums(
   const noDuplicateSpeedSameDay = !weekPlan.some(
     (d) => eachSession(d).filter((s) => isSpeedSession(s)).length > 1,
   );
+  const gapReport = validateNoBackToBackSpeedDays(weekPlan);
+  const noBackToBackSpeedDays = gapReport.ok;
+  const speedSessionsHaveMinimumOneDayGap = gapReport.ok;
 
   if (gymSessionsCount < requiredGymSessions)
     unresolvedIssues.push(`Za mało siłowni: ${gymSessionsCount}/${requiredGymSessions}.`);
