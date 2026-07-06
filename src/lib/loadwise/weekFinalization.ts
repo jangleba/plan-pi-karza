@@ -750,6 +750,8 @@ export function validateAndRepairWeekPlan(
 
   // TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia — naprawa przed assertem.
   repairDuplicateSpeedSameDay(weekPlan);
+  // TWARDA ZASADA: nigdy speed dzień po dniu — min. 1 dzień przerwy.
+  repairBackToBackSpeedSessions(weekPlan);
 
   validateNoEnduranceOnClubDays(weekPlan);
   addMissingEnduranceSessions(
@@ -762,6 +764,7 @@ export function validateAndRepairWeekPlan(
   validateNoEnduranceOnClubDays(weekPlan);
   // Ponowna naprawa na wypadek, gdyby endurance zajęło slot (idempotentna).
   repairDuplicateSpeedSameDay(weekPlan);
+  repairBackToBackSpeedSessions(weekPlan);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
   return { weekPlan, requirements, report };
