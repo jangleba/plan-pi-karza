@@ -457,6 +457,8 @@ export function getSafeSpeedPlacements(
   (weekPlan ?? []).forEach((day, dayIndex) => {
     if (isMatchDay(day)) return;
     if (dayHasSpeed(day)) return; // nie dwie szybkości tego samego dnia
+    // TWARDA ZASADA: min. 1 dzień przerwy między speed — nie dzień po dniu.
+    if (adjacentDayHasSpeed(weekPlan, dayIndex)) return;
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
     // Tego samego dnia: nie po ciężkiej sile nóg ani ciężkim conditioning
     // (szybkość musi być świeża i pierwsza — dwa ciężkie bodźce blokuje canAddSessionToDay).
