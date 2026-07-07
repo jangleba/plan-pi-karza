@@ -3742,6 +3742,29 @@ export function generatePlan(
   // FINALNY hard gate: dla każdego pełnego tygodnia gwarantuje minima
   // (w szczególności ≥1 endurance_conditioning). Ostatni krok przed UI.
   const { plan: finalPlan } = finalizeWeekPlan(normalized, profile);
+
+  // Rule-based warstwa: walidacja + przebudowa tygodnia, progresja bloku, metadane.
+  const ruleReport = applyRuleBasedWeekLayer(finalPlan, profile, startDate, weekOffset);
+
+  // Logi developerskie po wygenerowaniu planu.
+  if (typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug("[Loadwise planEngine] plan wygenerowany", {
+      selectedMainGoal: profile.goal,
+      selectedLimitation: profile.secondaryLimiter,
+      gymAccess: profile.hasGym,
+      appliedMainGoalRules: MAIN_GOAL_RULES[profile.goal],
+      appliedLimitationRules: profile.secondaryLimiter
+        ? LIMITATION_RULES[profile.secondaryLimiter]
+        : null,
+      appliedPositionRules: POSITION_RULES[profile.position],
+      appliedSeasonRules: SEASON_RULES[profile.seasonPhase],
+      weeklyLoadScore: ruleReport.weeklyLoadScores,
+      validationErrors: ruleReport.validationErrors,
+      finalPlanWasRebuilt: ruleReport.finalPlanWasRebuilt,
+    });
+  }
+
   return finalPlan;
 }
 
