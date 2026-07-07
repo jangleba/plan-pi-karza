@@ -377,7 +377,7 @@ export function validateGeneratedWeek(
     }
   }
 
-  return { status: errors.length === 0 ? "invalid" : "invalid", errors: errors };
+  return { status: errors.length === 0 ? "valid" : "invalid", errors };
 }
 
 // ---------------------------------------------------------------------------
