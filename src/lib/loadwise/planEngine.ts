@@ -3074,9 +3074,42 @@ function repairWeekErrors(
     return -1;
   };
 
+  /**
+   * Gdy nie ma dnia regeneracji, zamieniamy najniżej priorytetową sesję
+   * wspierającą (piłka/mobilność/technika) na jednostkę zgodną z celem.
+   * Nigdy nie ruszamy meczu/klubu/MD-1/MD+1/MD-2 ani jedynego bodźca celu.
+   */
+  const findConvertibleSupport = (): number => {
+    const priority = ["other", "mobility", "recovery_prehab", "gym_strength", "cod_agility"];
+    let best = -1;
+    let bestRank = -1;
+    for (let i = range.start; i < range.end; i++) {
+      const d = out[i];
+      if (d.dayType !== "training") continue;
+      if (d.mdLabel === "MD-1" || d.mdLabel === "MD+1") continue;
+      const dt = daysToMatch(new Date(d.date + "T00:00:00"), profile);
+      if (dt === 1 || dt === 2) continue;
+      const cat = d.classification?.category;
+      if (cat && MAIN_GOAL_RULES[profile.goal].mandatoryCategories.includes(cat)) continue;
+      if (cat === "endurance_conditioning") continue; // nie kasuj wydolności
+      const rank = priority.indexOf(cat ?? "other");
+      const effRank = rank === -1 ? 0 : priority.length - rank;
+      if (effRank > bestRank) {
+        bestRank = effRank;
+        best = i;
+      }
+    }
+    return best;
+  };
+
+  const pickTarget = (): number => {
+    const rec = findConvertible();
+    return rec !== -1 ? rec : findConvertibleSupport();
+  };
+
   // Priorytet: brak wydolności → brak celu głównego → dominacja regeneracji.
   if (errors.includes("missing-endurance")) {
-    const idx = findConvertible();
+    const idx = pickTarget();
     if (idx === -1) return false;
     const stim: Stimulus =
       profile.painInjury || profile.goal === "return" ? "endurance_light" : "endurance_aerobic";
@@ -3085,13 +3118,13 @@ function repairWeekErrors(
       idx,
       buildStimulus(stim, profile),
       profile,
-      "Rule-based walidator: tydzień musi mieć min. 1 jednostkę wydolności — dzień regeneracji zamieniono na sensowne aerobowe.",
+      "Rule-based walidator: tydzień musi mieć min. 1 jednostkę wydolności — dzień zamieniono na sensowne aerobowe.",
     );
     return true;
   }
 
   if (errors.includes("missing-mandatory-goal-session")) {
-    const idx = findConvertible();
+    const idx = pickTarget();
     if (idx === -1) return false;
     convertRecoveryToBuilt(
       out,
