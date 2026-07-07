@@ -504,7 +504,25 @@ export interface SessionDay {
   blockPhaseLabel?: string;
   /** Znormalizowana, jednoznaczna klasyfikacja sesji (źródło prawdy). */
   classification?: SessionClassification;
+  /** Metadane tygodnia rule-based (temat, obowiązkowe/wspierające/regeneracja, load score, walidacja). */
+  weekMeta?: WeekMeta;
   secondSession: SessionDay | null;
+}
+
+/**
+ * Metadane tygodnia budowane przez rule-based engine (planRules).
+ * Dołączane do każdej sesji w danym tygodniu kalendarzowym.
+ */
+export interface WeekMeta {
+  weekNumber: number; // 1-based numer tygodnia w wygenerowanym planie
+  blockWeek: number; // 1..4 pozycja w 4-tygodniowym bloku
+  weekTheme: string; // np. "Budowanie obciążenia"
+  mainGoalFocus: string; // obowiązkowy bodziec celu głównego
+  mandatorySessions: number; // liczba sesji realizujących cel główny
+  supportSessions: number; // liczba sesji wspierających
+  recoverySessions: number; // liczba sesji regeneracja/prehab/mobilność
+  weeklyLoadScore: number; // sumaryczny wynik obciążenia tygodnia
+  validationStatus: "valid" | "rebuilt" | "invalid";
 }
 
 export interface TestResult {
