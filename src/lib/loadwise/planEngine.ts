@@ -40,6 +40,21 @@ import { normalizeSessionCategory } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import { getRequiredGymSessions } from "./weeklyRequirements";
 import { finalizeWeekPlan } from "./weekFinalization";
+import {
+  MAIN_GOAL_RULES,
+  LIMITATION_RULES,
+  POSITION_RULES,
+  SEASON_RULES,
+  computeWeeklyLoadScore,
+  computeSessionLoad,
+  countWeekRoles,
+  validateGeneratedWeek,
+  blockWeekOf,
+  weekThemeFor,
+  loadMultiplierFor,
+  VALIDATION_RULES,
+} from "./planRules";
+import type { WeekMeta } from "./types";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
