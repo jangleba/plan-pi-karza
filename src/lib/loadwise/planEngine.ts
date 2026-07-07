@@ -2998,7 +2998,269 @@ function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile):
   }
 }
 
+// ---------------------------------------------------------------------------
+// Rule-based week layer — składa metadane tygodnia, egzekwuje progresję bloku,
+// waliduje i przebudowuje tydzień oraz usuwa fallback "Regeneracja i prehab".
+// ---------------------------------------------------------------------------
+
+function clampNum(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+/** Skaluje objętość (czas) własnej sesji, zachowując sensowne granice. */
+function scaleSessionDuration(session: SessionDay, factor: number): void {
+  session.durationMin = Math.round(clampNum(session.durationMin * factor, 15, 120));
+  if (session.secondSession) {
+    session.secondSession.durationMin = Math.round(
+      clampNum(session.secondSession.durationMin * factor, 15, 90),
+    );
+  }
+}
+
+/** Zamienia dzień regeneracji na realną, bezpieczną sesję zgodną z celem/wydolnością. */
+function convertRecoveryToBuilt(
+  out: SessionDay[],
+  idx: number,
+  built: Built,
+  profile: Profile,
+  reason: string,
+): void {
+  const day = out[idx];
+  day.dayType = "training";
+  day.title = built.title;
+  day.goalLabel = GOAL_LABELS[profile.goal];
+  day.intensity = built.intensity;
+  day.durationMin = built.durationMin;
+  day.sessionType = built.sessionType;
+  day.goalOfSession = built.goalOfSession;
+  day.riskManaged = built.riskManaged;
+  day.avoidToday = built.avoidToday;
+  day.structuredSections = undefined;
+  day.sections = {
+    warmup: warmup(),
+    main: built.main,
+    accessory: built.accessory,
+    footballTransfer: built.footballTransfer,
+    cooldown: cooldown(),
+  };
+  day.reason = reason;
+  day.loadTags = computeLoadTags(day);
+  out[idx] = normalizeSessionCategory(decorateSession(day, 1));
+}
+
+/** Czy dzień można bezpiecznie zamienić na jednostkę zgodną z celem. */
+function isConvertibleRecoveryDay(day: SessionDay, profile: Profile): boolean {
+  if (day.dayType !== "recovery") return false;
+  if (day.mdLabel === "MD-1" || day.mdLabel === "MD+1") return false;
+  const dt = daysToMatch(new Date(day.date + "T00:00:00"), profile);
+  if (dt === 1 || dt === 2) return false;
+  return true;
+}
+
+/**
+ * Naprawia błędy walidacji tygodnia, zamieniając dni regeneracji na sensowne
+ * jednostki zgodne z celem głównym / wydolnością. Zwraca true, jeśli coś zmieniono.
+ */
+function repairWeekErrors(
+  out: SessionDay[],
+  range: { start: number; end: number },
+  profile: Profile,
+  errors: string[],
+): boolean {
+  const findConvertible = (): number => {
+    for (let i = range.start; i < range.end; i++) {
+      if (isConvertibleRecoveryDay(out[i], profile)) return i;
+    }
+    return -1;
+  };
+
+  // Priorytet: brak wydolności → brak celu głównego → dominacja regeneracji.
+  if (errors.includes("missing-endurance")) {
+    const idx = findConvertible();
+    if (idx === -1) return false;
+    const stim: Stimulus =
+      profile.painInjury || profile.goal === "return" ? "endurance_light" : "endurance_aerobic";
+    convertRecoveryToBuilt(
+      out,
+      idx,
+      buildStimulus(stim, profile),
+      profile,
+      "Rule-based walidator: tydzień musi mieć min. 1 jednostkę wydolności — dzień regeneracji zamieniono na sensowne aerobowe.",
+    );
+    return true;
+  }
+
+  if (errors.includes("missing-mandatory-goal-session")) {
+    const idx = findConvertible();
+    if (idx === -1) return false;
+    convertRecoveryToBuilt(
+      out,
+      idx,
+      buildByGoal(profile),
+      profile,
+      `Rule-based walidator: cel główny (${GOAL_LABELS[profile.goal]}) wymaga obowiązkowego bodźca — dodano zamiast biernej regeneracji.`,
+    );
+    return true;
+  }
+
+  if (errors.includes("recovery-dominates")) {
+    const idx = findConvertible();
+    if (idx === -1) return false;
+    convertRecoveryToBuilt(
+      out,
+      idx,
+      buildByGoal(profile),
+      profile,
+      "Rule-based walidator: regeneracja nie może dominować tygodnia — nadmiarowy dzień zamieniono na jednostkę zgodną z celem.",
+    );
+    return true;
+  }
+
+  return false;
+}
+
+/** Egzekwuje progresję 4-tygodniowego bloku: w1<w2<w3 oraz w4<w3 (deload niepusty). */
+function enforceBlockProgression(
+  out: SessionDay[],
+  weekInfos: { range: { start: number; end: number }; blockWeek: number }[],
+): void {
+  if (!VALIDATION_RULES.enforceBlockProgression || weekInfos.length < 2) return;
+
+  const weeks = weekInfos.map((info) => {
+    const scalableIdx: number[] = [];
+    let scalableLoad = 0;
+    let fixedLoad = 0;
+    for (let i = info.range.start; i < info.range.end; i++) {
+      const s = out[i];
+      const load = computeSessionLoad(s);
+      if (s.dayType === "training" || s.dayType === "recovery") {
+        scalableLoad += load;
+        scalableIdx.push(i);
+      } else {
+        fixedLoad += load;
+      }
+    }
+    return { ...info, scalableIdx, scalableLoad, fixedLoad, mult: loadMultiplierFor(info.blockWeek) };
+  });
+
+  // Kotwica: docelowy load = anchor * mnożnik tygodnia (mnożniki są ściśle uporządkowane).
+  const anchor = Math.max(...weeks.map((w) => (w.scalableLoad + w.fixedLoad) / w.mult));
+  for (const w of weeks) {
+    if (w.scalableLoad <= 0) continue;
+    const target = anchor * w.mult;
+    const desiredScalable = Math.max(w.scalableLoad * 0.35, target - w.fixedLoad);
+    const factor = clampNum(desiredScalable / w.scalableLoad, 0.45, 2.2);
+    for (const idx of w.scalableIdx) scaleSessionDuration(out[idx], factor);
+  }
+
+  // Domknięcie: ściśle wymuś porządek wg mnożników (na wypadek clampów).
+  const scoreOf = (w: (typeof weeks)[number]): number =>
+    computeWeeklyLoadScore(out.slice(w.range.start, w.range.end));
+  const ordered = [...weeks].sort((a, b) => a.mult - b.mult);
+  for (let pass = 0; pass < 40; pass++) {
+    let ok = true;
+    for (let k = 1; k < ordered.length; k++) {
+      const lower = ordered[k - 1];
+      const higher = ordered[k];
+      if (scoreOf(higher) <= scoreOf(lower)) {
+        ok = false;
+        for (const idx of higher.scalableIdx) scaleSessionDuration(out[idx], 1.06);
+        if (scoreOf(higher) <= scoreOf(lower)) {
+          for (const idx of lower.scalableIdx) scaleSessionDuration(out[idx], 0.95);
+        }
+      }
+    }
+    if (ok) break;
+  }
+}
+
+/**
+ * Rule-based warstwa tygodnia: waliduje i przebudowuje każdy tydzień, egzekwuje
+ * progresję bloku i dołącza metadane (weekMeta). Zwraca raport developerski.
+ */
+function applyRuleBasedWeekLayer(
+  out: SessionDay[],
+  profile: Profile,
+  startDate: Date,
+  weekOffset: number,
+): {
+  weeklyLoadScores: number[];
+  validationErrors: string[][];
+  finalPlanWasRebuilt: boolean;
+} {
+  const ranges = weekRanges(startDate, out.length);
+  const rebuiltFlags: boolean[] = ranges.map(() => false);
+  const validationErrors: string[][] = ranges.map(() => []);
+
+  const weekInfos = ranges.map((range, wi) => ({
+    range,
+    blockWeek: blockWeekOf(weekOffset + wi),
+    isFullWeek: range.end - range.start === 7,
+  }));
+
+  // 1) Walidacja + przebudowa każdego tygodnia (bez pokazywania niepoprawnych).
+  weekInfos.forEach((info, wi) => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const sessions = out.slice(info.range.start, info.range.end);
+      const hasMatch = sessions.some((s) => s.dayType === "match");
+      const v = validateGeneratedWeek(sessions, {
+        goal: profile.goal,
+        isFullWeek: info.isFullWeek,
+        hasMatch,
+        blockWeek: info.blockWeek,
+      });
+      validationErrors[wi] = v.errors;
+      if (v.status === "valid") break;
+      const changed = repairWeekErrors(out, info.range, profile, v.errors);
+      if (changed) rebuiltFlags[wi] = true;
+      else break;
+    }
+  });
+
+  // 2) Progresja 4-tygodniowego bloku (load: w1<w2<w3, w4<w3).
+  enforceBlockProgression(out, weekInfos);
+
+  // 3) Metadane tygodnia (weekMeta) dla każdej sesji.
+  const weeklyLoadScores: number[] = [];
+  weekInfos.forEach((info, wi) => {
+    const sessions = out.slice(info.range.start, info.range.end);
+    const counts = countWeekRoles(sessions, profile.goal);
+    const score = computeWeeklyLoadScore(sessions);
+    weeklyLoadScores.push(score);
+    const hasMatch = sessions.some((s) => s.dayType === "match");
+    const finalValid = validateGeneratedWeek(sessions, {
+      goal: profile.goal,
+      isFullWeek: info.isFullWeek,
+      hasMatch,
+      blockWeek: info.blockWeek,
+    });
+    const meta: WeekMeta = {
+      weekNumber: weekOffset + wi + 1,
+      blockWeek: info.blockWeek,
+      weekTheme: weekThemeFor(info.blockWeek),
+      mainGoalFocus: MAIN_GOAL_RULES[profile.goal].focusLabel,
+      mandatorySessions: counts.mandatory,
+      supportSessions: counts.support,
+      recoverySessions: counts.recovery,
+      weeklyLoadScore: score,
+      validationStatus:
+        finalValid.status !== "valid" ? "invalid" : rebuiltFlags[wi] ? "rebuilt" : "valid",
+    };
+    for (const s of sessions) {
+      s.weekMeta = meta;
+      if (s.secondSession) s.secondSession.weekMeta = meta;
+    }
+  });
+
+  return {
+    weeklyLoadScores,
+    validationErrors,
+    finalPlanWasRebuilt: rebuiltFlags.some(Boolean),
+  };
+}
+
 /** Główny generator — zwraca bezpieczny plan miesięczny (domyślnie 28 dni) od dziś. */
+
 
 
 
