@@ -640,7 +640,8 @@ export function findWeekConflicts(week: SessionDay[], context: TrainingContext):
     )
       conflicts.push("hard-endurance-before-match");
     // dwa ciężkie dolne dni z rzędu
-    if (dayHasHeavyLegs(day) && dayHasHeavyLegs(prev)) conflicts.push("two-heavy-lower-in-a-row");
+    // Uwaga: "dwa ciężkie dolne dni z rzędu" jest egzekwowane osobnym passem
+    // schedulera (enforceConsecutiveLowerBodySafety) — nie duplikujemy go tutaj.
     // club + gym + running jeden dzień
     if (dayHasClub(day)) {
       const gym = isMainGymSession(day) || (day.secondSession && isMainGymSession(day.secondSession));
