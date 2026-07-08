@@ -350,15 +350,19 @@ function PostSessionLog() {
   return (
     <div className="soft-card p-4">
       <h3 className="text-sm font-semibold">Log po sesji</h3>
-      <div className="mt-2 divide-y divide-border">
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Tutaj wpisujesz RPE i samopoczucie — nie w planie ćwiczeń.
+      </p>
+      <div className="mt-2 divide-y divide-border/60">
         <LogField label="RPE (ciężkość) 0–10" />
+        <LogField label="Zmęczenie nóg 0–10" />
         <LogField label="Ból 0–10" />
-        <LogField label="Bolesność mięśni 0–10" />
-        <LogField label="Zmęczenie 0–10" />
+        <LogField label="Jakość snu 0–10" />
+        <LogField label="Gotowość 0–10" />
       </div>
       <div className="mt-3 space-y-2">
-        <span className="text-sm text-muted-foreground">Sen / notatki</span>
-        <Textarea placeholder="Jak spałeś? Dodatkowe uwagi…" rows={2} />
+        <span className="text-sm text-muted-foreground">Notatki</span>
+        <Textarea placeholder="Dodatkowe uwagi…" rows={2} />
       </div>
     </div>
   );
