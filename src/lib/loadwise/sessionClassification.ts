@@ -56,7 +56,7 @@ const has = (text: string, re: RegExp): boolean => re.test(text);
 // ───────────────────────────── Detektory słów kluczowych ─────────────────────────────
 
 const RE_STRENGTH =
-  /sił|siłow|moc|power|strength|przysiad|squat|martwy|deadlift|trap[\s-]?bar|rdl|hinge|split squat|goblet|hip thrust|wyciskan|wiosł|podciąg|nordic|hypertroph|hipertrof|podtrzyman/i;
+  /(?<!wy)sił|moc|power|strength|przysiad|squat|martwy|deadlift|trap[\s-]?bar|rdl|hinge|split squat|goblet|hip thrust|wyciskan|wiosł|podciąg|nordic|hypertroph|hipertrof|podtrzyman/i;
 
 const RE_ENDURANCE =
   /wytrzym|wydol|tlen|aerob|kondyc|tempo|interwa|interval|zone\s*2|strefa\s*2|easy run|lekki bieg|ciągły bieg|recovery run|rower|bike|basen|pool|low[\s-]?impact|repeated tempo|rsa|powtarzan.{0,12}sprint|bieg /i;
@@ -149,6 +149,13 @@ function resolveCategory(session: SessionDay): CategoryResult {
 
   const text = fullText(session);
   const header = headerText(session);
+  // Silny sygnał siły z samego TYTUŁU/TYPU sesji (nie z opisu). Chroni sesje
+  // wyraźnie oznaczone jako siłownia (np. "Siła / moc na siłowni") przed
+  // błędną klasyfikacją jako prehab, gdy opis zawiera słowa typu "stabilizacja".
+  const strengthTitle = has(
+    `${session.title ?? ""} ${session.sessionType ?? ""}`.toLowerCase(),
+    RE_STRENGTH,
+  );
 
   if (session.dayType === "club") {
     // Klub domyślnie = club. NIE liczy się jako endurance ani speed,
@@ -195,7 +202,7 @@ function resolveCategory(session: SessionDay): CategoryResult {
       sourceRule: "recovery day/header",
     };
   }
-  if (has(header, RE_PREHAB)) {
+  if (has(header, RE_PREHAB) && !strengthTitle) {
     return {
       category: "recovery_prehab",
       subcategory: "prehab",

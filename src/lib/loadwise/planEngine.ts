@@ -48,6 +48,9 @@ import {
   computeWeeklyLoadScore,
   computeSessionLoad,
   countWeekRoles,
+  countLimitationSessions,
+  requiredLimitationSessions,
+  limitationSupportCategory,
   validateGeneratedWeek,
   blockWeekOf,
   weekThemeFor,
@@ -3127,7 +3130,7 @@ function repairWeekErrors(
     return true;
   }
 
-  if (errors.includes("missing-mandatory-goal-session")) {
+  if (errors.some((e) => e.startsWith("missing-mandatory-goal-session"))) {
     const idx = pickTarget();
     if (idx === -1) return false;
     convertRecoveryToBuilt(
@@ -3135,7 +3138,42 @@ function repairWeekErrors(
       idx,
       buildByGoal(profile),
       profile,
-      `Rule-based walidator: cel główny (${GOAL_LABELS[profile.goal]}) wymaga obowiązkowego bodźca — dodano zamiast biernej regeneracji.`,
+      `Rule-based walidator: cel główny (${GOAL_LABELS[profile.goal]}) wymaga min. ${MAIN_GOAL_RULES[profile.goal].mandatoryCount} obowiązkowych bodźców — dodano zamiast biernej regeneracji.`,
+    );
+    return true;
+  }
+
+  // Limiter (ograniczenie) dokłada MINIMUM 1 sesję ponad minimum celu głównego.
+  if (errors.includes("missing-limitation-support")) {
+    const stim = limiterSupportStimulus(profile);
+    if (!stim) return false;
+    // Najpierw regeneracja/wsparcie; gdy tydzień jest nasycony bodźcem celu,
+    // zamieniamy NADMIAROWY dzień celu głównego (ponad wymagane minimum).
+    const findSurplusMandatory = (): number => {
+      const week = out.slice(range.start, range.end);
+      const mandatoryCount = countWeekRoles(week, profile.goal).mandatory;
+      if (mandatoryCount <= MAIN_GOAL_RULES[profile.goal].mandatoryCount) return -1;
+      const mandCats = MAIN_GOAL_RULES[profile.goal].mandatoryCategories;
+      for (let i = range.start; i < range.end; i++) {
+        const d = out[i];
+        if (d.dayType !== "training") continue;
+        if (d.mdLabel === "MD-1" || d.mdLabel === "MD+1") continue;
+        const dt = daysToMatch(new Date(d.date + "T00:00:00"), profile);
+        if (dt === 1 || dt === 2) continue;
+        const cat = d.classification?.category;
+        if (cat === "endurance_conditioning") continue; // nie kasuj wydolności
+        if (cat && mandCats.includes(cat)) return i;
+      }
+      return -1;
+    };
+    const idx = pickTarget() !== -1 ? pickTarget() : findSurplusMandatory();
+    if (idx === -1) return false;
+    convertRecoveryToBuilt(
+      out,
+      idx,
+      buildStimulus(stim, profile),
+      profile,
+      "Rule-based walidator: ograniczenie zawodnika wymaga dodatkowego bodźca ponad cel główny — dodano jednostkę wspierającą.",
     );
     return true;
   }
@@ -3248,6 +3286,7 @@ function applyRuleBasedWeekLayer(
         isFullWeek: info.isFullWeek,
         hasMatch,
         blockWeek: info.blockWeek,
+        limitation: profile.secondaryLimiter,
       });
       validationErrors[wi] = v.errors;
       if (v.status === "valid") break;
@@ -3273,6 +3312,7 @@ function applyRuleBasedWeekLayer(
       isFullWeek: info.isFullWeek,
       hasMatch,
       blockWeek: info.blockWeek,
+      limitation: profile.secondaryLimiter,
     });
     const meta: WeekMeta = {
       weekNumber: weekOffset + wi + 1,
