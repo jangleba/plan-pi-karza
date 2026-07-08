@@ -2387,13 +2387,16 @@ function goalCoreQuota(
 /** Limiter pomocniczy → JEDEN dodatkowy bodziec wspierający (nie zastępuje celu). */
 function limiterSupportStimulus(profile: Profile): Stimulus | null {
   const gym = profile.hasGym;
+  // Zasada: to, co zawodnika najbardziej ogranicza, musi dostać PEŁNY, mocny
+  // bodziec (obciążenie ~90–100%), a nie mikrodawkę. Tylko limitery bezpieczeństwa
+  // (zmęczenie / powrót po urazie) pozostają low-impact, bo tam ryzyko > bodziec.
   switch (profile.secondaryLimiter) {
     case "speed":
-      return "speed_exposure";
+      return "sprint"; // pełna jednostka szybkości, nie mikroekspozycja
     case "strength":
       return gym ? "strength" : "strength_base";
     case "endurance":
-      return "endurance_light";
+      return "endurance_special"; // mocny bodziec tlenowy (interwały/specjalna), nie lekki
     case "cod":
       return "cod";
     case "power":
@@ -3195,7 +3198,7 @@ function repairWeekErrors(
       idx,
       buildStimulus(stim, profile),
       { ...profile, goal: labelGoal },
-      "Rule-based walidator: ograniczenie zawodnika wymaga dodatkowego bodźca ponad cel główny — dodano jednostkę wspierającą.",
+      "Rule-based walidator: to, co najbardziej ogranicza zawodnika, wymaga pełnego, mocnego bodźca (obciążenie ~90–100%) ponad cel główny — dodano jednostkę rozwojową, nie mikrodawkę.",
     );
     return true;
   }

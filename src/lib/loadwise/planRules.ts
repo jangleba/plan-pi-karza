@@ -158,12 +158,12 @@ export interface LimitationRule {
 }
 
 export const LIMITATION_RULES: Record<SecondaryLimiter, LimitationRule> = {
-  speed: { supportCategory: "speed_sprint", riskNote: "Dodaj mikrodawkę szybkości.", forcesLowImpact: false },
-  strength: { supportCategory: "gym_strength", riskNote: "Dodaj krótki blok siły podtrzymującej.", forcesLowImpact: false },
-  endurance: { supportCategory: "endurance_conditioning", riskNote: "Dodaj lekką jednostkę aerobową.", forcesLowImpact: false },
-  cod: { supportCategory: "speed_sprint", riskNote: "Dodaj technikę hamowania / COD.", forcesLowImpact: false },
-  power: { supportCategory: "gym_strength", riskNote: "Dodaj krótki primer mocy.", forcesLowImpact: false },
-  ball: { supportCategory: "other", riskNote: "Dodaj lekką technikę z piłką.", forcesLowImpact: false },
+  speed: { supportCategory: "speed_sprint", riskNote: "Dodaj pełną jednostkę szybkości (mocny bodziec ~90–100%).", forcesLowImpact: false },
+  strength: { supportCategory: "gym_strength", riskNote: "Dodaj pełną jednostkę siły rozwojowej (mocny bodziec ~90–100%).", forcesLowImpact: false },
+  endurance: { supportCategory: "endurance_conditioning", riskNote: "Dodaj mocną jednostkę wydolności (interwały/specjalna, ~90–100%).", forcesLowImpact: false },
+  cod: { supportCategory: "speed_sprint", riskNote: "Dodaj pełną jednostkę COD/zwinności (mocny bodziec).", forcesLowImpact: false },
+  power: { supportCategory: "gym_strength", riskNote: "Dodaj pełną jednostkę mocy (mocny bodziec).", forcesLowImpact: false },
+  ball: { supportCategory: "other", riskNote: "Dodaj pełną jednostkę techniki z piłką.", forcesLowImpact: false },
   fatigue: { supportCategory: null, riskNote: "Zmniejsz objętość, chroń następstwo ciężkich dni.", forcesLowImpact: true },
   return: { supportCategory: null, riskNote: "Warianty low-impact, progresja jedną zmienną naraz.", forcesLowImpact: true },
 };
