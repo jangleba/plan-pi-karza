@@ -149,12 +149,12 @@ function resolveCategory(session: SessionDay): CategoryResult {
 
   const text = fullText(session);
   const header = headerText(session);
-  // Silny sygnał siły z samego TYTUŁU/TYPU sesji (nie z opisu). Chroni sesje
-  // wyraźnie oznaczone jako siłownia (np. "Siła / moc na siłowni") przed
-  // błędną klasyfikacją jako prehab, gdy opis zawiera słowa typu "stabilizacja".
-  const strengthTitle = has(
-    `${session.title ?? ""} ${session.sessionType ?? ""}`.toLowerCase(),
-    RE_STRENGTH,
+  // Wąski sygnał: sesja JAWNIE oznaczona jako siłownia w tytule/typie (np.
+  // "Siła / moc na siłowni"). Chroni przed błędną klasyfikacją jako prehab, gdy
+  // opis zawiera słowa typu "stabilizacja" — ale NIE reklasyfikuje zwykłego
+  // prehabu/prewencji.
+  const strengthTitle = /na siłowni|siła\s*\/\s*moc/i.test(
+    `${session.title ?? ""} ${session.sessionType ?? ""}`,
   );
 
   if (session.dayType === "club") {
