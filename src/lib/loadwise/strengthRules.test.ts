@@ -112,3 +112,35 @@ describe("Izometria — osobne typy", () => {
     }
   });
 });
+
+function blockDExercises(profile: Profile, ctx: StrengthBlockContext): TrainingExercise[] {
+  const plan = buildStrengthPowerStructured(profile, ctx);
+  if (!plan) return [];
+  const blockD = plan.sections
+    .flatMap((s) => s.blocks)
+    .find((b) => b.title.includes("BLOK D"));
+  return blockD?.exercises ?? [];
+}
+
+describe("Blok D — support krótki, bez dublowania dwójek", () => {
+  it("ciężka sesja dolna + moc: Blok D ma dokładnie 2 ćwiczenia", () => {
+    const d = blockDExercises(baseProfile, baseCtx);
+    expect(d.length).toBe(2);
+  });
+
+  it("Blok D nie zawiera żadnego ćwiczenia na tylną taśmę / hamstring", () => {
+    const d = blockDExercises(baseProfile, baseCtx);
+    const banned = /nordic|hamstring|rdl|martwy ciąg|leg curl|uginanie n|hip thrust|hip hinge|bridge|slider|good morning|glute/i;
+    for (const e of d) {
+      expect(e.name).not.toMatch(banned);
+    }
+  });
+
+  it("Blok D wybiera tylko lekkie uzupełnienia (łydka / przywodziciel / łopatka)", () => {
+    const d = blockDExercises(baseProfile, baseCtx);
+    const allowed = /łydk|palce|stop|kostk|copenhagen|przywodzic|face pull|łopatk|guma/i;
+    for (const e of d) {
+      expect(e.name).toMatch(allowed);
+    }
+  });
+});
