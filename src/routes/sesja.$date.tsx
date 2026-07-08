@@ -51,32 +51,41 @@ export const Route = createFileRoute("/sesja/$date")({
 
 // ---------- Renderowanie strukturalne (bloki) ----------
 
-function compactPrescription(e: TrainingExercise): string {
-  const parts: string[] = [];
-  const repsHasContacts = /kontakt/i.test(e.reps ?? "");
-  if (e.sets && e.reps) parts.push(`${e.sets} × ${e.reps}`);
-  else if (e.reps) parts.push(e.reps);
-  if (e.duration) parts.push(e.duration);
-
-  if (typeof e.groundContacts === "number" && !repsHasContacts)
-    parts.push(`${e.groundContacts} kontaktów`);
-  // RPE świadomie POMIJANE w planie — należy do logu po sesji.
-  // W planie zostawiamy tylko konkret wykonania: %1RM, RIR, tempo, czas.
-  if (e.rir) parts.push(e.rir);
-  if (e.tempo) parts.push(`tempo ${e.tempo}`);
-  if (e.loadTarget) {
-    const load = e.loadTarget.replace(/\s*[—-]?\s*RPE[^,·]*/gi, "").trim();
-    if (load) parts.push(load);
-  }
-  return parts.join(" · ");
+// Główna dawka: serie × powtórzenia / czas — jedna zwięzła linia.
+function primaryDose(e: TrainingExercise): string {
+  if (e.sets && e.reps) return `${e.sets} × ${e.reps}`;
+  if (e.reps) return e.reps;
+  if (e.duration) return e.duration;
+  if (e.sets) return `${e.sets} serie`;
+  return "";
 }
 
-// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~8 słów).
+function stripRpe(text: string): string {
+  return text.replace(/\s*[—·-]?\s*RPE[^,·—]*/gi, "").trim();
+}
+
+// Jeden dodatkowy parametr wg hierarchii typu ćwiczenia. Nigdy RPE.
+function primaryQualifier(e: TrainingExercise): string | null {
+  const load = e.loadTarget ? stripRpe(e.loadTarget) : "";
+  if (load && /%|1rm/i.test(load)) return load; // główny lift → %1RM
+  const repsHasContacts = /kontakt|odbi/i.test(e.reps ?? "");
+  if (typeof e.groundContacts === "number" && !repsHasContacts)
+    return `${e.groundContacts} kontaktów`; // moc / plyo
+  if (e.rir) return e.rir; // akcesoria
+  return null;
+}
+
+// Pierwsza linia: dawka + max jeden kwalifikator.
+function compactPrescription(e: TrainingExercise): string {
+  return [primaryDose(e), primaryQualifier(e)].filter(Boolean).join(" · ");
+}
+
+// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~6 słów).
 function shortCue(cue: string): string {
   const first = cue.split(/(?<=[.!?])\s+/)[0].trim();
   const words = first.replace(/[.]+$/, "").split(/\s+/);
-  const clipped = words.slice(0, 8).join(" ");
-  return clipped + (words.length > 8 ? "…" : ".");
+  const clipped = words.slice(0, 6).join(" ");
+  return clipped + (words.length > 6 ? "…" : ".");
 }
 
 function restLabel(e: TrainingExercise): string | null {
@@ -85,8 +94,15 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
+// Wszystkie parametry + wskazówki trenera — pokazywane dopiero po rozwinięciu.
 function exerciseDetailRows(e: TrainingExercise) {
+  const fullCue =
+    e.cue && shortCue(e.cue) !== e.cue.trim() ? e.cue : undefined;
   return [
+    { label: "Pełna wskazówka", value: fullCue },
+    { label: "Tempo", value: e.tempo ? `tempo ${e.tempo}` : undefined },
+    { label: "Docelowe RPE", value: e.rpe },
+    { label: "Cel obciążenia", value: e.loadTarget },
     { label: "Jak dobrać ciężar", value: e.loadGuidance },
     { label: "Kiedy zmniejszyć", value: e.loadReduceWhen },
     { label: "Technika", value: e.technique },
