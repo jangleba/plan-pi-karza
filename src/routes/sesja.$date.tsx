@@ -131,13 +131,13 @@ function ExerciseRow({
   const rest = restLabel(e);
   const rows = exerciseDetailRows(e);
   return (
-    <div className="py-2.5">
+    <div className="py-2">
       <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={onToggle}
           aria-label="Zrobione"
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
             done
               ? "border-primary bg-primary text-primary-foreground"
               : "border-border"
@@ -145,41 +145,58 @@ function ExerciseRow({
         >
           {done && <CheckCircle2 className="h-3.5 w-3.5" />}
         </button>
-        <button
-          type="button"
-          onClick={rows.length ? onExpand : undefined}
-          className="min-w-0 flex-1 text-left"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 text-sm font-medium">
-              {e.label && (
-                <span className="mr-1 font-bold text-primary">{e.label}</span>
-              )}
-              <span className={done ? "text-muted-foreground line-through" : "text-foreground"}>
-                {e.name}
+        <div className="min-w-0 flex-1">
+          {/* Wiersz 1: badge kodu + nazwa + chevron */}
+          <button
+            type="button"
+            onClick={rows.length ? onExpand : undefined}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            {e.label && (
+              <span className="inline-flex h-6 min-w-[26px] shrink-0 items-center justify-center rounded-md bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
+                {e.label}
               </span>
+            )}
+            <span
+              className={`min-w-0 flex-1 truncate text-sm font-semibold ${
+                done ? "text-muted-foreground line-through" : "text-foreground"
+              }`}
+            >
+              {e.name}
             </span>
             {rows.length > 0 && (
               <ChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                className={`h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform ${
                   expanded ? "rotate-180" : ""
                 }`}
               />
             )}
+          </button>
+          {/* Wiersze 2–4: max 3 linie — dawka, przerwa, wskazówka */}
+          <div className={e.label ? "mt-1 pl-[34px]" : "mt-1"}>
+            {presc && (
+              <div className="text-[13px] font-semibold tabular-nums text-foreground/80">
+                {presc}
+              </div>
+            )}
+            {rest && (
+              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+                {rest}
+              </div>
+            )}
+            {e.cue && (
+              <div className="mt-0.5 truncate text-xs italic text-muted-foreground">
+                💡 {shortCue(e.cue)}
+              </div>
+            )}
           </div>
-          {presc && (
-            <div className="mt-0.5 text-xs text-muted-foreground">{presc}</div>
-          )}
-          {rest && (
-            <div className="mt-0.5 text-[11px] font-medium text-primary/80">{rest}</div>
-          )}
-          {e.cue && (
-            <div className="mt-1 text-xs italic text-muted-foreground">💡 {shortCue(e.cue)}</div>
-          )}
-        </button>
+        </div>
       </div>
       {expanded && rows.length > 0 && (
-        <div className="mt-2 space-y-1.5 pl-8">
+        <div className={`mt-2 space-y-1.5 ${e.label ? "pl-[42px]" : "pl-8"}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+            Info trenera
+          </div>
           {rows.map((r) => (
             <div key={r.label}>
               <div className="text-[11px] font-semibold text-foreground">
