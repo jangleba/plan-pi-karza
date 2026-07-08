@@ -1075,7 +1075,7 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
           exercises: [
             ex({ name: adductor, sets: d.accSets, reps: "8 / strona", cue: "Kontrola, bez bólu." }),
             ex({ name: core, sets: "2", reps: d.accReps, cue: "Sztywny tułów, anty-rotacja." }),
-            ex({ name: "Izometria łydki / soleus", sets: "2", reps: "20–30 s", cue: "Wsparcie sprintu i kostki." }),
+            ex({ name: "Izometria łydki / soleus (holding)", sets: "2", reps: "12–15 s", cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji." }),
           ],
         }),
       ],
