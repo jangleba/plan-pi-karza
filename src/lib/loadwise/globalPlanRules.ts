@@ -91,6 +91,23 @@ export interface TrainingContext {
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
+/** Podkategorie siłowe wymagające sprzętu/siłowni (bodyweight NIE wymaga). */
+const GYM_EQUIPMENT_SUBCATS = new Set<string>([
+  "lower_strength",
+  "upper_strength",
+  "full_body_strength",
+  "power_maintenance",
+  "strength_maintenance",
+  "light_full_body",
+  "core_strength",
+]);
+
+/** Czy sesja to siłownia wymagająca sprzętu (nie wariant z masy ciała). */
+export function requiresGymEquipment(session: SessionDay): boolean {
+  if (!isMainGymSession(session)) return false;
+  return GYM_EQUIPMENT_SUBCATS.has(session.classification?.subcategory ?? "");
+}
+
 /** Buduje kontekst treningowy z profilu zawodnika (onboarding). */
 export function buildTrainingContext(profile: Profile): TrainingContext {
   const lowerLimbPain =
