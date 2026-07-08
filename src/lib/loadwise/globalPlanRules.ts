@@ -395,11 +395,15 @@ function dayHasSpeed(day: SessionDay | undefined | null): boolean {
   if (!day) return false;
   return isSpeedSprint(day) || (day.secondSession ? isSpeedSprint(day.secondSession) : false);
 }
+function oneHasHeavyLegs(s: SessionDay): boolean {
+  // Zgodnie z post-passem schedulera: "ciężkie nogi" = tag lower_body_high.
+  return (s.loadTags ?? []).includes("lower_body_high");
+}
 function dayHasHeavyLegs(day: SessionDay | undefined | null): boolean {
   if (!day) return false;
   return (
-    isHeavyLegsSession(day) ||
-    (day.secondSession ? isHeavyLegsSession(day.secondSession) : false)
+    oneHasHeavyLegs(day) ||
+    (day.secondSession ? oneHasHeavyLegs(day.secondSession) : false)
   );
 }
 function dayHasMatch(day: SessionDay | undefined | null): boolean {
