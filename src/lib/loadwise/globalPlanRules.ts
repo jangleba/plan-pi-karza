@@ -502,7 +502,9 @@ function weekSignatureCounts(week: SessionDay[]): Map<string, number> {
     if (d.dayType === "rest" && d.durationMin === 0) continue;
     const list = [d, ...(d.secondSession ? [d.secondSession] : [])];
     for (const s of list) {
-      const key = `${s.classification?.category ?? s.dayType}:${s.intensity}`;
+      const cat = s.classification?.category ?? s.dayType;
+      const durBucket = Math.round((s.durationMin ?? 0) / 15) * 15;
+      const key = `${cat}:${s.intensity}:${durBucket}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
