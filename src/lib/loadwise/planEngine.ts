@@ -3198,7 +3198,7 @@ function repairWeekErrors(
       idx,
       buildStimulus(stim, profile),
       { ...profile, goal: labelGoal },
-      "Rule-based walidator: ograniczenie zawodnika wymaga dodatkowego bodźca ponad cel główny — dodano jednostkę wspierającą.",
+      "Rule-based walidator: to, co najbardziej ogranicza zawodnika, wymaga pełnego, mocnego bodźca (obciążenie ~90–100%) ponad cel główny — dodano jednostkę rozwojową, nie mikrodawkę.",
     );
     return true;
   }
