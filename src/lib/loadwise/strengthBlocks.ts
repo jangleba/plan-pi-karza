@@ -1636,18 +1636,25 @@ function canonicalGymSession(
         ex({ label: "C2", name: core2, sets: "2", reps: d.accReps, cue: "Anty-rotacja, nie obracaj się za oporem." }),
       ],
     }),
-    // BLOK D — wsparcie atletyczne (łydki, przywodziciele, hamstring, góra/łopatka).
+    // BLOK D — support atletyczny: krótki, max 2 lekkie ćwiczenia.
+    // NIGDY nie dokładamy tu tylnej taśmy / hamstring — blok B już mocno
+    // obciąża dwójki (Nordic/RDL/iso). D wybiera tylko lekkie uzupełnienia:
+    // łydka / stopa, przywodziciel (Copenhagen), łopatka (face pull).
     block({
-      title: "BLOK D — SUPPORT ATLETYCZNY",
+      title: "BLOK D — SUPPORT",
       blockType: "accessory",
       intent: "stability",
       restAfterBlock: "Przerwa po bloku: 45–60 s",
-      safetyNotes: "Robustność i prewencja: łydki, przywodziciele, tylna taśma (kontrola), góra / łopatka.",
+      safetyNotes: "Lekkie uzupełnienie — bez dobijania obciążonych grup.",
       exercises: [
-        ex({ label: "D1", name: calf, sets: "2–3", reps: "12–15", cue: "Pełen zakres, kontrola.", ageSafetyLevel: "all" }),
-        ex({ label: "D2", name: adductor, sets: "2", reps: "8 / strona", cue: "Kontrola przywodzicieli, bez bólu." }),
-        ex({ label: "D3", name: ham, sets: "2", reps: "6–8", cue: "Powolny ekscentryk, kontrola tylnej taśmy.", ageSafetyLevel: "youth_ok" }),
-        ex({ label: "D4", name: upper, sets: "2–3", reps: "10–12", cue: "Łopatki ustawione, pełen zakres." }),
+        ex({ label: "D1", name: calf, sets: "2", reps: "12–15", cue: "Pełny zakres.", ageSafetyLevel: "all" }),
+        ex({
+          label: "D2",
+          name: ctx.weekIndex % 2 === 0 ? "Copenhagen plank" : "Face pull (guma / wyciąg)",
+          sets: "2",
+          reps: ctx.weekIndex % 2 === 0 ? "8 / strona" : "10–12",
+          cue: ctx.weekIndex % 2 === 0 ? "Kontrola, bez bólu." : "Łopatki w dół i tył.",
+        }),
       ],
     }),
   ];
