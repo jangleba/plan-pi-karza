@@ -3292,9 +3292,17 @@ function applyRuleBasedWeekLayer(
     }
   });
 
+  // 4) Globalna walidacja całego bloku (twarde zasady + similarity/copy-paste).
+  const globalCtx = buildTrainingContext(profile);
+  const weeks = weekInfos.map((info) => out.slice(info.range.start, info.range.end));
+  const globalReport = validateGlobalPlan(weeks, globalCtx);
+
   return {
     weeklyLoadScores,
     validationErrors,
+    weekSimilarityScores: globalReport.weekSimilarityScores,
+    globalPlanValid: globalReport.valid,
+    globalPlanErrors: globalReport.errors,
     finalPlanWasRebuilt: rebuiltFlags.some(Boolean),
   };
 }
