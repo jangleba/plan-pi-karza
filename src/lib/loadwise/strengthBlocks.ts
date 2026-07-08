@@ -2679,7 +2679,7 @@ export function repairGymSession(
       );
     }
     if (needsSupport) {
-      exs.push(ex({ name: "Izometria łydki / soleus", sets: "2", reps: "20–30 s", cue: "Wsparcie kostki i sprintu." }));
+      exs.push(ex({ name: "Izometria łydki / soleus (holding)", sets: "2", reps: "12–15 s", cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji." }));
       exs.push(ex({ name: "Copenhagen plank", sets: "2", reps: "8 / strona", cue: "Kontrola przywodzicieli, bez bólu." }));
       exs.push(ex({ name: "Pallof press (anty-rotacja)", sets: "2", reps: "10 / strona", cue: "Sztywny tułów." }));
     }
