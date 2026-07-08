@@ -81,13 +81,8 @@ function compactPrescription(e: TrainingExercise): string {
   return [primaryDose(e), primaryQualifier(e)].filter(Boolean).join(" · ");
 }
 
-// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~6 słów).
-function shortCue(cue: string): string {
-  const first = cue.split(/(?<=[.!?])\s+/)[0].trim();
-  const words = first.replace(/[.]+$/, "").split(/\s+/);
-  const clipped = words.slice(0, 6).join(" ");
-  return clipped + (words.length > 6 ? "…" : ".");
-}
+
+
 
 function restLabel(e: TrainingExercise): string | null {
   const r = e.restAfterPair ?? e.restAfterExercise;
