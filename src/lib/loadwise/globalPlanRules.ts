@@ -629,7 +629,8 @@ export function findWeekConflicts(week: SessionDay[], context: TrainingContext):
     // speed dzień po speed
     if (dayHasSpeed(day) && dayHasSpeed(prev)) conflicts.push("speed-after-speed");
     // speed po ciężkiej siłowni nóg
-    if (dayHasSpeed(day) && dayHasHeavyLegs(prev)) conflicts.push("speed-after-heavy-legs");
+    // "speed po ciężkich nogach" jest zarządzane przez scoring/downgrade w
+    // speedPlanning (kara + regresja), nie jako twardy konflikt tygodnia.
     // heavy lower dzień przed meczem
     if (dayHasHeavyLegs(day) && dayHasMatch(next)) conflicts.push("heavy-lower-before-match");
     // hard endurance dzień przed meczem
