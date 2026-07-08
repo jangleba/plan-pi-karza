@@ -367,7 +367,8 @@ function hamB1Dose(h: HamEx, opts: { aHeavyHinge: boolean; nearMatch: boolean; f
   const lowDose = opts.nearMatch || opts.fatigue;
   switch (h.kind) {
     case "iso":
-      return { sets: lowDose ? "2" : "3", reps: "20–30 s utrzymania", rpe: "RPE 7" };
+      // Izometria TRZYMAJĄCA (holding/yielding): 12–15 s, maks. 2 serie, kontrola pozycji.
+      return { sets: "2", reps: "12–15 s utrzymania", rpe: "RPE 6–7 (kontrola pozycji)" };
     case "nordic": {
       // Ekscentryk wysokostresowy — niska objętość, szczególnie po ciężkim hinge.
       let sets = "3";
