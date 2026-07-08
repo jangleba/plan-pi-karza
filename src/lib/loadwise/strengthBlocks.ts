@@ -829,6 +829,7 @@ function overcomingIsoSection(mainName: string): TrainingSection {
 function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan {
   const adult = isAdvancedEligible(profile);
   const d = dosageFor(profile, ctx);
+  const pd = primaryStrengthDose(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
   const trapBar = ctx.forcedMainFamily === "trap_bar";
   // Sesja 1 = przysiad (knee-dominant). Sesja 2 = trap bar / hinge total-body.
