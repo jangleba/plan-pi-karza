@@ -230,8 +230,7 @@ const StructuredSections = memo(function StructuredSections({
                         e={e}
                         done={!!done[e.id]}
                         onToggle={() => toggle(e.id)}
-                        expanded={!!open[e.id]}
-                        onExpand={() => expand(e.id)}
+                        onOpenDetail={() => openDetail(e)}
                       />
                     ))}
                   </div>
