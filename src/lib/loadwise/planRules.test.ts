@@ -5,6 +5,7 @@ import {
   computeWeeklyLoadScore,
   validateGeneratedWeek,
   countWeekRoles,
+  countLimitationSessions,
   blockWeekOf,
   weekThemeFor,
 } from "./planRules";
@@ -185,5 +186,32 @@ describe("rule-based week layer — profil zawodnika", () => {
     expect(blockWeekOf(2)).toBe(3);
     expect(blockWeekOf(3)).toBe(4);
     expect(blockWeekOf(4)).toBe(1);
+  });
+});
+
+describe("cel główny + ograniczenie — twarde minima", () => {
+  const START2 = new Date("2026-07-13T00:00:00");
+  const full = (plan: ReturnType<typeof generatePlan>) =>
+    weekRanges(START2, plan.length)
+      .filter((r) => r.end - r.start === 7)
+      .map((r) => plan.slice(r.start, r.end));
+
+  it("każdy cel ma min. mandatoryCount bodźców powiązanych z celem", () => {
+    for (const goal of ["speed", "strength", "endurance", "power", "general"] as Goal[]) {
+      for (const week of full(generatePlan(baseProfile({ goal }), START2, 28))) {
+        expect(countWeekRoles(week, goal).mandatory).toBeGreaterThanOrEqual(
+          MAIN_GOAL_RULES[goal].mandatoryCount,
+        );
+      }
+    }
+  });
+
+  it("ograniczenie dokłada min. 1 sesję ponad cel (gdy kategoria inna niż cel)", () => {
+    for (const week of full(
+      generatePlan(baseProfile({ goal: "speed", secondaryLimiter: "strength" }), START2, 28),
+    )) {
+      expect(countWeekRoles(week, "speed").mandatory).toBeGreaterThanOrEqual(2);
+      expect(countLimitationSessions(week, "strength")).toBeGreaterThanOrEqual(1);
+    }
   });
 });
