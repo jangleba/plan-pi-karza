@@ -774,19 +774,19 @@ function isoForMain(mainName: string): { name: string; cue: string } {
   const n = mainName.toLowerCase();
   if (n.includes("trap bar") || n.includes("martwy ciąg") || n.includes("rdl") || n.includes("hip thrust") || n.includes("good morning") || n.includes("hinge")) {
     return {
-      name: "Izometria przezwyciężająca: trap bar pull / mid-thigh pull przy pinach",
-      cue: "Napieraj maksymalnie w pin przez 3–5 s, plecy proste, napięty tułów.",
+      name: "Mid-thigh pull przy pinach (iso)",
+      cue: "Maks. napięcie 3–5 s, plecy proste.",
     };
   }
   if (n.includes("split") || n.includes("wykrok") || n.includes("step")) {
     return {
-      name: "Izometria przezwyciężająca: split squat iso przy pinach",
-      cue: "Maksymalne napięcie w dół przez 3–5 s, pion tułowia, stabilne kolano.",
+      name: "Split squat przy pinach (iso)",
+      cue: "Maks. napięcie 3–5 s, stabilne kolano.",
     };
   }
   return {
-    name: "Izometria przezwyciężająca: przysiad przy pinach (overcoming iso)",
-    cue: "Napieraj maksymalnie w pin przez 3–5 s, napnij tułów, pchaj podłogę.",
+    name: "Przysiad przy pinach (iso)",
+    cue: "Maks. napięcie 3–5 s, pchaj podłogę.",
   };
 }
 
