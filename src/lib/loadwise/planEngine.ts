@@ -54,6 +54,10 @@ import {
   loadMultiplierFor,
   VALIDATION_RULES,
 } from "./planRules";
+import {
+  buildTrainingContext,
+  validatePlan as validateGlobalPlan,
+} from "./globalPlanRules";
 import type { WeekMeta } from "./types";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
@@ -3219,6 +3223,9 @@ function applyRuleBasedWeekLayer(
 ): {
   weeklyLoadScores: number[];
   validationErrors: string[][];
+  weekSimilarityScores: number[];
+  globalPlanValid: boolean;
+  globalPlanErrors: string[];
   finalPlanWasRebuilt: boolean;
 } {
   const ranges = weekRanges(startDate, out.length);
@@ -3285,9 +3292,17 @@ function applyRuleBasedWeekLayer(
     }
   });
 
+  // 4) Globalna walidacja całego bloku (twarde zasady + similarity/copy-paste).
+  const globalCtx = buildTrainingContext(profile);
+  const weeks = weekInfos.map((info) => out.slice(info.range.start, info.range.end));
+  const globalReport = validateGlobalPlan(weeks, globalCtx);
+
   return {
     weeklyLoadScores,
     validationErrors,
+    weekSimilarityScores: globalReport.weekSimilarityScores,
+    globalPlanValid: globalReport.valid,
+    globalPlanErrors: globalReport.errors,
     finalPlanWasRebuilt: rebuiltFlags.some(Boolean),
   };
 }
@@ -3764,6 +3779,24 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
+  // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
+  // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
+  if (!profile.hasGym) {
+    const GYM_EQUIP = /siłown|sztang|hantl|gym|wyciąg|maszyn|ława|barbell|dumbbell/i;
+    for (const day of out) {
+      for (const s of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
+        const isStrength = /si[łl]a|strength|moc|power/i.test(`${s.sessionType} ${s.title}`);
+        if (!isStrength) continue;
+        if (GYM_EQUIP.test(`${s.sessionType} ${s.title}`) || !/masa ciała|bodyweight/i.test(s.title)) {
+          s.title = "Siła (masa ciała / bez sprzętu)";
+          s.sessionType = "Siła — masa ciała";
+          s.goalOfSession = "Siła i stabilność bez dostępu do siłowni";
+        }
+      }
+    }
+  }
+
+
   // Naprawa pod profil zawodnika: każde ćwiczenie niezgodne z wiekiem,
   // poziomem, sprzętem lub bólem zostaje zamienione na bezpieczną regresję,
   // zanim plan przejdzie przez centralną klasyfikację.
@@ -3792,8 +3825,17 @@ export function generatePlan(
         : null,
       appliedPositionRules: POSITION_RULES[profile.position],
       appliedSeasonRules: SEASON_RULES[profile.seasonPhase],
+      selectedPosition: profile.position,
+      trainingLevel: profile.level,
+      seasonPhase: profile.seasonPhase,
+      competitionLevel: profile.competitionLevel,
+      clubSchedule: profile.clubTrainingDays,
+      matchSchedule: profile.usualMatchDay,
       weeklyLoadScore: ruleReport.weeklyLoadScores,
+      weekSimilarityScores: ruleReport.weekSimilarityScores,
       validationErrors: ruleReport.validationErrors,
+      globalPlanValid: ruleReport.globalPlanValid,
+      globalPlanErrors: ruleReport.globalPlanErrors,
       finalPlanWasRebuilt: ruleReport.finalPlanWasRebuilt,
     });
   }

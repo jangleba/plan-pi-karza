@@ -124,6 +124,8 @@ function classifySpeed(text: string): SessionSubcategory {
 }
 
 function classifyGym(text: string): SessionSubcategory {
+  if (has(text, /masa ciała|masą ciała|bodyweight|bez sprzętu|kalisten|z ciężarem ciała/))
+    return "bodyweight_strength";
   if (has(text, /full body|całe ciało|full-body/)) return "full_body_strength";
   if (has(text, /moc|power/)) return "power_maintenance";
   if (has(text, /podtrzyman|maintenance/)) return "strength_maintenance";
