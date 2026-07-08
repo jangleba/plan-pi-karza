@@ -1557,6 +1557,7 @@ function canonicalGymSession(
 ): GymSessionPlan {
   const adult = isAdvancedEligible(profile);
   const d = dosageFor(profile, ctx);
+  const pd = primaryStrengthDose(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
 
   const trapBar = ctx.forcedMainFamily === "trap_bar";
@@ -1565,9 +1566,7 @@ function canonicalGymSession(
     ? adult
       ? TRAP_BAR_HINGE_ADULT
       : TRAP_BAR_HINGE_YOUTH
-    : adult
-      ? SQUAT_ADULT
-      : SQUAT_YOUTH;
+    : squatPoolFor(profile, ctx);
   // Główny lift ZABLOKOWANY na cały blok — progresja idzie dawką (fazą), nie zmianą ćwiczenia.
   const main = lockedPick("main", mainPool, ctx, avoid);
 
