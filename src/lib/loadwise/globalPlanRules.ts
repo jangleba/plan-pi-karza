@@ -49,6 +49,8 @@ import {
   computeSessionLoad,
   computeWeeklyLoadScore,
   countWeekRoles,
+  countLimitationSessions,
+  requiredLimitationSessions,
   blockWeekOf,
 } from "./planRules";
 import {
@@ -574,9 +576,14 @@ export function validateWeek(
   const hasMatch = week.some((d) => dayHasMatch(d));
 
   if (opts.isFullWeek) {
-    // 5. mainGoal ma obowiązkową sesję.
-    if (counts.mandatory < 1) {
+    // 5. mainGoal ma min. `mandatoryCount` obowiązkowych bodźców (dla większości = 2).
+    if (counts.mandatory < view.mandatoryCount) {
       errors.push(`missing-mandatory-goal-session:${view.focusLabel}`);
+    }
+    // Ograniczenie zawodnika dokłada MINIMUM 1 bodziec ponad cel główny.
+    const reqLimit = requiredLimitationSessions(context.mainGoal, context.limitation);
+    if (reqLimit > 0 && countLimitationSessions(week, context.limitation) < reqLimit) {
+      errors.push("missing-limitation-support");
     }
     // twarde minimum wydolności zawsze.
     if (counts.endurance < 1) {

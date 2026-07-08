@@ -305,9 +305,12 @@ export type SessionRole = "mandatory" | "support" | "recovery";
 /** Rola sesji w tygodniu względem celu głównego. */
 export function sessionRoleForGoal(session: SessionDay, goal: Goal): SessionRole {
   const cat = session.classification?.category;
+  // Cel główny ma priorytet: sesja realizująca mainGoal zawsze liczy się jako
+  // obowiązkowy bodziec — nawet jeśli jej kategoria (np. mobility) byłaby inaczej
+  // traktowana jako regeneracja.
+  if (cat && MAIN_GOAL_RULES[goal].mandatoryCategories.includes(cat)) return "mandatory";
   if (cat === "rest") return "recovery";
   if (cat === "recovery_prehab" || cat === "mobility") return "recovery";
-  if (cat && MAIN_GOAL_RULES[goal].mandatoryCategories.includes(cat)) return "mandatory";
   return "support";
 }
 
@@ -330,6 +333,49 @@ export function countWeekRoles(sessions: SessionDay[], goal: Goal): WeekRoleCoun
   return counts;
 }
 
+/**
+ * Kategoria sesji, która realizuje ograniczenie (limitation/secondaryLimiter).
+ * null = limiter nie wymaga dodatkowego bodźca (np. zmęczenie / powrót po urazie).
+ */
+export function limitationSupportCategory(
+  limitation: SecondaryLimiter | null,
+): SessionCategory | null {
+  if (!limitation) return null;
+  return LIMITATION_RULES[limitation].supportCategory;
+}
+
+/** Ile sesji w tygodniu realizuje kategorię ograniczenia. */
+export function countLimitationSessions(
+  sessions: SessionDay[],
+  limitation: SecondaryLimiter | null,
+): number {
+  const cat = limitationSupportCategory(limitation);
+  if (!cat) return 0;
+  let n = 0;
+  for (const s of sessions) {
+    if (s.dayType === "rest" && s.durationMin === 0) continue;
+    if (s.classification?.category === cat) n++;
+    if (s.secondSession?.classification?.category === cat) n++;
+  }
+  return n;
+}
+
+/**
+ * Wymagana liczba sesji w kategorii ograniczenia.
+ * Zasada: mainGoal wymaga min. `mandatoryCount` bodźców głównych, a limiter
+ * dokłada MINIMUM 1 sesję PONAD to minimum. Gdy kategoria limitera pokrywa się
+ * z kategorią celu głównego, wymagamy `mandatoryCount + 1` sesji tej kategorii.
+ */
+export function requiredLimitationSessions(goal: Goal, limitation: SecondaryLimiter | null): number {
+  const cat = limitationSupportCategory(limitation);
+  if (!cat) return 0;
+  const rule = MAIN_GOAL_RULES[goal];
+  // Gdy kategoria limitera pokrywa się z kategorią celu głównego, minimum celu
+  // (mandatoryCount) już realizuje ten bodziec — nie wymagamy dodatkowej sesji.
+  // W przeciwnym razie limiter dokłada MINIMUM 1 sesję ponad cel główny.
+  return rule.mandatoryCategories.includes(cat) ? 0 : 1;
+}
+
 // ---------------------------------------------------------------------------
 // validateGeneratedWeek — twarda walidacja tygodnia.
 // ---------------------------------------------------------------------------
@@ -339,6 +385,8 @@ export interface WeekValidationContext {
   isFullWeek: boolean; // czy tydzień ma 7 dni (pełny)
   hasMatch: boolean;
   blockWeek: number; // 1..4
+  /** Ograniczenie zawodnika (secondaryLimiter) — dokłada min. 1 bodziec ponad cel. */
+  limitation?: SecondaryLimiter | null;
 }
 
 export interface WeekValidationResult {
@@ -359,9 +407,15 @@ export function validateGeneratedWeek(
   const counts = countWeekRoles(sessions, ctx.goal);
 
   if (ctx.isFullWeek) {
-    // 5. Każdy mainGoal musi mieć swój obowiązkowy typ sesji.
-    if (counts.mandatory < 1) {
+    // 5. Każdy mainGoal musi mieć min. `mandatoryCount` obowiązkowych bodźców
+    //    (dla większości celów = 2 jednostki powiązane z celem).
+    if (counts.mandatory < rule.mandatoryCount) {
       errors.push(`missing-mandatory-goal-session (${rule.focusLabel})`);
+    }
+    // Limiter dokłada MINIMUM 1 sesję ponad minimum celu głównego.
+    const reqLimit = requiredLimitationSessions(ctx.goal, ctx.limitation ?? null);
+    if (reqLimit > 0 && countLimitationSessions(sessions, ctx.limitation ?? null) < reqLimit) {
+      errors.push("missing-limitation-support");
     }
     // Twarde minimum wydolności.
     if (counts.endurance < VALIDATION_RULES.minEndurancePerFullWeek) {
