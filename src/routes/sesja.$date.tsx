@@ -60,11 +60,23 @@ function compactPrescription(e: TrainingExercise): string {
 
   if (typeof e.groundContacts === "number" && !repsHasContacts)
     parts.push(`${e.groundContacts} kontaktów`);
-  if (e.rpe) parts.push(e.rpe);
+  // RPE świadomie POMIJANE w planie — należy do logu po sesji.
+  // W planie zostawiamy tylko konkret wykonania: %1RM, RIR, tempo, czas.
   if (e.rir) parts.push(e.rir);
   if (e.tempo) parts.push(`tempo ${e.tempo}`);
-  if (e.loadTarget) parts.push(e.loadTarget);
+  if (e.loadTarget) {
+    const load = e.loadTarget.replace(/\s*[—-]?\s*RPE[^,·]*/gi, "").trim();
+    if (load) parts.push(load);
+  }
   return parts.join(" · ");
+}
+
+// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~8 słów).
+function shortCue(cue: string): string {
+  const first = cue.split(/(?<=[.!?])\s+/)[0].trim();
+  const words = first.replace(/[.]+$/, "").split(/\s+/);
+  const clipped = words.slice(0, 8).join(" ");
+  return clipped + (words.length > 8 ? "…" : ".");
 }
 
 function restLabel(e: TrainingExercise): string | null {
