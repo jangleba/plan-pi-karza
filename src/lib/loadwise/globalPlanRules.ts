@@ -388,9 +388,12 @@ export interface PlacementCheck {
   reason: string | null;
 }
 
+function isSpeedSprint(s: SessionDay): boolean {
+  return s.classification?.category === "speed_sprint";
+}
 function dayHasSpeed(day: SessionDay | undefined | null): boolean {
   if (!day) return false;
-  return isSpeedSession(day) || (day.secondSession ? isSpeedSession(day.secondSession) : false);
+  return isSpeedSprint(day) || (day.secondSession ? isSpeedSprint(day.secondSession) : false);
 }
 function dayHasHeavyLegs(day: SessionDay | undefined | null): boolean {
   if (!day) return false;
