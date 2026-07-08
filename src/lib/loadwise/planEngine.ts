@@ -54,6 +54,10 @@ import {
   loadMultiplierFor,
   VALIDATION_RULES,
 } from "./planRules";
+import {
+  buildTrainingContext,
+  validatePlan as validateGlobalPlan,
+} from "./globalPlanRules";
 import type { WeekMeta } from "./types";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
