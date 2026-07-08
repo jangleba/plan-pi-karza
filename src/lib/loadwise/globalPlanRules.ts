@@ -570,12 +570,13 @@ export function validateWeek(
     }
   }
 
-  // gymAccess=false nie może generować siłowni.
+  // gymAccess=false nie może generować siłowni wymagającej sprzętu
+  // (bodyweight_strength jest dozwolony jako wariant bez sprzętu).
   if (!context.gymAccess) {
-    const hasGym = week.some(
-      (d) => isMainGymSession(d) || (d.secondSession && isMainGymSession(d.secondSession)),
+    const hasEquipGym = week.some(
+      (d) => requiresGymEquipment(d) || (d.secondSession ? requiresGymEquipment(d.secondSession) : false),
     );
-    if (hasGym) errors.push("gym-generated-without-access");
+    if (hasEquipGym) errors.push("gym-generated-without-access");
   }
   // gymAccess=true nie może być ignorowany dla celów, które używają siłowni.
   if (context.gymAccess && view.usesGymWhenAvailable && opts.isFullWeek) {
