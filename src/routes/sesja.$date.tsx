@@ -222,13 +222,13 @@ const StructuredSections = memo(function StructuredSections({
   const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
   const expand = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
   return (
-    <>
+    <div className="space-y-4">
       {sections.map((sec) => (
         <div key={sec.id} className="soft-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
             {sec.title}
           </h3>
-          <div className="mt-2 space-y-3">
+          <div className="mt-2.5 space-y-4">
             {sec.blocks.map((b) => {
               const hideHeader =
                 !b.title ||
@@ -243,12 +243,12 @@ const StructuredSections = memo(function StructuredSections({
               return (
                 <div key={b.id}>
                   {!hideHeader && (
-                    <div className="text-[13px] font-bold tracking-tight text-foreground">
+                    <div className="mb-0.5 text-[12px] font-bold uppercase tracking-tight text-foreground/90">
                       {b.title}
                     </div>
                   )}
                   {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
-                  <div className="mt-0.5 divide-y divide-border/50">
+                  <div className="divide-y divide-border/40">
                     {b.exercises.map((e) => (
                       <ExerciseRow
                         key={e.id}
@@ -261,7 +261,7 @@ const StructuredSections = memo(function StructuredSections({
                     ))}
                   </div>
                   {blockRest && (
-                    <div className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+                    <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
                       {blockRest}
                     </div>
                   )}
@@ -271,7 +271,7 @@ const StructuredSections = memo(function StructuredSections({
           </div>
         </div>
       ))}
-    </>
+    </div>
   );
 });
 
