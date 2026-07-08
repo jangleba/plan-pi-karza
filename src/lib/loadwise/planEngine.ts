@@ -3807,8 +3807,17 @@ export function generatePlan(
         : null,
       appliedPositionRules: POSITION_RULES[profile.position],
       appliedSeasonRules: SEASON_RULES[profile.seasonPhase],
+      selectedPosition: profile.position,
+      trainingLevel: profile.level,
+      seasonPhase: profile.seasonPhase,
+      competitionLevel: profile.competitionLevel,
+      clubSchedule: profile.clubTrainingDays,
+      matchSchedule: profile.usualMatchDay,
       weeklyLoadScore: ruleReport.weeklyLoadScores,
+      weekSimilarityScores: ruleReport.weekSimilarityScores,
       validationErrors: ruleReport.validationErrors,
+      globalPlanValid: ruleReport.globalPlanValid,
+      globalPlanErrors: ruleReport.globalPlanErrors,
       finalPlanWasRebuilt: ruleReport.finalPlanWasRebuilt,
     });
   }
