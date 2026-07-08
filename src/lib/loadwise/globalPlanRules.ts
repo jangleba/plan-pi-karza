@@ -159,10 +159,10 @@ export interface GoalRuleView {
   safeDefaultSubcategory: string;
 }
 
-/** Cele, które sensownie wykorzystują siłownię, gdy gymAccess = true. */
+/** Cele, dla których siłownia jest OBOWIĄZKOWA, gdy gymAccess = true. */
 const GOAL_USES_GYM: Record<Goal, boolean> = {
-  speed: true, // gym support (osobno od sprintu)
-  agility: true, // lateral strength / braking support
+  speed: false, // siłownia to wsparcie, nie bodziec obowiązkowy
+  agility: false,
   strength: true,
   power: true,
   endurance: false,
