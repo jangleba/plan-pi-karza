@@ -1008,16 +1008,18 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
             ex({
               label: "A2",
               name: hinge,
-              sets: d.mainSets,
-              reps: d.mainReps,
-              rpe: d.rpe,
+              sets: pd.sets,
+              reps: pd.reps,
+              rpe: pd.rpe,
+              loadTarget: pd.loadTarget,
               tempo: "3-1-1",
-              restAfterPair: "2–3 min po parze",
-              cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+              restAfterPair: `${pd.rest} po parze`,
+              cue: `${pd.cue} Biodra w tył, plecy proste, czuj tylne uda.`,
               technique: "Neutralny kręgosłup, napięty tułów.",
               regression: "Hip thrust / hamstring bridge.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
+
           ],
         }),
 
