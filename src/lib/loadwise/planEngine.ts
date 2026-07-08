@@ -3170,7 +3170,7 @@ function repairWeekErrors(
     if (idx === -1) return false;
     // Etykieta celu musi odpowiadać ograniczeniu (nie celowi głównemu), aby
     // klasyfikator nie odczytał sesji przez pryzmat mainGoal.
-    const limiterGoalLabel: Record<string, Goal> = {
+    const limiterGoalLabel: Record<string, Profile["goal"]> = {
       speed: "speed",
       cod: "agility",
       strength: "strength",
