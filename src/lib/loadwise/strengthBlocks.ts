@@ -836,9 +836,7 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
     ? adult
       ? TRAP_BAR_HINGE_ADULT
       : TRAP_BAR_HINGE_YOUTH
-    : adult
-      ? SQUAT_ADULT
-      : SQUAT_YOUTH;
+    : squatPoolFor(profile, ctx);
   const squat = rotatePick(mainPool, ctx, avoid);
   const jump = trapBar
     ? pickJumps(ctx, ["horizontal", "vertical"], avoid)
