@@ -214,11 +214,7 @@ const StructuredSections = memo(function StructuredSections({
                       {b.title}
                     </div>
                   )}
-                  {b.safetyNotes && (
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {b.safetyNotes}
-                    </p>
-                  )}
+                  {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
                   <div className="mt-0.5 divide-y divide-border/50">
                     {b.exercises.map((e) => (
                       <ExerciseRow
