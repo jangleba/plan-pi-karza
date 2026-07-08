@@ -96,25 +96,7 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
-// Wszystkie parametry + wskazówki trenera — pokazywane dopiero po rozwinięciu.
-function exerciseDetailRows(e: TrainingExercise) {
-  const fullCue =
-    e.cue && shortCue(e.cue) !== e.cue.trim() ? e.cue : undefined;
-  return [
-    { label: "Pełna wskazówka", value: fullCue },
-    { label: "Tempo", value: e.tempo ? `tempo ${e.tempo}` : undefined },
-    { label: "Docelowe RPE", value: e.rpe },
-    { label: "Cel obciążenia", value: e.loadTarget },
-    { label: "Jak dobrać ciężar", value: e.loadGuidance },
-    { label: "Kiedy zmniejszyć", value: e.loadReduceWhen },
-    { label: "Technika", value: e.technique },
-    { label: "Łatwiej", value: e.regression },
-    { label: "Trudniej", value: e.progression },
-    { label: "Częsty błąd", value: e.commonMistake },
-    { label: "Przeciwwskazania", value: e.contraindications },
-    { label: "Ograniczenie meczowe", value: e.matchDayRestriction },
-  ].filter((r) => r.value);
-}
+
 
 function ExerciseRow({
   e,
