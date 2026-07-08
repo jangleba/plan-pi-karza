@@ -3223,6 +3223,9 @@ function applyRuleBasedWeekLayer(
 ): {
   weeklyLoadScores: number[];
   validationErrors: string[][];
+  weekSimilarityScores: number[];
+  globalPlanValid: boolean;
+  globalPlanErrors: string[];
   finalPlanWasRebuilt: boolean;
 } {
   const ranges = weekRanges(startDate, out.length);
