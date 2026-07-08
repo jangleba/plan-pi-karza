@@ -19,7 +19,7 @@ import type {
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
-  ChevronDown,
+  ChevronRight,
 
   Clock,
   Target,
@@ -29,6 +29,7 @@ import {
   Repeat,
   Undo2,
 } from "lucide-react";
+import { ExerciseDetailSheet } from "@/components/loadwise/ExerciseDetailSheet";
 import {
   Accordion,
   AccordionContent,
@@ -80,13 +81,8 @@ function compactPrescription(e: TrainingExercise): string {
   return [primaryDose(e), primaryQualifier(e)].filter(Boolean).join(" · ");
 }
 
-// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~6 słów).
-function shortCue(cue: string): string {
-  const first = cue.split(/(?<=[.!?])\s+/)[0].trim();
-  const words = first.replace(/[.]+$/, "").split(/\s+/);
-  const clipped = words.slice(0, 6).join(" ");
-  return clipped + (words.length > 6 ? "…" : ".");
-}
+
+
 
 function restLabel(e: TrainingExercise): string | null {
   const r = e.restAfterPair ?? e.restAfterExercise;
@@ -94,42 +90,21 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
-// Wszystkie parametry + wskazówki trenera — pokazywane dopiero po rozwinięciu.
-function exerciseDetailRows(e: TrainingExercise) {
-  const fullCue =
-    e.cue && shortCue(e.cue) !== e.cue.trim() ? e.cue : undefined;
-  return [
-    { label: "Pełna wskazówka", value: fullCue },
-    { label: "Tempo", value: e.tempo ? `tempo ${e.tempo}` : undefined },
-    { label: "Docelowe RPE", value: e.rpe },
-    { label: "Cel obciążenia", value: e.loadTarget },
-    { label: "Jak dobrać ciężar", value: e.loadGuidance },
-    { label: "Kiedy zmniejszyć", value: e.loadReduceWhen },
-    { label: "Technika", value: e.technique },
-    { label: "Łatwiej", value: e.regression },
-    { label: "Trudniej", value: e.progression },
-    { label: "Częsty błąd", value: e.commonMistake },
-    { label: "Przeciwwskazania", value: e.contraindications },
-    { label: "Ograniczenie meczowe", value: e.matchDayRestriction },
-  ].filter((r) => r.value);
-}
+
 
 function ExerciseRow({
   e,
   done,
   onToggle,
-  expanded,
-  onExpand,
+  onOpenDetail,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
-  expanded: boolean;
-  onExpand: () => void;
+  onOpenDetail: () => void;
 }) {
   const presc = compactPrescription(e);
   const rest = restLabel(e);
-  const rows = exerciseDetailRows(e);
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
@@ -146,10 +121,10 @@ function ExerciseRow({
           {done && <CheckCircle2 className="h-3.5 w-3.5" />}
         </button>
         <div className="min-w-0 flex-1">
-          {/* Wiersz 1: badge kodu + nazwa + chevron */}
+          {/* Wiersz 1: badge kodu + nazwa + chevron (otwiera szczegóły) */}
           <button
             type="button"
-            onClick={rows.length ? onExpand : undefined}
+            onClick={onOpenDetail}
             className="flex w-full items-center gap-2 text-left"
           >
             {e.label && (
@@ -164,15 +139,9 @@ function ExerciseRow({
             >
               {e.name}
             </span>
-            {rows.length > 0 && (
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform ${
-                  expanded ? "rotate-180" : ""
-                }`}
-              />
-            )}
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
           </button>
-          {/* Wiersze 2–4: max 3 linie — dawka, przerwa, wskazówka */}
+          {/* Wiersze 2–3: dawka + przerwa (bez ściany tekstu) */}
           <div className={e.label ? "mt-1 pl-[34px]" : "mt-1"}>
             {presc && (
               <div className="text-[13px] font-semibold tabular-nums text-foreground/80">
@@ -184,29 +153,9 @@ function ExerciseRow({
                 {rest}
               </div>
             )}
-            {e.cue && (
-              <div className="mt-0.5 truncate text-xs italic text-muted-foreground">
-                💡 {shortCue(e.cue)}
-              </div>
-            )}
           </div>
         </div>
       </div>
-      {expanded && rows.length > 0 && (
-        <div className={`mt-2 space-y-1.5 ${e.label ? "pl-[42px]" : "pl-8"}`}>
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-            Info trenera
-          </div>
-          {rows.map((r) => (
-            <div key={r.label}>
-              <div className="text-[11px] font-semibold text-foreground">
-                {r.label}
-              </div>
-              <p className="text-xs text-muted-foreground">{r.value}</p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -218,9 +167,13 @@ const StructuredSections = memo(function StructuredSections({
 }) {
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [detail, setDetail] = useState<TrainingExercise | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
-  const expand = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
+  const openDetail = (e: TrainingExercise) => {
+    setDetail(e);
+    setDetailOpen(true);
+  };
   return (
     <div className="space-y-4">
       {sections.map((sec) => (
@@ -255,8 +208,7 @@ const StructuredSections = memo(function StructuredSections({
                         e={e}
                         done={!!done[e.id]}
                         onToggle={() => toggle(e.id)}
-                        expanded={!!open[e.id]}
-                        onExpand={() => expand(e.id)}
+                        onOpenDetail={() => openDetail(e)}
                       />
                     ))}
                   </div>
@@ -271,6 +223,11 @@ const StructuredSections = memo(function StructuredSections({
           </div>
         </div>
       ))}
+      <ExerciseDetailSheet
+        exercise={detail}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 });
