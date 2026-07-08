@@ -3779,6 +3779,24 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
+  // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
+  // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
+  if (!profile.hasGym) {
+    const GYM_EQUIP = /siłown|sztang|hantl|gym|wyciąg|maszyn|ława|barbell|dumbbell/i;
+    for (const day of out) {
+      for (const s of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
+        const isStrength = /si[łl]a|strength|moc|power/i.test(`${s.sessionType} ${s.title}`);
+        if (!isStrength) continue;
+        if (GYM_EQUIP.test(`${s.sessionType} ${s.title}`) || !/masa ciała|bodyweight/i.test(s.title)) {
+          s.title = "Siła (masa ciała / bez sprzętu)";
+          s.sessionType = "Siła — masa ciała";
+          s.goalOfSession = "Siła i stabilność bez dostępu do siłowni";
+        }
+      }
+    }
+  }
+
+
   // Naprawa pod profil zawodnika: każde ćwiczenie niezgodne z wiekiem,
   // poziomem, sprzętem lub bólem zostaje zamienione na bezpieczną regresję,
   // zanim plan przejdzie przez centralną klasyfikację.
