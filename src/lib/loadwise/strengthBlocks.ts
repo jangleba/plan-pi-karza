@@ -809,7 +809,7 @@ function overcomingIsoSection(mainName: string): TrainingSection {
             label: "ISO",
             name: iso.name,
             sets: "2",
-            reps: "5 s (maks. intencja)",
+            reps: "5 s",
             restAfterExercise: "90–180 s",
             loadTarget: "Maksymalna lub prawie maksymalna intencja, bez ruchu w stawie.",
             cue: iso.cue,
