@@ -3168,11 +3168,22 @@ function repairWeekErrors(
     };
     const idx = pickTarget() !== -1 ? pickTarget() : findSurplusMandatory();
     if (idx === -1) return false;
+    // Etykieta celu musi odpowiadać ograniczeniu (nie celowi głównemu), aby
+    // klasyfikator nie odczytał sesji przez pryzmat mainGoal.
+    const limiterGoalLabel: Record<string, Goal> = {
+      speed: "speed",
+      cod: "agility",
+      strength: "strength",
+      power: "power",
+      endurance: "endurance",
+      ball: "general",
+    };
+    const labelGoal = limiterGoalLabel[profile.secondaryLimiter ?? "ball"] ?? "general";
     convertRecoveryToBuilt(
       out,
       idx,
       buildStimulus(stim, profile),
-      profile,
+      { ...profile, goal: labelGoal },
       "Rule-based walidator: ograniczenie zawodnika wymaga dodatkowego bodźca ponad cel główny — dodano jednostkę wspierającą.",
     );
     return true;
