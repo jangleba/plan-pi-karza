@@ -1323,16 +1323,18 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
             ex({
               label: "A2",
               name: squat,
-              sets: d.mainSets,
-              reps: d.mainReps,
-              rpe: d.rpe,
+              sets: pd.sets,
+              reps: pd.reps,
+              rpe: pd.rpe,
+              loadTarget: pd.loadTarget,
               tempo: "2-1-1",
-              restAfterPair: "2–3 min po parze",
-              cue: "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              restAfterPair: `${pd.rest} po parze`,
+              cue: `${pd.cue} Napnij tułów, kontrolowane zejście, mocne wyjście.`,
               technique: "Kolana w linii stóp, pełen zakres.",
               regression: "Goblet squat / przysiad do skrzyni.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
+
           ],
         }),
 
