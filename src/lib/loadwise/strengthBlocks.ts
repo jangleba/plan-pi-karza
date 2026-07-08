@@ -876,14 +876,13 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
             ex({
               label: "A2",
               name: squat,
-              sets: d.mainSets,
-              reps: d.mainReps,
-              rpe: d.rpe,
+              sets: pd.sets,
+              reps: pd.reps,
+              rpe: pd.rpe,
+              loadTarget: pd.loadTarget,
               tempo: adult ? "3-1-1" : "2-1-1",
-              restAfterPair: "2–3 min po parze",
-              cue: trapBar
-                ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
-                : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              restAfterPair: `${pd.rest} po parze`,
+              cue: `${pd.cue} ${trapBar ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra." : "Napnij tułów, kontrolowane zejście, mocne wyjście."}`,
               technique: trapBar
                 ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder."
                 : "Kolana w linii stóp, pełen zakres.",
@@ -893,6 +892,7 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
               commonMistake: "Zaokrąglone plecy, kolana do środka.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
+
           ],
         }),
       ],
