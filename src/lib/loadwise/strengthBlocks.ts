@@ -634,6 +634,89 @@ function contacts(base: number, d: Dosage): number {
 }
 
 // ---------------------------------------------------------------------------
+// Twarde zasady doboru głównego wzorca przysiadu (Goblet squat).
+// ---------------------------------------------------------------------------
+
+/**
+ * Czy dla zawodnika 16+ zachodzi WYJĄTEK dopuszczający goblet squat jako główny
+ * wzorzec przysiadu (początkujący, brak sztangi, ból/ograniczenie, powrót po
+ * urazie, tydzień reintro/deload, regresja techniczna).
+ */
+function gobletExceptionFor16Plus(profile: Profile, ctx: StrengthBlockContext): boolean {
+  if (!profile.hasGym) return true; // brak sztangi/stojaków
+  if (profile.level === "beginner") return true; // początkujący
+  if (profile.painInjury) return true; // ból / ograniczenie ruchowe
+  if (profile.seasonPhase === "return_injury") return true; // powrót po urazie
+  if (profile.movementCompetence === "low") return true; // regresja techniczna
+  if (ctx.weekPhase === "deload") return true; // tydzień reintro / recovery
+  return false;
+}
+
+/**
+ * Pula głównego wzorca przysiadu wg twardej zasady TheBallLab:
+ *  - age < 16  → Goblet squat może być DOMYŚLNY (SQUAT_YOUTH), nauka wzorca.
+ *  - age >= 16 z dostępem do siłowni → domyślnie przysiad ze sztangą / odmiana
+ *    (SQUAT_ADULT); goblet TYLKO gdy zachodzi wyjątek (patrz wyżej).
+ * Goblet squat NIGDY nie jest globalnym defaultem/fallbackiem dla 16+.
+ */
+function squatPoolFor(profile: Profile, ctx: StrengthBlockContext): string[] {
+  if (profile.age < 16) return SQUAT_YOUTH;
+  return gobletExceptionFor16Plus(profile, ctx) ? SQUAT_YOUTH : SQUAT_ADULT;
+}
+
+// ---------------------------------------------------------------------------
+// Dawkowanie GŁÓWNEGO liftu siłowego (squat, deadlift, trap bar, hip thrust...).
+// Twarda zasada: dla 16+ z siłownią i celem siła/moc → ciężko i krótko:
+// 1–3 (ew. 2–4) powtórzeń, ≥85% 1RM, RPE 7,5–9, przerwa 2,5–5 min, bez upadku.
+// Zakres 1–3 dotyczy TYLKO głównego liftu i mocy — nie akcesoriów/core/prehabu.
+// ---------------------------------------------------------------------------
+
+interface PrimaryDose {
+  sets: string;
+  reps: string;
+  rpe: string;
+  rest: string;
+  loadTarget: string;
+  cue: string;
+}
+
+function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): PrimaryDose {
+  const heavyEligible =
+    isAdvancedEligible(profile) &&
+    profile.hasGym &&
+    profile.age >= 16 &&
+    !gobletExceptionFor16Plus(profile, ctx);
+
+  if (!heavyEligible) {
+    // Młodzież / początkujący / wyjątek goblet → nauka wzorca, bez maks. ciężaru.
+    return {
+      sets: "3–4",
+      reps: "5–8",
+      rpe: "RPE 5–7 (technika)",
+      rest: "2–3 min",
+      loadTarget: "Technika i kontrola tułowia — bez maksymalnego ciężaru.",
+      cue: "Nauka wzorca: pełen zakres, kontrola tułowia, głębokość i stabilizacja.",
+    };
+  }
+
+  const strongCue =
+    "Każde powtórzenie mocne, dynamiczne i technicznie czyste. Bez serii do upadku, zostaw 1–3 RIR.";
+
+  switch (ctx.weekPhase) {
+    case "adaptation":
+      return { sets: "4", reps: "3–5", rpe: "RPE 7–7,5", rest: "3 min", loadTarget: "80–85% 1RM", cue: strongCue };
+    case "peak":
+      return { sets: "4–5", reps: "1–3", rpe: "RPE 8–9", rest: "3–5 min", loadTarget: "87–92% 1RM", cue: strongCue };
+    case "deload":
+      return { sets: "3", reps: "2–3", rpe: "RPE 6–7", rest: "3 min", loadTarget: "~80% 1RM, świeżo, prędkość", cue: strongCue };
+    case "development":
+    default:
+      return { sets: "4", reps: "2–4", rpe: "RPE 7,5–8,5", rest: "3–4 min", loadTarget: "85–90% 1RM", cue: strongCue };
+  }
+}
+
+
+// ---------------------------------------------------------------------------
 // Wspólne sekcje
 // ---------------------------------------------------------------------------
 
