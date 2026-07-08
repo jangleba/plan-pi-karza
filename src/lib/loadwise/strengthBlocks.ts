@@ -1597,6 +1597,7 @@ function canonicalGymSession(
   const calf = "Wspięcia na palce (łydka)";
   const core1 = lockedPick("core", CORE_ANTI, ctx, avoid);
   const core2 = rotatePick(CORE_ANTI, ctx, [...avoid, core1]);
+  const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
 
   // Tydzień 1 (kalibracja) — bez metod zaawansowanych domyślnie.
   const week1 = ctx.weekPhase === "adaptation";
