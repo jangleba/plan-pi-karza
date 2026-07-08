@@ -1688,19 +1688,19 @@ function canonicalGymSession(
             ex({
               label: "A1",
               name: main,
-              sets: d.mainSets,
-              reps: d.mainReps,
-              rpe: d.rpe,
+              sets: pd.sets,
+              reps: pd.reps,
+              rpe: pd.rpe,
+              loadTarget: pd.loadTarget,
               tempo: adult ? "3-1-1" : "2-1-1",
               restAfterExercise: "60–180 s do A2",
-              cue: trapBar
-                ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra."
-                : "Napnij tułów, kontrolowane zejście, mocne wyjście.",
+              cue: `${pd.cue} ${trapBar ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra." : "Napnij tułów, kontrolowane zejście, mocne wyjście."}`,
               technique: trapBar ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder." : "Kolana w linii stóp, pełen zakres.",
               regression: trapBar ? "Trap bar z wysokich pinów / kettlebell deadlift." : "Goblet squat / przysiad do skrzyni.",
               commonMistake: "Zaokrąglone plecy, kolana do środka.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
+
             ex({
               label: "A2",
               name: powerA.kind === "medball" ? "Skok pionowy (CMJ)" : powerA.name,
