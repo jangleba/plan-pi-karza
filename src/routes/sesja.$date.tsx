@@ -20,6 +20,7 @@ import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
   ChevronDown,
+  ChevronRight,
 
   Clock,
   Target,
@@ -29,6 +30,7 @@ import {
   Repeat,
   Undo2,
 } from "lucide-react";
+import { ExerciseDetailSheet } from "@/components/loadwise/ExerciseDetailSheet";
 import {
   Accordion,
   AccordionContent,
