@@ -370,7 +370,10 @@ export function requiredLimitationSessions(goal: Goal, limitation: SecondaryLimi
   const cat = limitationSupportCategory(limitation);
   if (!cat) return 0;
   const rule = MAIN_GOAL_RULES[goal];
-  return rule.mandatoryCategories.includes(cat) ? rule.mandatoryCount + 1 : 1;
+  // Gdy kategoria limitera pokrywa się z kategorią celu głównego, minimum celu
+  // (mandatoryCount) już realizuje ten bodziec — nie wymagamy dodatkowej sesji.
+  // W przeciwnym razie limiter dokłada MINIMUM 1 sesję ponad cel główny.
+  return rule.mandatoryCategories.includes(cat) ? 0 : 1;
 }
 
 // ---------------------------------------------------------------------------
