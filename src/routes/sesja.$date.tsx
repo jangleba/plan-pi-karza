@@ -245,6 +245,11 @@ const StructuredSections = memo(function StructuredSections({
           </div>
         </div>
       ))}
+      <ExerciseDetailSheet
+        exercise={detail}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 });
