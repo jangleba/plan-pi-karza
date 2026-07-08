@@ -797,23 +797,26 @@ function overcomingIsoSection(mainName: string): TrainingSection {
     type: "prep",
     blocks: [
       block({
-        title: "BLOK ISO — napęd nerwowy",
+        title: "BLOK ISO — napęd nerwowy (izometria przezwyciężająca)",
         blockType: "single",
         intent: "rfd",
-        restAfterBlock: "Przerwa po bloku: 90 s",
-        safetyNotes: "Krótkie, maksymalne napięcia. Bez bólu, pełna kontrola pozycji.",
+        restAfterBlock: "Przerwa po bloku: 120 s",
+        safetyNotes:
+          "Izometria PRZEZWYCIĘŻAJĄCA: napieraj maksymalnie w nieruchomy opór. Początek jednostki, po rozgrzewce, przed liftem/mocą. Krótkie, maksymalne napięcia — nie na końcu treningu, nie jako zmęczenie.",
         exercises: [
           ex({
             label: "ISO",
             name: iso.name,
-            sets: "3",
-            reps: "3 × 5 s",
-            restAfterExercise: "60–90 s",
+            sets: "2",
+            reps: "5 s (maks. intencja)",
+            restAfterExercise: "90–180 s",
+            loadTarget: "Maksymalna lub prawie maksymalna intencja, bez ruchu w stawie.",
             cue: iso.cue,
             ageSafetyLevel: "all",
           }),
         ],
       }),
+
     ],
   });
 }
