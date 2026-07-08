@@ -3133,15 +3133,27 @@ function repairWeekErrors(
   if (errors.some((e) => e.startsWith("missing-mandatory-goal-session"))) {
     const idx = pickTarget();
     if (idx === -1) return false;
+    // Wariant sesji rotujemy per tydzień, aby dodane bodźce nie tworzyły
+    // identycznego (copy-paste) rozkładu między tygodniami.
+    const weekIdx = Math.floor(idx / 7);
+    let built = buildByGoal(profile);
+    if (MAIN_GOAL_RULES[profile.goal].mandatoryCategories.includes("endurance_conditioning")) {
+      const rotation: Stimulus[] =
+        profile.painInjury || profile.goal === "return"
+          ? ["endurance_light", "endurance_aerobic", "endurance_light", "endurance_aerobic"]
+          : ["endurance_aerobic", "endurance_special", "endurance_rsa", "endurance_aerobic"];
+      built = buildStimulus(rotation[weekIdx % rotation.length], profile);
+    }
     convertRecoveryToBuilt(
       out,
       idx,
-      buildByGoal(profile),
+      built,
       profile,
       `Rule-based walidator: cel główny (${GOAL_LABELS[profile.goal]}) wymaga min. ${MAIN_GOAL_RULES[profile.goal].mandatoryCount} obowiązkowych bodźców — dodano zamiast biernej regeneracji.`,
     );
     return true;
   }
+
 
   // Limiter (ograniczenie) dokłada MINIMUM 1 sesję ponad minimum celu głównego.
   if (errors.includes("missing-limitation-support")) {
