@@ -90,9 +90,8 @@ describe("Główny lift siłowy — ciężko i krótko", () => {
 describe("Izometria — osobne typy", () => {
   it("overcoming iso: maks. 2 serie, ~5 s, na początku jednostki", () => {
     const plan = buildStrengthPowerStructured(baseProfile, { ...baseCtx, weekPhase: "peak" })!;
-    const iso = plan.sections
-      .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
-      .find((e) => e.name.toLowerCase().includes("przezwyciężająca"));
+    const prep = plan.sections.find((s) => s.type === "prep");
+    const iso = prep?.blocks.flatMap((b) => b.exercises).find((e) => e.label === "ISO");
     expect(iso).toBeDefined();
     expect(iso!.sets).toBe("2");
     expect(iso!.reps ?? "").toContain("5 s");
