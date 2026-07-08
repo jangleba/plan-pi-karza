@@ -90,9 +90,8 @@ describe("Główny lift siłowy — ciężko i krótko", () => {
 describe("Izometria — osobne typy", () => {
   it("overcoming iso: maks. 2 serie, ~5 s, na początku jednostki", () => {
     const plan = buildStrengthPowerStructured(baseProfile, { ...baseCtx, weekPhase: "peak" })!;
-    const iso = plan.sections
-      .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
-      .find((e) => e.name.toLowerCase().includes("przezwyciężająca"));
+    const prep = plan.sections.find((s) => s.type === "prep");
+    const iso = prep?.blocks.flatMap((b) => b.exercises).find((e) => e.label === "ISO");
     expect(iso).toBeDefined();
     expect(iso!.sets).toBe("2");
     expect(iso!.reps ?? "").toContain("5 s");
@@ -109,6 +108,38 @@ describe("Izometria — osobne typy", () => {
     );
     for (const h of holds) {
       expect(h.reps ?? "").not.toMatch(/20–30 s/);
+    }
+  });
+});
+
+function blockDExercises(profile: Profile, ctx: StrengthBlockContext): TrainingExercise[] {
+  const plan = buildStrengthPowerStructured(profile, ctx);
+  if (!plan) return [];
+  const blockD = plan.sections
+    .flatMap((s) => s.blocks)
+    .find((b) => b.title.includes("BLOK D"));
+  return blockD?.exercises ?? [];
+}
+
+describe("Blok D — support krótki, bez dublowania dwójek", () => {
+  it("ciężka sesja dolna + moc: Blok D ma dokładnie 2 ćwiczenia", () => {
+    const d = blockDExercises(baseProfile, baseCtx);
+    expect(d.length).toBe(2);
+  });
+
+  it("Blok D nie zawiera żadnego ćwiczenia na tylną taśmę / hamstring", () => {
+    const d = blockDExercises(baseProfile, baseCtx);
+    const banned = /nordic|hamstring|rdl|martwy ciąg|leg curl|uginanie n|hip thrust|hip hinge|bridge|slider|good morning|glute/i;
+    for (const e of d) {
+      expect(e.name).not.toMatch(banned);
+    }
+  });
+
+  it("Blok D wybiera tylko lekkie uzupełnienia (łydka / przywodziciel / łopatka)", () => {
+    const d = blockDExercises(baseProfile, baseCtx);
+    const allowed = /łydk|palce|stop|kostk|copenhagen|przywodzic|face pull|łopatk|guma/i;
+    for (const e of d) {
+      expect(e.name).toMatch(allowed);
     }
   });
 });

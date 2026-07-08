@@ -51,32 +51,41 @@ export const Route = createFileRoute("/sesja/$date")({
 
 // ---------- Renderowanie strukturalne (bloki) ----------
 
-function compactPrescription(e: TrainingExercise): string {
-  const parts: string[] = [];
-  const repsHasContacts = /kontakt/i.test(e.reps ?? "");
-  if (e.sets && e.reps) parts.push(`${e.sets} × ${e.reps}`);
-  else if (e.reps) parts.push(e.reps);
-  if (e.duration) parts.push(e.duration);
-
-  if (typeof e.groundContacts === "number" && !repsHasContacts)
-    parts.push(`${e.groundContacts} kontaktów`);
-  // RPE świadomie POMIJANE w planie — należy do logu po sesji.
-  // W planie zostawiamy tylko konkret wykonania: %1RM, RIR, tempo, czas.
-  if (e.rir) parts.push(e.rir);
-  if (e.tempo) parts.push(`tempo ${e.tempo}`);
-  if (e.loadTarget) {
-    const load = e.loadTarget.replace(/\s*[—-]?\s*RPE[^,·]*/gi, "").trim();
-    if (load) parts.push(load);
-  }
-  return parts.join(" · ");
+// Główna dawka: serie × powtórzenia / czas — jedna zwięzła linia.
+function primaryDose(e: TrainingExercise): string {
+  if (e.sets && e.reps) return `${e.sets} × ${e.reps}`;
+  if (e.reps) return e.reps;
+  if (e.duration) return e.duration;
+  if (e.sets) return `${e.sets} serie`;
+  return "";
 }
 
-// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~8 słów).
+function stripRpe(text: string): string {
+  return text.replace(/\s*[—·-]?\s*RPE[^,·—]*/gi, "").trim();
+}
+
+// Jeden dodatkowy parametr wg hierarchii typu ćwiczenia. Nigdy RPE.
+function primaryQualifier(e: TrainingExercise): string | null {
+  const load = e.loadTarget ? stripRpe(e.loadTarget) : "";
+  if (load && /%|1rm/i.test(load)) return load; // główny lift → %1RM
+  const repsHasContacts = /kontakt|odbi/i.test(e.reps ?? "");
+  if (typeof e.groundContacts === "number" && !repsHasContacts)
+    return `${e.groundContacts} kontaktów`; // moc / plyo
+  if (e.rir) return e.rir; // akcesoria
+  return null;
+}
+
+// Pierwsza linia: dawka + max jeden kwalifikator.
+function compactPrescription(e: TrainingExercise): string {
+  return [primaryDose(e), primaryQualifier(e)].filter(Boolean).join(" · ");
+}
+
+// Skraca długą wskazówkę silnika do jednej krótkiej linijki (max ~6 słów).
 function shortCue(cue: string): string {
   const first = cue.split(/(?<=[.!?])\s+/)[0].trim();
   const words = first.replace(/[.]+$/, "").split(/\s+/);
-  const clipped = words.slice(0, 8).join(" ");
-  return clipped + (words.length > 8 ? "…" : ".");
+  const clipped = words.slice(0, 6).join(" ");
+  return clipped + (words.length > 6 ? "…" : ".");
 }
 
 function restLabel(e: TrainingExercise): string | null {
@@ -85,8 +94,15 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
+// Wszystkie parametry + wskazówki trenera — pokazywane dopiero po rozwinięciu.
 function exerciseDetailRows(e: TrainingExercise) {
+  const fullCue =
+    e.cue && shortCue(e.cue) !== e.cue.trim() ? e.cue : undefined;
   return [
+    { label: "Pełna wskazówka", value: fullCue },
+    { label: "Tempo", value: e.tempo ? `tempo ${e.tempo}` : undefined },
+    { label: "Docelowe RPE", value: e.rpe },
+    { label: "Cel obciążenia", value: e.loadTarget },
     { label: "Jak dobrać ciężar", value: e.loadGuidance },
     { label: "Kiedy zmniejszyć", value: e.loadReduceWhen },
     { label: "Technika", value: e.technique },
@@ -115,13 +131,13 @@ function ExerciseRow({
   const rest = restLabel(e);
   const rows = exerciseDetailRows(e);
   return (
-    <div className="py-2.5">
+    <div className="py-2">
       <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={onToggle}
           aria-label="Zrobione"
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
             done
               ? "border-primary bg-primary text-primary-foreground"
               : "border-border"
@@ -129,41 +145,58 @@ function ExerciseRow({
         >
           {done && <CheckCircle2 className="h-3.5 w-3.5" />}
         </button>
-        <button
-          type="button"
-          onClick={rows.length ? onExpand : undefined}
-          className="min-w-0 flex-1 text-left"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 text-sm font-medium">
-              {e.label && (
-                <span className="mr-1 font-bold text-primary">{e.label}</span>
-              )}
-              <span className={done ? "text-muted-foreground line-through" : "text-foreground"}>
-                {e.name}
+        <div className="min-w-0 flex-1">
+          {/* Wiersz 1: badge kodu + nazwa + chevron */}
+          <button
+            type="button"
+            onClick={rows.length ? onExpand : undefined}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            {e.label && (
+              <span className="inline-flex h-6 min-w-[26px] shrink-0 items-center justify-center rounded-md bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
+                {e.label}
               </span>
+            )}
+            <span
+              className={`min-w-0 flex-1 truncate text-sm font-semibold ${
+                done ? "text-muted-foreground line-through" : "text-foreground"
+              }`}
+            >
+              {e.name}
             </span>
             {rows.length > 0 && (
               <ChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                className={`h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform ${
                   expanded ? "rotate-180" : ""
                 }`}
               />
             )}
+          </button>
+          {/* Wiersze 2–4: max 3 linie — dawka, przerwa, wskazówka */}
+          <div className={e.label ? "mt-1 pl-[34px]" : "mt-1"}>
+            {presc && (
+              <div className="text-[13px] font-semibold tabular-nums text-foreground/80">
+                {presc}
+              </div>
+            )}
+            {rest && (
+              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+                {rest}
+              </div>
+            )}
+            {e.cue && (
+              <div className="mt-0.5 truncate text-xs italic text-muted-foreground">
+                💡 {shortCue(e.cue)}
+              </div>
+            )}
           </div>
-          {presc && (
-            <div className="mt-0.5 text-xs text-muted-foreground">{presc}</div>
-          )}
-          {rest && (
-            <div className="mt-0.5 text-[11px] font-medium text-primary/80">{rest}</div>
-          )}
-          {e.cue && (
-            <div className="mt-1 text-xs italic text-muted-foreground">💡 {shortCue(e.cue)}</div>
-          )}
-        </button>
+        </div>
       </div>
       {expanded && rows.length > 0 && (
-        <div className="mt-2 space-y-1.5 pl-8">
+        <div className={`mt-2 space-y-1.5 ${e.label ? "pl-[42px]" : "pl-8"}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+            Info trenera
+          </div>
           {rows.map((r) => (
             <div key={r.label}>
               <div className="text-[11px] font-semibold text-foreground">
@@ -189,13 +222,13 @@ const StructuredSections = memo(function StructuredSections({
   const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
   const expand = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
   return (
-    <>
+    <div className="space-y-4">
       {sections.map((sec) => (
         <div key={sec.id} className="soft-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
             {sec.title}
           </h3>
-          <div className="mt-2 space-y-3">
+          <div className="mt-2.5 space-y-4">
             {sec.blocks.map((b) => {
               const hideHeader =
                 !b.title ||
@@ -210,12 +243,12 @@ const StructuredSections = memo(function StructuredSections({
               return (
                 <div key={b.id}>
                   {!hideHeader && (
-                    <div className="text-[13px] font-bold tracking-tight text-foreground">
+                    <div className="mb-0.5 text-[12px] font-bold uppercase tracking-tight text-foreground/90">
                       {b.title}
                     </div>
                   )}
                   {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
-                  <div className="mt-0.5 divide-y divide-border/50">
+                  <div className="divide-y divide-border/40">
                     {b.exercises.map((e) => (
                       <ExerciseRow
                         key={e.id}
@@ -228,7 +261,7 @@ const StructuredSections = memo(function StructuredSections({
                     ))}
                   </div>
                   {blockRest && (
-                    <div className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+                    <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
                       {blockRest}
                     </div>
                   )}
@@ -238,7 +271,7 @@ const StructuredSections = memo(function StructuredSections({
           </div>
         </div>
       ))}
-    </>
+    </div>
   );
 });
 
@@ -317,15 +350,19 @@ function PostSessionLog() {
   return (
     <div className="soft-card p-4">
       <h3 className="text-sm font-semibold">Log po sesji</h3>
-      <div className="mt-2 divide-y divide-border">
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Tutaj wpisujesz RPE i samopoczucie — nie w planie ćwiczeń.
+      </p>
+      <div className="mt-2 divide-y divide-border/60">
         <LogField label="RPE (ciężkość) 0–10" />
+        <LogField label="Zmęczenie nóg 0–10" />
         <LogField label="Ból 0–10" />
-        <LogField label="Bolesność mięśni 0–10" />
-        <LogField label="Zmęczenie 0–10" />
+        <LogField label="Jakość snu 0–10" />
+        <LogField label="Gotowość 0–10" />
       </div>
       <div className="mt-3 space-y-2">
-        <span className="text-sm text-muted-foreground">Sen / notatki</span>
-        <Textarea placeholder="Jak spałeś? Dodatkowe uwagi…" rows={2} />
+        <span className="text-sm text-muted-foreground">Notatki</span>
+        <Textarea placeholder="Dodatkowe uwagi…" rows={2} />
       </div>
     </div>
   );
