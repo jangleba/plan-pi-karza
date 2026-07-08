@@ -118,18 +118,15 @@ function ExerciseRow({
   e,
   done,
   onToggle,
-  expanded,
-  onExpand,
+  onOpenDetail,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
-  expanded: boolean;
-  onExpand: () => void;
+  onOpenDetail: () => void;
 }) {
   const presc = compactPrescription(e);
   const rest = restLabel(e);
-  const rows = exerciseDetailRows(e);
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
@@ -146,10 +143,10 @@ function ExerciseRow({
           {done && <CheckCircle2 className="h-3.5 w-3.5" />}
         </button>
         <div className="min-w-0 flex-1">
-          {/* Wiersz 1: badge kodu + nazwa + chevron */}
+          {/* Wiersz 1: badge kodu + nazwa + chevron (otwiera szczegóły) */}
           <button
             type="button"
-            onClick={rows.length ? onExpand : undefined}
+            onClick={onOpenDetail}
             className="flex w-full items-center gap-2 text-left"
           >
             {e.label && (
@@ -164,15 +161,9 @@ function ExerciseRow({
             >
               {e.name}
             </span>
-            {rows.length > 0 && (
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform ${
-                  expanded ? "rotate-180" : ""
-                }`}
-              />
-            )}
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
           </button>
-          {/* Wiersze 2–4: max 3 linie — dawka, przerwa, wskazówka */}
+          {/* Wiersze 2–3: dawka + przerwa (bez ściany tekstu) */}
           <div className={e.label ? "mt-1 pl-[34px]" : "mt-1"}>
             {presc && (
               <div className="text-[13px] font-semibold tabular-nums text-foreground/80">
@@ -184,29 +175,9 @@ function ExerciseRow({
                 {rest}
               </div>
             )}
-            {e.cue && (
-              <div className="mt-0.5 truncate text-xs italic text-muted-foreground">
-                💡 {shortCue(e.cue)}
-              </div>
-            )}
           </div>
         </div>
       </div>
-      {expanded && rows.length > 0 && (
-        <div className={`mt-2 space-y-1.5 ${e.label ? "pl-[42px]" : "pl-8"}`}>
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-            Info trenera
-          </div>
-          {rows.map((r) => (
-            <div key={r.label}>
-              <div className="text-[11px] font-semibold text-foreground">
-                {r.label}
-              </div>
-              <p className="text-xs text-muted-foreground">{r.value}</p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
