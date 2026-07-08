@@ -189,9 +189,13 @@ const StructuredSections = memo(function StructuredSections({
 }) {
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [detail, setDetail] = useState<TrainingExercise | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
-  const expand = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
+  const openDetail = (e: TrainingExercise) => {
+    setDetail(e);
+    setDetailOpen(true);
+  };
   return (
     <div className="space-y-4">
       {sections.map((sec) => (
