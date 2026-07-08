@@ -19,7 +19,6 @@ import type {
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
-  ChevronDown,
   ChevronRight,
 
   Clock,
