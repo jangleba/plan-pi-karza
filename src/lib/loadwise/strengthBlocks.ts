@@ -798,7 +798,7 @@ function overcomingIsoSection(mainName: string): TrainingSection {
     type: "prep",
     blocks: [
       block({
-        title: "BLOK ISO — napęd nerwowy (izometria przezwyciężająca)",
+        title: "",
         blockType: "single",
         intent: "rfd",
         restAfterBlock: "Przerwa po bloku: 120 s",
