@@ -1284,8 +1284,9 @@ function upperCore(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan 
 function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan {
   const adult = isAdvancedEligible(profile);
   const d = dosageFor(profile, ctx);
+  const pd = primaryStrengthDose(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
-  const squat = rotatePick(adult ? SQUAT_ADULT : SQUAT_YOUTH, ctx, avoid);
+  const squat = rotatePick(squatPoolFor(profile, ctx), ctx, avoid);
   const jump = pickJumps(ctx, ["horizontal", "vertical"], avoid);
   // Tylna taśma kontrolowana (lekko) — bez Nordic, by nie dublować ciężkich nóg.
   const ham = rotatePick(CONTROLLED_HAM, ctx, avoid);
