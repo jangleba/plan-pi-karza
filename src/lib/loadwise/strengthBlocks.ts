@@ -953,6 +953,7 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
 function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan {
   const adult = isAdvancedEligible(profile);
   const d = dosageFor(profile, ctx);
+  const pd = primaryStrengthDose(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
   const hinge = rotatePick(adult ? HINGE_ADULT : HINGE_YOUTH, ctx, avoid);
   const uni = rotatePick(adult ? UNILATERAL_ADULT : UNILATERAL_YOUTH, ctx, avoid);
