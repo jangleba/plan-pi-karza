@@ -3138,10 +3138,9 @@ function repairWeekErrors(
     const weekIdx = Math.floor(idx / 7);
     let built = buildByGoal(profile);
     if (MAIN_GOAL_RULES[profile.goal].mandatoryCategories.includes("endurance_conditioning")) {
-      const rotation: Stimulus[] =
-        profile.painInjury || profile.goal === "return"
-          ? ["endurance_light", "endurance_aerobic", "endurance_light", "endurance_aerobic"]
-          : ["endurance_aerobic", "endurance_special", "endurance_rsa", "endurance_aerobic"];
+      // Rotacja tylko między bezpiecznymi wariantami tlenowymi (bez wysokiej
+      // intensywności / sprintów), aby uniknąć copy-paste i konfliktów.
+      const rotation: Stimulus[] = ["endurance_aerobic", "endurance_light"];
       built = buildStimulus(rotation[weekIdx % rotation.length], profile);
     }
     convertRecoveryToBuilt(
