@@ -291,6 +291,14 @@ function PlanScreen() {
   const nextConfirmed = !!transitions[nextIndex];
   const nextTransition = transitions[nextIndex];
 
+  // Poza sezonem / przejściowy: dopuszczamy tydzień bez meczu.
+  const offseasonAllowed =
+    profile?.seasonPhase === "offseason" ||
+    profile?.seasonPhase === "transition";
+  const nextReady =
+    !!nextTransition?.nextMatchDate ||
+    (offseasonAllowed && !!nextTransition?.noMatchNextWeek);
+
   // Granice kolejnego tygodnia (dla bramki).
   const gateNextIndex = gateWeek;
   const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
@@ -529,15 +537,21 @@ function PlanScreen() {
             <p className="mt-1 text-sm text-muted-foreground">
               {nextTransition?.nextMatchDate
                 ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
-                : "Kolejny mecz: nie ustawiono."}
+                : offseasonAllowed && nextTransition?.noMatchNextWeek
+                  ? "Kolejny tydzień bez meczu (poza sezonem)."
+                  : "Kolejny mecz: nie ustawiono."}
             </p>
 
             <Button
               className="mt-3 w-full"
-              disabled={!nextTransition?.nextMatchDate}
+              disabled={!nextReady}
               onClick={() => {
-                if (!nextTransition?.nextMatchDate) {
-                  toast.error("Najpierw wybierz datę kolejnego meczu.");
+                if (!nextReady) {
+                  toast.error(
+                    offseasonAllowed
+                      ? "Wybierz datę meczu albo zaznacz tydzień bez meczu."
+                      : "Najpierw wybierz datę kolejnego meczu.",
+                  );
                   return;
                 }
                 setActiveWeek(nextIndex);
@@ -568,6 +582,7 @@ function PlanScreen() {
           weekNumber={gateWeek}
           nextWeekStart={gateWeekData.startDate}
           nextWeekEnd={gateWeekData.endDate}
+          allowNoMatch={offseasonAllowed}
           onConfirmed={() => {
             const target = gateWeek;
             setGateWeek(null);
