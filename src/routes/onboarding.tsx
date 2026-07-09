@@ -904,32 +904,22 @@ function Onboarding() {
             </p>
           </div>
         )}
-        <div className="h-32" />
+        </div>
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-background/95 px-5 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="shrink-0 border-t border-border bg-background/95 px-5 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur">
         {step < totalSteps - 1 ? (
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={!canNext()}
-            onClick={() => setStep((s) => s + 1)}
-          >
+          <Button className="w-full" size="lg" onClick={goNext}>
             Dalej
           </Button>
         ) : (
           <Button
             className="w-full"
             size="lg"
-            disabled={
-              busy ||
-              (isMinor && !consent) ||
-              !doubleSessions ||
-              !requiredConsentsOk ||
-              !matchDate
-            }
+            disabled={busy}
             onClick={() => {
               setTriedNext(true);
+              setShowErrors(true);
               handleSubmit();
             }}
           >
