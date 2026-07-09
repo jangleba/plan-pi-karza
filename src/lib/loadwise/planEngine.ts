@@ -3899,6 +3899,9 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
+  // TWARDA reguła: nigdy dwa dni siłowni z rzędu.
+  enforceNoConsecutiveGymDays(out, profile);
+
   // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
   // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
   if (!profile.hasGym) {
