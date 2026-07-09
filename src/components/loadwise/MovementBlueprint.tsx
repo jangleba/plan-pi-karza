@@ -99,6 +99,61 @@ const blueprintRegistry: Partial<Record<BlueprintType, BlueprintSpec>> = {
     title: "Dead bug — stabilny tułów",
     directionLabel: "Naprzemienne wyprosty",
   },
+  back_squat: {
+    src: backSquat,
+    title: "Przysiad ze sztangą — w dół i w górę",
+    directionLabel: "Pion w dół i w górę",
+  },
+  goblet_squat: {
+    src: gobletSquat,
+    title: "Goblet squat — w dół i w górę",
+    directionLabel: "Pion w dół i w górę",
+  },
+  rdl: {
+    src: rdl,
+    title: "RDL — biodra w tył",
+    directionLabel: "Zawias biodrowy w tył",
+  },
+  split_squat: {
+    src: splitSquat,
+    title: "Przysiad bułgarski — w dół i w górę",
+    directionLabel: "Pion w dół i w górę",
+  },
+  cmj: {
+    src: cmj,
+    title: "Wyskok pionowy — eksplozja w górę",
+    directionLabel: "Wyskok w górę",
+  },
+  broad_jump: {
+    src: broadJump,
+    title: "Skok w dal — napęd w przód",
+    directionLabel: "Skok w przód",
+  },
+  change_of_direction: {
+    src: changeOfDirection,
+    title: "Zmiana kierunku — mocne wypchnięcie w bok",
+    directionLabel: "Zmiana kierunku",
+  },
+  copenhagen_plank: {
+    src: copenhagenPlank,
+    title: "Copenhagen plank — biodra w górę",
+    directionLabel: "Uniesienie bioder",
+  },
+  calf_raise: {
+    src: calfRaise,
+    title: "Wspięcia na palce — w górę",
+    directionLabel: "Uniesienie na palce",
+  },
+  pogo_jump: {
+    src: pogoJump,
+    title: "Pogo — szybkie odbicia",
+    directionLabel: "Szybkie odbicie w górę",
+  },
+  max_velocity_sprint: {
+    src: maxVelocitySprint,
+    title: "Prędkość maksymalna — wysoka postawa",
+    directionLabel: "Napęd do przodu",
+  },
 };
 
 /** Mapuje ćwiczenie na blueprintType na podstawie nazwy/techniki. */
