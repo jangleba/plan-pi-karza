@@ -102,6 +102,61 @@ const limiters: SecondaryLimiter[] = [
   "return",
 ];
 
+// Kolejność celów w UI (spójna z oczekiwaną listą).
+const goalOrder: Goal[] = [
+  "speed",
+  "strength",
+  "endurance",
+  "power",
+  "agility",
+  "general",
+  "mobility",
+  "matchready",
+  "return",
+];
+
+// Krótkie, czysto polskie etykiety celów (bez mieszania języków).
+const GOAL_SHORT_LABELS: Record<Goal, string> = {
+  speed: "Szybkość",
+  strength: "Siła",
+  endurance: "Wytrzymałość",
+  power: "Moc",
+  agility: "Zwrotność i hamowanie",
+  general: "Gra z piłką",
+  mobility: "Mobilność i prehab",
+  return: "Powrót po przerwie",
+  matchready: "Gotowość meczowa",
+};
+
+// Krótkie etykiety ograniczeń (bez slashy).
+const LIMITER_SHORT_LABELS: Record<SecondaryLimiter, string> = {
+  speed: "Szybkość",
+  strength: "Siła",
+  endurance: "Wytrzymałość",
+  cod: "Zwrotność",
+  power: "Moc",
+  ball: "Gra z piłką",
+  fatigue: "Zmęczenie",
+  return: "Powrót po przerwie",
+};
+
+// Etykiety i opisy poziomu treningowego (czysto polskie).
+const LEVEL_CARD_LABELS: Record<Level, { label: string; desc: string }> = {
+  beginner: { label: "Początkujący", desc: "Uczę się podstaw treningu." },
+  intermediate: {
+    label: "Średniozaawansowany",
+    desc: "Trenuję regularnie.",
+  },
+  advanced: {
+    label: "Zaawansowany",
+    desc: "Mam doświadczenie w treningu siły i szybkości.",
+  },
+  elite: {
+    label: "Wysoki poziom",
+    desc: "Gram i trenuję na wysokiej intensywności.",
+  },
+};
+
 function ChoiceGrid<T extends string>({
   options,
   value,
