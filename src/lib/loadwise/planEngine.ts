@@ -3947,6 +3947,9 @@ export function generatePlan(
   // TWARDA reguła: nigdy dwa dni siłowni z rzędu.
   enforceNoConsecutiveGymDays(out, profile);
 
+  // TWARDA reguła: nigdy dwa dni wytrzymałości/kondycji z rzędu.
+  enforceNoConsecutiveEnduranceDays(out, profile);
+
   // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
   // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
   if (!profile.hasGym) {
