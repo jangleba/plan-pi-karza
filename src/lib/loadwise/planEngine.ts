@@ -3144,8 +3144,12 @@ function enforceNoConsecutiveEnduranceDays(out: SessionDay[], profile: Profile):
     if (!dayHasEnduranceLoad(prev) || !dayHasEnduranceLoad(cur)) continue;
     const reason =
       "Nigdy nie planujemy dwóch dni wytrzymałości z rzędu — dziś lekka, niekondycyjna praca prehab/mobilność chroni regenerację.";
+    // Najpierw spróbuj PRZENIEŚĆ bodziec wydolnościowy na wolny, bezkonfliktowy
+    // dzień (zachowanie tygodniowego minimum). Degradacja to ostateczność.
     if (isEnduranceLoadSession(cur) && cur.dayType === "training") {
-      degradeToPrehab(cur, profile, reason);
+      if (!tryRelocateEndurance(out, i)) {
+        degradeToPrehab(cur, profile, reason);
+      }
     }
     const second = cur.secondSession;
     if (second && isEnduranceLoadSession(second) && second.dayType !== "match" && !second.isClubSession) {
@@ -3154,13 +3158,67 @@ function enforceNoConsecutiveEnduranceDays(out: SessionDay[], profile: Profile):
   }
 }
 
+// Pola kalendarzowe, których NIE zamieniamy przy przenoszeniu treści sesji.
+const CALENDAR_KEYS = new Set<string>([
+  "date",
+  "dayOfWeek",
+  "dayName",
+  "mdRelation",
+  "mdLabel",
+  "dbId",
+  "dayDbId",
+  "sessionId",
+  "blockWeekNumber",
+  "blockPhaseLabel",
+  "weekMeta",
+  "dayType",
+  "slotLabel",
+]);
+
+/** Zamienia treść treningową dwóch dni (bez pól kalendarzowych). */
+function swapTrainingContent(a: SessionDay, b: SessionDay): void {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (CALENDAR_KEYS.has(k)) continue;
+    const tmp = (a as unknown as Record<string, unknown>)[k];
+    (a as unknown as Record<string, unknown>)[k] = (b as unknown as Record<string, unknown>)[k];
+    (b as unknown as Record<string, unknown>)[k] = tmp;
+  }
+}
+
 /**
- * FINALNY walidator rozkładu wydolności przed zapisaniem planu. Idempotentny:
- * dwukrotnie wymusza max 1 endurance/dzień oraz brak dwóch dni endurance z
- * rzędu, aż plan jest zgodny. Wywoływany jako ostatni gate.
+ * Próbuje przenieść wydolnościowy bodziec z dnia `i` na inny własny dzień
+ * treningowy w tym samym tygodniu, tak by nie powstał żaden konflikt
+ * (max 1 endurance/dzień, brak endurance dzień po dniu). Zwraca true po
+ * udanym przeniesieniu.
+ */
+function tryRelocateEndurance(out: SessionDay[], i: number): boolean {
+  const lo = Math.max(0, i - 3);
+  const hi = Math.min(out.length - 1, i + 3);
+  for (let j = lo; j <= hi; j++) {
+    if (j === i) continue;
+    const target = out[j];
+    if (target.dayType !== "training") continue;
+    if (dayHasEnduranceLoad(target)) continue;
+    // Po przeniesieniu dzień j staje się wydolnościowy — sąsiedzi muszą być wolni.
+    const before = j > 0 ? out[j - 1] : null;
+    const after = j < out.length - 1 ? out[j + 1] : null;
+    if (before && before !== out[i] && dayHasEnduranceLoad(before)) continue;
+    if (after && after !== out[i] && dayHasEnduranceLoad(after)) continue;
+    swapTrainingContent(out[i], target);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * FINALNY walidator rozkładu wydolności przed zapisaniem planu. Iteruje aż plan
+ * jest zgodny: max 1 endurance/dzień oraz brak dwóch dni endurance z rzędu.
+ * Preferuje przeniesienie bodźca (zachowanie tygodniowego minimum), degradacja
+ * jest ostatecznością. Wywoływany jako ostatni gate.
  */
 function validateEndurancePlacement(out: SessionDay[], profile: Profile): void {
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     enforceSingleEndurancePerDay(out, profile);
     enforceNoConsecutiveEnduranceDays(out, profile);
   }
