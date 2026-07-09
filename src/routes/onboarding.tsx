@@ -30,7 +30,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronLeft } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { pl } from "date-fns/locale";
+import { ChevronLeft, CalendarIcon } from "lucide-react";
 
 export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
