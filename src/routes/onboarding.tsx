@@ -709,39 +709,57 @@ function Onboarding() {
         )}
 
         {step === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold">Główny cel</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Wybierz jeden priorytet na najbliższy czas.
+              <h2 className="text-2xl font-semibold">Główny cel</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Wybierz jeden priorytet. Ograniczenie potraktujemy jako dodatkowe
+                wsparcie, nie zamiennik celu.
               </p>
             </div>
-            <ChoiceGrid
-              options={goals}
-              value={goal}
-              onChange={setGoal}
-              labels={GOAL_LABELS}
-            />
 
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold">
-                Co najbardziej Cię ogranicza?
-              </h2>
+            {/* Priorytet */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !goal ? "true" : undefined}
+            >
+              <Label>Priorytet</Label>
+              <ChoiceGrid
+                options={goalOrder}
+                value={goal}
+                onChange={setGoal}
+                labels={GOAL_SHORT_LABELS}
+                cols={2}
+              />
+              {showErrors && !goal && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz główny cel.
+                </p>
+              )}
+            </section>
+
+            {/* Ograniczenie */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !secondaryLimiter ? "true" : undefined}
+            >
+              <Label>Co najbardziej Cię ogranicza?</Label>
               <p className="text-sm text-muted-foreground">
-                To dodatkowe wsparcie w planie — nie zastępuje celu głównego.
+                To pomaga dobrać akcenty w planie. Nie zastępuje celu głównego.
               </p>
               <ChoiceGrid
                 options={limiters}
                 value={secondaryLimiter}
                 onChange={setSecondaryLimiter}
-                labels={SECONDARY_LIMITER_LABELS}
+                labels={LIMITER_SHORT_LABELS}
+                cols={2}
               />
-              {secondaryLimiter === null && (
+              {showErrors && !secondaryLimiter && (
                 <p className="text-xs font-medium text-destructive">
                   Wybierz, co najbardziej Cię ogranicza.
                 </p>
               )}
-            </div>
+            </section>
           </div>
         )}
 
