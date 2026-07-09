@@ -466,37 +466,7 @@ function Onboarding() {
             ))}
           </div>
         </div>
-      {/* header-end */}
-        <div className="flex items-center gap-3">
-          {step > 0 ? (
-            <button
-              onClick={() => setStep((s) => s - 1)}
-              className="rounded-full border border-border p-1.5 text-foreground"
-              aria-label="Wstecz"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          ) : (
-            <div className="text-xl font-semibold text-primary">Loadwise</div>
-          )}
-          <div className="ml-auto text-xs text-muted-foreground">
-            Krok {step + 1} z {totalSteps}
-          </div>
-        </div>
-        <div className="mt-3 flex gap-1.5">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 flex-1 rounded-full ${
-                i <= step ? "bg-primary" : "bg-muted"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="px-5 pt-6">
-        {step === 1 && (
+        <div className="px-5 pt-6 pb-36">
           <div className="space-y-5">
             <div>
               <h2 className="text-xl font-semibold">Zaczynamy</h2>
