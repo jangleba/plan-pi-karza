@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 
 export function WeeklyGateSheet({
   open,
