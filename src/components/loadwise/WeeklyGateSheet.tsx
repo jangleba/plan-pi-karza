@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, CheckCircle2 } from "lucide-react";
 
 export function WeeklyGateSheet({
   open,
@@ -17,6 +17,7 @@ export function WeeklyGateSheet({
   weekNumber,
   nextWeekStart,
   nextWeekEnd,
+  allowNoMatch = false,
   onConfirmed,
 }: {
   open: boolean;
@@ -25,36 +26,43 @@ export function WeeklyGateSheet({
   weekNumber: number;
   nextWeekStart: string; // yyyy-MM-dd — pierwszy dzień kolejnego tygodnia
   nextWeekEnd: string; // yyyy-MM-dd — ostatni dzień kolejnego tygodnia
+  /** Poza sezonem / przejściowy: pozwól zaznaczyć tydzień bez meczu. */
+  allowNoMatch?: boolean;
   onConfirmed: () => void;
 }) {
   const { state, confirmWeeklyTransition } = useLoadwise();
   const existing = state.transitions[weekNumber];
 
   const [matchDate, setMatchDate] = useState<string>("");
+  const [noMatch, setNoMatch] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMatchDate(existing?.nextMatchDate ?? "");
+      setNoMatch(allowNoMatch && Boolean(existing?.noMatchNextWeek));
       setSaving(false);
     }
-  }, [open, existing]);
+  }, [open, existing, allowNoMatch]);
 
-  const canSave = matchDate !== "";
+  const canSave = noMatch || matchDate !== "";
 
   async function handleSave() {
     if (!canSave || saving) return;
     setSaving(true);
     try {
-      await confirmWeeklyTransition(weekNumber, matchDate, false);
-      toast.success("Mecz zapisany. Dopasowujemy tydzień.");
+      await confirmWeeklyTransition(weekNumber, noMatch ? null : matchDate, noMatch);
+      toast.success(
+        noMatch
+          ? "Zapisano tydzień bez meczu."
+          : "Mecz zapisany. Dopasowujemy tydzień.",
+      );
       onOpenChange(false);
       onConfirmed();
     } finally {
       setSaving(false);
     }
   }
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -83,12 +91,30 @@ export function WeeklyGateSheet({
               type="date"
               value={matchDate}
               min={nextWeekStart}
+              disabled={noMatch}
               onChange={(e) => setMatchDate(e.target.value)}
               className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
           </div>
         </div>
 
+        {/* Tryb bez meczu — tylko poza sezonem / przejściowy */}
+        {allowNoMatch && (
+          <button
+            type="button"
+            onClick={() => setNoMatch((v) => !v)}
+            className={`mt-3 flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+              noMatch
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-input text-muted-foreground"
+            }`}
+          >
+            <CheckCircle2
+              className={`h-4 w-4 ${noMatch ? "opacity-100" : "opacity-30"}`}
+            />
+            Nie mam meczu w kolejnym tygodniu (poza sezonem)
+          </button>
+        )}
 
         <Button
           className="mt-3 w-full"
@@ -100,7 +126,9 @@ export function WeeklyGateSheet({
 
         {!canSave && (
           <p className="text-center text-xs text-muted-foreground">
-            Najpierw wybierz datę kolejnego meczu.
+            {allowNoMatch
+              ? "Wybierz datę meczu albo zaznacz tydzień bez meczu."
+              : "Najpierw wybierz datę kolejnego meczu."}
           </p>
         )}
       </DialogContent>
