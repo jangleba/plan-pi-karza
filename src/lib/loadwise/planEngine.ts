@@ -1889,14 +1889,14 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   if (/regener|prehab/.test(stype)) return "athletic";
   if (/wytrzym|wydol|tlen|kondyc/.test(stype)) return "conditioning";
   if (/sprint|szybko/.test(stype)) return "speed";
-  if (/sił|moc|power/.test(stype)) return "strength_power";
+  if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/.test(stype)) return "strength_power";
   if (/cod|zwin|motory|hamowan/.test(stype)) return "athletic";
 
   // Nie używamy goalLabel do klasyfikacji — etykieta celu (np. "Siła i
   // stabilność") fałszywie kierowałaby każdą sesję do kategorii celu.
   const header =
     `${session.title} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
-  if (/sił|moc|power/.test(header)) {
+  if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/.test(header)) {
     return "strength_power";
   }
   if (/wydol|tlen|tempo|interwa|rsa|kondyc/.test(header)) {
@@ -1911,7 +1911,7 @@ export function sessionCategory(session: SessionDay): PlanSessionCategory {
   const text = textOfSession(session);
   if (/wydol|tlen|tempo|interwa|rsa|kondyc|ciągły bieg|biegowy|bieg /.test(text)) return "conditioning";
   if (/sprint|szybko|przyspiesz|akceler|prędko|reakcja|flying/.test(text)) return "speed";
-  if (/sił|moc\s*\/|mocą|power|przysiad|martwy|split squat|rdl|trap-bar|goblet/.test(text)) return "strength_power";
+  if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power|przysiad|martwy|split squat|rdl|trap-bar|goblet/.test(text)) return "strength_power";
   if (/cod|zwin|zmian|hamowan|lądowa|prehab|mobil|stabil|core|przywodziciel|copenhagen|nordic/.test(text)) return "athletic";
   return "ball";
 }
@@ -2929,7 +2929,7 @@ function computeLoadTags(session: SessionDay): LoadTag[] {
     tags.add("technical_low");
   }
 
-  const isGym = /sił|moc|power|strength/i.test(t);
+  const isGym = /sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power|strength/i.test(t);
   if (isGym && session.intensity !== "niska") {
     tags.add("lower_body_high");
     tags.add("neural_high");
@@ -3851,7 +3851,7 @@ export function generatePlan(
   const applyGymPlan = (target: SessionDay, readiness?: number): void => {
     const plan = buildStrengthPowerStructured(profile, {
       mdLabel: target.mdLabel,
-      powerFocus: profile.goal === "power" || /moc|power/i.test(target.sessionType),
+      powerFocus: profile.goal === "power" || /\bmoc(?:y|ą|owy|owa|owe)?\b|power/i.test(target.sessionType),
       weekPhase: curPhase,
       weekIndex: curWeekIndex,
       gymSessionIndexInWeek: gymSessionsThisWeek,
@@ -4146,7 +4146,7 @@ export function generatePlan(
         secondSession: null,
       };
       // Strukturalne, wariantowe sesje siłowni (rola + periodyzacja + anty-powtórzenia).
-      if (/sił|moc|power/i.test(built.sessionType)) {
+      if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/i.test(built.sessionType)) {
         applyGymPlan(session);
         reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
         session.reason = reason;
@@ -4173,7 +4173,7 @@ export function generatePlan(
         second.reason = `Druga sesja realizuje brakującą kategorię tygodnia: ${built.sessionType.toLowerCase()}.`;
         second.whyToday =
           "Podwójny dzień został użyty celowo, aby uzupełnić siłę/sprint/bieganie/motorykę zamiast dokładać lekki filler.";
-        if (/sił|moc|power/i.test(built.sessionType)) {
+        if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/i.test(built.sessionType)) {
           applyGymPlan(second);
         } else {
           enforceSessionCategory(second, profile, {
@@ -4270,7 +4270,7 @@ export function generatePlan(
     const GYM_EQUIP = /siłown|sztang|hantl|gym|wyciąg|maszyn|ława|barbell|dumbbell/i;
     for (const day of out) {
       for (const s of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
-        const isStrength = /si[łl]a|strength|moc|power/i.test(`${s.sessionType} ${s.title}`);
+        const isStrength = /si[łl]a|strength|\bmoc(?:y|ą|owy|owa|owe)?\b|power/i.test(`${s.sessionType} ${s.title}`);
         if (!isStrength) continue;
         if (GYM_EQUIP.test(`${s.sessionType} ${s.title}`) || !/masa ciała|bodyweight/i.test(s.title)) {
           s.title = "Siła (masa ciała / bez sprzętu)";
