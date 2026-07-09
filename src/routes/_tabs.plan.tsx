@@ -582,6 +582,7 @@ function PlanScreen() {
           weekNumber={gateWeek}
           nextWeekStart={gateWeekData.startDate}
           nextWeekEnd={gateWeekData.endDate}
+          allowNoMatch={offseasonAllowed}
           onConfirmed={() => {
             const target = gateWeek;
             setGateWeek(null);
