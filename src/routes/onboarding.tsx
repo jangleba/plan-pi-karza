@@ -276,6 +276,37 @@ function Onboarding() {
 
   const totalSteps = 5;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showErrors, setShowErrors] = useState(false);
+
+  // Każdy krok zawsze startuje od samej góry.
+  useEffect(() => {
+    const toTop = (el: { scrollTo: (o: ScrollToOptions) => void } | null) => {
+      if (!el) return;
+      try {
+        el.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      } catch {
+        el.scrollTo({ top: 0, behavior: "auto" });
+      }
+    };
+    toTop(scrollRef.current);
+    if (typeof window !== "undefined") toTop(window);
+    setShowErrors(false);
+  }, [step]);
+
+  function goNext() {
+    if (!canNext()) {
+      setShowErrors(true);
+      if (step === 4) setTriedNext(true);
+      requestAnimationFrame(() => {
+        const el = document.querySelector('[data-error="true"]');
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+    setStep((s) => s + 1);
+  }
+
   const requiredConsentsOk = CONSENTS.filter((c) => c.required).every(
     (c) => consents[c.type],
   );
