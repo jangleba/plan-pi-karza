@@ -157,30 +157,44 @@ const blueprintRegistry: Partial<Record<BlueprintType, BlueprintSpec>> = {
 };
 
 /** Mapuje ćwiczenie na blueprintType na podstawie nazwy/techniki. */
-export function blueprintFor(e: TrainingExercise): BlueprintType | null {
-  const t = `${e.name} ${e.technique ?? ""}`.toLowerCase();
+export function blueprintFor(e: TrainingExercise): BlueprintType {
+  const t = `${e.name} ${e.technique ?? ""} ${e.cue ?? ""} ${e.equipment ?? ""}`.toLowerCase();
   const has = (...w: string[]) => w.some((x) => t.includes(x));
 
+  // --- Dopasowania dokładne ---
   if (has("nordic")) return "nordic_hamstring";
-  if (has("slider", "leg curl na sliderach")) return "hamstring_slider_curl";
+  if (has("slider", "leg curl na sliderach", "nordic curl")) return "hamstring_slider_curl";
   if (has("goblet")) return "goblet_squat";
-  if (has("high bar", "przysiad ze sztang", "back squat")) return "high_bar_squat";
-  if (has("przysiad", "squat")) return "high_bar_squat";
-  if (has("rdl", "martwy ciąg rumuń", "romanian")) return "rdl";
-  if (has("bułgar", "split squat", "wykrok w podpor")) return "split_squat";
+  if (has("high bar", "przysiad ze sztang", "back squat", "front squat")) return "back_squat";
+  if (has("rdl", "martwy ciąg rumuń", "romanian", "hip hinge", "zawias biodrow")) return "rdl";
+  if (has("kettlebell swing", "swing", "zamach", "kb swing")) return "rdl";
+  if (has("trap bar", "deadlift", "martwy ciąg")) return "rdl";
+  if (has("bułgar", "split squat", "wykrok", "lunge", "zakrocz", "step up", "step-up", "wejści na skrzyni")) return "split_squat";
+  if (has("przysiad", "squat", "siad")) return "high_bar_squat";
   if (has("bounds", "wieloskok", "skok naprzemienny")) return "bounds";
-  if (has("cmj", "skok pionowy", "vertical jump", "wyskok")) return "cmj";
-  if (has("skok w dal", "broad jump")) return "broad_jump";
-  if (has("pogo")) return "pogo_jump";
-  if (has("max velocity", "prędkość maksymaln", "lotny")) return "max_velocity_sprint";
-  if (has("akcelerac", "sprint", "przyspiesz", "start", "wypchnięc")) return "sprint_acceleration";
-  if (has("hamowan", "decel", "zatrzym")) return "deceleration";
-  if (has("zmiana kierunk", "change of direction", "cod ")) return "change_of_direction";
-  if (has("pallof")) return "pallof_press";
-  if (has("dead bug", "martwy robak")) return "dead_bug";
-  if (has("copenhagen")) return "copenhagen_plank";
-  if (has("wspięci", "łydk", "calf")) return "calf_raise";
-  return null;
+  if (has("skok w dal", "broad jump", "skok w przód")) return "broad_jump";
+  if (has("cmj", "skok pionowy", "vertical jump", "wyskok", "box jump", "skok na skrzyni")) return "cmj";
+  if (has("pogo", "odbicia", "skip")) return "pogo_jump";
+  if (has("max velocity", "prędkość maksymaln", "lotny", "flying", "rytm")) return "max_velocity_sprint";
+  if (has("akcelerac", "sprint", "przyspiesz", "wypchnięc", "falling start", "start ")) return "sprint_acceleration";
+  if (has("hamowan", "decel", "zatrzym", "lądowani", "landing")) return "deceleration";
+  if (has("zmiana kierunk", "change of direction", "cod", "cięcie", "agility", "zwrotność")) return "change_of_direction";
+  if (has("pallof", "anty-rotac", "anti-rotation", "anti rotation")) return "pallof_press";
+  if (has("copenhagen", "kopenha", "przywodzicieli w podpor")) return "copenhagen_plank";
+  if (has("dead bug", "martwy robak", "bird dog", "ptak-pies", "plank", "deska", "bridge", "mostek", "hollow", "core", "brzuch", "tułów", "stabiliz")) return "dead_bug";
+  if (has("wspięci", "łydk", "calf", "kostk", "ankle", "stopa", "stóp")) return "calf_raise";
+
+  // --- Fallback po kategorii ruchu (nigdy pustego pola) ---
+  if (has("bieg", "trucht", "tempo", "interwał", "endurance", "wytrzym", "cardio", "rower")) return "max_velocity_sprint";
+  if (has("mobiln", "mobility", "rozciąg", "stretch", "dynamiczn", "rozgrzew", "warm", "aktywac", "activation")) return "split_squat";
+  if (has("biodr", "hip", "glute", "pośladk")) return "rdl";
+  if (has("hamstring", "dwugłow", "tył uda")) return "hamstring_slider_curl";
+  if (has("ciąg", "wiosł", "row", "pull", "podciąg", "face pull")) return "rdl";
+  if (has("wyciskani", "press", "pomp", "push", "klatk")) return "dead_bug";
+  if (has("recovery", "regenerac", "oddech", "breathing", "mobilizac")) return "dead_bug";
+
+  // Ostateczny fallback — spójna karta ruchu ogólnego (bez placeholdera).
+  return "high_bar_squat";
 }
 
 /** Kompaktowy, elegancki fallback — bez wielkiego pustego pola. */
