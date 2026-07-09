@@ -29,10 +29,10 @@ const ACCENT = "var(--primary)";
 type BlueprintSpec = {
   title: string;
   directionLabel: string;
-  Svg: () => React.ReactElement;
+  Svg: () => ReactElement;
 };
 
-function Canvas({ children }: { children: React.ReactNode }) {
+function Canvas({ children }: { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 200 130"
