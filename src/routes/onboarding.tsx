@@ -557,170 +557,184 @@ function Onboarding() {
         )}
 
         {step === 4 && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Kalendarz tygodnia
               </span>
-              <h2 className="mt-1 text-xl font-semibold">
+              <h2 className="mt-1 text-2xl font-semibold">
                 Twój tydzień treningowy
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Plan musi pasować do treningów klubowych, dni indywidualnych i
-                meczu. Loadwise nie powinien dokładać sesji losowo.
+              <p className="mt-2 text-sm text-muted-foreground">
+                Zaznacz stałe elementy tygodnia. Loadwise dopasuje do nich
+                obciążenia, regenerację i dni mocniejsze.
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label>W jakie dni masz treningi klubowe?</Label>
-              <div className="grid grid-cols-7 gap-1.5">
-                {ISO_DAY_LABELS.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    onClick={() => toggleClubDay(d.value)}
-                    className={`rounded-full border py-2 text-xs font-medium transition-colors ${
-                      clubDays.includes(d.value)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                  >
-                    {d.short}
-                  </button>
-                ))}
+            {/* Główna karta kalendarza */}
+            <div className="space-y-7 rounded-2xl border border-border bg-card p-5">
+              {/* Treningi klubowe */}
+              <div className="space-y-2.5">
+                <Label>W jakie dni masz treningi klubowe?</Label>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {ISO_DAY_LABELS.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => toggleClubDay(d.value)}
+                      className={`rounded-full border py-2 text-xs font-medium transition-colors ${
+                        clubDays.includes(d.value)
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground"
+                      }`}
+                    >
+                      {d.short}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>W jakie dni chcesz trenować indywidualnie z Loadwise?</Label>
-              <div className="grid grid-cols-7 gap-1.5">
-                {ISO_DAY_LABELS.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    onClick={() => toggleIndividualDay(d.value)}
-                    className={`rounded-full border py-2 text-xs font-medium transition-colors ${
-                      individualDays.includes(d.value)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                  >
-                    {d.short}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                W te dni Loadwise może zaplanować Twoje własne jednostki:
-                szybkość, siłę, boisko, regenerację albo technikę.
-              </p>
-              {individualDays.length === 0 && (
-                <p className="text-xs font-medium text-destructive">
-                  Wybierz co najmniej jeden dzień treningu indywidualnego.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="match">Data najbliższego meczu</Label>
-              <Input
-                id="match"
-                type="date"
-                min={todayStr}
-                value={matchDate}
-                onChange={(e) => setMatchDate(e.target.value)}
-              />
-              {!matchDate && (
-                <p className="text-xs font-medium text-destructive">
-                  Podaj datę najbliższego meczu
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    { v: "yes_if_safe", label: "Tak" },
-                    { v: "no", label: "Nie" },
-                  ] as { v: DoubleSessions; label: string }[]
-                ).map((o) => (
-                  <button
-                    key={o.v}
-                    type="button"
-                    onClick={() => setDoubleSessions(o.v)}
-                    className={`rounded-full border px-3 py-2.5 text-sm font-medium transition-colors ${
-                      doubleSessions === o.v
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Czy grasz mecze co tydzień?</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { v: true, label: "Tak, co tydzień" },
-                  { v: false, label: "Nie / nieregularnie" },
-                ].map((o) => (
-                  <button
-                    key={String(o.v)}
-                    type="button"
-                    onClick={() => setWeeklyMatches(o.v)}
-                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
-                      weeklyMatches === o.v
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Warunki treningowe</Label>
-              <div className="space-y-2">
-                {(
-                  [
-                    { key: "gym", label: "Mam dostęp do siłowni", v: hasGym, set: setHasGym },
-                    { key: "pitch", label: "Mam dostęp do boiska", v: hasPitch, set: setHasPitch },
-                  ] as { key: string; label: string; v: boolean; set: (b: boolean) => void }[]
-                ).map((o) => (
-                  <label
-                    key={o.key}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
-                  >
-                    <Checkbox
-                      checked={o.v}
-                      onCheckedChange={(c) => o.set(c === true)}
+              {/* Data meczu */}
+              <div className="space-y-2.5">
+                <Label>Data najbliższego meczu</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setMatchDateTouched(true)}
+                      className={`flex w-full items-center gap-3 rounded-xl border bg-background px-4 py-3 text-left text-sm transition-colors ${
+                        (triedNext || matchDateTouched) && !matchDate
+                          ? "border-destructive"
+                          : "border-border"
+                      }`}
+                    >
+                      <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span
+                        className={
+                          matchDate ? "text-foreground" : "text-muted-foreground"
+                        }
+                      >
+                        {matchDate
+                          ? format(new Date(`${matchDate}T00:00:00`), "d MMMM yyyy", {
+                              locale: pl,
+                            })
+                          : "Wybierz datę meczu"}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      locale={pl}
+                      selected={
+                        matchDate ? new Date(`${matchDate}T00:00:00`) : undefined
+                      }
+                      onSelect={(d) => {
+                        setMatchDateTouched(true);
+                        if (d) setMatchDate(format(d, "yyyy-MM-dd"));
+                      }}
+                      disabled={(d) =>
+                        d < new Date(`${todayStr}T00:00:00`)
+                      }
+                      initialFocus
+                      className="pointer-events-auto p-3"
                     />
-                    <span className="text-sm">{o.label}</span>
-                  </label>
-                ))}
+                  </PopoverContent>
+                </Popover>
+                {(triedNext || matchDateTouched) && !matchDate && (
+                  <p className="text-xs font-medium text-destructive">
+                    Podaj datę najbliższego meczu, żeby dobrze ustawić
+                    obciążenia.
+                  </p>
+                )}
+              </div>
+
+              {/* Dwa treningi dziennie */}
+              <div className="space-y-2.5">
+                <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { v: "yes_if_safe", label: "Tak" },
+                      { v: "no", label: "Nie" },
+                    ] as { v: DoubleSessions; label: string }[]
+                  ).map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setDoubleSessions(o.v)}
+                      className={`rounded-full border px-3 py-2.5 text-sm font-medium transition-colors ${
+                        doubleSessions === o.v
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-foreground"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Np. siłownia rano i trening klubowy wieczorem. Loadwise nie
+                  połączy dwóch ciężkich bodźców bez sensu.
+                </p>
               </div>
             </div>
 
-
-            <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
-              <Checkbox
-                checked={painInjury}
-                onCheckedChange={(v) => setPainInjury(v === true)}
-                className="mt-0.5"
-              />
-              <span className="text-sm">
-                Mam aktualnie ból lub uraz
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Dostosujemy plan i ograniczymy ryzykowne obciążenia.
+            {/* Warunki treningowe */}
+            <div className="space-y-2.5">
+              <Label>Warunki treningowe</Label>
+              <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+                <Checkbox
+                  checked={hasGym}
+                  onCheckedChange={(c) => setHasGym(c === true)}
+                />
+                <span className="text-sm">Mam dostęp do siłowni</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+                <Checkbox
+                  checked={hasPitch}
+                  onCheckedChange={(c) => setHasPitch(c === true)}
+                />
+                <span className="text-sm">Mam dostęp do boiska</span>
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
+                <Checkbox
+                  checked={painInjury}
+                  onCheckedChange={(v) => setPainInjury(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm">
+                  Mam aktualnie ból lub uraz
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Dostosujemy plan i ograniczymy ryzykowne obciążenia.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            </div>
+
+            {/* Dni całkowicie niedostępne */}
+            <div className="space-y-2.5">
+              <Label>Dni całkowicie niedostępne</Label>
+              <p className="text-xs text-muted-foreground">
+                Zaznacz tylko dni, w które w ogóle nie możesz trenować.
+              </p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {ISO_DAY_LABELS.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => toggleUnavailableDay(d.value)}
+                    className={`rounded-full border py-2 text-xs font-medium transition-colors ${
+                      unavailableDays.includes(d.value)
+                        ? "border-destructive bg-destructive text-destructive-foreground"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    {d.short}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {isMinor && (
               <label className="flex items-start gap-3 rounded-xl border border-accent bg-accent/30 p-3.5">
