@@ -219,6 +219,15 @@ function resolveCategory(session: SessionDay): CategoryResult {
     };
   }
 
+  // RSA / powtarzalne sprinty są bodźcem wydolnościowym, mimo słowa "sprint".
+  if (has(header, /\brsa\b|powtarzan.{0,12}sprint/i) && has(header, RE_ENDURANCE)) {
+    return {
+      category: "endurance_conditioning",
+      subcategory: "repeated_tempo",
+      sourceRule: "header=rsa/repeated-sprint endurance",
+    };
+  }
+
   // 4) Szybkość — sprawdzamy przed siłą (sprinty bywają w "mocy"), ale po
   //    wyraźnej siłowni. Najpierw nagłówek.
   if (has(header, RE_SPEED)) {
@@ -257,6 +266,13 @@ function resolveCategory(session: SessionDay): CategoryResult {
   }
 
   // 8) Fallback po pełnym tekście (ćwiczenia).
+  if (has(text, /\brsa\b|powtarzan.{0,12}sprint/i) && has(text, RE_ENDURANCE)) {
+    return {
+      category: "endurance_conditioning",
+      subcategory: "repeated_tempo",
+      sourceRule: "text=rsa/repeated-sprint endurance",
+    };
+  }
   if (has(text, RE_SPEED)) {
     return {
       category: "speed_sprint",
