@@ -9,6 +9,17 @@ import bounds from "@/assets/blueprints/bounds.png";
 import deceleration from "@/assets/blueprints/deceleration.png";
 import pallofPress from "@/assets/blueprints/pallof_press.png";
 import deadBug from "@/assets/blueprints/dead_bug.png";
+import backSquat from "@/assets/blueprints/back_squat.png";
+import gobletSquat from "@/assets/blueprints/goblet_squat.png";
+import rdl from "@/assets/blueprints/rdl.png";
+import splitSquat from "@/assets/blueprints/split_squat.png";
+import cmj from "@/assets/blueprints/cmj.png";
+import broadJump from "@/assets/blueprints/broad_jump.png";
+import changeOfDirection from "@/assets/blueprints/change_of_direction.png";
+import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.png";
+import calfRaise from "@/assets/blueprints/calf_raise.png";
+import pogoJump from "@/assets/blueprints/pogo_jump.png";
+import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
 
 /**
  * System Movement Blueprint.
