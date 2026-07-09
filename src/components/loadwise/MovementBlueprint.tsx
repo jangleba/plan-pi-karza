@@ -28,7 +28,7 @@ const ACCENT = "var(--primary)";
 type BlueprintSpec = {
   title: string;
   directionLabel: string;
-  Svg: () => JSX.Element;
+  Svg: () => React.ReactElement;
 };
 
 function Canvas({ children }: { children: React.ReactNode }) {
