@@ -3986,6 +3986,7 @@ export function generatePlan(
   // TWARDA reguła (ostatni gate): nigdy dwa dni siłowni z rzędu, także po
   // przebudowie tygodnia. Zdegradowane dni przechodzą ponowną klasyfikację.
   enforceNoConsecutiveGymDays(finalPlan, profile);
+  enforceNoConsecutiveEnduranceDays(finalPlan, profile);
   for (let i = 0; i < finalPlan.length; i++) {
     if (!finalPlan[i].classification) {
       finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
