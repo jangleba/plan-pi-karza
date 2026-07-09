@@ -1872,7 +1872,7 @@ function textOfSession(session: SessionDay): string {
 }
 
 function headerTextOfSession(session: SessionDay): string {
-  return `${session.title} ${session.goalLabel} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
+  return `${session.title} ${session.sessionType} ${session.goalOfSession}`.toLowerCase();
 }
 
 export function sessionCategory(session: SessionDay): PlanSessionCategory {
