@@ -9,6 +9,17 @@ import bounds from "@/assets/blueprints/bounds.png";
 import deceleration from "@/assets/blueprints/deceleration.png";
 import pallofPress from "@/assets/blueprints/pallof_press.png";
 import deadBug from "@/assets/blueprints/dead_bug.png";
+import backSquat from "@/assets/blueprints/back_squat.png";
+import gobletSquat from "@/assets/blueprints/goblet_squat.png";
+import rdl from "@/assets/blueprints/rdl.png";
+import splitSquat from "@/assets/blueprints/split_squat.png";
+import cmj from "@/assets/blueprints/cmj.png";
+import broadJump from "@/assets/blueprints/broad_jump.png";
+import changeOfDirection from "@/assets/blueprints/change_of_direction.png";
+import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.png";
+import calfRaise from "@/assets/blueprints/calf_raise.png";
+import pogoJump from "@/assets/blueprints/pogo_jump.png";
+import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
 
 /**
  * System Movement Blueprint.
@@ -87,6 +98,61 @@ const blueprintRegistry: Partial<Record<BlueprintType, BlueprintSpec>> = {
     src: deadBug,
     title: "Dead bug — stabilny tułów",
     directionLabel: "Naprzemienne wyprosty",
+  },
+  back_squat: {
+    src: backSquat,
+    title: "Przysiad ze sztangą — w dół i w górę",
+    directionLabel: "Pion w dół i w górę",
+  },
+  goblet_squat: {
+    src: gobletSquat,
+    title: "Goblet squat — w dół i w górę",
+    directionLabel: "Pion w dół i w górę",
+  },
+  rdl: {
+    src: rdl,
+    title: "RDL — biodra w tył",
+    directionLabel: "Zawias biodrowy w tył",
+  },
+  split_squat: {
+    src: splitSquat,
+    title: "Przysiad bułgarski — w dół i w górę",
+    directionLabel: "Pion w dół i w górę",
+  },
+  cmj: {
+    src: cmj,
+    title: "Wyskok pionowy — eksplozja w górę",
+    directionLabel: "Wyskok w górę",
+  },
+  broad_jump: {
+    src: broadJump,
+    title: "Skok w dal — napęd w przód",
+    directionLabel: "Skok w przód",
+  },
+  change_of_direction: {
+    src: changeOfDirection,
+    title: "Zmiana kierunku — mocne wypchnięcie w bok",
+    directionLabel: "Zmiana kierunku",
+  },
+  copenhagen_plank: {
+    src: copenhagenPlank,
+    title: "Copenhagen plank — biodra w górę",
+    directionLabel: "Uniesienie bioder",
+  },
+  calf_raise: {
+    src: calfRaise,
+    title: "Wspięcia na palce — w górę",
+    directionLabel: "Uniesienie na palce",
+  },
+  pogo_jump: {
+    src: pogoJump,
+    title: "Pogo — szybkie odbicia",
+    directionLabel: "Szybkie odbicie w górę",
+  },
+  max_velocity_sprint: {
+    src: maxVelocitySprint,
+    title: "Prędkość maksymalna — wysoka postawa",
+    directionLabel: "Napęd do przodu",
   },
 };
 
