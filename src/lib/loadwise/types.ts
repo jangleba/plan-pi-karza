@@ -86,6 +86,8 @@ export interface Profile {
   hasGym: boolean; // dostęp do siłowni
   hasPitch: boolean; // dostęp do boiska
   hasSprintSpace: boolean; // miejsce do sprintu
+  /** Dni całkowicie niedostępne (1=Pn ... 7=Nd) — Loadwise nic w nie nie zaplanuje. */
+  unavailableDays?: number[];
   // --- Pola opcjonalne przygotowane pod rozszerzenie onboardingu ---
   /** Doświadczenie na siłowni (jawnie z onboardingu, jeśli kiedyś dodane). */
   gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced";
