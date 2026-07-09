@@ -1,256 +1,270 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
+import { Activity } from "lucide-react";
 
 /**
  * System blueprintów ruchu.
  *
- * Zamiast osobnej grafiki dla każdego ćwiczenia mamy ograniczony zbiór
- * minimalistycznych diagramów SVG (blueprintType), które przypisujemy do
- * wielu ćwiczeń na podstawie nazwy/typu. Diagram pokazuje sylwetkę + strzałkę
- * kierunku głównego ruchu.
+ * Zamiast osobnej grafiki dla każdego ćwiczenia mamy registry
+ * minimalistycznych inline SVG diagramów. Każdy diagram to sportowy
+ * rysunek techniczny: cienkie linie sylwetki + niebieska strzałka kierunku
+ * głównego ruchu. Jeśli dla danego blueprintType nie ma jeszcze SVG,
+ * pokazujemy elegancki mały fallback (bez wielkiego pustego pola).
  */
 export type BlueprintType =
-  | "squat"
-  | "hinge"
-  | "lunge"
-  | "push"
-  | "pull"
-  | "sprint"
-  | "jump"
-  | "core"
-  | "calf"
-  | "run"
-  | "mobility"
-  | "ball"
-  | "generic";
+  | "high_bar_squat"
+  | "nordic_hamstring"
+  | "hamstring_slider_curl"
+  | "vertical_jump"
+  | "bounds"
+  | "sprint_acceleration"
+  | "deceleration"
+  | "pallof_press"
+  | "dead_bug";
 
-const LABELS: Record<BlueprintType, string> = {
-  squat: "Przysiad — w dół i w górę",
-  hinge: "Zawias biodrowy — biodra w tył",
-  lunge: "Wykrok — krok w dół",
-  push: "Pchanie — od klatki",
-  pull: "Ciągnięcie — do ciała",
-  sprint: "Sprint — napęd do przodu",
-  jump: "Skok — eksplozja w górę",
-  core: "Core — stabilna linia tułowia",
-  calf: "Łydki — wspięcie na palce",
-  run: "Bieg — rytm ciągły",
-  mobility: "Mobilność — pełen zakres",
-  ball: "Piłka — kontrola i akcja",
-  generic: "Kontrolowany ruch",
+// Kolory pobierane z design tokens (oklch), nie hardkodowane.
+const LINE = "var(--foreground)";
+const ACCENT = "var(--primary)";
+
+type BlueprintSpec = {
+  title: string;
+  directionLabel: string;
+  Svg: () => JSX.Element;
 };
 
-/** Przypisuje blueprintType do ćwiczenia na podstawie nazwy i parametrów. */
-export function blueprintFor(e: TrainingExercise): BlueprintType {
-  const t = `${e.name} ${e.technique ?? ""}`.toLowerCase();
-  const has = (...w: string[]) => w.some((x) => t.includes(x));
-
-  if (has("nordic", "rdl", "martwy", "hip thrust", "zawias", "hinge", "good morning", "hamstring bridge", "bridge", "mostek"))
-    return "hinge";
-  if (has("przysiad", "squat", "goblet", "box squat"))
-    return "squat";
-  if (has("wykrok", "lunge", "split", "step-up", "wejście", "bułgar"))
-    return "lunge";
-  if (has("wspięcia", "wspiecia", "łydk", "lydk", "calf", "palce"))
-    return "calf";
-  if (has("pompk", "wyciskan", "push", "press", "sztanga nad głow", "ohp", "dip"))
-    return "push";
-  if (has("wiosłowan", "wioslowan", "podciąg", "podciag", "pull", "row", "face pull", "ściąg", "sciag"))
-    return "pull";
-  if (has("sprint", "przyspiesz", "akcelerac", "start", "lotny", "bieg z"))
-    return "sprint";
-  if (has("skok", "jump", "plyo", "pogo", "bound", "wyskok", "podskok", "rzut"))
-    return "jump";
-  if (has("plank", "deska", "core", "brzuch", "dead bug", "pallof", "copenhagen", "kolarz", "hollow"))
-    return "core";
-  if (has("interwał", "interwal", "tempo", "trucht", "jog", "aerob", "bieg", "wahad"))
-    return "run";
-  if (has("mobiln", "mobility", "rozciąg", "rozciag", "stretch", "aktywacj", "rozgrzew"))
-    return "mobility";
-  if (has("piłk", "pilk", "podani", "przyjęci", "przyjeci", "drybling", "strzał", "strzal", "finish", "prowadzenie", "żongl", "zongl"))
-    return "ball";
-  return "generic";
-}
-
-const STROKE = "hsl(var(--foreground))";
-const ACCENT = "hsl(var(--primary))";
-
-function Body({ children }: { children: React.ReactNode }) {
+function Canvas({ children }: { children: React.ReactNode }) {
   return (
     <svg
-      viewBox="0 0 120 120"
+      viewBox="0 0 200 130"
       fill="none"
       className="h-full w-full"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      <defs>
+        <marker
+          id="mb-arrow"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="5.5"
+          markerHeight="5.5"
+          orient="auto-start-reverse"
+        >
+          <path d="M0 0 L10 5 L0 10 z" fill={ACCENT} />
+        </marker>
+      </defs>
       {children}
     </svg>
   );
 }
 
-// Prosta figurka: głowa + tułów + kończyny w zależności od wzorca.
-function Figure({ type }: { type: BlueprintType }) {
-  const s = { stroke: STROKE, strokeWidth: 2.4, opacity: 0.85 };
-  const acc = { stroke: ACCENT, strokeWidth: 3 };
+const body = { stroke: LINE, strokeWidth: 2.2, opacity: 0.55 } as const;
+const bodyStrong = { stroke: LINE, strokeWidth: 2.4, opacity: 0.9 } as const;
+const arrow = { stroke: ACCENT, strokeWidth: 3 } as const;
 
-  switch (type) {
-    case "squat":
-      return (
-        <>
-          <circle cx="60" cy="26" r="7" {...s} />
-          <path d="M60 33 L60 62" {...s} />
-          <path d="M60 62 L46 74 L46 92" {...s} />
-          <path d="M60 62 L74 74 L74 92" {...s} />
-          <path d="M60 42 L44 40 M60 42 L76 40" {...s} />
-          <path d="M92 40 L92 78" {...acc} markerEnd="url(#ar)" />
-          <path d="M92 78 L92 40" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "hinge":
-      return (
-        <>
-          <circle cx="34" cy="34" r="7" {...s} />
-          <path d="M40 38 L78 52" {...s} />
-          <path d="M78 52 L78 92" {...s} />
-          <path d="M62 46 L62 74" {...s} />
-          <path d="M96 44 L96 84" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "lunge":
-      return (
-        <>
-          <circle cx="58" cy="24" r="7" {...s} />
-          <path d="M58 31 L58 60" {...s} />
-          <path d="M58 60 L40 84 L40 96" {...s} />
-          <path d="M58 60 L82 72 L82 96" {...s} />
-          <path d="M60 40 L64 96" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "push":
-      return (
-        <>
-          <circle cx="40" cy="60" r="7" {...s} />
-          <path d="M46 60 L74 60" {...s} />
-          <path d="M74 60 L74 44 M74 60 L74 76" {...s} />
-          <path d="M50 66 L36 90 M50 54 L36 30" {...s} />
-          <path d="M80 60 L104 60" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "pull":
-      return (
-        <>
-          <circle cx="80" cy="60" r="7" {...s} />
-          <path d="M74 60 L46 60" {...s} />
-          <path d="M46 60 L46 44 M46 60 L46 76" {...s} />
-          <path d="M70 54 L84 30 M70 66 L84 90" {...s} />
-          <path d="M40 60 L16 60" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "sprint":
-      return (
-        <>
-          <circle cx="42" cy="30" r="7" {...s} />
-          <path d="M44 36 L60 58" {...s} />
-          <path d="M60 58 L44 78 M60 58 L82 70" {...s} />
-          <path d="M48 44 L30 52 M48 44 L70 40" {...s} />
-          <path d="M20 92 L104 92" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "jump":
-      return (
-        <>
-          <circle cx="60" cy="40" r="7" {...s} />
-          <path d="M60 47 L60 72" {...s} />
-          <path d="M60 72 L48 88 M60 72 L72 88" {...s} />
-          <path d="M60 52 L44 44 M60 52 L76 44" {...s} />
-          <path d="M60 30 L60 8" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "core":
-      return (
-        <>
-          <circle cx="30" cy="54" r="7" {...s} />
-          <path d="M36 56 L92 66" {...s} />
-          <path d="M40 58 L36 78 M88 65 L86 84" {...s} />
-          <path d="M20 92 L100 92" strokeDasharray="4 5" stroke={ACCENT} strokeWidth={2.4} />
-        </>
-      );
-    case "calf":
-      return (
-        <>
-          <circle cx="60" cy="30" r="7" {...s} />
-          <path d="M60 37 L60 74" {...s} />
-          <path d="M60 74 L52 90 M60 74 L68 90" {...s} />
-          <path d="M92 82 L92 52" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "run":
-      return (
-        <>
-          <circle cx="46" cy="32" r="7" {...s} />
-          <path d="M48 38 L58 60" {...s} />
-          <path d="M58 60 L46 82 M58 60 L74 76" {...s} />
-          <path d="M52 46 L38 52 M52 46 L68 44" {...s} />
-          <path d="M18 96 C34 88 44 96 60 92 S86 88 102 94" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "mobility":
-      return (
-        <>
-          <circle cx="60" cy="30" r="7" {...s} />
-          <path d="M60 37 L60 66" {...s} />
-          <path d="M60 66 L48 90 M60 66 L72 90" {...s} />
-          <path d="M38 50 C30 40 30 24 44 20" {...acc} markerEnd="url(#ar)" />
-          <path d="M82 50 C90 40 90 24 76 20" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    case "ball":
-      return (
-        <>
-          <circle cx="52" cy="28" r="7" {...s} />
-          <path d="M52 35 L52 64" {...s} />
-          <path d="M52 64 L42 86 M52 64 L64 82" {...s} />
-          <path d="M52 44 L40 52 M52 44 L66 50" {...s} />
-          <circle cx="86" cy="88" r="9" {...acc} />
-          <path d="M66 78 L78 84" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-    default:
-      return (
-        <>
-          <circle cx="60" cy="30" r="7" {...s} />
-          <path d="M60 37 L60 68" {...s} />
-          <path d="M60 68 L50 90 M60 68 L70 90" {...s} />
-          <path d="M60 46 L46 52 M60 46 L74 52" {...s} />
-          <path d="M92 74 L92 44" {...acc} markerEnd="url(#ar)" />
-        </>
-      );
-  }
+/** ------------------------- REGISTRY ------------------------- */
+
+const high_bar_squat: BlueprintSpec = {
+  title: "Przysiad — w dół i w górę",
+  directionLabel: "Pion w dół i w górę",
+  Svg: () => (
+    <Canvas>
+      {/* pozycja góra (jasna) */}
+      <g {...body}>
+        <circle cx="52" cy="30" r="7" />
+        <path d="M52 37 L52 74" />
+        <path d="M52 74 L42 100 M52 74 L62 100" />
+        <path d="M36 44 L68 44" />
+      </g>
+      {/* pozycja dół (mocna) */}
+      <g {...bodyStrong}>
+        <circle cx="118" cy="46" r="7" />
+        <path d="M118 53 L118 78" />
+        <path d="M118 78 L104 92 L104 104 M118 78 L132 92 L132 104" />
+        <path d="M102 60 L134 60" />
+      </g>
+      {/* strzałka pion */}
+      <path d="M172 44 L172 100" {...arrow} markerEnd="url(#mb-arrow)" markerStart="url(#mb-arrow)" />
+    </Canvas>
+  ),
+};
+
+const nordic_hamstring: BlueprintSpec = {
+  title: "Nordic — kontrolowany opad",
+  directionLabel: "Opad tułowia w przód po łuku",
+  Svg: () => (
+    <Canvas>
+      {/* klęk + stopy zablokowane */}
+      <g {...bodyStrong}>
+        <circle cx="70" cy="34" r="7" />
+        <path d="M70 41 L92 78" />
+        <path d="M92 78 L120 98" />
+        {/* stopy zablokowane */}
+        <path d="M112 100 L134 100" strokeWidth={3.4} />
+        <path d="M120 98 L120 104" />
+      </g>
+      {/* łuk opadu w przód */}
+      <path d="M70 34 C40 40 30 70 44 96" {...arrow} markerEnd="url(#mb-arrow)" fill="none" />
+    </Canvas>
+  ),
+};
+
+const hamstring_slider_curl: BlueprintSpec = {
+  title: "Slider curl — pięty do bioder",
+  directionLabel: "Pięty przesuwają się do bioder",
+  Svg: () => (
+    <Canvas>
+      {/* leżenie na plecach, biodra wysoko */}
+      <g {...bodyStrong}>
+        <circle cx="40" cy="86" r="7" />
+        <path d="M46 86 L84 86" />
+        {/* biodra wysoko */}
+        <path d="M84 86 L104 60" />
+        <path d="M104 60 L128 92" />
+        {/* stopy na sliderach */}
+        <path d="M118 96 L140 96" strokeWidth={3.2} />
+      </g>
+      {/* strzałka pozioma pięty->biodra */}
+      <path d="M150 100 L96 100" {...arrow} markerEnd="url(#mb-arrow)" />
+    </Canvas>
+  ),
+};
+
+const sprint_acceleration: BlueprintSpec = {
+  title: "Akceleracja — mocne wypchnięcie",
+  directionLabel: "Napęd do przodu",
+  Svg: () => (
+    <Canvas>
+      {/* sylwetka mocno pochylona */}
+      <g {...bodyStrong}>
+        <circle cx="52" cy="34" r="7" />
+        <path d="M56 40 L92 66" />
+        {/* nogi napęd */}
+        <path d="M92 66 L74 100 M92 66 L120 84" />
+        {/* ramiona */}
+        <path d="M66 50 L44 62 M66 50 L94 40" />
+      </g>
+      {/* podłoże + strzałka do przodu */}
+      <path d="M30 108 L170 108" {...body} />
+      <path d="M40 108 L168 108" {...arrow} markerEnd="url(#mb-arrow)" />
+    </Canvas>
+  ),
+};
+
+const bounds: BlueprintSpec = {
+  title: "Bounds — długi rytmiczny skok",
+  directionLabel: "Długi skok w przód",
+  Svg: () => (
+    <Canvas>
+      {/* faza lotu */}
+      <g {...bodyStrong}>
+        <circle cx="96" cy="34" r="7" />
+        <path d="M96 41 L96 66" />
+        {/* jedna noga w przód, jedna w tył */}
+        <path d="M96 66 L120 82 M96 66 L74 88" />
+        <path d="M92 50 L70 44 M92 50 L118 42" />
+      </g>
+      {/* łuk lotu */}
+      <path d="M34 104 C60 70 132 70 166 104" {...arrow} markerEnd="url(#mb-arrow)" fill="none" opacity={0.9} />
+    </Canvas>
+  ),
+};
+
+const deceleration: BlueprintSpec = {
+  title: "Hamowanie — nisko i stabilnie",
+  directionLabel: "Zatrzymanie, środek ciężkości nisko",
+  Svg: () => (
+    <Canvas>
+      {/* sylwetka nisko, odchylona w tył */}
+      <g {...bodyStrong}>
+        <circle cx="104" cy="42" r="7" />
+        <path d="M102 49 L88 74" />
+        {/* szeroka baza nóg */}
+        <path d="M88 74 L66 104 M88 74 L112 100" />
+        <path d="M96 58 L118 50 M96 58 L74 66" />
+      </g>
+      {/* podłoże */}
+      <path d="M34 110 L170 110" {...body} />
+      {/* strzałka hamowania (w tył/w dół) */}
+      <path d="M158 96 L128 96" {...arrow} markerEnd="url(#mb-arrow)" />
+      <path d="M128 84 L128 104" stroke={ACCENT} strokeWidth={2.4} strokeDasharray="4 5" />
+    </Canvas>
+  ),
+};
+
+const blueprintRegistry: Record<BlueprintType, BlueprintSpec> = {
+  high_bar_squat,
+  nordic_hamstring,
+  hamstring_slider_curl,
+  sprint_acceleration,
+  bounds,
+  deceleration,
+  // Bez własnego SVG jeszcze — użyją fallbacku.
+  vertical_jump: undefined as unknown as BlueprintSpec,
+  pallof_press: undefined as unknown as BlueprintSpec,
+  dead_bug: undefined as unknown as BlueprintSpec,
+};
+
+/** Mapuje ćwiczenie na blueprintType na podstawie nazwy/techniki. */
+export function blueprintFor(e: TrainingExercise): BlueprintType | null {
+  const t = `${e.name} ${e.technique ?? ""}`.toLowerCase();
+  const has = (...w: string[]) => w.some((x) => t.includes(x));
+
+  if (has("nordic")) return "nordic_hamstring";
+  if (has("slider", "leg curl", "curl na sliderach", "nordic slider")) return "hamstring_slider_curl";
+  if (has("high bar", "przysiad ze sztang", "back squat", "goblet", "przysiad")) return "high_bar_squat";
+  if (has("bounds", "wieloskok", "skok naprzemienny")) return "bounds";
+  if (has("cmj", "skok pionowy", "vertical jump", "wyskok")) return "vertical_jump";
+  if (has("akcelerac", "sprint", "przyspiesz", "start", "wypchnięc")) return "sprint_acceleration";
+  if (has("hamowan", "decel", "zatrzym")) return "deceleration";
+  if (has("pallof")) return "pallof_press";
+  if (has("dead bug", "martwy robak")) return "dead_bug";
+  return null;
 }
 
-export function MovementBlueprint({ type }: { type: BlueprintType }) {
+/** Elegancki fallback bez wielkiego pustego pola. */
+function BlueprintFallback({ title }: { title?: string }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/30 p-5">
-      <div className="mx-auto flex h-36 w-full max-w-[180px] items-center justify-center">
-        <Body>
-          <defs>
-            <marker
-              id="ar"
-              viewBox="0 0 10 10"
-              refX="6"
-              refY="5"
-              markerWidth="5"
-              markerHeight="5"
-              orient="auto-start-reverse"
-            >
-              <path d="M0 0 L10 5 L0 10 z" fill={ACCENT} />
-            </marker>
-          </defs>
-          <Figure type={type} />
-        </Body>
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Activity className="h-4.5 w-4.5" />
+      </span>
+      <div className="min-w-0">
+        {title && (
+          <div className="truncate text-sm font-medium text-foreground">{title}</div>
+        )}
+        <div className="text-xs text-muted-foreground">Diagram techniki w przygotowaniu</div>
       </div>
-      <div className="mt-1 text-center text-[11px] font-medium text-muted-foreground">
-        {LABELS[type]}
+    </div>
+  );
+}
+
+export function MovementBlueprint({
+  blueprintType,
+  title,
+  directionLabel,
+}: {
+  blueprintType: BlueprintType | null;
+  title?: string;
+  directionLabel?: string;
+}) {
+  const spec = blueprintType ? blueprintRegistry[blueprintType] : undefined;
+
+  if (!spec) {
+    return <BlueprintFallback title={title} />;
+  }
+
+  const Svg = spec.Svg;
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+      <div className="mx-auto flex h-[180px] w-full max-w-[280px] items-center justify-center">
+        <Svg />
+      </div>
+      <div className="mt-1 flex flex-col items-center gap-0.5 text-center">
+        <span className="text-sm font-medium text-foreground">{title ?? spec.title}</span>
+        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-primary">
+          {directionLabel ?? spec.directionLabel}
+        </span>
       </div>
     </div>
   );
