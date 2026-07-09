@@ -36,7 +36,7 @@ import {
   type ContentCounters,
 } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
-import { normalizeSessionCategory } from "./sessionClassification";
+import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import { getRequiredGymSessions } from "./weeklyRequirements";
 import { finalizeWeekPlan } from "./weekFinalization";
@@ -3789,6 +3789,16 @@ export function generatePlan(
             counters: contentCounters,
             light: true,
           });
+        }
+      }
+      if (second) {
+        // TWARDA ZASADA: maksymalnie 1 jednostka wydolności/kondycji/biegania na
+        // dzień. Nie dokładaj drugiej sesji aerobowej, nawet lekkiej/regeneracyjnej,
+        // jeśli sesja główna już jest wydolnościowa.
+        const primaryCat = classifySession(session).category;
+        const secondCat = classifySession(second).category;
+        if (primaryCat === "endurance_conditioning" && secondCat === "endurance_conditioning") {
+          second = null;
         }
       }
       if (second) {
