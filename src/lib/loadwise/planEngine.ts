@@ -3072,7 +3072,7 @@ function isEnduranceLoadSession(session: SessionDay | null | undefined): boolean
     return true;
   }
   const t = `${session.sessionType} ${session.title} ${session.goalOfSession ?? ""}`.toLowerCase();
-  return /wytrzym|wydol|kondyc|aerob|tlen|tempo|interwa|interval|bieg|rower|bike|conditioning|zone\s?2|easy run|easy aerobic|baza tlenow|running endurance/.test(
+  return /wytrzym|wydol|kondyc|aerob|tlen|interwa|interval|rower|\bbike\b|conditioning|zone\s?2|baza tlenow|easy aerobic|recovery run/.test(
     t,
   );
 }
