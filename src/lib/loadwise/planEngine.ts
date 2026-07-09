@@ -976,7 +976,7 @@ function buildLightAlternative(profile: Profile): Built {
         title: "Lekka technika piłkarska",
         sessionType: "Piłka / technika lekka",
         goalOfSession:
-          "Lekka technika z piłką bez dokładania obciążenia — używana zamiast wciskania prehabu jako fallbacku.",
+          "Lekka technika z piłką bez dokładania dodatkowego obciążenia pomocniczego.",
       };
     }
   }
@@ -3126,7 +3126,7 @@ function buildNonRecoveryFallback(profile: Profile): Built {
     title: "Lekka technika piłkarska",
     sessionType: "Piłka / technika lekka",
     goalOfSession:
-      "Lekka technika z piłką bez dokładania bodźca wydolnościowego ani prehabu jako wypełniacza.",
+      "Lekka technika z piłką bez dokładania bodźca wydolnościowego ani wypełniacza.",
   };
 }
 
