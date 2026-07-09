@@ -291,6 +291,14 @@ function PlanScreen() {
   const nextConfirmed = !!transitions[nextIndex];
   const nextTransition = transitions[nextIndex];
 
+  // Poza sezonem / przejściowy: dopuszczamy tydzień bez meczu.
+  const offseasonAllowed =
+    profile?.seasonPhase === "offseason" ||
+    profile?.seasonPhase === "transition";
+  const nextReady =
+    !!nextTransition?.nextMatchDate ||
+    (offseasonAllowed && !!nextTransition?.noMatchNextWeek);
+
   // Granice kolejnego tygodnia (dla bramki).
   const gateNextIndex = gateWeek;
   const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
