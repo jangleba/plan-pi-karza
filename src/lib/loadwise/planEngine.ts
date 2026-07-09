@@ -1868,7 +1868,7 @@ function textOfSession(session: SessionDay): string {
   ]
     .map((e) => `${e.name} ${e.prescription} ${e.cue ?? ""}`)
     .join(" ");
-  return `${session.title} ${session.goalLabel} ${session.sessionType} ${session.goalOfSession} ${exerciseText}`.toLowerCase();
+  return `${session.title} ${session.sessionType} ${session.goalOfSession} ${exerciseText}`.toLowerCase();
 }
 
 function headerTextOfSession(session: SessionDay): string {
