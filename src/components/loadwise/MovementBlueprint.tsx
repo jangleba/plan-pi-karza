@@ -225,21 +225,15 @@ export function MovementBlueprint({
   }
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-      <div className="mx-auto flex h-[190px] w-full max-w-[320px] items-center justify-center">
-        <img
-          src={spec.src}
-          alt={title ?? spec.title}
-          loading="lazy"
-          className="max-h-[190px] w-auto object-contain"
-        />
-      </div>
-      <div className="mt-1 flex flex-col items-center gap-0.5 text-center">
-        <span className="text-sm font-medium text-foreground">{title ?? spec.title}</span>
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-primary">
-          {directionLabel ?? spec.directionLabel}
-        </span>
-      </div>
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
+      <img
+        src={spec.src}
+        alt={title ?? spec.title}
+        loading="lazy"
+        width={1024}
+        height={1280}
+        className="block w-full object-contain"
+      />
     </div>
   );
 }
