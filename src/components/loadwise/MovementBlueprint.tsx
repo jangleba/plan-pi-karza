@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from "react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { Activity } from "lucide-react";
 
