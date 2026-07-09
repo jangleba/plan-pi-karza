@@ -100,7 +100,7 @@ export function WeeklyGateSheet({
 
         {!canSave && (
           <p className="text-center text-xs text-muted-foreground">
-            Podaj kolejny mecz. Bez tego nie układamy następnego tygodnia.
+            Najpierw wybierz datę kolejnego meczu.
           </p>
         )}
       </DialogContent>
