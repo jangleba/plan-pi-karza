@@ -116,7 +116,7 @@ export function ExerciseDetailSheet({
 
           {/* Movement Blueprint */}
           <div className="mt-5">
-            <MovementBlueprint type={blueprintFor(e)} />
+            <MovementBlueprint blueprintType={blueprintFor(e)} />
           </div>
 
           <div className="mt-2 divide-y divide-border/50">
