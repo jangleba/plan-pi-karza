@@ -526,36 +526,35 @@ function PlanScreen() {
           <div className="soft-card p-4">
             <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {nextConfirmed
-                ? nextTransition?.noMatchNextWeek
-                  ? "Brak meczu — tydzień bez taperu."
-                  : nextTransition?.nextMatchDate
-                    ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
-                    : "Ustaw datę kolejnego meczu."
-                : "Ustaw datę kolejnego meczu."}
+              {nextTransition?.nextMatchDate
+                ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
+                : "Kolejny mecz: nie ustawiono."}
             </p>
 
             <Button
               className="mt-3 w-full"
+              disabled={!nextTransition?.nextMatchDate}
               onClick={() => {
-                if (nextConfirmed) setActiveWeek(nextIndex);
-                else setGateWeek(nextIndex);
+                if (!nextTransition?.nextMatchDate) {
+                  toast.error("Najpierw wybierz datę kolejnego meczu.");
+                  return;
+                }
+                setActiveWeek(nextIndex);
               }}
             >
               Przejdź do kolejnego tygodnia
               <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
 
-            {nextConfirmed && (
-              <button
-                type="button"
-                onClick={() => setGateWeek(nextIndex)}
-                className="mt-2 w-full text-center text-xs font-medium text-primary"
-              >
-                Zmień datę meczu
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setGateWeek(nextIndex)}
+              className="mt-2 w-full text-center text-xs font-medium text-primary"
+            >
+              Zmień datę meczu
+            </button>
           </div>
+
         </div>
       )}
 
