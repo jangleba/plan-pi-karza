@@ -4260,6 +4260,9 @@ export function generatePlan(
   // TWARDA reguła: max 1 wydolność/dzień oraz nigdy dwa dni wydolności z rzędu.
   validateEndurancePlacement(out, profile);
 
+  // TWARDA reguła: max 1 osobny recovery/prehab/mobility w tygodniu, nigdy jako fallback.
+  validateRecoveryPrehabPlacement(out, profile, startDate, weekOffset);
+
   // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
   // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
   if (!profile.hasGym) {
@@ -4297,6 +4300,7 @@ export function generatePlan(
   // przebudowie tygodnia. Zdegradowane dni przechodzą ponowną klasyfikację.
   enforceNoConsecutiveGymDays(finalPlan, profile);
   validateEndurancePlacement(finalPlan, profile);
+  validateRecoveryPrehabPlacement(finalPlan, profile, startDate, weekOffset);
   for (let i = 0; i < finalPlan.length; i++) {
     if (!finalPlan[i].classification) {
       finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
