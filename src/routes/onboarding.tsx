@@ -166,9 +166,11 @@ function Onboarding() {
     existing?.doubleSessionsAllowed ?? null,
   );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
-  const [individualDays, setIndividualDays] = useState<number[]>(
-    existing?.individualTrainingDays ?? [],
+  const [unavailableDays, setUnavailableDays] = useState<number[]>(
+    existing?.unavailableDays ?? [],
   );
+  const [matchDateTouched, setMatchDateTouched] = useState(false);
+  const [triedNext, setTriedNext] = useState(false);
   const [seasonPhase, setSeasonPhase] = useState<SeasonPhase | null>(
     existing?.seasonPhase ?? null,
   );
