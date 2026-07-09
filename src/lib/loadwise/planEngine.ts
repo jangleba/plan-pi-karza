@@ -3905,6 +3905,49 @@ export function generatePlan(
     });
   }
 
+  // Dni całkowicie niedostępne: zawodnik zaznaczył, że w ogóle nie może
+  // trenować w te dni tygodnia — Loadwise nie generuje wtedy ŻADNEJ jednostki.
+  // Jeśli nic nie zaznaczył, plan działa normalnie codziennie.
+  const blocked = new Set(profile.unavailableDays ?? []);
+  if (blocked.size > 0) {
+    for (let i = 0; i < finalPlan.length; i++) {
+      const day = finalPlan[i];
+      // ISO dzień tygodnia: 1=Pn ... 7=Nd.
+      const wd = ((new Date(`${day.date}T00:00:00`).getDay() + 6) % 7) + 1;
+      if (!blocked.has(wd)) continue;
+      // Mecz to zdarzenie z kalendarza, nie jednostka generowana przez silnik —
+      // zostawiamy go bez zmian. Wszystko inne staje się dniem niedostępnym.
+      if (day.dayType === "match") continue;
+      finalPlan[i] = {
+        ...day,
+        dayType: "rest",
+        title: "Dzień niedostępny",
+        goalLabel: "Niedostępny",
+        intensity: "niska",
+        durationMin: 0,
+        reason:
+          "Zaznaczyłeś ten dzień jako całkowicie niedostępny — Loadwise nie planuje w nim żadnego treningu.",
+        safetyNote: null,
+        whyToday:
+          "Plan respektuje Twoją dostępność: w dni niedostępne nie ma żadnych jednostek.",
+        sessionType: "Dzień niedostępny",
+        goalOfSession: "Brak treningu — dzień oznaczony jako niedostępny.",
+        riskManaged:
+          "Brak obciążenia w dniu niedostępnym chroni przed konfliktem z Twoim harmonogramem.",
+        avoidToday: "Bez treningu — ten dzień jest zablokowany.",
+        sections: {
+          warmup: [],
+          main: [],
+          accessory: [],
+          footballTransfer: [],
+          cooldown: [],
+        },
+        structuredSections: undefined,
+        secondSession: null,
+      };
+    }
+  }
+
   return finalPlan;
 }
 
