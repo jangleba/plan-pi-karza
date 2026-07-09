@@ -83,34 +83,12 @@ export function WeeklyGateSheet({
               type="date"
               value={matchDate}
               min={nextWeekStart}
-              disabled={noMatch}
-              onChange={(e) => {
-                setMatchDate(e.target.value);
-                if (e.target.value) setNoMatch(false);
-              }}
+              onChange={(e) => setMatchDate(e.target.value)}
               className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
           </div>
         </div>
 
-        {/* Brak meczu */}
-        <button
-          type="button"
-          onClick={() => {
-            setNoMatch((v) => !v);
-            setMatchDate("");
-          }}
-          className={`mt-1 flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
-            noMatch
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-input text-muted-foreground"
-          }`}
-        >
-          <CheckCircle2
-            className={`h-4 w-4 shrink-0 ${noMatch ? "opacity-100" : "opacity-40"}`}
-          />
-          Nie mam meczu w kolejnym tygodniu
-        </button>
 
         <Button
           className="mt-3 w-full"
