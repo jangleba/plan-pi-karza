@@ -31,39 +31,30 @@ export function WeeklyGateSheet({
   const existing = state.transitions[weekNumber];
 
   const [matchDate, setMatchDate] = useState<string>("");
-  const [noMatch, setNoMatch] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMatchDate(existing?.nextMatchDate ?? "");
-      setNoMatch(existing?.noMatchNextWeek ?? false);
       setSaving(false);
     }
   }, [open, existing]);
 
-  const canSave = noMatch || matchDate !== "";
+  const canSave = matchDate !== "";
 
   async function handleSave() {
     if (!canSave || saving) return;
     setSaving(true);
     try {
-      await confirmWeeklyTransition(
-        weekNumber,
-        noMatch ? null : matchDate,
-        noMatch,
-      );
-      if (noMatch) {
-        toast.success("Brak meczu — tydzień bez taperu.");
-      } else {
-        toast.success("Mecz zapisany. Dopasowujemy tydzień.");
-      }
+      await confirmWeeklyTransition(weekNumber, matchDate, false);
+      toast.success("Mecz zapisany. Dopasowujemy tydzień.");
       onOpenChange(false);
       onConfirmed();
     } finally {
       setSaving(false);
     }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
