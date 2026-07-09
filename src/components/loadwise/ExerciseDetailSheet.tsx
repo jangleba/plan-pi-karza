@@ -4,7 +4,7 @@ import {
   DrawerContent,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { MovementBlueprint, blueprintFor } from "./MovementBlueprint";
+import { MovementBlueprint } from "./MovementBlueprint";
 import { ListChecks, AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 function doseChip(e: TrainingExercise): string | null {
@@ -116,7 +116,7 @@ export function ExerciseDetailSheet({
 
           {/* Movement Blueprint */}
           <div className="mt-5">
-            <MovementBlueprint blueprintType={blueprintFor(e)} />
+            <MovementBlueprint exercise={e} />
           </div>
 
           <div className="mt-2 divide-y divide-border/50">
