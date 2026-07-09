@@ -3288,6 +3288,7 @@ function isRecoveryPrehabStandalone(session: SessionDay | null | undefined): boo
   const c = session.classification ?? classifySession(session);
   if (c.category === "recovery_prehab" || c.category === "mobility") return true;
   if (session.dayType === "recovery") return true;
+  if (c.category !== "other") return false;
   return /\b(recovery|prehab|mobility|activation_light)\b|regener|mobiln|stabiliz/.test(header);
 }
 
