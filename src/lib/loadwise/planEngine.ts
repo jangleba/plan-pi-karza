@@ -3935,6 +3935,15 @@ export function generatePlan(
   // Rule-based warstwa: walidacja + przebudowa tygodnia, progresja bloku, metadane.
   const ruleReport = applyRuleBasedWeekLayer(finalPlan, profile, startDate, weekOffset);
 
+  // TWARDA reguła (ostatni gate): nigdy dwa dni siłowni z rzędu, także po
+  // przebudowie tygodnia. Zdegradowane dni przechodzą ponowną klasyfikację.
+  enforceNoConsecutiveGymDays(finalPlan, profile);
+  for (let i = 0; i < finalPlan.length; i++) {
+    if (!finalPlan[i].classification) {
+      finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
+    }
+  }
+
   // Logi developerskie po wygenerowaniu planu.
   if (typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     // eslint-disable-next-line no-console
