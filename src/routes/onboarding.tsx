@@ -180,9 +180,9 @@ function ChoiceGrid<T extends string>({
           key={o}
           type="button"
           onClick={() => onChange(o)}
-          className={`rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+          className={`flex min-h-[56px] items-center justify-center rounded-2xl border px-3 py-3 text-center text-sm font-medium transition-all ${
             value === o
-              ? "border-primary bg-primary text-primary-foreground"
+              ? "border-primary bg-primary text-primary-foreground shadow-md"
               : "border-border bg-card text-foreground"
           }`}
         >
