@@ -3126,7 +3126,7 @@ function buildNonRecoveryFallback(profile: Profile): Built {
     title: "Lekka technika piłkarska",
     sessionType: "Piłka / technika lekka",
     goalOfSession:
-      "Lekka technika z piłką bez dokładania bodźca wydolnościowego ani wypełniacza.",
+      "Lekka technika z piłką bez dokładania dodatkowego obciążenia ani wypełniacza.",
   };
 }
 
