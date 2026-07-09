@@ -3053,6 +3053,51 @@ function enforceNoConsecutiveGymDays(out: SessionDay[], profile: Profile): void 
   }
 }
 
+/** Czy sesja jest treningiem wytrzymałościowym/kondycyjnym (bieg/rower/interwały/tempo). */
+function isEnduranceDaySession(session: SessionDay): boolean {
+  const cat = session.classification?.category ?? classifySession(session).category;
+  if (cat === "endurance_conditioning") return true;
+  const t = `${session.sessionType} ${session.title} ${session.goalOfSession ?? ""}`.toLowerCase();
+  return /wytrzym|wydol|kondyc|aerob|tlen|tempo|interwa|interval|bieg|rower|bike|conditioning/i.test(t);
+}
+
+/**
+ * TWARDA reguła: nigdy dwa dni wytrzymałości/kondycji z rzędu. Jeśli poprzedni
+ * dzień był treningiem wytrzymałościowym, dzisiejszy trening wytrzymałościowy
+ * jest degradowany do lekkiej, niekondycyjnej alternatywy (mobilność / lekka
+ * technika). Meczu i klubu nie ruszamy — to stałe punkty kalendarza.
+ */
+function enforceNoConsecutiveEnduranceDays(out: SessionDay[], profile: Profile): void {
+  for (let i = 1; i < out.length; i++) {
+    const prev = out[i - 1];
+    const cur = out[i];
+    if (!isEnduranceDaySession(prev) || !isEnduranceDaySession(cur)) continue;
+    // Zamieniamy tylko własne treningi — meczu/klubu nie modyfikujemy.
+    if (cur.dayType !== "training") continue;
+    const light = buildLightAlternative(profile);
+    cur.title = light.title;
+    cur.sessionType = light.sessionType;
+    cur.goalOfSession = light.goalOfSession;
+    cur.intensity = "umiarkowana";
+    cur.durationMin = light.durationMin;
+    cur.structuredSections = undefined;
+    cur.sections = {
+      warmup: warmup(),
+      main: light.main,
+      accessory: light.accessory,
+      footballTransfer: light.footballTransfer,
+      cooldown: cooldown(),
+    };
+    cur.reason =
+      "Nigdy nie planujemy dwóch dni wytrzymałości z rzędu — dziś lżejsza, niekondycyjna praca chroni regenerację.";
+    cur.safetyNote =
+      cur.safetyNote ??
+      "Dwa dni kondycji z rzędu zwiększają ryzyko przeciążenia — zachowujemy odstęp.";
+    cur.loadTags = computeLoadTags(cur);
+    cur.classification = undefined;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Rule-based week layer — składa metadane tygodnia, egzekwuje progresję bloku,
 // waliduje i przebudowuje tydzień oraz usuwa fallback "Regeneracja i prehab".
@@ -3902,6 +3947,9 @@ export function generatePlan(
   // TWARDA reguła: nigdy dwa dni siłowni z rzędu.
   enforceNoConsecutiveGymDays(out, profile);
 
+  // TWARDA reguła: nigdy dwa dni wytrzymałości/kondycji z rzędu.
+  enforceNoConsecutiveEnduranceDays(out, profile);
+
   // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
   // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
   if (!profile.hasGym) {
@@ -3938,6 +3986,7 @@ export function generatePlan(
   // TWARDA reguła (ostatni gate): nigdy dwa dni siłowni z rzędu, także po
   // przebudowie tygodnia. Zdegradowane dni przechodzą ponowną klasyfikację.
   enforceNoConsecutiveGymDays(finalPlan, profile);
+  enforceNoConsecutiveEnduranceDays(finalPlan, profile);
   for (let i = 0; i < finalPlan.length; i++) {
     if (!finalPlan[i].classification) {
       finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
