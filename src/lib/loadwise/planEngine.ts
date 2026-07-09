@@ -3053,48 +3053,116 @@ function enforceNoConsecutiveGymDays(out: SessionDay[], profile: Profile): void 
   }
 }
 
-/** Czy sesja jest treningiem wytrzymałościowym/kondycyjnym (bieg/rower/interwały/tempo). */
-function isEnduranceDaySession(session: SessionDay): boolean {
+/**
+ * ENDURANCE_LOAD: każda jednostka wydolnościowa/kondycyjna liczona jest jako
+ * pojedynczy bodziec wydolnościowy — niezależnie od intensywności (także easy
+ * aerobic, recovery run czy krótka baza tlenowa). To jedyne źródło prawdy dla
+ * reguł "max 1 endurance/dzień" i "nigdy endurance dwa dni z rzędu".
+ */
+function isEnduranceLoadSession(session: SessionDay | null | undefined): boolean {
+  if (!session) return false;
   const cat = session.classification?.category ?? classifySession(session).category;
   if (cat === "endurance_conditioning") return true;
+  const sub = (session.classification?.subcategory ?? "").toLowerCase();
+  if (
+    /easy_aerobic|easy_run|tempo|aerobic|zone2|interval|conditioning|recovery_run|repeated_tempo|short_aerobic|extensive_intervals|running_endurance|aerobic_base/.test(
+      sub,
+    )
+  ) {
+    return true;
+  }
   const t = `${session.sessionType} ${session.title} ${session.goalOfSession ?? ""}`.toLowerCase();
-  return /wytrzym|wydol|kondyc|aerob|tlen|tempo|interwa|interval|bieg|rower|bike|conditioning/i.test(t);
+  return /wytrzym|wydol|kondyc|aerob|tlen|tempo|interwa|interval|bieg|rower|bike|conditioning|zone\s?2|easy run|easy aerobic|baza tlenow|running endurance/.test(
+    t,
+  );
+}
+
+/** Czy dzień (sesja główna lub druga) zawiera jakikolwiek bodziec ENDURANCE_LOAD. */
+function dayHasEnduranceLoad(day: SessionDay): boolean {
+  return isEnduranceLoadSession(day) || isEnduranceLoadSession(day.secondSession);
 }
 
 /**
- * TWARDA reguła: nigdy dwa dni wytrzymałości/kondycji z rzędu. Jeśli poprzedni
- * dzień był treningiem wytrzymałościowym, dzisiejszy trening wytrzymałościowy
- * jest degradowany do lekkiej, niekondycyjnej alternatywy (mobilność / lekka
- * technika). Meczu i klubu nie ruszamy — to stałe punkty kalendarza.
+ * Degraduje sesję do lekkiej pracy prehab/mobilność — NIGDY wydolnościowej.
+ * Używane, gdy trzeba usunąć nadmiarowy bodziec ENDURANCE_LOAD (ten sam dzień
+ * lub dzień po dniu), zachowując bezpieczną, niekondycyjną jednostkę.
+ */
+function degradeToPrehab(session: SessionDay, profile: Profile, reason: string): void {
+  const light = buildPrehab(profile);
+  session.title = light.title;
+  session.sessionType = light.sessionType;
+  session.goalOfSession = light.goalOfSession;
+  session.intensity = "niska";
+  session.durationMin = light.durationMin;
+  session.structuredSections = undefined;
+  session.sections = {
+    warmup: warmup(),
+    main: light.main,
+    accessory: light.accessory,
+    footballTransfer: light.footballTransfer,
+    cooldown: cooldown(),
+  };
+  session.reason = reason;
+  session.safetyNote =
+    session.safetyNote ??
+    "Za dużo bodźca wydolnościowego — zamieniamy na lekką pracę prehab/mobilność, by chronić regenerację.";
+  session.riskManaged = light.riskManaged;
+  session.avoidToday = light.avoidToday;
+  session.loadTags = computeLoadTags(session);
+  session.classification = undefined;
+}
+
+/**
+ * TWARDA reguła: w jednym dniu może być maksymalnie JEDNA sesja ENDURANCE_LOAD.
+ * Jeśli sesja główna i druga są obie wydolnościowe, druga jest degradowana do
+ * lekkiej pracy prehab (nigdy wydolnościowej). Meczu/klubu nie ruszamy.
+ */
+function enforceSingleEndurancePerDay(out: SessionDay[], profile: Profile): void {
+  for (const day of out) {
+    const second = day.secondSession;
+    if (!second) continue;
+    if (!isEnduranceLoadSession(day) || !isEnduranceLoadSession(second)) continue;
+    if (second.dayType === "match" || second.isClubSession) continue;
+    degradeToPrehab(
+      second,
+      profile,
+      "W jednym dniu może być tylko jedna jednostka wydolnościowa — druga zostaje zamieniona na lekką pracę prehab/mobilność.",
+    );
+  }
+}
+
+/**
+ * TWARDA reguła: nigdy dwa dni ENDURANCE_LOAD z rzędu. Sprawdzamy cały dzień
+ * (sesja główna lub druga). Jeśli poprzedni dzień miał wydolność, dzisiejszy
+ * bodziec wydolnościowy jest degradowany do lekkiej pracy prehab (nigdy
+ * wydolnościowej — także dla celu endurance). Meczu i klubu nie ruszamy.
  */
 function enforceNoConsecutiveEnduranceDays(out: SessionDay[], profile: Profile): void {
   for (let i = 1; i < out.length; i++) {
     const prev = out[i - 1];
     const cur = out[i];
-    if (!isEnduranceDaySession(prev) || !isEnduranceDaySession(cur)) continue;
-    // Zamieniamy tylko własne treningi — meczu/klubu nie modyfikujemy.
-    if (cur.dayType !== "training") continue;
-    const light = buildLightAlternative(profile);
-    cur.title = light.title;
-    cur.sessionType = light.sessionType;
-    cur.goalOfSession = light.goalOfSession;
-    cur.intensity = "umiarkowana";
-    cur.durationMin = light.durationMin;
-    cur.structuredSections = undefined;
-    cur.sections = {
-      warmup: warmup(),
-      main: light.main,
-      accessory: light.accessory,
-      footballTransfer: light.footballTransfer,
-      cooldown: cooldown(),
-    };
-    cur.reason =
-      "Nigdy nie planujemy dwóch dni wytrzymałości z rzędu — dziś lżejsza, niekondycyjna praca chroni regenerację.";
-    cur.safetyNote =
-      cur.safetyNote ??
-      "Dwa dni kondycji z rzędu zwiększają ryzyko przeciążenia — zachowujemy odstęp.";
-    cur.loadTags = computeLoadTags(cur);
-    cur.classification = undefined;
+    if (!dayHasEnduranceLoad(prev) || !dayHasEnduranceLoad(cur)) continue;
+    const reason =
+      "Nigdy nie planujemy dwóch dni wytrzymałości z rzędu — dziś lekka, niekondycyjna praca prehab/mobilność chroni regenerację.";
+    if (isEnduranceLoadSession(cur) && cur.dayType === "training") {
+      degradeToPrehab(cur, profile, reason);
+    }
+    const second = cur.secondSession;
+    if (second && isEnduranceLoadSession(second) && second.dayType !== "match" && !second.isClubSession) {
+      degradeToPrehab(second, profile, reason);
+    }
+  }
+}
+
+/**
+ * FINALNY walidator rozkładu wydolności przed zapisaniem planu. Idempotentny:
+ * dwukrotnie wymusza max 1 endurance/dzień oraz brak dwóch dni endurance z
+ * rzędu, aż plan jest zgodny. Wywoływany jako ostatni gate.
+ */
+function validateEndurancePlacement(out: SessionDay[], profile: Profile): void {
+  for (let pass = 0; pass < 2; pass++) {
+    enforceSingleEndurancePerDay(out, profile);
+    enforceNoConsecutiveEnduranceDays(out, profile);
   }
 }
 
