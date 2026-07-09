@@ -3391,6 +3391,9 @@ function validateRecoveryPrehabPlacement(
             profile,
             "Prehab/recovery nie może być główną jednostką normalnego tygodnia performance — zamieniono na lekką sesję bez prehabu jako fallbacku.",
           );
+          if (blockWeek === 3) {
+            day.durationMin = Math.min(day.durationMin + 15, 60);
+          }
           continue;
         }
         if (usedWeeklyRecovery) {
