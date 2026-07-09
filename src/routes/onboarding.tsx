@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -36,6 +36,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { ChevronLeft, CalendarIcon } from "lucide-react";
@@ -95,6 +102,61 @@ const limiters: SecondaryLimiter[] = [
   "return",
 ];
 
+// Kolejność celów w UI (spójna z oczekiwaną listą).
+const goalOrder: Goal[] = [
+  "speed",
+  "strength",
+  "endurance",
+  "power",
+  "agility",
+  "general",
+  "mobility",
+  "matchready",
+  "return",
+];
+
+// Krótkie, czysto polskie etykiety celów (bez mieszania języków).
+const GOAL_SHORT_LABELS: Record<Goal, string> = {
+  speed: "Szybkość",
+  strength: "Siła",
+  endurance: "Wytrzymałość",
+  power: "Moc",
+  agility: "Zwrotność i hamowanie",
+  general: "Gra z piłką",
+  mobility: "Mobilność i prehab",
+  return: "Powrót po przerwie",
+  matchready: "Gotowość meczowa",
+};
+
+// Krótkie etykiety ograniczeń (bez slashy).
+const LIMITER_SHORT_LABELS: Record<SecondaryLimiter, string> = {
+  speed: "Szybkość",
+  strength: "Siła",
+  endurance: "Wytrzymałość",
+  cod: "Zwrotność",
+  power: "Moc",
+  ball: "Gra z piłką",
+  fatigue: "Zmęczenie",
+  return: "Powrót po przerwie",
+};
+
+// Etykiety i opisy poziomu treningowego (czysto polskie).
+const LEVEL_CARD_LABELS: Record<Level, { label: string; desc: string }> = {
+  beginner: { label: "Początkujący", desc: "Uczę się podstaw treningu." },
+  intermediate: {
+    label: "Średniozaawansowany",
+    desc: "Trenuję regularnie.",
+  },
+  advanced: {
+    label: "Zaawansowany",
+    desc: "Mam doświadczenie w treningu siły i szybkości.",
+  },
+  elite: {
+    label: "Wysoki poziom",
+    desc: "Gram i trenuję na wysokiej intensywności.",
+  },
+};
+
 function ChoiceGrid<T extends string>({
   options,
   value,
@@ -118,9 +180,9 @@ function ChoiceGrid<T extends string>({
           key={o}
           type="button"
           onClick={() => onChange(o)}
-          className={`rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+          className={`flex min-h-[56px] items-center justify-center rounded-2xl border px-3 py-3 text-center text-sm font-medium transition-all ${
             value === o
-              ? "border-primary bg-primary text-primary-foreground"
+              ? "border-primary bg-primary text-primary-foreground shadow-md"
               : "border-border bg-card text-foreground"
           }`}
         >
@@ -213,6 +275,37 @@ function Onboarding() {
   const isMinor = ageNum >= 13 && ageNum <= 17;
 
   const totalSteps = 5;
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showErrors, setShowErrors] = useState(false);
+
+  // Każdy krok zawsze startuje od samej góry.
+  useEffect(() => {
+    const toTop = (el: { scrollTo: (o: ScrollToOptions) => void } | null) => {
+      if (!el) return;
+      try {
+        el.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      } catch {
+        el.scrollTo({ top: 0, behavior: "auto" });
+      }
+    };
+    toTop(scrollRef.current);
+    if (typeof window !== "undefined") toTop(window);
+    setShowErrors(false);
+  }, [step]);
+
+  function goNext() {
+    if (!canNext()) {
+      setShowErrors(true);
+      if (step === 4) setTriedNext(true);
+      requestAnimationFrame(() => {
+        const el = document.querySelector('[data-error="true"]');
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+    setStep((s) => s + 1);
+  }
 
   const requiredConsentsOk = CONSENTS.filter((c) => c.required).every(
     (c) => consents[c.type],
@@ -339,37 +432,41 @@ function Onboarding() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="app-shell min-h-screen pb-10">
-      <div className="px-5 pt-6">
-        <div className="flex items-center gap-3">
-          {step > 0 ? (
-            <button
-              onClick={() => setStep((s) => s - 1)}
-              className="rounded-full border border-border p-1.5 text-foreground"
-              aria-label="Wstecz"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          ) : (
-            <div className="text-xl font-semibold text-primary">Loadwise</div>
-          )}
-          <div className="ml-auto text-xs text-muted-foreground">
-            Krok {step + 1} z {totalSteps}
+    <div className="app-shell flex h-[100dvh] flex-col">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overscroll-contain"
+        style={{ overflowAnchor: "none" }}
+      >
+        <div className="px-5 pt-6">
+          <div className="flex items-center gap-3">
+            {step > 0 ? (
+              <button
+                onClick={() => setStep((s) => s - 1)}
+                className="rounded-full border border-border p-1.5 text-foreground"
+                aria-label="Wstecz"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            ) : (
+              <div className="text-xl font-semibold text-primary">Loadwise</div>
+            )}
+            <div className="ml-auto text-xs text-muted-foreground">
+              Krok {step + 1} z {totalSteps}
+            </div>
+          </div>
+          <div className="mt-3 flex gap-1.5">
+            {Array.from({ length: totalSteps }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 flex-1 rounded-full ${
+                  i <= step ? "bg-primary" : "bg-muted"
+                }`}
+              />
+            ))}
           </div>
         </div>
-        <div className="mt-3 flex gap-1.5">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 flex-1 rounded-full ${
-                i <= step ? "bg-primary" : "bg-muted"
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="px-5 pt-6">
+        <div className="px-5 pt-6 pb-36">
         {step === 1 && (
           <div className="space-y-5">
             <div>
@@ -408,46 +505,107 @@ function Onboarding() {
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold">Twoja gra</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pozycja i poziom treningowy.
+              <h2 className="text-2xl font-semibold">Twoja gra</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Dopasujemy plan do pozycji, poziomu i etapu sezonu.
               </p>
             </div>
-            <div className="space-y-2">
+
+            {/* Pozycja */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !position ? "true" : undefined}
+            >
               <Label>Pozycja</Label>
               <ChoiceGrid
                 options={positions}
                 value={position}
                 onChange={setPosition}
                 labels={POSITION_LABELS}
+                cols={2}
               />
-            </div>
-            <div className="space-y-2">
+              {showErrors && !position && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz pozycję.
+                </p>
+              )}
+            </section>
+
+            {/* Poziom treningowy */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !level ? "true" : undefined}
+            >
               <Label>Poziom treningowy</Label>
-              <ChoiceGrid
-                options={levels}
-                value={level}
-                onChange={setLevel}
-                labels={LEVEL_LABELS}
-                cols={1}
-              />
-            </div>
-            <div className="space-y-2">
+              <div className="grid gap-2">
+                {levels.map((lv) => (
+                  <button
+                    key={lv}
+                    type="button"
+                    onClick={() => setLevel(lv)}
+                    className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
+                      level === lv
+                        ? "border-primary bg-primary text-primary-foreground shadow-md"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">
+                      {LEVEL_CARD_LABELS[lv].label}
+                    </span>
+                    <span
+                      className={`mt-0.5 text-xs ${
+                        level === lv
+                          ? "text-primary-foreground/80"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {LEVEL_CARD_LABELS[lv].desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {showErrors && !level && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz poziom treningowy.
+                </p>
+              )}
+            </section>
+
+            {/* Okres sezonu */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !seasonPhase ? "true" : undefined}
+            >
               <Label>Okres sezonu</Label>
-              <ChoiceGrid
-                options={seasonPhases}
-                value={seasonPhase}
-                onChange={(v) => {
-                  setSeasonPhase(v);
-                  setSeasonStage(null);
-                  // Zmiana okresu = wyjście z trybu niestandardowego do ponownej walidacji.
-                  setSeasonPhaseOverride(false);
-                }}
-                labels={SEASON_PHASE_LABELS}
-                cols={1}
-              />
+              <div className="overflow-hidden rounded-2xl border border-border">
+                {seasonPhases.map((ph, i) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() => {
+                      setSeasonPhase(ph);
+                      setSeasonStage(null);
+                      setSeasonPhaseOverride(false);
+                    }}
+                    className={`flex w-full items-center px-4 py-3 text-sm font-medium transition-colors ${
+                      i > 0 ? "border-t border-border" : ""
+                    } ${
+                      seasonPhase === ph
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card text-foreground"
+                    }`}
+                  >
+                    {SEASON_PHASE_LABELS[ph]}
+                  </button>
+                ))}
+              </div>
+              {showErrors && !seasonPhase && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz okres sezonu.
+                </p>
+              )}
               {seasonPhase !== null &&
                 !seasonPhaseOverride &&
                 (seasonValidation.status === "invalid" ||
@@ -492,67 +650,116 @@ function Onboarding() {
                   kalendarza i daty meczu.
                 </p>
               )}
-            </div>
+            </section>
 
             {(seasonPhase === "inseason" || seasonPhase === "transition") && (
-              <div className="space-y-2">
+              <section className="space-y-3">
                 <Label>Etap w sezonie</Label>
-                <ChoiceGrid
-                  options={seasonStages}
-                  value={seasonStage}
-                  onChange={setSeasonStage}
-                  labels={SEASON_STAGE_LABELS}
-                  cols={1}
-                />
-              </div>
+                <div className="overflow-hidden rounded-2xl border border-border">
+                  {seasonStages.map((sg, i) => (
+                    <button
+                      key={sg}
+                      type="button"
+                      onClick={() => setSeasonStage(sg)}
+                      className={`flex w-full items-center px-4 py-3 text-sm font-medium transition-colors ${
+                        i > 0 ? "border-t border-border" : ""
+                      } ${
+                        seasonStage === sg
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card text-foreground"
+                      }`}
+                    >
+                      {SEASON_STAGE_LABELS[sg]}
+                    </button>
+                  ))}
+                </div>
+              </section>
             )}
-            <div className="space-y-2">
+
+            {/* Poziom rozgrywkowy */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !competitionLevel ? "true" : undefined}
+            >
               <Label>Poziom rozgrywkowy</Label>
-              <ChoiceGrid
-                options={competitionLevels}
-                value={competitionLevel}
-                onChange={setCompetitionLevel}
-                labels={COMPETITION_LEVEL_LABELS}
-                cols={1}
-              />
-            </div>
+              <Select
+                value={competitionLevel ?? undefined}
+                onValueChange={(v) =>
+                  setCompetitionLevel(v as CompetitionLevel)
+                }
+              >
+                <SelectTrigger className="h-14 rounded-2xl">
+                  <SelectValue placeholder="Wybierz poziom" />
+                </SelectTrigger>
+                <SelectContent>
+                  {competitionLevels.map((cl) => (
+                    <SelectItem key={cl} value={cl}>
+                      {COMPETITION_LEVEL_LABELS[cl]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showErrors && !competitionLevel && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz poziom rozgrywkowy.
+                </p>
+              )}
+            </section>
           </div>
         )}
 
         {step === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold">Główny cel</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Wybierz jeden priorytet na najbliższy czas.
+              <h2 className="text-2xl font-semibold">Główny cel</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Wybierz jeden priorytet. Ograniczenie potraktujemy jako dodatkowe
+                wsparcie, nie zamiennik celu.
               </p>
             </div>
-            <ChoiceGrid
-              options={goals}
-              value={goal}
-              onChange={setGoal}
-              labels={GOAL_LABELS}
-            />
 
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold">
-                Co najbardziej Cię ogranicza?
-              </h2>
+            {/* Priorytet */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !goal ? "true" : undefined}
+            >
+              <Label>Priorytet</Label>
+              <ChoiceGrid
+                options={goalOrder}
+                value={goal}
+                onChange={setGoal}
+                labels={GOAL_SHORT_LABELS}
+                cols={2}
+              />
+              {showErrors && !goal && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz główny cel.
+                </p>
+              )}
+            </section>
+
+            {/* Ograniczenie */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !secondaryLimiter ? "true" : undefined}
+            >
+              <Label>Co najbardziej Cię ogranicza?</Label>
               <p className="text-sm text-muted-foreground">
-                To dodatkowe wsparcie w planie — nie zastępuje celu głównego.
+                To pomaga dobrać akcenty w planie. Nie zastępuje celu głównego.
               </p>
               <ChoiceGrid
                 options={limiters}
                 value={secondaryLimiter}
                 onChange={setSecondaryLimiter}
-                labels={SECONDARY_LIMITER_LABELS}
+                labels={LIMITER_SHORT_LABELS}
+                cols={2}
               />
-              {secondaryLimiter === null && (
+              {showErrors && !secondaryLimiter && (
                 <p className="text-xs font-medium text-destructive">
                   Wybierz, co najbardziej Cię ogranicza.
                 </p>
               )}
-            </div>
+            </section>
           </div>
         )}
 
@@ -807,32 +1014,22 @@ function Onboarding() {
             </p>
           </div>
         )}
-        <div className="h-32" />
+        </div>
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-background/95 px-5 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="shrink-0 border-t border-border bg-background/95 px-5 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur">
         {step < totalSteps - 1 ? (
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={!canNext()}
-            onClick={() => setStep((s) => s + 1)}
-          >
+          <Button className="w-full" size="lg" onClick={goNext}>
             Dalej
           </Button>
         ) : (
           <Button
             className="w-full"
             size="lg"
-            disabled={
-              busy ||
-              (isMinor && !consent) ||
-              !doubleSessions ||
-              !requiredConsentsOk ||
-              !matchDate
-            }
+            disabled={busy}
             onClick={() => {
               setTriedNext(true);
+              setShowErrors(true);
               handleSubmit();
             }}
           >
