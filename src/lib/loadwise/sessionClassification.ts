@@ -42,9 +42,10 @@ function exercisesText(session: SessionDay): string {
 
 /** Tekst nagłówka — tytuł, typ, cel. Najpewniejsze do klasyfikacji. */
 function headerText(session: SessionDay): string {
-  return `${session.title ?? ""} ${session.sessionType ?? ""} ${
-    session.goalLabel ?? ""
-  } ${session.goalOfSession ?? ""}`.toLowerCase();
+  // Nie używamy goalLabel: etykieta celu profilu (np. "Siła i stabilność" albo
+  // "Mobilność / prehab") fałszywie klasyfikowała każdą sesję przez pryzmat
+  // celu, a nie realnej treści dnia.
+  return `${session.title ?? ""} ${session.sessionType ?? ""} ${session.goalOfSession ?? ""}`.toLowerCase();
 }
 
 function fullText(session: SessionDay): string {
