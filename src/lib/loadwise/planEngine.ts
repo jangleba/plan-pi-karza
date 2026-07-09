@@ -36,7 +36,7 @@ import {
   type ContentCounters,
 } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
-import { normalizeSessionCategory } from "./sessionClassification";
+import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import { getRequiredGymSessions } from "./weeklyRequirements";
 import { finalizeWeekPlan } from "./weekFinalization";
