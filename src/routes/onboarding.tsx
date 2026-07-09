@@ -505,46 +505,107 @@ function Onboarding() {
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold">Twoja gra</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Pozycja i poziom treningowy.
+              <h2 className="text-2xl font-semibold">Twoja gra</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Dopasujemy plan do pozycji, poziomu i etapu sezonu.
               </p>
             </div>
-            <div className="space-y-2">
+
+            {/* Pozycja */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !position ? "true" : undefined}
+            >
               <Label>Pozycja</Label>
               <ChoiceGrid
                 options={positions}
                 value={position}
                 onChange={setPosition}
                 labels={POSITION_LABELS}
+                cols={2}
               />
-            </div>
-            <div className="space-y-2">
+              {showErrors && !position && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz pozycję.
+                </p>
+              )}
+            </section>
+
+            {/* Poziom treningowy */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !level ? "true" : undefined}
+            >
               <Label>Poziom treningowy</Label>
-              <ChoiceGrid
-                options={levels}
-                value={level}
-                onChange={setLevel}
-                labels={LEVEL_LABELS}
-                cols={1}
-              />
-            </div>
-            <div className="space-y-2">
+              <div className="grid gap-2">
+                {levels.map((lv) => (
+                  <button
+                    key={lv}
+                    type="button"
+                    onClick={() => setLevel(lv)}
+                    className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
+                      level === lv
+                        ? "border-primary bg-primary text-primary-foreground shadow-md"
+                        : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">
+                      {LEVEL_CARD_LABELS[lv].label}
+                    </span>
+                    <span
+                      className={`mt-0.5 text-xs ${
+                        level === lv
+                          ? "text-primary-foreground/80"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {LEVEL_CARD_LABELS[lv].desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {showErrors && !level && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz poziom treningowy.
+                </p>
+              )}
+            </section>
+
+            {/* Okres sezonu */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !seasonPhase ? "true" : undefined}
+            >
               <Label>Okres sezonu</Label>
-              <ChoiceGrid
-                options={seasonPhases}
-                value={seasonPhase}
-                onChange={(v) => {
-                  setSeasonPhase(v);
-                  setSeasonStage(null);
-                  // Zmiana okresu = wyjście z trybu niestandardowego do ponownej walidacji.
-                  setSeasonPhaseOverride(false);
-                }}
-                labels={SEASON_PHASE_LABELS}
-                cols={1}
-              />
+              <div className="overflow-hidden rounded-2xl border border-border">
+                {seasonPhases.map((ph, i) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() => {
+                      setSeasonPhase(ph);
+                      setSeasonStage(null);
+                      setSeasonPhaseOverride(false);
+                    }}
+                    className={`flex w-full items-center px-4 py-3 text-sm font-medium transition-colors ${
+                      i > 0 ? "border-t border-border" : ""
+                    } ${
+                      seasonPhase === ph
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card text-foreground"
+                    }`}
+                  >
+                    {SEASON_PHASE_LABELS[ph]}
+                  </button>
+                ))}
+              </div>
+              {showErrors && !seasonPhase && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz okres sezonu.
+                </p>
+              )}
               {seasonPhase !== null &&
                 !seasonPhaseOverride &&
                 (seasonValidation.status === "invalid" ||
@@ -589,30 +650,61 @@ function Onboarding() {
                   kalendarza i daty meczu.
                 </p>
               )}
-            </div>
+            </section>
 
             {(seasonPhase === "inseason" || seasonPhase === "transition") && (
-              <div className="space-y-2">
+              <section className="space-y-3">
                 <Label>Etap w sezonie</Label>
-                <ChoiceGrid
-                  options={seasonStages}
-                  value={seasonStage}
-                  onChange={setSeasonStage}
-                  labels={SEASON_STAGE_LABELS}
-                  cols={1}
-                />
-              </div>
+                <div className="overflow-hidden rounded-2xl border border-border">
+                  {seasonStages.map((sg, i) => (
+                    <button
+                      key={sg}
+                      type="button"
+                      onClick={() => setSeasonStage(sg)}
+                      className={`flex w-full items-center px-4 py-3 text-sm font-medium transition-colors ${
+                        i > 0 ? "border-t border-border" : ""
+                      } ${
+                        seasonStage === sg
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card text-foreground"
+                      }`}
+                    >
+                      {SEASON_STAGE_LABELS[sg]}
+                    </button>
+                  ))}
+                </div>
+              </section>
             )}
-            <div className="space-y-2">
+
+            {/* Poziom rozgrywkowy */}
+            <section
+              className="space-y-3"
+              data-error={showErrors && !competitionLevel ? "true" : undefined}
+            >
               <Label>Poziom rozgrywkowy</Label>
-              <ChoiceGrid
-                options={competitionLevels}
-                value={competitionLevel}
-                onChange={setCompetitionLevel}
-                labels={COMPETITION_LEVEL_LABELS}
-                cols={1}
-              />
-            </div>
+              <Select
+                value={competitionLevel ?? undefined}
+                onValueChange={(v) =>
+                  setCompetitionLevel(v as CompetitionLevel)
+                }
+              >
+                <SelectTrigger className="h-14 rounded-2xl">
+                  <SelectValue placeholder="Wybierz poziom" />
+                </SelectTrigger>
+                <SelectContent>
+                  {competitionLevels.map((cl) => (
+                    <SelectItem key={cl} value={cl}>
+                      {COMPETITION_LEVEL_LABELS[cl]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showErrors && !competitionLevel && (
+                <p className="text-xs font-medium text-destructive">
+                  Wybierz poziom rozgrywkowy.
+                </p>
+              )}
+            </section>
           </div>
         )}
 
