@@ -807,9 +807,10 @@ function Onboarding() {
             </p>
           </div>
         )}
+        <div className="h-32" />
       </div>
 
-      <div className="px-5 pt-8">
+      <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-background/95 px-5 py-4 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur">
         {step < totalSteps - 1 ? (
           <Button
             className="w-full"
@@ -827,9 +828,13 @@ function Onboarding() {
               busy ||
               (isMinor && !consent) ||
               !doubleSessions ||
-              !requiredConsentsOk
+              !requiredConsentsOk ||
+              !matchDate
             }
-            onClick={handleSubmit}
+            onClick={() => {
+              setTriedNext(true);
+              handleSubmit();
+            }}
           >
             {busy ? "Zapisuję…" : "Zapisz i wygeneruj plan"}
           </Button>
