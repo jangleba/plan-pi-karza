@@ -278,16 +278,18 @@ function Onboarding() {
       toast.error("Zaakceptuj wymagane zgody, aby kontynuować.");
       return;
     }
-    if (individualDays.length === 0) {
-      toast.error("Wybierz co najmniej jeden dzień treningu indywidualnego.");
-      setStep(4);
-      return;
-    }
     if (!matchDate) {
-      toast.error("Podaj datę najbliższego meczu");
+      toast.error(
+        "Podaj datę najbliższego meczu, żeby dobrze ustawić obciążenia.",
+      );
+      setTriedNext(true);
       setStep(4);
       return;
     }
+    // Loadwise sam decyduje o dniach — dostępne są wszystkie dni poza niedostępnymi.
+    const availableDays = [1, 2, 3, 4, 5, 6, 7].filter(
+      (d) => !unavailableDays.includes(d),
+    );
     const profile: Profile = {
       name: name.trim(),
       age: ageNum,
