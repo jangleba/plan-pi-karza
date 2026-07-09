@@ -243,11 +243,7 @@ function Onboarding() {
       );
     if (step === 3) return goal !== null && secondaryLimiter !== null;
     if (step === 4)
-      return (
-        doubleSessions !== null &&
-        individualDays.length > 0 &&
-        matchDate.trim().length > 0
-      );
+      return doubleSessions !== null && matchDate.trim().length > 0;
     return true;
   }
 
