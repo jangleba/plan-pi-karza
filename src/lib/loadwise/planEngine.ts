@@ -3008,6 +3008,51 @@ function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile):
   }
 }
 
+/** Czy sesja jest treningiem siłowni (siła/moc na siłowni), niezależnie od intensywności. */
+function isGymSession(session: SessionDay): boolean {
+  const cat = session.classification?.category;
+  if (cat === "gym_strength") return true;
+  const t = `${session.sessionType} ${session.title}`.toLowerCase();
+  return /si[łl]a|si[łl]own|strength|\bmoc\b|power|gym/i.test(t);
+}
+
+/**
+ * TWARDA reguła: nigdy dwa dni siłowni z rzędu. Jeśli poprzedni dzień był
+ * treningiem siłowni, dzisiejszy trening siłowni jest degradowany do lekkiej,
+ * niesiłowej alternatywy (mobilność / lekka technika / góra-core). Bez wyjątków
+ * dla poziomu — mecz i klub to stałe punkty kalendarza i ich nie ruszamy.
+ */
+function enforceNoConsecutiveGymDays(out: SessionDay[], profile: Profile): void {
+  for (let i = 1; i < out.length; i++) {
+    const prev = out[i - 1];
+    const cur = out[i];
+    if (!isGymSession(prev) || !isGymSession(cur)) continue;
+    // Zamieniamy tylko własne treningi — meczu/klubu nie modyfikujemy.
+    if (cur.dayType !== "training") continue;
+    const light = buildLightAlternative(profile);
+    cur.title = light.title;
+    cur.sessionType = light.sessionType;
+    cur.goalOfSession = light.goalOfSession;
+    cur.intensity = "umiarkowana";
+    cur.durationMin = light.durationMin;
+    cur.structuredSections = undefined;
+    cur.sections = {
+      warmup: warmup(),
+      main: light.main,
+      accessory: light.accessory,
+      footballTransfer: light.footballTransfer,
+      cooldown: cooldown(),
+    };
+    cur.reason =
+      "Nigdy nie planujemy dwóch dni siłowni z rzędu — dziś lżejsza, niesiłowa praca chroni adaptację i regenerację.";
+    cur.safetyNote =
+      cur.safetyNote ??
+      "Dwie siłownie z rzędu zwiększają ryzyko przeciążenia — zachowujemy odstęp.";
+    cur.loadTags = computeLoadTags(cur);
+    cur.classification = undefined;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Rule-based week layer — składa metadane tygodnia, egzekwuje progresję bloku,
 // waliduje i przebudowuje tydzień oraz usuwa fallback "Regeneracja i prehab".
@@ -3854,6 +3899,9 @@ export function generatePlan(
   // Scheduler post-pass: brak dwóch ciężkich dolnych dni z rzędu.
   enforceConsecutiveLowerBodySafety(out, profile);
 
+  // TWARDA reguła: nigdy dwa dni siłowni z rzędu.
+  enforceNoConsecutiveGymDays(out, profile);
+
   // gymAccess=false: żadna sesja siłowa nie może wymagać siłowni — zamień na
   // wariant z masy ciała (bodyweight), zachowując bodziec siłowy celu głównego.
   if (!profile.hasGym) {
@@ -3886,6 +3934,15 @@ export function generatePlan(
 
   // Rule-based warstwa: walidacja + przebudowa tygodnia, progresja bloku, metadane.
   const ruleReport = applyRuleBasedWeekLayer(finalPlan, profile, startDate, weekOffset);
+
+  // TWARDA reguła (ostatni gate): nigdy dwa dni siłowni z rzędu, także po
+  // przebudowie tygodnia. Zdegradowane dni przechodzą ponowną klasyfikację.
+  enforceNoConsecutiveGymDays(finalPlan, profile);
+  for (let i = 0; i < finalPlan.length; i++) {
+    if (!finalPlan[i].classification) {
+      finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
+    }
+  }
 
   // Logi developerskie po wygenerowaniu planu.
   if (typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
