@@ -1,5 +1,5 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
-import { Dumbbell } from "lucide-react";
+import { ImageOff } from "lucide-react";
 
 import highBarSquat from "@/assets/blueprints/high_bar_squat.png";
 import nordicHamstring from "@/assets/blueprints/nordic_hamstring.png";
@@ -20,215 +20,437 @@ import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.png";
 import calfRaise from "@/assets/blueprints/calf_raise.png";
 import pogoJump from "@/assets/blueprints/pogo_jump.png";
 import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
+import pinSquatIsoSingleLegDeep from "@/assets/blueprints/pin_squat_iso_single_leg_deep.png";
+import facePull from "@/assets/blueprints/face_pull.png";
+import frontSquat from "@/assets/blueprints/front_squat.png";
+import trapBarHighPin from "@/assets/blueprints/trap_bar_high_pin.png";
+import medBallHipThrow from "@/assets/blueprints/med_ball_hip_throw.png";
+import birdDog from "@/assets/blueprints/bird_dog.png";
+import sidePlank from "@/assets/blueprints/side_plank.png";
+import kettlebellSwing from "@/assets/blueprints/kettlebell_swing.png";
+import razorCurl from "@/assets/blueprints/razor_curl.png";
+import longLeverBridgeIso from "@/assets/blueprints/long_lever_bridge_iso.png";
+import bandBroadJump from "@/assets/blueprints/band_broad_jump.png";
+import fallingStart from "@/assets/blueprints/falling_start.png";
 
 /**
- * System Movement Blueprint.
+ * System grafik ćwiczeń — TWARDE mapowanie 1:1.
  *
- * Każdy blueprintType mapuje się na premium, minimalistyczną ilustrację ruchu
- * (cienkie linie, side/3-4-view, niebieska strzałka kierunku). Jeśli dla danego
- * typu nie ma jeszcze ilustracji, pokazujemy kompaktowy, elegancki fallback —
- * nigdy pustego boxa ani niskiej jakości placeholdera.
+ * ZASADA NADRZĘDNA: jedno ćwiczenie = jedna dedykowana grafika.
+ * Grafika jest pobierana WYŁĄCZNIE po jednoznacznym visualId, a to z kolei
+ * po DOKŁADNEJ (znormalizowanej) nazwie ćwiczenia zapisanej w `exerciseNames`.
+ *
+ * NIE MA fallbacku „najbardziej podobne ćwiczenie", NIE MA dopasowań po
+ * kategorii, kolejności czy heurystyce słów kluczowych. Jeśli ćwiczenie nie
+ * jest jawnie zapisane do grafiki → pokazujemy placeholder, nigdy cudzą grafikę.
  */
-export type BlueprintType =
-  | "high_bar_squat"
-  | "back_squat"
-  | "goblet_squat"
-  | "nordic_hamstring"
-  | "hamstring_slider_curl"
-  | "rdl"
-  | "split_squat"
-  | "cmj"
-  | "vertical_jump"
-  | "broad_jump"
-  | "bounds"
-  | "sprint_acceleration"
-  | "max_velocity_sprint"
-  | "deceleration"
-  | "change_of_direction"
-  | "pallof_press"
-  | "dead_bug"
-  | "copenhagen_plank"
-  | "calf_raise"
-  | "pogo_jump";
 
-type BlueprintSpec = {
+export type MovementType =
+  | "squat"
+  | "hinge"
+  | "lunge"
+  | "pull"
+  | "jump"
+  | "sprint"
+  | "core"
+  | "isometric"
+  | "calf";
+
+export interface ExerciseVisual {
+  /** Jednoznaczny identyfikator grafiki. */
+  visualId: string;
+  /** Zaimportowany plik grafiki. */
   src: string;
+  /** Tytuł grafiki (do alt/aria). */
   title: string;
-  directionLabel: string;
-};
-
-/** Registry ilustracji ruchu. Tylko wpisy z realnym `src` renderują grafikę. */
-const blueprintRegistry: Partial<Record<BlueprintType, BlueprintSpec>> = {
-  high_bar_squat: {
-    src: highBarSquat,
-    title: "Przysiad — w dół i w górę",
-    directionLabel: "Pion w dół i w górę",
-  },
-  nordic_hamstring: {
-    src: nordicHamstring,
-    title: "Nordic — kontrolowany opad",
-    directionLabel: "Opad tułowia w przód",
-  },
-  hamstring_slider_curl: {
-    src: hamstringSliderCurl,
-    title: "Slider curl — pięty do bioder",
-    directionLabel: "Pięty do bioder",
-  },
-  sprint_acceleration: {
-    src: sprintAcceleration,
-    title: "Akceleracja — mocne wypchnięcie",
-    directionLabel: "Napęd do przodu",
-  },
-  bounds: {
-    src: bounds,
-    title: "Bounds — długi rytmiczny skok",
-    directionLabel: "Skok w przód",
-  },
-  deceleration: {
-    src: deceleration,
-    title: "Hamowanie — nisko i stabilnie",
-    directionLabel: "Zatrzymanie, nisko",
-  },
-  pallof_press: {
-    src: pallofPress,
-    title: "Pallof press — anty-rotacja",
-    directionLabel: "Wypchnięcie od klatki",
-  },
-  dead_bug: {
-    src: deadBug,
-    title: "Dead bug — stabilny tułów",
-    directionLabel: "Naprzemienne wyprosty",
-  },
-  back_squat: {
-    src: backSquat,
-    title: "Przysiad ze sztangą — w dół i w górę",
-    directionLabel: "Pion w dół i w górę",
-  },
-  goblet_squat: {
-    src: gobletSquat,
-    title: "Goblet squat — w dół i w górę",
-    directionLabel: "Pion w dół i w górę",
-  },
-  rdl: {
-    src: rdl,
-    title: "RDL — biodra w tył",
-    directionLabel: "Zawias biodrowy w tył",
-  },
-  split_squat: {
-    src: splitSquat,
-    title: "Przysiad bułgarski — w dół i w górę",
-    directionLabel: "Pion w dół i w górę",
-  },
-  cmj: {
-    src: cmj,
-    title: "Wyskok pionowy — eksplozja w górę",
-    directionLabel: "Wyskok w górę",
-  },
-  broad_jump: {
-    src: broadJump,
-    title: "Skok w dal — napęd w przód",
-    directionLabel: "Skok w przód",
-  },
-  change_of_direction: {
-    src: changeOfDirection,
-    title: "Zmiana kierunku — mocne wypchnięcie w bok",
-    directionLabel: "Zmiana kierunku",
-  },
-  copenhagen_plank: {
-    src: copenhagenPlank,
-    title: "Copenhagen plank — biodra w górę",
-    directionLabel: "Uniesienie bioder",
-  },
-  calf_raise: {
-    src: calfRaise,
-    title: "Wspięcia na palce — w górę",
-    directionLabel: "Uniesienie na palce",
-  },
-  pogo_jump: {
-    src: pogoJump,
-    title: "Pogo — szybkie odbicia",
-    directionLabel: "Szybkie odbicie w górę",
-  },
-  max_velocity_sprint: {
-    src: maxVelocitySprint,
-    title: "Prędkość maksymalna — wysoka postawa",
-    directionLabel: "Napęd do przodu",
-  },
-};
-
-/** Mapuje ćwiczenie na blueprintType na podstawie nazwy/techniki. */
-export function blueprintFor(e: TrainingExercise): BlueprintType {
-  const t = `${e.name} ${e.technique ?? ""} ${e.cue ?? ""} ${e.equipment ?? ""}`.toLowerCase();
-  const has = (...w: string[]) => w.some((x) => t.includes(x));
-
-  // --- Dopasowania dokładne ---
-  if (has("nordic")) return "nordic_hamstring";
-  if (has("slider", "leg curl na sliderach", "nordic curl")) return "hamstring_slider_curl";
-  if (has("goblet")) return "goblet_squat";
-  if (has("high bar", "przysiad ze sztang", "back squat", "front squat")) return "back_squat";
-  if (has("rdl", "martwy ciąg rumuń", "romanian", "hip hinge", "zawias biodrow")) return "rdl";
-  if (has("kettlebell swing", "swing", "zamach", "kb swing")) return "rdl";
-  if (has("trap bar", "deadlift", "martwy ciąg")) return "rdl";
-  if (has("bułgar", "split squat", "wykrok", "lunge", "zakrocz", "step up", "step-up", "wejści na skrzyni")) return "split_squat";
-  if (has("przysiad", "squat", "siad")) return "high_bar_squat";
-  if (has("bounds", "wieloskok", "skok naprzemienny")) return "bounds";
-  if (has("skok w dal", "broad jump", "skok w przód")) return "broad_jump";
-  if (has("cmj", "skok pionowy", "vertical jump", "wyskok", "box jump", "skok na skrzyni")) return "cmj";
-  if (has("pogo", "odbicia", "skip")) return "pogo_jump";
-  if (has("max velocity", "prędkość maksymaln", "lotny", "flying", "rytm")) return "max_velocity_sprint";
-  if (has("akcelerac", "sprint", "przyspiesz", "wypchnięc", "falling start", "start ")) return "sprint_acceleration";
-  if (has("hamowan", "decel", "zatrzym", "lądowani", "landing")) return "deceleration";
-  if (has("zmiana kierunk", "change of direction", "cod", "cięcie", "agility", "zwrotność")) return "change_of_direction";
-  if (has("pallof", "anty-rotac", "anti-rotation", "anti rotation")) return "pallof_press";
-  if (has("copenhagen", "kopenha", "przywodzicieli w podpor")) return "copenhagen_plank";
-  if (has("dead bug", "martwy robak", "bird dog", "ptak-pies", "plank", "deska", "bridge", "mostek", "hollow", "core", "brzuch", "tułów", "stabiliz")) return "dead_bug";
-  if (has("wspięci", "łydk", "calf", "kostk", "ankle", "stopa", "stóp")) return "calf_raise";
-
-  // --- Fallback po kategorii ruchu (nigdy pustego pola) ---
-  if (has("bieg", "trucht", "tempo", "interwał", "endurance", "wytrzym", "cardio", "rower")) return "max_velocity_sprint";
-  if (has("mobiln", "mobility", "rozciąg", "stretch", "dynamiczn", "rozgrzew", "warm", "aktywac", "activation")) return "split_squat";
-  if (has("biodr", "hip", "glute", "pośladk")) return "rdl";
-  if (has("hamstring", "dwugłow", "tył uda")) return "hamstring_slider_curl";
-  if (has("ciąg", "wiosł", "row", "pull", "podciąg", "face pull")) return "rdl";
-  if (has("wyciskani", "press", "pomp", "push", "klatk")) return "dead_bug";
-  if (has("recovery", "regenerac", "oddech", "breathing", "mobilizac")) return "dead_bug";
-
-  // Ostateczny fallback — spójna karta ruchu ogólnego (bez placeholdera).
-  return "high_bar_squat";
+  /** Typ ruchu — metadana walidacyjna. */
+  movementType: MovementType;
+  /**
+   * DOKŁADNE nazwy ćwiczeń, które ta grafika przedstawia. To jedyne źródło
+   * prawdy dla przypisania. Każda nazwa jest normalizowana przy budowie mapy.
+   */
+  exerciseNames: string[];
 }
 
-/** Kompaktowy, elegancki fallback — bez wielkiego pustego pola. */
-export function ExerciseBlueprintFallback() {
+/**
+ * Biblioteka grafik — kluczowana po visualId. Każdy wpis przedstawia dokładnie
+ * to ćwiczenie (lub jego bezpośrednie warianty o identycznym wzorcu ruchu).
+ */
+export const visualLibrary: Record<string, ExerciseVisual> = {
+  pin_squat_iso_single_leg_deep: {
+    visualId: "pin_squat_iso_single_leg_deep",
+    src: pinSquatIsoSingleLegDeep,
+    title: "Przysiad przy pinach (iso) — jednonóż, głęboki zakres",
+    movementType: "isometric",
+    exerciseNames: ["Przysiad przy pinach (iso)"],
+  },
+  face_pull: {
+    visualId: "face_pull",
+    src: facePull,
+    title: "Face pull (guma / wyciąg)",
+    movementType: "pull",
+    exerciseNames: [
+      "Face pull",
+      "Face pull (guma / wyciąg)",
+      "Face pull (guma)",
+      "Face pull (wyciąg)",
+    ],
+  },
+  front_squat: {
+    visualId: "front_squat",
+    src: frontSquat,
+    title: "Przysiad czołowy (front squat)",
+    movementType: "squat",
+    exerciseNames: ["Przysiad czołowy (front squat)"],
+  },
+  high_bar_squat: {
+    visualId: "high_bar_squat",
+    src: highBarSquat,
+    title: "Przysiad ze sztangą (high bar)",
+    movementType: "squat",
+    exerciseNames: ["Przysiad ze sztangą (high bar)"],
+  },
+  back_squat: {
+    visualId: "back_squat",
+    src: backSquat,
+    title: "Przysiad ze sztangą (low bar)",
+    movementType: "squat",
+    exerciseNames: [
+      "Przysiad ze sztangą (low bar)",
+      "Safety bar squat (przysiad)",
+    ],
+  },
+  goblet_squat: {
+    visualId: "goblet_squat",
+    src: gobletSquat,
+    title: "Goblet squat",
+    movementType: "squat",
+    exerciseNames: ["Goblet squat"],
+  },
+  split_squat: {
+    visualId: "split_squat",
+    src: splitSquat,
+    title: "Split squat",
+    movementType: "lunge",
+    exerciseNames: ["Split squat"],
+  },
+  rdl: {
+    visualId: "rdl",
+    src: rdl,
+    title: "Martwy ciąg rumuński (RDL)",
+    movementType: "hinge",
+    exerciseNames: ["Martwy ciąg rumuński (RDL)"],
+  },
+  trap_bar_high_pin: {
+    visualId: "trap_bar_high_pin",
+    src: trapBarHighPin,
+    title: "Trap bar martwy ciąg (z wysokich pinów)",
+    movementType: "hinge",
+    exerciseNames: ["Trap bar martwy ciąg (z wysokich pinów)"],
+  },
+  kettlebell_swing: {
+    visualId: "kettlebell_swing",
+    src: kettlebellSwing,
+    title: "Kettlebell swing",
+    movementType: "hinge",
+    exerciseNames: ["Kettlebell swing"],
+  },
+  med_ball_hip_throw: {
+    visualId: "med_ball_hip_throw",
+    src: medBallHipThrow,
+    title: "Rzut piłką lekarską z bioder (hip-dominant)",
+    movementType: "hinge",
+    exerciseNames: ["Rzut piłką lekarską z bioder (hip-dominant)"],
+  },
+  nordic_hamstring: {
+    visualId: "nordic_hamstring",
+    src: nordicHamstring,
+    title: "Nordic hamstring",
+    movementType: "hinge",
+    exerciseNames: ["Nordic hamstring"],
+  },
+  razor_curl: {
+    visualId: "razor_curl",
+    src: razorCurl,
+    title: "Razor curl",
+    movementType: "hinge",
+    exerciseNames: ["Razor curl"],
+  },
+  hamstring_slider_curl: {
+    visualId: "hamstring_slider_curl",
+    src: hamstringSliderCurl,
+    title: "Hamstring slider curl",
+    movementType: "hinge",
+    exerciseNames: ["Hamstring slider curl"],
+  },
+  long_lever_bridge_iso: {
+    visualId: "long_lever_bridge_iso",
+    src: longLeverBridgeIso,
+    title: "Long-lever hamstring bridge iso",
+    movementType: "isometric",
+    exerciseNames: ["Long-lever hamstring bridge iso"],
+  },
+  calf_raise: {
+    visualId: "calf_raise",
+    src: calfRaise,
+    title: "Wspięcia na łydki",
+    movementType: "calf",
+    exerciseNames: ["Wspięcia na łydki (ekscentryczne)"],
+  },
+  pallof_press: {
+    visualId: "pallof_press",
+    src: pallofPress,
+    title: "Pallof press (anty-rotacja)",
+    movementType: "core",
+    exerciseNames: ["Pallof press (anty-rotacja)"],
+  },
+  dead_bug: {
+    visualId: "dead_bug",
+    src: deadBug,
+    title: "Dead bug",
+    movementType: "core",
+    exerciseNames: ["Dead bug"],
+  },
+  bird_dog: {
+    visualId: "bird_dog",
+    src: birdDog,
+    title: "Bird dog",
+    movementType: "core",
+    exerciseNames: ["Bird dog"],
+  },
+  side_plank: {
+    visualId: "side_plank",
+    src: sidePlank,
+    title: "Plank boczny",
+    movementType: "core",
+    exerciseNames: ["Plank boczny"],
+  },
+  copenhagen_plank: {
+    visualId: "copenhagen_plank",
+    src: copenhagenPlank,
+    title: "Copenhagen plank",
+    movementType: "core",
+    exerciseNames: ["Copenhagen plank"],
+  },
+  cmj: {
+    visualId: "cmj",
+    src: cmj,
+    title: "Skok pionowy (CMJ)",
+    movementType: "jump",
+    exerciseNames: ["Skok pionowy (CMJ)"],
+  },
+  broad_jump: {
+    visualId: "broad_jump",
+    src: broadJump,
+    title: "Skok w dal z miejsca",
+    movementType: "jump",
+    exerciseNames: ["Skok w dal z miejsca"],
+  },
+  band_broad_jump: {
+    visualId: "band_broad_jump",
+    src: bandBroadJump,
+    title: "Skok w dal z oporem gumy (band-resisted)",
+    movementType: "jump",
+    exerciseNames: ["Skok w dal z oporem gumy (band-resisted)"],
+  },
+  bounds: {
+    visualId: "bounds",
+    src: bounds,
+    title: "Bounds (skoki zamaszyste)",
+    movementType: "jump",
+    exerciseNames: [
+      "Bounds (skoki zamaszyste)",
+      "Bounds (wieloskoki) — niska objętość",
+    ],
+  },
+  pogo_jump: {
+    visualId: "pogo_jump",
+    src: pogoJump,
+    title: "Niskie pogo jumps",
+    movementType: "jump",
+    exerciseNames: ["Niskie pogo jumps"],
+  },
+  sprint_acceleration: {
+    visualId: "sprint_acceleration",
+    src: sprintAcceleration,
+    title: "Sprinty z akceleracją",
+    movementType: "sprint",
+    exerciseNames: ["Sprinty z akceleracją 10–20 m"],
+  },
+  falling_start: {
+    visualId: "falling_start",
+    src: fallingStart,
+    title: "Falling start",
+    movementType: "sprint",
+    exerciseNames: ["Falling start"],
+  },
+  max_velocity_sprint: {
+    visualId: "max_velocity_sprint",
+    src: maxVelocitySprint,
+    title: "Narastające przebieżki (build-up)",
+    movementType: "sprint",
+    exerciseNames: ["Narastające przebieżki (build-up)"],
+  },
+  deceleration: {
+    visualId: "deceleration",
+    src: deceleration,
+    title: "Sprint + kontrolowane hamowanie",
+    movementType: "sprint",
+    exerciseNames: [
+      "Sprint 10 m + kontrolowane hamowanie",
+      "Sprint 15 m + kontrolowane hamowanie",
+    ],
+  },
+  change_of_direction: {
+    visualId: "change_of_direction",
+    src: changeOfDirection,
+    title: "Zmiana kierunku",
+    movementType: "sprint",
+    exerciseNames: ["Lateral cut / drop step 45°–90°"],
+  },
+};
+
+/** Normalizacja nazwy — identyczna dla klucza i dla wyszukania. */
+function normalizeName(raw: string): string {
+  return (raw ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9ąćęłńóśźż]+/gi, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/** Odwrotna mapa: znormalizowana nazwa → visualId. Budowana raz. */
+const NAME_TO_VISUAL: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const visual of Object.values(visualLibrary)) {
+    for (const name of visual.exerciseNames) {
+      const key = normalizeName(name);
+      if (map[key] && map[key] !== visual.visualId) {
+        // Kolizja: ta sama nazwa przypisana do dwóch grafik — nie zgadujemy.
+        // eslint-disable-next-line no-console
+        console.error(
+          `[blueprint] Duplicate exercise name mapping: "${name}" -> ${map[key]} & ${visual.visualId}`,
+        );
+        continue;
+      }
+      map[key] = visual.visualId;
+    }
+  }
+  return map;
+})();
+
+export type VisualResolution =
+  | { status: "ready"; visual: ExerciseVisual }
+  | { status: "missing"; reason: string };
+
+/**
+ * Rozwiązuje grafikę dla ćwiczenia WYŁĄCZNIE po dokładnej nazwie.
+ * Zwraca { status: "missing" } gdy nie ma dedykowanej grafiki — NIGDY cudzej.
+ */
+export function resolveExerciseVisual(e: TrainingExercise): VisualResolution {
+  const key = normalizeName(e.name);
+  if (!key) return { status: "missing", reason: "empty-name" };
+
+  const visualId = NAME_TO_VISUAL[key];
+  if (!visualId) {
+    return { status: "missing", reason: "no-dedicated-visual" };
+  }
+
+  const visual = visualLibrary[visualId];
+  if (!visual) {
+    // eslint-disable-next-line no-console
+    console.error(`[blueprint] visualId "${visualId}" not found in library`);
+    return { status: "missing", reason: "visual-not-found" };
+  }
+
+  // Twarda walidacja spójności: grafika musi jawnie zawierać tę nazwę.
+  const enrolled = visual.exerciseNames.some((n) => normalizeName(n) === key);
+  if (!enrolled) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `Exercise visual mismatch: "${e.name}" expected an enrolled name for ${visualId}, but was not found`,
+    );
+    return { status: "missing", reason: "mismatch" };
+  }
+
+  return { status: "ready", visual };
+}
+
+// ---------------------------------------------------------------------------
+// Dev validation report — uruchamiany tylko w dev.
+// ---------------------------------------------------------------------------
+
+export interface VisualValidationReport {
+  ok: boolean;
+  totalVisuals: number;
+  duplicateNames: string[];
+  duplicateVisualIds: string[];
+}
+
+export function validateVisualLibrary(): VisualValidationReport {
+  const seenNames: Record<string, string> = {};
+  const duplicateNames: string[] = [];
+  const seenIds = new Set<string>();
+  const duplicateVisualIds: string[] = [];
+
+  for (const [id, visual] of Object.entries(visualLibrary)) {
+    if (seenIds.has(visual.visualId)) duplicateVisualIds.push(visual.visualId);
+    seenIds.add(visual.visualId);
+    if (id !== visual.visualId) {
+      duplicateVisualIds.push(`${id} != ${visual.visualId}`);
+    }
+    for (const name of visual.exerciseNames) {
+      const key = normalizeName(name);
+      if (seenNames[key] && seenNames[key] !== visual.visualId) {
+        duplicateNames.push(`${name} (${seenNames[key]} & ${visual.visualId})`);
+      }
+      seenNames[key] = visual.visualId;
+    }
+  }
+
+  return {
+    ok: duplicateNames.length === 0 && duplicateVisualIds.length === 0,
+    totalVisuals: Object.keys(visualLibrary).length,
+    duplicateNames,
+    duplicateVisualIds,
+  };
+}
+
+if (import.meta.env?.DEV) {
+  const report = validateVisualLibrary();
+  if (!report.ok) {
+    // eslint-disable-next-line no-console
+    console.warn("[blueprint] Visual library validation issues:", report);
+  }
+}
+
+/** Schludny placeholder — pokazywany zamiast cudzej grafiki. */
+export function ExerciseVisualPlaceholder() {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Dumbbell className="h-4 w-4" />
+    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <ImageOff className="h-5 w-5" />
       </span>
-      <div className="text-sm text-muted-foreground">Diagram techniki w przygotowaniu</div>
+      <div className="text-sm font-medium text-muted-foreground">
+        Brak ilustracji dla tego ćwiczenia
+      </div>
     </div>
   );
 }
 
-export function MovementBlueprint({
-  blueprintType,
-  title,
-  directionLabel,
-}: {
-  blueprintType: BlueprintType | null;
-  title?: string;
-  directionLabel?: string;
-}) {
-  const spec = blueprintType ? blueprintRegistry[blueprintType] : undefined;
+export function MovementBlueprint({ exercise }: { exercise: TrainingExercise }) {
+  const resolution = resolveExerciseVisual(exercise);
 
-  if (!spec) {
-    return <ExerciseBlueprintFallback />;
+  if (resolution.status === "missing") {
+    return <ExerciseVisualPlaceholder />;
   }
 
+  const { visual } = resolution;
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
       <img
-        src={spec.src}
-        alt={title ?? spec.title}
+        src={visual.src}
+        alt={visual.title}
         loading="lazy"
         width={1024}
         height={1280}
