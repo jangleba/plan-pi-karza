@@ -4302,9 +4302,7 @@ export function generatePlan(
   validateEndurancePlacement(finalPlan, profile);
   validateRecoveryPrehabPlacement(finalPlan, profile, startDate, weekOffset);
   for (let i = 0; i < finalPlan.length; i++) {
-    if (!finalPlan[i].classification) {
-      finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
-    }
+    finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
   }
 
   // Logi developerskie po wygenerowaniu planu.
