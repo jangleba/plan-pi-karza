@@ -57,7 +57,7 @@ const has = (text: string, re: RegExp): boolean => re.test(text);
 // ───────────────────────────── Detektory słów kluczowych ─────────────────────────────
 
 const RE_STRENGTH =
-  /(?<!wy)sił|moc|power|strength|przysiad|squat|martwy|deadlift|trap[\s-]?bar|rdl|hinge|split squat|goblet|hip thrust|wyciskan|wiosł|podciąg|nordic|hypertroph|hipertrof|podtrzyman/i;
+  /(?<!wy)sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power|strength|przysiad|squat|martwy|deadlift|trap[\s-]?bar|rdl|hinge|split squat|goblet|hip thrust|wyciskan|wiosł|podciąg|nordic|hypertroph|hipertrof|podtrzyman/i;
 
 const RE_ENDURANCE =
   /wytrzym|wydol|tlen|aerob|kondyc|tempo|interwa|interval|zone\s*2|strefa\s*2|easy run|lekki bieg|ciągły bieg|recovery run|rower|bike|basen|pool|low[\s-]?impact|repeated tempo|rsa|powtarzan.{0,12}sprint|bieg /i;
@@ -128,7 +128,7 @@ function classifyGym(text: string): SessionSubcategory {
   if (has(text, /masa ciała|masą ciała|bodyweight|bez sprzętu|kalisten|z ciężarem ciała/))
     return "bodyweight_strength";
   if (has(text, /full body|całe ciało|full-body/)) return "full_body_strength";
-  if (has(text, /moc|power/)) return "power_maintenance";
+  if (has(text, /\bmoc(?:y|ą|owy|owa|owe)?\b|power/)) return "power_maintenance";
   if (has(text, /podtrzyman|maintenance/)) return "strength_maintenance";
   if (has(text, /górn|upper|wyciskan|wiosł|podciąg|press|pull/))
     return "upper_strength";
@@ -150,6 +150,7 @@ function resolveCategory(session: SessionDay): CategoryResult {
 
   const text = fullText(session);
   const header = headerText(session);
+  const explicitHeader = `${session.title ?? ""} ${session.sessionType ?? ""}`.toLowerCase();
   // Wąski sygnał: sesja JAWNIE oznaczona jako siłownia w tytule/typie (np.
   // "Siła / moc na siłowni"). Chroni przed błędną klasyfikacją jako prehab, gdy
   // opis zawiera słowa typu "stabilizacja" — ale NIE reklasyfikuje zwykłego
@@ -196,21 +197,21 @@ function resolveCategory(session: SessionDay): CategoryResult {
 
   // 3) Regeneracja / prehab / mobilność — NIE liczą się jako pełna siłownia.
   //    Sprawdzamy zanim spojrzymy na słowa siłowe (prehab ma ćwiczenia siłowe).
-  if (session.dayType === "recovery" || has(header, RE_RECOVERY)) {
+  if (session.dayType === "recovery" || has(explicitHeader, RE_RECOVERY)) {
     return {
       category: "recovery_prehab",
       subcategory: "recovery",
       sourceRule: "recovery day/header",
     };
   }
-  if (has(header, RE_PREHAB) && !strengthTitle) {
+  if (has(explicitHeader, RE_PREHAB) && !strengthTitle) {
     return {
       category: "recovery_prehab",
       subcategory: "prehab",
       sourceRule: "header=prehab",
     };
   }
-  if (has(header, RE_MOBILITY) && !has(header, RE_STRENGTH)) {
+  if (has(explicitHeader, RE_MOBILITY) && !has(explicitHeader, RE_STRENGTH)) {
     return {
       category: "mobility",
       subcategory: "mobility",
