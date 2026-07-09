@@ -223,8 +223,8 @@ function Onboarding() {
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
     );
   }
-  function toggleIndividualDay(d: number) {
-    setIndividualDays((prev) =>
+  function toggleUnavailableDay(d: number) {
+    setUnavailableDays((prev) =>
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
     );
   }
