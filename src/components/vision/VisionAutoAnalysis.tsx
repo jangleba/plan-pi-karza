@@ -37,46 +37,52 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const started = useRef(false);
 
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+  const runToken = useRef(0);
+  const objectUrlRef = useRef<string | null>(null);
 
-    let cancelled = false;
-    let objectUrl: string | null = null;
+  const runAnalysis = useCallback(async () => {
+    // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
+    const token = ++runToken.current;
+    const cancelled = () => runToken.current !== token;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setPreviewSrc(null);
+    setPhase("reading_metadata");
+    setProgress(0);
+    setState({ kind: "running" });
 
-    (async () => {
-      // Źródło filmu: lokalny plik (blob) albo świeży signed URL ze storage.
-      let source: string | null = null;
-      if (flow.file) {
-        objectUrl = URL.createObjectURL(flow.file);
-        source = objectUrl;
-      } else if (flow.videoUrl && flow.uploaded && !flow.videoUrl.startsWith("placeholder://")) {
-        // flow.videoUrl to ścieżka w storage — pobierz świeży signed URL (poprzedni mógł wygasnąć).
-        source = flow.videoUrl.startsWith("http")
-          ? flow.videoUrl
-          : await getVisionVideoUrl(flow.videoUrl);
+    try {
+      // 1-8: pozyskaj film jako zwalidowany Blob URL (Safari-friendly).
+      const resolved = await resolveVideoBlob({
+        file: flow.file,
+        videoUrl: flow.videoUrl,
+        uploaded: flow.uploaded,
+      });
+      if (cancelled()) {
+        URL.revokeObjectURL(resolved.objectUrl);
+        return;
       }
-
-      if (cancelled) return;
-      if (!source) {
+      if (flow.file == null && flow.videoUrl == null) {
         navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } });
         return;
       }
-      setPreviewSrc(source);
+      objectUrlRef.current = resolved.objectUrl;
+      setPreviewSrc(resolved.objectUrl);
 
+      // 9-10: analiza startuje na gotowym Blob URL.
       const analysis = await runVideoAnalysis({
         testType: test.id as TestType,
-        videoUrl: source,
+        videoUrl: resolved.objectUrl,
         declaredFps: flow.fps || null,
         cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
-        onPhase: (p) => !cancelled && setPhase(p),
-        onProgress: (f) => !cancelled && setProgress(f),
+        onPhase: (p) => !cancelled() && setPhase(p),
+        onProgress: (f) => !cancelled() && setProgress(f),
       });
-      if (cancelled) return;
-
+      if (cancelled()) return;
 
       if (analysis.status === "completed") {
-        // Wynik policzony z filmu — zapis trwały i przejście do raportu.
         const frame = analysisToFrameResult(analysis);
         const saved = await saveFrameResult({
           userId: user?.id ?? null,
@@ -84,12 +90,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           videoUrl: flow.videoUrl,
           cameraView: flow.cameraView ?? test.cameraView,
         });
+        if (cancelled()) return;
         navigate({ to: "/vision-lab/result/$resultId", params: { resultId: saved.id } });
         return;
       }
 
       if (analysis.status === "needs_review") {
-        // Za mało danych na automatyczny wynik → weryfikacja trenera.
         try {
           if (user) {
             const pending = await createPendingUpload({
@@ -99,6 +105,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
               fps: analysis.videoMetadata.fps || flow.fps || test.recommendedFps,
               cameraView: flow.cameraView ?? test.cameraView,
             });
+            if (cancelled()) return;
             navigate({ to: "/vision-lab/result/$resultId", params: { resultId: pending.id } });
             return;
           }
@@ -111,16 +118,30 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
       // invalid_recording | failed
       setState({ kind: "invalid", analysis });
-    })().catch((e) => {
-      if (!cancelled) setState({ kind: "error", message: e?.message ?? "Błąd analizy." });
-    });
+    } catch (e) {
+      if (cancelled()) return;
+      const code =
+        e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
+      const message = e instanceof Error ? e.message : "Nie udało się przeanalizować filmu.";
+      setState({ kind: "error", code: code ?? "UNKNOWN_ERROR", message });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [test.id]);
 
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void runAnalysis();
     return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      runToken.current++;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   return (
     <div className="pb-28">
