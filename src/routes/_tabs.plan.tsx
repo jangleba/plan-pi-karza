@@ -432,20 +432,13 @@ function PlanScreen() {
         className="space-y-3 px-5 pt-4"
         style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom))" }}
       >
-        {current?.days.map(({ source: day, outsideActivePlan }) => {
-          if (outsideActivePlan) {
-            return (
-              <div key={day.date} className="soft-card p-4 opacity-70">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {shortDayName(parseIso(day.date))} · {formatDate(day.date)}
-                </div>
-                <h3 className="mt-1 text-base font-semibold">Poza aktywnym planem</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Plan zaczyna się w trakcie tygodnia — ten dzień nie liczy się do obciążenia.
-                </p>
-              </div>
-            );
-          }
+        {hasHiddenBefore && planStartDate && (
+          <div className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs text-muted-foreground">
+            Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego
+            tygodnia są poza planem.
+          </div>
+        )}
+        {visibleDays.map(({ source: day }) => {
           const isToday = day.date === todayIso;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
