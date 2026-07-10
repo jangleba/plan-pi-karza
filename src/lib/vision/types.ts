@@ -132,6 +132,12 @@ export interface VisionTestResult {
   exerciseCategory: string | null;
   techniqueReview: TechniqueReview | null;
   reviewMode: ReviewMode | null;
+
+  // ---- Real Frame Analyzer ----
+  frameAnalysisStatus?: FrameAnalysisStatus | null;
+  markedBy?: MarkedBy | null;
+  frameDerived?: FrameDerived | null;
+  frameMarkers?: Partial<Record<FrameMarkerKey, number>> | null;
 }
 
 /** Tryb analizy ćwiczenia z planu. */
