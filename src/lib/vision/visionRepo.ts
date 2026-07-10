@@ -98,6 +98,20 @@ function rowToResult(row: VisionRow): VisionTestResult {
     signals: row.ai_feedback?.signals,
     savedToProgress: row.saved_to_progress,
     createdAt: row.created_at,
+    reviewStatus: (row.review_status as ReviewStatus) ?? "ai_result",
+    reviewType: (row.review_type as ReviewType) ?? null,
+    coachId: row.coach_id ?? null,
+    coachNote: row.coach_note ?? null,
+    coachFeedback: row.coach_feedback ?? null,
+    coachVerified: row.coach_verified ?? false,
+    coachCorrected: row.coach_corrected ?? false,
+    coachCorrectedFrames: row.coach_corrected_frames ?? null,
+    calculationMethod: row.calculation_method ?? null,
+    calculationBasis: row.calculation_basis ?? null,
+    manualOverride: row.manual_override ?? false,
+    manualOverrideReason: row.manual_override_reason ?? null,
+    paidReviewRequested: row.paid_review_requested ?? false,
+    paidReviewStatus: (row.paid_review_status as PaidReviewStatus) ?? "not_requested",
   };
 }
 
