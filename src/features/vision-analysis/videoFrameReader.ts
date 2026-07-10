@@ -334,6 +334,7 @@ export async function iterateFrames(
   // Ścieżka 1: requestVideoFrameCallback (dokładne mediaTime podczas odtwarzania).
   // Uruchamiana tylko gdy odtwarzanie faktycznie ruszy; inaczej fallback seek.
   let playedFrames = 0;
+  let rvfcError: unknown = null;
   if (supportsRVFC) {
     playedFrames = await new Promise<number>((resolve) => {
       let index = 0;
@@ -341,22 +342,9 @@ export async function iterateFrames(
       const done = () => {
         if (finished) return;
         finished = true;
+        clearTimeout(watchdog);
         video.pause();
         resolve(index);
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cb = async (_now: number, meta: any) => {
-        await onFrame({
-          frameIndex: index,
-          mediaTime: meta.mediaTime,
-          presentationTimestamp: meta.mediaTime,
-          video,
-        });
-        index++;
-        onProgress?.(index, total);
-        if (video.ended || video.currentTime >= metadata.durationSeconds - 0.001) return done();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (video as any).requestVideoFrameCallback(cb);
       };
       // Watchdog: jeśli w 6 s nie pojawi się żadna klatka (autoplay zablokowany),
       // przerywamy i przechodzimy do fallbacku seek.
@@ -366,11 +354,29 @@ export async function iterateFrames(
           done();
         }
       }, 6_000);
-      const clearWatch = () => clearTimeout(watchdog);
-      video.onended = () => {
-        clearWatch();
-        done();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cb = async (_now: number, meta: any) => {
+        if (finished) return;
+        try {
+          await onFrame({
+            frameIndex: index,
+            mediaTime: meta.mediaTime,
+            presentationTimestamp: meta.mediaTime,
+            video,
+          });
+        } catch (err) {
+          // Błąd analizy klatki (np. model pozy) nie może zawiesić promisa —
+          // zapamiętaj i zakończ, żeby pipeline zwrócił konkretny błąd.
+          rvfcError = err;
+          return done();
+        }
+        index++;
+        onProgress?.(index, total);
+        if (video.ended || video.currentTime >= metadata.durationSeconds - 0.001) return done();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (video as any).requestVideoFrameCallback(cb);
       };
+      video.onended = () => done();
       video.currentTime = 0;
       video
         .play()
@@ -380,16 +386,20 @@ export async function iterateFrames(
         })
         .catch((err) => {
           vwarn("iterateFrames", "play() odrzucone — fallback do seek", err?.message);
-          clearWatch();
           done();
         });
     });
+    if (rvfcError) {
+      video.src = "";
+      throw rvfcError;
+    }
     if (playedFrames > 0) {
       vlog("iterateFrames", `rVFC: ${playedFrames} klatek`);
       video.src = "";
       return;
     }
   }
+
 
   // Ścieżka 2 (fallback): próbkowanie po currentTime + event seeked.
   vlog("iterateFrames", "fallback seek", { fps: metadata.fps });
