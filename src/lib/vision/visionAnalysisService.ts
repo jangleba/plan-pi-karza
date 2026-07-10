@@ -63,32 +63,18 @@ function mainResultFor(test: VisionTest): { value: number; unit: string } {
   switch (test.id) {
     case "cmj":
       return { value: round(rand(28, 46), 0), unit: "cm" };
-    case "broad-jump":
+    case "broad_jump":
       return { value: round(rand(180, 260), 0), unit: "cm" };
-    case "pogo-jumps":
+    case "pogo_jumps":
       return { value: round(rand(1.4, 2.6), 2), unit: "RSI" };
-    case "drop-jump":
-      return { value: round(rand(1.2, 2.4), 2), unit: "RSI" };
-    case "single-leg-hop":
-      return { value: round(rand(120, 200), 0), unit: "cm" };
-    case "sprint-5m":
-      return { value: round(rand(0.95, 1.25), 2), unit: "s" };
-    case "sprint-10m":
-      return { value: round(rand(1.7, 2.1), 2), unit: "s" };
-    case "sprint-20m":
+    case "sprint_20m":
       return { value: round(rand(2.9, 3.5), 2), unit: "s" };
-    case "flying-10m":
-      return { value: round(rand(1.0, 1.25), 2), unit: "s" };
-    case "5-10-5":
+    case "sprint_30m":
+      return { value: round(rand(3.9, 4.6), 2), unit: "s" };
+    case "five_ten_five":
       return { value: round(rand(4.4, 5.6), 2), unit: "s" };
-    case "braking-test":
+    case "sprint_to_stop":
       return { value: round(rand(1.6, 3.0), 2), unit: "m" };
-    case "l-drill":
-      return { value: round(rand(6.8, 8.2), 2), unit: "s" };
-    case "t-test":
-      return { value: round(rand(9.5, 11.5), 2), unit: "s" };
-    case "sprint-to-stop":
-      return { value: round(rand(2.0, 3.4), 2), unit: "s" };
     default:
       // Testy techniczne — ocena jakości 0-100.
       return { value: round(rand(62, 92), 0), unit: "/100" };
