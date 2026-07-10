@@ -1,25 +1,33 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { History, Sparkles, ClipboardCheck } from "lucide-react";
+import { History, Sparkles, ClipboardCheck, Dumbbell, ChevronRight } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionCategoryCard } from "./VisionCategoryCard";
 import { VisionTestCard } from "./VisionTestCard";
 import { VisionGhostReplayPlaceholder } from "./VisionGhostReplayPlaceholder";
-import { VISION_TESTS } from "@/lib/vision/visionTests";
+import { VISION_TESTS, GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { isCoach } from "@/lib/vision/visionRepo";
 import { useAuth } from "@/lib/loadwise/auth";
-import {
-  CATEGORY_LABELS,
-  type VisionTestCategory,
-} from "@/lib/vision/types";
+import { CATEGORY_LABELS, type VisionTestCategory } from "@/lib/vision/types";
 
 const CATEGORIES: VisionTestCategory[] = ["jump", "sprint", "cod", "technique"];
+
+/** Podpis kategorii na kaflu. Gym Technique nie liczy testów. */
+function categorySubtitle(c: VisionTestCategory): string {
+  if (c === "technique") return "ćwiczenia z planu";
+  const n = VISION_TESTS.filter((t) => t.category === c).length;
+  return n === 1 ? "1 test" : `${n} testy`;
+}
 
 export function VisionLabHome() {
   const { user } = useAuth();
   const [active, setActive] = useState<VisionTestCategory>("jump");
   const [coach, setCoach] = useState(false);
-  const tests = VISION_TESTS.filter((t) => t.category === active);
+
+  // Testy pomiarowe danej kategorii (bez wpisu gym).
+  const tests = VISION_TESTS.filter(
+    (t) => t.category === active && t.id !== GYM_EXERCISE_TEST_ID,
+  );
 
   useEffect(() => {
     if (user) isCoach(user.id).then(setCoach);
@@ -69,7 +77,6 @@ export function VisionLabHome() {
           </Link>
         )}
 
-
         <div>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Kategorie
@@ -79,7 +86,7 @@ export function VisionLabHome() {
               <VisionCategoryCard
                 key={c}
                 category={c}
-                count={VISION_TESTS.filter((t) => t.category === c).length}
+                subtitle={categorySubtitle(c)}
                 active={active === c}
                 onClick={() => setActive(c)}
               />
@@ -91,11 +98,32 @@ export function VisionLabHome() {
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {CATEGORY_LABELS[active]}
           </h2>
-          <div className="space-y-2.5">
-            {tests.map((t) => (
-              <VisionTestCard key={t.id} test={t} />
-            ))}
-          </div>
+
+          {active === "technique" ? (
+            <Link
+              to="/vision-lab/gym"
+              className="soft-card flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-brand">
+                <Dumbbell className="h-6 w-6" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-foreground">
+                  Analyze Gym Exercise
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Analiza techniki ćwiczeń z aktualnego planu siłowego.
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          ) : (
+            <div className="space-y-2.5">
+              {tests.map((t) => (
+                <VisionTestCard key={t.id} test={t} />
+              ))}
+            </div>
+          )}
         </div>
 
         <VisionGhostReplayPlaceholder />
