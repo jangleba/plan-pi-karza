@@ -85,6 +85,8 @@ export interface AnalysisContext {
   poses: FramePose[];
   cameraSetup: CameraSetup;
   calibration: Calibration | null;
+  /** Rzeczywisty wzrost zawodnika (cm) z profilu — do auto-kalibracji skali. */
+  athleteHeightCm?: number | null;
 }
 
 export interface ValidationResult {
