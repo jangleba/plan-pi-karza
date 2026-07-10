@@ -60,6 +60,14 @@ interface VisionRow {
   manual_override_reason: string | null;
   paid_review_requested: boolean | null;
   paid_review_status: string | null;
+  linked_plan_id: string | null;
+  linked_workout_id: string | null;
+  linked_exercise_id: string | null;
+  linked_exercise_name: string | null;
+  linked_training_day: string | null;
+  exercise_category: string | null;
+  technique_review: TechniqueReview | null;
+  review_mode: string | null;
 }
 
 function rowToResult(row: VisionRow): VisionTestResult {
