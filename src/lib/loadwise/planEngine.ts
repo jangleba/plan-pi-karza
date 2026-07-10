@@ -1031,7 +1031,8 @@ function isHardStimulus(s: Stimulus): boolean {
   return HARD_STIMULI.includes(s);
 }
 
-export type WeekPhase = "adaptation" | "development" | "peak" | "deload";
+export type { WeekPhase } from "./types";
+import type { WeekPhase } from "./types";
 
 /** Rola tygodnia w periodyzacji 4-tygodniowej. */
 export function phaseOf(weekIndex: number, totalWeeks: number): WeekPhase {
