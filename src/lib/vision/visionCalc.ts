@@ -78,10 +78,7 @@ export function recomputeMainValue(
     if (takeoff_frame == null || landing_frame == null) return null;
     const t = (landing_frame - takeoff_frame) / fps;
     if (t <= 0) return null;
-    // RSI-owe testy trzymamy jako wysokość bazową — jednostka pozostaje jak w teście
-    return test.mainResultUnitHint === "RSI"
-      ? Math.round((heightFromFlightTime(t) / 100 / 0.2) * 100) / 100
-      : heightFromFlightTime(t);
+    return heightFromFlightTime(t);
   }
   if (isSprint(test) || isCod(test)) {
     const start = frames.start_frame;
