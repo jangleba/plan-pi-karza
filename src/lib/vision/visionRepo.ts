@@ -46,6 +46,20 @@ interface VisionRow {
   comparison_to_previous: VisionComparison | null;
   saved_to_progress: boolean;
   created_at: string;
+  review_status: string | null;
+  review_type: string | null;
+  coach_id: string | null;
+  coach_note: string | null;
+  coach_feedback: CoachFeedback | null;
+  coach_verified: boolean | null;
+  coach_corrected: boolean | null;
+  coach_corrected_frames: CoachFrames | null;
+  calculation_method: string | null;
+  calculation_basis: CalculationBasis | null;
+  manual_override: boolean | null;
+  manual_override_reason: string | null;
+  paid_review_requested: boolean | null;
+  paid_review_status: string | null;
 }
 
 function rowToResult(row: VisionRow): VisionTestResult {
