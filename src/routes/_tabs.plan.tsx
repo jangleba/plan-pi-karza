@@ -614,17 +614,13 @@ function PlanScreen() {
 
             <Button
               className="mt-3 w-full"
-              disabled={!nextReady}
               onClick={() => {
                 if (!nextReady) {
-                  toast.error(
-                    offseasonAllowed
-                      ? "Wybierz datę meczu albo zaznacz tydzień bez meczu."
-                      : "Najpierw wybierz datę kolejnego meczu.",
-                  );
+                  // Twarda blokada: brak daty meczu w sezonie -> modal.
+                  setNeedMatchWeek(nextIndex);
                   return;
                 }
-                setActiveWeek(nextIndex);
+                goToWeek(nextIndex);
               }}
             >
               Przejdź do kolejnego tygodnia
@@ -636,12 +632,49 @@ function PlanScreen() {
               onClick={() => setGateWeek(nextIndex)}
               className="mt-2 w-full text-center text-xs font-medium text-primary"
             >
-              Zmień datę meczu
+              {seasonStatus === "off_season" ? "Ustaw datę meczu (opcjonalnie)" : "Zmień datę meczu"}
             </button>
           </div>
 
         </div>
       )}
+
+      {/* Twarda blokada: modal wymuszający datę kolejnego meczu w sezonie */}
+      <Dialog
+        open={needMatchWeek !== null}
+        onOpenChange={(v) => {
+          if (!v) setNeedMatchWeek(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Uzupełnij kolejny mecz</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Data następnego meczu jest potrzebna, aby prawidłowo rozłożyć
+            obciążenie, regenerację i dni MD.
+          </p>
+          <Button
+            className="mt-4 w-full"
+            onClick={() => {
+              const target = needMatchWeek;
+              setNeedMatchWeek(null);
+              if (target !== null) setGateWeek(target);
+            }}
+          >
+            <CalendarClock className="mr-1 h-4 w-4" />
+            Dodaj datę meczu
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => setNeedMatchWeek(null)}
+          >
+            Wróć do planu
+          </Button>
+        </DialogContent>
+      </Dialog>
+
 
       {gateWeek !== null && gateWeekData && (
         <WeeklyGateSheet
