@@ -117,6 +117,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
