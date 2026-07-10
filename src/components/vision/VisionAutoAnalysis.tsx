@@ -57,12 +57,17 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     setState({ kind: "running" });
 
     try {
+      vlog("loading_file", { file: flow.fileName, uploaded: flow.uploaded });
       // 1-8: pozyskaj film jako zwalidowany Blob URL (Safari-friendly).
-      const resolved = await resolveVideoBlob({
-        file: flow.file,
-        videoUrl: flow.videoUrl,
-        uploaded: flow.uploaded,
-      });
+      const resolved = await withTimeout(
+        resolveVideoBlob({
+          file: flow.file,
+          videoUrl: flow.videoUrl,
+          uploaded: flow.uploaded,
+        }),
+        20_000,
+        "Pozyskanie filmu",
+      );
       if (cancelled()) {
         URL.revokeObjectURL(resolved.objectUrl);
         return;
@@ -73,17 +78,27 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       }
       objectUrlRef.current = resolved.objectUrl;
       setPreviewSrc(resolved.objectUrl);
+      vlog("file_ready", { size: resolved.size, type: resolved.type });
 
       // Wzrost zawodnika z profilu → auto-kalibracja skali (sprint / broad jump).
+      // Zapytanie z twardym limitem — nie może zablokować startu analizy.
       let athleteHeightCm: number | null = null;
       if (user) {
-        const { data: prof } = await supabase
-          .from("athlete_profiles")
-          .select("height_optional")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        const h = prof?.height_optional;
-        if (typeof h === "number" && h >= 100 && h <= 230) athleteHeightCm = h;
+        try {
+          const { data: prof } = await withTimeout(
+            supabase
+              .from("athlete_profiles")
+              .select("height_optional")
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            6_000,
+            "Odczyt profilu zawodnika",
+          );
+          const h = prof?.height_optional;
+          if (typeof h === "number" && h >= 100 && h <= 230) athleteHeightCm = h;
+        } catch (e) {
+          vwarn("profile_fetch", "pominięto auto-kalibrację", (e as Error)?.message);
+        }
       }
       if (cancelled()) return;
 
@@ -94,10 +109,19 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         declaredFps: flow.fps || null,
         cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
         athleteHeightCm,
-        onPhase: (p) => !cancelled() && setPhase(p),
+        onPhase: (p) => {
+          vlog("phase", p);
+          if (!cancelled()) setPhase(p);
+        },
         onProgress: (f) => !cancelled() && setProgress(f),
       });
       if (cancelled()) return;
+      vlog("analysis_done", {
+        status: analysis.status,
+        confidence: analysis.overallConfidence,
+        events: analysis.keyEvents.length,
+        metrics: analysis.metrics.length,
+      });
 
       if (analysis.status === "completed") {
         const frame = analysisToFrameResult(analysis);
