@@ -182,6 +182,13 @@ function ProfilScreen() {
           </div>
         </div>
 
+        <div className="pt-1">
+          <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Target className="h-3.5 w-3.5" /> Analiza zawodnika · Player Analysis
+          </div>
+          <PlayerAnalysis />
+        </div>
+
         <Button
           className="w-full gap-2"
           onClick={() => navigate({ to: "/onboarding" })}
