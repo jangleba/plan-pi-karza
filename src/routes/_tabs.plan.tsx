@@ -262,7 +262,23 @@ function PlanScreen() {
   const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
   const [switchingSeason, setSwitchingSeason] = useState(false);
 
-  const weeks = buildPlanWeeks(plan);
+  const weeks = buildPlanWeeks(plan, profile);
+
+  // Walidacja przed wyświetleniem: żaden tydzień nie może być lekki bez powodu.
+  useEffect(() => {
+    if (!profile) return;
+    const issues = validatePlanWeeks(weeks, profile);
+    if (issues.length > 0) {
+      console.warn("[loadwise] plan validation issues:", issues);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, profile]);
+
+  // Obciążenie dnia po korekcie daily readiness (osobna wartość od planned).
+  const todayAdjusted =
+    todaySession && profile
+      ? applyReadiness(todaySession, state.readiness[todayIso], profile).session
+      : todaySession;
 
   // Tryb sezonu: świadomy wybór w profilu. "Poza sezonem" TYLKO gdy
   // seasonPhase = offseason/transition. Brak daty meczu NIE oznacza automatycznie
