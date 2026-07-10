@@ -12,7 +12,7 @@ export const Route = createFileRoute("/vision-lab/analyze/$testId")({
 function AnalyzeRoute() {
   const { testId } = useParams({ from: "/vision-lab/analyze/$testId" });
   const test = getVisionTest(testId);
-  if (!test) return <VisionTestNotFound testId={testId} />;
+  if (!test) return <VisionTestNotFound />;
   return (
     <VisionGuard>
       <VisionAutoAnalysis test={test} />
