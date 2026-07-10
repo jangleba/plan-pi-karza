@@ -131,6 +131,16 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       />
 
       <div className="space-y-4 px-5">
+        {previewSrc && (
+          <video
+            src={previewSrc}
+            muted
+            playsInline
+            preload="metadata"
+            controls
+            className="w-full rounded-2xl bg-black"
+          />
+        )}
         {state.kind === "running" && <RunningView phase={phase} progress={progress} />}
 
         {state.kind === "invalid" && (
