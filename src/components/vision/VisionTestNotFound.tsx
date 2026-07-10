@@ -1,5 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { VisionGuard } from "@/components/vision/VisionGuard";
+import { Link } from "@tanstack/react-router";
 
 /** Wspólny widok dla nieznanego testu. */
 export function VisionTestNotFound() {
@@ -15,5 +14,3 @@ export function VisionTestNotFound() {
     </div>
   );
 }
-
-export { VisionGuard, createFileRoute };
