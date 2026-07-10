@@ -8,32 +8,114 @@ export type FrameHandler = (frame: {
   video: HTMLVideoElement;
 }) => Promise<void> | void;
 
+/** Błąd wczytywania wideo z konkretnym kodem (widoczny dla użytkownika). */
+export class VideoLoadError extends Error {
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "VideoLoadError";
+    this.code = code;
+  }
+}
+
+const METADATA_TIMEOUT_MS = 10_000;
+
+/** Wykrywa kontener z MIME lub rozszerzenia w URL. */
+function detectContainer(mime: string | null, url: string): string | null {
+  if (mime) {
+    if (mime.includes("mp4")) return "mp4";
+    if (mime.includes("quicktime")) return "mov";
+    if (mime.includes("webm")) return "webm";
+    if (mime.includes("ogg")) return "ogg";
+  }
+  const clean = url.split("?")[0].toLowerCase();
+  const m = clean.match(/\.(mp4|mov|m4v|webm|ogg|avi|mkv)$/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Weryfikuje, że źródło filmu jest osiągalne (HTTP 200/206), ma typ wideo i
+ * niezerowy rozmiar. Pomija blob:/object URL-e (plik jest już lokalnie w pamięci).
+ * Zwraca rozpoznany MIME type, jeśli serwer go poda.
+ */
+async function probeSource(url: string): Promise<string | null> {
+  if (url.startsWith("blob:") || url.startsWith("data:")) return null;
+  try {
+    const res = await fetch(url, { method: "GET", headers: { Range: "bytes=0-1" } });
+    if (!res.ok && res.status !== 206) {
+      throw new VideoLoadError(
+        "HTTP_" + res.status,
+        `Serwer zwrócił status ${res.status} dla pliku filmu.`,
+      );
+    }
+    const type = res.headers.get("content-type");
+    if (type && !type.startsWith("video/") && !type.includes("octet-stream")) {
+      throw new VideoLoadError(
+        "INVALID_MIME_TYPE",
+        `Plik nie jest filmem (typ: ${type}).`,
+      );
+    }
+    const len = res.headers.get("content-range") || res.headers.get("content-length");
+    if (len === "0") {
+      throw new VideoLoadError("EMPTY_FILE", "Plik filmu jest pusty.");
+    }
+    // Zwolnij ewentualny strumień odpowiedzi.
+    try {
+      await res.body?.cancel();
+    } catch {
+      /* ignore */
+    }
+    return type;
+  } catch (e) {
+    if (e instanceof VideoLoadError) throw e;
+    throw new VideoLoadError("NETWORK_ERROR", "Nie udało się pobrać pliku filmu z serwera.");
+  }
+}
+
 /** Odczytuje metadane wideo z pliku (FPS oszacowane z rzeczywistych klatek). */
 export async function readVideoMetadata(
   url: string,
   declaredFps: number | null,
 ): Promise<VideoMetadata> {
+  const mime = await probeSource(url);
+
   const video = document.createElement("video");
   video.src = url;
   video.muted = true;
   video.playsInline = true;
-  video.preload = "auto";
+  video.preload = "metadata";
+  video.crossOrigin = "anonymous";
 
-  await new Promise<void>((resolve, reject) => {
-    video.onloadedmetadata = () => resolve();
-    video.onerror = () => reject(new Error("Nie udało się odczytać metadanych wideo."));
-  });
+  await loadMetadataWithTimeout(video, url);
 
   const width = video.videoWidth;
   const height = video.videoHeight;
   const durationSeconds = video.duration;
 
-  // Oszacowanie FPS z rzeczywistych timestampów klatek (requestVideoFrameCallback).
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    video.src = "";
+    throw new VideoLoadError(
+      "NO_DURATION",
+      "Nie udało się odczytać długości filmu. Nagraj lub wyeksportuj film ponownie.",
+    );
+  }
+  if (!width || !height) {
+    video.src = "";
+    throw new VideoLoadError(
+      "NO_DIMENSIONS",
+      "Nie udało się odczytać rozdzielczości filmu.",
+    );
+  }
+
+  // Oszacowanie FPS i realne timestampy z rzeczywistych klatek (requestVideoFrameCallback).
   let measuredFps: number | null = null;
+  let frameTimestamps: number[] = [];
   const supportsRVFC =
     typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
-  if (supportsRVFC && Number.isFinite(durationSeconds)) {
-    measuredFps = await estimateFpsFromFrames(video);
+  if (supportsRVFC) {
+    const est = await estimateFpsFromFrames(video);
+    measuredFps = est.fps;
+    frameTimestamps = est.timestamps;
   }
 
   const fps = measuredFps ?? declaredFps ?? 30;
@@ -46,16 +128,105 @@ export async function readVideoMetadata(
     fps: Math.round(fps),
     fpsMeasured: measuredFps != null,
     declaredFps,
-    durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : 0,
+    durationSeconds,
     frameCount: Number.isFinite(frameCount) ? frameCount : 0,
     width,
     height,
     orientation,
+    container: detectContainer(mime, url),
+    codec: mime,
+    frameTimestamps,
   };
 }
 
-/** Mierzy FPS licząc klatki przez krótki fragment odtwarzania. */
-async function estimateFpsFromFrames(video: HTMLVideoElement): Promise<number | null> {
+/**
+ * Czeka na `loadedmetadata` z twardym timeoutem 10 s i obsługą
+ * error/abort/stalled/suspend. Zawsze kończy się sukcesem lub VideoLoadError.
+ */
+function loadMetadataWithTimeout(video: HTMLVideoElement, url: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      clearTimeout(stalledTimer);
+      video.removeEventListener("loadedmetadata", onLoaded);
+      video.removeEventListener("error", onError);
+      video.removeEventListener("abort", onAbort);
+      video.removeEventListener("stalled", onStalled);
+    };
+    const ok = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+    const fail = (code: string, message: string) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      video.src = "";
+      reject(new VideoLoadError(code, message));
+    };
+
+    const onLoaded = () => {
+      if (video.readyState >= 1 && Number.isFinite(video.duration)) ok();
+    };
+    const onError = () => {
+      const err = video.error;
+      const map: Record<number, string> = {
+        1: "VIDEO_ABORTED",
+        2: "NETWORK_ERROR",
+        3: "DECODE_ERROR",
+        4: "SRC_NOT_SUPPORTED",
+      };
+      const code = err ? map[err.code] ?? "VIDEO_ELEMENT_ERROR" : "VIDEO_ELEMENT_ERROR";
+      fail(
+        code,
+        code === "SRC_NOT_SUPPORTED" || code === "DECODE_ERROR"
+          ? "Format filmu nie jest obsługiwany w przeglądarce. Wyeksportuj jako MP4 (H.264)."
+          : "Nie udało się wczytać filmu.",
+      );
+    };
+    const onAbort = () => fail("VIDEO_LOAD_ABORTED", "Wczytywanie filmu zostało przerwane.");
+    // stalled/suspend nie kończy od razu — tylko jeśli metadane nie pojawią się szybko.
+    let stalledTimer: ReturnType<typeof setTimeout>;
+    const onStalled = () => {
+      clearTimeout(stalledTimer);
+      stalledTimer = setTimeout(() => {
+        if (video.readyState < 1) {
+          fail("VIDEO_LOAD_STALLED", "Wczytywanie filmu utknęło. Sprawdź połączenie i spróbuj ponownie.");
+        }
+      }, 4000);
+    };
+
+    const timer = setTimeout(() => {
+      fail(
+        "METADATA_LOAD_TIMEOUT",
+        "Odczyt metadanych filmu przekroczył 10 s. Wyeksportuj film jako MP4 (H.264) i spróbuj ponownie.",
+      );
+    }, METADATA_TIMEOUT_MS);
+
+    video.addEventListener("loadedmetadata", onLoaded);
+    video.addEventListener("error", onError);
+    video.addEventListener("abort", onAbort);
+    video.addEventListener("stalled", onStalled);
+
+    // Wymuś rozpoczęcie ładowania (iOS bywa leniwy z preload="metadata").
+    try {
+      video.load();
+    } catch {
+      /* ignore */
+    }
+    // Jeśli metadane już są (cache), zakończ natychmiast.
+    if (video.readyState >= 1 && Number.isFinite(video.duration)) ok();
+    void url;
+  });
+}
+
+/** Mierzy FPS i realne timestampy licząc klatki przez krótki fragment odtwarzania. */
+async function estimateFpsFromFrames(
+  video: HTMLVideoElement,
+): Promise<{ fps: number | null; timestamps: number[] }> {
   return new Promise((resolve) => {
     const times: number[] = [];
     let done = false;
@@ -63,12 +234,12 @@ async function estimateFpsFromFrames(video: HTMLVideoElement): Promise<number | 
       if (done) return;
       done = true;
       video.pause();
-      if (times.length < 4) return resolve(null);
+      if (times.length < 4) return resolve({ fps: null, timestamps: times });
       const diffs: number[] = [];
       for (let i = 1; i < times.length; i++) diffs.push(times[i] - times[i - 1]);
       diffs.sort((a, b) => a - b);
       const median = diffs[Math.floor(diffs.length / 2)];
-      resolve(median > 0 ? 1 / median : null);
+      resolve({ fps: median > 0 ? 1 / median : null, timestamps: times });
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cb = (_now: number, meta: any) => {
@@ -84,7 +255,7 @@ async function estimateFpsFromFrames(video: HTMLVideoElement): Promise<number | 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (video as any).requestVideoFrameCallback(cb);
       })
-      .catch(() => resolve(null));
+      .catch(() => resolve({ fps: null, timestamps: [] }));
     setTimeout(finish, 4000);
   });
 }

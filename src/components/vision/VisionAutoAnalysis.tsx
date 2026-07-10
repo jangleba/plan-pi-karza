@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow } from "@/lib/vision/visionFlow";
 import { saveFrameResult } from "@/lib/vision/visionResultService";
-import { createPendingUpload } from "@/lib/vision/visionRepo";
+import { createPendingUpload, getVisionVideoUrl } from "@/lib/vision/visionRepo";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
@@ -34,20 +34,36 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [phase, setPhase] = useState<AnalysisPhase>("reading_metadata");
   const [progress, setProgress] = useState(0);
   const [state, setState] = useState<UiState>({ kind: "running" });
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
 
-    const source = flow.file ? URL.createObjectURL(flow.file) : flow.videoUrl;
-    if (!source) {
-      navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } });
-      return;
-    }
-
     let cancelled = false;
+    let objectUrl: string | null = null;
+
     (async () => {
+      // Źródło filmu: lokalny plik (blob) albo świeży signed URL ze storage.
+      let source: string | null = null;
+      if (flow.file) {
+        objectUrl = URL.createObjectURL(flow.file);
+        source = objectUrl;
+      } else if (flow.videoUrl && flow.uploaded && !flow.videoUrl.startsWith("placeholder://")) {
+        // flow.videoUrl to ścieżka w storage — pobierz świeży signed URL (poprzedni mógł wygasnąć).
+        source = flow.videoUrl.startsWith("http")
+          ? flow.videoUrl
+          : await getVisionVideoUrl(flow.videoUrl);
+      }
+
+      if (cancelled) return;
+      if (!source) {
+        navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } });
+        return;
+      }
+      setPreviewSrc(source);
+
       const analysis = await runVideoAnalysis({
         testType: test.id as TestType,
         videoUrl: source,
@@ -56,8 +72,8 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         onPhase: (p) => !cancelled && setPhase(p),
         onProgress: (f) => !cancelled && setProgress(f),
       });
-      if (flow.file) URL.revokeObjectURL(source);
       if (cancelled) return;
+
 
       if (analysis.status === "completed") {
         // Wynik policzony z filmu — zapis trwały i przejście do raportu.
@@ -101,6 +117,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -114,6 +131,16 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       />
 
       <div className="space-y-4 px-5">
+        {previewSrc && (
+          <video
+            src={previewSrc}
+            muted
+            playsInline
+            preload="metadata"
+            controls
+            className="w-full rounded-2xl bg-black"
+          />
+        )}
         {state.kind === "running" && <RunningView phase={phase} progress={progress} />}
 
         {state.kind === "invalid" && (

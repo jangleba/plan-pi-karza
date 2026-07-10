@@ -42,6 +42,12 @@ export interface VideoMetadata {
   width: number;
   height: number;
   orientation: "portrait" | "landscape" | "square";
+  /** Kontener rozpoznany z MIME/nazwy pliku (mp4, mov, webm…), gdy dostępny. */
+  container?: string | null;
+  /** Typ MIME nagrania (video/mp4, video/quicktime…), gdy dostępny. */
+  codec?: string | null;
+  /** Realne timestampy pierwszych klatek (mediaTime w sekundach). */
+  frameTimestamps?: number[];
 }
 
 /** Pojedynczy landmark pozy (znormalizowany 0-1 + widoczność). */
