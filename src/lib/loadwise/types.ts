@@ -278,6 +278,9 @@ export interface PlanDay {
   source: SessionDay;
 }
 
+/** Faza periodyzacji tygodnia w 4-tygodniowym bloku. */
+export type WeekPhase = "adaptation" | "development" | "peak" | "deload";
+
 export interface PlanWeek {
   weekId: string;
   weekNumber: number;
