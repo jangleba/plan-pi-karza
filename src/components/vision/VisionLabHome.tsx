@@ -104,9 +104,9 @@ export function VisionLabHome() {
               <VisionCategoryCard
                 key={c}
                 category={c}
-                subtitle={categorySubtitle(c)}
+                subtitle={CATEGORY_SUBTITLES[c]}
                 active={active === c}
-                onClick={() => setActive(c)}
+                onSelect={handleSelect}
               />
             ))}
           </div>
