@@ -243,7 +243,7 @@ export const CATEGORY_LABELS: Record<VisionTestCategory, string> = {
   jump: "Jump Lab",
   sprint: "Sprint Lab",
   cod: "COD & Braking Lab",
-  technique: "Technique Room",
+  technique: "Gym Technique",
 };
 
 export const CONFIDENCE_LABELS: Record<VisionConfidenceScore, string> = {
