@@ -460,7 +460,8 @@ function PlanScreen() {
 
       {todaySession &&
         (() => {
-          const HeroIcon = sessionIcon(todaySession);
+          const hero = todayAdjusted ?? todaySession;
+          const HeroIcon = sessionIcon(hero);
           return (
             <div className="px-5 pt-3">
               <Link
@@ -477,17 +478,17 @@ function PlanScreen() {
                     Decyzja dnia
                   </div>
                   <h2 className="mt-1 truncate text-xl font-bold leading-tight">
-                    {todaySession.title}
+                    {hero.title}
                   </h2>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {INTENSITY_SHORT[todaySession.intensity]}
+                      {INTENSITY_SHORT[hero.intensity]}
                     </span>
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {LOAD_SHORT[todaySession.intensity]}
+                      {LOAD_SHORT[hero.intensity]}
                     </span>
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {todaySession.durationMin} min
+                      {hero.durationMin} min
                     </span>
                   </div>
                 </div>
