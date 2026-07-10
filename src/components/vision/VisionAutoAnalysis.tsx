@@ -185,10 +185,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   }, [test.id]);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+    // Każde (re)zamontowanie startuje świeży przebieg. Poprzedni (jeśli był)
+    // jest unieważniany przez token na początku runAnalysis, dzięki czemu
+    // strict-mode double-mount nie zostawia martwego loadera bez wyniku/błędu.
     void runAnalysis();
     return () => {
+      // Unieważnij bieżący przebieg (cancelled() zacznie zwracać true).
       runToken.current++;
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
@@ -197,6 +199,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
 
   return (
