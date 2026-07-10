@@ -23,7 +23,7 @@ function ResultRoute() {
   }, [resultId]);
 
   return (
-    <VisionGuard>
+    <VisionGuard withNav>
       {busy ? (
         <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Ładowanie wyniku…

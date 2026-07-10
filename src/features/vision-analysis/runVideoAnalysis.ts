@@ -15,12 +15,14 @@ import { detectPose, isPoseSupported } from "./poseEngine";
 import { round } from "./physics";
 
 export type AnalysisPhase =
-  | "reading_metadata"
-  | "decoding_frames"
-  | "detecting_events"
-  | "calculating"
-  | "validating"
-  | "done";
+  | "idle"
+  | "loading_file"
+  | "metadata_ready"
+  | "extracting_frames"
+  | "pose_analysis"
+  | "calculating_result"
+  | "completed"
+  | "error";
 
 export interface RunOptions {
   testType: TestType;
@@ -69,7 +71,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     );
 
   try {
-    opts.onPhase?.("reading_metadata");
+    opts.onPhase?.("loading_file");
     const metadata = await readVideoMetadata(opts.videoUrl, opts.declaredFps);
     if (metadata.frameCount <= 0) {
       return failed(
@@ -79,12 +81,21 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
 
-    opts.onPhase?.("decoding_frames");
+    opts.onPhase?.("metadata_ready");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    opts.onPhase?.("extracting_frames");
     const poses: FramePose[] = [];
+    let posePhaseSent = false;
     await iterateFrames(
       opts.videoUrl,
       metadata,
       async ({ frameIndex, mediaTime, video }) => {
+        if (!posePhaseSent) {
+          posePhaseSent = true;
+          opts.onPhase?.("pose_analysis");
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
         const pose = await detectPose(video, frameIndex, mediaTime);
         poses.push(pose);
       },
@@ -108,14 +119,10 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       athleteHeightCm: opts.athleteHeightCm ?? null,
     };
 
-    opts.onPhase?.("detecting_events");
+    opts.onPhase?.("calculating_result");
     const events = await analyzer.detectKeyEvents(ctx);
-
-    opts.onPhase?.("calculating");
     const metrics = analyzer.calculateMetrics(events, ctx);
     const confidence = analyzer.calculateConfidence(events, ctx);
-
-    opts.onPhase?.("validating");
     const validation = analyzer.validateRecording(ctx);
 
     // Ustalenie statusu — jedna, wspólna, testowana polityka.
@@ -131,7 +138,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       ...decision.extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
     ];
 
-    opts.onPhase?.("done");
+    opts.onPhase?.("completed");
     return {
       analysisId: uuid(),
       testType: opts.testType,
@@ -156,6 +163,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       analyzerVersion: analyzer.analyzerVersion,
     };
   } catch (e) {
+    opts.onPhase?.("error");
     // VideoLoadError niesie konkretny errorCode — pokazujemy go użytkownikowi.
     const code =
       e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;

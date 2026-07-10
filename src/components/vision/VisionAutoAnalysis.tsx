@@ -15,14 +15,17 @@ import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
+import { estimateFallbackHeightCm } from "@/features/vision-analysis/autoCalibration";
 
 const PHASE_LABELS: Record<AnalysisPhase, string> = {
-  reading_metadata: "Odczyt metadanych filmu",
-  decoding_frames: "Dekodowanie klatek i wykrywanie zawodnika",
-  detecting_events: "Wykrywanie kluczowych faz ruchu",
-  calculating: "Obliczanie wyniku",
-  validating: "Weryfikacja jakości nagrania",
-  done: "Gotowe",
+  idle: "Gotowe do startu",
+  loading_file: "Wczytywanie filmu",
+  metadata_ready: "Metadane filmu odczytane",
+  extracting_frames: "Ekstrakcja klatek",
+  pose_analysis: "Analiza pozy zawodnika",
+  calculating_result: "Obliczanie wyniku",
+  completed: "Gotowe",
+  error: "Błąd analizy",
 };
 
 type UiState =
@@ -34,7 +37,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const flow = getFlow(test.id);
-  const [phase, setPhase] = useState<AnalysisPhase>("reading_metadata");
+  const [phase, setPhase] = useState<AnalysisPhase>("idle");
   const [progress, setProgress] = useState(0);
   const [state, setState] = useState<UiState>({ kind: "running" });
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -52,7 +55,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       objectUrlRef.current = null;
     }
     setPreviewSrc(null);
-    setPhase("reading_metadata");
+    setPhase("loading_file");
     setProgress(0);
     setState({ kind: "running" });
 
@@ -89,7 +92,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
             (async () =>
               supabase
                 .from("athlete_profiles")
-                .select("height_optional")
+                .select("height_optional, age")
                 .eq("user_id", user.id)
                 .maybeSingle())(),
             6_000,
@@ -97,6 +100,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           );
           const h = prof?.height_optional;
           if (typeof h === "number" && h >= 100 && h <= 230) athleteHeightCm = h;
+          else {
+            athleteHeightCm = estimateFallbackHeightCm(
+              typeof prof?.age === "number" ? prof.age : null,
+            );
+            vlog("height_fallback", { athleteHeightCm, age: prof?.age ?? null });
+          }
         } catch (e) {
           vwarn("profile_fetch", "pominięto auto-kalibrację", (e as Error)?.message);
         }
@@ -104,18 +113,23 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       if (cancelled()) return;
 
       // 9-10: analiza startuje na gotowym Blob URL.
-      const analysis = await runVideoAnalysis({
-        testType: test.id as TestType,
-        videoUrl: resolved.objectUrl,
-        declaredFps: flow.fps || null,
-        cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
-        athleteHeightCm,
-        onPhase: (p) => {
-          vlog("phase", p);
-          if (!cancelled()) setPhase(p);
-        },
-        onProgress: (f) => !cancelled() && setProgress(f),
-      });
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const analysis = await withTimeout(
+        runVideoAnalysis({
+          testType: test.id as TestType,
+          videoUrl: resolved.objectUrl,
+          declaredFps: flow.fps || null,
+          cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
+          athleteHeightCm,
+          onPhase: (p) => {
+            vlog("phase", p);
+            if (!cancelled()) setPhase(p);
+          },
+          onProgress: (f) => !cancelled() && setProgress(f),
+        }),
+        90_000,
+        "Pełna analiza filmu",
+      );
       if (cancelled()) return;
       vlog("analysis_done", {
         status: analysis.status,
@@ -273,7 +287,9 @@ function RunningView({ phase, progress }: { phase: AnalysisPhase; progress: numb
           />
         </div>
         <div className="text-xs font-medium text-muted-foreground">
-          {phase === "decoding_frames" ? `${pct}% klatek przetworzonych` : "Przetwarzanie…"}
+          {phase === "extracting_frames" || phase === "pose_analysis"
+            ? `${pct}% klatek przetworzonych`
+            : "Przetwarzanie…"}
         </div>
       </div>
     </div>
