@@ -85,15 +85,16 @@ function confidence(ev: DetectedEvent[]): ConfidenceResult {
 
 function validate(ctx: AnalysisContext): ValidationResult {
   const { issues } = baseValidation(ctx, MIN_FPS);
-  if (events(ctx).length < 2) issues.push("EVENTS_NOT_DETECTED");
-  if (!ctx.calibration?.referencePoints) issues.push("NO_CALIBRATION");
+  const hasEvents = events(ctx).length >= 2;
+  const hasScale = metersPerPixel(ctx) != null;
+  if (!hasEvents) issues.push("EVENTS_NOT_DETECTED");
+  if (!hasScale) issues.push("NO_CALIBRATION");
   const res = buildValidation(issues, [
     "POSE_NOT_DETECTED",
     "MULTIPLE_PEOPLE",
     "EVENTS_NOT_DETECTED",
   ]);
-  if (res.ok && issues.includes("NO_CALIBRATION"))
-    return { ...res, ok: false, status: "needs_review" };
+  if (res.ok && !hasScale) return { ...res, ok: false, status: "needs_review" };
   return res;
 }
 
