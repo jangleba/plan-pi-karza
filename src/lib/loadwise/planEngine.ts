@@ -2161,10 +2161,10 @@ export function buildPlanWeeks(plan: SessionDay[], profile?: Profile | null): Pl
     const matchDates = planDays
       .filter((d) => d.source.dayType === "match")
       .map((d) => d.date);
-    const hasHigh = sessions.some((s) => s.intensity === "wysoka");
-    const hasMod = sessions.some((s) => s.intensity === "umiarkowana");
     const reasons: string[] = [];
     if (planDays.length < 7) reasons.push("plan startuje w trakcie tygodnia");
+    const plannedLoad = plannedWeeklyLoadOf(sessions, profile);
+    const weekPhase = phaseOf(index, totalWeeks);
     return {
       weekId: `${startDate}_${endDate}`,
       weekNumber: index + 1,
@@ -2174,10 +2174,44 @@ export function buildPlanWeeks(plan: SessionDay[], profile?: Profile | null): Pl
       matchDate: matchDates[0] ?? null,
       matchDates,
       focus: weekFocusFromSessions(sessions),
-      loadLevel: hasHigh ? "wysoka" : hasMod ? "umiarkowana" : "niska",
+      loadLevel: plannedLoad,
+      weekPhase,
+      plannedWeeklyLoad: plannedLoad,
       reasons,
     };
   });
+}
+
+/** Problem walidacyjny planu wykryty przed zapisem/wyświetleniem. */
+export interface PlanValidationIssue {
+  weekIndex: number;
+  code: "unjustified-light-week";
+  message: string;
+}
+
+/**
+ * Walidator planu — uruchamiany przed zapisaniem i wyświetleniem.
+ * Zabrania automatycznego generowania lekkich tygodni bez przyczyny.
+ * Daily readiness NIE wpływa na te wartości (obciążenie tygodnia jest
+ * liczone z zaplanowanych sesji, nie z gotowości), więc pojedynczy słaby
+ * dzień nie może obniżyć całego planu.
+ */
+export function validatePlanWeeks(
+  weeks: PlanWeek[],
+  profile?: Profile | null,
+): PlanValidationIssue[] {
+  const issues: PlanValidationIssue[] = [];
+  weeks.forEach((w, i) => {
+    if (w.plannedWeeklyLoad === "niska" && !isRecoveryContext(profile)) {
+      issues.push({
+        weekIndex: i,
+        code: "unjustified-light-week",
+        message:
+          "Lekki tydzień bez przyczyny — dozwolony tylko przy kontuzji, rehabilitacji lub powrocie do gry.",
+      });
+    }
+  });
+  return issues;
 }
 
 function isRealSession(session: PlanSession): boolean {
