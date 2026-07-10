@@ -13,6 +13,7 @@ import { createPendingUpload } from "@/lib/vision/visionRepo";
 import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
+import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
 
 const PHASE_LABELS: Record<AnalysisPhase, string> = {
