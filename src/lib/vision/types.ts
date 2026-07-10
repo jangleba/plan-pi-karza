@@ -122,7 +122,64 @@ export interface VisionTestResult {
   manualOverrideReason: string | null;
   paidReviewRequested: boolean;
   paidReviewStatus: PaidReviewStatus;
+
+  // ---- Analiza ćwiczeń z planu (Gym Technique) ----
+  linkedPlanId: string | null;
+  linkedWorkoutId: string | null;
+  linkedExerciseId: string | null;
+  linkedExerciseName: string | null;
+  linkedTrainingDay: string | null;
+  exerciseCategory: string | null;
+  techniqueReview: TechniqueReview | null;
+  reviewMode: ReviewMode | null;
 }
+
+/** Tryb analizy ćwiczenia z planu. */
+export type ReviewMode =
+  | "frame_analysis"
+  | "self_review"
+  | "coach_review"
+  | "ai_future";
+
+/** Status recenzji ćwiczenia z planu (Gym Technique). */
+export type GymReviewStatus =
+  | "self_review"
+  | "coach_review_requested"
+  | "coach_reviewed"
+  | "invalid_video";
+
+export const GYM_REVIEW_STATUS_LABELS: Record<GymReviewStatus, string> = {
+  self_review: "Self Review",
+  coach_review_requested: "Coach Review Requested",
+  coach_reviewed: "Coach Reviewed",
+  invalid_video: "Invalid Video",
+};
+
+/** Sygnał z analizy techniki — nigdy nie zmienia planu automatycznie. */
+export type GymTechniqueSignal =
+  | "technique_issue"
+  | "coach_confirmed_issue"
+  | "invalid_execution"
+  | "good_execution";
+
+/** Ocena techniki ćwiczenia z planu (formularz self/coach review). */
+export interface TechniqueReview {
+  trunk_position?: string;
+  knee_control?: string;
+  hip_control?: string;
+  foot_position?: string;
+  range_of_motion?: string;
+  tempo_control?: string;
+  stability?: string;
+  main_issue?: string;
+  coaching_cue?: string;
+  coach_note?: string;
+  signal?: GymTechniqueSignal;
+}
+
+export const GYM_TECHNIQUE_MESSAGE =
+  "Na tym etapie analiza ćwiczeń z planu działa jako frame review i/lub coach review. Automatyczna analiza AI zostanie podłączona później.";
+
 
 /** Porównanie wyniku do poprzedniego / najlepszego. */
 export interface VisionComparison {
