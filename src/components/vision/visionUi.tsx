@@ -9,14 +9,19 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Cpu,
+  ShieldCheck,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import {
   type VisionTestCategory,
   type VisionValidityStatus,
   type VisionConfidenceScore,
+  type ReviewStatus,
   VALIDITY_LABELS,
   CONFIDENCE_LABELS,
+  REVIEW_STATUS_LABELS,
 } from "@/lib/vision/types";
 
 export const CATEGORY_ICONS: Record<VisionTestCategory, LucideIcon> = {
