@@ -116,10 +116,10 @@ export function VisionUpload({ test }: { test: VisionTest }) {
             size="lg"
             disabled={status !== "done"}
             onClick={() =>
-              navigate({ to: "/vision-lab/test/$testId/analysis", params: { testId: test.id } })
+              navigate({ to: "/vision-lab/frame-analyzer/$testId", params: { testId: test.id } })
             }
           >
-            Uruchom analizę
+            Przejdź do Frame Analyzer
           </Button>
         </div>
       </div>
