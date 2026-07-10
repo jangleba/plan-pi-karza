@@ -4507,26 +4507,51 @@ export function applyReadiness(
   }
 
   const r = readiness.overall;
+  // Sygnały bardzo złego dnia (skala 1–10): zły sen, silne zmęczenie,
+  // mocna bolesność lub istotny ból stawów — mogą zadziałać jak readiness 1–3.
+  const severeSignals =
+    readiness.sleep <= 3 ||
+    readiness.fatigue >= 8 ||
+    readiness.soreness >= 8 ||
+    readiness.jointPain >= 6;
+
   let factor = 1;
   let adjustment: string | null = null;
   let removeHard = false;
+  let keepIntensity = false;
   let recoveryOnly = false;
 
   if (r >= 8) {
+    // 8–10: pełny plan.
     factor = 1;
     adjustment = null;
   } else if (r >= 6) {
+    // 6–7: zachowaj bodziec, zmniejsz TYLKO objętość o 10–20% (bez spadku intensywności).
     factor = 0.85;
-    adjustment = "Gotowość 6–7: zmniejszamy objętość o ok. 10–20%.";
-  } else if (r >= 4) {
-    factor = 0.65;
+    keepIntensity = true;
+    adjustment = "Gotowość 6–7: zachowujemy bodziec, zmniejszamy objętość o ok. 10–20%.";
+  } else if (r >= 4 && !severeSignals) {
+    // 4–5: redukcja ~40%, usunięcie ciężkiej siły, maks. sprintów i wysokiej intensywności.
+    factor = 0.6;
     removeHard = true;
     adjustment =
-      "Gotowość 4–5: redukcja objętości o 30–40% i usunięcie pracy o wysokiej intensywności.";
+      "Gotowość 4–5: redukcja objętości o ok. 40% i usunięcie ciężkiej siły, maksymalnych sprintów oraz pracy o wysokiej intensywności.";
   } else {
+    // 1–3 lub bardzo zły sen/zmęczenie/ból: zamiana jednostki na regenerację.
     recoveryOnly = true;
-    adjustment =
-      "Gotowość 1–3: tylko regeneracja, mobilność, oddech i lekka technika.";
+    adjustment = severeSignals
+      ? "Bardzo słabe samopoczucie (sen/zmęczenie/ból): zamieniamy jednostkę na regenerację."
+      : "Gotowość 1–3: tylko regeneracja, mobilność, oddech i lekka technika.";
+  }
+
+  // Aktywny ból/uraz zawsze nadpisuje cel treningowy.
+  if (profile.painInjury) {
+    if (severeSignals || r < 4) {
+      recoveryOnly = true;
+    } else {
+      removeHard = true;
+      keepIntensity = false;
+    }
   }
 
   let adjusted: SessionDay = { ...session };
@@ -4552,9 +4577,11 @@ export function applyReadiness(
       durationMin: Math.round(session.durationMin * factor),
       intensity: removeHard
         ? lowerIntensity(session.intensity, 2)
-        : factor < 1
-          ? lowerIntensity(session.intensity, 1)
-          : session.intensity,
+        : keepIntensity
+          ? session.intensity
+          : factor < 1
+            ? lowerIntensity(session.intensity, 1)
+            : session.intensity,
       sections: {
         ...session.sections,
         main: removeHard
