@@ -28,6 +28,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as VisionLabTestTestIdIndexRouteImport } from './routes/vision-lab.test.$testId.index'
+import { Route as VisionLabTestTestIdSetupRouteImport } from './routes/vision-lab.test.$testId.setup'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -127,6 +128,12 @@ const VisionLabTestTestIdIndexRoute =
     path: '/vision-lab/test/$testId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const VisionLabTestTestIdSetupRoute =
+  VisionLabTestTestIdSetupRouteImport.update({
+    id: '/vision-lab/test/$testId/setup',
+    path: '/vision-lab/test/$testId/setup',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRoutesById {
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/sesja/$date'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
+    | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/sesja/$date'
     | '/vision-lab'
     | '/.mcp/invoke-tool/$tool'
+    | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId'
   id:
     | '__root__'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/sesja/$date'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
+    | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/'
   fileRoutesById: FileRoutesById
 }
@@ -268,6 +281,7 @@ export interface RootRouteChildren {
   SesjaDateRoute: typeof SesjaDateRoute
   VisionLabIndexRoute: typeof VisionLabIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  VisionLabTestTestIdSetupRoute: typeof VisionLabTestTestIdSetupRoute
   VisionLabTestTestIdIndexRoute: typeof VisionLabTestTestIdIndexRoute
 }
 
@@ -406,6 +420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VisionLabTestTestIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vision-lab/test/$testId/setup': {
+      id: '/vision-lab/test/$testId/setup'
+      path: '/vision-lab/test/$testId/setup'
+      fullPath: '/vision-lab/test/$testId/setup'
+      preLoaderRoute: typeof VisionLabTestTestIdSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -442,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   SesjaDateRoute: SesjaDateRoute,
   VisionLabIndexRoute: VisionLabIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  VisionLabTestTestIdSetupRoute: VisionLabTestTestIdSetupRoute,
   VisionLabTestTestIdIndexRoute: VisionLabTestTestIdIndexRoute,
 }
 export const routeTree = rootRouteImport
