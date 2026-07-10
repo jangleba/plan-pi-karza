@@ -17,6 +17,11 @@ import type {
   CalculationBasis,
   TechniqueReview,
   ReviewMode,
+  AnalysisStatus,
+  VisibilityStatus,
+  FrameDerived,
+
+
 
 } from "./types";
 import { getVisionTest } from "./visionTests";
@@ -71,6 +76,12 @@ interface VisionRow {
   exercise_category: string | null;
   technique_review: TechniqueReview | null;
   review_mode: string | null;
+  frame_analysis_status: string | null;
+  marked_by: string | null;
+  frame_derived: FrameDerived | null;
+  frame_markers: Record<string, number> | null;
+  analysis_status: string | null;
+  visibility_status: string | null;
 }
 
 function rowToResult(row: VisionRow): VisionTestResult {
@@ -131,6 +142,12 @@ function rowToResult(row: VisionRow): VisionTestResult {
     exerciseCategory: row.exercise_category ?? null,
     techniqueReview: row.technique_review ?? null,
     reviewMode: (row.review_mode as ReviewMode) ?? null,
+    frameAnalysisStatus: (row.frame_analysis_status as VisionTestResult["frameAnalysisStatus"]) ?? null,
+    markedBy: (row.marked_by as VisionTestResult["markedBy"]) ?? null,
+    frameDerived: row.frame_derived ?? null,
+    frameMarkers: row.frame_markers ?? null,
+    analysisStatus: (row.analysis_status as AnalysisStatus) ?? "completed",
+    visibilityStatus: (row.visibility_status as VisibilityStatus) ?? "visible_to_player",
   };
 }
 

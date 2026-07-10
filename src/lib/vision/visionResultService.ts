@@ -115,6 +115,8 @@ function buildResult(input: SaveFrameResultInput, id: string): VisionTestResult 
     markedBy: frame.markedBy,
     frameDerived: frame.derived,
     frameMarkers: frame.markers,
+    analysisStatus: "completed",
+    visibilityStatus: "visible_to_player",
   };
 }
 
