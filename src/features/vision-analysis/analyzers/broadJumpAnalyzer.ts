@@ -59,8 +59,11 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
       2
     : null;
   if (startX == null || endX == null) return [];
-  const meters = pxToMeters(ctx, Math.abs(endX - startX));
-  if (meters == null || meters <= 0) return []; // brak kalibracji → brak wyniku liczbowego
+  const scale = metersPerPixel(ctx);
+  if (!scale) return []; // brak kalibracji → brak wyniku liczbowego
+  const dxPx = Math.abs(endX - startX) * ctx.metadata.width;
+  const meters = dxPx * scale.mpp;
+  if (meters <= 0) return [];
   const cm = round(meters * 100, 0);
   if (cm < 80 || cm > 380) return [];
   return [
@@ -69,7 +72,7 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
       label: "Długość skoku",
       value: cm,
       unit: "cm",
-      confidence: takeoff.confidence * 0.7,
+      confidence: round(takeoff.confidence * 0.9 * scale.confMul, 2),
     },
   ];
 }
