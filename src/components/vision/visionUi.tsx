@@ -116,6 +116,7 @@ export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
   );
 }
 
+export const DIFFICULTY_LABELS: Record<string, string> = {
   beginner: "Podstawowy",
   intermediate: "Średni",
   advanced: "Zaawansowany",
