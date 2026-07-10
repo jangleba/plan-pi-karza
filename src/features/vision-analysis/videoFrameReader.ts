@@ -80,11 +80,11 @@ export async function readVideoMetadata(
   const mime = await probeSource(url);
 
   const video = document.createElement("video");
-  video.src = url;
   video.muted = true;
   video.playsInline = true;
-  video.preload = "metadata";
-  video.crossOrigin = "anonymous";
+  video.setAttribute("webkit-playsinline", "true");
+  video.preload = "auto";
+  video.src = url;
 
   await loadMetadataWithTimeout(video, url);
 
@@ -150,6 +150,8 @@ function loadMetadataWithTimeout(video: HTMLVideoElement, url: string): Promise<
       clearTimeout(timer);
       clearTimeout(stalledTimer);
       video.removeEventListener("loadedmetadata", onLoaded);
+      video.removeEventListener("loadeddata", onLoaded);
+      video.removeEventListener("canplay", onLoaded);
       video.removeEventListener("error", onError);
       video.removeEventListener("abort", onAbort);
       video.removeEventListener("stalled", onStalled);
@@ -207,6 +209,8 @@ function loadMetadataWithTimeout(video: HTMLVideoElement, url: string): Promise<
     }, METADATA_TIMEOUT_MS);
 
     video.addEventListener("loadedmetadata", onLoaded);
+    video.addEventListener("loadeddata", onLoaded);
+    video.addEventListener("canplay", onLoaded);
     video.addEventListener("error", onError);
     video.addEventListener("abort", onAbort);
     video.addEventListener("stalled", onStalled);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow } from "@/lib/vision/visionFlow";
 import { saveFrameResult } from "@/lib/vision/visionResultService";
-import { createPendingUpload, getVisionVideoUrl } from "@/lib/vision/visionRepo";
+import { createPendingUpload } from "@/lib/vision/visionRepo";
+import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
@@ -25,7 +26,7 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
-  | { kind: "error"; message: string };
+  | { kind: "error"; code: string; message: string };
 
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
@@ -37,46 +38,52 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const started = useRef(false);
 
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+  const runToken = useRef(0);
+  const objectUrlRef = useRef<string | null>(null);
 
-    let cancelled = false;
-    let objectUrl: string | null = null;
+  const runAnalysis = useCallback(async () => {
+    // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
+    const token = ++runToken.current;
+    const cancelled = () => runToken.current !== token;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setPreviewSrc(null);
+    setPhase("reading_metadata");
+    setProgress(0);
+    setState({ kind: "running" });
 
-    (async () => {
-      // Źródło filmu: lokalny plik (blob) albo świeży signed URL ze storage.
-      let source: string | null = null;
-      if (flow.file) {
-        objectUrl = URL.createObjectURL(flow.file);
-        source = objectUrl;
-      } else if (flow.videoUrl && flow.uploaded && !flow.videoUrl.startsWith("placeholder://")) {
-        // flow.videoUrl to ścieżka w storage — pobierz świeży signed URL (poprzedni mógł wygasnąć).
-        source = flow.videoUrl.startsWith("http")
-          ? flow.videoUrl
-          : await getVisionVideoUrl(flow.videoUrl);
+    try {
+      // 1-8: pozyskaj film jako zwalidowany Blob URL (Safari-friendly).
+      const resolved = await resolveVideoBlob({
+        file: flow.file,
+        videoUrl: flow.videoUrl,
+        uploaded: flow.uploaded,
+      });
+      if (cancelled()) {
+        URL.revokeObjectURL(resolved.objectUrl);
+        return;
       }
-
-      if (cancelled) return;
-      if (!source) {
+      if (flow.file == null && flow.videoUrl == null) {
         navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } });
         return;
       }
-      setPreviewSrc(source);
+      objectUrlRef.current = resolved.objectUrl;
+      setPreviewSrc(resolved.objectUrl);
 
+      // 9-10: analiza startuje na gotowym Blob URL.
       const analysis = await runVideoAnalysis({
         testType: test.id as TestType,
-        videoUrl: source,
+        videoUrl: resolved.objectUrl,
         declaredFps: flow.fps || null,
         cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
-        onPhase: (p) => !cancelled && setPhase(p),
-        onProgress: (f) => !cancelled && setProgress(f),
+        onPhase: (p) => !cancelled() && setPhase(p),
+        onProgress: (f) => !cancelled() && setProgress(f),
       });
-      if (cancelled) return;
-
+      if (cancelled()) return;
 
       if (analysis.status === "completed") {
-        // Wynik policzony z filmu — zapis trwały i przejście do raportu.
         const frame = analysisToFrameResult(analysis);
         const saved = await saveFrameResult({
           userId: user?.id ?? null,
@@ -84,12 +91,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           videoUrl: flow.videoUrl,
           cameraView: flow.cameraView ?? test.cameraView,
         });
+        if (cancelled()) return;
         navigate({ to: "/vision-lab/result/$resultId", params: { resultId: saved.id } });
         return;
       }
 
       if (analysis.status === "needs_review") {
-        // Za mało danych na automatyczny wynik → weryfikacja trenera.
         try {
           if (user) {
             const pending = await createPendingUpload({
@@ -99,6 +106,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
               fps: analysis.videoMetadata.fps || flow.fps || test.recommendedFps,
               cameraView: flow.cameraView ?? test.cameraView,
             });
+            if (cancelled()) return;
             navigate({ to: "/vision-lab/result/$resultId", params: { resultId: pending.id } });
             return;
           }
@@ -111,16 +119,30 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
       // invalid_recording | failed
       setState({ kind: "invalid", analysis });
-    })().catch((e) => {
-      if (!cancelled) setState({ kind: "error", message: e?.message ?? "Błąd analizy." });
-    });
+    } catch (e) {
+      if (cancelled()) return;
+      const code =
+        e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
+      const message = e instanceof Error ? e.message : "Nie udało się przeanalizować filmu.";
+      setState({ kind: "error", code: code ?? "UNKNOWN_ERROR", message });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [test.id]);
 
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void runAnalysis();
     return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      runToken.current++;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   return (
     <div className="pb-28">
@@ -133,11 +155,13 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       <div className="space-y-4 px-5">
         {previewSrc && (
           <video
+            key={previewSrc}
             src={previewSrc}
             muted
             playsInline
-            preload="metadata"
+            preload="auto"
             controls
+            webkit-playsinline="true"
             className="w-full rounded-2xl bg-black"
           />
         )}
@@ -162,15 +186,24 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
                 Nie udało się przeanalizować filmu
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
+              <div className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-medium text-muted-foreground">
+                Kod błędu: {state.code}
+              </div>
             </div>
-            <Button
-              className="w-full"
-              onClick={() =>
-                navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } })
-              }
-            >
-              <RotateCcw className="mr-2 h-4 w-4" /> Nagraj ponownie
-            </Button>
+            <div className="space-y-2">
+              <Button className="w-full" onClick={() => void runAnalysis()}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Spróbuj ponownie
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() =>
+                  navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } })
+                }
+              >
+                Wybierz inny film
+              </Button>
+            </div>
           </div>
         )}
       </div>
