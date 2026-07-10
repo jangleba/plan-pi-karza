@@ -10,26 +10,36 @@ import {
   RotateCcw,
   BookmarkCheck,
   Bookmark,
+  ShieldCheck,
+  Info,
 } from "lucide-react";
 import {
   VisionHeader,
   ValidityBadge,
   ConfidenceBadge,
+  ReviewStatusBadge,
 } from "./visionUi";
 import { VisionInvalidResult } from "./VisionInvalidResult";
 import { VisionProgressComparison } from "./VisionProgressComparison";
+import { VisionCalculationBasis } from "./VisionCalculationBasis";
+import { VisionCoachFeedback } from "./VisionCoachFeedback";
+import { VisionCoachReviewSheet } from "./VisionCoachReviewSheet";
 import { Button } from "@/components/ui/button";
 import {
   CAMERA_VIEW_LABELS,
   INVALID_REASON_LABELS,
+  REVIEW_STATUS_DESCRIPTIONS,
+  COACH_REVIEW_DISCLAIMER,
   type VisionTestResult,
 } from "@/lib/vision/types";
 import { setSavedToProgress } from "@/lib/vision/visionRepo";
 
-export function VisionResult({ result }: { result: VisionTestResult }) {
+export function VisionResult({ result: initial }: { result: VisionTestResult }) {
   const navigate = useNavigate();
-  const [saved, setSaved] = useState(result.savedToProgress);
+  const [result, setResult] = useState(initial);
+  const [saved, setSaved] = useState(initial.savedToProgress);
   const [busy, setBusy] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   if (result.validityStatus === "invalid") {
     return <VisionInvalidResult result={result} />;
@@ -69,10 +79,15 @@ export function VisionResult({ result }: { result: VisionTestResult }) {
             </span>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <ReviewStatusBadge status={result.reviewStatus} />
             <ValidityBadge status={result.validityStatus} />
             <ConfidenceBadge level={result.confidenceScore} />
           </div>
+          <p className="mt-2 text-[11px] leading-snug text-graphite-muted">
+            {REVIEW_STATUS_DESCRIPTIONS[result.reviewStatus]}
+          </p>
         </div>
+
 
         {/* Meta */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -141,8 +156,34 @@ export function VisionResult({ result }: { result: VisionTestResult }) {
         />
         <FeedbackRow icon={Target} tone="text-primary" title="Jedna rzecz do poprawy" text={fb.improve} />
 
+        {/* Jak powstał wynik? */}
+        <VisionCalculationBasis basis={result.calculationBasis} />
+
+        {/* Analiza trenera (jeśli jest / zamówiona) */}
+        <VisionCoachFeedback result={result} />
+
+        {/* Poproś o analizę trenera */}
+        {!result.paidReviewRequested && (
+          <button
+            type="button"
+            onClick={() => setReviewOpen(true)}
+            className="soft-card flex w-full items-center gap-3 p-4 text-left transition-transform active:scale-[0.99]"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Poproś o analizę trenera</div>
+              <p className="text-xs text-muted-foreground">
+                AI liczy wynik. Trener weryfikuje test i technikę. Opcja premium.
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Porównanie */}
         <VisionProgressComparison comparison={result.comparisonToPrevious} />
+
 
         {/* Ostrzeżenia ważności */}
         {warnings.length > 0 && (
@@ -158,7 +199,21 @@ export function VisionResult({ result }: { result: VisionTestResult }) {
             </ul>
           </div>
         )}
+
+        {/* Zastrzeżenie */}
+        <div className="flex items-start gap-2 rounded-xl bg-secondary p-3 text-[11px] text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{COACH_REVIEW_DISCLAIMER}</span>
+        </div>
       </div>
+
+      <VisionCoachReviewSheet
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        result={result}
+        onRequested={setResult}
+      />
+
 
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 px-5 py-3 backdrop-blur"

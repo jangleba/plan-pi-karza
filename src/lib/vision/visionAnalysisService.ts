@@ -9,8 +9,10 @@ import type {
   VisionSignals,
   VisionCameraView,
   VisionInvalidReason,
+  ReviewStatus,
 } from "./types";
 import { getVisionTest } from "./visionTests";
+import { deriveFrames, buildCalculationBasis } from "./visionCalc";
 
 /** Dane wejściowe do analizy — z ekranu uploadu / setupu. */
 export interface VisionAnalyzeInput {
@@ -221,6 +223,27 @@ export async function analyzeVisionTestDemo(
     landing_control_issue: false,
   };
 
+  const mainValue = validityStatus === "invalid" ? null : main.value;
+  const mainUnit = validityStatus === "invalid" ? null : main.unit;
+
+  const frames =
+    validityStatus === "invalid" ? {} : deriveFrames(test, input.fps, main.value);
+  const calculationBasis = buildCalculationBasis({
+    test,
+    fps: input.fps,
+    frames,
+    cameraView: input.cameraView,
+    flags: validityFlags,
+    confidence: confidenceScore,
+    coachVerifiedFrames: false,
+  });
+
+  let reviewStatus: ReviewStatus;
+  if (validityStatus === "invalid") reviewStatus = "invalid_by_ai";
+  else if (confidenceScore === "high") reviewStatus = "ai_high_confidence";
+  else if (accuracy === "estimated") reviewStatus = "ai_estimated";
+  else reviewStatus = "ai_result";
+
   return {
     testType: test.id,
     testCategory: test.category,
@@ -231,11 +254,26 @@ export async function analyzeVisionTestDemo(
     cameraView: input.cameraView,
     validityStatus,
     confidenceScore,
-    mainResultValue: validityStatus === "invalid" ? null : main.value,
-    mainResultUnit: validityStatus === "invalid" ? null : main.unit,
+    mainResultValue: mainValue,
+    mainResultUnit: mainUnit,
     measuredMetrics: metrics,
     validityFlags,
     aiFeedback: feedbackFor(accuracy),
     signals,
+    reviewStatus,
+    reviewType: null,
+    coachId: null,
+    coachNote: null,
+    coachFeedback: null,
+    coachVerified: false,
+    coachCorrected: false,
+    coachCorrectedFrames: frames,
+    calculationMethod: calculationBasis.method,
+    calculationBasis,
+    manualOverride: false,
+    manualOverrideReason: null,
+    paidReviewRequested: false,
+    paidReviewStatus: "not_requested",
   };
 }
+

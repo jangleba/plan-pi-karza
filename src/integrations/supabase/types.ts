@@ -656,11 +656,40 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       vision_tests: {
         Row: {
           ai_feedback: Json | null
+          calculation_basis: Json | null
+          calculation_method: string | null
           camera_view: string | null
           capture_mode: string | null
+          coach_corrected: boolean
+          coach_corrected_frames: Json | null
+          coach_feedback: Json | null
+          coach_id: string | null
+          coach_note: string | null
+          coach_verified: boolean
           comparison_to_previous: Json | null
           confidence_score: string
           created_at: string
@@ -668,7 +697,13 @@ export type Database = {
           id: string
           main_result_unit: string | null
           main_result_value: number | null
+          manual_override: boolean
+          manual_override_reason: string | null
           measured_metrics: Json | null
+          paid_review_requested: boolean
+          paid_review_status: string | null
+          review_status: string
+          review_type: string | null
           saved_to_progress: boolean
           test_category: string
           test_name: string
@@ -680,8 +715,16 @@ export type Database = {
         }
         Insert: {
           ai_feedback?: Json | null
+          calculation_basis?: Json | null
+          calculation_method?: string | null
           camera_view?: string | null
           capture_mode?: string | null
+          coach_corrected?: boolean
+          coach_corrected_frames?: Json | null
+          coach_feedback?: Json | null
+          coach_id?: string | null
+          coach_note?: string | null
+          coach_verified?: boolean
           comparison_to_previous?: Json | null
           confidence_score?: string
           created_at?: string
@@ -689,7 +732,13 @@ export type Database = {
           id?: string
           main_result_unit?: string | null
           main_result_value?: number | null
+          manual_override?: boolean
+          manual_override_reason?: string | null
           measured_metrics?: Json | null
+          paid_review_requested?: boolean
+          paid_review_status?: string | null
+          review_status?: string
+          review_type?: string | null
           saved_to_progress?: boolean
           test_category: string
           test_name: string
@@ -701,8 +750,16 @@ export type Database = {
         }
         Update: {
           ai_feedback?: Json | null
+          calculation_basis?: Json | null
+          calculation_method?: string | null
           camera_view?: string | null
           capture_mode?: string | null
+          coach_corrected?: boolean
+          coach_corrected_frames?: Json | null
+          coach_feedback?: Json | null
+          coach_id?: string | null
+          coach_note?: string | null
+          coach_verified?: boolean
           comparison_to_previous?: Json | null
           confidence_score?: string
           created_at?: string
@@ -710,7 +767,13 @@ export type Database = {
           id?: string
           main_result_unit?: string | null
           main_result_value?: number | null
+          manual_override?: boolean
+          manual_override_reason?: string | null
           measured_metrics?: Json | null
+          paid_review_requested?: boolean
+          paid_review_status?: string | null
+          review_status?: string
+          review_type?: string | null
           saved_to_progress?: boolean
           test_category?: string
           test_name?: string
@@ -760,10 +823,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "coach" | "athlete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -890,6 +959,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "coach", "athlete"],
+    },
   },
 } as const

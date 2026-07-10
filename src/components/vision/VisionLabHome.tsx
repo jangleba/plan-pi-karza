@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { History, Sparkles } from "lucide-react";
+import { History, Sparkles, ClipboardCheck } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionCategoryCard } from "./VisionCategoryCard";
 import { VisionTestCard } from "./VisionTestCard";
 import { VisionGhostReplayPlaceholder } from "./VisionGhostReplayPlaceholder";
 import { VISION_TESTS } from "@/lib/vision/visionTests";
+import { isCoach } from "@/lib/vision/visionRepo";
+import { useAuth } from "@/lib/loadwise/auth";
 import {
   CATEGORY_LABELS,
   type VisionTestCategory,
@@ -14,8 +16,14 @@ import {
 const CATEGORIES: VisionTestCategory[] = ["jump", "sprint", "cod", "technique"];
 
 export function VisionLabHome() {
+  const { user } = useAuth();
   const [active, setActive] = useState<VisionTestCategory>("jump");
+  const [coach, setCoach] = useState(false);
   const tests = VISION_TESTS.filter((t) => t.category === active);
+
+  useEffect(() => {
+    if (user) isCoach(user.id).then(setCoach);
+  }, [user]);
 
   return (
     <div className="pb-16">
@@ -43,6 +51,24 @@ export function VisionLabHome() {
             fałszywej dokładności.
           </p>
         </div>
+
+        {coach && (
+          <Link
+            to="/vision-lab/coach"
+            className="soft-card flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <ClipboardCheck className="h-6 w-6" />
+            </span>
+            <div>
+              <div className="text-sm font-semibold text-foreground">Coach Review Queue</div>
+              <p className="text-xs text-muted-foreground">
+                Testy zgłoszone przez zawodników do weryfikacji.
+              </p>
+            </div>
+          </Link>
+        )}
+
 
         <div>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

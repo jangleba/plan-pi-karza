@@ -26,7 +26,9 @@ import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as VisionLabCoachIndexRouteImport } from './routes/vision-lab.coach.index'
 import { Route as VisionLabResultResultIdRouteImport } from './routes/vision-lab.result.$resultId'
+import { Route as VisionLabCoachResultIdRouteImport } from './routes/vision-lab.coach.$resultId'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as VisionLabTestTestIdIndexRouteImport } from './routes/vision-lab.test.$testId.index'
 import { Route as VisionLabTestTestIdUploadRouteImport } from './routes/vision-lab.test.$testId.upload'
@@ -119,9 +121,19 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const VisionLabCoachIndexRoute = VisionLabCoachIndexRouteImport.update({
+  id: '/vision-lab/coach/',
+  path: '/vision-lab/coach/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VisionLabResultResultIdRoute = VisionLabResultResultIdRouteImport.update({
   id: '/vision-lab/result/$resultId',
   path: '/vision-lab/result/$resultId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VisionLabCoachResultIdRoute = VisionLabCoachResultIdRouteImport.update({
+  id: '/vision-lab/coach/$resultId',
+  path: '/vision-lab/coach/$resultId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
@@ -173,7 +185,9 @@ export interface FileRoutesByFullPath {
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/vision-lab/coach/$resultId': typeof VisionLabCoachResultIdRoute
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
+  '/vision-lab/coach/': typeof VisionLabCoachIndexRoute
   '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
@@ -197,7 +211,9 @@ export interface FileRoutesByTo {
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/vision-lab/coach/$resultId': typeof VisionLabCoachResultIdRoute
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
+  '/vision-lab/coach': typeof VisionLabCoachIndexRoute
   '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
@@ -223,7 +239,9 @@ export interface FileRoutesById {
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/vision-lab/coach/$resultId': typeof VisionLabCoachResultIdRoute
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
+  '/vision-lab/coach/': typeof VisionLabCoachIndexRoute
   '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
@@ -249,7 +267,9 @@ export interface FileRouteTypes {
     | '/vision-lab/history'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
+    | '/vision-lab/coach/$resultId'
     | '/vision-lab/result/$resultId'
+    | '/vision-lab/coach/'
     | '/vision-lab/test/$testId/analysis'
     | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/upload'
@@ -273,7 +293,9 @@ export interface FileRouteTypes {
     | '/vision-lab/history'
     | '/vision-lab'
     | '/.mcp/invoke-tool/$tool'
+    | '/vision-lab/coach/$resultId'
     | '/vision-lab/result/$resultId'
+    | '/vision-lab/coach'
     | '/vision-lab/test/$testId/analysis'
     | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/upload'
@@ -298,7 +320,9 @@ export interface FileRouteTypes {
     | '/vision-lab/history'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
+    | '/vision-lab/coach/$resultId'
     | '/vision-lab/result/$resultId'
+    | '/vision-lab/coach/'
     | '/vision-lab/test/$testId/analysis'
     | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/upload'
@@ -320,7 +344,9 @@ export interface RootRouteChildren {
   VisionLabHistoryRoute: typeof VisionLabHistoryRoute
   VisionLabIndexRoute: typeof VisionLabIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  VisionLabCoachResultIdRoute: typeof VisionLabCoachResultIdRoute
   VisionLabResultResultIdRoute: typeof VisionLabResultResultIdRoute
+  VisionLabCoachIndexRoute: typeof VisionLabCoachIndexRoute
   VisionLabTestTestIdAnalysisRoute: typeof VisionLabTestTestIdAnalysisRoute
   VisionLabTestTestIdSetupRoute: typeof VisionLabTestTestIdSetupRoute
   VisionLabTestTestIdUploadRoute: typeof VisionLabTestTestIdUploadRoute
@@ -448,11 +474,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vision-lab/coach/': {
+      id: '/vision-lab/coach/'
+      path: '/vision-lab/coach'
+      fullPath: '/vision-lab/coach/'
+      preLoaderRoute: typeof VisionLabCoachIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vision-lab/result/$resultId': {
       id: '/vision-lab/result/$resultId'
       path: '/vision-lab/result/$resultId'
       fullPath: '/vision-lab/result/$resultId'
       preLoaderRoute: typeof VisionLabResultResultIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vision-lab/coach/$resultId': {
+      id: '/vision-lab/coach/$resultId'
+      path: '/vision-lab/coach/$resultId'
+      fullPath: '/vision-lab/coach/$resultId'
+      preLoaderRoute: typeof VisionLabCoachResultIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -525,7 +565,9 @@ const rootRouteChildren: RootRouteChildren = {
   VisionLabHistoryRoute: VisionLabHistoryRoute,
   VisionLabIndexRoute: VisionLabIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  VisionLabCoachResultIdRoute: VisionLabCoachResultIdRoute,
   VisionLabResultResultIdRoute: VisionLabResultResultIdRoute,
+  VisionLabCoachIndexRoute: VisionLabCoachIndexRoute,
   VisionLabTestTestIdAnalysisRoute: VisionLabTestTestIdAnalysisRoute,
   VisionLabTestTestIdSetupRoute: VisionLabTestTestIdSetupRoute,
   VisionLabTestTestIdUploadRoute: VisionLabTestTestIdUploadRoute,

@@ -9,14 +9,19 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Cpu,
+  ShieldCheck,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import {
   type VisionTestCategory,
   type VisionValidityStatus,
   type VisionConfidenceScore,
+  type ReviewStatus,
   VALIDITY_LABELS,
   CONFIDENCE_LABELS,
+  REVIEW_STATUS_LABELS,
 } from "@/lib/vision/types";
 
 export const CATEGORY_ICONS: Record<VisionTestCategory, LucideIcon> = {
@@ -91,6 +96,27 @@ export function ConfidenceBadge({ level }: { level: VisionConfidenceScore }) {
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${map[level]}`}
     >
       Pewność: {CONFIDENCE_LABELS[level]}
+    </span>
+  );
+}
+
+export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
+  const map: Record<ReviewStatus, { cls: string; Icon: LucideIcon }> = {
+    ai_result: { cls: "bg-primary/12 text-primary", Icon: Cpu },
+    ai_estimated: { cls: "bg-amber-500/12 text-amber-600", Icon: Cpu },
+    ai_high_confidence: { cls: "bg-emerald-500/12 text-emerald-600", Icon: Cpu },
+    coach_verified: { cls: "bg-emerald-500/12 text-emerald-600", Icon: ShieldCheck },
+    coach_corrected: { cls: "bg-primary/12 text-primary", Icon: UserCheck },
+    coach_feedback_added: { cls: "bg-primary/12 text-primary", Icon: UserCheck },
+    invalid_by_ai: { cls: "bg-destructive/12 text-destructive", Icon: XCircle },
+    invalid_by_coach: { cls: "bg-destructive/12 text-destructive", Icon: XCircle },
+  };
+  const { cls, Icon } = map[status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}
+    >
+      <Icon className="h-3.5 w-3.5" /> {REVIEW_STATUS_LABELS[status]}
     </span>
   );
 }
