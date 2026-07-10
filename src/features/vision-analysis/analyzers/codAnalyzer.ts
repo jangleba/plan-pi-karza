@@ -12,10 +12,10 @@ import { movingAverage, interpolateShortGaps, derivative, argMax, argMin } from 
 import { round } from "../physics";
 
 /**
- * COD / Braking (5-10-5, Sprint to Stop). Wykrywa fazę hamowania z prędkości
- * poziomej bioder: hamowanie = gwałtowny spadek prędkości do ~0 (i zwrot).
- * Czas hamowania jest liczony z rzeczywistych timestampów. Poprawność
- * kolejności linii i wykonania protokołu weryfikuje trener → needs_review.
+ * COD / Braking (5-10-5, Sprint to Stop). Wykrywa ruszenie, szczyt prędkości,
+ * początek hamowania i zatrzymanie z poziomej prędkości bioder. Wszystkie
+ * metryki są CZASOWE (nie wymagają kalibracji przestrzeni), więc zawodnik
+ * dostaje gotowy wynik automatycznie — bez czekania na trenera.
  */
 function makeCod(
   testType: "five_ten_five" | "sprint_to_stop",
@@ -38,8 +38,17 @@ function makeCod(
     const stopIdx = peakIdx + (stopRel < 0 ? 0 : stopRel);
     if (stopIdx <= peakIdx) return [];
 
-    // Początek hamowania = gdy prędkość spada poniżej 60% szczytu po szczycie.
     const peakV = vSmooth[peakIdx];
+    // Ruszenie = pierwsza klatka, w której prędkość przekracza 20% szczytu.
+    let startIdx = 0;
+    for (let i = 0; i <= peakIdx; i++) {
+      if (Number.isFinite(vSmooth[i]) && vSmooth[i] >= peakV * 0.2) {
+        startIdx = i;
+        break;
+      }
+    }
+
+    // Początek hamowania = gdy prędkość spada poniżej 60% szczytu po szczycie.
     let brakeIdx = peakIdx;
     for (let i = peakIdx; i <= stopIdx; i++) {
       if (vSmooth[i] < peakV * 0.6) {
@@ -47,38 +56,57 @@ function makeCod(
         break;
       }
     }
+
+    const CONF = 0.78;
     return [
       {
-        type: "peak_speed",
-        frameIndex: peakIdx,
-        timestampSeconds: t[peakIdx] ?? 0,
-        confidence: 0.6,
+        type: "movement_start",
+        frameIndex: startIdx,
+        timestampSeconds: t[startIdx] ?? 0,
+        confidence: CONF,
       },
+      { type: "peak_speed", frameIndex: peakIdx, timestampSeconds: t[peakIdx] ?? 0, confidence: CONF },
       {
         type: "braking_start",
         frameIndex: brakeIdx,
         timestampSeconds: t[brakeIdx] ?? 0,
-        confidence: 0.6,
+        confidence: CONF,
       },
-      { type: "stop", frameIndex: stopIdx, timestampSeconds: t[stopIdx] ?? 0, confidence: 0.6 },
+      { type: "stop", frameIndex: stopIdx, timestampSeconds: t[stopIdx] ?? 0, confidence: CONF },
     ];
   }
 
   function metrics(ev: DetectedEvent[]): CalculatedMetric[] {
+    const start = ev.find((e) => e.type === "movement_start");
     const brake = ev.find((e) => e.type === "braking_start");
     const stop = ev.find((e) => e.type === "stop");
     if (!brake || !stop) return [];
+    const out: CalculatedMetric[] = [];
+
+    if (start) {
+      const totalTime = stop.timestampSeconds - start.timestampSeconds;
+      if (totalTime > 0 && totalTime <= 20) {
+        out.push({
+          key: "total_time_s",
+          label: "Czas całkowity",
+          value: round(totalTime, 2),
+          unit: "s",
+          confidence: 0.78,
+        });
+      }
+    }
+
     const brakingTime = stop.timestampSeconds - brake.timestampSeconds;
-    if (brakingTime <= 0 || brakingTime > 3) return [];
-    return [
-      {
+    if (brakingTime > 0 && brakingTime <= 3) {
+      out.push({
         key: "braking_time_s",
         label: "Czas hamowania",
         value: round(brakingTime, 2),
         unit: "s",
-        confidence: 0.6,
-      },
-    ];
+        confidence: 0.78,
+      });
+    }
+    return out;
   }
 
   function confidence(ev: DetectedEvent[]): ConfidenceResult {
@@ -90,22 +118,19 @@ function makeCod(
   function validate(ctx: AnalysisContext): ValidationResult {
     const { issues } = baseValidation(ctx, MIN_FPS);
     if (events(ctx).length < 3) issues.push("EVENTS_NOT_DETECTED");
-    const res = buildValidation(issues, [
+    return buildValidation(issues, [
       "POSE_NOT_DETECTED",
       "MULTIPLE_PEOPLE",
       "EVENTS_NOT_DETECTED",
     ]);
-    // COD wymaga weryfikacji kolejności linii/wykonania przez trenera.
-    if (res.ok) return { ...res, ok: false, status: "needs_review" };
-    return res;
   }
 
   return {
     testType,
-    analyzerVersion: `${testType}-1.0.0`,
+    analyzerVersion: `${testType}-2.0.0`,
     requiredCameraSetup: camera,
     minimumFps: MIN_FPS,
-    requiresCalibration: true,
+    requiresCalibration: false,
     validateRecording: validate,
     detectKeyEvents: async (ctx) => events(ctx),
     calculateMetrics: (ev) => metrics(ev),

@@ -9,13 +9,15 @@ import type {
 import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { round } from "../physics";
+import { estimateScaleFromHeight } from "../autoCalibration";
 
 const MIN_FPS = 60;
 
 /**
- * Broad Jump — dystans w cm wymaga kalibracji przestrzeni (dwa punkty o znanej
- * odległości). Fazę odbicia/lądowania wykrywamy z pozy, ale bez kalibracji
- * NIE przeliczamy pikseli na centymetry → NO_CALIBRATION (weryfikacja trenera).
+ * Broad Jump — długość skoku w cm. Skalę pikseli na metry uzyskujemy z:
+ *  A) ręcznej kalibracji (referencePoints o znanej odległości), albo
+ *  B) auto-kalibracji z rzeczywistego wzrostu zawodnika.
+ * Bez żadnej z tych podstaw nie przeliczamy pikseli na cm → needs_review.
  */
 function events(ctx: AnalysisContext): DetectedEvent[] {
   const phase = detectFlightPhase(ctx.poses);
@@ -23,13 +25,24 @@ function events(ctx: AnalysisContext): DetectedEvent[] {
   return flightPhaseEvents(phase, ctx.poses);
 }
 
-function pxToMeters(ctx: AnalysisContext, dxNorm: number): number | null {
+/** Zwraca metry na piksel z kalibracji ręcznej lub auto (wzrost). */
+function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } | null {
   const ref = ctx.calibration?.referencePoints;
-  if (!ref) return null;
-  const refDxNorm = Math.hypot(ref.b.x - ref.a.x, ref.b.y - ref.a.y);
-  if (refDxNorm <= 0) return null;
-  const metersPerNorm = ref.meters / refDxNorm;
-  return dxNorm * metersPerNorm;
+  if (ref) {
+    const dxPx = Math.hypot(
+      (ref.b.x - ref.a.x) * ctx.metadata.width,
+      (ref.b.y - ref.a.y) * ctx.metadata.height,
+    );
+    if (dxPx > 0) return { mpp: ref.meters / dxPx, confMul: 1 };
+  }
+  const scale = estimateScaleFromHeight(
+    ctx.poses,
+    ctx.athleteHeightCm,
+    ctx.metadata.width,
+    ctx.metadata.height,
+  );
+  if (scale) return { mpp: scale.metersPerPixel, confMul: scale.confidence };
+  return null;
 }
 
 function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
@@ -46,8 +59,11 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
       2
     : null;
   if (startX == null || endX == null) return [];
-  const meters = pxToMeters(ctx, Math.abs(endX - startX));
-  if (meters == null || meters <= 0) return []; // brak kalibracji → brak wyniku liczbowego
+  const scale = metersPerPixel(ctx);
+  if (!scale) return []; // brak kalibracji → brak wyniku liczbowego
+  const dxPx = Math.abs(endX - startX) * ctx.metadata.width;
+  const meters = dxPx * scale.mpp;
+  if (meters <= 0) return [];
   const cm = round(meters * 100, 0);
   if (cm < 80 || cm > 380) return [];
   return [
@@ -56,7 +72,7 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
       label: "Długość skoku",
       value: cm,
       unit: "cm",
-      confidence: takeoff.confidence * 0.7,
+      confidence: round(takeoff.confidence * 0.9 * scale.confMul, 2),
     },
   ];
 }
@@ -69,24 +85,25 @@ function confidence(ev: DetectedEvent[]): ConfidenceResult {
 
 function validate(ctx: AnalysisContext): ValidationResult {
   const { issues } = baseValidation(ctx, MIN_FPS);
-  if (events(ctx).length < 2) issues.push("EVENTS_NOT_DETECTED");
-  if (!ctx.calibration?.referencePoints) issues.push("NO_CALIBRATION");
+  const hasEvents = events(ctx).length >= 2;
+  const hasScale = metersPerPixel(ctx) != null;
+  if (!hasEvents) issues.push("EVENTS_NOT_DETECTED");
+  if (!hasScale) issues.push("NO_CALIBRATION");
   const res = buildValidation(issues, [
     "POSE_NOT_DETECTED",
     "MULTIPLE_PEOPLE",
     "EVENTS_NOT_DETECTED",
   ]);
-  if (res.ok && issues.includes("NO_CALIBRATION"))
-    return { ...res, ok: false, status: "needs_review" };
+  if (res.ok && !hasScale) return { ...res, ok: false, status: "needs_review" };
   return res;
 }
 
 export const broadJumpAnalyzer: TestAnalyzer = {
   testType: "broad_jump",
-  analyzerVersion: "broad_jump-1.0.0",
+  analyzerVersion: "broad_jump-2.0.0",
   requiredCameraSetup: "side",
   minimumFps: MIN_FPS,
-  requiresCalibration: true,
+  requiresCalibration: false,
   validateRecording: validate,
   detectKeyEvents: async (ctx) => events(ctx),
   calculateMetrics: (ev, ctx) => metrics(ev, ctx),

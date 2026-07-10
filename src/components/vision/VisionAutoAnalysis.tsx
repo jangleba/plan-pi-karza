@@ -5,6 +5,7 @@ import { Loader2, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
+import { supabase } from "@/integrations/supabase/client";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow } from "@/lib/vision/visionFlow";
 import { saveFrameResult } from "@/lib/vision/visionResultService";
@@ -72,12 +73,26 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       objectUrlRef.current = resolved.objectUrl;
       setPreviewSrc(resolved.objectUrl);
 
+      // Wzrost zawodnika z profilu → auto-kalibracja skali (sprint / broad jump).
+      let athleteHeightCm: number | null = null;
+      if (user) {
+        const { data: prof } = await supabase
+          .from("athlete_profiles")
+          .select("height_optional")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const h = prof?.height_optional;
+        if (typeof h === "number" && h >= 100 && h <= 230) athleteHeightCm = h;
+      }
+      if (cancelled()) return;
+
       // 9-10: analiza startuje na gotowym Blob URL.
       const analysis = await runVideoAnalysis({
         testType: test.id as TestType,
         videoUrl: resolved.objectUrl,
         declaredFps: flow.fps || null,
         cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
+        athleteHeightCm,
         onPhase: (p) => !cancelled() && setPhase(p),
         onProgress: (f) => !cancelled() && setProgress(f),
       });

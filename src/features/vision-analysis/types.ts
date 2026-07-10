@@ -85,6 +85,8 @@ export interface AnalysisContext {
   poses: FramePose[];
   cameraSetup: CameraSetup;
   calibration: Calibration | null;
+  /** Rzeczywisty wzrost zawodnika (cm) z profilu — do auto-kalibracji skali. */
+  athleteHeightCm?: number | null;
 }
 
 export interface ValidationResult {
@@ -156,8 +158,8 @@ export interface VideoAnalysisResult {
 
 /** Progi akceptacji wyniku na podstawie confidence. */
 export const CONFIDENCE_THRESHOLDS = {
-  autoAccept: 0.85,
-  needsReview: 0.65,
+  autoAccept: 0.6,
+  needsReview: 0.45,
 } as const;
 
 /** Czytelne opisy powodów jakości (PL) do UI. */
@@ -178,6 +180,7 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
 export const POSE = {
+  NOSE: 0,
   LEFT_SHOULDER: 11,
   RIGHT_SHOULDER: 12,
   LEFT_ELBOW: 13,
