@@ -10,18 +10,26 @@ import {
   RotateCcw,
   BookmarkCheck,
   Bookmark,
+  ShieldCheck,
+  Info,
 } from "lucide-react";
 import {
   VisionHeader,
   ValidityBadge,
   ConfidenceBadge,
+  ReviewStatusBadge,
 } from "./visionUi";
 import { VisionInvalidResult } from "./VisionInvalidResult";
 import { VisionProgressComparison } from "./VisionProgressComparison";
+import { VisionCalculationBasis } from "./VisionCalculationBasis";
+import { VisionCoachFeedback } from "./VisionCoachFeedback";
+import { VisionCoachReviewSheet } from "./VisionCoachReviewSheet";
 import { Button } from "@/components/ui/button";
 import {
   CAMERA_VIEW_LABELS,
   INVALID_REASON_LABELS,
+  REVIEW_STATUS_DESCRIPTIONS,
+  COACH_REVIEW_DISCLAIMER,
   type VisionTestResult,
 } from "@/lib/vision/types";
 import { setSavedToProgress } from "@/lib/vision/visionRepo";
