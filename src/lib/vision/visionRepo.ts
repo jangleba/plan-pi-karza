@@ -15,6 +15,9 @@ import type {
   CoachFrames,
   CoachFeedback,
   CalculationBasis,
+  TechniqueReview,
+  ReviewMode,
+
 } from "./types";
 import { getVisionTest } from "./visionTests";
 import { recomputeMainValue, buildCalculationBasis } from "./visionCalc";
