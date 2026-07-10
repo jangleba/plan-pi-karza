@@ -303,6 +303,19 @@ function PlanScreen() {
   const gateNextIndex = gateWeek;
   const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
 
+  // Dni należące do aktywnego planu (ukryj dni przed startem planu).
+  const visibleDays = (current?.days ?? []).filter((d) => !d.outsideActivePlan);
+  const planStartDate = visibleDays[0]?.date ?? null;
+  const hasHiddenBefore =
+    (current?.days ?? []).some((d) => d.outsideActivePlan) && planStartDate !== null;
+
+  // Po wejściu i przy zmianie tygodnia przewiń ekran na górę.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [activeWeek]);
+
+
+
 
   return (
     <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
