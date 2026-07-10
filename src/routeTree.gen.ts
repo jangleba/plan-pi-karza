@@ -28,6 +28,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as VisionLabTestTestIdIndexRouteImport } from './routes/vision-lab.test.$testId.index'
+import { Route as VisionLabTestTestIdUploadRouteImport } from './routes/vision-lab.test.$testId.upload'
 import { Route as VisionLabTestTestIdSetupRouteImport } from './routes/vision-lab.test.$testId.setup'
 
 const TermsRoute = TermsRouteImport.update({
@@ -128,6 +129,12 @@ const VisionLabTestTestIdIndexRoute =
     path: '/vision-lab/test/$testId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const VisionLabTestTestIdUploadRoute =
+  VisionLabTestTestIdUploadRouteImport.update({
+    id: '/vision-lab/test/$testId/upload',
+    path: '/vision-lab/test/$testId/upload',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const VisionLabTestTestIdSetupRoute =
   VisionLabTestTestIdSetupRouteImport.update({
     id: '/vision-lab/test/$testId/setup',
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
+  '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
   '/vision-lab/test/$testId/': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -175,6 +183,7 @@ export interface FileRoutesByTo {
   '/vision-lab': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
+  '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
   '/vision-lab/test/$testId': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRoutesById {
@@ -198,6 +207,7 @@ export interface FileRoutesById {
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
+  '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
   '/vision-lab/test/$testId/': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
     | '/vision-lab/test/$testId/setup'
+    | '/vision-lab/test/$testId/upload'
     | '/vision-lab/test/$testId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/vision-lab'
     | '/.mcp/invoke-tool/$tool'
     | '/vision-lab/test/$testId/setup'
+    | '/vision-lab/test/$testId/upload'
     | '/vision-lab/test/$testId'
   id:
     | '__root__'
@@ -264,6 +276,7 @@ export interface FileRouteTypes {
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
     | '/vision-lab/test/$testId/setup'
+    | '/vision-lab/test/$testId/upload'
     | '/vision-lab/test/$testId/'
   fileRoutesById: FileRoutesById
 }
@@ -282,6 +295,7 @@ export interface RootRouteChildren {
   VisionLabIndexRoute: typeof VisionLabIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   VisionLabTestTestIdSetupRoute: typeof VisionLabTestTestIdSetupRoute
+  VisionLabTestTestIdUploadRoute: typeof VisionLabTestTestIdUploadRoute
   VisionLabTestTestIdIndexRoute: typeof VisionLabTestTestIdIndexRoute
 }
 
@@ -420,6 +434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VisionLabTestTestIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vision-lab/test/$testId/upload': {
+      id: '/vision-lab/test/$testId/upload'
+      path: '/vision-lab/test/$testId/upload'
+      fullPath: '/vision-lab/test/$testId/upload'
+      preLoaderRoute: typeof VisionLabTestTestIdUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vision-lab/test/$testId/setup': {
       id: '/vision-lab/test/$testId/setup'
       path: '/vision-lab/test/$testId/setup'
@@ -464,6 +485,7 @@ const rootRouteChildren: RootRouteChildren = {
   VisionLabIndexRoute: VisionLabIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   VisionLabTestTestIdSetupRoute: VisionLabTestTestIdSetupRoute,
+  VisionLabTestTestIdUploadRoute: VisionLabTestTestIdUploadRoute,
   VisionLabTestTestIdIndexRoute: VisionLabTestTestIdIndexRoute,
 }
 export const routeTree = rootRouteImport
