@@ -5,6 +5,7 @@ import { Loader2, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
+import { supabase } from "@/integrations/supabase/client";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow } from "@/lib/vision/visionFlow";
 import { saveFrameResult } from "@/lib/vision/visionResultService";
