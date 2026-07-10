@@ -24,6 +24,7 @@ import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
+import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as VisionLabGymIndexRouteImport } from './routes/vision-lab.gym.index'
@@ -112,6 +113,11 @@ const TabsProfilRoute = TabsProfilRouteImport.update({
 const TabsPlanRoute = TabsPlanRouteImport.update({
   id: '/plan',
   path: '/plan',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsFuelRoute = TabsFuelRouteImport.update({
+  id: '/fuel',
+  path: '/fuel',
   getParentRoute: () => TabsRoute,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
   '/scouting': typeof TabsScoutingRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
   '/scouting': typeof TabsScoutingRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_tabs/fuel': typeof TabsFuelRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/profil': typeof TabsProfilRoute
   '/_tabs/scouting': typeof TabsScoutingRoute
@@ -306,6 +315,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/fuel'
     | '/plan'
     | '/profil'
     | '/scouting'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/fuel'
     | '/plan'
     | '/profil'
     | '/scouting'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_tabs/fuel'
     | '/_tabs/plan'
     | '/_tabs/profil'
     | '/_tabs/scouting'
@@ -527,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsPlanRouteImport
       parentRoute: typeof TabsRoute
     }
+    '/_tabs/fuel': {
+      id: '/_tabs/fuel'
+      path: '/fuel'
+      fullPath: '/fuel'
+      preLoaderRoute: typeof TabsFuelRouteImport
+      parentRoute: typeof TabsRoute
+    }
     '/.well-known/oauth-protected-resource': {
       id: '/.well-known/oauth-protected-resource'
       path: '/.well-known/oauth-protected-resource'
@@ -636,6 +655,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface TabsRouteChildren {
+  TabsFuelRoute: typeof TabsFuelRoute
   TabsPlanRoute: typeof TabsPlanRoute
   TabsProfilRoute: typeof TabsProfilRoute
   TabsScoutingRoute: typeof TabsScoutingRoute
@@ -643,6 +663,7 @@ interface TabsRouteChildren {
 }
 
 const TabsRouteChildren: TabsRouteChildren = {
+  TabsFuelRoute: TabsFuelRoute,
   TabsPlanRoute: TabsPlanRoute,
   TabsProfilRoute: TabsProfilRoute,
   TabsScoutingRoute: TabsScoutingRoute,
