@@ -122,9 +122,9 @@ export function VisionUpload({ test }: { test: VisionTest }) {
 
         <div className="soft-card p-4">
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Odczyt FPS jest na razie ustawiany ręcznie w setupie i użyty do oceny
-            dokładności. Po podłączeniu prawdziwej analizy FPS zostanie odczytany
-            automatycznie z pliku.
+            Po wysłaniu film trafia do analizy na podstawie kluczowych klatek, FPS
+            i protokołu testu. Jeśli nagranie nie spełnia wymagań, poprosimy Cię o
+            powtórzenie. Nie musisz nic mierzyć samodzielnie.
           </p>
         </div>
       </div>
@@ -137,12 +137,16 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           <Button
             className="w-full"
             size="lg"
-            disabled={status !== "done"}
-            onClick={() =>
-              navigate({ to: "/vision-lab/frame-analyzer/$testId", params: { testId: test.id } })
-            }
+            disabled={status !== "done" || submitting}
+            onClick={submitForAnalysis}
           >
-            Przejdź do Frame Analyzer
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wysyłanie…
+              </>
+            ) : (
+              "Wyślij film do analizy"
+            )}
           </Button>
         </div>
       </div>
