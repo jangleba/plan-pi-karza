@@ -656,6 +656,72 @@ export type Database = {
           },
         ]
       }
+      vision_tests: {
+        Row: {
+          ai_feedback: Json | null
+          camera_view: string | null
+          capture_mode: string | null
+          comparison_to_previous: Json | null
+          confidence_score: string
+          created_at: string
+          fps: number | null
+          id: string
+          main_result_unit: string | null
+          main_result_value: number | null
+          measured_metrics: Json | null
+          saved_to_progress: boolean
+          test_category: string
+          test_name: string
+          test_type: string
+          user_id: string
+          validity_flags: Json | null
+          validity_status: string
+          video_url: string | null
+        }
+        Insert: {
+          ai_feedback?: Json | null
+          camera_view?: string | null
+          capture_mode?: string | null
+          comparison_to_previous?: Json | null
+          confidence_score?: string
+          created_at?: string
+          fps?: number | null
+          id?: string
+          main_result_unit?: string | null
+          main_result_value?: number | null
+          measured_metrics?: Json | null
+          saved_to_progress?: boolean
+          test_category: string
+          test_name: string
+          test_type: string
+          user_id: string
+          validity_flags?: Json | null
+          validity_status?: string
+          video_url?: string | null
+        }
+        Update: {
+          ai_feedback?: Json | null
+          camera_view?: string | null
+          capture_mode?: string | null
+          comparison_to_previous?: Json | null
+          confidence_score?: string
+          created_at?: string
+          fps?: number | null
+          id?: string
+          main_result_unit?: string | null
+          main_result_value?: number | null
+          measured_metrics?: Json | null
+          saved_to_progress?: boolean
+          test_category?: string
+          test_name?: string
+          test_type?: string
+          user_id?: string
+          validity_flags?: Json | null
+          validity_status?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       weekly_transitions: {
         Row: {
           confirmed_at: string
