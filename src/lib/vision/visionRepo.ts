@@ -643,6 +643,8 @@ export async function coachInvalidate(
       coach_note: note,
       validity_status: "invalid",
       review_status: "invalid_by_coach",
+      analysis_status: "invalid_video",
+      visibility_status: "visible_to_player",
       paid_review_status: "rejected_invalid_video",
     })
     .eq("id", id)
