@@ -618,6 +618,8 @@ export async function coachVerify(
       coach_verified: true,
       coach_note: note,
       review_status: "coach_verified",
+      analysis_status: "completed",
+      visibility_status: "visible_to_player",
       paid_review_status: "completed",
     })
     .eq("id", id)
