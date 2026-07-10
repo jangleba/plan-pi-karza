@@ -193,7 +193,9 @@ function HistoryRow({ item, isBest }: { item: VisionTestResult; isBest: boolean 
           </div>
         </div>
         <div className="shrink-0 text-right">
-          {item.validityStatus === "invalid" || item.mainResultValue == null ? (
+          {item.analysisStatus !== "completed" ||
+          item.validityStatus === "invalid" ||
+          item.mainResultValue == null ? (
             <span className="text-sm font-semibold text-muted-foreground">—</span>
           ) : (
             <span className="text-lg font-bold text-foreground">
@@ -207,8 +209,22 @@ function HistoryRow({ item, isBest }: { item: VisionTestResult; isBest: boolean 
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
-        <ValidityBadge status={item.validityStatus} />
-        <ConfidenceBadge level={item.confidenceScore} />
+        {item.analysisStatus !== "completed" ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              item.analysisStatus === "invalid_video"
+                ? "bg-destructive/12 text-destructive"
+                : "bg-primary/12 text-primary"
+            }`}
+          >
+            {ANALYSIS_STATUS_LABELS[item.analysisStatus]}
+          </span>
+        ) : (
+          <>
+            <ValidityBadge status={item.validityStatus} />
+            <ConfidenceBadge level={item.confidenceScore} />
+          </>
+        )}
         {item.savedToProgress && (
           <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[11px] font-medium text-brand">
             <BookmarkCheck className="h-3 w-3" /> W progresie
