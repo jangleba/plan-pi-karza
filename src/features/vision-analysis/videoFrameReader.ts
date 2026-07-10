@@ -150,6 +150,8 @@ function loadMetadataWithTimeout(video: HTMLVideoElement, url: string): Promise<
       clearTimeout(timer);
       clearTimeout(stalledTimer);
       video.removeEventListener("loadedmetadata", onLoaded);
+      video.removeEventListener("loadeddata", onLoaded);
+      video.removeEventListener("canplay", onLoaded);
       video.removeEventListener("error", onError);
       video.removeEventListener("abort", onAbort);
       video.removeEventListener("stalled", onStalled);
