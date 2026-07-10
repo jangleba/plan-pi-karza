@@ -132,6 +132,113 @@ export interface VisionComparison {
   techniqueNote: string | null;
 }
 
+// ===================== Coach Review =====================
+
+/** Status recenzji wyniku — od automatu AI po weryfikację trenera. */
+export type ReviewStatus =
+  | "ai_result"
+  | "ai_estimated"
+  | "ai_high_confidence"
+  | "coach_verified"
+  | "coach_corrected"
+  | "coach_feedback_added"
+  | "invalid_by_ai"
+  | "invalid_by_coach";
+
+/** Rodzaj zamówionej usługi trenerskiej. */
+export type ReviewType =
+  | "coach_check"
+  | "technique_review"
+  | "performance_consultation";
+
+/** Status płatnej analizy trenera. */
+export type PaidReviewStatus =
+  | "not_requested"
+  | "requested"
+  | "paid"
+  | "in_review"
+  | "completed"
+  | "rejected_invalid_video";
+
+/** Kluczowe klatki — używane do przeliczenia wyniku. */
+export interface CoachFrames {
+  start_frame?: number | null;
+  end_frame?: number | null;
+  takeoff_frame?: number | null;
+  landing_frame?: number | null;
+  first_contact_frame?: number | null;
+  last_contact_frame?: number | null;
+  finish_frame?: number | null;
+}
+
+/** Analiza techniki dodana przez trenera. */
+export interface CoachFeedback {
+  techniqueSummary?: string;
+  errors?: string[];
+  recommendations?: string[];
+  nextSessionNote?: string;
+}
+
+/** Pojedyncza pozycja w sekcji „Jak powstał wynik?”. */
+export interface CalculationBasisItem {
+  label: string;
+  value: string;
+}
+
+/** Podstawa obliczeń — jak system doszedł do wyniku. */
+export interface CalculationBasis {
+  method: string;
+  items: CalculationBasisItem[];
+  coachVerifiedFrames: boolean;
+}
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  ai_result: "AI Result",
+  ai_estimated: "AI Estimated",
+  ai_high_confidence: "AI High Confidence",
+  coach_verified: "Coach Verified",
+  coach_corrected: "Coach Corrected",
+  coach_feedback_added: "Coach Feedback Added",
+  invalid_by_ai: "Invalid by AI",
+  invalid_by_coach: "Invalid by Coach",
+};
+
+export const REVIEW_STATUS_DESCRIPTIONS: Record<ReviewStatus, string> = {
+  ai_result: "Wynik policzony automatycznie na podstawie nagrania.",
+  ai_estimated:
+    "Wynik orientacyjny. Nagranie nie spełnia wszystkich warunków dokładnego pomiaru.",
+  ai_high_confidence:
+    "Wynik automatyczny z wysoką pewnością. Nagranie spełnia wymagania testu.",
+  coach_verified:
+    "Trener sprawdził poprawność testu, ustawienie kamery, widoczność kluczowych momentów i sens wyniku.",
+  coach_corrected:
+    "Trener poprawił kluczowe klatki lub dane wejściowe. System przeliczył wynik na podstawie poprawionych danych.",
+  coach_feedback_added: "Trener dodał analizę techniki i zalecenia treningowe.",
+  invalid_by_ai:
+    "System uznał nagranie za niespełniające warunków pomiaru. Powtórz test zgodnie z instrukcją.",
+  invalid_by_coach:
+    "Trener uznał test za nieważny. Powtórz nagranie zgodnie z instrukcją.",
+};
+
+export const REVIEW_TYPE_LABELS: Record<ReviewType, string> = {
+  coach_check: "Coach Check",
+  technique_review: "Coach Technique Review",
+  performance_consultation: "Performance Consultation",
+};
+
+export const PAID_REVIEW_STATUS_LABELS: Record<PaidReviewStatus, string> = {
+  not_requested: "Nie zamówiono",
+  requested: "Zamówiono",
+  paid: "Opłacono",
+  in_review: "W trakcie analizy",
+  completed: "Zakończono",
+  rejected_invalid_video: "Odrzucono — słabe nagranie",
+};
+
+export const COACH_REVIEW_DISCLAIMER =
+  "Coach Review nie zastępuje profesjonalnego sprzętu laboratoryjnego. Jego celem jest weryfikacja jakości testu, analiza techniki i poprawa interpretacji wyniku.";
+
+
 export const CATEGORY_LABELS: Record<VisionTestCategory, string> = {
   jump: "Jump Lab",
   sprint: "Sprint Lab",
