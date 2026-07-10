@@ -28,6 +28,8 @@ export interface RunOptions {
   declaredFps: number | null;
   cameraSetup: CameraSetup;
   calibration?: Calibration | null;
+  /** Rzeczywisty wzrost zawodnika (cm) do auto-kalibracji skali. */
+  athleteHeightCm?: number | null;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
 }
