@@ -155,11 +155,14 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       <div className="space-y-4 px-5">
         {previewSrc && (
           <video
+            key={previewSrc}
             src={previewSrc}
             muted
             playsInline
-            preload="metadata"
+            preload="auto"
             controls
+            // @ts-expect-error atrybut Safari dla odtwarzania inline
+            webkit-playsinline="true"
             className="w-full rounded-2xl bg-black"
           />
         )}
