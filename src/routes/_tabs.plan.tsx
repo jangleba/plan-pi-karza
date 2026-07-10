@@ -408,8 +408,33 @@ function PlanScreen() {
         </div>
       )}
 
+      {/* Pasek trybu poza sezonem */}
+      {seasonStatus === "off_season" && weeks.length > 0 && (
+        <div className="px-5 pt-2">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/60 px-4 py-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-muted-foreground">
+              <Leaf className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">Okres poza sezonem</p>
+              <p className="text-xs text-muted-foreground">
+                Plan rozwija formę bez powiązania z terminarzem meczowym.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={switchingSeason}
+              onClick={switchToSeasonal}
+              className="shrink-0"
+            >
+              {switchingSeason ? "…" : "Zmień na tryb sezonowy"}
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Hero — decyzja dnia */}
+
       {todaySession &&
         (() => {
           const HeroIcon = sessionIcon(todaySession);
