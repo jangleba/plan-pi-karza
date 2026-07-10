@@ -1,14 +1,16 @@
+import { memo } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Camera, Gauge } from "lucide-react";
 import { DIFFICULTY_LABELS } from "./visionUi";
 import { CAMERA_VIEW_LABELS, type VisionTest } from "@/lib/vision/types";
 
-export function VisionTestCard({ test }: { test: VisionTest }) {
+function VisionTestCardBase({ test }: { test: VisionTest }) {
   return (
     <Link
       to="/vision-lab/test/$testId"
       params={{ testId: test.id }}
-      className="soft-card flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
+      preload="intent"
+      className="soft-card flex items-center gap-3 p-4 transition-transform duration-200 ease-out active:scale-[0.99]"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -31,3 +33,5 @@ export function VisionTestCard({ test }: { test: VisionTest }) {
     </Link>
   );
 }
+
+export const VisionTestCard = memo(VisionTestCardBase);

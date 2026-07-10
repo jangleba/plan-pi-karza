@@ -1,24 +1,25 @@
+import { memo } from "react";
 import { CATEGORY_ICONS } from "./visionUi";
 import { CATEGORY_LABELS, type VisionTestCategory } from "@/lib/vision/types";
 
-export function VisionCategoryCard({
+function VisionCategoryCardBase({
   category,
   subtitle,
   active,
-  onClick,
+  onSelect,
 }: {
   category: VisionTestCategory;
   subtitle: string;
   active: boolean;
-  onClick: () => void;
+  onSelect: (category: VisionTestCategory) => void;
 }) {
   const Icon = CATEGORY_ICONS[category];
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onSelect(category)}
       aria-pressed={active}
-      className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.98] ${
+      className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-transform duration-200 ease-out active:scale-[0.98] ${
         active ? "border-primary bg-accent" : "border-border bg-card"
       }`}
     >
@@ -38,3 +39,5 @@ export function VisionCategoryCard({
     </button>
   );
 }
+
+export const VisionCategoryCard = memo(VisionCategoryCardBase);

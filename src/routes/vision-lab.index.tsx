@@ -4,7 +4,7 @@ import { VisionLabHome } from "@/components/vision/VisionLabHome";
 
 export const Route = createFileRoute("/vision-lab/")({
   component: () => (
-    <VisionGuard>
+    <VisionGuard withNav>
       <VisionLabHome />
     </VisionGuard>
   ),

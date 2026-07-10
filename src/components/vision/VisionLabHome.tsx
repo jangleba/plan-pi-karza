@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { History, Sparkles, ClipboardCheck, Dumbbell, ChevronRight } from "lucide-react";
 import { VisionHeader } from "./visionUi";
@@ -12,11 +12,28 @@ import { CATEGORY_LABELS, type VisionTestCategory } from "@/lib/vision/types";
 
 const CATEGORIES: VisionTestCategory[] = ["jump", "sprint", "cod", "technique"];
 
-/** Podpis kategorii na kaflu. Gym Technique nie liczy testów. */
-function categorySubtitle(c: VisionTestCategory): string {
-  if (c === "technique") return "ćwiczenia z planu";
-  const n = VISION_TESTS.filter((t) => t.category === c).length;
-  return n === 1 ? "1 test" : `${n} testy`;
+/** Testy pomiarowe pogrupowane raz — brak przeliczeń w renderze. */
+const TESTS_BY_CATEGORY: Record<VisionTestCategory, typeof VISION_TESTS> = {
+  jump: [],
+  sprint: [],
+  cod: [],
+  technique: [],
+};
+for (const t of VISION_TESTS) {
+  if (t.id !== GYM_EXERCISE_TEST_ID) TESTS_BY_CATEGORY[t.category].push(t);
+}
+
+/** Podpisy kategorii wyliczone raz przy ładowaniu modułu. */
+const CATEGORY_SUBTITLES: Record<VisionTestCategory, string> = {
+  jump: "",
+  sprint: "",
+  cod: "",
+  technique: "ćwiczenia z planu",
+};
+for (const c of CATEGORIES) {
+  if (c === "technique") continue;
+  const n = TESTS_BY_CATEGORY[c].length;
+  CATEGORY_SUBTITLES[c] = n === 1 ? "1 test" : `${n} testy`;
 }
 
 export function VisionLabHome() {
@@ -24,14 +41,15 @@ export function VisionLabHome() {
   const [active, setActive] = useState<VisionTestCategory>("jump");
   const [coach, setCoach] = useState(false);
 
-  // Testy pomiarowe danej kategorii (bez wpisu gym).
-  const tests = VISION_TESTS.filter(
-    (t) => t.category === active && t.id !== GYM_EXERCISE_TEST_ID,
-  );
+  // Testy pomiarowe aktywnej kategorii (bez wpisu gym).
+  const tests = useMemo(() => TESTS_BY_CATEGORY[active], [active]);
 
+  const handleSelect = useCallback((c: VisionTestCategory) => setActive(c), []);
+
+  const userId = user?.id;
   useEffect(() => {
-    if (user) isCoach(user.id).then(setCoach);
-  }, [user]);
+    if (userId) isCoach(userId).then(setCoach);
+  }, [userId]);
 
   return (
     <div className="pb-16">
@@ -86,9 +104,9 @@ export function VisionLabHome() {
               <VisionCategoryCard
                 key={c}
                 category={c}
-                subtitle={categorySubtitle(c)}
+                subtitle={CATEGORY_SUBTITLES[c]}
                 active={active === c}
-                onClick={() => setActive(c)}
+                onSelect={handleSelect}
               />
             ))}
           </div>
