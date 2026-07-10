@@ -287,7 +287,15 @@ export interface PlanWeek {
   matchDate: string | null;
   matchDates: string[];
   focus: string;
+  /**
+   * Zaplanowane obciążenie tygodnia (bez korekty daily readiness).
+   * To wartość pokazywana na badge tygodnia. Alias: `plannedWeeklyLoad`.
+   */
   loadLevel: Intensity;
+  /** Faza periodyzacji tygodnia — osobna wartość, niezależna od readiness. */
+  weekPhase: WeekPhase;
+  /** Jawny alias na zaplanowane obciążenie tygodnia (badge). */
+  plannedWeeklyLoad: Intensity;
   reasons: string[];
 }
 
