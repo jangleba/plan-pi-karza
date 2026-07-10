@@ -299,7 +299,7 @@ export const COACH_REVIEW_DISCLAIMER =
 export const CATEGORY_LABELS: Record<VisionTestCategory, string> = {
   jump: "Jump Lab",
   sprint: "Sprint Lab",
-  cod: "COD & Braking Lab",
+  cod: "COD / Braking",
   technique: "Gym Technique",
 };
 
