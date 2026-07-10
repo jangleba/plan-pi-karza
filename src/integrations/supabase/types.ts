@@ -693,8 +693,14 @@ export type Database = {
           comparison_to_previous: Json | null
           confidence_score: string
           created_at: string
+          exercise_category: string | null
           fps: number | null
           id: string
+          linked_exercise_id: string | null
+          linked_exercise_name: string | null
+          linked_plan_id: string | null
+          linked_training_day: string | null
+          linked_workout_id: string | null
           main_result_unit: string | null
           main_result_value: number | null
           manual_override: boolean
@@ -702,9 +708,11 @@ export type Database = {
           measured_metrics: Json | null
           paid_review_requested: boolean
           paid_review_status: string | null
+          review_mode: string | null
           review_status: string
           review_type: string | null
           saved_to_progress: boolean
+          technique_review: Json | null
           test_category: string
           test_name: string
           test_type: string
@@ -728,8 +736,14 @@ export type Database = {
           comparison_to_previous?: Json | null
           confidence_score?: string
           created_at?: string
+          exercise_category?: string | null
           fps?: number | null
           id?: string
+          linked_exercise_id?: string | null
+          linked_exercise_name?: string | null
+          linked_plan_id?: string | null
+          linked_training_day?: string | null
+          linked_workout_id?: string | null
           main_result_unit?: string | null
           main_result_value?: number | null
           manual_override?: boolean
@@ -737,9 +751,11 @@ export type Database = {
           measured_metrics?: Json | null
           paid_review_requested?: boolean
           paid_review_status?: string | null
+          review_mode?: string | null
           review_status?: string
           review_type?: string | null
           saved_to_progress?: boolean
+          technique_review?: Json | null
           test_category: string
           test_name: string
           test_type: string
@@ -763,8 +779,14 @@ export type Database = {
           comparison_to_previous?: Json | null
           confidence_score?: string
           created_at?: string
+          exercise_category?: string | null
           fps?: number | null
           id?: string
+          linked_exercise_id?: string | null
+          linked_exercise_name?: string | null
+          linked_plan_id?: string | null
+          linked_training_day?: string | null
+          linked_workout_id?: string | null
           main_result_unit?: string | null
           main_result_value?: number | null
           manual_override?: boolean
@@ -772,9 +794,11 @@ export type Database = {
           measured_metrics?: Json | null
           paid_review_requested?: boolean
           paid_review_status?: string | null
+          review_mode?: string | null
           review_status?: string
           review_type?: string | null
           saved_to_progress?: boolean
+          technique_review?: Json | null
           test_category?: string
           test_name?: string
           test_type?: string

@@ -15,6 +15,9 @@ import type {
   CoachFrames,
   CoachFeedback,
   CalculationBasis,
+  TechniqueReview,
+  ReviewMode,
+
 } from "./types";
 import { getVisionTest } from "./visionTests";
 import { recomputeMainValue, buildCalculationBasis } from "./visionCalc";
@@ -60,6 +63,14 @@ interface VisionRow {
   manual_override_reason: string | null;
   paid_review_requested: boolean | null;
   paid_review_status: string | null;
+  linked_plan_id: string | null;
+  linked_workout_id: string | null;
+  linked_exercise_id: string | null;
+  linked_exercise_name: string | null;
+  linked_training_day: string | null;
+  exercise_category: string | null;
+  technique_review: TechniqueReview | null;
+  review_mode: string | null;
 }
 
 function rowToResult(row: VisionRow): VisionTestResult {
@@ -112,6 +123,14 @@ function rowToResult(row: VisionRow): VisionTestResult {
     manualOverrideReason: row.manual_override_reason ?? null,
     paidReviewRequested: row.paid_review_requested ?? false,
     paidReviewStatus: (row.paid_review_status as PaidReviewStatus) ?? "not_requested",
+    linkedPlanId: row.linked_plan_id ?? null,
+    linkedWorkoutId: row.linked_workout_id ?? null,
+    linkedExerciseId: row.linked_exercise_id ?? null,
+    linkedExerciseName: row.linked_exercise_name ?? null,
+    linkedTrainingDay: row.linked_training_day ?? null,
+    exerciseCategory: row.exercise_category ?? null,
+    techniqueReview: row.technique_review ?? null,
+    reviewMode: (row.review_mode as ReviewMode) ?? null,
   };
 }
 
@@ -196,6 +215,84 @@ export async function saveVisionResult(
   return rowToResult(data as VisionRow);
 }
 
+// ===================== Gym Technique (analiza ćwiczeń z planu) =====================
+
+import { GYM_EXERCISE_TEST_ID } from "./visionTests";
+import type { GymReviewStatus, GymTechniqueSignal } from "./types";
+
+export interface SaveGymReviewInput {
+  userId: string;
+  exerciseKey: string;
+  exerciseName: string;
+  trainingDayLabel: string;
+  exerciseCategory: string;
+  planDate: string;
+  videoUrl: string | null;
+  videoUploaded: boolean;
+  captureMode: string;
+  reviewMode: ReviewMode;
+  techniqueReview: TechniqueReview;
+  requestCoach: boolean;
+  invalidVideo: boolean;
+}
+
+/** Wyprowadza status Gym Review z pól rekordu (nie zmienia enuma pomiarowego). */
+export function deriveGymStatus(result: VisionTestResult): GymReviewStatus {
+  if (result.validityStatus === "invalid") return "invalid_video";
+  if (result.coachVerified || result.reviewStatus === "coach_feedback_added")
+    return "coach_reviewed";
+  if (result.paidReviewRequested) return "coach_review_requested";
+  return "self_review";
+}
+
+/** Zapisuje analizę techniki ćwiczenia z planu (frame/self/coach review). */
+export async function saveGymReview(
+  input: SaveGymReviewInput,
+): Promise<VisionTestResult> {
+  const signal: GymTechniqueSignal =
+    input.techniqueReview.signal ??
+    (input.invalidVideo ? "invalid_execution" : "good_execution");
+
+  const payload = {
+    user_id: input.userId,
+    test_type: GYM_EXERCISE_TEST_ID,
+    test_category: "technique",
+    test_name: input.exerciseName,
+    video_url: input.videoUrl,
+    capture_mode: input.captureMode,
+    fps: null,
+    camera_view: "side",
+    validity_status: input.invalidVideo ? "invalid" : "valid",
+    confidence_score: "medium",
+    main_result_value: null,
+    main_result_unit: null,
+    measured_metrics: [],
+    validity_flags: null,
+    ai_feedback: null,
+    comparison_to_previous: null,
+    saved_to_progress: false,
+    review_status: "ai_result",
+    review_mode: input.reviewMode,
+    technique_review: { ...input.techniqueReview, signal },
+    linked_exercise_id: input.exerciseKey,
+    linked_exercise_name: input.exerciseName,
+    linked_training_day: input.trainingDayLabel,
+    exercise_category: input.exerciseCategory,
+    paid_review_requested: input.requestCoach,
+    paid_review_status: input.requestCoach ? "requested" : "not_requested",
+    review_type: input.requestCoach ? "technique_review" : null,
+  };
+
+  const { data, error } = await db
+    .from("vision_tests")
+    .insert(payload)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+
 export async function getVisionResult(id: string): Promise<VisionTestResult | null> {
   const { data, error } = await db
     .from("vision_tests")
@@ -229,7 +326,7 @@ export async function setSavedToProgress(
 
 /** Dla testów czasowych/hamowania mniejszy wynik = lepiej. */
 function lowerIsBetter(testType: string): boolean {
-  return /sprint|5-10-5|l-drill|t-test|braking-test|flying|to-stop/.test(testType);
+  return /sprint|five_ten_five|sprint_to_stop/.test(testType);
 }
 
 /** Buduje porównanie do poprzedniego i najlepszego wyniku tego samego testu. */

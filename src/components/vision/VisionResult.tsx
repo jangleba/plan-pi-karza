@@ -20,6 +20,8 @@ import {
   ReviewStatusBadge,
 } from "./visionUi";
 import { VisionInvalidResult } from "./VisionInvalidResult";
+import { VisionGymResult } from "./VisionGymResult";
+import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { VisionProgressComparison } from "./VisionProgressComparison";
 import { VisionCalculationBasis } from "./VisionCalculationBasis";
 import { VisionCoachFeedback } from "./VisionCoachFeedback";
@@ -40,6 +42,10 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
   const [saved, setSaved] = useState(initial.savedToProgress);
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+
+  if (result.testType === GYM_EXERCISE_TEST_ID) {
+    return <VisionGymResult result={result} />;
+  }
 
   if (result.validityStatus === "invalid") {
     return <VisionInvalidResult result={result} />;

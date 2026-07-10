@@ -6,6 +6,9 @@ import {
   Minus,
   BookmarkCheck,
   Loader2,
+  Dumbbell,
+  Video,
+  VideoOff,
 } from "lucide-react";
 import {
   VisionHeader,
@@ -15,10 +18,12 @@ import {
 import { useAuth } from "@/lib/loadwise/auth";
 import {
   CATEGORY_LABELS,
+  GYM_REVIEW_STATUS_LABELS,
   type VisionTestResult,
   type VisionTestCategory,
 } from "@/lib/vision/types";
-import { listVisionResults } from "@/lib/vision/visionRepo";
+import { listVisionResults, deriveGymStatus } from "@/lib/vision/visionRepo";
+import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { formatDate } from "@/lib/loadwise/labels";
 
 type Filter =
@@ -33,14 +38,14 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "jump", label: "Jump Lab" },
   { key: "sprint", label: "Sprint Lab" },
   { key: "cod", label: "COD & Braking" },
-  { key: "technique", label: "Technika" },
+  { key: "technique", label: "Gym Technique" },
   { key: "last7", label: "Ostatnie 7 dni" },
   { key: "last30", label: "Ostatnie 30 dni" },
   { key: "best", label: "Najlepsze" },
 ];
 
 function lowerIsBetter(testType: string): boolean {
-  return /sprint|5-10-5|l-drill|t-test|braking-test|flying|to-stop/.test(testType);
+  return /sprint|five_ten_five|sprint_to_stop/.test(testType);
 }
 
 export function VisionHistory() {
@@ -152,6 +157,9 @@ export function VisionHistory() {
 }
 
 function HistoryRow({ item, isBest }: { item: VisionTestResult; isBest: boolean }) {
+  if (item.testType === GYM_EXERCISE_TEST_ID) {
+    return <GymHistoryRow item={item} />;
+  }
   const label = item.comparisonToPrevious?.label;
   const Trend =
     label === "improvement" ? TrendingUp : label === "regression" ? TrendingDown : Minus;
@@ -209,6 +217,55 @@ function HistoryRow({ item, isBest }: { item: VisionTestResult; isBest: boolean 
             <Trend className="h-3.5 w-3.5" /> {item.comparisonToPrevious.vsPrevious}
           </span>
         )}
+      </div>
+    </Link>
+  );
+}
+
+function GymHistoryRow({ item }: { item: VisionTestResult }) {
+  const status = deriveGymStatus(item);
+  const hasVideo =
+    !!item.videoUrl && !item.videoUrl.startsWith("placeholder://");
+  return (
+    <Link
+      to="/vision-lab/result/$resultId"
+      params={{ resultId: item.id }}
+      className="soft-card block p-4 transition-transform active:scale-[0.99]"
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-brand">
+          <Dumbbell className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-foreground">
+            {item.linkedExerciseName ?? item.testName}
+          </h3>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            Gym Exercise Review · {item.linkedTrainingDay ?? "—"} ·{" "}
+            {formatDate(item.createdAt.slice(0, 10))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              {GYM_REVIEW_STATUS_LABELS[status]}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+              {hasVideo ? (
+                <>
+                  <Video className="h-3 w-3" /> Film: tak
+                </>
+              ) : (
+                <>
+                  <VideoOff className="h-3 w-3" /> Film: nie
+                </>
+              )}
+            </span>
+          </div>
+          {item.techniqueReview?.coach_note && (
+            <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">
+              „{item.techniqueReview.coach_note}”
+            </p>
+          )}
+        </div>
       </div>
     </Link>
   );
