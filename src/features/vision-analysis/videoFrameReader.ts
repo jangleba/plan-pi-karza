@@ -1,4 +1,5 @@
 import type { VideoMetadata } from "./types";
+import { vlog, vwarn } from "./devLog";
 
 /** Callback wywoływany dla każdej zdekodowanej klatki. */
 export type FrameHandler = (frame: {
@@ -279,29 +280,72 @@ export async function iterateFrames(
   video.src = url;
   video.muted = true;
   video.playsInline = true;
+  video.setAttribute("webkit-playsinline", "true");
   video.preload = "auto";
 
+  // Czekaj na dane do dekodowania z twardym limitem czasu (bez tego iOS
+  // potrafi nigdy nie wyemitować loadeddata → nieskończone "dekodowanie").
   await new Promise<void>((resolve, reject) => {
-    video.onloadeddata = () => resolve();
-    video.onerror = () => reject(new Error("Nie udało się wczytać wideo do analizy."));
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener("loadeddata", onOk);
+      video.removeEventListener("canplay", onOk);
+      video.removeEventListener("error", onErr);
+    };
+    const onOk = () => {
+      if (settled || video.readyState < 2) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+    const onErr = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new VideoLoadError("DECODE_ERROR", "Nie udało się wczytać wideo do analizy."));
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(
+        new VideoLoadError(
+          "FRAME_LOAD_TIMEOUT",
+          "Wczytanie klatek przekroczyło limit czasu. Wyeksportuj film jako MP4 (H.264).",
+        ),
+      );
+    }, 15_000);
+    video.addEventListener("loadeddata", onOk);
+    video.addEventListener("canplay", onOk);
+    video.addEventListener("error", onErr);
+    try {
+      video.load();
+    } catch {
+      /* ignore */
+    }
+    if (video.readyState >= 2) onOk();
   });
 
   const total = Math.max(1, metadata.frameCount);
   const supportsRVFC =
     typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
 
+  // Ścieżka 1: requestVideoFrameCallback (dokładne mediaTime podczas odtwarzania).
+  // Uruchamiana tylko gdy odtwarzanie faktycznie ruszy; inaczej fallback seek.
+  let playedFrames = 0;
   if (supportsRVFC) {
-    await new Promise<void>((resolve) => {
+    playedFrames = await new Promise<number>((resolve) => {
       let index = 0;
       let finished = false;
       const done = () => {
         if (finished) return;
         finished = true;
         video.pause();
-        resolve();
+        resolve(index);
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cb = async (now: number, meta: any) => {
+      const cb = async (_now: number, meta: any) => {
         await onFrame({
           frameIndex: index,
           mediaTime: meta.mediaTime,
@@ -314,21 +358,43 @@ export async function iterateFrames(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (video as any).requestVideoFrameCallback(cb);
       };
-      video.onended = done;
+      // Watchdog: jeśli w 6 s nie pojawi się żadna klatka (autoplay zablokowany),
+      // przerywamy i przechodzimy do fallbacku seek.
+      const watchdog = setTimeout(() => {
+        if (index === 0) {
+          vwarn("iterateFrames", "rVFC nie wystartował — fallback do seek");
+          done();
+        }
+      }, 6_000);
+      const clearWatch = () => clearTimeout(watchdog);
+      video.onended = () => {
+        clearWatch();
+        done();
+      };
+      video.currentTime = 0;
       video
         .play()
         .then(() => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (video as any).requestVideoFrameCallback(cb);
         })
-        .catch(done);
+        .catch((err) => {
+          vwarn("iterateFrames", "play() odrzucone — fallback do seek", err?.message);
+          clearWatch();
+          done();
+        });
     });
-    video.src = "";
-    return;
+    if (playedFrames > 0) {
+      vlog("iterateFrames", `rVFC: ${playedFrames} klatek`);
+      video.src = "";
+      return;
+    }
   }
 
-  // Fallback: seek co 1/fps sekundy.
-  const step = 1 / metadata.fps;
+  // Ścieżka 2 (fallback): próbkowanie po currentTime + event seeked.
+  vlog("iterateFrames", "fallback seek", { fps: metadata.fps });
+  video.pause();
+  const step = 1 / Math.max(1, metadata.fps);
   let index = 0;
   for (let tSec = 0; tSec < metadata.durationSeconds; tSec += step) {
     await seekTo(video, tSec);
@@ -341,16 +407,22 @@ export async function iterateFrames(
     index++;
     onProgress?.(index, total);
   }
+  vlog("iterateFrames", `seek: ${index} klatek`);
   video.src = "";
 }
 
 function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
   return new Promise((resolve) => {
-    const handler = () => {
-      video.removeEventListener("seeked", handler);
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      video.removeEventListener("seeked", done);
       resolve();
     };
-    video.addEventListener("seeked", handler);
+    const timer = setTimeout(done, 3_000); // nie blokuj na uszkodzonym seeku
+    video.addEventListener("seeked", done);
     video.currentTime = time;
   });
 }
