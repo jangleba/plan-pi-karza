@@ -290,6 +290,8 @@ export async function saveGymReview(
     .single();
   if (error) throw error;
   return rowToResult(data as VisionRow);
+}
+
 
 export async function getVisionResult(id: string): Promise<VisionTestResult | null> {
   const { data, error } = await db
