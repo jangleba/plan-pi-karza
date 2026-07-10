@@ -1,19 +1,12 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { VisionGuard } from "@/components/vision/VisionGuard";
-import { VisionAnalysis } from "@/components/vision/VisionAnalysis";
-import { VisionTestNotFound } from "@/components/vision/VisionTestNotFound";
-import { getVisionTest } from "@/lib/vision/visionTests";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Demo analysis został wyłączony jako główny flow.
+// Real Frame Analyzer zastępuje fałszywą analizę AI.
 export const Route = createFileRoute("/vision-lab/test/$testId/analysis")({
-  component: AnalysisRoute,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/vision-lab/frame-analyzer/$testId",
+      params: { testId: params.testId },
+    });
+  },
 });
-
-function AnalysisRoute() {
-  const { testId } = useParams({ from: "/vision-lab/test/$testId/analysis" });
-  const test = getVisionTest(testId);
-  return (
-    <VisionGuard>
-      {test ? <VisionAnalysis test={test} /> : <VisionTestNotFound />}
-    </VisionGuard>
-  );
-}
