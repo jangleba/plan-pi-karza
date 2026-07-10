@@ -260,6 +260,14 @@ export async function analyzeVisionTestDemo(
     manualOverrideReason: null,
     paidReviewRequested: false,
     paidReviewStatus: "not_requested",
+    linkedPlanId: null,
+    linkedWorkoutId: null,
+    linkedExerciseId: null,
+    linkedExerciseName: null,
+    linkedTrainingDay: null,
+    exerciseCategory: null,
+    techniqueReview: null,
+    reviewMode: null,
   };
 }
 
