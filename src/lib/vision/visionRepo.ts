@@ -291,3 +291,191 @@ export async function computeComparison(
 
   return { vsPrevious, vsBest, label, techniqueNote: null };
 }
+
+// ===================== Coach Review =====================
+
+/** Czy zalogowany użytkownik ma rolę trenera. */
+export async function isCoach(userId: string): Promise<boolean> {
+  const { data, error } = await db.rpc("has_role", {
+    _user_id: userId,
+    _role: "coach",
+  });
+  if (error) return false;
+  return Boolean(data);
+}
+
+/** Zawodnik zamawia analizę trenera dla konkretnego testu. */
+export async function requestCoachReview(
+  id: string,
+  reviewType: ReviewType,
+): Promise<VisionTestResult> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .update({
+      review_type: reviewType,
+      paid_review_requested: true,
+      paid_review_status: "requested",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/** Kolejka trenera — testy zgłoszone do analizy, jeszcze niezakończone. */
+export async function listCoachQueue(): Promise<VisionTestResult[]> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .select("*")
+    .eq("paid_review_requested", true)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as VisionRow[]).map(rowToResult);
+}
+
+/** Trener zatwierdza test jako poprawny (Coach Verified). */
+export async function coachVerify(
+  id: string,
+  coachId: string,
+  note: string | null,
+): Promise<VisionTestResult> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .update({
+      coach_id: coachId,
+      coach_verified: true,
+      coach_note: note,
+      review_status: "coach_verified",
+      paid_review_status: "completed",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/** Trener oznacza test jako nieważny (Invalid by Coach). */
+export async function coachInvalidate(
+  id: string,
+  coachId: string,
+  note: string | null,
+): Promise<VisionTestResult> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .update({
+      coach_id: coachId,
+      coach_verified: false,
+      coach_note: note,
+      validity_status: "invalid",
+      review_status: "invalid_by_coach",
+      paid_review_status: "rejected_invalid_video",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/** Trener dodaje analizę techniki i zalecenia (Coach Feedback Added). */
+export async function coachAddFeedback(
+  id: string,
+  coachId: string,
+  feedback: CoachFeedback,
+  note: string | null,
+): Promise<VisionTestResult> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .update({
+      coach_id: coachId,
+      coach_feedback: feedback,
+      coach_note: note,
+      review_status: "coach_feedback_added",
+      paid_review_status: "completed",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/**
+ * Trener poprawia kluczowe klatki — system PRZELICZA wynik automatycznie.
+ * Trener nie wpisuje wyniku z głowy.
+ */
+export async function coachCorrectFrames(
+  result: VisionTestResult,
+  coachId: string,
+  frames: CoachFrames,
+  note: string | null,
+): Promise<VisionTestResult> {
+  const test = getVisionTest(result.testType);
+  if (!test) throw new Error("Nieznany test");
+  const fps = result.fps ?? 0;
+  const recomputed = recomputeMainValue(test, fps, frames);
+
+  const basis = buildCalculationBasis({
+    test,
+    fps,
+    frames,
+    cameraView: result.cameraView,
+    flags: result.validityFlags,
+    confidence: result.confidenceScore,
+    coachVerifiedFrames: true,
+  });
+
+  const patch: Record<string, unknown> = {
+    coach_id: coachId,
+    coach_corrected: true,
+    coach_verified: true,
+    coach_corrected_frames: frames,
+    calculation_method: basis.method,
+    calculation_basis: basis,
+    review_status: "coach_corrected",
+    coach_note: note,
+    paid_review_status: "completed",
+  };
+  if (recomputed != null && result.mainResultUnit) {
+    patch.main_result_value = recomputed;
+  }
+
+  const { data, error } = await db
+    .from("vision_tests")
+    .update(patch)
+    .eq("id", result.id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/**
+ * Ręczna korekta wyniku przez trenera — dozwolona tylko z wyraźnym
+ * oznaczeniem i uzasadnieniem.
+ */
+export async function coachManualOverride(
+  id: string,
+  coachId: string,
+  value: number,
+  reason: string,
+): Promise<VisionTestResult> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .update({
+      coach_id: coachId,
+      main_result_value: value,
+      manual_override: true,
+      manual_override_reason: reason,
+      coach_corrected: true,
+      review_status: "coach_corrected",
+      paid_review_status: "completed",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
