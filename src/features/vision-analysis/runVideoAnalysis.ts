@@ -105,6 +105,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       poses,
       cameraSetup: opts.cameraSetup,
       calibration: opts.calibration ?? null,
+      athleteHeightCm: opts.athleteHeightCm ?? null,
     };
 
     opts.onPhase?.("detecting_events");
