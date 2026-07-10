@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Loader2, Inbox, ShieldAlert } from "lucide-react";
-import { VisionHeader, ReviewStatusBadge, ConfidenceBadge } from "./visionUi";
+import { Loader2, Inbox, ShieldAlert, PlayCircle } from "lucide-react";
+import { VisionHeader } from "./visionUi";
 import { useAuth } from "@/lib/loadwise/auth";
 import { isCoach, listCoachQueue } from "@/lib/vision/visionRepo";
 import {
   CATEGORY_LABELS,
-  PAID_REVIEW_STATUS_LABELS,
+  ANALYSIS_STATUS_LABELS,
   REVIEW_TYPE_LABELS,
   type VisionTestResult,
 } from "@/lib/vision/types";
