@@ -123,6 +123,14 @@ function rowToResult(row: VisionRow): VisionTestResult {
     manualOverrideReason: row.manual_override_reason ?? null,
     paidReviewRequested: row.paid_review_requested ?? false,
     paidReviewStatus: (row.paid_review_status as PaidReviewStatus) ?? "not_requested",
+    linkedPlanId: row.linked_plan_id ?? null,
+    linkedWorkoutId: row.linked_workout_id ?? null,
+    linkedExerciseId: row.linked_exercise_id ?? null,
+    linkedExerciseName: row.linked_exercise_name ?? null,
+    linkedTrainingDay: row.linked_training_day ?? null,
+    exerciseCategory: row.exercise_category ?? null,
+    techniqueReview: row.technique_review ?? null,
+    reviewMode: (row.review_mode as ReviewMode) ?? null,
   };
 }
 
