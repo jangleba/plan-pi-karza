@@ -229,7 +229,7 @@ export async function setSavedToProgress(
 
 /** Dla testów czasowych/hamowania mniejszy wynik = lepiej. */
 function lowerIsBetter(testType: string): boolean {
-  return /sprint|5-10-5|l-drill|t-test|braking-test|flying|to-stop/.test(testType);
+  return /sprint|five_ten_five|sprint_to_stop/.test(testType);
 }
 
 /** Buduje porównanie do poprzedniego i najlepszego wyniku tego samego testu. */

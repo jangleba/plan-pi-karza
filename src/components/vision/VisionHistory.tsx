@@ -40,7 +40,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 function lowerIsBetter(testType: string): boolean {
-  return /sprint|5-10-5|l-drill|t-test|braking-test|flying|to-stop/.test(testType);
+  return /sprint|five_ten_five|sprint_to_stop/.test(testType);
 }
 
 export function VisionHistory() {
