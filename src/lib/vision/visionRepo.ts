@@ -509,7 +509,7 @@ export async function createPendingUpload(input: {
 export async function coachPublishFrameResult(
   result: VisionTestResult,
   coachId: string,
-  frame: import("./frameAnalysisService").FrameAnalysisResult,
+  frame: FrameAnalysisResult,
 ): Promise<VisionTestResult> {
   const d = frame.derived;
   const m = frame.markers;
