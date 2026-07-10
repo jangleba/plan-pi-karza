@@ -1031,7 +1031,8 @@ function isHardStimulus(s: Stimulus): boolean {
   return HARD_STIMULI.includes(s);
 }
 
-export type WeekPhase = "adaptation" | "development" | "peak" | "deload";
+export type { WeekPhase } from "./types";
+import type { WeekPhase } from "./types";
 
 /** Rola tygodnia w periodyzacji 4-tygodniowej. */
 export function phaseOf(weekIndex: number, totalWeeks: number): WeekPhase {
@@ -2066,7 +2067,38 @@ function weekFocusFromSessions(sessions: PlanSession[]): string {
   return seen.length ? seen.join(" + ") : "mikrocykl";
 }
 
-export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
+/**
+ * Czy zawodnik jest w kontekście kontuzji/rehabilitacji/powrotu — jedyny
+ * powód, dla którego cały tydzień może mieć niskie obciążenie.
+ */
+export function isRecoveryContext(profile?: Profile | null): boolean {
+  if (!profile) return false;
+  return (
+    !!profile.painInjury ||
+    profile.seasonPhase === "return_injury" ||
+    profile.goal === "return"
+  );
+}
+
+/**
+ * Zaplanowane obciążenie tygodnia (bez korekty daily readiness).
+ * Domyślne minimum to "umiarkowana" — plan bazowy zawsze daje bodziec rozwojowy.
+ * "Niska" jest dozwolona TYLKO w kontekście kontuzji/rehabilitacji/powrotu.
+ */
+export function plannedWeeklyLoadOf(
+  sessions: PlanSession[],
+  profile?: Profile | null,
+): Intensity {
+  const hasHigh = sessions.some((s) => s.intensity === "wysoka");
+  const hasMod = sessions.some((s) => s.intensity === "umiarkowana");
+  if (hasHigh) return "wysoka";
+  if (hasMod) return "umiarkowana";
+  // Brak jakiegokolwiek bodźca wysokiego/umiarkowanego = lekki tydzień.
+  // Dozwolony wyłącznie z realnego powodu (kontuzja/rehab/powrót).
+  return isRecoveryContext(profile) ? "niska" : "umiarkowana";
+}
+
+export function buildPlanWeeks(plan: SessionDay[], profile?: Profile | null): PlanWeek[] {
   const buckets = new Map<string, SessionDay[]>();
   for (const day of plan) {
     const key = weekStartIso(parseIso(day.date));
@@ -2075,6 +2107,7 @@ export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
     buckets.set(key, list);
   }
 
+  const totalWeeks = buckets.size;
   return [...buckets.entries()].map(([startDate, days], index) => {
     const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
     const endDate = weekEndIso(parseIso(startDate));
@@ -2128,10 +2161,10 @@ export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
     const matchDates = planDays
       .filter((d) => d.source.dayType === "match")
       .map((d) => d.date);
-    const hasHigh = sessions.some((s) => s.intensity === "wysoka");
-    const hasMod = sessions.some((s) => s.intensity === "umiarkowana");
     const reasons: string[] = [];
     if (planDays.length < 7) reasons.push("plan startuje w trakcie tygodnia");
+    const plannedLoad = plannedWeeklyLoadOf(sessions, profile);
+    const weekPhase = phaseOf(index, totalWeeks);
     return {
       weekId: `${startDate}_${endDate}`,
       weekNumber: index + 1,
@@ -2141,10 +2174,44 @@ export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
       matchDate: matchDates[0] ?? null,
       matchDates,
       focus: weekFocusFromSessions(sessions),
-      loadLevel: hasHigh ? "wysoka" : hasMod ? "umiarkowana" : "niska",
+      loadLevel: plannedLoad,
+      weekPhase,
+      plannedWeeklyLoad: plannedLoad,
       reasons,
     };
   });
+}
+
+/** Problem walidacyjny planu wykryty przed zapisem/wyświetleniem. */
+export interface PlanValidationIssue {
+  weekIndex: number;
+  code: "unjustified-light-week";
+  message: string;
+}
+
+/**
+ * Walidator planu — uruchamiany przed zapisaniem i wyświetleniem.
+ * Zabrania automatycznego generowania lekkich tygodni bez przyczyny.
+ * Daily readiness NIE wpływa na te wartości (obciążenie tygodnia jest
+ * liczone z zaplanowanych sesji, nie z gotowości), więc pojedynczy słaby
+ * dzień nie może obniżyć całego planu.
+ */
+export function validatePlanWeeks(
+  weeks: PlanWeek[],
+  profile?: Profile | null,
+): PlanValidationIssue[] {
+  const issues: PlanValidationIssue[] = [];
+  weeks.forEach((w, i) => {
+    if (w.plannedWeeklyLoad === "niska" && !isRecoveryContext(profile)) {
+      issues.push({
+        weekIndex: i,
+        code: "unjustified-light-week",
+        message:
+          "Lekki tydzień bez przyczyny — dozwolony tylko przy kontuzji, rehabilitacji lub powrocie do gry.",
+      });
+    }
+  });
+  return issues;
 }
 
 function isRealSession(session: PlanSession): boolean {
@@ -4440,26 +4507,51 @@ export function applyReadiness(
   }
 
   const r = readiness.overall;
+  // Sygnały bardzo złego dnia (skala 1–10): zły sen, silne zmęczenie,
+  // mocna bolesność lub istotny ból stawów — mogą zadziałać jak readiness 1–3.
+  const severeSignals =
+    readiness.sleep <= 3 ||
+    readiness.fatigue >= 8 ||
+    readiness.soreness >= 8 ||
+    readiness.jointPain >= 6;
+
   let factor = 1;
   let adjustment: string | null = null;
   let removeHard = false;
+  let keepIntensity = false;
   let recoveryOnly = false;
 
   if (r >= 8) {
+    // 8–10: pełny plan.
     factor = 1;
     adjustment = null;
   } else if (r >= 6) {
+    // 6–7: zachowaj bodziec, zmniejsz TYLKO objętość o 10–20% (bez spadku intensywności).
     factor = 0.85;
-    adjustment = "Gotowość 6–7: zmniejszamy objętość o ok. 10–20%.";
-  } else if (r >= 4) {
-    factor = 0.65;
+    keepIntensity = true;
+    adjustment = "Gotowość 6–7: zachowujemy bodziec, zmniejszamy objętość o ok. 10–20%.";
+  } else if (r >= 4 && !severeSignals) {
+    // 4–5: redukcja ~40%, usunięcie ciężkiej siły, maks. sprintów i wysokiej intensywności.
+    factor = 0.6;
     removeHard = true;
     adjustment =
-      "Gotowość 4–5: redukcja objętości o 30–40% i usunięcie pracy o wysokiej intensywności.";
+      "Gotowość 4–5: redukcja objętości o ok. 40% i usunięcie ciężkiej siły, maksymalnych sprintów oraz pracy o wysokiej intensywności.";
   } else {
+    // 1–3 lub bardzo zły sen/zmęczenie/ból: zamiana jednostki na regenerację.
     recoveryOnly = true;
-    adjustment =
-      "Gotowość 1–3: tylko regeneracja, mobilność, oddech i lekka technika.";
+    adjustment = severeSignals
+      ? "Bardzo słabe samopoczucie (sen/zmęczenie/ból): zamieniamy jednostkę na regenerację."
+      : "Gotowość 1–3: tylko regeneracja, mobilność, oddech i lekka technika.";
+  }
+
+  // Aktywny ból/uraz zawsze nadpisuje cel treningowy.
+  if (profile.painInjury) {
+    if (severeSignals || r < 4) {
+      recoveryOnly = true;
+    } else {
+      removeHard = true;
+      keepIntensity = false;
+    }
   }
 
   let adjusted: SessionDay = { ...session };
@@ -4485,9 +4577,11 @@ export function applyReadiness(
       durationMin: Math.round(session.durationMin * factor),
       intensity: removeHard
         ? lowerIntensity(session.intensity, 2)
-        : factor < 1
-          ? lowerIntensity(session.intensity, 1)
-          : session.intensity,
+        : keepIntensity
+          ? session.intensity
+          : factor < 1
+            ? lowerIntensity(session.intensity, 1)
+            : session.intensity,
       sections: {
         ...session.sections,
         main: removeHard
