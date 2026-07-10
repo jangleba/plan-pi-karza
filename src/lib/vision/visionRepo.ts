@@ -175,6 +175,16 @@ export async function saveVisionResult(
     ai_feedback: { ...analysis.aiFeedback, signals: analysis.signals },
     comparison_to_previous: comparison,
     saved_to_progress: false,
+    review_status: analysis.reviewStatus,
+    review_type: analysis.reviewType,
+    coach_verified: analysis.coachVerified,
+    coach_corrected: analysis.coachCorrected,
+    coach_corrected_frames: analysis.coachCorrectedFrames,
+    calculation_method: analysis.calculationMethod,
+    calculation_basis: analysis.calculationBasis,
+    manual_override: analysis.manualOverride,
+    paid_review_requested: analysis.paidReviewRequested,
+    paid_review_status: analysis.paidReviewStatus,
   };
 
   const { data, error } = await db
