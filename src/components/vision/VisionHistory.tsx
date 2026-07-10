@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import {
   CATEGORY_LABELS,
   GYM_REVIEW_STATUS_LABELS,
+  ANALYSIS_STATUS_LABELS,
   type VisionTestResult,
   type VisionTestCategory,
 } from "@/lib/vision/types";
