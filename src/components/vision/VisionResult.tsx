@@ -199,7 +199,21 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
             </ul>
           </div>
         )}
+
+        {/* Zastrzeżenie */}
+        <div className="flex items-start gap-2 rounded-xl bg-secondary p-3 text-[11px] text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{COACH_REVIEW_DISCLAIMER}</span>
+        </div>
       </div>
+
+      <VisionCoachReviewSheet
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        result={result}
+        onRequested={setResult}
+      />
+
 
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 px-5 py-3 backdrop-blur"
