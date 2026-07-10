@@ -785,8 +785,8 @@ function isoForMain(mainName: string): { name: string; cue: string } {
     };
   }
   return {
-    name: "Przysiad przy pinach (iso)",
-    cue: "Maks. napięcie 3–5 s, pchaj podłogę.",
+    name: "Napór iso przy pinach — jednonóż",
+    cue: "Noga w górze 90°, mocny izometryczny napór w piny.",
   };
 }
 
