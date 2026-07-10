@@ -41,7 +41,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [progress, setProgress] = useState(0);
   const [state, setState] = useState<UiState>({ kind: "running" });
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-  const started = useRef(false);
+
 
   const runToken = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
