@@ -18,6 +18,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VisionLabIndexRouteImport } from './routes/vision-lab.index'
+import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.history'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
@@ -75,6 +76,11 @@ const IndexRoute = IndexRouteImport.update({
 const VisionLabIndexRoute = VisionLabIndexRouteImport.update({
   id: '/vision-lab/',
   path: '/vision-lab/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VisionLabHistoryRoute = VisionLabHistoryRouteImport.update({
+  id: '/vision-lab/history',
+  path: '/vision-lab/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SesjaDateRoute = SesjaDateRouteImport.update({
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/_tabs/scouting': typeof TabsScoutingRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/scouting'
     | '/start'
     | '/sesja/$date'
+    | '/vision-lab/history'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
     | '/vision-lab/result/$resultId'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/scouting'
     | '/start'
     | '/sesja/$date'
+    | '/vision-lab/history'
     | '/vision-lab'
     | '/.mcp/invoke-tool/$tool'
     | '/vision-lab/result/$resultId'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/_tabs/scouting'
     | '/_tabs/start'
     | '/sesja/$date'
+    | '/vision-lab/history'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
     | '/vision-lab/result/$resultId'
@@ -317,6 +329,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   SesjaDateRoute: typeof SesjaDateRoute
+  VisionLabHistoryRoute: typeof VisionLabHistoryRoute
   VisionLabIndexRoute: typeof VisionLabIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   VisionLabResultResultIdRoute: typeof VisionLabResultResultIdRoute
@@ -389,6 +402,13 @@ declare module '@tanstack/react-router' {
       path: '/vision-lab'
       fullPath: '/vision-lab/'
       preLoaderRoute: typeof VisionLabIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vision-lab/history': {
+      id: '/vision-lab/history'
+      path: '/vision-lab/history'
+      fullPath: '/vision-lab/history'
+      preLoaderRoute: typeof VisionLabHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sesja/$date': {
@@ -523,6 +543,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   SesjaDateRoute: SesjaDateRoute,
+  VisionLabHistoryRoute: VisionLabHistoryRoute,
   VisionLabIndexRoute: VisionLabIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   VisionLabResultResultIdRoute: VisionLabResultResultIdRoute,
