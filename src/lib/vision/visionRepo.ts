@@ -750,6 +750,8 @@ export async function coachManualOverride(
       manual_override_reason: reason,
       coach_corrected: true,
       review_status: "coach_corrected",
+      analysis_status: "completed",
+      visibility_status: "visible_to_player",
       paid_review_status: "completed",
     })
     .eq("id", id)
