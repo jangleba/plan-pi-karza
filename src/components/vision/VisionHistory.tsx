@@ -33,7 +33,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "jump", label: "Jump Lab" },
   { key: "sprint", label: "Sprint Lab" },
   { key: "cod", label: "COD & Braking" },
-  { key: "technique", label: "Technika" },
+  { key: "technique", label: "Gym Technique" },
   { key: "last7", label: "Ostatnie 7 dni" },
   { key: "last30", label: "Ostatnie 30 dni" },
   { key: "best", label: "Najlepsze" },
