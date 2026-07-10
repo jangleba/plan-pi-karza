@@ -20,7 +20,8 @@ import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.png";
 import calfRaise from "@/assets/blueprints/calf_raise.png";
 import pogoJump from "@/assets/blueprints/pogo_jump.png";
 import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
-import pinDriveIsoSingleLegAskip from "@/assets/blueprints/pin_drive_iso_single_leg_a_skip.png";
+import pinIsoAnkle from "@/assets/blueprints/pin_iso_ankle.png";
+import pinIsoFullFoot from "@/assets/blueprints/pin_iso_full_foot.png";
 import facePull from "@/assets/blueprints/face_pull.png";
 import frontSquat from "@/assets/blueprints/front_squat.png";
 import trapBarHighPin from "@/assets/blueprints/trap_bar_high_pin.png";
@@ -77,12 +78,19 @@ export interface ExerciseVisual {
  * to ćwiczenie (lub jego bezpośrednie warianty o identycznym wzorcu ruchu).
  */
 export const visualLibrary: Record<string, ExerciseVisual> = {
-  pin_drive_iso_single_leg_a_skip: {
-    visualId: "pin_drive_iso_single_leg_a_skip",
-    src: pinDriveIsoSingleLegAskip,
-    title: "Napór iso przy pinach — jednonóż (A-skip iso)",
+  pin_iso_ankle: {
+    visualId: "pin_iso_ankle",
+    src: pinIsoAnkle,
+    title: "Przysiad przy pinach (iso) — staw skokowy",
     movementType: "isometric",
-    exerciseNames: ["Napór iso przy pinach — jednonóż"],
+    exerciseNames: ["Przysiad przy pinach (iso) — staw skokowy"],
+  },
+  pin_iso_full_foot: {
+    visualId: "pin_iso_full_foot",
+    src: pinIsoFullFoot,
+    title: "Przysiad przy pinach (iso) — cała stopa",
+    movementType: "isometric",
+    exerciseNames: ["Przysiad przy pinach (iso) — cała stopa"],
   },
   face_pull: {
     visualId: "face_pull",

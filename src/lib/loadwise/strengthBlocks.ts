@@ -774,19 +774,13 @@ function isoForMain(mainName: string): { name: string; cue: string } {
   const n = mainName.toLowerCase();
   if (n.includes("trap bar") || n.includes("martwy ciąg") || n.includes("rdl") || n.includes("hip thrust") || n.includes("good morning") || n.includes("hinge")) {
     return {
-      name: "Mid-thigh pull przy pinach (iso)",
-      cue: "Maks. napięcie 3–5 s, plecy proste.",
-    };
-  }
-  if (n.includes("split") || n.includes("wykrok") || n.includes("step")) {
-    return {
-      name: "Split squat przy pinach (iso)",
-      cue: "Maks. napięcie 3–5 s, stabilne kolano.",
+      name: "Przysiad przy pinach (iso) — cała stopa",
+      cue: "Noga w górze 90°, napór całą stopą w podłoże, 3–5 s maks.",
     };
   }
   return {
-    name: "Napór iso przy pinach — jednonóż",
-    cue: "Noga w górze 90°, mocny izometryczny napór w piny.",
+    name: "Przysiad przy pinach (iso) — staw skokowy",
+    cue: "Noga w górze 90°, praca tylko ze stawu skokowego, 3–5 s maks.",
   };
 }
 
