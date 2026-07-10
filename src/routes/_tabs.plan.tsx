@@ -13,6 +13,12 @@ import {
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
 import {
   Clock,
@@ -245,37 +251,71 @@ function weekSummary(
 
 
 function PlanScreen() {
-  const { state, todayIso, todaySession } = useLoadwise();
+  const { state, todayIso, todaySession, updateProfile } = useLoadwise();
   const plan = state.plan;
   const completions = state.completions;
   const profile = state.profile;
   const transitions = state.transitions;
   const [activeWeek, setActiveWeek] = useState(0);
   const [gateWeek, setGateWeek] = useState<number | null>(null);
+  const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
+  const [switchingSeason, setSwitchingSeason] = useState(false);
 
   const weeks = buildPlanWeeks(plan);
 
+  // Tryb sezonu: świadomy wybór w profilu. "Poza sezonem" TYLKO gdy
+  // seasonPhase = offseason/transition. Brak daty meczu NIE oznacza automatycznie
+  // okresu poza sezonem.
+  const seasonStatus: "in_season" | "off_season" =
+    profile?.seasonPhase === "offseason" || profile?.seasonPhase === "transition"
+      ? "off_season"
+      : "in_season";
+  const offseasonAllowed = seasonStatus === "off_season";
 
-  // Tydzień 0 zawsze dostępny. Kolejny tydzień i dostępny tylko po
-  // potwierdzeniu weekly gate (transitions[i]).
-  const canAccess = (i: number) => i === 0 || !!transitions[i];
+  // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
+  const weekHasMatchDate = (i: number) =>
+    !!transitions[i]?.nextMatchDate ||
+    (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
 
-  // Najwcześniejszy nieodblokowany tydzień na drodze do i.
+  // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
+  // tydzień wymaga zapisanej daty meczu dla każdego wcześniejszego przejścia.
+  const canAccess = (i: number) => {
+    if (i === 0) return true;
+    if (seasonStatus === "off_season") return true;
+    for (let j = 1; j <= i; j++) {
+      if (!weekHasMatchDate(j)) return false;
+    }
+    return true;
+  };
+
+  // Najwcześniejszy tydzień bez daty meczu na drodze do i.
   const firstLockedUpTo = (i: number): number | null => {
     for (let j = 1; j <= i; j++) {
-      if (!transitions[j]) return j;
+      if (!weekHasMatchDate(j)) return j;
     }
     return null;
   };
 
-  const openTab = (i: number) => {
+  // Jedyna droga zmiany aktywnego tygodnia — twarda blokada w kodzie.
+  const goToWeek = (i: number) => {
     if (canAccess(i)) {
       setActiveWeek(i);
       return;
     }
     const locked = firstLockedUpTo(i);
-    if (locked !== null) setGateWeek(locked);
+    if (locked !== null) setNeedMatchWeek(locked);
   };
+
+  async function switchToSeasonal() {
+    if (!profile || switchingSeason) return;
+    setSwitchingSeason(true);
+    try {
+      await updateProfile({ ...profile, seasonPhase: "inseason" });
+      toast.success("Tryb sezonowy włączony.");
+    } finally {
+      setSwitchingSeason(false);
+    }
+  }
 
   const monthGoal =
     GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
@@ -288,19 +328,13 @@ function PlanScreen() {
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
   const hasNext = nextIndex < weeks.length;
-  const nextConfirmed = !!transitions[nextIndex];
   const nextTransition = transitions[nextIndex];
 
-  // Poza sezonem / przejściowy: dopuszczamy tydzień bez meczu.
-  const offseasonAllowed =
-    profile?.seasonPhase === "offseason" ||
-    profile?.seasonPhase === "transition";
-  const nextReady =
-    !!nextTransition?.nextMatchDate ||
-    (offseasonAllowed && !!nextTransition?.noMatchNextWeek);
+  // Kolejny tydzień gotowy: poza sezonem zawsze, w sezonie tylko z datą meczu.
+  const nextReady = seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
 
-  // Granice kolejnego tygodnia (dla bramki).
-  const gateNextIndex = gateWeek;
+  // Granice tygodnia wymagającego daty meczu (dla bramki i modala).
+  const gateNextIndex = gateWeek ?? needMatchWeek;
   const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
@@ -313,6 +347,17 @@ function PlanScreen() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [activeWeek]);
+
+  // Twarda blokada wejścia w zablokowany tydzień przez bezpośrednią zmianę
+  // stanu (np. z historii / URL) — cofnij do najbliższego dostępnego tygodnia.
+  useEffect(() => {
+    if (!canAccess(activeWeek)) {
+      const locked = firstLockedUpTo(activeWeek);
+      setActiveWeek(locked !== null ? locked - 1 : 0);
+      if (locked !== null) setNeedMatchWeek(locked);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWeek, transitions, seasonStatus]);
 
 
 
@@ -349,7 +394,7 @@ function PlanScreen() {
               <button
                 key={i}
                 type="button"
-                onClick={() => openTab(i)}
+                onClick={() => goToWeek(i)}
                 className={`flex shrink-0 flex-col items-start gap-0.5 rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
                   i === activeWeek
                     ? "bg-primary text-primary-foreground"
@@ -369,8 +414,33 @@ function PlanScreen() {
         </div>
       )}
 
+      {/* Pasek trybu poza sezonem */}
+      {seasonStatus === "off_season" && weeks.length > 0 && (
+        <div className="px-5 pt-2">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/60 px-4 py-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card text-muted-foreground">
+              <Leaf className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">Okres poza sezonem</p>
+              <p className="text-xs text-muted-foreground">
+                Plan rozwija formę bez powiązania z terminarzem meczowym.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={switchingSeason}
+              onClick={switchToSeasonal}
+              className="shrink-0"
+            >
+              {switchingSeason ? "…" : "Zmień na tryb sezonowy"}
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Hero — decyzja dnia */}
+
       {todaySession &&
         (() => {
           const HeroIcon = sessionIcon(todaySession);
@@ -550,17 +620,13 @@ function PlanScreen() {
 
             <Button
               className="mt-3 w-full"
-              disabled={!nextReady}
               onClick={() => {
                 if (!nextReady) {
-                  toast.error(
-                    offseasonAllowed
-                      ? "Wybierz datę meczu albo zaznacz tydzień bez meczu."
-                      : "Najpierw wybierz datę kolejnego meczu.",
-                  );
+                  // Twarda blokada: brak daty meczu w sezonie -> modal.
+                  setNeedMatchWeek(nextIndex);
                   return;
                 }
-                setActiveWeek(nextIndex);
+                goToWeek(nextIndex);
               }}
             >
               Przejdź do kolejnego tygodnia
@@ -572,12 +638,49 @@ function PlanScreen() {
               onClick={() => setGateWeek(nextIndex)}
               className="mt-2 w-full text-center text-xs font-medium text-primary"
             >
-              Zmień datę meczu
+              {seasonStatus === "off_season" ? "Ustaw datę meczu (opcjonalnie)" : "Zmień datę meczu"}
             </button>
           </div>
 
         </div>
       )}
+
+      {/* Twarda blokada: modal wymuszający datę kolejnego meczu w sezonie */}
+      <Dialog
+        open={needMatchWeek !== null}
+        onOpenChange={(v) => {
+          if (!v) setNeedMatchWeek(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Uzupełnij kolejny mecz</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Data następnego meczu jest potrzebna, aby prawidłowo rozłożyć
+            obciążenie, regenerację i dni MD.
+          </p>
+          <Button
+            className="mt-4 w-full"
+            onClick={() => {
+              const target = needMatchWeek;
+              setNeedMatchWeek(null);
+              if (target !== null) setGateWeek(target);
+            }}
+          >
+            <CalendarClock className="mr-1 h-4 w-4" />
+            Dodaj datę meczu
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => setNeedMatchWeek(null)}
+          >
+            Wróć do planu
+          </Button>
+        </DialogContent>
+      </Dialog>
+
 
       {gateWeek !== null && gateWeekData && (
         <WeeklyGateSheet
