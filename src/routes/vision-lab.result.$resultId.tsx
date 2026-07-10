@@ -16,7 +16,7 @@ function ResultRoute() {
   const [busy, setBusy] = useState(true);
 
   useEffect(() => {
-    getVisionResult(resultId)
+    getResultById(resultId)
       .then(setResult)
       .catch(() => setResult(null))
       .finally(() => setBusy(false));
