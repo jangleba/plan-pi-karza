@@ -668,6 +668,8 @@ export async function coachAddFeedback(
       coach_feedback: feedback,
       coach_note: note,
       review_status: "coach_feedback_added",
+      analysis_status: "completed",
+      visibility_status: "visible_to_player",
       paid_review_status: "completed",
     })
     .eq("id", id)
