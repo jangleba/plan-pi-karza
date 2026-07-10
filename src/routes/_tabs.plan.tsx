@@ -245,37 +245,71 @@ function weekSummary(
 
 
 function PlanScreen() {
-  const { state, todayIso, todaySession } = useLoadwise();
+  const { state, todayIso, todaySession, updateProfile } = useLoadwise();
   const plan = state.plan;
   const completions = state.completions;
   const profile = state.profile;
   const transitions = state.transitions;
   const [activeWeek, setActiveWeek] = useState(0);
   const [gateWeek, setGateWeek] = useState<number | null>(null);
+  const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
+  const [switchingSeason, setSwitchingSeason] = useState(false);
 
   const weeks = buildPlanWeeks(plan);
 
+  // Tryb sezonu: świadomy wybór w profilu. "Poza sezonem" TYLKO gdy
+  // seasonPhase = offseason/transition. Brak daty meczu NIE oznacza automatycznie
+  // okresu poza sezonem.
+  const seasonStatus: "in_season" | "off_season" =
+    profile?.seasonPhase === "offseason" || profile?.seasonPhase === "transition"
+      ? "off_season"
+      : "in_season";
+  const offseasonAllowed = seasonStatus === "off_season";
 
-  // Tydzień 0 zawsze dostępny. Kolejny tydzień i dostępny tylko po
-  // potwierdzeniu weekly gate (transitions[i]).
-  const canAccess = (i: number) => i === 0 || !!transitions[i];
+  // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
+  const weekHasMatchDate = (i: number) =>
+    !!transitions[i]?.nextMatchDate ||
+    (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
 
-  // Najwcześniejszy nieodblokowany tydzień na drodze do i.
+  // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
+  // tydzień wymaga zapisanej daty meczu dla każdego wcześniejszego przejścia.
+  const canAccess = (i: number) => {
+    if (i === 0) return true;
+    if (seasonStatus === "off_season") return true;
+    for (let j = 1; j <= i; j++) {
+      if (!weekHasMatchDate(j)) return false;
+    }
+    return true;
+  };
+
+  // Najwcześniejszy tydzień bez daty meczu na drodze do i.
   const firstLockedUpTo = (i: number): number | null => {
     for (let j = 1; j <= i; j++) {
-      if (!transitions[j]) return j;
+      if (!weekHasMatchDate(j)) return j;
     }
     return null;
   };
 
-  const openTab = (i: number) => {
+  // Jedyna droga zmiany aktywnego tygodnia — twarda blokada w kodzie.
+  const goToWeek = (i: number) => {
     if (canAccess(i)) {
       setActiveWeek(i);
       return;
     }
     const locked = firstLockedUpTo(i);
-    if (locked !== null) setGateWeek(locked);
+    if (locked !== null) setNeedMatchWeek(locked);
   };
+
+  async function switchToSeasonal() {
+    if (!profile || switchingSeason) return;
+    setSwitchingSeason(true);
+    try {
+      await updateProfile({ ...profile, seasonPhase: "inseason" });
+      toast.success("Tryb sezonowy włączony.");
+    } finally {
+      setSwitchingSeason(false);
+    }
+  }
 
   const monthGoal =
     GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
@@ -288,19 +322,13 @@ function PlanScreen() {
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
   const hasNext = nextIndex < weeks.length;
-  const nextConfirmed = !!transitions[nextIndex];
   const nextTransition = transitions[nextIndex];
 
-  // Poza sezonem / przejściowy: dopuszczamy tydzień bez meczu.
-  const offseasonAllowed =
-    profile?.seasonPhase === "offseason" ||
-    profile?.seasonPhase === "transition";
-  const nextReady =
-    !!nextTransition?.nextMatchDate ||
-    (offseasonAllowed && !!nextTransition?.noMatchNextWeek);
+  // Kolejny tydzień gotowy: poza sezonem zawsze, w sezonie tylko z datą meczu.
+  const nextReady = seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
 
-  // Granice kolejnego tygodnia (dla bramki).
-  const gateNextIndex = gateWeek;
+  // Granice tygodnia wymagającego daty meczu (dla bramki i modala).
+  const gateNextIndex = gateWeek ?? needMatchWeek;
   const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
@@ -313,6 +341,17 @@ function PlanScreen() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [activeWeek]);
+
+  // Twarda blokada wejścia w zablokowany tydzień przez bezpośrednią zmianę
+  // stanu (np. z historii / URL) — cofnij do najbliższego dostępnego tygodnia.
+  useEffect(() => {
+    if (!canAccess(activeWeek)) {
+      const locked = firstLockedUpTo(activeWeek);
+      setActiveWeek(locked !== null ? locked - 1 : 0);
+      if (locked !== null) setNeedMatchWeek(locked);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWeek, transitions, seasonStatus]);
 
 
 
