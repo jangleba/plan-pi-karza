@@ -20,7 +20,7 @@ import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.png";
 import calfRaise from "@/assets/blueprints/calf_raise.png";
 import pogoJump from "@/assets/blueprints/pogo_jump.png";
 import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
-import pinSquatIsoSingleLegDeep from "@/assets/blueprints/pin_squat_iso_single_leg_deep.png";
+import pinDriveIsoSingleLegAskip from "@/assets/blueprints/pin_drive_iso_single_leg_a_skip.png";
 import facePull from "@/assets/blueprints/face_pull.png";
 import frontSquat from "@/assets/blueprints/front_squat.png";
 import trapBarHighPin from "@/assets/blueprints/trap_bar_high_pin.png";
