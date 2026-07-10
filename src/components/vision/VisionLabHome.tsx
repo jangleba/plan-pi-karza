@@ -1,0 +1,79 @@
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { History, Sparkles } from "lucide-react";
+import { VisionHeader } from "./visionUi";
+import { VisionCategoryCard } from "./VisionCategoryCard";
+import { VisionTestCard } from "./VisionTestCard";
+import { VisionGhostReplayPlaceholder } from "./VisionGhostReplayPlaceholder";
+import { VISION_TESTS } from "@/lib/vision/visionTests";
+import {
+  CATEGORY_LABELS,
+  type VisionTestCategory,
+} from "@/lib/vision/types";
+
+const CATEGORIES: VisionTestCategory[] = ["jump", "sprint", "cod", "technique"];
+
+export function VisionLabHome() {
+  const [active, setActive] = useState<VisionTestCategory>("jump");
+  const tests = VISION_TESTS.filter((t) => t.category === active);
+
+  return (
+    <div className="pb-16">
+      <VisionHeader
+        title="Vision Lab"
+        subtitle="Nagraj test, otrzymaj analizę i śledź progres."
+        backTo="/start"
+        right={
+          <Link
+            to="/vision-lab/history"
+            className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground active:scale-95"
+          >
+            <History className="h-4 w-4" /> Historia
+          </Link>
+        }
+      />
+
+      <div className="space-y-5 px-5">
+        <div className="hero-card flex items-center gap-3 p-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand/20">
+            <Sparkles className="h-6 w-6 text-[oklch(0.78_0.13_256)]" />
+          </span>
+          <p className="text-sm leading-snug text-graphite-foreground">
+            Każdy wynik pokazuje pewność, ważność i FPS. Vision Lab nie udaje
+            fałszywej dokładności.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Kategorie
+          </h2>
+          <div className="grid grid-cols-2 gap-2.5">
+            {CATEGORIES.map((c) => (
+              <VisionCategoryCard
+                key={c}
+                category={c}
+                count={VISION_TESTS.filter((t) => t.category === c).length}
+                active={active === c}
+                onClick={() => setActive(c)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {CATEGORY_LABELS[active]}
+          </h2>
+          <div className="space-y-2.5">
+            {tests.map((t) => (
+              <VisionTestCard key={t.id} test={t} />
+            ))}
+          </div>
+        </div>
+
+        <VisionGhostReplayPlaceholder />
+      </div>
+    </div>
+  );
+}
