@@ -22,9 +22,7 @@ import {
   Plus,
   Repeat,
   Undo2,
-  ScanEye,
   Apple,
-
 } from "lucide-react";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
@@ -289,24 +287,6 @@ function StartScreen() {
           />
         )}
 
-        {/* Vision Lab — analiza wideo */}
-        <Link
-          to="/vision-lab"
-          className="soft-card flex w-full items-center gap-3 p-4 transition-transform active:scale-[0.99]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-brand">
-            <ScanEye className="h-6 w-6" strokeWidth={2.1} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium uppercase tracking-wide text-primary">
-              Vision Lab
-            </div>
-            <div className="mt-0.5 truncate text-sm font-semibold">
-              Testy wideo: skok, sprint, zwrotność, technika
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </Link>
 
         {/* Fuel Check — analiza żywienia */}
         <Link
