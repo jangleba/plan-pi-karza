@@ -13,6 +13,12 @@ import {
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
 import {
   Clock,
