@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { History, Sparkles } from "lucide-react";
+import { History, Sparkles, ClipboardCheck } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionCategoryCard } from "./VisionCategoryCard";
 import { VisionTestCard } from "./VisionTestCard";
 import { VisionGhostReplayPlaceholder } from "./VisionGhostReplayPlaceholder";
 import { VISION_TESTS } from "@/lib/vision/visionTests";
+import { isCoach } from "@/lib/vision/visionRepo";
+import { useAuth } from "@/lib/loadwise/auth";
 import {
   CATEGORY_LABELS,
   type VisionTestCategory,
@@ -14,8 +16,14 @@ import {
 const CATEGORIES: VisionTestCategory[] = ["jump", "sprint", "cod", "technique"];
 
 export function VisionLabHome() {
+  const { user } = useAuth();
   const [active, setActive] = useState<VisionTestCategory>("jump");
+  const [coach, setCoach] = useState(false);
   const tests = VISION_TESTS.filter((t) => t.category === active);
+
+  useEffect(() => {
+    if (user) isCoach(user.id).then(setCoach);
+  }, [user]);
 
   return (
     <div className="pb-16">
