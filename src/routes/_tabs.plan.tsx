@@ -388,7 +388,7 @@ function PlanScreen() {
               <button
                 key={i}
                 type="button"
-                onClick={() => openTab(i)}
+                onClick={() => goToWeek(i)}
                 className={`flex shrink-0 flex-col items-start gap-0.5 rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
                   i === activeWeek
                     ? "bg-primary text-primary-foreground"
