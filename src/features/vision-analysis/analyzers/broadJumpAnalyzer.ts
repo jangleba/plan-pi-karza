@@ -100,10 +100,10 @@ function validate(ctx: AnalysisContext): ValidationResult {
 
 export const broadJumpAnalyzer: TestAnalyzer = {
   testType: "broad_jump",
-  analyzerVersion: "broad_jump-1.0.0",
+  analyzerVersion: "broad_jump-2.0.0",
   requiredCameraSetup: "side",
   minimumFps: MIN_FPS,
-  requiresCalibration: true,
+  requiresCalibration: false,
   validateRecording: validate,
   detectKeyEvents: async (ctx) => events(ctx),
   calculateMetrics: (ev, ctx) => metrics(ev, ctx),
