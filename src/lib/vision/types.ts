@@ -106,6 +106,22 @@ export interface VisionTestResult {
   signals?: VisionSignals;
   savedToProgress: boolean;
   createdAt: string;
+
+  // Coach Review + „Jak powstał wynik?”
+  reviewStatus: ReviewStatus;
+  reviewType: ReviewType | null;
+  coachId: string | null;
+  coachNote: string | null;
+  coachFeedback: CoachFeedback | null;
+  coachVerified: boolean;
+  coachCorrected: boolean;
+  coachCorrectedFrames: CoachFrames | null;
+  calculationMethod: string | null;
+  calculationBasis: CalculationBasis | null;
+  manualOverride: boolean;
+  manualOverrideReason: string | null;
+  paidReviewRequested: boolean;
+  paidReviewStatus: PaidReviewStatus;
 }
 
 /** Porównanie wyniku do poprzedniego / najlepszego. */
