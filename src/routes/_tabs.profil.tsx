@@ -13,6 +13,7 @@ import {
 } from "@/lib/loadwise/labels";
 import type { DoubleSessions } from "@/lib/loadwise/types";
 import { Button } from "@/components/ui/button";
+import { PlayerAnalysis } from "@/components/loadwise/PlayerAnalysis";
 import {
   User,
   Target,
@@ -179,6 +180,13 @@ function ProfilScreen() {
                 : "Pełnoletni — zgoda niewymagana"}
             </div>
           </div>
+        </div>
+
+        <div className="pt-1">
+          <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Target className="h-3.5 w-3.5" /> Analiza zawodnika · Player Analysis
+          </div>
+          <PlayerAnalysis />
         </div>
 
         <Button

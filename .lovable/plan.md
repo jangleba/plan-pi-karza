@@ -1,53 +1,50 @@
-# Vision Lab: automatyczny gotowy wynik dla zawodnika
+# Przebudowa TheBallLab — Scouting jako warstwa, nie produkt
 
-## Cel
-Każdy poprawnie nagrany test ma dawać zawodnikowi **gotowy wynik liczbowy** liczony klatka po klatce, bez ręcznego zaznaczania linii i bez czekania na trenera — o ile fizyka na to pozwala. Coach review zostaje tylko jako fallback przy niskiej pewności, nie jako domyślna ścieżka.
+Cel: plan + testy + progres pozostają fundamentem. Scouting to profesjonalna warstwa widoczności oparta **wyłącznie na realnych danych**. Zero mocków w produkcyjnym UI; wszędzie stany puste + statusy wiarygodności.
 
-## Co już działa (zostawiamy)
-- CMJ → wysokość wyskoku z czasu lotu (metoda flight-time, bez skali).
-- Pogo → czas kontaktu, wysokość, RSI (czasowe, bez skali).
-Te dwa już zwracają `completed` i pełny raport.
+To duży projekt — dzielę go na fazy. Każda faza jest osobno testowalna. Migracja bazy wymaga Twojej akceptacji, więc idzie jako pierwszy krok każdej fazy z danymi.
 
-## Co trzeba naprawić (teraz idą do trenera zamiast do zawodnika)
+## Faza 1 — Nawigacja i przeniesienie Analizy do Profilu (bez bazy)
+Dolna nawigacja: **Plan · Testy · Progress · Scouting · Profil** (usuwamy „Start" i osobną „Analiza").
+- `BottomNav.tsx`: nowe pozycje/ikony/trasy.
+- Trasa `/progress` (nowa) — realny progres z istniejących danych (readiness, ukończone sesje, testy, transitions tygodniowe/miesięczne). Pusty stan gdy brak danych.
+- Obecna zawartość „Analiza" (`_tabs.scouting.tsx`: mocne strony, priorytety, notatki, szanse) przenosi się do **Profilu** jako sekcja **Player Analysis / Analiza zawodnika**.
+- Profil rozbudowany o sekcje: dane podstawowe (pozycja, wiek, wzrost, waga, noga, klub, poziom), Test History, Progress Report, Player Analysis (mocne/słabe/ryzyka + raport miesięczny generowany z realnych danych), Videos, Scouting Profile, Privacy/Visibility.
+- Reguła: brak danych → „Brakuje danych do pełnej analizy. Wykonaj testy i zapisz minimum kilka treningów." Żadnych losowych insightów.
+- `/scouting` staje się nową zakładką Scouting (zawodnika) — na razie stany puste.
 
-### 1. Auto-kalibracja skali z wzrostu zawodnika
-Testy dystansowe (sprint, broad jump) potrzebują skali metry↔piksele. Zamiast prosić o rysowanie linii, wyliczamy skalę z **realnego wzrostu zawodnika** (z profilu `athlete_profiles.height_cm`) zmierzonego w pikselach w stabilnej klatce stojącej (kostka→bark z antropometrycznym współczynnikiem, lub kostka→czubek głowy).
-- Nowy moduł `autoCalibration.ts`: `estimateScaleFromHeight(poses, heightCm)` → metry na jednostkę znormalizowaną + confidence.
-- Wzrost przekazywany do `runVideoAnalysis` z profilu zawodnika (flow/onboarding).
-- Gdy brak wzrostu lub niestabilna sylwetka → niższy confidence → fallback coach.
+## Faza 2 — Baza danych scoutingu + role
+Migracja (do akceptacji): tabele `players`, `clubs`, `scouts`, `recruitment_needs`, `scouting_reports`, `watchlists` — z polami wg specyfikacji, `verification_status` (enum: self_reported, club_verified, scout_verified, admin_verified, source_verified, expired, unverified), `created_at`/`updated_at`, triggery updated_at.
+- Rozszerzenie profilu zawodnika o brakujące pola (wzrost/waga/noga/klub/poziom/region/visibility_status/guardian_consent_status) — mapowane do `players`.
+- Role: rozszerzenie `app_role` o `scout` i `club` (obok istniejących). Dostęp przez `has_role`.
+- RLS + GRANTy dla każdej tabeli: zawodnik widzi swoje; scout/klub wg widoczności i zgód; admin pełny. Dane niepełnoletnich chronione zgodą opiekuna.
+- Komponent `VerificationBadge` — wszędzie pokazuje: potwierdzone / niepotwierdzone / stare / self-reported / zweryfikowane przez kogo.
 
-### 2. Sprint 20/30 m — automatyczny czas i prędkość
-- Start = moment ruszenia (próg prędkości poziomej bioder), wykrywany z klatek.
-- Meta = klatka, w której zawodnik pokonał znany dystans (20/30 m) wg auto-skali.
-- Prędkość = dystans / czas (dystans znany z protokołu).
-- Bez rysowania linii; przy słabej skali/perspektywie → needs_review.
+## Faza 3 — Scouting zawodnika (real data)
+Zakładka Scouting (sekcje: Opportunities, Club Needs, Scout Reports, Watchlist, Transfer Fit, Visibility, Verification):
+- status widoczności, kompletność i gotowość profilu, zaproszenia, zainteresowanie klubów, zapisane kluby, wymagane zgody, braki, rekomendowane kroki.
+- Tryb prywatny gdy zawodnik nie chce być widoczny.
+- Bramki zgody opiekuna dla niepełnoletnich (widoczność, dane dla klubów, kontakt scouta, zaproszenia, wideo).
+- Puste stany gdy brak realnych zapotrzebowań: „Brak aktywnych zapotrzebowań scoutingowych w Twoim regionie."
 
-### 3. COD (5-10-5, Sprint to Stop) — automatyczny czas (czasowe, bez skali)
-- 5-10-5: czas całkowity = ruszenie → końcowe zatrzymanie; czas hamowania z minimów prędkości.
-- Sprint to Stop: czas do zatrzymania + czas hamowania.
-- Usunąć twarde `needs_review` — publikować wynik czasowy zawodnikowi, gdy pewność OK.
+## Faza 4 — Dashboard scouta i klubu
+- Logowanie jako scout → osobny dashboard (bez planów treningowych): zawodnicy w regionie, mocny progres, dostępni na testy, watchlista, raporty do dokończenia, potrzeby klubów, do ponownej obserwacji, raporty wysłane. Wyszukiwanie/filtry, watchlista, raporty, porównywarka, udostępnianie.
+- Panel klubu: dodaj potrzebę, kandydaci, scouting board (New candidate → … → Signed/Rejected/Archived), porównywarka, raporty, zaproszenia, statusy.
 
-### 4. Broad Jump — automatyczna długość skoku
-- Odbicie i lądowanie z detekcji stóp; przemieszczenie stopy × auto-skala = długość w metrach.
-- Bez ręcznego wpisywania dystansu; przy słabej skali → needs_review.
+## Faza 5 — Transfer Fit + Panel admina
+- Transfer Fit liczony tylko przy komplecie realnych danych (zawodnik, klub, potrzeba, dość danych, zgoda). Inaczej: „Nie można policzyć Transfer Fit. Brakuje: …". Pokazuje: dopasowanie/niedopasowanie, dane potwierdzające, braki, poziom pewności, ryzyka, następny krok.
+- Panel admina: dodawanie/weryfikacja klubów, ligi, kategorie wiekowe, zatwierdzanie scoutów, oznaczanie danych zweryfikowanych, import CSV, źródła, data ostatniej weryfikacji, ukrywanie fałszywych danych, moderacja profili i raportów.
 
-### 5. Gym Technique — bez zmian w polityce
-Zostaje analiza techniki + coach review (bez fałszywego pomiaru AI). Dodatkowo pokazujemy zawodnikowi uczciwe, mierzalne dane: liczba powtórzeń, tempo, względny zakres ruchu — werdykt techniczny nadal od trenera.
-
-### 6. Polityka statusu i raport zawodnika
-- `statusPolicy` + progi confidence dostrojone tak, by `completed` był domyślny dla poprawnych nagrań, a coach review był wyjątkiem.
-- Ekran wyniku zawodnika pokazuje główną wartość (wysokość / prędkość / czas / długość), metryki pomocnicze, pewność analicy i krótką interpretację — jako gotowy raport.
+## Zasady przekrojowe
+- UI zawsze rozdziela: dane zawodnika / klubu / scouta / raporty / AI inference / zweryfikowane / niezweryfikowane. Opinie AI nigdy nie mieszane z faktami.
+- Zero mock/demo/fake w produkcyjnym widoku (dozwolone tylko dev/sandbox).
+- Scouting korzysta z danych planów i testów; nie przyćmiewa ich.
 
 ## Szczegóły techniczne
-- `src/features/vision-analysis/autoCalibration.ts` (nowy) + testy jednostkowe.
-- Zmiany w `sprintAnalyzer.ts`, `codAnalyzer.ts`, `broadJumpAnalyzer.ts`: auto-detekcja start/stop, użycie auto-skali, złagodzenie wymuszonego `needs_review`.
-- `runVideoAnalysis` przyjmuje `athleteHeightCm`; przekazane z `VisionAutoAnalysis` (profil zawodnika).
-- `statusPolicy.ts`: gating przez confidence zamiast twardego blokowania testów dystansowych.
-- Deterministyczne obliczenia, pokryte testami (`analyzers.test.ts`, nowe przypadki kalibracji i sprintu/COD).
-- Wszystkie wartości walidowane zakresami fizycznymi (`PLAUSIBLE_RANGES`) — brak losowych wyników; poza zakresem → needs_review.
+- Stack: TanStack Start, trasy w `src/routes/`, `_tabs.*` layout. Dane user-scoped przez `createServerFn` + `requireSupabaseAuth`; publiczne odczyty przez klienta publishable + wąskie polityki `TO anon`.
+- Role trzymane w `user_roles` (nigdy na profilu). Nowe role `scout`, `club` w enumie `app_role`.
+- Każda migracja: CREATE TABLE → GRANT → ENABLE RLS → POLICY, trigger updated_at.
+- Progress/Analysis generowane z: session_logs, readiness_logs, vision_tests, weekly_transitions, training_sessions.
 
-## Kryteria ukończenia
-- CMJ, Pogo, Sprint, COD, Broad Jump dają zawodnikowi automatyczny wynik liczbowy dla poprawnego nagrania.
-- Coach review pojawia się tylko przy niskiej pewności / niepoprawnym nagraniu.
-- Gym zostaje przy coach review (bez fałszywego pomiaru).
-- Testy jednostkowe i typy przechodzą.
+## Sugerowana kolejność realizacji
+Zaczynam od **Fazy 1** (nawigacja + przeniesienie Analizy do Profilu + Progress z realnych danych), bo daje natychmiastową, widoczną zmianę struktury bez ryzyka bazodanowego. Po akceptacji przechodzę do migracji Fazy 2.
