@@ -86,11 +86,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       if (user) {
         try {
           const { data: prof } = await withTimeout(
-            supabase
-              .from("athlete_profiles")
-              .select("height_optional")
-              .eq("user_id", user.id)
-              .maybeSingle(),
+            (async () =>
+              supabase
+                .from("athlete_profiles")
+                .select("height_optional")
+                .eq("user_id", user.id)
+                .maybeSingle())(),
             6_000,
             "Odczyt profilu zawodnika",
           );
