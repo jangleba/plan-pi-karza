@@ -34,10 +34,12 @@ import {
 } from "@/lib/vision/types";
 import { setSavedToProgress } from "@/lib/vision/visionRepo";
 
-export function VisionResult({ result }: { result: VisionTestResult }) {
+export function VisionResult({ result: initial }: { result: VisionTestResult }) {
   const navigate = useNavigate();
-  const [saved, setSaved] = useState(result.savedToProgress);
+  const [result, setResult] = useState(initial);
+  const [saved, setSaved] = useState(initial.savedToProgress);
   const [busy, setBusy] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   if (result.validityStatus === "invalid") {
     return <VisionInvalidResult result={result} />;
