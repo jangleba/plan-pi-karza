@@ -43,19 +43,8 @@ export function VisionUpload({ test }: { test: VisionTest }) {
       return;
     }
     setSubmitting(true);
-    try {
-      const result = await createPendingUpload({
-        userId: user.id,
-        test: { id: test.id, name: test.name, category: test.category },
-        videoUrl: flow.videoUrl,
-        fps: flow.fps || test.recommendedFps,
-        cameraView: flow.cameraView ?? test.cameraView,
-      });
-      navigate({ to: "/vision-lab/result/$resultId", params: { resultId: result.id } });
-    } catch {
-      toast.error("Nie udało się wysłać filmu do analizy.");
-      setSubmitting(false);
-    }
+    // Realna analiza klatka po klatce uruchamia się na urządzeniu zawodnika.
+    navigate({ to: "/vision-lab/analyze/$testId", params: { testId: test.id } });
   }
 
   return (
