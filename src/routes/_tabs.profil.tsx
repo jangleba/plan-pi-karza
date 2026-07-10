@@ -13,6 +13,7 @@ import {
 } from "@/lib/loadwise/labels";
 import type { DoubleSessions } from "@/lib/loadwise/types";
 import { Button } from "@/components/ui/button";
+import { PlayerAnalysis } from "@/components/loadwise/PlayerAnalysis";
 import {
   User,
   Target,
