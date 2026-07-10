@@ -1,13 +1,12 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { UploadCloud, FileVideo, CheckCircle2, Loader2 } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow, updateFlow } from "@/lib/vision/visionFlow";
-import { uploadVisionVideo, createPendingUpload } from "@/lib/vision/visionRepo";
+import { uploadVisionVideo } from "@/lib/vision/visionRepo";
 
 type Status = "idle" | "selected" | "uploading" | "done";
 
@@ -43,19 +42,8 @@ export function VisionUpload({ test }: { test: VisionTest }) {
       return;
     }
     setSubmitting(true);
-    try {
-      const result = await createPendingUpload({
-        userId: user.id,
-        test: { id: test.id, name: test.name, category: test.category },
-        videoUrl: flow.videoUrl,
-        fps: flow.fps || test.recommendedFps,
-        cameraView: flow.cameraView ?? test.cameraView,
-      });
-      navigate({ to: "/vision-lab/result/$resultId", params: { resultId: result.id } });
-    } catch {
-      toast.error("Nie udało się wysłać filmu do analizy.");
-      setSubmitting(false);
-    }
+    // Realna analiza klatka po klatce uruchamia się na urządzeniu zawodnika.
+    navigate({ to: "/vision-lab/analyze/$testId", params: { testId: test.id } });
   }
 
   return (
