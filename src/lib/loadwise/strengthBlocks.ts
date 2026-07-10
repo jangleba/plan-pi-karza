@@ -1597,17 +1597,17 @@ function canonicalGymSession(
   const week1 = ctx.weekPhase === "adaptation";
   const readyHigh = ctx.readiness === undefined || ctx.readiness >= 7;
 
-  // Przezwyciężająca izometria (overcoming iso) tylko dla uprawnionych i bramkowana:
-  // NIE w tygodniu 1, NIE po ciężkim hinge/trap bar, NIE in-season / blisko meczu,
-  // tylko przy dobrej gotowości i w fazie rozwoju/peak.
+  // Przezwyciężająca izometria (overcoming iso) — krótka, wysoka intencja, niska
+  // objętość, więc jest bezpieczna także w trap barze i in-season, byle z dala od
+  // meczu. Wariant dobierany przez isoForMain: "cała stopa" przed trap barem/hinge,
+  // "staw skokowy" przed przysiadem. Bramki: NIE w tygodniu 1, tylko przy dobrej
+  // gotowości i z dala od meczu (structuredStrengthAllowed blokuje MD-2/MD-1/MD/MD+1).
   const includeIso =
     adult &&
     !week1 &&
-    !trapBar &&
     readyHigh &&
-    (ctx.weekPhase === "development" || ctx.weekPhase === "peak") &&
-    profile.seasonPhase !== "inseason" &&
     structuredStrengthAllowed(ctx.mdLabel);
+
 
   // BLOK E (finisher hipertroficzny) NIE jest generowany domyślnie po sesji
   // dolnej o wysokim napędzie nerwowym. Pozostaje tylko poza pracą dolną.
