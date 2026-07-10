@@ -156,8 +156,34 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
         />
         <FeedbackRow icon={Target} tone="text-primary" title="Jedna rzecz do poprawy" text={fb.improve} />
 
+        {/* Jak powstał wynik? */}
+        <VisionCalculationBasis basis={result.calculationBasis} />
+
+        {/* Analiza trenera (jeśli jest / zamówiona) */}
+        <VisionCoachFeedback result={result} />
+
+        {/* Poproś o analizę trenera */}
+        {!result.paidReviewRequested && (
+          <button
+            type="button"
+            onClick={() => setReviewOpen(true)}
+            className="soft-card flex w-full items-center gap-3 p-4 text-left transition-transform active:scale-[0.99]"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Poproś o analizę trenera</div>
+              <p className="text-xs text-muted-foreground">
+                AI liczy wynik. Trener weryfikuje test i technikę. Opcja premium.
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Porównanie */}
         <VisionProgressComparison comparison={result.comparisonToPrevious} />
+
 
         {/* Ostrzeżenia ważności */}
         {warnings.length > 0 && (
