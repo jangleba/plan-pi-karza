@@ -152,15 +152,21 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
           </div>
         )}
 
-        {/* Feedback */}
-        <FeedbackRow icon={ThumbsUp} tone="text-emerald-600" title="Co było dobre" text={fb.good} />
-        <FeedbackRow
-          icon={AlertTriangle}
-          tone="text-amber-600"
-          title="Co ogranicza wynik"
-          text={fb.limitingFactor}
-        />
-        <FeedbackRow icon={Target} tone="text-primary" title="Jedna rzecz do poprawy" text={fb.improve} />
+        {/* Feedback (tylko gdy AI dostarczyło opis — analiza klatkowa go nie ma) */}
+        {fb.good && (
+          <FeedbackRow icon={ThumbsUp} tone="text-emerald-600" title="Co było dobre" text={fb.good} />
+        )}
+        {fb.limitingFactor && (
+          <FeedbackRow
+            icon={AlertTriangle}
+            tone="text-amber-600"
+            title="Co ogranicza wynik"
+            text={fb.limitingFactor}
+          />
+        )}
+        {fb.improve && (
+          <FeedbackRow icon={Target} tone="text-primary" title="Jedna rzecz do poprawy" text={fb.improve} />
+        )}
 
         {/* Jak powstał wynik? */}
         <VisionCalculationBasis basis={result.calculationBasis} />
