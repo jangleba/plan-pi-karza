@@ -19,6 +19,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
   const [status, setStatus] = useState<Status>(flow.videoUrl ? "done" : "idle");
   const [uploaded, setUploaded] = useState(flow.uploaded);
+  const [submitting, setSubmitting] = useState(false);
 
   async function onFile(file: File) {
     setFileName(file.name);
@@ -34,6 +35,27 @@ export function VisionUpload({ test }: { test: VisionTest }) {
     });
     setUploaded(res.uploaded);
     setStatus("done");
+  }
+
+  async function submitForAnalysis() {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await createPendingUpload({
+        userId: user.id,
+        test: { id: test.id, name: test.name, category: test.category },
+        videoUrl: flow.videoUrl,
+        fps: flow.fps || test.recommendedFps,
+        cameraView: flow.cameraView ?? test.cameraView,
+      });
+      navigate({ to: "/vision-lab/result/$resultId", params: { resultId: result.id } });
+    } catch {
+      toast.error("Nie udało się wysłać filmu do analizy.");
+      setSubmitting(false);
+    }
   }
 
   return (
