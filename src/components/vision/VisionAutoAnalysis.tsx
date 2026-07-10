@@ -161,7 +161,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
             playsInline
             preload="auto"
             controls
-            // @ts-expect-error atrybut Safari dla odtwarzania inline
             webkit-playsinline="true"
             className="w-full rounded-2xl bg-black"
           />
