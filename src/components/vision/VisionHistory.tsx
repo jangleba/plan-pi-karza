@@ -221,3 +221,52 @@ function HistoryRow({ item, isBest }: { item: VisionTestResult; isBest: boolean 
     </Link>
   );
 }
+
+function GymHistoryRow({ item }: { item: VisionTestResult }) {
+  const status = deriveGymStatus(item);
+  const hasVideo =
+    !!item.videoUrl && !item.videoUrl.startsWith("placeholder://");
+  return (
+    <Link
+      to="/vision-lab/result/$resultId"
+      params={{ resultId: item.id }}
+      className="soft-card block p-4 transition-transform active:scale-[0.99]"
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-brand">
+          <Dumbbell className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-foreground">
+            {item.linkedExerciseName ?? item.testName}
+          </h3>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            Gym Exercise Review · {item.linkedTrainingDay ?? "—"} ·{" "}
+            {formatDate(item.createdAt.slice(0, 10))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              {GYM_REVIEW_STATUS_LABELS[status]}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+              {hasVideo ? (
+                <>
+                  <Video className="h-3 w-3" /> Film: tak
+                </>
+              ) : (
+                <>
+                  <VideoOff className="h-3 w-3" /> Film: nie
+                </>
+              )}
+            </span>
+          </div>
+          {item.techniqueReview?.coach_note && (
+            <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">
+              „{item.techniqueReview.coach_note}”
+            </p>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
