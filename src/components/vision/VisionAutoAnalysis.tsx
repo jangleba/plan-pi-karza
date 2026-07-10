@@ -184,15 +184,24 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
                 Nie udało się przeanalizować filmu
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
+              <div className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-medium text-muted-foreground">
+                Kod błędu: {state.code}
+              </div>
             </div>
-            <Button
-              className="w-full"
-              onClick={() =>
-                navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } })
-              }
-            >
-              <RotateCcw className="mr-2 h-4 w-4" /> Nagraj ponownie
-            </Button>
+            <div className="space-y-2">
+              <Button className="w-full" onClick={() => void runAnalysis()}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Spróbuj ponownie
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() =>
+                  navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } })
+                }
+              >
+                Wybierz inny film
+              </Button>
+            </div>
           </div>
         )}
       </div>
