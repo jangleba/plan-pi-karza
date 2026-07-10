@@ -3,12 +3,12 @@ import { CATEGORY_LABELS, type VisionTestCategory } from "@/lib/vision/types";
 
 export function VisionCategoryCard({
   category,
-  count,
+  subtitle,
   active,
   onClick,
 }: {
   category: VisionTestCategory;
-  count: number;
+  subtitle: string;
   active: boolean;
   onClick: () => void;
 }) {
@@ -19,9 +19,7 @@ export function VisionCategoryCard({
       onClick={onClick}
       aria-pressed={active}
       className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.98] ${
-        active
-          ? "border-primary bg-accent"
-          : "border-border bg-card"
+        active ? "border-primary bg-accent" : "border-border bg-card"
       }`}
     >
       <span
@@ -35,7 +33,7 @@ export function VisionCategoryCard({
         <div className="truncate text-sm font-semibold text-foreground">
           {CATEGORY_LABELS[category]}
         </div>
-        <div className="text-xs text-muted-foreground">{count} testów</div>
+        <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
       </div>
     </button>
   );
