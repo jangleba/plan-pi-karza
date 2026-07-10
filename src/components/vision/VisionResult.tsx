@@ -41,6 +41,10 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
 
+  if (result.testType === GYM_EXERCISE_TEST_ID) {
+    return <VisionGymResult result={result} />;
+  }
+
   if (result.validityStatus === "invalid") {
     return <VisionInvalidResult result={result} />;
   }
