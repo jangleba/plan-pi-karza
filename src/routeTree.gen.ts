@@ -22,7 +22,6 @@ import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.histor
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
-import { Route as TabsProgressRouteImport } from './routes/_tabs.progress'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
@@ -104,11 +103,6 @@ const TabsStartRoute = TabsStartRouteImport.update({
 const TabsScoutingRoute = TabsScoutingRouteImport.update({
   id: '/scouting',
   path: '/scouting',
-  getParentRoute: () => TabsRoute,
-} as any)
-const TabsProgressRoute = TabsProgressRouteImport.update({
-  id: '/progress',
-  path: '/progress',
   getParentRoute: () => TabsRoute,
 } as any)
 const TabsProfilRoute = TabsProfilRouteImport.update({
@@ -224,7 +218,6 @@ export interface FileRoutesByFullPath {
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
-  '/progress': typeof TabsProgressRoute
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
@@ -257,7 +250,6 @@ export interface FileRoutesByTo {
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
-  '/progress': typeof TabsProgressRoute
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
@@ -292,7 +284,6 @@ export interface FileRoutesById {
   '/_tabs/fuel': typeof TabsFuelRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/profil': typeof TabsProfilRoute
-  '/_tabs/progress': typeof TabsProgressRoute
   '/_tabs/scouting': typeof TabsScoutingRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
@@ -327,7 +318,6 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/plan'
     | '/profil'
-    | '/progress'
     | '/scouting'
     | '/start'
     | '/sesja/$date'
@@ -360,7 +350,6 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/plan'
     | '/profil'
-    | '/progress'
     | '/scouting'
     | '/start'
     | '/sesja/$date'
@@ -394,7 +383,6 @@ export interface FileRouteTypes {
     | '/_tabs/fuel'
     | '/_tabs/plan'
     | '/_tabs/profil'
-    | '/_tabs/progress'
     | '/_tabs/scouting'
     | '/_tabs/start'
     | '/sesja/$date'
@@ -537,13 +525,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsScoutingRouteImport
       parentRoute: typeof TabsRoute
     }
-    '/_tabs/progress': {
-      id: '/_tabs/progress'
-      path: '/progress'
-      fullPath: '/progress'
-      preLoaderRoute: typeof TabsProgressRouteImport
-      parentRoute: typeof TabsRoute
-    }
     '/_tabs/profil': {
       id: '/_tabs/profil'
       path: '/profil'
@@ -677,7 +658,6 @@ interface TabsRouteChildren {
   TabsFuelRoute: typeof TabsFuelRoute
   TabsPlanRoute: typeof TabsPlanRoute
   TabsProfilRoute: typeof TabsProfilRoute
-  TabsProgressRoute: typeof TabsProgressRoute
   TabsScoutingRoute: typeof TabsScoutingRoute
   TabsStartRoute: typeof TabsStartRoute
 }
@@ -686,7 +666,6 @@ const TabsRouteChildren: TabsRouteChildren = {
   TabsFuelRoute: TabsFuelRoute,
   TabsPlanRoute: TabsPlanRoute,
   TabsProfilRoute: TabsProfilRoute,
-  TabsProgressRoute: TabsProgressRoute,
   TabsScoutingRoute: TabsScoutingRoute,
   TabsStartRoute: TabsStartRoute,
 }
