@@ -77,12 +77,12 @@ export interface ExerciseVisual {
  * to ćwiczenie (lub jego bezpośrednie warianty o identycznym wzorcu ruchu).
  */
 export const visualLibrary: Record<string, ExerciseVisual> = {
-  pin_squat_iso_single_leg_deep: {
-    visualId: "pin_squat_iso_single_leg_deep",
-    src: pinSquatIsoSingleLegDeep,
-    title: "Przysiad przy pinach (iso) — jednonóż, głęboki zakres",
+  pin_drive_iso_single_leg_a_skip: {
+    visualId: "pin_drive_iso_single_leg_a_skip",
+    src: pinDriveIsoSingleLegAskip,
+    title: "Napór iso przy pinach — jednonóż (A-skip iso)",
     movementType: "isometric",
-    exerciseNames: ["Przysiad przy pinach (iso)"],
+    exerciseNames: ["Napór iso przy pinach — jednonóż"],
   },
   face_pull: {
     visualId: "face_pull",
