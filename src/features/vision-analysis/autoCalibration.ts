@@ -93,6 +93,19 @@ export function estimateScaleFromHeight(
 }
 
 /**
+ * Deterministyczna kalibracja awaryjna, gdy profil nie ma wzrostu.
+ * Nie losuje wyniku — używa konserwatywnej estymacji wzrostu wg wieku, a
+ * obniżona pewność jasno oznacza pomiar jako mniej dokładny.
+ */
+export function estimateFallbackHeightCm(age: number | null | undefined): number {
+  if (!age || age < 10) return 170;
+  if (age <= 12) return 152;
+  if (age <= 14) return 164;
+  if (age <= 16) return 172;
+  return 178;
+}
+
+/**
  * Zamienia poziome przemieszczenie znormalizowane (x) na metry przy danej skali.
  * dxNorm to różnica współrzędnych x (0-1), width to szerokość wideo w pikselach.
  */

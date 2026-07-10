@@ -14,7 +14,7 @@ function AnalyzeRoute() {
   const test = getVisionTest(testId);
   if (!test) return <VisionTestNotFound />;
   return (
-    <VisionGuard>
+    <VisionGuard withNav>
       <VisionAutoAnalysis test={test} />
     </VisionGuard>
   );

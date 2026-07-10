@@ -13,21 +13,55 @@ const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
+function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getLandmarker(): Promise<any> {
   if (landmarkerPromise) return landmarkerPromise;
   landmarkerPromise = (async () => {
     const vision = await import("@mediapipe/tasks-vision");
     const { FilesetResolver, PoseLandmarker } = vision;
-    const fileset = await FilesetResolver.forVisionTasks(WASM_ROOT);
-    return PoseLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+    const fileset = await timeout(FilesetResolver.forVisionTasks(WASM_ROOT), 12_000, "WASM");
+    const options = {
       runningMode: "VIDEO",
       numPoses: 2,
       minPoseDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
       minPosePresenceConfidence: 0.5,
-    });
+    } as const;
+    try {
+      return await timeout(
+        PoseLandmarker.createFromOptions(fileset, {
+          ...options,
+          baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+        }),
+        12_000,
+        "PoseLandmarker GPU",
+      );
+    } catch {
+      return timeout(
+        PoseLandmarker.createFromOptions(fileset, {
+          ...options,
+          baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+        }),
+        12_000,
+        "PoseLandmarker CPU",
+      );
+    }
   })();
   return landmarkerPromise;
 }

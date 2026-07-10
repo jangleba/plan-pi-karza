@@ -42,9 +42,25 @@ function writeLocal(items: VisionTestResult[]): void {
   localStorage.setItem(LS_KEY, JSON.stringify(items));
 }
 
-/** Buduje metryki pochodne do wyświetlenia (0-100 bary nie mają sensu — używamy tabeli). */
-function frameMetrics(): VisionMetric[] {
-  return [];
+/** Buduje realne metryki pochodne do wyświetlenia i profilu zawodnika. */
+function frameMetrics(frame: FrameAnalysisResult): VisionMetric[] {
+  const d = frame.derived;
+  const metrics: VisionMetric[] = [];
+  const push = (key: string, label: string, value: number | null | undefined, unit: string) => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      metrics.push({ key, label, value, unit });
+    }
+  };
+  push("jump_height_cm", "Wysokość wyskoku", d.jumpHeightCm, "cm");
+  push("flight_time_s", "Czas w powietrzu", d.flightTime, "s");
+  push("distance_cm", "Długość skoku", d.distanceCm, "cm");
+  push("distance_m", "Dystans", d.distanceM, "m");
+  push("sprint_time_s", "Czas sprintu", d.sprintTime, "s");
+  push("speed_m_s", "Prędkość średnia", d.speedMs, "m/s");
+  push("speed_km_h", "Prędkość", d.speedKmh, "km/h");
+  push("braking_time_s", "Czas hamowania", d.brakingTime, "s");
+  push("number_of_contacts", "Liczba kontaktów", d.numberOfContacts, "");
+  return metrics;
 }
 
 /** Buduje pełny VisionTestResult z wyniku analizy klatkowej (dla localStorage / UI). */
@@ -73,7 +89,7 @@ function buildResult(input: SaveFrameResultInput, id: string): VisionTestResult 
           : "high",
     mainResultValue: frame.mainResultValue,
     mainResultUnit: frame.mainResultUnit,
-    measuredMetrics: frameMetrics(),
+    measuredMetrics: frameMetrics(frame),
     validityFlags: {
       fpsOk: frame.fps >= (test?.minimumFps ?? 30),
       lightingOk: true,
