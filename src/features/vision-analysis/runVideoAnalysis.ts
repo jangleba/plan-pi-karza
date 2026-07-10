@@ -153,7 +153,11 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       analyzerVersion: analyzer.analyzerVersion,
     };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Nieznany błąd analizy.";
+    // VideoLoadError niesie konkretny errorCode — pokazujemy go użytkownikowi.
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
+    const base = e instanceof Error ? e.message : "Nieznany błąd analizy.";
+    const msg = code ? `${base} (kod: ${code})` : base;
     return failed(opts.testType, analyzer.analyzerVersion, msg);
   }
 }
