@@ -178,6 +178,7 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
 export const POSE = {
+  NOSE: 0,
   LEFT_SHOULDER: 11,
   RIGHT_SHOULDER: 12,
   LEFT_ELBOW: 13,
