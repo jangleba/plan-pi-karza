@@ -26,7 +26,7 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
-  | { kind: "error"; message: string };
+  | { kind: "error"; code: string; message: string };
 
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
