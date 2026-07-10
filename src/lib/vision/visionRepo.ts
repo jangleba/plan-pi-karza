@@ -712,6 +712,8 @@ export async function coachCorrectFrames(
     calculation_method: basis.method,
     calculation_basis: basis,
     review_status: "coach_corrected",
+    analysis_status: "completed",
+    visibility_status: "visible_to_player",
     coach_note: note,
     paid_review_status: "completed",
   };
