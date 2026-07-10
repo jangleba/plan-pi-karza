@@ -20,6 +20,9 @@ import type {
   AnalysisStatus,
   VisibilityStatus,
   FrameDerived,
+  FrameAnalysisResult,
+
+
 
 
 
