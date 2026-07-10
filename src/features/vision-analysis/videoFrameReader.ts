@@ -1,4 +1,5 @@
 import type { VideoMetadata } from "./types";
+import { vlog, vwarn } from "./devLog";
 
 /** Callback wywoływany dla każdej zdekodowanej klatki. */
 export type FrameHandler = (frame: {
