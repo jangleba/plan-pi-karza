@@ -37,6 +37,7 @@ import { Route as VisionLabTestTestIdIndexRouteImport } from './routes/vision-la
 import { Route as VisionLabTestTestIdUploadRouteImport } from './routes/vision-lab.test.$testId.upload'
 import { Route as VisionLabTestTestIdSetupRouteImport } from './routes/vision-lab.test.$testId.setup'
 import { Route as VisionLabTestTestIdAnalysisRouteImport } from './routes/vision-lab.test.$testId.analysis'
+import { Route as VisionLabCoachAnalyzerResultIdRouteImport } from './routes/vision-lab.coach.analyzer.$resultId'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -185,6 +186,12 @@ const VisionLabTestTestIdAnalysisRoute =
     path: '/vision-lab/test/$testId/analysis',
     getParentRoute: () => rootRouteImport,
   } as any)
+const VisionLabCoachAnalyzerResultIdRoute =
+  VisionLabCoachAnalyzerResultIdRouteImport.update({
+    id: '/vision-lab/coach/analyzer/$resultId',
+    path: '/vision-lab/coach/analyzer/$resultId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
   '/vision-lab/coach/': typeof VisionLabCoachIndexRoute
   '/vision-lab/gym/': typeof VisionLabGymIndexRoute
+  '/vision-lab/coach/analyzer/$resultId': typeof VisionLabCoachAnalyzerResultIdRoute
   '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
@@ -239,6 +247,7 @@ export interface FileRoutesByTo {
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
   '/vision-lab/coach': typeof VisionLabCoachIndexRoute
   '/vision-lab/gym': typeof VisionLabGymIndexRoute
+  '/vision-lab/coach/analyzer/$resultId': typeof VisionLabCoachAnalyzerResultIdRoute
   '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
@@ -270,6 +279,7 @@ export interface FileRoutesById {
   '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
   '/vision-lab/coach/': typeof VisionLabCoachIndexRoute
   '/vision-lab/gym/': typeof VisionLabGymIndexRoute
+  '/vision-lab/coach/analyzer/$resultId': typeof VisionLabCoachAnalyzerResultIdRoute
   '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
   '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
   '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/vision-lab/result/$resultId'
     | '/vision-lab/coach/'
     | '/vision-lab/gym/'
+    | '/vision-lab/coach/analyzer/$resultId'
     | '/vision-lab/test/$testId/analysis'
     | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/upload'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/vision-lab/result/$resultId'
     | '/vision-lab/coach'
     | '/vision-lab/gym'
+    | '/vision-lab/coach/analyzer/$resultId'
     | '/vision-lab/test/$testId/analysis'
     | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/upload'
@@ -360,6 +372,7 @@ export interface FileRouteTypes {
     | '/vision-lab/result/$resultId'
     | '/vision-lab/coach/'
     | '/vision-lab/gym/'
+    | '/vision-lab/coach/analyzer/$resultId'
     | '/vision-lab/test/$testId/analysis'
     | '/vision-lab/test/$testId/setup'
     | '/vision-lab/test/$testId/upload'
@@ -387,6 +400,7 @@ export interface RootRouteChildren {
   VisionLabResultResultIdRoute: typeof VisionLabResultResultIdRoute
   VisionLabCoachIndexRoute: typeof VisionLabCoachIndexRoute
   VisionLabGymIndexRoute: typeof VisionLabGymIndexRoute
+  VisionLabCoachAnalyzerResultIdRoute: typeof VisionLabCoachAnalyzerResultIdRoute
   VisionLabTestTestIdAnalysisRoute: typeof VisionLabTestTestIdAnalysisRoute
   VisionLabTestTestIdSetupRoute: typeof VisionLabTestTestIdSetupRoute
   VisionLabTestTestIdUploadRoute: typeof VisionLabTestTestIdUploadRoute
@@ -591,6 +605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VisionLabTestTestIdAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vision-lab/coach/analyzer/$resultId': {
+      id: '/vision-lab/coach/analyzer/$resultId'
+      path: '/vision-lab/coach/analyzer/$resultId'
+      fullPath: '/vision-lab/coach/analyzer/$resultId'
+      preLoaderRoute: typeof VisionLabCoachAnalyzerResultIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -632,6 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   VisionLabResultResultIdRoute: VisionLabResultResultIdRoute,
   VisionLabCoachIndexRoute: VisionLabCoachIndexRoute,
   VisionLabGymIndexRoute: VisionLabGymIndexRoute,
+  VisionLabCoachAnalyzerResultIdRoute: VisionLabCoachAnalyzerResultIdRoute,
   VisionLabTestTestIdAnalysisRoute: VisionLabTestTestIdAnalysisRoute,
   VisionLabTestTestIdSetupRoute: VisionLabTestTestIdSetupRoute,
   VisionLabTestTestIdUploadRoute: VisionLabTestTestIdUploadRoute,
