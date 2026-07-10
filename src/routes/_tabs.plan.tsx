@@ -7,7 +7,8 @@ import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import {
   buildPlanWeeks,
   computeWeekStats,
-  phaseOf,
+  validatePlanWeeks,
+  applyReadiness,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
