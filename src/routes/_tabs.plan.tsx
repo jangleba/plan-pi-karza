@@ -236,7 +236,7 @@ function weekSummary(
   week: PlanWeek,
   goal: Goal,
 ) {
-  const phase = phaseOf(weekIndex, totalWeeks);
+  const phase = week.weekPhase;
   const block = focusFor(phase, goal);
   const stats = computeWeekStats(week);
 
