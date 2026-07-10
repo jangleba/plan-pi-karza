@@ -52,6 +52,24 @@ export function VisionLabHome() {
           </p>
         </div>
 
+        {coach && (
+          <Link
+            to="/vision-lab/coach"
+            className="soft-card flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <ClipboardCheck className="h-6 w-6" />
+            </span>
+            <div>
+              <div className="text-sm font-semibold text-foreground">Coach Review Queue</div>
+              <p className="text-xs text-muted-foreground">
+                Testy zgłoszone przez zawodników do weryfikacji.
+              </p>
+            </div>
+          </Link>
+        )}
+
+
         <div>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Kategorie
