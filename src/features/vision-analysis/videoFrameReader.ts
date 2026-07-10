@@ -80,11 +80,11 @@ export async function readVideoMetadata(
   const mime = await probeSource(url);
 
   const video = document.createElement("video");
-  video.src = url;
   video.muted = true;
   video.playsInline = true;
-  video.preload = "metadata";
-  video.crossOrigin = "anonymous";
+  video.setAttribute("webkit-playsinline", "true");
+  video.preload = "auto";
+  video.src = url;
 
   await loadMetadataWithTimeout(video, url);
 
