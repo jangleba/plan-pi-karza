@@ -22,9 +22,7 @@ import {
   Plus,
   Repeat,
   Undo2,
-  ScanEye,
   Apple,
-
 } from "lucide-react";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
