@@ -158,8 +158,8 @@ export interface VideoAnalysisResult {
 
 /** Progi akceptacji wyniku na podstawie confidence. */
 export const CONFIDENCE_THRESHOLDS = {
-  autoAccept: 0.85,
-  needsReview: 0.65,
+  autoAccept: 0.6,
+  needsReview: 0.45,
 } as const;
 
 /** Czytelne opisy powodów jakości (PL) do UI. */
