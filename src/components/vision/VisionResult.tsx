@@ -79,10 +79,15 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
             </span>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <ReviewStatusBadge status={result.reviewStatus} />
             <ValidityBadge status={result.validityStatus} />
             <ConfidenceBadge level={result.confidenceScore} />
           </div>
+          <p className="mt-2 text-[11px] leading-snug text-graphite-muted">
+            {REVIEW_STATUS_DESCRIPTIONS[result.reviewStatus]}
+          </p>
         </div>
+
 
         {/* Meta */}
         <div className="grid grid-cols-2 gap-2.5">
