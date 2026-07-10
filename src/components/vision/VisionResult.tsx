@@ -20,6 +20,7 @@ import {
   ReviewStatusBadge,
 } from "./visionUi";
 import { VisionInvalidResult } from "./VisionInvalidResult";
+import { VisionAnalysisStatus } from "./VisionAnalysisStatus";
 import { VisionGymResult } from "./VisionGymResult";
 import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { VisionProgressComparison } from "./VisionProgressComparison";
