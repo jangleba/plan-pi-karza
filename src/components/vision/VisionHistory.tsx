@@ -6,6 +6,9 @@ import {
   Minus,
   BookmarkCheck,
   Loader2,
+  Dumbbell,
+  Video,
+  VideoOff,
 } from "lucide-react";
 import {
   VisionHeader,
@@ -15,10 +18,12 @@ import {
 import { useAuth } from "@/lib/loadwise/auth";
 import {
   CATEGORY_LABELS,
+  GYM_REVIEW_STATUS_LABELS,
   type VisionTestResult,
   type VisionTestCategory,
 } from "@/lib/vision/types";
-import { listVisionResults } from "@/lib/vision/visionRepo";
+import { listVisionResults, deriveGymStatus } from "@/lib/vision/visionRepo";
+import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { formatDate } from "@/lib/loadwise/labels";
 
 type Filter =
