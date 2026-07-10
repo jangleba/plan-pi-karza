@@ -1,30 +1,24 @@
-import type {
-  AnalysisContext,
-  QualityIssueCode,
-  ValidationResult,
-  AnalysisStatus,
-} from "../types";
+import type { AnalysisContext, QualityIssueCode, ValidationResult, AnalysisStatus } from "../types";
 import { QUALITY_ISSUE_LABELS } from "../types";
-import {
-  detectionRate,
-  multiplePeopleDetected,
-  feetOutOfFrameRate,
-} from "../poseSeries";
+import { detectionRate, multiplePeopleDetected, feetOutOfFrameRate } from "../poseSeries";
 
 /** Instrukcje ponownego nagrania per powód. */
 const RETAKE: Record<QualityIssueCode, string> = {
   LOW_CONFIDENCE: "Nagraj ponownie: stabilny telefon, dobre światło, jeden zawodnik w kadrze.",
   INVALID_CAMERA_POSITION: "Ustaw telefon nieruchomo, z boku, prostopadle do ruchu.",
-  ATHLETE_OUT_OF_FRAME: "Odsuń telefon dalej — cała sylwetka i stopy muszą być widoczne przez cały ruch.",
+  ATHLETE_OUT_OF_FRAME:
+    "Odsuń telefon dalej — cała sylwetka i stopy muszą być widoczne przez cały ruch.",
   MULTIPLE_PEOPLE: "W kadrze może być tylko jeden zawodnik. Usuń inne osoby z tła.",
   INSUFFICIENT_FPS: "Nagraj w wyższej liczbie klatek na sekundę (tryb slow-motion / 120 FPS).",
   NO_CALIBRATION: "Zaznacz linie / punkt odniesienia o znanej odległości, aby przeliczyć wynik.",
   MISSING_START_LINE: "Zaznacz wyraźnie linię startu w kadrze.",
   MISSING_FINISH_LINE: "Zaznacz wyraźnie linię mety w kadrze.",
   INVALID_TEST_EXECUTION: "Wykonaj test zgodnie z protokołem i nagraj ponownie.",
-  EVENTS_NOT_DETECTED: "Nie rozpoznano kluczowych faz ruchu. Nagraj cały ruch z boku, bez ścinania kadru.",
+  EVENTS_NOT_DETECTED:
+    "Nie rozpoznano kluczowych faz ruchu. Nagraj cały ruch z boku, bez ścinania kadru.",
   LOW_RESOLUTION: "Nagraj w wyższej rozdzielczości (min. 720p).",
-  POSE_NOT_DETECTED: "Nie wykryto sylwetki. Zadbaj o kontrast zawodnika względem tła i dobre światło.",
+  POSE_NOT_DETECTED:
+    "Nie wykryto sylwetki. Zadbaj o kontrast zawodnika względem tła i dobre światło.",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */

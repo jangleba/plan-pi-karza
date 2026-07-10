@@ -30,7 +30,8 @@ export async function readVideoMetadata(
 
   // Oszacowanie FPS z rzeczywistych timestampów klatek (requestVideoFrameCallback).
   let measuredFps: number | null = null;
-  const supportsRVFC = typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
+  const supportsRVFC =
+    typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
   if (supportsRVFC && Number.isFinite(durationSeconds)) {
     measuredFps = await estimateFpsFromFrames(video);
   }
@@ -111,7 +112,8 @@ export async function iterateFrames(
   });
 
   const total = Math.max(1, metadata.frameCount);
-  const supportsRVFC = typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
+  const supportsRVFC =
+    typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
 
   if (supportsRVFC) {
     await new Promise<void>((resolve) => {

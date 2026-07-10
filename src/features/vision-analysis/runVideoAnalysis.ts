@@ -59,13 +59,22 @@ function failed(testType: TestType, analyzerVersion: string, reason: string): Vi
 export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisResult> {
   const analyzer = getAnalyzer(opts.testType);
   if (!analyzer) return failed(opts.testType, "none", "Brak analizatora dla tego testu.");
-  if (!isPoseSupported()) return failed(opts.testType, analyzer.analyzerVersion, "Analiza wideo nie jest wspierana w tej przeglądarce.");
+  if (!isPoseSupported())
+    return failed(
+      opts.testType,
+      analyzer.analyzerVersion,
+      "Analiza wideo nie jest wspierana w tej przeglądarce.",
+    );
 
   try {
     opts.onPhase?.("reading_metadata");
     const metadata = await readVideoMetadata(opts.videoUrl, opts.declaredFps);
     if (metadata.frameCount <= 0) {
-      return failed(opts.testType, analyzer.analyzerVersion, "Nie udało się odczytać klatek wideo.");
+      return failed(
+        opts.testType,
+        analyzer.analyzerVersion,
+        "Nie udało się odczytać klatek wideo.",
+      );
     }
 
     opts.onPhase?.("decoding_frames");
@@ -81,7 +90,11 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     );
 
     if (poses.length === 0) {
-      return failed(opts.testType, analyzer.analyzerVersion, "Nie udało się zdekodować żadnej klatki.");
+      return failed(
+        opts.testType,
+        analyzer.analyzerVersion,
+        "Nie udało się zdekodować żadnej klatki.",
+      );
     }
 
     const ctx: AnalysisContext = {

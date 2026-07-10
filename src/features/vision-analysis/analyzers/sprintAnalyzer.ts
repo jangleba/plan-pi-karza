@@ -9,7 +9,13 @@ import type {
 import { baseValidation, buildValidation } from "./validation";
 import { hipXSeries, timeSeries } from "../poseSeries";
 import { movingAverage, interpolateShortGaps } from "../signal";
-import { interpolateCrossingTime, averageSpeed, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
+import {
+  interpolateCrossingTime,
+  averageSpeed,
+  round,
+  withinPlausibleRange,
+  PLAUSIBLE_RANGES,
+} from "../physics";
 
 /**
  * Analizator sprintu na dystansie protokołu. Wynik liczbowy powstaje TYLKO,
@@ -51,12 +57,30 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     const time = finish.timestampSeconds - start.timestampSeconds;
     if (time <= 0) return [];
     const spd = averageSpeed(distanceM, time);
-    if (!withinPlausibleRange(spd.ms, PLAUSIBLE_RANGES.sprint_speed_ms.min, PLAUSIBLE_RANGES.sprint_speed_ms.max))
+    if (
+      !withinPlausibleRange(
+        spd.ms,
+        PLAUSIBLE_RANGES.sprint_speed_ms.min,
+        PLAUSIBLE_RANGES.sprint_speed_ms.max,
+      )
+    )
       return [];
     const conf = Math.min(start.confidence, finish.confidence);
     return [
-      { key: "sprint_time_s", label: `Czas ${distanceM} m`, value: round(time, 2), unit: "s", confidence: conf },
-      { key: "avg_speed_ms", label: "Prędkość średnia", value: spd.ms, unit: "m/s", confidence: conf },
+      {
+        key: "sprint_time_s",
+        label: `Czas ${distanceM} m`,
+        value: round(time, 2),
+        unit: "s",
+        confidence: conf,
+      },
+      {
+        key: "avg_speed_ms",
+        label: "Prędkość średnia",
+        value: spd.ms,
+        unit: "m/s",
+        confidence: conf,
+      },
       { key: "avg_speed_kmh", label: "Prędkość", value: spd.kmh, unit: "km/h", confidence: conf },
     ];
   }
@@ -74,12 +98,12 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     if (!cal || cal.finishLineX == null) issues.push("MISSING_FINISH_LINE");
     if (issues.length === 0 && events(ctx).length < 2) issues.push("EVENTS_NOT_DETECTED");
     // Brak linii → wymaga kalibracji/trenera (needs_review), nie twardy invalid.
-    const hardFail: ValidationResult["issues"] = [
-      "POSE_NOT_DETECTED",
-      "MULTIPLE_PEOPLE",
-    ];
+    const hardFail: ValidationResult["issues"] = ["POSE_NOT_DETECTED", "MULTIPLE_PEOPLE"];
     const res = buildValidation(issues, hardFail);
-    if (res.ok && (issues.includes("MISSING_START_LINE") || issues.includes("MISSING_FINISH_LINE"))) {
+    if (
+      res.ok &&
+      (issues.includes("MISSING_START_LINE") || issues.includes("MISSING_FINISH_LINE"))
+    ) {
       return { ...res, ok: false, status: "needs_review" };
     }
     return res;

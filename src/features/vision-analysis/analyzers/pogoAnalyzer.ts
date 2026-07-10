@@ -8,11 +8,7 @@ import type {
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
 import { detectGroundContacts } from "./jumpDetection";
-import {
-  flightTimeToHeightCm,
-  reactiveStrengthIndex,
-  round,
-} from "../physics";
+import { flightTimeToHeightCm, reactiveStrengthIndex, round } from "../physics";
 
 const MIN_FPS = 120;
 
@@ -46,9 +42,27 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
 
   return [
     { key: "rsi", label: "RSI", value: rsi, unit: "", confidence: round(conf, 2) },
-    { key: "ground_contact_s", label: "Czas kontaktu", value: groundContact, unit: "s", confidence: round(conf, 2) },
-    { key: "jump_height_cm", label: "Wysokość", value: heightCm, unit: "cm", confidence: round(conf, 2) },
-    { key: "contact_rhythm", label: "Rytm kontaktów", value: rhythm, unit: "/s", confidence: round(conf, 2) },
+    {
+      key: "ground_contact_s",
+      label: "Czas kontaktu",
+      value: groundContact,
+      unit: "s",
+      confidence: round(conf, 2),
+    },
+    {
+      key: "jump_height_cm",
+      label: "Wysokość",
+      value: heightCm,
+      unit: "cm",
+      confidence: round(conf, 2),
+    },
+    {
+      key: "contact_rhythm",
+      label: "Rytm kontaktów",
+      value: rhythm,
+      unit: "/s",
+      confidence: round(conf, 2),
+    },
   ];
 }
 

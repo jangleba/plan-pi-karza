@@ -10,12 +10,7 @@ import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { hipYSeries, timeSeries } from "../poseSeries";
 import { meanFinite, argMax } from "../signal";
-import {
-  flightTimeToHeightCm,
-  round,
-  withinPlausibleRange,
-  PLAUSIBLE_RANGES,
-} from "../physics";
+import { flightTimeToHeightCm, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 
 const MIN_FPS = 60;
 
@@ -31,16 +26,40 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
   const lowest = ev.find((e) => e.type === "lowest_position");
   if (!takeoff || !landing) return [];
   const flightTime = landing.timestampSeconds - takeoff.timestampSeconds;
-  if (!withinPlausibleRange(flightTime, PLAUSIBLE_RANGES.flight_time_s.min, PLAUSIBLE_RANGES.flight_time_s.max))
+  if (
+    !withinPlausibleRange(
+      flightTime,
+      PLAUSIBLE_RANGES.flight_time_s.min,
+      PLAUSIBLE_RANGES.flight_time_s.max,
+    )
+  )
     return [];
   const heightCm = flightTimeToHeightCm(flightTime);
-  if (!withinPlausibleRange(heightCm, PLAUSIBLE_RANGES.jump_height_cm.min, PLAUSIBLE_RANGES.jump_height_cm.max))
+  if (
+    !withinPlausibleRange(
+      heightCm,
+      PLAUSIBLE_RANGES.jump_height_cm.min,
+      PLAUSIBLE_RANGES.jump_height_cm.max,
+    )
+  )
     return [];
 
   const conf = takeoff.confidence;
   const out: CalculatedMetric[] = [
-    { key: "jump_height_cm", label: "Wysokość wyskoku", value: heightCm, unit: "cm", confidence: conf },
-    { key: "flight_time_s", label: "Czas w powietrzu", value: round(flightTime, 3), unit: "s", confidence: conf },
+    {
+      key: "jump_height_cm",
+      label: "Wysokość wyskoku",
+      value: heightCm,
+      unit: "cm",
+      confidence: conf,
+    },
+    {
+      key: "flight_time_s",
+      label: "Czas w powietrzu",
+      value: round(flightTime, 3),
+      unit: "s",
+      confidence: conf,
+    },
   ];
 
   // Głębokość zejścia (countermovement) względem pozycji stojącej.

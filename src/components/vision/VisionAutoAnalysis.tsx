@@ -114,9 +114,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       />
 
       <div className="space-y-4 px-5">
-        {state.kind === "running" && (
-          <RunningView phase={phase} progress={progress} />
-        )}
+        {state.kind === "running" && <RunningView phase={phase} progress={progress} />}
 
         {state.kind === "invalid" && (
           <InvalidView
@@ -133,7 +131,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
               <AlertTriangle className="h-7 w-7" />
             </div>
             <div>
-              <div className="text-base font-semibold text-foreground">Nie udało się przeanalizować filmu</div>
+              <div className="text-base font-semibold text-foreground">
+                Nie udało się przeanalizować filmu
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
             </div>
             <Button

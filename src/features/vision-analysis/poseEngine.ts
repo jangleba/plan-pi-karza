@@ -9,8 +9,7 @@ import { POSE } from "./types";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let landmarkerPromise: Promise<any> | null = null;
 
-const WASM_ROOT =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
+const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
@@ -34,9 +33,16 @@ async function getLandmarker(): Promise<any> {
 }
 
 const KEY_LANDMARKS = [
-  POSE.LEFT_HIP, POSE.RIGHT_HIP, POSE.LEFT_KNEE, POSE.RIGHT_KNEE,
-  POSE.LEFT_ANKLE, POSE.RIGHT_ANKLE, POSE.LEFT_HEEL, POSE.RIGHT_HEEL,
-  POSE.LEFT_FOOT_INDEX, POSE.RIGHT_FOOT_INDEX,
+  POSE.LEFT_HIP,
+  POSE.RIGHT_HIP,
+  POSE.LEFT_KNEE,
+  POSE.RIGHT_KNEE,
+  POSE.LEFT_ANKLE,
+  POSE.RIGHT_ANKLE,
+  POSE.LEFT_HEEL,
+  POSE.RIGHT_HEEL,
+  POSE.LEFT_FOOT_INDEX,
+  POSE.RIGHT_FOOT_INDEX,
 ];
 
 function meanVisibility(landmarks: Landmark[]): number {

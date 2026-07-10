@@ -6,10 +6,22 @@ import type { AnalysisContext, FramePose, Landmark, VideoMetadata } from "./type
 import { POSE } from "./types";
 
 function landmarksWith(hipY: number, footY: number): Landmark[] {
-  const arr: Landmark[] = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
+  const arr: Landmark[] = Array.from({ length: 33 }, () => ({
+    x: 0.5,
+    y: 0.5,
+    z: 0,
+    visibility: 0.9,
+  }));
   arr[POSE.LEFT_HIP] = { x: 0.5, y: hipY, z: 0, visibility: 0.95 };
   arr[POSE.RIGHT_HIP] = { x: 0.5, y: hipY, z: 0, visibility: 0.95 };
-  for (const i of [POSE.LEFT_ANKLE, POSE.RIGHT_ANKLE, POSE.LEFT_HEEL, POSE.RIGHT_HEEL, POSE.LEFT_FOOT_INDEX, POSE.RIGHT_FOOT_INDEX]) {
+  for (const i of [
+    POSE.LEFT_ANKLE,
+    POSE.RIGHT_ANKLE,
+    POSE.LEFT_HEEL,
+    POSE.RIGHT_HEEL,
+    POSE.LEFT_FOOT_INDEX,
+    POSE.RIGHT_FOOT_INDEX,
+  ]) {
     arr[i] = { x: 0.5, y: footY, z: 0, visibility: 0.95 };
   }
   return arr;
@@ -55,23 +67,39 @@ function meta(fps: number): VideoMetadata {
 
 describe("resolveAnalysisStatus (bezpiecznik)", () => {
   it("NIE pozwala na 'completed' gdy brak metryk", () => {
-    const d = resolveAnalysisStatus({ validationStatus: "completed", metricsCount: 0, confidence: 0.99 });
+    const d = resolveAnalysisStatus({
+      validationStatus: "completed",
+      metricsCount: 0,
+      confidence: 0.99,
+    });
     expect(d.status).not.toBe("completed");
     expect(d.status).toBe("needs_review");
   });
 
   it("akceptuje wynik przy wysokim confidence i metrykach", () => {
-    const d = resolveAnalysisStatus({ validationStatus: "completed", metricsCount: 2, confidence: 0.9 });
+    const d = resolveAnalysisStatus({
+      validationStatus: "completed",
+      metricsCount: 2,
+      confidence: 0.9,
+    });
     expect(d.status).toBe("completed");
   });
 
   it("oznacza needs_review przy niskim confidence", () => {
-    const d = resolveAnalysisStatus({ validationStatus: "completed", metricsCount: 2, confidence: 0.5 });
+    const d = resolveAnalysisStatus({
+      validationStatus: "completed",
+      metricsCount: 2,
+      confidence: 0.5,
+    });
     expect(d.status).toBe("needs_review");
   });
 
   it("respektuje invalid_recording z analizatora", () => {
-    const d = resolveAnalysisStatus({ validationStatus: "invalid_recording", metricsCount: 5, confidence: 0.9 });
+    const d = resolveAnalysisStatus({
+      validationStatus: "invalid_recording",
+      metricsCount: 5,
+      confidence: 0.9,
+    });
     expect(d.status).toBe("invalid_recording");
   });
 });

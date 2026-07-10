@@ -17,7 +17,10 @@ import { round } from "../physics";
  * Czas hamowania jest liczony z rzeczywistych timestampów. Poprawność
  * kolejności linii i wykonania protokołu weryfikuje trener → needs_review.
  */
-function makeCod(testType: "five_ten_five" | "sprint_to_stop", camera: "front" | "side"): TestAnalyzer {
+function makeCod(
+  testType: "five_ten_five" | "sprint_to_stop",
+  camera: "front" | "side",
+): TestAnalyzer {
   const MIN_FPS = testType === "sprint_to_stop" ? 120 : 60;
 
   function events(ctx: AnalysisContext): DetectedEvent[] {
@@ -45,8 +48,18 @@ function makeCod(testType: "five_ten_five" | "sprint_to_stop", camera: "front" |
       }
     }
     return [
-      { type: "peak_speed", frameIndex: peakIdx, timestampSeconds: t[peakIdx] ?? 0, confidence: 0.6 },
-      { type: "braking_start", frameIndex: brakeIdx, timestampSeconds: t[brakeIdx] ?? 0, confidence: 0.6 },
+      {
+        type: "peak_speed",
+        frameIndex: peakIdx,
+        timestampSeconds: t[peakIdx] ?? 0,
+        confidence: 0.6,
+      },
+      {
+        type: "braking_start",
+        frameIndex: brakeIdx,
+        timestampSeconds: t[brakeIdx] ?? 0,
+        confidence: 0.6,
+      },
       { type: "stop", frameIndex: stopIdx, timestampSeconds: t[stopIdx] ?? 0, confidence: 0.6 },
     ];
   }

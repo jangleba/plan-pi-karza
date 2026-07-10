@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  movingAverage,
-  derivative,
-  interpolateShortGaps,
-  argMin,
-  argMax,
-} from "./signal";
+import { movingAverage, derivative, interpolateShortGaps, argMin, argMax } from "./signal";
 
 describe("signal", () => {
   it("wygładza ruchomą średnią", () => {

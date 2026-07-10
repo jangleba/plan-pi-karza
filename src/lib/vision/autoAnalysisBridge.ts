@@ -59,7 +59,10 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
     { label: "Metoda", value: `Silnik analizy wideo (${analysis.analyzerVersion})` },
     { label: "FPS", value: `${analysis.videoMetadata.fps}` },
     { label: "Liczba klatek", value: `${analysis.videoMetadata.frameCount}` },
-    { label: "Rozdzielczość", value: `${analysis.videoMetadata.width}×${analysis.videoMetadata.height}` },
+    {
+      label: "Rozdzielczość",
+      value: `${analysis.videoMetadata.width}×${analysis.videoMetadata.height}`,
+    },
     { label: "Pewność analizy", value: `${Math.round(analysis.overallConfidence * 100)}%` },
     ...analysis.keyEvents.map((e) => ({
       label: `Zdarzenie: ${e.type}`,

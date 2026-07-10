@@ -1,12 +1,6 @@
 import type { FramePose, DetectedEvent } from "../types";
 import { footBottomSeries, hipYSeries, timeSeries } from "../poseSeries";
-import {
-  movingAverage,
-  interpolateShortGaps,
-  argMin,
-  argMax,
-  meanFinite,
-} from "../signal";
+import { movingAverage, interpolateShortGaps, argMin, argMax, meanFinite } from "../signal";
 import { interpolateCrossingTime } from "../physics";
 
 export interface FlightPhase {

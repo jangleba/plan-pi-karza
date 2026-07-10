@@ -15,11 +15,7 @@ export type TestType =
 
 export type CameraSetup = "side" | "front" | "back" | "45deg" | "top";
 
-export type AnalysisStatus =
-  | "completed"
-  | "needs_review"
-  | "invalid_recording"
-  | "failed";
+export type AnalysisStatus = "completed" | "needs_review" | "invalid_recording" | "failed";
 
 /** Kody powodów odrzucenia / niskiej jakości nagrania. */
 export type QualityIssueCode =
@@ -123,14 +119,8 @@ export interface TestAnalyzer {
   requiresCalibration: boolean;
   validateRecording(context: AnalysisContext): ValidationResult;
   detectKeyEvents(context: AnalysisContext): Promise<DetectedEvent[]>;
-  calculateMetrics(
-    events: DetectedEvent[],
-    context: AnalysisContext,
-  ): CalculatedMetric[];
-  calculateConfidence(
-    events: DetectedEvent[],
-    context: AnalysisContext,
-  ): ConfidenceResult;
+  calculateMetrics(events: DetectedEvent[], context: AnalysisContext): CalculatedMetric[];
+  calculateConfidence(events: DetectedEvent[], context: AnalysisContext): ConfidenceResult;
 }
 
 /** Jednolity wynik analizy zwracany przez pipeline. */

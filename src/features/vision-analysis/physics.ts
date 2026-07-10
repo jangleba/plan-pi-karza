@@ -31,7 +31,10 @@ export function reactiveStrengthIndex(
 }
 
 /** Prędkość średnia z dystansu i czasu. */
-export function averageSpeed(distanceM: number, timeSeconds: number): {
+export function averageSpeed(
+  distanceM: number,
+  timeSeconds: number,
+): {
   ms: number;
   kmh: number;
 } {
@@ -75,11 +78,7 @@ export function interpolateCrossingTime(
 }
 
 /** Sprawdza, czy wartość mieści się w fizycznie możliwym zakresie. */
-export function withinPlausibleRange(
-  value: number,
-  min: number,
-  max: number,
-): boolean {
+export function withinPlausibleRange(value: number, min: number, max: number): boolean {
   return Number.isFinite(value) && value >= min && value <= max;
 }
 

@@ -38,17 +38,27 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
   if (!takeoff || !landing) return [];
   const poses = ctx.poses;
   const startX = poses[takeoff.frameIndex]?.landmarks
-    ? (poses[takeoff.frameIndex]!.landmarks![31].x + poses[takeoff.frameIndex]!.landmarks![32].x) / 2
+    ? (poses[takeoff.frameIndex]!.landmarks![31].x + poses[takeoff.frameIndex]!.landmarks![32].x) /
+      2
     : null;
   const endX = poses[landing.frameIndex]?.landmarks
-    ? (poses[landing.frameIndex]!.landmarks![31].x + poses[landing.frameIndex]!.landmarks![32].x) / 2
+    ? (poses[landing.frameIndex]!.landmarks![31].x + poses[landing.frameIndex]!.landmarks![32].x) /
+      2
     : null;
   if (startX == null || endX == null) return [];
   const meters = pxToMeters(ctx, Math.abs(endX - startX));
   if (meters == null || meters <= 0) return []; // brak kalibracji → brak wyniku liczbowego
   const cm = round(meters * 100, 0);
   if (cm < 80 || cm > 380) return [];
-  return [{ key: "distance_cm", label: "Długość skoku", value: cm, unit: "cm", confidence: takeoff.confidence * 0.7 }];
+  return [
+    {
+      key: "distance_cm",
+      label: "Długość skoku",
+      value: cm,
+      unit: "cm",
+      confidence: takeoff.confidence * 0.7,
+    },
+  ];
 }
 
 function confidence(ev: DetectedEvent[]): ConfidenceResult {
@@ -61,8 +71,13 @@ function validate(ctx: AnalysisContext): ValidationResult {
   const { issues } = baseValidation(ctx, MIN_FPS);
   if (events(ctx).length < 2) issues.push("EVENTS_NOT_DETECTED");
   if (!ctx.calibration?.referencePoints) issues.push("NO_CALIBRATION");
-  const res = buildValidation(issues, ["POSE_NOT_DETECTED", "MULTIPLE_PEOPLE", "EVENTS_NOT_DETECTED"]);
-  if (res.ok && issues.includes("NO_CALIBRATION")) return { ...res, ok: false, status: "needs_review" };
+  const res = buildValidation(issues, [
+    "POSE_NOT_DETECTED",
+    "MULTIPLE_PEOPLE",
+    "EVENTS_NOT_DETECTED",
+  ]);
+  if (res.ok && issues.includes("NO_CALIBRATION"))
+    return { ...res, ok: false, status: "needs_review" };
   return res;
 }
 
