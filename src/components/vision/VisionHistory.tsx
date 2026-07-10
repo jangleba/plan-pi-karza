@@ -152,6 +152,9 @@ export function VisionHistory() {
 }
 
 function HistoryRow({ item, isBest }: { item: VisionTestResult; isBest: boolean }) {
+  if (item.testType === GYM_EXERCISE_TEST_ID) {
+    return <GymHistoryRow item={item} />;
+  }
   const label = item.comparisonToPrevious?.label;
   const Trend =
     label === "improvement" ? TrendingUp : label === "regression" ? TrendingDown : Minus;
