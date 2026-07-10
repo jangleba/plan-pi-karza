@@ -9,7 +9,15 @@ import type {
   VisionValidityFlags,
   VisionFeedback,
   VisionSignals,
+  ReviewStatus,
+  ReviewType,
+  PaidReviewStatus,
+  CoachFrames,
+  CoachFeedback,
+  CalculationBasis,
 } from "./types";
+import { getVisionTest } from "./visionTests";
+import { recomputeMainValue, buildCalculationBasis } from "./visionCalc";
 import type { VisionAnalysisResult } from "./visionAnalysisService";
 
 // Tabela vision_tests nie jest jeszcze w wygenerowanych typach — używamy luźnego klienta.
