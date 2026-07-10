@@ -22,7 +22,8 @@ import {
   type VisionTestResult,
   type VisionTestCategory,
 } from "@/lib/vision/types";
-import { listVisionResults, deriveGymStatus } from "@/lib/vision/visionRepo";
+import { deriveGymStatus } from "@/lib/vision/visionRepo";
+import { listAllResults } from "@/lib/vision/visionResultService";
 import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { formatDate } from "@/lib/loadwise/labels";
 
@@ -60,7 +61,7 @@ export function VisionHistory() {
       setBusy(false);
       return;
     }
-    listVisionResults(user.id)
+    listAllResults(user.id)
       .then(setItems)
       .catch(() => setItems([]))
       .finally(() => setBusy(false));

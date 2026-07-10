@@ -3,7 +3,7 @@ import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { VisionGuard } from "@/components/vision/VisionGuard";
 import { VisionResult } from "@/components/vision/VisionResult";
-import { getVisionResult } from "@/lib/vision/visionRepo";
+import { getResultById } from "@/lib/vision/visionResultService";
 import type { VisionTestResult } from "@/lib/vision/types";
 
 export const Route = createFileRoute("/vision-lab/result/$resultId")({
@@ -16,7 +16,7 @@ function ResultRoute() {
   const [busy, setBusy] = useState(true);
 
   useEffect(() => {
-    getVisionResult(resultId)
+    getResultById(resultId)
       .then(setResult)
       .catch(() => setResult(null))
       .finally(() => setBusy(false));
