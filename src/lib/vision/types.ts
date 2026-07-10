@@ -333,3 +333,112 @@ export const CAMERA_VIEW_LABELS: Record<VisionCameraView, string> = {
   "45deg": "Pod kątem 45°",
   top: "Z góry",
 };
+
+// ===================== Real Frame Analyzer =====================
+
+/** Status realnej analizy klatkowej. */
+export type FrameAnalysisStatus =
+  | "frame_verified"
+  | "user_marked"
+  | "coach_verified"
+  | "estimated"
+  | "invalid";
+
+export const FRAME_STATUS_LABELS: Record<FrameAnalysisStatus, string> = {
+  frame_verified: "Frame Verified",
+  user_marked: "User Marked",
+  coach_verified: "Coach Verified",
+  estimated: "Estimated",
+  invalid: "Invalid",
+};
+
+export const FRAME_STATUS_DESCRIPTIONS: Record<FrameAnalysisStatus, string> = {
+  frame_verified:
+    "Wynik policzony z filmu na podstawie zaznaczonych klatek i FPS.",
+  user_marked: "Klatki zaznaczone przez użytkownika.",
+  coach_verified: "Trener sprawdził klatki i zatwierdził wynik.",
+  estimated: "Wynik orientacyjny. FPS albo klatki mogą być niedokładne.",
+  invalid: "Nie można obliczyć wyniku. Brakuje FPS albo kluczowych klatek.",
+};
+
+/** Kto oznaczył kluczowe klatki. */
+export type MarkedBy = "user" | "coach" | "ai";
+
+/** Klucz pojedynczego markera klatkowego. */
+export type FrameMarkerKey =
+  | "takeoff_frame"
+  | "landing_frame"
+  | "start_frame"
+  | "finish_frame"
+  | "first_contact_frame"
+  | "last_contact_frame"
+  | "entry_frame"
+  | "braking_start_frame"
+  | "stop_frame"
+  | "exit_frame";
+
+/** Definicja markera wymaganego przez dany test. */
+export interface FrameMarkerDef {
+  key: FrameMarkerKey;
+  label: string;
+  required: boolean;
+}
+
+/** Zaznaczony marker (numer klatki). */
+export interface FrameMarker {
+  key: FrameMarkerKey;
+  frame: number;
+}
+
+/** Ocena jakościowa (manual/coach). */
+export type FrameQuality = "good" | "medium" | "poor";
+
+export const FRAME_QUALITY_LABELS: Record<FrameQuality, string> = {
+  good: "Dobra",
+  medium: "Średnia",
+  poor: "Słaba",
+};
+
+/** Ręczne dane wejściowe (dystans, jakość, oceny techniki COD). */
+export interface FrameManualInputs {
+  distance_cm?: number | null;
+  landing_quality?: FrameQuality | null;
+  number_of_contacts?: number | null;
+  knee_control?: FrameQuality | null;
+  trunk_control?: FrameQuality | null;
+  foot_placement?: FrameQuality | null;
+  braking_steps?: number | null;
+}
+
+/** Wyliczone wartości pochodne analizy klatkowej. */
+export interface FrameDerived {
+  frameCount?: number | null;
+  flightTime?: number | null;
+  sprintTime?: number | null;
+  brakingTime?: number | null;
+  totalTime?: number | null;
+  jumpHeightCm?: number | null;
+  distanceM?: number | null;
+  distanceCm?: number | null;
+  speedMs?: number | null;
+  speedKmh?: number | null;
+  numberOfContacts?: number | null;
+  contactRhythm?: number | null;
+}
+
+/** Kompletny wynik realnej analizy klatkowej (przed zapisem). */
+export interface FrameAnalysisResult {
+  testId: string;
+  category: VisionTestCategory;
+  fps: number;
+  markers: Partial<Record<FrameMarkerKey, number>>;
+  manual: FrameManualInputs;
+  status: FrameAnalysisStatus;
+  error: string | null;
+  mainResultValue: number | null;
+  mainResultUnit: string | null;
+  method: string;
+  markedBy: MarkedBy;
+  derived: FrameDerived;
+  basis: CalculationBasis;
+}
