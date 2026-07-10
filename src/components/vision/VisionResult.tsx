@@ -20,6 +20,7 @@ import {
   ReviewStatusBadge,
 } from "./visionUi";
 import { VisionInvalidResult } from "./VisionInvalidResult";
+import { VisionAnalysisStatus } from "./VisionAnalysisStatus";
 import { VisionGymResult } from "./VisionGymResult";
 import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { VisionProgressComparison } from "./VisionProgressComparison";
@@ -45,6 +46,15 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
 
   if (result.testType === GYM_EXERCISE_TEST_ID) {
     return <VisionGymResult result={result} />;
+  }
+
+  // Zawodnik widzi gotowy raport dopiero, gdy analiza jest zakończona i
+  // opublikowana. Wcześniej — ekran statusu (bez klatek/markerów).
+  if (
+    result.analysisStatus !== "completed" ||
+    result.visibilityStatus !== "visible_to_player"
+  ) {
+    return <VisionAnalysisStatus result={result} />;
   }
 
   if (result.validityStatus === "invalid") {

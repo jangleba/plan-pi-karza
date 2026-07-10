@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Loader2, Inbox, ShieldAlert } from "lucide-react";
-import { VisionHeader, ReviewStatusBadge, ConfidenceBadge } from "./visionUi";
+import { Loader2, Inbox, ShieldAlert, PlayCircle } from "lucide-react";
+import { VisionHeader } from "./visionUi";
 import { useAuth } from "@/lib/loadwise/auth";
 import { isCoach, listCoachQueue } from "@/lib/vision/visionRepo";
 import {
   CATEGORY_LABELS,
-  PAID_REVIEW_STATUS_LABELS,
+  ANALYSIS_STATUS_LABELS,
   REVIEW_TYPE_LABELS,
   type VisionTestResult,
 } from "@/lib/vision/types";
@@ -73,7 +73,7 @@ export function VisionCoachQueue() {
           items.map((it) => (
             <Link
               key={it.id}
-              to="/vision-lab/coach/$resultId"
+              to="/vision-lab/coach/analyzer/$resultId"
               params={{ resultId: it.id }}
               className="soft-card block p-4 transition-transform active:scale-[0.99]"
             >
@@ -88,25 +88,23 @@ export function VisionCoachQueue() {
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  {it.mainResultValue != null && (
-                    <span className="text-base font-bold text-foreground">
-                      {it.mainResultValue}
-                      <span className="ml-0.5 text-xs text-muted-foreground">{it.mainResultUnit}</span>
-                    </span>
-                  )}
                   <div className="text-[11px] text-muted-foreground">FPS {it.fps ?? "—"}</div>
+                  {it.videoUrl && !it.videoUrl.startsWith("placeholder://") && (
+                    <div className="mt-0.5 text-[11px] text-emerald-600">film w chmurze</div>
+                  )}
                 </div>
               </div>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                <ReviewStatusBadge status={it.reviewStatus} />
-                <ConfidenceBadge level={it.confidenceScore} />
+                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  {ANALYSIS_STATUS_LABELS[it.analysisStatus]}
+                </span>
                 {it.reviewType && (
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
                     {REVIEW_TYPE_LABELS[it.reviewType]}
                   </span>
                 )}
-                <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-brand">
-                  {PAID_REVIEW_STATUS_LABELS[it.paidReviewStatus]}
+                <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                  <PlayCircle className="h-3.5 w-3.5" /> Otwórz Frame Analyzer
                 </span>
               </div>
             </Link>

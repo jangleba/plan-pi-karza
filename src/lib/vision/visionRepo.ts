@@ -17,6 +17,14 @@ import type {
   CalculationBasis,
   TechniqueReview,
   ReviewMode,
+  AnalysisStatus,
+  VisibilityStatus,
+  FrameDerived,
+  FrameAnalysisResult,
+
+
+
+
 
 } from "./types";
 import { getVisionTest } from "./visionTests";
@@ -71,6 +79,12 @@ interface VisionRow {
   exercise_category: string | null;
   technique_review: TechniqueReview | null;
   review_mode: string | null;
+  frame_analysis_status: string | null;
+  marked_by: string | null;
+  frame_derived: FrameDerived | null;
+  frame_markers: Record<string, number> | null;
+  analysis_status: string | null;
+  visibility_status: string | null;
 }
 
 function rowToResult(row: VisionRow): VisionTestResult {
@@ -131,6 +145,12 @@ function rowToResult(row: VisionRow): VisionTestResult {
     exerciseCategory: row.exercise_category ?? null,
     techniqueReview: row.technique_review ?? null,
     reviewMode: (row.review_mode as ReviewMode) ?? null,
+    frameAnalysisStatus: (row.frame_analysis_status as VisionTestResult["frameAnalysisStatus"]) ?? null,
+    markedBy: (row.marked_by as VisionTestResult["markedBy"]) ?? null,
+    frameDerived: row.frame_derived ?? null,
+    frameMarkers: row.frame_markers ?? null,
+    analysisStatus: (row.analysis_status as AnalysisStatus) ?? "completed",
+    visibilityStatus: (row.visibility_status as VisibilityStatus) ?? "visible_to_player",
   };
 }
 
@@ -420,15 +440,169 @@ export async function requestCoachReview(
   return rowToResult(data as VisionRow);
 }
 
-/** Kolejka trenera — testy zgłoszone do analizy, jeszcze niezakończone. */
+/**
+ * Kolejka trenera/admina — wszystkie przesłane filmy oczekujące na analizę
+ * lub w trakcie recenzji. Nie ogranicza się do płatnych zgłoszeń.
+ */
 export async function listCoachQueue(): Promise<VisionTestResult[]> {
   const { data, error } = await db
     .from("vision_tests")
     .select("*")
-    .eq("paid_review_requested", true)
+    .in("analysis_status", ["uploaded", "waiting_for_analysis", "in_review"])
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as VisionRow[]).map(rowToResult);
+}
+
+/**
+ * Zawodnik przesyła film do analizy. Tworzy rekord bez wyniku:
+ * analysis_status = waiting_for_analysis, visibility = hidden_from_player.
+ * Zawodnik NIE zaznacza klatek — robi to trener/admin w Frame Analyzer.
+ */
+export async function createPendingUpload(input: {
+  userId: string;
+  test: { id: string; name: string; category: string };
+  videoUrl: string | null;
+  fps: number | null;
+  cameraView: VisionCameraView | null;
+  reviewType?: ReviewType | null;
+}): Promise<VisionTestResult> {
+  const payload = {
+    user_id: input.userId,
+    test_type: input.test.id,
+    test_category: input.test.category,
+    test_name: input.test.name,
+    video_url: input.videoUrl,
+    capture_mode: "upload",
+    fps: input.fps,
+    camera_view: input.cameraView,
+    validity_status: "valid",
+    confidence_score: "medium",
+    main_result_value: null,
+    main_result_unit: null,
+    measured_metrics: [],
+    validity_flags: null,
+    ai_feedback: null,
+    comparison_to_previous: null,
+    saved_to_progress: false,
+    review_status: "ai_result",
+    review_mode: "frame_analysis",
+    analysis_status: "waiting_for_analysis",
+    visibility_status: "hidden_from_player",
+    paid_review_requested: Boolean(input.reviewType),
+    paid_review_status: input.reviewType ? "requested" : "not_requested",
+    review_type: input.reviewType ?? null,
+  };
+  const { data, error } = await db
+    .from("vision_tests")
+    .insert(payload)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/**
+ * Trener/admin publikuje wynik po analizie klatkowej istniejącego rekordu.
+ * System liczy wartość matematycznie — trener nie wpisuje jej z głowy.
+ */
+export async function coachPublishFrameResult(
+  result: VisionTestResult,
+  coachId: string,
+  frame: FrameAnalysisResult,
+): Promise<VisionTestResult> {
+  const d = frame.derived;
+  const m = frame.markers;
+  const patch: Record<string, unknown> = {
+    coach_id: coachId,
+    fps: frame.fps,
+    main_result_value: frame.mainResultValue,
+    main_result_unit: frame.mainResultUnit,
+    validity_status: "valid",
+    confidence_score: "high",
+    calculation_method: frame.method,
+    calculation_basis: frame.basis,
+    review_status: "coach_verified",
+    coach_verified: true,
+    verified_by_coach: true,
+    marked_by: "coach",
+    frame_analysis_enabled: true,
+    frame_analysis_status: "coach_verified",
+    frame_derived: d,
+    frame_markers: m,
+    analysis_status: "completed",
+    visibility_status: "visible_to_player",
+    paid_review_status: result.paidReviewRequested ? "completed" : "not_requested",
+    takeoff_frame: m.takeoff_frame ?? null,
+    landing_frame: m.landing_frame ?? null,
+    start_frame: m.start_frame ?? null,
+    finish_frame: m.finish_frame ?? null,
+    first_contact_frame: m.first_contact_frame ?? null,
+    last_contact_frame: m.last_contact_frame ?? null,
+    entry_frame: m.entry_frame ?? null,
+    braking_start_frame: m.braking_start_frame ?? null,
+    stop_frame: m.stop_frame ?? null,
+    exit_frame: m.exit_frame ?? null,
+    frame_count: d.frameCount ?? null,
+    flight_time: d.flightTime ?? null,
+    sprint_time: d.sprintTime ?? null,
+    braking_time: d.brakingTime ?? null,
+    jump_height_cm: d.jumpHeightCm ?? null,
+    distance_m: d.distanceM ?? null,
+    distance_cm: d.distanceCm ?? null,
+    speed_m_s: d.speedMs ?? null,
+    speed_km_h: d.speedKmh ?? null,
+    number_of_contacts: d.numberOfContacts ?? null,
+  };
+  const comparison = await computeComparison(result.userId, {
+    testType: result.testType,
+    mainResultValue: frame.mainResultValue,
+    mainResultUnit: frame.mainResultUnit,
+    validityStatus: "valid",
+  });
+  patch.comparison_to_previous = comparison;
+
+  const { data, error } = await db
+    .from("vision_tests")
+    .update(patch)
+    .eq("id", result.id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/** Trener/admin odrzuca film jako nieprawidłowy — zawodnik dostaje prośbę o powtórkę. */
+export async function coachRejectVideo(
+  id: string,
+  coachId: string,
+  note: string | null,
+): Promise<VisionTestResult> {
+  const { data, error } = await db
+    .from("vision_tests")
+    .update({
+      coach_id: coachId,
+      coach_verified: false,
+      coach_note: note,
+      validity_status: "invalid",
+      review_status: "invalid_by_coach",
+      analysis_status: "invalid_video",
+      visibility_status: "visible_to_player",
+      paid_review_status: "rejected_invalid_video",
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return rowToResult(data as VisionRow);
+}
+
+/** Trener/admin oznacza film jako będący w trakcie recenzji. */
+export async function coachMarkInReview(id: string, coachId: string): Promise<void> {
+  await db
+    .from("vision_tests")
+    .update({ coach_id: coachId, analysis_status: "in_review" })
+    .eq("id", id);
 }
 
 /** Trener zatwierdza test jako poprawny (Coach Verified). */
@@ -444,6 +618,8 @@ export async function coachVerify(
       coach_verified: true,
       coach_note: note,
       review_status: "coach_verified",
+      analysis_status: "completed",
+      visibility_status: "visible_to_player",
       paid_review_status: "completed",
     })
     .eq("id", id)
@@ -467,6 +643,8 @@ export async function coachInvalidate(
       coach_note: note,
       validity_status: "invalid",
       review_status: "invalid_by_coach",
+      analysis_status: "invalid_video",
+      visibility_status: "visible_to_player",
       paid_review_status: "rejected_invalid_video",
     })
     .eq("id", id)
@@ -490,6 +668,8 @@ export async function coachAddFeedback(
       coach_feedback: feedback,
       coach_note: note,
       review_status: "coach_feedback_added",
+      analysis_status: "completed",
+      visibility_status: "visible_to_player",
       paid_review_status: "completed",
     })
     .eq("id", id)
@@ -532,6 +712,8 @@ export async function coachCorrectFrames(
     calculation_method: basis.method,
     calculation_basis: basis,
     review_status: "coach_corrected",
+    analysis_status: "completed",
+    visibility_status: "visible_to_player",
     coach_note: note,
     paid_review_status: "completed",
   };
@@ -568,6 +750,8 @@ export async function coachManualOverride(
       manual_override_reason: reason,
       coach_corrected: true,
       review_status: "coach_corrected",
+      analysis_status: "completed",
+      visibility_status: "visible_to_player",
       paid_review_status: "completed",
     })
     .eq("id", id)

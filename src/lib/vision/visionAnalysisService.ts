@@ -268,6 +268,8 @@ export async function analyzeVisionTestDemo(
     exerciseCategory: null,
     techniqueReview: null,
     reviewMode: null,
+    analysisStatus: "completed",
+    visibilityStatus: "visible_to_player",
   };
 }
 

@@ -138,7 +138,40 @@ export interface VisionTestResult {
   markedBy?: MarkedBy | null;
   frameDerived?: FrameDerived | null;
   frameMarkers?: Partial<Record<FrameMarkerKey, number>> | null;
+
+  // ---- Podział widoków: player vs coach ----
+  analysisStatus: AnalysisStatus;
+  visibilityStatus: VisibilityStatus;
 }
+
+/** Status analizy filmu — od uploadu do gotowego raportu. */
+export type AnalysisStatus =
+  | "uploaded"
+  | "waiting_for_analysis"
+  | "in_review"
+  | "completed"
+  | "invalid_video";
+
+/** Czy zawodnik widzi wynik. */
+export type VisibilityStatus = "hidden_from_player" | "visible_to_player";
+
+export const ANALYSIS_STATUS_LABELS: Record<AnalysisStatus, string> = {
+  uploaded: "Przesłany",
+  waiting_for_analysis: "Waiting for analysis",
+  in_review: "In review",
+  completed: "Completed",
+  invalid_video: "Invalid video / repeat required",
+};
+
+export const ANALYSIS_STATUS_DESCRIPTIONS: Record<AnalysisStatus, string> = {
+  uploaded: "Film został przesłany.",
+  waiting_for_analysis:
+    "Film czeka na analizę klatkową na podstawie FPS i protokołu testu.",
+  in_review: "Trener analizuje Twój film klatka po klatce.",
+  completed: "Analiza gotowa. Zobacz swój raport.",
+  invalid_video:
+    "Film nie spełnia wymagań pomiaru. Powtórz nagranie zgodnie z instrukcją.",
+};
 
 /** Tryb analizy ćwiczenia z planu. */
 export type ReviewMode =

@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { UploadCloud, FileVideo, CheckCircle2, Loader2 } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow, updateFlow } from "@/lib/vision/visionFlow";
-import { uploadVisionVideo } from "@/lib/vision/visionRepo";
+import { uploadVisionVideo, createPendingUpload } from "@/lib/vision/visionRepo";
 
 type Status = "idle" | "selected" | "uploading" | "done";
 
@@ -18,6 +19,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
   const [status, setStatus] = useState<Status>(flow.videoUrl ? "done" : "idle");
   const [uploaded, setUploaded] = useState(flow.uploaded);
+  const [submitting, setSubmitting] = useState(false);
 
   async function onFile(file: File) {
     setFileName(file.name);
@@ -33,6 +35,27 @@ export function VisionUpload({ test }: { test: VisionTest }) {
     });
     setUploaded(res.uploaded);
     setStatus("done");
+  }
+
+  async function submitForAnalysis() {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await createPendingUpload({
+        userId: user.id,
+        test: { id: test.id, name: test.name, category: test.category },
+        videoUrl: flow.videoUrl,
+        fps: flow.fps || test.recommendedFps,
+        cameraView: flow.cameraView ?? test.cameraView,
+      });
+      navigate({ to: "/vision-lab/result/$resultId", params: { resultId: result.id } });
+    } catch {
+      toast.error("Nie udało się wysłać filmu do analizy.");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -99,9 +122,9 @@ export function VisionUpload({ test }: { test: VisionTest }) {
 
         <div className="soft-card p-4">
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Odczyt FPS jest na razie ustawiany ręcznie w setupie i użyty do oceny
-            dokładności. Po podłączeniu prawdziwej analizy FPS zostanie odczytany
-            automatycznie z pliku.
+            Po wysłaniu film trafia do analizy na podstawie kluczowych klatek, FPS
+            i protokołu testu. Jeśli nagranie nie spełnia wymagań, poprosimy Cię o
+            powtórzenie. Nie musisz nic mierzyć samodzielnie.
           </p>
         </div>
       </div>
@@ -114,12 +137,16 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           <Button
             className="w-full"
             size="lg"
-            disabled={status !== "done"}
-            onClick={() =>
-              navigate({ to: "/vision-lab/frame-analyzer/$testId", params: { testId: test.id } })
-            }
+            disabled={status !== "done" || submitting}
+            onClick={submitForAnalysis}
           >
-            Przejdź do Frame Analyzer
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wysyłanie…
+              </>
+            ) : (
+              "Wyślij film do analizy"
+            )}
           </Button>
         </div>
       </div>

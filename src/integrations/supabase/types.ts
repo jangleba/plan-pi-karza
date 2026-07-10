@@ -680,6 +680,7 @@ export type Database = {
       vision_tests: {
         Row: {
           ai_feedback: Json | null
+          analysis_status: string
           braking_start_frame: number | null
           braking_time: number | null
           calculation_basis: Json | null
@@ -744,9 +745,11 @@ export type Database = {
           validity_status: string
           verified_by_coach: boolean
           video_url: string | null
+          visibility_status: string
         }
         Insert: {
           ai_feedback?: Json | null
+          analysis_status?: string
           braking_start_frame?: number | null
           braking_time?: number | null
           calculation_basis?: Json | null
@@ -811,9 +814,11 @@ export type Database = {
           validity_status?: string
           verified_by_coach?: boolean
           video_url?: string | null
+          visibility_status?: string
         }
         Update: {
           ai_feedback?: Json | null
+          analysis_status?: string
           braking_start_frame?: number | null
           braking_time?: number | null
           calculation_basis?: Json | null
@@ -878,6 +883,7 @@ export type Database = {
           validity_status?: string
           verified_by_coach?: boolean
           video_url?: string | null
+          visibility_status?: string
         }
         Relationships: []
       }

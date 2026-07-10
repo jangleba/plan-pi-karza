@@ -1,19 +1,9 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { VisionGuard } from "@/components/vision/VisionGuard";
-import { VisionFrameAnalyzer } from "@/components/vision/VisionFrameAnalyzer";
-import { VisionTestNotFound } from "@/components/vision/VisionTestNotFound";
-import { getVisionTest } from "@/lib/vision/visionTests";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Frame Analyzer nie jest już ścieżką zawodnika. Analiza klatkowa jest
+// narzędziem trenera/admina i dostępna tylko z Coach Review Queue.
 export const Route = createFileRoute("/vision-lab/frame-analyzer/$testId")({
-  component: FrameAnalyzerRoute,
+  beforeLoad: () => {
+    throw redirect({ to: "/vision-lab" });
+  },
 });
-
-function FrameAnalyzerRoute() {
-  const { testId } = useParams({ from: "/vision-lab/frame-analyzer/$testId" });
-  const test = getVisionTest(testId);
-  return (
-    <VisionGuard>
-      {test ? <VisionFrameAnalyzer test={test} /> : <VisionTestNotFound />}
-    </VisionGuard>
-  );
-}
