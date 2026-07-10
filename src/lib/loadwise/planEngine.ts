@@ -2067,7 +2067,38 @@ function weekFocusFromSessions(sessions: PlanSession[]): string {
   return seen.length ? seen.join(" + ") : "mikrocykl";
 }
 
-export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
+/**
+ * Czy zawodnik jest w kontekście kontuzji/rehabilitacji/powrotu — jedyny
+ * powód, dla którego cały tydzień może mieć niskie obciążenie.
+ */
+export function isRecoveryContext(profile?: Profile | null): boolean {
+  if (!profile) return false;
+  return (
+    !!profile.painInjury ||
+    profile.seasonPhase === "return_injury" ||
+    profile.goal === "return"
+  );
+}
+
+/**
+ * Zaplanowane obciążenie tygodnia (bez korekty daily readiness).
+ * Domyślne minimum to "umiarkowana" — plan bazowy zawsze daje bodziec rozwojowy.
+ * "Niska" jest dozwolona TYLKO w kontekście kontuzji/rehabilitacji/powrotu.
+ */
+export function plannedWeeklyLoadOf(
+  sessions: PlanSession[],
+  profile?: Profile | null,
+): Intensity {
+  const hasHigh = sessions.some((s) => s.intensity === "wysoka");
+  const hasMod = sessions.some((s) => s.intensity === "umiarkowana");
+  if (hasHigh) return "wysoka";
+  if (hasMod) return "umiarkowana";
+  // Brak jakiegokolwiek bodźca wysokiego/umiarkowanego = lekki tydzień.
+  // Dozwolony wyłącznie z realnego powodu (kontuzja/rehab/powrót).
+  return isRecoveryContext(profile) ? "niska" : "umiarkowana";
+}
+
+export function buildPlanWeeks(plan: SessionDay[], profile?: Profile | null): PlanWeek[] {
   const buckets = new Map<string, SessionDay[]>();
   for (const day of plan) {
     const key = weekStartIso(parseIso(day.date));
@@ -2076,6 +2107,7 @@ export function buildPlanWeeks(plan: SessionDay[]): PlanWeek[] {
     buckets.set(key, list);
   }
 
+  const totalWeeks = buckets.size;
   return [...buckets.entries()].map(([startDate, days], index) => {
     const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
     const endDate = weekEndIso(parseIso(startDate));
