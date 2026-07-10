@@ -9,13 +9,15 @@ import type {
 import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { round } from "../physics";
+import { estimateScaleFromHeight } from "../autoCalibration";
 
 const MIN_FPS = 60;
 
 /**
- * Broad Jump — dystans w cm wymaga kalibracji przestrzeni (dwa punkty o znanej
- * odległości). Fazę odbicia/lądowania wykrywamy z pozy, ale bez kalibracji
- * NIE przeliczamy pikseli na centymetry → NO_CALIBRATION (weryfikacja trenera).
+ * Broad Jump — długość skoku w cm. Skalę pikseli na metry uzyskujemy z:
+ *  A) ręcznej kalibracji (referencePoints o znanej odległości), albo
+ *  B) auto-kalibracji z rzeczywistego wzrostu zawodnika.
+ * Bez żadnej z tych podstaw nie przeliczamy pikseli na cm → needs_review.
  */
 function events(ctx: AnalysisContext): DetectedEvent[] {
   const phase = detectFlightPhase(ctx.poses);
@@ -23,13 +25,24 @@ function events(ctx: AnalysisContext): DetectedEvent[] {
   return flightPhaseEvents(phase, ctx.poses);
 }
 
-function pxToMeters(ctx: AnalysisContext, dxNorm: number): number | null {
+/** Zwraca metry na piksel z kalibracji ręcznej lub auto (wzrost). */
+function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } | null {
   const ref = ctx.calibration?.referencePoints;
-  if (!ref) return null;
-  const refDxNorm = Math.hypot(ref.b.x - ref.a.x, ref.b.y - ref.a.y);
-  if (refDxNorm <= 0) return null;
-  const metersPerNorm = ref.meters / refDxNorm;
-  return dxNorm * metersPerNorm;
+  if (ref) {
+    const dxPx = Math.hypot(
+      (ref.b.x - ref.a.x) * ctx.metadata.width,
+      (ref.b.y - ref.a.y) * ctx.metadata.height,
+    );
+    if (dxPx > 0) return { mpp: ref.meters / dxPx, confMul: 1 };
+  }
+  const scale = estimateScaleFromHeight(
+    ctx.poses,
+    ctx.athleteHeightCm,
+    ctx.metadata.width,
+    ctx.metadata.height,
+  );
+  if (scale) return { mpp: scale.metersPerPixel, confMul: scale.confidence };
+  return null;
 }
 
 function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
