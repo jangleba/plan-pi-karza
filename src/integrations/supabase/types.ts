@@ -680,6 +680,8 @@ export type Database = {
       vision_tests: {
         Row: {
           ai_feedback: Json | null
+          braking_start_frame: number | null
+          braking_time: number | null
           calculation_basis: Json | null
           calculation_method: string | null
           camera_view: string | null
@@ -693,9 +695,22 @@ export type Database = {
           comparison_to_previous: Json | null
           confidence_score: string
           created_at: string
+          distance_cm: number | null
+          distance_m: number | null
+          entry_frame: number | null
           exercise_category: string | null
+          exit_frame: number | null
+          finish_frame: number | null
+          first_contact_frame: number | null
+          flight_time: number | null
           fps: number | null
+          frame_analysis_enabled: boolean
+          frame_analysis_status: string | null
+          frame_count: number | null
           id: string
+          jump_height_cm: number | null
+          landing_frame: number | null
+          last_contact_frame: number | null
           linked_exercise_id: string | null
           linked_exercise_name: string | null
           linked_plan_id: string | null
@@ -705,13 +720,21 @@ export type Database = {
           main_result_value: number | null
           manual_override: boolean
           manual_override_reason: string | null
+          marked_by: string | null
           measured_metrics: Json | null
+          number_of_contacts: number | null
           paid_review_requested: boolean
           paid_review_status: string | null
           review_mode: string | null
           review_status: string
           review_type: string | null
           saved_to_progress: boolean
+          speed_km_h: number | null
+          speed_m_s: number | null
+          sprint_time: number | null
+          start_frame: number | null
+          stop_frame: number | null
+          takeoff_frame: number | null
           technique_review: Json | null
           test_category: string
           test_name: string
@@ -719,10 +742,13 @@ export type Database = {
           user_id: string
           validity_flags: Json | null
           validity_status: string
+          verified_by_coach: boolean
           video_url: string | null
         }
         Insert: {
           ai_feedback?: Json | null
+          braking_start_frame?: number | null
+          braking_time?: number | null
           calculation_basis?: Json | null
           calculation_method?: string | null
           camera_view?: string | null
@@ -736,9 +762,22 @@ export type Database = {
           comparison_to_previous?: Json | null
           confidence_score?: string
           created_at?: string
+          distance_cm?: number | null
+          distance_m?: number | null
+          entry_frame?: number | null
           exercise_category?: string | null
+          exit_frame?: number | null
+          finish_frame?: number | null
+          first_contact_frame?: number | null
+          flight_time?: number | null
           fps?: number | null
+          frame_analysis_enabled?: boolean
+          frame_analysis_status?: string | null
+          frame_count?: number | null
           id?: string
+          jump_height_cm?: number | null
+          landing_frame?: number | null
+          last_contact_frame?: number | null
           linked_exercise_id?: string | null
           linked_exercise_name?: string | null
           linked_plan_id?: string | null
@@ -748,13 +787,21 @@ export type Database = {
           main_result_value?: number | null
           manual_override?: boolean
           manual_override_reason?: string | null
+          marked_by?: string | null
           measured_metrics?: Json | null
+          number_of_contacts?: number | null
           paid_review_requested?: boolean
           paid_review_status?: string | null
           review_mode?: string | null
           review_status?: string
           review_type?: string | null
           saved_to_progress?: boolean
+          speed_km_h?: number | null
+          speed_m_s?: number | null
+          sprint_time?: number | null
+          start_frame?: number | null
+          stop_frame?: number | null
+          takeoff_frame?: number | null
           technique_review?: Json | null
           test_category: string
           test_name: string
@@ -762,10 +809,13 @@ export type Database = {
           user_id: string
           validity_flags?: Json | null
           validity_status?: string
+          verified_by_coach?: boolean
           video_url?: string | null
         }
         Update: {
           ai_feedback?: Json | null
+          braking_start_frame?: number | null
+          braking_time?: number | null
           calculation_basis?: Json | null
           calculation_method?: string | null
           camera_view?: string | null
@@ -779,9 +829,22 @@ export type Database = {
           comparison_to_previous?: Json | null
           confidence_score?: string
           created_at?: string
+          distance_cm?: number | null
+          distance_m?: number | null
+          entry_frame?: number | null
           exercise_category?: string | null
+          exit_frame?: number | null
+          finish_frame?: number | null
+          first_contact_frame?: number | null
+          flight_time?: number | null
           fps?: number | null
+          frame_analysis_enabled?: boolean
+          frame_analysis_status?: string | null
+          frame_count?: number | null
           id?: string
+          jump_height_cm?: number | null
+          landing_frame?: number | null
+          last_contact_frame?: number | null
           linked_exercise_id?: string | null
           linked_exercise_name?: string | null
           linked_plan_id?: string | null
@@ -791,13 +854,21 @@ export type Database = {
           main_result_value?: number | null
           manual_override?: boolean
           manual_override_reason?: string | null
+          marked_by?: string | null
           measured_metrics?: Json | null
+          number_of_contacts?: number | null
           paid_review_requested?: boolean
           paid_review_status?: string | null
           review_mode?: string | null
           review_status?: string
           review_type?: string | null
           saved_to_progress?: boolean
+          speed_km_h?: number | null
+          speed_m_s?: number | null
+          sprint_time?: number | null
+          start_frame?: number | null
+          stop_frame?: number | null
+          takeoff_frame?: number | null
           technique_review?: Json | null
           test_category?: string
           test_name?: string
@@ -805,6 +876,7 @@ export type Database = {
           user_id?: string
           validity_flags?: Json | null
           validity_status?: string
+          verified_by_coach?: boolean
           video_url?: string | null
         }
         Relationships: []
