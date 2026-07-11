@@ -147,10 +147,10 @@ describe("BrakingEngine — Sprint-to-Stop (CALIBRATED)", () => {
   });
 
   it("brak zatrzymania (bieg przez strefę) → NO_SPEED_REDUCTION / STOP_NOT_DETECTED", () => {
-    // Stała prędkość przez cały czas, bez hamowania.
+    // Stała prędkość przez całą strefę i dalej, bez hamowania.
     const dt = 1 / 120;
     const step = 6 * dt * 1000;
-    const xs = Array.from({ length: 60 }, (_, i) => i * step);
+    const xs = Array.from({ length: 220 }, (_, i) => i * step);
     const res = detectBraking(calibratedInput({ poses: poseSeqWorld(xs, 120) }));
     expect(res.ok).toBe(false);
     if (res.ok) return;
@@ -160,7 +160,7 @@ describe("BrakingEngine — Sprint-to-Stop (CALIBRATED)", () => {
   it("zwykły sprint (brak redukcji prędkości) → NO_SPEED_REDUCTION", () => {
     const dt = 1 / 120;
     const step = 7 * dt * 1000;
-    const xs = Array.from({ length: 50 }, (_, i) => i * step);
+    const xs = Array.from({ length: 220 }, (_, i) => i * step);
     const res = detectBraking(calibratedInput({ poses: poseSeqWorld(xs, 120) }));
     expect(res.ok).toBe(false);
     if (res.ok) return;
@@ -176,7 +176,7 @@ describe("BrakingEngine — Sprint-to-Stop (CALIBRATED)", () => {
   });
 
   it("zatrzymanie poza strefą → STOP_OUT_OF_ZONE", () => {
-    // Zatrzymanie na 3000 mm, przed strefą 6500–8500.
+    // Zatrzymanie tuż za wejściem (5600 mm), przed strefą 6500–8500.
     const xs = brakingProfile({ entrySpeedMs: 6, fps: 120, approachMm: 5200, stopMm: 5600, decelFrames: 24 });
     const res = detectBraking(calibratedInput({ poses: poseSeqWorld(xs, 120) }));
     expect(res.ok).toBe(false);
@@ -185,17 +185,18 @@ describe("BrakingEngine — Sprint-to-Stop (CALIBRATED)", () => {
   });
 
   it("zmiana kierunku zamiast zatrzymania → DIRECTION_CHANGE_NOT_STOP", () => {
-    // Sprint w strefę, potem wyraźny ruch wstecz (zmiana kierunku).
+    // Sprint przez wejście strefy, potem wyraźny ruch wstecz (zmiana kierunku).
     const dt = 1 / 120;
     const step = 6 * dt * 1000;
-    const fwd = Array.from({ length: 20 }, (_, i) => i * step);
+    const fwd = Array.from({ length: 140 }, (_, i) => i * step);
     const peak = fwd[fwd.length - 1];
-    const back = Array.from({ length: 20 }, (_, i) => peak - (i + 1) * step);
+    const back = Array.from({ length: 40 }, (_, i) => peak - (i + 1) * step);
     const res = detectBraking(calibratedInput({ poses: poseSeqWorld([...fwd, ...back], 120) }));
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.code).toBe("DIRECTION_CHANGE_NOT_STOP");
   });
+
 
   it("druga próba po zmianie kadru (kamera poruszona) → CALIBRATION_CAMERA_MOVED", () => {
     const res = detectBraking(calibratedInput({ cameraStable: false }));
