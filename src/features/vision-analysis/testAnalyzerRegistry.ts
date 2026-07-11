@@ -5,6 +5,7 @@ import { dropJumpAnalyzer } from "./analyzers/dropJumpAnalyzer";
 import { repeatedJumpsAnalyzer } from "./analyzers/repeatedJumpsAnalyzer";
 import { pogoAnalyzer } from "./analyzers/pogoAnalyzer";
 import { broadJumpAnalyzer } from "./analyzers/broadJumpAnalyzer";
+import { singleLegHopAnalyzer } from "./analyzers/singleLegHopAnalyzer";
 import { sprint20mAnalyzer, sprint30mAnalyzer } from "./analyzers/sprintAnalyzer";
 import { fiveTenFiveAnalyzer, sprintToStopAnalyzer } from "./analyzers/codAnalyzer";
 import { gymAnalyzer } from "./analyzers/gymAnalyzer";
