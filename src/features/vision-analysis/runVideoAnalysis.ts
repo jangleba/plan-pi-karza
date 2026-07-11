@@ -98,7 +98,7 @@ function resolveCalibration(
         fps,
         zoom: opts.zoom ?? 1,
         facing: (opts.facing ?? "back") as "front" | "back",
-        resolution: `${opts.calibration ? "" : ""}`, // rozdzielczość dołączana niżej
+        resolution,
       }
     : null;
 
