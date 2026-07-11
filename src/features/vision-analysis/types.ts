@@ -166,7 +166,10 @@ export type TimingLineRole =
   | "TURN_LINE"
   | "CENTER"
   | "TURN_LEFT"
-  | "TURN_RIGHT";
+  | "TURN_RIGHT"
+  | "BRAKING_ENTRY"
+  | "STOP_ZONE_START"
+  | "STOP_ZONE_END";
 
 /** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
 export interface TimingLineSpec {
