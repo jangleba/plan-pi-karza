@@ -476,6 +476,7 @@ function TechniqueOnlyView({
   );
 }
 
+function RunningView({ phase, progress }: { phase: AnalysisPhase; progress: number }) {
   const pct = Math.round(progress * 100);
   return (
     <div className="soft-card space-y-5 p-6 text-center">
