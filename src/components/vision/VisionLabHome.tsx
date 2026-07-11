@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { History, Sparkles, ClipboardCheck, Dumbbell, ChevronRight } from "lucide-react";
+import { History, Sparkles, ClipboardCheck, Dumbbell, ChevronRight, Crosshair } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionCategoryCard } from "./VisionCategoryCard";
 import { VisionTestCard } from "./VisionTestCard";
@@ -77,6 +77,24 @@ export function VisionLabHome() {
             fałszywej dokładności.
           </p>
         </div>
+
+        <Link
+          to="/vision-lab/calibration"
+          className="soft-card flex items-center gap-3 p-4 transition-transform active:scale-[0.99]"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+            <Crosshair className="h-6 w-6" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-foreground">Kalibracja kamery</div>
+            <p className="text-xs text-muted-foreground">
+              Profil dla urządzenia, obiektywu, orientacji i FPS/zoomu — z walidacją
+              reprojectionError.
+            </p>
+          </div>
+          <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
+
 
         {coach && (
           <Link
