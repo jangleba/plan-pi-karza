@@ -12,7 +12,11 @@ import type {
   LensType,
   CaptureOrientation,
 } from "@/features/vision-analysis/calibrationProfiles";
-import { calibrationKey } from "@/features/vision-analysis/calibrationProfiles";
+import {
+  calibrationKey,
+  matchCalibrationProfile,
+  type CalibrationMatch,
+} from "@/features/vision-analysis/calibrationProfiles";
 
 const STORAGE_KEY = "theballlab.calibrationProfiles.v1";
 
