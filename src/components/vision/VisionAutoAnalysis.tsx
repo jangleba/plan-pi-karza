@@ -211,6 +211,16 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         return;
       }
 
+      if (analysis.status === "calibration_required") {
+        setState({ kind: "calibration_required", analysis });
+        return;
+      }
+
+      if (analysis.status === "technique_only") {
+        setState({ kind: "technique_only", analysis });
+        return;
+      }
+
       if (analysis.status === "failed") {
         const code = analysis.qualityIssues[0] ?? "ANALYSIS_FAILED";
         const message =
