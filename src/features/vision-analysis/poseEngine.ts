@@ -80,6 +80,8 @@ interface DetectPoseOptions {
   analysisRunId: string;
   passType?: "coarse" | "precision";
   sourceTimestampMs?: number;
+  sourceTimestampUs?: number;
+  sourceFrameIndex?: number;
 }
 
 interface VisionTimestampDebugRow {
