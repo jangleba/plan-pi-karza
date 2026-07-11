@@ -11,6 +11,7 @@ import { baseValidation, buildValidation } from "./validation";
 import { averageSpeed, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 import { temporalAccuracy } from "./temporalAccuracy";
 import { SPRINT_FPS_POLICY } from "../measurementAccuracy";
+import { vlog } from "../devLog";
 import {
   detectCalibratedCrossings,
   elapsedSeconds,
