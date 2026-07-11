@@ -366,7 +366,10 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       confidence: confidence.overall,
     });
     const status: AnalysisStatus = statusOverride ?? decision.status;
-    const qualityIssues = [...validation.issues, ...decision.extraIssues];
+    // Przy override statusu (calibration_required / technique_only) nie dodajemy
+    // szumu EVENTS_NOT_DETECTED — ruch został rozpoznany.
+    const extraIssues = statusOverride ? [] : decision.extraIssues;
+    const qualityIssues = [...validation.issues, ...extraIssues];
     const retakeInstructions = [
       ...validation.retakeInstructions,
       ...decision.extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
