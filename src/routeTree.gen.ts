@@ -19,6 +19,7 @@ import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VisionLabIndexRouteImport } from './routes/vision-lab.index'
 import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.history'
+import { Route as VisionLabCalibrationRouteImport } from './routes/vision-lab.calibration'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
@@ -88,6 +89,11 @@ const VisionLabIndexRoute = VisionLabIndexRouteImport.update({
 const VisionLabHistoryRoute = VisionLabHistoryRouteImport.update({
   id: '/vision-lab/history',
   path: '/vision-lab/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VisionLabCalibrationRoute = VisionLabCalibrationRouteImport.update({
+  id: '/vision-lab/calibration',
+  path: '/vision-lab/calibration',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SesjaDateRoute = SesjaDateRouteImport.update({
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/_tabs/scouting': typeof TabsScoutingRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -321,6 +330,7 @@ export interface FileRouteTypes {
     | '/scouting'
     | '/start'
     | '/sesja/$date'
+    | '/vision-lab/calibration'
     | '/vision-lab/history'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
@@ -353,6 +363,7 @@ export interface FileRouteTypes {
     | '/scouting'
     | '/start'
     | '/sesja/$date'
+    | '/vision-lab/calibration'
     | '/vision-lab/history'
     | '/vision-lab'
     | '/.mcp/invoke-tool/$tool'
@@ -386,6 +397,7 @@ export interface FileRouteTypes {
     | '/_tabs/scouting'
     | '/_tabs/start'
     | '/sesja/$date'
+    | '/vision-lab/calibration'
     | '/vision-lab/history'
     | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   SesjaDateRoute: typeof SesjaDateRoute
+  VisionLabCalibrationRoute: typeof VisionLabCalibrationRoute
   VisionLabHistoryRoute: typeof VisionLabHistoryRoute
   VisionLabIndexRoute: typeof VisionLabIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -502,6 +515,13 @@ declare module '@tanstack/react-router' {
       path: '/vision-lab/history'
       fullPath: '/vision-lab/history'
       preLoaderRoute: typeof VisionLabHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vision-lab/calibration': {
+      id: '/vision-lab/calibration'
+      path: '/vision-lab/calibration'
+      fullPath: '/vision-lab/calibration'
+      preLoaderRoute: typeof VisionLabCalibrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sesja/$date': {
@@ -685,6 +705,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   SesjaDateRoute: SesjaDateRoute,
+  VisionLabCalibrationRoute: VisionLabCalibrationRoute,
   VisionLabHistoryRoute: VisionLabHistoryRoute,
   VisionLabIndexRoute: VisionLabIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
