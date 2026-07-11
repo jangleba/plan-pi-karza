@@ -411,9 +411,7 @@ export async function iterateFrames(
           vwarn("iterateFrames", "play() odrzucone — fallback do seek", err?.message);
           done();
         });
-    }).finally(() => {
-      signal?.removeEventListener("abort", () => undefined);
-    });
+    }).finally(() => signal?.removeEventListener("abort", abort));
     throwIfAborted(signal);
     if (rvfcError) {
       video.src = "";

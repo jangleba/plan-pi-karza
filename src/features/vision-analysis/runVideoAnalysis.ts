@@ -17,8 +17,8 @@ import {
   detectPose,
   flushPoseDebugLog,
   FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+  isPoseSupported,
 } from "./poseEngine";
-import { isPoseSupported } from "./poseEngine";
 import { round } from "./physics";
 
 export type AnalysisPhase =
