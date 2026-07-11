@@ -57,6 +57,56 @@ function uuid(): string {
   return `analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/**
+ * Łączy jawną kalibrację (jeśli podano) z automatycznie dopasowanym profilem.
+ * Ręczna kalibracja (referencePoints/linie) ma pierwszeństwo; profil dokłada
+ * skalę metry/piksel, gdy jej brak.
+ */
+function resolveCalibration(
+  opts: RunOptions,
+  orientation: "portrait" | "landscape" | "square",
+  measuredFps: number,
+): Calibration | null {
+  const base: Calibration = { ...(opts.calibration ?? {}) };
+
+  const deviceId = opts.deviceId ?? null;
+  if (!deviceId) return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
+
+  const fps = Math.round(measuredFps > 0 ? measuredFps : opts.declaredFps ?? 0);
+  const match = matchCalibrationForRecording({
+    deviceId,
+    lens: opts.lens ?? "wide",
+    orientation: orientation === "landscape" ? "landscape" : "portrait",
+    fps,
+    zoom: opts.zoom ?? 1,
+  });
+
+  if (!match) {
+    vlog("calibration_profile", "brak dopasowanego profilu", { deviceId, fps });
+    return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
+  }
+
+  vlog("calibration_profile", "dopasowano profil", {
+    key: match.profile.key,
+    exact: match.exact,
+    score: match.score,
+    reprojectionErrorPx: match.profile.reprojectionErrorPx,
+  });
+
+  base.profileKey = match.profile.key;
+  base.profileMatch = {
+    exact: match.exact,
+    score: match.score,
+    reprojectionErrorPx: match.profile.reprojectionErrorPx,
+    reasons: match.reasons,
+  };
+  // Nie nadpisujemy ręcznej skali, jeśli już istnieje.
+  if (base.metersPerPixel == null && !base.referencePoints) {
+    base.metersPerPixel = match.profile.mmPerPixel / 1000; // mm/px → m/px
+  }
+  return base;
+}
+
 function failed(
   testType: TestType,
   analyzerVersion: string,
