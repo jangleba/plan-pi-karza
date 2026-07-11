@@ -6,64 +6,92 @@ import type {
   ConfidenceResult,
   ValidationResult,
   QualityIssueCode,
+  TimingLineRole,
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
 import { averageSpeed, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 import { temporalAccuracy } from "./temporalAccuracy";
 import { SPRINT_FPS_POLICY } from "../measurementAccuracy";
 import { vlog } from "../devLog";
+import { elapsedSeconds } from "../calibratedLineCrossing";
 import {
-  detectCalibratedCrossings,
-  elapsedSeconds,
-  type LineCrossing,
-  type CrossingResult,
-} from "../calibratedLineCrossing";
+  TimingLineRegistry,
+  detectTimingPlaneCrossings,
+  type TimingPlaneResult,
+  type TimingPlaneCrossing,
+} from "../timingPlane";
 
 /**
- * Sprint na dystansie protokołu (20 / 30 m).
+ * Silnik sprintu z importowanego filmu — wspólny dla wszystkich testów sprintu.
  *
- * Pomiar czasu opiera się WYŁĄCZNIE na CalibratedLineCrossingEngine:
- *  - skalibrowane linie startu i mety leżą na podłożu (Timing Plane),
- *  - stały punkt tułowia przecina rzut linii,
- *  - moment przecięcia interpolowany między rzeczywistymi sourceTimestampUs.
+ * Cały pomiar czasu przechodzi przez Timing Plane:
+ *  - TimingLineRegistry dostarcza linie z rolami (START/FINISH/TIMING_A/TIMING_B)
+ *    i znanymi punktami podłoża (mm),
+ *  - TimingPlaneCrossingEngine wykrywa przecięcie płaszczyzny pomiarowej stałym
+ *    punktem tułowia (nie rzutuje barków przez homografię podłoża),
+ *  - CrossingUncertaintyCalculator wylicza niepewność z realnych sourceTimestampUs.
  *
- * Bez ściśle zgodnej kalibracji, widocznej linii i poprawnej geometrii kamery
- * test jest BLOKOWANY — nie zwracamy wyniku orientacyjnego.
+ * Dystans NIE wynika z rozmiaru sylwetki. Sprint 20/30 m ma dystans fizycznie
+ * znany (protokół); Flying Sprint pobiera dystans wyłącznie z kalibracji linii.
+ *
+ * Wynik jest OFFICIAL / ESTIMATED (przy podwyższonej niepewności) albo test jest
+ * BLOKOWANY (REJECTED) — nigdy nie udajemy oficjalnego czasu.
  */
-function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): TestAnalyzer {
+
+type SprintVariant = "sprint_20m" | "sprint_30m" | "flying_sprint";
+
+interface SprintConfig {
+  testType: SprintVariant;
+  roles: [TimingLineRole, TimingLineRole];
+  /** Dystans fizycznie znany z protokołu (m) lub null — wtedy tylko z kalibracji. */
+  protocolDistanceM: number | null;
+  timeKey: string;
+  timeLabel: string;
+}
+
+function makeSprint(cfg: SprintConfig): TestAnalyzer {
   const MIN_FPS = 120;
 
-  function runEngine(ctx: AnalysisContext): CrossingResult {
-    return detectCalibratedCrossings({
+  function runEngine(ctx: AnalysisContext): TimingPlaneResult {
+    const registry = TimingLineRegistry.from(ctx.calibration?.timingLines);
+    return detectTimingPlaneCrossings({
       poses: ctx.poses,
       homography: ctx.calibration?.homography ?? null,
-      timingLines: ctx.calibration?.timingLines,
+      registry,
+      requiredRoles: cfg.roles,
       width: ctx.metadata.width,
       height: ctx.metadata.height,
       cameraStable: ctx.calibration?.cameraMoved ? false : true,
+      protocolDistanceMm: cfg.protocolDistanceM != null ? cfg.protocolDistanceM * 1000 : null,
     });
   }
 
-  /** Sortuje przecięcia po interpolowanym czasie — start = pierwsze, meta = ostatnie. */
-  function ordered(crossings: LineCrossing[]): LineCrossing[] {
+  function ordered(crossings: TimingPlaneCrossing[]): TimingPlaneCrossing[] {
     return [...crossings].sort((a, b) => a.crossingTimestampUs - b.crossingTimestampUs);
   }
 
   function events(ctx: AnalysisContext): DetectedEvent[] {
     const res = runEngine(ctx);
-    vlog(`${testType} line_crossing`, res.ok ? "OK" : res.code, res.debug);
+    vlog(
+      `${cfg.testType} timing_plane`,
+      res.ok ? `${res.resultQuality} d=${res.distanceMm}mm` : res.code,
+      res.debug,
+    );
     if (!res.ok || res.crossings.length < 2) return [];
     const [start, finish] = ordered(res.crossings);
-    const conf = 0.9;
+    // ESTIMATED nadal daje zdarzenia, ale z obniżoną pewnością.
+    const conf = res.resultQuality === "OFFICIAL" ? 0.9 : 0.7;
+    const startType = cfg.testType === "flying_sprint" ? "timing_a_crossing" : "start_crossing";
+    const finishType = cfg.testType === "flying_sprint" ? "timing_b_crossing" : "finish_crossing";
     return [
       {
-        type: "start_crossing",
+        type: startType,
         frameIndex: start.frameAfterIndex,
         timestampSeconds: start.crossingTimestampUs / 1_000_000,
         confidence: conf,
       },
       {
-        type: "finish_crossing",
+        type: finishType,
         frameIndex: finish.frameAfterIndex,
         timestampSeconds: finish.crossingTimestampUs / 1_000_000,
         confidence: conf,
@@ -77,6 +105,7 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     const [start, finish] = ordered(res.crossings);
     const time = elapsedSeconds(start, finish);
     if (time <= 0) return [];
+    const distanceM = round(res.distanceMm / 1000, 3);
     const spd = averageSpeed(distanceM, time);
     if (
       !withinPlausibleRange(
@@ -87,8 +116,17 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     )
       return [];
     const conf = Math.min(...ev.map((e) => e.confidence));
+    const timeUncS = round(res.elapsedUncertaintyMs / 1000, 4);
     return [
-      { key: "sprint_time_s", label: `Czas ${distanceM} m`, value: round(time, 2), unit: "s", confidence: conf },
+      {
+        key: cfg.timeKey,
+        label: cfg.timeLabel,
+        value: round(time, 2),
+        unit: "s",
+        confidence: conf,
+        uncertainty: timeUncS,
+      },
+      { key: "distance_m", label: "Dystans", value: distanceM, unit: "m", confidence: conf },
       { key: "avg_speed_ms", label: "Prędkość średnia", value: spd.ms, unit: "m/s", confidence: conf },
       { key: "avg_speed_kmh", label: "Prędkość", value: spd.kmh, unit: "km/h", confidence: conf },
     ];
@@ -113,13 +151,18 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
       "WRONG_CROSSING_DIRECTION",
       "CROSSING_UNCERTAINTY_TOO_HIGH",
       "CALIBRATION_CAMERA_MOVED",
+      "MISSING_TIMING_LINE",
+      "ATHLETE_TOO_SMALL",
+      "TORSO_OCCLUDED",
+      "INVALID_CAMERA_GEOMETRY",
+      "DISTANCE_UNKNOWN",
     ];
     return buildValidation(issues, hardFail);
   }
 
   return {
-    testType,
-    analyzerVersion: `${testType}-3.0.0`,
+    testType: cfg.testType,
+    analyzerVersion: `${cfg.testType}-4.0.0`,
     requiredCameraSetup: "side",
     minimumFps: MIN_FPS,
     requiresCalibration: true,
@@ -133,11 +176,32 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
         metrics: mtx,
         ctx,
         fpsPolicy: SPRINT_FPS_POLICY,
-        timeKey: "sprint_time_s",
-        distanceM,
+        timeKey: cfg.timeKey,
+        distanceM: cfg.protocolDistanceM ?? undefined,
       }),
   };
 }
 
-export const sprint20mAnalyzer = makeSprint("sprint_20m", 20);
-export const sprint30mAnalyzer = makeSprint("sprint_30m", 30);
+export const sprint20mAnalyzer = makeSprint({
+  testType: "sprint_20m",
+  roles: ["START", "FINISH"],
+  protocolDistanceM: 20,
+  timeKey: "sprint_time_s",
+  timeLabel: "Czas 20 m",
+});
+
+export const sprint30mAnalyzer = makeSprint({
+  testType: "sprint_30m",
+  roles: ["START", "FINISH"],
+  protocolDistanceM: 30,
+  timeKey: "sprint_time_s",
+  timeLabel: "Czas 30 m",
+});
+
+export const flyingSprintAnalyzer = makeSprint({
+  testType: "flying_sprint",
+  roles: ["TIMING_A", "TIMING_B"],
+  protocolDistanceM: null,
+  timeKey: "flying_time_s",
+  timeLabel: "Czas latającego odcinka",
+});

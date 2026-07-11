@@ -124,25 +124,35 @@ function torsoPixel(p: FramePose, width: number, height: number): { u: number; v
 }
 
 /**
- * Rzut skalibrowanej linii podłoża (worldXmm) na obraz. Zwraca funkcję u(v)
- * opisującą, gdzie linia przebiega w obrazie na wysokości v. To wciąż operacja
- * na punktach PODŁOŻA (linia), nie na tułowiu.
+ * Rzut skalibrowanej linii podłoża na obraz. Zwraca funkcję u(v) opisującą,
+ * gdzie linia przebiega w obrazie na wysokości v. To wciąż operacja na punktach
+ * PODŁOŻA (linia), nie na tułowiu.
+ *
+ * Linia jest definiowana albo dwoma punktami podłoża (groundStart/EndPointMm),
+ * albo pojedynczą współrzędną worldXmm rozciągniętą wzdłuż osi Y (legacy).
  */
 function projectGroundLine(
   homography: Homography,
-  worldXmm: number,
+  line: TimingLineSpec,
   ySpan: { min: number; max: number },
 ): ((v: number) => number) | null {
-  // Odwracamy homografię: chcemy z world→image mieć image→world do znalezienia
-  // dwóch pikseli linii. Prościej: rzutujemy dwa punkty świata na obrazie.
   const H = homography;
   const project = (x: number, y: number): { u: number; v: number } | null => {
     const w = H[6] * x + H[7] * y + H[8];
     if (!Number.isFinite(w) || Math.abs(w) < 1e-12) return null;
     return { u: (H[0] * x + H[1] * y + H[2]) / w, v: (H[3] * x + H[4] * y + H[5]) / w };
   };
-  const a = project(worldXmm, ySpan.min);
-  const b = project(worldXmm, ySpan.max);
+  let a: { u: number; v: number } | null;
+  let b: { u: number; v: number } | null;
+  if (line.groundStartPointMm && line.groundEndPointMm) {
+    a = project(line.groundStartPointMm.x, line.groundStartPointMm.y);
+    b = project(line.groundEndPointMm.x, line.groundEndPointMm.y);
+  } else if (typeof line.worldXmm === "number") {
+    a = project(line.worldXmm, ySpan.min);
+    b = project(line.worldXmm, ySpan.max);
+  } else {
+    return null;
+  }
   if (!a || !b) return null;
   // Linia w obrazie: u = a.u + (v - a.v) * du/dv. Przy pionowej linii du/dv≈0.
   const dv = b.v - a.v;
@@ -151,7 +161,7 @@ function projectGroundLine(
     return null;
   }
   const slope = (b.u - a.u) / dv;
-  return (v: number) => a.u + (v - a.v) * slope;
+  return (v: number) => a!.u + (v - a!.v) * slope;
 }
 
 /** Znajduje pierwsze przecięcie linii przez punkt tułowia (deterministycznie). */
@@ -287,7 +297,7 @@ export function detectCalibratedCrossings(input: CrossingInput): CrossingResult 
   let anyWrongDirection = false;
 
   for (const line of input.timingLines) {
-    const lineU = projectGroundLine(input.homography, line.worldXmm, ySpan);
+    const lineU = projectGroundLine(input.homography, line, ySpan);
     if (!lineU) {
       return { ok: false, code: "TIMING_PLANE_CALIBRATION_FAILED", debug };
     }

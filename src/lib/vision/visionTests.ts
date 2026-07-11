@@ -229,6 +229,32 @@ export const VISION_TESTS: VisionTest[] = [
     ],
     measuredMetrics: ["Czas 30 m", "Faza przyspieszenia", "Prędkość maksymalna"],
   },
+  {
+    id: "flying_sprint",
+    name: "Flying Sprint",
+    category: "sprint",
+    difficulty: "advanced",
+    cameraView: "side",
+    minimumFps: 120,
+    recommendedFps: 240,
+    attempts: 3,
+    restSeconds: 180,
+    goal: "Pomiar prędkości maksymalnej na latającym odcinku (lotny start).",
+    whatItMeasures: "Czas między bramkami TIMING_A i TIMING_B oraz prędkość maksymalna.",
+    setupInstructions: [
+      "Kamera z boku, nieruchoma, prostopadle do osi biegu.",
+      "Skalibruj dwie linie pomiaru (TIMING_A i TIMING_B) o znanej odległości.",
+      "Zawodnik wchodzi w odcinek z rozbiegu (lotny start).",
+    ],
+    validRules: [
+      "Widoczne obie linie pomiaru na podłożu.",
+      "Pomiar startuje od pierwszego przecięcia TIMING_A, nie od pierwszego ruchu.",
+      "Stabilne nagranie całego odcinka.",
+    ],
+    measuredMetrics: ["Czas odcinka", "Prędkość maksymalna"],
+  },
+
+
 
   // ---------------- COD / BRAKING LAB ----------------
   {

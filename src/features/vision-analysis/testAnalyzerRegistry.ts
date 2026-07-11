@@ -6,7 +6,7 @@ import { repeatedJumpsAnalyzer } from "./analyzers/repeatedJumpsAnalyzer";
 import { pogoAnalyzer } from "./analyzers/pogoAnalyzer";
 import { broadJumpAnalyzer } from "./analyzers/broadJumpAnalyzer";
 import { singleLegHopAnalyzer } from "./analyzers/singleLegHopAnalyzer";
-import { sprint20mAnalyzer, sprint30mAnalyzer } from "./analyzers/sprintAnalyzer";
+import { sprint20mAnalyzer, sprint30mAnalyzer, flyingSprintAnalyzer } from "./analyzers/sprintAnalyzer";
 import { fiveTenFiveAnalyzer, sprintToStopAnalyzer } from "./analyzers/codAnalyzer";
 import { gymAnalyzer } from "./analyzers/gymAnalyzer";
 
@@ -24,6 +24,7 @@ export const testAnalyzerRegistry: Record<TestType, TestAnalyzer> = {
   pogo_jumps: pogoAnalyzer,
   sprint_20m: sprint20mAnalyzer,
   sprint_30m: sprint30mAnalyzer,
+  flying_sprint: flyingSprintAnalyzer,
   five_ten_five: fiveTenFiveAnalyzer,
   sprint_to_stop: sprintToStopAnalyzer,
   analyze_gym_exercise: gymAnalyzer,

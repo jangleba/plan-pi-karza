@@ -13,6 +13,7 @@ export type TestType =
   | "pogo_jumps"
   | "sprint_20m"
   | "sprint_30m"
+  | "flying_sprint"
   | "five_ten_five"
   | "sprint_to_stop"
   | "analyze_gym_exercise";
@@ -54,7 +55,12 @@ export type QualityIssueCode =
   | "WRONG_REPETITION_COUNT"
   | "CAMERA_SETUP_CHANGED"
   | "LANDING_OUT_OF_CALIBRATION_AREA"
-  | "HEEL_OCCLUDED";
+  | "HEEL_OCCLUDED"
+  | "MISSING_TIMING_LINE"
+  | "ATHLETE_TOO_SMALL"
+  | "TORSO_OCCLUDED"
+  | "INVALID_CAMERA_GEOMETRY"
+  | "DISTANCE_UNKNOWN";
 
 export interface VideoMetadata {
   fps: number;
@@ -139,11 +145,20 @@ export interface Calibration {
   timingLines?: TimingLineSpec[];
 }
 
+/** Rola linii pomiaru czasu w protokole. */
+export type TimingLineRole = "START" | "FINISH" | "TIMING_A" | "TIMING_B";
+
 /** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
 export interface TimingLineSpec {
   id: string;
-  /** Położenie linii wzdłuż osi ruchu w świecie (mm). */
-  worldXmm: number;
+  /** Rola linii w protokole pomiaru (START/FINISH/TIMING_A/TIMING_B). */
+  role?: TimingLineRole;
+  /** Położenie linii wzdłuż osi ruchu w świecie (mm) — legacy / pojedyncza oś. */
+  worldXmm?: number;
+  /** Pierwszy punkt linii na podłożu (mm) — definiuje płaszczyznę pomiarową. */
+  groundStartPointMm?: { x: number; y: number };
+  /** Drugi punkt linii na podłożu (mm). */
+  groundEndPointMm?: { x: number; y: number };
   /** Oczekiwany kierunek przecięcia względem osi ruchu. */
   direction?: "forward" | "backward" | "any";
 }
@@ -304,6 +319,16 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Lądowanie znajduje się poza skalibrowanym obszarem podłoża. Rozszerz kalibrację o strefę lądowania.",
   HEEL_OCCLUDED:
     "Pięta lądowania jest zasłonięta lub niewidoczna. Nagraj tak, aby pięta była wyraźnie widoczna w kadrze.",
+  MISSING_TIMING_LINE:
+    "Brak wymaganej linii pomiaru czasu (START/FINISH lub TIMING_A/TIMING_B) w kalibracji tego filmu.",
+  ATHLETE_TOO_SMALL:
+    "Sylwetka zawodnika jest zbyt mała w kadrze, aby wiarygodnie wykryć przecięcie. Nagraj z bliższej odległości lub węższym kadrem.",
+  TORSO_OCCLUDED:
+    "Punkt referencyjny tułowia jest zasłonięty w momencie przecięcia. Zapewnij widoczność tułowia w całym biegu.",
+  INVALID_CAMERA_GEOMETRY:
+    "Geometria kamery jest niewłaściwa dla pomiaru czasu (linia rzutuje się poziomo). Ustaw kamerę prostopadle do osi ruchu.",
+  DISTANCE_UNKNOWN:
+    "Dystans nie jest znany. Podaj dystans protokołu lub skalibruj linie o znanej odległości na podłożu.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
