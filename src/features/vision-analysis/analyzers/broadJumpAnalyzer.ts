@@ -25,8 +25,14 @@ function events(ctx: AnalysisContext): DetectedEvent[] {
   return flightPhaseEvents(phase, ctx.poses);
 }
 
-/** Zwraca metry na piksel z kalibracji ręcznej lub auto (wzrost). */
+/** Zwraca metry na piksel z profilu kalibracji, kalibracji ręcznej lub auto (wzrost). */
 function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } | null {
+  // Automatycznie dopasowany profil kalibracji (najwyższa wiarygodność).
+  const mppProfile = ctx.calibration?.metersPerPixel;
+  if (mppProfile && mppProfile > 0) {
+    const confMul = ctx.calibration?.profileMatch?.exact === false ? 0.85 : 1;
+    return { mpp: mppProfile, confMul };
+  }
   const ref = ctx.calibration?.referencePoints;
   if (ref) {
     const dxPx = Math.hypot(
