@@ -142,7 +142,7 @@ function makeFiveTenFive(): TestAnalyzer {
 
 function makeSprintToStop(): TestAnalyzer {
   const testType = "sprint_to_stop" as const;
-  const MIN_FPS = 120;
+  const MIN_FPS = 60; // bez globalnej blokady 120 → 60 FPS daje wynik estymowany
 
   function runEngine(ctx: AnalysisContext): BrakingResult {
     return detectBraking({
