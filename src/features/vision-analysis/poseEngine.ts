@@ -185,6 +185,11 @@ export async function detectPose(
     0,
     options.sourceTimestampMs ?? Math.round(mediaTime * 1000),
   );
+  const sourceTimestampUs = Math.max(
+    0,
+    options.sourceTimestampUs ?? Math.round(mediaTime * 1_000_000),
+  );
+  const sourceFrameIndex = options.sourceFrameIndex ?? frameIndex;
   const previousMediaPipeTimestampMs = session.lastTimestampMs;
   const mediaPipeTimestampMs = Math.max(sourceTimestampMs, previousMediaPipeTimestampMs + 1);
   const isMonotonic = mediaPipeTimestampMs > previousMediaPipeTimestampMs;
