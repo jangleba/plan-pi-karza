@@ -31,7 +31,9 @@ export type QualityIssueCode =
   | "TEST_PROTOCOL_MISMATCH"
   | "EVENTS_NOT_DETECTED"
   | "LOW_RESOLUTION"
-  | "POSE_NOT_DETECTED";
+  | "POSE_NOT_DETECTED"
+  | "CALIBRATION_PROFILE_MISMATCH"
+  | "CALIBRATION_CAMERA_MOVED";
 
 export interface VideoMetadata {
   fps: number;
