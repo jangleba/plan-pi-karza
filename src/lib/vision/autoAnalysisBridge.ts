@@ -106,6 +106,19 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
                 },
               ]
             : []),
+          ...(analysis.calibration.homography
+            ? [
+                {
+                  label: "Homografia (world→image)",
+                  value: analysis.calibration.homography
+                    .map((n) => Number(n).toPrecision(4))
+                    .join(", "),
+                },
+              ]
+            : []),
+          ...(analysis.calibration.mismatchCode
+            ? [{ label: "Kalibracja: blokada", value: analysis.calibration.mismatchCode }]
+            : []),
         ]
       : []),
     ...analysis.keyEvents.map((e) => ({
