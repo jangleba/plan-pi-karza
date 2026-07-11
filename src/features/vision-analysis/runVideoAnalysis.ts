@@ -304,9 +304,19 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
 
+    // Rzeczywiste liczby klatek: zdekodowane vs faktycznie analizowane (z sylwetką).
+    const decodedFrames = poses.length;
+    const analyzedFrames = poses.filter((p) => p.landmarks != null).length;
+
     // GATE PROTOKOŁU: selectedTestType → detectedTestType → detectedTestConfidence
     // → protocolMatch → adapter. Adapter rusza WYŁĄCZNIE przy protocolMatch=true.
     const recognition = recognizeTestProtocol(opts.testType, poses);
+    const recognitionSummary = {
+      selectedTestType: recognition.selectedTestType,
+      detectedSignature: recognition.detectedSignature,
+      detectedTestConfidence: round(recognition.detectedTestConfidence, 2),
+      protocolMatch: recognition.protocolMatch,
+    };
     vlog("protocol_recognizer", recognition.reason, {
       selected: recognition.selectedTestType,
       signature: recognition.detectedSignature,
@@ -334,8 +344,12 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         qualityIssues: [QUALITY_ISSUE_LABELS[code] ?? code],
         retakeInstructions: [QUALITY_ISSUE_LABELS[code] ?? code],
         analyzerVersion: analyzer.analyzerVersion,
+        decodedFrames,
+        analyzedFrames,
+        recognition: recognitionSummary,
       };
     }
+
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
