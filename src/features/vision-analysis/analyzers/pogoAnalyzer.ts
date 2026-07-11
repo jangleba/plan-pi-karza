@@ -7,7 +7,7 @@ import type {
   ValidationResult,
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
-import { detectGroundContacts } from "./jumpDetection";
+import { detectFlightPhase, detectGroundContacts } from "./jumpDetection";
 import { flightTimeToHeightCm, reactiveStrengthIndex, round } from "../physics";
 
 const MIN_FPS = 120;
@@ -74,11 +74,16 @@ function confidence(ev: DetectedEvent[]): ConfidenceResult {
 
 function validate(ctx: AnalysisContext): ValidationResult {
   const { issues } = baseValidation(ctx, MIN_FPS);
-  if (events(ctx).length < 3) issues.push("EVENTS_NOT_DETECTED");
+  const contacts = events(ctx);
+  if (contacts.length < 3) {
+    const singleJumpPhase = detectFlightPhase(ctx.poses);
+    issues.push(singleJumpPhase ? "TEST_PROTOCOL_MISMATCH" : "EVENTS_NOT_DETECTED");
+  }
   return buildValidation(issues, [
     "POSE_NOT_DETECTED",
     "ATHLETE_OUT_OF_FRAME",
     "MULTIPLE_PEOPLE",
+    "TEST_PROTOCOL_MISMATCH",
     "EVENTS_NOT_DETECTED",
   ]);
 }

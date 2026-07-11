@@ -14,6 +14,7 @@ import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
+import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
 import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
 import { estimateFallbackHeightCm } from "@/features/vision-analysis/autoCalibration";
 
@@ -45,11 +46,17 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
   const runToken = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
     const token = ++runToken.current;
-    const cancelled = () => runToken.current !== token;
+    abortRef.current?.abort();
+    await closePoseEngine();
+    if (runToken.current !== token) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const cancelled = () => runToken.current !== token || controller.signal.aborted;
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
@@ -121,6 +128,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           declaredFps: flow.fps || null,
           cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
           athleteHeightCm,
+          abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);
             if (!cancelled()) setPhase(p);
@@ -172,14 +180,33 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         return;
       }
 
+      if (analysis.status === "failed") {
+        const code = analysis.qualityIssues[0] ?? "ANALYSIS_FAILED";
+        const message =
+          code === "FRAME_TIMESTAMP_ORDER_ERROR"
+            ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
+            : analysis.retakeInstructions[0] ?? "Nie udało się przeanalizować filmu.";
+        setState({ kind: "error", code, message });
+        return;
+      }
+
       // invalid_recording | failed
       setState({ kind: "invalid", analysis });
     } catch (e) {
       if (cancelled()) return;
       const code =
         e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
-      const message = e instanceof Error ? e.message : "Nie udało się przeanalizować filmu.";
+      const rawMessage = e instanceof Error ? e.message : "Nie udało się przeanalizować filmu.";
+      const message =
+        code === "FRAME_TIMESTAMP_ORDER_ERROR" ||
+        /INVALID_ARGUMENT|CalculatorGraph|timestamp mismatch|WaitUntilIdle|graph_utils\.cc/i.test(
+          rawMessage,
+        )
+          ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
+          : rawMessage;
       setState({ kind: "error", code: code ?? "UNKNOWN_ERROR", message });
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [test.id]);
@@ -192,6 +219,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     return () => {
       // Unieważnij bieżący przebieg (cancelled() zacznie zwracać true).
       runToken.current++;
+      abortRef.current?.abort();
+      abortRef.current = null;
+      void closePoseEngine();
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = null;

@@ -6,6 +6,7 @@ export type FrameHandler = (frame: {
   frameIndex: number;
   mediaTime: number;
   presentationTimestamp: number;
+  sourceTimestampMs: number;
   video: HTMLVideoElement;
 }) => Promise<void> | void;
 
@@ -20,6 +21,11 @@ export class VideoLoadError extends Error {
 }
 
 const METADATA_TIMEOUT_MS = 10_000;
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new VideoLoadError("ANALYSIS_ABORTED", "Analiza została przerwana.");
+}
 
 /** Wykrywa kontener z MIME lub rozszerzenia w URL. */
 function detectContainer(mime: string | null, url: string): string | null {
@@ -275,7 +281,9 @@ export async function iterateFrames(
   metadata: VideoMetadata,
   onFrame: FrameHandler,
   onProgress?: (processed: number, total: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
+  throwIfAborted(signal);
   const video = document.createElement("video");
   video.src = url;
   video.muted = true;
@@ -292,6 +300,7 @@ export async function iterateFrames(
       video.removeEventListener("loadeddata", onOk);
       video.removeEventListener("canplay", onOk);
       video.removeEventListener("error", onErr);
+      signal?.removeEventListener("abort", onAbort);
     };
     const onOk = () => {
       if (settled || video.readyState < 2) return;
@@ -304,6 +313,14 @@ export async function iterateFrames(
       settled = true;
       cleanup();
       reject(new VideoLoadError("DECODE_ERROR", "Nie udało się wczytać wideo do analizy."));
+    };
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      video.pause();
+      video.src = "";
+      reject(new VideoLoadError("ANALYSIS_ABORTED", "Analiza została przerwana."));
     };
     const timer = setTimeout(() => {
       if (settled) return;
@@ -319,6 +336,7 @@ export async function iterateFrames(
     video.addEventListener("loadeddata", onOk);
     video.addEventListener("canplay", onOk);
     video.addEventListener("error", onErr);
+    signal?.addEventListener("abort", onAbort, { once: true });
     try {
       video.load();
     } catch {
@@ -336,19 +354,24 @@ export async function iterateFrames(
   let playedFrames = 0;
   let rvfcError: unknown = null;
   if (supportsRVFC) {
+    throwIfAborted(signal);
     playedFrames = await new Promise<number>((resolve) => {
       let index = 0;
       let finished = false;
+      let watchdog: ReturnType<typeof setTimeout>;
       const done = () => {
         if (finished) return;
         finished = true;
-        clearTimeout(watchdog);
+        if (watchdog) clearTimeout(watchdog);
+        signal?.removeEventListener("abort", abort);
         video.pause();
         resolve(index);
       };
+      const abort = () => done();
+      signal?.addEventListener("abort", abort, { once: true });
       // Watchdog: jeśli w 6 s nie pojawi się żadna klatka (autoplay zablokowany),
       // przerywamy i przechodzimy do fallbacku seek.
-      const watchdog = setTimeout(() => {
+      watchdog = setTimeout(() => {
         if (index === 0) {
           vwarn("iterateFrames", "rVFC nie wystartował — fallback do seek");
           done();
@@ -356,12 +379,14 @@ export async function iterateFrames(
       }, 6_000);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cb = async (_now: number, meta: any) => {
-        if (finished) return;
+        if (finished || signal?.aborted) return done();
+        const sourceTimestampMs = Math.max(0, Math.round(meta.mediaTime * 1000));
         try {
           await onFrame({
             frameIndex: index,
             mediaTime: meta.mediaTime,
             presentationTimestamp: meta.mediaTime,
+            sourceTimestampMs,
             video,
           });
         } catch (err) {
@@ -389,6 +414,7 @@ export async function iterateFrames(
           done();
         });
     });
+    throwIfAborted(signal);
     if (rvfcError) {
       video.src = "";
       throw rvfcError;
@@ -407,11 +433,14 @@ export async function iterateFrames(
   const step = 1 / Math.max(1, metadata.fps);
   let index = 0;
   for (let tSec = 0; tSec < metadata.durationSeconds; tSec += step) {
+    throwIfAborted(signal);
     await seekTo(video, tSec);
+    const sourceTimestampMs = Math.max(0, Math.round(video.currentTime * 1000));
     await onFrame({
       frameIndex: index,
       mediaTime: video.currentTime,
       presentationTimestamp: video.currentTime,
+      sourceTimestampMs,
       video,
     });
     index++;
