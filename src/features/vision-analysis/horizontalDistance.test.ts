@@ -176,3 +176,28 @@ describe("canInheritCalibration — potwierdzenie zgodności sceny", () => {
     if (!res.ok) expect(res.code).toBe("CAMERA_SETUP_CHANGED");
   });
 });
+
+import { AttemptSessionManager } from "./attemptSessionManager";
+
+describe("Single Leg Hop — sesja lewa/prawa + asymetria", () => {
+  it("2 prawidłowe próby na stronę, najlepszy wynik strony i asymetria L/P", () => {
+    const s = new AttemptSessionManager("single_leg_hop");
+    const mk = (side: "left" | "right", value: number, id: string) => ({
+      id,
+      side,
+      valid: true,
+      value,
+      higherIsBetter: true,
+      analysisId: id,
+    });
+    s.addAttempt(mk("left", 210, "l1"));
+    s.addAttempt(mk("left", 205, "l2"));
+    s.addAttempt(mk("right", 195, "r1"));
+    const state = s.addAttempt(mk("right", 200, "r2"));
+
+    expect(state.complete).toBe(true);
+    expect(state.finalPerSide).toEqual({ left: 210, right: 200 });
+    // asymetria = (210-200)/210*100 ≈ 4.8%
+    expect(state.asymmetryPct).toBeCloseTo(4.8, 1);
+  });
+});
