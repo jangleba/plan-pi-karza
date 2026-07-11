@@ -1,5 +1,8 @@
 import type { TestAnalyzer, TestType } from "./types";
 import { cmjAnalyzer } from "./analyzers/cmjAnalyzer";
+import { squatJumpAnalyzer } from "./analyzers/squatJumpAnalyzer";
+import { dropJumpAnalyzer } from "./analyzers/dropJumpAnalyzer";
+import { repeatedJumpsAnalyzer } from "./analyzers/repeatedJumpsAnalyzer";
 import { pogoAnalyzer } from "./analyzers/pogoAnalyzer";
 import { broadJumpAnalyzer } from "./analyzers/broadJumpAnalyzer";
 import { sprint20mAnalyzer, sprint30mAnalyzer } from "./analyzers/sprintAnalyzer";
@@ -12,6 +15,9 @@ import { gymAnalyzer } from "./analyzers/gymAnalyzer";
  */
 export const testAnalyzerRegistry: Record<TestType, TestAnalyzer> = {
   cmj: cmjAnalyzer,
+  squat_jump: squatJumpAnalyzer,
+  drop_jump: dropJumpAnalyzer,
+  repeated_jumps: repeatedJumpsAnalyzer,
   broad_jump: broadJumpAnalyzer,
   pogo_jumps: pogoAnalyzer,
   sprint_20m: sprint20mAnalyzer,
