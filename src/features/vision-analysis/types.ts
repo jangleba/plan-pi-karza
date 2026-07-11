@@ -157,6 +157,8 @@ export interface AnalysisContext {
   calibration: Calibration | null;
   /** Rzeczywisty wzrost zawodnika (cm) z profilu — do auto-kalibracji skali. */
   athleteHeightCm?: number | null;
+  /** Kalibracja sceny przypisana do tego filmu (linia wybicia, obszar lądowania, homografia). */
+  calibrationRecord?: import("./videoCalibration").CalibrationRecord | null;
 }
 
 export interface ValidationResult {
