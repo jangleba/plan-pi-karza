@@ -100,6 +100,19 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       setPreviewSrc(resolved.objectUrl);
       vlog("file_ready", { size: resolved.size, type: resolved.type });
 
+      // Hash filmu → kalibracja sceny jest powiązana z KONKRETNYM nagraniem.
+      try {
+        const blob = await (await fetch(resolved.objectUrl)).blob();
+        videoHashRef.current = await computeVideoHashFromBlob(blob);
+        calibrationRecordRef.current = findVideoCalibration(videoHashRef.current);
+        vlog("video_hash", {
+          videoHash: videoHashRef.current,
+          hasCalibration: !!calibrationRecordRef.current,
+        });
+      } catch (e) {
+        vwarn("video_hash", "nie udało się policzyć hash filmu", (e as Error)?.message);
+      }
+
       // Wzrost zawodnika z profilu → auto-kalibracja skali (sprint / broad jump).
       // Zapytanie z twardym limitem — nie może zablokować startu analizy.
       let athleteHeightCm: number | null = null;
