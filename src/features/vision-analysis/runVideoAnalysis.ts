@@ -69,9 +69,12 @@ function uuid(): string {
 }
 
 /**
- * Łączy jawną kalibrację (jeśli podano) z automatycznie dopasowanym profilem.
- * Ręczna kalibracja (referencePoints/linie) ma pierwszeństwo; profil dokłada
- * skalę metry/piksel, gdy jej brak.
+ * Ścisłe rozwiązanie kalibracji dla bieżącego nagrania.
+ *
+ * Dla testów PRZESTRZENNYCH profil może zostać użyty WYŁĄCZNIE przy pełnej
+ * zgodności (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS,
+ * zoom, wersja). Przy jakiejkolwiek niezgodności ustawiamy mismatchCode i
+ * NIE dostarczamy skali/homografii — wynik przestrzenny zostanie zablokowany.
  */
 function resolveCalibration(
   opts: RunOptions,
@@ -79,43 +82,64 @@ function resolveCalibration(
   measuredFps: number,
 ): Calibration | null {
   const base: Calibration = { ...(opts.calibration ?? {}) };
+  const isSpatial = SPATIAL_TESTS.has(opts.testType);
+
+  // Ręczna kalibracja linii/punktów ma pierwszeństwo (świadomy wybór trenera).
+  const hasManual = !!base.referencePoints || (base.startLineX != null && base.finishLineX != null);
 
   const deviceId = opts.deviceId ?? null;
-  if (!deviceId) return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
-
   const fps = Math.round(measuredFps > 0 ? measuredFps : opts.declaredFps ?? 0);
-  const match = matchCalibrationForRecording({
-    deviceId,
-    lens: opts.lens ?? "wide",
-    orientation: orientation === "landscape" ? "landscape" : "portrait",
-    fps,
-    zoom: opts.zoom ?? 1,
-  });
+  const parts = deviceId
+    ? {
+        deviceId,
+        lens: opts.lens ?? "wide",
+        orientation: (orientation === "landscape" ? "landscape" : "portrait") as CaptureOrientation,
+        fps,
+        zoom: opts.zoom ?? 1,
+        facing: (opts.facing ?? "back") as "front" | "back",
+        resolution: `${opts.calibration ? "" : ""}`, // rozdzielczość dołączana niżej
+      }
+    : null;
 
-  if (!match) {
-    vlog("calibration_profile", "brak dopasowanego profilu", { deviceId, fps });
-    return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
+  const profile = parts ? matchCalibrationStrictForRecording(parts) : null;
+
+  if (profile) {
+    vlog("calibration_profile", "profil ściśle dopasowany", {
+      key: profile.key,
+      reprojectionErrorPx: profile.reprojectionErrorPx,
+    });
+    base.profileKey = profile.key;
+    base.profileId = profile.id;
+    base.calibrationHash = profile.key;
+    base.homography = profile.homography;
+    base.profileMatch = {
+      exact: true,
+      score: 1,
+      reprojectionErrorPx: profile.reprojectionErrorPx,
+      reasons: [],
+    };
+    if (base.metersPerPixel == null && !base.referencePoints) {
+      base.metersPerPixel = profile.mmPerPixel / 1000; // mm/px → m/px
+    }
+    // Blokada po poruszeniu telefonu: caller potwierdza stabilność kadru.
+    if (opts.cameraStable === false) {
+      base.cameraMoved = true;
+      base.mismatchCode = "CALIBRATION_CAMERA_MOVED";
+    }
+    return base;
   }
 
-  vlog("calibration_profile", "dopasowano profil", {
-    key: match.profile.key,
-    exact: match.exact,
-    score: match.score,
-    reprojectionErrorPx: match.profile.reprojectionErrorPx,
-  });
-
-  base.profileKey = match.profile.key;
-  base.profileMatch = {
-    exact: match.exact,
-    score: match.score,
-    reprojectionErrorPx: match.profile.reprojectionErrorPx,
-    reasons: match.reasons,
-  };
-  // Nie nadpisujemy ręcznej skali, jeśli już istnieje.
-  if (base.metersPerPixel == null && !base.referencePoints) {
-    base.metersPerPixel = match.profile.mmPerPixel / 1000; // mm/px → m/px
+  // Brak ściśle zgodnego profilu.
+  if (isSpatial && !hasManual) {
+    vlog("calibration_profile", "brak ściśle zgodnego profilu — CALIBRATION_PROFILE_MISMATCH", {
+      deviceId,
+      fps,
+    });
+    base.mismatchCode = "CALIBRATION_PROFILE_MISMATCH";
+    return base;
   }
-  return base;
+
+  return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
 }
 
 function failed(
