@@ -14,7 +14,6 @@ import { SPRINT_FPS_POLICY, JUMP_FPS_POLICY } from "../measurementAccuracy";
 import { vlog } from "../devLog";
 import { TimingLineRegistry } from "../timingPlane";
 import { detectBraking, type BrakingResult } from "../brakingEngine";
-import { TimingLineRegistry } from "../timingPlane";
 import { detectCodFiveTenFive, type CodResult } from "../codEngine";
 
 /**
