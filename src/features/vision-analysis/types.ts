@@ -62,10 +62,14 @@ export interface Landmark {
 /** Poza zawodnika w jednej klatce. */
 export interface FramePose {
   frameIndex: number;
+  /** Stabilny indeks źródłowej klatki (deterministyczny między uruchomieniami). */
+  sourceFrameIndex?: number;
   mediaTime: number;
   presentationTimestamp: number;
   /** Rzeczywisty timestamp klatki w filmie — używany do obliczeń sportowych. */
   sourceTimestampMs?: number;
+  /** Rzeczywisty timestamp źródłowej klatki w mikrosekundach (pełna precyzja). */
+  sourceTimestampUs?: number;
   /** Techniczny, monotoniczny timestamp przekazany do MediaPipe. */
   mediaPipeTimestampMs?: number;
   /** 33 landmarki MediaPipe lub null gdy nie wykryto zawodnika. */
