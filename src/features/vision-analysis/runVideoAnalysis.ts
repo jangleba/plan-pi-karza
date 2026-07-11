@@ -303,6 +303,39 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
 
+    // GATE PROTOKOŁU: selectedTestType → detectedTestType → detectedTestConfidence
+    // → protocolMatch → adapter. Adapter rusza WYŁĄCZNIE przy protocolMatch=true.
+    const recognition = recognizeTestProtocol(opts.testType, poses);
+    vlog("protocol_recognizer", recognition.reason, {
+      selected: recognition.selectedTestType,
+      signature: recognition.detectedSignature,
+      confidence: recognition.detectedTestConfidence,
+      protocolMatch: recognition.protocolMatch,
+      errorCode: recognition.errorCode,
+    });
+    if (!recognition.protocolMatch && recognition.errorCode) {
+      opts.onPhase?.("completed");
+      const code = recognition.errorCode;
+      return {
+        analysisId: analysisRunId,
+        testType: opts.testType,
+        status: "invalid_recording",
+        videoMetadata: {
+          fps: metadata.fps,
+          durationSeconds: round(metadata.durationSeconds, 2),
+          frameCount: metadata.frameCount,
+          width: metadata.width,
+          height: metadata.height,
+        },
+        keyEvents: [],
+        metrics: [],
+        overallConfidence: 0,
+        qualityIssues: [QUALITY_ISSUE_LABELS[code] ?? code],
+        retakeInstructions: [QUALITY_ISSUE_LABELS[code] ?? code],
+        analyzerVersion: analyzer.analyzerVersion,
+      };
+    }
+
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
     const calibration = resolveCalibration(
