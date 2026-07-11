@@ -74,6 +74,9 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
           { label: "Poziom jakości pomiaru", value: QUALITY_TIER_LABELS[acc.qualityTier] },
           { label: "Odstęp klatek (mediana)", value: `${acc.frameIntervalMs} ms` },
           { label: "Rozdzielczość czasowa", value: `± ${acc.temporalResolutionMs} ms` },
+          ...(acc.spatialResolutionMmPerPixel != null
+            ? [{ label: "Rozdzielczość przestrzenna", value: `${acc.spatialResolutionMmPerPixel} mm/px` }]
+            : []),
           {
             label: "Powtarzalność",
             value:
@@ -82,6 +85,27 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
                 : acc.repeatabilityStatus,
           },
           { label: "Wynik oficjalny", value: acc.officialResult ? "Tak" : "Nie (estymacja)" },
+        ]
+      : []),
+    ...(analysis.calibration
+      ? [
+          {
+            label: "Kalibracja (homografia)",
+            value: analysis.calibration.usedHomography
+              ? "Użyta — pomiar przez skalibrowaną płaszczyznę podłoża"
+              : "Nieużyta na tej ścieżce",
+          },
+          ...(analysis.calibration.profileId
+            ? [{ label: "Profil kalibracji", value: analysis.calibration.profileId }]
+            : []),
+          ...(analysis.calibration.reprojectionErrorPx != null
+            ? [
+                {
+                  label: "Błąd reprojekcji",
+                  value: `${analysis.calibration.reprojectionErrorPx} px`,
+                },
+              ]
+            : []),
         ]
       : []),
     ...analysis.keyEvents.map((e) => ({
