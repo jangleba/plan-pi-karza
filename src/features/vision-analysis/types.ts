@@ -99,6 +99,16 @@ export interface Calibration {
     reprojectionErrorPx: number;
     reasons: string[];
   };
+  /** Homografia world(mm)→image(px) z dopasowanego profilu (do przeliczeń podłoża). */
+  homography?: [number, number, number, number, number, number, number, number, number];
+  /** Identyfikator wybranego profilu (do debugu). */
+  profileId?: string;
+  /** Skrót/hash konfiguracji profilu (do debugu). */
+  calibrationHash?: string;
+  /** Kod niezgodności profilu — jeśli ustawiony, wynik przestrzenny jest zablokowany. */
+  mismatchCode?: "CALIBRATION_PROFILE_MISMATCH" | "CALIBRATION_CAMERA_MOVED";
+  /** Czy wykryto ruch kamery po kalibracji. */
+  cameraMoved?: boolean;
 }
 
 
