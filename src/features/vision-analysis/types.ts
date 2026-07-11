@@ -221,6 +221,10 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
   EVENTS_NOT_DETECTED: "Nie wykryto kluczowych zdarzeń ruchu.",
   LOW_RESOLUTION: "Zbyt niska rozdzielczość nagrania.",
   POSE_NOT_DETECTED: "Nie wykryto sylwetki zawodnika.",
+  CALIBRATION_PROFILE_MISMATCH:
+    "Brak profilu kalibracji dokładnie zgodnego z tym nagraniem (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom). Wykonaj kalibrację dla tej konfiguracji.",
+  CALIBRATION_CAMERA_MOVED:
+    "Kamera poruszyła się po kalibracji — profil został unieważniony dla tego nagrania. Ustaw telefon nieruchomo i nagraj ponownie.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
