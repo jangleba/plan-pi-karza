@@ -54,6 +54,10 @@ export interface RunOptions {
   lens?: LensType | null;
   /** Zoom nagrania (1 = brak). */
   zoom?: number | null;
+  /** Aparat przedni / tylny (do ścisłego dopasowania profilu). */
+  facing?: "front" | "back" | null;
+  /** Czy kamera pozostała nieruchoma po kalibracji (walidacja kadru). */
+  cameraStable?: boolean | null;
   abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
