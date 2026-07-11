@@ -63,6 +63,12 @@ export interface CalibrationRecord {
   reprojectionErrorMm: number;
   /** Wielokąt (piksele) obejmujący ważny obszar kalibracji. */
   calibratedAreaPolygonPx: ImagePointPx[];
+  /** Linia wybicia (dwa piksele) — od niej mierzymy prostopadłą odległość lądowania. */
+  takeoffLinePx?: [ImagePointPx, ImagePointPx];
+  /** Wielokąt (piksele) możliwej strefy lądowania. */
+  landingAreaPolygonPx?: ImagePointPx[];
+  /** Podpis sceny do dziedziczenia kalibracji między filmami (markery/tło/skala/obrót/kadr). */
+  sceneSignature?: SceneSignature;
   calibrationConfidence: number;
   /** Czy homografia jest wystarczająca do wyniku oficjalnego (cm/m/prędkość). */
   spatialResultStatus: SpatialResultStatus;
