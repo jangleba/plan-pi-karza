@@ -296,6 +296,12 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Niepewność momentu przecięcia zbyt wysoka. Nagraj z wyższym FPS i nieruchomą kamerą.",
   WRONG_REPETITION_COUNT:
     "Nagranie zawiera nieprawidłową liczbę prób lub powtórzeń dla tego protokołu. Jeden film to jedna próba (lub jedna pełna seria).",
+  CAMERA_SETUP_CHANGED:
+    "Ustawienie kamery zmieniło się względem kalibracji (markery, tło, skala, obrót lub kadr). Wykonaj nową kalibrację tego filmu.",
+  LANDING_OUT_OF_CALIBRATION_AREA:
+    "Lądowanie znajduje się poza skalibrowanym obszarem podłoża. Rozszerz kalibrację o strefę lądowania.",
+  HEEL_OCCLUDED:
+    "Pięta lądowania jest zasłonięta lub niewidoczna. Nagraj tak, aby pięta była wyraźnie widoczna w kadrze.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
