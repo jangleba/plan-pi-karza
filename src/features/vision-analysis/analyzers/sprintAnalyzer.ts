@@ -17,6 +17,8 @@ import {
   PLAUSIBLE_RANGES,
 } from "../physics";
 import { estimateScaleFromHeight } from "../autoCalibration";
+import { temporalAccuracy } from "./temporalAccuracy";
+import { SPRINT_FPS_POLICY } from "../measurementAccuracy";
 
 /**
  * Analizator sprintu na dystansie protokołu (20 / 30 m).
