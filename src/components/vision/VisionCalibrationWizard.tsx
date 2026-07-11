@@ -47,9 +47,11 @@ export function VisionCalibrationWizard() {
 
   const [deviceLabel, setDeviceLabel] = useState(device.label);
   const [lens, setLens] = useState<LensType>("wide");
+  const [facing, setFacing] = useState<"front" | "back">("back");
   const [orientation, setOrientation] = useState<CaptureOrientation>("portrait");
   const [fps, setFps] = useState(120);
   const [zoom, setZoom] = useState(1);
+  const [resolution, setResolution] = useState("1080x1920");
 
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
