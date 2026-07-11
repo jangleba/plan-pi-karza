@@ -80,6 +80,7 @@ function resolveCalibration(
   opts: RunOptions,
   orientation: "portrait" | "landscape" | "square",
   measuredFps: number,
+  resolution: string,
 ): Calibration | null {
   const base: Calibration = { ...(opts.calibration ?? {}) };
   const isSpatial = SPATIAL_TESTS.has(opts.testType);
