@@ -4,9 +4,13 @@ import { vlog, vwarn } from "./devLog";
 /** Callback wywoływany dla każdej zdekodowanej klatki. */
 export type FrameHandler = (frame: {
   frameIndex: number;
+  /** Stabilny indeks źródłowej klatki (deterministyczny między uruchomieniami). */
+  sourceFrameIndex: number;
   mediaTime: number;
   presentationTimestamp: number;
   sourceTimestampMs: number;
+  /** Rzeczywisty timestamp źródłowej klatki w mikrosekundach (pełna precyzja). */
+  sourceTimestampUs: number;
   video: HTMLVideoElement;
 }) => Promise<void> | void;
 
