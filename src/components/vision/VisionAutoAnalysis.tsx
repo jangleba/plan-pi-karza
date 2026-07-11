@@ -12,6 +12,7 @@ import { saveFrameResult } from "@/lib/vision/visionResultService";
 import { createPendingUpload } from "@/lib/vision/visionRepo";
 import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
+import { detectDevice } from "@/lib/vision/calibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
