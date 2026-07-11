@@ -254,9 +254,11 @@ export async function detectPose(
 
   return {
     frameIndex,
+    sourceFrameIndex,
     mediaTime,
     presentationTimestamp: mediaTime,
     sourceTimestampMs,
+    sourceTimestampUs,
     mediaPipeTimestampMs,
     landmarks: best.map((l) => ({
       x: l.x,
