@@ -36,6 +36,9 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
+  | { kind: "calibration_required"; analysis: VideoAnalysisResult }
+  | { kind: "technique_only"; analysis: VideoAnalysisResult }
+  | { kind: "calibrating"; analysis: VideoAnalysisResult }
   | { kind: "error"; code: string; message: string };
 
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
@@ -51,6 +54,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const runToken = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const videoHashRef = useRef<string>("");
+  const calibrationRecordRef = useRef<CalibrationRecord | null>(null);
+  const techniqueOnlyRef = useRef<boolean>(false);
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
