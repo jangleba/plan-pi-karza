@@ -13,6 +13,7 @@ export type TestType =
   | "pogo_jumps"
   | "sprint_20m"
   | "sprint_30m"
+  | "flying_sprint"
   | "five_ten_five"
   | "sprint_to_stop"
   | "analyze_gym_exercise";
@@ -54,7 +55,12 @@ export type QualityIssueCode =
   | "WRONG_REPETITION_COUNT"
   | "CAMERA_SETUP_CHANGED"
   | "LANDING_OUT_OF_CALIBRATION_AREA"
-  | "HEEL_OCCLUDED";
+  | "HEEL_OCCLUDED"
+  | "MISSING_TIMING_LINE"
+  | "ATHLETE_TOO_SMALL"
+  | "TORSO_OCCLUDED"
+  | "INVALID_CAMERA_GEOMETRY"
+  | "DISTANCE_UNKNOWN";
 
 export interface VideoMetadata {
   fps: number;
