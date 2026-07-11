@@ -6,6 +6,9 @@ import {
   mmPerPixelFromHomography,
   buildCalibrationProfile,
   isFitAcceptable,
+  matchCalibrationProfile,
+  type CalibrationKeyParts,
+  type CalibrationProfile,
   type CorrespondencePoint,
   type Homography,
 } from "./calibrationProfiles";
