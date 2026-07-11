@@ -51,11 +51,13 @@ export function footBottomSeries(poses: FramePose[]): number[] {
   });
 }
 
-/** Timestampy prezentacji klatek (sekundy). */
+/** Timestampy prezentacji klatek (sekundy, pełna precyzja z mikrosekund). */
 export function timeSeries(poses: FramePose[]): number[] {
-  return poses.map((p) =>
-    typeof p.sourceTimestampMs === "number" ? p.sourceTimestampMs / 1000 : p.presentationTimestamp,
-  );
+  return poses.map((p) => {
+    if (typeof p.sourceTimestampUs === "number") return p.sourceTimestampUs / 1_000_000;
+    if (typeof p.sourceTimestampMs === "number") return p.sourceTimestampMs / 1000;
+    return p.presentationTimestamp;
+  });
 }
 
 /** Udział klatek z wykrytą pozą (0-1). */
