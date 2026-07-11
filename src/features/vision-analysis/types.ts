@@ -310,6 +310,16 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Lądowanie znajduje się poza skalibrowanym obszarem podłoża. Rozszerz kalibrację o strefę lądowania.",
   HEEL_OCCLUDED:
     "Pięta lądowania jest zasłonięta lub niewidoczna. Nagraj tak, aby pięta była wyraźnie widoczna w kadrze.",
+  MISSING_TIMING_LINE:
+    "Brak wymaganej linii pomiaru czasu (START/FINISH lub TIMING_A/TIMING_B) w kalibracji tego filmu.",
+  ATHLETE_TOO_SMALL:
+    "Sylwetka zawodnika jest zbyt mała w kadrze, aby wiarygodnie wykryć przecięcie. Nagraj z bliższej odległości lub węższym kadrem.",
+  TORSO_OCCLUDED:
+    "Punkt referencyjny tułowia jest zasłonięty w momencie przecięcia. Zapewnij widoczność tułowia w całym biegu.",
+  INVALID_CAMERA_GEOMETRY:
+    "Geometria kamery jest niewłaściwa dla pomiaru czasu (linia rzutuje się poziomo). Ustaw kamerę prostopadle do osi ruchu.",
+  DISTANCE_UNKNOWN:
+    "Dystans nie jest znany. Podaj dystans protokołu lub skalibruj linie o znanej odległości na podłożu.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
