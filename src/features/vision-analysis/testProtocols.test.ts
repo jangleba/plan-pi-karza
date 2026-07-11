@@ -57,7 +57,7 @@ function pogoPoses(): FramePose[] {
 describe("TestProtocolRegistry", () => {
   it("has a protocol for every real analyzer test (and no invented tests)", () => {
     expect(Object.keys(TEST_PROTOCOL_REGISTRY).sort()).toEqual(Object.keys(testAnalyzerRegistry).sort());
-    expect(ALL_TEST_TYPES.length).toBe(12);
+    expect(ALL_TEST_TYPES.length).toBe(13);
   });
 
   it("algorithmVersion is sourced from the analyzer registry", () => {
