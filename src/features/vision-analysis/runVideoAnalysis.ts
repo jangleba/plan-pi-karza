@@ -352,6 +352,16 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       retakeInstructions: [...new Set(retakeInstructions)],
       analyzerVersion: analyzer.analyzerVersion,
       measurement,
+      calibration: {
+        usedHomography:
+          SPATIAL_TESTS.has(opts.testType) && !!calibration?.homography && metrics.length > 0,
+        profileId: calibration?.profileId ?? null,
+        calibrationHash: calibration?.calibrationHash ?? null,
+        reprojectionErrorPx: calibration?.profileMatch?.reprojectionErrorPx ?? null,
+        mismatchCode: calibration?.mismatchCode ?? null,
+        cameraMoved: !!calibration?.cameraMoved,
+        homography: calibration?.homography ? [...calibration.homography] : null,
+      },
     };
   } catch (e) {
     opts.onPhase?.("error");
