@@ -15,6 +15,7 @@ import type {
 import {
   calibrationKey,
   matchCalibrationProfile,
+  matchCalibrationStrict,
   type CalibrationMatch,
 } from "@/features/vision-analysis/calibrationProfiles";
 
