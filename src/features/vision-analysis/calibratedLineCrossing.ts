@@ -297,7 +297,7 @@ export function detectCalibratedCrossings(input: CrossingInput): CrossingResult 
   let anyWrongDirection = false;
 
   for (const line of input.timingLines) {
-    const lineU = projectGroundLine(input.homography, line.worldXmm, ySpan);
+    const lineU = projectGroundLine(input.homography, line, ySpan);
     if (!lineU) {
       return { ok: false, code: "TIMING_PLANE_CALIBRATION_FAILED", debug };
     }
