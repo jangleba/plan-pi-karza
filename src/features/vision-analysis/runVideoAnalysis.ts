@@ -20,9 +20,9 @@ import {
   isPoseSupported,
 } from "./poseEngine";
 import { round } from "./physics";
+import { vlog } from "./devLog";
 import type { LensType, CaptureOrientation } from "./calibrationProfiles";
 import { matchCalibrationForRecording } from "@/lib/vision/calibrationStore";
-import { vlog } from "@/lib/vision/devLogBridge";
 
 export type AnalysisPhase =
   | "idle"
