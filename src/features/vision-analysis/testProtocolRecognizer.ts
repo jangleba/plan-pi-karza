@@ -72,7 +72,18 @@ export function recognizeMovement(poses: FramePose[]): {
 } {
   const contacts = detectGroundContacts(poses);
   const flight = detectFlightPhase(poses);
+  const dropJump = detectDropJumpPhases(poses);
   const hRange = horizontalRange(poses);
+
+  // Drop Jump: zejście ze skrzyni + odbicie (dwa loty, pierwszy od granicy kadru).
+  if (dropJump) {
+    return {
+      signature: "DROP_REBOUND",
+      confidence: dropJump.confidence,
+      contactCount: Math.max(1, contacts.length),
+      flightCount: 2,
+    };
+  }
 
   // Seria reaktywnych kontaktów: co najmniej 3 kontakty i brak jednego,
   // dominującego, długiego lotu (CMJ ma jeden długi lot, nie serię).
