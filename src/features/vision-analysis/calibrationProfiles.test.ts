@@ -91,3 +91,45 @@ describe("buildCalibrationProfile", () => {
     expect(profile.mmPerPixel).toBeGreaterThan(0);
   });
 });
+
+describe("matchCalibrationProfile", () => {
+  function profile(parts: CalibrationKeyParts, createdAt = "2026-01-01T00:00:00.000Z"): CalibrationProfile {
+    const H: Homography = [2, 0, 50, 0, 2, 40, 0, 0, 1];
+    const fit = fitHomography(makePoints(H, 1000, 1000, 0))!;
+    return buildCalibrationProfile({
+      parts,
+      deviceLabel: parts.deviceId,
+      fit,
+      worldWidthMm: 1000,
+      worldHeightMm: 1000,
+      now: createdAt,
+    });
+  }
+  const base: CalibrationKeyParts = { deviceId: "iPhone 14", lens: "wide", orientation: "portrait", fps: 120, zoom: 1 };
+
+  it("wybiera dokładne dopasowanie (score 1, exact)", () => {
+    const profiles = [profile({ ...base, fps: 60 }), profile(base)];
+    const m = matchCalibrationProfile(profiles, base)!;
+    expect(m.exact).toBe(true);
+    expect(m.score).toBe(1);
+  });
+
+  it("odrzuca inne urządzenie / obiektyw / orientację", () => {
+    expect(matchCalibrationProfile([profile({ ...base, deviceId: "Pixel 8" })], base)).toBeNull();
+    expect(matchCalibrationProfile([profile({ ...base, lens: "ultrawide" })], base)).toBeNull();
+    expect(matchCalibrationProfile([profile({ ...base, orientation: "landscape" })], base)).toBeNull();
+  });
+
+  it("dopasowuje przybliżenie przy innym FPS z obniżoną trafnością", () => {
+    const m = matchCalibrationProfile([profile({ ...base, fps: 240 })], base)!;
+    expect(m.exact).toBe(false);
+    expect(m.score).toBeLessThan(1);
+    expect(m.reasons.length).toBeGreaterThan(0);
+  });
+
+  it("preferuje dokładne dopasowanie nad przybliżonym", () => {
+    const profiles = [profile({ ...base, zoom: 2 }), profile(base)];
+    const m = matchCalibrationProfile(profiles, base)!;
+    expect(m.exact).toBe(true);
+  });
+});
