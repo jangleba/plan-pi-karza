@@ -283,6 +283,12 @@ export function buildCalibrationRecord(input: {
   imagePointsPx: ImagePointPx[];
   groundPointsMm: GroundPointMm[];
   maxReprojectionErrorPx?: number;
+  /** Linia wybicia (dwa piksele) — opcjonalna, wymagana dla oficjalnego Broad Jump/Hop. */
+  takeoffLinePx?: [ImagePointPx, ImagePointPx];
+  /** Strefa lądowania (piksele) — opcjonalna. */
+  landingAreaPolygonPx?: ImagePointPx[];
+  /** Podpis sceny do dziedziczenia kalibracji między filmami. */
+  sceneSignature?: SceneSignature;
   now?: string;
   calibrationId?: string;
 }):
