@@ -9,6 +9,8 @@ import type {
 import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, detectGroundContacts } from "./jumpDetection";
 import { flightTimeToHeightCm, reactiveStrengthIndex, round } from "../physics";
+import { temporalAccuracy } from "./temporalAccuracy";
+import { JUMP_FPS_POLICY } from "../measurementAccuracy";
 
 const MIN_FPS = 120;
 
