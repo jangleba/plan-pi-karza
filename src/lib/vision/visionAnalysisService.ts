@@ -63,6 +63,12 @@ function mainResultFor(test: VisionTest): { value: number; unit: string } {
   switch (test.id) {
     case "cmj":
       return { value: round(rand(28, 46), 0), unit: "cm" };
+    case "squat_jump":
+      return { value: round(rand(24, 42), 0), unit: "cm" };
+    case "drop_jump":
+      return { value: round(rand(1.4, 2.8), 2), unit: "RSI" };
+    case "repeated_jumps":
+      return { value: round(rand(1.2, 2.4), 2), unit: "RSI" };
     case "broad_jump":
       return { value: round(rand(180, 260), 0), unit: "cm" };
     case "pogo_jumps":
