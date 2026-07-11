@@ -20,6 +20,7 @@ export const testAnalyzerRegistry: Record<TestType, TestAnalyzer> = {
   drop_jump: dropJumpAnalyzer,
   repeated_jumps: repeatedJumpsAnalyzer,
   broad_jump: broadJumpAnalyzer,
+  single_leg_hop: singleLegHopAnalyzer,
   pogo_jumps: pogoAnalyzer,
   sprint_20m: sprint20mAnalyzer,
   sprint_30m: sprint30mAnalyzer,
