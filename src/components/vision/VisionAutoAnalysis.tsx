@@ -383,7 +383,99 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   );
 }
 
-function RunningView({ phase, progress }: { phase: AnalysisPhase; progress: number }) {
+function CalibrationRequiredView({
+  test,
+  analysis,
+  onCalibrate,
+  onTechniqueOnly,
+}: {
+  test: VisionTest;
+  analysis: VideoAnalysisResult;
+  onCalibrate: () => void;
+  onTechniqueOnly: () => void;
+}) {
+  return (
+    <div className="soft-card space-y-4 p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+          <CheckCircle2 className="h-6 w-6" />
+        </div>
+        <div>
+          <div className="text-base font-semibold text-foreground">
+            {test.name} został rozpoznany
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Aby zmierzyć odległość, skalibruj podłoże na tym filmie. Ruch został poprawnie
+            wykryty ({analysis.keyEvents.length} zdarzeń), brakuje jedynie skali przestrzennej.
+          </p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Button className="w-full" size="lg" onClick={onCalibrate}>
+          Skalibruj ten film
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onTechniqueOnly}>
+          Analizuj tylko technikę
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TechniqueOnlyView({
+  test,
+  analysis,
+  onCalibrate,
+  onRetake,
+}: {
+  test: VisionTest;
+  analysis: VideoAnalysisResult;
+  onCalibrate: () => void;
+  onRetake: () => void;
+}) {
+  return (
+    <div className="soft-card space-y-4 p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
+          <AlertTriangle className="h-6 w-6" />
+        </div>
+        <div>
+          <div className="text-base font-semibold text-foreground">Analiza tylko techniki</div>
+          <p className="text-sm text-muted-foreground">
+            {test.name} został rozpoznany, ale bez wiarygodnej skali nie podajemy centymetrów,
+            metrów ani prędkości.
+          </p>
+        </div>
+      </div>
+      {analysis.keyEvents.length > 0 && (
+        <div className="rounded-2xl bg-accent/60 p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Rozpoznane zdarzenia
+          </div>
+          <ul className="space-y-1.5">
+            {analysis.keyEvents.map((e, i) => (
+              <li key={i} className="flex justify-between text-sm text-foreground">
+                <span>{e.type}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  klatka {e.frameIndex} · {e.timestampSeconds.toFixed(3)} s
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="space-y-2">
+        <Button className="w-full" onClick={onCalibrate}>
+          Skalibruj ten film, aby zmierzyć odległość
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onRetake}>
+          Nagraj ponownie
+        </Button>
+      </div>
+    </div>
+  );
+}
+
   const pct = Math.round(progress * 100);
   return (
     <div className="soft-card space-y-5 p-6 text-center">
