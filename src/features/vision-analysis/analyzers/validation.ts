@@ -63,6 +63,20 @@ const RETAKE: Record<QualityIssueCode, string> = {
     "Wykonaj test w prawidłowej kolejności linii (środek → zwrot → środek → zwrot → środek).",
   WRONG_TURNING_SIDE:
     "Wykonaj zwrot na wskazaną nogę (osobne próby dla lewej i prawej strony).",
+  BRAKING_ZONE_REQUIRED:
+    "Skalibruj strefę hamowania: BRAKING_ENTRY, STOP_ZONE_START i STOP_ZONE_END na podłożu.",
+  ENTRY_SPEED_UNKNOWN:
+    "Podaj znaną prędkość wejściową lub skalibruj strefę jej pomiaru przed hamowaniem.",
+  INVALID_APPROACH_SPRINT:
+    "Wbiegnij w strefę z pełną prędkością sprintu przed rozpoczęciem hamowania.",
+  NO_SPEED_REDUCTION:
+    "Wykonaj wyraźne hamowanie — nagranie pokazuje zwykły bieg bez redukcji prędkości.",
+  STOP_NOT_DETECTED:
+    "Zatrzymaj się całkowicie w strefie i pozostań w kadrze aż do pełnego zatrzymania.",
+  STOP_OUT_OF_ZONE:
+    "Zatrzymaj się w wyznaczonej strefie (STOP_ZONE_START–STOP_ZONE_END).",
+  DIRECTION_CHANGE_NOT_STOP:
+    "Zatrzymaj się w pełni zamiast zmieniać kierunek — to test hamowania.",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */

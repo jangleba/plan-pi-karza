@@ -22,6 +22,14 @@ export function resolveAnalysisStatus(input: StatusInput): StatusDecision {
   if (validationStatus === "invalid_recording") {
     return { status: "invalid_recording", extraIssues: [] };
   }
+  if (validationStatus === "calibration_required") {
+    return { status: "calibration_required", extraIssues: [] };
+  }
+  // Tryb tylko-technika: zachowujemy status, o ile są policzalne metryki
+  // (np. czas hamowania i kontakty) — bez cm/m/prędkości.
+  if (validationStatus === "technique_only" && metricsCount > 0) {
+    return { status: "technique_only", extraIssues: [] };
+  }
   if (validationStatus === "needs_review") {
     return { status: "needs_review", extraIssues: [] };
   }

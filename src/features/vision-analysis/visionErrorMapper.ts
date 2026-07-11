@@ -38,6 +38,13 @@ const ACTION_BY_CODE: Partial<Record<QualityIssueCode, VisionErrorAction>> = {
   POSE_NOT_DETECTED: "retake",
   EVENTS_NOT_DETECTED: "retake",
   LOW_RESOLUTION: "retake",
+  BRAKING_ZONE_REQUIRED: "recalibrate_video",
+  ENTRY_SPEED_UNKNOWN: "recalibrate_video",
+  INVALID_APPROACH_SPRINT: "retake",
+  NO_SPEED_REDUCTION: "retake",
+  STOP_NOT_DETECTED: "retake",
+  STOP_OUT_OF_ZONE: "retake",
+  DIRECTION_CHANGE_NOT_STOP: "retake",
 };
 
 export function mapVisionError(code: QualityIssueCode): MappedVisionError {

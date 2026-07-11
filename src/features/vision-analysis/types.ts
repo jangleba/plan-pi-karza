@@ -65,7 +65,14 @@ export type QualityIssueCode =
   | "TURN_NOT_DETECTED"
   | "TURN_LINE_NOT_REACHED"
   | "WRONG_LINE_SEQUENCE"
-  | "WRONG_TURNING_SIDE";
+  | "WRONG_TURNING_SIDE"
+  | "BRAKING_ZONE_REQUIRED"
+  | "ENTRY_SPEED_UNKNOWN"
+  | "INVALID_APPROACH_SPRINT"
+  | "NO_SPEED_REDUCTION"
+  | "STOP_NOT_DETECTED"
+  | "STOP_OUT_OF_ZONE"
+  | "DIRECTION_CHANGE_NOT_STOP";
 
 export interface VideoMetadata {
   fps: number;
@@ -148,6 +155,8 @@ export interface Calibration {
    * homografię — porównywany jest jego piksel z rzutem linii podłoża.
    */
   timingLines?: TimingLineSpec[];
+  /** Znana prędkość wejściowa (m/s) dla testów hamowania, gdy mierzona bramką. */
+  knownEntrySpeedMs?: number | null;
 }
 
 /** Rola linii pomiaru czasu / strefy w protokole. */
@@ -159,7 +168,10 @@ export type TimingLineRole =
   | "TURN_LINE"
   | "CENTER"
   | "TURN_LEFT"
-  | "TURN_RIGHT";
+  | "TURN_RIGHT"
+  | "BRAKING_ENTRY"
+  | "STOP_ZONE_START"
+  | "STOP_ZONE_END";
 
 /** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
 export interface TimingLineSpec {
@@ -352,6 +364,20 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Niewłaściwa kolejność przekroczeń linii dla tego protokołu COD.",
   WRONG_TURNING_SIDE:
     "Zwrot wykonano na niewłaściwą nogę względem wybranej strony próby.",
+  BRAKING_ZONE_REQUIRED:
+    "Test hamowania wymaga skalibrowanej strefy: BRAKING_ENTRY, STOP_ZONE_START i STOP_ZONE_END na podłożu.",
+  ENTRY_SPEED_UNKNOWN:
+    "Nie można wyznaczyć prędkości wejściowej. Podaj znaną prędkość lub skalibruj strefę jej pomiaru.",
+  INVALID_APPROACH_SPRINT:
+    "Brak prawidłowego sprintu przed hamowaniem. Wejdź w strefę z pełną prędkością.",
+  NO_SPEED_REDUCTION:
+    "Nie wykryto wyraźnej redukcji prędkości. To zwykły bieg, nie hamowanie.",
+  STOP_NOT_DETECTED:
+    "Nie wykryto zatrzymania. Zatrzymaj się w pełni w strefie i pozostań w kadrze.",
+  STOP_OUT_OF_ZONE:
+    "Zatrzymanie nastąpiło poza wymaganą strefą (STOP_ZONE_START–STOP_ZONE_END).",
+  DIRECTION_CHANGE_NOT_STOP:
+    "Wykryto zmianę kierunku zamiast zatrzymania. Test hamowania wymaga pełnego zatrzymania.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */

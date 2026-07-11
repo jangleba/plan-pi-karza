@@ -78,6 +78,18 @@ export {
 // --- EvidenceReportBuilder ---
 export { buildEvidenceReport, type EvidenceReport, type EvidenceMetric } from "./evidenceReportBuilder";
 
+// --- BrakingEngine (Sprint-to-Stop / DECELERATION) ---
+export {
+  detectBraking,
+  type BrakingResult,
+  type BrakingSuccess,
+  type BrakingFailure,
+  type BrakingMode,
+  type BrakingErrorCode,
+  type BrakingResultQuality,
+  type BodyControlMetrics,
+} from "./brakingEngine";
+
 // --- VisionErrorMapper ---
 export {
   mapVisionError,
