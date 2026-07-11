@@ -372,7 +372,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     const qualityIssues = [...validation.issues, ...extraIssues];
     const retakeInstructions = [
       ...validation.retakeInstructions,
-      ...decision.extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
+      ...extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
     ];
 
     opts.onPhase?.("completed");
