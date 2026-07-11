@@ -229,9 +229,11 @@ export async function detectPose(
   if (peopleCount === 0) {
     return {
       frameIndex,
+      sourceFrameIndex,
       mediaTime,
       presentationTimestamp: mediaTime,
       sourceTimestampMs,
+      sourceTimestampUs,
       mediaPipeTimestampMs,
       landmarks: null,
       peopleCount: 0,
