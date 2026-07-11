@@ -12,7 +12,7 @@ import { flightTimeToHeightCm, reactiveStrengthIndex, round } from "../physics";
 import { temporalAccuracy } from "./temporalAccuracy";
 import { JUMP_FPS_POLICY } from "../measurementAccuracy";
 
-const MIN_FPS = 120;
+const MIN_FPS = 60; // 60 FPS dozwolone → wynik estymowany z niepewnością (bez globalnej blokady 120)
 
 function events(ctx: AnalysisContext): DetectedEvent[] {
   return detectGroundContacts(ctx.poses);

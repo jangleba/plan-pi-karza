@@ -9,7 +9,7 @@ const RETAKE: Record<QualityIssueCode, string> = {
   ATHLETE_OUT_OF_FRAME:
     "Odsuń telefon dalej — cała sylwetka i stopy muszą być widoczne przez cały ruch.",
   MULTIPLE_PEOPLE: "W kadrze może być tylko jeden zawodnik. Usuń inne osoby z tła.",
-  INSUFFICIENT_FPS: "Nagraj w wyższej liczbie klatek na sekundę (tryb slow-motion / 120 FPS).",
+  INSUFFICIENT_FPS: "Zbyt niskie FPS. 60 FPS daje wynik estymowany; dla wyniku wysokiej dokładności nagraj w 120+ FPS (slow-motion).",
   NO_CALIBRATION: "Zaznacz linie / punkt odniesienia o znanej odległości, aby przeliczyć wynik.",
   MISSING_START_LINE: "Zaznacz wyraźnie linię startu w kadrze.",
   MISSING_FINISH_LINE: "Zaznacz wyraźnie linię mety w kadrze.",

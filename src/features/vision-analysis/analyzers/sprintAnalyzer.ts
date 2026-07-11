@@ -50,7 +50,7 @@ interface SprintConfig {
 }
 
 function makeSprint(cfg: SprintConfig): TestAnalyzer {
-  const MIN_FPS = 120;
+  const MIN_FPS = 60; // bez globalnej blokady 120 → 60 FPS daje wynik estymowany
 
   function runEngine(ctx: AnalysisContext): TimingPlaneResult {
     const registry = TimingLineRegistry.from(ctx.calibration?.timingLines);

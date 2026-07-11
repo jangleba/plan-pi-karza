@@ -154,10 +154,21 @@ export function recognizeTestProtocol(
   let errorCode: QualityIssueCode | null = null;
   let reason = "Protokół zgodny.";
 
+  // Blokujemy adapter TYLKO przy pewnej, sprzecznej sygnaturze. Sygnatura
+  // niepewna (UNKNOWN / niska pewność) NIE odrzuca nagrania — o wyniku decyduje
+  // walidacja adaptera (np. CMJ dostaje szansę policzyć lot i sam odrzuci, gdy
+  // faza lotu jest nierealna). To przywraca kończenie analizy dla realnych filmów.
+  const CONFIDENT_SIGNATURE = 0.5;
   if (!familyMatch) {
-    // Wyraźna sygnatura sprzeczna z rodziną → mismatch protokołu.
-    errorCode = "TEST_PROTOCOL_MISMATCH";
-    reason = `Wykryto ruch typu ${signature}, niezgodny z rodziną ${selectedFamily}.`;
+    if (signature === "UNKNOWN" || confidence < CONFIDENT_SIGNATURE) {
+      reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(
+        2,
+      )}) — adapter zwaliduje wynik.`;
+    } else {
+      // Wyraźna sygnatura sprzeczna z rodziną → mismatch protokołu.
+      errorCode = "TEST_PROTOCOL_MISMATCH";
+      reason = `Wykryto ruch typu ${signature}, niezgodny z rodziną ${selectedFamily}.`;
+    }
   } else if (bilateralOrMax && signature === "SINGLE_FLIGHT" && contactCount >= 3) {
     // Test pojedynczej próby, ale film zawiera serię odbić.
     repetitionCountValid = false;
