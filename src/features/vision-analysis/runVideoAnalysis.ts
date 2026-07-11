@@ -353,6 +353,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       cameraSetup: opts.cameraSetup,
       calibration,
       athleteHeightCm: opts.athleteHeightCm ?? null,
+      calibrationRecord: opts.calibrationRecord ?? null,
     };
 
     opts.onPhase?.("calculating_result");
