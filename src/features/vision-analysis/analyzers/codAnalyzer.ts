@@ -52,6 +52,7 @@ function makeCod(
 
   function events(ctx: AnalysisContext): DetectedEvent[] {
     const res = runEngine(ctx);
+    vlog(`${testType} line_crossing`, res.ok ? "OK" : res.code, res.debug);
     if (!res.ok || res.crossings.length < 2) return [];
     const seq = ordered(res.crossings);
     const conf = 0.88;
