@@ -61,36 +61,137 @@ function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } 
   return null;
 }
 
-function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
+/** Piksel stopy (u,v) w danej klatce — średnia z lewej/prawej stopy. */
+function footPixel(ctx: AnalysisContext, frameIndex: number): { u: number; v: number } | null {
+  const lm = ctx.poses[frameIndex]?.landmarks;
+  if (!lm) return null;
+  const u = ((lm[31].x + lm[32].x) / 2) * ctx.metadata.width;
+  const v = ((lm[31].y + lm[32].y) / 2) * ctx.metadata.height;
+  return { u, v };
+}
+
+/** Długość skoku (cm) — homografia ma pierwszeństwo, inaczej skala/piksele. */
+function jumpDistanceCm(
+  ev: DetectedEvent[],
+  ctx: AnalysisContext,
+): { cm: number; viaHomography: boolean; confMul: number } | null {
   const takeoff = ev.find((e) => e.type === "takeoff");
   const landing = ev.find((e) => e.type === "landing");
-  if (!takeoff || !landing) return [];
-  const poses = ctx.poses;
-  const startX = poses[takeoff.frameIndex]?.landmarks
-    ? (poses[takeoff.frameIndex]!.landmarks![31].x + poses[takeoff.frameIndex]!.landmarks![32].x) /
+  if (!takeoff || !landing) return null;
+
+  // Tryb podstawowy: rzut pikseli stóp na płaszczyznę podłoża przez homografię.
+  const H = ctx.calibration?.homography;
+  if (H) {
+    const a = footPixel(ctx, takeoff.frameIndex);
+    const b = footPixel(ctx, landing.frameIndex);
+    if (a && b) {
+      const mm = groundDistanceMm(H, a, b);
+      if (mm != null && mm > 0) {
+        const cm = round(mm / 10, 0);
+        if (cm >= 80 && cm <= 380) return { cm, viaHomography: true, confMul: 1 };
+      }
+    }
+  }
+
+  // Tryb zapasowy (nieoficjalny): skala metry/piksel.
+  const startX = ctx.poses[takeoff.frameIndex]?.landmarks
+    ? (ctx.poses[takeoff.frameIndex]!.landmarks![31].x +
+        ctx.poses[takeoff.frameIndex]!.landmarks![32].x) /
       2
     : null;
-  const endX = poses[landing.frameIndex]?.landmarks
-    ? (poses[landing.frameIndex]!.landmarks![31].x + poses[landing.frameIndex]!.landmarks![32].x) /
+  const endX = ctx.poses[landing.frameIndex]?.landmarks
+    ? (ctx.poses[landing.frameIndex]!.landmarks![31].x +
+        ctx.poses[landing.frameIndex]!.landmarks![32].x) /
       2
     : null;
-  if (startX == null || endX == null) return [];
+  if (startX == null || endX == null) return null;
   const scale = metersPerPixel(ctx);
-  if (!scale) return []; // brak kalibracji → brak wyniku liczbowego
+  if (!scale) return null;
   const dxPx = Math.abs(endX - startX) * ctx.metadata.width;
   const meters = dxPx * scale.mpp;
-  if (meters <= 0) return [];
+  if (meters <= 0) return null;
   const cm = round(meters * 100, 0);
-  if (cm < 80 || cm > 380) return [];
+  if (cm < 80 || cm > 380) return null;
+  return { cm, viaHomography: false, confMul: scale.confMul };
+}
+
+function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
+  const takeoff = ev.find((e) => e.type === "takeoff");
+  const d = jumpDistanceCm(ev, ctx);
+  if (!takeoff || !d) return [];
   return [
     {
       key: "distance_cm",
       label: "Długość skoku",
-      value: cm,
+      value: d.cm,
       unit: "cm",
-      confidence: round(takeoff.confidence * 0.9 * scale.confMul, 2),
+      confidence: round(takeoff.confidence * 0.9 * d.confMul, 2),
     },
   ];
+}
+
+/**
+ * Warstwa niepewności przestrzennej. Sumuje (RSS) źródła błędu w mm:
+ * reprojekcja kalibracji, detekcja landmarków stóp i rozmycie ruchu.
+ */
+function accuracy(
+  ev: DetectedEvent[],
+  mtx: CalculatedMetric[],
+  ctx: AnalysisContext,
+): { measurement: MeasurementAccuracy; metrics: CalculatedMetric[] } {
+  const timestampsUs = ctx.poses
+    .map((p) => p.sourceTimestampUs)
+    .filter((t): t is number => typeof t === "number");
+  const temporal = calcTemporalResolution(timestampsUs);
+
+  const H = ctx.calibration?.homography;
+  const reproPx = ctx.calibration?.profileMatch?.reprojectionErrorPx ?? null;
+  const mmPerPx = ctx.calibration?.metersPerPixel
+    ? ctx.calibration.metersPerPixel * 1000
+    : 3; // ~3 mm/px konserwatywnie, gdy brak profilu
+  const calibration = validateCalibrationQuality({
+    required: true,
+    present: !!H,
+    reprojectionErrorPx: reproPx,
+  });
+
+  const dist = mtx.find((m) => m.key === "distance_cm");
+  const distMm = (dist?.value ?? 0) * 10;
+
+  // Źródła niepewności (mm).
+  const reprojectionErrorMm = (reproPx ?? 1) * mmPerPx;
+  const markerDetectionErrorMm = 2 * mmPerPx; // ±2 px na zaznaczenie markera
+  const landmarkDetectionErrorMm = 3 * mmPerPx; // ±3 px na landmark stopy
+  const motionBlurErrorMm = 2 * mmPerPx; // rozmycie przy szybkim ruchu
+  const totalDistanceUncertaintyMm = distanceUncertaintyMm([
+    reprojectionErrorMm,
+    markerDetectionErrorMm,
+    landmarkDetectionErrorMm,
+    motionBlurErrorMm,
+  ]);
+  const relUnc = distMm > 0 ? totalDistanceUncertaintyMm / distMm : 1;
+
+  const enriched = mtx.map((m) => {
+    if (m.key !== "distance_cm") return m;
+    const uncCm = totalDistanceUncertaintyMm / 10;
+    const f = formatResult(m.value, uncCm, m.unit);
+    return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+  });
+
+  const measurement = computeMeasurementAccuracy({
+    domain: "spatial",
+    fpsPolicy: SPRINT_FPS_POLICY,
+    temporal,
+    spatial: { mmPerPixel: round(mmPerPx, 4), spatialResolutionMm: round(mmPerPx, 4), reliable: !!H },
+    calibration,
+    relativeUncertainty: relUnc,
+    maxRelativeUncertainty: 0.05,
+    repeatability: "verified",
+    protocolMatch: ev.length >= 2,
+    referenceValidated: false,
+  });
+
+  return { measurement, metrics: enriched };
 }
 
 function confidence(ev: DetectedEvent[]): ConfidenceResult {
