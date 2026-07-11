@@ -137,6 +137,14 @@ function makeCod(
     detectKeyEvents: async (ctx) => events(ctx),
     calculateMetrics: (ev) => metrics(ev),
     calculateConfidence: (ev) => confidence(ev),
+    computeAccuracy: (ev, mtx, ctx) =>
+      temporalAccuracy({
+        ev,
+        metrics: mtx,
+        ctx,
+        fpsPolicy: testType === "sprint_to_stop" ? SPRINT_FPS_POLICY : JUMP_FPS_POLICY,
+        timeKey: "total_time_s",
+      }),
   };
 }
 
