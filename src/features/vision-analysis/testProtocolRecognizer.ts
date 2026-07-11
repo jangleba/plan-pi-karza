@@ -24,8 +24,9 @@ import { detectFlightPhase, detectGroundContacts, detectDropJumpPhases } from ".
 import { hipXSeries } from "./poseSeries";
 
 export type MovementSignature =
-  | "SINGLE_FLIGHT" // jeden wyraźny lot (CMJ / Broad Jump)
-  | "REPEATED_CONTACTS" // seria odbić (Pogo)
+  | "SINGLE_FLIGHT" // jeden wyraźny lot (CMJ / Squat Jump / Broad Jump)
+  | "DROP_REBOUND" // zejście ze skrzyni + odbicie (Drop Jump)
+  | "REPEATED_CONTACTS" // seria odbić (Pogo / Repeated Jumps)
   | "LOCOMOTION" // bieg / zmiana kierunku / hamowanie po podłożu
   | "TECHNIQUE" // ruch techniczny (siłownia) — brak twardego gate
   | "UNKNOWN";
@@ -33,6 +34,7 @@ export type MovementSignature =
 /** Rodziny pomiaru zgodne z daną sygnaturą ruchu. */
 const SIGNATURE_FAMILIES: Record<MovementSignature, TestFamily[]> = {
   SINGLE_FLIGHT: ["VERTICAL_JUMP", "GROUND_DISTANCE"],
+  DROP_REBOUND: ["REACTIVE_CONTACT"],
   REPEATED_CONTACTS: ["REACTIVE_CONTACT"],
   LOCOMOTION: ["SPRINT_TIMING", "CHANGE_OF_DIRECTION", "DECELERATION"],
   TECHNIQUE: ["TECHNIQUE"],
