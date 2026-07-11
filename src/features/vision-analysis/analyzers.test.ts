@@ -152,6 +152,50 @@ describe("cmjAnalyzer", () => {
   });
 });
 
+describe("cmjAnalyzer — powtarzalność (determinizm)", () => {
+  const fps = 60;
+  it("10 uruchomień tego samego wejścia daje identyczne wyniki (0ms, 0 klatek, 0.0cm)", async () => {
+    type Run = {
+      decodedFrames: number;
+      takeoffFrame: number;
+      landingFrame: number;
+      takeoffTs: number;
+      landingTs: number;
+      flightTime: number;
+      jumpHeight: number;
+    };
+    const runs: Run[] = [];
+    for (let r = 0; r < 10; r++) {
+      // Świeże wejście za każdym razem (symuluje pełny cleanup + nowy analysisRunId).
+      const poses = buildCmjPoses(fps);
+      const ctx: AnalysisContext = {
+        testType: "cmj",
+        metadata: meta(fps),
+        poses,
+        cameraSetup: "side",
+        calibration: null,
+      };
+      const events = await cmjAnalyzer.detectKeyEvents(ctx);
+      const metrics = cmjAnalyzer.calculateMetrics(events, ctx);
+      const takeoff = events.find((e) => e.type === "takeoff")!;
+      const landing = events.find((e) => e.type === "landing")!;
+      runs.push({
+        decodedFrames: poses.length,
+        takeoffFrame: takeoff.frameIndex,
+        landingFrame: landing.frameIndex,
+        takeoffTs: takeoff.timestampSeconds,
+        landingTs: landing.timestampSeconds,
+        flightTime: metrics.find((m) => m.key === "flight_time_s")!.value,
+        jumpHeight: metrics.find((m) => m.key === "jump_height_cm")!.value,
+      });
+    }
+    const first = runs[0];
+    for (const run of runs) {
+      expect(run).toEqual(first);
+    }
+  });
+});
+
 describe("pogoAnalyzer protocol guard", () => {
   it("odrzuca pojedynczy skok CMJ jako TEST_PROTOCOL_MISMATCH zamiast błędu technicznego", () => {
     const ctx: AnalysisContext = {
