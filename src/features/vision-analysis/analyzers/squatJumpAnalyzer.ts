@@ -8,8 +8,6 @@ import type {
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents, detectCountermovement } from "./jumpDetection";
-import { hipYSeries, timeSeries } from "../poseSeries";
-import { meanFinite, argMax } from "../signal";
 import { flightTimeToHeightCm, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 import {
   calcTemporalResolution,
@@ -23,71 +21,38 @@ import {
   type MeasurementAccuracy,
 } from "../measurementAccuracy";
 
-
 const MIN_FPS = 60;
 
+/**
+ * Squat Jump: start z zatrzymania w pozycji przysiadu, BEZ dynamicznego zejścia
+ * bezpośrednio przed wybiciem. CMJ (z countermovement) NIE może przejść jako
+ * Squat Jump — walidacja odrzuca go jako TEST_PROTOCOL_MISMATCH.
+ */
 function events(ctx: AnalysisContext): DetectedEvent[] {
   const phase = detectFlightPhase(ctx.poses);
   if (!phase) return [];
   return flightPhaseEvents(phase, ctx.poses);
 }
 
-function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
+function metrics(ev: DetectedEvent[]): CalculatedMetric[] {
   const takeoff = ev.find((e) => e.type === "takeoff");
   const landing = ev.find((e) => e.type === "landing");
-  const lowest = ev.find((e) => e.type === "lowest_position");
   if (!takeoff || !landing) return [];
   const flightTime = landing.timestampSeconds - takeoff.timestampSeconds;
   if (
-    !withinPlausibleRange(
-      flightTime,
-      PLAUSIBLE_RANGES.flight_time_s.min,
-      PLAUSIBLE_RANGES.flight_time_s.max,
-    )
+    !withinPlausibleRange(flightTime, PLAUSIBLE_RANGES.flight_time_s.min, PLAUSIBLE_RANGES.flight_time_s.max)
   )
     return [];
   const heightCm = flightTimeToHeightCm(flightTime);
   if (
-    !withinPlausibleRange(
-      heightCm,
-      PLAUSIBLE_RANGES.jump_height_cm.min,
-      PLAUSIBLE_RANGES.jump_height_cm.max,
-    )
+    !withinPlausibleRange(heightCm, PLAUSIBLE_RANGES.jump_height_cm.min, PLAUSIBLE_RANGES.jump_height_cm.max)
   )
     return [];
-
   const conf = takeoff.confidence;
-  const out: CalculatedMetric[] = [
-    {
-      key: "jump_height_cm",
-      label: "Wysokość wyskoku",
-      value: heightCm,
-      unit: "cm",
-      confidence: conf,
-    },
-    {
-      key: "flight_time_s",
-      label: "Czas w powietrzu",
-      value: round(flightTime, 3),
-      unit: "s",
-      confidence: conf,
-    },
+  return [
+    { key: "jump_height_cm", label: "Wysokość wyskoku", value: heightCm, unit: "cm", confidence: conf },
+    { key: "flight_time_s", label: "Czas w powietrzu", value: round(flightTime, 3), unit: "s", confidence: conf },
   ];
-
-  // Głębokość zejścia (countermovement) względem pozycji stojącej.
-  if (lowest) {
-    const hip = hipYSeries(ctx.poses);
-    const standing = meanFinite(hip.slice(0, Math.max(2, Math.floor(hip.length * 0.1))));
-    const depth = (hip[lowest.frameIndex] ?? standing) - standing; // Y rośnie w dół
-    out.push({
-      key: "countermovement_depth",
-      label: "Głębokość zejścia",
-      value: round(Math.max(0, depth) * 100, 1),
-      unit: "% wys.",
-      confidence: conf * 0.8,
-    });
-  }
-  return out;
 }
 
 function confidence(ev: DetectedEvent[]): ConfidenceResult {
@@ -102,9 +67,9 @@ function validate(ctx: AnalysisContext): ValidationResult {
   if (!phase) {
     issues.push("EVENTS_NOT_DETECTED");
   } else {
-    // CMJ MUSI mieć countermovement (dynamiczne zejście przed wybiciem).
     const cm = detectCountermovement(ctx.poses, phase.takeoffFrame);
-    if (!cm.present) issues.push("INVALID_TEST_EXECUTION");
+    // Wykryto dynamiczne zejście → to CMJ, nie Squat Jump.
+    if (cm.present) issues.push("TEST_PROTOCOL_MISMATCH");
   }
   return buildValidation(issues, [
     "INSUFFICIENT_FPS",
@@ -112,16 +77,10 @@ function validate(ctx: AnalysisContext): ValidationResult {
     "ATHLETE_OUT_OF_FRAME",
     "MULTIPLE_PEOPLE",
     "EVENTS_NOT_DETECTED",
-    "INVALID_TEST_EXECUTION",
+    "TEST_PROTOCOL_MISMATCH",
   ]);
 }
 
-/**
- * Warstwa rzetelności pomiaru dla CMJ. Liczy niepewność czasu lotu z realnej
- * rozdzielczości czasowej (mediana odstępu klatek) i propaguje ją na wysokość.
- * Pipeline jest deterministyczny (patrz test powtarzalności) → repeatability
- * = "verified". Bez urządzenia referencyjnego NIE przyznajemy LAB_GRADE.
- */
 function accuracy(
   ev: DetectedEvent[],
   mtx: CalculatedMetric[],
@@ -132,19 +91,13 @@ function accuracy(
     .filter((t): t is number => typeof t === "number");
   const temporal = calcTemporalResolution(timestampsUs);
   const calibration = validateCalibrationQuality({ required: false, present: false });
-
-  const flight = mtx.find((m) => m.key === "flight_time_s");
-  const height = mtx.find((m) => m.key === "jump_height_cm");
-  const flightTime = flight?.value ?? 0;
-
-  // Niepewność pojedynczego zdarzenia = połowa odstępu klatek (konserwatywnie).
+  const flightTime = mtx.find((m) => m.key === "flight_time_s")?.value ?? 0;
   const evUnc = eventUncertaintyMs({ frameIntervalMs: temporal.frameIntervalMs });
-  const flightUncMs = summedTimeUncertaintyMs(evUnc, evUnc);
-  const flightUncS = flightUncMs / 1000;
+  const flightUncS = summedTimeUncertaintyMs(evUnc, evUnc) / 1000;
   const heightUncCm = jumpHeightUncertaintyCm(flightTime, flightUncS);
   const relUnc = flightTime > 0 ? flightUncS / flightTime : 1;
 
-  const enriched: CalculatedMetric[] = mtx.map((m) => {
+  const enriched = mtx.map((m) => {
     if (m.key === "flight_time_s") {
       const f = formatResult(m.value, flightUncS, m.unit);
       return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
@@ -167,22 +120,18 @@ function accuracy(
     protocolMatch: ev.length >= 2,
     referenceValidated: false,
   });
-
   return { measurement, metrics: enriched };
 }
 
-export const cmjAnalyzer: TestAnalyzer = {
-  testType: "cmj",
-  analyzerVersion: "cmj-1.0.0",
+export const squatJumpAnalyzer: TestAnalyzer = {
+  testType: "squat_jump",
+  analyzerVersion: "squat-jump-1.0.0",
   requiredCameraSetup: "side",
   minimumFps: MIN_FPS,
   requiresCalibration: false,
   validateRecording: validate,
   detectKeyEvents: async (ctx) => events(ctx),
-  calculateMetrics: (ev, ctx) => metrics(ev, ctx),
+  calculateMetrics: (ev) => metrics(ev),
   calculateConfidence: (ev) => confidence(ev),
   computeAccuracy: (ev, mtx, ctx) => accuracy(ev, mtx, ctx),
 };
-
-// argMax re-eksport używany w testach jednostkowych scenariuszy.
-export { argMax };

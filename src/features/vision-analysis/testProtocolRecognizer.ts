@@ -20,12 +20,13 @@ import type { FramePose, QualityIssueCode } from "./types";
 import type { TestType } from "./types";
 import type { MeasurementFamily, TestFamily } from "./testProtocols";
 import { getTestProtocol } from "./testProtocols";
-import { detectFlightPhase, detectGroundContacts } from "./analyzers/jumpDetection";
+import { detectFlightPhase, detectGroundContacts, detectDropJumpPhases } from "./analyzers/jumpDetection";
 import { hipXSeries } from "./poseSeries";
 
 export type MovementSignature =
-  | "SINGLE_FLIGHT" // jeden wyraźny lot (CMJ / Broad Jump)
-  | "REPEATED_CONTACTS" // seria odbić (Pogo)
+  | "SINGLE_FLIGHT" // jeden wyraźny lot (CMJ / Squat Jump / Broad Jump)
+  | "DROP_REBOUND" // zejście ze skrzyni + odbicie (Drop Jump)
+  | "REPEATED_CONTACTS" // seria odbić (Pogo / Repeated Jumps)
   | "LOCOMOTION" // bieg / zmiana kierunku / hamowanie po podłożu
   | "TECHNIQUE" // ruch techniczny (siłownia) — brak twardego gate
   | "UNKNOWN";
@@ -33,6 +34,7 @@ export type MovementSignature =
 /** Rodziny pomiaru zgodne z daną sygnaturą ruchu. */
 const SIGNATURE_FAMILIES: Record<MovementSignature, TestFamily[]> = {
   SINGLE_FLIGHT: ["VERTICAL_JUMP", "GROUND_DISTANCE"],
+  DROP_REBOUND: ["REACTIVE_CONTACT"],
   REPEATED_CONTACTS: ["REACTIVE_CONTACT"],
   LOCOMOTION: ["SPRINT_TIMING", "CHANGE_OF_DIRECTION", "DECELERATION"],
   TECHNIQUE: ["TECHNIQUE"],
@@ -70,7 +72,18 @@ export function recognizeMovement(poses: FramePose[]): {
 } {
   const contacts = detectGroundContacts(poses);
   const flight = detectFlightPhase(poses);
+  const dropJump = detectDropJumpPhases(poses);
   const hRange = horizontalRange(poses);
+
+  // Drop Jump: zejście ze skrzyni + odbicie (dwa loty, pierwszy od granicy kadru).
+  if (dropJump) {
+    return {
+      signature: "DROP_REBOUND",
+      confidence: dropJump.confidence,
+      contactCount: Math.max(1, contacts.length),
+      flightCount: 2,
+    };
+  }
 
   // Seria reaktywnych kontaktów: co najmniej 3 kontakty i brak jednego,
   // dominującego, długiego lotu (CMJ ma jeden długi lot, nie serię).

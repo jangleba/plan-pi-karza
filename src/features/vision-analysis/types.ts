@@ -5,6 +5,9 @@
 
 export type TestType =
   | "cmj"
+  | "squat_jump"
+  | "drop_jump"
+  | "repeated_jumps"
   | "broad_jump"
   | "pogo_jumps"
   | "sprint_20m"
