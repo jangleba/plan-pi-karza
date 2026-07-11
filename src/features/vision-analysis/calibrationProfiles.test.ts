@@ -36,7 +36,7 @@ describe("calibrationKey", () => {
   it("rozróżnia kombinacje urządzenie/obiektyw/orientacja/fps/zoom", () => {
     const base = { deviceId: "iPhone 14", lens: "wide" as const, orientation: "portrait" as const, fps: 120, zoom: 1 };
     const k = calibrationKey(base);
-    expect(k).toBe("iphone-14|wide|portrait|120fps|1x");
+    expect(k).toBe("v2|iphone-14|back|wide|portrait|any|120fps|1x");
     expect(calibrationKey({ ...base, zoom: 2 })).not.toBe(k);
     expect(calibrationKey({ ...base, fps: 60 })).not.toBe(k);
     expect(calibrationKey({ ...base, lens: "ultrawide" })).not.toBe(k);
@@ -86,7 +86,7 @@ describe("buildCalibrationProfile", () => {
       worldHeightMm: 1000,
       now: "2026-01-01T00:00:00.000Z",
     });
-    expect(profile.key).toBe("iphone-14|wide|portrait|120fps|1x");
+    expect(profile.key).toBe("v2|iphone-14|back|wide|portrait|any|120fps|1x");
     expect(profile.quality.status).toBe("calibrated");
     expect(profile.mmPerPixel).toBeGreaterThan(0);
   });

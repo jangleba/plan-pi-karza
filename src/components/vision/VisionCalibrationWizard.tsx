@@ -9,6 +9,7 @@ import {
   LENS_LABELS,
   ORIENTATION_LABELS,
   MAX_PROFILE_REPROJECTION_ERROR_PX,
+  CALIBRATION_VERSION,
   type CalibrationProfile,
   type CaptureOrientation,
   type CorrespondencePoint,
@@ -26,6 +27,7 @@ const LENS_OPTIONS: LensType[] = ["wide", "ultrawide", "tele", "external"];
 const ORIENTATION_OPTIONS: CaptureOrientation[] = ["portrait", "landscape"];
 const FPS_OPTIONS = [30, 60, 120, 240];
 const ZOOM_OPTIONS = [0.5, 1, 2, 3];
+const RESOLUTION_OPTIONS = ["1080x1920", "720x1280", "1920x1080", "1280x720", "2160x3840"];
 
 /** Szablon 8 punktów prostokąta referencyjnego (kolejność zaznaczania). */
 const TEMPLATE: { label: string; world: (w: number, h: number) => { x: number; y: number } }[] = [
@@ -47,9 +49,11 @@ export function VisionCalibrationWizard() {
 
   const [deviceLabel, setDeviceLabel] = useState(device.label);
   const [lens, setLens] = useState<LensType>("wide");
+  const [facing, setFacing] = useState<"front" | "back">("back");
   const [orientation, setOrientation] = useState<CaptureOrientation>("portrait");
   const [fps, setFps] = useState(120);
   const [zoom, setZoom] = useState(1);
+  const [resolution, setResolution] = useState("1080x1920");
 
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
@@ -120,7 +124,16 @@ export function VisionCalibrationWizard() {
   function save() {
     if (!fit) return;
     const profile = buildCalibrationProfile({
-      parts: { deviceId: device.deviceId, lens, orientation, fps, zoom },
+      parts: {
+        deviceId: device.deviceId,
+        lens,
+        orientation,
+        fps,
+        zoom,
+        facing,
+        resolution,
+        calibrationVersion: CALIBRATION_VERSION,
+      },
       deviceLabel,
       fit,
       worldWidthMm: widthCm * 10,
@@ -169,11 +182,25 @@ export function VisionCalibrationWizard() {
                 onSelect={setLens}
               />
               <ChipRow
+                title="Aparat"
+                options={["back", "front"] as const}
+                value={facing}
+                label={(o) => (o === "back" ? "Tylny" : "Przedni")}
+                onSelect={setFacing}
+              />
+              <ChipRow
                 title="Orientacja"
                 options={ORIENTATION_OPTIONS}
                 value={orientation}
                 label={(o) => ORIENTATION_LABELS[o]}
                 onSelect={setOrientation}
+              />
+              <ChipRow
+                title="Rozdzielczość nagrania"
+                options={RESOLUTION_OPTIONS}
+                value={resolution}
+                label={(o) => o}
+                onSelect={setResolution}
               />
               <ChipRow
                 title="FPS nagrania"
@@ -314,20 +341,44 @@ export function VisionCalibrationWizard() {
             {profiles.map((p) => (
               <div key={p.key} className="soft-card flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-foreground">{p.deviceLabel}</div>
-                  <div className="truncate font-mono text-[11px] text-muted-foreground">{p.key}</div>
+                  <div className="truncate text-sm font-medium text-foreground">
+                    {p.deviceLabel}
+                  </div>
                   <div className="text-[11px] text-muted-foreground">
-                    reproj {p.reprojectionErrorPx}px · {p.mmPerPixel} mm/px
+                    {p.parts.facing === "front" ? "Przedni" : "Tylny"} ·{" "}
+                    {LENS_LABELS[p.parts.lens]} · {ORIENTATION_LABELS[p.parts.orientation]} ·{" "}
+                    {p.parts.resolution ?? "any"} · {p.parts.fps} FPS · {p.parts.zoom}x
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Jakość:{" "}
+                    {p.reprojectionErrorPx <= 1
+                      ? "bardzo dobra"
+                      : p.reprojectionErrorPx <= MAX_PROFILE_REPROJECTION_ERROR_PX
+                        ? "dobra"
+                        : "niska"}{" "}
+                    · reproj {p.reprojectionErrorPx}px · {p.mmPerPixel} mm/px
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Kalibrowano: {new Date(p.createdAt).toLocaleDateString("pl-PL")}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeProfile(p.key)}
-                  className="shrink-0 text-muted-foreground"
-                  aria-label="Usuń profil"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep("device")}
+                    className="text-[11px] font-medium text-primary"
+                  >
+                    Kalibruj ponownie
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeProfile(p.key)}
+                    className="text-muted-foreground"
+                    aria-label="Usuń profil"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

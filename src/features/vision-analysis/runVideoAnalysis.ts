@@ -22,7 +22,14 @@ import {
 import { round } from "./physics";
 import { vlog } from "./devLog";
 import type { LensType, CaptureOrientation } from "./calibrationProfiles";
-import { matchCalibrationForRecording } from "@/lib/vision/calibrationStore";
+import { matchCalibrationStrictForRecording } from "@/lib/vision/calibrationStore";
+
+/** Testy, których wynik przestrzenny (mm/cm/m, m/s, km/h) wymaga homografii. */
+export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
+  "broad_jump",
+  "sprint_20m",
+  "sprint_30m",
+]);
 
 export type AnalysisPhase =
   | "idle"
@@ -47,6 +54,10 @@ export interface RunOptions {
   lens?: LensType | null;
   /** Zoom nagrania (1 = brak). */
   zoom?: number | null;
+  /** Aparat przedni / tylny (do ścisłego dopasowania profilu). */
+  facing?: "front" | "back" | null;
+  /** Czy kamera pozostała nieruchoma po kalibracji (walidacja kadru). */
+  cameraStable?: boolean | null;
   abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
@@ -58,53 +69,78 @@ function uuid(): string {
 }
 
 /**
- * Łączy jawną kalibrację (jeśli podano) z automatycznie dopasowanym profilem.
- * Ręczna kalibracja (referencePoints/linie) ma pierwszeństwo; profil dokłada
- * skalę metry/piksel, gdy jej brak.
+ * Ścisłe rozwiązanie kalibracji dla bieżącego nagrania.
+ *
+ * Dla testów PRZESTRZENNYCH profil może zostać użyty WYŁĄCZNIE przy pełnej
+ * zgodności (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS,
+ * zoom, wersja). Przy jakiejkolwiek niezgodności ustawiamy mismatchCode i
+ * NIE dostarczamy skali/homografii — wynik przestrzenny zostanie zablokowany.
  */
 function resolveCalibration(
   opts: RunOptions,
   orientation: "portrait" | "landscape" | "square",
   measuredFps: number,
+  resolution: string,
 ): Calibration | null {
   const base: Calibration = { ...(opts.calibration ?? {}) };
+  const isSpatial = SPATIAL_TESTS.has(opts.testType);
+
+  // Ręczna kalibracja linii/punktów ma pierwszeństwo (świadomy wybór trenera).
+  const hasManual = !!base.referencePoints || (base.startLineX != null && base.finishLineX != null);
 
   const deviceId = opts.deviceId ?? null;
-  if (!deviceId) return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
-
   const fps = Math.round(measuredFps > 0 ? measuredFps : opts.declaredFps ?? 0);
-  const match = matchCalibrationForRecording({
-    deviceId,
-    lens: opts.lens ?? "wide",
-    orientation: orientation === "landscape" ? "landscape" : "portrait",
-    fps,
-    zoom: opts.zoom ?? 1,
-  });
+  const parts = deviceId
+    ? {
+        deviceId,
+        lens: opts.lens ?? "wide",
+        orientation: (orientation === "landscape" ? "landscape" : "portrait") as CaptureOrientation,
+        fps,
+        zoom: opts.zoom ?? 1,
+        facing: (opts.facing ?? "back") as "front" | "back",
+        resolution,
+      }
+    : null;
 
-  if (!match) {
-    vlog("calibration_profile", "brak dopasowanego profilu", { deviceId, fps });
-    return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
+  const profile = parts ? matchCalibrationStrictForRecording(parts) : null;
+
+  if (profile) {
+    vlog("calibration_profile", "profil ściśle dopasowany", {
+      key: profile.key,
+      reprojectionErrorPx: profile.reprojectionErrorPx,
+    });
+    base.profileKey = profile.key;
+    base.profileId = profile.id;
+    base.calibrationHash = profile.key;
+    base.homography = profile.homography;
+    base.profileMatch = {
+      exact: true,
+      score: 1,
+      reprojectionErrorPx: profile.reprojectionErrorPx,
+      reasons: [],
+    };
+    if (base.metersPerPixel == null && !base.referencePoints) {
+      base.metersPerPixel = profile.mmPerPixel / 1000; // mm/px → m/px
+    }
+    // Blokada po poruszeniu telefonu: caller potwierdza stabilność kadru.
+    if (opts.cameraStable === false) {
+      base.cameraMoved = true;
+      base.mismatchCode = "CALIBRATION_CAMERA_MOVED";
+    }
+    return base;
   }
 
-  vlog("calibration_profile", "dopasowano profil", {
-    key: match.profile.key,
-    exact: match.exact,
-    score: match.score,
-    reprojectionErrorPx: match.profile.reprojectionErrorPx,
-  });
-
-  base.profileKey = match.profile.key;
-  base.profileMatch = {
-    exact: match.exact,
-    score: match.score,
-    reprojectionErrorPx: match.profile.reprojectionErrorPx,
-    reasons: match.reasons,
-  };
-  // Nie nadpisujemy ręcznej skali, jeśli już istnieje.
-  if (base.metersPerPixel == null && !base.referencePoints) {
-    base.metersPerPixel = match.profile.mmPerPixel / 1000; // mm/px → m/px
+  // Brak ściśle zgodnego profilu.
+  if (isSpatial && !hasManual) {
+    vlog("calibration_profile", "brak ściśle zgodnego profilu — CALIBRATION_PROFILE_MISMATCH", {
+      deviceId,
+      fps,
+    });
+    base.mismatchCode = "CALIBRATION_PROFILE_MISMATCH";
+    return base;
   }
-  return base;
+
+  return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
 }
 
 function failed(
@@ -238,7 +274,12 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
-    const calibration = resolveCalibration(opts, metadata.orientation, metadata.fps);
+    const calibration = resolveCalibration(
+      opts,
+      metadata.orientation,
+      metadata.fps,
+      `${metadata.width}x${metadata.height}`,
+    );
 
     const ctx: AnalysisContext = {
       testType: opts.testType,
@@ -254,6 +295,17 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     let metrics = analyzer.calculateMetrics(events, ctx);
     const confidence = analyzer.calculateConfidence(events, ctx);
     const validation = analyzer.validateRecording(ctx);
+
+    // BLOKADA WYNIKU PRZESTRZENNEGO: bez ściśle zgodnego profilu (lub po ruchu
+    // kamery) nie wolno zwrócić wyniku w mm/cm/m/m·s⁻¹/km·h⁻¹.
+    const mismatch = SPATIAL_TESTS.has(opts.testType) ? calibration?.mismatchCode ?? null : null;
+    if (mismatch) {
+      metrics = [];
+      if (!validation.issues.includes(mismatch)) validation.issues.push(mismatch);
+      validation.retakeInstructions.push(QUALITY_ISSUE_LABELS[mismatch]);
+      validation.ok = false;
+      validation.status = "invalid_recording";
+    }
 
     // Warstwa rzetelności pomiaru — niepewność, poziom jakości, powtarzalność.
     let measurement: VideoAnalysisResult["measurement"];
@@ -300,6 +352,16 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       retakeInstructions: [...new Set(retakeInstructions)],
       analyzerVersion: analyzer.analyzerVersion,
       measurement,
+      calibration: {
+        usedHomography:
+          SPATIAL_TESTS.has(opts.testType) && !!calibration?.homography && metrics.length > 0,
+        profileId: calibration?.profileId ?? null,
+        calibrationHash: calibration?.calibrationHash ?? null,
+        reprojectionErrorPx: calibration?.profileMatch?.reprojectionErrorPx ?? null,
+        mismatchCode: calibration?.mismatchCode ?? null,
+        cameraMoved: !!calibration?.cameraMoved,
+        homography: calibration?.homography ? [...calibration.homography] : null,
+      },
     };
   } catch (e) {
     opts.onPhase?.("error");

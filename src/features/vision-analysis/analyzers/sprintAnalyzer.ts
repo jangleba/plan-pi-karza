@@ -17,6 +17,8 @@ import {
   PLAUSIBLE_RANGES,
 } from "../physics";
 import { estimateScaleFromHeight } from "../autoCalibration";
+import { temporalAccuracy } from "./temporalAccuracy";
+import { SPRINT_FPS_POLICY } from "../measurementAccuracy";
 
 /**
  * Analizator sprintu na dystansie protokołu (20 / 30 m).
@@ -198,6 +200,15 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     detectKeyEvents: async (ctx) => events(ctx),
     calculateMetrics: (ev) => metrics(ev),
     calculateConfidence: (ev) => confidence(ev),
+    computeAccuracy: (ev, mtx, ctx) =>
+      temporalAccuracy({
+        ev,
+        metrics: mtx,
+        ctx,
+        fpsPolicy: SPRINT_FPS_POLICY,
+        timeKey: "sprint_time_s",
+        distanceM,
+      }),
   };
 }
 

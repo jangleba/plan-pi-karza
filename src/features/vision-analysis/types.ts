@@ -31,7 +31,9 @@ export type QualityIssueCode =
   | "TEST_PROTOCOL_MISMATCH"
   | "EVENTS_NOT_DETECTED"
   | "LOW_RESOLUTION"
-  | "POSE_NOT_DETECTED";
+  | "POSE_NOT_DETECTED"
+  | "CALIBRATION_PROFILE_MISMATCH"
+  | "CALIBRATION_CAMERA_MOVED";
 
 export interface VideoMetadata {
   fps: number;
@@ -97,6 +99,16 @@ export interface Calibration {
     reprojectionErrorPx: number;
     reasons: string[];
   };
+  /** Homografia world(mm)→image(px) z dopasowanego profilu (do przeliczeń podłoża). */
+  homography?: [number, number, number, number, number, number, number, number, number];
+  /** Identyfikator wybranego profilu (do debugu). */
+  profileId?: string;
+  /** Skrót/hash konfiguracji profilu (do debugu). */
+  calibrationHash?: string;
+  /** Kod niezgodności profilu — jeśli ustawiony, wynik przestrzenny jest zablokowany. */
+  mismatchCode?: "CALIBRATION_PROFILE_MISMATCH" | "CALIBRATION_CAMERA_MOVED";
+  /** Czy wykryto ruch kamery po kalibracji. */
+  cameraMoved?: boolean;
 }
 
 
@@ -195,6 +207,18 @@ export interface VideoAnalysisResult {
   analyzerVersion: string;
   /** Warstwa rzetelności pomiaru: poziom jakości, niepewność, powtarzalność. */
   measurement?: import("./measurementAccuracy").MeasurementAccuracy;
+  /** Podsumowanie kalibracji użytej w tym wyniku (debug + UI zaufania). */
+  calibration?: {
+    /** Czy adapter przestrzenny rzeczywiście użył homografii profilu. */
+    usedHomography: boolean;
+    profileId: string | null;
+    calibrationHash: string | null;
+    reprojectionErrorPx: number | null;
+    mismatchCode: QualityIssueCode | null;
+    cameraMoved: boolean;
+    /** Homografia world→image (do panelu debug). */
+    homography: number[] | null;
+  };
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
@@ -219,6 +243,10 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
   EVENTS_NOT_DETECTED: "Nie wykryto kluczowych zdarzeń ruchu.",
   LOW_RESOLUTION: "Zbyt niska rozdzielczość nagrania.",
   POSE_NOT_DETECTED: "Nie wykryto sylwetki zawodnika.",
+  CALIBRATION_PROFILE_MISMATCH:
+    "Brak profilu kalibracji dokładnie zgodnego z tym nagraniem (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom). Wykonaj kalibrację dla tej konfiguracji.",
+  CALIBRATION_CAMERA_MOVED:
+    "Kamera poruszyła się po kalibracji — profil został unieważniony dla tego nagrania. Ustaw telefon nieruchomo i nagraj ponownie.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */

@@ -132,6 +132,8 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           deviceId: detectDevice().deviceId,
           lens: "wide",
           zoom: 1,
+          facing: "back",
+          cameraStable: true,
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);

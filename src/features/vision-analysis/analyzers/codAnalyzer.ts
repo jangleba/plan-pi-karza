@@ -10,6 +10,8 @@ import { baseValidation, buildValidation } from "./validation";
 import { hipXSeries, timeSeries } from "../poseSeries";
 import { movingAverage, interpolateShortGaps, derivative, argMax, argMin } from "../signal";
 import { round } from "../physics";
+import { temporalAccuracy } from "./temporalAccuracy";
+import { SPRINT_FPS_POLICY, JUMP_FPS_POLICY } from "../measurementAccuracy";
 
 /**
  * COD / Braking (5-10-5, Sprint to Stop). Wykrywa ruszenie, szczyt prędkości,
@@ -135,6 +137,14 @@ function makeCod(
     detectKeyEvents: async (ctx) => events(ctx),
     calculateMetrics: (ev) => metrics(ev),
     calculateConfidence: (ev) => confidence(ev),
+    computeAccuracy: (ev, mtx, ctx) =>
+      temporalAccuracy({
+        ev,
+        metrics: mtx,
+        ctx,
+        fpsPolicy: testType === "sprint_to_stop" ? SPRINT_FPS_POLICY : JUMP_FPS_POLICY,
+        timeKey: "total_time_s",
+      }),
   };
 }
 

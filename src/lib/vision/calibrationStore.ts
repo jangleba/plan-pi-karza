@@ -15,6 +15,7 @@ import type {
 import {
   calibrationKey,
   matchCalibrationProfile,
+  matchCalibrationStrict,
   type CalibrationMatch,
 } from "@/features/vision-analysis/calibrationProfiles";
 
@@ -75,6 +76,16 @@ export function matchCalibrationForRecording(
   parts: CalibrationKeyParts,
 ): CalibrationMatch | null {
   return matchCalibrationProfile(loadCalibrationProfiles(), parts);
+}
+
+/**
+ * ŚCISŁE dopasowanie: zwraca profil tylko przy pełnej zgodności wszystkich
+ * parametrów. null → brak zgodnego profilu (należy przeprowadzić kalibrację).
+ */
+export function matchCalibrationStrictForRecording(
+  parts: CalibrationKeyParts,
+): CalibrationProfile | null {
+  return matchCalibrationStrict(loadCalibrationProfiles(), parts);
 }
 
 /** Stabilny identyfikator/etykieta urządzenia z danych przeglądarki. */

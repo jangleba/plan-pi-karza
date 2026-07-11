@@ -40,6 +40,12 @@ export const ORIENTATION_LABELS: Record<CaptureOrientation, string> = {
   landscape: "Poziom",
 };
 
+/**
+ * Wersja formatu kalibracji. Profil może zostać użyty wyłącznie, gdy jego
+ * calibrationVersion zgadza się z bieżącą — inaczej geometria mogła się zmienić.
+ */
+export const CALIBRATION_VERSION = 2;
+
 /** Klucz identyfikujący jednoznacznie kombinację warunków nagrania. */
 export interface CalibrationKeyParts {
   deviceId: string; // model urządzenia / fingerprint
@@ -48,17 +54,39 @@ export interface CalibrationKeyParts {
   fps: number;
   /** Zoom cyfrowy/optyczny (1 = brak). Zaokrąglany do 0.1. */
   zoom: number;
+  /** Aparat przedni / tylny. */
+  facing?: "front" | "back";
+  /** Rozdzielczość nagrania "WxH". */
+  resolution?: string;
+  /** Wersja formatu kalibracji. */
+  calibrationVersion?: number;
 }
 
 /**
- * Buduje stabilny, deterministyczny klucz profilu. Zoom i FPS wchodzą do
- * klucza, bo zmieniają skalę i pole widzenia — inny zoom = inny profil.
+ * Buduje stabilny, deterministyczny klucz profilu. Wszystkie parametry
+ * wpływające na geometrię obrazu wchodzą do klucza — inny zestaw = inny profil.
  */
 export function calibrationKey(parts: CalibrationKeyParts): string {
   const device = normalizeSegment(parts.deviceId);
   const zoom = round(parts.zoom > 0 ? parts.zoom : 1, 1);
   const fps = Math.round(parts.fps);
-  return `${device}|${parts.lens}|${parts.orientation}|${fps}fps|${zoom}x`;
+  const facing = parts.facing ?? "back";
+  const resolution = parts.resolution ?? "any";
+  const version = parts.calibrationVersion ?? CALIBRATION_VERSION;
+  return `v${version}|${device}|${facing}|${parts.lens}|${parts.orientation}|${resolution}|${fps}fps|${zoom}x`;
+}
+
+/**
+ * ŚCISŁE dopasowanie profilu: wyłącznie pełna zgodność wszystkich parametrów
+ * (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom, wersja).
+ * NIE dobiera „najbliższego” profilu — zwraca null przy jakiejkolwiek różnicy.
+ */
+export function matchCalibrationStrict(
+  profiles: CalibrationProfile[],
+  parts: CalibrationKeyParts,
+): CalibrationProfile | null {
+  const key = calibrationKey(parts);
+  return profiles.find((p) => p.key === key) ?? null;
 }
 
 /** Wynik dopasowania profilu do bieżącego nagrania. */

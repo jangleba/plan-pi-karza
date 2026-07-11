@@ -9,6 +9,8 @@ import type {
 import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, detectGroundContacts } from "./jumpDetection";
 import { flightTimeToHeightCm, reactiveStrengthIndex, round } from "../physics";
+import { temporalAccuracy } from "./temporalAccuracy";
+import { JUMP_FPS_POLICY } from "../measurementAccuracy";
 
 const MIN_FPS = 120;
 
@@ -98,4 +100,12 @@ export const pogoAnalyzer: TestAnalyzer = {
   detectKeyEvents: async (ctx) => events(ctx),
   calculateMetrics: (ev, ctx) => metrics(ev, ctx),
   calculateConfidence: (ev) => confidence(ev),
+  computeAccuracy: (ev, mtx, ctx) =>
+    temporalAccuracy({
+      ev,
+      metrics: mtx,
+      ctx,
+      fpsPolicy: JUMP_FPS_POLICY,
+      timeKey: "ground_contact_s",
+    }),
 };
