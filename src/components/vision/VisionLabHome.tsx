@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { History, Sparkles, ClipboardCheck, Dumbbell, ChevronRight } from "lucide-react";
+import { History, Sparkles, ClipboardCheck, Dumbbell, ChevronRight, Crosshair } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionCategoryCard } from "./VisionCategoryCard";
 import { VisionTestCard } from "./VisionTestCard";
