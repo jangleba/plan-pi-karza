@@ -33,6 +33,24 @@ export interface ImagePointPx {
   v: number;
 }
 
+/**
+ * Podpis sceny do automatycznego potwierdzenia zgodności między filmami.
+ * Kalibrację drugiego filmu można ODZIEDZICZYĆ tylko przy zgodności:
+ * markerów, tła, skali, obrotu i kadru.
+ */
+export interface SceneSignature {
+  /** Piksele markerów/punktów podłoża (posortowane deterministycznie). */
+  markerPointsPx: ImagePointPx[];
+  /** Uśredniona jasność/tekstura tła (proste sygnatury kadru). */
+  backgroundHash: string;
+  /** Skala mm/px w środku kadru. */
+  mmPerPixel: number;
+  /** Obrót kadru w stopniach (orientacja linii wybicia). */
+  rotationDeg: number;
+  /** Rozdzielczość i orientacja kadru. */
+  frameConfigHash: string;
+}
+
 /** Punkt świata leżący na płaszczyźnie podłoża (mm). */
 export interface GroundPointMm {
   x: number;
