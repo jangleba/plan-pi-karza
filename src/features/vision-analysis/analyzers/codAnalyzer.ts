@@ -10,6 +10,8 @@ import { baseValidation, buildValidation } from "./validation";
 import { hipXSeries, timeSeries } from "../poseSeries";
 import { movingAverage, interpolateShortGaps, derivative, argMax, argMin } from "../signal";
 import { round } from "../physics";
+import { temporalAccuracy } from "./temporalAccuracy";
+import { SPRINT_FPS_POLICY, JUMP_FPS_POLICY } from "../measurementAccuracy";
 
 /**
  * COD / Braking (5-10-5, Sprint to Stop). Wykrywa ruszenie, szczyt prędkości,
