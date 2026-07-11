@@ -17,7 +17,7 @@ import {
 import { temporalAccuracy } from "./temporalAccuracy";
 import { JUMP_FPS_POLICY } from "../measurementAccuracy";
 
-const MIN_FPS = 120;
+const MIN_FPS = 60; // 60 FPS dozwolone → wynik estymowany z niepewnością (bez globalnej blokady 120)
 /** Wymagana liczba pełnych, prawidłowych cykli (bez niepełnego 1. i ostatniego). */
 export const REQUIRED_REPEATED_CYCLES = 5;
 

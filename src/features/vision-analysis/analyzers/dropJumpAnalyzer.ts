@@ -19,7 +19,7 @@ import {
 import { temporalAccuracy } from "./temporalAccuracy";
 import { JUMP_FPS_POLICY } from "../measurementAccuracy";
 
-const MIN_FPS = 120;
+const MIN_FPS = 60; // 60 FPS dozwolone → wynik estymowany z niepewnością (bez globalnej blokady 120)
 
 /**
  * Drop Jump: zejście ze skrzyni → pierwszy kontakt → wybicie → drugi lot →
