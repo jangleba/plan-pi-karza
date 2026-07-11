@@ -86,7 +86,19 @@ export interface Calibration {
   referencePoints?: { a: { x: number; y: number }; b: { x: number; y: number }; meters: number };
   startLineX?: number;
   finishLineX?: number;
+  /** Skala przestrzenna (metry/piksel) z dopasowanego profilu kalibracji. */
+  metersPerPixel?: number;
+  /** Klucz użytego profilu kalibracji (urządzenie|obiektyw|orientacja|fps|zoom). */
+  profileKey?: string;
+  /** Metadane dopasowania profilu do bieżącego nagrania. */
+  profileMatch?: {
+    exact: boolean;
+    score: number;
+    reprojectionErrorPx: number;
+    reasons: string[];
+  };
 }
+
 
 export interface AnalysisContext {
   testType: TestType;
