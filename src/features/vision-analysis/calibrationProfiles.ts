@@ -111,7 +111,9 @@ function solveLinearSystem(A: number[][], b: number[]): number[] | null {
       for (let c = col; c <= n; c++) M[r][c] -= factor * M[col][c];
     }
   }
-  return M.map((row) => row[n] / row[M.indexOf(row)][M.indexOf(row)]);
+  const solution: number[] = new Array(n);
+  for (let i = 0; i < n; i++) solution[i] = M[i][n] / M[i][i];
+  return solution;
 }
 
 /**
