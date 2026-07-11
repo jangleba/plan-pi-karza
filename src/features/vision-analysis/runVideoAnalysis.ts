@@ -91,6 +91,29 @@ function resolveCalibration(
   const base: Calibration = { ...(opts.calibration ?? {}) };
   const isSpatial = SPATIAL_TESTS.has(opts.testType);
 
+  // 1) Kalibracja sceny przypisana do TEGO filmu ma bezwzględne pierwszeństwo.
+  const record = opts.calibrationRecord ?? null;
+  if (record?.homographyMatrix && record.spatialResultStatus === "OFFICIAL") {
+    vlog("calibration_video", "użyto kalibracji sceny filmu", {
+      calibrationId: record.calibrationId,
+      reprojectionErrorPx: record.reprojectionErrorPx,
+    });
+    base.homography = record.homographyMatrix;
+    base.profileId = record.calibrationId;
+    base.calibrationHash = record.calibrationHash;
+    base.profileMatch = {
+      exact: true,
+      score: 1,
+      reprojectionErrorPx: record.reprojectionErrorPx,
+      reasons: [],
+    };
+    if (opts.cameraStable === false) {
+      base.cameraMoved = true;
+      base.mismatchCode = "CALIBRATION_CAMERA_MOVED";
+    }
+    return base;
+  }
+
   // Ręczna kalibracja linii/punktów ma pierwszeństwo (świadomy wybór trenera).
   const hasManual = !!base.referencePoints || (base.startLineX != null && base.finishLineX != null);
 
@@ -136,13 +159,14 @@ function resolveCalibration(
     return base;
   }
 
-  // Brak ściśle zgodnego profilu.
+  // Brak kalibracji sceny i brak zgodnego profilu. NIE odrzucamy nagrania —
+  // pipeline zdecyduje o statusie CALIBRATION_REQUIRED (ruch rozpoznany, ale
+  // nie da się przeliczyć na cm/m bez skalibrowania podłoża tego filmu).
   if (isSpatial && !hasManual) {
-    vlog("calibration_profile", "brak ściśle zgodnego profilu — CALIBRATION_PROFILE_MISMATCH", {
+    vlog("calibration_video", "brak kalibracji sceny — wymagana kalibracja filmu", {
       deviceId,
       fps,
     });
-    base.mismatchCode = "CALIBRATION_PROFILE_MISMATCH";
     return base;
   }
 
