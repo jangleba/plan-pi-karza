@@ -448,6 +448,9 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       qualityIssues: [...new Set(qualityIssues.map((i) => QUALITY_ISSUE_LABELS[i] ?? i))],
       retakeInstructions: [...new Set(retakeInstructions)],
       analyzerVersion: analyzer.analyzerVersion,
+      decodedFrames,
+      analyzedFrames,
+      recognition: recognitionSummary,
       measurement,
       calibration: {
         usedHomography:
