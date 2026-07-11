@@ -27,6 +27,7 @@ const LENS_OPTIONS: LensType[] = ["wide", "ultrawide", "tele", "external"];
 const ORIENTATION_OPTIONS: CaptureOrientation[] = ["portrait", "landscape"];
 const FPS_OPTIONS = [30, 60, 120, 240];
 const ZOOM_OPTIONS = [0.5, 1, 2, 3];
+const RESOLUTION_OPTIONS = ["1080x1920", "720x1280", "1920x1080", "1280x720", "2160x3840"];
 
 /** Szablon 8 punktów prostokąta referencyjnego (kolejność zaznaczania). */
 const TEMPLATE: { label: string; world: (w: number, h: number) => { x: number; y: number } }[] = [
