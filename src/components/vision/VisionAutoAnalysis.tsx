@@ -129,6 +129,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           declaredFps: flow.fps || null,
           cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
           athleteHeightCm,
+          deviceId: detectDevice().deviceId,
+          lens: "wide",
+          zoom: 1,
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);
