@@ -28,6 +28,7 @@ import { recognizeTestProtocol } from "./testProtocolRecognizer";
 /** Testy, których wynik przestrzenny (mm/cm/m, m/s, km/h) wymaga homografii. */
 export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
   "broad_jump",
+  "single_leg_hop",
   "sprint_20m",
   "sprint_30m",
 ]);
