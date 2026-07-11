@@ -58,6 +58,12 @@ export interface RunOptions {
   facing?: "front" | "back" | null;
   /** Czy kamera pozostała nieruchoma po kalibracji (walidacja kadru). */
   cameraStable?: boolean | null;
+  /** Hash filmu (kalibracja sceny jest powiązana z konkretnym nagraniem). */
+  videoHash?: string | null;
+  /** Kalibracja sceny przypisana do tego filmu (per-video, ma pierwszeństwo). */
+  calibrationRecord?: import("./videoCalibration").CalibrationRecord | null;
+  /** Analiza wyłącznie techniki (bez wyniku przestrzennego cm/m/prędkości). */
+  techniqueOnly?: boolean;
   abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
@@ -84,6 +90,29 @@ function resolveCalibration(
 ): Calibration | null {
   const base: Calibration = { ...(opts.calibration ?? {}) };
   const isSpatial = SPATIAL_TESTS.has(opts.testType);
+
+  // 1) Kalibracja sceny przypisana do TEGO filmu ma bezwzględne pierwszeństwo.
+  const record = opts.calibrationRecord ?? null;
+  if (record?.homographyMatrix && record.spatialResultStatus === "OFFICIAL") {
+    vlog("calibration_video", "użyto kalibracji sceny filmu", {
+      calibrationId: record.calibrationId,
+      reprojectionErrorPx: record.reprojectionErrorPx,
+    });
+    base.homography = record.homographyMatrix;
+    base.profileId = record.calibrationId;
+    base.calibrationHash = record.calibrationHash;
+    base.profileMatch = {
+      exact: true,
+      score: 1,
+      reprojectionErrorPx: record.reprojectionErrorPx,
+      reasons: [],
+    };
+    if (opts.cameraStable === false) {
+      base.cameraMoved = true;
+      base.mismatchCode = "CALIBRATION_CAMERA_MOVED";
+    }
+    return base;
+  }
 
   // Ręczna kalibracja linii/punktów ma pierwszeństwo (świadomy wybór trenera).
   const hasManual = !!base.referencePoints || (base.startLineX != null && base.finishLineX != null);
@@ -130,13 +159,14 @@ function resolveCalibration(
     return base;
   }
 
-  // Brak ściśle zgodnego profilu.
+  // Brak kalibracji sceny i brak zgodnego profilu. NIE odrzucamy nagrania —
+  // pipeline zdecyduje o statusie CALIBRATION_REQUIRED (ruch rozpoznany, ale
+  // nie da się przeliczyć na cm/m bez skalibrowania podłoża tego filmu).
   if (isSpatial && !hasManual) {
-    vlog("calibration_profile", "brak ściśle zgodnego profilu — CALIBRATION_PROFILE_MISMATCH", {
+    vlog("calibration_video", "brak kalibracji sceny — wymagana kalibracja filmu", {
       deviceId,
       fps,
     });
-    base.mismatchCode = "CALIBRATION_PROFILE_MISMATCH";
     return base;
   }
 
@@ -296,15 +326,29 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     const confidence = analyzer.calculateConfidence(events, ctx);
     const validation = analyzer.validateRecording(ctx);
 
-    // BLOKADA WYNIKU PRZESTRZENNEGO: bez ściśle zgodnego profilu (lub po ruchu
-    // kamery) nie wolno zwrócić wyniku w mm/cm/m/m·s⁻¹/km·h⁻¹.
-    const mismatch = SPATIAL_TESTS.has(opts.testType) ? calibration?.mismatchCode ?? null : null;
-    if (mismatch) {
-      metrics = [];
-      if (!validation.issues.includes(mismatch)) validation.issues.push(mismatch);
-      validation.retakeInstructions.push(QUALITY_ISSUE_LABELS[mismatch]);
-      validation.ok = false;
-      validation.status = "invalid_recording";
+    // Polityka wyniku przestrzennego dla testów mierzących odległość/prędkość.
+    const isSpatial = SPATIAL_TESTS.has(opts.testType);
+    const hasSpatialCalibration = !!calibration?.homography && !calibration?.mismatchCode;
+    const movementRecognized = events.length > 0;
+    let statusOverride: AnalysisStatus | null = null;
+
+    if (isSpatial) {
+      // Ruch kamery po kalibracji unieważnia pomiar.
+      if (calibration?.mismatchCode === "CALIBRATION_CAMERA_MOVED") {
+        metrics = [];
+        if (!validation.issues.includes("CALIBRATION_CAMERA_MOVED"))
+          validation.issues.push("CALIBRATION_CAMERA_MOVED");
+        validation.retakeInstructions.push(QUALITY_ISSUE_LABELS.CALIBRATION_CAMERA_MOVED);
+        statusOverride = "invalid_recording";
+      } else if (opts.techniqueOnly) {
+        // Świadomy wybór: analiza tylko techniki, bez cm/m/prędkości.
+        metrics = [];
+        statusOverride = "technique_only";
+      } else if (!hasSpatialCalibration && movementRecognized) {
+        // Ruch rozpoznany, ale podłoże tego filmu nie jest skalibrowane.
+        metrics = [];
+        statusOverride = "calibration_required";
+      }
     }
 
     // Warstwa rzetelności pomiaru — niepewność, poziom jakości, powtarzalność.
@@ -321,11 +365,14 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       metricsCount: metrics.length,
       confidence: confidence.overall,
     });
-    const status: AnalysisStatus = decision.status;
-    const qualityIssues = [...validation.issues, ...decision.extraIssues];
+    const status: AnalysisStatus = statusOverride ?? decision.status;
+    // Przy override statusu (calibration_required / technique_only) nie dodajemy
+    // szumu EVENTS_NOT_DETECTED — ruch został rozpoznany.
+    const extraIssues = statusOverride ? [] : decision.extraIssues;
+    const qualityIssues = [...validation.issues, ...extraIssues];
     const retakeInstructions = [
       ...validation.retakeInstructions,
-      ...decision.extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
+      ...extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
     ];
 
     opts.onPhase?.("completed");

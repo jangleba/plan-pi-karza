@@ -13,6 +13,9 @@ import { createPendingUpload } from "@/lib/vision/visionRepo";
 import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { detectDevice } from "@/lib/vision/calibrationStore";
+import { VisionVideoCalibration } from "./VisionVideoCalibration";
+import { computeVideoHashFromBlob, type CalibrationRecord } from "@/features/vision-analysis/videoCalibration";
+import { findVideoCalibration } from "@/lib/vision/videoCalibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
@@ -33,6 +36,9 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
+  | { kind: "calibration_required"; analysis: VideoAnalysisResult }
+  | { kind: "technique_only"; analysis: VideoAnalysisResult }
+  | { kind: "calibrating"; analysis: VideoAnalysisResult }
   | { kind: "error"; code: string; message: string };
 
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
@@ -48,6 +54,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const runToken = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const videoHashRef = useRef<string>("");
+  const calibrationRecordRef = useRef<CalibrationRecord | null>(null);
+  const techniqueOnlyRef = useRef<boolean>(false);
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
@@ -90,6 +99,19 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       objectUrlRef.current = resolved.objectUrl;
       setPreviewSrc(resolved.objectUrl);
       vlog("file_ready", { size: resolved.size, type: resolved.type });
+
+      // Hash filmu → kalibracja sceny jest powiązana z KONKRETNYM nagraniem.
+      try {
+        const blob = await (await fetch(resolved.objectUrl)).blob();
+        videoHashRef.current = await computeVideoHashFromBlob(blob);
+        calibrationRecordRef.current = findVideoCalibration(videoHashRef.current);
+        vlog("video_hash", {
+          videoHash: videoHashRef.current,
+          hasCalibration: !!calibrationRecordRef.current,
+        });
+      } catch (e) {
+        vwarn("video_hash", "nie udało się policzyć hash filmu", (e as Error)?.message);
+      }
 
       // Wzrost zawodnika z profilu → auto-kalibracja skali (sprint / broad jump).
       // Zapytanie z twardym limitem — nie może zablokować startu analizy.
@@ -134,6 +156,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           zoom: 1,
           facing: "back",
           cameraStable: true,
+          videoHash: videoHashRef.current || null,
+          calibrationRecord: calibrationRecordRef.current,
+          techniqueOnly: techniqueOnlyRef.current,
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);
@@ -183,6 +208,16 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           /* przechodzimy do widoku instrukcji poniżej */
         }
         setState({ kind: "invalid", analysis });
+        return;
+      }
+
+      if (analysis.status === "calibration_required") {
+        setState({ kind: "calibration_required", analysis });
+        return;
+      }
+
+      if (analysis.status === "technique_only") {
+        setState({ kind: "technique_only", analysis });
         return;
       }
 
@@ -261,6 +296,49 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )}
         {state.kind === "running" && <RunningView phase={phase} progress={progress} />}
 
+        {state.kind === "calibration_required" && (
+          <CalibrationRequiredView
+            test={test}
+            analysis={state.analysis}
+            onCalibrate={() => setState({ kind: "calibrating", analysis: state.analysis })}
+            onTechniqueOnly={() => {
+              techniqueOnlyRef.current = true;
+              void runAnalysis();
+            }}
+          />
+        )}
+
+        {state.kind === "calibrating" && previewSrc && (
+          <VisionVideoCalibration
+            videoSrc={previewSrc}
+            videoHash={videoHashRef.current}
+            fps={flow.fps || test.recommendedFps || 30}
+            onSaved={(record) => {
+              calibrationRecordRef.current = record;
+              techniqueOnlyRef.current = false;
+              void runAnalysis();
+            }}
+            onCancel={() =>
+              setState((s) =>
+                s.kind === "calibrating"
+                  ? { kind: "calibration_required", analysis: s.analysis }
+                  : s,
+              )
+            }
+          />
+        )}
+
+        {state.kind === "technique_only" && (
+          <TechniqueOnlyView
+            test={test}
+            analysis={state.analysis}
+            onCalibrate={() => setState({ kind: "calibrating", analysis: state.analysis })}
+            onRetake={() =>
+              navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } })
+            }
+          />
+        )}
+
         {state.kind === "invalid" && (
           <InvalidView
             analysis={state.analysis}
@@ -300,6 +378,99 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CalibrationRequiredView({
+  test,
+  analysis,
+  onCalibrate,
+  onTechniqueOnly,
+}: {
+  test: VisionTest;
+  analysis: VideoAnalysisResult;
+  onCalibrate: () => void;
+  onTechniqueOnly: () => void;
+}) {
+  return (
+    <div className="soft-card space-y-4 p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+          <CheckCircle2 className="h-6 w-6" />
+        </div>
+        <div>
+          <div className="text-base font-semibold text-foreground">
+            {test.name} został rozpoznany
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Aby zmierzyć odległość, skalibruj podłoże na tym filmie. Ruch został poprawnie
+            wykryty ({analysis.keyEvents.length} zdarzeń), brakuje jedynie skali przestrzennej.
+          </p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Button className="w-full" size="lg" onClick={onCalibrate}>
+          Skalibruj ten film
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onTechniqueOnly}>
+          Analizuj tylko technikę
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TechniqueOnlyView({
+  test,
+  analysis,
+  onCalibrate,
+  onRetake,
+}: {
+  test: VisionTest;
+  analysis: VideoAnalysisResult;
+  onCalibrate: () => void;
+  onRetake: () => void;
+}) {
+  return (
+    <div className="soft-card space-y-4 p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
+          <AlertTriangle className="h-6 w-6" />
+        </div>
+        <div>
+          <div className="text-base font-semibold text-foreground">Analiza tylko techniki</div>
+          <p className="text-sm text-muted-foreground">
+            {test.name} został rozpoznany, ale bez wiarygodnej skali nie podajemy centymetrów,
+            metrów ani prędkości.
+          </p>
+        </div>
+      </div>
+      {analysis.keyEvents.length > 0 && (
+        <div className="rounded-2xl bg-accent/60 p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Rozpoznane zdarzenia
+          </div>
+          <ul className="space-y-1.5">
+            {analysis.keyEvents.map((e, i) => (
+              <li key={i} className="flex justify-between text-sm text-foreground">
+                <span>{e.type}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  klatka {e.frameIndex} · {e.timestampSeconds.toFixed(3)} s
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="space-y-2">
+        <Button className="w-full" onClick={onCalibrate}>
+          Skalibruj ten film, aby zmierzyć odległość
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onRetake}>
+          Nagraj ponownie
+        </Button>
       </div>
     </div>
   );

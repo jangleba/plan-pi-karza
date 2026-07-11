@@ -15,7 +15,15 @@ export type TestType =
 
 export type CameraSetup = "side" | "front" | "back" | "45deg" | "top";
 
-export type AnalysisStatus = "completed" | "needs_review" | "invalid_recording" | "failed";
+export type AnalysisStatus =
+  | "completed"
+  | "needs_review"
+  | "invalid_recording"
+  | "failed"
+  /** Ruch rozpoznany, ale brak kalibracji przestrzennej tego filmu. */
+  | "calibration_required"
+  /** Wynik bez skali — tylko technika (bez cm/m/prędkości). */
+  | "technique_only";
 
 /** Kody powodów odrzucenia / niskiej jakości nagrania. */
 export type QualityIssueCode =
