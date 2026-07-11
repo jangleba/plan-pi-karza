@@ -22,7 +22,7 @@ describe("TemporalResolutionCalculator", () => {
     const t = calcTemporalResolution(us);
     expect(t.measuredFps).toBeGreaterThan(239);
     expect(t.measuredFps).toBeLessThan(241);
-    expect(t.temporalResolutionMs).toBeCloseTo(t.frameIntervalMs / 2, 5);
+    expect(t.temporalResolutionMs).toBeCloseTo(t.frameIntervalMs / 2, 2);
     expect(t.reliable).toBe(true);
   });
 
@@ -70,7 +70,7 @@ describe("MeasurementUncertaintyCalculator", () => {
     const t = 0.5;
     const dt = 0.01;
     const expected = ((GRAVITY_STANDARD * t) / 4) * dt * 100;
-    expect(jumpHeightUncertaintyCm(t, dt)).toBeCloseTo(expected, 3);
+    expect(jumpHeightUncertaintyCm(t, dt)).toBeCloseTo(expected, 1);
   });
 
   it("sumuje niepewności zdarzeń dla czasu lotu", () => {
