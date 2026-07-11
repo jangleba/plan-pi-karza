@@ -42,6 +42,11 @@ export interface RunOptions {
   calibration?: Calibration | null;
   /** Rzeczywisty wzrost zawodnika (cm) do auto-kalibracji skali. */
   athleteHeightCm?: number | null;
+  /** Wskazówki do automatycznego dopasowania profilu kalibracji. */
+  deviceId?: string | null;
+  lens?: LensType | null;
+  /** Zoom nagrania (1 = brak). */
+  zoom?: number | null;
   abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
