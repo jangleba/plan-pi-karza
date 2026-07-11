@@ -23,6 +23,7 @@ import { round } from "./physics";
 import { vlog } from "./devLog";
 import type { LensType, CaptureOrientation } from "./calibrationProfiles";
 import { matchCalibrationStrictForRecording } from "@/lib/vision/calibrationStore";
+import { recognizeTestProtocol } from "./testProtocolRecognizer";
 
 /** Testy, których wynik przestrzenny (mm/cm/m, m/s, km/h) wymaga homografii. */
 export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
@@ -300,6 +301,39 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         "NO_DECODED_FRAMES",
         analysisRunId,
       );
+    }
+
+    // GATE PROTOKOŁU: selectedTestType → detectedTestType → detectedTestConfidence
+    // → protocolMatch → adapter. Adapter rusza WYŁĄCZNIE przy protocolMatch=true.
+    const recognition = recognizeTestProtocol(opts.testType, poses);
+    vlog("protocol_recognizer", recognition.reason, {
+      selected: recognition.selectedTestType,
+      signature: recognition.detectedSignature,
+      confidence: recognition.detectedTestConfidence,
+      protocolMatch: recognition.protocolMatch,
+      errorCode: recognition.errorCode,
+    });
+    if (!recognition.protocolMatch && recognition.errorCode) {
+      opts.onPhase?.("completed");
+      const code = recognition.errorCode;
+      return {
+        analysisId: analysisRunId,
+        testType: opts.testType,
+        status: "invalid_recording",
+        videoMetadata: {
+          fps: metadata.fps,
+          durationSeconds: round(metadata.durationSeconds, 2),
+          frameCount: metadata.frameCount,
+          width: metadata.width,
+          height: metadata.height,
+        },
+        keyEvents: [],
+        metrics: [],
+        overallConfidence: 0,
+        qualityIssues: [QUALITY_ISSUE_LABELS[code] ?? code],
+        retakeInstructions: [QUALITY_ISSUE_LABELS[code] ?? code],
+        analyzerVersion: analyzer.analyzerVersion,
+      };
     }
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na

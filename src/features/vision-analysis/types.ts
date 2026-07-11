@@ -46,7 +46,8 @@ export type QualityIssueCode =
   | "TIMING_PLANE_CALIBRATION_FAILED"
   | "LINE_CROSSING_NOT_DETECTED"
   | "WRONG_CROSSING_DIRECTION"
-  | "CROSSING_UNCERTAINTY_TOO_HIGH";
+  | "CROSSING_UNCERTAINTY_TOO_HIGH"
+  | "WRONG_REPETITION_COUNT";
 
 export interface VideoMetadata {
   fps: number;
@@ -286,6 +287,8 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Zawodnik przekroczył linię w niewłaściwym kierunku względem protokołu testu.",
   CROSSING_UNCERTAINTY_TOO_HIGH:
     "Niepewność momentu przecięcia zbyt wysoka. Nagraj z wyższym FPS i nieruchomą kamerą.",
+  WRONG_REPETITION_COUNT:
+    "Nagranie zawiera nieprawidłową liczbę prób lub powtórzeń dla tego protokołu. Jeden film to jedna próba (lub jedna pełna seria).",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
