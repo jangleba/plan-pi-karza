@@ -57,14 +57,21 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     return [start, finish].filter((e): e is DetectedEvent => !!e);
   }
 
-  // --- Tryb B: auto-kalibracja z wzrostu ---
+  // --- Tryb B: kalibracja przez profil kamery lub auto-kalibracja z wzrostu ---
   function autoEvents(ctx: AnalysisContext): DetectedEvent[] {
-    const scale = estimateScaleFromHeight(
-      ctx.poses,
-      ctx.athleteHeightCm,
-      ctx.metadata.width,
-      ctx.metadata.height,
-    );
+    const profileMpp = ctx.calibration?.metersPerPixel;
+    const scale =
+      profileMpp && profileMpp > 0
+        ? {
+            metersPerPixel: profileMpp,
+            confidence: ctx.calibration?.profileMatch?.exact === false ? 0.85 : 1,
+          }
+        : estimateScaleFromHeight(
+            ctx.poses,
+            ctx.athleteHeightCm,
+            ctx.metadata.width,
+            ctx.metadata.height,
+          );
     if (!scale) return [];
 
     const t = timeSeries(ctx.poses);

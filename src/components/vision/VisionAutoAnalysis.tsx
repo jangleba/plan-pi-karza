@@ -12,6 +12,7 @@ import { saveFrameResult } from "@/lib/vision/visionResultService";
 import { createPendingUpload } from "@/lib/vision/visionRepo";
 import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
+import { detectDevice } from "@/lib/vision/calibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
@@ -128,6 +129,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           declaredFps: flow.fps || null,
           cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
           athleteHeightCm,
+          deviceId: detectDevice().deviceId,
+          lens: "wide",
+          zoom: 1,
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);

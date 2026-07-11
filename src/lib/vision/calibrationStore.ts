@@ -12,7 +12,11 @@ import type {
   LensType,
   CaptureOrientation,
 } from "@/features/vision-analysis/calibrationProfiles";
-import { calibrationKey } from "@/features/vision-analysis/calibrationProfiles";
+import {
+  calibrationKey,
+  matchCalibrationProfile,
+  type CalibrationMatch,
+} from "@/features/vision-analysis/calibrationProfiles";
 
 const STORAGE_KEY = "theballlab.calibrationProfiles.v1";
 
@@ -61,6 +65,16 @@ export function deleteCalibrationProfile(key: string): CalibrationProfile[] {
 export function findCalibrationProfile(parts: CalibrationKeyParts): CalibrationProfile | null {
   const key = calibrationKey(parts);
   return loadCalibrationProfiles().find((p) => p.key === key) ?? null;
+}
+
+/**
+ * Dopasowuje najtrafniejszy zapisany profil do bieżących warunków nagrania.
+ * Zwraca null, gdy na tym urządzeniu nie ma wiarygodnego profilu.
+ */
+export function matchCalibrationForRecording(
+  parts: CalibrationKeyParts,
+): CalibrationMatch | null {
+  return matchCalibrationProfile(loadCalibrationProfiles(), parts);
 }
 
 /** Stabilny identyfikator/etykieta urządzenia z danych przeglądarki. */
