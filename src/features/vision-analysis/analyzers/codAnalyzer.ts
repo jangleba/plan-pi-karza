@@ -149,44 +149,102 @@ function makeSprintToStop(): TestAnalyzer {
   const testType = "sprint_to_stop" as const;
   const MIN_FPS = 120;
 
-  function runEngine(ctx: AnalysisContext): CrossingResult {
-    return detectCalibratedCrossings({
+  function runEngine(ctx: AnalysisContext): BrakingResult {
+    return detectBraking({
       poses: ctx.poses,
       homography: ctx.calibration?.homography ?? null,
-      timingLines: ctx.calibration?.timingLines,
+      registry: TimingLineRegistry.from(ctx.calibration?.timingLines),
       width: ctx.metadata.width,
       height: ctx.metadata.height,
       cameraStable: ctx.calibration?.cameraMoved ? false : true,
+      knownEntrySpeedMs: ctx.calibration?.knownEntrySpeedMs ?? null,
     });
-  }
-
-  function ordered(crossings: LineCrossing[]): LineCrossing[] {
-    return [...crossings].sort((a, b) => a.crossingTimestampUs - b.crossingTimestampUs);
   }
 
   function events(ctx: AnalysisContext): DetectedEvent[] {
     const res = runEngine(ctx);
-    vlog(`${testType} line_crossing`, res.ok ? "OK" : res.code, res.debug);
-    if (!res.ok || res.crossings.length < 2) return [];
-    const seq = ordered(res.crossings);
-    const conf = 0.88;
-    return seq.map((c, i) => ({
-      type: i === 0 ? "movement_start" : i === seq.length - 1 ? "stop" : "line_crossing",
-      frameIndex: c.frameAfterIndex,
-      timestampSeconds: c.crossingTimestampUs / 1_000_000,
-      confidence: conf,
-    }));
+    vlog(
+      `${testType} braking`,
+      res.ok ? `${res.mode} ${res.resultQuality} brakingTime=${res.brakingTimeS}s` : res.code,
+      res.debug,
+    );
+    if (!res.ok) return [];
+    const conf = res.resultQuality === "OFFICIAL" ? 0.9 : res.resultQuality === "ESTIMATED" ? 0.75 : 0.6;
+    const frameAt = (tsUs: number) => {
+      let best = 0;
+      let bestDiff = Infinity;
+      for (let i = 0; i < ctx.poses.length; i++) {
+        const t = ctx.poses[i]?.sourceTimestampUs;
+        if (typeof t !== "number") continue;
+        const d = Math.abs(t - tsUs);
+        if (d < bestDiff) {
+          bestDiff = d;
+          best = i;
+        }
+      }
+      return best;
+    };
+    return [
+      {
+        type: "movement_start",
+        frameIndex: frameAt(res.brakingStartTimestampUs),
+        timestampSeconds: res.brakingStartTimestampUs / 1_000_000,
+        confidence: conf,
+      },
+      {
+        type: "stop",
+        frameIndex: frameAt(res.stopTimestampUs),
+        timestampSeconds: res.stopTimestampUs / 1_000_000,
+        confidence: conf,
+      },
+    ];
   }
 
   function metrics(_ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
     const res = runEngine(ctx);
-    if (!res.ok || res.crossings.length < 2) return [];
-    const seq = ordered(res.crossings);
-    const total = elapsedSeconds(seq[0], seq[seq.length - 1]);
-    if (!(total > 0 && total <= 20)) return [];
-    return [
-      { key: "total_time_s", label: "Czas całkowity", value: round(total, 2), unit: "s", confidence: 0.88 },
-    ];
+    if (!res.ok) return [];
+    const conf = res.resultQuality === "OFFICIAL" ? 0.9 : res.resultQuality === "ESTIMATED" ? 0.75 : 0.6;
+    const out: CalculatedMetric[] = [];
+    // Czas hamowania jest dozwolony także w trybie TECHNIQUE_ONLY.
+    if (res.brakingTimeS > 0 && res.brakingTimeS <= 20) {
+      out.push({
+        key: "braking_time_s",
+        label: "Czas hamowania",
+        value: round(res.brakingTimeS, 2),
+        unit: "s",
+        confidence: conf,
+        uncertainty: round(res.elapsedUncertaintyMs / 1000, 4),
+      });
+    }
+    out.push({
+      key: "braking_contacts",
+      label: "Kontakty hamujące",
+      value: res.contactsDuringBraking,
+      unit: "",
+      confidence: conf,
+    });
+    // Prędkość, metry i droga hamowania TYLKO przy pełnej kalibracji.
+    if (res.mode === "CALIBRATED") {
+      if (res.entrySpeedMs != null && res.entrySpeedMs > 0) {
+        out.push({
+          key: "entry_speed_ms",
+          label: "Prędkość wejściowa",
+          value: round(res.entrySpeedMs, 2),
+          unit: "m/s",
+          confidence: conf,
+        });
+      }
+      if (res.brakingDistanceMm != null && res.brakingDistanceMm > 0) {
+        out.push({
+          key: "braking_distance_m",
+          label: "Droga hamowania",
+          value: round(res.brakingDistanceMm / 1000, 2),
+          unit: "m",
+          confidence: conf,
+        });
+      }
+    }
+    return out;
   }
 
   function confidence(ev: DetectedEvent[]): ConfidenceResult {
@@ -202,15 +260,25 @@ function makeSprintToStop(): TestAnalyzer {
     const hardFail: QualityIssueCode[] = [
       "POSE_NOT_DETECTED",
       "MULTIPLE_PEOPLE",
-      "TIMING_LINE_NOT_CALIBRATED",
+      "BRAKING_ZONE_REQUIRED",
       "TIMING_PLANE_CALIBRATION_FAILED",
-      "LINE_CROSSING_NOT_DETECTED",
-      "WRONG_CROSSING_DIRECTION",
+      "ENTRY_SPEED_UNKNOWN",
+      "INVALID_APPROACH_SPRINT",
+      "NO_SPEED_REDUCTION",
+      "STOP_NOT_DETECTED",
+      "STOP_OUT_OF_ZONE",
+      "DIRECTION_CHANGE_NOT_STOP",
       "CROSSING_UNCERTAINTY_TOO_HIGH",
       "CALIBRATION_CAMERA_MOVED",
     ];
-    return buildValidation(issues, hardFail);
+    const built = buildValidation(issues, hardFail);
+    // Tryb bez kalibracji, ale z poprawnie wykrytym hamowaniem → technique_only.
+    if (built.ok && res.ok && res.mode === "TECHNIQUE_ONLY") {
+      return { ...built, status: "technique_only" };
+    }
+    return built;
   }
+
 
   return {
     testType,
