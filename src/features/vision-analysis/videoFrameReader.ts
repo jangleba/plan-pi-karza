@@ -358,10 +358,11 @@ export async function iterateFrames(
     playedFrames = await new Promise<number>((resolve) => {
       let index = 0;
       let finished = false;
+      let watchdog: ReturnType<typeof setTimeout>;
       const done = () => {
         if (finished) return;
         finished = true;
-        clearTimeout(watchdog);
+        if (watchdog) clearTimeout(watchdog);
         signal?.removeEventListener("abort", abort);
         video.pause();
         resolve(index);
@@ -370,7 +371,7 @@ export async function iterateFrames(
       signal?.addEventListener("abort", abort, { once: true });
       // Watchdog: jeśli w 6 s nie pojawi się żadna klatka (autoplay zablokowany),
       // przerywamy i przechodzimy do fallbacku seek.
-      const watchdog = setTimeout(() => {
+      watchdog = setTimeout(() => {
         if (index === 0) {
           vwarn("iterateFrames", "rVFC nie wystartował — fallback do seek");
           done();
