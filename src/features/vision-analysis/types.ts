@@ -252,6 +252,16 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Brak profilu kalibracji dokładnie zgodnego z tym nagraniem (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom). Wykonaj kalibrację dla tej konfiguracji.",
   CALIBRATION_CAMERA_MOVED:
     "Kamera poruszyła się po kalibracji — profil został unieważniony dla tego nagrania. Ustaw telefon nieruchomo i nagraj ponownie.",
+  TIMING_LINE_NOT_CALIBRATED:
+    "Brak skalibrowanej linii pomiaru czasu (Timing Plane). Wykonaj kalibrację z widoczną linią startu/mety na podłożu.",
+  TIMING_PLANE_CALIBRATION_FAILED:
+    "Nie udało się zbudować płaszczyzny pomiarowej z kalibracji (homografia nieodwracalna lub linia poza kadrem).",
+  LINE_CROSSING_NOT_DETECTED:
+    "Nie wykryto przecięcia linii pomiaru czasu. Upewnij się, że zawodnik przekracza całą linię w kadrze.",
+  WRONG_CROSSING_DIRECTION:
+    "Zawodnik przekroczył linię w niewłaściwym kierunku względem protokołu testu.",
+  CROSSING_UNCERTAINTY_TOO_HIGH:
+    "Niepewność momentu przecięcia zbyt wysoka. Nagraj z wyższym FPS i nieruchomą kamerą.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
