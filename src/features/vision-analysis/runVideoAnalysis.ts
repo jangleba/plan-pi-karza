@@ -23,6 +23,7 @@ import { round } from "./physics";
 import { vlog } from "./devLog";
 import type { LensType, CaptureOrientation } from "./calibrationProfiles";
 import { matchCalibrationStrictForRecording } from "@/lib/vision/calibrationStore";
+import { recognizeTestProtocol } from "./testProtocolRecognizer";
 
 /** Testy, których wynik przestrzenny (mm/cm/m, m/s, km/h) wymaga homografii. */
 export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
