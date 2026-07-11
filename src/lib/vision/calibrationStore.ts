@@ -67,6 +67,16 @@ export function findCalibrationProfile(parts: CalibrationKeyParts): CalibrationP
   return loadCalibrationProfiles().find((p) => p.key === key) ?? null;
 }
 
+/**
+ * Dopasowuje najtrafniejszy zapisany profil do bieżących warunków nagrania.
+ * Zwraca null, gdy na tym urządzeniu nie ma wiarygodnego profilu.
+ */
+export function matchCalibrationForRecording(
+  parts: CalibrationKeyParts,
+): CalibrationMatch | null {
+  return matchCalibrationProfile(loadCalibrationProfiles(), parts);
+}
+
 /** Stabilny identyfikator/etykieta urządzenia z danych przeglądarki. */
 export function detectDevice(): { deviceId: string; label: string } {
   if (!isBrowser()) return { deviceId: "unknown-device", label: "Nieznane urządzenie" };
