@@ -362,6 +362,7 @@ export async function iterateFrames(
         if (finished) return;
         finished = true;
         clearTimeout(watchdog);
+        signal?.removeEventListener("abort", abort);
         video.pause();
         resolve(index);
       };
@@ -411,7 +412,7 @@ export async function iterateFrames(
           vwarn("iterateFrames", "play() odrzucone — fallback do seek", err?.message);
           done();
         });
-    }).finally(() => signal?.removeEventListener("abort", abort));
+    });
     throwIfAborted(signal);
     if (rvfcError) {
       video.src = "";
