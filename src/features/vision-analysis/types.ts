@@ -9,6 +9,7 @@ export type TestType =
   | "drop_jump"
   | "repeated_jumps"
   | "broad_jump"
+  | "single_leg_hop"
   | "pogo_jumps"
   | "sprint_20m"
   | "sprint_30m"
