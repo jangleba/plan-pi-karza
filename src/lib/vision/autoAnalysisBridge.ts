@@ -6,6 +6,7 @@ import type {
   CalculationBasisItem,
 } from "./types";
 import type { VideoAnalysisResult } from "@/features/vision-analysis/types";
+import { QUALITY_TIER_LABELS } from "@/features/vision-analysis/measurementAccuracy";
 import { getVisionTest } from "./visionTests";
 
 const EVENT_TO_MARKER: Record<string, FrameMarkerKey> = {
