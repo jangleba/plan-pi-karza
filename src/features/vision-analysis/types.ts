@@ -155,6 +155,8 @@ export interface Calibration {
    * homografię — porównywany jest jego piksel z rzutem linii podłoża.
    */
   timingLines?: TimingLineSpec[];
+  /** Znana prędkość wejściowa (m/s) dla testów hamowania, gdy mierzona bramką. */
+  knownEntrySpeedMs?: number | null;
 }
 
 /** Rola linii pomiaru czasu / strefy w protokole. */
