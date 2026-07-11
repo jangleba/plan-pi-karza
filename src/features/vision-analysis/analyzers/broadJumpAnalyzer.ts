@@ -61,14 +61,7 @@ function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } 
   return null;
 }
 
-/** Piksel stopy (u,v) w danej klatce — średnia z lewej/prawej stopy. */
-function footPixel(ctx: AnalysisContext, frameIndex: number): { u: number; v: number } | null {
-  const lm = ctx.poses[frameIndex]?.landmarks;
-  if (!lm) return null;
-  const u = ((lm[31].x + lm[32].x) / 2) * ctx.metadata.width;
-  const v = ((lm[31].y + lm[32].y) / 2) * ctx.metadata.height;
-  return { u, v };
-}
+
 
 /** Długość skoku (cm) — pomiar pięty przez homografię, inaczej skala/piksele. */
 function jumpDistanceCm(
