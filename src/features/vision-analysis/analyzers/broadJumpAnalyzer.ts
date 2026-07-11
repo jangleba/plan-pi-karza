@@ -10,7 +10,7 @@ import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { round } from "../physics";
 import { estimateScaleFromHeight } from "../autoCalibration";
-import { groundDistanceMm } from "../homographyGeometry";
+import { measureGroundHorizontalDistance } from "../horizontalDistance";
 import {
   calcTemporalResolution,
   computeMeasurementAccuracy,
