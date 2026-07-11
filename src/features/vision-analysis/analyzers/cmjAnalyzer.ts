@@ -98,13 +98,21 @@ function confidence(ev: DetectedEvent[]): ConfidenceResult {
 
 function validate(ctx: AnalysisContext): ValidationResult {
   const { issues } = baseValidation(ctx, MIN_FPS);
-  if (events(ctx).length < 2) issues.push("EVENTS_NOT_DETECTED");
+  const phase = detectFlightPhase(ctx.poses);
+  if (!phase) {
+    issues.push("EVENTS_NOT_DETECTED");
+  } else {
+    // CMJ MUSI mieć countermovement (dynamiczne zejście przed wybiciem).
+    const cm = detectCountermovement(ctx.poses, phase.takeoffFrame);
+    if (!cm.present) issues.push("INVALID_TEST_EXECUTION");
+  }
   return buildValidation(issues, [
     "INSUFFICIENT_FPS",
     "POSE_NOT_DETECTED",
     "ATHLETE_OUT_OF_FRAME",
     "MULTIPLE_PEOPLE",
     "EVENTS_NOT_DETECTED",
+    "INVALID_TEST_EXECUTION",
   ]);
 }
 
