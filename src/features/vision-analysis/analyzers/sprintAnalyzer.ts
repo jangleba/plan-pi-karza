@@ -198,6 +198,15 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
     detectKeyEvents: async (ctx) => events(ctx),
     calculateMetrics: (ev) => metrics(ev),
     calculateConfidence: (ev) => confidence(ev),
+    computeAccuracy: (ev, mtx, ctx) =>
+      temporalAccuracy({
+        ev,
+        metrics: mtx,
+        ctx,
+        fpsPolicy: SPRINT_FPS_POLICY,
+        timeKey: "sprint_time_s",
+        distanceM,
+      }),
   };
 }
 
