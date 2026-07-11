@@ -78,6 +78,16 @@ export function matchCalibrationForRecording(
   return matchCalibrationProfile(loadCalibrationProfiles(), parts);
 }
 
+/**
+ * ŚCISŁE dopasowanie: zwraca profil tylko przy pełnej zgodności wszystkich
+ * parametrów. null → brak zgodnego profilu (należy przeprowadzić kalibrację).
+ */
+export function matchCalibrationStrictForRecording(
+  parts: CalibrationKeyParts,
+): CalibrationProfile | null {
+  return matchCalibrationStrict(loadCalibrationProfiles(), parts);
+}
+
 /** Stabilny identyfikator/etykieta urządzenia z danych przeglądarki. */
 export function detectDevice(): { deviceId: string; label: string } {
   if (!isBrowser()) return { deviceId: "unknown-device", label: "Nieznane urządzenie" };
