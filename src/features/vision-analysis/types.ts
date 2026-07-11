@@ -359,6 +359,20 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Niewłaściwa kolejność przekroczeń linii dla tego protokołu COD.",
   WRONG_TURNING_SIDE:
     "Zwrot wykonano na niewłaściwą nogę względem wybranej strony próby.",
+  BRAKING_ZONE_REQUIRED:
+    "Test hamowania wymaga skalibrowanej strefy: BRAKING_ENTRY, STOP_ZONE_START i STOP_ZONE_END na podłożu.",
+  ENTRY_SPEED_UNKNOWN:
+    "Nie można wyznaczyć prędkości wejściowej. Podaj znaną prędkość lub skalibruj strefę jej pomiaru.",
+  INVALID_APPROACH_SPRINT:
+    "Brak prawidłowego sprintu przed hamowaniem. Wejdź w strefę z pełną prędkością.",
+  NO_SPEED_REDUCTION:
+    "Nie wykryto wyraźnej redukcji prędkości. To zwykły bieg, nie hamowanie.",
+  STOP_NOT_DETECTED:
+    "Nie wykryto zatrzymania. Zatrzymaj się w pełni w strefie i pozostań w kadrze.",
+  STOP_OUT_OF_ZONE:
+    "Zatrzymanie nastąpiło poza wymaganą strefą (STOP_ZONE_START–STOP_ZONE_END).",
+  DIRECTION_CHANGE_NOT_STOP:
+    "Wykryto zmianę kierunku zamiast zatrzymania. Test hamowania wymaga pełnego zatrzymania.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
