@@ -80,6 +80,8 @@ interface DetectPoseOptions {
   analysisRunId: string;
   passType?: "coarse" | "precision";
   sourceTimestampMs?: number;
+  sourceTimestampUs?: number;
+  sourceFrameIndex?: number;
 }
 
 interface VisionTimestampDebugRow {
@@ -183,6 +185,11 @@ export async function detectPose(
     0,
     options.sourceTimestampMs ?? Math.round(mediaTime * 1000),
   );
+  const sourceTimestampUs = Math.max(
+    0,
+    options.sourceTimestampUs ?? Math.round(mediaTime * 1_000_000),
+  );
+  const sourceFrameIndex = options.sourceFrameIndex ?? frameIndex;
   const previousMediaPipeTimestampMs = session.lastTimestampMs;
   const mediaPipeTimestampMs = Math.max(sourceTimestampMs, previousMediaPipeTimestampMs + 1);
   const isMonotonic = mediaPipeTimestampMs > previousMediaPipeTimestampMs;
@@ -222,9 +229,11 @@ export async function detectPose(
   if (peopleCount === 0) {
     return {
       frameIndex,
+      sourceFrameIndex,
       mediaTime,
       presentationTimestamp: mediaTime,
       sourceTimestampMs,
+      sourceTimestampUs,
       mediaPipeTimestampMs,
       landmarks: null,
       peopleCount: 0,
@@ -245,9 +254,11 @@ export async function detectPose(
 
   return {
     frameIndex,
+    sourceFrameIndex,
     mediaTime,
     presentationTimestamp: mediaTime,
     sourceTimestampMs,
+    sourceTimestampUs,
     mediaPipeTimestampMs,
     landmarks: best.map((l) => ({
       x: l.x,

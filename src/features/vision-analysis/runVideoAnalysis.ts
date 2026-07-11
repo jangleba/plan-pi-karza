@@ -137,16 +137,18 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     opts.onPhase?.("extracting_frames");
     const poses: FramePose[] = [];
     let posePhaseSent = false;
-    let lastAcceptedSourceTimestampMs = -1;
+    let lastAcceptedSourceTimestampUs = -1;
     await iterateFrames(
       opts.videoUrl,
       metadata,
-      async ({ frameIndex, mediaTime, sourceTimestampMs, video }) => {
+      async ({ frameIndex, sourceFrameIndex, mediaTime, sourceTimestampMs, sourceTimestampUs, video }) => {
         throwIfAborted(opts.abortSignal);
-        if (sourceTimestampMs <= lastAcceptedSourceTimestampMs) {
+        // Deduplikacja po źródłowym timestampie (mikrosekundy) — gwarantuje ten
+        // sam zestaw klatek między uruchomieniami.
+        if (sourceTimestampUs <= lastAcceptedSourceTimestampUs) {
           return;
         }
-        lastAcceptedSourceTimestampMs = sourceTimestampMs;
+        lastAcceptedSourceTimestampUs = sourceTimestampUs;
         if (!posePhaseSent) {
           posePhaseSent = true;
           opts.onPhase?.("pose_analysis");
@@ -156,6 +158,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
           analysisRunId,
           passType: "coarse",
           sourceTimestampMs,
+          sourceTimestampUs,
+          sourceFrameIndex,
         });
         poses.push(pose);
       },

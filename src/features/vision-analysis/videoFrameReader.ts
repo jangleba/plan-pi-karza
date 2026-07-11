@@ -4,9 +4,13 @@ import { vlog, vwarn } from "./devLog";
 /** Callback wywoływany dla każdej zdekodowanej klatki. */
 export type FrameHandler = (frame: {
   frameIndex: number;
+  /** Stabilny indeks źródłowej klatki (deterministyczny między uruchomieniami). */
+  sourceFrameIndex: number;
   mediaTime: number;
   presentationTimestamp: number;
   sourceTimestampMs: number;
+  /** Rzeczywisty timestamp źródłowej klatki w mikrosekundach (pełna precyzja). */
+  sourceTimestampUs: number;
   video: HTMLVideoElement;
 }) => Promise<void> | void;
 
@@ -272,9 +276,13 @@ async function estimateFpsFromFrames(
 }
 
 /**
- * Iteruje po rzeczywistych klatkach wideo, wywołując handler.
- * Preferuje requestVideoFrameCallback (dokładne mediaTime/presentationTime),
- * z fallbackiem do próbkowania po currentTime (seek).
+ * Iteruje po klatkach wideo w sposób DETERMINISTYCZNY.
+ *
+ * Numeracja i timestampy klatek NIE zależą od requestVideoFrameCallback,
+ * szybkości urządzenia, performance.now() ani kolejności Promise. Zamiast tego
+ * budujemy stałą siatkę klatek na podstawie fps i długości filmu i seekujemy do
+ * dokładnie tych samych czasów przy każdym uruchomieniu. Dzięki temu ten sam
+ * plik + ta sama wersja algorytmu zawsze dają identyczny zestaw sourceTimestamp.
  */
 export async function iterateFrames(
   url: string,
@@ -345,108 +353,40 @@ export async function iterateFrames(
     if (video.readyState >= 2) onOk();
   });
 
-  const total = Math.max(1, metadata.frameCount);
-  const supportsRVFC =
-    typeof (video as unknown as Record<string, unknown>).requestVideoFrameCallback === "function";
-
-  // Ścieżka 1: requestVideoFrameCallback (dokładne mediaTime podczas odtwarzania).
-  // Uruchamiana tylko gdy odtwarzanie faktycznie ruszy; inaczej fallback seek.
-  let playedFrames = 0;
-  let rvfcError: unknown = null;
-  if (supportsRVFC) {
-    throwIfAborted(signal);
-    playedFrames = await new Promise<number>((resolve) => {
-      let index = 0;
-      let finished = false;
-      let watchdog: ReturnType<typeof setTimeout>;
-      const done = () => {
-        if (finished) return;
-        finished = true;
-        if (watchdog) clearTimeout(watchdog);
-        signal?.removeEventListener("abort", abort);
-        video.pause();
-        resolve(index);
-      };
-      const abort = () => done();
-      signal?.addEventListener("abort", abort, { once: true });
-      // Watchdog: jeśli w 6 s nie pojawi się żadna klatka (autoplay zablokowany),
-      // przerywamy i przechodzimy do fallbacku seek.
-      watchdog = setTimeout(() => {
-        if (index === 0) {
-          vwarn("iterateFrames", "rVFC nie wystartował — fallback do seek");
-          done();
-        }
-      }, 6_000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cb = async (_now: number, meta: any) => {
-        if (finished || signal?.aborted) return done();
-        const sourceTimestampMs = Math.max(0, Math.round(meta.mediaTime * 1000));
-        try {
-          await onFrame({
-            frameIndex: index,
-            mediaTime: meta.mediaTime,
-            presentationTimestamp: meta.mediaTime,
-            sourceTimestampMs,
-            video,
-          });
-        } catch (err) {
-          // Błąd analizy klatki (np. model pozy) nie może zawiesić promisa —
-          // zapamiętaj i zakończ, żeby pipeline zwrócił konkretny błąd.
-          rvfcError = err;
-          return done();
-        }
-        index++;
-        onProgress?.(index, total);
-        if (video.ended || video.currentTime >= metadata.durationSeconds - 0.001) return done();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (video as any).requestVideoFrameCallback(cb);
-      };
-      video.onended = () => done();
-      video.currentTime = 0;
-      video
-        .play()
-        .then(() => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (video as any).requestVideoFrameCallback(cb);
-        })
-        .catch((err) => {
-          vwarn("iterateFrames", "play() odrzucone — fallback do seek", err?.message);
-          done();
-        });
-    });
-    throwIfAborted(signal);
-    if (rvfcError) {
-      video.src = "";
-      throw rvfcError;
-    }
-    if (playedFrames > 0) {
-      vlog("iterateFrames", `rVFC: ${playedFrames} klatek`);
-      video.src = "";
-      return;
-    }
-  }
-
-
-  // Ścieżka 2 (fallback): próbkowanie po currentTime + event seeked.
-  vlog("iterateFrames", "fallback seek", { fps: metadata.fps });
   video.pause();
-  const step = 1 / Math.max(1, metadata.fps);
-  let index = 0;
-  for (let tSec = 0; tSec < metadata.durationSeconds; tSec += step) {
+
+  // Deterministyczna siatka klatek: identyczna dla każdego uruchomienia.
+  const fps = Math.max(1, Math.round(metadata.fps));
+  const frameCount = Math.max(
+    1,
+    metadata.frameCount > 0
+      ? metadata.frameCount
+      : Math.round(metadata.durationSeconds * fps),
+  );
+  const total = frameCount;
+  vlog("iterateFrames", "deterministic seek grid", { fps, frameCount });
+
+  for (let sourceFrameIndex = 0; sourceFrameIndex < frameCount; sourceFrameIndex++) {
     throwIfAborted(signal);
+    // Timestamp źródłowej klatki liczony w mikrosekundach z pełną precyzją,
+    // zaokrąglany deterministycznie (round-half-up na liczbach całkowitych).
+    const sourceTimestampUs = Math.round((sourceFrameIndex * 1_000_000) / fps);
+    const tSec = sourceTimestampUs / 1_000_000;
+    if (tSec >= metadata.durationSeconds) break;
     await seekTo(video, tSec);
-    const sourceTimestampMs = Math.max(0, Math.round(video.currentTime * 1000));
+    const sourceTimestampMs = Math.round(sourceTimestampUs / 1000);
     await onFrame({
-      frameIndex: index,
-      mediaTime: video.currentTime,
-      presentationTimestamp: video.currentTime,
+      frameIndex: sourceFrameIndex,
+      sourceFrameIndex,
+      mediaTime: tSec,
+      presentationTimestamp: tSec,
       sourceTimestampMs,
+      sourceTimestampUs,
       video,
     });
-    index++;
-    onProgress?.(index, total);
+    onProgress?.(sourceFrameIndex + 1, total);
   }
-  vlog("iterateFrames", `seek: ${index} klatek`);
+  vlog("iterateFrames", `seek: ${frameCount} klatek`);
   video.src = "";
 }
 
