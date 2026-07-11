@@ -296,6 +296,17 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     const confidence = analyzer.calculateConfidence(events, ctx);
     const validation = analyzer.validateRecording(ctx);
 
+    // BLOKADA WYNIKU PRZESTRZENNEGO: bez ściśle zgodnego profilu (lub po ruchu
+    // kamery) nie wolno zwrócić wyniku w mm/cm/m/m·s⁻¹/km·h⁻¹.
+    const mismatch = SPATIAL_TESTS.has(opts.testType) ? calibration?.mismatchCode ?? null : null;
+    if (mismatch) {
+      metrics = [];
+      if (!validation.issues.includes(mismatch)) validation.issues.push(mismatch);
+      validation.retakeInstructions.push(QUALITY_ISSUE_LABELS[mismatch]);
+      validation.ok = false;
+      validation.status = "invalid_recording";
+    }
+
     // Warstwa rzetelności pomiaru — niepewność, poziom jakości, powtarzalność.
     let measurement: VideoAnalysisResult["measurement"];
     if (analyzer.computeAccuracy && metrics.length > 0) {
