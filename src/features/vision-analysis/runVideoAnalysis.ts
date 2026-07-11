@@ -11,7 +11,14 @@ import { QUALITY_ISSUE_LABELS } from "./types";
 import { resolveAnalysisStatus } from "./statusPolicy";
 import { getAnalyzer } from "./testAnalyzerRegistry";
 import { readVideoMetadata, iterateFrames } from "./videoFrameReader";
-import { detectPose, isPoseSupported } from "./poseEngine";
+import {
+  clearPoseDebugLog,
+  closePoseEngine,
+  detectPose,
+  flushPoseDebugLog,
+  FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+} from "./poseEngine";
+import { isPoseSupported } from "./poseEngine";
 import { round } from "./physics";
 
 export type AnalysisPhase =
@@ -32,6 +39,7 @@ export interface RunOptions {
   calibration?: Calibration | null;
   /** Rzeczywisty wzrost zawodnika (cm) do auto-kalibracji skali. */
   athleteHeightCm?: number | null;
+  abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
 }
@@ -41,19 +49,44 @@ function uuid(): string {
   return `analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function failed(testType: TestType, analyzerVersion: string, reason: string): VideoAnalysisResult {
+function failed(
+  testType: TestType,
+  analyzerVersion: string,
+  reason: string,
+  code = "ANALYSIS_FAILED",
+  analysisId = uuid(),
+): VideoAnalysisResult {
   return {
-    analysisId: uuid(),
+    analysisId,
     testType,
     status: "failed",
     videoMetadata: { fps: 0, durationSeconds: 0, frameCount: 0, width: 0, height: 0 },
     keyEvents: [],
     metrics: [],
     overallConfidence: 0,
-    qualityIssues: [reason],
+    qualityIssues: [code],
     retakeInstructions: [reason],
     analyzerVersion,
   };
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  const error = new Error("Analiza została przerwana.");
+  (error as Error & { code: string }).code = "ANALYSIS_ABORTED";
+  throw error;
+}
+
+function isFrameTimestampOrderError(error: unknown): boolean {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code: unknown }).code)
+      : "";
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    code === "FRAME_TIMESTAMP_ORDER_ERROR" ||
+    /INVALID_ARGUMENT|CalculatorGraph|timestamp mismatch|WaitUntilIdle|graph_utils\.cc/i.test(message)
+  );
 }
 
 /**
@@ -61,23 +94,40 @@ function failed(testType: TestType, analyzerVersion: string, reason: string): Vi
  * obliczenia → walidacja. Nigdy nie zwraca statusu "completed" bez metryk.
  */
 export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisResult> {
+  const analysisRunId = uuid();
+  clearPoseDebugLog();
+  await closePoseEngine();
+  throwIfAborted(opts.abortSignal);
   const analyzer = getAnalyzer(opts.testType);
-  if (!analyzer) return failed(opts.testType, "none", "Brak analizatora dla tego testu.");
+  if (!analyzer)
+    return failed(
+      opts.testType,
+      "none",
+      "Brak analizatora dla tego testu.",
+      "ANALYZER_NOT_FOUND",
+      analysisRunId,
+    );
   if (!isPoseSupported())
     return failed(
       opts.testType,
       analyzer.analyzerVersion,
       "Analiza wideo nie jest wspierana w tej przeglądarce.",
+      "BROWSER_NOT_SUPPORTED",
+      analysisRunId,
     );
 
   try {
+    throwIfAborted(opts.abortSignal);
     opts.onPhase?.("loading_file");
     const metadata = await readVideoMetadata(opts.videoUrl, opts.declaredFps);
+    throwIfAborted(opts.abortSignal);
     if (metadata.frameCount <= 0) {
       return failed(
         opts.testType,
         analyzer.analyzerVersion,
         "Nie udało się odczytać klatek wideo.",
+        "NO_FRAMES",
+        analysisRunId,
       );
     }
 
@@ -87,26 +137,40 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     opts.onPhase?.("extracting_frames");
     const poses: FramePose[] = [];
     let posePhaseSent = false;
+    let lastAcceptedSourceTimestampMs = -1;
     await iterateFrames(
       opts.videoUrl,
       metadata,
-      async ({ frameIndex, mediaTime, video }) => {
+      async ({ frameIndex, mediaTime, sourceTimestampMs, video }) => {
+        throwIfAborted(opts.abortSignal);
+        if (sourceTimestampMs <= lastAcceptedSourceTimestampMs) {
+          return;
+        }
+        lastAcceptedSourceTimestampMs = sourceTimestampMs;
         if (!posePhaseSent) {
           posePhaseSent = true;
           opts.onPhase?.("pose_analysis");
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
-        const pose = await detectPose(video, frameIndex, mediaTime);
+        const pose = await detectPose(video, frameIndex, mediaTime, {
+          analysisRunId,
+          passType: "coarse",
+          sourceTimestampMs,
+        });
         poses.push(pose);
       },
       (processed, total) => opts.onProgress?.(Math.min(1, processed / total)),
+      opts.abortSignal,
     );
+    throwIfAborted(opts.abortSignal);
 
     if (poses.length === 0) {
       return failed(
         opts.testType,
         analyzer.analyzerVersion,
         "Nie udało się zdekodować żadnej klatki.",
+        "NO_DECODED_FRAMES",
+        analysisRunId,
       );
     }
 
@@ -140,7 +204,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     opts.onPhase?.("completed");
     return {
-      analysisId: uuid(),
+      analysisId: analysisRunId,
       testType: opts.testType,
       status,
       videoMetadata: {
@@ -164,11 +228,23 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     };
   } catch (e) {
     opts.onPhase?.("error");
+    if (isFrameTimestampOrderError(e)) {
+      return failed(
+        opts.testType,
+        analyzer.analyzerVersion,
+        FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+        "FRAME_TIMESTAMP_ORDER_ERROR",
+        analysisRunId,
+      );
+    }
     // VideoLoadError niesie konkretny errorCode — pokazujemy go użytkownikowi.
     const code =
       e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
     const base = e instanceof Error ? e.message : "Nieznany błąd analizy.";
     const msg = code ? `${base} (kod: ${code})` : base;
-    return failed(opts.testType, analyzer.analyzerVersion, msg);
+    return failed(opts.testType, analyzer.analyzerVersion, msg, code ?? "ANALYSIS_FAILED", analysisRunId);
+  } finally {
+    flushPoseDebugLog(analysisRunId);
+    await closePoseEngine(analysisRunId);
   }
 }

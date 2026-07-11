@@ -28,6 +28,7 @@ export type QualityIssueCode =
   | "MISSING_START_LINE"
   | "MISSING_FINISH_LINE"
   | "INVALID_TEST_EXECUTION"
+  | "TEST_PROTOCOL_MISMATCH"
   | "EVENTS_NOT_DETECTED"
   | "LOW_RESOLUTION"
   | "POSE_NOT_DETECTED";
@@ -63,6 +64,10 @@ export interface FramePose {
   frameIndex: number;
   mediaTime: number;
   presentationTimestamp: number;
+  /** Rzeczywisty timestamp klatki w filmie — używany do obliczeń sportowych. */
+  sourceTimestampMs?: number;
+  /** Techniczny, monotoniczny timestamp przekazany do MediaPipe. */
+  mediaPipeTimestampMs?: number;
   /** 33 landmarki MediaPipe lub null gdy nie wykryto zawodnika. */
   landmarks: Landmark[] | null;
   /** Liczba wykrytych osób (do detekcji MULTIPLE_PEOPLE). */
@@ -173,6 +178,8 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
   MISSING_START_LINE: "Nie wykryto linii startu.",
   MISSING_FINISH_LINE: "Nie wykryto linii mety.",
   INVALID_TEST_EXECUTION: "Nieprawidłowe wykonanie testu.",
+  TEST_PROTOCOL_MISMATCH:
+    "Wybrano test Pogo Jumps, ale nagranie przedstawia prawdopodobnie CMJ. Pogo Jumps wymaga serii szybkich odbić z krótkim kontaktem z podłożem.",
   EVENTS_NOT_DETECTED: "Nie wykryto kluczowych zdarzeń ruchu.",
   LOW_RESOLUTION: "Zbyt niska rozdzielczość nagrania.",
   POSE_NOT_DETECTED: "Nie wykryto sylwetki zawodnika.",

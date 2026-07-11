@@ -14,6 +14,8 @@ const RETAKE: Record<QualityIssueCode, string> = {
   MISSING_START_LINE: "Zaznacz wyraźnie linię startu w kadrze.",
   MISSING_FINISH_LINE: "Zaznacz wyraźnie linię mety w kadrze.",
   INVALID_TEST_EXECUTION: "Wykonaj test zgodnie z protokołem i nagraj ponownie.",
+  TEST_PROTOCOL_MISMATCH:
+    "Wybrano test Pogo Jumps, ale nagranie przedstawia prawdopodobnie CMJ. Pogo Jumps wymaga serii szybkich odbić z krótkim kontaktem z podłożem.",
   EVENTS_NOT_DETECTED:
     "Nie rozpoznano kluczowych faz ruchu. Nagraj cały ruch z boku, bez ścinania kadru.",
   LOW_RESOLUTION: "Nagraj w wyższej rozdzielczości (min. 720p).",
