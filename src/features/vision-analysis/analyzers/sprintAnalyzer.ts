@@ -50,6 +50,7 @@ function makeSprint(testType: "sprint_20m" | "sprint_30m", distanceM: number): T
 
   function events(ctx: AnalysisContext): DetectedEvent[] {
     const res = runEngine(ctx);
+    vlog(`${testType} line_crossing`, res.ok ? "OK" : res.code, res.debug);
     if (!res.ok || res.crossings.length < 2) return [];
     const [start, finish] = ordered(res.crossings);
     const conf = 0.9;
