@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { resolveAnalysisStatus } from "./statusPolicy";
 import { cmjAnalyzer } from "./analyzers/cmjAnalyzer";
+import { pogoAnalyzer } from "./analyzers/pogoAnalyzer";
 import { gymAnalyzer } from "./analyzers/gymAnalyzer";
 import type { AnalysisContext, FramePose, Landmark, VideoMetadata } from "./types";
 import { POSE } from "./types";
@@ -44,6 +45,8 @@ function buildCmjPoses(fps: number): FramePose[] {
       frameIndex: i,
       mediaTime: i * dt,
       presentationTimestamp: i * dt,
+        sourceTimestampMs: Math.round(i * dt * 1000),
+        mediaPipeTimestampMs: Math.round(i * dt * 1000),
       landmarks: landmarksWith(hipY, footY),
       peopleCount: 1,
       trackingConfidence: 0.9,
@@ -136,6 +139,8 @@ describe("cmjAnalyzer", () => {
       frameIndex: i,
       mediaTime: i / fps,
       presentationTimestamp: i / fps,
+      sourceTimestampMs: Math.round((i / fps) * 1000),
+      mediaPipeTimestampMs: Math.round((i / fps) * 1000),
       landmarks: landmarksWith(0.55, 0.9),
       peopleCount: 1,
       trackingConfidence: 0.9,
@@ -144,6 +149,25 @@ describe("cmjAnalyzer", () => {
     const v = cmjAnalyzer.validateRecording(c2);
     expect(v.issues).toContain("EVENTS_NOT_DETECTED");
     expect(v.status).toBe("invalid_recording");
+  });
+});
+
+describe("pogoAnalyzer protocol guard", () => {
+  it("odrzuca pojedynczy skok CMJ jako TEST_PROTOCOL_MISMATCH zamiast błędu technicznego", () => {
+    const ctx: AnalysisContext = {
+      testType: "pogo_jumps",
+      metadata: meta(120),
+      poses: buildCmjPoses(120),
+      cameraSetup: "side",
+      calibration: null,
+    };
+    const validation = pogoAnalyzer.validateRecording(ctx);
+    const metrics = pogoAnalyzer.calculateMetrics([], ctx);
+
+    expect(validation.status).toBe("invalid_recording");
+    expect(validation.issues).toContain("TEST_PROTOCOL_MISMATCH");
+    expect(validation.issues).not.toContain("EVENTS_NOT_DETECTED");
+    expect(metrics).toHaveLength(0);
   });
 });
 

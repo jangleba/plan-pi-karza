@@ -53,7 +53,9 @@ export function footBottomSeries(poses: FramePose[]): number[] {
 
 /** Timestampy prezentacji klatek (sekundy). */
 export function timeSeries(poses: FramePose[]): number[] {
-  return poses.map((p) => p.presentationTimestamp);
+  return poses.map((p) =>
+    typeof p.sourceTimestampMs === "number" ? p.sourceTimestampMs / 1000 : p.presentationTimestamp,
+  );
 }
 
 /** Udział klatek z wykrytą pozą (0-1). */
