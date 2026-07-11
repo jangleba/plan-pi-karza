@@ -10,7 +10,7 @@ import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { round } from "../physics";
 import { estimateScaleFromHeight } from "../autoCalibration";
-import { groundDistanceMm } from "../homographyGeometry";
+import { measureGroundHorizontalDistance } from "../horizontalDistance";
 import {
   calcTemporalResolution,
   computeMeasurementAccuracy,
@@ -61,16 +61,9 @@ function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } 
   return null;
 }
 
-/** Piksel stopy (u,v) w danej klatce — średnia z lewej/prawej stopy. */
-function footPixel(ctx: AnalysisContext, frameIndex: number): { u: number; v: number } | null {
-  const lm = ctx.poses[frameIndex]?.landmarks;
-  if (!lm) return null;
-  const u = ((lm[31].x + lm[32].x) / 2) * ctx.metadata.width;
-  const v = ((lm[31].y + lm[32].y) / 2) * ctx.metadata.height;
-  return { u, v };
-}
 
-/** Długość skoku (cm) — homografia ma pierwszeństwo, inaczej skala/piksele. */
+
+/** Długość skoku (cm) — pomiar pięty przez homografię, inaczej skala/piksele. */
 function jumpDistanceCm(
   ev: DetectedEvent[],
   ctx: AnalysisContext,
@@ -79,21 +72,11 @@ function jumpDistanceCm(
   const landing = ev.find((e) => e.type === "landing");
   if (!takeoff || !landing) return null;
 
-  // Tryb podstawowy: rzut pikseli stóp na płaszczyznę podłoża przez homografię.
-  const H = ctx.calibration?.homography;
-  if (H) {
-    const a = footPixel(ctx, takeoff.frameIndex);
-    const b = footPixel(ctx, landing.frameIndex);
-    if (a && b) {
-      const mm = groundDistanceMm(H, a, b);
-      if (mm != null && mm > 0) {
-        const cm = round(mm / 10, 0);
-        if (cm >= 80 && cm <= 380) return { cm, viaHomography: true, confMul: 1 };
-      }
-    }
-  }
+  // Tryb oficjalny: pięta lądowania → homografia → mm → prostopadła od linii wybicia.
+  const heel = measureGroundHorizontalDistance(ctx, ev);
+  if (heel.ok) return { cm: heel.distanceCm, viaHomography: true, confMul: 1 };
 
-  // Tryb zapasowy (nieoficjalny): skala metry/piksel.
+  // Tryb zapasowy (nieoficjalny): skala metry/piksel po stopach.
   const startX = ctx.poses[takeoff.frameIndex]?.landmarks
     ? (ctx.poses[takeoff.frameIndex]!.landmarks![31].x +
         ctx.poses[takeoff.frameIndex]!.landmarks![32].x) /

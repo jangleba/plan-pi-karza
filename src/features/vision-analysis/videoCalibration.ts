@@ -33,6 +33,24 @@ export interface ImagePointPx {
   v: number;
 }
 
+/**
+ * Podpis sceny do automatycznego potwierdzenia zgodności między filmami.
+ * Kalibrację drugiego filmu można ODZIEDZICZYĆ tylko przy zgodności:
+ * markerów, tła, skali, obrotu i kadru.
+ */
+export interface SceneSignature {
+  /** Piksele markerów/punktów podłoża (posortowane deterministycznie). */
+  markerPointsPx: ImagePointPx[];
+  /** Uśredniona jasność/tekstura tła (proste sygnatury kadru). */
+  backgroundHash: string;
+  /** Skala mm/px w środku kadru. */
+  mmPerPixel: number;
+  /** Obrót kadru w stopniach (orientacja linii wybicia). */
+  rotationDeg: number;
+  /** Rozdzielczość i orientacja kadru. */
+  frameConfigHash: string;
+}
+
 /** Punkt świata leżący na płaszczyźnie podłoża (mm). */
 export interface GroundPointMm {
   x: number;
@@ -63,6 +81,12 @@ export interface CalibrationRecord {
   reprojectionErrorMm: number;
   /** Wielokąt (piksele) obejmujący ważny obszar kalibracji. */
   calibratedAreaPolygonPx: ImagePointPx[];
+  /** Linia wybicia (dwa piksele) — od niej mierzymy prostopadłą odległość lądowania. */
+  takeoffLinePx?: [ImagePointPx, ImagePointPx];
+  /** Wielokąt (piksele) możliwej strefy lądowania. */
+  landingAreaPolygonPx?: ImagePointPx[];
+  /** Podpis sceny do dziedziczenia kalibracji między filmami (markery/tło/skala/obrót/kadr). */
+  sceneSignature?: SceneSignature;
   calibrationConfidence: number;
   /** Czy homografia jest wystarczająca do wyniku oficjalnego (cm/m/prędkość). */
   spatialResultStatus: SpatialResultStatus;
@@ -259,6 +283,12 @@ export function buildCalibrationRecord(input: {
   imagePointsPx: ImagePointPx[];
   groundPointsMm: GroundPointMm[];
   maxReprojectionErrorPx?: number;
+  /** Linia wybicia (dwa piksele) — opcjonalna, wymagana dla oficjalnego Broad Jump/Hop. */
+  takeoffLinePx?: [ImagePointPx, ImagePointPx];
+  /** Strefa lądowania (piksele) — opcjonalna. */
+  landingAreaPolygonPx?: ImagePointPx[];
+  /** Podpis sceny do dziedziczenia kalibracji między filmami. */
+  sceneSignature?: SceneSignature;
   now?: string;
   calibrationId?: string;
 }):
@@ -316,6 +346,9 @@ export function buildCalibrationRecord(input: {
     reprojectionErrorPx: fit.reprojectionErrorPx,
     reprojectionErrorMm,
     calibratedAreaPolygonPx: polygon,
+    takeoffLinePx: input.takeoffLinePx,
+    landingAreaPolygonPx: input.landingAreaPolygonPx,
+    sceneSignature: input.sceneSignature,
     calibrationConfidence,
     spatialResultStatus,
     createdAt: input.now ?? new Date().toISOString(),
@@ -383,4 +416,92 @@ function localMmPerPixel(inverse: Homography, imagePointsPx: ImagePointPx[]): nu
   if (samples.length === 0) return 1;
   samples.sort((a, b) => a - b);
   return samples[Math.floor(samples.length / 2)] || 1;
+}
+
+// ---------------------------------------------------------------------------
+// DZIEDZICZENIE KALIBRACJI MIĘDZY FILMAMI (potwierdzenie zgodności sceny)
+// ---------------------------------------------------------------------------
+
+/** Wynik próby odziedziczenia kalibracji na drugi film. */
+export type CalibrationInheritance =
+  | { ok: true; reasons: string[] }
+  | { ok: false; code: "CAMERA_SETUP_CHANGED"; reasons: string[] };
+
+/**
+ * Buduje podpis sceny z rekordu kalibracji (deterministycznie).
+ * Rotacja liczona z linii wybicia (lub pierwszych dwóch punktów obrazu).
+ */
+export function sceneSignatureFromRecord(
+  record: CalibrationRecord,
+  frameConfigHash: string,
+  backgroundHash = "",
+): SceneSignature {
+  const line = record.takeoffLinePx ?? [record.imagePointsPx[0], record.imagePointsPx[1]];
+  const rotationDeg =
+    line[0] && line[1]
+      ? round((Math.atan2(line[1].v - line[0].v, line[1].u - line[0].u) * 180) / Math.PI, 2)
+      : 0;
+  const mmPerPixel = record.inverseHomographyMatrix
+    ? round(localMmPerPixel(record.inverseHomographyMatrix, record.imagePointsPx), 4)
+    : 0;
+  return {
+    markerPointsPx: [...record.imagePointsPx].sort((a, b) =>
+      a.u === b.u ? a.v - b.v : a.u - b.u,
+    ),
+    backgroundHash,
+    mmPerPixel,
+    rotationDeg,
+    frameConfigHash,
+  };
+}
+
+/**
+ * Czy kalibrację jednego filmu można ODZIEDZICZYĆ na drugi film.
+ * Wymaga potwierdzonej zgodności sceny: markery, tło, skala, obrót i kadr.
+ * Każda istotna zmiana → CAMERA_SETUP_CHANGED i nowa kalibracja.
+ */
+export function canInheritCalibration(
+  source: SceneSignature,
+  candidate: SceneSignature,
+  tolerance: {
+    markerPx?: number;
+    scaleRel?: number;
+    rotationDeg?: number;
+  } = {},
+): CalibrationInheritance {
+  const markerPx = tolerance.markerPx ?? 8;
+  const scaleRel = tolerance.scaleRel ?? 0.05;
+  const rotationDeg = tolerance.rotationDeg ?? 2;
+  const reasons: string[] = [];
+
+  if (source.frameConfigHash !== candidate.frameConfigHash)
+    reasons.push("Inny kadr (rozdzielczość/orientacja/FPS).");
+
+  if (source.backgroundHash && candidate.backgroundHash && source.backgroundHash !== candidate.backgroundHash)
+    reasons.push("Inne tło sceny.");
+
+  const scaleDenom = source.mmPerPixel || 1;
+  if (source.mmPerPixel > 0 && candidate.mmPerPixel > 0) {
+    const rel = Math.abs(candidate.mmPerPixel - source.mmPerPixel) / scaleDenom;
+    if (rel > scaleRel) reasons.push("Inna skala (mm/px).");
+  }
+
+  if (Math.abs(candidate.rotationDeg - source.rotationDeg) > rotationDeg)
+    reasons.push("Inny obrót kadru.");
+
+  const n = Math.min(source.markerPointsPx.length, candidate.markerPointsPx.length);
+  if (n < MIN_GROUND_POINTS) {
+    reasons.push("Za mało wspólnych markerów.");
+  } else {
+    let maxShift = 0;
+    for (let i = 0; i < n; i++) {
+      const a = source.markerPointsPx[i];
+      const b = candidate.markerPointsPx[i];
+      maxShift = Math.max(maxShift, Math.hypot(b.u - a.u, b.v - a.v));
+    }
+    if (maxShift > markerPx) reasons.push("Przesunięte markery sceny.");
+  }
+
+  if (reasons.length > 0) return { ok: false, code: "CAMERA_SETUP_CHANGED", reasons };
+  return { ok: true, reasons: ["Scena zgodna — kalibrację można odziedziczyć."] };
 }

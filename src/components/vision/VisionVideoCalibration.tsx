@@ -149,6 +149,10 @@ export function VisionVideoCalibration({
     const wMm = widthCm * 10;
     const hMm = heightCm * 10;
     const groundPointsMm: GroundPointMm[] = taps.map((_, i) => RECT_TEMPLATE[i].world(wMm, hMm));
+    // Linia wybicia = krawędź prostokąta o stałym x=0 (lewy bliższy → lewy dalszy róg).
+    // Strefa lądowania = cały skalibrowany prostokąt podłoża.
+    const takeoffLinePx: [ImagePointPx, ImagePointPx] = [taps[0], taps[3]];
+    const landingAreaPolygonPx: ImagePointPx[] = [taps[0], taps[1], taps[2], taps[3]];
     const res = buildCalibrationRecord({
       videoHash,
       calibrationType: mode,
@@ -156,6 +160,8 @@ export function VisionVideoCalibration({
       referenceTimestampUs: timestampUs,
       imagePointsPx: taps,
       groundPointsMm,
+      takeoffLinePx,
+      landingAreaPolygonPx,
     });
     if (!res.ok) {
       setError(res.errors.join(" "));

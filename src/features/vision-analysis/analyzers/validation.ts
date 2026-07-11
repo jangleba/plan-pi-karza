@@ -37,6 +37,12 @@ const RETAKE: Record<QualityIssueCode, string> = {
     "Nagraj z wyższym FPS (min. 120) i całkowicie nieruchomą kamerą.",
   WRONG_REPETITION_COUNT:
     "Nagraj jeden film na jedną próbę. Dla testów serii nagraj jedną pełną, prawidłową serię.",
+  CAMERA_SETUP_CHANGED:
+    "Kamera ma inne ustawienie niż kalibracja. Wykonaj nową kalibrację tego filmu.",
+  LANDING_OUT_OF_CALIBRATION_AREA:
+    "Skalibruj podłoże obejmujące pełną strefę lądowania, a następnie nagraj ponownie.",
+  HEEL_OCCLUDED:
+    "Nagraj tak, aby pięta lądowania była wyraźnie widoczna (bez zasłonięcia).",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */

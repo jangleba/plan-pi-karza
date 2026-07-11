@@ -9,6 +9,7 @@ export type TestType =
   | "drop_jump"
   | "repeated_jumps"
   | "broad_jump"
+  | "single_leg_hop"
   | "pogo_jumps"
   | "sprint_20m"
   | "sprint_30m"
@@ -50,7 +51,10 @@ export type QualityIssueCode =
   | "LINE_CROSSING_NOT_DETECTED"
   | "WRONG_CROSSING_DIRECTION"
   | "CROSSING_UNCERTAINTY_TOO_HIGH"
-  | "WRONG_REPETITION_COUNT";
+  | "WRONG_REPETITION_COUNT"
+  | "CAMERA_SETUP_CHANGED"
+  | "LANDING_OUT_OF_CALIBRATION_AREA"
+  | "HEEL_OCCLUDED";
 
 export interface VideoMetadata {
   fps: number;
@@ -153,6 +157,8 @@ export interface AnalysisContext {
   calibration: Calibration | null;
   /** Rzeczywisty wzrost zawodnika (cm) z profilu — do auto-kalibracji skali. */
   athleteHeightCm?: number | null;
+  /** Kalibracja sceny przypisana do tego filmu (linia wybicia, obszar lądowania, homografia). */
+  calibrationRecord?: import("./videoCalibration").CalibrationRecord | null;
 }
 
 export interface ValidationResult {
@@ -292,6 +298,12 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Niepewność momentu przecięcia zbyt wysoka. Nagraj z wyższym FPS i nieruchomą kamerą.",
   WRONG_REPETITION_COUNT:
     "Nagranie zawiera nieprawidłową liczbę prób lub powtórzeń dla tego protokołu. Jeden film to jedna próba (lub jedna pełna seria).",
+  CAMERA_SETUP_CHANGED:
+    "Ustawienie kamery zmieniło się względem kalibracji (markery, tło, skala, obrót lub kadr). Wykonaj nową kalibrację tego filmu.",
+  LANDING_OUT_OF_CALIBRATION_AREA:
+    "Lądowanie znajduje się poza skalibrowanym obszarem podłoża. Rozszerz kalibrację o strefę lądowania.",
+  HEEL_OCCLUDED:
+    "Pięta lądowania jest zasłonięta lub niewidoczna. Nagraj tak, aby pięta była wyraźnie widoczna w kadrze.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */

@@ -101,6 +101,16 @@ const SINGLE_MAX: AttemptProtocol = {
 };
 
 /** Protokół serii reaktywnej: jedna pełna prawidłowa seria (druga po unieważnieniu). */
+/** Protokół bilateralny: 2 prawidłowe próby na stronę, najlepszy wynik strony + asymetria. */
+const BILATERAL: AttemptProtocol = {
+  kind: "BILATERAL_BEST_PER_SIDE",
+  requiredValidAttempts: 2,
+  maxAttempts: 3,
+  bilateral: true,
+  replacementOnInvalidOnly: true,
+  videoRepresents: "attempt",
+};
+
 const SERIES: AttemptProtocol = {
   kind: "REPEATED_CONTACT_SERIES",
   requiredValidAttempts: 1,
@@ -233,6 +243,28 @@ export const TEST_PROTOCOL_REGISTRY: Record<TestType, TestProtocol> = {
       maxRelativeUncertainty: 0.05,
     },
     algorithmVersion: algo("broad_jump"),
+    protocolVersion: PROTOCOL_VERSION,
+  },
+  single_leg_hop: {
+    testType: "single_leg_hop",
+    measurementFamily: "GROUND_DISTANCE",
+    requiredCalibration: "video_homography",
+    requiredLines: 0,
+    preferredFps: 120,
+    minimumFps: 60,
+    requiredCameraSetup: "side",
+    requiredEvents: ["takeoff", "landing"],
+    forbiddenEvents: ["ground_contact"],
+    attemptProtocol: BILATERAL,
+    resultSelection: "best_per_side",
+    officialResultRequirements: {
+      requiresCalibration: true,
+      requiresTimingLines: false,
+      requiresProtocolMatch: true,
+      minValidAttempts: 2,
+      maxRelativeUncertainty: 0.05,
+    },
+    algorithmVersion: algo("single_leg_hop"),
     protocolVersion: PROTOCOL_VERSION,
   },
   pogo_jumps: {
