@@ -101,6 +101,16 @@ const SINGLE_MAX: AttemptProtocol = {
 };
 
 /** Protokół serii reaktywnej: jedna pełna prawidłowa seria (druga po unieważnieniu). */
+/** Protokół bilateralny: 2 prawidłowe próby na stronę, najlepszy wynik strony + asymetria. */
+const BILATERAL: AttemptProtocol = {
+  kind: "BILATERAL_BEST_PER_SIDE",
+  requiredValidAttempts: 2,
+  maxAttempts: 3,
+  bilateral: true,
+  replacementOnInvalidOnly: true,
+  videoRepresents: "attempt",
+};
+
 const SERIES: AttemptProtocol = {
   kind: "REPEATED_CONTACT_SERIES",
   requiredValidAttempts: 1,
