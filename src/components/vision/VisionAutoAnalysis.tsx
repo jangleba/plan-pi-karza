@@ -156,6 +156,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           zoom: 1,
           facing: "back",
           cameraStable: true,
+          videoHash: videoHashRef.current || null,
+          calibrationRecord: calibrationRecordRef.current,
+          techniqueOnly: techniqueOnlyRef.current,
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);
