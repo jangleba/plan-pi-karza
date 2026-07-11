@@ -176,8 +176,6 @@ describe("Vertical/Reactive families — acceptance", () => {
     const rec = recognizeTestProtocol("pogo_jumps", poses);
     expect(rec.protocolMatch).toBe(true);
     const ctx = ctxOf("pogo_jumps", poses, 240);
-    const ev = pogoPoses().length ? [] : [];
-    void ev;
     const events = detectContacts(ctx);
     const m = pogoAnalyzer.calculateMetrics(events, ctx);
     expect(m.find((x) => x.key === "rsi")).toBeDefined();
