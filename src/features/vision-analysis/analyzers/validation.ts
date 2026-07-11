@@ -25,6 +25,16 @@ const RETAKE: Record<QualityIssueCode, string> = {
     "Wykonaj kalibrację dla tej konfiguracji telefonu (aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom).",
   CALIBRATION_CAMERA_MOVED:
     "Kamera poruszyła się po kalibracji. Ustaw telefon nieruchomo i nagraj ponownie ten sam kadr.",
+  TIMING_LINE_NOT_CALIBRATED:
+    "Skalibruj linię pomiaru czasu na podłożu (Timing Plane) dla tej konfiguracji kamery.",
+  TIMING_PLANE_CALIBRATION_FAILED:
+    "Płaszczyzna pomiarowa jest niepoprawna. Powtórz kalibrację z widoczną linią na podłożu.",
+  LINE_CROSSING_NOT_DETECTED:
+    "Nagraj tak, aby zawodnik wyraźnie przekroczył całą linię startu i mety w kadrze.",
+  WRONG_CROSSING_DIRECTION:
+    "Ustaw kamerę i wykonaj test zgodnie z kierunkiem protokołu.",
+  CROSSING_UNCERTAINTY_TOO_HIGH:
+    "Nagraj z wyższym FPS (min. 120) i całkowicie nieruchomą kamerą.",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */
