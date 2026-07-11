@@ -207,6 +207,18 @@ export interface VideoAnalysisResult {
   analyzerVersion: string;
   /** Warstwa rzetelności pomiaru: poziom jakości, niepewność, powtarzalność. */
   measurement?: import("./measurementAccuracy").MeasurementAccuracy;
+  /** Podsumowanie kalibracji użytej w tym wyniku (debug + UI zaufania). */
+  calibration?: {
+    /** Czy adapter przestrzenny rzeczywiście użył homografii profilu. */
+    usedHomography: boolean;
+    profileId: string | null;
+    calibrationHash: string | null;
+    reprojectionErrorPx: number | null;
+    mismatchCode: QualityIssueCode | null;
+    cameraMoved: boolean;
+    /** Homografia world→image (do panelu debug). */
+    homography: number[] | null;
+  };
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
