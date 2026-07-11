@@ -53,6 +53,16 @@ const RETAKE: Record<QualityIssueCode, string> = {
     "Ustaw kamerę prostopadle do osi ruchu — obecna geometria uniemożliwia pomiar czasu.",
   DISTANCE_UNKNOWN:
     "Podaj dystans protokołu lub skalibruj linie o znanej odległości na podłożu.",
+  TIMING_LINES_REQUIRED:
+    "Skalibruj linie/strefy COD (TIMING_A + linia zwrotu lub CENTER + TURN_LEFT + TURN_RIGHT).",
+  TURN_NOT_DETECTED:
+    "Wykonaj pełny zwrot o 180°. Zwykły bieg bez zwrotu nie jest testem COD.",
+  TURN_LINE_NOT_REACHED:
+    "Dobiegnij stopą do linii/strefy zwrotu przed zawróceniem i nagraj ponownie.",
+  WRONG_LINE_SEQUENCE:
+    "Wykonaj test w prawidłowej kolejności linii (środek → zwrot → środek → zwrot → środek).",
+  WRONG_TURNING_SIDE:
+    "Wykonaj zwrot na wskazaną nogę (osobne próby dla lewej i prawej strony).",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */
