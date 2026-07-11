@@ -20,7 +20,7 @@ import type { FramePose, QualityIssueCode } from "./types";
 import type { TestType } from "./types";
 import type { MeasurementFamily, TestFamily } from "./testProtocols";
 import { getTestProtocol } from "./testProtocols";
-import { detectFlightPhase, detectGroundContacts } from "./analyzers/jumpDetection";
+import { detectFlightPhase, detectGroundContacts, detectDropJumpPhases } from "./analyzers/jumpDetection";
 import { hipXSeries } from "./poseSeries";
 
 export type MovementSignature =
