@@ -61,6 +61,76 @@ export function calibrationKey(parts: CalibrationKeyParts): string {
   return `${device}|${parts.lens}|${parts.orientation}|${fps}fps|${zoom}x`;
 }
 
+/** Wynik dopasowania profilu do bieżącego nagrania. */
+export interface CalibrationMatch {
+  profile: CalibrationProfile;
+  /** Czy profil pasuje dokładnie (to samo urządzenie, obiektyw, orientacja, FPS, zoom). */
+  exact: boolean;
+  /** Trafność dopasowania 0-1 (1 = dokładne). */
+  score: number;
+  /** Czytelne powody obniżenia trafności (PL). */
+  reasons: string[];
+}
+
+/**
+ * Wybiera najtrafniejszy profil kalibracji dla bieżącego nagrania.
+ *
+ * Twarde wymagania (inaczej profil jest niewiarygodny geometrycznie):
+ *  - to samo urządzenie,
+ *  - ten sam obiektyw,
+ *  - ta sama orientacja.
+ *
+ * Miękkie: FPS i zoom — różnice obniżają trafność, bo mogą zmieniać kadr/skalę
+ * (np. tryb 240 FPS bywa przycięty). Zwraca null, gdy nie ma wiarygodnego profilu.
+ */
+export function matchCalibrationProfile(
+  profiles: CalibrationProfile[],
+  parts: CalibrationKeyParts,
+): CalibrationMatch | null {
+  const targetDevice = normalizeSegment(parts.deviceId);
+  const targetZoom = round(parts.zoom > 0 ? parts.zoom : 1, 1);
+  const targetFps = Math.round(parts.fps);
+
+  const candidates = profiles.filter(
+    (p) =>
+      normalizeSegment(p.parts.deviceId) === targetDevice &&
+      p.parts.lens === parts.lens &&
+      p.parts.orientation === parts.orientation,
+  );
+  if (candidates.length === 0) return null;
+
+  let best: CalibrationMatch | null = null;
+  for (const profile of candidates) {
+    const reasons: string[] = [];
+    const fpsMatch = Math.round(profile.parts.fps) === targetFps;
+    const zoomDiff = Math.abs(round(profile.parts.zoom, 1) - targetZoom);
+    const zoomMatch = zoomDiff < 0.05;
+
+    let score = 1;
+    if (!fpsMatch) {
+      score *= 0.85;
+      reasons.push(`FPS profilu ${profile.parts.fps} ≠ nagrania ${targetFps}`);
+    }
+    if (!zoomMatch) {
+      score *= Math.max(0.3, 1 - zoomDiff * 0.4);
+      reasons.push(`Zoom profilu ${round(profile.parts.zoom, 1)}x ≠ nagrania ${targetZoom}x`);
+    }
+
+    const exact = fpsMatch && zoomMatch;
+    const match: CalibrationMatch = { profile, exact, score: round(score, 3), reasons };
+
+    if (
+      !best ||
+      match.score > best.score ||
+      (match.score === best.score && match.exact && !best.exact) ||
+      (match.score === best.score && match.profile.createdAt > best.profile.createdAt)
+    ) {
+      best = match;
+    }
+  }
+  return best;
+}
+
 function normalizeSegment(v: string): string {
   return (v || "unknown")
     .toLowerCase()
