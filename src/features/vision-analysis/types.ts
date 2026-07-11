@@ -118,6 +118,12 @@ export interface CalculatedMetric {
   value: number;
   unit: string;
   confidence: number;
+  /** Bezwzględna niepewność pomiaru w tej samej jednostce co value (±). */
+  uncertainty?: number;
+  /** Liczba miejsc po przecinku dopasowana do niepewności. */
+  displayPrecision?: number;
+  /** Sformatowany wynik z niepewnością, np. "35.9 ± 0.8". */
+  display?: string;
 }
 
 export interface ConfidenceResult {
