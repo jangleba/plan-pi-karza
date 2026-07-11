@@ -43,6 +43,16 @@ const RETAKE: Record<QualityIssueCode, string> = {
     "Skalibruj podłoże obejmujące pełną strefę lądowania, a następnie nagraj ponownie.",
   HEEL_OCCLUDED:
     "Nagraj tak, aby pięta lądowania była wyraźnie widoczna (bez zasłonięcia).",
+  MISSING_TIMING_LINE:
+    "Skalibruj wymagane linie pomiaru czasu (START/FINISH lub TIMING_A/TIMING_B) na podłożu.",
+  ATHLETE_TOO_SMALL:
+    "Nagraj z bliższej odległości — sylwetka jest zbyt mała, by wiarygodnie zmierzyć przecięcie.",
+  TORSO_OCCLUDED:
+    "Zapewnij widoczność tułowia w momencie przecięcia linii (bez zasłonięcia).",
+  INVALID_CAMERA_GEOMETRY:
+    "Ustaw kamerę prostopadle do osi ruchu — obecna geometria uniemożliwia pomiar czasu.",
+  DISTANCE_UNKNOWN:
+    "Podaj dystans protokołu lub skalibruj linie o znanej odległości na podłożu.",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */

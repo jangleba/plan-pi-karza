@@ -145,11 +145,20 @@ export interface Calibration {
   timingLines?: TimingLineSpec[];
 }
 
+/** Rola linii pomiaru czasu w protokole. */
+export type TimingLineRole = "START" | "FINISH" | "TIMING_A" | "TIMING_B";
+
 /** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
 export interface TimingLineSpec {
   id: string;
-  /** Położenie linii wzdłuż osi ruchu w świecie (mm). */
-  worldXmm: number;
+  /** Rola linii w protokole pomiaru (START/FINISH/TIMING_A/TIMING_B). */
+  role?: TimingLineRole;
+  /** Położenie linii wzdłuż osi ruchu w świecie (mm) — legacy / pojedyncza oś. */
+  worldXmm?: number;
+  /** Pierwszy punkt linii na podłożu (mm) — definiuje płaszczyznę pomiarową. */
+  groundStartPointMm?: { x: number; y: number };
+  /** Drugi punkt linii na podłożu (mm). */
+  groundEndPointMm?: { x: number; y: number };
   /** Oczekiwany kierunek przecięcia względem osi ruchu. */
   direction?: "forward" | "backward" | "any";
 }
