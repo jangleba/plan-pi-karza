@@ -422,7 +422,7 @@ export function computeMeasurementAccuracy(input: AccuracyEngineInput): Measurem
 
 /** Czytelne etykiety poziomów jakości (PL) do UI zawodnika. */
 export const QUALITY_TIER_LABELS: Record<QualityTier, string> = {
-  LAB_GRADE: "Jakość laboratoryjna (zwalidowana)",
+  LAB_GRADE: "Wysoka jakość (wymaga walidacji referencyjnej)",
   HIGH_ACCURACY: "Wysoka jakość pomiaru",
   STANDARD_ESTIMATE: "Estymacja na podstawie filmu",
   INSUFFICIENT_QUALITY: "Niewystarczająca jakość pomiaru",

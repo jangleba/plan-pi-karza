@@ -284,6 +284,17 @@ export interface VideoAnalysisResult {
   qualityIssues: string[];
   retakeInstructions: string[];
   analyzerVersion: string;
+  /** Liczba klatek zdekodowanych z filmu (rzeczywiste, nie deklarowane). */
+  decodedFrames?: number;
+  /** Liczba klatek, w których faktycznie wykryto sylwetkę i analizowano pozę. */
+  analyzedFrames?: number;
+  /** Podsumowanie rozpoznania protokołu (gate przed adapterem). */
+  recognition?: {
+    selectedTestType: TestType;
+    detectedSignature: string;
+    detectedTestConfidence: number;
+    protocolMatch: boolean;
+  };
   /** Warstwa rzetelności pomiaru: poziom jakości, niepewność, powtarzalność. */
   measurement?: import("./measurementAccuracy").MeasurementAccuracy;
   /** Podsumowanie kalibracji użytej w tym wyniku (debug + UI zaufania). */

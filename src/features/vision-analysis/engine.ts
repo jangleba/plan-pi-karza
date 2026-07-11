@@ -78,6 +78,21 @@ export {
 // --- EvidenceReportBuilder ---
 export { buildEvidenceReport, type EvidenceReport, type EvidenceMetric } from "./evidenceReportBuilder";
 
+// --- UnifiedReportBuilder (jeden format raportu dla wszystkich testów) ---
+export {
+  buildUnifiedReport,
+  RESULT_STATUS_LABELS,
+  UNIFIED_QUALITY_TIER_LABELS,
+  type UnifiedVisionReport,
+  type ResultStatus,
+  type UnifiedQualityTier,
+  type ReportMetric,
+  type HowMeasuredStep,
+  type ReportAttempt,
+} from "./unifiedReport";
+
+
+
 // --- BrakingEngine (Sprint-to-Stop / DECELERATION) ---
 export {
   detectBraking,
