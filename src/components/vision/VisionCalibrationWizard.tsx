@@ -9,6 +9,7 @@ import {
   LENS_LABELS,
   ORIENTATION_LABELS,
   MAX_PROFILE_REPROJECTION_ERROR_PX,
+  CALIBRATION_VERSION,
   type CalibrationProfile,
   type CaptureOrientation,
   type CorrespondencePoint,
