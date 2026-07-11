@@ -5,19 +5,29 @@ import type {
   CalculatedMetric,
   ConfidenceResult,
   ValidationResult,
+  QualityIssueCode,
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
-import { hipXSeries, timeSeries } from "../poseSeries";
-import { movingAverage, interpolateShortGaps, derivative, argMax, argMin } from "../signal";
 import { round } from "../physics";
 import { temporalAccuracy } from "./temporalAccuracy";
 import { SPRINT_FPS_POLICY, JUMP_FPS_POLICY } from "../measurementAccuracy";
+import { vlog } from "../devLog";
+import {
+  detectCalibratedCrossings,
+  elapsedSeconds,
+  type LineCrossing,
+  type CrossingResult,
+} from "../calibratedLineCrossing";
 
 /**
- * COD / Braking (5-10-5, Sprint to Stop). Wykrywa ruszenie, szczyt prędkości,
- * początek hamowania i zatrzymanie z poziomej prędkości bioder. Wszystkie
- * metryki są CZASOWE (nie wymagają kalibracji przestrzeni), więc zawodnik
- * dostaje gotowy wynik automatycznie — bez czekania na trenera.
+ * COD / Braking (5-10-5, Sprint-to-Stop).
+ *
+ * Czas mierzony jest WYŁĄCZNIE przez CalibratedLineCrossingEngine na
+ * skalibrowanych liniach pomiaru czasu (Timing Plane). Stary pomiar oparty na
+ * nieskalibrowanej prędkości bioder został usunięty.
+ *
+ * Bez ściśle zgodnej kalibracji, widocznej linii i poprawnej geometrii kamery
+ * test jest BLOKOWANY.
  */
 function makeCod(
   testType: "five_ten_five" | "sprint_to_stop",
@@ -25,117 +35,78 @@ function makeCod(
 ): TestAnalyzer {
   const MIN_FPS = testType === "sprint_to_stop" ? 120 : 60;
 
-  function events(ctx: AnalysisContext): DetectedEvent[] {
-    const t = timeSeries(ctx.poses);
-    const x = movingAverage(interpolateShortGaps(hipXSeries(ctx.poses)), 5);
-    const vel = derivative(x, t).map(Math.abs);
-    if (vel.filter((v) => Number.isFinite(v)).length < 8) return [];
-    const vSmooth = movingAverage(vel, 5);
-
-    const peakIdx = argMax(vSmooth); // maksymalna prędkość (przed hamowaniem)
-    if (peakIdx < 0) return [];
-    // Zatrzymanie = minimum prędkości po szczycie.
-    const after = vSmooth.slice(peakIdx);
-    const stopRel = argMin(after);
-    const stopIdx = peakIdx + (stopRel < 0 ? 0 : stopRel);
-    if (stopIdx <= peakIdx) return [];
-
-    const peakV = vSmooth[peakIdx];
-    // Ruszenie = pierwsza klatka, w której prędkość przekracza 20% szczytu.
-    let startIdx = 0;
-    for (let i = 0; i <= peakIdx; i++) {
-      if (Number.isFinite(vSmooth[i]) && vSmooth[i] >= peakV * 0.2) {
-        startIdx = i;
-        break;
-      }
-    }
-
-    // Początek hamowania = gdy prędkość spada poniżej 60% szczytu po szczycie.
-    let brakeIdx = peakIdx;
-    for (let i = peakIdx; i <= stopIdx; i++) {
-      if (vSmooth[i] < peakV * 0.6) {
-        brakeIdx = i;
-        break;
-      }
-    }
-
-    const CONF = 0.78;
-    return [
-      {
-        type: "movement_start",
-        frameIndex: startIdx,
-        timestampSeconds: t[startIdx] ?? 0,
-        confidence: CONF,
-      },
-      { type: "peak_speed", frameIndex: peakIdx, timestampSeconds: t[peakIdx] ?? 0, confidence: CONF },
-      {
-        type: "braking_start",
-        frameIndex: brakeIdx,
-        timestampSeconds: t[brakeIdx] ?? 0,
-        confidence: CONF,
-      },
-      { type: "stop", frameIndex: stopIdx, timestampSeconds: t[stopIdx] ?? 0, confidence: CONF },
-    ];
+  function runEngine(ctx: AnalysisContext): CrossingResult {
+    return detectCalibratedCrossings({
+      poses: ctx.poses,
+      homography: ctx.calibration?.homography ?? null,
+      timingLines: ctx.calibration?.timingLines,
+      width: ctx.metadata.width,
+      height: ctx.metadata.height,
+      cameraStable: ctx.calibration?.cameraMoved ? false : true,
+    });
   }
 
-  function metrics(ev: DetectedEvent[]): CalculatedMetric[] {
-    const start = ev.find((e) => e.type === "movement_start");
-    const brake = ev.find((e) => e.type === "braking_start");
-    const stop = ev.find((e) => e.type === "stop");
-    if (!brake || !stop) return [];
-    const out: CalculatedMetric[] = [];
+  function ordered(crossings: LineCrossing[]): LineCrossing[] {
+    return [...crossings].sort((a, b) => a.crossingTimestampUs - b.crossingTimestampUs);
+  }
 
-    if (start) {
-      const totalTime = stop.timestampSeconds - start.timestampSeconds;
-      if (totalTime > 0 && totalTime <= 20) {
-        out.push({
-          key: "total_time_s",
-          label: "Czas całkowity",
-          value: round(totalTime, 2),
-          unit: "s",
-          confidence: 0.78,
-        });
-      }
-    }
+  function events(ctx: AnalysisContext): DetectedEvent[] {
+    const res = runEngine(ctx);
+    vlog(`${testType} line_crossing`, res.ok ? "OK" : res.code, res.debug);
+    if (!res.ok || res.crossings.length < 2) return [];
+    const seq = ordered(res.crossings);
+    const conf = 0.88;
+    return seq.map((c, i) => ({
+      type: i === 0 ? "movement_start" : i === seq.length - 1 ? "stop" : "line_crossing",
+      frameIndex: c.frameAfterIndex,
+      timestampSeconds: c.crossingTimestampUs / 1_000_000,
+      confidence: conf,
+    }));
+  }
 
-    const brakingTime = stop.timestampSeconds - brake.timestampSeconds;
-    if (brakingTime > 0 && brakingTime <= 3) {
-      out.push({
-        key: "braking_time_s",
-        label: "Czas hamowania",
-        value: round(brakingTime, 2),
-        unit: "s",
-        confidence: 0.78,
-      });
-    }
-    return out;
+  function metrics(_ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
+    const res = runEngine(ctx);
+    if (!res.ok || res.crossings.length < 2) return [];
+    const seq = ordered(res.crossings);
+    const total = elapsedSeconds(seq[0], seq[seq.length - 1]);
+    if (!(total > 0 && total <= 20)) return [];
+    return [
+      { key: "total_time_s", label: "Czas całkowity", value: round(total, 2), unit: "s", confidence: 0.88 },
+    ];
   }
 
   function confidence(ev: DetectedEvent[]): ConfidenceResult {
     const perEvent = ev.map((e) => e.confidence);
-    const overall = ev.length >= 3 ? Math.min(...perEvent) : 0;
+    const overall = ev.length >= 2 ? Math.min(...perEvent) : 0;
     return { overall: round(overall, 2), perEvent };
   }
 
   function validate(ctx: AnalysisContext): ValidationResult {
     const { issues } = baseValidation(ctx, MIN_FPS);
-    if (events(ctx).length < 3) issues.push("EVENTS_NOT_DETECTED");
-    return buildValidation(issues, [
+    const res = runEngine(ctx);
+    if (!res.ok) issues.push(res.code as QualityIssueCode);
+    const hardFail: QualityIssueCode[] = [
       "POSE_NOT_DETECTED",
       "MULTIPLE_PEOPLE",
-      "EVENTS_NOT_DETECTED",
-    ]);
+      "TIMING_LINE_NOT_CALIBRATED",
+      "TIMING_PLANE_CALIBRATION_FAILED",
+      "LINE_CROSSING_NOT_DETECTED",
+      "WRONG_CROSSING_DIRECTION",
+      "CROSSING_UNCERTAINTY_TOO_HIGH",
+      "CALIBRATION_CAMERA_MOVED",
+    ];
+    return buildValidation(issues, hardFail);
   }
 
   return {
     testType,
-    analyzerVersion: `${testType}-2.0.0`,
+    analyzerVersion: `${testType}-3.0.0`,
     requiredCameraSetup: camera,
     minimumFps: MIN_FPS,
-    requiresCalibration: false,
+    requiresCalibration: true,
     validateRecording: validate,
     detectKeyEvents: async (ctx) => events(ctx),
-    calculateMetrics: (ev) => metrics(ev),
+    calculateMetrics: (ev, ctx) => metrics(ev, ctx),
     calculateConfidence: (ev) => confidence(ev),
     computeAccuracy: (ev, mtx, ctx) =>
       temporalAccuracy({

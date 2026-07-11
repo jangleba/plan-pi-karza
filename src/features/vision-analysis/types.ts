@@ -33,7 +33,12 @@ export type QualityIssueCode =
   | "LOW_RESOLUTION"
   | "POSE_NOT_DETECTED"
   | "CALIBRATION_PROFILE_MISMATCH"
-  | "CALIBRATION_CAMERA_MOVED";
+  | "CALIBRATION_CAMERA_MOVED"
+  | "TIMING_LINE_NOT_CALIBRATED"
+  | "TIMING_PLANE_CALIBRATION_FAILED"
+  | "LINE_CROSSING_NOT_DETECTED"
+  | "WRONG_CROSSING_DIRECTION"
+  | "CROSSING_UNCERTAINTY_TOO_HIGH";
 
 export interface VideoMetadata {
   fps: number;
@@ -109,6 +114,22 @@ export interface Calibration {
   mismatchCode?: "CALIBRATION_PROFILE_MISMATCH" | "CALIBRATION_CAMERA_MOVED";
   /** Czy wykryto ruch kamery po kalibracji. */
   cameraMoved?: boolean;
+  /**
+   * Skalibrowane linie pomiaru czasu (Timing Plane) leżące na podłożu.
+   * Każda linia jest zdefiniowana współrzędną świata worldXmm (mm) i przez
+   * homografię rzutowana na obraz. Punkt tułowia NIGDY nie jest rzutowany przez
+   * homografię — porównywany jest jego piksel z rzutem linii podłoża.
+   */
+  timingLines?: TimingLineSpec[];
+}
+
+/** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
+export interface TimingLineSpec {
+  id: string;
+  /** Położenie linii wzdłuż osi ruchu w świecie (mm). */
+  worldXmm: number;
+  /** Oczekiwany kierunek przecięcia względem osi ruchu. */
+  direction?: "forward" | "backward" | "any";
 }
 
 
@@ -247,6 +268,16 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Brak profilu kalibracji dokładnie zgodnego z tym nagraniem (urządzenie, aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom). Wykonaj kalibrację dla tej konfiguracji.",
   CALIBRATION_CAMERA_MOVED:
     "Kamera poruszyła się po kalibracji — profil został unieważniony dla tego nagrania. Ustaw telefon nieruchomo i nagraj ponownie.",
+  TIMING_LINE_NOT_CALIBRATED:
+    "Brak skalibrowanej linii pomiaru czasu (Timing Plane). Wykonaj kalibrację z widoczną linią startu/mety na podłożu.",
+  TIMING_PLANE_CALIBRATION_FAILED:
+    "Nie udało się zbudować płaszczyzny pomiarowej z kalibracji (homografia nieodwracalna lub linia poza kadrem).",
+  LINE_CROSSING_NOT_DETECTED:
+    "Nie wykryto przecięcia linii pomiaru czasu. Upewnij się, że zawodnik przekracza całą linię w kadrze.",
+  WRONG_CROSSING_DIRECTION:
+    "Zawodnik przekroczył linię w niewłaściwym kierunku względem protokołu testu.",
+  CROSSING_UNCERTAINTY_TOO_HIGH:
+    "Niepewność momentu przecięcia zbyt wysoka. Nagraj z wyższym FPS i nieruchomą kamerą.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
