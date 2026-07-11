@@ -296,6 +296,49 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )}
         {state.kind === "running" && <RunningView phase={phase} progress={progress} />}
 
+        {state.kind === "calibration_required" && (
+          <CalibrationRequiredView
+            test={test}
+            analysis={state.analysis}
+            onCalibrate={() => setState({ kind: "calibrating", analysis: state.analysis })}
+            onTechniqueOnly={() => {
+              techniqueOnlyRef.current = true;
+              void runAnalysis();
+            }}
+          />
+        )}
+
+        {state.kind === "calibrating" && previewSrc && (
+          <VisionVideoCalibration
+            videoSrc={previewSrc}
+            videoHash={videoHashRef.current}
+            fps={flow.fps || test.recommendedFps || 30}
+            onSaved={(record) => {
+              calibrationRecordRef.current = record;
+              techniqueOnlyRef.current = false;
+              void runAnalysis();
+            }}
+            onCancel={() =>
+              setState((s) =>
+                s.kind === "calibrating"
+                  ? { kind: "calibration_required", analysis: s.analysis }
+                  : s,
+              )
+            }
+          />
+        )}
+
+        {state.kind === "technique_only" && (
+          <TechniqueOnlyView
+            test={test}
+            analysis={state.analysis}
+            onCalibrate={() => setState({ kind: "calibrating", analysis: state.analysis })}
+            onRetake={() =>
+              navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } })
+            }
+          />
+        )}
+
         {state.kind === "invalid" && (
           <InvalidView
             analysis={state.analysis}
