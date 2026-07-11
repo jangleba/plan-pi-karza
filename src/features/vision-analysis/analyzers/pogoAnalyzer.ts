@@ -100,4 +100,12 @@ export const pogoAnalyzer: TestAnalyzer = {
   detectKeyEvents: async (ctx) => events(ctx),
   calculateMetrics: (ev, ctx) => metrics(ev, ctx),
   calculateConfidence: (ev) => confidence(ev),
+  computeAccuracy: (ev, mtx, ctx) =>
+    temporalAccuracy({
+      ev,
+      metrics: mtx,
+      ctx,
+      fpsPolicy: JUMP_FPS_POLICY,
+      timeKey: "ground_contact_s",
+    }),
 };
