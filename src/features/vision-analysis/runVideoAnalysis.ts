@@ -58,6 +58,12 @@ export interface RunOptions {
   facing?: "front" | "back" | null;
   /** Czy kamera pozostała nieruchoma po kalibracji (walidacja kadru). */
   cameraStable?: boolean | null;
+  /** Hash filmu (kalibracja sceny jest powiązana z konkretnym nagraniem). */
+  videoHash?: string | null;
+  /** Kalibracja sceny przypisana do tego filmu (per-video, ma pierwszeństwo). */
+  calibrationRecord?: import("./videoCalibration").CalibrationRecord | null;
+  /** Analiza wyłącznie techniki (bez wyniku przestrzennego cm/m/prędkości). */
+  techniqueOnly?: boolean;
   abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void; // 0-1, oparte na przetworzonych klatkach
