@@ -122,7 +122,16 @@ export function VisionCalibrationWizard() {
   function save() {
     if (!fit) return;
     const profile = buildCalibrationProfile({
-      parts: { deviceId: device.deviceId, lens, orientation, fps, zoom },
+      parts: {
+        deviceId: device.deviceId,
+        lens,
+        orientation,
+        fps,
+        zoom,
+        facing,
+        resolution,
+        calibrationVersion: CALIBRATION_VERSION,
+      },
       deviceLabel,
       fit,
       worldWidthMm: widthCm * 10,
