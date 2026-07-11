@@ -114,6 +114,22 @@ export interface Calibration {
   mismatchCode?: "CALIBRATION_PROFILE_MISMATCH" | "CALIBRATION_CAMERA_MOVED";
   /** Czy wykryto ruch kamery po kalibracji. */
   cameraMoved?: boolean;
+  /**
+   * Skalibrowane linie pomiaru czasu (Timing Plane) leżące na podłożu.
+   * Każda linia jest zdefiniowana współrzędną świata worldXmm (mm) i przez
+   * homografię rzutowana na obraz. Punkt tułowia NIGDY nie jest rzutowany przez
+   * homografię — porównywany jest jego piksel z rzutem linii podłoża.
+   */
+  timingLines?: TimingLineSpec[];
+}
+
+/** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
+export interface TimingLineSpec {
+  id: string;
+  /** Położenie linii wzdłuż osi ruchu w świecie (mm). */
+  worldXmm: number;
+  /** Oczekiwany kierunek przecięcia względem osi ruchu. */
+  direction?: "forward" | "backward" | "any";
 }
 
 
