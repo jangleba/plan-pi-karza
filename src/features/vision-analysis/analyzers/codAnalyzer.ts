@@ -291,7 +291,7 @@ function makeSprintToStop(): TestAnalyzer {
         metrics: mtx,
         ctx,
         fpsPolicy: SPRINT_FPS_POLICY,
-        timeKey: "total_time_s",
+        timeKey: "braking_time_s",
       }),
   };
 }
