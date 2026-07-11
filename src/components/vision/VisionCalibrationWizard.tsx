@@ -181,11 +181,25 @@ export function VisionCalibrationWizard() {
                 onSelect={setLens}
               />
               <ChipRow
+                title="Aparat"
+                options={["back", "front"] as const}
+                value={facing}
+                label={(o) => (o === "back" ? "Tylny" : "Przedni")}
+                onSelect={setFacing}
+              />
+              <ChipRow
                 title="Orientacja"
                 options={ORIENTATION_OPTIONS}
                 value={orientation}
                 label={(o) => ORIENTATION_LABELS[o]}
                 onSelect={setOrientation}
+              />
+              <ChipRow
+                title="Rozdzielczość nagrania"
+                options={RESOLUTION_OPTIONS}
+                value={resolution}
+                label={(o) => o}
+                onSelect={setResolution}
               />
               <ChipRow
                 title="FPS nagrania"
