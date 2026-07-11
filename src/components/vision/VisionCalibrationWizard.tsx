@@ -341,20 +341,44 @@ export function VisionCalibrationWizard() {
             {profiles.map((p) => (
               <div key={p.key} className="soft-card flex items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-foreground">{p.deviceLabel}</div>
-                  <div className="truncate font-mono text-[11px] text-muted-foreground">{p.key}</div>
+                  <div className="truncate text-sm font-medium text-foreground">
+                    {p.deviceLabel}
+                  </div>
                   <div className="text-[11px] text-muted-foreground">
-                    reproj {p.reprojectionErrorPx}px · {p.mmPerPixel} mm/px
+                    {p.parts.facing === "front" ? "Przedni" : "Tylny"} ·{" "}
+                    {LENS_LABELS[p.parts.lens]} · {ORIENTATION_LABELS[p.parts.orientation]} ·{" "}
+                    {p.parts.resolution ?? "any"} · {p.parts.fps} FPS · {p.parts.zoom}x
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Jakość:{" "}
+                    {p.reprojectionErrorPx <= 1
+                      ? "bardzo dobra"
+                      : p.reprojectionErrorPx <= MAX_PROFILE_REPROJECTION_ERROR_PX
+                        ? "dobra"
+                        : "niska"}{" "}
+                    · reproj {p.reprojectionErrorPx}px · {p.mmPerPixel} mm/px
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Kalibrowano: {new Date(p.createdAt).toLocaleDateString("pl-PL")}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeProfile(p.key)}
-                  className="shrink-0 text-muted-foreground"
-                  aria-label="Usuń profil"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep("device")}
+                    className="text-[11px] font-medium text-primary"
+                  >
+                    Kalibruj ponownie
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeProfile(p.key)}
+                    className="text-muted-foreground"
+                    aria-label="Usuń profil"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
