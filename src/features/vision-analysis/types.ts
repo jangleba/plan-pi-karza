@@ -169,6 +169,8 @@ export interface VideoAnalysisResult {
   qualityIssues: string[];
   retakeInstructions: string[];
   analyzerVersion: string;
+  /** Warstwa rzetelności pomiaru: poziom jakości, niepewność, powtarzalność. */
+  measurement?: import("./measurementAccuracy").MeasurementAccuracy;
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
