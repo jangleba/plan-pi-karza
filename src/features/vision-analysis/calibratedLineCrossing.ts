@@ -333,3 +333,36 @@ export function elapsedSeconds(a: LineCrossing, b: LineCrossing): number {
 export function elapsedUncertaintyMs(a: LineCrossing, b: LineCrossing): number {
   return round(Math.hypot(a.crossingUncertaintyMs, b.crossingUncertaintyMs), 3);
 }
+
+// ---------------------------------------------------------------------------
+// Prymitywy współdzielone z silnikiem COD (codEngine). Ta sama, deterministyczna
+// matematyka pozy — bez duplikowania logiki geometrii.
+// ---------------------------------------------------------------------------
+
+/** Źródłowy timestamp klatki (µs) — pełna precyzja, deterministyczny. */
+export function frameSourceTimestampUs(p: FramePose): number | null {
+  return sourceUs(p);
+}
+
+/** Stały punkt referencyjny tułowia (piksel) — środek ramion i bioder. */
+export function torsoReferencePixel(
+  p: FramePose,
+  width: number,
+  height: number,
+): { u: number; v: number } | null {
+  return torsoPixel(p, width, height);
+}
+
+/** Mediana odstępu klatek (µs) ze źródłowych timestampów. */
+export function medianIntervalUs(poses: FramePose[]): number {
+  return medianFrameIntervalUs(poses);
+}
+
+/** Rzut skalibrowanej linii podłoża na obraz: funkcja u(v). */
+export function projectGroundLineU(
+  homography: Homography,
+  line: TimingLineSpec,
+  ySpan: { min: number; max: number },
+): ((v: number) => number) | null {
+  return projectGroundLine(homography, line, ySpan);
+}

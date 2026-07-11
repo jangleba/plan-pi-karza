@@ -60,7 +60,12 @@ export type QualityIssueCode =
   | "ATHLETE_TOO_SMALL"
   | "TORSO_OCCLUDED"
   | "INVALID_CAMERA_GEOMETRY"
-  | "DISTANCE_UNKNOWN";
+  | "DISTANCE_UNKNOWN"
+  | "TIMING_LINES_REQUIRED"
+  | "TURN_NOT_DETECTED"
+  | "TURN_LINE_NOT_REACHED"
+  | "WRONG_LINE_SEQUENCE"
+  | "WRONG_TURNING_SIDE";
 
 export interface VideoMetadata {
   fps: number;
@@ -145,8 +150,16 @@ export interface Calibration {
   timingLines?: TimingLineSpec[];
 }
 
-/** Rola linii pomiaru czasu w protokole. */
-export type TimingLineRole = "START" | "FINISH" | "TIMING_A" | "TIMING_B";
+/** Rola linii pomiaru czasu / strefy w protokole. */
+export type TimingLineRole =
+  | "START"
+  | "FINISH"
+  | "TIMING_A"
+  | "TIMING_B"
+  | "TURN_LINE"
+  | "CENTER"
+  | "TURN_LEFT"
+  | "TURN_RIGHT";
 
 /** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
 export interface TimingLineSpec {
@@ -329,6 +342,16 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Geometria kamery jest niewłaściwa dla pomiaru czasu (linia rzutuje się poziomo). Ustaw kamerę prostopadle do osi ruchu.",
   DISTANCE_UNKNOWN:
     "Dystans nie jest znany. Podaj dystans protokołu lub skalibruj linie o znanej odległości na podłożu.",
+  TIMING_LINES_REQUIRED:
+    "Test zmiany kierunku wymaga skalibrowanych linii/stref (np. TIMING_A + linia zwrotu lub CENTER + TURN_LEFT + TURN_RIGHT).",
+  TURN_NOT_DETECTED:
+    "Nie wykryto zmiany kierunku. Zwykły bieg bez zwrotu nie jest testem COD.",
+  TURN_LINE_NOT_REACHED:
+    "Zawodnik nie dotarł stopą do linii/strefy zwrotu. Wykonaj pełny zwrot przy linii.",
+  WRONG_LINE_SEQUENCE:
+    "Niewłaściwa kolejność przekroczeń linii dla tego protokołu COD.",
+  WRONG_TURNING_SIDE:
+    "Zwrot wykonano na niewłaściwą nogę względem wybranej strony próby.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
