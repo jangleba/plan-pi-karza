@@ -11,13 +11,14 @@ import type { Homography } from "./calibrationProfiles";
 /**
  * Testy silnika sprintu z importowanego filmu (Timing Plane).
  *
- * Homografia world(mm)→image(px): u = 0.1·x + 100, v = 0.1·y.
- *  START/TIMING_A ground x=0     → image u = 100
- *  FINISH/TIMING_B ground x=2000 → image u = 300
+ * Homografia world(mm)→image(px): u = 0.03·x + 100, v = 0.03·y.
+ *  START/TIMING_A ground x=0      → image u = 100
+ *  FINISH ground x=20000          → image u = 700
+ *  TIMING_B ground x=10000        → image u = 400
  */
 const WIDTH = 1000;
 const HEIGHT = 1000;
-const H: Homography = [0.1, 0, 100, 0, 0.1, 0, 0, 0, 1];
+const H: Homography = [0.03, 0, 100, 0, 0.03, 0, 0, 0, 1];
 
 function line(id: string, role: TimingLineSpec["role"], x: number): TimingLineSpec {
   return {
@@ -53,8 +54,8 @@ function buildPoses(opts?: {
   const fps = opts?.fps ?? 240;
   const vis = opts?.torsoVisibility ?? 1;
   const sil = opts?.silhouetteHeight ?? 0.6;
-  const xs = opts?.reverse ? 0.6 : opts?.xStart ?? 0.02;
-  const xe = opts?.reverse ? 0.02 : opts?.xEnd ?? 0.6;
+  const xs = opts?.reverse ? 0.75 : opts?.xStart ?? 0.02;
+  const xe = opts?.reverse ? 0.02 : opts?.xEnd ?? 0.75;
   const intervalUs = Math.round(1_000_000 / fps);
   const poses: FramePose[] = [];
   for (let i = 0; i < frames; i++) {
