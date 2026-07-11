@@ -11,6 +11,18 @@ import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { hipYSeries, timeSeries } from "../poseSeries";
 import { meanFinite, argMax } from "../signal";
 import { flightTimeToHeightCm, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
+import {
+  calcTemporalResolution,
+  computeMeasurementAccuracy,
+  eventUncertaintyMs,
+  formatResult,
+  jumpHeightUncertaintyCm,
+  summedTimeUncertaintyMs,
+  validateCalibrationQuality,
+  JUMP_FPS_POLICY,
+  type MeasurementAccuracy,
+} from "../measurementAccuracy";
+
 
 const MIN_FPS = 60;
 
@@ -96,6 +108,61 @@ function validate(ctx: AnalysisContext): ValidationResult {
   ]);
 }
 
+/**
+ * Warstwa rzetelności pomiaru dla CMJ. Liczy niepewność czasu lotu z realnej
+ * rozdzielczości czasowej (mediana odstępu klatek) i propaguje ją na wysokość.
+ * Pipeline jest deterministyczny (patrz test powtarzalności) → repeatability
+ * = "verified". Bez urządzenia referencyjnego NIE przyznajemy LAB_GRADE.
+ */
+function accuracy(
+  ev: DetectedEvent[],
+  mtx: CalculatedMetric[],
+  ctx: AnalysisContext,
+): { measurement: MeasurementAccuracy; metrics: CalculatedMetric[] } {
+  const timestampsUs = ctx.poses
+    .map((p) => p.sourceTimestampUs)
+    .filter((t): t is number => typeof t === "number");
+  const temporal = calcTemporalResolution(timestampsUs);
+  const calibration = validateCalibrationQuality({ required: false, present: false });
+
+  const flight = mtx.find((m) => m.key === "flight_time_s");
+  const height = mtx.find((m) => m.key === "jump_height_cm");
+  const flightTime = flight?.value ?? 0;
+
+  // Niepewność pojedynczego zdarzenia = połowa odstępu klatek (konserwatywnie).
+  const evUnc = eventUncertaintyMs({ frameIntervalMs: temporal.frameIntervalMs });
+  const flightUncMs = summedTimeUncertaintyMs(evUnc, evUnc);
+  const flightUncS = flightUncMs / 1000;
+  const heightUncCm = jumpHeightUncertaintyCm(flightTime, flightUncS);
+  const relUnc = flightTime > 0 ? flightUncS / flightTime : 1;
+
+  const enriched: CalculatedMetric[] = mtx.map((m) => {
+    if (m.key === "flight_time_s") {
+      const f = formatResult(m.value, flightUncS, m.unit);
+      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+    }
+    if (m.key === "jump_height_cm") {
+      const f = formatResult(m.value, heightUncCm, m.unit);
+      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+    }
+    return m;
+  });
+
+  const measurement = computeMeasurementAccuracy({
+    domain: "temporal",
+    fpsPolicy: JUMP_FPS_POLICY,
+    temporal,
+    calibration,
+    relativeUncertainty: relUnc,
+    maxRelativeUncertainty: 0.05,
+    repeatability: "verified",
+    protocolMatch: ev.length >= 2,
+    referenceValidated: false,
+  });
+
+  return { measurement, metrics: enriched };
+}
+
 export const cmjAnalyzer: TestAnalyzer = {
   testType: "cmj",
   analyzerVersion: "cmj-1.0.0",
@@ -106,6 +173,7 @@ export const cmjAnalyzer: TestAnalyzer = {
   detectKeyEvents: async (ctx) => events(ctx),
   calculateMetrics: (ev, ctx) => metrics(ev, ctx),
   calculateConfidence: (ev) => confidence(ev),
+  computeAccuracy: (ev, mtx, ctx) => accuracy(ev, mtx, ctx),
 };
 
 // argMax re-eksport używany w testach jednostkowych scenariuszy.

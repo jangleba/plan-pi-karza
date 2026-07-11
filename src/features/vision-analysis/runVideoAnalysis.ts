@@ -189,9 +189,17 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     opts.onPhase?.("calculating_result");
     const events = await analyzer.detectKeyEvents(ctx);
-    const metrics = analyzer.calculateMetrics(events, ctx);
+    let metrics = analyzer.calculateMetrics(events, ctx);
     const confidence = analyzer.calculateConfidence(events, ctx);
     const validation = analyzer.validateRecording(ctx);
+
+    // Warstwa rzetelności pomiaru — niepewność, poziom jakości, powtarzalność.
+    let measurement: VideoAnalysisResult["measurement"];
+    if (analyzer.computeAccuracy && metrics.length > 0) {
+      const acc = analyzer.computeAccuracy(events, metrics, ctx);
+      measurement = acc.measurement;
+      metrics = acc.metrics;
+    }
 
     // Ustalenie statusu — jedna, wspólna, testowana polityka.
     const decision = resolveAnalysisStatus({
@@ -229,6 +237,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       qualityIssues: [...new Set(qualityIssues.map((i) => QUALITY_ISSUE_LABELS[i] ?? i))],
       retakeInstructions: [...new Set(retakeInstructions)],
       analyzerVersion: analyzer.analyzerVersion,
+      measurement,
     };
   } catch (e) {
     opts.onPhase?.("error");

@@ -6,6 +6,7 @@ import type {
   CalculationBasisItem,
 } from "./types";
 import type { VideoAnalysisResult } from "@/features/vision-analysis/types";
+import { QUALITY_TIER_LABELS } from "@/features/vision-analysis/measurementAccuracy";
 import { getVisionTest } from "./visionTests";
 
 const EVENT_TO_MARKER: Record<string, FrameMarkerKey> = {
@@ -55,22 +56,41 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
 
   const primary = analysis.metrics[0] ?? null;
 
+  const acc = analysis.measurement;
   const items: CalculationBasisItem[] = [
     { label: "Metoda", value: `Silnik analizy wideo (${analysis.analyzerVersion})` },
-    { label: "FPS", value: `${analysis.videoMetadata.fps}` },
+    {
+      label: "FPS (zmierzone z klatek)",
+      value: acc ? `${acc.sourceFrameRate}` : `${analysis.videoMetadata.fps}`,
+    },
     { label: "Liczba klatek", value: `${analysis.videoMetadata.frameCount}` },
     {
       label: "Rozdzielczość",
       value: `${analysis.videoMetadata.width}×${analysis.videoMetadata.height}`,
     },
     { label: "Pewność analizy", value: `${Math.round(analysis.overallConfidence * 100)}%` },
+    ...(acc
+      ? [
+          { label: "Poziom jakości pomiaru", value: QUALITY_TIER_LABELS[acc.qualityTier] },
+          { label: "Odstęp klatek (mediana)", value: `${acc.frameIntervalMs} ms` },
+          { label: "Rozdzielczość czasowa", value: `± ${acc.temporalResolutionMs} ms` },
+          {
+            label: "Powtarzalność",
+            value:
+              acc.repeatabilityStatus === "verified"
+                ? "Zweryfikowana (deterministyczna)"
+                : acc.repeatabilityStatus,
+          },
+          { label: "Wynik oficjalny", value: acc.officialResult ? "Tak" : "Nie (estymacja)" },
+        ]
+      : []),
     ...analysis.keyEvents.map((e) => ({
       label: `Zdarzenie: ${e.type}`,
       value: `klatka ${e.frameIndex} · ${e.timestampSeconds.toFixed(3)} s`,
     })),
     ...analysis.metrics.map((m) => ({
       label: m.label,
-      value: `${m.value} ${m.unit}`.trim(),
+      value: m.display ? `${m.display} ${m.unit}`.trim() : `${m.value} ${m.unit}`.trim(),
     })),
   ];
 

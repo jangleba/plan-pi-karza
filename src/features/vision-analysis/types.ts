@@ -118,6 +118,12 @@ export interface CalculatedMetric {
   value: number;
   unit: string;
   confidence: number;
+  /** Bezwzględna niepewność pomiaru w tej samej jednostce co value (±). */
+  uncertainty?: number;
+  /** Liczba miejsc po przecinku dopasowana do niepewności. */
+  displayPrecision?: number;
+  /** Sformatowany wynik z niepewnością, np. "35.9 ± 0.8". */
+  display?: string;
 }
 
 export interface ConfidenceResult {
@@ -138,6 +144,18 @@ export interface TestAnalyzer {
   detectKeyEvents(context: AnalysisContext): Promise<DetectedEvent[]>;
   calculateMetrics(events: DetectedEvent[], context: AnalysisContext): CalculatedMetric[];
   calculateConfidence(events: DetectedEvent[], context: AnalysisContext): ConfidenceResult;
+  /**
+   * Warstwa rzetelności pomiaru — poziom jakości, niepewność, powtarzalność.
+   * Zwraca też metryki wzbogacone o niepewność (± i dopasowana precyzja).
+   */
+  computeAccuracy?(
+    events: DetectedEvent[],
+    metrics: CalculatedMetric[],
+    context: AnalysisContext,
+  ): {
+    measurement: import("./measurementAccuracy").MeasurementAccuracy;
+    metrics: CalculatedMetric[];
+  };
 }
 
 /** Jednolity wynik analizy zwracany przez pipeline. */
@@ -163,6 +181,8 @@ export interface VideoAnalysisResult {
   qualityIssues: string[];
   retakeInstructions: string[];
   analyzerVersion: string;
+  /** Warstwa rzetelności pomiaru: poziom jakości, niepewność, powtarzalność. */
+  measurement?: import("./measurementAccuracy").MeasurementAccuracy;
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
