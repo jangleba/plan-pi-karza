@@ -21,6 +21,10 @@ const RETAKE: Record<QualityIssueCode, string> = {
   LOW_RESOLUTION: "Nagraj w wyższej rozdzielczości (min. 720p).",
   POSE_NOT_DETECTED:
     "Nie wykryto sylwetki. Zadbaj o kontrast zawodnika względem tła i dobre światło.",
+  CALIBRATION_PROFILE_MISMATCH:
+    "Wykonaj kalibrację dla tej konfiguracji telefonu (aparat, obiektyw, orientacja, rozdzielczość, FPS, zoom).",
+  CALIBRATION_CAMERA_MOVED:
+    "Kamera poruszyła się po kalibracji. Ustaw telefon nieruchomo i nagraj ponownie ten sam kadr.",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */
