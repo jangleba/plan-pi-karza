@@ -365,7 +365,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       metricsCount: metrics.length,
       confidence: confidence.overall,
     });
-    const status: AnalysisStatus = decision.status;
+    const status: AnalysisStatus = statusOverride ?? decision.status;
     const qualityIssues = [...validation.issues, ...decision.extraIssues];
     const retakeInstructions = [
       ...validation.retakeInstructions,
