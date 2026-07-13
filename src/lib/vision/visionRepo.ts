@@ -307,7 +307,7 @@ function lowerIsBetter(testType: string): boolean {
 export async function computeComparison(
   userId: string,
   current: Pick<
-    VisionAnalysisResult,
+    VisionTestResult,
     "testType" | "mainResultValue" | "mainResultUnit" | "validityStatus"
   >,
 ): Promise<VisionComparison | null> {
