@@ -29,41 +29,6 @@ function heightFromFlightTime(t: number): number {
 }
 
 /**
- * Generuje kluczowe klatki spójne z policzonym wynikiem — tak, aby
- * ręczna korekta trenera realnie przeliczała wynik.
- */
-export function deriveFrames(
-  test: VisionTest,
-  fps: number,
-  mainValue: number,
-): CoachFrames {
-  if (isJump(test)) {
-    // odwracamy wzór na wysokość, żeby uzyskać czas lotu i klatki
-    const h = Math.max(1, mainValue) / 100; // metry (dla RSI używamy przybliżenia)
-    const t = Math.sqrt((8 * h) / G);
-    const takeoff = 30;
-    const landing = takeoff + Math.max(1, Math.round(t * fps));
-    return { takeoff_frame: takeoff, landing_frame: landing };
-  }
-  if (isSprint(test)) {
-    const start = 20;
-    const finish = start + Math.max(1, Math.round(mainValue * fps));
-    return { start_frame: start, finish_frame: finish };
-  }
-  if (isCod(test)) {
-    const start = 20;
-    const finish = start + Math.max(1, Math.round(mainValue * fps));
-    return {
-      start_frame: start,
-      first_contact_frame: start + Math.round((finish - start) * 0.45),
-      last_contact_frame: start + Math.round((finish - start) * 0.6),
-      finish_frame: finish,
-    };
-  }
-  return {};
-}
-
-/**
  * Przelicza wynik główny z kluczowych klatek + FPS.
  * Zwraca null, gdy brakuje potrzebnych klatek dla danej kategorii.
  */
