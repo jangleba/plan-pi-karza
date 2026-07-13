@@ -29,7 +29,6 @@ import type {
 } from "./types";
 import { getVisionTest } from "./visionTests";
 import { recomputeMainValue, buildCalculationBasis } from "./visionCalc";
-import type { VisionAnalysisResult } from "./visionAnalysisService";
 
 // Tabela vision_tests nie jest jeszcze w wygenerowanych typach — używamy luźnego klienta.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
