@@ -188,51 +188,6 @@ export async function getVisionVideoUrl(path: string | null): Promise<string | n
   }
 }
 
-/** Zapisuje wynik analizy do bazy i zwraca kompletny rekord. */
-export async function saveVisionResult(
-  userId: string,
-  analysis: VisionAnalysisResult,
-): Promise<VisionTestResult> {
-  const comparison = await computeComparison(userId, analysis);
-
-  const payload = {
-    user_id: userId,
-    test_type: analysis.testType,
-    test_category: analysis.testCategory,
-    test_name: analysis.testName,
-    video_url: analysis.videoUrl,
-    capture_mode: analysis.captureMode,
-    fps: analysis.fps,
-    camera_view: analysis.cameraView,
-    validity_status: analysis.validityStatus,
-    confidence_score: analysis.confidenceScore,
-    main_result_value: analysis.mainResultValue,
-    main_result_unit: analysis.mainResultUnit,
-    measured_metrics: analysis.measuredMetrics,
-    validity_flags: analysis.validityFlags,
-    ai_feedback: { ...analysis.aiFeedback, signals: analysis.signals },
-    comparison_to_previous: comparison,
-    saved_to_progress: false,
-    review_status: analysis.reviewStatus,
-    review_type: analysis.reviewType,
-    coach_verified: analysis.coachVerified,
-    coach_corrected: analysis.coachCorrected,
-    coach_corrected_frames: analysis.coachCorrectedFrames,
-    calculation_method: analysis.calculationMethod,
-    calculation_basis: analysis.calculationBasis,
-    manual_override: analysis.manualOverride,
-    paid_review_requested: analysis.paidReviewRequested,
-    paid_review_status: analysis.paidReviewStatus,
-  };
-
-  const { data, error } = await db
-    .from("vision_tests")
-    .insert(payload)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return rowToResult(data as VisionRow);
-}
 
 // ===================== Gym Technique (analiza ćwiczeń z planu) =====================
 
