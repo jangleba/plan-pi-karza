@@ -28,10 +28,28 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
   metadata_ready: "Metadane filmu odczytane",
   extracting_frames: "Ekstrakcja klatek",
   pose_analysis: "Analiza pozy zawodnika",
+  recognizing_protocol: "Rozpoznawanie testu",
+  resolving_calibration: "Dopasowanie kalibracji",
+  detecting_events: "Wykrywanie zdarzeń ruchu",
+  computing_metrics: "Obliczanie wyniku",
+  validating: "Walidacja nagrania",
   calculating_result: "Obliczanie wyniku",
   completed: "Gotowe",
   error: "Błąd analizy",
 };
+
+/** Kolejność realnych kroków pipeline'u — do wizualizacji postępu. */
+const PHASE_STEPS: AnalysisPhase[] = [
+  "loading_file",
+  "metadata_ready",
+  "extracting_frames",
+  "pose_analysis",
+  "recognizing_protocol",
+  "resolving_calibration",
+  "detecting_events",
+  "computing_metrics",
+  "validating",
+];
 
 type UiState =
   | { kind: "running" }
