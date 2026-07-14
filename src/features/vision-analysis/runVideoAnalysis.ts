@@ -39,6 +39,11 @@ export type AnalysisPhase =
   | "metadata_ready"
   | "extracting_frames"
   | "pose_analysis"
+  | "recognizing_protocol"
+  | "resolving_calibration"
+  | "detecting_events"
+  | "computing_metrics"
+  | "validating"
   | "calculating_result"
   | "completed"
   | "error";
@@ -310,6 +315,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     // GATE PROTOKOŁU: selectedTestType → detectedTestType → detectedTestConfidence
     // → protocolMatch → adapter. Adapter rusza WYŁĄCZNIE przy protocolMatch=true.
+    opts.onPhase?.("recognizing_protocol");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const recognition = recognizeTestProtocol(opts.testType, poses);
     const recognitionSummary = {
       selectedTestType: recognition.selectedTestType,
@@ -353,6 +360,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
+    opts.onPhase?.("resolving_calibration");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const calibration = resolveCalibration(
       opts,
       metadata.orientation,
@@ -370,10 +379,15 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       calibrationRecord: opts.calibrationRecord ?? null,
     };
 
-    opts.onPhase?.("calculating_result");
+    opts.onPhase?.("detecting_events");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const events = await analyzer.detectKeyEvents(ctx);
+    opts.onPhase?.("computing_metrics");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     let metrics = analyzer.calculateMetrics(events, ctx);
     const confidence = analyzer.calculateConfidence(events, ctx);
+    opts.onPhase?.("validating");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const validation = analyzer.validateRecording(ctx);
 
     // Polityka wyniku przestrzennego dla testów mierzących odległość/prędkość.

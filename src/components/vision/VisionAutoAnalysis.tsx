@@ -28,10 +28,28 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
   metadata_ready: "Metadane filmu odczytane",
   extracting_frames: "Ekstrakcja klatek",
   pose_analysis: "Analiza pozy zawodnika",
+  recognizing_protocol: "Rozpoznawanie testu",
+  resolving_calibration: "Dopasowanie kalibracji",
+  detecting_events: "Wykrywanie zdarzeń ruchu",
+  computing_metrics: "Obliczanie wyniku",
+  validating: "Walidacja nagrania",
   calculating_result: "Obliczanie wyniku",
   completed: "Gotowe",
   error: "Błąd analizy",
 };
+
+/** Kolejność realnych kroków pipeline'u — do wizualizacji postępu. */
+const PHASE_STEPS: AnalysisPhase[] = [
+  "loading_file",
+  "metadata_ready",
+  "extracting_frames",
+  "pose_analysis",
+  "recognizing_protocol",
+  "resolving_calibration",
+  "detecting_events",
+  "computing_metrics",
+  "validating",
+];
 
 type UiState =
   | { kind: "running" }
@@ -478,30 +496,77 @@ function TechniqueOnlyView({
 
 function RunningView({ phase, progress }: { phase: AnalysisPhase; progress: number }) {
   const pct = Math.round(progress * 100);
+  // Indeks bieżącego kroku w realnym pipelinie (bez timerów).
+  const rawIndex = PHASE_STEPS.indexOf(phase);
+  const currentIndex =
+    phase === "completed" ? PHASE_STEPS.length : rawIndex === -1 ? 0 : rawIndex;
+  const showFrameProgress = phase === "extracting_frames" || phase === "pose_analysis";
   return (
-    <div className="soft-card space-y-5 p-6 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-brand">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-      <div>
-        <div className="text-base font-semibold text-foreground">{PHASE_LABELS[phase]}</div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Analiza działa na Twoim urządzeniu. Nie zamykaj ekranu.
-        </p>
-      </div>
-      <div className="space-y-1.5">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-accent">
-          <div
-            className="h-full rounded-full bg-brand transition-all"
-            style={{ width: `${Math.max(4, pct)}%` }}
-          />
+    <div className="soft-card space-y-5 p-6">
+      <div className="flex flex-col items-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-brand">
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
-        <div className="text-xs font-medium text-muted-foreground">
-          {phase === "extracting_frames" || phase === "pose_analysis"
-            ? `${pct}% klatek przetworzonych`
-            : "Przetwarzanie…"}
+        <div className="mt-4">
+          <div className="text-base font-semibold text-foreground">{PHASE_LABELS[phase]}</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Analiza działa na Twoim urządzeniu. Nie zamykaj ekranu.
+          </p>
         </div>
       </div>
+
+      {showFrameProgress && (
+        <div className="space-y-1.5">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-accent">
+            <div
+              className="h-full rounded-full bg-brand transition-all"
+              style={{ width: `${Math.max(4, pct)}%` }}
+            />
+          </div>
+          <div className="text-xs font-medium text-muted-foreground">
+            {pct}% klatek przetworzonych
+          </div>
+        </div>
+      )}
+
+      <ol className="space-y-2.5">
+        {PHASE_STEPS.map((step, i) => {
+          const done = i < currentIndex;
+          const active = i === currentIndex;
+          return (
+            <li key={step} className="flex items-center gap-3">
+              <span
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                  done
+                    ? "bg-brand text-white"
+                    : active
+                      ? "bg-accent text-brand"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {done ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : active ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  i + 1
+                )}
+              </span>
+              <span
+                className={`text-sm ${
+                  active
+                    ? "font-semibold text-foreground"
+                    : done
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60"
+                }`}
+              >
+                {PHASE_LABELS[step]}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
