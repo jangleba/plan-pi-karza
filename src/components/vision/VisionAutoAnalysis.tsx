@@ -146,7 +146,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       objectUrlRef.current = null;
     }
     setPreviewSrc(null);
-    setPhase("loading_file");
+    setCurrentPhase("loading_file");
     setProgress(0);
     setState({ kind: "running" });
 
