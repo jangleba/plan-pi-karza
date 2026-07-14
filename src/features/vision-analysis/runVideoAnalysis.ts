@@ -360,6 +360,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
+    opts.onPhase?.("resolving_calibration");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const calibration = resolveCalibration(
       opts,
       metadata.orientation,
