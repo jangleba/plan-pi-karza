@@ -428,19 +428,42 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )}
 
         {state.kind === "error" && (
-          <div className="soft-card space-y-4 p-5 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-              <AlertTriangle className="h-7 w-7" />
-            </div>
-            <div>
-              <div className="text-base font-semibold text-foreground">
-                Nie udało się przeanalizować filmu
+          <div className="soft-card space-y-4 p-5">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-7 w-7" />
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
-              <div className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-medium text-muted-foreground">
+              <div className="mt-3">
+                <div className="text-base font-semibold text-foreground">
+                  Nie udało się przeanalizować filmu
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-accent/60 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Etap, na którym analiza się zatrzymała
+              </div>
+              <div className="mt-1 text-sm font-semibold text-foreground">
+                {stageLabelForPhase(state.phase)}
+              </div>
+              <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Co możesz sprawdzić
+              </div>
+              <ul className="mt-1.5 space-y-1.5">
+                {(PHASE_CHECK_HINTS[state.phase] ?? PHASE_CHECK_HINTS.error).map((hint, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-foreground">
+                    <span className="text-brand">•</span>
+                    <span>{hint}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 inline-block rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
                 Kod błędu: {state.code}
               </div>
             </div>
+
             <div className="space-y-2">
               <Button className="w-full" onClick={() => void runAnalysis()}>
                 <RotateCcw className="mr-2 h-4 w-4" /> Spróbuj ponownie
