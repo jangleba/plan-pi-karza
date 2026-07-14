@@ -107,7 +107,7 @@ type UiState =
   | { kind: "calibration_required"; analysis: VideoAnalysisResult }
   | { kind: "technique_only"; analysis: VideoAnalysisResult }
   | { kind: "calibrating"; analysis: VideoAnalysisResult }
-  | { kind: "error"; code: string; message: string };
+  | { kind: "error"; code: string; message: string; phase: AnalysisPhase };
 
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
