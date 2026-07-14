@@ -51,13 +51,70 @@ const PHASE_STEPS: AnalysisPhase[] = [
   "validating",
 ];
 
+/**
+ * Dla każdego etapu pipeline'u — konkretne wskazówki, co użytkownik może
+ * sprawdzić, jeśli analiza zatrzyma się właśnie tutaj.
+ */
+const PHASE_CHECK_HINTS: Record<AnalysisPhase, string[]> = {
+  idle: ["Uruchom analizę ponownie."],
+  loading_file: [
+    "Sprawdź format wideo — najlepiej MP4 (H.264) lub MOV.",
+    "Upewnij się, że plik nie jest uszkodzony i otwiera się w odtwarzaczu.",
+    "Bardzo duże pliki mogą przekroczyć limit — przytnij film do samego testu.",
+  ],
+  metadata_ready: [
+    "Sprawdź, czy film ma poprawne metadane (długość, liczba klatek).",
+    "Spróbuj ponownie wyeksportować film z aplikacji aparatu.",
+  ],
+  extracting_frames: [
+    "Nagraj w wyższej liczbie klatek na sekundę (min. 30, zalecane 60).",
+    "Unikaj mocno skompresowanych filmów z komunikatorów (WhatsApp, Messenger).",
+    "Wyślij oryginalny plik, a nie jego udostępnioną kopię.",
+  ],
+  pose_analysis: [
+    "Zadbaj o dobre oświetlenie i widoczną całą sylwetkę zawodnika.",
+    "W kadrze powinna być tylko jedna osoba.",
+    "Unikaj zbyt dużej odległości od kamery i rozmytych ujęć.",
+  ],
+  recognizing_protocol: [
+    "Upewnij się, że film pokazuje właśnie wybrany test.",
+    "Zachowaj poprawne ustawienie kamery zgodnie z instrukcją testu.",
+  ],
+  resolving_calibration: [
+    "Skalibruj podłoże na tym filmie lub wybierz analizę tylko techniki.",
+    "Nie poruszaj kamerą po kalibracji.",
+  ],
+  detecting_events: [
+    "Nagraj pełny ruch od startu do końca w jednym ujęciu.",
+    "Nie przycinaj kluczowych momentów (odbicie, lądowanie, przekroczenie linii).",
+  ],
+  computing_metrics: [
+    "Upewnij się, że ruch jest wykonany zgodnie z protokołem testu.",
+    "Zadbaj o stabilny, nieruchomy kadr.",
+  ],
+  validating: [
+    "Sprawdź pozycję i kąt kamery zgodnie z instrukcją testu.",
+    "Nagraj ponownie z lepszą jakością i pełną widocznością.",
+  ],
+  calculating_result: ["Spróbuj ponownie lub nagraj film w lepszej jakości."],
+  completed: [],
+  error: ["Spróbuj ponownie lub wybierz inny film."],
+};
+
+/** Czytelny opis etapu (z numerem kroku, gdy dotyczy realnego pipeline'u). */
+function stageLabelForPhase(phase: AnalysisPhase): string {
+  const idx = PHASE_STEPS.indexOf(phase);
+  if (idx >= 0) return `Krok ${idx + 1}/${PHASE_STEPS.length} — ${PHASE_LABELS[phase]}`;
+  return PHASE_LABELS[phase] ?? "Nieznany etap";
+}
+
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
   | { kind: "calibration_required"; analysis: VideoAnalysisResult }
   | { kind: "technique_only"; analysis: VideoAnalysisResult }
   | { kind: "calibrating"; analysis: VideoAnalysisResult }
-  | { kind: "error"; code: string; message: string };
+  | { kind: "error"; code: string; message: string; phase: AnalysisPhase };
 
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
@@ -75,6 +132,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const videoHashRef = useRef<string>("");
   const calibrationRecordRef = useRef<CalibrationRecord | null>(null);
   const techniqueOnlyRef = useRef<boolean>(false);
+  const lastPhaseRef = useRef<AnalysisPhase>("idle");
+
+  const setCurrentPhase = useCallback((p: AnalysisPhase) => {
+    lastPhaseRef.current = p;
+    setPhase(p);
+  }, []);
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
@@ -90,7 +153,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       objectUrlRef.current = null;
     }
     setPreviewSrc(null);
-    setPhase("loading_file");
+    setCurrentPhase("loading_file");
     setProgress(0);
     setState({ kind: "running" });
 
@@ -180,7 +243,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);
-            if (!cancelled()) setPhase(p);
+            if (!cancelled()) setCurrentPhase(p);
           },
           onProgress: (f) => !cancelled() && setProgress(f),
         }),
@@ -245,7 +308,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           code === "FRAME_TIMESTAMP_ORDER_ERROR"
             ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
             : analysis.retakeInstructions[0] ?? "Nie udało się przeanalizować filmu.";
-        setState({ kind: "error", code, message });
+        setState({ kind: "error", code, message, phase: lastPhaseRef.current });
         return;
       }
 
@@ -263,7 +326,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )
           ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
           : rawMessage;
-      setState({ kind: "error", code: code ?? "UNKNOWN_ERROR", message });
+      setState({
+        kind: "error",
+        code: code ?? "UNKNOWN_ERROR",
+        message,
+        phase: lastPhaseRef.current,
+      });
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -367,19 +435,42 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )}
 
         {state.kind === "error" && (
-          <div className="soft-card space-y-4 p-5 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-              <AlertTriangle className="h-7 w-7" />
-            </div>
-            <div>
-              <div className="text-base font-semibold text-foreground">
-                Nie udało się przeanalizować filmu
+          <div className="soft-card space-y-4 p-5">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-7 w-7" />
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
-              <div className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-medium text-muted-foreground">
+              <div className="mt-3">
+                <div className="text-base font-semibold text-foreground">
+                  Nie udało się przeanalizować filmu
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{state.message}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-accent/60 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Etap, na którym analiza się zatrzymała
+              </div>
+              <div className="mt-1 text-sm font-semibold text-foreground">
+                {stageLabelForPhase(state.phase)}
+              </div>
+              <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Co możesz sprawdzić
+              </div>
+              <ul className="mt-1.5 space-y-1.5">
+                {(PHASE_CHECK_HINTS[state.phase] ?? PHASE_CHECK_HINTS.error).map((hint, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-foreground">
+                    <span className="text-brand">•</span>
+                    <span>{hint}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 inline-block rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
                 Kod błędu: {state.code}
               </div>
             </div>
+
             <div className="space-y-2">
               <Button className="w-full" onClick={() => void runAnalysis()}>
                 <RotateCcw className="mr-2 h-4 w-4" /> Spróbuj ponownie
