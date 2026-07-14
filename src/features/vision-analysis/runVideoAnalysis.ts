@@ -315,6 +315,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     // GATE PROTOKOŁU: selectedTestType → detectedTestType → detectedTestConfidence
     // → protocolMatch → adapter. Adapter rusza WYŁĄCZNIE przy protocolMatch=true.
+    opts.onPhase?.("recognizing_protocol");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const recognition = recognizeTestProtocol(opts.testType, poses);
     const recognitionSummary = {
       selectedTestType: recognition.selectedTestType,
