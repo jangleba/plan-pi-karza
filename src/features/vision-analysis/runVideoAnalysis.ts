@@ -379,10 +379,15 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       calibrationRecord: opts.calibrationRecord ?? null,
     };
 
-    opts.onPhase?.("calculating_result");
+    opts.onPhase?.("detecting_events");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const events = await analyzer.detectKeyEvents(ctx);
+    opts.onPhase?.("computing_metrics");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     let metrics = analyzer.calculateMetrics(events, ctx);
     const confidence = analyzer.calculateConfidence(events, ctx);
+    opts.onPhase?.("validating");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const validation = analyzer.validateRecording(ctx);
 
     // Polityka wyniku przestrzennego dla testów mierzących odległość/prędkość.
