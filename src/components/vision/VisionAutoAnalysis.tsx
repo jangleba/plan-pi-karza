@@ -236,7 +236,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           abortSignal: controller.signal,
           onPhase: (p) => {
             vlog("phase", p);
-            if (!cancelled()) setPhase(p);
+            if (!cancelled()) setCurrentPhase(p);
           },
           onProgress: (f) => !cancelled() && setProgress(f),
         }),
