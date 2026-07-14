@@ -101,6 +101,13 @@ const PHASE_CHECK_HINTS: Record<AnalysisPhase, string[]> = {
   error: ["Spróbuj ponownie lub wybierz inny film."],
 };
 
+/** Czytelny opis etapu (z numerem kroku, gdy dotyczy realnego pipeline'u). */
+function stageLabelForPhase(phase: AnalysisPhase): string {
+  const idx = PHASE_STEPS.indexOf(phase);
+  if (idx >= 0) return `Krok ${idx + 1}/${PHASE_STEPS.length} — ${PHASE_LABELS[phase]}`;
+  return PHASE_LABELS[phase] ?? "Nieznany etap";
+}
+
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
