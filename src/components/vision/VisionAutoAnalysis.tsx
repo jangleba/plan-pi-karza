@@ -125,6 +125,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const videoHashRef = useRef<string>("");
   const calibrationRecordRef = useRef<CalibrationRecord | null>(null);
   const techniqueOnlyRef = useRef<boolean>(false);
+  const lastPhaseRef = useRef<AnalysisPhase>("idle");
+
+  const setCurrentPhase = useCallback((p: AnalysisPhase) => {
+    lastPhaseRef.current = p;
+    setPhase(p);
+  }, []);
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
