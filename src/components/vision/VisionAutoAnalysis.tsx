@@ -51,6 +51,56 @@ const PHASE_STEPS: AnalysisPhase[] = [
   "validating",
 ];
 
+/**
+ * Dla każdego etapu pipeline'u — konkretne wskazówki, co użytkownik może
+ * sprawdzić, jeśli analiza zatrzyma się właśnie tutaj.
+ */
+const PHASE_CHECK_HINTS: Record<AnalysisPhase, string[]> = {
+  idle: ["Uruchom analizę ponownie."],
+  loading_file: [
+    "Sprawdź format wideo — najlepiej MP4 (H.264) lub MOV.",
+    "Upewnij się, że plik nie jest uszkodzony i otwiera się w odtwarzaczu.",
+    "Bardzo duże pliki mogą przekroczyć limit — przytnij film do samego testu.",
+  ],
+  metadata_ready: [
+    "Sprawdź, czy film ma poprawne metadane (długość, liczba klatek).",
+    "Spróbuj ponownie wyeksportować film z aplikacji aparatu.",
+  ],
+  extracting_frames: [
+    "Nagraj w wyższej liczbie klatek na sekundę (min. 30, zalecane 60).",
+    "Unikaj mocno skompresowanych filmów z komunikatorów (WhatsApp, Messenger).",
+    "Wyślij oryginalny plik, a nie jego udostępnioną kopię.",
+  ],
+  pose_analysis: [
+    "Zadbaj o dobre oświetlenie i widoczną całą sylwetkę zawodnika.",
+    "W kadrze powinna być tylko jedna osoba.",
+    "Unikaj zbyt dużej odległości od kamery i rozmytych ujęć.",
+  ],
+  recognizing_protocol: [
+    "Upewnij się, że film pokazuje właśnie wybrany test.",
+    "Zachowaj poprawne ustawienie kamery zgodnie z instrukcją testu.",
+  ],
+  resolving_calibration: [
+    "Skalibruj podłoże na tym filmie lub wybierz analizę tylko techniki.",
+    "Nie poruszaj kamerą po kalibracji.",
+  ],
+  detecting_events: [
+    "Nagraj pełny ruch od startu do końca w jednym ujęciu.",
+    "Nie przycinaj kluczowych momentów (odbicie, lądowanie, przekroczenie linii).",
+  ],
+  computing_metrics: [
+    "Upewnij się, że ruch jest wykonany zgodnie z protokołem testu.",
+    "Zadbaj o stabilny, nieruchomy kadr.",
+  ],
+  validating: [
+    "Sprawdź pozycję i kąt kamery zgodnie z instrukcją testu.",
+    "Nagraj ponownie z lepszą jakością i pełną widocznością.",
+  ],
+  calculating_result: ["Spróbuj ponownie lub nagraj film w lepszej jakości."],
+  completed: [],
+  error: ["Spróbuj ponownie lub wybierz inny film."],
+};
+
 type UiState =
   | { kind: "running" }
   | { kind: "invalid"; analysis: VideoAnalysisResult }
