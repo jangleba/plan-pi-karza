@@ -301,7 +301,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           code === "FRAME_TIMESTAMP_ORDER_ERROR"
             ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
             : analysis.retakeInstructions[0] ?? "Nie udało się przeanalizować filmu.";
-        setState({ kind: "error", code, message });
+        setState({ kind: "error", code, message, phase: lastPhaseRef.current });
         return;
       }
 
