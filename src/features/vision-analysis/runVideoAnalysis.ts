@@ -39,6 +39,11 @@ export type AnalysisPhase =
   | "metadata_ready"
   | "extracting_frames"
   | "pose_analysis"
+  | "recognizing_protocol"
+  | "resolving_calibration"
+  | "detecting_events"
+  | "computing_metrics"
+  | "validating"
   | "calculating_result"
   | "completed"
   | "error";
