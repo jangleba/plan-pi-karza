@@ -158,7 +158,9 @@ export function recognizeTestProtocol(
   // niepewna (UNKNOWN / niska pewność) NIE odrzuca nagrania — o wyniku decyduje
   // walidacja adaptera (np. CMJ dostaje szansę policzyć lot i sam odrzuci, gdy
   // faza lotu jest nierealna). To przywraca kończenie analizy dla realnych filmów.
-  const CONFIDENT_SIGNATURE = 0.5;
+  // Próg 0.80 zgodnie z protokołem CMJ — poniżej nie zamieniamy błędów
+  // detekcji (TAKEOFF_NOT_DETECTED, NO_FLIGHT_PHASE itd.) na TEST_PROTOCOL_MISMATCH.
+  const CONFIDENT_SIGNATURE = 0.8;
   if (!familyMatch) {
     if (signature === "UNKNOWN" || confidence < CONFIDENT_SIGNATURE) {
       reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(
