@@ -7,7 +7,7 @@ import type {
   ValidationResult,
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
-import { detectFlightPhase, flightPhaseEvents, detectCountermovement } from "./jumpDetection";
+import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { hipYSeries, timeSeries } from "../poseSeries";
 import { meanFinite, argMax } from "../signal";
 import { flightTimeToHeightCm, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
