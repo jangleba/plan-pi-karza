@@ -10,7 +10,7 @@ import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
 import { hipYSeries, timeSeries } from "../poseSeries";
 import { meanFinite, argMax } from "../signal";
-import { flightTimeToHeightCm, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
+import { round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 import {
   calcTemporalResolution,
   computeMeasurementAccuracy,
@@ -23,13 +23,50 @@ import {
   type MeasurementAccuracy,
 } from "../measurementAccuracy";
 
-
 const MIN_FPS = 60;
+
+/**
+ * Standardowe przyspieszenie ziemskie (CODATA) używane WYŁĄCZNIE przy końcowej
+ * konwersji czasu lotu → wysokość skoku. Nie mieszamy z GRAVITY = 9.81 z
+ * pozostałych modułów, bo w tym miejscu każda cyfra znacząca ma znaczenie.
+ */
+const G_CMJ = 9.80665;
 
 function events(ctx: AnalysisContext): DetectedEvent[] {
   const phase = detectFlightPhase(ctx.poses);
   if (!phase) return [];
-  return flightPhaseEvents(phase, ctx.poses);
+  const base = flightPhaseEvents(phase, ctx.poses);
+  const t = timeSeries(ctx.poses);
+  // Dodatkowe zdarzenia dowodowe — sekcja „Jak zmierzono”.
+  // Numery klatek i timestampy pochodzą bezpośrednio z sourceTimestampUs.
+  const evidence: DetectedEvent[] = [];
+  const beforeIdx = Math.max(0, phase.takeoffFrame - 1);
+  evidence.push({
+    type: "last_contact_before_takeoff",
+    frameIndex: beforeIdx,
+    timestampSeconds: t[beforeIdx] ?? phase.takeoffTime,
+    confidence: phase.confidence,
+  });
+  evidence.push({
+    type: "first_flight_frame",
+    frameIndex: phase.takeoffFrame,
+    timestampSeconds: t[phase.takeoffFrame] ?? phase.takeoffTime,
+    confidence: phase.confidence,
+  });
+  const lastFlight = Math.max(phase.takeoffFrame, phase.landingFrame - 1);
+  evidence.push({
+    type: "last_flight_frame",
+    frameIndex: lastFlight,
+    timestampSeconds: t[lastFlight] ?? phase.landingTime,
+    confidence: phase.confidence,
+  });
+  evidence.push({
+    type: "first_landing_frame",
+    frameIndex: phase.landingFrame,
+    timestampSeconds: t[phase.landingFrame] ?? phase.landingTime,
+    confidence: phase.confidence,
+  });
+  return [...base, ...evidence];
 }
 
 function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] {
@@ -37,6 +74,7 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
   const landing = ev.find((e) => e.type === "landing");
   const lowest = ev.find((e) => e.type === "lowest_position");
   if (!takeoff || !landing) return [];
+  // Surowy czas lotu z realnych sourceTimestampUs (bez pre-zaokrągleń).
   const flightTime = landing.timestampSeconds - takeoff.timestampSeconds;
   if (
     !withinPlausibleRange(
@@ -46,7 +84,8 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
     )
   )
     return [];
-  const heightCm = flightTimeToHeightCm(flightTime);
+  // h = g · t² / 8 (m) → cm. Zero zaokrągleń przed sekcją accuracy().
+  const heightCm = (G_CMJ * flightTime * flightTime) / 8 * 100;
   if (
     !withinPlausibleRange(
       heightCm,
@@ -68,7 +107,7 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
     {
       key: "flight_time_s",
       label: "Czas w powietrzu",
-      value: round(flightTime, 3),
+      value: flightTime,
       unit: "s",
       confidence: conf,
     },
@@ -148,11 +187,25 @@ function accuracy(
   const enriched: CalculatedMetric[] = mtx.map((m) => {
     if (m.key === "flight_time_s") {
       const f = formatResult(m.value, flightUncS, m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      // metric.value = wartość zaokrąglona wg niepewności → identyczna liczba
+      // w karcie głównej, kluczowych metrykach, DB i raporcie technicznym.
+      return {
+        ...m,
+        value: f.value,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     if (m.key === "jump_height_cm") {
       const f = formatResult(m.value, heightUncCm, m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      return {
+        ...m,
+        value: f.value,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     return m;
   });
