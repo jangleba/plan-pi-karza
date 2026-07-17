@@ -680,6 +680,7 @@ export type Database = {
       vision_tests: {
         Row: {
           ai_feedback: Json | null
+          algorithm_version: string | null
           analysis_status: string
           braking_start_frame: number | null
           braking_time: number | null
@@ -712,6 +713,7 @@ export type Database = {
           jump_height_cm: number | null
           landing_frame: number | null
           last_contact_frame: number | null
+          legacy_source_id: string | null
           linked_exercise_id: string | null
           linked_exercise_name: string | null
           linked_plan_id: string | null
@@ -719,10 +721,12 @@ export type Database = {
           linked_workout_id: string | null
           main_result_unit: string | null
           main_result_value: number | null
+          manual_correction: boolean
           manual_override: boolean
           manual_override_reason: string | null
           marked_by: string | null
           measured_metrics: Json | null
+          metric_direction: string | null
           number_of_contacts: number | null
           paid_review_requested: boolean
           paid_review_status: string | null
@@ -737,6 +741,7 @@ export type Database = {
           stop_frame: number | null
           takeoff_frame: number | null
           technique_review: Json | null
+          temporal_resolution_ms: number | null
           test_category: string
           test_name: string
           test_type: string
@@ -749,6 +754,7 @@ export type Database = {
         }
         Insert: {
           ai_feedback?: Json | null
+          algorithm_version?: string | null
           analysis_status?: string
           braking_start_frame?: number | null
           braking_time?: number | null
@@ -781,6 +787,7 @@ export type Database = {
           jump_height_cm?: number | null
           landing_frame?: number | null
           last_contact_frame?: number | null
+          legacy_source_id?: string | null
           linked_exercise_id?: string | null
           linked_exercise_name?: string | null
           linked_plan_id?: string | null
@@ -788,10 +795,12 @@ export type Database = {
           linked_workout_id?: string | null
           main_result_unit?: string | null
           main_result_value?: number | null
+          manual_correction?: boolean
           manual_override?: boolean
           manual_override_reason?: string | null
           marked_by?: string | null
           measured_metrics?: Json | null
+          metric_direction?: string | null
           number_of_contacts?: number | null
           paid_review_requested?: boolean
           paid_review_status?: string | null
@@ -806,6 +815,7 @@ export type Database = {
           stop_frame?: number | null
           takeoff_frame?: number | null
           technique_review?: Json | null
+          temporal_resolution_ms?: number | null
           test_category: string
           test_name: string
           test_type: string
@@ -818,6 +828,7 @@ export type Database = {
         }
         Update: {
           ai_feedback?: Json | null
+          algorithm_version?: string | null
           analysis_status?: string
           braking_start_frame?: number | null
           braking_time?: number | null
@@ -850,6 +861,7 @@ export type Database = {
           jump_height_cm?: number | null
           landing_frame?: number | null
           last_contact_frame?: number | null
+          legacy_source_id?: string | null
           linked_exercise_id?: string | null
           linked_exercise_name?: string | null
           linked_plan_id?: string | null
@@ -857,10 +869,12 @@ export type Database = {
           linked_workout_id?: string | null
           main_result_unit?: string | null
           main_result_value?: number | null
+          manual_correction?: boolean
           manual_override?: boolean
           manual_override_reason?: string | null
           marked_by?: string | null
           measured_metrics?: Json | null
+          metric_direction?: string | null
           number_of_contacts?: number | null
           paid_review_requested?: boolean
           paid_review_status?: string | null
@@ -875,6 +889,7 @@ export type Database = {
           stop_frame?: number | null
           takeoff_frame?: number | null
           technique_review?: Json | null
+          temporal_resolution_ms?: number | null
           test_category?: string
           test_name?: string
           test_type?: string
