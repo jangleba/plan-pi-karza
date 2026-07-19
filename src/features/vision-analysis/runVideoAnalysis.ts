@@ -518,6 +518,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         cameraMoved: !!calibration?.cameraMoved,
         homography: calibration?.homography ? [...calibration.homography] : null,
       },
+      motionWindow: motionWindowSummary,
     };
   } catch (e) {
     opts.onPhase?.("error");
