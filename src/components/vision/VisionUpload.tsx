@@ -17,6 +17,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const flow = getFlow(test.id);
+  const protocol = getTestProtocol(test.id as TestType);
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
   const [status, setStatus] = useState<Status>(flow.videoUrl ? "done" : "idle");
   const [uploaded, setUploaded] = useState(flow.uploaded);
