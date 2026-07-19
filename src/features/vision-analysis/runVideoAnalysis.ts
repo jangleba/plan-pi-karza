@@ -359,6 +359,41 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       };
     }
 
+    // Coarse-pass: realne okno ruchu w nagraniu (informacyjne, nie blokuje wyniku).
+    const protocolSpec = getTestProtocol(opts.testType);
+    const motionWindow: MotionWindow = detectMotionWindow(poses, metadata.durationSeconds);
+    const minDur = protocolSpec.minMovementDurationSeconds ?? 0;
+    const maxDur = protocolSpec.maxMovementDurationSeconds ?? Number.POSITIVE_INFINITY;
+    const [minReps, maxReps] = protocolSpec.expectedRepCountRange ?? [1, 1];
+    const withinExpectedDuration =
+      motionWindow.durationSeconds >= minDur && motionWindow.durationSeconds <= maxDur;
+    const withinExpectedRepCount =
+      motionWindow.approximateVerticalRepetitions >= minReps &&
+      motionWindow.approximateVerticalRepetitions <= maxReps;
+    const hasSufficientMargins =
+      motionWindow.leadingMarginSeconds >= (protocolSpec.leadingMarginSeconds ?? 0) &&
+      motionWindow.trailingMarginSeconds >= (protocolSpec.trailingMarginSeconds ?? 0);
+    const motionWindowSummary = {
+      startTimestampSeconds: motionWindow.startTimestampSeconds,
+      endTimestampSeconds: motionWindow.endTimestampSeconds,
+      durationSeconds: motionWindow.durationSeconds,
+      leadingMarginSeconds: motionWindow.leadingMarginSeconds,
+      trailingMarginSeconds: motionWindow.trailingMarginSeconds,
+      approximateVerticalRepetitions: motionWindow.approximateVerticalRepetitions,
+      activeSegments: motionWindow.activeSegments,
+      framesConsidered: motionWindow.framesConsidered,
+      withinExpectedDuration,
+      withinExpectedRepCount,
+      hasSufficientMargins,
+    };
+    vlog("motion_window", "wykryte okno ruchu", {
+      testType: opts.testType,
+      adapter: `${opts.testType}@${analyzer.analyzerVersion}`,
+      window: motionWindowSummary,
+      expected: { minDur, maxDur, minReps, maxReps },
+    });
+
+
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
