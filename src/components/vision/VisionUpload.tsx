@@ -1,12 +1,14 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { UploadCloud, FileVideo, CheckCircle2, Loader2 } from "lucide-react";
+import { UploadCloud, FileVideo, CheckCircle2, Loader2, Info } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow, updateFlow } from "@/lib/vision/visionFlow";
 import { uploadVisionVideo } from "@/lib/vision/visionRepo";
+import { getTestProtocol } from "@/features/vision-analysis/testProtocols";
+import type { TestType } from "@/features/vision-analysis/types";
 
 type Status = "idle" | "selected" | "uploading" | "done";
 
