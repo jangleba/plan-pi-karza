@@ -87,17 +87,17 @@ export interface TestProtocol {
   algorithmVersion: string;
   protocolVersion: string;
   /** Minimalna oczekiwana długość okna ruchu w nagraniu (s). */
-  minMovementDurationSeconds: number;
+  minMovementDurationSeconds?: number;
   /** Maksymalna oczekiwana długość okna ruchu w nagraniu (s). */
-  maxMovementDurationSeconds: number;
+  maxMovementDurationSeconds?: number;
   /** Zakres oczekiwanej liczby powtórzeń (dla serii; [1,1] dla pojedynczych). */
-  expectedRepCountRange: [number, number];
+  expectedRepCountRange?: [number, number];
   /** Minimalny margines spokoju przed właściwym ruchem (s). */
-  leadingMarginSeconds: number;
+  leadingMarginSeconds?: number;
   /** Minimalny margines spokoju po ruchu (s). */
-  trailingMarginSeconds: number;
+  trailingMarginSeconds?: number;
   /** Krótkie, konkretne instrukcje nagrania — pokazywane przed uploadem. */
-  recordingInstructions: string[];
+  recordingInstructions?: string[];
 }
 
 const PROTOCOL_VERSION = "1.0.0";
