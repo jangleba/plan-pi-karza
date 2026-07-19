@@ -72,7 +72,8 @@ export type QualityIssueCode =
   | "NO_SPEED_REDUCTION"
   | "STOP_NOT_DETECTED"
   | "STOP_OUT_OF_ZONE"
-  | "DIRECTION_CHANGE_NOT_STOP";
+  | "DIRECTION_CHANGE_NOT_STOP"
+  | "TEST_WINDOW_INCOMPLETE";
 
 export interface VideoMetadata {
   fps: number;
