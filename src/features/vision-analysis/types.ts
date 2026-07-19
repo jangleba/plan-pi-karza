@@ -390,6 +390,8 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Zatrzymanie nastąpiło poza wymaganą strefą (STOP_ZONE_START–STOP_ZONE_END).",
   DIRECTION_CHANGE_NOT_STOP:
     "Wykryto zmianę kierunku zamiast zatrzymania. Test hamowania wymaga pełnego zatrzymania.",
+  TEST_WINDOW_INCOMPLETE:
+    "Nagranie nie zawiera pełnego okna testu (za mały margines przed lub po ruchu). Zostaw min. 2 s spokoju z każdej strony właściwego ruchu.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
