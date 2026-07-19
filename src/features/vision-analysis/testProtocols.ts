@@ -86,6 +86,18 @@ export interface TestProtocol {
   /** Wersja algorytmu = wersja analizatora (źródło: testAnalyzerRegistry). */
   algorithmVersion: string;
   protocolVersion: string;
+  /** Minimalna oczekiwana długość okna ruchu w nagraniu (s). */
+  minMovementDurationSeconds: number;
+  /** Maksymalna oczekiwana długość okna ruchu w nagraniu (s). */
+  maxMovementDurationSeconds: number;
+  /** Zakres oczekiwanej liczby powtórzeń (dla serii; [1,1] dla pojedynczych). */
+  expectedRepCountRange: [number, number];
+  /** Minimalny margines spokoju przed właściwym ruchem (s). */
+  leadingMarginSeconds: number;
+  /** Minimalny margines spokoju po ruchu (s). */
+  trailingMarginSeconds: number;
+  /** Krótkie, konkretne instrukcje nagrania — pokazywane przed uploadem. */
+  recordingInstructions: string[];
 }
 
 const PROTOCOL_VERSION = "1.0.0";
