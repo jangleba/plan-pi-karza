@@ -24,6 +24,8 @@ import { vlog } from "./devLog";
 import type { LensType, CaptureOrientation } from "./calibrationProfiles";
 import { matchCalibrationStrictForRecording } from "@/lib/vision/calibrationStore";
 import { recognizeTestProtocol } from "./testProtocolRecognizer";
+import { detectMotionWindow, type MotionWindow } from "./motionWindow";
+import { getTestProtocol } from "./testProtocols";
 
 /** Testy, których wynik przestrzenny (mm/cm/m, m/s, km/h) wymaga homografii. */
 export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
@@ -357,6 +359,41 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       };
     }
 
+    // Coarse-pass: realne okno ruchu w nagraniu (informacyjne, nie blokuje wyniku).
+    const protocolSpec = getTestProtocol(opts.testType);
+    const motionWindow: MotionWindow = detectMotionWindow(poses, metadata.durationSeconds);
+    const minDur = protocolSpec.minMovementDurationSeconds ?? 0;
+    const maxDur = protocolSpec.maxMovementDurationSeconds ?? Number.POSITIVE_INFINITY;
+    const [minReps, maxReps] = protocolSpec.expectedRepCountRange ?? [1, 1];
+    const withinExpectedDuration =
+      motionWindow.durationSeconds >= minDur && motionWindow.durationSeconds <= maxDur;
+    const withinExpectedRepCount =
+      motionWindow.approximateVerticalRepetitions >= minReps &&
+      motionWindow.approximateVerticalRepetitions <= maxReps;
+    const hasSufficientMargins =
+      motionWindow.leadingMarginSeconds >= (protocolSpec.leadingMarginSeconds ?? 0) &&
+      motionWindow.trailingMarginSeconds >= (protocolSpec.trailingMarginSeconds ?? 0);
+    const motionWindowSummary = {
+      startTimestampSeconds: motionWindow.startTimestampSeconds,
+      endTimestampSeconds: motionWindow.endTimestampSeconds,
+      durationSeconds: motionWindow.durationSeconds,
+      leadingMarginSeconds: motionWindow.leadingMarginSeconds,
+      trailingMarginSeconds: motionWindow.trailingMarginSeconds,
+      approximateVerticalRepetitions: motionWindow.approximateVerticalRepetitions,
+      activeSegments: motionWindow.activeSegments,
+      framesConsidered: motionWindow.framesConsidered,
+      withinExpectedDuration,
+      withinExpectedRepCount,
+      hasSufficientMargins,
+    };
+    vlog("motion_window", "wykryte okno ruchu", {
+      testType: opts.testType,
+      adapter: `${opts.testType}@${analyzer.analyzerVersion}`,
+      window: motionWindowSummary,
+      expected: { minDur, maxDur, minReps, maxReps },
+    });
+
+
 
     // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
     // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
@@ -433,10 +470,15 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     // Przy override statusu (calibration_required / technique_only) nie dodajemy
     // szumu EVENTS_NOT_DETECTED — ruch został rozpoznany.
     const extraIssues = statusOverride ? [] : decision.extraIssues;
-    const qualityIssues = [...validation.issues, ...extraIssues];
+    // TEST_WINDOW_INCOMPLETE — ostrzeżenie (NIE blokuje wyniku, nie zmienia
+    // obliczeń CMJ ani innych adapterów), pokazywane tylko gdy ruch rozpoznany.
+    const windowWarning =
+      status === "completed" && !hasSufficientMargins ? ["TEST_WINDOW_INCOMPLETE" as const] : [];
+    const qualityIssues = [...validation.issues, ...extraIssues, ...windowWarning];
     const retakeInstructions = [
       ...validation.retakeInstructions,
       ...extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
+      ...windowWarning.map((i) => QUALITY_ISSUE_LABELS[i]),
     ];
 
     opts.onPhase?.("completed");
@@ -476,6 +518,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         cameraMoved: !!calibration?.cameraMoved,
         homography: calibration?.homography ? [...calibration.homography] : null,
       },
+      motionWindow: motionWindowSummary,
     };
   } catch (e) {
     opts.onPhase?.("error");

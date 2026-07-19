@@ -1,12 +1,14 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { UploadCloud, FileVideo, CheckCircle2, Loader2 } from "lucide-react";
+import { UploadCloud, FileVideo, CheckCircle2, Loader2, Info } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow, updateFlow } from "@/lib/vision/visionFlow";
 import { uploadVisionVideo } from "@/lib/vision/visionRepo";
+import { getTestProtocol } from "@/features/vision-analysis/testProtocols";
+import type { TestType } from "@/features/vision-analysis/types";
 
 type Status = "idle" | "selected" | "uploading" | "done";
 
@@ -15,6 +17,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const flow = getFlow(test.id);
+  const protocol = getTestProtocol(test.id as TestType);
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
   const [status, setStatus] = useState<Status>(flow.videoUrl ? "done" : "idle");
   const [uploaded, setUploaded] = useState(flow.uploaded);
@@ -108,13 +111,30 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           </div>
         )}
 
-        <div className="soft-card p-4">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Po wysłaniu film trafia do analizy na podstawie kluczowych klatek, FPS
-            i protokołu testu. Jeśli nagranie nie spełnia wymagań, poprosimy Cię o
-            powtórzenie. Nie musisz nic mierzyć samodzielnie.
-          </p>
+        <div className="soft-card space-y-3 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Info className="h-4 w-4 text-brand" />
+            Jak nagrać ten test
+          </div>
+          <ul className="space-y-1.5 text-xs leading-relaxed text-foreground">
+            {(protocol.recordingInstructions ?? []).map((tip, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="text-brand">•</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2 text-[11px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-accent px-2 py-0.5">
+              Zalecane {protocol.preferredFps} FPS (min. {protocol.minimumFps})
+            </span>
+            <span className="rounded-full bg-accent px-2 py-0.5">
+              Zapas: {protocol.leadingMarginSeconds ?? 2}s / {protocol.trailingMarginSeconds ?? 2}s
+            </span>
+            <span className="rounded-full bg-accent px-2 py-0.5">Kamera: {protocol.requiredCameraSetup}</span>
+          </div>
         </div>
+
       </div>
 
       <div

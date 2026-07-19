@@ -72,7 +72,8 @@ export type QualityIssueCode =
   | "NO_SPEED_REDUCTION"
   | "STOP_NOT_DETECTED"
   | "STOP_OUT_OF_ZONE"
-  | "DIRECTION_CHANGE_NOT_STOP";
+  | "DIRECTION_CHANGE_NOT_STOP"
+  | "TEST_WINDOW_INCOMPLETE";
 
 export interface VideoMetadata {
   fps: number;
@@ -309,6 +310,20 @@ export interface VideoAnalysisResult {
     /** Homografia world→image (do panelu debug). */
     homography: number[] | null;
   };
+  /** Realne okno ruchu wykryte w nagraniu (coarse-pass, informacyjne). */
+  motionWindow?: {
+    startTimestampSeconds: number | null;
+    endTimestampSeconds: number | null;
+    durationSeconds: number;
+    leadingMarginSeconds: number;
+    trailingMarginSeconds: number;
+    approximateVerticalRepetitions: number;
+    activeSegments: number;
+    framesConsidered: number;
+    withinExpectedDuration: boolean;
+    withinExpectedRepCount: boolean;
+    hasSufficientMargins: boolean;
+  };
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
@@ -389,6 +404,8 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Zatrzymanie nastąpiło poza wymaganą strefą (STOP_ZONE_START–STOP_ZONE_END).",
   DIRECTION_CHANGE_NOT_STOP:
     "Wykryto zmianę kierunku zamiast zatrzymania. Test hamowania wymaga pełnego zatrzymania.",
+  TEST_WINDOW_INCOMPLETE:
+    "Nagranie nie zawiera pełnego okna testu (za mały margines przed lub po ruchu). Zostaw min. 2 s spokoju z każdej strony właściwego ruchu.",
 };
 
 /** Indeksy landmarków MediaPipe Pose (podzbiór używany w analizie). */
