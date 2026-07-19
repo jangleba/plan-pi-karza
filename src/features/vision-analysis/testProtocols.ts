@@ -435,12 +435,142 @@ export const TEST_PROTOCOL_REGISTRY: Record<TestType, TestProtocol> = {
   },
 };
 
+/**
+ * Parametry realnego okna ruchu i instrukcji nagrania per test. Trzymane osobno,
+ * żeby nie ruszać istniejących analizatorów. Wartości wynikają z protokołów
+ * pomiaru (nie zgadujemy — używamy zakresów realnych dla danej rodziny testów).
+ */
+const PROTOCOL_EXTRAS: Record<TestType, Required<Pick<TestProtocol,
+  "minMovementDurationSeconds" | "maxMovementDurationSeconds" | "expectedRepCountRange"
+  | "leadingMarginSeconds" | "trailingMarginSeconds" | "recordingInstructions">>> = {
+  cmj: {
+    minMovementDurationSeconds: 0.6, maxMovementDurationSeconds: 3.5,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Nagraj z boku, całą sylwetkę i stopy w kadrze.",
+      "Zalecane 120 FPS (60 FPS = wynik estymowany).",
+      "Zostaw 2 s spokoju przed odbiciem i 2 s po lądowaniu.",
+      "Jedno odbicie w nagraniu (bez próbnych powtórzeń).",
+    ],
+  },
+  squat_jump: {
+    minMovementDurationSeconds: 0.4, maxMovementDurationSeconds: 3.0,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Bez zamachu w dół — start z pozycji półprzysiadu.",
+      "Nagraj z boku, całą sylwetkę i stopy w kadrze.",
+      "Zalecane 120 FPS. Zostaw 2 s zapasu przed i po skoku.",
+    ],
+  },
+  drop_jump: {
+    minMovementDurationSeconds: 0.5, maxMovementDurationSeconds: 3.5,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Nagraj z boku. Wymagane 120–240 FPS (krótki kontakt z podłożem).",
+      "Widoczne wejście z podwyższenia i pełne lądowanie.",
+      "Zostaw 2 s zapasu przed startem i po lądowaniu.",
+    ],
+  },
+  repeated_jumps: {
+    minMovementDurationSeconds: 4, maxMovementDurationSeconds: 20,
+    expectedRepCountRange: [4, 30], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Nagraj całą serię jednym ujęciem, bez cięcia.",
+      "Wymagane 120–240 FPS. Kamera z boku, stopy w kadrze.",
+      "2 s spokoju przed pierwszym i po ostatnim odbiciu.",
+    ],
+  },
+  broad_jump: {
+    minMovementDurationSeconds: 0.5, maxMovementDurationSeconds: 3.5,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Skalibruj podłoże w tym filmie (linia wybicia + obszar lądowania).",
+      "Nagraj z boku, pełna trajektoria skoku i pięta lądowania widoczne.",
+      "Zostaw 2 s zapasu przed i po skoku.",
+    ],
+  },
+  single_leg_hop: {
+    minMovementDurationSeconds: 0.5, maxMovementDurationSeconds: 3.5,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Osobne nagrania dla lewej i prawej nogi (po 2 prawidłowe próby).",
+      "Skalibruj podłoże w tym filmie. Pięta lądowania musi być widoczna.",
+      "2 s spokoju przed skokiem i po lądowaniu.",
+    ],
+  },
+  pogo_jumps: {
+    minMovementDurationSeconds: 4, maxMovementDurationSeconds: 15,
+    expectedRepCountRange: [6, 30], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Seria szybkich, krótkich odbić — kolana prawie proste.",
+      "Wymagane 120–240 FPS. Nagraj z boku, stopy w kadrze.",
+      "2 s spokoju przed pierwszym i po ostatnim odbiciu.",
+    ],
+  },
+  sprint_20m: {
+    minMovementDurationSeconds: 2.5, maxMovementDurationSeconds: 6.5,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Skalibruj linię START i FINISH na podłożu (Timing Plane).",
+      "Kamera z boku, prostopadle do osi biegu, nieruchoma.",
+      "Cała sylwetka widoczna od startu do mety. 2 s zapasu z każdej strony.",
+    ],
+  },
+  sprint_30m: {
+    minMovementDurationSeconds: 3.5, maxMovementDurationSeconds: 8,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Skalibruj linię START i FINISH (30 m) na podłożu.",
+      "Kamera z boku, prostopadle do osi biegu, nieruchoma.",
+      "2 s zapasu przed startem i po minięciu mety.",
+    ],
+  },
+  flying_sprint: {
+    minMovementDurationSeconds: 1.5, maxMovementDurationSeconds: 5,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Skalibruj bramki TIMING_A i TIMING_B (odcinek pomiarowy).",
+      "Wejdź w odcinek z pełną prędkością (rozbieg poza bramką A).",
+      "Kamera nieruchoma, prostopadle do osi biegu.",
+    ],
+  },
+  five_ten_five: {
+    minMovementDurationSeconds: 4, maxMovementDurationSeconds: 10,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Skalibruj 3 linie: CENTER, TURN_LEFT, TURN_RIGHT.",
+      "Kamera z przodu, prostopadle do linii środkowej, nieruchoma.",
+      "Osobne próby dla zwrotu w prawo i w lewo.",
+    ],
+  },
+  sprint_to_stop: {
+    minMovementDurationSeconds: 2.5, maxMovementDurationSeconds: 7,
+    expectedRepCountRange: [1, 1], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    recordingInstructions: [
+      "Skalibruj: BRAKING_ENTRY, STOP_ZONE_START, STOP_ZONE_END.",
+      "Wbiegnij z pełną prędkością i zatrzymaj się w strefie.",
+      "Kamera z boku, nieruchoma. 2 s zapasu przed i po zatrzymaniu.",
+    ],
+  },
+  analyze_gym_exercise: {
+    minMovementDurationSeconds: 1, maxMovementDurationSeconds: 60,
+    expectedRepCountRange: [1, 20], leadingMarginSeconds: 1, trailingMarginSeconds: 1,
+    recordingInstructions: [
+      "Nagraj całe ćwiczenie z jednej stabilnej pozycji.",
+      "Widoczna cała sylwetka wykonawcy w każdej powtórce.",
+      "60 FPS wystarczy — kluczowa jest czytelność techniki.",
+    ],
+  },
+};
+
 export function getTestProtocol(testType: TestType): TestProtocol {
-  return TEST_PROTOCOL_REGISTRY[testType];
+  const base = TEST_PROTOCOL_REGISTRY[testType];
+  const extras = PROTOCOL_EXTRAS[testType];
+  return { ...base, ...extras };
 }
 
 export function listTestProtocols(): TestProtocol[] {
-  return Object.values(TEST_PROTOCOL_REGISTRY);
+  return (Object.keys(TEST_PROTOCOL_REGISTRY) as TestType[]).map(getTestProtocol);
 }
 
 /** Wszystkie realne testy Vision Lab (kolejność stabilna wg rejestru). */
