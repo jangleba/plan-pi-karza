@@ -24,6 +24,8 @@ import { vlog } from "./devLog";
 import type { LensType, CaptureOrientation } from "./calibrationProfiles";
 import { matchCalibrationStrictForRecording } from "@/lib/vision/calibrationStore";
 import { recognizeTestProtocol } from "./testProtocolRecognizer";
+import { detectMotionWindow, type MotionWindow } from "./motionWindow";
+import { getTestProtocol } from "./testProtocols";
 
 /** Testy, których wynik przestrzenny (mm/cm/m, m/s, km/h) wymaga homografii. */
 export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
