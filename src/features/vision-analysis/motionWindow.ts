@@ -43,7 +43,7 @@ const KEY_LANDMARKS = [11, 12, 23, 24, 27, 28] as const; // barki, biodra, kostk
 function silhouetteSize(pose: FramePose): number {
   const lm = pose.landmarks;
   if (!lm) return 0;
-  const shoulderY = (lm[11]?.y ?? 0.5 + lm[12]?.y ?? 0.5) / 2;
+  const shoulderY = ((lm[11]?.y ?? 0.5) + (lm[12]?.y ?? 0.5)) / 2;
   const ankleY = ((lm[27]?.y ?? 0.9) + (lm[28]?.y ?? 0.9)) / 2;
   const h = Math.abs(ankleY - shoulderY);
   return h > 0.05 ? h : 0.5;
