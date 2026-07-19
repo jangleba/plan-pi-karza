@@ -111,13 +111,30 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           </div>
         )}
 
-        <div className="soft-card p-4">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Po wysłaniu film trafia do analizy na podstawie kluczowych klatek, FPS
-            i protokołu testu. Jeśli nagranie nie spełnia wymagań, poprosimy Cię o
-            powtórzenie. Nie musisz nic mierzyć samodzielnie.
-          </p>
+        <div className="soft-card space-y-3 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Info className="h-4 w-4 text-brand" />
+            Jak nagrać ten test
+          </div>
+          <ul className="space-y-1.5 text-xs leading-relaxed text-foreground">
+            {(protocol.recordingInstructions ?? []).map((tip, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="text-brand">•</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2 text-[11px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-accent px-2 py-0.5">
+              Zalecane {protocol.preferredFps} FPS (min. {protocol.minimumFps})
+            </span>
+            <span className="rounded-full bg-accent px-2 py-0.5">
+              Zapas: {protocol.leadingMarginSeconds ?? 2}s / {protocol.trailingMarginSeconds ?? 2}s
+            </span>
+            <span className="rounded-full bg-accent px-2 py-0.5">Kamera: {protocol.requiredCameraSetup}</span>
+          </div>
         </div>
+
       </div>
 
       <div
