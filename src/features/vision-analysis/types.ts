@@ -310,6 +310,20 @@ export interface VideoAnalysisResult {
     /** Homografia world→image (do panelu debug). */
     homography: number[] | null;
   };
+  /** Realne okno ruchu wykryte w nagraniu (coarse-pass, informacyjne). */
+  motionWindow?: {
+    startTimestampSeconds: number | null;
+    endTimestampSeconds: number | null;
+    durationSeconds: number;
+    leadingMarginSeconds: number;
+    trailingMarginSeconds: number;
+    approximateVerticalRepetitions: number;
+    activeSegments: number;
+    framesConsidered: number;
+    withinExpectedDuration: boolean;
+    withinExpectedRepCount: boolean;
+    hasSufficientMargins: boolean;
+  };
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
