@@ -77,6 +77,8 @@ const RETAKE: Record<QualityIssueCode, string> = {
     "Zatrzymaj się w wyznaczonej strefie (STOP_ZONE_START–STOP_ZONE_END).",
   DIRECTION_CHANGE_NOT_STOP:
     "Zatrzymaj się w pełni zamiast zmieniać kierunek — to test hamowania.",
+  TEST_WINDOW_INCOMPLETE:
+    "Nagraj z 2 s zapasu przed i po ruchu (spokojna pozycja startowa i stabilizacja po lądowaniu).",
 };
 
 /** Wspólna walidacja jakości nagrania dla wszystkich analizatorów. */
