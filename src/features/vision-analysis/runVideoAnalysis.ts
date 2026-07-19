@@ -470,10 +470,15 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     // Przy override statusu (calibration_required / technique_only) nie dodajemy
     // szumu EVENTS_NOT_DETECTED — ruch został rozpoznany.
     const extraIssues = statusOverride ? [] : decision.extraIssues;
-    const qualityIssues = [...validation.issues, ...extraIssues];
+    // TEST_WINDOW_INCOMPLETE — ostrzeżenie (NIE blokuje wyniku, nie zmienia
+    // obliczeń CMJ ani innych adapterów), pokazywane tylko gdy ruch rozpoznany.
+    const windowWarning =
+      status === "completed" && !hasSufficientMargins ? ["TEST_WINDOW_INCOMPLETE" as const] : [];
+    const qualityIssues = [...validation.issues, ...extraIssues, ...windowWarning];
     const retakeInstructions = [
       ...validation.retakeInstructions,
       ...extraIssues.map((i) => QUALITY_ISSUE_LABELS[i]),
+      ...windowWarning.map((i) => QUALITY_ISSUE_LABELS[i]),
     ];
 
     opts.onPhase?.("completed");
