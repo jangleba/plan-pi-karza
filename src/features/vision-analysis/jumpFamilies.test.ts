@@ -70,10 +70,10 @@ function squatJumpPoses(fps = 120): FramePose[] {
   return p;
 }
 
-/** Pogo: seria szybkich odbić z krótkim kontaktem. */
+/** Pogo: seria szybkich odbić z krótkim kontaktem (12 pełnych cykli). */
 function pogoPoses(fps = 240): FramePose[] {
   const p: FramePose[] = [];
-  for (let i = 0; i < 360; i++) {
+  for (let i = 0; i < 720; i++) {
     const phase = i % 60;
     const airborne = phase >= 18;
     p.push(frame(i, fps, 0.55, airborne ? 0.78 : 0.9));
