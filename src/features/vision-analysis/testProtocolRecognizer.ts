@@ -47,14 +47,29 @@ export interface ProtocolRecognition {
   detectedSignature: MovementSignature;
   detectedFamilies: TestFamily[];
   detectedTestConfidence: number;
+  /** Nazwa wykrytego testu z filmu (np. "POGO", "CMJ", "DROP_JUMP"). */
+  detectedTestType: string;
   contactCount: number;
   flightCount: number;
+  /** Ile powtórzeń rozpoznaliśmy w nagraniu (kontakty dla serii, 1 dla pojedynczego). */
+  detectedRepetitions: number;
+  /** Minimalna liczba prawidłowych powtórzeń wymagana przez protokół. */
+  requiredRepetitions: number;
   protocolMatch: boolean;
   repetitionCountValid: boolean;
   /** Kod błędu blokujący adapter (null gdy protocolMatch). */
   errorCode: QualityIssueCode | null;
   reason: string;
 }
+
+const SIGNATURE_TO_TEST_LABEL: Record<MovementSignature, string> = {
+  SINGLE_FLIGHT: "CMJ",
+  DROP_REBOUND: "DROP_JUMP",
+  REPEATED_CONTACTS: "POGO",
+  LOCOMOTION: "SPRINT",
+  TECHNIQUE: "TECHNIQUE",
+  UNKNOWN: "UNKNOWN",
+};
 
 /** Zakres poziomej trajektorii bioder (0-1) — do wykrycia lokomocji. */
 function horizontalRange(poses: FramePose[]): number {
@@ -88,7 +103,8 @@ export function recognizeMovement(poses: FramePose[]): {
   // Seria reaktywnych kontaktów: co najmniej 3 kontakty i brak jednego,
   // dominującego, długiego lotu (CMJ ma jeden długi lot, nie serię).
   if (contacts.length >= 3) {
-    const conf = Math.min(1, contacts.length / 5);
+    // 3 kontakty → 0.9, 5+ → 1.0 (pewna, sprzeczna z CMJ sygnatura).
+    const conf = Math.min(1, 0.6 + contacts.length * 0.1);
     return { signature: "REPEATED_CONTACTS", confidence: conf, contactCount: contacts.length, flightCount: 1 };
   }
 
@@ -127,6 +143,8 @@ export function recognizeTestProtocol(
   const protocol = getTestProtocol(selectedTestType);
   const selectedFamily = protocol.measurementFamily;
 
+  const requiredRepetitions = protocol.expectedRepCountRange?.[0] ?? 1;
+
   // Testy techniczne (siłownia) nie mają twardego gate — ocenia trener.
   if (selectedFamily === "TECHNIQUE") {
     return {
@@ -135,8 +153,11 @@ export function recognizeTestProtocol(
       detectedSignature: "TECHNIQUE",
       detectedFamilies: ["TECHNIQUE"],
       detectedTestConfidence: 1,
+      detectedTestType: "TECHNIQUE",
       contactCount: 0,
       flightCount: 0,
+      detectedRepetitions: 0,
+      requiredRepetitions,
       protocolMatch: true,
       repetitionCountValid: true,
       errorCode: null,
@@ -147,19 +168,15 @@ export function recognizeTestProtocol(
   const { signature, confidence, contactCount, flightCount } = recognizeMovement(poses);
   const detectedFamilies = SIGNATURE_FAMILIES[signature];
   const familyMatch = detectedFamilies.includes(selectedFamily);
+  const detectedTestType = SIGNATURE_TO_TEST_LABEL[signature];
+  const detectedRepetitions =
+    signature === "REPEATED_CONTACTS" ? contactCount : signature === "UNKNOWN" ? 0 : 1;
 
-  // Kontrola liczby prób/powtórzeń: jeden film = jedna próba lub jedna seria.
   const bilateralOrMax = protocol.attemptProtocol.kind !== "REPEATED_CONTACT_SERIES";
   let repetitionCountValid = true;
   let errorCode: QualityIssueCode | null = null;
   let reason = "Protokół zgodny.";
 
-  // Blokujemy adapter TYLKO przy pewnej, sprzecznej sygnaturze. Sygnatura
-  // niepewna (UNKNOWN / niska pewność) NIE odrzuca nagrania — o wyniku decyduje
-  // walidacja adaptera (np. CMJ dostaje szansę policzyć lot i sam odrzuci, gdy
-  // faza lotu jest nierealna). To przywraca kończenie analizy dla realnych filmów.
-  // Próg 0.80 zgodnie z protokołem CMJ — poniżej nie zamieniamy błędów
-  // detekcji (TAKEOFF_NOT_DETECTED, NO_FLIGHT_PHASE itd.) na TEST_PROTOCOL_MISMATCH.
   const CONFIDENT_SIGNATURE = 0.8;
   if (!familyMatch) {
     if (signature === "UNKNOWN" || confidence < CONFIDENT_SIGNATURE) {
@@ -167,24 +184,25 @@ export function recognizeTestProtocol(
         2,
       )}) — adapter zwaliduje wynik.`;
     } else {
-      // Wyraźna sygnatura sprzeczna z rodziną → mismatch protokołu.
       errorCode = "TEST_PROTOCOL_MISMATCH";
-      reason = `Wykryto ruch typu ${signature}, niezgodny z rodziną ${selectedFamily}.`;
+      reason = `Wykryto ruch typu ${detectedTestType}, niezgodny z rodziną ${selectedFamily}.`;
     }
   } else if (bilateralOrMax && signature === "SINGLE_FLIGHT" && contactCount >= 3) {
-    // Test pojedynczej próby, ale film zawiera serię odbić.
     repetitionCountValid = false;
     errorCode = "WRONG_REPETITION_COUNT";
     reason = "Test pojedynczej próby zawiera serię powtórzeń.";
-  } else if (
-    protocol.attemptProtocol.kind === "REPEATED_CONTACT_SERIES" &&
-    flightCount <= 1 &&
-    contactCount < 3
-  ) {
-    // Test serii, ale film pokazuje pojedyncze odbicie.
-    repetitionCountValid = false;
-    errorCode = "WRONG_REPETITION_COUNT";
-    reason = "Test serii wymaga jednej pełnej serii odbić.";
+  } else if (protocol.attemptProtocol.kind === "REPEATED_CONTACT_SERIES") {
+    if (flightCount <= 1 && contactCount < 3) {
+      // Pojedyncze odbicie zamiast serii.
+      repetitionCountValid = false;
+      errorCode = "WRONG_REPETITION_COUNT";
+      reason = "Test serii wymaga jednej pełnej serii odbić.";
+    } else if (detectedRepetitions < requiredRepetitions) {
+      // Wykryto serię, ale za krótką — zwracamy konkretną liczbę.
+      repetitionCountValid = false;
+      errorCode = "WRONG_REPETITION_COUNT";
+      reason = `Wykryto ${detectedRepetitions} odbić, wymagane ${requiredRepetitions}.`;
+    }
   }
 
   const protocolMatch = familyMatch && repetitionCountValid;
@@ -195,8 +213,11 @@ export function recognizeTestProtocol(
     detectedSignature: signature,
     detectedFamilies,
     detectedTestConfidence: Number(confidence.toFixed(2)),
+    detectedTestType,
     contactCount,
     flightCount,
+    detectedRepetitions,
+    requiredRepetitions,
     protocolMatch,
     repetitionCountValid,
     errorCode: protocolMatch ? null : errorCode,

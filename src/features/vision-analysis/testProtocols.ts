@@ -500,7 +500,7 @@ const PROTOCOL_EXTRAS: Record<TestType, Required<Pick<TestProtocol,
   },
   pogo_jumps: {
     minMovementDurationSeconds: 4, maxMovementDurationSeconds: 15,
-    expectedRepCountRange: [6, 30], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
+    expectedRepCountRange: [10, 30], leadingMarginSeconds: 2, trailingMarginSeconds: 2,
     recordingInstructions: [
       "Seria szybkich, krótkich odbić — kolana prawie proste.",
       "Wymagane 120–240 FPS. Nagraj z boku, stopy w kadrze.",
