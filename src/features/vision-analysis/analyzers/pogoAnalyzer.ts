@@ -199,7 +199,7 @@ function validate(ctx: AnalysisContext): ValidationResult {
   return buildValidation(issues, hardFail());
 }
 
-function hardFail() {
+function hardFail(): import("../types").QualityIssueCode[] {
   return [
     "POSE_NOT_DETECTED",
     "ATHLETE_OUT_OF_FRAME",
@@ -207,7 +207,7 @@ function hardFail() {
     "TEST_PROTOCOL_MISMATCH",
     "EVENTS_NOT_DETECTED",
     "WRONG_REPETITION_COUNT",
-  ] as const as unknown as import("../types").QualityIssueCode[];
+  ];
 }
 
 export const pogoAnalyzer: TestAnalyzer = {
