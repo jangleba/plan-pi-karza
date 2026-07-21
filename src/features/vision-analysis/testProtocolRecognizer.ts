@@ -1,16 +1,12 @@
 /**
- * TestProtocolRecognizer — wykrywa rodzaj ruchu z pozy i porównuje z wybranym
- * testem, ZANIM uruchomi się adapter.
+ * TestProtocolRecognizer — jedyna ścieżka rozpoznania testu po uploadzie.
  *
- * Pipeline gwarantowany:
- *   selectedTestType → detectedTestType → detectedTestConfidence
- *   → protocolMatch → (dopiero teraz) adapter.
- *
- * Rozpoznanie działa na poziomie "sygnatury ruchu" (nie zgaduje 20 vs 30 m —
- * tego nie da się odczytać z filmu bez kalibracji). Sygnatura mapuje na
- * zbiór zgodnych rodzin pomiarowych. protocolMatch = rodzina wybranego testu
- * należy do rodzin dozwolonych dla wykrytej sygnatury ORAZ liczba prób/serii
- * jest zgodna z protokołem (inaczej WRONG_REPETITION_COUNT).
+ * Pipeline (jedyny):
+ *   MovementEventExtractor (analyzeJumpField + detectGroundContacts +
+ *     detectRepeatedCycles + detectDropJumpPhases + hipXSeries)
+ *   → MovementSignatureBuilder (recognizeMovement)
+ *   → SelectedTestValidator (recognizeTestProtocol)
+ *   → TestAdapter.
  *
  * Determinizm: rozpoznanie korzysta wyłącznie z deterministycznej matematyki
  * pozy — ten sam plik zawsze daje identyczny wynik.
@@ -20,18 +16,23 @@ import type { FramePose, QualityIssueCode } from "./types";
 import type { TestType } from "./types";
 import type { MeasurementFamily, TestFamily } from "./testProtocols";
 import { getTestProtocol } from "./testProtocols";
-import { detectFlightPhase, detectGroundContacts, detectDropJumpPhases } from "./analyzers/jumpDetection";
+import {
+  detectFlightPhase,
+  detectGroundContacts,
+  detectDropJumpPhases,
+  analyzeJumpField,
+  detectRepeatedCycles,
+} from "./analyzers/jumpDetection";
 import { hipXSeries } from "./poseSeries";
 
 export type MovementSignature =
-  | "SINGLE_FLIGHT" // jeden wyraźny lot (CMJ / Squat Jump / Broad Jump)
-  | "DROP_REBOUND" // zejście ze skrzyni + odbicie (Drop Jump)
-  | "REPEATED_CONTACTS" // seria odbić (Pogo / Repeated Jumps)
-  | "LOCOMOTION" // bieg / zmiana kierunku / hamowanie po podłożu
-  | "TECHNIQUE" // ruch techniczny (siłownia) — brak twardego gate
+  | "SINGLE_FLIGHT"
+  | "DROP_REBOUND"
+  | "REPEATED_CONTACTS"
+  | "LOCOMOTION"
+  | "TECHNIQUE"
   | "UNKNOWN";
 
-/** Rodziny pomiaru zgodne z daną sygnaturą ruchu. */
 const SIGNATURE_FAMILIES: Record<MovementSignature, TestFamily[]> = {
   SINGLE_FLIGHT: ["VERTICAL_JUMP", "GROUND_DISTANCE"],
   DROP_REBOUND: ["REACTIVE_CONTACT"],
@@ -47,17 +48,14 @@ export interface ProtocolRecognition {
   detectedSignature: MovementSignature;
   detectedFamilies: TestFamily[];
   detectedTestConfidence: number;
-  /** Nazwa wykrytego testu z filmu (np. "POGO", "CMJ", "DROP_JUMP"). */
+  /** Etykieta wykrytego typu ruchu (POGO / CMJ / DROP_JUMP / SPRINT / …). */
   detectedTestType: string;
   contactCount: number;
   flightCount: number;
-  /** Ile powtórzeń rozpoznaliśmy w nagraniu (kontakty dla serii, 1 dla pojedynczego). */
   detectedRepetitions: number;
-  /** Minimalna liczba prawidłowych powtórzeń wymagana przez protokół. */
   requiredRepetitions: number;
   protocolMatch: boolean;
   repetitionCountValid: boolean;
-  /** Kod błędu blokujący adapter (null gdy protocolMatch). */
   errorCode: QualityIssueCode | null;
   reason: string;
 }
@@ -71,14 +69,19 @@ const SIGNATURE_TO_TEST_LABEL: Record<MovementSignature, string> = {
   UNKNOWN: "UNKNOWN",
 };
 
-/** Zakres poziomej trajektorii bioder (0-1) — do wykrycia lokomocji. */
 function horizontalRange(poses: FramePose[]): number {
   const xs = hipXSeries(poses).filter((v) => Number.isFinite(v));
   if (xs.length < 4) return 0;
   return Math.max(...xs) - Math.min(...xs);
 }
 
-/** Deterministyczne rozpoznanie sygnatury ruchu z pozy. */
+/**
+ * Deterministyczne rozpoznanie sygnatury ruchu. Łączy:
+ *  - segmenty lotu z analyzeJumpField (najbardziej niezawodne dla serii),
+ *  - liczbę kontaktów z podłożem,
+ *  - detektor Drop Jump,
+ *  - zakres poziomy bioder (lokomocja).
+ */
 export function recognizeMovement(poses: FramePose[]): {
   signature: MovementSignature;
   confidence: number;
@@ -88,9 +91,10 @@ export function recognizeMovement(poses: FramePose[]): {
   const contacts = detectGroundContacts(poses);
   const flight = detectFlightPhase(poses);
   const dropJump = detectDropJumpPhases(poses);
+  const field = analyzeJumpField(poses);
+  const airSegments = field?.segments.length ?? 0;
   const hRange = horizontalRange(poses);
 
-  // Drop Jump: zejście ze skrzyni + odbicie (dwa loty, pierwszy od granicy kadru).
   if (dropJump) {
     return {
       signature: "DROP_REBOUND",
@@ -100,15 +104,19 @@ export function recognizeMovement(poses: FramePose[]): {
     };
   }
 
-  // Seria reaktywnych kontaktów: co najmniej 3 kontakty i brak jednego,
-  // dominującego, długiego lotu (CMJ ma jeden długi lot, nie serię).
-  if (contacts.length >= 3) {
-    // 3 kontakty → 0.9, 5+ → 1.0 (pewna, sprzeczna z CMJ sygnatura).
-    const conf = Math.min(1, 0.6 + contacts.length * 0.1);
-    return { signature: "REPEATED_CONTACTS", confidence: conf, contactCount: contacts.length, flightCount: 1 };
+  // REPEATED_CONTACTS: >=2 loty ALBO >=3 kontakty. Bardziej odporne niż sam
+  // licznik kontaktów — w krótkim Pogo pierwszy/ostatni kontakt bywa ucięty.
+  const repeatedSignal = Math.max(airSegments, contacts.length);
+  if (airSegments >= 2 || contacts.length >= 3) {
+    const conf = Math.min(1, 0.6 + repeatedSignal * 0.1);
+    return {
+      signature: "REPEATED_CONTACTS",
+      confidence: conf,
+      contactCount: contacts.length,
+      flightCount: airSegments,
+    };
   }
 
-  // Lokomocja pozioma: duże przemieszczenie bioder w poziomie bez wyraźnego lotu.
   if (!flight && hRange >= 0.25) {
     const conf = Math.min(1, hRange / 0.5);
     return { signature: "LOCOMOTION", confidence: conf, contactCount: contacts.length, flightCount: 0 };
@@ -123,8 +131,6 @@ export function recognizeMovement(poses: FramePose[]): {
     };
   }
 
-  // Bieg z liniami bywa widziany z przodu (5-10-5) — mały zakres poziomy,
-  // ale realny ruch. Traktujemy jako lokomocję o niskiej pewności.
   if (hRange >= 0.12) {
     return { signature: "LOCOMOTION", confidence: 0.4, contactCount: contacts.length, flightCount: 0 };
   }
@@ -134,7 +140,16 @@ export function recognizeMovement(poses: FramePose[]): {
 
 /**
  * Pełne rozpoznanie protokołu dla wybranego testu.
- * Gate: adapter może ruszyć wyłącznie przy protocolMatch === true.
+ *
+ * HIERARCHIA BŁĘDÓW (kolejność ważności):
+ *   1. Brak danych / sylwetki (UNKNOWN sygnatura) → EVENTS_NOT_DETECTED.
+ *   2. Zła liczba powtórzeń → WRONG_REPETITION_COUNT (dla rodziny testu).
+ *   3. Realna niezgodność testu → TEST_PROTOCOL_MISMATCH (tylko przy
+ *      confidence >= 0.85 i jednoznacznie innej rodzinie ruchu).
+ *
+ * CMJ NIE jest fallbackiem. Jeżeli wybrany test to POGO i widać cokolwiek
+ * przypominającego odbicia, zwracamy WRONG_REPETITION_COUNT z realną liczbą
+ * wykrytych cykli, nie MISMATCH.
  */
 export function recognizeTestProtocol(
   selectedTestType: TestType,
@@ -142,10 +157,8 @@ export function recognizeTestProtocol(
 ): ProtocolRecognition {
   const protocol = getTestProtocol(selectedTestType);
   const selectedFamily = protocol.measurementFamily;
-
   const requiredRepetitions = protocol.expectedRepCountRange?.[0] ?? 1;
 
-  // Testy techniczne (siłownia) nie mają twardego gate — ocenia trener.
   if (selectedFamily === "TECHNIQUE") {
     return {
       selectedTestType,
@@ -166,46 +179,58 @@ export function recognizeTestProtocol(
   }
 
   const { signature, confidence, contactCount, flightCount } = recognizeMovement(poses);
+  const { cycles } = detectRepeatedCycles(poses);
   const detectedFamilies = SIGNATURE_FAMILIES[signature];
   const familyMatch = detectedFamilies.includes(selectedFamily);
   const detectedTestType = SIGNATURE_TO_TEST_LABEL[signature];
-  const detectedRepetitions =
-    signature === "REPEATED_CONTACTS" ? contactCount : signature === "UNKNOWN" ? 0 : 1;
 
-  const bilateralOrMax = protocol.attemptProtocol.kind !== "REPEATED_CONTACT_SERIES";
+  const detectedRepetitions =
+    signature === "REPEATED_CONTACTS"
+      ? Math.max(cycles.length, contactCount, flightCount)
+      : signature === "UNKNOWN"
+        ? 0
+        : 1;
+
+  const CONFIDENT_SIGNATURE = 0.85;
+  const isSeriesProtocol = protocol.attemptProtocol.kind === "REPEATED_CONTACT_SERIES";
+
   let repetitionCountValid = true;
   let errorCode: QualityIssueCode | null = null;
   let reason = "Protokół zgodny.";
 
-  const CONFIDENT_SIGNATURE = 0.8;
-  if (!familyMatch) {
-    if (signature === "UNKNOWN" || confidence < CONFIDENT_SIGNATURE) {
-      reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(
-        2,
-      )}) — adapter zwaliduje wynik.`;
-    } else {
+  if (isSeriesProtocol) {
+    // Test serii (Pogo / Repeated Jumps).
+    if (signature === "UNKNOWN") {
+      errorCode = "EVENTS_NOT_DETECTED";
+      reason = "Nie wykryto sylwetki, stóp ani żadnego odbicia.";
+      repetitionCountValid = false;
+    } else if (signature === "LOCOMOTION" && confidence >= CONFIDENT_SIGNATURE) {
       errorCode = "TEST_PROTOCOL_MISMATCH";
-      reason = `Wykryto ruch typu ${detectedTestType}, niezgodny z rodziną ${selectedFamily}.`;
-    }
-  } else if (bilateralOrMax && signature === "SINGLE_FLIGHT" && contactCount >= 3) {
-    repetitionCountValid = false;
-    errorCode = "WRONG_REPETITION_COUNT";
-    reason = "Test pojedynczej próby zawiera serię powtórzeń.";
-  } else if (protocol.attemptProtocol.kind === "REPEATED_CONTACT_SERIES") {
-    if (flightCount <= 1 && contactCount < 3) {
-      // Pojedyncze odbicie zamiast serii.
-      repetitionCountValid = false;
-      errorCode = "WRONG_REPETITION_COUNT";
-      reason = "Test serii wymaga jednej pełnej serii odbić.";
+      reason = `Wykryto ruch typu ${detectedTestType}, niezgodny z serią pionowych odbić (pewność ${confidence.toFixed(2)}).`;
     } else if (detectedRepetitions < requiredRepetitions) {
-      // Wykryto serię, ale za krótką — zwracamy konkretną liczbę.
+      // SINGLE_FLIGHT, REPEATED_CONTACTS z za małą liczbą, DROP_REBOUND —
+      // wszystko traktowane jako niedostateczna liczba powtórzeń Pogo.
       repetitionCountValid = false;
       errorCode = "WRONG_REPETITION_COUNT";
-      reason = `Wykryto ${detectedRepetitions} odbić, wymagane ${requiredRepetitions}.`;
+      reason = `Wykryto ${detectedRepetitions} z wymaganych ${requiredRepetitions} odbić.`;
+    }
+  } else {
+    // Test pojedynczej próby (CMJ, Broad Jump, Sprint, …).
+    if (!familyMatch) {
+      if (signature === "UNKNOWN" || confidence < CONFIDENT_SIGNATURE) {
+        reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(2)}).`;
+      } else {
+        errorCode = "TEST_PROTOCOL_MISMATCH";
+        reason = `Wykryto ruch typu ${detectedTestType}, niezgodny z rodziną ${selectedFamily} (pewność ${confidence.toFixed(2)}).`;
+      }
+    } else if (signature === "REPEATED_CONTACTS" && contactCount >= 3) {
+      repetitionCountValid = false;
+      errorCode = "WRONG_REPETITION_COUNT";
+      reason = `Test pojedynczej próby zawiera ${contactCount} kontaktów — nagraj jedno powtórzenie.`;
     }
   }
 
-  const protocolMatch = familyMatch && repetitionCountValid;
+  const protocolMatch = errorCode == null;
 
   return {
     selectedTestType,
