@@ -323,19 +323,34 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     const recognitionSummary = {
       selectedTestType: recognition.selectedTestType,
       detectedSignature: recognition.detectedSignature,
+      detectedTestType: recognition.detectedTestType,
       detectedTestConfidence: round(recognition.detectedTestConfidence, 2),
+      detectedRepetitions: recognition.detectedRepetitions,
+      requiredRepetitions: recognition.requiredRepetitions,
+      contactCount: recognition.contactCount,
+      flightCount: recognition.flightCount,
       protocolMatch: recognition.protocolMatch,
+      errorCode: recognition.errorCode,
+      reason: recognition.reason,
     };
     vlog("protocol_recognizer", recognition.reason, {
       selected: recognition.selectedTestType,
+      detected: recognition.detectedTestType,
       signature: recognition.detectedSignature,
       confidence: recognition.detectedTestConfidence,
+      detectedReps: recognition.detectedRepetitions,
+      requiredReps: recognition.requiredRepetitions,
       protocolMatch: recognition.protocolMatch,
       errorCode: recognition.errorCode,
     });
     if (!recognition.protocolMatch && recognition.errorCode) {
       opts.onPhase?.("completed");
       const code = recognition.errorCode;
+      // Dynamiczny komunikat dla WRONG_REPETITION_COUNT: pokaż realne liczby.
+      const retake =
+        code === "WRONG_REPETITION_COUNT"
+          ? `Wykryto ${recognition.detectedRepetitions} z wymaganych ${recognition.requiredRepetitions} powtórzeń. ${recognition.reason}`
+          : recognition.reason || (QUALITY_ISSUE_LABELS[code] ?? code);
       return {
         analysisId: analysisRunId,
         testType: opts.testType,
@@ -351,13 +366,14 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         metrics: [],
         overallConfidence: 0,
         qualityIssues: [QUALITY_ISSUE_LABELS[code] ?? code],
-        retakeInstructions: [QUALITY_ISSUE_LABELS[code] ?? code],
+        retakeInstructions: [retake],
         analyzerVersion: analyzer.analyzerVersion,
         decodedFrames,
         analyzedFrames,
         recognition: recognitionSummary,
       };
     }
+
 
     // Coarse-pass: realne okno ruchu w nagraniu (informacyjne, nie blokuje wyniku).
     const protocolSpec = getTestProtocol(opts.testType);
