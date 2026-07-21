@@ -154,13 +154,15 @@ describe("Vertical/Reactive families — acceptance", () => {
     expect(m.find((x) => x.key === "jump_height_cm")!.value).toBeGreaterThan(10);
   });
 
-  it("2. CMJ NIE przechodzi jako Pogo (TEST_PROTOCOL_MISMATCH)", () => {
+  it("2. CMJ nagrany jako Pogo → WRONG_REPETITION_COUNT (1 z 10 odbić)", () => {
+    // Nowa hierarchia: gdy sygnatura należy do rodziny REACTIVE_CONTACT
+    // (albo choćby zawiera lot), zwracamy realną liczbę powtórzeń, a nie MISMATCH.
     const rec = recognizeTestProtocol("pogo_jumps", cmjPoses());
     expect(rec.protocolMatch).toBe(false);
-    expect(rec.errorCode).toBe("TEST_PROTOCOL_MISMATCH");
-    const v = pogoAnalyzer.validateRecording(ctxOf("pogo_jumps", cmjPoses(), 120));
-    expect(v.issues).toContain("TEST_PROTOCOL_MISMATCH");
+    expect(rec.errorCode).toBe("WRONG_REPETITION_COUNT");
+    expect(rec.detectedRepetitions).toBeLessThan(rec.requiredRepetitions);
   });
+
 
   it("3. CMJ NIE przechodzi jako Squat Jump (countermovement wykryty)", () => {
     const v = squatJumpAnalyzer.validateRecording(ctxOf("squat_jump", cmjPoses(), 120));

@@ -21,7 +21,7 @@ function baseResult(over: Partial<VideoAnalysisResult> = {}): VideoAnalysisResul
     analyzerVersion: "cmj-1.0.0",
     decodedFrames: 350,
     analyzedFrames: 340,
-    recognition: { selectedTestType: "cmj", detectedSignature: "SINGLE_FLIGHT", detectedTestConfidence: 0.87, protocolMatch: true },
+    recognition: { selectedTestType: "cmj", detectedSignature: "SINGLE_FLIGHT", detectedTestType: "CMJ", detectedTestConfidence: 0.87, detectedRepetitions: 1, requiredRepetitions: 1, contactCount: 1, flightCount: 1, protocolMatch: true, errorCode: null, reason: "ok" },
     measurement: {
       qualityTier: "HIGH_ACCURACY",
       repeatabilityStatus: "verified",
