@@ -293,8 +293,15 @@ export interface VideoAnalysisResult {
   recognition?: {
     selectedTestType: TestType;
     detectedSignature: string;
+    detectedTestType: string;
     detectedTestConfidence: number;
+    detectedRepetitions: number;
+    requiredRepetitions: number;
+    contactCount: number;
+    flightCount: number;
     protocolMatch: boolean;
+    errorCode: string | null;
+    reason: string;
   };
   /** Warstwa rzetelności pomiaru: poziom jakości, niepewność, powtarzalność. */
   measurement?: import("./measurementAccuracy").MeasurementAccuracy;
