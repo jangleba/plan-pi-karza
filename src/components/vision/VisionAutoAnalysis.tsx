@@ -119,7 +119,6 @@ type UiState =
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const flow = getFlow(test.id);
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
   const [progress, setProgress] = useState(0);
   const [state, setState] = useState<UiState>({ kind: "running" });
@@ -133,6 +132,8 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const calibrationRecordRef = useRef<CalibrationRecord | null>(null);
   const techniqueOnlyRef = useRef<boolean>(false);
   const lastPhaseRef = useRef<AnalysisPhase>("idle");
+  /** Snapshot filmu z uploadu — utrzymywany przez cały czas życia sesji. */
+  const sessionFileRef = useRef<File | Blob | null>(null);
 
   const setCurrentPhase = useCallback((p: AnalysisPhase) => {
     lastPhaseRef.current = p;
@@ -142,6 +143,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
     const token = ++runToken.current;
+    const analysisRunId = `run-${Date.now()}-${token}`;
     abortRef.current?.abort();
     await closePoseEngine();
     if (runToken.current !== token) return;
@@ -157,12 +159,54 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     setProgress(0);
     setState({ kind: "running" });
 
+    // CRITICAL: czytaj flow ŚWIEŻO przy każdym uruchomieniu (nie z closure),
+    // żeby uniknąć zgubienia File po transitions/strict-mode re-mountach.
+    const flow = getFlow(test.id);
+    // Utrzymujemy File w ref sesji — chroni przed przypadkowym wyczyszczeniem
+    // module-store'a (np. HMR w dev) w trakcie trwania analizy.
+    if (flow.file && !sessionFileRef.current) sessionFileRef.current = flow.file;
+    const file: File | Blob | null = flow.file ?? sessionFileRef.current;
+
+    // Runtime debug — jawne pola diagnostyczne (bez zawartości filmu).
+    vlog("analysis_input", {
+      analysisRunId,
+      filePresent: !!file,
+      fileName: flow.fileName,
+      fileSize: file && "size" in file ? (file as Blob).size : 0,
+      fileType: file && "type" in file ? (file as Blob).type : "",
+      objectUrlActive: !!objectUrlRef.current,
+      analysisInputSource: file ? "local_file" : flow.videoUrl ? "cloud_url" : "none",
+      currentStage: "loading_file",
+    });
+
+    // Wczesna walidacja — bez filmu nie startujemy pipeline'u.
+    if (!file && !flow.videoUrl) {
+      vwarn("no_video_source", { analysisRunId, fileName: flow.fileName });
+      setState({
+        kind: "error",
+        code: "NO_VIDEO_SOURCE",
+        message: "Nie wybrałeś jeszcze filmu do analizy. Wybierz film ponownie.",
+        phase: "loading_file",
+      });
+      return;
+    }
+    if (file && (!(file instanceof Blob) || file.size <= 0)) {
+      vwarn("invalid_file", { analysisRunId, size: (file as Blob | null)?.size });
+      setState({
+        kind: "error",
+        code: "INVALID_VIDEO_FILE",
+        message: "Wybrany plik jest pusty lub uszkodzony. Wybierz film ponownie.",
+        phase: "loading_file",
+      });
+      return;
+    }
+
     try {
-      vlog("loading_file", { file: flow.fileName, uploaded: flow.uploaded });
+      vlog("loading_file", { analysisRunId, file: flow.fileName, uploaded: flow.uploaded });
       // 1-8: pozyskaj film jako zwalidowany Blob URL (Safari-friendly).
       const resolved = await withTimeout(
         resolveVideoBlob({
-          file: flow.file,
+          file: (file as File) ?? null,
           videoUrl: flow.videoUrl,
           uploaded: flow.uploaded,
         }),
@@ -173,13 +217,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         URL.revokeObjectURL(resolved.objectUrl);
         return;
       }
-      if (flow.file == null && flow.videoUrl == null) {
-        navigate({ to: "/vision-lab/test/$testId/upload", params: { testId: test.id } });
-        return;
-      }
       objectUrlRef.current = resolved.objectUrl;
       setPreviewSrc(resolved.objectUrl);
-      vlog("file_ready", { size: resolved.size, type: resolved.type });
+      vlog("file_ready", { analysisRunId, size: resolved.size, type: resolved.type });
 
       // Hash filmu → kalibracja sceny jest powiązana z KONKRETNYM nagraniem.
       try {
@@ -398,7 +438,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           <VisionVideoCalibration
             videoSrc={previewSrc}
             videoHash={videoHashRef.current}
-            fps={flow.fps || test.recommendedFps || 30}
+            fps={getFlow(test.id).fps || test.recommendedFps || 30}
             onSaved={(record) => {
               calibrationRecordRef.current = record;
               techniqueOnlyRef.current = false;
