@@ -438,7 +438,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           <VisionVideoCalibration
             videoSrc={previewSrc}
             videoHash={videoHashRef.current}
-            fps={flow.fps || test.recommendedFps || 30}
+            fps={getFlow(test.id).fps || test.recommendedFps || 30}
             onSaved={(record) => {
               calibrationRecordRef.current = record;
               techniqueOnlyRef.current = false;
