@@ -6,13 +6,16 @@ import { VisionCategoryCard } from "./VisionCategoryCard";
 import { VisionTestCard } from "./VisionTestCard";
 import { VisionGhostReplayPlaceholder } from "./VisionGhostReplayPlaceholder";
 import { VISION_TESTS, GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
+import { isTestVisibleInUi } from "@/lib/vision/supportedTests";
 import { isCoach } from "@/lib/vision/visionRepo";
 import { useAuth } from "@/lib/loadwise/auth";
 import { CATEGORY_LABELS, type VisionTestCategory } from "@/lib/vision/types";
 
 const CATEGORIES: VisionTestCategory[] = ["jump", "sprint", "cod", "technique"];
 
-/** Testy pomiarowe pogrupowane raz — brak przeliczeń w renderze. */
+/** Testy pomiarowe pogrupowane raz — brak przeliczeń w renderze.
+ *  Uwzględniamy wyłącznie testy z zakresu stabilnego (SUPPORTED_VISION_TESTS)
+ *  oraz ewentualne eksperymentalne odblokowane feature flagą. */
 const TESTS_BY_CATEGORY: Record<VisionTestCategory, typeof VISION_TESTS> = {
   jump: [],
   sprint: [],
@@ -20,7 +23,9 @@ const TESTS_BY_CATEGORY: Record<VisionTestCategory, typeof VISION_TESTS> = {
   technique: [],
 };
 for (const t of VISION_TESTS) {
-  if (t.id !== GYM_EXERCISE_TEST_ID) TESTS_BY_CATEGORY[t.category].push(t);
+  if (t.id === GYM_EXERCISE_TEST_ID) continue;
+  if (!isTestVisibleInUi(t.id)) continue;
+  TESTS_BY_CATEGORY[t.category].push(t);
 }
 
 /** Podpisy kategorii wyliczone raz przy ładowaniu modułu. */
