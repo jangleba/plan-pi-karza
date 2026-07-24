@@ -134,11 +134,27 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const lastPhaseRef = useRef<AnalysisPhase>("idle");
   /** Snapshot filmu z uploadu — utrzymywany przez cały czas życia sesji. */
   const sessionFileRef = useRef<File | Blob | null>(null);
+  /** Diagnostyczny kontekst bieżącego przebiegu (do overlay ?visionDebug=true). */
+  const debugCtxRef = useRef<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
+  const [debugCtx, setDebugCtx] = useState<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
+  const debugEnabled =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("visionDebug") === "true";
 
-  const setCurrentPhase = useCallback((p: AnalysisPhase) => {
-    lastPhaseRef.current = p;
-    setPhase(p);
+  const updateDebug = useCallback((patch: Partial<AnalysisRunDebugContext>) => {
+    debugCtxRef.current = { ...debugCtxRef.current, ...patch };
+    setDebugCtx(debugCtxRef.current);
   }, []);
+
+  const setCurrentPhase = useCallback(
+    (p: AnalysisPhase) => {
+      lastPhaseRef.current = p;
+      setPhase(p);
+      updateDebug({ currentStage: p });
+    },
+    [updateDebug],
+  );
+
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
