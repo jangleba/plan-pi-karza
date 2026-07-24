@@ -116,6 +116,49 @@ type UiState =
   | { kind: "calibrating"; analysis: VideoAnalysisResult }
   | { kind: "error"; code: string; message: string; phase: AnalysisPhase };
 
+interface AnalysisRunDebugContext {
+  analysisRunId: string | null;
+  filePresent: boolean;
+  fileName: string | null;
+  fileSize: number;
+  fileType: string;
+  objectUrlActive: boolean;
+  analysisInputSource: "local_file" | "cloud_url" | "none";
+  currentStage: AnalysisPhase;
+  decodedFrames: number | null;
+  analyzedFrames: number | null;
+  activeRecognizer: string;
+  activeAdapter: string | null;
+  detectedTestType: string | null;
+  detectedRepetitions: number | null;
+  requiredRepetitions: number | null;
+  protocolMatch: boolean | null;
+  finalErrorCode: string | null;
+  finalStatus: string | null;
+}
+
+const EMPTY_DEBUG_CTX: AnalysisRunDebugContext = {
+  analysisRunId: null,
+  filePresent: false,
+  fileName: null,
+  fileSize: 0,
+  fileType: "",
+  objectUrlActive: false,
+  analysisInputSource: "none",
+  currentStage: "idle",
+  decodedFrames: null,
+  analyzedFrames: null,
+  activeRecognizer: "testProtocolRecognizer",
+  activeAdapter: null,
+  detectedTestType: null,
+  detectedRepetitions: null,
+  requiredRepetitions: null,
+  protocolMatch: null,
+  finalErrorCode: null,
+  finalStatus: null,
+};
+
+
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
   const { user } = useAuth();
