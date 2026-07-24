@@ -382,6 +382,18 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         events: analysis.keyEvents.length,
         metrics: analysis.metrics.length,
       });
+      updateDebug({
+        decodedFrames: analysis.decodedFrames ?? null,
+        analyzedFrames: analysis.analyzedFrames ?? null,
+        detectedTestType: analysis.recognition?.detectedTestType ?? null,
+        detectedRepetitions: analysis.recognition?.detectedRepetitions ?? null,
+        requiredRepetitions: analysis.recognition?.requiredRepetitions ?? null,
+        protocolMatch: analysis.recognition?.protocolMatch ?? null,
+        finalErrorCode:
+          analysis.recognition?.errorCode ?? analysis.qualityIssues[0] ?? null,
+        finalStatus: analysis.status,
+      });
+
 
       if (analysis.status === "completed") {
         const frame = analysisToFrameResult(analysis);
