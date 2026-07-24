@@ -856,3 +856,51 @@ function InvalidView({
     </div>
   );
 }
+
+function VisionDebugOverlay({ ctx }: { ctx: AnalysisRunDebugContext }) {
+  const rows: Array<[string, unknown]> = [
+    ["analysisRunId", ctx.analysisRunId],
+    ["filePresent", ctx.filePresent],
+    ["fileName", ctx.fileName],
+    ["fileSize", ctx.fileSize],
+    ["fileType", ctx.fileType],
+    ["objectUrlActive", ctx.objectUrlActive],
+    ["analysisInputSource", ctx.analysisInputSource],
+    ["currentStage", ctx.currentStage],
+    ["decodedFrames", ctx.decodedFrames],
+    ["analyzedFrames", ctx.analyzedFrames],
+    ["activeRecognizer", ctx.activeRecognizer],
+    ["activeAdapter", ctx.activeAdapter],
+    ["detectedTestType", ctx.detectedTestType],
+    ["detectedRepetitions", ctx.detectedRepetitions],
+    ["requiredRepetitions", ctx.requiredRepetitions],
+    ["protocolMatch", ctx.protocolMatch],
+    ["finalStatus", ctx.finalStatus],
+    ["finalErrorCode", ctx.finalErrorCode],
+  ];
+  return (
+    <div className="mx-5 mb-3 rounded-2xl border border-border bg-black/85 p-3 font-mono text-[10px] leading-tight text-white shadow-xl">
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+        VisionLab · runtime debug
+      </div>
+      <table className="w-full">
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}>
+              <td className="pr-2 text-white/60">{k}</td>
+              <td className="break-all text-white/95">
+                {v === null || v === undefined
+                  ? "—"
+                  : typeof v === "boolean"
+                    ? v
+                      ? "true"
+                      : "false"
+                    : String(v)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
