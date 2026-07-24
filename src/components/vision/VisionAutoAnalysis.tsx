@@ -506,7 +506,10 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         backTo="/vision-lab"
       />
 
+      {debugEnabled && <VisionDebugOverlay ctx={debugCtx} />}
+
       <div className="space-y-4 px-5">
+
         {previewSrc && (
           <video
             key={previewSrc}
