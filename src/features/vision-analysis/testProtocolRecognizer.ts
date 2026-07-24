@@ -75,12 +75,47 @@ function horizontalRange(poses: FramePose[]): number {
   return Math.max(...xs) - Math.min(...xs);
 }
 
+// MediaPipe Pose landmark indices.
+const HIP_LEFT = 23;
+const HIP_RIGHT = 24;
+const FOOT_INDICES = [27, 28, 31, 32];
+const MIN_LANDMARK_VISIBILITY = 0.5;
+const MIN_RELIABLE_FRAME_FRACTION = 0.4;
+
+/**
+ * Klatka jest wiarygodna dla klasyfikacji ruchu, jeżeli mamy landmark obu bioder
+ * ORAZ co najmniej jednej stopy z widocznością >= progu. Bez bioder/stóp
+ * silnik NIE ma prawa zwracać sygnatury innej niż UNKNOWN.
+ */
+function hasReliableHipsAndFeet(poses: FramePose[]): boolean {
+  if (poses.length === 0) return false;
+  let reliable = 0;
+  for (const p of poses) {
+    const lm = p.landmarks;
+    if (!lm) continue;
+    const hipL = lm[HIP_LEFT];
+    const hipR = lm[HIP_RIGHT];
+    if (!hipL || !hipR) continue;
+    if (hipL.visibility < MIN_LANDMARK_VISIBILITY) continue;
+    if (hipR.visibility < MIN_LANDMARK_VISIBILITY) continue;
+    const footVisible = FOOT_INDICES.some(
+      (i) => lm[i] && lm[i].visibility >= MIN_LANDMARK_VISIBILITY,
+    );
+    if (!footVisible) continue;
+    reliable++;
+  }
+  return reliable / poses.length >= MIN_RELIABLE_FRAME_FRACTION;
+}
+
 /**
  * Deterministyczne rozpoznanie sygnatury ruchu. Łączy:
  *  - segmenty lotu z analyzeJumpField (najbardziej niezawodne dla serii),
  *  - liczbę kontaktów z podłożem,
  *  - detektor Drop Jump,
  *  - zakres poziomy bioder (lokomocja).
+ *
+ * Gate: bez wiarygodnych bioder i stóp zwracamy UNKNOWN — recognizer nie
+ * może zgadywać ruchu na podstawie samego szumu MediaPipe.
  */
 export function recognizeMovement(poses: FramePose[]): {
   signature: MovementSignature;
@@ -88,7 +123,11 @@ export function recognizeMovement(poses: FramePose[]): {
   contactCount: number;
   flightCount: number;
 } {
+  if (!hasReliableHipsAndFeet(poses)) {
+    return { signature: "UNKNOWN", confidence: 0, contactCount: 0, flightCount: 0 };
+  }
   const contacts = detectGroundContacts(poses);
+
   const flight = detectFlightPhase(poses);
   const dropJump = detectDropJumpPhases(poses);
   const field = analyzeJumpField(poses);
