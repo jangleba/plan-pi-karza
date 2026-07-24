@@ -116,6 +116,49 @@ type UiState =
   | { kind: "calibrating"; analysis: VideoAnalysisResult }
   | { kind: "error"; code: string; message: string; phase: AnalysisPhase };
 
+interface AnalysisRunDebugContext {
+  analysisRunId: string | null;
+  filePresent: boolean;
+  fileName: string | null;
+  fileSize: number;
+  fileType: string;
+  objectUrlActive: boolean;
+  analysisInputSource: "local_file" | "cloud_url" | "none";
+  currentStage: AnalysisPhase;
+  decodedFrames: number | null;
+  analyzedFrames: number | null;
+  activeRecognizer: string;
+  activeAdapter: string | null;
+  detectedTestType: string | null;
+  detectedRepetitions: number | null;
+  requiredRepetitions: number | null;
+  protocolMatch: boolean | null;
+  finalErrorCode: string | null;
+  finalStatus: string | null;
+}
+
+const EMPTY_DEBUG_CTX: AnalysisRunDebugContext = {
+  analysisRunId: null,
+  filePresent: false,
+  fileName: null,
+  fileSize: 0,
+  fileType: "",
+  objectUrlActive: false,
+  analysisInputSource: "none",
+  currentStage: "idle",
+  decodedFrames: null,
+  analyzedFrames: null,
+  activeRecognizer: "testProtocolRecognizer",
+  activeAdapter: null,
+  detectedTestType: null,
+  detectedRepetitions: null,
+  requiredRepetitions: null,
+  protocolMatch: null,
+  finalErrorCode: null,
+  finalStatus: null,
+};
+
+
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -134,14 +177,33 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const lastPhaseRef = useRef<AnalysisPhase>("idle");
   /** Snapshot filmu z uploadu — utrzymywany przez cały czas życia sesji. */
   const sessionFileRef = useRef<File | Blob | null>(null);
+  /** Diagnostyczny kontekst bieżącego przebiegu (do overlay ?visionDebug=true). */
+  const debugCtxRef = useRef<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
+  const [debugCtx, setDebugCtx] = useState<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
+  const debugEnabled =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("visionDebug") === "true";
 
-  const setCurrentPhase = useCallback((p: AnalysisPhase) => {
-    lastPhaseRef.current = p;
-    setPhase(p);
+  const updateDebug = useCallback((patch: Partial<AnalysisRunDebugContext>) => {
+    debugCtxRef.current = { ...debugCtxRef.current, ...patch };
+    setDebugCtx(debugCtxRef.current);
   }, []);
+
+  const setCurrentPhase = useCallback(
+    (p: AnalysisPhase) => {
+      lastPhaseRef.current = p;
+      setPhase(p);
+      updateDebug({ currentStage: p });
+    },
+    [updateDebug],
+  );
+
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
+    // KAŻDY nowy film / retry startuje z czystego AnalysisRunContext —
+    // żaden stan (detectedTestType, kalibracja, techniqueOnly, wynik, hash)
+    // nie może przeciec z poprzedniego przebiegu.
     const token = ++runToken.current;
     const analysisRunId = `run-${Date.now()}-${token}`;
     abortRef.current?.abort();
@@ -154,6 +216,13 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
     }
+    // Reset stanu współdzielonego (poza sessionFileRef — plik pozostaje na retry).
+    videoHashRef.current = "";
+    calibrationRecordRef.current = null;
+    // techniqueOnlyRef zostaje: użytkownik świadomie wybiera "tylko technika"
+    // i klika retry — inaczej zresetujemy jego wybór.
+    debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loading_file" };
+    setDebugCtx(debugCtxRef.current);
     setPreviewSrc(null);
     setCurrentPhase("loading_file");
     setProgress(0);
@@ -167,6 +236,21 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     if (flow.file && !sessionFileRef.current) sessionFileRef.current = flow.file;
     const file: File | Blob | null = flow.file ?? sessionFileRef.current;
 
+    const inputSource: AnalysisRunDebugContext["analysisInputSource"] = file
+      ? "local_file"
+      : flow.videoUrl
+        ? "cloud_url"
+        : "none";
+    updateDebug({
+      filePresent: !!file,
+      fileName: flow.fileName,
+      fileSize: file && "size" in file ? (file as Blob).size : 0,
+      fileType: file && "type" in file ? (file as Blob).type : "",
+      objectUrlActive: !!objectUrlRef.current,
+      analysisInputSource: inputSource,
+      activeAdapter: test.id,
+    });
+
     // Runtime debug — jawne pola diagnostyczne (bez zawartości filmu).
     vlog("analysis_input", {
       analysisRunId,
@@ -175,9 +259,10 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       fileSize: file && "size" in file ? (file as Blob).size : 0,
       fileType: file && "type" in file ? (file as Blob).type : "",
       objectUrlActive: !!objectUrlRef.current,
-      analysisInputSource: file ? "local_file" : flow.videoUrl ? "cloud_url" : "none",
+      analysisInputSource: inputSource,
       currentStage: "loading_file",
     });
+
 
     // Wczesna walidacja — bez filmu nie startujemy pipeline'u.
     if (!file && !flow.videoUrl) {
@@ -297,6 +382,18 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         events: analysis.keyEvents.length,
         metrics: analysis.metrics.length,
       });
+      updateDebug({
+        decodedFrames: analysis.decodedFrames ?? null,
+        analyzedFrames: analysis.analyzedFrames ?? null,
+        detectedTestType: analysis.recognition?.detectedTestType ?? null,
+        detectedRepetitions: analysis.recognition?.detectedRepetitions ?? null,
+        requiredRepetitions: analysis.recognition?.requiredRepetitions ?? null,
+        protocolMatch: analysis.recognition?.protocolMatch ?? null,
+        finalErrorCode:
+          analysis.recognition?.errorCode ?? analysis.qualityIssues[0] ?? null,
+        finalStatus: analysis.status,
+      });
+
 
       if (analysis.status === "completed") {
         const frame = analysisToFrameResult(analysis);
@@ -366,12 +463,14 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )
           ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
           : rawMessage;
+      updateDebug({ finalErrorCode: code ?? "UNKNOWN_ERROR", finalStatus: "error" });
       setState({
         kind: "error",
         code: code ?? "UNKNOWN_ERROR",
         message,
         phase: lastPhaseRef.current,
       });
+
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -407,7 +506,10 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         backTo="/vision-lab"
       />
 
+      {debugEnabled && <VisionDebugOverlay ctx={debugCtx} />}
+
       <div className="space-y-4 px-5">
+
         {previewSrc && (
           <video
             key={previewSrc}
@@ -751,6 +853,54 @@ function InvalidView({
       <Button className="w-full" onClick={onRetake}>
         <RotateCcw className="mr-2 h-4 w-4" /> Nagraj ponownie
       </Button>
+    </div>
+  );
+}
+
+function VisionDebugOverlay({ ctx }: { ctx: AnalysisRunDebugContext }) {
+  const rows: Array<[string, unknown]> = [
+    ["analysisRunId", ctx.analysisRunId],
+    ["filePresent", ctx.filePresent],
+    ["fileName", ctx.fileName],
+    ["fileSize", ctx.fileSize],
+    ["fileType", ctx.fileType],
+    ["objectUrlActive", ctx.objectUrlActive],
+    ["analysisInputSource", ctx.analysisInputSource],
+    ["currentStage", ctx.currentStage],
+    ["decodedFrames", ctx.decodedFrames],
+    ["analyzedFrames", ctx.analyzedFrames],
+    ["activeRecognizer", ctx.activeRecognizer],
+    ["activeAdapter", ctx.activeAdapter],
+    ["detectedTestType", ctx.detectedTestType],
+    ["detectedRepetitions", ctx.detectedRepetitions],
+    ["requiredRepetitions", ctx.requiredRepetitions],
+    ["protocolMatch", ctx.protocolMatch],
+    ["finalStatus", ctx.finalStatus],
+    ["finalErrorCode", ctx.finalErrorCode],
+  ];
+  return (
+    <div className="mx-5 mb-3 rounded-2xl border border-border bg-black/85 p-3 font-mono text-[10px] leading-tight text-white shadow-xl">
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+        VisionLab · runtime debug
+      </div>
+      <table className="w-full">
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}>
+              <td className="pr-2 text-white/60">{k}</td>
+              <td className="break-all text-white/95">
+                {v === null || v === undefined
+                  ? "—"
+                  : typeof v === "boolean"
+                    ? v
+                      ? "true"
+                      : "false"
+                    : String(v)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
