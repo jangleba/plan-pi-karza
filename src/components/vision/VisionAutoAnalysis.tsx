@@ -201,6 +201,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
+    // KAŻDY nowy film / retry startuje z czystego AnalysisRunContext —
+    // żaden stan (detectedTestType, kalibracja, techniqueOnly, wynik, hash)
+    // nie może przeciec z poprzedniego przebiegu.
     const token = ++runToken.current;
     const analysisRunId = `run-${Date.now()}-${token}`;
     abortRef.current?.abort();
@@ -213,6 +216,13 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
     }
+    // Reset stanu współdzielonego (poza sessionFileRef — plik pozostaje na retry).
+    videoHashRef.current = "";
+    calibrationRecordRef.current = null;
+    // techniqueOnlyRef zostaje: użytkownik świadomie wybiera "tylko technika"
+    // i klika retry — inaczej zresetujemy jego wybór.
+    debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loading_file" };
+    setDebugCtx(debugCtxRef.current);
     setPreviewSrc(null);
     setCurrentPhase("loading_file");
     setProgress(0);
@@ -226,6 +236,21 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     if (flow.file && !sessionFileRef.current) sessionFileRef.current = flow.file;
     const file: File | Blob | null = flow.file ?? sessionFileRef.current;
 
+    const inputSource: AnalysisRunDebugContext["analysisInputSource"] = file
+      ? "local_file"
+      : flow.videoUrl
+        ? "cloud_url"
+        : "none";
+    updateDebug({
+      filePresent: !!file,
+      fileName: flow.fileName,
+      fileSize: file && "size" in file ? (file as Blob).size : 0,
+      fileType: file && "type" in file ? (file as Blob).type : "",
+      objectUrlActive: !!objectUrlRef.current,
+      analysisInputSource: inputSource,
+      activeAdapter: test.id,
+    });
+
     // Runtime debug — jawne pola diagnostyczne (bez zawartości filmu).
     vlog("analysis_input", {
       analysisRunId,
@@ -234,9 +259,10 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       fileSize: file && "size" in file ? (file as Blob).size : 0,
       fileType: file && "type" in file ? (file as Blob).type : "",
       objectUrlActive: !!objectUrlRef.current,
-      analysisInputSource: file ? "local_file" : flow.videoUrl ? "cloud_url" : "none",
+      analysisInputSource: inputSource,
       currentStage: "loading_file",
     });
+
 
     // Wczesna walidacja — bez filmu nie startujemy pipeline'u.
     if (!file && !flow.videoUrl) {
