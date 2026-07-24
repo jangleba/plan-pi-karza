@@ -463,12 +463,14 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         )
           ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
           : rawMessage;
+      updateDebug({ finalErrorCode: code ?? "UNKNOWN_ERROR", finalStatus: "error" });
       setState({
         kind: "error",
         code: code ?? "UNKNOWN_ERROR",
         message,
         phase: lastPhaseRef.current,
       });
+
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
