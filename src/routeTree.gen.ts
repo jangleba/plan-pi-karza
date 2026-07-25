@@ -22,7 +22,6 @@ import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.histor
 import { Route as VisionLabCalibrationRouteImport } from './routes/vision-lab.calibration'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
-import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
@@ -104,11 +103,6 @@ const SesjaDateRoute = SesjaDateRouteImport.update({
 const TabsStartRoute = TabsStartRouteImport.update({
   id: '/start',
   path: '/start',
-  getParentRoute: () => TabsRoute,
-} as any)
-const TabsScoutingRoute = TabsScoutingRouteImport.update({
-  id: '/scouting',
-  path: '/scouting',
   getParentRoute: () => TabsRoute,
 } as any)
 const TabsProfilRoute = TabsProfilRouteImport.update({
@@ -224,7 +218,6 @@ export interface FileRoutesByFullPath {
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
-  '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
@@ -257,7 +250,6 @@ export interface FileRoutesByTo {
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
-  '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
@@ -292,7 +284,6 @@ export interface FileRoutesById {
   '/_tabs/fuel': typeof TabsFuelRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/profil': typeof TabsProfilRoute
-  '/_tabs/scouting': typeof TabsScoutingRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
@@ -327,7 +318,6 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/plan'
     | '/profil'
-    | '/scouting'
     | '/start'
     | '/sesja/$date'
     | '/vision-lab/calibration'
@@ -360,7 +350,6 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/plan'
     | '/profil'
-    | '/scouting'
     | '/start'
     | '/sesja/$date'
     | '/vision-lab/calibration'
@@ -394,7 +383,6 @@ export interface FileRouteTypes {
     | '/_tabs/fuel'
     | '/_tabs/plan'
     | '/_tabs/profil'
-    | '/_tabs/scouting'
     | '/_tabs/start'
     | '/sesja/$date'
     | '/vision-lab/calibration'
@@ -538,13 +526,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsStartRouteImport
       parentRoute: typeof TabsRoute
     }
-    '/_tabs/scouting': {
-      id: '/_tabs/scouting'
-      path: '/scouting'
-      fullPath: '/scouting'
-      preLoaderRoute: typeof TabsScoutingRouteImport
-      parentRoute: typeof TabsRoute
-    }
     '/_tabs/profil': {
       id: '/_tabs/profil'
       path: '/profil'
@@ -678,7 +659,6 @@ interface TabsRouteChildren {
   TabsFuelRoute: typeof TabsFuelRoute
   TabsPlanRoute: typeof TabsPlanRoute
   TabsProfilRoute: typeof TabsProfilRoute
-  TabsScoutingRoute: typeof TabsScoutingRoute
   TabsStartRoute: typeof TabsStartRoute
 }
 
@@ -686,7 +666,6 @@ const TabsRouteChildren: TabsRouteChildren = {
   TabsFuelRoute: TabsFuelRoute,
   TabsPlanRoute: TabsPlanRoute,
   TabsProfilRoute: TabsProfilRoute,
-  TabsScoutingRoute: TabsScoutingRoute,
   TabsStartRoute: TabsStartRoute,
 }
 

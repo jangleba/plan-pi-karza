@@ -1,11 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, CalendarDays, ScanEye, Telescope, User } from "lucide-react";
+import { Home, CalendarDays, ScanEye, Brain, User } from "lucide-react";
 
 const items = [
   { to: "/start", label: "Start", icon: Home },
   { to: "/plan", label: "Plan", icon: CalendarDays },
   { to: "/vision-lab", label: "Lab", icon: ScanEye },
-  { to: "/scouting", label: "Scouting", icon: Telescope },
+  { to: "/football-iq", label: "IQ", icon: Brain },
   { to: "/profil", label: "Profil", icon: User },
 ] as const;
 
