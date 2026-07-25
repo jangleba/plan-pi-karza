@@ -21,11 +21,12 @@ import { Route as VisionLabIndexRouteImport } from './routes/vision-lab.index'
 import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.history'
 import { Route as VisionLabCalibrationRouteImport } from './routes/vision-lab.calibration'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
+import { Route as FootballIqFieldRouteImport } from './routes/football-iq.field'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
-import { Route as TabsScoutingRouteImport } from './routes/_tabs.scouting'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
+import { Route as TabsFootballIqRouteImport } from './routes/_tabs.football-iq'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as VisionLabGymIndexRouteImport } from './routes/vision-lab.gym.index'
@@ -101,14 +102,14 @@ const SesjaDateRoute = SesjaDateRouteImport.update({
   path: '/sesja/$date',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FootballIqFieldRoute = FootballIqFieldRouteImport.update({
+  id: '/football-iq/field',
+  path: '/football-iq/field',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TabsStartRoute = TabsStartRouteImport.update({
   id: '/start',
   path: '/start',
-  getParentRoute: () => TabsRoute,
-} as any)
-const TabsScoutingRoute = TabsScoutingRouteImport.update({
-  id: '/scouting',
-  path: '/scouting',
   getParentRoute: () => TabsRoute,
 } as any)
 const TabsProfilRoute = TabsProfilRouteImport.update({
@@ -124,6 +125,11 @@ const TabsPlanRoute = TabsPlanRouteImport.update({
 const TabsFuelRoute = TabsFuelRouteImport.update({
   id: '/fuel',
   path: '/fuel',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsFootballIqRoute = TabsFootballIqRouteImport.update({
+  id: '/football-iq',
+  path: '/football-iq',
   getParentRoute: () => TabsRoute,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -221,11 +227,12 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/football-iq': typeof TabsFootballIqRoute
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
-  '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
+  '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
@@ -254,11 +261,12 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/football-iq': typeof TabsFootballIqRoute
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
-  '/scouting': typeof TabsScoutingRoute
   '/start': typeof TabsStartRoute
+  '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
@@ -289,11 +297,12 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_tabs/football-iq': typeof TabsFootballIqRoute
   '/_tabs/fuel': typeof TabsFuelRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/profil': typeof TabsProfilRoute
-  '/_tabs/scouting': typeof TabsScoutingRoute
   '/_tabs/start': typeof TabsStartRoute
+  '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
@@ -324,11 +333,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/football-iq'
     | '/fuel'
     | '/plan'
     | '/profil'
-    | '/scouting'
     | '/start'
+    | '/football-iq/field'
     | '/sesja/$date'
     | '/vision-lab/calibration'
     | '/vision-lab/history'
@@ -357,11 +367,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/football-iq'
     | '/fuel'
     | '/plan'
     | '/profil'
-    | '/scouting'
     | '/start'
+    | '/football-iq/field'
     | '/sesja/$date'
     | '/vision-lab/calibration'
     | '/vision-lab/history'
@@ -391,11 +402,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_tabs/football-iq'
     | '/_tabs/fuel'
     | '/_tabs/plan'
     | '/_tabs/profil'
-    | '/_tabs/scouting'
     | '/_tabs/start'
+    | '/football-iq/field'
     | '/sesja/$date'
     | '/vision-lab/calibration'
     | '/vision-lab/history'
@@ -426,6 +438,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  FootballIqFieldRoute: typeof FootballIqFieldRoute
   SesjaDateRoute: typeof SesjaDateRoute
   VisionLabCalibrationRoute: typeof VisionLabCalibrationRoute
   VisionLabHistoryRoute: typeof VisionLabHistoryRoute
@@ -531,18 +544,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SesjaDateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/football-iq/field': {
+      id: '/football-iq/field'
+      path: '/football-iq/field'
+      fullPath: '/football-iq/field'
+      preLoaderRoute: typeof FootballIqFieldRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_tabs/start': {
       id: '/_tabs/start'
       path: '/start'
       fullPath: '/start'
       preLoaderRoute: typeof TabsStartRouteImport
-      parentRoute: typeof TabsRoute
-    }
-    '/_tabs/scouting': {
-      id: '/_tabs/scouting'
-      path: '/scouting'
-      fullPath: '/scouting'
-      preLoaderRoute: typeof TabsScoutingRouteImport
       parentRoute: typeof TabsRoute
     }
     '/_tabs/profil': {
@@ -564,6 +577,13 @@ declare module '@tanstack/react-router' {
       path: '/fuel'
       fullPath: '/fuel'
       preLoaderRoute: typeof TabsFuelRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/_tabs/football-iq': {
+      id: '/_tabs/football-iq'
+      path: '/football-iq'
+      fullPath: '/football-iq'
+      preLoaderRoute: typeof TabsFootballIqRouteImport
       parentRoute: typeof TabsRoute
     }
     '/.well-known/oauth-protected-resource': {
@@ -675,18 +695,18 @@ declare module '@tanstack/react-router' {
 }
 
 interface TabsRouteChildren {
+  TabsFootballIqRoute: typeof TabsFootballIqRoute
   TabsFuelRoute: typeof TabsFuelRoute
   TabsPlanRoute: typeof TabsPlanRoute
   TabsProfilRoute: typeof TabsProfilRoute
-  TabsScoutingRoute: typeof TabsScoutingRoute
   TabsStartRoute: typeof TabsStartRoute
 }
 
 const TabsRouteChildren: TabsRouteChildren = {
+  TabsFootballIqRoute: TabsFootballIqRoute,
   TabsFuelRoute: TabsFuelRoute,
   TabsPlanRoute: TabsPlanRoute,
   TabsProfilRoute: TabsProfilRoute,
-  TabsScoutingRoute: TabsScoutingRoute,
   TabsStartRoute: TabsStartRoute,
 }
 
@@ -704,6 +724,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  FootballIqFieldRoute: FootballIqFieldRoute,
   SesjaDateRoute: SesjaDateRoute,
   VisionLabCalibrationRoute: VisionLabCalibrationRoute,
   VisionLabHistoryRoute: VisionLabHistoryRoute,
