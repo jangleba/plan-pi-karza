@@ -378,6 +378,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         "Pełna analiza filmu",
       );
       if (cancelled()) return;
+      setLastAnalysis(analysis);
       vlog("analysis_done", {
         status: analysis.status,
         confidence: analysis.overallConfidence,
