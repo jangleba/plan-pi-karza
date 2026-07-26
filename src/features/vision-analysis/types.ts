@@ -331,6 +331,49 @@ export interface VideoAnalysisResult {
     withinExpectedRepCount: boolean;
     hasSufficientMargins: boolean;
   };
+  /**
+   * Ślad wykonania pipeline'u (tryb diagnostyczny). Każdy etap otrzymuje
+   * status "success" WYŁĄCZNIE po zwróceniu realnego wyjścia użytego przez
+   * następny etap. Do zrzutu JSON i akceptacyjnego testu.
+   */
+  pipelineTrace?: PipelineStageTrace[];
+  /**
+   * Diagnostyczny log per-klatka: sourceFrameIndex, sourceTimestampUs,
+   * czy w klatce wykryto pozę, ewentualny powód pominięcia klatki.
+   */
+  frameLog?: FrameLogEntry[];
+}
+
+/** Etapy diagnostyczne pipeline'u (kolejność wykonania). */
+export type PipelineStageName =
+  | "FILE"
+  | "METADATA"
+  | "DECODE_FRAMES"
+  | "POSE_ANALYSIS"
+  | "MOVEMENT_EVENTS"
+  | "MOVEMENT_SIGNATURE"
+  | "SELECTED_TEST_VALIDATION"
+  | "ADAPTER"
+  | "RESULT";
+
+export interface PipelineStageTrace {
+  stage: PipelineStageName;
+  status: "success" | "failed" | "skipped";
+  startedAtMs: number;
+  finishedAtMs: number;
+  /** Rzeczywiste wyjście etapu przekazane dalej (małe podsumowanie). */
+  output?: Record<string, unknown>;
+  /** Powód niepowodzenia lub pominięcia. */
+  reason?: string;
+}
+
+export interface FrameLogEntry {
+  sourceFrameIndex: number;
+  sourceTimestampUs: number;
+  hasPose: boolean;
+  peopleCount: number;
+  trackingConfidence: number;
+  skippedReason?: string;
 }
 
 /** Progi akceptacji wyniku na podstawie confidence. */
