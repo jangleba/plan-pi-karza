@@ -6,6 +6,9 @@ import type {
   AnalysisContext,
   VideoAnalysisResult,
   AnalysisStatus,
+  PipelineStageTrace,
+  PipelineStageName,
+  FrameLogEntry,
 } from "./types";
 import { QUALITY_ISSUE_LABELS } from "./types";
 import { resolveAnalysisStatus } from "./statusPolicy";
