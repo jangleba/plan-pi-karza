@@ -191,6 +191,7 @@ function failed(
   reason: string,
   code = "ANALYSIS_FAILED",
   analysisId = uuid(),
+  extras?: Partial<VideoAnalysisResult>,
 ): VideoAnalysisResult {
   return {
     analysisId,
@@ -203,8 +204,54 @@ function failed(
     qualityIssues: [code],
     retakeInstructions: [reason],
     analyzerVersion,
+    ...extras,
   };
 }
+
+/** Buduje ślad wykonania pipeline'u — SUCCESS tylko po realnym wyjściu etapu. */
+function createTraceBuilder() {
+  const trace: PipelineStageTrace[] = [];
+  const t0 = performance.now();
+  const openStarts = new Map<PipelineStageName, number>();
+  return {
+    trace,
+    start(stage: PipelineStageName) {
+      openStarts.set(stage, performance.now());
+    },
+    success(stage: PipelineStageName, output?: Record<string, unknown>) {
+      const started = openStarts.get(stage) ?? performance.now();
+      trace.push({
+        stage,
+        status: "success",
+        startedAtMs: Math.round(started - t0),
+        finishedAtMs: Math.round(performance.now() - t0),
+        output,
+      });
+    },
+    failure(stage: PipelineStageName, reason: string, output?: Record<string, unknown>) {
+      const started = openStarts.get(stage) ?? performance.now();
+      trace.push({
+        stage,
+        status: "failed",
+        startedAtMs: Math.round(started - t0),
+        finishedAtMs: Math.round(performance.now() - t0),
+        reason,
+        output,
+      });
+    },
+    skip(stage: PipelineStageName, reason: string) {
+      const now = performance.now();
+      trace.push({
+        stage,
+        status: "skipped",
+        startedAtMs: Math.round(now - t0),
+        finishedAtMs: Math.round(now - t0),
+        reason,
+      });
+    },
+  };
+}
+
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
