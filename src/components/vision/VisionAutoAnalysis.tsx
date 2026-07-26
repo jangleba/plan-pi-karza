@@ -180,6 +180,8 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   /** Diagnostyczny kontekst bieżącego przebiegu (do overlay ?visionDebug=true). */
   const debugCtxRef = useRef<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
   const [debugCtx, setDebugCtx] = useState<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
+  /** Ostatni pełny wynik analizy — do zrzutu JSON (diagnostyka). */
+  const [lastAnalysis, setLastAnalysis] = useState<VideoAnalysisResult | null>(null);
   const debugEnabled =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("visionDebug") === "true";
