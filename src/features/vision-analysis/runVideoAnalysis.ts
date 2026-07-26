@@ -6,6 +6,9 @@ import type {
   AnalysisContext,
   VideoAnalysisResult,
   AnalysisStatus,
+  PipelineStageTrace,
+  PipelineStageName,
+  FrameLogEntry,
 } from "./types";
 import { QUALITY_ISSUE_LABELS } from "./types";
 import { resolveAnalysisStatus } from "./statusPolicy";
@@ -188,6 +191,7 @@ function failed(
   reason: string,
   code = "ANALYSIS_FAILED",
   analysisId = uuid(),
+  extras?: Partial<VideoAnalysisResult>,
 ): VideoAnalysisResult {
   return {
     analysisId,
@@ -200,8 +204,54 @@ function failed(
     qualityIssues: [code],
     retakeInstructions: [reason],
     analyzerVersion,
+    ...extras,
   };
 }
+
+/** Buduje ślad wykonania pipeline'u — SUCCESS tylko po realnym wyjściu etapu. */
+function createTraceBuilder() {
+  const trace: PipelineStageTrace[] = [];
+  const t0 = performance.now();
+  const openStarts = new Map<PipelineStageName, number>();
+  return {
+    trace,
+    start(stage: PipelineStageName) {
+      openStarts.set(stage, performance.now());
+    },
+    success(stage: PipelineStageName, output?: Record<string, unknown>) {
+      const started = openStarts.get(stage) ?? performance.now();
+      trace.push({
+        stage,
+        status: "success",
+        startedAtMs: Math.round(started - t0),
+        finishedAtMs: Math.round(performance.now() - t0),
+        output,
+      });
+    },
+    failure(stage: PipelineStageName, reason: string, output?: Record<string, unknown>) {
+      const started = openStarts.get(stage) ?? performance.now();
+      trace.push({
+        stage,
+        status: "failed",
+        startedAtMs: Math.round(started - t0),
+        finishedAtMs: Math.round(performance.now() - t0),
+        reason,
+        output,
+      });
+    },
+    skip(stage: PipelineStageName, reason: string) {
+      const now = performance.now();
+      trace.push({
+        stage,
+        status: "skipped",
+        startedAtMs: Math.round(now - t0),
+        finishedAtMs: Math.round(now - t0),
+        reason,
+      });
+    },
+  };
+}
+
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
@@ -231,43 +281,93 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
   clearPoseDebugLog();
   await closePoseEngine();
   throwIfAborted(opts.abortSignal);
+
+  // Diagnostyczny ślad wykonania — SUCCESS tylko po realnym wyjściu etapu.
+  const tracer = createTraceBuilder();
+  const frameLog: FrameLogEntry[] = [];
+
   const analyzer = getAnalyzer(opts.testType);
-  if (!analyzer)
+  if (!analyzer) {
+    tracer.start("FILE");
+    tracer.failure("FILE", "ANALYZER_NOT_FOUND");
     return failed(
       opts.testType,
       "none",
       "Brak analizatora dla tego testu.",
       "ANALYZER_NOT_FOUND",
       analysisRunId,
+      { pipelineTrace: tracer.trace, frameLog },
     );
-  if (!isPoseSupported())
+  }
+  if (!isPoseSupported()) {
+    tracer.start("FILE");
+    tracer.failure("FILE", "BROWSER_NOT_SUPPORTED");
     return failed(
       opts.testType,
       analyzer.analyzerVersion,
       "Analiza wideo nie jest wspierana w tej przeglądarce.",
       "BROWSER_NOT_SUPPORTED",
       analysisRunId,
+      { pipelineTrace: tracer.trace, frameLog },
     );
+  }
+
+  // FILE — wejście: opts.videoUrl obowiązkowe.
+  tracer.start("FILE");
+  if (!opts.videoUrl) {
+    tracer.failure("FILE", "NO_VIDEO_SOURCE");
+    return failed(
+      opts.testType,
+      analyzer.analyzerVersion,
+      "Brak źródła filmu.",
+      "NO_VIDEO_SOURCE",
+      analysisRunId,
+      { pipelineTrace: tracer.trace, frameLog },
+    );
+  }
+  tracer.success("FILE", {
+    analysisRunId,
+    videoHash: opts.videoHash ?? null,
+    hasCalibrationRecord: !!opts.calibrationRecord,
+    techniqueOnly: !!opts.techniqueOnly,
+    selectedTestType: opts.testType,
+  });
 
   try {
     throwIfAborted(opts.abortSignal);
     opts.onPhase?.("loading_file");
+
+    // METADATA
+    tracer.start("METADATA");
     const metadata = await readVideoMetadata(opts.videoUrl, opts.declaredFps);
     throwIfAborted(opts.abortSignal);
     if (metadata.frameCount <= 0) {
+      tracer.failure("METADATA", "NO_FRAMES", { metadata });
       return failed(
         opts.testType,
         analyzer.analyzerVersion,
         "Nie udało się odczytać klatek wideo.",
         "NO_FRAMES",
         analysisRunId,
+        { pipelineTrace: tracer.trace, frameLog },
       );
     }
+    tracer.success("METADATA", {
+      fps: metadata.fps,
+      frameCount: metadata.frameCount,
+      durationSeconds: round(metadata.durationSeconds, 3),
+      width: metadata.width,
+      height: metadata.height,
+      orientation: metadata.orientation,
+    });
 
     opts.onPhase?.("metadata_ready");
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    // DECODE_FRAMES + POSE_ANALYSIS
     opts.onPhase?.("extracting_frames");
+    tracer.start("DECODE_FRAMES");
+    tracer.start("POSE_ANALYSIS");
     const poses: FramePose[] = [];
     let posePhaseSent = false;
     let lastAcceptedSourceTimestampUs = -1;
@@ -276,9 +376,16 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       metadata,
       async ({ frameIndex, sourceFrameIndex, mediaTime, sourceTimestampMs, sourceTimestampUs, video }) => {
         throwIfAborted(opts.abortSignal);
-        // Deduplikacja po źródłowym timestampie (mikrosekundy) — gwarantuje ten
-        // sam zestaw klatek między uruchomieniami.
+        // Deduplikacja po źródłowym timestampie (mikrosekundy).
         if (sourceTimestampUs <= lastAcceptedSourceTimestampUs) {
+          frameLog.push({
+            sourceFrameIndex,
+            sourceTimestampUs,
+            hasPose: false,
+            peopleCount: 0,
+            trackingConfidence: 0,
+            skippedReason: "DUPLICATE_TIMESTAMP",
+          });
           return;
         }
         lastAcceptedSourceTimestampUs = sourceTimestampUs;
@@ -295,87 +402,61 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
           sourceFrameIndex,
         });
         poses.push(pose);
+        frameLog.push({
+          sourceFrameIndex,
+          sourceTimestampUs,
+          hasPose: pose.landmarks != null,
+          peopleCount: pose.peopleCount,
+          trackingConfidence: round(pose.trackingConfidence, 3),
+          ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
+        });
       },
       (processed, total) => opts.onProgress?.(Math.min(1, processed / total)),
       opts.abortSignal,
     );
     throwIfAborted(opts.abortSignal);
 
-    if (poses.length === 0) {
+    const decodedFrames = poses.length;
+    const analyzedFrames = poses.filter((p) => p.landmarks != null).length;
+
+    if (decodedFrames === 0) {
+      tracer.failure("DECODE_FRAMES", "NO_DECODED_FRAMES", { decodedFrames: 0 });
+      tracer.skip("POSE_ANALYSIS", "no decoded frames");
       return failed(
         opts.testType,
         analyzer.analyzerVersion,
         "Nie udało się zdekodować żadnej klatki.",
         "NO_DECODED_FRAMES",
         analysisRunId,
+        { pipelineTrace: tracer.trace, frameLog },
       );
     }
-
-    // Rzeczywiste liczby klatek: zdekodowane vs faktycznie analizowane (z sylwetką).
-    const decodedFrames = poses.length;
-    const analyzedFrames = poses.filter((p) => p.landmarks != null).length;
-
-    // GATE PROTOKOŁU: selectedTestType → detectedTestType → detectedTestConfidence
-    // → protocolMatch → adapter. Adapter rusza WYŁĄCZNIE przy protocolMatch=true.
-    opts.onPhase?.("recognizing_protocol");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    const recognition = recognizeTestProtocol(opts.testType, poses);
-    const recognitionSummary = {
-      selectedTestType: recognition.selectedTestType,
-      detectedSignature: recognition.detectedSignature,
-      detectedTestType: recognition.detectedTestType,
-      detectedTestConfidence: round(recognition.detectedTestConfidence, 2),
-      detectedRepetitions: recognition.detectedRepetitions,
-      requiredRepetitions: recognition.requiredRepetitions,
-      contactCount: recognition.contactCount,
-      flightCount: recognition.flightCount,
-      protocolMatch: recognition.protocolMatch,
-      errorCode: recognition.errorCode,
-      reason: recognition.reason,
-    };
-    vlog("protocol_recognizer", recognition.reason, {
-      selected: recognition.selectedTestType,
-      detected: recognition.detectedTestType,
-      signature: recognition.detectedSignature,
-      confidence: recognition.detectedTestConfidence,
-      detectedReps: recognition.detectedRepetitions,
-      requiredReps: recognition.requiredRepetitions,
-      protocolMatch: recognition.protocolMatch,
-      errorCode: recognition.errorCode,
+    tracer.success("DECODE_FRAMES", {
+      decodedFrames,
+      skippedDuplicates: frameLog.filter((f) => f.skippedReason === "DUPLICATE_TIMESTAMP").length,
     });
-    if (!recognition.protocolMatch && recognition.errorCode) {
-      opts.onPhase?.("completed");
-      const code = recognition.errorCode;
-      // Dynamiczny komunikat dla WRONG_REPETITION_COUNT: pokaż realne liczby.
-      const retake =
-        code === "WRONG_REPETITION_COUNT"
-          ? `Wykryto ${recognition.detectedRepetitions} z wymaganych ${recognition.requiredRepetitions} powtórzeń. ${recognition.reason}`
-          : recognition.reason || (QUALITY_ISSUE_LABELS[code] ?? code);
-      return {
-        analysisId: analysisRunId,
-        testType: opts.testType,
-        status: "invalid_recording",
-        videoMetadata: {
-          fps: metadata.fps,
-          durationSeconds: round(metadata.durationSeconds, 2),
-          frameCount: metadata.frameCount,
-          width: metadata.width,
-          height: metadata.height,
-        },
-        keyEvents: [],
-        metrics: [],
-        overallConfidence: 0,
-        qualityIssues: [QUALITY_ISSUE_LABELS[code] ?? code],
-        retakeInstructions: [retake],
-        analyzerVersion: analyzer.analyzerVersion,
+
+    if (analyzedFrames === 0) {
+      tracer.failure("POSE_ANALYSIS", "BODY_NOT_DETECTED", {
         decodedFrames,
-        analyzedFrames,
-        recognition: recognitionSummary,
-      };
+        analyzedFrames: 0,
+      });
+      return failed(
+        opts.testType,
+        analyzer.analyzerVersion,
+        "Nie wykryto sylwetki zawodnika w nagraniu.",
+        "BODY_NOT_DETECTED",
+        analysisRunId,
+        { pipelineTrace: tracer.trace, frameLog, decodedFrames, analyzedFrames },
+      );
     }
+    tracer.success("POSE_ANALYSIS", {
+      analyzedFrames,
+      poseCoverage: round(analyzedFrames / decodedFrames, 3),
+    });
 
-
-    // Coarse-pass: realne okno ruchu w nagraniu (informacyjne, nie blokuje wyniku).
+    // MOVEMENT_EVENTS — coarse-pass okna ruchu w nagraniu.
+    tracer.start("MOVEMENT_EVENTS");
     const protocolSpec = getTestProtocol(opts.testType);
     const motionWindow: MotionWindow = detectMotionWindow(poses, metadata.durationSeconds);
     const minDur = protocolSpec.minMovementDurationSeconds ?? 0;
@@ -402,17 +483,101 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       withinExpectedRepCount,
       hasSufficientMargins,
     };
-    vlog("motion_window", "wykryte okno ruchu", {
-      testType: opts.testType,
-      adapter: `${opts.testType}@${analyzer.analyzerVersion}`,
-      window: motionWindowSummary,
-      expected: { minDur, maxDur, minReps, maxReps },
-    });
+    vlog("motion_window", "wykryte okno ruchu", motionWindowSummary);
+    if (motionWindow.activeSegments === 0) {
+      tracer.failure("MOVEMENT_EVENTS", "NO_MOVEMENT_DETECTED", motionWindowSummary);
+    } else {
+      tracer.success("MOVEMENT_EVENTS", motionWindowSummary);
+    }
 
+    // MOVEMENT_SIGNATURE + SELECTED_TEST_VALIDATION
+    opts.onPhase?.("recognizing_protocol");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    tracer.start("MOVEMENT_SIGNATURE");
+    const recognition = recognizeTestProtocol(opts.testType, poses);
+    const recognitionSummary = {
+      selectedTestType: recognition.selectedTestType,
+      detectedSignature: recognition.detectedSignature,
+      detectedTestType: recognition.detectedTestType,
+      detectedTestConfidence: round(recognition.detectedTestConfidence, 2),
+      detectedRepetitions: recognition.detectedRepetitions,
+      requiredRepetitions: recognition.requiredRepetitions,
+      contactCount: recognition.contactCount,
+      flightCount: recognition.flightCount,
+      protocolMatch: recognition.protocolMatch,
+      errorCode: recognition.errorCode,
+      reason: recognition.reason,
+    };
+    vlog("protocol_recognizer", recognition.reason, recognitionSummary);
+    if (
+      recognition.detectedSignature === "UNKNOWN" ||
+      recognition.detectedSignature === "TECHNIQUE"
+    ) {
+      tracer.failure("MOVEMENT_SIGNATURE", "UNRELIABLE_SIGNATURE", recognitionSummary);
+    } else {
+      tracer.success("MOVEMENT_SIGNATURE", {
+        detectedSignature: recognition.detectedSignature,
+        detectedTestType: recognition.detectedTestType,
+        detectedTestConfidence: recognitionSummary.detectedTestConfidence,
+        contactCount: recognition.contactCount,
+        flightCount: recognition.flightCount,
+      });
+    }
 
+    tracer.start("SELECTED_TEST_VALIDATION");
+    if (!recognition.protocolMatch) {
+      tracer.failure("SELECTED_TEST_VALIDATION", recognition.errorCode ?? "PROTOCOL_MISMATCH", {
+        detectedRepetitions: recognition.detectedRepetitions,
+        requiredRepetitions: recognition.requiredRepetitions,
+      });
+      if (recognition.errorCode) {
+        opts.onPhase?.("completed");
+        const code = recognition.errorCode;
+        const retake =
+          code === "WRONG_REPETITION_COUNT"
+            ? `Wykryto ${recognition.detectedRepetitions} z wymaganych ${recognition.requiredRepetitions} powtórzeń. ${recognition.reason}`
+            : recognition.reason || (QUALITY_ISSUE_LABELS[code] ?? code);
+        tracer.skip("ADAPTER", "protocolMatch=false");
+        const result: VideoAnalysisResult = {
+          analysisId: analysisRunId,
+          testType: opts.testType,
+          status: "invalid_recording",
+          videoMetadata: {
+            fps: metadata.fps,
+            durationSeconds: round(metadata.durationSeconds, 2),
+            frameCount: metadata.frameCount,
+            width: metadata.width,
+            height: metadata.height,
+          },
+          keyEvents: [],
+          metrics: [],
+          overallConfidence: 0,
+          qualityIssues: [QUALITY_ISSUE_LABELS[code] ?? code],
+          retakeInstructions: [retake],
+          analyzerVersion: analyzer.analyzerVersion,
+          decodedFrames,
+          analyzedFrames,
+          recognition: recognitionSummary,
+          motionWindow: motionWindowSummary,
+          frameLog,
+          pipelineTrace: tracer.trace,
+        };
+        tracer.success("RESULT", {
+          status: result.status,
+          finalErrorCode: code,
+          metricsCount: 0,
+        });
+        result.pipelineTrace = tracer.trace;
+        return result;
+      }
+    } else {
+      tracer.success("SELECTED_TEST_VALIDATION", {
+        protocolMatch: true,
+        detectedTestType: recognition.detectedTestType,
+      });
+    }
 
-    // Automatyczne dopasowanie profilu kalibracji do bieżącego nagrania na
-    // podstawie urządzenia, obiektywu, orientacji, FPS i zoomu.
+    // Kalibracja + ADAPTER
     opts.onPhase?.("resolving_calibration");
     await new Promise((resolve) => setTimeout(resolve, 0));
     const calibration = resolveCalibration(
@@ -434,6 +599,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
 
     opts.onPhase?.("detecting_events");
     await new Promise((resolve) => setTimeout(resolve, 0));
+    tracer.start("ADAPTER");
     const events = await analyzer.detectKeyEvents(ctx);
     opts.onPhase?.("computing_metrics");
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -443,14 +609,12 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     await new Promise((resolve) => setTimeout(resolve, 0));
     const validation = analyzer.validateRecording(ctx);
 
-    // Polityka wyniku przestrzennego dla testów mierzących odległość/prędkość.
     const isSpatial = SPATIAL_TESTS.has(opts.testType);
     const hasSpatialCalibration = !!calibration?.homography && !calibration?.mismatchCode;
     const movementRecognized = events.length > 0;
     let statusOverride: AnalysisStatus | null = null;
 
     if (isSpatial) {
-      // Ruch kamery po kalibracji unieważnia pomiar.
       if (calibration?.mismatchCode === "CALIBRATION_CAMERA_MOVED") {
         metrics = [];
         if (!validation.issues.includes("CALIBRATION_CAMERA_MOVED"))
@@ -458,17 +622,14 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         validation.retakeInstructions.push(QUALITY_ISSUE_LABELS.CALIBRATION_CAMERA_MOVED);
         statusOverride = "invalid_recording";
       } else if (opts.techniqueOnly) {
-        // Świadomy wybór: analiza tylko techniki, bez cm/m/prędkości.
         metrics = [];
         statusOverride = "technique_only";
       } else if (!hasSpatialCalibration && movementRecognized) {
-        // Ruch rozpoznany, ale podłoże tego filmu nie jest skalibrowane.
         metrics = [];
         statusOverride = "calibration_required";
       }
     }
 
-    // Warstwa rzetelności pomiaru — niepewność, poziom jakości, powtarzalność.
     let measurement: VideoAnalysisResult["measurement"];
     if (analyzer.computeAccuracy && metrics.length > 0) {
       const acc = analyzer.computeAccuracy(events, metrics, ctx);
@@ -476,18 +637,13 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       metrics = acc.metrics;
     }
 
-    // Ustalenie statusu — jedna, wspólna, testowana polityka.
     const decision = resolveAnalysisStatus({
       validationStatus: validation.status,
       metricsCount: metrics.length,
       confidence: confidence.overall,
     });
     const status: AnalysisStatus = statusOverride ?? decision.status;
-    // Przy override statusu (calibration_required / technique_only) nie dodajemy
-    // szumu EVENTS_NOT_DETECTED — ruch został rozpoznany.
     const extraIssues = statusOverride ? [] : decision.extraIssues;
-    // TEST_WINDOW_INCOMPLETE — ostrzeżenie (NIE blokuje wyniku, nie zmienia
-    // obliczeń CMJ ani innych adapterów), pokazywane tylko gdy ruch rozpoznany.
     const windowWarning =
       status === "completed" && !hasSufficientMargins ? ["TEST_WINDOW_INCOMPLETE" as const] : [];
     const qualityIssues = [...validation.issues, ...extraIssues, ...windowWarning];
@@ -497,7 +653,35 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       ...windowWarning.map((i) => QUALITY_ISSUE_LABELS[i]),
     ];
 
+    const adapterOutput = {
+      eventsCount: events.length,
+      eventTypes: [...new Set(events.map((e) => e.type))],
+      metricsCount: metrics.length,
+      metricKeys: metrics.map((m) => m.key),
+      overallConfidence: round(confidence.overall, 2),
+      statusOverride,
+    };
+    if (events.length === 0 && !statusOverride) {
+      tracer.failure("ADAPTER", "EVENTS_NOT_DETECTED", adapterOutput);
+    } else {
+      tracer.success("ADAPTER", adapterOutput);
+    }
+
     opts.onPhase?.("completed");
+    const finalErrorCode = qualityIssues[0] ?? null;
+    const uiPayload = {
+      status,
+      testType: opts.testType,
+      metricsCount: metrics.length,
+      overallConfidence: round(confidence.overall, 2),
+      finalErrorCode,
+    };
+    if (status === "completed") {
+      tracer.success("RESULT", uiPayload);
+    } else {
+      tracer.failure("RESULT", finalErrorCode ?? status, uiPayload);
+    }
+
     return {
       analysisId: analysisRunId,
       testType: opts.testType,
@@ -535,24 +719,35 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         homography: calibration?.homography ? [...calibration.homography] : null,
       },
       motionWindow: motionWindowSummary,
+      pipelineTrace: tracer.trace,
+      frameLog,
     };
   } catch (e) {
     opts.onPhase?.("error");
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
     if (isFrameTimestampOrderError(e)) {
+      tracer.failure("RESULT", "FRAME_TIMESTAMP_ORDER_ERROR");
       return failed(
         opts.testType,
         analyzer.analyzerVersion,
         FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
         "FRAME_TIMESTAMP_ORDER_ERROR",
         analysisRunId,
+        { pipelineTrace: tracer.trace, frameLog },
       );
     }
-    // VideoLoadError niesie konkretny errorCode — pokazujemy go użytkownikowi.
-    const code =
-      e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
     const base = e instanceof Error ? e.message : "Nieznany błąd analizy.";
     const msg = code ? `${base} (kod: ${code})` : base;
-    return failed(opts.testType, analyzer.analyzerVersion, msg, code ?? "ANALYSIS_FAILED", analysisRunId);
+    tracer.failure("RESULT", code ?? "ANALYSIS_FAILED", { message: base });
+    return failed(
+      opts.testType,
+      analyzer.analyzerVersion,
+      msg,
+      code ?? "ANALYSIS_FAILED",
+      analysisRunId,
+      { pipelineTrace: tracer.trace, frameLog },
+    );
   } finally {
     flushPoseDebugLog(analysisRunId);
     await closePoseEngine(analysisRunId);
