@@ -861,7 +861,46 @@ function InvalidView({
   );
 }
 
-function VisionDebugOverlay({ ctx }: { ctx: AnalysisRunDebugContext }) {
+export function downloadAnalysisJson(analysis: VideoAnalysisResult): void {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    analysisRunId: analysis.analysisId,
+    testType: analysis.testType,
+    status: analysis.status,
+    analyzerVersion: analysis.analyzerVersion,
+    videoMetadata: analysis.videoMetadata,
+    decodedFrames: analysis.decodedFrames ?? null,
+    analyzedFrames: analysis.analyzedFrames ?? null,
+    recognition: analysis.recognition ?? null,
+    motionWindow: analysis.motionWindow ?? null,
+    calibration: analysis.calibration ?? null,
+    keyEvents: analysis.keyEvents,
+    metrics: analysis.metrics,
+    overallConfidence: analysis.overallConfidence,
+    qualityIssues: analysis.qualityIssues,
+    retakeInstructions: analysis.retakeInstructions,
+    pipelineTrace: analysis.pipelineTrace ?? [],
+    frameLog: analysis.frameLog ?? [],
+    uiPayload: analysis,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `vision-analysis-${analysis.analysisId}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function VisionDebugOverlay({
+  ctx,
+  analysis,
+}: {
+  ctx: AnalysisRunDebugContext;
+  analysis: VideoAnalysisResult | null;
+}) {
   const rows: Array<[string, unknown]> = [
     ["analysisRunId", ctx.analysisRunId],
     ["filePresent", ctx.filePresent],
@@ -884,8 +923,18 @@ function VisionDebugOverlay({ ctx }: { ctx: AnalysisRunDebugContext }) {
   ];
   return (
     <div className="mx-5 mb-3 rounded-2xl border border-border bg-black/85 p-3 font-mono text-[10px] leading-tight text-white shadow-xl">
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
-        VisionLab · runtime debug
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+          VisionLab · runtime debug
+        </div>
+        <button
+          type="button"
+          disabled={!analysis}
+          onClick={() => analysis && downloadAnalysisJson(analysis)}
+          className="rounded-md bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-black disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
+        >
+          Pobierz log analizy JSON
+        </button>
       </div>
       <table className="w-full">
         <tbody>
@@ -905,6 +954,32 @@ function VisionDebugOverlay({ ctx }: { ctx: AnalysisRunDebugContext }) {
           ))}
         </tbody>
       </table>
+      {analysis?.pipelineTrace && analysis.pipelineTrace.length > 0 && (
+        <div className="mt-2 border-t border-white/10 pt-2">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+            Pipeline trace
+          </div>
+          <ul className="space-y-0.5">
+            {analysis.pipelineTrace.map((s, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span className="text-white/80">{s.stage}</span>
+                <span
+                  className={
+                    s.status === "success"
+                      ? "text-emerald-400"
+                      : s.status === "failed"
+                        ? "text-red-400"
+                        : "text-white/50"
+                  }
+                >
+                  {s.status}
+                  {s.reason ? ` · ${s.reason}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
