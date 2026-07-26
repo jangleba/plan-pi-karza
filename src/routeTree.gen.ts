@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as VisionLabIndexRouteImport } from './routes/vision-lab.index'
 import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.history'
 import { Route as VisionLabCalibrationRouteImport } from './routes/vision-lab.calibration'
+import { Route as VisionLabAcceptanceRouteImport } from './routes/vision-lab.acceptance'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as FootballIqFieldRouteImport } from './routes/football-iq.field'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
@@ -95,6 +96,11 @@ const VisionLabHistoryRoute = VisionLabHistoryRouteImport.update({
 const VisionLabCalibrationRoute = VisionLabCalibrationRouteImport.update({
   id: '/vision-lab/calibration',
   path: '/vision-lab/calibration',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VisionLabAcceptanceRoute = VisionLabAcceptanceRouteImport.update({
+  id: '/vision-lab/acceptance',
+  path: '/vision-lab/acceptance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SesjaDateRoute = SesjaDateRouteImport.update({
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/start': typeof TabsStartRoute
   '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
@@ -268,6 +275,7 @@ export interface FileRoutesByTo {
   '/start': typeof TabsStartRoute
   '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab': typeof VisionLabIndexRoute
@@ -304,6 +312,7 @@ export interface FileRoutesById {
   '/_tabs/start': typeof TabsStartRoute
   '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
+  '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
   '/vision-lab/history': typeof VisionLabHistoryRoute
   '/vision-lab/': typeof VisionLabIndexRoute
@@ -340,6 +349,7 @@ export interface FileRouteTypes {
     | '/start'
     | '/football-iq/field'
     | '/sesja/$date'
+    | '/vision-lab/acceptance'
     | '/vision-lab/calibration'
     | '/vision-lab/history'
     | '/vision-lab/'
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/start'
     | '/football-iq/field'
     | '/sesja/$date'
+    | '/vision-lab/acceptance'
     | '/vision-lab/calibration'
     | '/vision-lab/history'
     | '/vision-lab'
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/_tabs/start'
     | '/football-iq/field'
     | '/sesja/$date'
+    | '/vision-lab/acceptance'
     | '/vision-lab/calibration'
     | '/vision-lab/history'
     | '/vision-lab/'
@@ -440,6 +452,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   FootballIqFieldRoute: typeof FootballIqFieldRoute
   SesjaDateRoute: typeof SesjaDateRoute
+  VisionLabAcceptanceRoute: typeof VisionLabAcceptanceRoute
   VisionLabCalibrationRoute: typeof VisionLabCalibrationRoute
   VisionLabHistoryRoute: typeof VisionLabHistoryRoute
   VisionLabIndexRoute: typeof VisionLabIndexRoute
@@ -535,6 +548,13 @@ declare module '@tanstack/react-router' {
       path: '/vision-lab/calibration'
       fullPath: '/vision-lab/calibration'
       preLoaderRoute: typeof VisionLabCalibrationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vision-lab/acceptance': {
+      id: '/vision-lab/acceptance'
+      path: '/vision-lab/acceptance'
+      fullPath: '/vision-lab/acceptance'
+      preLoaderRoute: typeof VisionLabAcceptanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sesja/$date': {
@@ -726,6 +746,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   FootballIqFieldRoute: FootballIqFieldRoute,
   SesjaDateRoute: SesjaDateRoute,
+  VisionLabAcceptanceRoute: VisionLabAcceptanceRoute,
   VisionLabCalibrationRoute: VisionLabCalibrationRoute,
   VisionLabHistoryRoute: VisionLabHistoryRoute,
   VisionLabIndexRoute: VisionLabIndexRoute,
