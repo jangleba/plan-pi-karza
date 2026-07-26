@@ -510,7 +510,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         backTo="/vision-lab"
       />
 
-      {debugEnabled && <VisionDebugOverlay ctx={debugCtx} />}
+      {debugEnabled && <VisionDebugOverlay ctx={debugCtx} analysis={lastAnalysis} />}
 
       <div className="space-y-4 px-5">
 
