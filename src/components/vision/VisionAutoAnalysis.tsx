@@ -226,6 +226,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loading_file" };
     setDebugCtx(debugCtxRef.current);
     setPreviewSrc(null);
+    setLastAnalysis(null);
     setCurrentPhase("loading_file");
     setProgress(0);
     setState({ kind: "running" });
