@@ -280,12 +280,15 @@ export function recognizeTestProtocol(
       selectedFamily === "VERTICAL_JUMP" &&
       signature === "REPEATED_CONTACTS"
     ) {
-      if (isPogoRhythm && !singleFlight) {
+      if (isPogoRhythm) {
+        // Jednoznaczny dowód rytmu Pogo: wiele pełnych cykli z krótkim
+        // kontaktem między lotami. Odrzucamy, nawet gdy dominuje jeden lot.
         errorCode = "TEST_PROTOCOL_MISMATCH";
         reason = `Nagranie nie spełnia protokołu ${selectedTestType.toUpperCase()}. Wykryto serię powtarzalnych odbić (średni kontakt ${(avgContactSeconds * 1000).toFixed(0)} ms).`;
       } else {
-        // Wyraźna faza lotu lub długie kontakty (reset między próbami CMJ) —
-        // akceptujemy jako zgodne z protokołem pojedynczej próby.
+        // Szum landmarków wygenerował dodatkowe "kontakty" wokół pojedynczego
+        // CMJ albo mamy kilka wyraźnie oddzielonych prób CMJ z resetem.
+        // Traktujemy jako zgodne z protokołem pojedynczej próby.
         reason = singleFlight
           ? "Wykryto pojedynczą wyraźną fazę lotu — zgodne z protokołem CMJ."
           : "Kontakty z długimi przerwami — traktowane jako oddzielne próby CMJ.";
