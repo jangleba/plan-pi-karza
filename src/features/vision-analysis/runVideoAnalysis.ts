@@ -371,11 +371,19 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     const poses: FramePose[] = [];
     let posePhaseSent = false;
     let lastAcceptedSourceTimestampUs = -1;
+    // Deterministyczne liczniki etapu POSE_ANALYSIS: etap MUSI się zakończyć
+    // (completed/failed) po sprawdzeniu wszystkich klatek — pojedynczy błąd
+    // klatki NIE może zablokować całego pipeline'u.
+    let scheduledFrames = 0;
+    let attemptedFrames = 0;
+    let poseErrors = 0;
+    let timestampOrderErrors = 0;
     await iterateFrames(
       opts.videoUrl,
       metadata,
       async ({ frameIndex, sourceFrameIndex, mediaTime, sourceTimestampMs, sourceTimestampUs, video }) => {
         throwIfAborted(opts.abortSignal);
+        scheduledFrames += 1;
         // Deduplikacja po źródłowym timestampie (mikrosekundy).
         if (sourceTimestampUs <= lastAcceptedSourceTimestampUs) {
           frameLog.push({
@@ -394,22 +402,41 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
           opts.onPhase?.("pose_analysis");
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
-        const pose = await detectPose(video, frameIndex, mediaTime, {
-          analysisRunId,
-          passType: "coarse",
-          sourceTimestampMs,
-          sourceTimestampUs,
-          sourceFrameIndex,
-        });
-        poses.push(pose);
-        frameLog.push({
-          sourceFrameIndex,
-          sourceTimestampUs,
-          hasPose: pose.landmarks != null,
-          peopleCount: pose.peopleCount,
-          trackingConfidence: round(pose.trackingConfidence, 3),
-          ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
-        });
+        // Per-klatka try/catch/finally — błąd pojedynczej klatki oznacza tylko
+        // brak pozy w tej klatce, a NIE zatrzymanie etapu. Bez tego jeden rzut
+        // MediaPipe wywalał cały pipeline i etap POSE_ANALYSIS stawał w miejscu.
+        try {
+          const pose = await detectPose(video, frameIndex, mediaTime, {
+            analysisRunId,
+            passType: "coarse",
+            sourceTimestampMs,
+            sourceTimestampUs,
+            sourceFrameIndex,
+          });
+          poses.push(pose);
+          frameLog.push({
+            sourceFrameIndex,
+            sourceTimestampUs,
+            hasPose: pose.landmarks != null,
+            peopleCount: pose.peopleCount,
+            trackingConfidence: round(pose.trackingConfidence, 3),
+            ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
+          });
+        } catch (frameErr) {
+          poseErrors += 1;
+          const isOrderErr = isFrameTimestampOrderError(frameErr);
+          if (isOrderErr) timestampOrderErrors += 1;
+          frameLog.push({
+            sourceFrameIndex,
+            sourceTimestampUs,
+            hasPose: false,
+            peopleCount: 0,
+            trackingConfidence: 0,
+            skippedReason: isOrderErr ? "FRAME_TIMESTAMP_ORDER_ERROR" : "POSE_FRAME_ERROR",
+          });
+        } finally {
+          attemptedFrames += 1;
+        }
       },
       (processed, total) => opts.onProgress?.(Math.min(1, processed / total)),
       opts.abortSignal,
@@ -419,8 +446,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     const decodedFrames = poses.length;
     const analyzedFrames = poses.filter((p) => p.landmarks != null).length;
 
-    if (decodedFrames === 0) {
-      tracer.failure("DECODE_FRAMES", "NO_DECODED_FRAMES", { decodedFrames: 0 });
+    if (decodedFrames === 0 && attemptedFrames === 0) {
+      tracer.failure("DECODE_FRAMES", "NO_DECODED_FRAMES", { decodedFrames: 0, scheduledFrames });
       tracer.skip("POSE_ANALYSIS", "no decoded frames");
       return failed(
         opts.testType,
@@ -433,13 +460,34 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     }
     tracer.success("DECODE_FRAMES", {
       decodedFrames,
+      scheduledFrames,
+      attemptedFrames,
       skippedDuplicates: frameLog.filter((f) => f.skippedReason === "DUPLICATE_TIMESTAMP").length,
     });
+
+    // Jeżeli WSZYSTKIE próby analizy klatki zwróciły błąd porządku timestampów,
+    // to jest to twardy błąd runtime — nie fałszujemy sukcesu etapu.
+    if (attemptedFrames > 0 && timestampOrderErrors === attemptedFrames) {
+      tracer.failure("POSE_ANALYSIS", "FRAME_TIMESTAMP_ORDER_ERROR", {
+        attemptedFrames,
+        timestampOrderErrors,
+      });
+      return failed(
+        opts.testType,
+        analyzer.analyzerVersion,
+        FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+        "FRAME_TIMESTAMP_ORDER_ERROR",
+        analysisRunId,
+        { pipelineTrace: tracer.trace, frameLog, decodedFrames, analyzedFrames },
+      );
+    }
 
     if (analyzedFrames === 0) {
       tracer.failure("POSE_ANALYSIS", "BODY_NOT_DETECTED", {
         decodedFrames,
         analyzedFrames: 0,
+        attemptedFrames,
+        poseErrors,
       });
       return failed(
         opts.testType,
@@ -451,8 +499,11 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
     tracer.success("POSE_ANALYSIS", {
+      scheduledFrames,
+      attemptedFrames,
       analyzedFrames,
-      poseCoverage: round(analyzedFrames / decodedFrames, 3),
+      poseErrors,
+      poseCoverage: round(analyzedFrames / Math.max(1, attemptedFrames), 3),
     });
 
     // MOVEMENT_EVENTS — coarse-pass okna ruchu w nagraniu.
