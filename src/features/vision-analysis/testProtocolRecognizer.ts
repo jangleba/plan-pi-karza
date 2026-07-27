@@ -219,6 +219,7 @@ export function recognizeTestProtocol(
 
   const { signature, confidence, contactCount, flightCount } = recognizeMovement(poses);
   const { cycles } = detectRepeatedCycles(poses);
+  const singleFlight = detectFlightPhase(poses);
   const detectedFamilies = SIGNATURE_FAMILIES[signature];
   const familyMatch = detectedFamilies.includes(selectedFamily);
   const detectedTestType = SIGNATURE_TO_TEST_LABEL[signature];
@@ -232,6 +233,19 @@ export function recognizeTestProtocol(
 
   const CONFIDENT_SIGNATURE = 0.85;
   const isSeriesProtocol = protocol.attemptProtocol.kind === "REPEATED_CONTACT_SERIES";
+
+  // Rytm Pogo: >=2 pełne cykle Z UDOKUMENTOWANYM kontaktem między lotami,
+  // krótki średni czas kontaktu (< 350 ms). Bez tego nie mamy dowodu Pogo,
+  // a tylko szum landmarków generujący "kontakty" wokół pojedynczego CMJ.
+  const cyclesWithContact = cycles.filter(
+    (c): c is (typeof cycles)[number] & { contactSeconds: number } =>
+      typeof c.contactSeconds === "number" && c.contactSeconds > 0,
+  );
+  const avgContactSeconds =
+    cyclesWithContact.length > 0
+      ? cyclesWithContact.reduce((a, c) => a + c.contactSeconds, 0) / cyclesWithContact.length
+      : Number.POSITIVE_INFINITY;
+  const isPogoRhythm = cyclesWithContact.length >= 2 && avgContactSeconds < 0.35;
 
   let repetitionCountValid = true;
   let errorCode: QualityIssueCode | null = null;
@@ -255,17 +269,41 @@ export function recognizeTestProtocol(
     }
   } else {
     // Test pojedynczej próby (CMJ, Broad Jump, Sprint, …).
-    if (!familyMatch) {
-      if (signature === "UNKNOWN" || confidence < CONFIDENT_SIGNATURE) {
+    // Zasada: wybrany test to źródło prawdy. Recognizer NIE zamienia CMJ
+    // na Pogo automatycznie. Odrzucamy dopiero przy jednoznacznym dowodzie
+    // niezgodności (rytm Pogo / lokomocja).
+    if (signature === "UNKNOWN") {
+      // Bez wiarygodnych bioder/stóp nie mamy dowodu ani ZA, ani PRZECIW —
+      // niech adapter zdecyduje na podstawie swoich własnych detektorów.
+      reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(2)}).`;
+    } else if (
+      selectedFamily === "VERTICAL_JUMP" &&
+      signature === "REPEATED_CONTACTS"
+    ) {
+      if (isPogoRhythm) {
+        // Jednoznaczny dowód rytmu Pogo: wiele pełnych cykli z krótkim
+        // kontaktem między lotami. Odrzucamy, nawet gdy dominuje jeden lot.
+        errorCode = "TEST_PROTOCOL_MISMATCH";
+        reason = `Nagranie nie spełnia protokołu ${selectedTestType.toUpperCase()}. Wykryto serię powtarzalnych odbić (średni kontakt ${(avgContactSeconds * 1000).toFixed(0)} ms).`;
+      } else {
+        // Szum landmarków wygenerował dodatkowe "kontakty" wokół pojedynczego
+        // CMJ albo mamy kilka wyraźnie oddzielonych prób CMJ z resetem.
+        // Traktujemy jako zgodne z protokołem pojedynczej próby.
+        reason = singleFlight
+          ? "Wykryto pojedynczą wyraźną fazę lotu — zgodne z protokołem CMJ."
+          : "Kontakty z długimi przerwami — traktowane jako oddzielne próby CMJ.";
+      }
+    } else if (!familyMatch) {
+      if (confidence < CONFIDENT_SIGNATURE) {
         reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(2)}).`;
       } else {
         errorCode = "TEST_PROTOCOL_MISMATCH";
         reason = `Wykryto ruch typu ${detectedTestType}, niezgodny z rodziną ${selectedFamily} (pewność ${confidence.toFixed(2)}).`;
       }
-    } else if (signature === "REPEATED_CONTACTS" && contactCount >= 3) {
+    } else if (signature === "REPEATED_CONTACTS" && contactCount >= 3 && isPogoRhythm) {
       repetitionCountValid = false;
       errorCode = "WRONG_REPETITION_COUNT";
-      reason = `Test pojedynczej próby zawiera ${contactCount} kontaktów — nagraj jedno powtórzenie.`;
+      reason = `Test pojedynczej próby zawiera ${contactCount} rytmicznych kontaktów — nagraj jedno powtórzenie.`;
     }
   }
 
