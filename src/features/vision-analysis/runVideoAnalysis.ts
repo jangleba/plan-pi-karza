@@ -368,8 +368,13 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     opts.onPhase?.("extracting_frames");
     tracer.start("DECODE_FRAMES");
     tracer.start("POSE_ANALYSIS");
+    // Faza pose_analysis anonsowana PRZED pętlą — inicjalizacja MediaPipe
+    // (WASM/model) potrafi trwać kilka sekund. Bez tego UI wisiał na
+    // "extracting_frames" do pierwszej niezdublowanej klatki, co użytkownik
+    // interpretował jako zatrzymanie pipeline'u na analizie pozy.
+    opts.onPhase?.("pose_analysis");
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const poses: FramePose[] = [];
-    let posePhaseSent = false;
     let lastAcceptedSourceTimestampUs = -1;
     // Deterministyczne liczniki etapu POSE_ANALYSIS: etap MUSI się zakończyć
     // (completed/failed) po sprawdzeniu wszystkich klatek — pojedynczy błąd
@@ -397,11 +402,6 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
           return;
         }
         lastAcceptedSourceTimestampUs = sourceTimestampUs;
-        if (!posePhaseSent) {
-          posePhaseSent = true;
-          opts.onPhase?.("pose_analysis");
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
         // Per-klatka try/catch/finally — błąd pojedynczej klatki oznacza tylko
         // brak pozy w tej klatce, a NIE zatrzymanie etapu. Bez tego jeden rzut
         // MediaPipe wywalał cały pipeline i etap POSE_ANALYSIS stawał w miejscu.
