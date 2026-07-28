@@ -247,12 +247,12 @@ export function recognizeTestProtocol(
       : Number.POSITIVE_INFINITY;
   const isPogoRhythm = cyclesWithContact.length >= 3 && avgContactSeconds < 0.3;
 
-  // Dowód CMJ: wykryto jedną dominującą fazę lotu (detectFlightPhase to
-  // najsilniejszy pojedynczy detektor pionowego skoku). Jeżeli mamy taki
-  // dowód, wybrany test = CMJ jest wiążący — recognizer nie może odrzucić
-  // nagrania jako Pogo, nawet gdy sygnatura mówi REPEATED_CONTACTS na
-  // podstawie zaszumionych kontaktów.
-  const hasCleanSingleFlight = !!singleFlight && singleFlight.confidence >= 0.5;
+  // Dowód CMJ: pojedynczy dominujący lot z detectFlightPhase, ORAZ brak
+  // dowodu wielocyklowego rytmu (żeby pogo z każdym cyklem jako "flight"
+  // nie było klasyfikowane jako CMJ). "Dominujący" = przynajmniej 1 pełny
+  // segment lotu i BRAK ≥3 cykli powtarzalnych.
+  const hasCleanSingleFlight =
+    !!singleFlight && singleFlight.confidence >= 0.5 && cyclesWithContact.length < 2;
 
   let repetitionCountValid = true;
   let errorCode: QualityIssueCode | null = null;
