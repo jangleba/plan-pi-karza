@@ -17,39 +17,36 @@ import { VisionVideoCalibration } from "./VisionVideoCalibration";
 import { computeVideoHashFromBlob, type CalibrationRecord } from "@/features/vision-analysis/videoCalibration";
 import { findVideoCalibration } from "@/lib/vision/videoCalibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
+import { ANALYSIS_PIPELINE_STAGES } from "@/features/vision-analysis/AnalysisPipelineController";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
-import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
+import type {
+  VideoAnalysisResult,
+  TestType,
+  CameraSetup,
+  AnalysisPipelineSnapshot,
+  PipelineStageName,
+} from "@/features/vision-analysis/types";
 import { estimateFallbackHeightCm } from "@/features/vision-analysis/autoCalibration";
 
 const PHASE_LABELS: Record<AnalysisPhase, string> = {
   idle: "Gotowe do startu",
-  loading_file: "Wczytywanie filmu",
-  metadata_ready: "Metadane filmu odczytane",
-  extracting_frames: "Ekstrakcja klatek",
-  pose_analysis: "Analiza pozy zawodnika",
-  recognizing_protocol: "Rozpoznawanie testu",
-  resolving_calibration: "Dopasowanie kalibracji",
-  detecting_events: "Wykrywanie zdarzeń ruchu",
-  computing_metrics: "Obliczanie wyniku",
-  validating: "Walidacja nagrania",
-  calculating_result: "Obliczanie wyniku",
+  loadVideo: "Wczytywanie filmu",
+  readMetadata: "Metadane filmu odczytane",
+  extractFrames: "Ekstrakcja klatek",
+  estimatePose: "Analiza pozy zawodnika",
+  buildMovementSignals: "Budowanie sygnałów ruchu",
+  detectMovementEvents: "Wykrywanie zdarzeń ruchu",
+  segmentAttempts: "Segmentacja prób",
+  validateProtocol: "Walidacja protokołu",
+  calculateResult: "Obliczanie wyniku",
+  validateRecording: "Walidacja nagrania",
   completed: "Gotowe",
   error: "Błąd analizy",
 };
 
 /** Kolejność realnych kroków pipeline'u — do wizualizacji postępu. */
-const PHASE_STEPS: AnalysisPhase[] = [
-  "loading_file",
-  "metadata_ready",
-  "extracting_frames",
-  "pose_analysis",
-  "recognizing_protocol",
-  "resolving_calibration",
-  "detecting_events",
-  "computing_metrics",
-  "validating",
-];
+const PHASE_STEPS: PipelineStageName[] = ANALYSIS_PIPELINE_STAGES;
 
 /**
  * Dla każdego etapu pipeline'u — konkretne wskazówki, co użytkownik może
@@ -57,53 +54,56 @@ const PHASE_STEPS: AnalysisPhase[] = [
  */
 const PHASE_CHECK_HINTS: Record<AnalysisPhase, string[]> = {
   idle: ["Uruchom analizę ponownie."],
-  loading_file: [
+  loadVideo: [
     "Sprawdź format wideo — najlepiej MP4 (H.264) lub MOV.",
     "Upewnij się, że plik nie jest uszkodzony i otwiera się w odtwarzaczu.",
     "Bardzo duże pliki mogą przekroczyć limit — przytnij film do samego testu.",
   ],
-  metadata_ready: [
+  readMetadata: [
     "Sprawdź, czy film ma poprawne metadane (długość, liczba klatek).",
     "Spróbuj ponownie wyeksportować film z aplikacji aparatu.",
   ],
-  extracting_frames: [
+  extractFrames: [
     "Nagraj w wyższej liczbie klatek na sekundę (min. 30, zalecane 60).",
     "Unikaj mocno skompresowanych filmów z komunikatorów (WhatsApp, Messenger).",
     "Wyślij oryginalny plik, a nie jego udostępnioną kopię.",
   ],
-  pose_analysis: [
+  estimatePose: [
     "Zadbaj o dobre oświetlenie i widoczną całą sylwetkę zawodnika.",
     "W kadrze powinna być tylko jedna osoba.",
     "Unikaj zbyt dużej odległości od kamery i rozmytych ujęć.",
   ],
-  recognizing_protocol: [
-    "Upewnij się, że film pokazuje właśnie wybrany test.",
-    "Zachowaj poprawne ustawienie kamery zgodnie z instrukcją testu.",
+  buildMovementSignals: [
+    "Zadbaj o widoczne biodra, stopy i pełną sylwetkę przez cały ruch.",
+    "Upewnij się, że ruch nie jest zasłonięty ani ucięty przez kadr.",
   ],
-  resolving_calibration: [
-    "Skalibruj podłoże na tym filmie lub wybierz analizę tylko techniki.",
-    "Nie poruszaj kamerą po kalibracji.",
-  ],
-  detecting_events: [
+  detectMovementEvents: [
     "Nagraj pełny ruch od startu do końca w jednym ujęciu.",
     "Nie przycinaj kluczowych momentów (odbicie, lądowanie, przekroczenie linii).",
   ],
-  computing_metrics: [
+  segmentAttempts: [
+    "Zostaw krótki margines przed i po właściwej próbie.",
+    "Jeden film powinien zawierać jedną próbę albo jedną pełną serię zgodną z protokołem.",
+  ],
+  validateProtocol: [
+    "Upewnij się, że film pokazuje właśnie wybrany test.",
+    "Zachowaj poprawne ustawienie kamery zgodnie z instrukcją testu.",
+  ],
+  calculateResult: [
     "Upewnij się, że ruch jest wykonany zgodnie z protokołem testu.",
     "Zadbaj o stabilny, nieruchomy kadr.",
   ],
-  validating: [
+  validateRecording: [
     "Sprawdź pozycję i kąt kamery zgodnie z instrukcją testu.",
     "Nagraj ponownie z lepszą jakością i pełną widocznością.",
   ],
-  calculating_result: ["Spróbuj ponownie lub nagraj film w lepszej jakości."],
   completed: [],
   error: ["Spróbuj ponownie lub wybierz inny film."],
 };
 
 /** Czytelny opis etapu (z numerem kroku, gdy dotyczy realnego pipeline'u). */
 function stageLabelForPhase(phase: AnalysisPhase): string {
-  const idx = PHASE_STEPS.indexOf(phase);
+  const idx = PHASE_STEPS.indexOf(phase as PipelineStageName);
   if (idx >= 0) return `Krok ${idx + 1}/${PHASE_STEPS.length} — ${PHASE_LABELS[phase]}`;
   return PHASE_LABELS[phase] ?? "Nieznany etap";
 }
@@ -164,6 +164,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const { user } = useAuth();
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
   const [progress, setProgress] = useState(0);
+  const [pipelineSnapshot, setPipelineSnapshot] = useState<AnalysisPipelineSnapshot | null>(null);
   const [state, setState] = useState<UiState>({ kind: "running" });
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
@@ -223,11 +224,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     calibrationRecordRef.current = null;
     // techniqueOnlyRef zostaje: użytkownik świadomie wybiera "tylko technika"
     // i klika retry — inaczej zresetujemy jego wybór.
-    debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loading_file" };
+    debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loadVideo" };
     setDebugCtx(debugCtxRef.current);
+    setPipelineSnapshot(null);
     setPreviewSrc(null);
     setLastAnalysis(null);
-    setCurrentPhase("loading_file");
+    setCurrentPhase("loadVideo");
     setProgress(0);
     setState({ kind: "running" });
 
@@ -274,7 +276,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         kind: "error",
         code: "NO_VIDEO_SOURCE",
         message: "Nie wybrałeś jeszcze filmu do analizy. Wybierz film ponownie.",
-        phase: "loading_file",
+        phase: "loadVideo",
       });
       return;
     }
@@ -284,7 +286,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         kind: "error",
         code: "INVALID_VIDEO_FILE",
         message: "Wybrany plik jest pusty lub uszkodzony. Wybierz film ponownie.",
-        phase: "loading_file",
+        phase: "loadVideo",
       });
       return;
     }
@@ -369,11 +371,14 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           calibrationRecord: calibrationRecordRef.current,
           techniqueOnly: techniqueOnlyRef.current,
           abortSignal: controller.signal,
-          onPhase: (p) => {
-            vlog("phase", p);
-            if (!cancelled()) setCurrentPhase(p);
+          onPipelineUpdate: (snapshot) => {
+            if (cancelled()) return;
+            setPipelineSnapshot(snapshot);
+            setCurrentPhase(snapshot.currentStage);
+            const current = snapshot.stages[snapshot.currentStage as PipelineStageName];
+            setProgress(current ? current.completedUnits / Math.max(1, current.totalUnits) : 0);
+            vlog("phase", snapshot.currentStage);
           },
-          onProgress: (f) => !cancelled() && setProgress(f),
         }),
         90_000,
         "Pełna analiza filmu",
@@ -526,7 +531,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
             className="w-full rounded-2xl bg-black"
           />
         )}
-        {state.kind === "running" && <RunningView phase={phase} progress={progress} />}
+        {state.kind === "running" && (
+          <RunningView phase={phase} progress={progress} snapshot={pipelineSnapshot} />
+        )}
 
         {state.kind === "calibration_required" && (
           <CalibrationRequiredView
@@ -731,13 +738,21 @@ function TechniqueOnlyView({
   );
 }
 
-function RunningView({ phase, progress }: { phase: AnalysisPhase; progress: number }) {
+function RunningView({
+  phase,
+  progress,
+  snapshot,
+}: {
+  phase: AnalysisPhase;
+  progress: number;
+  snapshot: AnalysisPipelineSnapshot | null;
+}) {
   const pct = Math.round(progress * 100);
   // Indeks bieżącego kroku w realnym pipelinie (bez timerów).
-  const rawIndex = PHASE_STEPS.indexOf(phase);
+  const rawIndex = PHASE_STEPS.indexOf(phase as PipelineStageName);
   const currentIndex =
     phase === "completed" ? PHASE_STEPS.length : rawIndex === -1 ? 0 : rawIndex;
-  const showFrameProgress = phase === "extracting_frames" || phase === "pose_analysis";
+  const showFrameProgress = phase === "extractFrames" || phase === "estimatePose";
   return (
     <div className="soft-card space-y-5 p-6">
       <div className="flex flex-col items-center text-center">
@@ -768,8 +783,9 @@ function RunningView({ phase, progress }: { phase: AnalysisPhase; progress: numb
 
       <ol className="space-y-2.5">
         {PHASE_STEPS.map((step, i) => {
-          const done = i < currentIndex;
-          const active = i === currentIndex;
+          const stage = snapshot?.stages[step];
+          const done = stage?.status === "completed" || stage?.status === "skipped";
+          const active = i === currentIndex && stage?.status === "running";
           return (
             <li key={step} className="flex items-center gap-3">
               <span
@@ -965,7 +981,7 @@ function VisionDebugOverlay({
                 <span className="text-white/80">{s.stage}</span>
                 <span
                   className={
-                    s.status === "success"
+                    s.status === "completed"
                       ? "text-emerald-400"
                       : s.status === "failed"
                         ? "text-red-400"

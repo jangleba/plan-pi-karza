@@ -344,21 +344,43 @@ export interface VideoAnalysisResult {
   frameLog?: FrameLogEntry[];
 }
 
+export type StageStatus = "pending" | "running" | "completed" | "skipped" | "failed";
+
 /** Etapy diagnostyczne pipeline'u (kolejność wykonania). */
 export type PipelineStageName =
-  | "FILE"
-  | "METADATA"
-  | "DECODE_FRAMES"
-  | "POSE_ANALYSIS"
-  | "MOVEMENT_EVENTS"
-  | "MOVEMENT_SIGNATURE"
-  | "SELECTED_TEST_VALIDATION"
-  | "ADAPTER"
-  | "RESULT";
+  | "loadVideo"
+  | "readMetadata"
+  | "extractFrames"
+  | "estimatePose"
+  | "buildMovementSignals"
+  | "detectMovementEvents"
+  | "segmentAttempts"
+  | "validateProtocol"
+  | "calculateResult"
+  | "validateRecording";
+
+export type AnalysisPhase = "idle" | PipelineStageName | "completed" | "error";
+
+export interface PipelineStageState {
+  name: PipelineStageName;
+  status: StageStatus;
+  completedUnits: number;
+  totalUnits: number;
+  output?: Record<string, unknown>;
+  error?: string;
+  startedAtMs?: number;
+  finishedAtMs?: number;
+}
+
+export interface AnalysisPipelineSnapshot {
+  analysisRunId: string;
+  currentStage: AnalysisPhase;
+  stages: Record<PipelineStageName, PipelineStageState>;
+}
 
 export interface PipelineStageTrace {
   stage: PipelineStageName;
-  status: "success" | "failed" | "skipped";
+  status: StageStatus;
   startedAtMs: number;
   finishedAtMs: number;
   /** Rzeczywiste wyjście etapu przekazane dalej (małe podsumowanie). */

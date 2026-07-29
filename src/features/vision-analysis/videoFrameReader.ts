@@ -14,6 +14,15 @@ export type FrameHandler = (frame: {
   video: HTMLVideoElement;
 }) => Promise<void> | void;
 
+export interface ScheduledVideoFrame {
+  frameIndex: number;
+  sourceFrameIndex: number;
+  mediaTime: number;
+  presentationTimestamp: number;
+  sourceTimestampMs: number;
+  sourceTimestampUs: number;
+}
+
 /** Błąd wczytywania wideo z konkretnym kodem (widoczny dla użytkownika). */
 export class VideoLoadError extends Error {
   code: string;
@@ -292,16 +301,65 @@ export async function iterateFrames(
   signal?: AbortSignal,
 ): Promise<void> {
   throwIfAborted(signal);
+  const schedule = createFrameSchedule(metadata);
+  await withLoadedVideoElement(url, signal, async (video) => {
+    for (const frame of schedule) {
+      throwIfAborted(signal);
+      await seekToFrame(video, frame.mediaTime);
+      await onFrame({ ...frame, video });
+      onProgress?.(frame.sourceFrameIndex + 1, schedule.length);
+    }
+  });
+}
+
+export function createFrameSchedule(metadata: VideoMetadata): ScheduledVideoFrame[] {
+  const fps = Math.max(1, Math.round(metadata.fps));
+  const frameCount = Math.max(
+    1,
+    metadata.frameCount > 0 ? metadata.frameCount : Math.round(metadata.durationSeconds * fps),
+  );
+  const frames: ScheduledVideoFrame[] = [];
+  for (let sourceFrameIndex = 0; sourceFrameIndex < frameCount; sourceFrameIndex++) {
+    const sourceTimestampUs = Math.round((sourceFrameIndex * 1_000_000) / fps);
+    const mediaTime = sourceTimestampUs / 1_000_000;
+    if (mediaTime >= metadata.durationSeconds) break;
+    frames.push({
+      frameIndex: sourceFrameIndex,
+      sourceFrameIndex,
+      mediaTime,
+      presentationTimestamp: mediaTime,
+      sourceTimestampMs: Math.round(sourceTimestampUs / 1000),
+      sourceTimestampUs,
+    });
+  }
+  vlog("frame_schedule", "deterministic seek grid", { fps, scheduledFrames: frames.length });
+  return frames;
+}
+
+export async function withLoadedVideoElement<T>(
+  url: string,
+  signal: AbortSignal | undefined,
+  handler: (video: HTMLVideoElement) => Promise<T>,
+): Promise<T> {
+  throwIfAborted(signal);
   const video = document.createElement("video");
   video.src = url;
   video.muted = true;
   video.playsInline = true;
   video.setAttribute("webkit-playsinline", "true");
   video.preload = "auto";
+  try {
+    await waitForFrameData(video, signal);
+    video.pause();
+    return await handler(video);
+  } finally {
+    video.pause();
+    video.src = "";
+  }
+}
 
-  // Czekaj na dane do dekodowania z twardym limitem czasu (bez tego iOS
-  // potrafi nigdy nie wyemitować loadeddata → nieskończone "dekodowanie").
-  await new Promise<void>((resolve, reject) => {
+function waitForFrameData(video: HTMLVideoElement, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     let settled = false;
     const cleanup = () => {
       clearTimeout(timer);
@@ -326,8 +384,6 @@ export async function iterateFrames(
       if (settled) return;
       settled = true;
       cleanup();
-      video.pause();
-      video.src = "";
       reject(new VideoLoadError("ANALYSIS_ABORTED", "Analiza została przerwana."));
     };
     const timer = setTimeout(() => {
@@ -352,56 +408,32 @@ export async function iterateFrames(
     }
     if (video.readyState >= 2) onOk();
   });
-
-  video.pause();
-
-  // Deterministyczna siatka klatek: identyczna dla każdego uruchomienia.
-  const fps = Math.max(1, Math.round(metadata.fps));
-  const frameCount = Math.max(
-    1,
-    metadata.frameCount > 0
-      ? metadata.frameCount
-      : Math.round(metadata.durationSeconds * fps),
-  );
-  const total = frameCount;
-  vlog("iterateFrames", "deterministic seek grid", { fps, frameCount });
-
-  for (let sourceFrameIndex = 0; sourceFrameIndex < frameCount; sourceFrameIndex++) {
-    throwIfAborted(signal);
-    // Timestamp źródłowej klatki liczony w mikrosekundach z pełną precyzją,
-    // zaokrąglany deterministycznie (round-half-up na liczbach całkowitych).
-    const sourceTimestampUs = Math.round((sourceFrameIndex * 1_000_000) / fps);
-    const tSec = sourceTimestampUs / 1_000_000;
-    if (tSec >= metadata.durationSeconds) break;
-    await seekTo(video, tSec);
-    const sourceTimestampMs = Math.round(sourceTimestampUs / 1000);
-    await onFrame({
-      frameIndex: sourceFrameIndex,
-      sourceFrameIndex,
-      mediaTime: tSec,
-      presentationTimestamp: tSec,
-      sourceTimestampMs,
-      sourceTimestampUs,
-      video,
-    });
-    onProgress?.(sourceFrameIndex + 1, total);
-  }
-  vlog("iterateFrames", `seek: ${frameCount} klatek`);
-  video.src = "";
 }
 
-function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
-  return new Promise((resolve) => {
+export function seekToFrame(video: HTMLVideoElement, time: number): Promise<void> {
+  return new Promise((resolve, reject) => {
     let settled = false;
     const done = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       video.removeEventListener("seeked", done);
+      video.removeEventListener("error", fail);
       resolve();
     };
-    const timer = setTimeout(done, 3_000); // nie blokuj na uszkodzonym seeku
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      video.removeEventListener("seeked", done);
+      video.removeEventListener("error", fail);
+      reject(new VideoLoadError("FRAME_SEEK_ERROR", "Nie udało się odczytać klatki filmu."));
+    };
+    const timer = setTimeout(() => {
+      fail();
+    }, 3_000);
     video.addEventListener("seeked", done);
+    video.addEventListener("error", fail);
     video.currentTime = time;
   });
 }

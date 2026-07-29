@@ -34,7 +34,7 @@ function AcceptanceScreen() {
     setRunning(true);
     setAnalysis(null);
     setProgress(0);
-    setPhase("loading_file");
+    setPhase("loadVideo");
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const url = URL.createObjectURL(file);
     objectUrlRef.current = url;
@@ -167,7 +167,7 @@ function AcceptanceScreen() {
                       <span>{s.stage}</span>
                       <span
                         className={
-                          s.status === "success"
+                          s.status === "completed"
                             ? "text-emerald-600"
                             : s.status === "failed"
                               ? "text-destructive"
