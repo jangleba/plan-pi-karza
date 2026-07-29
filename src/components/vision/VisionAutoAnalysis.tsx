@@ -17,39 +17,36 @@ import { VisionVideoCalibration } from "./VisionVideoCalibration";
 import { computeVideoHashFromBlob, type CalibrationRecord } from "@/features/vision-analysis/videoCalibration";
 import { findVideoCalibration } from "@/lib/vision/videoCalibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
+import { ANALYSIS_PIPELINE_STAGES } from "@/features/vision-analysis/AnalysisPipelineController";
 import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
-import type { VideoAnalysisResult, TestType, CameraSetup } from "@/features/vision-analysis/types";
+import type {
+  VideoAnalysisResult,
+  TestType,
+  CameraSetup,
+  AnalysisPipelineSnapshot,
+  PipelineStageName,
+} from "@/features/vision-analysis/types";
 import { estimateFallbackHeightCm } from "@/features/vision-analysis/autoCalibration";
 
 const PHASE_LABELS: Record<AnalysisPhase, string> = {
   idle: "Gotowe do startu",
-  loading_file: "Wczytywanie filmu",
-  metadata_ready: "Metadane filmu odczytane",
-  extracting_frames: "Ekstrakcja klatek",
-  pose_analysis: "Analiza pozy zawodnika",
-  recognizing_protocol: "Rozpoznawanie testu",
-  resolving_calibration: "Dopasowanie kalibracji",
-  detecting_events: "Wykrywanie zdarzeń ruchu",
-  computing_metrics: "Obliczanie wyniku",
-  validating: "Walidacja nagrania",
-  calculating_result: "Obliczanie wyniku",
+  loadVideo: "Wczytywanie filmu",
+  readMetadata: "Metadane filmu odczytane",
+  extractFrames: "Ekstrakcja klatek",
+  estimatePose: "Analiza pozy zawodnika",
+  buildMovementSignals: "Budowanie sygnałów ruchu",
+  detectMovementEvents: "Wykrywanie zdarzeń ruchu",
+  segmentAttempts: "Segmentacja prób",
+  validateProtocol: "Walidacja protokołu",
+  calculateResult: "Obliczanie wyniku",
+  validateRecording: "Walidacja nagrania",
   completed: "Gotowe",
   error: "Błąd analizy",
 };
 
 /** Kolejność realnych kroków pipeline'u — do wizualizacji postępu. */
-const PHASE_STEPS: AnalysisPhase[] = [
-  "loading_file",
-  "metadata_ready",
-  "extracting_frames",
-  "pose_analysis",
-  "recognizing_protocol",
-  "resolving_calibration",
-  "detecting_events",
-  "computing_metrics",
-  "validating",
-];
+const PHASE_STEPS: PipelineStageName[] = ANALYSIS_PIPELINE_STAGES;
 
 /**
  * Dla każdego etapu pipeline'u — konkretne wskazówki, co użytkownik może
