@@ -26,6 +26,10 @@ import {
   withTimeout,
 } from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
+import {
+  TimeoutDiagnosticsRecorder,
+  type TimeoutDiagnosticsReport,
+} from "@/features/vision-analysis/timeoutDiagnostics";
 import type {
   VideoAnalysisResult,
   TestType,
@@ -189,6 +193,16 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [debugCtx, setDebugCtx] = useState<AnalysisRunDebugContext>({ ...EMPTY_DEBUG_CTX });
   /** Ostatni pełny wynik analizy — do zrzutu JSON (diagnostyka). */
   const [lastAnalysis, setLastAnalysis] = useState<VideoAnalysisResult | null>(null);
+  /**
+   * Rejestrator diagnostyki timeoutu (Phase 2, dev-only). Tworzony PRZED
+   * startem `runVideoAnalysis` i aktualizowany na bieżąco, dzięki czemu
+   * jego stan pozostaje czytelny nawet gdy zewnętrzny twardy limit 90s
+   * przerwie oczekiwanie na wynik analizy (obietrznica wewnętrzna wciąż
+   * może działać w tle). Brak wpływu na logikę analizy — wyłącznie diagnostyka.
+   */
+  const timeoutRecorderRef = useRef<TimeoutDiagnosticsRecorder | null>(null);
+  /** Ostatni raport diagnostyczny timeoutu — dostępny po sukcesie i po błędzie. */
+  const [diagnosticsReport, setDiagnosticsReport] = useState<TimeoutDiagnosticsReport | null>(null);
   const debugEnabled =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("visionDebug") === "true";
@@ -235,6 +249,13 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     setPipelineSnapshot(null);
     setPreviewSrc(null);
     setLastAnalysis(null);
+    // Nowy rejestrator diagnostyki timeoutu — utworzony PRZED startem analizy,
+    // aby jego stan był czytelny nawet jeśli zewnętrzny limit 90s przerwie
+    // oczekiwanie na wynik `runVideoAnalysis`.
+    timeoutRecorderRef.current = isDevDiagnosticsEnabled
+      ? new TimeoutDiagnosticsRecorder(analysisRunId)
+      : null;
+    setDiagnosticsReport(null);
     setCurrentPhase("loadVideo");
     setProgress(0);
     setState({ kind: "running" });
@@ -378,6 +399,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           techniqueOnly: techniqueOnlyRef.current,
           abortSignal: controller.signal,
           debugDiagnostics: isDevDiagnosticsEnabled,
+          timeoutRecorder: timeoutRecorderRef.current ?? undefined,
           onPipelineUpdate: (snapshot) => {
             if (cancelled()) return;
             setPipelineSnapshot(snapshot);
@@ -392,6 +414,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       );
       if (cancelled()) return;
       setLastAnalysis(analysis);
+      if (timeoutRecorderRef.current) {
+        setDiagnosticsReport(analysis.timeoutDiagnostics ?? timeoutRecorderRef.current.snapshot());
+      }
       vlog("analysis_done", {
         status: analysis.status,
         confidence: analysis.overallConfidence,
@@ -481,6 +506,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
           : rawMessage;
       updateDebug({ finalErrorCode: code ?? "UNKNOWN_ERROR", finalStatus: "error" });
+      // Zewnętrzny twardy limit 90s (lub inny wyjątek) mógł przerwać
+      // oczekiwanie na wynik `runVideoAnalysis` — analiza wewnętrzna nigdy
+      // się nie rozstrzygnie, ale rejestrator wciąż zawiera jej AKTUALNY stan.
+      if (timeoutRecorderRef.current) {
+        setDiagnosticsReport(timeoutRecorderRef.current.snapshot());
+      }
       setState({
         kind: "error",
         code: code ?? "UNKNOWN_ERROR",
@@ -524,6 +555,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       />
 
       {debugEnabled && <VisionDebugOverlay ctx={debugCtx} analysis={lastAnalysis} />}
+      {isDevDiagnosticsEnabled && <TimeoutDiagnosticsCopyButton report={diagnosticsReport} />}
 
       <div className="space-y-4 px-5">
 
@@ -916,6 +948,42 @@ export function downloadAnalysisJson(analysis: VideoAnalysisResult): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Przycisk DEV-only "Kopiuj raport diagnostyczny" (Phase 2). Widoczny
+ * WYŁĄCZNIE gdy `isDevDiagnosticsEnabled` (tryb developerski) — brak
+ * jakiegokolwiek wpływu na UI produkcyjne. Dostępny zarówno po udanej,
+ * jak i po nieudanej (w tym: przerwanej timeoutem) analizie — kopiuje
+ * pełny raport JSON do schowka. Brak persystencji: nic nie trafia do
+ * Supabase ani localStorage.
+ */
+function TimeoutDiagnosticsCopyButton({ report }: { report: TimeoutDiagnosticsReport | null }) {
+  const handleCopy = useCallback(async () => {
+    if (!report) return;
+    const json = JSON.stringify(report, null, 2);
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(json);
+        toast.success("Skopiowano raport diagnostyczny.");
+      }
+    } catch {
+      toast.error("Nie udało się skopiować raportu diagnostycznego.");
+    }
+  }, [report]);
+
+  return (
+    <div className="mx-5 mb-3 flex justify-end">
+      <button
+        type="button"
+        disabled={!report}
+        onClick={() => void handleCopy()}
+        className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black shadow disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
+      >
+        Kopiuj raport diagnostyczny
+      </button>
+    </div>
+  );
 }
 
 function VisionDebugOverlay({

@@ -47,6 +47,7 @@ import {
   detectGroundContacts,
   detectRepeatedCycles,
 } from "./analyzers/jumpDetection";
+import { TimeoutDiagnosticsRecorder } from "./timeoutDiagnostics";
 
 export type { AnalysisPhase } from "./types";
 
@@ -84,6 +85,14 @@ export interface RunOptions {
    * ani localStorage.
    */
   debugDiagnostics?: boolean;
+  /**
+   * Opcjonalny, utworzony przez wywołującego rejestrator diagnostyki
+   * timeoutu (Phase 2, dev-only). Gdy podany, jest aktualizowany na bieżąco
+   * w trakcie przebiegu pipeline'u — dzięki temu jego stan pozostaje
+   * czytelny nawet po tym, jak zewnętrzny twardy limit czasu UI przerwie
+   * oczekiwanie na wynik `runVideoAnalysis`. Brak wpływu na logikę analizy.
+   */
+  timeoutRecorder?: TimeoutDiagnosticsRecorder;
 }
 
 interface PoseStageOutput {
@@ -269,10 +278,19 @@ export async function extractFramesAndEstimatePose(
   controller: AnalysisPipelineController,
   analysisRunId: string,
   metadata: VideoMetadata,
+  recorderParam?: TimeoutDiagnosticsRecorder | null,
 ): Promise<PoseStageOutput> {
+  const recorder = opts.debugDiagnostics ? (recorderParam ?? opts.timeoutRecorder ?? null) : null;
+  recorder?.setStage("create_schedule");
   const schedule = createFrameSchedule(metadata);
   controller.start("extractFrames", schedule.length);
   completePhase(controller, opts, "extractFrames");
+  recorder?.setScheduleInfo(
+    schedule.length,
+    schedule.map((frame) => frame.sourceTimestampMs),
+    schedule.map((frame) => frame.sourceTimestampMs),
+  );
+  recorder?.markProgress();
   const frameLog: FrameLogEntry[] = [];
   const poses: FramePose[] = [];
   let processedScheduleFrames = 0;
@@ -283,12 +301,19 @@ export async function extractFramesAndEstimatePose(
   let timestampOrderErrors = 0;
 
   await withLoadedVideoElement(opts.videoUrl, opts.abortSignal, async (video) => {
+    let scheduleIndex = 0;
     for (const frame of schedule) {
       throwIfAborted(opts.abortSignal);
+      recorder?.setCurrentIndices(scheduleIndex, frame.frameIndex);
       try {
+        recorder?.setStage("seek_frame");
         await seekToFrame(video, frame.mediaTime, opts.abortSignal);
+        recorder?.setStage("decode_frame");
         extractedFrames += 1;
+        recorder?.incrementExtractedFrameCount();
+        recorder?.markProgress();
         try {
+          recorder?.setStage("estimate_pose");
           const pose = await detectPose(video, frame.frameIndex, frame.mediaTime, {
             analysisRunId,
             passType: "coarse",
@@ -297,7 +322,12 @@ export async function extractFramesAndEstimatePose(
             sourceFrameIndex: frame.sourceFrameIndex,
           });
           poses.push(pose);
-          if (pose.landmarks != null) validPoseFrames += 1;
+          recorder?.incrementPoseFrameCount();
+          recorder?.markProgress();
+          if (pose.landmarks != null) {
+            validPoseFrames += 1;
+            recorder?.setLastSuccessfulFrame(frame.frameIndex, frame.mediaTime, scheduleIndex);
+          }
           frameLog.push({
             sourceFrameIndex: frame.sourceFrameIndex,
             sourceTimestampUs: frame.sourceTimestampUs,
@@ -308,8 +338,12 @@ export async function extractFramesAndEstimatePose(
           });
         } catch (error) {
           poseErrors += 1;
+          recorder?.incrementPoseErrorCount();
           const orderError = isFrameTimestampOrderError(error);
-          if (orderError) timestampOrderErrors += 1;
+          if (orderError) {
+            timestampOrderErrors += 1;
+            recorder?.incrementTimestampOrderErrorCount();
+          }
           frameLog.push({
             sourceFrameIndex: frame.sourceFrameIndex,
             sourceTimestampUs: frame.sourceTimestampUs,
@@ -320,6 +354,11 @@ export async function extractFramesAndEstimatePose(
           });
         } finally {
           attemptedPoseFrames += 1;
+          if (recorder) {
+            const engineDiagnostics = getPoseEngineDiagnostics(analysisRunId);
+            recorder.setPoseDelegate(engineDiagnostics.poseDelegate);
+            recorder.setTimestampCorrectionCount(engineDiagnostics.timestampCorrectionsCount);
+          }
         }
       } catch (error) {
         const code =
@@ -340,6 +379,9 @@ export async function extractFramesAndEstimatePose(
         });
       } finally {
         processedScheduleFrames += 1;
+        scheduleIndex += 1;
+        recorder?.incrementProcessedFrameCount();
+        recorder?.markProgress();
         controller.progress("extractFrames", processedScheduleFrames, schedule.length);
         opts.onProgress?.(Math.min(1, processedScheduleFrames / Math.max(1, schedule.length)));
       }
@@ -360,6 +402,7 @@ export async function extractFramesAndEstimatePose(
     extractedFrames,
   });
 
+  recorder?.setStage("estimate_pose");
   controller.start("estimatePose", Math.max(1, extractedFrames));
   completePhase(controller, opts, "estimatePose");
   controller.progress("estimatePose", attemptedPoseFrames, Math.max(1, extractedFrames));
@@ -506,6 +549,9 @@ function buildVisionDiagnostics(input: BuildDiagnosticsInput): VisionDiagnostics
 export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisResult> {
   const analysisRunId = uuid();
   const controller = new AnalysisPipelineController(analysisRunId, opts.onPipelineUpdate);
+  const recorder = opts.debugDiagnostics
+    ? (opts.timeoutRecorder ?? new TimeoutDiagnosticsRecorder(analysisRunId))
+    : null;
   clearPoseDebugLog();
   await closePoseEngine();
   const analyzer = getAnalyzer(opts.testType);
@@ -524,12 +570,16 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       code,
       analysisRunId,
       controller,
-      extras,
+      {
+        ...(recorder ? { timeoutDiagnostics: recorder.snapshot() } : {}),
+        ...extras,
+      },
     );
   };
 
   try {
     throwIfAborted(opts.abortSignal);
+    recorder?.setStage("load_video");
     controller.start("loadVideo");
     completePhase(controller, opts, "loadVideo");
     if (!analyzer) {
@@ -543,18 +593,26 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
     if (!opts.videoUrl) return fail("loadVideo", "NO_VIDEO_SOURCE", "Brak źródła filmu.");
+    recorder?.markProgress();
     controller.complete("loadVideo", {
       analysisRunId,
       videoHash: opts.videoHash ?? null,
       selectedTestType: opts.testType,
     });
 
+    recorder?.setStage("read_metadata");
     controller.start("readMetadata");
     completePhase(controller, opts, "readMetadata");
     const metadata = await readVideoMetadata(opts.videoUrl, opts.declaredFps);
     if (metadata.frameCount <= 0) {
       return fail("readMetadata", "NO_FRAMES", "Nie udało się odczytać klatek wideo.");
     }
+    recorder?.setFpsInfo(
+      opts.declaredFps ?? null,
+      metadata.fpsMeasured ? metadata.fps : null,
+      metadata.fpsMeasured ? "measured" : "declared",
+    );
+    recorder?.markProgress();
     controller.complete("readMetadata", {
       fps: metadata.fps,
       frameCount: metadata.frameCount,
@@ -564,7 +622,13 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       orientation: metadata.orientation,
     });
 
-    const poseOut = await extractFramesAndEstimatePose(opts, controller, analysisRunId, metadata);
+    const poseOut = await extractFramesAndEstimatePose(
+      opts,
+      controller,
+      analysisRunId,
+      metadata,
+      recorder,
+    );
     const decodedFrames = poseOut.poses.length;
     if (poseOut.extractedFrames === 0 && poseOut.attemptedPoseFrames === 0) {
       return fail("extractFrames", "NO_DECODED_FRAMES", "Nie udało się zdekodować żadnej klatki.", {
@@ -599,9 +663,17 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
 
+    recorder?.setStage("recognize_protocol", "buildMovementSignals");
     controller.start("buildMovementSignals");
     completePhase(controller, opts, "buildMovementSignals");
     const movementSignals = buildMovementSignals(poseOut.poses);
+    recorder?.setMovementCounts(
+      movementSignals.field?.segments.length ?? 0,
+      movementSignals.contacts.length,
+      movementSignals.repeatedCycles.cycles.length,
+    );
+    recorder?.setFirstRepeatedCycles(movementSignals.repeatedCycles.cycles);
+    recorder?.markProgress();
     controller.complete("buildMovementSignals", {
       signature: movementSignals.signature.signature,
       confidence: round(movementSignals.signature.confidence, 2),
@@ -610,29 +682,44 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       repeatedCycles: movementSignals.repeatedCycles.cycles.length,
     });
 
+    recorder?.setOperation("detectMovementEvents");
     controller.start("detectMovementEvents");
     completePhase(controller, opts, "detectMovementEvents");
     const motionWindow = detectMotionWindow(poseOut.poses, metadata.durationSeconds);
     const motionWindowSummary = summarizeMotionWindow(motionWindow, metadata, opts.testType);
+    recorder?.markProgress();
     if (motionWindow.activeSegments === 0) {
       controller.fail("detectMovementEvents", "NO_MOVEMENT_DETECTED", motionWindowSummary);
     } else {
       controller.complete("detectMovementEvents", motionWindowSummary);
     }
 
+    recorder?.setOperation("segmentAttempts");
     controller.start("segmentAttempts");
     completePhase(controller, opts, "segmentAttempts");
     const protocolSpec = getTestProtocol(opts.testType);
     const [minReps] = protocolSpec.expectedRepCountRange ?? [1, 1];
+    recorder?.markProgress();
     controller.complete("segmentAttempts", {
       attemptedSegments: Math.max(1, motionWindow.activeSegments),
       approximateVerticalRepetitions: motionWindow.approximateVerticalRepetitions,
       requiredRepetitions: minReps,
     });
 
+    recorder?.setOperation("validateProtocol");
     controller.start("validateProtocol");
     completePhase(controller, opts, "validateProtocol");
     const recognition = recognizeTestProtocol(opts.testType, poseOut.poses);
+    recorder?.setProtocolRecognition({
+      movementSignature: movementSignals.signature.signature,
+      selectedTestType: recognition.selectedTestType,
+      recognizedTestType: recognition.detectedTestType,
+      detectedRepetitions: recognition.detectedRepetitions,
+      requiredRepetitions: recognition.requiredRepetitions,
+      protocolMatch: recognition.protocolMatch,
+      reason: recognition.reason,
+    });
+    recorder?.markProgress();
     const recognitionSummary = {
       selectedTestType: recognition.selectedTestType,
       detectedSignature: recognition.detectedSignature,
@@ -698,10 +785,12 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
               }),
             }
           : {}),
+        ...(recorder ? { timeoutDiagnostics: recorder.snapshot() } : {}),
       };
     }
     controller.complete("validateProtocol", recognitionSummary);
 
+    recorder?.setStage("calculate_result");
     controller.start("calculateResult");
     completePhase(controller, opts, "calculateResult");
     const calibration = resolveCalibration(
@@ -769,8 +858,10 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       });
     }
 
+    recorder?.markProgress();
     controller.start("validateRecording");
     completePhase(controller, opts, "validateRecording");
+    recorder?.setStage("validate_recording");
     const validation = analyzer.validateRecording(ctx);
     if (calibration?.mismatchCode === "CALIBRATION_CAMERA_MOVED") {
       if (!validation.issues.includes("CALIBRATION_CAMERA_MOVED")) {
@@ -846,6 +937,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
             }),
           }
         : {}),
+      ...(recorder ? { timeoutDiagnostics: recorder.snapshot() } : {}),
     };
   } catch (error) {
     opts.onPhase?.("error");
@@ -871,6 +963,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       finalCode,
       analysisRunId,
       controller,
+      recorder ? { timeoutDiagnostics: recorder.snapshot() } : undefined,
     );
   } finally {
     flushPoseDebugLog(analysisRunId);
