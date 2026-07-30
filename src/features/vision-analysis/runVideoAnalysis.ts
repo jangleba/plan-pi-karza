@@ -509,11 +509,16 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       );
     }
     if (poseOut.analyzedFrames === 0) {
-      return fail("estimatePose", "BODY_NOT_DETECTED", "Nie wykryto sylwetki zawodnika w nagraniu.", {
-        frameLog: poseOut.frameLog,
-        decodedFrames,
-        analyzedFrames: 0,
-      });
+      return fail(
+        "estimatePose",
+        "BODY_NOT_DETECTED",
+        "Nie wykryto sylwetki zawodnika w nagraniu.",
+        {
+          frameLog: poseOut.frameLog,
+          decodedFrames,
+          analyzedFrames: 0,
+        },
+      );
     }
 
     controller.start("buildMovementSignals");
@@ -574,7 +579,8 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       const retake =
         code === "WRONG_REPETITION_COUNT"
           ? `Wykryto ${recognition.detectedRepetitions} z wymaganych ${recognition.requiredRepetitions} powtórzeń. ${recognition.reason}`
-          : recognition.reason || (QUALITY_ISSUE_LABELS[code as keyof typeof QUALITY_ISSUE_LABELS] ?? code);
+          : recognition.reason ||
+            (QUALITY_ISSUE_LABELS[code as keyof typeof QUALITY_ISSUE_LABELS] ?? code);
       controller.skip("calculateResult", "protocolMatch=false", { metricsCount: 0 });
       controller.skip("validateRecording", "protocolMatch=false", { status: "invalid_recording" });
       controller.finish();
@@ -708,7 +714,9 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       keyEvents: visibleEvents(events),
       metrics: adapterOut.metrics,
       overallConfidence: confidence.overall,
-      qualityIssues: [...new Set(qualityIssues.map((issue) => QUALITY_ISSUE_LABELS[issue] ?? issue))],
+      qualityIssues: [
+        ...new Set(qualityIssues.map((issue) => QUALITY_ISSUE_LABELS[issue] ?? issue)),
+      ],
       retakeInstructions: [...new Set(retakeInstructions)],
       analyzerVersion: analyzer.analyzerVersion,
       decodedFrames,
@@ -742,7 +750,9 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         : error instanceof Error
           ? error.message
           : "Nieznany błąd analizy.";
-    controller.fail(controller.snapshot().currentStage as PipelineStageName, finalCode, { message });
+    controller.fail(controller.snapshot().currentStage as PipelineStageName, finalCode, {
+      message,
+    });
     return failResult(
       opts.testType,
       analyzer?.analyzerVersion ?? "none",
