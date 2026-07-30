@@ -76,7 +76,6 @@ export interface RunOptions {
   onPipelineUpdate?: (snapshot: AnalysisPipelineSnapshot) => void;
 }
 
-
 interface PoseStageOutput {
   poses: FramePose[];
   frameLog: FrameLogEntry[];
