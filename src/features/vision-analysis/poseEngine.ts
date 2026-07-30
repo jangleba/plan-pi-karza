@@ -34,7 +34,7 @@ function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createLandmarkerInstance(): Promise<any> {
+async function createLandmarkerInstance(): Promise<{ landmarker: any; delegate: "GPU" | "CPU" }> {
   const vision = await import("@mediapipe/tasks-vision");
   const { FilesetResolver, PoseLandmarker } = vision;
   filesetPromise ??= timeout(FilesetResolver.forVisionTasks(WASM_ROOT), 12_000, "WASM");
@@ -47,7 +47,7 @@ async function createLandmarkerInstance(): Promise<any> {
     minPosePresenceConfidence: 0.5,
   } as const;
   try {
-    return await timeout(
+    const landmarker = await timeout(
       PoseLandmarker.createFromOptions(fileset, {
         ...options,
         baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
@@ -55,8 +55,9 @@ async function createLandmarkerInstance(): Promise<any> {
       12_000,
       "PoseLandmarker GPU",
     );
+    return { landmarker, delegate: "GPU" };
   } catch {
-    return timeout(
+    const landmarker = await timeout(
       PoseLandmarker.createFromOptions(fileset, {
         ...options,
         baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
@@ -64,6 +65,7 @@ async function createLandmarkerInstance(): Promise<any> {
       12_000,
       "PoseLandmarker CPU",
     );
+    return { landmarker, delegate: "CPU" };
   }
 }
 
@@ -74,6 +76,7 @@ interface PoseLandmarkerSession {
   instanceId: string;
   lastTimestampMs: number;
   closed: boolean;
+  delegate: "GPU" | "CPU";
 }
 
 interface DetectPoseOptions {
@@ -134,15 +137,33 @@ export function flushPoseDebugLog(analysisRunId: string): void {
   console.table(rows);
 }
 
+/** Compute timestamp corrections summary for diagnostics. */
+export function getTimestampCorrectionsSummary(analysisRunId: string): {
+  correctionsCount: number;
+  maxCorrectionMs: number;
+} {
+  const rows = timestampDebugRows.filter((row) => row.analysisRunId === analysisRunId);
+  let correctionsCount = 0;
+  let maxCorrectionMs = 0;
+  for (const row of rows) {
+    const correction = row.mediaPipeTimestampMs - row.sourceTimestampMs;
+    if (correction > 0) {
+      correctionsCount++;
+      maxCorrectionMs = Math.max(maxCorrectionMs, correction);
+    }
+  }
+  return { correctionsCount, maxCorrectionMs };
+}
+
 async function getLandmarker(analysisRunId: string): Promise<PoseLandmarkerSession> {
   if (landmarkerPromise && activeAnalysisRunId === analysisRunId) return landmarkerPromise;
   if (landmarkerPromise) await closePoseEngine();
   activeAnalysisRunId = analysisRunId;
   landmarkerPromise = (async () => {
     const instanceId = `pose-${++poseLandmarkerInstanceSeq}`;
-    const landmarker = await createLandmarkerInstance();
-    vlog("pose_engine:new_instance", { analysisRunId, poseLandmarkerInstanceId: instanceId });
-    return { landmarker, analysisRunId, instanceId, lastTimestampMs: -1, closed: false };
+    const { landmarker, delegate } = await createLandmarkerInstance();
+    vlog("pose_engine:new_instance", { analysisRunId, poseLandmarkerInstanceId: instanceId, delegate });
+    return { landmarker, analysisRunId, instanceId, lastTimestampMs: -1, closed: false, delegate };
   })();
   return landmarkerPromise;
 }
