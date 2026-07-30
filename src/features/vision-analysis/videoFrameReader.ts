@@ -1,5 +1,5 @@
 import type { VideoMetadata } from "./types";
-import { vlog, vwarn } from "./devLog";
+import { vlog } from "./devLog";
 
 /** Callback wywoływany dla każdej zdekodowanej klatki. */
 export type FrameHandler = (frame: {
@@ -305,7 +305,7 @@ export async function iterateFrames(
   await withLoadedVideoElement(url, signal, async (video) => {
     for (const frame of schedule) {
       throwIfAborted(signal);
-      await seekToFrame(video, frame.mediaTime);
+      await seekToFrame(video, frame.mediaTime, signal);
       await onFrame({ ...frame, video });
       onProgress?.(frame.sourceFrameIndex + 1, schedule.length);
     }
@@ -318,11 +318,16 @@ export function createFrameSchedule(metadata: VideoMetadata): ScheduledVideoFram
     1,
     metadata.frameCount > 0 ? metadata.frameCount : Math.round(metadata.durationSeconds * fps),
   );
+  const safeTailSeconds = Math.max(2 / fps, 0.05);
+  const safeDuration = Math.max(0, metadata.durationSeconds - safeTailSeconds);
   const frames: ScheduledVideoFrame[] = [];
+  let lastSourceTimestampUs = -1;
   for (let sourceFrameIndex = 0; sourceFrameIndex < frameCount; sourceFrameIndex++) {
     const sourceTimestampUs = Math.round((sourceFrameIndex * 1_000_000) / fps);
     const mediaTime = sourceTimestampUs / 1_000_000;
-    if (mediaTime >= metadata.durationSeconds) break;
+    if (mediaTime > safeDuration) break;
+    if (sourceTimestampUs <= lastSourceTimestampUs) continue;
+    lastSourceTimestampUs = sourceTimestampUs;
     frames.push({
       frameIndex: sourceFrameIndex,
       sourceFrameIndex,
@@ -332,7 +337,12 @@ export function createFrameSchedule(metadata: VideoMetadata): ScheduledVideoFram
       sourceTimestampUs,
     });
   }
-  vlog("frame_schedule", "deterministic seek grid", { fps, scheduledFrames: frames.length });
+  vlog("frame_schedule", "deterministic seek grid", {
+    fps,
+    scheduledFrames: frames.length,
+    safeDuration,
+    safeTailSeconds,
+  });
   return frames;
 }
 
@@ -410,30 +420,78 @@ function waitForFrameData(video: HTMLVideoElement, signal?: AbortSignal): Promis
   });
 }
 
-export function seekToFrame(video: HTMLVideoElement, time: number): Promise<void> {
+export function seekToFrame(
+  video: HTMLVideoElement,
+  time: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  const safeTailSeconds = 0.05;
+  const duration = Number.isFinite(video.duration) ? video.duration : time;
+  const maxTarget = Math.max(0, duration - safeTailSeconds);
+  const target = Math.min(Math.max(0, time), maxTarget);
+
+  if (video.readyState >= 2 && Math.abs(video.currentTime - target) <= 0.008) {
+    return Promise.resolve();
+  }
+
   return new Promise((resolve, reject) => {
     let settled = false;
-    const done = () => {
+    let animationFrameId: number | null = null;
+    let videoFrameCallbackId: number | null = null;
+    const videoFrameApi = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (callback: () => void) => number;
+      cancelVideoFrameCallback?: (handle: number) => void;
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      if (animationFrameId != null && typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (videoFrameCallbackId != null && videoFrameApi.cancelVideoFrameCallback) {
+        videoFrameApi.cancelVideoFrameCallback(videoFrameCallbackId);
+      }
+      video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("error", onError);
+      signal?.removeEventListener("abort", onAbort);
+    };
+
+    const resolveDone = () => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      video.removeEventListener("seeked", done);
-      video.removeEventListener("error", fail);
+      cleanup();
       resolve();
     };
-    const fail = () => {
+
+    const rejectWith = (code: string, message: string) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      video.removeEventListener("seeked", done);
-      video.removeEventListener("error", fail);
-      reject(new VideoLoadError("FRAME_SEEK_ERROR", "Nie udało się odczytać klatki filmu."));
+      cleanup();
+      reject(new VideoLoadError(code, message));
     };
+
+    const waitForPresentedFrame = () => {
+      if (videoFrameApi.requestVideoFrameCallback) {
+        videoFrameCallbackId = videoFrameApi.requestVideoFrameCallback(resolveDone);
+        return;
+      }
+      if (typeof requestAnimationFrame === "function") {
+        animationFrameId = requestAnimationFrame(() => resolveDone());
+        return;
+      }
+      resolveDone();
+    };
+
+    const onSeeked = () => waitForPresentedFrame();
+    const onError = () =>
+      rejectWith("FRAME_SEEK_ERROR", "Nie udało się odczytać klatki filmu.");
+    const onAbort = () => rejectWith("ANALYSIS_ABORTED", "Analiza została przerwana.");
     const timer = setTimeout(() => {
-      fail();
-    }, 3_000);
-    video.addEventListener("seeked", done);
-    video.addEventListener("error", fail);
-    video.currentTime = time;
+      rejectWith("FRAME_SEEK_TIMEOUT", "FRAME_SEEK_TIMEOUT");
+    }, 2_500);
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("error", onError);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    video.currentTime = target;
   });
 }

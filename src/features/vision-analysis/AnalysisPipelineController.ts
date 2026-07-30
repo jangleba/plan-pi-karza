@@ -72,21 +72,29 @@ export class AnalysisPipelineController {
   progress(stage: PipelineStageName, completedUnits: number, totalUnits?: number): void {
     const current = this.stages[stage];
     if (current.status !== "running") return;
+    const nextTotalUnits = Math.max(1, totalUnits ?? current.totalUnits);
     this.stages[stage] = {
       ...current,
-      completedUnits: Math.max(0, completedUnits),
-      totalUnits: Math.max(1, totalUnits ?? current.totalUnits),
+      completedUnits: Math.min(Math.max(0, completedUnits), nextTotalUnits),
+      totalUnits: nextTotalUnits,
     };
     this.emit();
   }
 
-  complete(stage: PipelineStageName, output: Record<string, unknown>, completedUnits?: number): void {
+  complete(stage: PipelineStageName, output: Record<string, unknown>): void {
     const current = this.stages[stage];
+    if (current.status !== "running") {
+      throw new Error(`PIPELINE_STAGE_NOT_RUNNING:${stage}`);
+    }
+    if (!output || Object.keys(output).length === 0) {
+      throw new Error(`PIPELINE_STAGE_OUTPUT_REQUIRED:${stage}`);
+    }
+    const totalUnits = Math.max(1, current.totalUnits);
     this.stages[stage] = {
       ...current,
       status: "completed",
-      completedUnits: completedUnits ?? current.totalUnits,
-      totalUnits: Math.max(1, current.totalUnits),
+      completedUnits: totalUnits,
+      totalUnits,
       output,
       error: undefined,
       finishedAtMs: this.elapsed(),
@@ -124,6 +132,14 @@ export class AnalysisPipelineController {
   }
 
   finish(): void {
+    const hasUnfinishedRequiredStage = ANALYSIS_PIPELINE_STAGES.some((stage) => {
+      const status = this.stages[stage].status;
+      return status === "pending" || status === "running" || status === "failed";
+    });
+    if (hasUnfinishedRequiredStage) {
+      this.emit();
+      return;
+    }
     this.currentStage = "completed";
     this.emit();
   }

@@ -80,8 +80,10 @@ interface PoseStageOutput {
   poses: FramePose[];
   frameLog: FrameLogEntry[];
   scheduledFrames: number;
+  processedScheduleFrames: number;
   extractedFrames: number;
   attemptedPoseFrames: number;
+  validPoseFrames: number;
   analyzedFrames: number;
   poseErrors: number;
   timestampOrderErrors: number;
@@ -244,7 +246,7 @@ function visibleEvents(events: DetectedEvent[]): VideoAnalysisResult["keyEvents"
   }));
 }
 
-async function extractFramesAndEstimatePose(
+export async function extractFramesAndEstimatePose(
   opts: RunOptions,
   controller: AnalysisPipelineController,
   analysisRunId: string,
@@ -255,99 +257,123 @@ async function extractFramesAndEstimatePose(
   completePhase(controller, opts, "extractFrames");
   const frameLog: FrameLogEntry[] = [];
   const poses: FramePose[] = [];
-  let lastAcceptedSourceTimestampUs = -1;
-  let poseStarted = false;
+  let processedScheduleFrames = 0;
   let extractedFrames = 0;
   let attemptedPoseFrames = 0;
+  let validPoseFrames = 0;
   let poseErrors = 0;
   let timestampOrderErrors = 0;
 
   await withLoadedVideoElement(opts.videoUrl, opts.abortSignal, async (video) => {
     for (const frame of schedule) {
       throwIfAborted(opts.abortSignal);
-      await seekToFrame(video, frame.mediaTime);
-      extractedFrames += 1;
-      controller.progress("extractFrames", extractedFrames, schedule.length);
-      if (!poseStarted) {
-        controller.complete("extractFrames", { extractedFrames, scheduledFrames: schedule.length }, extractedFrames);
-        controller.start("estimatePose", schedule.length);
-        completePhase(controller, opts, "estimatePose");
-        poseStarted = true;
-      }
-      if (frame.sourceTimestampUs <= lastAcceptedSourceTimestampUs) {
-        frameLog.push({
-          sourceFrameIndex: frame.sourceFrameIndex,
-          sourceTimestampUs: frame.sourceTimestampUs,
-          hasPose: false,
-          peopleCount: 0,
-          trackingConfidence: 0,
-          skippedReason: "DUPLICATE_TIMESTAMP",
-        });
-        controller.progress("estimatePose", ++attemptedPoseFrames, schedule.length);
-        continue;
-      }
-      lastAcceptedSourceTimestampUs = frame.sourceTimestampUs;
       try {
-        const pose = await detectPose(video, frame.frameIndex, frame.mediaTime, {
-          analysisRunId,
-          passType: "coarse",
-          sourceTimestampMs: frame.sourceTimestampMs,
-          sourceTimestampUs: frame.sourceTimestampUs,
-          sourceFrameIndex: frame.sourceFrameIndex,
-        });
-        poses.push(pose);
-        frameLog.push({
-          sourceFrameIndex: frame.sourceFrameIndex,
-          sourceTimestampUs: frame.sourceTimestampUs,
-          hasPose: pose.landmarks != null,
-          peopleCount: pose.peopleCount,
-          trackingConfidence: round(pose.trackingConfidence, 3),
-          ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
-        });
+        await seekToFrame(video, frame.mediaTime, opts.abortSignal);
+        extractedFrames += 1;
+        try {
+          const pose = await detectPose(video, frame.frameIndex, frame.mediaTime, {
+            analysisRunId,
+            passType: "coarse",
+            sourceTimestampMs: frame.sourceTimestampMs,
+            sourceTimestampUs: frame.sourceTimestampUs,
+            sourceFrameIndex: frame.sourceFrameIndex,
+          });
+          poses.push(pose);
+          if (pose.landmarks != null) validPoseFrames += 1;
+          frameLog.push({
+            sourceFrameIndex: frame.sourceFrameIndex,
+            sourceTimestampUs: frame.sourceTimestampUs,
+            hasPose: pose.landmarks != null,
+            peopleCount: pose.peopleCount,
+            trackingConfidence: round(pose.trackingConfidence, 3),
+            ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
+          });
+        } catch (error) {
+          poseErrors += 1;
+          const orderError = isFrameTimestampOrderError(error);
+          if (orderError) timestampOrderErrors += 1;
+          frameLog.push({
+            sourceFrameIndex: frame.sourceFrameIndex,
+            sourceTimestampUs: frame.sourceTimestampUs,
+            hasPose: false,
+            peopleCount: 0,
+            trackingConfidence: 0,
+            skippedReason: orderError ? "FRAME_TIMESTAMP_ORDER_ERROR" : "POSE_FRAME_ERROR",
+          });
+        } finally {
+          attemptedPoseFrames += 1;
+        }
       } catch (error) {
-        poseErrors += 1;
-        const orderError = isFrameTimestampOrderError(error);
-        if (orderError) timestampOrderErrors += 1;
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code: unknown }).code)
+            : "";
+        const message = error instanceof Error ? error.message : String(error);
         frameLog.push({
           sourceFrameIndex: frame.sourceFrameIndex,
           sourceTimestampUs: frame.sourceTimestampUs,
           hasPose: false,
           peopleCount: 0,
           trackingConfidence: 0,
-          skippedReason: orderError ? "FRAME_TIMESTAMP_ORDER_ERROR" : "POSE_FRAME_ERROR",
+          skippedReason:
+            code === "FRAME_SEEK_TIMEOUT" || message.includes("FRAME_SEEK_TIMEOUT")
+              ? "FRAME_SEEK_TIMEOUT"
+              : "FRAME_SEEK_ERROR",
         });
       } finally {
-        attemptedPoseFrames += 1;
-        controller.progress("estimatePose", attemptedPoseFrames, schedule.length);
-        opts.onProgress?.(Math.min(1, attemptedPoseFrames / Math.max(1, schedule.length)));
+        processedScheduleFrames += 1;
+        controller.progress("extractFrames", processedScheduleFrames, schedule.length);
+        opts.onProgress?.(Math.min(1, processedScheduleFrames / Math.max(1, schedule.length)));
       }
     }
   });
 
-  if (!poseStarted) {
-    controller.complete("extractFrames", { extractedFrames: 0, scheduledFrames: schedule.length }, 0);
-    controller.start("estimatePose", schedule.length);
-    completePhase(controller, opts, "estimatePose");
-  }
-  const analyzedFrames = poses.filter((pose) => pose.landmarks != null).length;
-  controller.complete(
-    "estimatePose",
-    {
-      attemptedPoseFrames,
+  if (processedScheduleFrames !== schedule.length) {
+    controller.fail("extractFrames", "PIPELINE_FRAME_ACCOUNTING_ERROR", {
+      scheduledFrames: schedule.length,
+      processedScheduleFrames,
       extractedFrames,
-      analyzedFrames,
+    });
+    throw new Error("PIPELINE_FRAME_ACCOUNTING_ERROR");
+  }
+  controller.complete("extractFrames", {
+    scheduledFrames: schedule.length,
+    processedScheduleFrames,
+    extractedFrames,
+  });
+
+  controller.start("estimatePose", Math.max(1, extractedFrames));
+  completePhase(controller, opts, "estimatePose");
+  controller.progress("estimatePose", attemptedPoseFrames, Math.max(1, extractedFrames));
+  if (extractedFrames === 0) {
+    controller.fail("estimatePose", "NO_DECODED_FRAMES", {
+      extractedFrames,
+      attemptedPoseFrames,
+      validPoseFrames,
       poseErrors,
-      timestampOrderErrors,
-    },
+    });
+    const error = new Error("NO_DECODED_FRAMES");
+    (error as Error & { code: string }).code = "NO_DECODED_FRAMES";
+    throw error;
+  }
+  const analyzedFrames = validPoseFrames;
+  controller.complete("estimatePose", {
+    extractedFrames,
     attemptedPoseFrames,
-  );
+    validPoseFrames,
+    analyzedFrames,
+    poseErrors,
+    timestampOrderErrors,
+  });
 
   return {
     poses,
     frameLog,
     scheduledFrames: schedule.length,
+    processedScheduleFrames,
     extractedFrames,
     attemptedPoseFrames,
+    validPoseFrames,
     analyzedFrames,
     poseErrors,
     timestampOrderErrors,
