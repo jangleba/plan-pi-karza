@@ -125,7 +125,9 @@ function isFrameTimestampOrderError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
     code === "FRAME_TIMESTAMP_ORDER_ERROR" ||
-    /INVALID_ARGUMENT|CalculatorGraph|timestamp mismatch|WaitUntilIdle|graph_utils\.cc/i.test(message)
+    /INVALID_ARGUMENT|CalculatorGraph|timestamp mismatch|WaitUntilIdle|graph_utils\.cc/i.test(
+      message,
+    )
   );
 }
 
@@ -155,7 +157,11 @@ function failResult(
   };
 }
 
-function completePhase(controller: AnalysisPipelineController, opts: RunOptions, stage: PipelineStageName) {
+function completePhase(
+  controller: AnalysisPipelineController,
+  opts: RunOptions,
+  stage: PipelineStageName,
+) {
   void controller;
   opts.onPhase?.(stage);
 }
@@ -188,7 +194,7 @@ function resolveCalibration(
 
   const hasManual = !!base.referencePoints || (base.startLineX != null && base.finishLineX != null);
   const deviceId = opts.deviceId ?? null;
-  const fps = Math.round(measuredFps > 0 ? measuredFps : opts.declaredFps ?? 0);
+  const fps = Math.round(measuredFps > 0 ? measuredFps : (opts.declaredFps ?? 0));
   const parts = deviceId
     ? {
         deviceId,
@@ -224,7 +230,7 @@ function resolveCalibration(
   }
 
   if (isSpatial && !hasManual) return base;
-  return Object.keys(base).length > 0 ? base : opts.calibration ?? null;
+  return Object.keys(base).length > 0 ? base : (opts.calibration ?? null);
 }
 
 function metadataResult(metadata: VideoMetadata): VideoAnalysisResult["videoMetadata"] {
@@ -448,7 +454,9 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     throwIfAborted(opts.abortSignal);
     controller.start("loadVideo");
     completePhase(controller, opts, "loadVideo");
-    if (!analyzer) return fail("loadVideo", "ANALYZER_NOT_FOUND", "Brak analizatora dla tego testu.");
+    if (!analyzer) {
+      return fail("loadVideo", "ANALYZER_NOT_FOUND", "Brak analizatora dla tego testu.");
+    }
     if (!isPoseSupported()) {
       return fail(
         "loadVideo",
@@ -489,11 +497,16 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       poseOut.attemptedPoseFrames > 0 &&
       poseOut.timestampOrderErrors === poseOut.attemptedPoseFrames
     ) {
-      return fail("estimatePose", "FRAME_TIMESTAMP_ORDER_ERROR", FRAME_TIMESTAMP_ORDER_USER_MESSAGE, {
-        frameLog: poseOut.frameLog,
-        decodedFrames,
-        analyzedFrames: poseOut.analyzedFrames,
-      });
+      return fail(
+        "estimatePose",
+        "FRAME_TIMESTAMP_ORDER_ERROR",
+        FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+        {
+          frameLog: poseOut.frameLog,
+          decodedFrames,
+          analyzedFrames: poseOut.analyzedFrames,
+        },
+      );
     }
     if (poseOut.analyzedFrames === 0) {
       return fail("estimatePose", "BODY_NOT_DETECTED", "Nie wykryto sylwetki zawodnika w nagraniu.", {
@@ -552,7 +565,11 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     };
     vlog("protocol_recognizer", recognition.reason, recognitionSummary);
     if (!recognition.protocolMatch) {
-      controller.fail("validateProtocol", recognition.errorCode ?? "PROTOCOL_MISMATCH", recognitionSummary);
+      controller.fail(
+        "validateProtocol",
+        recognition.errorCode ?? "PROTOCOL_MISMATCH",
+        recognitionSummary,
+      );
       const code = recognition.errorCode ?? "TEST_PROTOCOL_MISMATCH";
       const retake =
         code === "WRONG_REPETITION_COUNT"
@@ -625,7 +642,14 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       measurement = acc.measurement;
       metrics = acc.metrics;
     }
-    const adapterOut: AdapterOutput = { events, metrics, confidence, measurement, calibration, statusOverride };
+    const adapterOut: AdapterOutput = {
+      events,
+      metrics,
+      confidence,
+      measurement,
+      calibration,
+      statusOverride,
+    };
     if (events.length === 0 && !statusOverride) {
       controller.fail("calculateResult", "EVENTS_NOT_DETECTED", {
         eventsCount: 0,

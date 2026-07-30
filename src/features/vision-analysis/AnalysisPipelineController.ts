@@ -38,10 +38,7 @@ export class AnalysisPipelineController {
   private readonly stages: Record<PipelineStageName, PipelineStageState>;
   private readonly onUpdate?: (snapshot: AnalysisPipelineSnapshot) => void;
 
-  constructor(
-    analysisRunId: string,
-    onUpdate?: (snapshot: AnalysisPipelineSnapshot) => void,
-  ) {
+  constructor(analysisRunId: string, onUpdate?: (snapshot: AnalysisPipelineSnapshot) => void) {
     this.analysisRunId = analysisRunId;
     this.onUpdate = onUpdate;
     this.stages = ANALYSIS_PIPELINE_STAGES.reduce(
@@ -158,8 +155,7 @@ export class AnalysisPipelineController {
   }
 
   trace(): import("./types").PipelineStageTrace[] {
-    return ANALYSIS_PIPELINE_STAGES
-      .map((stage) => this.stages[stage])
+    return ANALYSIS_PIPELINE_STAGES.map((stage) => this.stages[stage])
       .filter((stage) => stage.status !== "pending")
       .map((stage) => ({
         stage: stage.name,

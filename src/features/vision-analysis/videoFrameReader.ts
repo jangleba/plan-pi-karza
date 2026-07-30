@@ -70,10 +70,7 @@ async function probeSource(url: string): Promise<string | null> {
     }
     const type = res.headers.get("content-type");
     if (type && !type.startsWith("video/") && !type.includes("octet-stream")) {
-      throw new VideoLoadError(
-        "INVALID_MIME_TYPE",
-        `Plik nie jest filmem (typ: ${type}).`,
-      );
+      throw new VideoLoadError("INVALID_MIME_TYPE", `Plik nie jest filmem (typ: ${type}).`);
     }
     const len = res.headers.get("content-range") || res.headers.get("content-length");
     if (len === "0") {
@@ -121,10 +118,7 @@ export async function readVideoMetadata(
   }
   if (!width || !height) {
     video.src = "";
-    throw new VideoLoadError(
-      "NO_DIMENSIONS",
-      "Nie udało się odczytać rozdzielczości filmu.",
-    );
+    throw new VideoLoadError("NO_DIMENSIONS", "Nie udało się odczytać rozdzielczości filmu.");
   }
 
   // Oszacowanie FPS i realne timestampy z rzeczywistych klatek (requestVideoFrameCallback).
@@ -201,7 +195,7 @@ function loadMetadataWithTimeout(video: HTMLVideoElement, url: string): Promise<
         3: "DECODE_ERROR",
         4: "SRC_NOT_SUPPORTED",
       };
-      const code = err ? map[err.code] ?? "VIDEO_ELEMENT_ERROR" : "VIDEO_ELEMENT_ERROR";
+      const code = err ? (map[err.code] ?? "VIDEO_ELEMENT_ERROR") : "VIDEO_ELEMENT_ERROR";
       fail(
         code,
         code === "SRC_NOT_SUPPORTED" || code === "DECODE_ERROR"
@@ -216,7 +210,10 @@ function loadMetadataWithTimeout(video: HTMLVideoElement, url: string): Promise<
       clearTimeout(stalledTimer);
       stalledTimer = setTimeout(() => {
         if (video.readyState < 1) {
-          fail("VIDEO_LOAD_STALLED", "Wczytywanie filmu utknęło. Sprawdź połączenie i spróbuj ponownie.");
+          fail(
+            "VIDEO_LOAD_STALLED",
+            "Wczytywanie filmu utknęło. Sprawdź połączenie i spróbuj ponownie.",
+          );
         }
       }, 4000);
     };
@@ -483,8 +480,7 @@ export function seekToFrame(
     };
 
     const onSeeked = () => waitForPresentedFrame();
-    const onError = () =>
-      rejectWith("FRAME_SEEK_ERROR", "Nie udało się odczytać klatki filmu.");
+    const onError = () => rejectWith("FRAME_SEEK_ERROR", "Nie udało się odczytać klatki filmu.");
     const onAbort = () => rejectWith("ANALYSIS_ABORTED", "Analiza została przerwana.");
     const timer = setTimeout(() => {
       rejectWith("FRAME_SEEK_TIMEOUT", "FRAME_SEEK_TIMEOUT");

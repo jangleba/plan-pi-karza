@@ -98,7 +98,9 @@ describe("extractFramesAndEstimatePose accounting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.seekToFrame.mockResolvedValue(undefined);
-    mocks.detectPose.mockImplementation((_video, frameIndex: number) => Promise.resolve(pose(frameIndex)));
+    mocks.detectPose.mockImplementation((_video, frameIndex: number) =>
+      Promise.resolve(pose(frameIndex)),
+    );
   });
 
   it("does not complete extractFrames after the first decoded frame", async () => {
@@ -107,7 +109,12 @@ describe("extractFramesAndEstimatePose accounting", () => {
       updates.push(snapshot);
     });
 
-    const output = await extractFramesAndEstimatePose(opts, controller, "run-accounting-first", metadata);
+    const output = await extractFramesAndEstimatePose(
+      opts,
+      controller,
+      "run-accounting-first",
+      metadata,
+    );
 
     expect(output.scheduledFrames).toBe(3);
     expect(output.processedScheduleFrames).toBe(3);
@@ -133,7 +140,12 @@ describe("extractFramesAndEstimatePose accounting", () => {
     });
     const controller = new AnalysisPipelineController("run-accounting-seek");
 
-    const output = await extractFramesAndEstimatePose(opts, controller, "run-accounting-seek", metadata);
+    const output = await extractFramesAndEstimatePose(
+      opts,
+      controller,
+      "run-accounting-seek",
+      metadata,
+    );
 
     expect(output.processedScheduleFrames).toBe(3);
     expect(output.extractedFrames).toBe(2);
@@ -152,7 +164,12 @@ describe("extractFramesAndEstimatePose accounting", () => {
     });
     const controller = new AnalysisPipelineController("run-accounting-last");
 
-    const output = await extractFramesAndEstimatePose(opts, controller, "run-accounting-last", metadata);
+    const output = await extractFramesAndEstimatePose(
+      opts,
+      controller,
+      "run-accounting-last",
+      metadata,
+    );
     const snapshot = controller.snapshot();
 
     expect(output.processedScheduleFrames).toBe(3);
@@ -163,10 +180,14 @@ describe("extractFramesAndEstimatePose accounting", () => {
   });
 
   it("fails estimatePose instead of leaving it running when no frames decode", async () => {
-    mocks.seekToFrame.mockRejectedValue(Object.assign(new Error("FRAME_SEEK_ERROR"), { code: "FRAME_SEEK_ERROR" }));
+    mocks.seekToFrame.mockRejectedValue(
+      Object.assign(new Error("FRAME_SEEK_ERROR"), { code: "FRAME_SEEK_ERROR" }),
+    );
     const controller = new AnalysisPipelineController("run-accounting-none");
 
-    await expect(extractFramesAndEstimatePose(opts, controller, "run-accounting-none", metadata)).rejects.toMatchObject({
+    await expect(
+      extractFramesAndEstimatePose(opts, controller, "run-accounting-none", metadata),
+    ).rejects.toMatchObject({
       code: "NO_DECODED_FRAMES",
     });
     expect(controller.snapshot().stages.estimatePose.status).toBe("failed");
