@@ -8,11 +8,35 @@ const DEV =
   typeof import.meta.env !== "undefined" &&
   import.meta.env.DEV === true;
 
+/**
+ * Tymczasowy, developerski przełącznik Phase 1 diagnostyki. Włączony
+ * WYŁĄCZNIE w trybie developerskim Vision Lab — nigdy w produkcji.
+ * Nie steruje logiką pomiarową, wyłącznie tym, czy `RunOptions.debugDiagnostics`
+ * jest ustawione i czy wynik trafia do konsoli przeglądarki.
+ */
+export const isDevDiagnosticsEnabled = DEV;
+
 /** Log etapu analizy (tylko w trybie developerskim). */
 export function vlog(stage: string, ...args: unknown[]): void {
   if (!DEV) return;
   // eslint-disable-next-line no-console
   console.log(`%c[VisionLab] ${stage}`, "color:#16a34a;font-weight:bold", ...args);
+}
+
+/**
+ * Zrzuca snapshot diagnostyczny Phase 1 (`VisionDiagnostics`) do konsoli
+ * przeglądarki — WYŁĄCZNIE w trybie developerskim. Brak persystencji: nic
+ * nie trafia do Supabase ani localStorage, wynik istnieje tylko w pamięci
+ * konsoli deweloperskiej.
+ */
+export function logDiagnostics(diagnostics: unknown): void {
+  if (!DEV || !diagnostics) return;
+  // eslint-disable-next-line no-console
+  console.log(
+    "%c[VisionLab] diagnostics (Phase 1, dev-only)",
+    "color:#2563eb;font-weight:bold",
+    diagnostics,
+  );
 }
 
 /** Log błędu analizy (zawsze widoczny — potrzebny do diagnostyki produkcyjnej). */

@@ -18,7 +18,13 @@ import { computeVideoHashFromBlob, type CalibrationRecord } from "@/features/vis
 import { findVideoCalibration } from "@/lib/vision/videoCalibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { ANALYSIS_PIPELINE_STAGES } from "@/features/vision-analysis/AnalysisPipelineController";
-import { vlog, vwarn, withTimeout } from "@/features/vision-analysis/devLog";
+import {
+  isDevDiagnosticsEnabled,
+  logDiagnostics,
+  vlog,
+  vwarn,
+  withTimeout,
+} from "@/features/vision-analysis/devLog";
 import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
 import type {
   VideoAnalysisResult,
@@ -371,6 +377,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           calibrationRecord: calibrationRecordRef.current,
           techniqueOnly: techniqueOnlyRef.current,
           abortSignal: controller.signal,
+          debugDiagnostics: isDevDiagnosticsEnabled,
           onPipelineUpdate: (snapshot) => {
             if (cancelled()) return;
             setPipelineSnapshot(snapshot);
@@ -391,6 +398,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         events: analysis.keyEvents.length,
         metrics: analysis.metrics.length,
       });
+      logDiagnostics(analysis.diagnostics);
       updateDebug({
         decodedFrames: analysis.decodedFrames ?? null,
         analyzedFrames: analysis.analyzedFrames ?? null,

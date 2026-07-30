@@ -342,6 +342,58 @@ export interface VideoAnalysisResult {
    * czy w klatce wykryto pozę, ewentualny powód pominięcia klatki.
    */
   frameLog?: FrameLogEntry[];
+  /**
+   * Snapshot diagnostyczny Vision Lab (Phase 1). Obecny WYŁĄCZNIE gdy
+   * `RunOptions.debugDiagnostics === true` — trzymany tylko w pamięci,
+   * nigdy nie jest zapisywany do Supabase ani localStorage.
+   */
+  diagnostics?: VisionDiagnostics;
+}
+
+/** Pojedynczy cykl powtarzanych skoków (podsumowanie diagnostyczne). */
+export interface RepeatedCycleDiagnostic {
+  index: number;
+  takeoffTime: number;
+  landingTime: number;
+  flightSeconds: number;
+  contactSeconds: number | null;
+  confidence: number;
+}
+
+/**
+ * Snapshot diagnostyczny Vision Lab (Phase 1). Budowany WYŁĄCZNIE gdy
+ * `RunOptions.debugDiagnostics === true` — trzymany tylko w pamięci,
+ * nigdy nie zapisywany do Supabase ani localStorage.
+ */
+export interface VisionDiagnostics {
+  analysisRunId: string;
+  declaredFps: number | null;
+  measuredFps: number | null;
+  fpsSourceUsed: "measured" | "declared";
+  scheduledFrameCount: number;
+  firstTimestampsMs: number[];
+  lastTimestampsMs: number[];
+  decodedFrames: number;
+  attemptedPoseFrames: number;
+  validPoseFrames: number;
+  poseErrors: number;
+  timestampOrderErrors: number;
+  poseDelegate: "GPU" | "CPU" | null;
+  timestampCorrectionsCount: number;
+  maximumTimestampCorrectionMs: number;
+  airSegmentsCount: number;
+  contactsCount: number;
+  repeatedCyclesCount: number;
+  firstRepeatedCycles: RepeatedCycleDiagnostic[];
+  movementSignature: string;
+  selectedTestType: TestType;
+  recognizedTestType: string;
+  detectedRepetitions: number;
+  requiredRepetitions: number;
+  protocolMatch: boolean;
+  protocolDecisionReason: string;
+  calibrationPresent: boolean;
+  pipelineSnapshot: AnalysisPipelineSnapshot;
 }
 
 export type StageStatus = "pending" | "running" | "completed" | "skipped" | "failed";

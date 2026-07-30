@@ -13,6 +13,7 @@ import type {
   TestType,
   VideoAnalysisResult,
   VideoMetadata,
+  VisionDiagnostics,
 } from "./types";
 import { QUALITY_ISSUE_LABELS } from "./types";
 import { AnalysisPipelineController } from "./AnalysisPipelineController";
@@ -31,6 +32,7 @@ import {
   detectPose,
   flushPoseDebugLog,
   FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+  getPoseEngineDiagnostics,
   isPoseSupported,
 } from "./poseEngine";
 import { round } from "./physics";
@@ -74,6 +76,14 @@ export interface RunOptions {
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void;
   onPipelineUpdate?: (snapshot: AnalysisPipelineSnapshot) => void;
+  /**
+   * Włącza budowanie diagnostycznego snapshotu Vision Lab (Phase 1).
+   * Gdy false/undefined: pole `diagnostics` NIE istnieje w wyniku i nie
+   * są wykonywane żadne dodatkowe obliczenia diagnostyczne. Diagnostyka
+   * istnieje wyłącznie w pamięci — nigdy nie jest zapisywana do Supabase
+   * ani localStorage.
+   */
+  debugDiagnostics?: boolean;
 }
 
 interface PoseStageOutput {
@@ -87,6 +97,8 @@ interface PoseStageOutput {
   analyzedFrames: number;
   poseErrors: number;
   timestampOrderErrors: number;
+  /** Timestampy (ms) zaplanowanych klatek — obecne tylko gdy debugDiagnostics. */
+  scheduledTimestampsMs?: number[];
 }
 
 interface MovementSignalsOutput {
@@ -383,6 +395,9 @@ export async function extractFramesAndEstimatePose(
     analyzedFrames,
     poseErrors,
     timestampOrderErrors,
+    ...(opts.debugDiagnostics
+      ? { scheduledTimestampsMs: schedule.map((frame) => frame.sourceTimestampMs) }
+      : {}),
   };
 }
 
@@ -423,6 +438,69 @@ function summarizeMotionWindow(
       motionWindow.trailingMarginSeconds >= (protocolSpec.trailingMarginSeconds ?? 0),
   };
   void metadata;
+}
+
+function hasCalibrationData(calibration: Calibration | null): boolean {
+  if (!calibration) return false;
+  return !!(
+    calibration.homography ||
+    calibration.referencePoints ||
+    (calibration.startLineX != null && calibration.finishLineX != null) ||
+    calibration.profileKey ||
+    calibration.profileId
+  );
+}
+
+interface BuildDiagnosticsInput {
+  analysisRunId: string;
+  opts: RunOptions;
+  metadata: VideoMetadata;
+  poseOut: PoseStageOutput;
+  movementSignals: MovementSignalsOutput;
+  recognition: ReturnType<typeof recognizeTestProtocol>;
+  calibration: Calibration | null;
+  controller: AnalysisPipelineController;
+}
+
+/**
+ * Buduje diagnostyczny snapshot Vision Lab (Phase 1). Wołane WYŁĄCZNIE gdy
+ * `opts.debugDiagnostics === true`. Wynik istnieje tylko w pamięci.
+ */
+function buildVisionDiagnostics(input: BuildDiagnosticsInput): VisionDiagnostics {
+  const { analysisRunId, opts, metadata, poseOut, movementSignals, recognition, calibration, controller } =
+    input;
+  const engineDiagnostics = getPoseEngineDiagnostics(analysisRunId);
+  const timestamps = poseOut.scheduledTimestampsMs ?? [];
+  return {
+    analysisRunId,
+    declaredFps: opts.declaredFps ?? null,
+    measuredFps: metadata.fpsMeasured ? metadata.fps : null,
+    fpsSourceUsed: metadata.fpsMeasured ? "measured" : "declared",
+    scheduledFrameCount: poseOut.scheduledFrames,
+    firstTimestampsMs: timestamps.slice(0, 10),
+    lastTimestampsMs: timestamps.slice(Math.max(0, timestamps.length - 10)),
+    decodedFrames: poseOut.poses.length,
+    attemptedPoseFrames: poseOut.attemptedPoseFrames,
+    validPoseFrames: poseOut.validPoseFrames,
+    poseErrors: poseOut.poseErrors,
+    timestampOrderErrors: poseOut.timestampOrderErrors,
+    poseDelegate: engineDiagnostics.poseDelegate,
+    timestampCorrectionsCount: engineDiagnostics.timestampCorrectionsCount,
+    maximumTimestampCorrectionMs: engineDiagnostics.maximumTimestampCorrectionMs,
+    airSegmentsCount: movementSignals.field?.segments.length ?? 0,
+    contactsCount: movementSignals.contacts.length,
+    repeatedCyclesCount: movementSignals.repeatedCycles.cycles.length,
+    firstRepeatedCycles: movementSignals.repeatedCycles.cycles.slice(0, 5),
+    movementSignature: movementSignals.signature.signature,
+    selectedTestType: opts.testType,
+    recognizedTestType: recognition.detectedTestType,
+    detectedRepetitions: recognition.detectedRepetitions,
+    requiredRepetitions: recognition.requiredRepetitions,
+    protocolMatch: recognition.protocolMatch,
+    protocolDecisionReason: recognition.reason,
+    calibrationPresent: hasCalibrationData(calibration),
+    pipelineSnapshot: controller.snapshot(),
+  };
 }
 
 export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisResult> {
@@ -601,6 +679,25 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         motionWindow: motionWindowSummary,
         frameLog: poseOut.frameLog,
         pipelineTrace: controller.trace(),
+        ...(opts.debugDiagnostics
+          ? {
+              diagnostics: buildVisionDiagnostics({
+                analysisRunId,
+                opts,
+                metadata,
+                poseOut,
+                movementSignals,
+                recognition,
+                calibration: resolveCalibration(
+                  opts,
+                  metadata.orientation,
+                  metadata.fps,
+                  `${metadata.width}x${metadata.height}`,
+                ),
+                controller,
+              }),
+            }
+          : {}),
       };
     }
     controller.complete("validateProtocol", recognitionSummary);
@@ -735,6 +832,20 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       motionWindow: motionWindowSummary,
       pipelineTrace: controller.trace(),
       frameLog: poseOut.frameLog,
+      ...(opts.debugDiagnostics
+        ? {
+            diagnostics: buildVisionDiagnostics({
+              analysisRunId,
+              opts,
+              metadata,
+              poseOut,
+              movementSignals,
+              recognition,
+              calibration,
+              controller,
+            }),
+          }
+        : {}),
     };
   } catch (error) {
     opts.onPhase?.("error");

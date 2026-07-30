@@ -33,8 +33,11 @@ function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
   });
 }
 
+/** Delegat obliczeniowy MediaPipe faktycznie użyty do utworzenia landmarkera. */
+export type PoseDelegate = "GPU" | "CPU";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createLandmarkerInstance(): Promise<any> {
+async function createLandmarkerInstance(): Promise<{ landmarker: any; delegate: PoseDelegate }> {
   const vision = await import("@mediapipe/tasks-vision");
   const { FilesetResolver, PoseLandmarker } = vision;
   filesetPromise ??= timeout(FilesetResolver.forVisionTasks(WASM_ROOT), 12_000, "WASM");
@@ -47,7 +50,7 @@ async function createLandmarkerInstance(): Promise<any> {
     minPosePresenceConfidence: 0.5,
   } as const;
   try {
-    return await timeout(
+    const landmarker = await timeout(
       PoseLandmarker.createFromOptions(fileset, {
         ...options,
         baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
@@ -55,8 +58,9 @@ async function createLandmarkerInstance(): Promise<any> {
       12_000,
       "PoseLandmarker GPU",
     );
+    return { landmarker, delegate: "GPU" };
   } catch {
-    return timeout(
+    const landmarker = await timeout(
       PoseLandmarker.createFromOptions(fileset, {
         ...options,
         baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
@@ -64,6 +68,7 @@ async function createLandmarkerInstance(): Promise<any> {
       12_000,
       "PoseLandmarker CPU",
     );
+    return { landmarker, delegate: "CPU" };
   }
 }
 
@@ -74,6 +79,7 @@ interface PoseLandmarkerSession {
   instanceId: string;
   lastTimestampMs: number;
   closed: boolean;
+  delegate: PoseDelegate;
 }
 
 interface DetectPoseOptions {
@@ -96,6 +102,7 @@ interface VisionTimestampDebugRow {
 }
 
 const timestampDebugRows: VisionTimestampDebugRow[] = [];
+const poseDelegateByRun = new Map<string, PoseDelegate>();
 
 export class FrameTimestampOrderError extends Error {
   code = "FRAME_TIMESTAMP_ORDER_ERROR";
@@ -124,6 +131,7 @@ function isTimestampMismatchError(error: unknown): boolean {
 
 export function clearPoseDebugLog(): void {
   timestampDebugRows.length = 0;
+  poseDelegateByRun.clear();
 }
 
 export function flushPoseDebugLog(analysisRunId: string): void {
@@ -134,15 +142,42 @@ export function flushPoseDebugLog(analysisRunId: string): void {
   console.table(rows);
 }
 
+/** Podsumowanie diagnostyczne silnika pozy dla danego runu (tylko w pamięci). */
+export interface PoseEngineDiagnostics {
+  poseDelegate: PoseDelegate | null;
+  timestampCorrectionsCount: number;
+  maximumTimestampCorrectionMs: number;
+}
+
+/** Buduje podsumowanie diagnostyczne (delegat + korekty timestampów) dla runu. */
+export function getPoseEngineDiagnostics(analysisRunId: string): PoseEngineDiagnostics {
+  const rows = timestampDebugRows.filter((row) => row.analysisRunId === analysisRunId);
+  let timestampCorrectionsCount = 0;
+  let maximumTimestampCorrectionMs = 0;
+  for (const row of rows) {
+    const correction = row.mediaPipeTimestampMs - row.sourceTimestampMs;
+    if (correction > 0) {
+      timestampCorrectionsCount += 1;
+      maximumTimestampCorrectionMs = Math.max(maximumTimestampCorrectionMs, correction);
+    }
+  }
+  return {
+    poseDelegate: poseDelegateByRun.get(analysisRunId) ?? null,
+    timestampCorrectionsCount,
+    maximumTimestampCorrectionMs,
+  };
+}
+
 async function getLandmarker(analysisRunId: string): Promise<PoseLandmarkerSession> {
   if (landmarkerPromise && activeAnalysisRunId === analysisRunId) return landmarkerPromise;
   if (landmarkerPromise) await closePoseEngine();
   activeAnalysisRunId = analysisRunId;
   landmarkerPromise = (async () => {
     const instanceId = `pose-${++poseLandmarkerInstanceSeq}`;
-    const landmarker = await createLandmarkerInstance();
-    vlog("pose_engine:new_instance", { analysisRunId, poseLandmarkerInstanceId: instanceId });
-    return { landmarker, analysisRunId, instanceId, lastTimestampMs: -1, closed: false };
+    const { landmarker, delegate } = await createLandmarkerInstance();
+    poseDelegateByRun.set(analysisRunId, delegate);
+    vlog("pose_engine:new_instance", { analysisRunId, poseLandmarkerInstanceId: instanceId, delegate });
+    return { landmarker, analysisRunId, instanceId, lastTimestampMs: -1, closed: false, delegate };
   })();
   return landmarkerPromise;
 }

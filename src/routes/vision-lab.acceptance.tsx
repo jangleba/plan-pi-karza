@@ -9,6 +9,7 @@ import type { TestType, VideoAnalysisResult } from "@/features/vision-analysis/t
 import { SUPPORTED_VISION_TESTS } from "@/lib/vision/supportedTests";
 import { getVisionTest } from "@/lib/vision/visionTests";
 import { downloadAnalysisJson } from "@/components/vision/VisionAutoAnalysis";
+import { isDevDiagnosticsEnabled, logDiagnostics } from "@/features/vision-analysis/devLog";
 
 export const Route = createFileRoute("/vision-lab/acceptance")({
   component: () => (
@@ -55,7 +56,9 @@ function AcceptanceScreen() {
         techniqueOnly: false,
         onPhase: setPhase,
         onProgress: setProgress,
+        debugDiagnostics: isDevDiagnosticsEnabled,
       });
+      logDiagnostics(result.diagnostics);
       setAnalysis(result);
     } catch (e) {
       // Zbuduj minimalny obiekt błędu do zrzutu.
