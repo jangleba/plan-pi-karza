@@ -61,10 +61,12 @@ describe("seekToFrame", () => {
       }),
     } as unknown as HTMLVideoElement;
 
-    const promise = seekToFrame(video, 1);
+    const expectation = expect(seekToFrame(video, 1)).rejects.toMatchObject({
+      code: "FRAME_SEEK_TIMEOUT",
+    });
     await vi.advanceTimersByTimeAsync(2_500);
 
-    await expect(promise).rejects.toMatchObject({ code: "FRAME_SEEK_TIMEOUT" });
+    await expectation;
     expect(listeners.size).toBe(0);
     vi.useRealTimers();
   });
