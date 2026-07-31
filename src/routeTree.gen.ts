@@ -22,7 +22,6 @@ import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.histor
 import { Route as VisionLabCalibrationRouteImport } from './routes/vision-lab.calibration'
 import { Route as VisionLabAcceptanceRouteImport } from './routes/vision-lab.acceptance'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
-import { Route as FootballIqFieldRouteImport } from './routes/football-iq.field'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
@@ -106,11 +105,6 @@ const VisionLabAcceptanceRoute = VisionLabAcceptanceRouteImport.update({
 const SesjaDateRoute = SesjaDateRouteImport.update({
   id: '/sesja/$date',
   path: '/sesja/$date',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FootballIqFieldRoute = FootballIqFieldRouteImport.update({
-  id: '/football-iq/field',
-  path: '/football-iq/field',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TabsStartRoute = TabsStartRouteImport.update({
@@ -238,7 +232,6 @@ export interface FileRoutesByFullPath {
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
   '/start': typeof TabsStartRoute
-  '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
@@ -273,7 +266,6 @@ export interface FileRoutesByTo {
   '/plan': typeof TabsPlanRoute
   '/profil': typeof TabsProfilRoute
   '/start': typeof TabsStartRoute
-  '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
@@ -310,7 +302,6 @@ export interface FileRoutesById {
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/profil': typeof TabsProfilRoute
   '/_tabs/start': typeof TabsStartRoute
-  '/football-iq/field': typeof FootballIqFieldRoute
   '/sesja/$date': typeof SesjaDateRoute
   '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
   '/vision-lab/calibration': typeof VisionLabCalibrationRoute
@@ -347,7 +338,6 @@ export interface FileRouteTypes {
     | '/plan'
     | '/profil'
     | '/start'
-    | '/football-iq/field'
     | '/sesja/$date'
     | '/vision-lab/acceptance'
     | '/vision-lab/calibration'
@@ -382,7 +372,6 @@ export interface FileRouteTypes {
     | '/plan'
     | '/profil'
     | '/start'
-    | '/football-iq/field'
     | '/sesja/$date'
     | '/vision-lab/acceptance'
     | '/vision-lab/calibration'
@@ -418,7 +407,6 @@ export interface FileRouteTypes {
     | '/_tabs/plan'
     | '/_tabs/profil'
     | '/_tabs/start'
-    | '/football-iq/field'
     | '/sesja/$date'
     | '/vision-lab/acceptance'
     | '/vision-lab/calibration'
@@ -450,7 +438,6 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  FootballIqFieldRoute: typeof FootballIqFieldRoute
   SesjaDateRoute: typeof SesjaDateRoute
   VisionLabAcceptanceRoute: typeof VisionLabAcceptanceRoute
   VisionLabCalibrationRoute: typeof VisionLabCalibrationRoute
@@ -562,13 +549,6 @@ declare module '@tanstack/react-router' {
       path: '/sesja/$date'
       fullPath: '/sesja/$date'
       preLoaderRoute: typeof SesjaDateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/football-iq/field': {
-      id: '/football-iq/field'
-      path: '/football-iq/field'
-      fullPath: '/football-iq/field'
-      preLoaderRoute: typeof FootballIqFieldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_tabs/start': {
@@ -744,7 +724,6 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
-  FootballIqFieldRoute: FootballIqFieldRoute,
   SesjaDateRoute: SesjaDateRoute,
   VisionLabAcceptanceRoute: VisionLabAcceptanceRoute,
   VisionLabCalibrationRoute: VisionLabCalibrationRoute,
@@ -767,13 +746,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
