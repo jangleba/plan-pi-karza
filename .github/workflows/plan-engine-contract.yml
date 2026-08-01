@@ -26,5 +26,8 @@ jobs:
       - name: Zainstaluj zależności
         run: npm ci
 
-      - name: Uruchom test kontraktu Planu
-        run: npx vitest run src/lib/loadwise/planExerciseContract.test.ts
+      - name: Uruchom wszystkie testy Planu
+        run: npx vitest run src/lib/loadwise
+
+      - name: Sprawdź pełny build aplikacji
+        run: npm run build
