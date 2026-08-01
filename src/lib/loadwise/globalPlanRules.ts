@@ -501,9 +501,15 @@ export function canPlaceSession(
     if ((addsGym && currentHasRun) || (addsRun && currentHasGym)) {
       return { allowed: false, reason: "Club + gym + running w jeden dzień jest zabronione." };
     }
-    // club + hard cokolwiek
-    if (isHardSession(session)) {
+    // club + hard cokolwiek — ale LEKKA siłownia (primer/activation) jest
+    // dozwolona jako druga sesja dnia klubowego, o ile nie łamie innych reguł.
+    if (isHardSession(session) && !addsGym) {
       return { allowed: false, reason: "Trening klubowy + mocna jednostka tego samego dnia jest zabroniony." };
+    }
+    // club + ciężka siłownia (heavy legs / wysoka intensywność) jest blokowana;
+    // lekki wariant (primer, maintenance, upper, umiarkowana) jest dozwolony.
+    if (addsGym && isHardSession(session)) {
+      return { allowed: false, reason: "Trening klubowy + ciężka siłownia tego samego dnia jest zabroniony." };
     }
   }
 

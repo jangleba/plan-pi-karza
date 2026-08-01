@@ -38,8 +38,8 @@ import {
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
-import { getRequiredGymSessions } from "./weeklyRequirements";
-import { finalizeWeekPlan } from "./weekFinalization";
+import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
+import { finalizeWeekPlan, addMissingGymSessions } from "./weekFinalization";
 import {
   MAIN_GOAL_RULES,
   LIMITATION_RULES,
@@ -3353,6 +3353,9 @@ function isRecoveryPrehabStandalone(session: SessionDay | null | undefined): boo
   const header = `${session.title ?? ""} ${session.sessionType ?? ""} ${session.goalOfSession ?? ""}`.toLowerCase();
   if (/aktywacja przedmecz|primer|md-1/.test(header)) return false;
   const c = session.classification ?? classifySession(session);
+  // Sesja gym_strength NIGDY nie jest standalone recovery/prehab — nawet jeśli
+  // zawiera ćwiczenia prehabowe (Nordic, stabilizacja). Chroni minima siłowni.
+  if (c.category === "gym_strength") return false;
   if (c.category === "recovery_prehab" || c.category === "mobility") return true;
   if (session.dayType === "recovery") return true;
   if (c.category !== "other") return false;
@@ -4374,6 +4377,29 @@ export function generatePlan(
   validateRecoveryPrehabPlacement(finalPlan, profile, startDate, weekOffset);
   for (let i = 0; i < finalPlan.length; i++) {
     finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
+  }
+
+  // FINALNY INVARIANT: jeśli po wszystkich post-passach liczba gym spadła poniżej
+  // wymaganego minimum, napraw ją analogicznie do endurance (addMissingGymSessions).
+  if (profile.hasGym) {
+    const finalRanges = weekRanges(startDate, finalPlan.length);
+    for (const range of finalRanges) {
+      if (range.end - range.start < 7) continue;
+      const week = finalPlan.slice(range.start, range.end);
+      const clubCount = week.filter((d) => d.dayType === "club" || d.classification?.isClubSession).length;
+      const matchCount = week.filter((d) => d.dayType === "match" || d.classification?.isMatch).length;
+      const weekReqs = calculateWeeklyMinimumRequirements(
+        { seasonPhase: profile.seasonPhase, clubTrainingCount: clubCount, matchCount, isFullWeek: matchCount < 2 },
+        { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays },
+        profile.goal,
+      );
+      const gymResult = addMissingGymSessions(week, weekReqs, profile);
+      // Wpisz naprawione dni z powrotem do finalPlan.
+      for (let j = 0; j < week.length; j++) {
+        finalPlan[range.start + j] = normalizeSessionCategory(week[j]);
+      }
+      void gymResult;
+    }
   }
 
   // Logi developerskie po wygenerowaniu planu.

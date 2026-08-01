@@ -399,7 +399,7 @@ export function classifySession(session: SessionDay): SessionClassification {
     category === "mobility" ||
     (category === "other" && subcategory === "ball_technical") ||
     (isEndurance && intensity === "niska") ||
-    (isClub && clubIsSpeedFocused === false ? false : false) ||
+    (isGym && intensity !== "wysoka") ||
     (isSpeed && intensity === "niska");
 
   const generatedBy: SessionGeneratedBy =
