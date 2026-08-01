@@ -26,8 +26,8 @@ import {
   isMatchSession,
   isRecoverySession,
 } from "./sessionClassification";
-import { getMaxSessionsPerDay } from "./dailyScheduling";
-import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { getMaxSessionsPerDay, isYouthOrBeginner as isYouthOrBeginnerSched } from "./dailyScheduling";
+import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
 import {
   calculateWeeklyMinimumRequirements,
   type WeeklyRequirements,
@@ -110,12 +110,10 @@ function countSpeedSessions(weekPlan: SessionDay[]): number {
 // ---------------------------------------------------------------------------
 
 function isYouthOrBeginner(profile: Profile): boolean {
-  const youthAge = profile.age >= 13 && profile.age <= 15;
-  const beginner =
-    profile.level === "beginner" ||
-    profile.gymExperienceLevel === "none" ||
-    profile.gymExperienceLevel === "beginner";
-  return youthAge || beginner;
+  return isYouthOrBeginnerSched({
+    developmentStage: getDevelopmentStage(profile.age),
+    gymExperienceLevel: profile.gymExperienceLevel ?? null,
+  });
 }
 
 function hasLowerLimbPain(profile: Profile): boolean {
