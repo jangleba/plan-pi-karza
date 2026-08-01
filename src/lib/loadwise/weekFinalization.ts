@@ -639,6 +639,236 @@ export function addMissingEnduranceSessions(
 }
 
 // ---------------------------------------------------------------------------
+// Naprawa brakujących sesji siłowni (analogicznie do endurance)
+// ---------------------------------------------------------------------------
+
+export interface AddMissingGymResult {
+  weekPlan: SessionDay[];
+  added: number;
+  converted: number;
+  count: number;
+  requiredGymSessions: number;
+  unresolvedIssues: string[];
+}
+
+/**
+ * Buduje minimalną sesję siłowni do wstawienia przez finalny walidator.
+ * Lekka (primer / utrzymanie siły) — nie ciężka, nie bodyweight-only.
+ */
+function buildGymSessionDay(
+  profile: Profile,
+  templateDay: SessionDay,
+  opts: { light: boolean; slotLabel?: string | null; placementReason?: string },
+): SessionDay {
+  const youth = isYouthOrBeginner(profile);
+  const title = youth
+    ? "Siła bazowa (masa ciała)"
+    : opts.light
+      ? "Primer siłowy (utrzymanie)"
+      : "Siła ogólna";
+  const sessionType = youth ? "Siła — masa ciała" : "Siła / moc";
+  const goalOfSession = youth
+    ? "Nauka wzorców ruchowych i siła bazowa z masą ciała."
+    : opts.light
+      ? "Utrzymanie siły i aktywacja nerwowo-mięśniowa bez dużego zmęczenia."
+      : "Rozwój siły dolnych partii i stabilizacji.";
+  const intensity = opts.light || youth ? "umiarkowana" as const : "wysoka" as const;
+  const durationMin = opts.light ? 30 : youth ? 40 : 50;
+  const placementReason = opts.placementReason ??
+    "Dodano brakującą sesję siłowni — pełny tydzień wymaga minimum 2 gym_strength.";
+
+  const raw: SessionDay = {
+    date: templateDay.date,
+    dayName: templateDay.dayName || dayNameOf(parseIso(templateDay.date)),
+    dayType: "training" as DayType,
+    title,
+    goalLabel: "Siła",
+    intensity,
+    durationMin,
+    reason: placementReason,
+    safetyNote: opts.light
+      ? "Lekki wariant siłowy — primer / utrzymanie."
+      : null,
+    whyToday: placementReason,
+    sessionType,
+    goalOfSession,
+    riskManaged: "Kontrolowane obciążenie — bez ciężkich nóg w dniach ryzykownych.",
+    avoidToday: "Bez ciężkich nóg na 48 h przed meczem.",
+    mdLabel: templateDay.mdLabel ?? null,
+    slotLabel: opts.slotLabel ?? null,
+    sections: {
+      warmup: [{ name: "Rozgrzewka dynamiczna", prescription: "5–8 min mobilizacja" }],
+      main: youth
+        ? [
+            { name: "Przysiad z masą ciała", prescription: "3 × 10", cue: "Kolana w linii stóp." },
+            { name: "Plank", prescription: "3 × 30 s", cue: "Napięty brzuch, biodra w linii." },
+          ]
+        : [
+            { name: "Przysiad goblet", prescription: "3 × 8", rest: "90 s", cue: "Pełen zakres." },
+            { name: "RDL / Hip hinge", prescription: "3 × 8", rest: "75 s", cue: "Biodra w tył, proste plecy." },
+          ],
+      accessory: [
+        { name: "Stabilizacja core", prescription: "2 × 30 s plank boczny", cue: "Linia ciała prosta." },
+      ],
+      footballTransfer: [],
+      cooldown: [{ name: "Rozciąganie", prescription: "5 min" }],
+    },
+    secondSession: null,
+  };
+
+  const normalized = normalizeSessionCategory(raw);
+  if (normalized.classification) {
+    normalized.classification.generatedBy = "final-week-validator";
+    normalized.classification.repairTag = "missing-gym";
+    normalized.classification.placementReason = placementReason;
+  }
+  return normalized;
+}
+
+/**
+ * Gwarantuje wymaganą liczbę gym_strength w tygodniu.
+ *  1. Liczy gym.
+ *  2. Szuka wolnego dnia (rest) bez klubu/meczu/szybkości sąsiedniego gym.
+ *  3. Próbuje zamienić nadmiarowy recovery/prehab na gym (jeśli 0 gym).
+ *  4. Nigdy w dzień meczowy, nigdy 3. sesja dnia, nigdy 2 gym z rzędu.
+ */
+export function addMissingGymSessions(
+  weekPlan: SessionDay[],
+  weeklyRequirements: WeeklyRequirements,
+  profile: Profile,
+): AddMissingGymResult {
+  const unresolvedIssues: string[] = [];
+
+  if (!profile.hasGym) {
+    // Brak dostępu do siłowni — minima gym nie obowiązują.
+    return {
+      weekPlan,
+      added: 0,
+      converted: 0,
+      count: countGymSessions(weekPlan),
+      requiredGymSessions: 0,
+      unresolvedIssues,
+    };
+  }
+
+  const required = weeklyRequirements.requiredGymSessions;
+  const maxPerDay = getMaxSessionsPerDay({
+    doubleSessionsAllowed: profile.doubleSessionsAllowed,
+  });
+
+  let added = 0;
+  let converted = 0;
+  let guard = 0;
+
+  const adjacentHasGym = (idx: number): boolean => {
+    const prev = idx > 0 ? weekPlan[idx - 1] : null;
+    const next = idx < weekPlan.length - 1 ? weekPlan[idx + 1] : null;
+    return (
+      (!!prev && eachSession(prev).some((s) => isMainGymSession(s))) ||
+      (!!next && eachSession(next).some((s) => isMainGymSession(s)))
+    );
+  };
+
+  while (countGymSessions(weekPlan) < required && guard < 8) {
+    guard += 1;
+
+    // Krok 1: wolny dzień (rest) bez klubu/meczu, nie sąsiadujący z gym.
+    const restIdx = weekPlan.findIndex(
+      (d, i) =>
+        d.dayType === "rest" &&
+        !isClubSession(d) &&
+        !isMatchSession(d) &&
+        !isDayBeforeMatch(d) &&
+        !adjacentHasGym(i),
+    );
+    if (restIdx >= 0) {
+      const light = isDayBeforeMatch(weekPlan[restIdx]) || isYouthOrBeginner(profile);
+      const rebuilt = buildGymSessionDay(profile, weekPlan[restIdx], {
+        light,
+        placementReason:
+          "Wybrano wolny dzień na brakującą siłownię — min. 2 gym_strength w pełnym tygodniu.",
+      });
+      rebuilt.secondSession = weekPlan[restIdx].secondSession ?? null;
+      weekPlan[restIdx] = rebuilt;
+      added += 1;
+      continue;
+    }
+
+    // Krok 2: zamiana nadmiarowego recovery/prehab na gym (jeśli jest ≥2 recovery i brak gym).
+    if (countGymSessions(weekPlan) === 0) {
+      const recoveryDays = weekPlan
+        .map((d, i) => ({ d, i }))
+        .filter(
+          ({ d, i }) =>
+            isRecoverySession(d) &&
+            !isClubSession(d) &&
+            !isMatchSession(d) &&
+            !isDayBeforeMatch(d) &&
+            !adjacentHasGym(i),
+        );
+      if (recoveryDays.length >= 1) {
+        const target = recoveryDays[0];
+        const light = isYouthOrBeginner(profile);
+        const rebuilt = buildGymSessionDay(profile, target.d, {
+          light,
+          placementReason:
+            "Zamieniono nadmiarowy recovery/prehab na siłownię — pełny tydzień wymaga gym_strength.",
+        });
+        rebuilt.secondSession = target.d.secondSession ?? null;
+        weekPlan[target.i] = rebuilt;
+        converted += 1;
+        continue;
+      }
+    }
+
+    // Krok 3: druga sesja na dniu klubowym, gdy limit = 2 i combo jest bezpieczna.
+    if (maxPerDay >= 2) {
+      const hostIdx = weekPlan.findIndex(
+        (d, i) =>
+          !isMatchSession(d) &&
+          !d.secondSession &&
+          realSessionCount(d) < maxPerDay &&
+          !isDayBeforeMatch(d) &&
+          !adjacentHasGym(i) &&
+          !eachSession(d).some((s) => isMainGymSession(s)),
+      );
+      if (hostIdx >= 0) {
+        const host = weekPlan[hostIdx];
+        const second = buildGymSessionDay(profile, host, {
+          light: true, // druga sesja zawsze lekka
+          slotLabel: "Sesja 2 (siłownia lekka)",
+          placementReason:
+            "Dodano siłownię jako drugą (lekką) sesję dnia — bez łamania limitu.",
+        });
+        host.secondSession = second;
+        host.slotLabel = host.slotLabel ?? "Sesja 1";
+        added += 1;
+        continue;
+      }
+    }
+
+    // Brak bezpiecznego miejsca.
+    break;
+  }
+
+  const count = countGymSessions(weekPlan);
+  if (count < required) {
+    unresolvedIssues.push(
+      `Tydzień ma ${count}/${required} siłowni — brak bezpiecznego dnia na dodanie brakującej sesji gym.`,
+    );
+  }
+
+  return {
+    weekPlan,
+    added,
+    converted,
+    count,
+    requiredGymSessions: required,
+    unresolvedIssues,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Finalny hard gate
 // ---------------------------------------------------------------------------
 
@@ -761,6 +991,8 @@ export function validateAndRepairWeekPlan(
     requirements,
     profile,
   );
+  // Naprawa brakujących sesji siłowni (analogicznie do endurance).
+  addMissingGymSessions(weekPlan, requirements, profile);
   validateNoEnduranceOnClubDays(weekPlan);
   // Ponowna naprawa na wypadek, gdyby endurance zajęło slot (idempotentna).
   repairDuplicateSpeedSameDay(weekPlan);

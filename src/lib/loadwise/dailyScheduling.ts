@@ -119,12 +119,14 @@ export function getMaxSessionsPerDay(userSettings?: UserSchedulingSettings | nul
     return Math.max(1, Math.min(2, Math.floor(explicit)));
   }
   switch (userSettings?.doubleSessionsAllowed) {
+    case "no":
+      return 1;
     case "yes_if_safe":
     case "light_only":
-      return 2;
-    case "no":
     default:
-      return 1;
+      // Domyślnie silnik może zaplanować 2 sesje dziennie (bezpieczne
+      // kombinacje). Dopiero jawne "no" blokuje drugą sesję.
+      return 2;
   }
 }
 
