@@ -348,6 +348,13 @@ export interface VideoAnalysisResult {
    * nigdy nie jest zapisywany do Supabase ani localStorage.
    */
   diagnostics?: VisionDiagnostics;
+  /**
+   * Diagnostyka przestoju / timeoutu (Phase 2, dev-only). Obecna WYŁĄCZNIE
+   * gdy `RunOptions.debugDiagnostics === true`. Budowana niezależnie od
+   * statusu wyniku (sukces, invalid_recording, failed) — trzymana tylko
+   * w pamięci, nigdy nie zapisywana do Supabase ani localStorage.
+   */
+  timeoutDiagnostics?: import("./timeoutDiagnostics").TimeoutDiagnosticsReport;
 }
 
 /** Pojedynczy cykl powtarzanych skoków (podsumowanie diagnostyczne). */
