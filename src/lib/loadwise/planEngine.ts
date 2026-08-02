@@ -4440,6 +4440,7 @@ export function generatePlan(
       if (day.dayType === "match") continue;
       finalPlan[i] = {
         ...day,
+        isUnavailable: true,
         dayType: "rest",
         title: "Dzień niedostępny",
         goalLabel: "Niedostępny",
