@@ -316,6 +316,7 @@ export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
       const restTarget = weekPlan.find(
         (d) =>
           d !== day &&
+          !d.isUnavailable &&
           d.dayType === "rest" &&
           !isClubSession(d) &&
           !isMatchSession(d) &&
@@ -441,6 +442,7 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
     const restTarget = weekPlan.find(
       (d, idx) =>
         idx !== laterIndex &&
+        !d.isUnavailable &&
         d.dayType === "rest" &&
         !isClubSession(d) &&
         !isMatchSession(d) &&
@@ -544,7 +546,11 @@ export function addMissingEnduranceSessions(
 
     // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
     const recoveryDays = weekPlan.filter(
-      (d) => isRecoverySession(d) && !isClubSession(d) && !isMatchSession(d),
+      (d) => (d) =>
+    !d.isUnavailable &&
+    isRecoverySession(d) &&
+    !isClubSession(d) &&
+    !isMatchSession(d),
     );
     const enduranceNow = countEnduranceSessions(weekPlan);
     if (enduranceNow === 0 && recoveryDays.length >= 2) {
@@ -568,7 +574,7 @@ export function addMissingEnduranceSessions(
 
     // Krok 2: wolny dzień (rest) bez klubu/meczu.
     const restDay = weekPlan.find(
-      (d) => d.dayType === "rest" && !isClubSession(d) && !isMatchSession(d),
+      (d) =>!d.isUnavailable && d.dayType === "rest" && !isClubSession(d) && !isMatchSession(d),
     );
     if (restDay) {
       const light = isDayBeforeMatch(restDay) || lowReadinessReasons(restDay);
@@ -587,6 +593,7 @@ export function addMissingEnduranceSessions(
     if (maxPerDay >= 2) {
       const host = weekPlan.find(
         (d) =>
+          !d.isUnavailable &&
           !isClubSession(d) &&
           !isMatchSession(d) &&
           !d.secondSession &&
@@ -773,6 +780,7 @@ export function addMissingGymSessions(
     // Krok 1: wolny dzień (rest) bez klubu/meczu, nie sąsiadujący z gym.
     const restIdx = weekPlan.findIndex(
       (d, i) =>
+        !d.isUnavailable &&
         d.dayType === "rest" &&
         !isClubSession(d) &&
         !isMatchSession(d) &&
@@ -798,6 +806,7 @@ export function addMissingGymSessions(
         .map((d, i) => ({ d, i }))
         .filter(
           ({ d, i }) =>
+            !d.isUnavailable &&
             isRecoverySession(d) &&
             !isClubSession(d) &&
             !isMatchSession(d) &&
@@ -823,6 +832,7 @@ export function addMissingGymSessions(
     if (maxPerDay >= 2) {
       const hostIdx = weekPlan.findIndex(
         (d, i) =>
+          !d.isUnavailable &&
           !isMatchSession(d) &&
           !d.secondSession &&
           realSessionCount(d) < maxPerDay &&
