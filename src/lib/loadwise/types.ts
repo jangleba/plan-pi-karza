@@ -476,6 +476,8 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
+  /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
+  isUnavailable?: boolean;
   generatorVersion?: string;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
