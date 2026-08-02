@@ -131,7 +131,7 @@ describe("ocena Fuel Score", () => {
 
   it("wykrywa niedobór płynów", () => {
     const r = evaluateFuel(base({ intake: { ...base().intake, fluidTodayMl: 700 } }));
-    expect(r.hydrationPct).toBe(25);
+    expect(r.hydrationPct).toBe(24); // 700/2800 → 6.25 pkt zaokr. do 6/25
     expect(r.mainProblem?.title).toBe("Niedobór płynów");
   });
 
