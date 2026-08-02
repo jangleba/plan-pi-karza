@@ -1978,13 +1978,7 @@ function allExercises(session: SessionDay): ExerciseItem[] {
       },
     ];
   }
-  return [
-    {
-      name: "Sesja kontrolna",
-      prescription: `${session.durationMin} min zgodnie z opisem dnia`,
-      cue: "Zachowaj jakość ruchu i przerwij przy bólu.",
-    },
-  ];
+  return [];
 }
 
 export function planSessionType(session: SessionDay): PlanSessionType {
