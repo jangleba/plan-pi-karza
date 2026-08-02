@@ -4438,10 +4438,6 @@ export function generatePlan(
       // Mecz to zdarzenie z kalendarza, nie jednostka generowana przez silnik —
       // zostawiamy go bez zmian. Wszystko inne staje się dniem niedostępnym.
       if (day.dayType === "match") continue;
-      finalPlan[i] = {
-        ...day,
-        isUnavailable: true,
-        dayType: "rest",
         title: "Dzień niedostępny",
         goalLabel: "Niedostępny",
         intensity: "niska",
