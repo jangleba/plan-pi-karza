@@ -13,6 +13,7 @@ import type {
   LoadTag,
   Mesocycle,
 } from "./types";
+import { assertPlanExerciseContract } from "./planExerciseContract";
 import {
   warsawToday,
   isoDate,
@@ -4473,7 +4474,8 @@ export function generatePlan(
     }
   }
 
-  return finalPlan;
+  assertPlanExerciseContract(finalPlan);
+return finalPlan;
 }
 
 export interface DecisionResult {

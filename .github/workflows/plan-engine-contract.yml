@@ -1,0 +1,33 @@
+name: Plan Engine Contract
+
+on:
+  push:
+    branches:
+      - plann-enginev2-exercises-contract
+  pull_request:
+    paths:
+      - "src/lib/loadwise/**"
+      - ".github/workflows/plan-engine-contract.yml"
+
+jobs:
+  test-plan-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobierz repozytorium
+        uses: actions/checkout@v4
+
+      - name: Ustaw Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Zainstaluj zależności
+        run: npm ci
+
+      - name: Uruchom wszystkie testy Planu
+        run: npx vitest run src/lib/loadwise
+
+      - name: Sprawdź pełny build aplikacji
+        run: npm run build

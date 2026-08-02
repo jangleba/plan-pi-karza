@@ -130,6 +130,8 @@ export interface Readiness {
 
 export interface ExerciseItem {
   name: string;
+  /** Stałe ID ćwiczenia z centralnej biblioteki. */
+exerciseId?: string;
   prescription: string;
   rest?: string;
   cue?: string;
@@ -180,6 +182,8 @@ export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
   id: string;
+  /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
+exerciseId?: string;
   label?: string; // A1 | A2 | B1 | B2 ...
   name: string;
   sets?: string;
