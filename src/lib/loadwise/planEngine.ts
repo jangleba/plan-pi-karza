@@ -1947,6 +1947,7 @@ const RECOVERY_PREHAB_TYPES: PlanSessionType[] = [
 ];
 
 function allExercises(session: SessionDay): ExerciseItem[] {
+  if (session.isUnavailable) return [];
   const listed = [
     ...session.sections.warmup,
     ...session.sections.main,
@@ -2392,10 +2393,11 @@ function seasonWeeklyStimuli(
 // dni wolnych i bez powtarzanych placeholderów.
 // ============================================================
 
-type BaseDayType = "match" | "md-1" | "club" | "md+1" | "available";
+type BaseDayType = "match" | "unavailable" | "md-1" | "club" | "md+1" | "available";
 
 function baseDayType(date: Date, profile: Profile): BaseDayType {
   if (isMatchDay(date, profile)) return "match";
+  if ((profile.unavailableDays ?? []).includes(isoDayOfWeek(date))) return "unavailable";
   if (daysToMatch(date, profile) === 1) return "md-1";
   if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
   if (daysSinceMatch(date, profile) === 1) return "md+1";
@@ -2416,6 +2418,7 @@ function interleaveStimuli(list: Stimulus[]): Stimulus[] {
 
 interface PlanCell {
   type: DayType;
+  isUnavailable?: boolean;
   stimulus?: Stimulus;
   secondStimulus?: Stimulus;
 }
@@ -2867,6 +2870,7 @@ function planBlock(
     // Dni stałe: mecz / MD-1 / klub / MD+1 (regeneracja).
     for (const it of items) {
       if (it.base === "match") result[it.iso] = { type: "match" };
+        else if (it.base === "unavailable") result[it.iso] = { type: "rest", isUnavailable: true };
       else if (it.base === "md-1") result[it.iso] = { type: "md-1" };
       else if (it.base === "club") result[it.iso] = { type: "club" };
       else if (it.base === "md+1") result[it.iso] = { type: "recovery" };
@@ -4114,6 +4118,7 @@ export function generatePlan(
         date: iso,
         dayName: dayName(date),
         dayType: "rest",
+        isUnavailable: Boolean(cell?.isUnavailable),
         title: "Dzień wolny",
         goalLabel: "Wolne",
         intensity: "niska",
@@ -4124,11 +4129,14 @@ export function generatePlan(
         whyToday:
           "Plan respektuje Twój kalendarz: trenujesz indywidualnie tylko w wybrane dni, a regeneracja jest chroniona.",
         sessionType: "Dzień wolny",
-        goalOfSession:
-          "Odpoczynek i regeneracja — w razie ochoty lekka mobilność lub spacer.",
+        goalOfSession: cell?.isUnavailable
+  ? "Pełny odpoczynek — bez zaplanowanej sesji."
+  : "Odpoczynek i regeneracja — w razie ochoty lekka mobilność lub spacer.",
         riskManaged:
           "Brak narzuconego obciążenia chroni przed przetrenowaniem i utrzymuje świeżość.",
-        avoidToday: "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.",
+        avoidToday: cell?.isUnavailable
+  ? "Bez treningu — ten dzień jest całkowicie wolny."
+  : "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.",,
         mdLabel: mdLabelFor(date, profile),
         slotLabel: null,
         sections: {
@@ -4425,49 +4433,7 @@ export function generatePlan(
     });
   }
 
-  // Dni całkowicie niedostępne: zawodnik zaznaczył, że w ogóle nie może
-  // trenować w te dni tygodnia — Loadwise nie generuje wtedy ŻADNEJ jednostki.
-  // Jeśli nic nie zaznaczył, plan działa normalnie codziennie.
-  const blocked = new Set(profile.unavailableDays ?? []);
-  if (blocked.size > 0) {
-    for (let i = 0; i < finalPlan.length; i++) {
-      const day = finalPlan[i];
-      // ISO dzień tygodnia: 1=Pn ... 7=Nd.
-      const wd = ((new Date(`${day.date}T00:00:00`).getDay() + 6) % 7) + 1;
-      if (!blocked.has(wd)) continue;
-      // Mecz to zdarzenie z kalendarza, nie jednostka generowana przez silnik —
-      // zostawiamy go bez zmian. Wszystko inne staje się dniem niedostępnym.
-      if (day.dayType === "match") continue;
-      finalPlan[i] = {
-        ...day,
-        isUnavailable: true,
-        dayType: "rest",
-        title: "Dzień niedostępny",
-        goalLabel: "Niedostępny",
-        intensity: "niska",
-        durationMin: 0,
-        reason:
-          "Zaznaczyłeś ten dzień jako całkowicie niedostępny — Loadwise nie planuje w nim żadnego treningu.",
-        safetyNote: null,
-        whyToday:
-          "Plan respektuje Twoją dostępność: w dni niedostępne nie ma żadnych jednostek.",
-        sessionType: "Dzień niedostępny",
-        goalOfSession: "Brak treningu — dzień oznaczony jako niedostępny.",
-        riskManaged:
-          "Brak obciążenia w dniu niedostępnym chroni przed konfliktem z Twoim harmonogramem.",
-        avoidToday: "Bez treningu — ten dzień jest zablokowany.",
-        sections: {
-          warmup: [],
-          main: [],
-          accessory: [],
-          footballTransfer: [],
-          cooldown: [],
-        },
-        structuredSections: undefined,
-        secondSession: null,
-      };
-    }
-  }
+  
 
   assertPlanExerciseContract(finalPlan);
 return finalPlan;
@@ -4495,6 +4461,16 @@ export function applyReadiness(
   readiness: Readiness | undefined,
   profile: Profile,
 ): { session: SessionDay; decision: DecisionResult } {
+  if (session.isUnavailable) {
+    return {
+      session,
+      decision: {
+        headline: "Dzień wolny",
+        detail: "Dziś nie masz zaplanowanego treningu.",
+        adjustment: null,
+      },
+    };
+  }
   if (session.dayType === "match") {
     return {
       session,
