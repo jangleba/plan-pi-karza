@@ -536,7 +536,7 @@ function sessionContentKey(session: SessionDay): string {
   ]
     .slice(0, 3)
     .map((exercise) =>
-      (exercise.name ?? "")
+      `${exercise.name ?? ""} ${exercise.prescription ?? ""}`
         .toLowerCase()
         .replace(/\s+/g, " ")
         .trim(),
@@ -573,13 +573,12 @@ function weekSignatureCounts(
         session.classification?.category ?? session.dayType;
       const subcategory =
         session.classification?.subcategory ?? "unknown";
-      const durationBucket =
-        Math.round((session.durationMin ?? 0) / 15) * 15;
+      const duration = session.durationMin ?? 0;
       const content = sessionContentKey(session);
 
       const key =
         `${category}:${subcategory}:` +
-        `${session.intensity}:${durationBucket}:${content}`;
+        `${session.intensity}:${duration}:${content}`;
 
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
@@ -587,8 +586,8 @@ function weekSignatureCounts(
 
   return counts;
 }
-  return counts;
-}
+
+
 
 /** Zwraca podobieństwo tygodni 0..1 (multiset overlap / większy rozmiar). */
 export function compareWeekSimilarity(weekA: SessionDay[], weekB: SessionDay[]): number {
