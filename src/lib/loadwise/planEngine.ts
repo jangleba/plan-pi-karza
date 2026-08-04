@@ -4410,26 +4410,6 @@ export function generatePlan(
       finalPlan[range.start + index] = week[index];
     }
   }
-    const finalRanges = weekRanges(startDate, finalPlan.length);
-    for (const range of finalRanges) {
-      if (range.end - range.start < 7) continue;
-      const week = finalPlan.slice(range.start, range.end);
-      const clubCount = week.filter((d) => d.dayType === "club" || d.classification?.isClubSession).length;
-      const matchCount = week.filter((d) => d.dayType === "match" || d.classification?.isMatch).length;
-      const weekReqs = calculateWeeklyMinimumRequirements(
-        { seasonPhase: profile.seasonPhase, clubTrainingCount: clubCount, matchCount, isFullWeek: matchCount < 2 },
-        { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays },
-        profile.goal,
-      );
-      const gymResult = addMissingGymSessions(week, weekReqs, profile);
-      // Wpisz naprawione dni z powrotem do finalPlan.
-      for (let j = 0; j < week.length; j++) {
-        finalPlan[range.start + j] = normalizeSessionCategory(week[j]);
-      }
-      void gymResult;
-    }
-  }
-
   // Logi developerskie po wygenerowaniu planu.
   if (typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
     // eslint-disable-next-line no-console
