@@ -4136,7 +4136,7 @@ export function generatePlan(
           "Brak narzuconego obciążenia chroni przed przetrenowaniem i utrzymuje świeżość.",
         avoidToday: cell?.isUnavailable
   ? "Bez treningu — ten dzień jest całkowicie wolny."
-  : "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.",,
+  : "Bez obowiązkowego treningu — jeśli chcesz, tylko lekki ruch.",
         mdLabel: mdLabelFor(date, profile),
         slotLabel: null,
         sections: {
