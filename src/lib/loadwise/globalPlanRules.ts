@@ -528,18 +528,65 @@ export function calculateWeeklyLoadScore(week: SessionDay[]): number {
 // 13. compareWeekSimilarity — podobieństwo dwóch tygodni (0..1).
 // ---------------------------------------------------------------------------
 
-function weekSignatureCounts(week: SessionDay[]): Map<string, number> {
+function sessionContentKey(session: SessionDay): string {
+  const exerciseNames = [
+    ...(session.sections?.main ?? []),
+    ...(session.sections?.accessory ?? []),
+    ...(session.sections?.footballTransfer ?? []),
+  ]
+    .slice(0, 3)
+    .map((exercise) =>
+      (exercise.name ?? "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean)
+    .join("|");
+
+  return (
+    exerciseNames ||
+    (session.title ?? "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+function weekSignatureCounts(
+  week: SessionDay[],
+): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const d of week) {
-    if (d.dayType === "rest" && d.durationMin === 0) continue;
-    const list = [d, ...(d.secondSession ? [d.secondSession] : [])];
-    for (const s of list) {
-      const cat = s.classification?.category ?? s.dayType;
-      const durBucket = Math.round((s.durationMin ?? 0) / 15) * 15;
-      const key = `${cat}:${s.intensity}:${durBucket}`;
+
+  for (const day of week) {
+    if (day.dayType === "rest" && day.durationMin === 0) {
+      continue;
+    }
+
+    const sessions = [
+      day,
+      ...(day.secondSession ? [day.secondSession] : []),
+    ];
+
+    for (const session of sessions) {
+      const category =
+        session.classification?.category ?? session.dayType;
+      const subcategory =
+        session.classification?.subcategory ?? "unknown";
+      const durationBucket =
+        Math.round((session.durationMin ?? 0) / 15) * 15;
+      const content = sessionContentKey(session);
+
+      const key =
+        `${category}:${subcategory}:` +
+        `${session.intensity}:${durationBucket}:${content}`;
+
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
+
+  return counts;
+}
   return counts;
 }
 
