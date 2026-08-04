@@ -546,11 +546,11 @@ export function addMissingEnduranceSessions(
 
     // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
     const recoveryDays = weekPlan.filter(
-      (d) => (d) =>
-    !d.isUnavailable &&
-    isRecoverySession(d) &&
-    !isClubSession(d) &&
-    !isMatchSession(d),
+      (d) =>
+        !d.isUnavailable &&
+        isRecoverySession(d) &&
+        !isClubSession(d) &&
+        !isMatchSession(d),
     );
     const enduranceNow = countEnduranceSessions(weekPlan);
     if (enduranceNow === 0 && recoveryDays.length >= 2) {
