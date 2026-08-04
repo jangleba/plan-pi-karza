@@ -854,7 +854,147 @@ export function addMissingGymSessions(
         continue;
       }
     }
+// Krok 4: pełny grafik bez wolnego slotu.
+    // Zastąp nadmiarową sesję, ale zachowaj minimum
+    // wydolności, szybkości i ekspozycji z piłką.
+    const enduranceCount =
+      countEnduranceSessions(weekPlan);
+    const speedCount =
+      countSpeedSessions(weekPlan);
 
+    const hasFootballExposure = weekPlan.some(
+      (day) =>
+        isClubSession(day) || isMatchSession(day),
+    );
+
+    const ballCount = weekPlan.reduce(
+      (total, day) =>
+        total +
+        eachSession(day).filter(
+          (session) =>
+            session.classification?.subcategory ===
+            "ball_technical",
+        ).length,
+      0,
+    );
+
+    const replacementPriority = (
+      session: SessionDay,
+    ): number => {
+      const category =
+        session.classification?.category;
+      const subcategory =
+        session.classification?.subcategory;
+
+      if (
+        category === "recovery_prehab" ||
+        category === "mobility"
+      ) {
+        return 0;
+      }
+
+      if (
+        category === "speed_sprint" &&
+        [
+          "change_of_direction",
+          "deceleration",
+          "agility_speed",
+        ].includes(subcategory ?? "")
+      ) {
+        return 1;
+      }
+
+      if (category === "endurance_conditioning") {
+        return 2;
+      }
+
+      if (category === "speed_sprint") {
+        return 3;
+      }
+
+      return 4;
+    };
+
+    const replaceableIdx =
+      weekPlan
+        .map((day, index) => ({ day, index }))
+        .filter(({ day, index }) => {
+          if (day.isUnavailable) return false;
+          if (day.dayType !== "training") return false;
+          if (
+            isClubSession(day) ||
+            isMatchSession(day)
+          ) {
+            return false;
+          }
+          if (
+            isDayBeforeMatch(day) ||
+            isDayAfterMatch(day)
+          ) {
+            return false;
+          }
+          if (
+            adjacentHasGym(index) ||
+            isMainGymSession(day) ||
+            day.secondSession
+          ) {
+            return false;
+          }
+
+          const category =
+            day.classification?.category;
+          const subcategory =
+            day.classification?.subcategory;
+
+          if (category === "endurance_conditioning") {
+            return (
+              enduranceCount >
+              Math.max(
+                1,
+                weeklyRequirements
+                  .absoluteMinimumEnduranceSessions,
+              )
+            );
+          }
+
+          if (category === "speed_sprint") {
+            return (
+              speedCount >
+              weeklyRequirements.requiredSpeedSessions
+            );
+          }
+
+          if (subcategory === "ball_technical") {
+            return hasFootballExposure || ballCount > 1;
+          }
+
+          return (
+            category === "recovery_prehab" ||
+            category === "mobility" ||
+            category === "other"
+          );
+        })
+        .sort(
+          (a, b) =>
+            replacementPriority(a.day) -
+            replacementPriority(b.day),
+        )[0]?.index ?? -1;
+
+    if (replaceableIdx >= 0) {
+      const rebuilt = buildGymSessionDay(
+        profile,
+        weekPlan[replaceableIdx],
+        {
+          light: isYouthOrBeginner(profile),
+          placementReason:
+            "Zastąpiono nadmiarową sesję brakującą siłownią bez naruszania minimum szybkości, wydolności i piłki.",
+        },
+      );
+
+      weekPlan[replaceableIdx] = rebuilt;
+      converted += 1;
+      continue;
+    }
     // Brak bezpiecznego miejsca.
     break;
   }
