@@ -1168,6 +1168,7 @@ export function validateAndRepairWeekPlan(
   }
 
   return { weekPlan, requirements, report };
+}
 // ---------------------------------------------------------------------------
 // Wejście na cały plan (28 dni) — grupuje na pełne tygodnie
 // ---------------------------------------------------------------------------
