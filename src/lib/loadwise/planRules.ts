@@ -321,15 +321,41 @@ export interface WeekRoleCounts {
   endurance: number;
 }
 
-/** Zlicza role sesji w tygodniu. Sesje klubowe/mecz liczą się jako support/mandatory wg kategorii. */
-export function countWeekRoles(sessions: SessionDay[], goal: Goal): WeekRoleCounts {
-  const counts: WeekRoleCounts = { mandatory: 0, support: 0, recovery: 0, endurance: 0 };
-  for (const s of sessions) {
-    if (s.dayType === "rest" && s.durationMin === 0) continue; // czysty dzień wolny nie liczy się
-    const role = sessionRoleForGoal(s, goal);
-    counts[role]++;
-    if (s.classification?.category === "endurance_conditioning") counts.endurance++;
+export function countWeekRoles(
+  sessions: SessionDay[],
+  goal: Goal,
+): WeekRoleCounts {
+  const counts: WeekRoleCounts = {
+    mandatory: 0,
+    support: 0,
+    recovery: 0,
+    endurance: 0,
+  };
+
+  for (const day of sessions) {
+    const daySessions: SessionDay[] = [];
+
+    if (!(day.dayType === "rest" && day.durationMin === 0)) {
+      daySessions.push(day);
+    }
+
+    if (day.secondSession) {
+      daySessions.push(day.secondSession);
+    }
+
+    for (const session of daySessions) {
+      const role = sessionRoleForGoal(session, goal);
+      counts[role]++;
+
+      if (
+        session.classification?.category ===
+        "endurance_conditioning"
+      ) {
+        counts.endurance++;
+      }
+    }
   }
+
   return counts;
 }
 
