@@ -1,10 +1,8 @@
 /**
- * Fuel Check — typy danych.
- * Moduł jest w pełni deterministyczny: każdy wynik liczbowy powstaje z danych
+ * FuelWise — typy danych.
+ * Moduł jest w pełni deterministyczny: każdy werdykt powstaje z danych
  * wejściowych i reguł zapisanych w `engine.ts`. Brak losowości i placeholderów.
  */
-
-export type Sex = "male" | "female" | "unspecified";
 
 export type SessionKind =
   | "match"
@@ -17,116 +15,104 @@ export type SessionKind =
 
 export type SessionIntensity = "niska" | "umiarkowana" | "wysoka";
 
-export type MealSize = "none" | "liquid" | "small" | "medium" | "large";
+/** Porcja deklarowana przez zawodnika. */
+export type Portion = "mala" | "normalna" | "duza";
 
-/** Dane zawodnika — część pochodzi z onboardingu, część uzupełnia użytkownik. */
-export interface FuelAthleteInput {
-  age: number | null;
-  sex: Sex | null;
-  bodyMassKg: number | null;
-  heightCm: number | null;
-  position: string | null;
-  level: string | null;
-  goal: string | null;
-}
+/** Odpowiedź na jedyne pytanie, gdy aplikacja nie zna godziny startu. */
+export type TimeBucket = "lt30" | "30_60" | "60_120" | "120_240" | "gt240";
 
 /** Najbliższa jednostka — czytana z modułu Plan przez adapter (read-only). */
 export interface FuelSessionInput {
   kind: SessionKind;
   intensity: SessionIntensity | null;
   durationMin: number | null;
-  /** Minuty pozostałe do startu jednostki (>= 0). */
+  /** Minuty pozostałe do startu (>= 0) — null, gdy aplikacja nie zna godziny. */
   minutesToStart: number | null;
   title: string | null;
+  subtitle: string | null;
+  date: string | null;
+  /** Godzina startu w formacie HH:MM, jeśli faktycznie istnieje w danych. */
+  startClock: string | null;
+  dayLabel: string | null;
 }
 
-/** Obciążenie tygodnia — liczone z planu (read-only). */
-export interface FuelWeekLoadInput {
-  hardSessions7d: number | null;
-  totalMinutes7d: number | null;
-}
-
-/** Planowany wybór żywieniowy i kontekst żołądkowo-nawodnieniowy. */
-export interface FuelIntakeInput {
-  mealSize: MealSize | null;
-  plannedCarbsG: number | null;
-  fatFiberHeavy: boolean | null;
-  caffeine: boolean | null;
-  fluidTodayMl: number | null;
-  lastMealMinutesAgo: number | null;
-  gutIssues: boolean | null;
+/** Kontekst zawodnika — wyłącznie dane, które aplikacja już zna. */
+export interface FuelAthleteContext {
+  age: number | null;
+  position: string | null;
+  level: string | null;
+  goal: string | null;
   restrictions: string[];
 }
 
-export interface FuelInput {
-  athlete: FuelAthleteInput;
-  session: FuelSessionInput;
-  weekLoad: FuelWeekLoadInput;
-  intake: FuelIntakeInput;
-}
+export type FoodRole =
+  | "carb_fast"
+  | "carb_slow"
+  | "protein"
+  | "fat"
+  | "fiber"
+  | "drink"
+  | "caffeine"
+  | "sweets";
 
-export type FuelComponentId = "carbs" | "timing" | "hydration" | "gut";
-
-export interface FuelComponent {
-  id: FuelComponentId;
+export interface ParsedFoodItem {
+  key: string;
   label: string;
-  /** 0–25 punktów; null gdy brakuje danych do policzenia. */
-  points: number | null;
-  maxPoints: 25;
-  /** Jawna reguła, z której wynika liczba. */
+  roles: FoodRole[];
+  /** Obciążenie trawienne pozycji (0–4). */
+  heaviness: number;
+}
+
+export interface ParsedMeal {
+  raw: string;
+  items: ParsedFoodItem[];
+  unrecognized: string[];
+  carbFast: ParsedFoodItem[];
+  carbSlow: ParsedFoodItem[];
+  protein: ParsedFoodItem[];
+  fatHeavy: ParsedFoodItem[];
+  fiber: ParsedFoodItem[];
+  drinks: ParsedFoodItem[];
+  caffeine: ParsedFoodItem[];
+  sweets: ParsedFoodItem[];
+  /** Sumaryczna ciężkość trawienna 0–10 (bez porcji). */
+  heaviness: number;
+  hasCarbs: boolean;
+  recognized: boolean;
+}
+
+export interface FuelRequest {
+  session: FuelSessionInput;
+  athlete: FuelAthleteContext;
+  meal: ParsedMeal;
+  portion: Portion;
+  /** Wybrany zakres czasu, gdy godzina startu nie jest znana. */
+  timeBucket: TimeBucket | null;
+  /** Tryb „Mam tylko to” — optymalizujemy wpisany zestaw. */
+  onlyThis: boolean;
+}
+
+export type Verdict = "PASUJE" | "POPRAW" | "ZOSTAW_NA_POZNIEJ";
+
+export interface FuelResult {
+  verdict: Verdict;
   ruleId: string;
-  detail: string;
-  missing: string[];
-}
-
-export interface FuelTargets {
-  carbTargetG: number | null;
-  carbRuleId: string;
-  fluidTargetMl: number | null;
-  fluidRuleId: string;
-  /** Minimalny odstęp posiłek → wysiłek dla wybranej wielkości posiłku. */
-  requiredLeadMinutes: number | null;
-  leadRuleId: string;
-}
-
-export type FuelBand = "wysoka" | "dobra" | "srednia" | "niska" | "brak_danych";
-
-export interface FuelAssessment {
-  /** 0–100, przeskalowane po dostępnych komponentach; null gdy brak danych. */
-  score: number | null;
-  band: FuelBand;
-  /** Udział danych, na których policzono wynik (0–100). */
-  dataCompleteness: number;
-  components: FuelComponent[];
-  targets: FuelTargets;
-  energyReadiness: number | null;
-  discomfortRisk: number | null;
-  hydrationPct: number | null;
-  /** Zalecany moment spożycia — minuty przed startem jednostki. */
-  eatBeforeStartMin: number | null;
-  /** Zalecany moment spożycia jako godzina zegarowa, gdy znany start. */
-  eatAtClock: string | null;
-  mainProblem: FuelProblem | null;
-  correction: FuelCorrection | null;
-  missingData: string[];
-}
-
-export interface FuelProblem {
-  ruleId: string;
-  title: string;
-  detail: string;
-}
-
-export interface FuelCorrection {
-  ruleId: string;
-  title: string;
-  detail: string;
-  /** Zmiana wejścia, którą stosuje symulacja „po korekcie”. */
-  apply: (input: FuelInput) => FuelInput;
-}
-
-export interface FuelComparison {
-  before: FuelAssessment;
-  after: FuelAssessment | null;
-  deltaScore: number | null;
+  /** Maks. 2 zdania. */
+  why: string;
+  /** Elementy pasujące do tego momentu. */
+  keep: string[];
+  /** Jedna najważniejsza korekta. */
+  change: string | null;
+  /** Konkretna wersja wpisanego posiłku. */
+  bestVersion: string;
+  /** Maksymalnie jedna alternatywa. */
+  alternative: string | null;
+  /** Tryb „Mam tylko to”. */
+  onlyThis: {
+    eatNow: string[];
+    eatLess: string[];
+    later: string[];
+  } | null;
+  minutesToStart: number;
+  requiredLeadMinutes: number;
 }
