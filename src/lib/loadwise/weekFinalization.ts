@@ -1147,9 +1147,27 @@ export function validateAndRepairWeekPlan(
   repairBackToBackSpeedSessions(weekPlan);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
-  return { weekPlan, requirements, report };
-}
 
+  const inheritedWeekMeta =
+    weekPlan.find((day) => day.weekMeta)?.weekMeta;
+
+  if (inheritedWeekMeta) {
+    const repairedWeekMeta: NonNullable<SessionDay["weekMeta"]> = {
+      ...inheritedWeekMeta,
+      validationStatus:
+        report.finalStatus === "valid" ? "rebuilt" : "invalid",
+    };
+
+    for (const day of weekPlan) {
+      day.weekMeta = repairedWeekMeta;
+
+      if (day.secondSession) {
+        day.secondSession.weekMeta = repairedWeekMeta;
+      }
+    }
+  }
+
+  return { weekPlan, requirements, report };
 // ---------------------------------------------------------------------------
 // Wejście na cały plan (28 dni) — grupuje na pełne tygodnie
 // ---------------------------------------------------------------------------
