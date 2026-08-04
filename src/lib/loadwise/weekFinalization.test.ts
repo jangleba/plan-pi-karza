@@ -124,6 +124,7 @@ describe("weekFinalization — twarda zasada endurance", () => {
     expect(countEnduranceSessions(week)).toBe(0);
     const { report } = validateAndRepairWeekPlan(week, p);
     expect(countEnduranceSessions(week)).toBeGreaterThanOrEqual(1);
+    console.log("WEEK_FINALIZATION_REPORT", report);
     expect(report.finalStatus).toBe("valid");
   });
 

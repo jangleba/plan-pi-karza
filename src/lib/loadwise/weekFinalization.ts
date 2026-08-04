@@ -316,6 +316,7 @@ export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
       const restTarget = weekPlan.find(
         (d) =>
           d !== day &&
+          !d.isUnavailable &&
           d.dayType === "rest" &&
           !isClubSession(d) &&
           !isMatchSession(d) &&
@@ -441,6 +442,7 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
     const restTarget = weekPlan.find(
       (d, idx) =>
         idx !== laterIndex &&
+        !d.isUnavailable &&
         d.dayType === "rest" &&
         !isClubSession(d) &&
         !isMatchSession(d) &&
@@ -544,7 +546,11 @@ export function addMissingEnduranceSessions(
 
     // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
     const recoveryDays = weekPlan.filter(
-      (d) => isRecoverySession(d) && !isClubSession(d) && !isMatchSession(d),
+      (d) => (d) =>
+    !d.isUnavailable &&
+    isRecoverySession(d) &&
+    !isClubSession(d) &&
+    !isMatchSession(d),
     );
     const enduranceNow = countEnduranceSessions(weekPlan);
     if (enduranceNow === 0 && recoveryDays.length >= 2) {
@@ -568,7 +574,7 @@ export function addMissingEnduranceSessions(
 
     // Krok 2: wolny dzień (rest) bez klubu/meczu.
     const restDay = weekPlan.find(
-      (d) => d.dayType === "rest" && !isClubSession(d) && !isMatchSession(d),
+      (d) =>!d.isUnavailable && d.dayType === "rest" && !isClubSession(d) && !isMatchSession(d),
     );
     if (restDay) {
       const light = isDayBeforeMatch(restDay) || lowReadinessReasons(restDay);
@@ -587,6 +593,7 @@ export function addMissingEnduranceSessions(
     if (maxPerDay >= 2) {
       const host = weekPlan.find(
         (d) =>
+          !d.isUnavailable &&
           !isClubSession(d) &&
           !isMatchSession(d) &&
           !d.secondSession &&
@@ -773,6 +780,7 @@ export function addMissingGymSessions(
     // Krok 1: wolny dzień (rest) bez klubu/meczu, nie sąsiadujący z gym.
     const restIdx = weekPlan.findIndex(
       (d, i) =>
+        !d.isUnavailable &&
         d.dayType === "rest" &&
         !isClubSession(d) &&
         !isMatchSession(d) &&
@@ -793,11 +801,12 @@ export function addMissingGymSessions(
     }
 
     // Krok 2: zamiana nadmiarowego recovery/prehab na gym (jeśli jest ≥2 recovery i brak gym).
-    if (countGymSessions(weekPlan) === 0) {
+    if (countGymSessions(weekPlan) <required) {
       const recoveryDays = weekPlan
         .map((d, i) => ({ d, i }))
         .filter(
           ({ d, i }) =>
+            !d.isUnavailable &&
             isRecoverySession(d) &&
             !isClubSession(d) &&
             !isMatchSession(d) &&
@@ -823,6 +832,7 @@ export function addMissingGymSessions(
     if (maxPerDay >= 2) {
       const hostIdx = weekPlan.findIndex(
         (d, i) =>
+          !d.isUnavailable &&
           !isMatchSession(d) &&
           !d.secondSession &&
           realSessionCount(d) < maxPerDay &&
@@ -844,7 +854,147 @@ export function addMissingGymSessions(
         continue;
       }
     }
+// Krok 4: pełny grafik bez wolnego slotu.
+    // Zastąp nadmiarową sesję, ale zachowaj minimum
+    // wydolności, szybkości i ekspozycji z piłką.
+    const enduranceCount =
+      countEnduranceSessions(weekPlan);
+    const speedCount =
+      countSpeedSessions(weekPlan);
 
+    const hasFootballExposure = weekPlan.some(
+      (day) =>
+        isClubSession(day) || isMatchSession(day),
+    );
+
+    const ballCount = weekPlan.reduce(
+      (total, day) =>
+        total +
+        eachSession(day).filter(
+          (session) =>
+            session.classification?.subcategory ===
+            "ball_technical",
+        ).length,
+      0,
+    );
+
+    const replacementPriority = (
+      session: SessionDay,
+    ): number => {
+      const category =
+        session.classification?.category;
+      const subcategory =
+        session.classification?.subcategory;
+
+      if (
+        category === "recovery_prehab" ||
+        category === "mobility"
+      ) {
+        return 0;
+      }
+
+      if (
+        category === "speed_sprint" &&
+        [
+          "change_of_direction",
+          "deceleration",
+          "agility_speed",
+        ].includes(subcategory ?? "")
+      ) {
+        return 1;
+      }
+
+      if (category === "endurance_conditioning") {
+        return 2;
+      }
+
+      if (category === "speed_sprint") {
+        return 3;
+      }
+
+      return 4;
+    };
+
+    const replaceableIdx =
+      weekPlan
+        .map((day, index) => ({ day, index }))
+        .filter(({ day, index }) => {
+          if (day.isUnavailable) return false;
+          if (day.dayType !== "training") return false;
+          if (
+            isClubSession(day) ||
+            isMatchSession(day)
+          ) {
+            return false;
+          }
+          if (
+            isDayBeforeMatch(day) ||
+            isDayAfterMatch(day)
+          ) {
+            return false;
+          }
+          if (
+            adjacentHasGym(index) ||
+            isMainGymSession(day) ||
+            day.secondSession
+          ) {
+            return false;
+          }
+
+          const category =
+            day.classification?.category;
+          const subcategory =
+            day.classification?.subcategory;
+
+          if (category === "endurance_conditioning") {
+            return (
+              enduranceCount >
+              Math.max(
+                1,
+                weeklyRequirements
+                  .absoluteMinimumEnduranceSessions,
+              )
+            );
+          }
+
+          if (category === "speed_sprint") {
+            return (
+              speedCount >
+              weeklyRequirements.requiredSpeedSessions
+            );
+          }
+
+          if (subcategory === "ball_technical") {
+            return hasFootballExposure || ballCount > 1;
+          }
+
+          return (
+            category === "recovery_prehab" ||
+            category === "mobility" ||
+            category === "other"
+          );
+        })
+        .sort(
+          (a, b) =>
+            replacementPriority(a.day) -
+            replacementPriority(b.day),
+        )[0]?.index ?? -1;
+
+    if (replaceableIdx >= 0) {
+      const rebuilt = buildGymSessionDay(
+        profile,
+        weekPlan[replaceableIdx],
+        {
+          light: isYouthOrBeginner(profile),
+          placementReason:
+            "Zastąpiono nadmiarową sesję brakującą siłownią bez naruszania minimum szybkości, wydolności i piłki.",
+        },
+      );
+
+      weekPlan[replaceableIdx] = rebuilt;
+      converted += 1;
+      continue;
+    }
     // Brak bezpiecznego miejsca.
     break;
   }
@@ -997,9 +1147,28 @@ export function validateAndRepairWeekPlan(
   repairBackToBackSpeedSessions(weekPlan);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
+
+  const inheritedWeekMeta =
+    weekPlan.find((day) => day.weekMeta)?.weekMeta;
+
+  if (inheritedWeekMeta) {
+    const repairedWeekMeta: NonNullable<SessionDay["weekMeta"]> = {
+      ...inheritedWeekMeta,
+      validationStatus:
+        report.finalStatus === "valid" ? "rebuilt" : "invalid",
+    };
+
+    for (const day of weekPlan) {
+      day.weekMeta = repairedWeekMeta;
+
+      if (day.secondSession) {
+        day.secondSession.weekMeta = repairedWeekMeta;
+      }
+    }
+  }
+
   return { weekPlan, requirements, report };
 }
-
 // ---------------------------------------------------------------------------
 // Wejście na cały plan (28 dni) — grupuje na pełne tygodnie
 // ---------------------------------------------------------------------------

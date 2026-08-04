@@ -197,6 +197,7 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
     secondaryLimiter: normalizeLimiter(ath.secondary_limiter),
     clubTrainingDays: (ath.club_training_days as number[]) ?? [],
     individualTrainingDays: (ath.individual_training_days as number[]) ?? [],
+    unavailableDays: (ath.unavailable_days as number[]) ?? [],
     usualMatchDay: parseUsualMatchDay(ath.usual_match_day),
     matchDate: (ath.match_date as string) ?? null,
     equipment,
@@ -437,6 +438,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         club_training_days: profile.clubTrainingDays as unknown as never,
         individual_training_days:
           profile.individualTrainingDays as unknown as never,
+        unavailable_days: profile.unavailableDays as unknown as never,
         usual_match_day:
           profile.usualMatchDay === null
             ? null
