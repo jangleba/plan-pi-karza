@@ -4438,7 +4438,18 @@ export function generatePlan(
     });
   }
 
-  
+  // OSTATNI GATE: po wszystkich post-passach ponownie napraw
+  // konflikty tygodnia i odśwież status walidacji.
+  const { plan: revalidatedPlan } = finalizeWeekPlan(
+    finalPlan,
+    profile,
+  );
+
+  for (let i = 0; i < finalPlan.length; i++) {
+    finalPlan[i] = normalizeSessionCategory(
+      revalidatedPlan[i],
+    );
+  }
 
   assertPlanExerciseContract(finalPlan);
 return finalPlan;
