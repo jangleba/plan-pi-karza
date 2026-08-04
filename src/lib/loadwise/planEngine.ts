@@ -4450,7 +4450,55 @@ export function generatePlan(
       revalidatedPlan[i],
     );
   }
+// Odśwież metadane tygodni po wszystkich końcowych naprawach.
+  const metadataRanges = weekRanges(
+    startDate,
+    finalPlan.length,
+  );
 
+  metadataRanges.forEach((range, weekIndex) => {
+    const week = finalPlan.slice(range.start, range.end);
+    const isFullWeek = range.end - range.start === 7;
+
+    const validation = validateGeneratedWeek(week, {
+      goal: profile.goal,
+      isFullWeek,
+      hasMatch: week.some(
+        (day) => day.dayType === "match",
+      ),
+      blockWeek: blockWeekOf(weekOffset + weekIndex),
+      limitation: profile.secondaryLimiter,
+    });
+
+    const previousMeta =
+      week.find((day) => day.weekMeta)?.weekMeta;
+
+    if (!previousMeta) return;
+
+    const counts = countWeekRoles(week, profile.goal);
+
+    const refreshedMeta: WeekMeta = {
+      ...previousMeta,
+      mandatorySessions: counts.mandatory,
+      supportSessions: counts.support,
+      recoverySessions: counts.recovery,
+      weeklyLoadScore: computeWeeklyLoadScore(week),
+      validationStatus:
+        validation.status !== "valid"
+          ? "invalid"
+          : previousMeta.validationStatus === "invalid"
+            ? "rebuilt"
+            : previousMeta.validationStatus,
+    };
+
+    for (const day of week) {
+      day.weekMeta = refreshedMeta;
+
+      if (day.secondSession) {
+        day.secondSession.weekMeta = refreshedMeta;
+      }
+    }
+  });
   assertPlanExerciseContract(finalPlan);
 return finalPlan;
 }
