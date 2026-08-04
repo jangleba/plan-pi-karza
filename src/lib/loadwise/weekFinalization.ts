@@ -801,7 +801,7 @@ export function addMissingGymSessions(
     }
 
     // Krok 2: zamiana nadmiarowego recovery/prehab na gym (jeśli jest ≥2 recovery i brak gym).
-    if (countGymSessions(weekPlan) === 0) {
+    if (countGymSessions(weekPlan) <required) {
       const recoveryDays = weekPlan
         .map((d, i) => ({ d, i }))
         .filter(
