@@ -31,7 +31,6 @@ export type Database = {
           height_optional: number | null
           id: string
           individual_training_days: number[]
-          unavailable_days: number[]
           league_optional: string | null
           level: string | null
           main_goal: string | null
@@ -65,7 +64,6 @@ export type Database = {
           height_optional?: number | null
           id?: string
           individual_training_days?: number[]
-          unavailable_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
@@ -99,7 +97,6 @@ export type Database = {
           height_optional?: number | null
           id?: string
           individual_training_days?: number[]
-          unavailable_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
