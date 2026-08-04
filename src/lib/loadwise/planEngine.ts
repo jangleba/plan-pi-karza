@@ -40,7 +40,10 @@ import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
-import { finalizeWeekPlan, addMissingGymSessions } from "./weekFinalization";
+import {
+  finalizeWeekPlan,
+  validateAndRepairWeekPlan,
+} from "./weekFinalization";
 import {
   MAIN_GOAL_RULES,
   LIMITATION_RULES,
@@ -4382,9 +4385,31 @@ export function generatePlan(
     finalPlan[i] = normalizeSessionCategory(finalPlan[i]);
   }
 
-  // FINALNY INVARIANT: jeśli po wszystkich post-passach liczba gym spadła poniżej
-  // wymaganego minimum, napraw ją analogicznie do endurance (addMissingGymSessions).
-  if (profile.hasGym) {
+ // FINALNY GATE: po wszystkich post-passach ponownie sprawdź
+  // i napraw minima każdego pełnego tygodnia.
+  const finalRanges = weekRanges(startDate, finalPlan.length);
+
+  for (const range of finalRanges) {
+    if (range.end - range.start < 7) continue;
+
+    let week = finalPlan.slice(range.start, range.end);
+
+    for (let pass = 0; pass < 3; pass++) {
+      const repaired = validateAndRepairWeekPlan(week, profile);
+
+      week = repaired.weekPlan.map((day) =>
+        normalizeSessionCategory(day),
+      );
+
+      if (repaired.report.finalStatus === "valid") {
+        break;
+      }
+    }
+
+    for (let index = 0; index < week.length; index++) {
+      finalPlan[range.start + index] = week[index];
+    }
+  }
     const finalRanges = weekRanges(startDate, finalPlan.length);
     for (const range of finalRanges) {
       if (range.end - range.start < 7) continue;
