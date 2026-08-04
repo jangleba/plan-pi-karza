@@ -2,130 +2,105 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { AppHeader } from "@/components/loadwise/ui";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronLeft, CalendarClock, Utensils, Check, Info } from "lucide-react";
 import {
-  ChevronLeft,
-  Gauge,
-  TriangleAlert,
-  Wrench,
-  Clock,
-  Info,
-  ArrowRight,
-} from "lucide-react";
-import { compareWithCorrection, eatClock } from "@/lib/fuel/engine";
+  evaluateMeal,
+  preSessionPlan,
+  TIME_BUCKET_LABELS,
+  TIME_BUCKET_MINUTES,
+} from "@/lib/fuel/engine";
 import {
   athleteFromProfile,
-  minutesUntil,
+  findNextSession,
   sessionFromPlan,
-  weekLoadFromPlan,
 } from "@/lib/fuel/planAdapter";
-import { useFuelLocalData } from "@/lib/fuel/localData";
-import type { FuelInput, MealSize } from "@/lib/fuel/types";
+import { parseMeal } from "@/lib/fuel/mealParser";
+import type { Portion, TimeBucket, Verdict } from "@/lib/fuel/types";
 
 export const Route = createFileRoute("/_tabs/fuel")({
-  component: FuelCheckScreen,
+  component: FuelWiseScreen,
+  head: () => ({
+    meta: [
+      { title: "FuelWise – posiłek dopasowany do treningu | BallWise" },
+      {
+        name: "description",
+        content:
+          "Wpisz zwykłym językiem, co chcesz zjeść, a FuelWise oceni, czy pasuje do najbliższej jednostki treningowej.",
+      },
+      { property: "og:title", content: "FuelWise – posiłek dopasowany do treningu" },
+      {
+        property: "og:description",
+        content:
+          "Deterministyczna ocena posiłku względem najbliższego treningu z Twojego planu.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
-const MEAL_LABELS: Record<MealSize, string> = {
-  none: "Nic",
-  liquid: "Płyn / żel",
-  small: "Mała",
-  medium: "Średnia",
-  large: "Duża",
+const PORTIONS: { id: Portion; label: string }[] = [
+  { id: "mala", label: "Mała" },
+  { id: "normalna", label: "Normalna" },
+  { id: "duza", label: "Duża" },
+];
+
+const BUCKETS = Object.keys(TIME_BUCKET_MINUTES) as TimeBucket[];
+
+const VERDICT_LABEL: Record<Verdict, string> = {
+  PASUJE: "Pasuje",
+  POPRAW: "Popraw",
+  ZOSTAW_NA_POZNIEJ: "Zostaw na później",
 };
 
-const BAND_LABELS: Record<string, string> = {
-  wysoka: "Gotowość wysoka",
-  dobra: "Gotowość dobra",
-  srednia: "Gotowość średnia",
-  niska: "Gotowość niska",
-  brak_danych: "Brak danych",
-};
-
-function nowClock(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function verdictClasses(v: Verdict): string {
+  if (v === "PASUJE") return "bg-primary text-primary-foreground";
+  if (v === "POPRAW") return "bg-accent text-accent-foreground";
+  return "bg-muted text-foreground";
 }
 
-function NumField({
-  label,
-  value,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number | null;
-  suffix?: string;
-  onChange: (v: number | null) => void;
-}) {
-  return (
-    <div>
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <div className="relative">
-        <Input
-          inputMode="numeric"
-          value={value ?? ""}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/[^\d]/g, "");
-            onChange(raw === "" ? null : Number(raw));
-          }}
-          className="mt-1"
-          placeholder="—"
-        />
-        {suffix && (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-            {suffix}
-          </span>
-        )}
-      </div>
-    </div>
+function FuelWiseScreen() {
+  const { state, todayIso } = useLoadwise();
+
+  const session = useMemo(
+    () => sessionFromPlan(findNextSession(state.plan, todayIso), todayIso),
+    [state.plan, todayIso],
   );
-}
+  const athlete = useMemo(() => athleteFromProfile(state.profile), [state.profile]);
 
-function FuelCheckScreen() {
-  const { state, todaySession, todayIso } = useLoadwise();
-  const { data, update } = useFuelLocalData();
-  const [clock] = useState(nowClock);
+  const [text, setText] = useState("");
+  const [portion, setPortion] = useState<Portion>("normalna");
+  const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null);
+  const [onlyThis, setOnlyThis] = useState(false);
+  const [submitted, setSubmitted] = useState<string | null>(null);
 
-  const input: FuelInput = useMemo(() => {
-    const minutesToStart = data.startClock
-      ? minutesUntil(data.startClock, clock)
-      : null;
-    return {
-      athlete: athleteFromProfile(state.profile, {
-        sex: data.sex,
-        bodyMassKg: data.bodyMassKg,
-        heightCm: data.heightCm,
-      }),
-      session: sessionFromPlan(todaySession, minutesToStart),
-      weekLoad: weekLoadFromPlan(state.plan, todayIso),
-      intake: {
-        mealSize: data.mealSize,
-        plannedCarbsG: data.plannedCarbsG,
-        fatFiberHeavy: data.fatFiberHeavy,
-        caffeine: data.caffeine,
-        fluidTodayMl: data.fluidTodayMl,
-        lastMealMinutesAgo: data.lastMealMinutesAgo,
-        gutIssues: data.gutIssues,
-        restrictions: data.restrictions,
-      },
-    };
-  }, [state.profile, state.plan, todayIso, todaySession, data, clock]);
+  const knowsTime = session.minutesToStart != null;
+  const needsTimeAnswer = submitted != null && !knowsTime && timeBucket == null;
 
-  const { before, after, deltaScore } = useMemo(
-    () => compareWithCorrection(input),
-    [input],
+  const result = useMemo(() => {
+    if (submitted == null || session.kind === "none") return null;
+    if (!knowsTime && timeBucket == null) return null;
+    return evaluateMeal({
+      session,
+      athlete,
+      meal: parseMeal(submitted),
+      portion,
+      timeBucket,
+      onlyThis,
+    });
+  }, [submitted, session, athlete, portion, timeBucket, onlyThis, knowsTime]);
+
+  const plan = useMemo(
+    () => preSessionPlan(session, session.minutesToStart ?? (timeBucket ? TIME_BUCKET_MINUTES[timeBucket] : null)),
+    [session, timeBucket],
   );
-
-  const eatAt = eatClock(data.startClock, before.eatBeforeStartMin);
 
   return (
     <div>
       <AppHeader
-        title="Fuel Check"
-        subtitle="Decyzja żywieniowa policzona z Twoich danych i planu"
+        title="FuelWise"
+        subtitle="Sprawdź, czy Twój posiłek pasuje do najbliższej jednostki"
         right={
           <Link
             to="/start"
@@ -138,231 +113,204 @@ function FuelCheckScreen() {
       />
 
       <div className="space-y-3 px-5 pb-10">
-        {/* 1. WYNIK */}
-        <div className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Gauge className="h-3.5 w-3.5" /> Fuel Score
-          </div>
-          <div className="mt-2 flex items-end gap-3">
-            <div className="text-4xl font-bold leading-none">
-              {before.score ?? "—"}
-              {before.score != null && (
-                <span className="text-lg font-medium text-muted-foreground">/100</span>
-              )}
+        {session.kind === "none" ? (
+          <div className="soft-card p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <CalendarClock className="h-3.5 w-3.5" /> Najbliższa jednostka
             </div>
-            <div className="pb-1 text-sm font-medium text-muted-foreground">
-              {BAND_LABELS[before.band]}
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Metric label="Energia" value={before.energyReadiness} suffix="%" />
-            <Metric label="Nawodnienie" value={before.hydrationPct} suffix="%" />
-            <Metric label="Ryzyko żołądka" value={before.discomfortRisk} suffix="%" />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Policzone z {before.dataCompleteness}% wymaganych danych ·{" "}
-            {input.session.title ?? "brak jednostki w planie"}
-            {input.session.minutesToStart != null
-              ? ` · start za ${input.session.minutesToStart} min`
-              : ""}
-          </p>
-          {before.missingData.length > 0 && (
-            <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-muted/60 p-2.5 text-xs text-muted-foreground">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Brakujące dane: {before.missingData.join(", ")}.
+            <p className="mt-2 text-sm text-muted-foreground">
+              Nie znaleźliśmy zaplanowanej jednostki. Dodaj trening do planu, aby
+              otrzymać dopasowaną rekomendację.
             </p>
-          )}
-        </div>
-
-        {/* 2. GŁÓWNY PROBLEM */}
-        <div className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <TriangleAlert className="h-3.5 w-3.5" /> Główny problem
+            <Link
+              to="/plan"
+              className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              Przejdź do planu
+            </Link>
           </div>
-          <div className="mt-1.5 text-sm font-semibold">
-            {before.mainProblem?.title ?? "Brak istotnego problemu"}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {before.mainProblem?.detail ??
-              "Przy tych danych wybór pasuje do najbliższej jednostki."}
-          </p>
-        </div>
-
-        {/* 3. NAJLEPSZA KOREKTA + PRZED/PO */}
-        <div className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Wrench className="h-3.5 w-3.5" /> Najlepsza korekta
-          </div>
-          <div className="mt-1.5 text-sm font-semibold">
-            {before.correction?.title ?? "Nic nie zmieniaj"}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {before.correction?.detail ?? "Wynik jest już zgodny z regułami."}
-          </p>
-          {after && (
-            <div className="mt-3 flex items-center gap-3 rounded-xl bg-muted/60 p-3">
-              <div className="text-center">
-                <div className="text-[11px] text-muted-foreground">Przed</div>
-                <div className="text-lg font-bold">{before.score}</div>
+        ) : (
+          <>
+            {/* NAJBLIŻSZA JEDNOSTKA */}
+            <div className="soft-card p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5" /> Najbliższa jednostka
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              <div className="text-center">
-                <div className="text-[11px] text-muted-foreground">Po</div>
-                <div className="text-lg font-bold text-primary">{after.score}</div>
+              <div className="mt-1.5 text-base font-semibold">{session.title}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {[session.dayLabel, session.startClock].filter(Boolean).join(" ")}
               </div>
-              {deltaScore != null && (
-                <div className="ml-auto text-sm font-medium text-primary">
-                  +{deltaScore} pkt
+              <div className="mt-0.5 text-sm text-muted-foreground">
+                {[
+                  session.intensity ? `${capitalize(session.intensity)} intensywność` : null,
+                  session.durationMin ? `${session.durationMin} min` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            </div>
+
+            {/* PLAN PRZED TRENINGIEM */}
+            {plan && (
+              <div className="soft-card p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Twój plan przed treningiem
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+                <p className="mt-1.5 text-sm">{plan}</p>
+              </div>
+            )}
 
-        {/* 4. MOMENT GOTOWOŚCI */}
-        <div className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" /> Moment gotowości
-          </div>
-          <div className="mt-1.5 text-sm font-semibold">
-            {before.eatBeforeStartMin != null
-              ? `Zjedz najpóźniej ${before.eatBeforeStartMin} min przed startem${eatAt ? ` (do ${eatAt})` : ""}`
-              : "Podaj wielkość posiłku i godzinę jednostki"}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cel: {before.targets.carbTargetG ?? "—"} g węglowodanów ·{" "}
-            {before.targets.fluidTargetMl ?? "—"} ml płynów na dziś.
-          </p>
-        </div>
-
-        {/* DANE WEJŚCIOWE */}
-        <div className="soft-card p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Dane do obliczeń
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <NumField
-              label="Masa ciała"
-              suffix="kg"
-              value={data.bodyMassKg}
-              onChange={(v) => update({ bodyMassKg: v })}
-            />
-            <NumField
-              label="Wzrost"
-              suffix="cm"
-              value={data.heightCm}
-              onChange={(v) => update({ heightCm: v })}
-            />
-            <div>
-              <Label className="text-xs text-muted-foreground">Start jednostki</Label>
-              <Input
-                type="time"
-                className="mt-1"
-                value={data.startClock ?? ""}
-                onChange={(e) => update({ startClock: e.target.value || null })}
+            {/* CO CHCESZ ZJEŚĆ */}
+            <div className="soft-card p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Utensils className="h-4 w-4 text-primary" /> Co chcesz zjeść?
+              </div>
+              <Textarea
+                className="mt-3 min-h-24 rounded-2xl"
+                placeholder="Np. dwa tosty z serem i szynką, banan i energetyk"
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  setSubmitted(null);
+                  setOnlyThis(false);
+                }}
               />
-            </div>
-            <NumField
-              label="Węglowodany w posiłku"
-              suffix="g"
-              value={data.plannedCarbsG}
-              onChange={(v) => update({ plannedCarbsG: v })}
-            />
-            <NumField
-              label="Płyny dziś"
-              suffix="ml"
-              value={data.fluidTodayMl}
-              onChange={(v) => update({ fluidTodayMl: v })}
-            />
-            <NumField
-              label="Ostatni posiłek"
-              suffix="min"
-              value={data.lastMealMinutesAgo}
-              onChange={(v) => update({ lastMealMinutesAgo: v })}
-            />
-          </div>
-
-          <Label className="mt-4 block text-xs text-muted-foreground">
-            Wielkość posiłku
-          </Label>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {(Object.keys(MEAL_LABELS) as MealSize[]).map((m) => (
+              <div className="mt-3 flex gap-2">
+                {PORTIONS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPortion(p.id)}
+                    className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                      portion === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-muted-foreground"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
               <button
-                key={m}
                 type="button"
-                onClick={() => update({ mealSize: m })}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  data.mealSize === m
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground"
-                }`}
+                disabled={text.trim().length < 3}
+                onClick={() => {
+                  setSubmitted(text.trim());
+                  setOnlyThis(false);
+                }}
+                className="mt-3 w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {MEAL_LABELS[m]}
+                Sprawdź posiłek
               </button>
-            ))}
-          </div>
+            </div>
 
-          <div className="mt-4 space-y-3">
-            <ToggleRow
-              label="Tłusty / bogaty w błonnik"
-              checked={data.fatFiberHeavy === true}
-              onChange={(v) => update({ fatFiberHeavy: v })}
-            />
-            <ToggleRow
-              label="Kofeina w tym wyborze"
-              checked={data.caffeine}
-              onChange={(v) => update({ caffeine: v })}
-            />
-            <ToggleRow
-              label="Wrażliwy żołądek / problemy trawienne"
-              checked={data.gutIssues === true}
-              onChange={(v) => update({ gutIssues: v })}
-            />
-          </div>
+            {/* PYTANIE O CZAS — tylko gdy aplikacja go nie zna */}
+            {needsTimeAnswer && (
+              <div className="soft-card p-4">
+                <div className="text-sm font-semibold">Ile zostało do treningu?</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {BUCKETS.map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setTimeBucket(b)}
+                      className="rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground"
+                    >
+                      {TIME_BUCKET_LABELS[b]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* WERDYKT */}
+            {result && (
+              <div className="soft-card p-4">
+                <div
+                  className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${verdictClasses(result.verdict)}`}
+                >
+                  {VERDICT_LABEL[result.verdict]}
+                </div>
+                <p className="mt-3 text-sm">{result.why}</p>
+
+                {result.keep.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Zostaw
+                    </div>
+                    <p className="mt-1 text-sm">{result.keep.join(", ")}</p>
+                  </div>
+                )}
+
+                {result.change && (
+                  <div className="mt-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Zmień
+                    </div>
+                    <p className="mt-1 text-sm">{result.change}</p>
+                  </div>
+                )}
+
+                <div className="mt-3 rounded-2xl bg-muted/60 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Najlepsza wersja
+                  </div>
+                  <p className="mt-1 text-sm">{result.bestVersion}</p>
+                </div>
+
+                {result.alternative && (
+                  <p className="mt-3 flex items-start gap-1.5 text-sm text-muted-foreground">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {result.alternative}
+                  </p>
+                )}
+
+                {!onlyThis && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyThis(true)}
+                    className="mt-4 w-full rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium"
+                  >
+                    Mam tylko to
+                  </button>
+                )}
+
+                {result.onlyThis && (
+                  <div className="mt-4 space-y-2">
+                    <OnlyThisRow label="Zjedz teraz" items={result.onlyThis.eatNow} />
+                    <OnlyThisRow label="Zjedz mniej" items={result.onlyThis.eatLess} />
+                    <OnlyThisRow label="Zostaw na później" items={result.onlyThis.later} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+              Ocena wynika z Twojego planu i jawnych reguł FuelWise. Opis posiłku nie
+              jest nigdzie zapisywany.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OnlyThisRow({ label, items }: { label: string; items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="flex items-start gap-2 rounded-2xl bg-muted/60 p-3">
+      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
         </div>
-
-        <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-          Wszystkie liczby wynikają z Twoich danych i jawnych reguł Fuel Engine.
-          To wsparcie decyzji, nie porada medyczna.
-        </p>
+        <p className="text-sm">{items.join(", ")}</p>
       </div>
     </div>
   );
 }
 
-function Metric({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: number | null;
-  suffix: string;
-}) {
-  return (
-    <div className="rounded-xl bg-muted/60 p-2.5">
-      <div className="text-sm font-semibold">
-        {value ?? "—"}
-        {value != null ? suffix : ""}
-      </div>
-      <div className="text-[11px] text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm">{label}</span>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
+function capitalize(v: string): string {
+  return v.charAt(0).toUpperCase() + v.slice(1);
 }
