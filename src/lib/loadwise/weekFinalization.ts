@@ -404,7 +404,86 @@ function adjacentDayHasSpeed(weekPlan: SessionDay[], dayIndex: number): boolean 
   const next = dayIndex < weekPlan.length - 1 ? weekPlan[dayIndex + 1] : null;
   return (!!prev && hasSpeedSession(prev)) || (!!next && hasSpeedSession(next));
 }
+export function repairSpeedAcrossWeekBoundaries(
+  plan: SessionDay[],
+): {
+  plan: SessionDay[];
+  moved: number;
+  removed: number;
+  unresolvedIssues: string[];
+} {
+  let moved = 0;
+  let removed = 0;
+  const unresolvedIssues: string[] = [];
 
+  for (
+    let mondayIndex = 1;
+    mondayIndex < plan.length;
+    mondayIndex += 1
+  ) {
+    const previousDay = plan[mondayIndex - 1];
+    const monday = plan[mondayIndex];
+
+    const previousDayOfWeek =
+      previousDay.dayOfWeek ??
+      isoDayOfWeek(parseIso(previousDay.date));
+
+    const mondayDayOfWeek =
+      monday.dayOfWeek ??
+      isoDayOfWeek(parseIso(monday.date));
+
+    if (
+      previousDayOfWeek !== 7 ||
+      mondayDayOfWeek !== 1 ||
+      !hasSpeedSession(previousDay) ||
+      !hasSpeedSession(monday)
+    ) {
+      continue;
+    }
+
+    let weekEnd = mondayIndex + 1;
+
+    while (weekEnd < plan.length) {
+      const day = plan[weekEnd];
+      const dayOfWeek =
+        day.dayOfWeek ??
+        isoDayOfWeek(parseIso(day.date));
+
+      if (dayOfWeek === 1) break;
+      weekEnd += 1;
+    }
+
+    const boundaryWindow = [
+      previousDay,
+      ...plan.slice(mondayIndex, weekEnd),
+    ];
+
+    const result =
+      repairBackToBackSpeedSessions(boundaryWindow);
+
+    for (
+      let offset = 0;
+      offset < boundaryWindow.length;
+      offset += 1
+    ) {
+      plan[mondayIndex - 1 + offset] =
+        boundaryWindow[offset];
+    }
+
+    moved += result.moved;
+    removed += result.removed;
+    unresolvedIssues.push(
+      ...result.unresolvedIssues,
+    );
+  }
+
+  return {
+    plan,
+    moved,
+    removed,
+    unresolvedIssues,
+  };
+}
 /**
  * Naprawa speed dzień po dniu na realnym planie (SessionDay[]):
  *  - zostawia wcześniejszą szybkość z pary,
@@ -1209,23 +1288,51 @@ export interface FinalizePlanResult {
  * Finalizuje cały plan: dla każdego PEŁNEGO tygodnia gwarantuje minima
  * (w szczególności ≥1 endurance_conditioning). Zwraca naprawiony plan i raporty.
  */
-export function finalizeWeekPlan(plan: SessionDay[], profile: Profile): FinalizePlanResult {
-  const reports: WeekValidationReport[] = [];
-  const weeks = chunkIntoWeeks(plan);
-  for (const week of weeks) {
+export function finalizeWeekPlan(
+  plan: SessionDay[],
+  profile: Profile,
+): FinalizePlanResult {
+  const firstPassWeeks = chunkIntoWeeks(plan);
+
+  // Najpierw napraw każdy pełny tydzień osobno.
+  for (const week of firstPassWeeks) {
     if (!isFullCalendarWeek(week)) continue;
-    const { report } = validateAndRepairWeekPlan(week, profile);
+
+    validateAndRepairWeekPlan(week, profile);
+  }
+
+  const firstPassPlan: SessionDay[] = [];
+
+  for (const week of firstPassWeeks) {
+    firstPassPlan.push(...week);
+  }
+
+  // Następnie sprawdź przejścia niedziela → poniedziałek.
+  repairSpeedAcrossWeekBoundaries(firstPassPlan);
+
+  // Raporty muszą powstać po wszystkich naprawach.
+  const finalWeeks = chunkIntoWeeks(firstPassPlan);
+  const reports: WeekValidationReport[] = [];
+
+  for (const week of finalWeeks) {
+    if (!isFullCalendarWeek(week)) continue;
+
+    const { report } = validateAndRepairWeekPlan(
+      week,
+      profile,
+    );
+
     reports.push(report);
   }
-  // Tygodnie zawierają te same referencje SessionDay co plan — mutacje in-place,
-  // ale konwersje (rest/recovery → endurance) podmieniają element w tablicy week.
-  const flat: SessionDay[] = [];
-  let cursor = 0;
-  for (const week of weeks) {
-    for (const day of week) {
-      flat[cursor] = day;
-      cursor += 1;
-    }
+
+  const finalPlan: SessionDay[] = [];
+
+  for (const week of finalWeeks) {
+    finalPlan.push(...week);
   }
-  return { plan: flat, reports };
+
+  return {
+    plan: finalPlan,
+    reports,
+  };
 }
