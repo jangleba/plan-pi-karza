@@ -21,11 +21,11 @@ import {
   normalizeSessionCategory,
   isEnduranceSession,
   isMainGymSession,
-  isSpeedSession,
   isClubSession,
   isMatchSession,
   isRecoverySession,
 } from "./sessionClassification";
+import { hasRealSpeedExposure } from "./speedLoad";
 import { getMaxSessionsPerDay, isYouthOrBeginner as isYouthOrBeginnerSched } from "./dailyScheduling";
 import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
 import {
@@ -78,7 +78,11 @@ function eachSession(day: SessionDay): SessionDay[] {
   if (day.secondSession) out.push(day.secondSession);
   return out;
 }
-
+function isSpeedSession(
+  session: SessionDay | null | undefined,
+): boolean {
+  return hasRealSpeedExposure(session);
+}
 function realSessionCount(day: SessionDay): number {
   const main = day.dayType === "rest" ? 0 : 1;
   return main + (day.secondSession ? 1 : 0);
