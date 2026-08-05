@@ -1336,15 +1336,3 @@ export function finalizeWeekPlan(
     reports,
   };
 }
-  // Tygodnie zawierają te same referencje SessionDay co plan — mutacje in-place,
-  // ale konwersje (rest/recovery → endurance) podmieniają element w tablicy week.
-  const flat: SessionDay[] = [];
-  let cursor = 0;
-  for (const week of weeks) {
-    for (const day of week) {
-      flat[cursor] = day;
-      cursor += 1;
-    }
-  }
-  return { plan: flat, reports };
-}
