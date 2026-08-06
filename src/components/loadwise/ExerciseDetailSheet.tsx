@@ -74,6 +74,7 @@ export function ExerciseDetailSheet({
   const rpe = rpeChip(e);
   const rest = restChip(e);
   const cues = techniqueCues(e);
+  const purpose = e.purpose?.trim();
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -113,7 +114,17 @@ export function ExerciseDetailSheet({
               </div>
             )}
           </div>
+{purpose && (
+  <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
+      Po co to ćwiczenie
+    </div>
 
+    <p className="mt-1 text-sm leading-relaxed text-foreground">
+      {purpose}
+    </p>
+  </div>
+)}
           {/* Movement Blueprint */}
           <div className="mt-5">
             <MovementBlueprint exercise={e} />
