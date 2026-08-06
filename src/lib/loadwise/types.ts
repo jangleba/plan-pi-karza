@@ -186,6 +186,11 @@ export interface TrainingExercise {
 exerciseId?: string;
   label?: string; // A1 | A2 | B1 | B2 ...
   name: string;
+  /** Krótko: co ćwiczenie rozwija i dlaczego znajduje się w sesji. */
+  purpose?: string;
+
+  /** Jednoznaczny klucz dedykowanej ilustracji ćwiczenia. */
+  visualId?: string;
   sets?: string;
   reps?: string;
   duration?: string;
