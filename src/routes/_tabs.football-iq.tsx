@@ -175,7 +175,9 @@ function ScenarioSession({
       <div className="space-y-3 px-5">
         <div className="flex items-center justify-between px-1">
           <button
-            onClick={() => navigate({ to: "/football-iq" })}
+            onClick={() =>
+              navigate({ to: "/football-iq", search: { phase: undefined } })
+            }
             className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
           >
             <ChevronLeft className="h-3.5 w-3.5" /> Zmień fazę
