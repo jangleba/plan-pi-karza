@@ -21,6 +21,7 @@ import type {
 } from "./types";
 import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
+import { persistedPlanNeedsRegeneration } from "./persistedPlanValidation";
 import { warsawToday, isoDate, parseIso, isoDayOfWeek } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
@@ -345,7 +346,27 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         plan = planRow.plan_json as SessionDay[];
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
       }
+if (
+        profile &&
+        persistedPlanNeedsRegeneration(
+          plan,
+          profile,
+          PLAN_ENGINE_VERSION,
+        )
+      ) {
+        plan = generatePlan(
+          profile,
+          warsawToday(),
+        );
 
+        await persistMonthlyPlan(
+          user.id,
+          profile,
+          plan,
+        );
+
+        planGeneratedFor = todayIso;
+      }
       const completions: Record<string, SessionCompletion> = {};
       for (const row of (logRes.data as AnyRow[] | null) ?? []) {
         const sid = row.session_id as string | null;
