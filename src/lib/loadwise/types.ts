@@ -130,6 +130,17 @@ export interface Readiness {
 
 export interface ExerciseItem {
   name: string;
+  /** Krótko: po co zawodnik wykonuje to ćwiczenie. */
+  purpose?: string;
+
+  /** Dokładny sposób wykonania, nie tylko pojedyncza wskazówka. */
+  technique?: string;
+
+  /** Najważniejszy błąd, którego zawodnik ma unikać. */
+  commonMistake?: string;
+
+  /** Jednoznaczny klucz dedykowanej ilustracji. */
+  visualId?: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki. */
 exerciseId?: string;
   prescription: string;
