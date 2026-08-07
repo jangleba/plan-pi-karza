@@ -158,13 +158,31 @@ interface BuiltContent {
 
 function sprintWarmup(
   young: boolean,
+  level: Profile["level"],
 ): CatExercise[] {
   const distance = young ? 10 : 15;
 
-  const drillDose =
-    `2 warianty × ${distance} m: ` +
-    "1) z dostawieniem i krótką pauzą @ 60–70%, " +
-    "2) ciągły rytm @ 80–85%";
+  const useAnkleTransition =
+    !young && level !== "beginner";
+
+  const continuous =
+    "bez przejścia — skip za skipem, płynnie na zmianę";
+
+  const gather =
+    "z dostawieniem — po ściągnięciu obie stopy pod sobą, jeden niski kontakt i druga noga";
+
+  const ankleTransition =
+    "z przejściem — po ściągnięciu jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i zmiana nogi";
+
+  const mainDrillDose =
+    `2 warianty × ${distance} m: 1) ${
+      useAnkleTransition
+        ? ankleTransition
+        : gather
+    }, 2) ${continuous}`;
+
+  const cDrillDose =
+    `2 warianty × ${distance} m: 1) ${gather}, 2) ${continuous}`;;
 
   return [
     mk(
@@ -194,15 +212,15 @@ function sprintWarmup(
       {
         name: "Sprint A-Skip",
         visualId: "sprint_a_skip",
-        prescription: drillDose,
-        purpose:
-          "Uczy sprintowej pozycji, rytmu, pracy kolana, ramion i aktywnego kontaktu stopy pod biodrem.",
-        technique:
-          "Biodra wysoko, tułów stabilny. Unieś kolano do pozycji front-side, stopa zadarta. Uderzaj stopą aktywnie w dół pod biodrem, a ręce prowadź przód–tył.",
-        commonMistake:
-          "Skakanie głównie w górę, siadanie na biodrach albo lądowanie stopą daleko przed ciałem.",
-        cue:
-          "Biodra wysoko. Stopa pod biodrem. Ręce jak w sprincie.",
+       prescription: mainDrillDose,
+purpose:
+  "Uczy prawidłowej pozycji nogi i aktywnego kontaktu stopy pod sobą.",
+technique:
+  "Ustaw nogę w ramie 90/90: kolano mniej więcej na wysokości biodra, podudzie około 90° do uda i palce zadarte do góry. Ściągnij stopę mocno pod siebie. Bez przejścia od razu druga noga idzie do tej samej pozycji. Z przejściem po ściągnięciu zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i dopiero zmień nogę. Z dostawieniem po ściągnięciu dostaw obie stopy pod siebie, zrób jeden niski kontakt i druga noga idzie do ramy 90/90.",
+commonMistake:
+  "Za nisko kolano, brak ramy 90/90, luźna stopa albo wysokie podskakiwanie.",
+cue:
+  "90/90. Palce w górę. Mocno pod siebie.",
         rest:
           "30–45 s między wariantami",
       },
@@ -225,15 +243,15 @@ function sprintWarmup(
       {
         name: "Sprint C-Skip",
         visualId: "sprint_c_skip",
-        prescription: drillDose,
-        purpose:
-          "Uczy szybkiego odzyskania pięty pod biodrem i krótkiej fazy tylnej bez niepotrzebnego kopania nogą za ciało.",
-        technique:
-          "Prowadź piętę szybko pod biodro, kolano utrzymuj skierowane w dół. Zachowaj wysokie biodra, stabilny tułów i aktywną pracę ramion.",
-        commonMistake:
-          "Kopanie piętą wysoko w pośladek, wyginanie pleców albo wykonywanie ruchu bez przesuwania się do przodu.",
-        cue:
-          "Pięta szybko pod biodro. Kolano w dół. Krótki rytm.",
+        prescription: cDrillDose,
+purpose:
+  "Uczy szybkiego powrotu nogi i prawidłowej pracy pięty pod pośladkiem.",
+technique:
+  "Przyciągnij piętę do pośladka, a kolano prowadź lekko przed sobą. Pięta nie wychodzi za linię pośladka. Bez przejścia nogi pracują płynnie na zmianę. Z dostawieniem po każdym ruchu obie stopy wracają pod siebie, robisz jeden niski kontakt i dopiero pracuje druga noga.",
+commonMistake:
+  "Kopanie piętą za siebie, cofanie kolana albo wysokie podskakiwanie.",
+cue:
+  "Pięta do pośladka. Kolano z przodu. Szybko pod siebie.",
         rest:
           "30–45 s między wariantami",
       },
@@ -256,15 +274,15 @@ function sprintWarmup(
       {
         name: "Sprint B-Skip",
         visualId: "sprint_b_skip",
-        prescription: drillDose,
-        purpose:
-          "Uczy przejścia z pozycji A do aktywnego ściągnięcia stopy w dół i pod ciało.",
-        technique:
-          "Najpierw ustaw kolano jak w A-Skipie. Następnie kontrolowanie wyprostuj podudzie i aktywnie ściągnij stopę w dół–tył pod biodro.",
-        commonMistake:
-          "Wyrzucanie wyprostowanej nogi daleko przed siebie i hamowanie kontaktem na pięcie.",
-        cue:
-          "Kolano prowadzi. Ściągnij stopę pod siebie. Nie sięgaj do przodu.",
+       prescription: mainDrillDose,
+purpose:
+  "Uczy reaktywnego ściągnięcia nogi pod siebie po ustawieniu pozycji 90/90.",
+technique:
+  "Zacznij od ramy 90/90 jak w A-skipie, z palcami zadartymi do góry. Wysuń samo podudzie lekko do przodu i od razu reaktywnie ściągnij całą nogę w dół pod siebie. Bez przejścia od razu druga noga wchodzi w 90/90. Z przejściem po ściągnięciu zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i dopiero zmień nogę. Z dostawieniem po ściągnięciu obie stopy spotykają się pod sobą, robisz jeden niski kontakt i druga noga idzie do 90/90.",
+commonMistake:
+  "Kopanie całej nogi daleko przed siebie, luźna stopa albo stawianie nogi przed sobą.",
+cue:
+  "90/90. Piszczel lekko w przód. Reaktywnie pod siebie.",
         rest:
           "30–45 s między wariantami",
       },
@@ -287,15 +305,15 @@ function sprintWarmup(
       {
         name: "Sprint D-Skip",
         visualId: "sprint_d_skip",
-        prescription: drillDose,
-        purpose:
-          "Uczy sztywności nogi, pracy biodra i sprężystego kontaktu przy bardziej wyprostowanym wzorcu kroku.",
-        technique:
-          "Utrzymuj nogi prawie proste, stopę zadartą i biodra wysoko. Ruch prowadź z biodra, a stopę stawiaj sprężyście pod środkiem ciężkości.",
-        commonMistake:
-          "Kopanie nogami wysoko przed siebie, lądowanie na pięcie albo tracenie stabilnej pozycji bioder.",
-        cue:
-          "Ruch z biodra. Stopa zadarta. Krótki kontakt pod ciałem.",
+       prescription: mainDrillDose,
+purpose:
+  "Uczy szybkiej pracy prawie prostych nóg i krótkiego kontaktu stopy pod sobą.",
+technique:
+  "Pracuj prawie prostymi nogami jak nożycami. Palce trzymaj zadarte do góry. Bez przejścia nogi zmieniają się płynnie, a stopa szybko wraca pod siebie. Z przejściem między zmianami zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej. Z dostawieniem po ruchu obie stopy spotykają się pod sobą, robisz jeden niski kontakt i dopiero pracuje druga noga.",
+commonMistake:
+  "Odchylanie się do tyłu, kopanie nóg wysoko przed siebie albo przechodzenie w zwykły bieg.",
+cue:
+  "Prawie proste nogi. Palce w górę. Krótko pod siebie.",
         rest:
           "30–45 s między wariantami",
       },
@@ -369,25 +387,42 @@ function sprintDrills(seed: number): CatExercise[] {
   const variants: CatExercise[][] = [
     [
       mk(
-        { name: "A-skip + B-skip", prescription: "3 × 20 m każdego", rest: "trucht powrót", cue: "Wysokie kolano, aktywna stopa pod biodrem, luźne barki." },
-        { isSprintSpecific: true, primaryQuality: "mechanika biegu", allowedSessionTypes: ["sport_performance"] },
-      ),
-      mk(
-        { name: "Ankling + dribbles", prescription: "2 × 20 m każdego", rest: "trucht powrót", cue: "Szybkie, niskie kontakty, stopa pracuje pod biodrem." },
-        { isSprintSpecific: true, primaryQuality: "częstość kroku", allowedSessionTypes: ["sport_performance"] },
+        {
+          name: "Ankling + niskie dribbles",
+          prescription:
+            "2 × 15 m ankling + 2 × 15 m niskie dribbles",
+          rest: "30–45 s",
+          cue:
+            "Krótki kontakt pod biodrem, aktywna stopa, wysokie biodra.",
+        },
+        {
+          isSprintSpecific: true,
+          isRunningBased: true,
+          primaryQuality: "kontakt stopy i rytm",
+          allowedSessionTypes: ["sport_performance"],
+        },
       ),
     ],
     [
       mk(
-        { name: "Marching + A-skip", prescription: "3 × 20 m każdego", rest: "trucht powrót", cue: "Kontrola postawy, wyprostowany tułów, aktywne ramiona." },
-        { isSprintSpecific: true, primaryQuality: "mechanika biegu", allowedSessionTypes: ["sport_performance"] },
-      ),
-      mk(
-        { name: "Wall drill — napęd kolana w podporze", prescription: "3 × 6 napędów na nogę", rest: "45 s", cue: "Linia tułowia, mocny napęd kolana w dół-tył, aktywna stopa. Opcjonalnie podpórka o pionową powierzchnię." },
-        { isSprintSpecific: true, primaryQuality: "mechanika napędu", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["biodro"] },
+        {
+          name: "Wall drill — single switch",
+          prescription:
+            "3 × 5 zmian na nogę, pełna kontrola pozycji",
+          rest: "45 s",
+          cue:
+            "Biodra wysoko, sztywna linia tułowia, stopa wraca aktywnie pod biodro.",
+        },
+        {
+          isSprintSpecific: true,
+          primaryQuality: "pozycja akceleracyjna",
+          allowedSessionTypes: ["sport_performance"],
+          tissueLoadTags: ["biodro"],
+        },
       ),
     ],
   ];
+
   return pick(variants, seed);
 }
 
@@ -568,7 +603,7 @@ export function buildSportPerformance(
     sections: {
       // Blok A: rozgrzewka, Blok B: technika/skipy + mechanika startu.
       warmup: [
-  ...sprintWarmup(young),
+  ...sprintWarmup(young, profile.level),
   ...sprintDrills(opts.seed),
 ].map(toItem),
       // Blok C: plyo, Blok D: sprinty jakościowe, Blok E: hamowanie/COD.
