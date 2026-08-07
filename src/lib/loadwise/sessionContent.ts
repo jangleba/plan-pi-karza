@@ -156,32 +156,190 @@ interface BuiltContent {
   };
 }
 
-function sprintWarmup(): CatExercise[] {
+function sprintWarmup(
+  young: boolean,
+): CatExercise[] {
+  const distance = young ? 10 : 15;
+
+  const drillDose =
+    `2 warianty × ${distance} m: ` +
+    "1) z dostawieniem i krótką pauzą @ 60–70%, " +
+    "2) ciągły rytm @ 80–85%";
+
   return [
     mk(
       {
         name: "Dynamiczna rozgrzewka biegowa",
-        prescription: "8 min: krążenia, wymachy, otwieranie bioder, mobilizacja kostek",
-        cue: "Pełen zakres ruchu, stopniowo podnoś tętno.",
+        prescription:
+          "8 min: mobilizacja kostek i bioder, wymachy, krążenia, lekki trucht",
+        purpose:
+          "Przygotowanie stawów, tkanek i temperatury ciała do pracy szybkościowej.",
+        technique:
+          "Zacznij spokojnie i stopniowo zwiększaj zakres oraz tempo ruchu. Bez gwałtownego rozciągania.",
+        commonMistake:
+          "Przechodzenie od razu do szybkich drillów bez rozgrzania kostek, bioder i tylnej taśmy.",
+        cue:
+          "Pełny zakres ruchu, stopniowo podnoś tętno.",
       },
-      { isRunningBased: true, primaryQuality: "rozgrzewka", allowedSessionTypes: ["sport_performance"] },
+      {
+        isRunningBased: true,
+        primaryQuality: "rozgrzewka",
+        allowedSessionTypes: [
+          "sport_performance",
+        ],
+      },
     ),
+
     mk(
       {
-        name: "Ankling + A-skip + B-skip",
-        prescription: "3 × 20 m każdego ćwiczenia",
-        cue: "Aktywna stopa pod biodrem, wysokie kolano, luźne barki.",
+        name: "Sprint A-Skip",
+        visualId: "sprint_a_skip",
+        prescription: drillDose,
+        purpose:
+          "Uczy sprintowej pozycji, rytmu, pracy kolana, ramion i aktywnego kontaktu stopy pod biodrem.",
+        technique:
+          "Biodra wysoko, tułów stabilny. Unieś kolano do pozycji front-side, stopa zadarta. Uderzaj stopą aktywnie w dół pod biodrem, a ręce prowadź przód–tył.",
+        commonMistake:
+          "Skakanie głównie w górę, siadanie na biodrach albo lądowanie stopą daleko przed ciałem.",
+        cue:
+          "Biodra wysoko. Stopa pod biodrem. Ręce jak w sprincie.",
+        rest:
+          "30–45 s między wariantami",
       },
-      { isSprintSpecific: true, primaryQuality: "mechanika biegu", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka", "biodro"] },
+      {
+        isSprintSpecific: true,
+        isRunningBased: true,
+        primaryQuality:
+          "front-side mechanics i rytm sprintowy",
+        allowedSessionTypes: [
+          "sport_performance",
+        ],
+        tissueLoadTags: [
+          "biodro",
+          "łydka",
+        ],
+      },
     ),
+
     mk(
       {
-        name: "Narastające przebieżki (build-up)",
-        prescription: "3 × 30 m progresywnie do ~80%",
-        rest: "trucht powrót",
-        cue: "Płynne narastanie prędkości, bez spinania.",
+        name: "Sprint C-Skip",
+        visualId: "sprint_c_skip",
+        prescription: drillDose,
+        purpose:
+          "Uczy szybkiego odzyskania pięty pod biodrem i krótkiej fazy tylnej bez niepotrzebnego kopania nogą za ciało.",
+        technique:
+          "Prowadź piętę szybko pod biodro, kolano utrzymuj skierowane w dół. Zachowaj wysokie biodra, stabilny tułów i aktywną pracę ramion.",
+        commonMistake:
+          "Kopanie piętą wysoko w pośladek, wyginanie pleców albo wykonywanie ruchu bez przesuwania się do przodu.",
+        cue:
+          "Pięta szybko pod biodro. Kolano w dół. Krótki rytm.",
+        rest:
+          "30–45 s między wariantami",
       },
-      { isSprintSpecific: true, isRunningBased: true, primaryQuality: "przygotowanie do sprintu", allowedSessionTypes: ["sport_performance"] },
+      {
+        isSprintSpecific: true,
+        isRunningBased: true,
+        primaryQuality:
+          "odzyskanie nogi i rytm cykliczny",
+        allowedSessionTypes: [
+          "sport_performance",
+        ],
+        tissueLoadTags: [
+          "tylne uda",
+          "biodro",
+        ],
+      },
+    ),
+
+    mk(
+      {
+        name: "Sprint B-Skip",
+        visualId: "sprint_b_skip",
+        prescription: drillDose,
+        purpose:
+          "Uczy przejścia z pozycji A do aktywnego ściągnięcia stopy w dół i pod ciało.",
+        technique:
+          "Najpierw ustaw kolano jak w A-Skipie. Następnie kontrolowanie wyprostuj podudzie i aktywnie ściągnij stopę w dół–tył pod biodro.",
+        commonMistake:
+          "Wyrzucanie wyprostowanej nogi daleko przed siebie i hamowanie kontaktem na pięcie.",
+        cue:
+          "Kolano prowadzi. Ściągnij stopę pod siebie. Nie sięgaj do przodu.",
+        rest:
+          "30–45 s między wariantami",
+      },
+      {
+        isSprintSpecific: true,
+        isRunningBased: true,
+        primaryQuality:
+          "paw-back i aktywny kontakt",
+        allowedSessionTypes: [
+          "sport_performance",
+        ],
+        tissueLoadTags: [
+          "tylne uda",
+          "łydka",
+        ],
+      },
+    ),
+
+    mk(
+      {
+        name: "Sprint D-Skip",
+        visualId: "sprint_d_skip",
+        prescription: drillDose,
+        purpose:
+          "Uczy sztywności nogi, pracy biodra i sprężystego kontaktu przy bardziej wyprostowanym wzorcu kroku.",
+        technique:
+          "Utrzymuj nogi prawie proste, stopę zadartą i biodra wysoko. Ruch prowadź z biodra, a stopę stawiaj sprężyście pod środkiem ciężkości.",
+        commonMistake:
+          "Kopanie nogami wysoko przed siebie, lądowanie na pięcie albo tracenie stabilnej pozycji bioder.",
+        cue:
+          "Ruch z biodra. Stopa zadarta. Krótki kontakt pod ciałem.",
+        rest:
+          "30–45 s między wariantami",
+      },
+      {
+        isSprintSpecific: true,
+        isRunningBased: true,
+        primaryQuality:
+          "stiffness i praca biodra",
+        allowedSessionTypes: [
+          "sport_performance",
+        ],
+        tissueLoadTags: [
+          "łydka",
+          "tylne uda",
+        ],
+      },
+    ),
+
+    mk(
+      {
+        name:
+          "Narastające przebieżki (build-up)",
+        prescription:
+          "3 × 30 m progresywnie do około 80%",
+        purpose:
+          "Łączy drille techniczne z właściwym sprintem bez gwałtownego wejścia na wysoką prędkość.",
+        technique:
+          "Przyspieszaj płynnie przez cały odcinek. Zachowaj luźne barki, wysokie biodra i rytm wypracowany w skipach.",
+        commonMistake:
+          "Natychmiastowy sprint na maksimum albo spinanie barków i twarzy.",
+        visualId: "max_velocity_sprint",
+        rest: "trucht powrotny",
+        cue:
+          "Płynne narastanie prędkości, bez spinania.",
+      },
+      {
+        isSprintSpecific: true,
+        isRunningBased: true,
+        primaryQuality:
+          "przygotowanie do sprintu",
+        allowedSessionTypes: [
+          "sport_performance",
+        ],
+      },
     ),
   ];
 }
@@ -409,7 +567,10 @@ export function buildSportPerformance(
       "Bez ćwiczeń z piłką, bez siły/core/prehabu siłowego i bez długiego kondycyjnego biegania. Przerwij przy spadku jakości biegu.",
     sections: {
       // Blok A: rozgrzewka, Blok B: technika/skipy + mechanika startu.
-      warmup: [...sprintWarmup(), ...sprintDrills(opts.seed)].map(toItem),
+      warmup: [
+  ...sprintWarmup(young),
+  ...sprintDrills(opts.seed),
+].map(toItem),
       // Blok C: plyo, Blok D: sprinty jakościowe, Blok E: hamowanie/COD.
       main: [...startMechanics, ...plyo, ...main, ...decel].map(toItem),
       accessory: [],

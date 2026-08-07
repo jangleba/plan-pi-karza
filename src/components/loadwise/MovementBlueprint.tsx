@@ -355,33 +355,79 @@ export type VisualResolution =
  * Rozwiązuje grafikę dla ćwiczenia WYŁĄCZNIE po dokładnej nazwie.
  * Zwraca { status: "missing" } gdy nie ma dedykowanej grafiki — NIGDY cudzej.
  */
-export function resolveExerciseVisual(e: TrainingExercise): VisualResolution {
+export function resolveExerciseVisual(
+  e: TrainingExercise,
+): VisualResolution {
+  if (e.visualId) {
+    const explicitVisual = visualLibrary[e.visualId];
+
+    if (!explicitVisual) {
+      console.error(
+        `[blueprint] visualId "${e.visualId}" not found for "${e.name}"`,
+      );
+
+      return {
+        status: "missing",
+        reason: "explicit-visual-not-found",
+      };
+    }
+
+    return {
+      status: "ready",
+      visual: explicitVisual,
+    };
+  }
+
   const key = normalizeName(e.name);
-  if (!key) return { status: "missing", reason: "empty-name" };
+
+  if (!key) {
+    return {
+      status: "missing",
+      reason: "empty-name",
+    };
+  }
 
   const visualId = NAME_TO_VISUAL[key];
+
   if (!visualId) {
-    return { status: "missing", reason: "no-dedicated-visual" };
+    return {
+      status: "missing",
+      reason: "no-dedicated-visual",
+    };
   }
 
   const visual = visualLibrary[visualId];
+
   if (!visual) {
-    // eslint-disable-next-line no-console
-    console.error(`[blueprint] visualId "${visualId}" not found in library`);
-    return { status: "missing", reason: "visual-not-found" };
-  }
-
-  // Twarda walidacja spójności: grafika musi jawnie zawierać tę nazwę.
-  const enrolled = visual.exerciseNames.some((n) => normalizeName(n) === key);
-  if (!enrolled) {
-    // eslint-disable-next-line no-console
     console.error(
-      `Exercise visual mismatch: "${e.name}" expected an enrolled name for ${visualId}, but was not found`,
+      `[blueprint] visualId "${visualId}" not found in library`,
     );
-    return { status: "missing", reason: "mismatch" };
+
+    return {
+      status: "missing",
+      reason: "visual-not-found",
+    };
   }
 
-  return { status: "ready", visual };
+  const enrolled = visual.exerciseNames.some(
+    (name) => normalizeName(name) === key,
+  );
+
+  if (!enrolled) {
+    console.error(
+      `Exercise visual mismatch: "${e.name}" is not assigned to ${visualId}`,
+    );
+
+    return {
+      status: "missing",
+      reason: "mismatch",
+    };
+  }
+
+  return {
+    status: "ready",
+    visual,
+  };
 }
 
 // ---------------------------------------------------------------------------
