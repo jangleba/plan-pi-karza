@@ -52,12 +52,6 @@ const initialState: LoadwiseState = {
  * (profile.clubTrainingDays, 1=pon ... 7=niedz). Jeśli plan zawiera klub w innym
  * dniu, jest nieaktualny i musi zostać wygenerowany ponownie.
  */
-function planMatchesClubDays(plan: SessionDay[], profile: Profile): boolean {
-  return plan.every((d) => {
-    if (d.dayType !== "club") return true;
-    return profile.clubTrainingDays.includes(isoDayOfWeek(parseIso(d.date)));
-  });
-}
 
 // ---- local-only state (readiness/tests/scouting), namespaced per user ----
 function localKey(userId: string) {
@@ -550,13 +544,14 @@ if (
     // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
     const hasMonthly =
       state.plan.length >= 14 && Boolean(state.plan[0]?.dbId);
-    const isCurrentEngine = state.plan.every(
-      (d) => d.generatorVersion === PLAN_ENGINE_VERSION,
-    );
-    // Plan stworzony przy innych dniach klubowych jest nieaktualny — regeneruj,
-    // by trening klubowy nigdy nie pojawił się w dniu spoza onboardingu.
-    const clubDaysOk = planMatchesClubDays(state.plan, profile);
-    if (hasMonthly && isCurrentEngine && clubDaysOk) return;
+   const persistedPlanIsSafe =
+  !persistedPlanNeedsRegeneration(
+    state.plan,
+    profile,
+    PLAN_ENGINE_VERSION,
+  );
+
+if (hasMonthly && persistedPlanIsSafe) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
