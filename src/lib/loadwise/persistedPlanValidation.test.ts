@@ -106,6 +106,34 @@ function restDay(
 }
 
 describe("validatePersistedPlan", () => {
+  it("blokuje główną szybkość i drugi sprint tego samego dnia", () => {
+    const day = fullSprint("2026-08-06");
+
+    day.title = "Dziś: szybkość";
+
+    day.secondSession = speedMicrodose(
+      "2026-08-06",
+    );
+
+    day.secondSession.title =
+      "Sprint — wejście w prędkość";
+
+    const result = validatePersistedPlan(
+      [day],
+      profile(),
+      ENGINE_VERSION,
+    );
+
+    expect(result.valid).toBe(false);
+
+    expect(
+      result.issues.some(
+        (issue) =>
+          issue.code ===
+          "duplicate-speed-same-day",
+      ),
+    ).toBe(true);
+  });
   it("odrzuca pusty plan", () => {
     const result = validatePersistedPlan(
       [],
