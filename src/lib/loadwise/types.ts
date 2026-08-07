@@ -127,7 +127,11 @@ export interface Readiness {
   motivation: number;
   overall: number;
 }
-
+export interface ExerciseInstructionStep {
+  title: string;
+  description: string;
+  visualId?: string;
+}
 export interface ExerciseItem {
   name: string;
   /** Krótko: po co zawodnik wykonuje to ćwiczenie. */
@@ -141,6 +145,12 @@ export interface ExerciseItem {
 
   /** Jednoznaczny klucz dedykowanej ilustracji. */
   visualId?: string;
+  /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
+displayPrescription?: string;
+
+/** Kolejne kroki wykonania ćwiczenia. */
+instructionSteps?: ExerciseInstructionStep[];
+
   /** Stałe ID ćwiczenia z centralnej biblioteki. */
 exerciseId?: string;
   prescription: string;
@@ -202,6 +212,11 @@ exerciseId?: string;
 
   /** Jednoznaczny klucz dedykowanej ilustracji ćwiczenia. */
   visualId?: string;
+  /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
+displayPrescription?: string;
+
+/** Kolejne kroki wykonania ćwiczenia. */
+instructionSteps?: ExerciseInstructionStep[];
   sets?: string;
   reps?: string;
   duration?: string;
