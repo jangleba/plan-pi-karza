@@ -1,6 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Brain, ChevronLeft, Shield, Swords, UserRound } from "lucide-react";
+import {
+  Brain,
+  ChevronLeft,
+  Move3D,
+  Shield,
+  Swords,
+  Timer,
+  UserRound,
+} from "lucide-react";
+
 import { AppHeader } from "@/components/loadwise/ui";
 import { PitchView } from "@/components/football-iq/PitchView";
 import { DecisionFeedback } from "@/components/football-iq/DecisionFeedback";
