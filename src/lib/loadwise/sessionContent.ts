@@ -213,6 +213,34 @@ function sprintWarmup(
         name: "Sprint A-Skip",
         visualId: "sprint_a_skip",
        prescription: mainDrillDose,
+        displayPrescription:
+  `2 × ${distance} m · ${
+    useAnkleTransition
+      ? "z przejściem + ciągły"
+      : "z dostawieniem + ciągły"
+  }`,
+
+instructionSteps: [
+  {
+    title: "Rama 90/90",
+    description:
+      "Kolano mniej więcej na wysokości biodra, pięta pod kolanem, palce do góry.",
+    visualId: "sprint_a_skip_1",
+  },
+  {
+    title: "Mocno pod siebie",
+    description:
+      "Ściągnij stopę szybko w dół pod biodro. Nie stawiaj jej przed sobą.",
+    visualId: "sprint_a_skip_2",
+  },
+  {
+    title: "Zmień nogę",
+    description: useAnkleTransition
+      ? "Krótki kontakt na nodze podporowej i druga noga od razu wchodzi w 90/90."
+      : "Dostaw stopy i druga noga od razu wchodzi w 90/90.",
+    visualId: "sprint_a_skip_3",
+  },
+],
 purpose:
   "Uczy prawidłowej pozycji nogi i aktywnego kontaktu stopy pod sobą.",
 technique:
@@ -244,6 +272,23 @@ cue:
         name: "Sprint C-Skip",
         visualId: "sprint_c_skip",
         prescription: cDrillDose,
+        displayPrescription:
+  `2 × ${distance} m · z dostawieniem + ciągły`,
+
+instructionSteps: [
+  {
+    title: "Pięta do pośladka",
+    description:
+      "Pięta idzie szybko do pośladka, ale nie wychodzi za jego linię. Kolano zostaje lekko z przodu.",
+    visualId: "sprint_c_skip_1",
+  },
+  {
+    title: "Szybko w dół",
+    description:
+      "Ściągnij stopę szybko w dół pod biodro i płynnie przejdź na drugą nogę.",
+    visualId: "sprint_c_skip_2",
+  },
+],
 purpose:
   "Uczy szybkiego powrotu nogi i prawidłowej pracy pięty pod pośladkiem.",
 technique:
@@ -275,6 +320,40 @@ cue:
         name: "Sprint B-Skip",
         visualId: "sprint_b_skip",
        prescription: mainDrillDose,
+        displayPrescription:
+  `2 × ${distance} m · ${
+    useAnkleTransition
+      ? "z przejściem + ciągły"
+      : "z dostawieniem + ciągły"
+  }`,
+
+instructionSteps: [
+  {
+    title: "Rama 90/90",
+    description:
+      "Kolano mniej więcej na wysokości biodra, pięta pod kolanem, palce do góry.",
+    visualId: "sprint_b_skip_1",
+  },
+  {
+    title: "Piszczel lekko w przód",
+    description:
+      "Wysuń samo podudzie lekko do przodu. Nie kop całej nogi przed siebie.",
+    visualId: "sprint_b_skip_2",
+  },
+  {
+    title: "Reaktywnie pod siebie",
+    description:
+      "Szybko ściągnij stopę w dół i pod biodro.",
+    visualId: "sprint_b_skip_3",
+  },
+  {
+    title: "Zmień nogę",
+    description: useAnkleTransition
+      ? "Po krótkim kontakcie na nodze podporowej druga noga wraca do ramy 90/90."
+      : "Po dostawieniu druga noga wraca do ramy 90/90.",
+    visualId: "sprint_b_skip_4",
+  },
+],
 purpose:
   "Uczy reaktywnego ściągnięcia nogi pod siebie po ustawieniu pozycji 90/90.",
 technique:
@@ -306,6 +385,27 @@ cue:
         name: "Sprint D-Skip",
         visualId: "sprint_d_skip",
        prescription: mainDrillDose,
+        displayPrescription:
+  `2 × ${distance} m · ${
+    useAnkleTransition
+      ? "z przejściem + ciągły"
+      : "z dostawieniem + ciągły"
+  }`,
+
+instructionSteps: [
+  {
+    title: "Nożyce",
+    description:
+      "Pracuj prawie prostymi nogami. Palce trzymaj do góry, ruch zaczynaj z biodra.",
+    visualId: "sprint_d_skip_1",
+  },
+  {
+    title: "Zmień nogę",
+    description:
+      "Szybko zmień nogi jak nożyce. Kontakt stopy krótko pod sobą, bez odchylania się do tyłu.",
+    visualId: "sprint_d_skip_2",
+  },
+],
 purpose:
   "Uczy szybkiej pracy prawie prostych nóg i krótkiego kontaktu stopy pod sobą.",
 technique:
