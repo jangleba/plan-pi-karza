@@ -166,36 +166,55 @@ function ScenarioSession({
     setIndex((i) => (i + 1) % scenarios.length);
   }
 
+  const stageIndex = STAGE_INDEX[scenario.interaction];
+  const progress = ((index + 1) / scenarios.length) * 100;
+
   return (
-    <div className="pb-6">
-      <AppHeader
-        title={phase === "attack" ? "Atak" : "Obrona"}
-        subtitle={`${IQ_GROUP_LABELS[group]} · sytuacja ${index + 1} z ${scenarios.length}`}
-      />
-      <div className="space-y-3 px-5">
-        <div className="flex items-center justify-between px-1">
+    <div className="pb-8">
+      {/* Nagłówek */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+        <div className="flex items-center justify-between px-4 pb-3 pt-4">
           <button
             onClick={() =>
               navigate({ to: "/football-iq", search: { phase: undefined } })
             }
-            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
+            aria-label="Wróć"
+            className="-ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-primary active:scale-95"
           >
-            <ChevronLeft className="h-3.5 w-3.5" /> Zmień fazę
+            <ChevronLeft className="h-5 w-5" />
           </button>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {scenario.theme}
+          <h1 className="text-sm font-bold uppercase tracking-[0.14em] text-foreground">
+            BallWise IQ
+          </h1>
+          <span className="w-9 text-right text-sm font-semibold text-primary">
+            {index + 1}/{scenarios.length}
           </span>
         </div>
+        <div className="h-1 w-full bg-border">
+          <div
+            className="h-full rounded-r-full bg-primary transition-[width] duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
 
-        <div className="soft-card p-4">
-          <h2 className="text-base font-semibold text-foreground">
-            {scenario.title}
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {scenario.description}
-          </p>
+      <div className="space-y-4 px-4 pt-4">
+        {/* Instrukcja — jeden etap decyzji */}
+        <div className="soft-card flex items-start gap-3 p-4">
+          <span className="icon-bubble h-11 w-11 shrink-0 border border-primary/20 bg-transparent">
+            <Brain className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold leading-tight text-foreground">
+              {STAGES[stageIndex].title}
+            </h2>
+            <p className="mt-1 text-sm leading-snug text-muted-foreground">
+              {scenario.description}
+            </p>
+          </div>
         </div>
 
+        {/* Boisko — element główny */}
         <div className="soft-card overflow-hidden p-2">
           <PitchView
             scenario={scenario}
@@ -206,25 +225,56 @@ function ScenarioSession({
           />
         </div>
 
-        {!evaluation && (
+        {/* Sterowanie */}
+        {!evaluation ? (
           <>
-            <p className="px-1 text-xs text-muted-foreground">
-              {INTERACTION_HINTS[scenario.interaction]}
-            </p>
+            <div className="soft-card p-3">
+              <div className="flex items-stretch justify-between gap-1">
+                {STAGES.map((s, i) => {
+                  const active = i === stageIndex;
+                  return (
+                    <div
+                      key={s.title}
+                      className={`flex flex-1 flex-col items-center gap-1.5 rounded-xl px-2 py-2.5 text-center ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      <span
+                        className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                          active
+                            ? "bg-primary-foreground/20"
+                            : "bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        <s.icon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="text-[11px] font-semibold leading-tight">
+                        {s.short}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-2 px-1 text-center text-[11px] text-muted-foreground">
+                {INTERACTION_HINTS[scenario.interaction]}
+              </p>
+            </div>
+
             <button
               onClick={confirm}
               disabled={!decision}
-              className="soft-card flex w-full items-center justify-center gap-2 bg-primary p-4 text-sm font-semibold text-primary-foreground disabled:opacity-40 active:scale-[0.99]"
+              className="w-full rounded-2xl bg-primary p-4 text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-lg shadow-primary/20 disabled:opacity-40 active:scale-[0.99]"
             >
-              Zatwierdź decyzję
+              {STAGES[stageIndex].cta}
             </button>
           </>
-        )}
-
-        {evaluation && (
+        ) : (
           <DecisionFeedback evaluation={evaluation} onNext={nextScenario} />
         )}
       </div>
     </div>
   );
 }
+
