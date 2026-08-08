@@ -78,9 +78,16 @@ function primaryQualifier(e: TrainingExercise): string | null {
 
 // Pierwsza linia: dawka + max jeden kwalifikator.
 function compactPrescription(e: TrainingExercise): string {
-  return [primaryDose(e), primaryQualifier(e)].filter(Boolean).join(" · ");
-}
+  const display = e.displayPrescription?.trim();
 
+  if (display) {
+    return display;
+  }
+
+  return [primaryDose(e), primaryQualifier(e)]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 
 
