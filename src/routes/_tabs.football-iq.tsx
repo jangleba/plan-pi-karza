@@ -34,6 +34,36 @@ const INTERACTION_HINTS: Record<IQScenario["interaction"], string> = {
   press: "Dotknij przeciwnika, na którego reagujesz.",
 };
 
+/** Jeden ekran = jeden etap decyzji. */
+const STAGES = [
+  {
+    short: "Timing ruchu",
+    title: "Wybierz moment ruchu",
+    cta: "Zatwierdź moment",
+    icon: Timer,
+  },
+  {
+    short: "Ustawienie",
+    title: "Ustaw ciało i pozycję",
+    cta: "Zatwierdź ustawienie",
+    icon: Move3D,
+  },
+  {
+    short: "Po przyjęciu",
+    title: "Wybierz działanie",
+    cta: "Zatwierdź decyzję",
+    icon: Swords,
+  },
+] as const;
+
+const STAGE_INDEX: Record<IQScenario["interaction"], number> = {
+  move: 0,
+  zone: 1,
+  pass: 2,
+  press: 2,
+};
+
+
 function FootballIQScreen() {
   const { phase } = Route.useSearch();
   const { state } = useLoadwise();
