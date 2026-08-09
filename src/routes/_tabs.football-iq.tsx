@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, RotateCcw, UserRound } from "lucide-react";
+import { RotateCcw, UserRound } from "lucide-react";
 
 import { AppHeader } from "@/components/loadwise/ui";
 import { SimPitch, type SimPitchActor, type SimPitchPath } from "@/components/football-iq/SimPitch";
