@@ -1,0 +1,153 @@
+// Typy silnika mikrosymulacji Football IQ.
+// Silnik jest sterowany danymi — scenariusze to czyste obiekty, bez logiki UI.
+
+export type SimStage =
+  | "observation"
+  | "timing"
+  | "position"
+  | "reaction"
+  | "decision"
+  | "replay";
+
+export type SimCriterion =
+  | "timing"
+  | "body"
+  | "progression"
+  | "advantage"
+  | "risk";
+
+export type SimFoot = "left" | "right";
+
+export type SimActorKind = "self" | "mate" | "opponent" | "ball";
+
+export interface SimActor {
+  id: string;
+  kind: SimActorKind;
+  label?: string;
+  /** Klatki kluczowe: t = 0..1 w obrębie fazy obserwacji. */
+  path: { t: number; x: number; y: number }[];
+}
+
+export interface SimTimingWindow {
+  id: string;
+  /** Milisekundy od startu obserwacji. */
+  fromMs: number;
+  toMs: number;
+  label: string;
+  /** 0..1 — jakość momentu startu ruchu. */
+  quality: number;
+  note: string;
+}
+
+export interface SimZone {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  label: string;
+  quality: number;
+  note: string;
+  /** Reakcja rywala wywołana wejściem w tę strefę. */
+  reaction: string;
+}
+
+export interface SimBodyAngle {
+  id: string;
+  /** Kąt w stopniach, 0 = w stronę bramki rywala (w górę boiska). */
+  centerDeg: number;
+  toleranceDeg: number;
+  label: string;
+  quality: number;
+  note: string;
+}
+
+export interface SimReaction {
+  id: string;
+  label: string;
+  description: string;
+  /** Docelowe pozycje rywali po reakcji. */
+  moves: { actorId: string; x: number; y: number }[];
+}
+
+export interface SimActionOutcome {
+  /** 0..1 na kryterium. */
+  progression: number;
+  advantage: number;
+  /** 0..1, gdzie 1 = ryzyko w pełni kontrolowane. */
+  risk: number;
+  /** Krótki opis konsekwencji. */
+  consequence: string;
+  /** Tor zagrania rysowany w replayu. */
+  path?: { x: number; y: number }[];
+}
+
+export interface SimAction {
+  id: string;
+  label: string;
+  /** Wynik zależny od reakcji rywala. */
+  outcomes: Record<string, SimActionOutcome>;
+}
+
+export interface SimAlternative {
+  /** Klucz: reactionId. */
+  actionId: string;
+  changed: string;
+}
+
+export interface SimScenarioContext {
+  minute: number;
+  scoreline: string;
+  phase: string;
+  positionLabel: string;
+  /** Wagi kryteriów wynikające z kontekstu meczu. Suma dowolna, normalizowana. */
+  weights: Record<SimCriterion, number>;
+  weightsNote: string;
+}
+
+export interface SimScenario {
+  id: string;
+  title: string;
+  brief: string;
+  context: SimScenarioContext;
+  observationMs: number;
+  decisionMs: number;
+  actors: SimActor[];
+  timingWindows: SimTimingWindow[];
+  timingMissNote: string;
+  zones: SimZone[];
+  zoneMissNote: string;
+  defaultReaction: string;
+  bodyAngles: SimBodyAngle[];
+  bodyMissNote: string;
+  feet: { foot: SimFoot; quality: number; note: string }[];
+  reactions: SimReaction[];
+  actions: SimAction[];
+  /** Lepsza alternatywa per reakcja rywala. */
+  alternatives: Record<string, SimAlternative>;
+  fallbackOutcome: SimActionOutcome;
+}
+
+export interface SimChoice {
+  timingMs: number | null;
+  x: number;
+  y: number;
+  angleDeg: number;
+  foot: SimFoot;
+  actionId: string | null;
+}
+
+export interface SimCriterionScore {
+  criterion: SimCriterion;
+  score: number; // 0..100
+  weight: number; // 0..1
+  note: string;
+}
+
+export interface SimResult {
+  reaction: SimReaction;
+  criteria: SimCriterionScore[];
+  total: number;
+  action: SimAction | null;
+  outcome: SimActionOutcome;
+  alternative: { action: SimAction; outcome: SimActionOutcome; changed: string } | null;
+}
