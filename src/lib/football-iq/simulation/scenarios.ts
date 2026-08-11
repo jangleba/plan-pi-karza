@@ -406,4 +406,16 @@ export const shadowReceiveScenario: SimScenario = {
   },
 };
 
-export const SIM_SCENARIOS: SimScenario[] = [shadowReceiveScenario];
+export const SIM_SCENARIOS: SimScenario[] = [
+  shadowReceiveScenario,
+  ...ADVANCED_SCENARIOS,
+];
+
+/** Scenariusze trafne dla danej grupy pozycyjnej (fallback: cała biblioteka). */
+export function scenariosForPosition(
+  group: "defender" | "midfielder" | "forward",
+): SimScenario[] {
+  const list = SIM_SCENARIOS.filter((s) => s.positions.includes(group));
+  return list.length > 0 ? list : SIM_SCENARIOS;
+}
+
