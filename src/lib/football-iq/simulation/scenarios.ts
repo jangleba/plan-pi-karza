@@ -1,3 +1,4 @@
+import { ADVANCED_SCENARIOS } from "./library";
 import type { SimScenario } from "./types";
 
 /**
@@ -7,8 +8,16 @@ import type { SimScenario } from "./types";
 export const shadowReceiveScenario: SimScenario = {
   id: "shadow-receive-6",
   title: "Wyjście z cienia podania",
+  topic: "between_lines",
+  positions: ["midfielder"],
+  status: "sourced",
+  sourceReference: {
+    label: "UEFA Coaching Convention — materiały metodyczne dla trenerów A/Pro",
+    url: "https://uefatechnicalreports.com/",
+  },
   brief:
     "Stoper prowadzi piłkę do przodu. Stoisz w cieniu podania szóstki rywala, która kontroluje przestrzeń.",
+
   context: {
     minute: 63,
     scoreline: "1:1",
