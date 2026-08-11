@@ -104,10 +104,38 @@ export interface SimScenarioContext {
   weightsNote: string;
 }
 
+/** Temat taktyczny scenariusza (biblioteka zaawansowana). */
+export type SimTopic =
+  | "press_manipulation"
+  | "third_man"
+  | "overload_isolate"
+  | "positional_rotation"
+  | "between_lines"
+  | "weak_side_exit"
+  | "press_trap"
+  | "rest_defence"
+  | "counterpress"
+  | "transition";
+
+export interface SimSourceReference {
+  /** Np. "UEFA Coaching Convention" / "FIFA Training Centre". */
+  label: string;
+  url?: string;
+}
+
 export interface SimScenario {
   id: string;
   title: string;
   brief: string;
+  topic: SimTopic;
+  /** Grupy pozycyjne, dla których scenariusz jest trafny. */
+  positions: ("defender" | "midfielder" | "forward")[];
+  /**
+   * "draft" = materiał roboczy bez źródła i bez akceptacji eksperta.
+   * "sourced" = ma sourceReference do materiału FIFA/UEFA.
+   */
+  status: "draft" | "sourced";
+  sourceReference?: SimSourceReference;
   context: SimScenarioContext;
   observationMs: number;
   decisionMs: number;
