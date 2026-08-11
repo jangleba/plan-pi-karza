@@ -1,3 +1,4 @@
+import { ADVANCED_SCENARIOS } from "./library";
 import type { SimScenario } from "./types";
 
 /**
@@ -7,8 +8,16 @@ import type { SimScenario } from "./types";
 export const shadowReceiveScenario: SimScenario = {
   id: "shadow-receive-6",
   title: "Wyjście z cienia podania",
+  topic: "between_lines",
+  positions: ["midfielder"],
+  status: "sourced",
+  sourceReference: {
+    label: "UEFA Coaching Convention — materiały metodyczne dla trenerów A/Pro",
+    url: "https://uefatechnicalreports.com/",
+  },
   brief:
     "Stoper prowadzi piłkę do przodu. Stoisz w cieniu podania szóstki rywala, która kontroluje przestrzeń.",
+
   context: {
     minute: 63,
     scoreline: "1:1",
@@ -24,8 +33,9 @@ export const shadowReceiveScenario: SimScenario = {
     weightsNote:
       "63. minuta przy 1:1 — progresja i kontrola ryzyka ważą więcej niż efektowność.",
   },
-  observationMs: 2500,
-  decisionMs: 1500,
+  observationMs: 6500,
+  decisionMs: 2000,
+
   actors: [
     {
       id: "ball",
@@ -110,28 +120,29 @@ export const shadowReceiveScenario: SimScenario = {
     {
       id: "early",
       fromMs: 0,
-      toMs: 850,
+      toMs: 2600,
       label: "Za wcześnie",
       quality: 0.45,
       note: "Ruszyłeś, zanim stoper wziął piłkę pod kontrolę — szóstka zdążyła skorygować pozycję.",
     },
     {
       id: "prime",
-      fromMs: 850,
-      toMs: 1700,
+      fromMs: 2601,
+      toMs: 4900,
       label: "Właściwy moment",
       quality: 0.95,
       note: "Ruszyłeś w chwili, gdy szóstka obracała biodra do piłki — straciła Cię z pola widzenia.",
     },
     {
       id: "late",
-      fromMs: 1700,
-      toMs: 2300,
+      fromMs: 4901,
+      toMs: 6500,
       label: "Późno",
       quality: 0.6,
       note: "Ruch był czytelny — rywal zdążył ustawić się między Tobą a piłką.",
     },
   ],
+
   timingMissNote:
     "Nie ruszyłeś w oknie podania — stoper musiał grać wstecz i akcja się zatrzymała.",
   zones: [
@@ -395,4 +406,16 @@ export const shadowReceiveScenario: SimScenario = {
   },
 };
 
-export const SIM_SCENARIOS: SimScenario[] = [shadowReceiveScenario];
+export const SIM_SCENARIOS: SimScenario[] = [
+  shadowReceiveScenario,
+  ...ADVANCED_SCENARIOS,
+];
+
+/** Scenariusze trafne dla danej grupy pozycyjnej (fallback: cała biblioteka). */
+export function scenariosForPosition(
+  group: "defender" | "midfielder" | "forward",
+): SimScenario[] {
+  const list = SIM_SCENARIOS.filter((s) => s.positions.includes(group));
+  return list.length > 0 ? list : SIM_SCENARIOS;
+}
+

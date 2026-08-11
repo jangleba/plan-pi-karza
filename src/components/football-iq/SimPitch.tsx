@@ -66,8 +66,8 @@ export function SimPitch({
 
   const handle = ghost
     ? {
-        x: ghost.x + Math.sin((ghost.angleDeg * Math.PI) / 180) * 14,
-        y: ghost.y - Math.cos((ghost.angleDeg * Math.PI) / 180) * 14,
+        x: ghost.x + Math.sin((ghost.angleDeg * Math.PI) / 180) * 10,
+        y: ghost.y - Math.cos((ghost.angleDeg * Math.PI) / 180) * 10,
       }
     : null;
 
@@ -159,7 +159,7 @@ export function SimPitch({
           <circle
             cx={ghost.x}
             cy={ghost.y}
-            r="9"
+            r="6.5"
             className="fill-primary/10 stroke-primary/40"
             strokeWidth="0.6"
             strokeDasharray="2 1.5"
@@ -175,7 +175,7 @@ export function SimPitch({
           <circle
             cx={ghost.x}
             cy={ghost.y}
-            r="4.4"
+            r="3"
             className="fill-primary/60 stroke-background"
             strokeWidth="0.8"
           />
@@ -195,7 +195,7 @@ export function SimPitch({
               <circle
                 cx={handle!.x}
                 cy={handle!.y}
-                r="3.4"
+                r="2.6"
                 className="fill-background stroke-primary"
                 strokeWidth="1"
               />
@@ -221,7 +221,7 @@ export function SimPitch({
               key={a.id}
               cx={a.x}
               cy={a.y}
-              r="2.2"
+              r="1.5"
               className="fill-foreground stroke-background"
               strokeWidth="0.6"
             />
@@ -245,21 +245,21 @@ export function SimPitch({
               <circle
                 cx={a.x}
                 cy={a.y}
-                r="8"
+                r="6"
                 className="fill-primary/15"
               />
             )}
             <circle
               cx={a.x}
               cy={a.y}
-              r="4.4"
+              r="2.9"
               className={`${cls} stroke-background`}
               strokeWidth="0.8"
             />
             <text
               x={a.x}
-              y={a.y + 1.5}
-              fontSize="4"
+              y={a.y + 1}
+              fontSize="2.6"
               textAnchor="middle"
               className={textCls}
               style={{ fontWeight: 700 }}
@@ -269,8 +269,8 @@ export function SimPitch({
             {a.label && (
               <text
                 x={a.x}
-                y={a.y + 10}
-                fontSize="3.4"
+                y={a.y + 7}
+                fontSize="2.6"
                 textAnchor="middle"
                 className="fill-foreground/60"
               >
