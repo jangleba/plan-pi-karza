@@ -33,8 +33,9 @@ export const shadowReceiveScenario: SimScenario = {
     weightsNote:
       "63. minuta przy 1:1 — progresja i kontrola ryzyka ważą więcej niż efektowność.",
   },
-  observationMs: 2500,
-  decisionMs: 1500,
+  observationMs: 6500,
+  decisionMs: 2000,
+
   actors: [
     {
       id: "ball",
