@@ -120,28 +120,29 @@ export const shadowReceiveScenario: SimScenario = {
     {
       id: "early",
       fromMs: 0,
-      toMs: 850,
+      toMs: 2600,
       label: "Za wcześnie",
       quality: 0.45,
       note: "Ruszyłeś, zanim stoper wziął piłkę pod kontrolę — szóstka zdążyła skorygować pozycję.",
     },
     {
       id: "prime",
-      fromMs: 850,
-      toMs: 1700,
+      fromMs: 2601,
+      toMs: 4900,
       label: "Właściwy moment",
       quality: 0.95,
       note: "Ruszyłeś w chwili, gdy szóstka obracała biodra do piłki — straciła Cię z pola widzenia.",
     },
     {
       id: "late",
-      fromMs: 1700,
-      toMs: 2300,
+      fromMs: 4901,
+      toMs: 6500,
       label: "Późno",
       quality: 0.6,
       note: "Ruch był czytelny — rywal zdążył ustawić się między Tobą a piłką.",
     },
   ],
+
   timingMissNote:
     "Nie ruszyłeś w oknie podania — stoper musiał grać wstecz i akcja się zatrzymała.",
   zones: [
