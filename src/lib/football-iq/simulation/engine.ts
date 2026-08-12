@@ -2,13 +2,14 @@ import type {
   SimAction,
   SimBodyAngle,
   SimChoice,
-  SimCriterion,
-  SimCriterionScore,
+  SimFeedbackItem,
   SimResult,
   SimScenario,
   SimTimingWindow,
+  SimVerdict,
   SimZone,
 } from "./types";
+
 
 export function actorAt(
   path: { t: number; x: number; y: number }[],
