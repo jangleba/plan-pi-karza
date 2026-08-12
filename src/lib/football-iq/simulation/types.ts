@@ -1,13 +1,7 @@
 // Typy silnika mikrosymulacji Football IQ.
 // Silnik jest sterowany danymi — scenariusze to czyste obiekty, bez logiki UI.
 
-export type SimStage =
-  | "observation"
-  | "timing"
-  | "position"
-  | "reaction"
-  | "decision"
-  | "replay";
+export type SimStage = "observation" | "reaction" | "decision" | "replay";
 
 export type SimCriterion =
   | "timing"
