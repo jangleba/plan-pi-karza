@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef } from "react";
 import type { SimActorKind } from "@/lib/football-iq/simulation/types";
 
 const W = 100;
@@ -8,6 +8,8 @@ export type SimPitchActor = {
   id: string;
   kind: SimActorKind;
   label?: string;
+  /** Podpis widoczny tylko dla sterowanego, posiadacza piłki i kluczowego rywala. */
+  showLabel?: boolean;
   x: number;
   y: number;
 };
@@ -19,57 +21,13 @@ export type SimPitchPath = {
 
 type Props = {
   actors: SimPitchActor[];
-  ghost?: { x: number; y: number; angleDeg: number } | null;
-  interactive?: boolean;
-  onGhostMove?: (x: number, y: number) => void;
-  onAngleChange?: (deg: number) => void;
   paths?: SimPitchPath[];
   /** Podpowiedź dotyku w fazie obserwacji. */
   pulse?: boolean;
 };
 
-export function SimPitch({
-  actors,
-  ghost,
-  interactive = false,
-  onGhostMove,
-  onAngleChange,
-  paths,
-  pulse,
-}: Props) {
+export function SimPitch({ actors, paths, pulse }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [mode, setMode] = useState<"none" | "move" | "rotate">("none");
-
-  const toPoint = useCallback((clientX: number, clientY: number) => {
-    const el = svgRef.current;
-    if (!el) return { x: 0, y: 0 };
-    const r = el.getBoundingClientRect();
-    const x = ((clientX - r.left) / r.width) * W;
-    const y = ((clientY - r.top) / r.height) * H;
-    return {
-      x: Math.max(4, Math.min(W - 4, x)),
-      y: Math.max(4, Math.min(H - 4, y)),
-    };
-  }, []);
-
-  function handleMove(e: React.PointerEvent<SVGSVGElement>) {
-    if (!interactive || mode === "none" || !ghost) return;
-    const p = toPoint(e.clientX, e.clientY);
-    if (mode === "move") {
-      onGhostMove?.(p.x, p.y);
-    } else {
-      const deg =
-        (Math.atan2(p.x - ghost.x, ghost.y - p.y) * 180) / Math.PI;
-      onAngleChange?.(Math.round(deg));
-    }
-  }
-
-  const handle = ghost
-    ? {
-        x: ghost.x + Math.sin((ghost.angleDeg * Math.PI) / 180) * 10,
-        y: ghost.y - Math.cos((ghost.angleDeg * Math.PI) / 180) * 10,
-      }
-    : null;
 
   return (
     <svg
@@ -77,14 +35,6 @@ export function SimPitch({
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
       className="h-full w-full touch-none select-none"
-      onPointerMove={handleMove}
-      onPointerUp={(e) => {
-        setMode("none");
-        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        }
-      }}
-      onPointerCancel={() => setMode("none")}
     >
       <rect x="0" y="0" width={W} height={H} rx="4" className="fill-secondary" />
       {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -153,78 +103,20 @@ export function SimPitch({
         />
       ))}
 
-      {/* Półprzezroczysty znacznik zawodnika */}
-      {ghost && (
-        <g>
-          <circle
-            cx={ghost.x}
-            cy={ghost.y}
-            r="6.5"
-            className="fill-primary/10 stroke-primary/40"
-            strokeWidth="0.6"
-            strokeDasharray="2 1.5"
-          />
-          <line
-            x1={ghost.x}
-            y1={ghost.y}
-            x2={handle!.x}
-            y2={handle!.y}
-            className="stroke-primary"
-            strokeWidth="1"
-          />
-          <circle
-            cx={ghost.x}
-            cy={ghost.y}
-            r="3"
-            className="fill-primary/60 stroke-background"
-            strokeWidth="0.8"
-          />
-          {interactive && (
-            <>
-              <circle
-                cx={ghost.x}
-                cy={ghost.y}
-                r="11"
-                fill="transparent"
-                style={{ cursor: "grab" }}
-                onPointerDown={(e) => {
-                  e.currentTarget.ownerSVGElement?.setPointerCapture(e.pointerId);
-                  setMode("move");
-                }}
-              />
-              <circle
-                cx={handle!.x}
-                cy={handle!.y}
-                r="2.6"
-                className="fill-background stroke-primary"
-                strokeWidth="1"
-              />
-              <circle
-                cx={handle!.x}
-                cy={handle!.y}
-                r="8"
-                fill="transparent"
-                onPointerDown={(e) => {
-                  e.currentTarget.ownerSVGElement?.setPointerCapture(e.pointerId);
-                  setMode("rotate");
-                }}
-              />
-            </>
-          )}
-        </g>
-      )}
-
       {actors.map((a) => {
         if (a.kind === "ball") {
           return (
-            <circle
-              key={a.id}
-              cx={a.x}
-              cy={a.y}
-              r="1.5"
-              className="fill-foreground stroke-background"
-              strokeWidth="0.6"
-            />
+            <g key={a.id}>
+              {/* Piłka: +25% i kontrastowy obrys */}
+              <circle
+                cx={a.x}
+                cy={a.y}
+                r="1.9"
+                className="fill-background stroke-foreground"
+                strokeWidth="1.1"
+              />
+              <circle cx={a.x} cy={a.y} r="1.05" className="fill-foreground" />
+            </g>
           );
         }
         const cls =
@@ -242,11 +134,17 @@ export function SimPitch({
         return (
           <g key={a.id}>
             {a.kind === "self" && pulse && (
+              <circle cx={a.x} cy={a.y} r="6" className="fill-primary/15" />
+            )}
+            {a.kind === "self" && (
+              // Cienki niebieski pierścień sterowanego zawodnika
               <circle
                 cx={a.x}
                 cy={a.y}
-                r="6"
-                className="fill-primary/15"
+                r="5"
+                fill="none"
+                className="stroke-primary"
+                strokeWidth="0.4"
               />
             )}
             <circle
@@ -266,13 +164,14 @@ export function SimPitch({
             >
               {a.kind === "self" ? "T" : a.kind === "mate" ? "P" : "R"}
             </text>
-            {a.label && (
+            {a.showLabel && a.label && (
               <text
                 x={a.x}
-                y={a.y + 7}
-                fontSize="2.6"
+                y={a.y + 8.4}
+                fontSize="2.8"
                 textAnchor="middle"
-                className="fill-foreground/60"
+                className="fill-foreground/70"
+                style={{ fontWeight: 600 }}
               >
                 {a.label}
               </text>

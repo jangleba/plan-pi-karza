@@ -1,13 +1,7 @@
 // Typy silnika mikrosymulacji Football IQ.
 // Silnik jest sterowany danymi — scenariusze to czyste obiekty, bez logiki UI.
 
-export type SimStage =
-  | "observation"
-  | "timing"
-  | "position"
-  | "reaction"
-  | "decision"
-  | "replay";
+export type SimStage = "observation" | "reaction" | "decision" | "replay";
 
 export type SimCriterion =
   | "timing"
@@ -164,18 +158,22 @@ export interface SimChoice {
   actionId: string | null;
 }
 
-export interface SimCriterionScore {
-  criterion: SimCriterion;
-  score: number; // 0..100
-  weight: number; // 0..1
-  note: string;
+export type SimFeedbackKey = "timing" | "space" | "consequence";
+export type SimVerdict = "good" | "mixed" | "poor";
+
+export interface SimFeedbackItem {
+  key: SimFeedbackKey;
+  label: string;
+  verdict: SimVerdict;
+  text: string;
 }
 
 export interface SimResult {
   reaction: SimReaction;
-  criteria: SimCriterionScore[];
-  total: number;
+  /** Trzy deterministyczne wnioski wynikające z danych scenariusza. */
+  feedback: SimFeedbackItem[];
   action: SimAction | null;
   outcome: SimActionOutcome;
   alternative: { action: SimAction; outcome: SimActionOutcome; changed: string } | null;
 }
+

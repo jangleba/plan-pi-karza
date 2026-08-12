@@ -2,13 +2,14 @@ import type {
   SimAction,
   SimBodyAngle,
   SimChoice,
-  SimCriterion,
-  SimCriterionScore,
+  SimFeedbackItem,
   SimResult,
   SimScenario,
   SimTimingWindow,
+  SimVerdict,
   SimZone,
 } from "./types";
+
 
 export function actorAt(
   path: { t: number; x: number; y: number }[],
@@ -86,57 +87,44 @@ function outcomeOf(scenario: SimScenario, action: SimAction | null, reactionId: 
   return action.outcomes[reactionId] ?? scenario.fallbackOutcome;
 }
 
+function verdictOf(q: number): SimVerdict {
+  if (q >= 0.7) return "good";
+  if (q >= 0.45) return "mixed";
+  return "poor";
+}
+
 export function evaluate(scenario: SimScenario, choice: SimChoice): SimResult {
   const window = findTimingWindow(scenario, choice.timingMs);
   const zone = findZone(scenario, choice.x, choice.y);
-  const angle = findAngle(scenario, choice.angleDeg);
-  const foot = scenario.feet.find((f) => f.foot === choice.foot);
   const reaction = reactionFor(scenario, zone);
   const action = scenario.actions.find((a) => a.id === choice.actionId) ?? null;
   const outcome = outcomeOf(scenario, action, reaction.id);
 
-  const bodyQuality =
-    ((angle?.quality ?? 0.3) * 2 + (foot?.quality ?? 0.4)) / 3;
+  const timingQ = window?.quality ?? 0.25;
+  const spaceQ = zone ? zone.quality : 0.3;
+  const consequenceQ =
+    (outcome.progression + outcome.advantage + outcome.risk) / 3;
 
-  const raw: Record<SimCriterion, { q: number; note: string }> = {
-    timing: {
-      q: window?.quality ?? 0.25,
-      note: window?.note ?? scenario.timingMissNote,
+  const feedback: SimFeedbackItem[] = [
+    {
+      key: "timing",
+      label: "Timing",
+      verdict: verdictOf(timingQ),
+      text: window?.note ?? scenario.timingMissNote,
     },
-    body: {
-      q: bodyQuality,
-      note: `${angle?.note ?? scenario.bodyMissNote} ${foot?.note ?? ""}`.trim(),
+    {
+      key: "space",
+      label: "Decyzja przestrzenna",
+      verdict: verdictOf(spaceQ),
+      text: `${zone?.note ?? scenario.zoneMissNote} ${reaction.description}`.trim(),
     },
-    progression: {
-      q: outcome.progression,
-      note: outcome.consequence,
+    {
+      key: "consequence",
+      label: "Konsekwencja",
+      verdict: verdictOf(consequenceQ),
+      text: outcome.consequence,
     },
-    advantage: {
-      q: outcome.advantage * (zone ? 0.6 + 0.4 * zone.quality : 0.5),
-      note: zone?.note ?? scenario.zoneMissNote,
-    },
-    risk: {
-      q: outcome.risk,
-      note: outcome.consequence,
-    },
-  };
-
-  const weights = scenario.context.weights;
-  const sum = (Object.keys(raw) as SimCriterion[]).reduce(
-    (acc, k) => acc + (weights[k] ?? 0),
-    0,
-  );
-  const criteria: SimCriterionScore[] = (Object.keys(raw) as SimCriterion[]).map(
-    (k) => ({
-      criterion: k,
-      score: Math.round(Math.max(0, Math.min(1, raw[k].q)) * 100),
-      weight: sum > 0 ? (weights[k] ?? 0) / sum : 0,
-      note: raw[k].note,
-    }),
-  );
-  const total = Math.round(
-    criteria.reduce((acc, c) => acc + c.score * c.weight, 0),
-  );
+  ];
 
   const altDef = scenario.alternatives[reaction.id];
   const altAction = altDef
@@ -152,13 +140,6 @@ export function evaluate(scenario: SimScenario, choice: SimChoice): SimResult {
         }
       : null;
 
-  return { reaction, criteria, total, action, outcome, alternative: altBetter };
+  return { reaction, feedback, action, outcome, alternative: altBetter };
 }
 
-export const CRITERION_LABELS: Record<SimCriterion, string> = {
-  timing: "Timing ruchu",
-  body: "Ustawienie ciała",
-  progression: "Progresja gry",
-  advantage: "Stworzona przewaga",
-  risk: "Kontrola ryzyka",
-};
