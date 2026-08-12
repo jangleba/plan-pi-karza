@@ -1,23 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Play, RotateCcw, Shuffle, UserRound } from "lucide-react";
+import { Play, RotateCcw, Shuffle, UserRound } from "lucide-react";
 
 import { AppHeader } from "@/components/loadwise/ui";
-import { SimPitch, type SimPitchActor, type SimPitchPath } from "@/components/football-iq/SimPitch";
+import {
+  SimPitch,
+  type SimPitchActor,
+  type SimPitchPath,
+} from "@/components/football-iq/SimPitch";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { toIQPositionGroup } from "@/lib/football-iq/positionMapping";
 import { scenariosForPosition } from "@/lib/football-iq/simulation/scenarios";
 import { TOPIC_LABELS } from "@/lib/football-iq/simulation/scenarioKit";
-import {
-  CRITERION_LABELS,
-  actorAt,
-  evaluate,
-} from "@/lib/football-iq/simulation/engine";
+import { actorAt, evaluate } from "@/lib/football-iq/simulation/engine";
 import type {
-  SimFoot,
   SimResult,
   SimScenario,
   SimStage,
+  SimVerdict,
 } from "@/lib/football-iq/simulation/types";
 import type { IQPositionGroup } from "@/lib/football-iq/types";
 
@@ -63,8 +63,6 @@ function NoPositionScreen() {
 
 const STAGE_TITLE: Record<SimStage, string> = {
   observation: "Obserwacja",
-  timing: "Timing",
-  position: "Pozycja i ciało",
   reaction: "Reakcja rywala",
   decision: "Decyzja",
   replay: "Replay",
@@ -72,18 +70,32 @@ const STAGE_TITLE: Record<SimStage, string> = {
 
 const STAGE_HINT: Record<SimStage, string> = {
   observation: "Dotknij boiska w momencie, w którym zaczynasz ruch.",
-  timing: "",
-  position:
-    "Przesuń swój znacznik, obróć uchwytem kierunek ciała i wybierz nogę przyjmującą.",
-  reaction: "Rywal reaguje na Twoje ustawienie.",
+  reaction: "Rywal reaguje na Twój moment startu.",
   decision: "Wybierz działanie, zanim piłka dojdzie.",
   replay: "Twoja decyzja i jedna lepsza alternatywa.",
 };
 
+const VERDICT_CLASS: Record<SimVerdict, string> = {
+  good: "bg-primary/10 text-primary",
+  mixed: "bg-secondary text-foreground",
+  poor: "bg-destructive/10 text-destructive",
+};
+
+const VERDICT_LABEL: Record<SimVerdict, string> = {
+  good: "Dobrze",
+  mixed: "Do poprawy",
+  poor: "Błąd",
+};
+
+const REPLAY_STEPS = ["Twój moment", "Kluczowy ruch rywala", "Konsekwencja"];
+
 function Simulation({ group }: { group: IQPositionGroup }) {
   const pool = useMemo(() => scenariosForPosition(group), [group]);
-  const [index, setIndex] = useState(0);
-  const scenario: SimScenario = pool[index % pool.length];
+  const [scenarioId, setScenarioId] = useState(pool[0].id);
+  const scenario: SimScenario = useMemo(
+    () => pool.find((s) => s.id === scenarioId) ?? pool[0],
+    [pool, scenarioId],
+  );
 
   const [started, setStarted] = useState(false);
   const [stage, setStage] = useState<SimStage>("observation");
@@ -93,32 +105,33 @@ function Simulation({ group }: { group: IQPositionGroup }) {
   const [t, setT] = useState(0);
   const [observationDone, setObservationDone] = useState(false);
   const [timingMs, setTimingMs] = useState<number | null>(null);
-  const [ghost, setGhost] = useState({ x: 58, y: 97, angleDeg: 30 });
-  const [foot, setFoot] = useState<SimFoot>("right");
+  const [selfPoint, setSelfPoint] = useState({ x: 58, y: 97 });
   const [reactionT, setReactionT] = useState(0);
   const [reactionDone, setReactionDone] = useState(false);
   const [decisionLeft, setDecisionLeft] = useState(scenario.decisionMs);
   const [result, setResult] = useState<SimResult | null>(null);
-  const [replayAlt, setReplayAlt] = useState(false);
+  const [replayStep, setReplayStep] = useState(0);
 
   const startRef = useRef(0);
 
   const resetRun = useCallback(
     (nextRate: number) => {
+      const self = scenario.actors.find((a) => a.kind === "self");
+      const start = self ? actorAt(self.path, 0) : { x: 58, y: 97 };
       setResult(null);
       setTimingMs(null);
       setT(0);
       setObservationDone(false);
       setReactionT(0);
       setReactionDone(false);
-      setGhost({ x: 58, y: 97, angleDeg: 30 });
-      setFoot("right");
+      setReplayStep(0);
+      setSelfPoint(start);
       setDecisionLeft(scenario.decisionMs);
       setRate(nextRate);
       setStage("observation");
       setRunId((i) => i + 1);
     },
-    [scenario.decisionMs],
+    [scenario],
   );
 
   // Faza obserwacji — animacja w czasie rzeczywistym, bez automatycznego przejścia dalej.
@@ -185,67 +198,92 @@ function Simulation({ group }: { group: IQPositionGroup }) {
     const p = Math.min(1, ms / scenario.observationMs);
     setT(p);
     const self = scenario.actors.find((a) => a.kind === "self")!;
-    const pos = actorAt(self.path, p);
-    setGhost({ x: pos.x, y: pos.y, angleDeg: 30 });
-    setStage("position");
+    setSelfPoint(actorAt(self.path, p));
+    setReactionT(0);
+    setReactionDone(false);
+    setStage("reaction");
   }
 
+  const choiceBase = {
+    timingMs,
+    x: selfPoint.x,
+    y: selfPoint.y,
+    angleDeg: 0,
+    foot: "right" as const,
+  };
+
   function finish(actionId: string | null) {
-    const r = evaluate(scenario, {
-      timingMs,
-      x: ghost.x,
-      y: ghost.y,
-      angleDeg: ghost.angleDeg,
-      foot,
-      actionId,
-    });
-    setResult(r);
-    setReplayAlt(false);
+    setResult(evaluate(scenario, { ...choiceBase, actionId }));
+    setReplayStep(0);
     setStage("replay");
   }
 
-  function currentReaction() {
-    return evaluate(scenario, {
-      timingMs,
-      x: ghost.x,
-      y: ghost.y,
-      angleDeg: ghost.angleDeg,
-      foot,
-      actionId: null,
-    }).reaction;
-  }
+  const currentReaction = () =>
+    evaluate(scenario, { ...choiceBase, actionId: null }).reaction;
+
+  // Kluczowy rywal = ten, który reaguje na nasz moment startu.
+  const reactionForView = result?.reaction ?? currentReaction();
+  const keyOpponentId = reactionForView.moves[0]?.actorId;
+
+  const ball = scenario.actors.find((a) => a.kind === "ball");
+  const carrierId = useMemo(() => {
+    if (!ball) return undefined;
+    const bp = actorAt(ball.path, 0);
+    let best: string | undefined;
+    let bestD = Infinity;
+    for (const a of scenario.actors) {
+      if (a.kind === "ball" || a.kind === "self") continue;
+      const p = actorAt(a.path, 0);
+      const d = Math.hypot(p.x - bp.x, p.y - bp.y);
+      if (d < bestD) {
+        bestD = d;
+        best = a.id;
+      }
+    }
+    return best;
+  }, [scenario, ball]);
 
   // Pozycje zawodników w bieżącej fazie.
   const actors: SimPitchActor[] = useMemo(() => {
     const frozenT = stage === "observation" ? t : 1;
+    const applyReaction =
+      stage === "reaction" ||
+      stage === "decision" ||
+      (stage === "replay" && replayStep >= 1);
     return scenario.actors.map((a) => {
       const base = actorAt(a.path, frozenT);
       let { x, y } = base;
-      const move =
-        result || stage === "reaction" || stage === "decision"
-          ? (result?.reaction ?? currentReaction())?.moves.find(
-              (m) => m.actorId === a.id,
-            )
-          : undefined;
+      const move = applyReaction
+        ? reactionForView.moves.find((m) => m.actorId === a.id)
+        : undefined;
       if (move) {
         const k = stage === "reaction" ? reactionT : 1;
         x = base.x + (move.x - base.x) * k;
         y = base.y + (move.y - base.y) * k;
       }
       if (a.kind === "self" && stage !== "observation") {
-        return { id: a.id, kind: a.kind, label: a.label, x: ghost.x, y: ghost.y };
+        x = selfPoint.x;
+        y = selfPoint.y;
       }
-      return { id: a.id, kind: a.kind, label: a.label, x, y };
+      return {
+        id: a.id,
+        kind: a.kind,
+        label: a.label,
+        showLabel:
+          a.kind === "self" || a.id === carrierId || a.id === keyOpponentId,
+        x,
+        y,
+      };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, t, reactionT, ghost, result, scenario]);
+  }, [stage, t, reactionT, selfPoint, result, scenario, replayStep, carrierId, keyOpponentId]);
 
   const paths: SimPitchPath[] = [];
-  if (stage === "replay" && result) {
+  if (stage === "replay" && result && replayStep >= 2) {
     if (result.outcome.path) {
       paths.push({ points: result.outcome.path, variant: "user" });
     }
-    if (replayAlt && result.alternative?.outcome.path) {
+    if (result.alternative?.outcome.path) {
       paths.push({ points: result.alternative.outcome.path, variant: "alt" });
     }
   }
@@ -261,8 +299,9 @@ function Simulation({ group }: { group: IQPositionGroup }) {
           setStarted(true);
         }}
         onShuffle={() => {
-          setIndex((i) => (i + 1) % pool.length);
-          resetRun(0.75);
+          const i = pool.findIndex((s) => s.id === scenario.id);
+          const next = pool[(i + 1) % pool.length];
+          setScenarioId(next.id);
         }}
         poolSize={pool.length}
       />
@@ -288,23 +327,27 @@ function Simulation({ group }: { group: IQPositionGroup }) {
             {scenario.title}
           </p>
           <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
-            {stage === "observation" ? scenario.brief : STAGE_HINT[stage]}
+            {stage === "observation"
+              ? scenario.brief
+              : stage === "replay"
+                ? REPLAY_STEPS[replayStep]
+                : STAGE_HINT[stage]}
           </p>
         </div>
       </div>
 
-      {/* Boisko */}
+      {/* Boisko — replay na pełnej szerokości */}
       <div
-        className="min-h-0 flex-1 px-4 py-2"
+        className={`min-h-0 flex-1 py-2 ${stage === "replay" ? "px-0" : "px-4"}`}
         onPointerDown={stage === "observation" ? startMove : undefined}
       >
-        <div className="soft-card h-full overflow-hidden p-1.5">
+        <div
+          className={`h-full overflow-hidden ${
+            stage === "replay" ? "px-0" : "soft-card p-1.5"
+          }`}
+        >
           <SimPitch
             actors={actors}
-            ghost={stage === "position" ? ghost : null}
-            interactive={stage === "position"}
-            onGhostMove={(x, y) => setGhost((g) => ({ ...g, x, y }))}
-            onAngleChange={(deg) => setGhost((g) => ({ ...g, angleDeg: deg }))}
             paths={paths}
             pulse={stage === "observation" && !observationDone}
           />
@@ -332,7 +375,9 @@ function Simulation({ group }: { group: IQPositionGroup }) {
                 <button
                   onClick={() => {
                     setTimingMs(null);
-                    setStage("position");
+                    setReactionT(0);
+                    setReactionDone(false);
+                    setStage("reaction");
                   }}
                   className="flex-1 rounded-xl bg-primary py-2.5 text-[13px] font-bold uppercase tracking-wide text-primary-foreground active:scale-[0.99]"
                 >
@@ -347,7 +392,6 @@ function Simulation({ group }: { group: IQPositionGroup }) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setRate((r) => (r === 0.75 ? 1 : 0.75));
                     resetRun(rate === 0.75 ? 1 : 0.75);
                   }}
                   className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground"
@@ -359,40 +403,10 @@ function Simulation({ group }: { group: IQPositionGroup }) {
           </div>
         )}
 
-        {stage === "position" && (
-          <div className="soft-card p-3">
-            <div className="flex gap-2">
-              {(["left", "right"] as SimFoot[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFoot(f)}
-                  className={`flex-1 rounded-xl py-2 text-[12px] font-semibold ${
-                    foot === f
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground"
-                  }`}
-                >
-                  {f === "left" ? "Przyjęcie lewą" : "Przyjęcie prawą"}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                setReactionDone(false);
-                setReactionT(0);
-                setStage("reaction");
-              }}
-              className="mt-2 w-full rounded-xl bg-primary p-3 text-[13px] font-bold uppercase tracking-wide text-primary-foreground active:scale-[0.99]"
-            >
-              Zatwierdź ustawienie
-            </button>
-          </div>
-        )}
-
         {stage === "reaction" && (
           <div className="soft-card p-3">
             <p className="text-center text-[12px] font-semibold text-muted-foreground">
-              {reactionDone ? currentReaction().description : "Rywal reaguje…"}
+              {reactionDone ? reactionForView.description : "Rywal reaguje…"}
             </p>
             <button
               disabled={!reactionDone}
@@ -409,7 +423,9 @@ function Simulation({ group }: { group: IQPositionGroup }) {
             <div className="h-1 w-full overflow-hidden rounded-full bg-border">
               <div
                 className="h-full bg-primary"
-                style={{ width: `${(decisionLeft / scenario.decisionMs) * 100}%` }}
+                style={{
+                  width: `${(decisionLeft / scenario.decisionMs) * 100}%`,
+                }}
               />
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -429,12 +445,12 @@ function Simulation({ group }: { group: IQPositionGroup }) {
         {stage === "replay" && result && (
           <ReplayPanel
             result={result}
-            showAlt={replayAlt}
-            onShowAlt={() => setReplayAlt(true)}
+            step={replayStep}
+            onStep={setReplayStep}
             onRestart={() => resetRun(1)}
             onNext={() => {
-              setIndex((i) => (i + 1) % pool.length);
-              resetRun(0.75);
+              const i = pool.findIndex((s) => s.id === scenario.id);
+              setScenarioId(pool[(i + 1) % pool.length].id);
               setStarted(false);
             }}
           />
@@ -444,21 +460,22 @@ function Simulation({ group }: { group: IQPositionGroup }) {
   );
 }
 
-function SourceBadge({ scenario }: { scenario: SimScenario }) {
-  if (scenario.status === "sourced" && scenario.sourceReference) {
-    return (
-      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-        <BookOpen className="mr-1 inline h-3 w-3" />
-        Źródło: {scenario.sourceReference.label}. Materiał nie jest zatwierdzony
-        indywidualnie przez trenera eksperta.
-      </p>
-    );
-  }
-  return (
-    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-      <BookOpen className="mr-1 inline h-3 w-3" />
-      Wersja robocza (draft) — bez źródła i bez akceptacji eksperta.
-    </p>
+function SourceLink({ scenario }: { scenario: SimScenario }) {
+  const ref = scenario.sourceReference;
+  if (!ref) return null;
+  return ref.url ? (
+    <a
+      href={ref.url}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-2 inline-block text-[11px] text-primary underline underline-offset-2"
+    >
+      Źródło: {ref.label}
+    </a>
+  ) : (
+    <span className="mt-2 inline-block text-[11px] text-muted-foreground">
+      Źródło: {ref.label}
+    </span>
   );
 }
 
@@ -476,23 +493,15 @@ function BriefingScreen({
   const ctx = scenario.context;
   return (
     <div>
-      <AppHeader title="BallWise IQ" subtitle="Mikrosymulacje decyzji boiskowych." />
+      <AppHeader
+        title="BallWise IQ"
+        subtitle="Mikrosymulacje decyzji boiskowych."
+      />
       <div className="space-y-3 px-5">
         <div className="soft-card p-5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground">
-              {TOPIC_LABELS[scenario.topic]}
-            </span>
-            <span
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                scenario.status === "sourced"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-secondary text-muted-foreground"
-              }`}
-            >
-              {scenario.status === "sourced" ? "Ze źródłem" : "Draft"}
-            </span>
-          </div>
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground">
+            {TOPIC_LABELS[scenario.topic]}
+          </span>
           <h2 className="mt-3 text-base font-bold text-foreground">
             {scenario.title}
           </h2>
@@ -505,7 +514,7 @@ function BriefingScreen({
           <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
             {ctx.weightsNote}
           </p>
-          <SourceBadge scenario={scenario} />
+          <SourceLink scenario={scenario} />
           <button
             onClick={onReady}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary p-3.5 text-sm font-bold uppercase tracking-wide text-primary-foreground active:scale-[0.99]"
@@ -526,61 +535,71 @@ function BriefingScreen({
 
 function ReplayPanel({
   result,
-  showAlt,
-  onShowAlt,
+  step,
+  onStep,
   onRestart,
   onNext,
 }: {
   result: SimResult;
-  showAlt: boolean;
-  onShowAlt: () => void;
+  step: number;
+  onStep: (s: number) => void;
   onRestart: () => void;
   onNext: () => void;
 }) {
+  const stepText =
+    step === 0
+      ? `${result.action ? result.action.label : "Brak decyzji"} — moment startu i Twoje ustawienie.`
+      : step === 1
+        ? result.reaction.description
+        : result.outcome.consequence;
+
   return (
     <div className="soft-card max-h-[38vh] overflow-y-auto p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-foreground">
-          {result.action ? result.action.label : "Brak decyzji"} ·{" "}
-          {result.reaction.label}
-        </span>
-        <span className="text-[12px] font-bold text-primary">
-          {result.total}/100
-        </span>
-      </div>
-      <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
-        {result.outcome.consequence}
-      </p>
-
-      <div className="mt-2 space-y-1.5">
-        {result.criteria.map((c) => (
-          <div key={c.criterion}>
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>{CRITERION_LABELS[c.criterion]}</span>
-              <span className="font-semibold text-foreground">{c.score}</span>
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-border">
-              <div
-                className="h-full bg-primary"
-                style={{ width: `${c.score}%` }}
-              />
-            </div>
-          </div>
+      <div className="flex gap-1.5">
+        {REPLAY_STEPS.map((label, i) => (
+          <button
+            key={label}
+            onClick={() => onStep(i)}
+            className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold ${
+              i === step
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground"
+            }`}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
-      {!showAlt ? (
-        <button
-          onClick={onShowAlt}
-          className="mt-3 w-full rounded-xl bg-primary p-3 text-[13px] font-bold uppercase tracking-wide text-primary-foreground active:scale-[0.99]"
-        >
-          Pokaż lepszą alternatywę
-        </button>
-      ) : (
+      <p className="mt-2 text-[12px] leading-snug text-muted-foreground">
+        {stepText}
+      </p>
+
+      {step >= 2 && (
         <>
-          <div className="mt-3 rounded-xl bg-secondary p-3">
+          <div className="mt-2 space-y-1.5">
+            {result.feedback.map((f) => (
+              <div key={f.key} className="rounded-xl bg-secondary/60 p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-foreground">
+                    {f.label}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${VERDICT_CLASS[f.verdict]}`}
+                  >
+                    {VERDICT_LABEL[f.verdict]}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                  {f.text}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2 rounded-xl bg-secondary p-3">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Alternatywa
+              Lepsza alternatywa
             </div>
             {result.alternative ? (
               <>
@@ -598,7 +617,19 @@ function ReplayPanel({
               </p>
             )}
           </div>
-          <div className="mt-2 flex gap-2">
+        </>
+      )}
+
+      <div className="mt-2 flex gap-2">
+        {step < 2 ? (
+          <button
+            onClick={() => onStep(step + 1)}
+            className="flex-1 rounded-xl bg-primary p-3 text-[13px] font-bold uppercase tracking-wide text-primary-foreground active:scale-[0.99]"
+          >
+            Dalej: {REPLAY_STEPS[step + 1]}
+          </button>
+        ) : (
+          <>
             <button
               onClick={onRestart}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary p-3 text-[13px] font-semibold text-foreground active:scale-[0.99]"
@@ -611,9 +642,9 @@ function ReplayPanel({
             >
               Następna
             </button>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
