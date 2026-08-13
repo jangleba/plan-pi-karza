@@ -13,6 +13,7 @@ import { toIQPositionGroup } from "@/lib/football-iq/positionMapping";
 import { scenariosForPosition } from "@/lib/football-iq/simulation/scenarios";
 import { TOPIC_LABELS } from "@/lib/football-iq/simulation/scenarioKit";
 import { actorAt, evaluate } from "@/lib/football-iq/simulation/engine";
+import { choreograph } from "@/lib/football-iq/simulation/choreography";
 import type {
   SimResult,
   SimScenario,
@@ -97,7 +98,12 @@ function Simulation({ group }: { group: IQPositionGroup }) {
     [pool, scenarioId],
   );
 
+  /** Tory rozwinięte do 6 klatek kluczowych — wspólna choreografia silnika. */
+  const simActors = useMemo(() => choreograph(scenario), [scenario]);
+
   const [started, setStarted] = useState(false);
+  /** Pierwsza obserwacja: bez strzałek i podpowiedzi. */
+  const [seenOnce, setSeenOnce] = useState(false);
   const [stage, setStage] = useState<SimStage>("observation");
   const [runId, setRunId] = useState(0);
   /** Pierwsze odtworzenie zawsze w 0,75×. */
@@ -116,7 +122,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
 
   const resetRun = useCallback(
     (nextRate: number) => {
-      const self = scenario.actors.find((a) => a.kind === "self");
+      const self = simActors.find((a) => a.kind === "self");
       const start = self ? actorAt(self.path, 0) : { x: 58, y: 97 };
       setResult(null);
       setTimingMs(null);
@@ -131,7 +137,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
       setStage("observation");
       setRunId((i) => i + 1);
     },
-    [scenario],
+    [scenario, simActors],
   );
 
   // Faza obserwacji — animacja w czasie rzeczywistym, bez automatycznego przejścia dalej.
@@ -145,6 +151,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
       setT(p);
       if (p >= 1) {
         setObservationDone(true);
+        setSeenOnce(true);
         return;
       }
       raf = requestAnimationFrame(tick);
@@ -197,7 +204,8 @@ function Simulation({ group }: { group: IQPositionGroup }) {
     setTimingMs(ms);
     const p = Math.min(1, ms / scenario.observationMs);
     setT(p);
-    const self = scenario.actors.find((a) => a.kind === "self")!;
+    setSeenOnce(true);
+    const self = simActors.find((a) => a.kind === "self")!;
     setSelfPoint(actorAt(self.path, p));
     setReactionT(0);
     setReactionDone(false);
@@ -225,13 +233,13 @@ function Simulation({ group }: { group: IQPositionGroup }) {
   const reactionForView = result?.reaction ?? currentReaction();
   const keyOpponentId = reactionForView.moves[0]?.actorId;
 
-  const ball = scenario.actors.find((a) => a.kind === "ball");
+  const ball = simActors.find((a) => a.kind === "ball");
   const carrierId = useMemo(() => {
     if (!ball) return undefined;
     const bp = actorAt(ball.path, 0);
     let best: string | undefined;
     let bestD = Infinity;
-    for (const a of scenario.actors) {
+    for (const a of simActors) {
       if (a.kind === "ball" || a.kind === "self") continue;
       const p = actorAt(a.path, 0);
       const d = Math.hypot(p.x - bp.x, p.y - bp.y);
@@ -241,7 +249,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
       }
     }
     return best;
-  }, [scenario, ball]);
+  }, [simActors, ball]);
 
   // Pozycje zawodników w bieżącej fazie.
   const actors: SimPitchActor[] = useMemo(() => {
@@ -250,7 +258,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
       stage === "reaction" ||
       stage === "decision" ||
       (stage === "replay" && replayStep >= 1);
-    return scenario.actors.map((a) => {
+    return simActors.map((a) => {
       const base = actorAt(a.path, frozenT);
       let { x, y } = base;
       const move = applyReaction
@@ -276,7 +284,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, t, reactionT, selfPoint, result, scenario, replayStep, carrierId, keyOpponentId]);
+  }, [stage, t, reactionT, selfPoint, result, simActors, replayStep, carrierId, keyOpponentId]);
 
   const paths: SimPitchPath[] = [];
   if (stage === "replay" && result && replayStep >= 2) {
@@ -349,7 +357,7 @@ function Simulation({ group }: { group: IQPositionGroup }) {
           <SimPitch
             actors={actors}
             paths={paths}
-            pulse={stage === "observation" && !observationDone}
+            pulse={stage === "observation" && !observationDone && seenOnce}
           />
         </div>
       </div>
