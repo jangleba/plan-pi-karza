@@ -33,7 +33,7 @@ export const shadowReceiveScenario: SimScenario = {
     weightsNote:
       "63. minuta przy 1:1 — progresja i kontrola ryzyka ważą więcej niż efektowność.",
   },
-  observationMs: 6500,
+  observationMs: 8000,
   decisionMs: 2000,
 
   actors: [
@@ -120,23 +120,23 @@ export const shadowReceiveScenario: SimScenario = {
     {
       id: "early",
       fromMs: 0,
-      toMs: 2600,
+      toMs: 3200,
       label: "Za wcześnie",
       quality: 0.45,
       note: "Ruszyłeś, zanim stoper wziął piłkę pod kontrolę — szóstka zdążyła skorygować pozycję.",
     },
     {
       id: "prime",
-      fromMs: 2601,
-      toMs: 4900,
+      fromMs: 3201,
+      toMs: 6000,
       label: "Właściwy moment",
       quality: 0.95,
       note: "Ruszyłeś w chwili, gdy szóstka obracała biodra do piłki — straciła Cię z pola widzenia.",
     },
     {
       id: "late",
-      fromMs: 4901,
-      toMs: 6500,
+      fromMs: 6001,
+      toMs: 8000,
       label: "Późno",
       quality: 0.6,
       note: "Ruch był czytelny — rywal zdążył ustawić się między Tobą a piłką.",

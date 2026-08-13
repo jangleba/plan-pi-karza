@@ -3,6 +3,7 @@
 // wartości (okna czasowe, kąty ciała, noga, etykiety reakcji), żeby jeden silnik
 // obsługiwał całą bibliotekę bez osobnych ekranów.
 
+import { OBSERVATION_MS } from "./choreography";
 import type {
   SimAction,
   SimActor,
@@ -109,7 +110,8 @@ export interface ScenarioInput {
 }
 
 export function defineScenario(input: ScenarioInput): SimScenario {
-  const observationMs = input.observationMs ?? 7000;
+  // Każda animacja trwa 8 s — pięć faz choreografii wspólnego silnika.
+  const observationMs = OBSERVATION_MS;
   const decisionMs = input.decisionMs ?? 2000;
 
   const timingWindows = [
