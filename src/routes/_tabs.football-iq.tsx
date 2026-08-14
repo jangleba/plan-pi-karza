@@ -8,12 +8,14 @@ import {
   type SimPitchActor,
   type SimPitchPath,
 } from "@/components/football-iq/SimPitch";
+import { SimPitch25D } from "@/components/football-iq/SimPitch25D";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { toIQPositionGroup } from "@/lib/football-iq/positionMapping";
 import { scenariosForPosition } from "@/lib/football-iq/simulation/scenarios";
 import { TOPIC_LABELS } from "@/lib/football-iq/simulation/scenarioKit";
-import { actorAt, evaluate } from "@/lib/football-iq/simulation/engine";
+import { actorAt, evaluate, facingAt } from "@/lib/football-iq/simulation/engine";
 import { choreograph } from "@/lib/football-iq/simulation/choreography";
+
 import type {
   SimResult,
   SimScenario,
