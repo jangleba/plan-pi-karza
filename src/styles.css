@@ -105,7 +105,13 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  /* Boisko 2.5D — jasna, pastelowa murawa */
+  --pitch-grass: oklch(0.955 0.045 145);
+  --pitch-grass-alt: oklch(0.932 0.058 145);
+  --pitch-line: oklch(0.99 0.01 145);
+  --pitch-shadow: oklch(0.62 0.04 150);
 }
+
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
