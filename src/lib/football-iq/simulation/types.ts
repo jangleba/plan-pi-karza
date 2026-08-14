@@ -14,13 +14,25 @@ export type SimFoot = "left" | "right";
 
 export type SimActorKind = "self" | "mate" | "opponent" | "ball";
 
+export interface SimKeyframe {
+  /** t = 0..1 w obrębie fazy obserwacji. */
+  t: number;
+  x: number;
+  y: number;
+  /** Opcjonalny kierunek ustawienia ciała (stopnie, 0 = w stronę bramki rywala). */
+  facingAngle?: number;
+  /** Opcjonalna etykieta akcji w tej klatce (np. "receive", "turn", "scan"). */
+  action?: string;
+}
+
 export interface SimActor {
   id: string;
   kind: SimActorKind;
   label?: string;
   /** Klatki kluczowe: t = 0..1 w obrębie fazy obserwacji. */
-  path: { t: number; x: number; y: number }[];
+  path: SimKeyframe[];
 }
+
 
 export interface SimTimingWindow {
   id: string;

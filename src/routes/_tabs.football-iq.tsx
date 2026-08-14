@@ -8,12 +8,14 @@ import {
   type SimPitchActor,
   type SimPitchPath,
 } from "@/components/football-iq/SimPitch";
+import { SimPitch25D } from "@/components/football-iq/SimPitch25D";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { toIQPositionGroup } from "@/lib/football-iq/positionMapping";
 import { scenariosForPosition } from "@/lib/football-iq/simulation/scenarios";
 import { TOPIC_LABELS } from "@/lib/football-iq/simulation/scenarioKit";
-import { actorAt, evaluate } from "@/lib/football-iq/simulation/engine";
+import { actorAt, evaluate, facingAt } from "@/lib/football-iq/simulation/engine";
 import { choreograph } from "@/lib/football-iq/simulation/choreography";
+
 import type {
   SimResult,
   SimScenario,
@@ -281,8 +283,10 @@ function Simulation({ group }: { group: IQPositionGroup }) {
           a.kind === "self" || a.id === carrierId || a.id === keyOpponentId,
         x,
         y,
+        facingDeg: facingAt(a.path, frozenT),
       };
     });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, t, reactionT, selfPoint, result, simActors, replayStep, carrierId, keyOpponentId]);
 
@@ -297,6 +301,9 @@ function Simulation({ group }: { group: IQPositionGroup }) {
   }
 
   const ctx = scenario.context;
+  /** 2.5D wdrożone na razie tylko dla scenariusza wzorcowego; reszta na starym rendererze. */
+  const use25D = scenario.id === "shadow-receive-6";
+
 
   if (!started) {
     return (
@@ -354,11 +361,20 @@ function Simulation({ group }: { group: IQPositionGroup }) {
             stage === "replay" ? "px-0" : "soft-card p-1.5"
           }`}
         >
-          <SimPitch
-            actors={actors}
-            paths={paths}
-            pulse={stage === "observation" && !observationDone && seenOnce}
-          />
+          {use25D ? (
+            <SimPitch25D
+              actors={actors}
+              paths={paths}
+              pulse={stage === "observation" && !observationDone && seenOnce}
+            />
+          ) : (
+            <SimPitch
+              actors={actors}
+              paths={paths}
+              pulse={stage === "observation" && !observationDone && seenOnce}
+            />
+          )}
+
         </div>
       </div>
 

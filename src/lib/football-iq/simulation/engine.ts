@@ -30,6 +30,30 @@ export function actorAt(
   return { x: last.x, y: last.y };
 }
 
+/** Kierunek ustawienia z klatek kluczowych (interpolacja najkrótszą drogą). */
+export function facingAt(
+  path: { t: number; facingAngle?: number }[],
+  t: number,
+): number | undefined {
+  const kf = path.filter((p) => typeof p.facingAngle === "number");
+  if (kf.length === 0) return undefined;
+  if (kf.length === 1 || t <= kf[0].t) return kf[0].facingAngle;
+  const last = kf[kf.length - 1];
+  if (t >= last.t) return last.facingAngle;
+  for (let i = 1; i < kf.length; i += 1) {
+    const a = kf[i - 1];
+    const b = kf[i];
+    if (t <= b.t) {
+      const k = (t - a.t) / Math.max(1e-6, b.t - a.t);
+      let d = (((b.facingAngle! - a.facingAngle! + 180) % 360) + 360) % 360 - 180;
+      if (d === -180) d = 180;
+      return a.facingAngle! + d * k;
+    }
+  }
+  return last.facingAngle;
+}
+
+
 export function findTimingWindow(
   scenario: SimScenario,
   ms: number | null,
