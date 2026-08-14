@@ -301,6 +301,9 @@ function Simulation({ group }: { group: IQPositionGroup }) {
   }
 
   const ctx = scenario.context;
+  /** 2.5D wdrożone na razie tylko dla scenariusza wzorcowego; reszta na starym rendererze. */
+  const use25D = scenario.id === "shadow-receive-6";
+
 
   if (!started) {
     return (
