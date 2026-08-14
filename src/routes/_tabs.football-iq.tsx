@@ -283,8 +283,10 @@ function Simulation({ group }: { group: IQPositionGroup }) {
           a.kind === "self" || a.id === carrierId || a.id === keyOpponentId,
         x,
         y,
+        facingDeg: facingAt(a.path, frozenT),
       };
     });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, t, reactionT, selfPoint, result, simActors, replayStep, carrierId, keyOpponentId]);
 
