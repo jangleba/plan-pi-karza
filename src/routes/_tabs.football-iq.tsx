@@ -358,11 +358,20 @@ function Simulation({ group }: { group: IQPositionGroup }) {
             stage === "replay" ? "px-0" : "soft-card p-1.5"
           }`}
         >
-          <SimPitch
-            actors={actors}
-            paths={paths}
-            pulse={stage === "observation" && !observationDone && seenOnce}
-          />
+          {use25D ? (
+            <SimPitch25D
+              actors={actors}
+              paths={paths}
+              pulse={stage === "observation" && !observationDone && seenOnce}
+            />
+          ) : (
+            <SimPitch
+              actors={actors}
+              paths={paths}
+              pulse={stage === "observation" && !observationDone && seenOnce}
+            />
+          )}
+
         </div>
       </div>
 
