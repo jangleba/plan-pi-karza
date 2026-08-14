@@ -12,7 +12,10 @@ export type SimPitchActor = {
   showLabel?: boolean;
   x: number;
   y: number;
+  /** Opcjonalny kierunek ustawienia sylwetki (stopnie, 0 = w stronę bramki rywala). */
+  facingDeg?: number;
 };
+
 
 export type SimPitchPath = {
   points: { x: number; y: number }[];
