@@ -67,9 +67,52 @@ export type LoadLevel = "none" | "low" | "moderate" | "high" | "very_high";
 /** Ocena złożoności/ryzyka w skali 1–5. */
 export type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 
+/** Kategoria sesji, do której ćwiczenie może trafić. */
+export type SessionCategory =
+  | "strength_gym"
+  | "power_plyo"
+  | "speed_sprint"
+  | "endurance_conditioning"
+  | "football_ball_work"
+  | "core_robustness"
+  | "mobility_prehab";
+
+export const SESSION_CATEGORIES: SessionCategory[] = [
+  "strength_gym",
+  "power_plyo",
+  "speed_sprint",
+  "endurance_conditioning",
+  "football_ball_work",
+  "core_robustness",
+  "mobility_prehab",
+];
+
+/** Tryb uczestników wymagany do wykonania ćwiczenia. */
+export type ParticipantMode = "solo" | "partner" | "small_group" | "team";
+
+/** Wymagany rodzaj przestrzeni. */
+export type SpaceRequirement =
+  | "home_small"
+  | "indoor_gym"
+  | "pitch"
+  | "sprint_lane"
+  | "open_field";
+
 export interface ExerciseDefinition {
   id: string;
   name: string;
+  /** Polska nazwa wyświetlana w UI. */
+  displayNamePl: string;
+  /** Aliasy starych/alternatywnych nazw (do migracji). */
+  aliases: string[];
+  /** Czy wymaga piłki futbolowej. */
+  requiresBall: boolean;
+  /** Kategorie sesji, w których ćwiczenie może wystąpić. */
+  allowedSessionCategories: SessionCategory[];
+  participantMode: ParticipantMode;
+  minParticipants: number;
+  spaceRequirement: SpaceRequirement;
+
   category: ExerciseCategory;
   movementPattern: MovementPattern;
   primaryAdaptation: PrimaryAdaptation;
@@ -117,6 +160,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "bodyweight_split_squat",
     name: "Bodyweight split squat",
+    displayNamePl: "Wykrok bułgarski bez obciążenia (split squat)",
+    aliases: ["Split squat", "Przysiad w wykroku"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "strength",
     movementPattern: "lunge",
     primaryAdaptation: "technique",
@@ -150,6 +200,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "bodyweight_squat",
     name: "Bodyweight squat",
+    displayNamePl: "Przysiad z masą własnego ciała",
+    aliases: ["Przysiad", "Air squat"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "strength",
     movementPattern: "squat",
     primaryAdaptation: "technique",
@@ -183,6 +240,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "glute_bridge",
     name: "Glute bridge",
+    displayNamePl: "Most biodrowy",
+    aliases: ["Mostek biodrowy", "Bridge"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "strength",
     movementPattern: "hinge",
     primaryAdaptation: "stability",
@@ -216,6 +280,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "plank",
     name: "Plank",
+    displayNamePl: "Deska",
+    aliases: ["Plank przedni", "Deska przednia"],
+    requiresBall: false,
+    allowedSessionCategories: ["core_robustness", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "core",
     movementPattern: "brace",
     primaryAdaptation: "stability",
@@ -249,6 +320,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "dead_bug",
     name: "Dead bug",
+    displayNamePl: "Martwy robak",
+    aliases: ["Dead-bug"],
+    requiresBall: false,
+    allowedSessionCategories: ["core_robustness", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "core",
     movementPattern: "brace",
     primaryAdaptation: "stability",
@@ -282,6 +360,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "bird_dog",
     name: "Bird dog",
+    displayNamePl: "Ptak-pies",
+    aliases: ["Bird-dog", "Wyprost naprzemienny w klęku"],
+    requiresBall: false,
+    allowedSessionCategories: ["core_robustness", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "core",
     movementPattern: "brace",
     primaryAdaptation: "stability",
@@ -315,6 +400,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "acceleration_mechanics",
     name: "Mechanika akceleracji (niska objętość)",
+    displayNamePl: "Mechanika przyspieszenia",
+    aliases: ["Akceleracje", "Starty", "Sprinty akceleracyjne"],
+    requiresBall: false,
+    allowedSessionCategories: ["speed_sprint"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "sprint_lane",
     category: "speed",
     movementPattern: "sprint",
     primaryAdaptation: "acceleration",
@@ -349,6 +441,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "goblet_squat",
     name: "Goblet squat",
+    displayNamePl: "Przysiad goblet",
+    aliases: ["Przysiad z hantlem", "Goblet"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "strength",
     movementPattern: "squat",
     primaryAdaptation: "hypertrophy",
@@ -382,6 +481,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "romanian_deadlift_db",
     name: "Romanian deadlift z hantlami (lekko)",
+    displayNamePl: "Martwy ciąg rumuński z hantlami",
+    aliases: ["RDL", "Rumuński martwy ciąg"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "strength",
     movementPattern: "hinge",
     primaryAdaptation: "hypertrophy",
@@ -415,6 +521,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "hip_thrust",
     name: "Hip thrust",
+    displayNamePl: "Wypychanie bioder z ławki",
+    aliases: ["Hip thrust ze sztangą", "Wypychanie bioder"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "strength",
     movementPattern: "hinge",
     primaryAdaptation: "hypertrophy",
@@ -448,6 +561,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "bulgarian_split_squat",
     name: "Bulgarian split squat (obciążony)",
+    displayNamePl: "Przysiad bułgarski z obciążeniem",
+    aliases: ["Bulgarian split squat", "Przysiad bułgarski"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "strength",
     movementPattern: "lunge",
     primaryAdaptation: "hypertrophy",
@@ -482,6 +602,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "heavy_back_squat",
     name: "Ciężki przysiad ze sztangą (back squat)",
+    displayNamePl: "Ciężki przysiad ze sztangą",
+    aliases: ["Back squat", "Przysiad ze sztangą"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "strength",
     movementPattern: "squat",
     primaryAdaptation: "max_strength",
@@ -515,6 +642,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "barbell_deadlift",
     name: "Barbell deadlift (martwy ciąg ze sztangą)",
+    displayNamePl: "Martwy ciąg ze sztangą",
+    aliases: ["Deadlift", "Martwy ciąg klasyczny"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "strength",
     movementPattern: "hinge",
     primaryAdaptation: "max_strength",
@@ -548,6 +682,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "power_clean",
     name: "Power clean (zarzut)",
+    displayNamePl: "Zarzut sztangi",
+    aliases: ["Clean", "Zarzut"],
+    requiresBall: false,
+    allowedSessionCategories: ["strength_gym", "power_plyo"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "power",
     movementPattern: "olympic",
     primaryAdaptation: "power",
@@ -581,6 +722,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "depth_jump",
     name: "Depth jump (skok w głąb)",
+    displayNamePl: "Zeskok z doskokiem",
+    aliases: ["Skok w głąb", "Depth jumps"],
+    requiresBall: false,
+    allowedSessionCategories: ["power_plyo"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "indoor_gym",
     category: "plyometric",
     movementPattern: "jump",
     primaryAdaptation: "rfd",
@@ -614,6 +762,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "max_velocity_high_volume",
     name: "Max velocity — wysoka objętość",
+    displayNamePl: "Prędkość maksymalna — wysoka objętość",
+    aliases: ["Max velocity", "Sprinty latające"],
+    requiresBall: false,
+    allowedSessionCategories: ["speed_sprint"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "sprint_lane",
     category: "speed",
     movementPattern: "sprint",
     primaryAdaptation: "max_velocity",
@@ -647,6 +802,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "snap_down",
     name: "Snap-down / niskie pogo",
+    displayNamePl: "Snap-down / niskie pogo",
+    aliases: ["Pogo", "Snap down"],
+    requiresBall: false,
+    allowedSessionCategories: ["power_plyo", "mobility_prehab"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "plyometric",
     movementPattern: "jump",
     primaryAdaptation: "coordination",
@@ -680,6 +842,13 @@ const LIBRARY: ExerciseDefinition[] = [
   {
     id: "med_ball_throw",
     name: "Med ball throw (lekka piłka)",
+    displayNamePl: "Rzut piłką lekarską",
+    aliases: ["Med ball throw", "Rzuty piłką lekarską"],
+    requiresBall: false,
+    allowedSessionCategories: ["power_plyo", "strength_gym"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "home_small",
     category: "power",
     movementPattern: "rotation",
     primaryAdaptation: "power",
@@ -721,6 +890,39 @@ export function getAllExerciseDefinitions(): ExerciseDefinition[] {
 export function getExerciseDefinition(exerciseId: string): ExerciseDefinition | undefined {
   return LIBRARY_INDEX.get(exerciseId);
 }
+
+// ---------------------------------------------------------------------------
+// Rozwiązywanie nazw i aliasów (deterministyczne, bez efektów ubocznych)
+// ---------------------------------------------------------------------------
+
+/** Normalizacja: małe litery, zwinięte spacje, bez spacji brzegowych. */
+export function normalizeExerciseName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+const NAME_INDEX: Map<string, string> = (() => {
+  const map = new Map<string, string>();
+  for (const def of LIBRARY) {
+    for (const key of [def.id, def.name, def.displayNamePl, ...def.aliases]) {
+      const norm = normalizeExerciseName(key);
+      if (!map.has(norm)) map.set(norm, def.id);
+    }
+  }
+  return map;
+})();
+
+/** Rozwiązuje id po id, nazwie, polskiej nazwie lub aliasie (case/space-insensitive). */
+export function resolveExerciseId(nameOrAlias: string): string | undefined {
+  if (!nameOrAlias) return undefined;
+  return NAME_INDEX.get(normalizeExerciseName(nameOrAlias));
+}
+
+/** Rozwiązuje definicję po id, nazwie lub aliasie. */
+export function resolveExerciseByName(nameOrAlias: string): ExerciseDefinition | undefined {
+  const id = resolveExerciseId(nameOrAlias);
+  return id ? LIBRARY_INDEX.get(id) : undefined;
+}
+
 
 // ---------------------------------------------------------------------------
 // Pomocnicze skale
@@ -948,7 +1150,60 @@ const REQUIRED_FIELDS: (keyof ExerciseDefinition)[] = [
   "safeAlternativeIds",
   "coachingCues",
   "commonErrors",
+  "displayNamePl",
+  "aliases",
+  "requiresBall",
+  "allowedSessionCategories",
+  "participantMode",
+  "minParticipants",
+  "spaceRequirement",
 ];
+
+const BALL_FREE_CATEGORIES: SessionCategory[] = ["speed_sprint", "endurance_conditioning"];
+
+/**
+ * validateExerciseDefinition — walidacja pojedynczej definicji (czysta funkcja).
+ * Sprawdza kompletność metadanych oraz twarde reguły kategorii.
+ */
+export function validateExerciseDefinition(def: ExerciseDefinition): string[] {
+  const problems: string[] = [];
+
+  for (const field of REQUIRED_FIELDS) {
+    const v = def[field];
+    if (v === undefined || v === null) problems.push(`Brak pola: ${String(field)}.`);
+  }
+  if (!def.coachingCues?.length) problems.push("Brak coachingCues.");
+  if (!def.displayNamePl?.trim()) problems.push("Pusta polska nazwa wyświetlana.");
+  if (!Array.isArray(def.aliases)) problems.push("aliases musi być tablicą.");
+  if (!def.allowedSessionCategories?.length)
+    problems.push("Brak dozwolonych kategorii sesji.");
+  for (const cat of def.allowedSessionCategories ?? []) {
+    if (!SESSION_CATEGORIES.includes(cat)) problems.push(`Nieznana kategoria sesji: ${cat}.`);
+  }
+  if (!Number.isFinite(def.minParticipants) || def.minParticipants < 1)
+    problems.push("minParticipants musi wynosić co najmniej 1.");
+  if (def.participantMode === "solo" && def.minParticipants !== 1)
+    problems.push("Tryb solo wymaga minParticipants = 1.");
+  if (def.participantMode === "partner" && def.minParticipants < 2)
+    problems.push("Tryb partner wymaga minParticipants >= 2.");
+
+  // Twarde reguły kategorii vs piłka.
+  for (const cat of BALL_FREE_CATEGORIES) {
+    if (def.allowedSessionCategories?.includes(cat) && def.requiresBall)
+      problems.push(`Ćwiczenie z piłką nie może należeć do kategorii ${cat}.`);
+  }
+  if (def.requiresBall) {
+    const nonFootball = (def.allowedSessionCategories ?? []).filter(
+      (c) => c !== "football_ball_work",
+    );
+    if (nonFootball.length)
+      problems.push(
+        `Ćwiczenie z piłką może należeć wyłącznie do football_ball_work (znaleziono: ${nonFootball.join(", ")}).`,
+      );
+  }
+
+  return problems;
+}
 
 export interface LibraryCompletenessReport {
   ok: boolean;
@@ -959,18 +1214,25 @@ export interface LibraryCompletenessReport {
 export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport {
   const issues: { id: string; problem: string }[] = [];
   const seenIds = new Set<string>();
+  const seenNames = new Map<string, string>();
 
   for (const def of LIBRARY) {
     if (seenIds.has(def.id)) issues.push({ id: def.id, problem: "Zduplikowane id." });
     seenIds.add(def.id);
 
-    for (const field of REQUIRED_FIELDS) {
-      const v = def[field];
-      if (v === undefined || v === null) {
-        issues.push({ id: def.id, problem: `Brak pola: ${String(field)}.` });
-      }
+    for (const problem of validateExerciseDefinition(def)) issues.push({ id: def.id, problem });
+
+    // Kolizje nazw/aliasów (alias nie może wskazywać na inne id ani cudzą nazwę).
+    for (const key of [def.name, def.displayNamePl, ...(def.aliases ?? [])]) {
+      const norm = normalizeExerciseName(key);
+      const owner = seenNames.get(norm);
+      if (owner && owner !== def.id)
+        issues.push({ id: def.id, problem: `Kolizja nazwy/aliasu „${key}" z ${owner}.` });
+      seenNames.set(norm, def.id);
+      if (LIBRARY_INDEX.has(norm) && norm !== def.id)
+        issues.push({ id: def.id, problem: `Alias „${key}" koliduje z id innego ćwiczenia.` });
     }
-    if (!def.coachingCues.length) issues.push({ id: def.id, problem: "Brak coachingCues." });
+
     // Referencje muszą istnieć.
     for (const ref of [...def.progressionIds, ...def.regressionIds, ...def.safeAlternativeIds]) {
       if (!LIBRARY_INDEX.has(ref))
@@ -980,6 +1242,7 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
 
   return { ok: issues.length === 0, totalExercises: LIBRARY.length, issues };
 }
+
 
 // ---------------------------------------------------------------------------
 // validateWorkoutExercises — Reguła 4: każdy trening przez ten walidator
