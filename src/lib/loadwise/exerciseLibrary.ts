@@ -1150,7 +1150,60 @@ const REQUIRED_FIELDS: (keyof ExerciseDefinition)[] = [
   "safeAlternativeIds",
   "coachingCues",
   "commonErrors",
+  "displayNamePl",
+  "aliases",
+  "requiresBall",
+  "allowedSessionCategories",
+  "participantMode",
+  "minParticipants",
+  "spaceRequirement",
 ];
+
+const BALL_FREE_CATEGORIES: SessionCategory[] = ["speed_sprint", "endurance_conditioning"];
+
+/**
+ * validateExerciseDefinition — walidacja pojedynczej definicji (czysta funkcja).
+ * Sprawdza kompletność metadanych oraz twarde reguły kategorii.
+ */
+export function validateExerciseDefinition(def: ExerciseDefinition): string[] {
+  const problems: string[] = [];
+
+  for (const field of REQUIRED_FIELDS) {
+    const v = def[field];
+    if (v === undefined || v === null) problems.push(`Brak pola: ${String(field)}.`);
+  }
+  if (!def.coachingCues?.length) problems.push("Brak coachingCues.");
+  if (!def.displayNamePl?.trim()) problems.push("Pusta polska nazwa wyświetlana.");
+  if (!Array.isArray(def.aliases)) problems.push("aliases musi być tablicą.");
+  if (!def.allowedSessionCategories?.length)
+    problems.push("Brak dozwolonych kategorii sesji.");
+  for (const cat of def.allowedSessionCategories ?? []) {
+    if (!SESSION_CATEGORIES.includes(cat)) problems.push(`Nieznana kategoria sesji: ${cat}.`);
+  }
+  if (!Number.isFinite(def.minParticipants) || def.minParticipants < 1)
+    problems.push("minParticipants musi wynosić co najmniej 1.");
+  if (def.participantMode === "solo" && def.minParticipants !== 1)
+    problems.push("Tryb solo wymaga minParticipants = 1.");
+  if (def.participantMode === "partner" && def.minParticipants < 2)
+    problems.push("Tryb partner wymaga minParticipants >= 2.");
+
+  // Twarde reguły kategorii vs piłka.
+  for (const cat of BALL_FREE_CATEGORIES) {
+    if (def.allowedSessionCategories?.includes(cat) && def.requiresBall)
+      problems.push(`Ćwiczenie z piłką nie może należeć do kategorii ${cat}.`);
+  }
+  if (def.requiresBall) {
+    const nonFootball = (def.allowedSessionCategories ?? []).filter(
+      (c) => c !== "football_ball_work",
+    );
+    if (nonFootball.length)
+      problems.push(
+        `Ćwiczenie z piłką może należeć wyłącznie do football_ball_work (znaleziono: ${nonFootball.join(", ")}).`,
+      );
+  }
+
+  return problems;
+}
 
 export interface LibraryCompletenessReport {
   ok: boolean;
@@ -1161,18 +1214,25 @@ export interface LibraryCompletenessReport {
 export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport {
   const issues: { id: string; problem: string }[] = [];
   const seenIds = new Set<string>();
+  const seenNames = new Map<string, string>();
 
   for (const def of LIBRARY) {
     if (seenIds.has(def.id)) issues.push({ id: def.id, problem: "Zduplikowane id." });
     seenIds.add(def.id);
 
-    for (const field of REQUIRED_FIELDS) {
-      const v = def[field];
-      if (v === undefined || v === null) {
-        issues.push({ id: def.id, problem: `Brak pola: ${String(field)}.` });
-      }
+    for (const problem of validateExerciseDefinition(def)) issues.push({ id: def.id, problem });
+
+    // Kolizje nazw/aliasów (alias nie może wskazywać na inne id ani cudzą nazwę).
+    for (const key of [def.name, def.displayNamePl, ...(def.aliases ?? [])]) {
+      const norm = normalizeExerciseName(key);
+      const owner = seenNames.get(norm);
+      if (owner && owner !== def.id)
+        issues.push({ id: def.id, problem: `Kolizja nazwy/aliasu „${key}" z ${owner}.` });
+      seenNames.set(norm, def.id);
+      if (LIBRARY_INDEX.has(norm) && norm !== def.id)
+        issues.push({ id: def.id, problem: `Alias „${key}" koliduje z id innego ćwiczenia.` });
     }
-    if (!def.coachingCues.length) issues.push({ id: def.id, problem: "Brak coachingCues." });
+
     // Referencje muszą istnieć.
     for (const ref of [...def.progressionIds, ...def.regressionIds, ...def.safeAlternativeIds]) {
       if (!LIBRARY_INDEX.has(ref))
@@ -1182,6 +1242,7 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
 
   return { ok: issues.length === 0, totalExercises: LIBRARY.length, issues };
 }
+
 
 // ---------------------------------------------------------------------------
 // validateWorkoutExercises — Reguła 4: każdy trening przez ten walidator
