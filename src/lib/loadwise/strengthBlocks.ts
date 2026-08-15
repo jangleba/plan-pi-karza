@@ -2880,7 +2880,6 @@ export function structuredToFlat(sections: TrainingSection[]): {
   easier: e.regression,
   harder: e.progression,
 };
-    };
     return item;
   };
   const out = {
