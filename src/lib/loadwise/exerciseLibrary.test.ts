@@ -9,6 +9,10 @@ import {
   replaceExerciseWithSafeAlternative,
   validateExerciseLibraryCompleteness,
   validateWorkoutExercises,
+  normalizeExerciseName,
+  resolveExerciseId,
+  resolveExerciseByName,
+  validateExerciseDefinition,
   type ExerciseDefinition,
 } from "./exerciseLibrary";
 
@@ -187,5 +191,132 @@ describe("workout validation report", () => {
     );
     expect(report.ok).toBe(true);
     expect(report.replacements.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exercise Library 2.0 — kontrakt danych
+// ---------------------------------------------------------------------------
+
+const EXPECTED_IDS = [
+  "bodyweight_split_squat",
+  "bodyweight_squat",
+  "glute_bridge",
+  "plank",
+  "dead_bug",
+  "bird_dog",
+  "acceleration_mechanics",
+  "goblet_squat",
+  "romanian_deadlift_db",
+  "hip_thrust",
+  "bulgarian_split_squat",
+  "heavy_back_squat",
+  "barbell_deadlift",
+  "power_clean",
+  "depth_jump",
+  "max_velocity_high_volume",
+  "snap_down",
+  "med_ball_throw",
+];
+
+describe("library contract 2.0", () => {
+  it("keeps exactly the existing 18 ids", () => {
+    const ids = getAllExerciseDefinitions().map((d) => d.id);
+    expect(ids.length).toBe(18);
+    expect([...ids].sort()).toEqual([...EXPECTED_IDS].sort());
+  });
+
+  it("ids are unique", () => {
+    const ids = getAllExerciseDefinitions().map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("aliases do not collide with each other, ids or names", () => {
+    const seen = new Map<string, string>();
+    const ids = new Set(getAllExerciseDefinitions().map((d) => d.id));
+    for (const def of getAllExerciseDefinitions()) {
+      for (const key of [def.name, def.displayNamePl, ...def.aliases]) {
+        const norm = normalizeExerciseName(key);
+        const owner = seen.get(norm);
+        expect(owner === undefined || owner === def.id).toBe(true);
+        seen.set(norm, def.id);
+        if (norm !== def.id) expect(ids.has(norm)).toBe(false);
+      }
+    }
+  });
+
+  it("resolves ids by name, polish name and alias (case/space insensitive)", () => {
+    for (const def of getAllExerciseDefinitions()) {
+      for (const key of [def.id, def.name, def.displayNamePl, ...def.aliases]) {
+        expect(resolveExerciseId(`  ${key.toUpperCase()}  `)).toBe(def.id);
+        expect(resolveExerciseByName(key)?.id).toBe(def.id);
+      }
+    }
+    expect(resolveExerciseId("nie istnieje")).toBeUndefined();
+  });
+
+  it("every definition has complete required metadata", () => {
+    for (const def of getAllExerciseDefinitions()) {
+      expect(validateExerciseDefinition(def)).toEqual([]);
+      expect(typeof def.displayNamePl).toBe("string");
+      expect(def.displayNamePl.length).toBeGreaterThan(0);
+      expect(Array.isArray(def.aliases)).toBe(true);
+      expect(typeof def.requiresBall).toBe("boolean");
+      expect(def.allowedSessionCategories.length).toBeGreaterThan(0);
+      expect(["solo", "partner", "small_group", "team"]).toContain(def.participantMode);
+      expect(def.minParticipants).toBeGreaterThanOrEqual(1);
+      expect(typeof def.spaceRequirement).toBe("string");
+    }
+  });
+
+  it("all progression/regression/safe-alternative references exist", () => {
+    const ids = new Set(getAllExerciseDefinitions().map((d) => d.id));
+    for (const def of getAllExerciseDefinitions()) {
+      for (const ref of [...def.progressionIds, ...def.regressionIds, ...def.safeAlternativeIds]) {
+        expect(ids.has(ref)).toBe(true);
+      }
+    }
+  });
+
+  it("no ball exercise in speed_sprint", () => {
+    for (const def of getAllExerciseDefinitions()) {
+      if (def.allowedSessionCategories.includes("speed_sprint")) {
+        expect(def.requiresBall).toBe(false);
+      }
+    }
+  });
+
+  it("no ball exercise in endurance_conditioning", () => {
+    for (const def of getAllExerciseDefinitions()) {
+      if (def.allowedSessionCategories.includes("endurance_conditioning")) {
+        expect(def.requiresBall).toBe(false);
+      }
+    }
+  });
+
+  it("ball exercises belong only to the football category", () => {
+    for (const def of getAllExerciseDefinitions()) {
+      if (def.requiresBall) {
+        expect(def.allowedSessionCategories).toEqual(["football_ball_work"]);
+      }
+    }
+  });
+
+  it("rejects an invalid definition (ball in sprint category)", () => {
+    const base = getAllExerciseDefinitions()[0]!;
+    const bad = {
+      ...base,
+      requiresBall: true,
+      allowedSessionCategories: ["speed_sprint"] as typeof base.allowedSessionCategories,
+    };
+    expect(validateExerciseDefinition(bad).length).toBeGreaterThan(0);
+  });
+
+  it("existing safety helpers still behave the same", () => {
+    const a = youthBeginner();
+    expect(isExerciseAllowedForProfile("barbell_deadlift", a).ok).toBe(false);
+    expect(isExerciseAllowedForProfile("bodyweight_squat", a).ok).toBe(true);
+    expect(replaceExerciseWithSafeAlternative("heavy_back_squat", a).unresolved).toBe(false);
+    expect(validateExerciseLibraryCompleteness().ok).toBe(true);
   });
 });
