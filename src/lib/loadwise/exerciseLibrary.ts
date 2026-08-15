@@ -892,6 +892,39 @@ export function getExerciseDefinition(exerciseId: string): ExerciseDefinition | 
 }
 
 // ---------------------------------------------------------------------------
+// Rozwiązywanie nazw i aliasów (deterministyczne, bez efektów ubocznych)
+// ---------------------------------------------------------------------------
+
+/** Normalizacja: małe litery, zwinięte spacje, bez spacji brzegowych. */
+export function normalizeExerciseName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+const NAME_INDEX: Map<string, string> = (() => {
+  const map = new Map<string, string>();
+  for (const def of LIBRARY) {
+    for (const key of [def.id, def.name, def.displayNamePl, ...def.aliases]) {
+      const norm = normalizeExerciseName(key);
+      if (!map.has(norm)) map.set(norm, def.id);
+    }
+  }
+  return map;
+})();
+
+/** Rozwiązuje id po id, nazwie, polskiej nazwie lub aliasie (case/space-insensitive). */
+export function resolveExerciseId(nameOrAlias: string): string | undefined {
+  if (!nameOrAlias) return undefined;
+  return NAME_INDEX.get(normalizeExerciseName(nameOrAlias));
+}
+
+/** Rozwiązuje definicję po id, nazwie lub aliasie. */
+export function resolveExerciseByName(nameOrAlias: string): ExerciseDefinition | undefined {
+  const id = resolveExerciseId(nameOrAlias);
+  return id ? LIBRARY_INDEX.get(id) : undefined;
+}
+
+
+// ---------------------------------------------------------------------------
 // Pomocnicze skale
 // ---------------------------------------------------------------------------
 
