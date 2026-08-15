@@ -67,9 +67,52 @@ export type LoadLevel = "none" | "low" | "moderate" | "high" | "very_high";
 /** Ocena złożoności/ryzyka w skali 1–5. */
 export type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 
+/** Kategoria sesji, do której ćwiczenie może trafić. */
+export type SessionCategory =
+  | "strength_gym"
+  | "power_plyo"
+  | "speed_sprint"
+  | "endurance_conditioning"
+  | "football_ball_work"
+  | "core_robustness"
+  | "mobility_prehab";
+
+export const SESSION_CATEGORIES: SessionCategory[] = [
+  "strength_gym",
+  "power_plyo",
+  "speed_sprint",
+  "endurance_conditioning",
+  "football_ball_work",
+  "core_robustness",
+  "mobility_prehab",
+];
+
+/** Tryb uczestników wymagany do wykonania ćwiczenia. */
+export type ParticipantMode = "solo" | "partner" | "small_group" | "team";
+
+/** Wymagany rodzaj przestrzeni. */
+export type SpaceRequirement =
+  | "home_small"
+  | "indoor_gym"
+  | "pitch"
+  | "sprint_lane"
+  | "open_field";
+
 export interface ExerciseDefinition {
   id: string;
   name: string;
+  /** Polska nazwa wyświetlana w UI. */
+  displayNamePl: string;
+  /** Aliasy starych/alternatywnych nazw (do migracji). */
+  aliases: string[];
+  /** Czy wymaga piłki futbolowej. */
+  requiresBall: boolean;
+  /** Kategorie sesji, w których ćwiczenie może wystąpić. */
+  allowedSessionCategories: SessionCategory[];
+  participantMode: ParticipantMode;
+  minParticipants: number;
+  spaceRequirement: SpaceRequirement;
+
   category: ExerciseCategory;
   movementPattern: MovementPattern;
   primaryAdaptation: PrimaryAdaptation;
