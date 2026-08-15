@@ -2865,14 +2865,21 @@ export function structuredToFlat(sections: TrainingSection[]): {
     const parts = [e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps || e.sets, e.duration, e.rpe, e.loadTarget]
       .filter(Boolean)
       .join(", ");
-    const item: ExerciseItem = {
-      name: e.label ? `${e.label} — ${e.name}` : e.name,
-      prescription: parts || "wg techniki",
-      rest: e.restAfterExercise || e.restAfterPair || undefined,
-      cue: e.cue,
-      easier: e.regression,
-      harder: e.progression,
-    };
+   const item: ExerciseItem = {
+  name: e.label ? `${e.label} — ${e.name}` : e.name,
+  exerciseId: e.exerciseId,
+  purpose: e.purpose,
+  visualId: e.visualId,
+  displayPrescription: e.displayPrescription,
+  instructionSteps: e.instructionSteps,
+  prescription: parts || "wg techniki",
+  rest: e.restAfterExercise || e.restAfterPair || undefined,
+  cue: e.cue,
+  technique: e.technique,
+  commonMistake: e.commonMistake,
+  easier: e.regression,
+  harder: e.progression,
+};
     return item;
   };
   const out = {
@@ -2894,20 +2901,34 @@ export function structuredToFlat(sections: TrainingSection[]): {
 
 /** Mapuje płaskie sekcje ExerciseItem na pojedyncze bloki (fallback dla starych planów). */
 export function flatToStructured(sections: {
-  warmup: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  main: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  accessory: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  footballTransfer: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
-  cooldown: { name: string; prescription?: string; rest?: string; cue?: string; easier?: string; harder?: string }[];
+  warmup: ExerciseItem[];
+  main: ExerciseItem[];
+  accessory: ExerciseItem[];
+  footballTransfer: ExerciseItem[];
+  cooldown: ExerciseItem[];
 }): TrainingSection[] {
   __uid = 0;
-  const groups: { title: string; type: TrainingSection["type"]; items: typeof sections.main }[] = [
+
+  const groups: {
+    title: string;
+    type: TrainingSection["type"];
+    items: ExerciseItem[];
+  }[] = [
     { title: "Rozgrzewka", type: "warmup", items: sections.warmup },
     { title: "Część główna", type: "main", items: sections.main },
-    { title: "Część dodatkowa / stabilizacja", type: "accessory", items: sections.accessory },
-    { title: "Transfer piłkarski", type: "main", items: sections.footballTransfer },
+    {
+      title: "Część dodatkowa / stabilizacja",
+      type: "accessory",
+      items: sections.accessory,
+    },
+    {
+      title: "Transfer piłkarski",
+      type: "main",
+      items: sections.footballTransfer,
+    },
     { title: "Wyciszenie", type: "cooldown", items: sections.cooldown },
   ];
+
   return groups
     .filter((g) => g.items.length > 0)
     .map((g) =>
@@ -2922,9 +2943,15 @@ export function flatToStructured(sections: {
             exercises: g.items.map((it) =>
               ex({
                 name: it.name,
+                purpose: it.purpose,
+                visualId: it.visualId,
+                displayPrescription: it.displayPrescription,
+                instructionSteps: it.instructionSteps,
                 reps: it.prescription,
                 restAfterExercise: it.rest,
                 cue: it.cue,
+                technique: it.technique,
+                commonMistake: it.commonMistake,
                 regression: it.easier,
                 progression: it.harder,
               }),
@@ -2934,4 +2961,3 @@ export function flatToStructured(sections: {
       }),
     );
 }
-

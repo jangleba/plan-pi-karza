@@ -5,9 +5,18 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { MovementBlueprint } from "./MovementBlueprint";
-import { ListChecks, AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
-
+import {
+  ListChecks,
+  ListOrdered,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+} from "lucide-react";
 function doseChip(e: TrainingExercise): string | null {
+  const display = e.displayPrescription?.trim();
+
+  if (display) return display;
+
   if (e.sets && e.reps) return `${e.sets} × ${e.reps}`;
   if (e.reps) return e.reps;
   if (e.duration) return e.duration;
@@ -75,6 +84,7 @@ export function ExerciseDetailSheet({
   const rest = restChip(e);
   const cues = techniqueCues(e);
   const purpose = e.purpose?.trim();
+  const steps = e.instructionSteps ?? [];
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -131,6 +141,26 @@ export function ExerciseDetailSheet({
           </div>
 
           <div className="mt-2 divide-y divide-border/50">
+            {steps.length > 0 && (
+  <Section
+    icon={<ListOrdered className="h-3.5 w-3.5" />}
+    title="Jak wykonać"
+  >
+    <ol className="space-y-3">
+      {steps.map((step, i) => (
+        <li
+          key={`${i}-${step}`}
+          className="flex items-start gap-3 text-sm text-foreground"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+            {i + 1}
+          </span>
+          <span className="pt-0.5 leading-relaxed">{step}</span>
+        </li>
+      ))}
+    </ol>
+  </Section>
+)}
             {cues.length > 0 && (
               <Section
                 icon={<ListChecks className="h-3.5 w-3.5" />}
