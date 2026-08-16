@@ -142,25 +142,44 @@ export function ExerciseDetailSheet({
 
           <div className="mt-2 divide-y divide-border/50">
             {steps.length > 0 && (
-  <Section
-    icon={<ListOrdered className="h-3.5 w-3.5" />}
-    title="Jak wykonać"
-  >
-    <ol className="space-y-3">
-      {steps.map((step, i) => (
-        <li
-          key={`${i}-${step}`}
-          className="flex items-start gap-3 text-sm text-foreground"
-        >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-            {i + 1}
-          </span>
-          <span className="pt-0.5 leading-relaxed">{step}</span>
-        </li>
-      ))}
-    </ol>
-  </Section>
-)}
+              <Section
+                icon={<ListOrdered className="h-3.5 w-3.5" />}
+                title="Jak wykonać"
+              >
+                <ol className="space-y-3">
+                  {steps.map((step, i) => {
+                    const title = step?.title?.trim?.() ?? "";
+                    const description = step?.description?.trim?.() ?? "";
+                    if (!title && !description) return null;
+                    return (
+                      <li
+                        key={`step-${i}`}
+                        className="flex items-start gap-3 text-sm text-foreground"
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {i + 1}
+                        </span>
+                        <span className="pt-0.5 leading-relaxed">
+                          {title && (
+                            <span className="font-semibold">{title}</span>
+                          )}
+                          {title && description && (
+                            <span className="mx-1 text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          {description && (
+                            <span className="text-muted-foreground">
+                              {description}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </Section>
+            )}
             {cues.length > 0 && (
               <Section
                 icon={<ListChecks className="h-3.5 w-3.5" />}
