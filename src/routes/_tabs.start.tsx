@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { applyReadiness } from "@/lib/loadwise/planEngine";
+import { hasPersistedReadinessAdjustment } from "@/lib/loadwise/dailyCheckin";
 import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
 import { AppHeader } from "@/components/loadwise/ui";
 import { Button } from "@/components/ui/button";
@@ -186,7 +187,10 @@ function StartScreen() {
 
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const { session: adjustedBase } = applyReadiness(session, readiness, profile);
+  const adjustedBase =
+    readiness && hasPersistedReadinessAdjustment(session, todayIso)
+      ? session
+      : applyReadiness(session, readiness, profile).session;
   const adjustedToday = swapMod ? swapMod.session : adjustedBase;
 
   const matchDate = profile.matchDate;

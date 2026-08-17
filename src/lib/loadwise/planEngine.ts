@@ -4560,6 +4560,7 @@ export function secondSessionAllowedToday(
   profile: Profile,
 ): boolean {
   if (profile.painInjury) return false;
+  if (readiness && readiness.jointPain >= 5) return false;
   if (readiness && readiness.overall < 7) return false;
   return true;
 }
@@ -4590,18 +4591,6 @@ export function applyReadiness(
       },
     };
   }
-  if (session.dayType === "club") {
-    return {
-      session,
-      decision: {
-        headline: "Dziś trening klubowy",
-        detail:
-          "To Twoje główne obciążenie dnia. Po treningu oceń jego ciężkość.",
-        adjustment: null,
-      },
-    };
-  }
-
   if (!readiness) {
     return {
       session,
@@ -4617,11 +4606,13 @@ export function applyReadiness(
   const r = readiness.overall;
   // Sygnały bardzo złego dnia (skala 1–10): zły sen, silne zmęczenie,
   // mocna bolesność lub istotny ból stawów — mogą zadziałać jak readiness 1–3.
+  const dailyPain = readiness.jointPain >= 5;
   const severeSignals =
     readiness.sleep <= 3 ||
     readiness.fatigue >= 8 ||
     readiness.soreness >= 8 ||
     readiness.jointPain >= 6;
+  const painOverride = profile.painInjury || dailyPain;
 
   let factor = 1;
   let adjustment: string | null = null;
@@ -4654,7 +4645,7 @@ export function applyReadiness(
 
   // Aktywny ból/uraz zawsze nadpisuje cel treningowy — obowiązuje dla każdej
   // wartości gotowości 1–10 (centralizacja przez PAIN_RISKY_RE).
-  if (profile.painInjury) {
+  if (painOverride) {
     if (severeSignals || r < 4) {
       recoveryOnly = true;
     } else {
@@ -4701,7 +4692,7 @@ export function applyReadiness(
       sections: {
         ...session.sections,
         main: removeHard
-          ? profile.painInjury
+          ? painOverride
             ? session.sections.main.filter(
                 (m) => !PAIN_RISKY_RE.test(m.name),
               )
@@ -4720,7 +4711,7 @@ export function applyReadiness(
     adjusted = { ...adjusted, secondSession: null, slotLabel: null };
   }
 
-  if (profile.painInjury) {
+  if (painOverride) {
     adjustment =
       (adjustment ? adjustment + " " : "") +
       "Zgłoszony ból/uraz: blokujemy intensywne sprinty, ciężkie nogi i ryzykowne plyometrie.";

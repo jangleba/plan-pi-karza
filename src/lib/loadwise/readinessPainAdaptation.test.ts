@@ -356,3 +356,39 @@ describe("Focused pain safety — readiness 9 / 6 / 4", () => {
     });
   }
 });
+
+describe("Daily pain override without profile pain flag", () => {
+  const withSecond = makeSession({
+    title: "Szybkość + 2 sesja",
+    sessionType: "Szybkość / sprint",
+    sections: {
+      main: [
+        { name: "Sprint 20 m", prescription: "8 × 20 m" },
+        { name: "Marsz techniczny", prescription: "4 × 20 m" },
+      ],
+    },
+  } as Parameters<typeof makeSession>[0]);
+
+  const day: SessionDay = {
+    ...withSecond,
+    secondSession: makeSession({
+      title: "Prehab",
+      sessionType: "Prehab",
+      sections: { main: [] },
+    } as Parameters<typeof makeSession>[0]),
+    slotLabel: "Rano + Wieczór",
+  };
+
+  for (const r of [9, 6, 4] as const) {
+    it(`readiness ${r} + daily pain removes risky work and second session`, () => {
+      const { session } = applyReadiness(
+        day,
+        makeReadiness(r, { jointPain: 5 }),
+        BASE_PROFILE,
+      );
+      expect(session.secondSession).toBeNull();
+      expect(session.safetyNote).toMatch(/ból nasila|lekarz|fizjoterapeut/i);
+      expect(allMainText(session)).not.toMatch(/sprint/i);
+    });
+  }
+});
