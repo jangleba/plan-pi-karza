@@ -260,4 +260,71 @@ describe("spójność Start / Plan / szczegóły", () => {
   it("brak przyszłego meczu w planie i przeszła data profilu daje brak meczu", () => {
     expect(nextMatchDate([], "2026-08-17", "2026-08-09")).toBeNull();
   });
+
+  it("app-controlled day: today resolves to one effective recovery day while future days stay canonical", () => {
+    const today = baseSession({
+      date: "2026-08-17",
+      title: "Sprint — akceleracja",
+      sessionType: "Sprint",
+      intensity: "umiarkowana",
+      durationMin: 60,
+      secondSession: baseSession({
+        date: "2026-08-17",
+        title: "Easy aerobic — łatwy bieg tlenowy",
+        sessionType: "Wytrzymałość",
+        intensity: "niska",
+        durationMin: 35,
+        secondSession: null,
+      }),
+    });
+    const tomorrow = baseSession({
+      date: "2026-08-18",
+      title: "Sprint — akceleracja",
+      sessionType: "Sprint",
+      intensity: "umiarkowana",
+      secondSession: null,
+    });
+    const lowReady = readiness({ overall: 2, jointPain: 2 });
+
+    const start = resolveAdjustedDay(today, lowReady, PROFILE);
+    const planDecisionCard = resolveAdjustedDay(today, lowReady, PROFILE);
+    const todayRow = resolveAdjustedDay(today, lowReady, PROFILE);
+    const details = resolveAdjustedDay(today, lowReady, PROFILE);
+
+    expect(start.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(planDecisionCard.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(todayRow.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(details.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(todayRow.loadLabelOverride).toBeNull();
+    expect(todayRow.intensity).toBe("niska");
+    expect(todayRow.durationMin).toBe(30);
+    expect(todayRow.secondSession).toBeNull();
+    expect(todayRow.title).not.toMatch(/Sprint/i);
+    expect(today.secondSession?.title).toMatch(/Easy aerobic/i);
+    expect(tomorrow.title).toBe("Sprint — akceleracja");
+  });
+
+  it("rehydration + onboarding schedule update remain idempotent and do not compound adaptation", () => {
+    const lowReady = readiness({ overall: 2, jointPain: 2 });
+    const canonicalToday = baseSession({
+      date: "2026-08-17",
+      title: "Sprint — akceleracja",
+      sessionType: "Sprint",
+      intensity: "umiarkowana",
+      secondSession: baseSecond(),
+    });
+
+    const first = resolveAdjustedDay(canonicalToday, lowReady, PROFILE);
+    const second = resolveAdjustedDay(canonicalToday, lowReady, PROFILE);
+    expect(second).toEqual(first);
+    expect(canonicalToday.title).toBe("Sprint — akceleracja");
+    expect(canonicalToday.secondSession).not.toBeNull();
+
+    const persisted = applyCheckInToPlanDay([canonicalToday], lowReady.date, lowReady, PROFILE).plan[0];
+    const afterHydration = resolveAdjustedDay(persisted, lowReady, PROFILE);
+    expect(afterHydration).toBe(persisted);
+    expect(afterHydration.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(afterHydration.durationMin).toBe(30);
+    expect(afterHydration.secondSession).toBeNull();
+  });
 });
