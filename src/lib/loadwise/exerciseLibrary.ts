@@ -1155,10 +1155,10 @@ export interface SafeAlternativeResult {
 }
 
 /**
- * replaceExerciseWithSafeAlternative — zwraca bezpieczny zamiennik.
+ * selectEquipmentAwareReplacement — zwraca bezpieczny zamiennik.
  * Reguła 2: regresja/alternatywa. Reguła 3: jeśli brak — unresolved=true.
  */
-export function replaceExerciseWithSafeAlternative(
+export function selectEquipmentAwareReplacement(
   exercise: ExerciseDefinition | string,
   a: AthleteTrainingProfile,
 ): SafeAlternativeResult {
@@ -1191,12 +1191,12 @@ export function replaceExerciseWithSafeAlternative(
   };
 }
 
-/** Wybiera pierwszy stabilny zamiennik spełniający także wymagania sprzętowe. */
-export function selectEquipmentAwareReplacement(
+/** Zachowana nazwa kompatybilności wstecznej dla istniejących wywołań. */
+export function replaceExerciseWithSafeAlternative(
   exercise: ExerciseDefinition | string,
   a: AthleteTrainingProfile,
 ): SafeAlternativeResult {
-  return replaceExerciseWithSafeAlternative(exercise, a);
+  return selectEquipmentAwareReplacement(exercise, a);
 }
 
 // ---------------------------------------------------------------------------
@@ -1340,7 +1340,8 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
     const visiting = new Set<string>();
     const visit = (id: string) => {
       if (visiting.has(id)) {
-        const cycleKey = [...visiting].sort().join("|");
+        const path = [...visiting];
+        const cycleKey = path.slice(path.indexOf(id)).sort().join("|");
         if (!reportedCycles.has(cycleKey)) {
           issues.push({ id: start.id, problem: `Cykl zamienników obejmujący ${id}.` });
           reportedCycles.add(cycleKey);
