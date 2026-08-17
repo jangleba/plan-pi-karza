@@ -1,5 +1,91 @@
 import { applyReadiness } from "./planEngine";
 import type { Profile, Readiness, SessionDay } from "./types";
+import { classifySession } from "./sessionClassification";
+
+const LEGACY_RECOVERY_RE =
+  /regener|recovery|marsz|spacer|trucht|easy run|bike|rower|oddech|oddychan|breathing|mobil|stretch|rozciągan/i;
+
+function externalKind(session: SessionDay): "club" | "match" | null {
+  if (session.dayType === "club") return "club";
+  if (session.dayType === "match") return "match";
+  if (session.externalCommitment) return "club";
+  const cls = session.classification ?? classifySession(session);
+  if (cls.countsAsMatch) return "match";
+  if (cls.countsAsClub) return "club";
+  return null;
+}
+
+function canonicalExternalTitle(kind: "club" | "match"): string {
+  return kind === "match" ? "Mecz" : "Trening klubowy";
+}
+
+function canonicalExternalSessionType(kind: "club" | "match"): string {
+  return kind === "match" ? "Mecz" : "Klub";
+}
+
+function stripLegacyRecoveryBlocks(session: SessionDay): SessionDay {
+  const filterItems = (items: typeof session.sections.main) =>
+    items.filter((item) => !LEGACY_RECOVERY_RE.test(`${item.name ?? ""} ${item.prescription ?? ""}`));
+
+  const cleanedSections = {
+    warmup: session.sections.warmup,
+    main: filterItems(session.sections.main),
+    accessory: filterItems(session.sections.accessory),
+    footballTransfer: session.sections.footballTransfer,
+    cooldown: filterItems(session.sections.cooldown),
+  };
+
+  return {
+    ...session,
+    sections: cleanedSections,
+    structuredSections: undefined,
+  };
+}
+
+export function normalizeLegacyExternalCommitmentDay(
+  session: SessionDay,
+): { session: SessionDay; changed: boolean } {
+  const kind = externalKind(session);
+  if (!kind) return { session, changed: false };
+
+  const base = stripLegacyRecoveryBlocks(session);
+  const title = canonicalExternalTitle(kind);
+  const sessionType = canonicalExternalSessionType(kind);
+
+  const normalized: SessionDay = {
+    ...base,
+    dayType: kind,
+    externalCommitment: true,
+    title,
+    sessionType,
+    loadLabelOverride:
+      base.loadLabelOverride === "Ogranicz" ? "Ogranicz obciążenie" : base.loadLabelOverride,
+    secondSession: null,
+    slotLabel: null,
+  };
+
+  const changed = JSON.stringify(session) !== JSON.stringify(normalized);
+  return { session: changed ? normalized : session, changed };
+}
+
+export function normalizeLegacyPersistedPlan(
+  plan: SessionDay[],
+): { plan: SessionDay[]; changed: boolean } {
+  let changed = false;
+  const normalized = plan.map((day) => {
+    const main = normalizeLegacyExternalCommitmentDay(day);
+    const second = main.session.secondSession
+      ? normalizeLegacyExternalCommitmentDay(main.session.secondSession)
+      : null;
+    const withSecond =
+      second && second.session !== main.session.secondSession
+        ? { ...main.session, secondSession: second.session }
+        : main.session;
+    if (main.changed || second?.changed) changed = true;
+    return withSecond;
+  });
+  return { plan: changed ? normalized : plan, changed };
+}
 
 function stripReadinessMetadata(session: SessionDay): SessionDay {
   const next: SessionDay = {
@@ -26,14 +112,18 @@ export function applyCheckInToPlanDay(
   readiness: Readiness,
   profile: Profile,
 ): { plan: SessionDay[]; changed: boolean; adjusted: SessionDay | null } {
-  const index = plan.findIndex((day) => day.date === date);
+  const normalizedPlanResult = normalizeLegacyPersistedPlan(plan);
+  const normalizedPlan = normalizedPlanResult.plan;
+  const index = normalizedPlan.findIndex((day) => day.date === date);
   if (index === -1) {
-    return { plan, changed: false, adjusted: null };
+    return { plan: normalizedPlan, changed: normalizedPlanResult.changed, adjusted: null };
   }
 
-  const current = plan[index];
-  const base = stripReadinessMetadata(current.readinessOriginalSession ?? current);
-  const adapted = applyReadiness(base, readiness, profile).session;
+  const current = normalizedPlan[index];
+  const baseOriginal = stripReadinessMetadata(current.readinessOriginalSession ?? current);
+  const base = normalizeLegacyExternalCommitmentDay(baseOriginal).session;
+  const adaptedBase = applyReadiness(base, readiness, profile).session;
+  const adapted = normalizeLegacyExternalCommitmentDay(adaptedBase).session;
   const adjusted: SessionDay = {
     ...adapted,
     readinessAdjustedDate: date,
@@ -41,11 +131,11 @@ export function applyCheckInToPlanDay(
   };
 
   const unchanged = JSON.stringify(current) === JSON.stringify(adjusted);
-  if (unchanged) {
-    return { plan, changed: false, adjusted };
+  if (unchanged && !normalizedPlanResult.changed) {
+    return { plan: normalizedPlan, changed: false, adjusted };
   }
 
-  const nextPlan = [...plan];
+  const nextPlan = [...normalizedPlan];
   nextPlan[index] = adjusted;
   return { plan: nextPlan, changed: true, adjusted };
 }
@@ -60,11 +150,13 @@ export function resolveAdjustedDay(
   readiness: Readiness | undefined,
   profile: Profile | null,
 ): SessionDay {
-  if (!profile) return day;
-  if (readiness && hasPersistedReadinessAdjustment(day, readiness.date)) {
-    return day;
+  const normalized = normalizeLegacyExternalCommitmentDay(day).session;
+  if (!profile) return normalized;
+  if (readiness && hasPersistedReadinessAdjustment(normalized, readiness.date)) {
+    return normalized;
   }
-  return applyReadiness(day, readiness, profile).session;
+  const adjusted = applyReadiness(normalized, readiness, profile).session;
+  return normalizeLegacyExternalCommitmentDay(adjusted).session;
 }
 
 /** Najbliższy przyszły mecz z aktywnego planu (fallback: data z profilu). */

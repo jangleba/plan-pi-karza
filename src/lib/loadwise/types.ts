@@ -541,7 +541,7 @@ export interface SessionDay {
   slotLabel: string | null;
   /** Dzień jest zobowiązaniem zewnętrznym (klub/mecz) — nie zamieniamy go na regenerację. */
   externalCommitment?: boolean;
-  /** Nadpisanie etykiety obciążenia w UI (np. "Ogranicz" przy niskiej gotowości na klubie). */
+  /** Nadpisanie etykiety obciążenia w UI (np. "Ogranicz obciążenie" / "Wstrzymaj trening"). */
   loadLabelOverride?: string | null;
   sections: {
     warmup: ExerciseItem[];

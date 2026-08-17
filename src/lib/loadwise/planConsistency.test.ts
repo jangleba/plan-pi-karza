@@ -4,6 +4,7 @@ import {
   applyCheckInToPlanDay,
   resolveAdjustedDay,
   nextMatchDate,
+  normalizeLegacyPersistedPlan,
 } from "./dailyCheckin";
 
 const PROFILE: Profile = {
@@ -105,17 +106,38 @@ function readiness(overrides: Partial<Readiness> = {}): Readiness {
 }
 
 describe("spójność Start / Plan / szczegóły", () => {
+  const MANUAL_CHECKIN = readiness({
+    sleep: 3,
+    energy: 3,
+    fatigue: 8,
+    soreness: 6,
+    jointPain: 3,
+    stress: 5,
+    motivation: 5,
+    overall: 2,
+  });
+
   it("dzień klubowy przy gotowości 2/10 pozostaje treningiem klubowym", () => {
-    const r = readiness({ overall: 2 });
-    const res = applyCheckInToPlanDay([clubSession()], r.date, r, PROFILE);
+    const res = applyCheckInToPlanDay([clubSession()], MANUAL_CHECKIN.date, MANUAL_CHECKIN, PROFILE);
     const day = res.plan[0];
     expect(day.dayType).toBe("club");
     expect(day.title).toBe("Trening klubowy");
+    expect(day.sessionType).toBe("Klub");
     expect(day.title).not.toMatch(/Regeneracja/i);
-    expect(day.loadLabelOverride).toBe("Ogranicz");
+    expect(day.loadLabelOverride).toBe("Ogranicz obciążenie");
     expect(day.externalCommitment).toBe(true);
-    expect(day.safetyNote).toMatch(/ogranicz obciążenie|trenerowi/i);
+    expect(day.safetyNote).toBe(
+      "Niska gotowość — zgłoś ją trenerowi przed treningiem i ogranicz obciążenie zgodnie z jego decyzją. Przerwij wysiłek, jeśli pojawi się lub nasili ból.",
+    );
     expect(day.secondSession).toBeNull();
+    const flat = [
+      ...day.sections.main,
+      ...day.sections.accessory,
+      ...day.sections.cooldown,
+    ]
+      .map((e) => `${e.name} ${e.prescription ?? ""}`)
+      .join(" ");
+    expect(flat).not.toMatch(/spacer|marsz|trucht|bike|rower|mobil|oddech|breathing/i);
   });
 
   it("aktywny ból na dniu klubowym zaleca przerwanie i konsultację", () => {
@@ -123,9 +145,29 @@ describe("spójność Start / Plan / szczegóły", () => {
     const res = applyCheckInToPlanDay([clubSession()], r.date, r, PROFILE);
     const day = res.plan[0];
     expect(day.dayType).toBe("club");
-    expect(day.safetyNote).toMatch(/przerwij trening/i);
+    expect(day.loadLabelOverride).toBe("Wstrzymaj trening");
+    expect(day.safetyNote).toMatch(/Wstrzymaj trening/i);
     expect(day.safetyNote).toMatch(/lekarz|fizjoterapeut/i);
     expect(day.secondSession).toBeNull();
+  });
+
+  it("painInjury=true na zewnętrznej sesji ustawia safety state i usuwa dodatkowy trening", () => {
+    const profilePain = { ...PROFILE, painInjury: true } as Profile;
+    const dayWithSecond = clubSession();
+    dayWithSecond.secondSession = baseSecond();
+    const res = applyCheckInToPlanDay([dayWithSecond], MANUAL_CHECKIN.date, MANUAL_CHECKIN, profilePain);
+    const day = res.plan[0];
+    expect(day.title).toBe("Trening klubowy");
+    expect(day.loadLabelOverride).toBe("Wstrzymaj trening");
+    expect(day.secondSession).toBeNull();
+    const flat = [
+      ...day.sections.main,
+      ...day.sections.accessory,
+      ...day.sections.cooldown,
+    ]
+      .map((e) => `${e.name} ${e.prescription ?? ""}`)
+      .join(" ");
+    expect(flat).not.toMatch(/sprint|bieg|skok|plyo|przysiad|martwy|loaded|sztang/i);
   });
 
   it("własna sesja przy gotowości 1–3 zamienia się na regenerację", () => {
@@ -139,7 +181,7 @@ describe("spójność Start / Plan / szczegóły", () => {
   });
 
   it("Start, Plan i szczegóły widzą ten sam obiekt sesji", () => {
-    const r = readiness({ overall: 2 });
+    const r = MANUAL_CHECKIN;
     const res = applyCheckInToPlanDay([clubSession()], r.date, r, PROFILE);
     const stored = res.plan[0];
     const start = resolveAdjustedDay(stored, r, PROFILE);
@@ -148,16 +190,62 @@ describe("spójność Start / Plan / szczegóły", () => {
     expect(start).toBe(stored);
     expect(JSON.stringify(plan)).toBe(JSON.stringify(details));
     expect(plan.title).toBe(stored.title);
-    expect(plan.loadLabelOverride).toBe(stored.loadLabelOverride);
+    expect(plan.loadLabelOverride).toBe("Ogranicz obciążenie");
+    expect(start.loadLabelOverride).toBe("Ogranicz obciążenie");
+    expect(details.loadLabelOverride).toBe("Ogranicz obciążenie");
   });
 
   it("ponowne załadowanie danych nie nakłada adaptacji dwa razy", () => {
-    const r = readiness({ overall: 2 });
+    const r = MANUAL_CHECKIN;
     const first = applyCheckInToPlanDay([clubSession()], r.date, r, PROFILE);
     const second = applyCheckInToPlanDay(first.plan, r.date, r, PROFILE);
     expect(second.changed).toBe(false);
     expect(second.plan[0].durationMin).toBe(first.plan[0].durationMin);
     expect(resolveAdjustedDay(second.plan[0], r, PROFILE)).toBe(second.plan[0]);
+  });
+
+  it("legacy: mutowany klub z tytułem regeneracja wraca do poprawnej sesji zewnętrznej", () => {
+    const corrupted = {
+      ...clubSession(),
+      title: "Regeneracja (na podstawie gotowości)",
+      sessionType: "Regeneracja",
+      sections: {
+        warmup: [],
+        main: [{ name: "Spacer", prescription: "30 min" }],
+        accessory: [{ name: "Mobilność", prescription: "10 min" }],
+        footballTransfer: [],
+        cooldown: [{ name: "Oddychanie", prescription: "5 min" }],
+      },
+    } as SessionDay;
+    const normalized = normalizeLegacyPersistedPlan([corrupted]);
+    expect(normalized.changed).toBe(true);
+    expect(normalized.plan[0].dayType).toBe("club");
+    expect(normalized.plan[0].title).toBe("Trening klubowy");
+    expect(normalized.plan[0].sessionType).toBe("Klub");
+    const text = [
+      ...normalized.plan[0].sections.main,
+      ...normalized.plan[0].sections.accessory,
+      ...normalized.plan[0].sections.cooldown,
+    ]
+      .map((e) => `${e.name} ${e.prescription ?? ""}`)
+      .join(" ");
+    expect(text).not.toMatch(/spacer|mobil|oddychan|breathing/i);
+  });
+
+  it("match day też jest zewnętrznym zobowiązaniem i nie przechodzi na regenerację", () => {
+    const match = baseSession({
+      dayType: "match",
+      title: "Mecz",
+      sessionType: "Mecz",
+      secondSession: baseSecond(),
+    });
+    const res = applyCheckInToPlanDay([match], MANUAL_CHECKIN.date, MANUAL_CHECKIN, PROFILE);
+    const day = res.plan[0];
+    expect(day.dayType).toBe("match");
+    expect(day.title).toBe("Mecz");
+    expect(day.title).not.toMatch(/Regeneracja/i);
+    expect(day.loadLabelOverride).toBe("Ogranicz obciążenie");
+    expect(day.secondSession).toBeNull();
   });
 
   it("karta meczu pokazuje najbliższy przyszły mecz z planu", () => {

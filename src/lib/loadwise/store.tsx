@@ -22,8 +22,8 @@ import type {
 import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
 import { persistedPlanNeedsRegeneration } from "./persistedPlanValidation";
-import { applyCheckInToPlanDay } from "./dailyCheckin";
-import { warsawToday, isoDate, parseIso, isoDayOfWeek } from "./labels";
+import { applyCheckInToPlanDay, normalizeLegacyPersistedPlan } from "./dailyCheckin";
+import { warsawToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
@@ -349,10 +349,15 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
       let plan: SessionDay[] = [];
       let planGeneratedFor: string | null = null;
+      let normalizedLegacyPlan = false;
+      let regeneratedPlan = false;
       const planRow = planRes.data as AnyRow | null;
       if (planRow && Array.isArray(planRow.plan_json)) {
         plan = planRow.plan_json as SessionDay[];
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
+        const normalized = normalizeLegacyPersistedPlan(plan);
+        plan = normalized.plan;
+        normalizedLegacyPlan = normalized.changed;
       }
 if (
         profile &&
@@ -372,8 +377,12 @@ if (
           profile,
           plan,
         );
+        regeneratedPlan = true;
 
         planGeneratedFor = todayIso;
+      }
+      if (profile && normalizedLegacyPlan && !regeneratedPlan && plan.length > 0) {
+        await persistMonthlyPlan(user.id, profile, plan);
       }
       const completions: Record<string, SessionCompletion> = {};
       for (const row of (logRes.data as AnyRow[] | null) ?? []) {
@@ -797,24 +806,7 @@ if (
     setState(initialState);
   }
 
-  // Decyzja dnia musi pochodzić z tego samego silnika co plan tygodnia i
-  // odpowiadać DZISIEJSZEJ dacie (strefa Europe/Warsaw). Nigdy nie pokazujemy
-  // pierwszego dnia planu jako "dziś" — to powodowało błędne "trening klubowy".
-  const planToday = state.plan.find((p) => p.date === todayIso) ?? null;
-  const todayValid =
-    planToday !== null &&
-    (planToday.dayType !== "club" ||
-      (state.profile?.clubTrainingDays.includes(isoDayOfWeek(parseIso(todayIso))) ??
-        false));
-  // Awaryjnie (brak wpisu na dziś lub nieaktualny klub) licz dzisiaj na żywo
-  // z silnika, zanim regeneracja zapisze nowy plan.
-  const liveToday =
-    state.profile?.onboardingComplete && !todayValid
-      ? generatePlan(state.profile, warsawToday(), 7).find(
-          (p) => p.date === todayIso,
-        ) ?? null
-      : null;
-  const todaySession = todayValid ? planToday : liveToday ?? planToday;
+  const todaySession = state.plan.find((p) => p.date === todayIso) ?? null;
 
   return (
     <LoadwiseContext.Provider
