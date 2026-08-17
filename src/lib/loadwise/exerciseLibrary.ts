@@ -24,14 +24,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type ExerciseCategory =
-  | "strength"
-  | "power"
-  | "plyometric"
-  | "speed"
-  | "endurance"
-  | "mobility"
-  | "core"
-  | "prehab";
+  "strength" | "power" | "plyometric" | "speed" | "endurance" | "mobility" | "core" | "prehab";
 
 export type MovementPattern =
   | "squat"
@@ -91,12 +84,7 @@ export const SESSION_CATEGORIES: SessionCategory[] = [
 export type ParticipantMode = "solo" | "partner" | "small_group" | "team";
 
 /** Wymagany rodzaj przestrzeni. */
-export type SpaceRequirement =
-  | "home_small"
-  | "indoor_gym"
-  | "pitch"
-  | "sprint_lane"
-  | "open_field";
+export type SpaceRequirement = "home_small" | "indoor_gym" | "pitch" | "sprint_lane" | "open_field";
 
 export type EquipmentId =
   | "barbell"
@@ -129,7 +117,11 @@ export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
   { id: "bench", displayName: "Ławka", aliases: ["bench", "ławka"] },
   { id: "box", displayName: "Skrzynia plyometryczna", aliases: ["box", "skrzynia"] },
   { id: "platform", displayName: "Podest", aliases: ["platform", "podest"] },
-  { id: "med_ball", displayName: "Piłka lekarska", aliases: ["med ball", "medicine ball", "piłka lekarska"] },
+  {
+    id: "med_ball",
+    displayName: "Piłka lekarska",
+    aliases: ["med ball", "medicine ball", "piłka lekarska"],
+  },
   { id: "sled", displayName: "Sanie", aliases: ["sled", "sanki"] },
   { id: "sliders", displayName: "Ślizgi", aliases: ["slider", "sliders", "ślizgi"] },
   { id: "nordic_setup", displayName: "Stanowisko nordic", aliases: ["nordic", "nordic setup"] },
@@ -137,10 +129,9 @@ export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
 
 const EQUIPMENT_INDEX = new Map<string, EquipmentId>(
   EQUIPMENT_REGISTRY.flatMap((equipment) =>
-    [equipment.id, equipment.displayName, ...equipment.aliases].map((value) => [
-      normalizeExerciseName(value),
-      equipment.id,
-    ] as const),
+    [equipment.id, equipment.displayName, ...equipment.aliases].map(
+      (value) => [normalizeExerciseName(value), equipment.id] as const,
+    ),
   ),
 );
 
@@ -369,7 +360,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["dead_bug"],
     regressionIds: [],
-    safeAlternativeIds: [],
+    safeAlternativeIds: ["bodyweight_squat"],
     coachingCues: ["Neutralny kręgosłup", "Napięty brzuch i pośladki"],
     commonErrors: ["Zapadnięte biodra", "Wygięte lędźwie"],
   },
@@ -732,6 +723,7 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: [],
     regressionIds: ["romanian_deadlift_db", "hip_thrust", "glute_bridge"],
     safeAlternativeIds: ["romanian_deadlift_db", "glute_bridge"],
+    replacementIds: ["romanian_deadlift_db", "glute_bridge"],
     coachingCues: ["Napięty core", "Sztanga blisko goleni", "Neutralny kręgosłup"],
     commonErrors: ["Zaokrąglone plecy", "Sztanga daleko od ciała", "Szarpanie z dołu"],
   },
@@ -797,7 +789,9 @@ const LIBRARY: ExerciseDefinition[] = [
     requiredSupervisionLevel: "some",
     equipmentRequired: ["box"],
     contraindications: ["knee", "ankle"],
-    injuryCautions: ["Wysoka intensywność plyometryczna — tylko przy dobrej kompetencji lądowania i świeżości."],
+    injuryCautions: [
+      "Wysoka intensywność plyometryczna — tylko przy dobrej kompetencji lądowania i świeżości.",
+    ],
     loadingType: "impact",
     impactLevel: "very_high",
     spinalLoadLevel: "low",
@@ -812,6 +806,7 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: [],
     regressionIds: ["snap_down"],
     safeAlternativeIds: ["snap_down"],
+    replacementIds: ["snap_down"],
     coachingCues: ["Miękkie, ciche lądowanie", "Krótki kontakt z podłożem", "Kolana stabilne"],
     commonErrors: ["Głośne lądowanie", "Kolana do środka", "Za wysoka skrzynia"],
   },
@@ -932,6 +927,7 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: ["power_clean"],
     regressionIds: [],
     safeAlternativeIds: ["snap_down"],
+    replacementIds: ["snap_down"],
     coachingCues: ["Szybko i technicznie", "Lekki ciężar", "Jakość przed ilością"],
     commonErrors: ["Za ciężka piłka", "Wolny ruch"],
   },
@@ -979,7 +975,6 @@ export function resolveExerciseByName(nameOrAlias: string): ExerciseDefinition |
   return id ? LIBRARY_INDEX.get(id) : undefined;
 }
 
-
 // ---------------------------------------------------------------------------
 // Pomocnicze skale
 // ---------------------------------------------------------------------------
@@ -1000,9 +995,7 @@ const STAGE_RANK: Record<DevelopmentStage, number> = {
 };
 
 function isYouthProfile(a: AthleteTrainingProfile): boolean {
-  return (
-    a.developmentStage === "child_foundation" || a.developmentStage === "early_youth"
-  );
+  return a.developmentStage === "child_foundation" || a.developmentStage === "early_youth";
 }
 
 function isBeginnerProfile(a: AthleteTrainingProfile): boolean {
@@ -1015,7 +1008,20 @@ function hasEquipment(def: ExerciseDefinition, a: AthleteTrainingProfile): boole
     ...a.equipmentAccess,
     ...a.homeEquipment,
     ...(a.gymAccess
-      ? ["barbell", "trap_bar", "rack", "bench", "dumbbell", "kettlebell", "box", "platform", "med_ball", "sled", "sliders", "nordic_setup"]
+      ? [
+          "barbell",
+          "trap_bar",
+          "rack",
+          "bench",
+          "dumbbell",
+          "kettlebell",
+          "box",
+          "platform",
+          "med_ball",
+          "sled",
+          "sliders",
+          "nordic_setup",
+        ]
       : []),
   ].flatMap((s) => {
     const id = resolveEquipmentId(s);
@@ -1039,8 +1045,7 @@ export function isExerciseAllowedForProfile(
   exercise: ExerciseDefinition | string | undefined,
   a: AthleteTrainingProfile,
 ): ExerciseAllowResult {
-  const def =
-    typeof exercise === "string" ? getExerciseDefinition(exercise) : exercise;
+  const def = typeof exercise === "string" ? getExerciseDefinition(exercise) : exercise;
 
   // Reguła 5: brak metadanych = ćwiczenie niepewne.
   if (!def) {
@@ -1162,7 +1167,12 @@ export function replaceExerciseWithSafeAlternative(
 
   const allowed = isExerciseAllowedForProfile(def, a);
   if (allowed.ok && def)
-    return { exercise: def, reason: "Ćwiczenie dozwolone.", unresolved: false, blockRebuildRequired: false };
+    return {
+      exercise: def,
+      reason: "Ćwiczenie dozwolone.",
+      unresolved: false,
+      blockRebuildRequired: false,
+    };
 
   const regression = def ? getExerciseRegression(def, a) : undefined;
   if (regression)
@@ -1249,8 +1259,7 @@ export function validateExerciseDefinition(def: ExerciseDefinition): string[] {
   }
   if (!def.displayNamePl?.trim()) problems.push("Pusta polska nazwa wyświetlana.");
   if (!Array.isArray(def.aliases)) problems.push("aliases musi być tablicą.");
-  if (!def.allowedSessionCategories?.length)
-    problems.push("Brak dozwolonych kategorii sesji.");
+  if (!def.allowedSessionCategories?.length) problems.push("Brak dozwolonych kategorii sesji.");
   for (const cat of def.allowedSessionCategories ?? []) {
     if (!SESSION_CATEGORIES.includes(cat)) problems.push(`Nieznana kategoria sesji: ${cat}.`);
   }
@@ -1307,24 +1316,6 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
         issues.push({ id: def.id, problem: `Alias „${key}" koliduje z id innego ćwiczenia.` });
     }
 
-    // Zamienniki tworzą skierowany graf; cykle oznaczają, że silnik może krążyć
-    // bez końca zamiast uczciwie zgłosić konieczność przebudowy bloku.
-    for (const start of LIBRARY) {
-      const visiting = new Set<string>();
-      const visit = (id: string) => {
-        if (visiting.has(id)) {
-          issues.push({ id: start.id, problem: `Cykl zamienników obejmujący ${id}.` });
-          return;
-        }
-        const def = LIBRARY_INDEX.get(id);
-        if (!def) return;
-        visiting.add(id);
-        for (const next of def.replacementIds ?? def.safeAlternativeIds) visit(next);
-        visiting.delete(id);
-      };
-      visit(start.id);
-    }
-
     // Referencje muszą istnieć.
     for (const ref of [
       ...def.progressionIds,
@@ -1337,9 +1328,26 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
     }
   }
 
+  // Zamienniki tworzą skierowany graf; cykle oznaczają, że silnik może krążyć
+  // bez końca zamiast uczciwie zgłosić konieczność przebudowy bloku.
+  for (const start of LIBRARY) {
+    const visiting = new Set<string>();
+    const visit = (id: string) => {
+      if (visiting.has(id)) {
+        issues.push({ id: start.id, problem: `Cykl zamienników obejmujący ${id}.` });
+        return;
+      }
+      const def = LIBRARY_INDEX.get(id);
+      if (!def) return;
+      visiting.add(id);
+      for (const next of def.replacementIds ?? def.safeAlternativeIds) visit(next);
+      visiting.delete(id);
+    };
+    visit(start.id);
+  }
+
   return { ok: issues.length === 0, totalExercises: LIBRARY.length, issues };
 }
-
 
 // ---------------------------------------------------------------------------
 // validateWorkoutExercises — Reguła 4: każdy trening przez ten walidator
