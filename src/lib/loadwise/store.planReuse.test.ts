@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PLAN_ENGINE_VERSION } from "./planEngine";
 import { shouldReusePersistedPlan } from "./store";
-import { addDays, isoDate, warsawToday } from "./labels";
+import { addDays, isoDate, localToday } from "./labels";
 import type { Profile, SessionDay } from "./types";
 
 function makeDay(date: string, revision: string): SessionDay {
@@ -33,7 +33,7 @@ function makeDay(date: string, revision: string): SessionDay {
 describe("persisted plan reuse", () => {
   it("does not require dbId to reuse valid persisted monthly plan", () => {
     const revision = "2026-08-17T10:00:00.000Z";
-    const start = addDays(warsawToday(), -7);
+    const start = addDays(localToday(), -7);
     const plan = Array.from({ length: 21 }, (_, i) =>
       makeDay(isoDate(addDays(start, i)), revision),
     );
@@ -46,7 +46,7 @@ describe("persisted plan reuse", () => {
   });
 
   it("requires regeneration when plan revision differs from profile revision", () => {
-    const start = addDays(warsawToday(), -7);
+    const start = addDays(localToday(), -7);
     const plan = Array.from({ length: 21 }, (_, i) =>
       makeDay(isoDate(addDays(start, i)), "2026-08-17T10:00:00.000Z"),
     );

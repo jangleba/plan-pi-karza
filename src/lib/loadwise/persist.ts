@@ -1,6 +1,6 @@
 import type { Profile, SessionDay, ExerciseItem } from "./types";
 import { supabase } from "@/integrations/supabase/client";
-import { isoDate, warsawToday } from "./labels";
+import { isoDate, localToday } from "./labels";
 
 /** Wyciąga łączny dystans (w metrach) z opisu ćwiczenia, jeśli dotyczy sprintu. */
 function extractDistance(name: string, prescription: string): string | null {
@@ -68,7 +68,7 @@ export async function persistMonthlyPlan(
   await supabase.from("training_plans").delete().eq("user_id", userId);
 
   const planId = crypto.randomUUID();
-  const month = isoDate(warsawToday()).slice(0, 7);
+  const month = isoDate(localToday()).slice(0, 7);
 
   const dayRows: Record<string, unknown>[] = [];
   const sessionRows: Record<string, unknown>[] = [];

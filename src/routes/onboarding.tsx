@@ -218,15 +218,6 @@ function Onboarding() {
     }
   }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate]);
 
-  if (loading || !hydrated) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
-    );
-  }
-  if (!user) return null;
-
   const [name, setName] = useState(
     existing?.name ?? (user?.user_metadata?.full_name as string) ?? "",
   );
@@ -450,6 +441,14 @@ function Onboarding() {
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  if (loading || !hydrated || !user) {
+    return (
+      <div className="app-shell flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Ładowanie…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell flex h-[100dvh] flex-col">

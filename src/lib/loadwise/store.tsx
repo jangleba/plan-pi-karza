@@ -23,7 +23,7 @@ import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
 import { persistedPlanNeedsRegeneration } from "./persistedPlanValidation";
 import { applyCheckInToPlanDay, normalizeLegacyPersistedPlan } from "./dailyCheckin";
-import { warsawToday, isoDate, parseIso } from "./labels";
+import { localToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
@@ -309,7 +309,7 @@ export function shouldReusePersistedPlan(
   profile: Profile,
 ): boolean {
   const hasMonthly = plan.length >= 14;
-  const today = isoDate(warsawToday());
+  const today = isoDate(localToday());
   const coversToday = plan.some((day) => day.date === today);
   const revision = planRevisionInfo(plan);
   const sameRevision = (profile.onboardingRevision ?? null) === (revision.revision ?? null);
@@ -366,13 +366,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
-  const [todayIso, setTodayIso] = useState(() => isoDate(warsawToday()));
+  const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     let timeout: ReturnType<typeof setTimeout> | null = null;
     const refreshToday = () => {
-      const next = isoDate(warsawToday());
+      const next = isoDate(localToday());
       setTodayIso((prev) => (prev === next ? prev : next));
     };
     const scheduleMidnight = () => {
@@ -494,7 +494,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
        if (shouldRebuildCanonical) {
          const canonical = stampPlanRevision(
-           generatePlan(profile, warsawToday()),
+           generatePlan(profile, localToday()),
            profileRevision,
            ONBOARDING_SCHEMA_VERSION,
          );
@@ -544,19 +544,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      if (clearFutureOverlays) {
-        await supabase
-          .from("session_modifications" as never)
-          .update({ active: false } as never)
-          .eq("user_id", user.id)
-          .eq("active", true)
-          .gte("date", todayIso);
-        await supabase
-          .from("weekly_transitions" as never)
-          .delete()
-          .eq("user_id", user.id);
-      }
-
       if (cancelled) return;
       setState({
         profile,
@@ -570,6 +557,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         transitions,
       });
       setHydrated(true);
+      if (clearFutureOverlays) {
+        await supabase
+          .from("session_modifications" as never)
+          .update({ active: false } as never)
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .gte("date", todayIso);
+        await supabase
+          .from("weekly_transitions" as never)
+          .delete()
+          .eq("user_id", user.id);
+      }
     })();
     return () => {
       cancelled = true;
@@ -607,7 +606,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     readinessForToday?: Readiness | null,
   ): Promise<SessionDay[]> {
     const canonical = stampPlanRevision(
-      generatePlan(profile, warsawToday()),
+      generatePlan(profile, localToday()),
       revision,
       ONBOARDING_SCHEMA_VERSION,
     );
