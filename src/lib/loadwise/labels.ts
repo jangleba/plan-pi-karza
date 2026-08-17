@@ -71,15 +71,19 @@ const PL_MONTHS = [
   "grudnia",
 ];
 
-/** Aktualna data w strefie Europe/Warsaw jako lokalny obiekt Date o północy. */
-export function warsawToday(): Date {
+/** Aktualna data użytkownika (lokalna strefa urządzenia) o północy. */
+export function localToday(base: Date = new Date()): Date {
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate());
+}
+
+export function warsawToday(base: Date = new Date()): Date {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Warsaw",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
-  const s = fmt.format(new Date());
+  const s = fmt.format(base);
   return new Date(`${s}T00:00:00`);
 }
 

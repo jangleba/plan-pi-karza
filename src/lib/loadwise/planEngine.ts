@@ -15,7 +15,7 @@ import type {
 } from "./types";
 import { assertPlanExerciseContract } from "./planExerciseContract";
 import {
-  warsawToday,
+  localToday,
   isoDate,
   addDays,
   
@@ -3904,7 +3904,7 @@ export function generatePlan(
   days = 28,
   weekOffset = 0,
 ): SessionDay[] {
-  const startDate = start ?? warsawToday();
+  const startDate = start ?? localToday();
   // Silnik korzysta z ZWALIDOWANEGO okresu sezonu: jeśli zapisany okres jest
   // sprzeczny z kalendarzem i nie włączono trybu niestandardowego, używamy
   // sugestii kalendarzowej, by load i dobór sesji były wiarygodne.

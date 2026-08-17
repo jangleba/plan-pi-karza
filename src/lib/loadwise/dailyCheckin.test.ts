@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile, Readiness, SessionDay } from "./types";
-import { applyCheckInToPlanDay } from "./dailyCheckin";
+import { applyCheckInToPlanDay, nextMatchDate } from "./dailyCheckin";
 
 const PROFILE: Profile = {
   id: "p1",
@@ -144,5 +144,18 @@ describe("daily check-in integration", () => {
     );
     expect(result.plan[1].date).toBe("2026-08-18");
     expect(PROFILE.matchDate).toBe("2026-08-25");
+  });
+
+  it("returns nearest future match only", () => {
+    const nearest = nextMatchDate(
+      [
+        { ...makeSession(), date: "2026-08-14", dayType: "match" },
+        { ...makeSession(), date: "2026-08-19", dayType: "match" },
+        { ...makeSession(), date: "2026-08-22", dayType: "match" },
+      ],
+      "2026-08-17",
+      "2026-08-25",
+    );
+    expect(nearest).toBe("2026-08-19");
   });
 });

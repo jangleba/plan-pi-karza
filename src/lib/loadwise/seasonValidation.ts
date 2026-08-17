@@ -1,5 +1,5 @@
 import type { SeasonPhase, SeasonStage, Profile } from "./types";
-import { warsawToday, parseIso } from "./labels";
+import { localToday, parseIso } from "./labels";
 
 /** Status spójności stanu sezonu z kalendarzem. */
 export type SeasonValidationStatus = "ok" | "invalid" | "incomplete" | "override";
@@ -10,7 +10,7 @@ export interface SeasonStateInput {
   nextMatchDate: string | null;
   weeklyMatches: boolean;
   seasonPhaseOverride?: boolean;
-  /** Domyślnie dzisiejsza data w strefie Europe/Warsaw. */
+  /** Domyślnie dzisiejsza data w lokalnej strefie użytkownika. */
   today?: Date;
 }
 
@@ -89,7 +89,7 @@ export function suggestSeasonPhase(
 export function validateSeason(
   input: SeasonStateInput,
 ): SeasonValidationResult {
-  const today = input.today ?? warsawToday();
+  const today = input.today ?? localToday();
   const suggestion = suggestSeasonPhase(today, input.nextMatchDate);
 
   // Tryb niestandardowego sezonu wybrany świadomie — ufamy użytkownikowi.

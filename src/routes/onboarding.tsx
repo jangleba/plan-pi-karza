@@ -48,6 +48,9 @@ import { pl } from "date-fns/locale";
 import { ChevronLeft, CalendarIcon } from "lucide-react";
 
 export const Route = createFileRoute("/onboarding")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    edit: search.edit === true || search.edit === "true" || search.edit === "1",
+  }),
   component: Onboarding,
 });
 
@@ -194,18 +197,26 @@ function ChoiceGrid<T extends string>({
 }
 
 function Onboarding() {
-  const { state, completeOnboarding } = useLoadwise();
+  const { state, hydrated, completeOnboarding } = useLoadwise();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { edit } = Route.useSearch();
   const existing = state.profile;
-  const isEditing = !!existing?.onboardingComplete;
+  const isEditing = Boolean(edit && existing?.onboardingComplete);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
 
   // Require auth.
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth", replace: true });
-  }, [loading, user, navigate]);
+    if (loading || !hydrated) return;
+    if (!user) {
+      navigate({ to: "/auth", replace: true });
+      return;
+    }
+    if (state.profile?.onboardingComplete && !edit) {
+      navigate({ to: "/start", replace: true });
+    }
+  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate]);
 
   const [name, setName] = useState(
     existing?.name ?? (user?.user_metadata?.full_name as string) ?? "",
@@ -430,6 +441,14 @@ function Onboarding() {
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  if (loading || !hydrated || !user) {
+    return (
+      <div className="app-shell flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Ładowanie…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell flex h-[100dvh] flex-col">

@@ -61,6 +61,14 @@ function AuthScreen() {
     }
   }
 
+  if (loading || (user && !hydrated)) {
+    return (
+      <div className="app-shell flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Ładowanie…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell flex min-h-screen flex-col justify-center px-6 py-10">
       <div className="mx-auto w-full max-w-sm">

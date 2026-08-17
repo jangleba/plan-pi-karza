@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
@@ -261,8 +261,22 @@ function PlanScreen() {
   const [gateWeek, setGateWeek] = useState<number | null>(null);
   const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
   const [switchingSeason, setSwitchingSeason] = useState(false);
+  const autoWeekKeyRef = useRef<string | null>(null);
 
   const weeks = buildPlanWeeks(plan, profile);
+
+  useEffect(() => {
+    if (weeks.length === 0) return;
+    const autoKey = `${todayIso}:${plan[0]?.date ?? ""}:${plan.length}`;
+    if (autoWeekKeyRef.current === autoKey) return;
+    autoWeekKeyRef.current = autoKey;
+    const todayWeekIndex = weeks.findIndex((week) =>
+      week.days.some((day) => day.date === todayIso),
+    );
+    if (todayWeekIndex >= 0) {
+      setActiveWeek(todayWeekIndex);
+    }
+  }, [weeks, todayIso, plan]);
 
   // Walidacja przed wyświetleniem: żaden tydzień nie może być lekki bez powodu.
   useEffect(() => {
