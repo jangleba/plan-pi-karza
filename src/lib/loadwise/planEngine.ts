@@ -4659,7 +4659,7 @@ export function applyReadiness(
       keepIntensity = false;
       // If filtering risky exercises would leave nothing, switch to recovery-only.
       const remaining = session.sections.main.filter(
-        (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|skok|plyo/i.test(m.name),
+        (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i.test(m.name),
       );
       if (remaining.length === 0) {
         recoveryOnly = true;
@@ -4700,7 +4700,7 @@ export function applyReadiness(
         main: removeHard
           ? profile.painInjury
             ? session.sections.main.filter(
-                (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|skok|plyo/i.test(m.name),
+                (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i.test(m.name),
               )
             : session.sections.main.map((m) =>
                 /sprint|zryw|przyspiesz|maksym|przysiad|martwy/i.test(m.name)

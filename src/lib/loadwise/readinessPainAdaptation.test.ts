@@ -4,11 +4,11 @@
  * Verifies that:
  * - readiness 9  → category unchanged, plan intact
  * - readiness 6  → category unchanged, volume reduced ~15%
- * - readiness 4  → category unchanged, hard exercises replaced with
- *                  category-safe alternatives (NO ball in sprint/endurance/strength)
+ * - readiness 4  → category unchanged, risky exercises removed (NOT replaced with
+ *                  running/plyometrics/loaded strength); if none remain, recovery-only
  * - readiness 2  → recovery only
- * - pain         → hard exercises replaced with category-safe alternatives,
- *                  NO ball in sprint/endurance/strength
+ * - pain         → risky exercises filtered out (not replaced),
+ *                  NO ball or running injected
  */
 import { describe, it, expect } from "vitest";
 import type { SessionDay, DayType, Intensity, Readiness, Profile } from "./types";
