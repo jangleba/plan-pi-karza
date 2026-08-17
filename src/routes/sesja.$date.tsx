@@ -555,10 +555,7 @@ function SessionDetail() {
     primary = swapMod.session;
   } else if (isToday) {
     const readiness = state.readiness[todayIso];
-    primary =
-      readiness && hasPersistedReadinessAdjustment(day, todayIso)
-        ? day
-        : applyReadiness(day, readiness, state.profile).session;
+    primary = resolveAdjustedDay(day, readiness, state.profile);
   }
 
 

@@ -277,7 +277,7 @@ function PlanScreen() {
   // Obciążenie dnia po korekcie daily readiness (osobna wartość od planned).
   const todayAdjusted =
     todaySession && profile
-      ? applyReadiness(todaySession, state.readiness[todayIso], profile).session
+      ? resolveAdjustedDay(todaySession, state.readiness[todayIso], profile)
       : todaySession;
 
   // Tryb sezonu: świadomy wybór w profilu. "Poza sezonem" TYLKO gdy

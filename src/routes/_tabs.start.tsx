@@ -2,8 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { applyReadiness } from "@/lib/loadwise/planEngine";
-import { hasPersistedReadinessAdjustment } from "@/lib/loadwise/dailyCheckin";
+import { resolveAdjustedDay, nextMatchDate } from "@/lib/loadwise/dailyCheckin";
 import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
 import { AppHeader } from "@/components/loadwise/ui";
 import { Button } from "@/components/ui/button";
@@ -66,6 +65,9 @@ function dayHeadline(day: SessionDay): string {
     case "rest":
       return "Dziś: dzień wolny";
     default: {
+      if (day.title.toLowerCase().startsWith("regeneracja")) {
+        return "Dziś: regeneracja";
+      }
       const t = day.sessionType.toLowerCase();
       if (t.includes("szybk")) return "Dziś: szybkość";
       if (t.includes("sił")) return "Dziś: siła";
@@ -84,7 +86,9 @@ function dayOneLiner(day: SessionDay): string {
     case "md-1":
       return "Tylko aktywacja. Po treningu oceń RPE.";
     case "club":
-      return "To główne obciążenie dnia. Po treningu oceń RPE.";
+      return day.loadLabelOverride
+        ? "Trening klubowy zostaje — ogranicz obciążenie i zgłoś gotowość trenerowi."
+        : "To główne obciążenie dnia. Po treningu oceń RPE.";
     case "recovery":
       return "Lekka regeneracja. Bez intensywności.";
     case "rest":
@@ -187,13 +191,10 @@ function StartScreen() {
 
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const adjustedBase =
-    readiness && hasPersistedReadinessAdjustment(session, todayIso)
-      ? session
-      : applyReadiness(session, readiness, profile).session;
+  const adjustedBase = resolveAdjustedDay(session, readiness, profile);
   const adjustedToday = swapMod ? swapMod.session : adjustedBase;
 
-  const matchDate = profile.matchDate;
+  const matchDate = nextMatchDate(state.plan, todayIso, profile.matchDate);
   const isMatch = session.dayType === "match";
   const isRestLike =
     session.dayType === "rest" || session.dayType === "recovery";
@@ -261,7 +262,8 @@ function StartScreen() {
               Obciążenie
             </div>
             <div className="text-sm font-semibold leading-tight">
-              {LOAD_LABEL[adjustedToday.intensity]}
+              {adjustedToday.loadLabelOverride ??
+                LOAD_LABEL[adjustedToday.intensity]}
             </div>
           </div>
         </div>
