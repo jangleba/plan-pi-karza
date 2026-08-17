@@ -4666,8 +4666,7 @@ export function applyReadiness(
   // Trening klubowy i mecz są zobowiązaniami zewnętrznymi — aplikacja ich nie
   // zamienia na regenerację. Może wyłącznie ograniczyć obciążenie lub
   // zalecić przerwanie treningu przy bólu.
-  const externalCommitment =
-    session.dayType === "club" || session.dayType === "match";
+  const externalCommitment = session.dayType === "club";
 
   if (recoveryOnly && externalCommitment) {
     const painStop = painOverride || severeSignals;
