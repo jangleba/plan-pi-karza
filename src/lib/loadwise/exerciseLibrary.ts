@@ -1191,8 +1191,13 @@ export function replaceExerciseWithSafeAlternative(
   };
 }
 
-/** Jawna nazwa dla API Exercise Library 2.0. Kolejność grafu jest stabilna. */
-export const selectEquipmentAwareReplacement = replaceExerciseWithSafeAlternative;
+/** Wybiera pierwszy stabilny zamiennik spełniający także wymagania sprzętowe. */
+export function selectEquipmentAwareReplacement(
+  exercise: ExerciseDefinition | string,
+  a: AthleteTrainingProfile,
+): SafeAlternativeResult {
+  return replaceExerciseWithSafeAlternative(exercise, a);
+}
 
 // ---------------------------------------------------------------------------
 // validateExerciseLibraryCompleteness
@@ -1330,11 +1335,16 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
 
   // Zamienniki tworzą skierowany graf; cykle oznaczają, że silnik może krążyć
   // bez końca zamiast uczciwie zgłosić konieczność przebudowy bloku.
+  const reportedCycles = new Set<string>();
   for (const start of LIBRARY) {
     const visiting = new Set<string>();
     const visit = (id: string) => {
       if (visiting.has(id)) {
-        issues.push({ id: start.id, problem: `Cykl zamienników obejmujący ${id}.` });
+        const cycleKey = [...visiting].sort().join("|");
+        if (!reportedCycles.has(cycleKey)) {
+          issues.push({ id: start.id, problem: `Cykl zamienników obejmujący ${id}.` });
+          reportedCycles.add(cycleKey);
+        }
         return;
       }
       const def = LIBRARY_INDEX.get(id);
