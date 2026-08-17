@@ -46,7 +46,15 @@ export const DOUBLE_SESSION_LABELS: Record<DoubleSessions, string> = {
   yes_if_safe: "Tak, jeśli plan ma sens",
 };
 
-const PL_DAYS = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
+const PL_DAYS = [
+  "Niedziela",
+  "Poniedziałek",
+  "Wtorek",
+  "Środa",
+  "Czwartek",
+  "Piątek",
+  "Sobota",
+];
 
 const PL_MONTHS = [
   "stycznia",
@@ -157,15 +165,16 @@ export const LEVEL_LABELS: Record<Level, string> = {
   elite: "Wysoki poziom / elite youth",
 };
 
-export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] = [
-  { value: 1, label: "Poniedziałek", short: "Pn" },
-  { value: 2, label: "Wtorek", short: "Wt" },
-  { value: 3, label: "Środa", short: "Śr" },
-  { value: 4, label: "Czwartek", short: "Cz" },
-  { value: 5, label: "Piątek", short: "Pt" },
-  { value: 6, label: "Sobota", short: "So" },
-  { value: 7, label: "Niedziela", short: "Nd" },
-];
+export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] =
+  [
+    { value: 1, label: "Poniedziałek", short: "Pn" },
+    { value: 2, label: "Wtorek", short: "Wt" },
+    { value: 3, label: "Środa", short: "Śr" },
+    { value: 4, label: "Czwartek", short: "Cz" },
+    { value: 5, label: "Piątek", short: "Pt" },
+    { value: 6, label: "Sobota", short: "So" },
+    { value: 7, label: "Niedziela", short: "Nd" },
+  ];
 
 export const EQUIPMENT_OPTIONS: string[] = [
   "Piłka",

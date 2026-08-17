@@ -60,7 +60,10 @@ function daysUntil(today: Date, iso: string | null): number | null {
  * Sugeruje okres sezonu na podstawie kalendarza i daty meczu.
  * Data meczu i kontekst rozgrywkowy mają pierwszeństwo nad domyślnym miesiącem.
  */
-export function suggestSeasonPhase(today: Date, nextMatchDate: string | null): SeasonPhase {
+export function suggestSeasonPhase(
+  today: Date,
+  nextMatchDate: string | null,
+): SeasonPhase {
   const month = today.getMonth() + 1;
   const dToMatch = daysUntil(today, nextMatchDate);
   const matchSoon = dToMatch != null && dToMatch >= 0 && dToMatch <= 14;
@@ -83,7 +86,9 @@ export function suggestSeasonPhase(today: Date, nextMatchDate: string | null): S
  * Sprawdza spójność stanu sezonu z kalendarzem i datą meczu.
  * Blokuje niemożliwe kombinacje, prosi o brakujące dane, sugeruje poprawkę.
  */
-export function validateSeason(input: SeasonStateInput): SeasonValidationResult {
+export function validateSeason(
+  input: SeasonStateInput,
+): SeasonValidationResult {
   const today = input.today ?? localToday();
   const suggestion = suggestSeasonPhase(today, input.nextMatchDate);
 
@@ -113,12 +118,18 @@ export function validateSeason(input: SeasonStateInput): SeasonValidationResult 
   let invalid = !plausible.includes(input.seasonPhase);
 
   // "Środek rundy" tylko gdy faktycznie trwa runda (w sezonie).
-  if (input.seasonStage === "season_mid" && input.seasonPhase !== "inseason") {
+  if (
+    input.seasonStage === "season_mid" &&
+    input.seasonPhase !== "inseason"
+  ) {
     invalid = true;
   }
 
   // Przerwa zimowa tylko w miesiącach zimowych.
-  if (input.seasonStage === "winter_break" && !WINTER_MONTHS.includes(month)) {
+  if (
+    input.seasonStage === "winter_break" &&
+    !WINTER_MONTHS.includes(month)
+  ) {
     invalid = true;
   }
 
@@ -143,7 +154,8 @@ export function validateSeason(input: SeasonStateInput): SeasonValidationResult 
   if (input.seasonPhase === "inseason" && !input.nextMatchDate) {
     return {
       status: "incomplete",
-      message: "Wybrano grę w sezonie — podaj datę najbliższego meczu, aby plan był wiarygodny.",
+      message:
+        "Wybrano grę w sezonie — podaj datę najbliższego meczu, aby plan był wiarygodny.",
       suggestion,
       needsConfirm: false,
     };

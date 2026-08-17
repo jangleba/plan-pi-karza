@@ -14,7 +14,12 @@ import { resolveAdjustedDay, resolveTodayPlanRowSource } from "@/lib/loadwise/da
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
 import {
   Clock,
@@ -32,6 +37,8 @@ import {
   CalendarDays,
   type LucideIcon,
 } from "lucide-react";
+
+
 
 export const Route = createFileRoute("/_tabs/plan")({
   component: PlanScreen,
@@ -140,15 +147,18 @@ function whatToDo(day: SessionDay): string {
         return "Główne okno bodźca wytrzymałościowego.";
       if (type.includes("agility") || type.includes("cod") || type.includes("zwin"))
         return "COD i hamowanie — jakość decyzji i ruchu.";
-      if (type.includes("moc")) return "Moc jako bodziec główny, bez nadmiaru skoków.";
-      if (type.includes("siła")) return "Siła jako bodziec główny, bez przeciążania przed meczem.";
+      if (type.includes("moc"))
+        return "Moc jako bodziec główny, bez nadmiaru skoków.";
+      if (type.includes("siła"))
+        return "Siła jako bodziec główny, bez przeciążania przed meczem.";
       if (type.includes("szybko") || type.includes("sprint"))
         return day.mdLabel === "MD-2"
           ? "Krótka jakość piłkarska i szybkościowa, bez dokładania zmęczenia."
           : "Dzień jakości szybkościowej — pełne przerwy i kontrola objętości.";
       if (type.includes("piłk") || type.includes("technik"))
         return "Praca z piłką: technika i decyzje.";
-      if (type.includes("ostro")) return "Ostrość przed meczem — kończysz świeży.";
+      if (type.includes("ostro"))
+        return "Ostrość przed meczem — kończysz świeży.";
       if (type.includes("prehab") || type.includes("mobil"))
         return "Prehab i mobilność — odporność i jakość ruchu.";
       return "Wykonaj zaplanowany bodziec dnia.";
@@ -220,7 +230,12 @@ function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string 
 }
 
 /** Tygodniowe podsumowanie / periodyzacja. */
-function weekSummary(weekIndex: number, totalWeeks: number, week: PlanWeek, goal: Goal) {
+function weekSummary(
+  weekIndex: number,
+  totalWeeks: number,
+  week: PlanWeek,
+  goal: Goal,
+) {
   const phase = week.weekPhase;
   const block = focusFor(phase, goal);
   const stats = computeWeekStats(week);
@@ -234,6 +249,7 @@ function weekSummary(weekIndex: number, totalWeeks: number, week: PlanWeek, goal
     load: stats.weeklyLoadLabel,
   };
 }
+
 
 function PlanScreen() {
   const { state, todayIso, todaySession, updateProfile } = useLoadwise();
@@ -289,7 +305,8 @@ function PlanScreen() {
 
   // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
   const weekHasMatchDate = (i: number) =>
-    !!transitions[i]?.nextMatchDate || (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
+    !!transitions[i]?.nextMatchDate ||
+    (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
 
   // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
   // tydzień wymaga zapisanej daty meczu dla każdego wcześniejszego przejścia.
@@ -331,11 +348,13 @@ function PlanScreen() {
     }
   }
 
-  const monthGoal = GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
+  const monthGoal =
+    GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? null;
   const summary = current
     ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
     : null;
+
 
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
@@ -347,7 +366,7 @@ function PlanScreen() {
 
   // Granice tygodnia wymagającego daty meczu (dla bramki i modala).
   const gateNextIndex = gateWeek ?? needMatchWeek;
-  const gateWeekData = gateNextIndex !== null ? (weeks[gateNextIndex] ?? null) : null;
+  const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
   const visibleDays = (current?.days ?? []).filter((d) => !d.outsideActivePlan);
@@ -371,6 +390,9 @@ function PlanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWeek, transitions, seasonStatus]);
 
+
+
+
   return (
     <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
       <AppHeader
@@ -389,7 +411,8 @@ function PlanScreen() {
 
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
-          Generujemy Twój plan… Jeśli to się utrzymuje, uzupełnij profil w onboardingu.
+          Generujemy Twój plan… Jeśli to się utrzymuje, uzupełnij profil w
+          onboardingu.
         </p>
       )}
 
@@ -448,6 +471,7 @@ function PlanScreen() {
         </div>
       )}
 
+
       {todaySession &&
         (() => {
           const hero = todayAdjusted ?? todaySession;
@@ -467,7 +491,9 @@ function PlanScreen() {
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
                     Decyzja dnia
                   </div>
-                  <h2 className="mt-1 truncate text-xl font-bold leading-tight">{hero.title}</h2>
+                  <h2 className="mt-1 truncate text-xl font-bold leading-tight">
+                    {hero.title}
+                  </h2>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
                       {INTENSITY_SHORT[hero.intensity]}
@@ -502,6 +528,7 @@ function PlanScreen() {
         </div>
       )}
 
+
       {/* Dni tygodnia */}
       <div
         className="space-y-3 px-5 pt-4"
@@ -509,8 +536,8 @@ function PlanScreen() {
       >
         {hasHiddenBefore && planStartDate && (
           <div className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs text-muted-foreground">
-            Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego tygodnia są poza
-            planem.
+            Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego
+            tygodnia są poza planem.
           </div>
         )}
         {visibleDays.map(({ source }) => {
@@ -523,7 +550,9 @@ function PlanScreen() {
           const added = mods.some((m) => m.type === "add");
           const d = parseIso(day.date);
           const dayNum = d.getDate();
-          const monthShort = d.toLocaleDateString("pl-PL", { month: "short" }).replace(".", "");
+          const monthShort = d
+            .toLocaleDateString("pl-PL", { month: "short" })
+            .replace(".", "");
           const RowIcon = sessionIcon(day);
           const isRest = day.dayType === "rest" || day.dayType === "recovery";
           return (
@@ -546,7 +575,9 @@ function PlanScreen() {
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {shortDayName(d)}
                   </div>
-                  <div className="text-xl font-bold leading-none text-foreground">{dayNum}</div>
+                  <div className="text-xl font-bold leading-none text-foreground">
+                    {dayNum}
+                  </div>
                   <div className="text-[10px] font-medium uppercase text-muted-foreground">
                     {monthShort}
                   </div>
@@ -554,7 +585,9 @@ function PlanScreen() {
 
                 <span
                   className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                    isRest ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]" : "icon-bubble"
+                    isRest
+                      ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]"
+                      : "icon-bubble"
                   }`}
                 >
                   <RowIcon className="h-6 w-6" strokeWidth={2} />
@@ -570,7 +603,9 @@ function PlanScreen() {
                         Dziś
                       </span>
                     )}
-                    {done && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+                    {done && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    )}
                   </div>
                   <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
                     <span
@@ -582,12 +617,13 @@ function PlanScreen() {
                       ? "Zamieniona"
                       : added
                         ? "Dodana"
-                        : (day.loadLabelOverride ?? shortTag(day))}
+                        : day.loadLabelOverride ?? shortTag(day)}
                   </p>
                 </div>
 
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
+
 
               {hasTwo && day.secondSession && (
                 <Link
@@ -639,11 +675,10 @@ function PlanScreen() {
               onClick={() => setGateWeek(nextIndex)}
               className="mt-2 w-full text-center text-xs font-medium text-primary"
             >
-              {seasonStatus === "off_season"
-                ? "Ustaw datę meczu (opcjonalnie)"
-                : "Zmień datę meczu"}
+              {seasonStatus === "off_season" ? "Ustaw datę meczu (opcjonalnie)" : "Zmień datę meczu"}
             </button>
           </div>
+
         </div>
       )}
 
@@ -659,8 +694,8 @@ function PlanScreen() {
             <DialogTitle>Uzupełnij kolejny mecz</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Data następnego meczu jest potrzebna, aby prawidłowo rozłożyć obciążenie, regenerację i
-            dni MD.
+            Data następnego meczu jest potrzebna, aby prawidłowo rozłożyć
+            obciążenie, regenerację i dni MD.
           </p>
           <Button
             className="mt-4 w-full"
@@ -673,11 +708,16 @@ function PlanScreen() {
             <CalendarClock className="mr-1 h-4 w-4" />
             Dodaj datę meczu
           </Button>
-          <Button variant="ghost" className="w-full" onClick={() => setNeedMatchWeek(null)}>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => setNeedMatchWeek(null)}
+          >
             Wróć do planu
           </Button>
         </DialogContent>
       </Dialog>
+
 
       {gateWeek !== null && gateWeekData && (
         <WeeklyGateSheet
@@ -699,5 +739,6 @@ function PlanScreen() {
 
       <div className="h-[140px]" />
     </div>
+
   );
 }

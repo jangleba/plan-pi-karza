@@ -73,7 +73,9 @@ function AuthScreen() {
     <div className="app-shell flex min-h-screen flex-col justify-center px-6 py-10">
       <div className="mx-auto w-full max-w-sm">
         <div className="text-center">
-          <div className="text-3xl font-semibold tracking-tight text-primary">Loadwise</div>
+          <div className="text-3xl font-semibold tracking-tight text-primary">
+            Loadwise
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "register"
               ? "Załóż konto, aby zacząć trenować mądrzej."
@@ -116,12 +118,18 @@ function AuthScreen() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="min. 6 znaków"
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
+              autoComplete={
+                mode === "register" ? "new-password" : "current-password"
+              }
             />
           </div>
 
           <Button type="submit" className="w-full" size="lg" disabled={busy}>
-            {busy ? "Chwila…" : mode === "register" ? "Utwórz konto" : "Zaloguj się"}
+            {busy
+              ? "Chwila…"
+              : mode === "register"
+                ? "Utwórz konto"
+                : "Zaloguj się"}
           </Button>
         </form>
 
@@ -130,7 +138,9 @@ function AuthScreen() {
           onClick={() => setMode(mode === "register" ? "login" : "register")}
           className="mt-5 w-full text-center text-sm text-muted-foreground"
         >
-          {mode === "register" ? "Masz już konto? Zaloguj się" : "Nie masz konta? Zarejestruj się"}
+          {mode === "register"
+            ? "Masz już konto? Zaloguj się"
+            : "Nie masz konta? Zarejestruj się"}
         </button>
 
         <p className="mt-8 text-center text-xs leading-relaxed text-muted-foreground">
