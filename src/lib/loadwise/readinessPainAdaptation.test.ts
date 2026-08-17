@@ -100,7 +100,7 @@ describe("Sprint session — readiness adaptation", () => {
         { name: "Marsz techniczny", prescription: "4 × 20 m" },
       ],
     },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   it("readiness 9: category speed_sprint, exercises untouched", () => {
     const { session } = applyReadiness(sprintSession, makeReadiness(9), BASE_PROFILE);
@@ -159,7 +159,7 @@ describe("Endurance session — readiness adaptation", () => {
         { name: "Trucht regeneracyjny", prescription: "10 min" },
       ],
     },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   it("readiness 9: category endurance_conditioning, exercises untouched", () => {
     const { session } = applyReadiness(enduranceSession, makeReadiness(9), BASE_PROFILE);
@@ -211,7 +211,7 @@ describe("Strength session — readiness adaptation", () => {
         { name: "Podskoki — max przyspiesz", prescription: "4 × 5" },
       ],
     },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   it("readiness 9: category gym_strength, exercises untouched", () => {
     const { session } = applyReadiness(strengthSession, makeReadiness(9), BASE_PROFILE);
@@ -258,7 +258,7 @@ describe("Football / club session — readiness adaptation", () => {
         { name: "Prowadzenie piłki", prescription: "10 min" },
       ],
     },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   it("readiness 9: category preserved, exercises untouched", () => {
     const { session } = applyReadiness(footballSession, makeReadiness(9), BASE_PROFILE);
@@ -294,7 +294,7 @@ describe("Second session removal", () => {
     title: "Sprinting — akceleracja",
     sessionType: "Szybkość / sprint",
     sections: { main: [{ name: "Sprint 20 m", prescription: "8 × 20 m" }] },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   const withSecond: SessionDay = {
     ...sessionWithSecond,
@@ -302,7 +302,7 @@ describe("Second session removal", () => {
       title: "Prehab",
       sessionType: "Prehab",
       sections: { main: [] },
-    } as Parameters<typeof makeSession>[0]),
+    } as unknown as Parameters<typeof makeSession>[0]),
     slotLabel: "Rano + Wieczór",
   };
 
@@ -337,7 +337,7 @@ describe("Focused pain safety — readiness 9 / 6 / 4", () => {
         { name: "Marsz techniczny", prescription: "4 × 20 m" },
       ],
     },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   for (const r of [9, 6, 4] as const) {
     it(`readiness ${r} + pain: risky exercises removed, no sprint/running replacement injected`, () => {
@@ -367,7 +367,7 @@ describe("Daily pain override without profile pain flag", () => {
         { name: "Marsz techniczny", prescription: "4 × 20 m" },
       ],
     },
-  } as Parameters<typeof makeSession>[0]);
+  } as unknown as Parameters<typeof makeSession>[0]);
 
   const day: SessionDay = {
     ...withSecond,
@@ -375,7 +375,7 @@ describe("Daily pain override without profile pain flag", () => {
       title: "Prehab",
       sessionType: "Prehab",
       sections: { main: [] },
-    } as Parameters<typeof makeSession>[0]),
+    } as unknown as Parameters<typeof makeSession>[0]),
     slotLabel: "Rano + Wieczór",
   };
 

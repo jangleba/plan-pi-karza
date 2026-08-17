@@ -4663,13 +4663,34 @@ export function applyReadiness(
 
   let adjusted: SessionDay = { ...session };
 
-  if (recoveryOnly) {
+  // Trening klubowy i mecz są zobowiązaniami zewnętrznymi — aplikacja ich nie
+  // zamienia na regenerację. Może wyłącznie ograniczyć obciążenie lub
+  // zalecić przerwanie treningu przy bólu.
+  const externalCommitment = session.dayType === "club";
+
+  if (recoveryOnly && externalCommitment) {
+    const painStop = painOverride || severeSignals;
+    adjusted = {
+      ...session,
+      externalCommitment: true,
+      loadLabelOverride: "Ogranicz",
+      safetyNote: painStop
+        ? "Zgłoszony ból lub bardzo złe samopoczucie: przerwij trening i skonsultuj się z lekarzem lub fizjoterapeutą. Dziś bez dodatkowego treningu."
+        : "Niska gotowość: ogranicz obciążenie na treningu klubowym i zgłoś swoją gotowość trenerowi.",
+    };
+    adjustment = painStop
+      ? "Ból/bardzo złe samopoczucie: przerwij trening i skonsultuj się z lekarzem lub fizjoterapeutą."
+      : "Niska gotowość: ogranicz obciążenie i zgłoś gotowość trenerowi. Trening klubowy pozostaje jedyną sesją dnia.";
+  } else if (recoveryOnly) {
     const built = recoverySession();
     adjusted = {
       ...session,
       title: "Regeneracja (na podstawie gotowości)",
       intensity: "niska",
+      loadLabelOverride: null,
+      externalCommitment: false,
       durationMin: built.durationMin,
+      sessionType: "Regeneracja",
       sections: {
         warmup: [],
         main: built.main,
@@ -4677,8 +4698,11 @@ export function applyReadiness(
         footballTransfer: [],
         cooldown: cooldown(),
       },
+      structuredSections: undefined,
+      exercises: undefined,
     };
   } else {
+
     adjusted = {
       ...session,
       durationMin: Math.round(session.durationMin * factor),

@@ -49,3 +49,35 @@ export function applyCheckInToPlanDay(
   nextPlan[index] = adjusted;
   return { plan: nextPlan, changed: true, adjusted };
 }
+
+/**
+ * Jedno źródło prawdy dla Start / Plan / szczegółów sesji.
+ * Zwraca zapisany, już dostosowany SessionDay albo dostosowuje go na żywo.
+ * Nigdy nie nakłada adaptacji dwa razy.
+ */
+export function resolveAdjustedDay(
+  day: SessionDay,
+  readiness: Readiness | undefined,
+  profile: Profile | null,
+): SessionDay {
+  if (!profile) return day;
+  if (readiness && hasPersistedReadinessAdjustment(day, readiness.date)) {
+    return day;
+  }
+  return applyReadiness(day, readiness, profile).session;
+}
+
+/** Najbliższy przyszły mecz z aktywnego planu (fallback: data z profilu). */
+export function nextMatchDate(
+  plan: SessionDay[],
+  todayIso: string,
+  profileMatchDate?: string | null,
+): string | null {
+  const fromPlan = plan
+    .filter((d) => d.dayType === "match" && d.date >= todayIso)
+    .map((d) => d.date)
+    .sort();
+  if (fromPlan.length > 0) return fromPlan[0];
+  if (profileMatchDate && profileMatchDate >= todayIso) return profileMatchDate;
+  return null;
+}
