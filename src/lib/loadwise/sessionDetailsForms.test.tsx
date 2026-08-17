@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { SessionDay } from "@/lib/loadwise/types";
+import type { SessionDay } from "./types";
 
 vi.mock("@/lib/loadwise/store", () => ({
   useLoadwise: () => ({
@@ -9,7 +9,7 @@ vi.mock("@/lib/loadwise/store", () => ({
   }),
 }));
 
-import { ClubMonitoring, CompletionPanel } from "./sesja.$date";
+import { ClubMonitoring, CompletionPanel } from "@/routes/sesja.$date";
 
 function clubSession(): SessionDay {
   return {
