@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SessionDay } from "@/lib/loadwise/types";
 import {
-  postSessionFormCount,
+  canShowPostSessionForm,
   shortDecisionNote,
   statusBadgeLabel,
 } from "./sesja.$date";
@@ -48,6 +48,6 @@ describe("sesja details view-model", () => {
 
   it("renderuje dokładnie jeden kanoniczny formularz completion/monitoring", () => {
     const session = baseSession({ dbId: "session-1" });
-    expect(postSessionFormCount(session)).toBe(1);
+    expect(canShowPostSessionForm(session)).toBe(true);
   });
 });

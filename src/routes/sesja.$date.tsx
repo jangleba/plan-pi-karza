@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { memo, useState, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
@@ -80,8 +80,26 @@ export function statusBadgeLabel(session: SessionDay): string | null {
   return session.loadLabelOverride ?? null;
 }
 
-export function postSessionFormCount(session: SessionDay): number {
-  return session.dbId ? 1 : 0;
+export function canShowPostSessionForm(session: SessionDay): boolean {
+  return Boolean(session.dbId);
+}
+
+function parseCompletionNotes(raw: string): { pain: number; legFatigue: number; notes: string } {
+  const header = raw.match(/^\[Monitoring\]\s*pain=(\d+);\s*legFatigue=(\d+)\n?/i);
+  if (!header) return { pain: 0, legFatigue: 0, notes: raw };
+  const pain = Math.max(0, Math.min(10, Number(header[1]) || 0));
+  const legFatigue = Math.max(0, Math.min(10, Number(header[2]) || 0));
+  return {
+    pain,
+    legFatigue,
+    notes: raw.slice(header[0].length).trimStart(),
+  };
+}
+
+function composeCompletionNotes(notes: string, pain: number, legFatigue: number): string {
+  const safePain = Math.max(0, Math.min(10, Math.round(pain)));
+  const safeFatigue = Math.max(0, Math.min(10, Math.round(legFatigue)));
+  return `[Monitoring] pain=${safePain};legFatigue=${safeFatigue}\n${notes.trim()}`.trimEnd();
 }
 
 // Pierwsza linia: dawka + max jeden kwalifikator.
@@ -339,18 +357,29 @@ function LogField({
 function CompletionPanel({ session }: { session: SessionDay }) {
   const { state, completeSession } = useLoadwise();
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
+  const parsed = parseCompletionNotes(existing?.notes ?? "");
   const [rpe, setRpe] = useState(existing?.rpe ?? 6);
-  const [pain, setPain] = useState(0);
-  const [legFatigue, setLegFatigue] = useState(0);
-  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [pain, setPain] = useState(parsed.pain);
+  const [legFatigue, setLegFatigue] = useState(parsed.legFatigue);
+  const [notes, setNotes] = useState(parsed.notes);
   const [saving, setSaving] = useState(false);
   const done = existing?.completed ?? false;
+  const existingRpe = existing?.rpe ?? 6;
+  const existingNotes = existing?.notes ?? "";
+
+  useEffect(() => {
+    const next = parseCompletionNotes(existingNotes);
+    setRpe(existingRpe);
+    setPain(next.pain);
+    setLegFatigue(next.legFatigue);
+    setNotes(next.notes);
+  }, [existingRpe, existingNotes]);
 
   if (!session.dbId) return null;
 
   async function save() {
     setSaving(true);
-    await completeSession(session, rpe, notes);
+    await completeSession(session, rpe, composeCompletionNotes(notes, pain, legFatigue));
     setSaving(false);
   }
 
@@ -700,7 +729,7 @@ function SessionDetail() {
           </>
         )}
 
-        {postSessionFormCount(session) > 0 && <CompletionPanel session={session} />}
+        {canShowPostSessionForm(session) && <CompletionPanel session={session} />}
 
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && (
