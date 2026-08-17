@@ -8,9 +8,9 @@ import {
   buildPlanWeeks,
   computeWeekStats,
   validatePlanWeeks,
-  applyReadiness,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
+import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";

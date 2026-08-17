@@ -3,8 +3,7 @@ import { memo, useState, type ReactNode } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
-import { applyReadiness } from "@/lib/loadwise/planEngine";
-import { hasPersistedReadinessAdjustment } from "@/lib/loadwise/dailyCheckin";
+import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
