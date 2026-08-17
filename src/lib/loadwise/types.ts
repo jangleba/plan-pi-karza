@@ -73,6 +73,8 @@ export interface Profile {
   doubleSessionsAllowed: DoubleSessions;
   guardianConsent: boolean;
   onboardingComplete: boolean;
+  onboardingRevision?: string | null;
+  onboardingSchemaVersion?: number;
   createdAt: string;
   // --- Kontekst sezonu i rozgrywek (steruje generatorem) ---
   seasonPhase: SeasonPhase;
@@ -510,6 +512,8 @@ export interface SessionDay {
   /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
   isUnavailable?: boolean;
   generatorVersion?: string;
+  canonicalRevision?: string | null;
+  canonicalSchemaVersion?: number;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   readinessAdjustedDate?: string | null;

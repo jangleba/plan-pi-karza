@@ -47,6 +47,8 @@ const initialState: LoadwiseState = {
   transitions: {},
 };
 
+const ONBOARDING_SCHEMA_VERSION = 1;
+
 /**
  * Sprawdza, czy zapisany plan jest zgodny z aktualnymi dniami treningu klubowego.
  * Trening klubowy może wystąpić WYŁĄCZNIE w dniach wybranych w onboardingu
@@ -182,7 +184,13 @@ function normalizeLevel(v: unknown): Profile["level"] {
 }
 
 function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
-  if (!prof || !prof.onboarding_completed || !ath) return null;
+  if (!prof || !ath) return null;
+  const onboardingRevision =
+    (ath.updated_at as string | null) ??
+    (ath.created_at as string | null) ??
+    (prof.updated_at as string | null) ??
+    (prof.created_at as string | null) ??
+    null;
   const equipment = (ath.equipment as string[]) ?? [];
   return {
     name: (prof.full_name as string) ?? "",
@@ -201,7 +209,9 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
-    onboardingComplete: true,
+    onboardingComplete: Boolean(prof.onboarding_completed),
+    onboardingRevision,
+    onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
     seasonPhase: normalizeSeasonPhase(ath.season_phase),
     seasonStage: (ath.season_stage as Profile["seasonStage"]) ?? null,
@@ -225,6 +235,60 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
   };
 }
 
+function stampDayRevision(
+  day: SessionDay,
+  revision: string | null,
+  schemaVersion: number,
+): SessionDay {
+  const stamped: SessionDay = {
+    ...day,
+    canonicalRevision: revision,
+    canonicalSchemaVersion: schemaVersion,
+  };
+  if (day.secondSession) {
+    stamped.secondSession = stampDayRevision(day.secondSession, revision, schemaVersion);
+  }
+  return stamped;
+}
+
+function stampPlanRevision(
+  plan: SessionDay[],
+  revision: string | null,
+  schemaVersion: number,
+): SessionDay[] {
+  return plan.map((day) => stampDayRevision(day, revision, schemaVersion));
+}
+
+function planRevisionInfo(plan: SessionDay[]): {
+  revision: string | null;
+  schemaVersion: number | null;
+  mixedRevisions: boolean;
+  mixedSchemas: boolean;
+} {
+  if (plan.length === 0) {
+    return {
+      revision: null,
+      schemaVersion: null,
+      mixedRevisions: false,
+      mixedSchemas: false,
+    };
+  }
+  const firstRevision = plan[0].canonicalRevision ?? null;
+  const firstSchema = plan[0].canonicalSchemaVersion ?? null;
+  let mixedRevisions = false;
+  let mixedSchemas = false;
+  for (const day of plan) {
+    if ((day.canonicalRevision ?? null) !== firstRevision) mixedRevisions = true;
+    if ((day.canonicalSchemaVersion ?? null) !== firstSchema) mixedSchemas = true;
+  }
+  return {
+    revision: firstRevision,
+    schemaVersion: firstSchema,
+    mixedRevisions,
+    mixedSchemas,
+  };
+}
+
 function rowToModification(row: AnyRow): SessionModification | null {
   const session = row.new_session_json as SessionDay | null;
   if (!session) return null;
@@ -245,12 +309,18 @@ export function shouldReusePersistedPlan(
   profile: Profile,
 ): boolean {
   const hasMonthly = plan.length >= 14;
+  const today = isoDate(warsawToday());
+  const coversToday = plan.some((day) => day.date === today);
+  const revision = planRevisionInfo(plan);
+  const sameRevision = (profile.onboardingRevision ?? null) === (revision.revision ?? null);
+  const schemaOk =
+    (revision.schemaVersion ?? ONBOARDING_SCHEMA_VERSION) === ONBOARDING_SCHEMA_VERSION;
   const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(
     plan,
     profile,
     PLAN_ENGINE_VERSION,
   );
-  return hasMonthly && persistedPlanIsSafe;
+  return hasMonthly && coversToday && persistedPlanIsSafe && sameRevision && schemaOk;
 }
 
 interface LoadwiseContextValue {
@@ -296,8 +366,40 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
+  const [todayIso, setTodayIso] = useState(() => isoDate(warsawToday()));
 
-  const todayIso = isoDate(warsawToday());
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const refreshToday = () => {
+      const next = isoDate(warsawToday());
+      setTodayIso((prev) => (prev === next ? prev : next));
+    };
+    const scheduleMidnight = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 1, 0);
+      timeout = setTimeout(() => {
+        refreshToday();
+        scheduleMidnight();
+      }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshToday();
+    };
+    const onFocus = () => refreshToday();
+    const onPageShow = () => refreshToday();
+    scheduleMidnight();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
 
   // Load everything for the current user.
   useEffect(() => {
@@ -347,44 +449,70 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       );
       const local = loadLocal(user.id);
 
-      let plan: SessionDay[] = [];
-      let planGeneratedFor: string | null = null;
-      let normalizedLegacyPlan = false;
-      let regeneratedPlan = false;
+     let plan: SessionDay[] = [];
+     let planGeneratedFor: string | null = null;
+     let clearFutureOverlays = false;
       const planRow = planRes.data as AnyRow | null;
-      if (planRow && Array.isArray(planRow.plan_json)) {
-        plan = planRow.plan_json as SessionDay[];
-        planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
-        const normalized = normalizeLegacyPersistedPlan(plan);
-        plan = normalized.plan;
-        normalizedLegacyPlan = normalized.changed;
+     const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
+     if (planRow && Array.isArray(planRow.plan_json)) {
+       plan = planRow.plan_json as SessionDay[];
+       planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
+       const normalized = normalizeLegacyPersistedPlan(plan);
+       plan = normalized.plan;
       }
-if (
-        profile &&
-        persistedPlanNeedsRegeneration(
-          plan,
-          profile,
-          PLAN_ENGINE_VERSION,
-        )
-      ) {
-        plan = generatePlan(
-          profile,
-          warsawToday(),
-        );
 
-        await persistMonthlyPlan(
-          user.id,
-          profile,
-          plan,
-        );
-        regeneratedPlan = true;
+     if (!profile?.onboardingComplete) {
+       plan = [];
+       planGeneratedFor = null;
+     } else {
+       const revisionInfo = planRevisionInfo(plan);
+       const profileRevision = profile.onboardingRevision ?? null;
+       const schemaMissingOrMismatched =
+         revisionInfo.schemaVersion === null ||
+         revisionInfo.schemaVersion !== ONBOARDING_SCHEMA_VERSION;
+       const revisionMismatch =
+         (profileRevision && revisionInfo.revision !== profileRevision) ||
+         (!revisionInfo.revision && !!profileRevision);
+       const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
+       const planOlderThanProfile =
+         !!profileRevision && !!planRowCreatedAt && planRowCreatedAt < profileRevision;
+       const missingToday = !plan.some((day) => day.date === todayIso);
+       const invalidCanonical =
+         plan.length === 0 ||
+         missingToday ||
+         persistedPlanNeedsRegeneration(
+           plan,
+           profile,
+           PLAN_ENGINE_VERSION,
+         );
+       const shouldRebuildCanonical =
+         invalidCanonical ||
+         mixedRevisionData ||
+         schemaMissingOrMismatched ||
+         revisionMismatch ||
+         planOlderThanProfile;
 
-        planGeneratedFor = todayIso;
-      }
-      if (profile && normalizedLegacyPlan && !regeneratedPlan && plan.length > 0) {
-        await persistMonthlyPlan(user.id, profile, plan);
-      }
-      const completions: Record<string, SessionCompletion> = {};
+       if (shouldRebuildCanonical) {
+         const canonical = stampPlanRevision(
+           generatePlan(profile, warsawToday()),
+           profileRevision,
+           ONBOARDING_SCHEMA_VERSION,
+         );
+         plan = canonical;
+         await persistMonthlyPlan(
+           user.id,
+           profile,
+           canonical,
+         );
+         planGeneratedFor = todayIso;
+         clearFutureOverlays = true;
+       } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
+         plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
+         await persistMonthlyPlan(user.id, profile, plan);
+         planGeneratedFor = todayIso;
+       }
+     }
+     const completions: Record<string, SessionCompletion> = {};
       for (const row of (logRes.data as AnyRow[] | null) ?? []) {
         const sid = row.session_id as string | null;
         if (!sid) continue;
@@ -399,11 +527,12 @@ if (
       for (const row of (modRes.data as AnyRow[] | null) ?? []) {
         const mod = rowToModification(row);
         if (!mod) continue;
+        if (clearFutureOverlays && mod.date >= todayIso) continue;
         (modifications[mod.date] ??= []).push(mod);
       }
 
       const transitions: Record<number, WeeklyTransition> = {};
-      for (const row of (transRes.data as AnyRow[] | null) ?? []) {
+      for (const row of clearFutureOverlays ? [] : ((transRes.data as AnyRow[] | null) ?? [])) {
         const wn = Number(row.week_number);
         if (!Number.isFinite(wn)) continue;
         transitions[wn] = {
@@ -413,6 +542,19 @@ if (
           noMatchNextWeek: Boolean(row.no_match_next_week),
           confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
         };
+      }
+
+      if (clearFutureOverlays) {
+        await supabase
+          .from("session_modifications" as never)
+          .update({ active: false } as never)
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .gte("date", todayIso);
+        await supabase
+          .from("weekly_transitions" as never)
+          .delete()
+          .eq("user_id", user.id);
       }
 
       if (cancelled) return;
@@ -445,16 +587,48 @@ if (
     }
   }
 
-  async function savePlanToDb(profile: Profile): Promise<SessionDay[]> {
-    const plan = generatePlan(profile, warsawToday());
+  async function clearFutureScheduleOverlays() {
+    if (!user) return;
+    await supabase
+      .from("session_modifications" as never)
+      .update({ active: false } as never)
+      .eq("user_id", user.id)
+      .eq("active", true)
+      .gte("date", todayIso);
+    await supabase
+      .from("weekly_transitions" as never)
+      .delete()
+      .eq("user_id", user.id);
+  }
+
+  async function savePlanToDb(
+    profile: Profile,
+    revision: string | null,
+    readinessForToday?: Readiness | null,
+  ): Promise<SessionDay[]> {
+    const canonical = stampPlanRevision(
+      generatePlan(profile, warsawToday()),
+      revision,
+      ONBOARDING_SCHEMA_VERSION,
+    );
+    let plan = canonical;
+    if (readinessForToday) {
+      const adapted = applyCheckInToPlanDay(
+        canonical,
+        readinessForToday.date,
+        readinessForToday,
+        profile,
+      );
+      plan = adapted.plan;
+    }
     if (user) {
       await persistMonthlyPlan(user.id, profile, plan);
     }
     return plan;
   }
 
-  async function saveProfileRows(profile: Profile, completed: boolean) {
-    if (!user) return;
+  async function saveProfileRows(profile: Profile, completed: boolean): Promise<string | null> {
+    if (!user) return null;
     await supabase.from("profiles").upsert(
       {
         user_id: user.id,
@@ -464,36 +638,45 @@ if (
       },
       { onConflict: "user_id" },
     );
-    await supabase.from("athlete_profiles").upsert(
-      {
-        user_id: user.id,
-        age: profile.age,
-        position: profile.position,
-        level: profile.level,
-        main_goal: profile.goal,
-        secondary_limiter: profile.secondaryLimiter,
-        equipment: profile.equipment as unknown as never,
-        club_training_days: profile.clubTrainingDays as unknown as never,
-        individual_training_days:
-          profile.individualTrainingDays as unknown as never,
-        unavailable_days: profile.unavailableDays as unknown as never,
-        usual_match_day:
-          profile.usualMatchDay === null
-            ? null
-            : String(profile.usualMatchDay),
-        match_date: profile.matchDate,
-        pain_injury: profile.painInjury,
-        double_sessions_allowed: profile.doubleSessionsAllowed,
-        guardian_consent: profile.guardianConsent,
-        season_phase: profile.seasonPhase,
-        season_stage: profile.seasonStage,
-        competition_level: profile.competitionLevel,
-        weekly_matches: profile.weeklyMatches,
-        has_gym: profile.hasGym,
-        has_pitch: profile.hasPitch,
-        has_sprint_space: profile.hasSprintSpace,
-      },
-      { onConflict: "user_id" },
+    const athleteRes = await supabase
+      .from("athlete_profiles")
+      .upsert(
+        {
+          user_id: user.id,
+          age: profile.age,
+          position: profile.position,
+          level: profile.level,
+          main_goal: profile.goal,
+          secondary_limiter: profile.secondaryLimiter,
+          equipment: profile.equipment as unknown as never,
+          club_training_days: profile.clubTrainingDays as unknown as never,
+          individual_training_days:
+            profile.individualTrainingDays as unknown as never,
+          unavailable_days: profile.unavailableDays as unknown as never,
+          usual_match_day:
+            profile.usualMatchDay === null
+              ? null
+              : String(profile.usualMatchDay),
+          match_date: profile.matchDate,
+          pain_injury: profile.painInjury,
+          double_sessions_allowed: profile.doubleSessionsAllowed,
+          guardian_consent: profile.guardianConsent,
+          season_phase: profile.seasonPhase,
+          season_stage: profile.seasonStage,
+          competition_level: profile.competitionLevel,
+          weekly_matches: profile.weeklyMatches,
+          has_gym: profile.hasGym,
+          has_pitch: profile.hasPitch,
+          has_sprint_space: profile.hasSprintSpace,
+        },
+        { onConflict: "user_id" },
+      )
+      .select("updated_at,created_at")
+      .maybeSingle();
+    return (
+      (athleteRes.data?.updated_at as string | undefined) ??
+      (athleteRes.data?.created_at as string | undefined) ??
+      new Date().toISOString()
     );
   }
 
@@ -502,11 +685,18 @@ if (
     consents?: Record<string, boolean>,
   ) {
     if (!user) return;
-    await saveProfileRows(profile, true);
+    const revision = await saveProfileRows(profile, true);
+    const nextProfile: Profile = {
+      ...profile,
+      onboardingComplete: true,
+      onboardingRevision: revision,
+      onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
+    };
+    await clearFutureScheduleOverlays();
 
     await supabase.from("onboarding_answers").insert({
       user_id: user.id,
-      answers_json: profile as unknown as never,
+      answers_json: nextProfile as unknown as never,
       completed_at: new Date().toISOString(),
     });
 
@@ -522,24 +712,39 @@ if (
       await supabase.from("consent_logs").insert(rows);
     }
 
-    const plan = await savePlanToDb(profile);
+    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
     setState((s) => ({
       ...s,
-      profile: { ...profile, onboardingComplete: true },
+      profile: nextProfile,
       plan,
       planGeneratedFor: todayIso,
+      modifications: Object.fromEntries(
+        Object.entries(s.modifications).filter(([date]) => date < todayIso),
+      ),
+      transitions: {},
     }));
   }
 
   async function updateProfile(profile: Profile) {
     if (!user) return;
-    await saveProfileRows(profile, true);
-    const plan = await savePlanToDb(profile);
+    const revision = await saveProfileRows(profile, true);
+    const nextProfile: Profile = {
+      ...profile,
+      onboardingComplete: true,
+      onboardingRevision: revision,
+      onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
+    };
+    await clearFutureScheduleOverlays();
+    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
     setState((s) => ({
       ...s,
-      profile,
+      profile: nextProfile,
       plan,
       planGeneratedFor: todayIso,
+      modifications: Object.fromEntries(
+        Object.entries(s.modifications).filter(([date]) => date < todayIso),
+      ),
+      transitions: {},
     }));
   }
 
@@ -570,7 +775,11 @@ if (
     generatingRef.current = true;
     (async () => {
       try {
-        const plan = await savePlanToDb(profile);
+        const plan = await savePlanToDb(
+          profile,
+          profile.onboardingRevision ?? null,
+          state.readiness[todayIso],
+        );
         setState((s) => ({ ...s, plan, planGeneratedFor: todayIso }));
       } finally {
         generatingRef.current = false;

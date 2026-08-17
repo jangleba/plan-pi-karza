@@ -191,7 +191,7 @@ function ProfilScreen() {
 
         <Button
           className="w-full gap-2"
-          onClick={() => navigate({ to: "/onboarding" })}
+          onClick={() => navigate({ to: "/onboarding", search: { edit: true } })}
         >
           <Pencil className="h-4 w-4" /> Edytuj profil
         </Button>
