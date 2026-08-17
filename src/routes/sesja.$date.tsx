@@ -4,6 +4,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
+import { detailDecisionNote, detailStatusLabel } from "@/lib/loadwise/sessionDetailsView";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
@@ -332,13 +333,16 @@ function PostSessionLog() {
   );
 }
 
-function CompletionPanel({ session }: { session: SessionDay }) {
+export function CompletionPanel({ session }: { session: SessionDay }) {
   const { state, completeSession } = useLoadwise();
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
   const [rpe, setRpe] = useState(existing?.rpe ?? 6);
   const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [pain, setPain] = useState(0);
+  const [legFatigue, setLegFatigue] = useState(0);
   const [saving, setSaving] = useState(false);
   const done = existing?.completed ?? false;
+  const isClub = session.dayType === "club";
 
   if (!session.dbId) return null;
 
@@ -373,8 +377,41 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         />
       </div>
 
+      {isClub && (
+        <div className="mt-3 space-y-3">
+          <div>
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium">Zmęczenie nóg 0–10</span>
+              <span className="text-muted-foreground">{legFatigue}/10</span>
+            </div>
+            <Slider
+              min={0}
+              max={10}
+              step={1}
+              value={[legFatigue]}
+              onValueChange={(v) => setLegFatigue(v[0])}
+            />
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium">Ból 0–10</span>
+              <span className="text-muted-foreground">{pain}/10</span>
+            </div>
+            <Slider
+              min={0}
+              max={10}
+              step={1}
+              value={[pain]}
+              onValueChange={(v) => setPain(v[0])}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 space-y-2">
-        <span className="text-sm text-muted-foreground">Notatki po sesji</span>
+        <span className="text-sm text-muted-foreground">
+          {isClub ? "Notatki po treningu" : "Notatki po sesji"}
+        </span>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -398,9 +435,7 @@ function CompletionPanel({ session }: { session: SessionDay }) {
   );
 }
 
-function ClubMonitoring({ session }: { session: SessionDay }) {
-  const [rpe, setRpe] = useState(6);
-  const load = session.durationMin * rpe;
+export function ClubMonitoring() {
   const steps = [
     "Zrób trening z drużyną",
     "Po treningu wpisz RPE",
@@ -425,57 +460,10 @@ function ClubMonitoring({ session }: { session: SessionDay }) {
           ))}
         </ol>
       </div>
-
-      <div className="soft-card p-4">
-        <h3 className="text-sm font-semibold">Wpisz RPE po treningu</h3>
-        <div className="mt-3">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-medium">RPE (ciężkość) 0–10</span>
-            <span className="text-muted-foreground">{rpe}/10</span>
-          </div>
-          <Slider
-            min={0}
-            max={10}
-            step={1}
-            value={[rpe]}
-            onValueChange={(v) => setRpe(v[0])}
-          />
-        </div>
-        <div className="mt-3 divide-y divide-border">
-          <LogField label="Ból 0–10" />
-          <LogField label="Zmęczenie nóg 0–10" />
-        </div>
-        <div className="mt-3 space-y-2">
-          <span className="text-sm text-muted-foreground">Sen / notatki</span>
-          <Textarea placeholder="Minuty na boisku, sen, uwagi…" rows={2} />
-        </div>
-        <div className="mt-3 rounded-lg bg-primary/5 px-3 py-2 text-sm">
-          Obciążenie ={" "}
-          <span className="font-semibold">
-            {session.durationMin} min × {rpe} RPE = {load}
-          </span>
-        </div>
-      </div>
     </>
   );
 }
 
-
-// Krótki komunikat decyzji — max 1 zdanie, tylko jeśli naprawdę potrzebne.
-function shortDecisionNote(session: SessionDay): string | null {
-  if (session.loadLabelOverride === "Wstrzymaj trening") {
-    return "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą.";
-  }
-  if (session.loadLabelOverride === "Ogranicz obciążenie") {
-    return "Niska gotowość — zgłoś ją trenerowi przed treningiem i ogranicz obciążenie.";
-  }
-  if (session.dayType === "club") return "Klub = główne obciążenie.";
-  if (session.dayType === "match") return "Dziś mecz — bez dodatkowego treningu.";
-  if (session.mdLabel === "MD-1") return "MD-1 = tylko aktywacja, bez ciężkich nóg.";
-  if (session.dayType === "recovery") return "Regeneracja — bez intensywności.";
-  if (session.intensity === "wysoka") return "Mocny dzień — rozgrzej się solidnie.";
-  return null;
-}
 
 // Logika decyzji — schowana w accordionie, domyślnie zamknięta.
 function DecisionLogic({ session }: { session: SessionDay }) {
@@ -581,7 +569,7 @@ function SessionDetail() {
   }
 
   const isClub = session.dayType === "club";
-  const shortNote = shortDecisionNote(session);
+  const shortNote = detailDecisionNote(session);
 
   const hasFlatSectionContent =
     session.sections.warmup.length +
@@ -648,7 +636,13 @@ function SessionDetail() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <DayTypeTag type={session.dayType} />
-          <IntensityBadge intensity={session.intensity} />
+          {session.loadLabelOverride ? (
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+              {detailStatusLabel(session)}
+            </span>
+          ) : (
+            <IntensityBadge intensity={session.intensity} />
+          )}
           <span className="inline-flex items-center gap-1">
             <Target className="h-3.5 w-3.5" /> {session.sessionType}
           </span>
@@ -707,7 +701,7 @@ function SessionDetail() {
 
         {isClub ? (
           <>
-            <ClubMonitoring session={session} />
+            <ClubMonitoring />
             {structured.length > 0 && <StructuredSections sections={structured} />}
           </>
         ) : (

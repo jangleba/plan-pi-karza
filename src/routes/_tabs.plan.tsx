@@ -526,8 +526,12 @@ function PlanScreen() {
             tygodnia są poza planem.
           </div>
         )}
-        {visibleDays.map(({ source: day }) => {
-          const isToday = day.date === todayIso;
+        {visibleDays.map(({ source }) => {
+          const isToday = source.date === todayIso;
+          const day =
+            isToday && profile
+              ? resolveAdjustedDay(source, state.readiness[todayIso], profile)
+              : source;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
           const mods = state.modifications[day.date] ?? [];
