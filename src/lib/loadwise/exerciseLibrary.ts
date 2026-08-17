@@ -280,7 +280,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["goblet_squat"],
     regressionIds: [],
-    safeAlternativeIds: ["bodyweight_split_squat"],
+    safeAlternativeIds: [],
     coachingCues: ["Klatka wysoko", "Biodra w tył", "Pełny zakres bez bólu"],
     commonErrors: ["Zaokrąglone plecy", "Pięty odrywają się od podłoża"],
   },
@@ -1340,7 +1340,12 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
       const def = LIBRARY_INDEX.get(id);
       if (!def) return;
       visiting.add(id);
-      for (const next of def.replacementIds ?? def.safeAlternativeIds) visit(next);
+      for (const next of [
+        ...(def.replacementIds ?? []),
+        ...def.regressionIds,
+        ...def.safeAlternativeIds,
+      ])
+        visit(next);
       visiting.delete(id);
     };
     visit(start.id);
