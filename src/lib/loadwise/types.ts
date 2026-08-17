@@ -44,14 +44,7 @@ export type Goal =
 
 /** Co najbardziej ogranicza zawodnika — dodatkowe wsparcie, nie zastępuje celu głównego. */
 export type SecondaryLimiter =
-  | "speed"
-  | "strength"
-  | "endurance"
-  | "cod"
-  | "power"
-  | "ball"
-  | "fatigue"
-  | "return";
+  "speed" | "strength" | "endurance" | "cod" | "power" | "ball" | "fatigue" | "return";
 
 export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
 
@@ -109,14 +102,7 @@ export interface Profile {
 
 /** Lokalizacja bólu / kontuzji — steruje doborem i blokadą ćwiczeń. */
 export type PainLocation =
-  | "knee"
-  | "back"
-  | "ankle"
-  | "hamstring"
-  | "groin"
-  | "hip"
-  | "shoulder"
-  | "other";
+  "knee" | "back" | "ankle" | "hamstring" | "groin" | "hip" | "shoulder" | "other";
 
 export interface Readiness {
   date: string; // yyyy-MM-dd
@@ -148,13 +134,13 @@ export interface ExerciseItem {
   /** Jednoznaczny klucz dedykowanej ilustracji. */
   visualId?: string;
   /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
-displayPrescription?: string;
+  displayPrescription?: string;
 
-/** Kolejne kroki wykonania ćwiczenia. */
-instructionSteps?: ExerciseInstructionStep[];
+  /** Kolejne kroki wykonania ćwiczenia. */
+  instructionSteps?: ExerciseInstructionStep[];
 
   /** Stałe ID ćwiczenia z centralnej biblioteki. */
-exerciseId?: string;
+  exerciseId?: string;
   prescription: string;
   rest?: string;
   cue?: string;
@@ -185,28 +171,16 @@ export type BlockType =
   | "accessory";
 
 export type BlockIntent =
-  | "strength"
-  | "power"
-  | "braking"
-  | "stiffness"
-  | "rfd"
-  | "stability"
-  | "mobility";
+  "strength" | "power" | "braking" | "stiffness" | "rfd" | "stability" | "mobility";
 
-export type SectionType =
-  | "warmup"
-  | "prep"
-  | "main"
-  | "accessory"
-  | "cooldown"
-  | "log";
+export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" | "log";
 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
   id: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
-exerciseId?: string;
+  exerciseId?: string;
   label?: string; // A1 | A2 | B1 | B2 ...
   name: string;
   /** Krótko: co ćwiczenie rozwija i dlaczego znajduje się w sesji. */
@@ -215,10 +189,10 @@ exerciseId?: string;
   /** Jednoznaczny klucz dedykowanej ilustracji ćwiczenia. */
   visualId?: string;
   /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
-displayPrescription?: string;
+  displayPrescription?: string;
 
-/** Kolejne kroki wykonania ćwiczenia. */
-instructionSteps?: ExerciseInstructionStep[];
+  /** Kolejne kroki wykonania ćwiczenia. */
+  instructionSteps?: ExerciseInstructionStep[];
   sets?: string;
   reps?: string;
   duration?: string;
@@ -608,11 +582,7 @@ export interface SessionCompletion {
 
 export type ModificationType = "add" | "swap";
 
-export type SessionStatus =
-  | "planned"
-  | "added_by_user"
-  | "swapped_by_user"
-  | "blocked_by_engine";
+export type SessionStatus = "planned" | "added_by_user" | "swapped_by_user" | "blocked_by_engine";
 
 export interface SessionModification {
   id: string;

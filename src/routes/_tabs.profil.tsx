@@ -55,7 +55,6 @@ function ProfilScreen() {
     navigate({ to: "/auth", replace: true });
   }
 
-
   function setDouble(v: DoubleSessions) {
     if (!p || p.doubleSessionsAllowed === v) return;
     updateProfile({ ...p, doubleSessionsAllowed: v });
@@ -63,7 +62,6 @@ function ProfilScreen() {
   }
 
   const isMinor = p.age >= 13 && p.age <= 17;
-
 
   return (
     <div>
@@ -92,18 +90,9 @@ function ProfilScreen() {
             <Row label="Pozycja" value={POSITION_LABELS[p.position]} />
             <Row label="Poziom" value={LEVEL_LABELS[p.level]} />
             <Row label="Cel główny" value={GOAL_LABELS[p.goal]} />
-            <Row
-              label="Okres sezonu"
-              value={SEASON_PHASE_LABELS[p.seasonPhase]}
-            />
-            <Row
-              label="Poziom rozgrywkowy"
-              value={COMPETITION_LEVEL_LABELS[p.competitionLevel]}
-            />
-            <Row
-              label="Najbliższy mecz"
-              value={p.matchDate ?? "Brak daty"}
-            />
+            <Row label="Okres sezonu" value={SEASON_PHASE_LABELS[p.seasonPhase]} />
+            <Row label="Poziom rozgrywkowy" value={COMPETITION_LEVEL_LABELS[p.competitionLevel]} />
+            <Row label="Najbliższy mecz" value={p.matchDate ?? "Brak daty"} />
           </div>
         </div>
 
@@ -115,22 +104,20 @@ function ProfilScreen() {
             Czy możesz trenować 2 razy jednego dnia?
           </p>
           <div className="mt-3 grid grid-cols-1 gap-2">
-            {(["no", "light_only", "yes_if_safe"] as DoubleSessions[]).map(
-              (opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setDouble(opt)}
-                  className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                    p.doubleSessionsAllowed === opt
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground"
-                  }`}
-                >
-                  {DOUBLE_SESSION_LABELS[opt]}
-                </button>
-              ),
-            )}
+            {(["no", "light_only", "yes_if_safe"] as DoubleSessions[]).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setDouble(opt)}
+                className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                  p.doubleSessionsAllowed === opt
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground"
+                }`}
+              >
+                {DOUBLE_SESSION_LABELS[opt]}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -150,9 +137,7 @@ function ProfilScreen() {
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Nie wybrano sprzętu.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">Nie wybrano sprzętu.</p>
           )}
         </div>
 
@@ -234,16 +219,9 @@ function ProfilScreen() {
           <Pencil className="h-4 w-4" /> Resetuj onboarding (od nowa)
         </Button>
 
-        <Button
-          variant="outline"
-          className="w-full gap-2 text-destructive"
-          onClick={handleSignOut}
-        >
+        <Button variant="outline" className="w-full gap-2 text-destructive" onClick={handleSignOut}>
           <LogOut className="h-4 w-4" /> Wyloguj się
         </Button>
-
-
-
       </div>
 
       <Disclaimer />
