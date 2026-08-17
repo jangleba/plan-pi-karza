@@ -4789,7 +4789,7 @@ export function applyReadiness(
           ? "Wstrzymaj trening"
           : adjusted.loadLabelOverride === "Ogranicz obciążenie"
             ? "Ogranicz obciążenie"
-            : session.dayType === "match"
+            : externalKind === "match"
               ? "Dziś mecz"
               : "Dziś trening klubowy"
         : `Gotowość ${r}/10 — ${

@@ -58,6 +58,8 @@ export function normalizeLegacyExternalCommitmentDay(
     externalCommitment: true,
     title,
     sessionType,
+    loadLabelOverride:
+      base.loadLabelOverride === "Ogranicz" ? "Ogranicz obciążenie" : base.loadLabelOverride,
     secondSession: null,
     slotLabel: null,
   };
