@@ -1023,6 +1023,7 @@ function hasEquipment(def: ExerciseDefinition, a: AthleteTrainingProfile): boole
           "sled",
           "sliders",
           "nordic_setup",
+          "machine",
         ]
       : []),
   ].flatMap((s) => {
