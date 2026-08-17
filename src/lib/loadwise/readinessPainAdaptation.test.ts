@@ -321,3 +321,38 @@ describe("Second session removal", () => {
     expect(session.secondSession).toBeNull();
   });
 });
+
+// ─── Focused pain safety — readiness 9, 6, 4 ─────────────────────────────────
+// Verifies that pain filtering is applied at every readiness level, not only 4–5.
+
+describe("Focused pain safety — readiness 9 / 6 / 4", () => {
+  // Sprint session with two risky exercises and one safe exercise.
+  const sprintSession = makeSession({
+    title: "Sprinting — akceleracja i prędkość maksymalna",
+    sessionType: "Szybkość / sprint",
+    sections: {
+      main: [
+        { name: "Sprinty 10 m — maksymalny wysiłek", prescription: "8 × 10 m" },
+        { name: "Podskoki plyometryczne", prescription: "3 × 8" },
+        { name: "Marsz techniczny", prescription: "4 × 20 m" },
+      ],
+    },
+  } as Parameters<typeof makeSession>[0]);
+
+  for (const r of [9, 6, 4] as const) {
+    it(`readiness ${r} + pain: risky exercises removed, no sprint/running replacement injected`, () => {
+      const { session } = applyReadiness(sprintSession, makeReadiness(r), PAIN_PROFILE);
+      const text = allMainText(session);
+      // No ball or running replacement
+      expect(BALL_RE.test(text)).toBe(false);
+      // No forbidden replacements: 6 × 20 m at 80–85 %, aerobic run, easy run, sprint
+      expect(/80.85%|bieg aerob|easy run|trucht|sprint/i.test(text)).toBe(false);
+      // Safe exercise (Marsz techniczny) is preserved
+      expect(/marsz/i.test(text)).toBe(true);
+      // Safety note must always be present
+      expect(session.safetyNote).toMatch(/ból nasila|lekarz|fizjoterapeut/i);
+      // Second session must be removed
+      expect(session.secondSession).toBeNull();
+    });
+  }
+});

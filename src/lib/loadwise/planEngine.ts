@@ -607,6 +607,15 @@ function lowerIntensity(i: Intensity, steps: number): Intensity {
 }
 
 /**
+ * Matches exercise names that are forbidden when the athlete has an active
+ * pain/injury flag.  Used by both the plan-building pipeline (applyPainSafety)
+ * and the live readiness adapter (applyReadiness) so the definition is kept
+ * in one place.
+ */
+const PAIN_RISKY_RE =
+  /sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i;
+
+/**
  * Returns a category-safe replacement exercise for blocked/hard exercises.
  * Never introduces ball work into sprint, endurance or strength sessions.
  */
@@ -657,16 +666,9 @@ function applyPainSafety(
   note: string | null;
 } {
   if (!profile.painInjury) return { built, note: null };
-  const category = categoryFromBuilt(built);
-  const safeMain = built.main.map((m) => {
-    if (/sprint|zryw|przyspiesz|przysiad|martwy|wykrok|skok|plyo/i.test(m.name)) {
-      return {
-        ...safeReplacementForCategory(category),
-        cue: "Zero bólu, kontroluj tempo.",
-      };
-    }
-    return m;
-  });
+  // Filter risky exercises without injecting any replacement (running / sprinting /
+  // plyometrics / loaded strength must never appear as a substitute for a pain athlete).
+  const safeMain = built.main.filter((m) => !PAIN_RISKY_RE.test(m.name));
   return {
     built: {
       ...built,
@@ -4650,7 +4652,8 @@ export function applyReadiness(
       : "Gotowość 1–3: tylko regeneracja, mobilność, oddech i lekka technika.";
   }
 
-  // Aktywny ból/uraz zawsze nadpisuje cel treningowy.
+  // Aktywny ból/uraz zawsze nadpisuje cel treningowy — obowiązuje dla każdej
+  // wartości gotowości 1–10 (centralizacja przez PAIN_RISKY_RE).
   if (profile.painInjury) {
     if (severeSignals || r < 4) {
       recoveryOnly = true;
@@ -4659,7 +4662,7 @@ export function applyReadiness(
       keepIntensity = false;
       // If filtering risky exercises would leave nothing, switch to recovery-only.
       const remaining = session.sections.main.filter(
-        (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i.test(m.name),
+        (m) => !PAIN_RISKY_RE.test(m.name),
       );
       if (remaining.length === 0) {
         recoveryOnly = true;
@@ -4700,10 +4703,10 @@ export function applyReadiness(
         main: removeHard
           ? profile.painInjury
             ? session.sections.main.filter(
-                (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i.test(m.name),
+                (m) => !PAIN_RISKY_RE.test(m.name),
               )
             : session.sections.main.map((m) =>
-                /sprint|zryw|przyspiesz|maksym|przysiad|martwy/i.test(m.name)
+                PAIN_RISKY_RE.test(m.name)
                   ? safeReplacementForCategory(session.classification?.category)
                   : m,
               )
