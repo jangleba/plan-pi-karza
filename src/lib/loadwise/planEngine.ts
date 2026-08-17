@@ -606,6 +606,49 @@ function lowerIntensity(i: Intensity, steps: number): Intensity {
   return INTENSITY_ORDER[idx];
 }
 
+/**
+ * Returns a category-safe replacement exercise for blocked/hard exercises.
+ * Never introduces ball work into sprint, endurance or strength sessions.
+ */
+function safeReplacementForCategory(
+  category: import("./types").SessionCategory | undefined,
+): ExerciseItem {
+  switch (category) {
+    case "speed_sprint":
+      return {
+        name: "Akceleracja submaksymalna — technika biegu",
+        prescription: "6 × 20 m w 80–85% intensywności, pełna przerwa — skupienie na mechanice",
+      };
+    case "endurance_conditioning":
+      return {
+        name: "Lekki bieg aerobowy",
+        prescription: "trucht / easy run w strefie 2 — swobodny oddech przez cały czas",
+      };
+    case "gym_strength":
+      return {
+        name: "Regresja z ciężarem ciała",
+        prescription: "ćwiczenia bez obciążenia zewnętrznego — squat, hip bridge, bird-dog",
+      };
+    default:
+      // club / football / other — ball work is safe here
+      return {
+        name: "Lekka technika piłkarska (zamiast pracy intensywnej)",
+        prescription: "spokojne podania i prowadzenie",
+      };
+  }
+}
+
+/** Derives a coarse category from a Built object for pain-safety substitutions. */
+function categoryFromBuilt(
+  built: Built,
+): import("./types").SessionCategory {
+  const t = `${built.title} ${built.sessionType}`.toLowerCase();
+  if (/sprint|szybko|prędko|przyspiesz|akcelerac/i.test(t)) return "speed_sprint";
+  if (/sił|moc\b|power|strength|przysiad|martwy/i.test(t)) return "gym_strength";
+  if (/wytrzym|wydol|tlen|aerob|kondyc/i.test(t)) return "endurance_conditioning";
+  return "other";
+}
+
 function applyPainSafety(
   built: Built,
   profile: Profile,
@@ -614,11 +657,11 @@ function applyPainSafety(
   note: string | null;
 } {
   if (!profile.painInjury) return { built, note: null };
+  const category = categoryFromBuilt(built);
   const safeMain = built.main.map((m) => {
     if (/sprint|zryw|przyspiesz|przysiad|martwy|wykrok|skok|plyo/i.test(m.name)) {
       return {
-        name: "Lekka technika piłkarska (zastąpione)",
-        prescription: "spokojne podania i prowadzenie — bez bólu",
+        ...safeReplacementForCategory(category),
         cue: "Zero bólu, kontroluj tempo.",
       };
     }
@@ -4650,10 +4693,7 @@ export function applyReadiness(
         main: removeHard
           ? session.sections.main.map((m) =>
               /sprint|zryw|przyspiesz|maksym|przysiad|martwy/i.test(m.name)
-                ? {
-                    name: "Lekka technika (zamiast pracy intensywnej)",
-                    prescription: "spokojne podania i prowadzenie",
-                  }
+                ? safeReplacementForCategory(session.classification?.category)
                 : m,
             )
           : session.sections.main,
