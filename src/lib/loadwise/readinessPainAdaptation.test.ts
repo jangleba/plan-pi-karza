@@ -131,10 +131,18 @@ describe("Sprint session — readiness adaptation", () => {
     expect(decision.headline).toMatch(/regeneracja|tylko/i);
   });
 
-  it("pain: NO ball work in replacement", () => {
+  it("pain: risky exercises removed, no running or ball replacement", () => {
     const { session } = applyReadiness(sprintSession, makeReadiness(5), PAIN_PROFILE);
     const text = allMainText(session);
     expect(BALL_RE.test(text)).toBe(false);
+    // no running/sprint replacement injected
+    expect(/80.85%|bieg aerob|easy run|trucht|sprint/i.test(text)).toBe(false);
+    // safe exercise kept
+    expect(/marsz/i.test(text)).toBe(true);
+    // safety note present
+    expect(session.safetyNote).toMatch(/ból nasila|lekarz|fizjoterapeut/i);
+    // second session removed
+    expect(session.secondSession).toBeNull();
   });
 });
 
@@ -178,9 +186,15 @@ describe("Endurance session — readiness adaptation", () => {
     expect(session.classification?.category).toBe("recovery_prehab");
   });
 
-  it("pain: NO ball work in replacement", () => {
+  it("pain: risky exercises removed, no running or ball replacement", () => {
     const { session } = applyReadiness(enduranceSession, makeReadiness(5), PAIN_PROFILE);
-    expect(BALL_RE.test(allMainText(session))).toBe(false);
+    const text = allMainText(session);
+    expect(BALL_RE.test(text)).toBe(false);
+    // no injected aerobic-run replacement
+    expect(/bieg aerob|easy run|80.85%/i.test(text)).toBe(false);
+    // safe exercise kept
+    expect(/trucht/i.test(text)).toBe(true);
+    expect(session.safetyNote).toMatch(/ból nasila|lekarz|fizjoterapeut/i);
   });
 });
 
@@ -224,9 +238,10 @@ describe("Strength session — readiness adaptation", () => {
     expect(session.classification?.category).toBe("recovery_prehab");
   });
 
-  it("pain: NO ball work in replacement", () => {
+  it("pain: all exercises risky → session becomes recovery-only", () => {
     const { session } = applyReadiness(strengthSession, makeReadiness(5), PAIN_PROFILE);
-    expect(BALL_RE.test(allMainText(session))).toBe(false);
+    expect(session.classification?.category).toBe("recovery_prehab");
+    expect(session.safetyNote).toMatch(/ból nasila|lekarz|fizjoterapeut/i);
   });
 });
 

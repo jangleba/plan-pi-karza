@@ -4657,6 +4657,13 @@ export function applyReadiness(
     } else {
       removeHard = true;
       keepIntensity = false;
+      // If filtering risky exercises would leave nothing, switch to recovery-only.
+      const remaining = session.sections.main.filter(
+        (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|skok|plyo/i.test(m.name),
+      );
+      if (remaining.length === 0) {
+        recoveryOnly = true;
+      }
     }
   }
 
@@ -4691,11 +4698,15 @@ export function applyReadiness(
       sections: {
         ...session.sections,
         main: removeHard
-          ? session.sections.main.map((m) =>
-              /sprint|zryw|przyspiesz|maksym|przysiad|martwy/i.test(m.name)
-                ? safeReplacementForCategory(session.classification?.category)
-                : m,
-            )
+          ? profile.painInjury
+            ? session.sections.main.filter(
+                (m) => !/sprint|zryw|przyspiesz|maksym|przysiad|martwy|skok|plyo/i.test(m.name),
+              )
+            : session.sections.main.map((m) =>
+                /sprint|zryw|przyspiesz|maksym|przysiad|martwy/i.test(m.name)
+                  ? safeReplacementForCategory(session.classification?.category)
+                  : m,
+              )
           : session.sections.main,
       },
     };
@@ -4710,6 +4721,12 @@ export function applyReadiness(
     adjustment =
       (adjustment ? adjustment + " " : "") +
       "Zgłoszony ból/uraz: blokujemy intensywne sprinty, ciężkie nogi i ryzykowne plyometrie.";
+    adjusted = {
+      ...adjusted,
+      safetyNote:
+        adjusted.safetyNote ??
+        "Zatrzymaj się, jeśli ból nasila się lub pojawia się nowy ból. Skonsultuj się z lekarzem lub fizjoterapeutą.",
+    };
   }
 
   return {
