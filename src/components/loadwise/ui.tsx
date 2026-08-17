@@ -49,12 +49,24 @@ const intensityStyles: Record<Intensity, string> = {
   wysoka: "bg-destructive/10 text-destructive",
 };
 
-export function IntensityBadge({ intensity }: { intensity: Intensity }) {
+export function IntensityBadge({
+  intensity,
+  label,
+}: {
+  intensity: Intensity;
+  label?: string | null;
+}) {
+  const isOverride = Boolean(label);
+  const classes = isOverride
+    ? label === "Wstrzymaj trening"
+      ? "bg-destructive/10 text-destructive"
+      : "bg-primary/10 text-primary"
+    : intensityStyles[intensity];
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${intensityStyles[intensity]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${classes}`}
     >
-      {intensity}
+      {label ?? intensity}
     </span>
   );
 }

@@ -5,6 +5,7 @@ import {
   resolveAdjustedDay,
   nextMatchDate,
   normalizeLegacyPersistedPlan,
+  resolveTodayPlanRowSource,
 } from "./dailyCheckin";
 
 const PROFILE: Profile = {
@@ -259,5 +260,48 @@ describe("spójność Start / Plan / szczegóły", () => {
 
   it("brak przyszłego meczu w planie i przeszła data profilu daje brak meczu", () => {
     expect(nextMatchDate([], "2026-08-17", "2026-08-09")).toBeNull();
+  });
+
+  it("dzień app-controlled w tygodniowym planie używa tego samego effective SessionDay tylko dla dziś", () => {
+    const today = baseSession({
+      title: "Sprint — akceleracja",
+      sessionType: "Szybkość / sprint",
+      secondSession: {
+        ...baseSecond(),
+        title: "Easy aerobic — łatwy bieg tlenowy",
+        sessionType: "Wytrzymałość",
+      },
+    });
+    const future = baseSession({ date: "2026-08-18", title: "Siła dolnych partii" });
+    const r = readiness({ overall: 2 });
+
+    const effectiveToday = resolveAdjustedDay(today, r, PROFILE);
+    const todayRow = resolveTodayPlanRowSource(today, "2026-08-17", effectiveToday);
+    const futureRow = resolveTodayPlanRowSource(future, "2026-08-17", effectiveToday);
+
+    expect(todayRow.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(todayRow.intensity).toBe("niska");
+    expect(todayRow.durationMin).toBe(30);
+    expect(todayRow.secondSession).toBeNull();
+    expect(todayRow.title).not.toMatch(/Sprint/i);
+    expect(todayRow.sessionType).toBe("Regeneracja");
+    expect(futureRow.title).toBe("Siła dolnych partii");
+  });
+
+  it("po regeneracji planu (onboarding/schedule update) resolver dla dziś jest idempotentny", () => {
+    const r = readiness({ overall: 2 });
+    const regeneratedToday = baseSession({
+      title: "Sprint — akceleracja",
+      secondSession: {
+        ...baseSecond(),
+        title: "Easy aerobic — łatwy bieg tlenowy",
+      },
+    });
+    const first = resolveAdjustedDay(regeneratedToday, r, PROFILE);
+    const second = resolveAdjustedDay(first, r, PROFILE);
+
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+    expect(second.title).toBe("Regeneracja (na podstawie gotowości)");
+    expect(second.secondSession).toBeNull();
   });
 });

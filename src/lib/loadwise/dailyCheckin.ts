@@ -159,6 +159,15 @@ export function resolveAdjustedDay(
   return normalizeLegacyExternalCommitmentDay(adjusted).session;
 }
 
+export function resolveTodayPlanRowSource(
+  day: SessionDay,
+  todayIso: string,
+  effectiveToday: SessionDay | null | undefined,
+): SessionDay {
+  if (day.date !== todayIso) return day;
+  return effectiveToday ?? day;
+}
+
 /** Najbliższy przyszły mecz z aktywnego planu (fallback: data z profilu). */
 export function nextMatchDate(
   plan: SessionDay[],

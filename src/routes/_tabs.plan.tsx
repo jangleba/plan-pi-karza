@@ -10,7 +10,7 @@ import {
   validatePlanWeeks,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
-import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
+import { resolveAdjustedDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
@@ -526,7 +526,8 @@ function PlanScreen() {
             tygodnia są poza planem.
           </div>
         )}
-        {visibleDays.map(({ source: day }) => {
+        {visibleDays.map(({ source }) => {
+          const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
           const isToday = day.date === todayIso;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
