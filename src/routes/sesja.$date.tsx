@@ -4,6 +4,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { applyReadiness } from "@/lib/loadwise/planEngine";
+import { hasPersistedReadinessAdjustment } from "@/lib/loadwise/dailyCheckin";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
@@ -553,8 +554,11 @@ function SessionDetail() {
   if (swapMod) {
     primary = swapMod.session;
   } else if (isToday) {
-    primary = applyReadiness(day, state.readiness[todayIso], state.profile)
-      .session;
+    const readiness = state.readiness[todayIso];
+    primary =
+      readiness && hasPersistedReadinessAdjustment(day, todayIso)
+        ? day
+        : applyReadiness(day, readiness, state.profile).session;
   }
 
 

@@ -22,6 +22,7 @@ import type {
 import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
 import { persistedPlanNeedsRegeneration } from "./persistedPlanValidation";
+import { applyCheckInToPlanDay } from "./dailyCheckin";
 import { warsawToday, isoDate, parseIso, isoDayOfWeek } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
@@ -237,6 +238,19 @@ function rowToModification(row: AnyRow): SessionModification | null {
     originalSession: (row.original_session_json as SessionDay | null) ?? null,
     createdAt: (row.created_at as string) ?? new Date().toISOString(),
   };
+}
+
+export function shouldReusePersistedPlan(
+  plan: SessionDay[],
+  profile: Profile,
+): boolean {
+  const hasMonthly = plan.length >= 14;
+  const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(
+    plan,
+    profile,
+    PLAN_ENGINE_VERSION,
+  );
+  return hasMonthly && persistedPlanIsSafe;
 }
 
 interface LoadwiseContextValue {
@@ -542,16 +556,7 @@ if (
     if (!profile?.onboardingComplete) return;
     // Regeneruj tylko, gdy brak planu lub plan pochodzi ze starej wersji
     // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
-    const hasMonthly =
-      state.plan.length >= 14 && Boolean(state.plan[0]?.dbId);
-   const persistedPlanIsSafe =
-  !persistedPlanNeedsRegeneration(
-    state.plan,
-    profile,
-    PLAN_ENGINE_VERSION,
-  );
-
-if (hasMonthly && persistedPlanIsSafe) return;
+    if (shouldReusePersistedPlan(state.plan, profile)) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
@@ -728,11 +733,27 @@ if (hasMonthly && persistedPlanIsSafe) return;
   }
 
   function saveReadiness(r: Readiness) {
+    let planToPersist: SessionDay[] | null = null;
+    let profileToPersist: Profile | null = null;
+
     setState((s) => {
-      const next = { ...s, readiness: { ...s.readiness, [r.date]: r } };
+      const nextReadiness = { ...s.readiness, [r.date]: r };
+      let nextPlan = s.plan;
+
+      if (s.profile) {
+        const adapted = applyCheckInToPlanDay(s.plan, r.date, r, s.profile);
+        nextPlan = adapted.plan;
+        if (adapted.changed) {
+          planToPersist = adapted.plan;
+          profileToPersist = s.profile;
+        }
+      }
+
+      const next = { ...s, readiness: nextReadiness, plan: nextPlan };
       persistLocal(next);
       return next;
     });
+
     if (user) {
       supabase
         .from("readiness_logs")
@@ -749,22 +770,8 @@ if (hasMonthly && persistedPlanIsSafe) return;
         })
         .then(() => {});
 
-      // Zapisz powód korekty gotowości na dniu treningowym.
-      const day = state.plan.find((p) => p.date === r.date);
-      if (day?.dayDbId) {
-        const adj =
-          r.overall >= 8
-            ? `Gotowość ${r.overall}/10 — plan bez zmian`
-            : r.overall >= 6
-              ? `Gotowość ${r.overall}/10 — redukcja objętości 10–20%`
-              : r.overall >= 4
-                ? `Gotowość ${r.overall}/10 — redukcja 30–40%, bez pracy o wysokiej intensywności`
-                : `Gotowość ${r.overall}/10 — tylko regeneracja/mobilność`;
-        supabase
-          .from("training_days")
-          .update({ readiness_adjustment: adj })
-          .eq("id", day.dayDbId)
-          .then(() => {});
+      if (profileToPersist && planToPersist) {
+        void persistMonthlyPlan(user.id, profileToPersist, planToPersist);
       }
     }
   }
