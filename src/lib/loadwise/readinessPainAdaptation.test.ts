@@ -259,9 +259,11 @@ describe("Football / club session — readiness adaptation", () => {
 
   it("readiness 4: ball work is acceptable (football session)", () => {
     const { session } = applyReadiness(footballSession, makeReadiness(4), BASE_PROFILE);
-    // category may shift to speed_sprint due to header — that's fine,
-    // just verify no crash and session exists
-    expect(session).toBeDefined();
+    // football/other → ball-technique replacement is appropriate
+    expect(session.classification?.category).toBe("other");
+    const text = allMainText(session);
+    // the hard sprint exercise is replaced with ball technique (not stripped entirely)
+    expect(BALL_RE.test(text)).toBe(true);
   });
 
   it("readiness 2: becomes recovery", () => {
