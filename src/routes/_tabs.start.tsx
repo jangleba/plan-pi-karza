@@ -86,6 +86,9 @@ function dayOneLiner(day: SessionDay): string {
     case "md-1":
       return "Tylko aktywacja. Po treningu oceń RPE.";
     case "club":
+      if (day.loadLabelOverride === "Wstrzymaj trening") {
+        return "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą.";
+      }
       return day.loadLabelOverride
         ? "Trening klubowy zostaje — ogranicz obciążenie i zgłoś gotowość trenerowi."
         : "To główne obciążenie dnia. Po treningu oceń RPE.";

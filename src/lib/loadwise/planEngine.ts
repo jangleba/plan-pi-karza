@@ -4581,16 +4581,6 @@ export function applyReadiness(
       },
     };
   }
-  if (session.dayType === "match") {
-    return {
-      session,
-      decision: {
-        headline: "Dziś mecz",
-        detail: "Skup się na rozgrzewce, nawodnieniu i grze. Powodzenia!",
-        adjustment: null,
-      },
-    };
-  }
   if (!readiness) {
     return {
       session,
@@ -4608,10 +4598,10 @@ export function applyReadiness(
   // mocna bolesność lub istotny ból stawów — mogą zadziałać jak readiness 1–3.
   const dailyPain = readiness.jointPain >= 5;
   const severeSignals =
-    readiness.sleep <= 3 ||
-    readiness.fatigue >= 8 ||
-    readiness.soreness >= 8 ||
-    readiness.jointPain >= 6;
+    readiness.sleep <= 2 ||
+    readiness.fatigue >= 9 ||
+    readiness.soreness >= 9 ||
+    readiness.jointPain >= 8;
   const painOverride = profile.painInjury || dailyPain;
 
   let factor = 1;
@@ -4663,24 +4653,68 @@ export function applyReadiness(
 
   let adjusted: SessionDay = { ...session };
 
+  const cls = session.classification ?? classifySession(session);
   // Trening klubowy i mecz są zobowiązaniami zewnętrznymi — aplikacja ich nie
   // zamienia na regenerację. Może wyłącznie ograniczyć obciążenie lub
-  // zalecić przerwanie treningu przy bólu.
-  const externalCommitment = session.dayType === "club";
+  // zalecić wstrzymanie treningu.
+  const externalCommitment =
+    session.externalCommitment === true || cls.countsAsClub || cls.countsAsMatch;
+  const externalKind: "club" | "match" = cls.countsAsMatch ? "match" : "club";
+  const externalTitle = externalKind === "match" ? "Mecz" : "Trening klubowy";
+  const externalType = externalKind === "match" ? "Mecz" : "Klub";
 
   if (recoveryOnly && externalCommitment) {
     const painStop = painOverride || severeSignals;
     adjusted = {
       ...session,
+      dayType: externalKind,
+      title: externalTitle,
+      sessionType: externalType,
       externalCommitment: true,
-      loadLabelOverride: "Ogranicz",
+      loadLabelOverride: painStop ? "Wstrzymaj trening" : "Ogranicz obciążenie",
+      secondSession: null,
+      slotLabel: null,
       safetyNote: painStop
-        ? "Zgłoszony ból lub bardzo złe samopoczucie: przerwij trening i skonsultuj się z lekarzem lub fizjoterapeutą. Dziś bez dodatkowego treningu."
-        : "Niska gotowość: ogranicz obciążenie na treningu klubowym i zgłoś swoją gotowość trenerowi.",
+        ? "Wstrzymaj trening. Skonsultuj się z lekarzem lub fizjoterapeutą. Dziś bez dodatkowego treningu i bez biegania, sprintów, skoków, plyometrii oraz ćwiczeń siłowych z obciążeniem."
+        : "Niska gotowość — zgłoś ją trenerowi przed treningiem i ogranicz obciążenie zgodnie z jego decyzją. Przerwij wysiłek, jeśli pojawi się lub nasili ból.",
+      sections: painStop
+        ? {
+            warmup: [],
+            main: [],
+            accessory: [],
+            footballTransfer: [],
+            cooldown: [],
+          }
+        : session.sections,
+      structuredSections: painStop ? undefined : session.structuredSections,
+      exercises: painStop ? undefined : session.exercises,
     };
     adjustment = painStop
-      ? "Ból/bardzo złe samopoczucie: przerwij trening i skonsultuj się z lekarzem lub fizjoterapeutą."
-      : "Niska gotowość: ogranicz obciążenie i zgłoś gotowość trenerowi. Trening klubowy pozostaje jedyną sesją dnia.";
+      ? "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą."
+      : "Niska gotowość: zgłoś ją trenerowi i ogranicz obciążenie.";
+  } else if (externalCommitment && (painOverride || severeSignals)) {
+    adjusted = {
+      ...session,
+      dayType: externalKind,
+      title: externalTitle,
+      sessionType: externalType,
+      externalCommitment: true,
+      loadLabelOverride: "Wstrzymaj trening",
+      secondSession: null,
+      slotLabel: null,
+      safetyNote:
+        "Wstrzymaj trening. Skonsultuj się z lekarzem lub fizjoterapeutą. Dziś bez dodatkowego treningu i bez biegania, sprintów, skoków, plyometrii oraz ćwiczeń siłowych z obciążeniem.",
+      sections: {
+        warmup: [],
+        main: [],
+        accessory: [],
+        footballTransfer: [],
+        cooldown: [],
+      },
+      structuredSections: undefined,
+      exercises: undefined,
+    };
+    adjustment = "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą.";
   } else if (recoveryOnly) {
     const built = recoverySession();
     adjusted = {
@@ -4735,7 +4769,7 @@ export function applyReadiness(
     adjusted = { ...adjusted, secondSession: null, slotLabel: null };
   }
 
-  if (painOverride) {
+  if (painOverride && !externalCommitment) {
     adjustment =
       (adjustment ? adjustment + " " : "") +
       "Zgłoszony ból/uraz: blokujemy intensywne sprinty, ciężkie nogi i ryzykowne plyometrie.";
@@ -4750,15 +4784,23 @@ export function applyReadiness(
   return {
     session: normalizeSessionCategory(adjusted),
     decision: {
-      headline: `Gotowość ${r}/10 — ${
-        r >= 8
-          ? "działamy normalnie"
-          : r >= 6
-            ? "lekka redukcja"
-            : r >= 4
-              ? "mocna redukcja"
-              : "tylko regeneracja"
-      }`,
+      headline: externalCommitment
+        ? adjusted.loadLabelOverride === "Wstrzymaj trening"
+          ? "Wstrzymaj trening"
+          : adjusted.loadLabelOverride === "Ogranicz obciążenie"
+            ? "Ogranicz obciążenie"
+            : session.dayType === "match"
+              ? "Dziś mecz"
+              : "Dziś trening klubowy"
+        : `Gotowość ${r}/10 — ${
+            r >= 8
+              ? "działamy normalnie"
+              : r >= 6
+                ? "lekka redukcja"
+                : r >= 4
+                  ? "mocna redukcja"
+                  : "tylko regeneracja"
+          }`,
       detail:
         r >= 8
           ? "Czujesz się dobrze — możesz zrealizować zaplanowaną sesję lub lekko progresować."

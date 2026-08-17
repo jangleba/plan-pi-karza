@@ -485,7 +485,7 @@ function PlanScreen() {
                       {INTENSITY_SHORT[hero.intensity]}
                     </span>
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {LOAD_SHORT[hero.intensity]}
+                      {hero.loadLabelOverride ?? LOAD_SHORT[hero.intensity]}
                     </span>
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
                       {hero.durationMin} min
@@ -598,7 +598,11 @@ function PlanScreen() {
                         isRest ? "bg-[oklch(0.6_0.13_150)]" : "bg-primary"
                       }`}
                     />
-                    {swapped ? "Zamieniona" : added ? "Dodana" : shortTag(day)}
+                    {swapped
+                      ? "Zamieniona"
+                      : added
+                        ? "Dodana"
+                        : day.loadLabelOverride ?? shortTag(day)}
                   </p>
                 </div>
 

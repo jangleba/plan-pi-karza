@@ -463,6 +463,12 @@ function ClubMonitoring({ session }: { session: SessionDay }) {
 
 // Krótki komunikat decyzji — max 1 zdanie, tylko jeśli naprawdę potrzebne.
 function shortDecisionNote(session: SessionDay): string | null {
+  if (session.loadLabelOverride === "Wstrzymaj trening") {
+    return "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą.";
+  }
+  if (session.loadLabelOverride === "Ogranicz obciążenie") {
+    return "Niska gotowość — zgłoś ją trenerowi przed treningiem i ogranicz obciążenie.";
+  }
   if (session.dayType === "club") return "Klub = główne obciążenie.";
   if (session.dayType === "match") return "Dziś mecz — bez dodatkowego treningu.";
   if (session.mdLabel === "MD-1") return "MD-1 = tylko aktywacja, bez ciężkich nóg.";
