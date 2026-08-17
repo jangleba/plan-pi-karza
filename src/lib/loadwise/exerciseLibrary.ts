@@ -99,6 +99,7 @@ export type EquipmentId =
   | "sled"
   | "sliders"
   | "nordic_setup"
+  | "machine"
   | "none";
 
 export interface EquipmentDefinition {
@@ -125,6 +126,7 @@ export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
   { id: "sled", displayName: "Sanie", aliases: ["sled", "sanki"] },
   { id: "sliders", displayName: "Ślizgi", aliases: ["slider", "sliders", "ślizgi"] },
   { id: "nordic_setup", displayName: "Stanowisko nordic", aliases: ["nordic", "nordic setup"] },
+  { id: "machine", displayName: "Maszyna", aliases: ["machine", "maszyna"] },
 ];
 
 const EQUIPMENT_INDEX = new Map<string, EquipmentId>(
@@ -1335,32 +1337,34 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
 
   // Zamienniki tworzą skierowany graf; cykle oznaczają, że silnik może krążyć
   // bez końca zamiast uczciwie zgłosić konieczność przebudowy bloku.
+  const colors = new Map<string, "gray" | "black">();
   const reportedCycles = new Set<string>();
-  for (const start of LIBRARY) {
-    const visiting = new Set<string>();
-    const visit = (id: string) => {
-      if (visiting.has(id)) {
-        const path = [...visiting];
-        const cycleKey = path.slice(path.indexOf(id)).sort().join("|");
-        if (!reportedCycles.has(cycleKey)) {
-          issues.push({ id: start.id, problem: `Cykl zamienników obejmujący ${id}.` });
-          reportedCycles.add(cycleKey);
-        }
-        return;
+  const stack: string[] = [];
+  const visit = (id: string) => {
+    if (colors.get(id) === "gray") {
+      const cycle = stack.slice(stack.indexOf(id)).sort();
+      const cycleKey = cycle.join("|");
+      if (!reportedCycles.has(cycleKey)) {
+        issues.push({ id, problem: `Cykl zamienników obejmujący ${id}.` });
+        reportedCycles.add(cycleKey);
       }
-      const def = LIBRARY_INDEX.get(id);
-      if (!def) return;
-      visiting.add(id);
-      for (const next of [
-        ...(def.replacementIds ?? []),
-        ...def.regressionIds,
-        ...def.safeAlternativeIds,
-      ])
-        visit(next);
-      visiting.delete(id);
-    };
-    visit(start.id);
-  }
+      return;
+    }
+    if (colors.get(id) === "black") return;
+    const def = LIBRARY_INDEX.get(id);
+    if (!def) return;
+    colors.set(id, "gray");
+    stack.push(id);
+    for (const next of [
+      ...(def.replacementIds ?? []),
+      ...def.regressionIds,
+      ...def.safeAlternativeIds,
+    ])
+      visit(next);
+    stack.pop();
+    colors.set(id, "black");
+  };
+  for (const def of LIBRARY) visit(def.id);
 
   return { ok: issues.length === 0, totalExercises: LIBRARY.length, issues };
 }
