@@ -606,6 +606,58 @@ function lowerIntensity(i: Intensity, steps: number): Intensity {
   return INTENSITY_ORDER[idx];
 }
 
+/**
+ * Matches exercise names that are forbidden when the athlete has an active
+ * pain/injury flag.  Used by both the plan-building pipeline (applyPainSafety)
+ * and the live readiness adapter (applyReadiness) so the definition is kept
+ * in one place.
+ */
+const PAIN_RISKY_RE =
+  /sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i;
+
+/**
+ * Returns a category-safe replacement exercise for blocked/hard exercises.
+ * Never introduces ball work into sprint, endurance or strength sessions.
+ */
+function safeReplacementForCategory(
+  category: import("./types").SessionCategory | undefined,
+): ExerciseItem {
+  switch (category) {
+    case "speed_sprint":
+      return {
+        name: "Akceleracja submaksymalna — technika biegu",
+        prescription: "6 × 20 m w 80–85% intensywności, pełna przerwa — skupienie na mechanice",
+      };
+    case "endurance_conditioning":
+      return {
+        name: "Lekki bieg aerobowy",
+        prescription: "trucht / easy run w strefie 2 — swobodny oddech przez cały czas",
+      };
+    case "gym_strength":
+      return {
+        name: "Regresja z ciężarem ciała",
+        prescription: "ćwiczenia bez obciążenia zewnętrznego — squat, hip bridge, bird-dog",
+      };
+    default:
+      // club / football / other — ball work is safe here
+      return {
+        name: "Lekka technika piłkarska (zamiast pracy intensywnej)",
+        prescription: "spokojne podania i prowadzenie",
+      };
+  }
+}
+
+/** Derives a coarse category from a Built object for pain-safety substitutions. */
+function categoryFromBuilt(
+  built: Built,
+): import("./types").SessionCategory {
+  const t = `${built.title} ${built.sessionType}`.toLowerCase();
+  if (/sprint|szybko|prędko|przyspiesz|akcelerac/i.test(t)) return "speed_sprint";
+  if (/sił|moc\b|power|strength|przysiad|martwy/i.test(t)) return "gym_strength";
+  if (/wytrzym|wydol|tlen|aerob|kondyc/i.test(t)) return "endurance_conditioning";
+  return "other";
+}
+
 function applyPainSafety(
   built: Built,
   profile: Profile,
@@ -614,16 +666,9 @@ function applyPainSafety(
   note: string | null;
 } {
   if (!profile.painInjury) return { built, note: null };
-  const safeMain = built.main.map((m) => {
-    if (/sprint|zryw|przyspiesz|przysiad|martwy|wykrok|skok|plyo/i.test(m.name)) {
-      return {
-        name: "Lekka technika piłkarska (zastąpione)",
-        prescription: "spokojne podania i prowadzenie — bez bólu",
-        cue: "Zero bólu, kontroluj tempo.",
-      };
-    }
-    return m;
-  });
+  // Filter risky exercises without injecting any replacement (running / sprinting /
+  // plyometrics / loaded strength must never appear as a substitute for a pain athlete).
+  const safeMain = built.main.filter((m) => !PAIN_RISKY_RE.test(m.name));
   return {
     built: {
       ...built,
@@ -4607,13 +4652,21 @@ export function applyReadiness(
       : "Gotowość 1–3: tylko regeneracja, mobilność, oddech i lekka technika.";
   }
 
-  // Aktywny ból/uraz zawsze nadpisuje cel treningowy.
+  // Aktywny ból/uraz zawsze nadpisuje cel treningowy — obowiązuje dla każdej
+  // wartości gotowości 1–10 (centralizacja przez PAIN_RISKY_RE).
   if (profile.painInjury) {
     if (severeSignals || r < 4) {
       recoveryOnly = true;
     } else {
       removeHard = true;
       keepIntensity = false;
+      // If filtering risky exercises would leave nothing, switch to recovery-only.
+      const remaining = session.sections.main.filter(
+        (m) => !PAIN_RISKY_RE.test(m.name),
+      );
+      if (remaining.length === 0) {
+        recoveryOnly = true;
+      }
     }
   }
 
@@ -4648,14 +4701,15 @@ export function applyReadiness(
       sections: {
         ...session.sections,
         main: removeHard
-          ? session.sections.main.map((m) =>
-              /sprint|zryw|przyspiesz|maksym|przysiad|martwy/i.test(m.name)
-                ? {
-                    name: "Lekka technika (zamiast pracy intensywnej)",
-                    prescription: "spokojne podania i prowadzenie",
-                  }
-                : m,
-            )
+          ? profile.painInjury
+            ? session.sections.main.filter(
+                (m) => !PAIN_RISKY_RE.test(m.name),
+              )
+            : session.sections.main.map((m) =>
+                PAIN_RISKY_RE.test(m.name)
+                  ? safeReplacementForCategory(session.classification?.category)
+                  : m,
+              )
           : session.sections.main,
       },
     };
@@ -4670,6 +4724,12 @@ export function applyReadiness(
     adjustment =
       (adjustment ? adjustment + " " : "") +
       "Zgłoszony ból/uraz: blokujemy intensywne sprinty, ciężkie nogi i ryzykowne plyometrie.";
+    adjusted = {
+      ...adjusted,
+      safetyNote:
+        adjusted.safetyNote ??
+        "Zatrzymaj się, jeśli ból nasila się lub pojawia się nowy ból. Skonsultuj się z lekarzem lub fizjoterapeutą.",
+    };
   }
 
   return {
