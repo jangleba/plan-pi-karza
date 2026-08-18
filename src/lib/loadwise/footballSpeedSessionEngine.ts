@@ -34,8 +34,7 @@ export interface FootballSpeedEngineInput {
 export interface SpeedEquipmentStatus {
   requiredEquipment: string[];
   unavailableEquipment: string[];
-  replacementStatus: "not_required" | "replaced" | "blocked";
-  replacementFor?: string;
+  replacementStatus: "not_required" | "blocked";
 }
 
 export interface FootballSpeedExercise {
