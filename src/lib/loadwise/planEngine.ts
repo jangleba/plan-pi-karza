@@ -28,6 +28,7 @@ import {
 import {
   buildStrengthPowerStructured,
   structuredToFlat,
+  filterUnavailableEquipment,
   type GymHistory,
   type GymWeekPhase,
 } from "./strengthBlocks";
@@ -3985,8 +3986,8 @@ export function generatePlan(
     target.goalOfSession = plan.goalOfSession;
     target.intensity = plan.intensity;
     target.durationMin = plan.durationMin;
-    target.structuredSections = plan.sections;
-    const flat = structuredToFlat(plan.sections);
+    target.structuredSections = filterUnavailableEquipment(plan.sections, profile);
+    const flat = structuredToFlat(target.structuredSections);
     target.sections = {
       warmup: flat.warmup,
       main: flat.main,

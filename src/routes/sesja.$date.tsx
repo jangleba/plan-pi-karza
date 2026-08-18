@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { memo, useEffect, useState, type ReactNode } from "react";
-import { useLoadwise } from "@/lib/loadwise/store";
+import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
@@ -16,6 +16,11 @@ import type {
   
   TrainingExercise,
 } from "@/lib/loadwise/types";
+import {
+  getExerciseDefinition,
+  getAllEquipmentDefinitions,
+  specialistEquipmentForExercise,
+} from "@/lib/loadwise/exerciseLibrary";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
@@ -36,6 +41,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
+const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
@@ -130,14 +137,21 @@ function ExerciseRow({
   done,
   onToggle,
   onOpenDetail,
+  onUnavailable,
+  equipmentIds,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
   onOpenDetail: () => void;
+  onUnavailable: () => void;
+  equipmentIds: string[];
 }) {
   const presc = compactPrescription(e);
   const rest = restLabel(e);
+  const equipmentNames = equipmentIds.map(
+    (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
+  );
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
@@ -186,6 +200,16 @@ function ExerciseRow({
                 {rest}
               </div>
             )}
+            {!done && equipmentIds.length > 0 && (
+              <button
+                type="button"
+                onClick={onUnavailable}
+                className="mt-1 text-[11px] font-medium text-primary"
+              >
+                Nie mam{" "}
+                {equipmentNames.join(", ")}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -195,9 +219,12 @@ function ExerciseRow({
 
 const StructuredSections = memo(function StructuredSections({
   sections,
+  date,
 }: {
   sections: TrainingSection[];
+  date: string;
 }) {
+  const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [detail, setDetail] = useState<TrainingExercise | null>(null);
@@ -235,15 +262,22 @@ const StructuredSections = memo(function StructuredSections({
                   )}
                   {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
                   <div className="divide-y divide-border/40">
-                    {b.exercises.map((e) => (
-                      <ExerciseRow
+                    {b.exercises.map((e) => {
+                      const equipmentIds = specialistEquipmentForExercise(
+                        getExerciseDefinition(e.exerciseId ?? e.name),
+                      );
+                      return <ExerciseRow
                         key={e.id}
                         e={e}
                         done={!!done[e.id]}
                         onToggle={() => toggle(e.id)}
                         onOpenDetail={() => openDetail(e)}
-                      />
-                    ))}
+                        onUnavailable={() => {
+                          if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
+                        }}
+                        equipmentIds={equipmentIds}
+                      />;
+                    })}
                   </div>
                   {blockRest && (
                     <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
@@ -524,7 +558,7 @@ function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
-  const { state, hydrated, todayIso, undoModification } = useLoadwise();
+  const { state, hydrated, todayIso, undoModification, undoExerciseReplacement } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
   const goBack = useInstantBack("/plan");
 
@@ -604,13 +638,17 @@ function SessionDetail() {
   const fallbackExercises = hasFlatSectionContent
     ? []
     : session.exercises ?? [];
+  const displayedSession = applyExerciseReplacements(
+    session,
+    state.exerciseReplacements[date] ?? [],
+  );
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
-    session.structuredSections && session.structuredSections.length
-      ? session.structuredSections
+    displayedSession.structuredSections && displayedSession.structuredSections.length
+      ? displayedSession.structuredSections
       : hasFlatSectionContent
-        ? flatToStructured(session.sections)
+        ? flatToStructured(displayedSession.sections)
         : fallbackExercises.length
           ? flatToStructured({
               warmup: [],
@@ -714,19 +752,50 @@ function SessionDetail() {
             {shortNote}
           </div>
         )}
+        {state.equipmentNotice && (
+          <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
+            {state.equipmentNotice}
+          </div>
+        )}
 
         {isClub ? (
           <>
             <ClubMonitoring />
-            {structured.length > 0 && <StructuredSections sections={structured} />}
+            {structured.length > 0 && (
+              <StructuredSections sections={structured} date={date} />
+            )}
           </>
         ) : (
           <>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <StructuredSections sections={structured} />
+            <StructuredSections sections={structured} date={date} />
           </>
+        )}
+
+        {(state.exerciseReplacements[date] ?? []).length > 0 && (
+          <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
+            <span className="text-muted-foreground">
+              {(state.exerciseReplacements[date] ?? []).length === 1
+                ? "Ćwiczenie zostało zamienione."
+                : "Ćwiczenia zostały zamienione."}
+            </span>
+            {(state.exerciseReplacements[date] ?? []).map((replacement) => (
+              <span key={replacement.id} className="inline-flex items-center gap-2">
+                <span className="text-muted-foreground">
+                  {replacement.original.name} → {replacement.replacement.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => undoExerciseReplacement(date, replacement.id)}
+                  className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
+                >
+                  <Undo2 className="h-3.5 w-3.5" /> Cofnij
+                </button>
+              </span>
+            ))}
+          </div>
         )}
 
         {canShowPostSessionForm(session) && <CompletionPanel session={session} />}

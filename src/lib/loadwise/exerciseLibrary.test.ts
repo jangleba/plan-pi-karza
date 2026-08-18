@@ -144,6 +144,34 @@ describe("regression and replacement", () => {
     expect(res.exercise).toBeTruthy();
     expect(isExerciseAllowedForProfile(res.exercise!, a).ok).toBe(true);
   });
+
+  it("treats unavailable equipment as user-scoped and chooses only available equipment", () => {
+    const first = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+        unavailableEquipmentIds: ["barbell"],
+      }),
+    );
+    const second = adultAdvanced();
+    expect(isExerciseAllowedForProfile("barbell_deadlift", first).ok).toBe(false);
+    expect(isExerciseAllowedForProfile("barbell_deadlift", second).ok).toBe(true);
+    const result = selectEquipmentAwareReplacement("barbell_deadlift", first);
+    expect(result.exercise).toBeTruthy();
+    expect(result.exercise?.equipmentRequired).not.toContain("barbell");
+  });
+
+  it("is idempotent when the selected replacement is checked again", () => {
+    const athlete = buildAthleteTrainingProfile(
+      makeProfile({ unavailableEquipmentIds: ["barbell"] }),
+    );
+    const first = selectEquipmentAwareReplacement("barbell_deadlift", athlete);
+    const second = selectEquipmentAwareReplacement(first.exercise!, athlete);
+    expect(second.exercise?.id).toBe(first.exercise?.id);
+  });
 });
 
 describe("unknown / missing metadata", () => {
