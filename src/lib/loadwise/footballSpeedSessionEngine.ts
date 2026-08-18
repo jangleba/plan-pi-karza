@@ -117,12 +117,16 @@ function choose(
   ids: string[],
   quality: FootballSpeedQuality[],
   catalog: readonly ExerciseDefinition[],
+  unavailableEquipmentIds: string[] = [],
   avoidId?: string,
 ): ExerciseDefinition {
+  const available = (exercise: ExerciseDefinition) =>
+    exercise.equipmentRequired.every((equipment) => !unavailableEquipmentIds.includes(equipment));
   for (const id of ids) {
     const exercise = approved(id);
     if (
       exercise &&
+      available(exercise) &&
       exercise.id !== avoidId &&
       exercise.speedQualities?.some((item) => quality.includes(item))
     )
@@ -132,6 +136,7 @@ function choose(
     (exercise) =>
       exercise.approved === true &&
       exercise.draft === false &&
+      available(exercise) &&
       exercise.id !== avoidId &&
       exercise.sessionRoles?.includes("primary") &&
       exercise.speedQualities?.some((item) => quality.includes(item)),
@@ -320,11 +325,18 @@ export function generateFootballSpeedSession(
     exercises.push(buildExercise(def, order++, input, "technical", "controlled"));
     exercises.push(buildExercise(def, order++, input, "technical", "faster"));
   }
-  const primary = choose(FAMILY_PRIMARY[input.family], FAMILY_QUALITIES[input.family], catalog);
+  const unavailableEquipmentIds = input.profile.unavailableEquipmentIds ?? [];
+  const primary = choose(
+    FAMILY_PRIMARY[input.family],
+    FAMILY_QUALITIES[input.family],
+    catalog,
+    unavailableEquipmentIds,
+  );
   const secondary = choose(
     FAMILY_SECONDARY[input.family],
     FAMILY_QUALITIES[input.family],
     catalog,
+    unavailableEquipmentIds,
     primary.id,
   );
   exercises.push(
