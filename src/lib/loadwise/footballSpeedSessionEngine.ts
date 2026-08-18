@@ -34,7 +34,7 @@ export interface FootballSpeedEngineInput {
 export interface SpeedEquipmentStatus {
   requiredEquipment: string[];
   unavailableEquipment: string[];
-  replacementStatus: "not_required" | "blocked";
+  replacementStatus: "available" | "blocked";
 }
 
 export interface FootballSpeedExercise {
@@ -70,7 +70,7 @@ export interface FootballSpeedSession {
 }
 
 const SKIP_FLOW = ["a_skip", "c_skip", "b_skip", "d_skip"] as const;
-const REPEATED_SPRINT = "repeated_sprint";
+const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
 const ACCELERATION_CUES = [
   "Pchaj podłoże do tyłu.",
   "Przykładaj siłę w dół i do tyłu.",
@@ -226,7 +226,7 @@ function buildExercise(
         (input.profile.unavailableEquipmentIds ?? []).includes(equipment),
       )
         ? "blocked"
-        : "not_required",
+        : "available",
     },
     pass,
     direction,
