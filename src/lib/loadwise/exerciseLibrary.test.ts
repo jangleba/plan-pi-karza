@@ -13,6 +13,9 @@ import {
   resolveExerciseId,
   resolveExerciseByName,
   validateExerciseDefinition,
+  getAllEquipmentDefinitions,
+  resolveEquipmentId,
+  selectEquipmentAwareReplacement,
   type ExerciseDefinition,
 } from "./exerciseLibrary";
 
@@ -45,7 +48,8 @@ function makeProfile(over: Partial<Profile>): Profile {
   };
 }
 
-const youthBeginner = () => buildAthleteTrainingProfile(makeProfile({ age: 14, level: "beginner" }));
+const youthBeginner = () =>
+  buildAthleteTrainingProfile(makeProfile({ age: 14, level: "beginner" }));
 const adultAdvanced = () =>
   buildAthleteTrainingProfile(
     makeProfile({
@@ -318,5 +322,25 @@ describe("library contract 2.0", () => {
     expect(isExerciseAllowedForProfile("bodyweight_squat", a).ok).toBe(true);
     expect(replaceExerciseWithSafeAlternative("heavy_back_squat", a).unresolved).toBe(false);
     expect(validateExerciseLibraryCompleteness().ok).toBe(true);
+  });
+
+  it("resolves canonical equipment aliases deterministically", () => {
+    expect(resolveEquipmentId("medicine ball")).toBe("med_ball");
+    expect(resolveEquipmentId("trap-bar")).toBe("trap_bar");
+    expect(getAllEquipmentDefinitions().some((equipment) => equipment.id === "sled")).toBe(true);
+  });
+
+  it("marks a block for rebuild when no honest replacement exists", () => {
+    const result = selectEquipmentAwareReplacement("mystery_move", youthBeginner());
+    expect(result.exercise).toBeNull();
+    expect(result.blockRebuildRequired).toBe(true);
+  });
+
+  it("rejects unavailable equipment in definition metadata", () => {
+    const base = getAllExerciseDefinitions()[0]!;
+    const invalid = { ...base, equipmentRequired: ["unknown_equipment"] as never };
+    expect(
+      validateExerciseDefinition(invalid).some((issue) => issue.includes("Nieznany sprzęt")),
+    ).toBe(true);
   });
 });

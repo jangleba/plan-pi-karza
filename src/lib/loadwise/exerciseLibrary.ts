@@ -24,14 +24,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type ExerciseCategory =
-  | "strength"
-  | "power"
-  | "plyometric"
-  | "speed"
-  | "endurance"
-  | "mobility"
-  | "core"
-  | "prehab";
+  "strength" | "power" | "plyometric" | "speed" | "endurance" | "mobility" | "core" | "prehab";
 
 export type MovementPattern =
   | "squat"
@@ -91,12 +84,66 @@ export const SESSION_CATEGORIES: SessionCategory[] = [
 export type ParticipantMode = "solo" | "partner" | "small_group" | "team";
 
 /** Wymagany rodzaj przestrzeni. */
-export type SpaceRequirement =
-  | "home_small"
-  | "indoor_gym"
-  | "pitch"
-  | "sprint_lane"
-  | "open_field";
+export type SpaceRequirement = "home_small" | "indoor_gym" | "pitch" | "sprint_lane" | "open_field";
+
+export type EquipmentId =
+  | "barbell"
+  | "trap_bar"
+  | "rack"
+  | "dumbbell"
+  | "kettlebell"
+  | "bench"
+  | "box"
+  | "platform"
+  | "med_ball"
+  | "sled"
+  | "sliders"
+  | "nordic_setup"
+  | "machine"
+  | "none";
+
+export interface EquipmentDefinition {
+  id: EquipmentId;
+  displayName: string;
+  aliases: string[];
+}
+
+export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
+  { id: "none", displayName: "Masa ciała", aliases: ["bodyweight", "brak"] },
+  { id: "barbell", displayName: "Sztanga", aliases: ["bar", "sztanga"] },
+  { id: "trap_bar", displayName: "Trap bar", aliases: ["hex bar", "trap-bar"] },
+  { id: "rack", displayName: "Stojak", aliases: ["rack", "squat rack"] },
+  { id: "dumbbell", displayName: "Hantle", aliases: ["hantel", "hantle", "dumbbells"] },
+  { id: "kettlebell", displayName: "Kettlebell", aliases: ["kettle", "odważnik"] },
+  { id: "bench", displayName: "Ławka", aliases: ["bench", "ławka"] },
+  { id: "box", displayName: "Skrzynia plyometryczna", aliases: ["box", "skrzynia"] },
+  { id: "platform", displayName: "Podest", aliases: ["platform", "podest"] },
+  {
+    id: "med_ball",
+    displayName: "Piłka lekarska",
+    aliases: ["med ball", "medicine ball", "piłka lekarska"],
+  },
+  { id: "sled", displayName: "Sanie", aliases: ["sled", "sanki"] },
+  { id: "sliders", displayName: "Ślizgi", aliases: ["slider", "sliders", "ślizgi"] },
+  { id: "nordic_setup", displayName: "Stanowisko nordic", aliases: ["nordic", "nordic setup"] },
+  { id: "machine", displayName: "Maszyna", aliases: ["machine", "maszyna"] },
+];
+
+const EQUIPMENT_INDEX = new Map<string, EquipmentId>(
+  EQUIPMENT_REGISTRY.flatMap((equipment) =>
+    [equipment.id, equipment.displayName, ...equipment.aliases].map(
+      (value) => [normalizeExerciseName(value), equipment.id] as const,
+    ),
+  ),
+);
+
+export function resolveEquipmentId(value: string): EquipmentId | undefined {
+  return EQUIPMENT_INDEX.get(normalizeExerciseName(value));
+}
+
+export function getAllEquipmentDefinitions(): readonly EquipmentDefinition[] {
+  return EQUIPMENT_REGISTRY;
+}
 
 export interface ExerciseDefinition {
   id: string;
@@ -128,7 +175,7 @@ export interface ExerciseDefinition {
   requiredMovementCompetenceLevel: CompetenceLevel;
   requiredSupervisionLevel: SupervisionLevel;
   /** Lista wymaganego sprzętu (puste = masa ciała). */
-  equipmentRequired: string[];
+  equipmentRequired: EquipmentId[];
   /** Twarde przeciwwskazania (lokalizacje bólu/kontuzji). */
   contraindications: PainLocation[];
   /** Miękkie ostrożności — opis. */
@@ -149,6 +196,8 @@ export interface ExerciseDefinition {
   safeAlternativeIds: string[];
   coachingCues: string[];
   commonErrors: string[];
+  /** Deterministyczna, uporządkowana lista uczciwych zamienników. */
+  replacementIds?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +242,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["goblet_squat", "bulgarian_split_squat"],
     regressionIds: ["bodyweight_squat"],
-    safeAlternativeIds: ["bodyweight_squat", "glute_bridge"],
+    safeAlternativeIds: ["glute_bridge"],
     coachingCues: ["Tułów pionowo", "Kolano nad stopą", "Kontrolowane tempo"],
     commonErrors: ["Kolano ucieka do środka", "Za duży krok w przód"],
   },
@@ -233,7 +282,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["goblet_squat"],
     regressionIds: [],
-    safeAlternativeIds: ["bodyweight_split_squat"],
+    safeAlternativeIds: [],
     coachingCues: ["Klatka wysoko", "Biodra w tył", "Pełny zakres bez bólu"],
     commonErrors: ["Zaokrąglone plecy", "Pięty odrywają się od podłoża"],
   },
@@ -313,7 +362,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["dead_bug"],
     regressionIds: [],
-    safeAlternativeIds: ["dead_bug", "bird_dog"],
+    safeAlternativeIds: ["bodyweight_squat"],
     coachingCues: ["Neutralny kręgosłup", "Napięty brzuch i pośladki"],
     commonErrors: ["Zapadnięte biodra", "Wygięte lędźwie"],
   },
@@ -353,7 +402,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["plank"],
     regressionIds: [],
-    safeAlternativeIds: ["bird_dog", "plank"],
+    safeAlternativeIds: ["bird_dog"],
     coachingCues: ["Dociśnij lędźwie do podłogi", "Powolny, kontrolowany ruch"],
     commonErrors: ["Odrywanie lędźwi", "Wstrzymywanie oddechu"],
   },
@@ -393,7 +442,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["dead_bug"],
     regressionIds: [],
-    safeAlternativeIds: ["dead_bug", "plank"],
+    safeAlternativeIds: [],
     coachingCues: ["Neutralny kręgosłup", "Wydłuż przeciwną rękę i nogę", "Bez rotacji bioder"],
     commonErrors: ["Rotacja miednicy", "Zapadanie w lędźwiach"],
   },
@@ -433,7 +482,7 @@ const LIBRARY: ExerciseDefinition[] = [
     allowedForBeginner: true,
     progressionIds: ["max_velocity_high_volume"],
     regressionIds: [],
-    safeAlternativeIds: ["bodyweight_squat"],
+    safeAlternativeIds: [],
     coachingCues: ["Niska objętość, wysoka jakość", "Pełny rest między biegami", "Napęd z bioder"],
     commonErrors: ["Za duża objętość", "Bieg na zmęczeniu"],
   },
@@ -676,6 +725,7 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: [],
     regressionIds: ["romanian_deadlift_db", "hip_thrust", "glute_bridge"],
     safeAlternativeIds: ["romanian_deadlift_db", "glute_bridge"],
+    replacementIds: ["romanian_deadlift_db", "glute_bridge"],
     coachingCues: ["Napięty core", "Sztanga blisko goleni", "Neutralny kręgosłup"],
     commonErrors: ["Zaokrąglone plecy", "Sztanga daleko od ciała", "Szarpanie z dołu"],
   },
@@ -741,7 +791,9 @@ const LIBRARY: ExerciseDefinition[] = [
     requiredSupervisionLevel: "some",
     equipmentRequired: ["box"],
     contraindications: ["knee", "ankle"],
-    injuryCautions: ["Wysoka intensywność plyometryczna — tylko przy dobrej kompetencji lądowania i świeżości."],
+    injuryCautions: [
+      "Wysoka intensywność plyometryczna — tylko przy dobrej kompetencji lądowania i świeżości.",
+    ],
     loadingType: "impact",
     impactLevel: "very_high",
     spinalLoadLevel: "low",
@@ -756,6 +808,7 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: [],
     regressionIds: ["snap_down"],
     safeAlternativeIds: ["snap_down"],
+    replacementIds: ["snap_down"],
     coachingCues: ["Miękkie, ciche lądowanie", "Krótki kontakt z podłożem", "Kolana stabilne"],
     commonErrors: ["Głośne lądowanie", "Kolana do środka", "Za wysoka skrzynia"],
   },
@@ -876,6 +929,7 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: ["power_clean"],
     regressionIds: [],
     safeAlternativeIds: ["snap_down"],
+    replacementIds: ["snap_down"],
     coachingCues: ["Szybko i technicznie", "Lekki ciężar", "Jakość przed ilością"],
     commonErrors: ["Za ciężka piłka", "Wolny ruch"],
   },
@@ -923,7 +977,6 @@ export function resolveExerciseByName(nameOrAlias: string): ExerciseDefinition |
   return id ? LIBRARY_INDEX.get(id) : undefined;
 }
 
-
 // ---------------------------------------------------------------------------
 // Pomocnicze skale
 // ---------------------------------------------------------------------------
@@ -944,9 +997,7 @@ const STAGE_RANK: Record<DevelopmentStage, number> = {
 };
 
 function isYouthProfile(a: AthleteTrainingProfile): boolean {
-  return (
-    a.developmentStage === "child_foundation" || a.developmentStage === "early_youth"
-  );
+  return a.developmentStage === "child_foundation" || a.developmentStage === "early_youth";
 }
 
 function isBeginnerProfile(a: AthleteTrainingProfile): boolean {
@@ -958,11 +1009,29 @@ function hasEquipment(def: ExerciseDefinition, a: AthleteTrainingProfile): boole
   const owned = [
     ...a.equipmentAccess,
     ...a.homeEquipment,
-    ...(a.gymAccess ? ["barbell", "rack", "bench", "dumbbell", "kettlebell", "box", "platform", "med_ball", "machine"] : []),
-  ].map((s) => s.toLowerCase());
+    ...(a.gymAccess
+      ? [
+          "barbell",
+          "trap_bar",
+          "rack",
+          "bench",
+          "dumbbell",
+          "kettlebell",
+          "box",
+          "platform",
+          "med_ball",
+          "sled",
+          "sliders",
+          "nordic_setup",
+          "machine",
+        ]
+      : []),
+  ].flatMap((s) => {
+    const id = resolveEquipmentId(s);
+    return id ? [id] : [];
+  });
   return def.equipmentRequired.every((req) => {
-    const r = req.toLowerCase();
-    return owned.some((o) => o.includes(r) || r.includes(o));
+    return owned.includes(req);
   });
 }
 
@@ -979,8 +1048,7 @@ export function isExerciseAllowedForProfile(
   exercise: ExerciseDefinition | string | undefined,
   a: AthleteTrainingProfile,
 ): ExerciseAllowResult {
-  const def =
-    typeof exercise === "string" ? getExerciseDefinition(exercise) : exercise;
+  const def = typeof exercise === "string" ? getExerciseDefinition(exercise) : exercise;
 
   // Reguła 5: brak metadanych = ćwiczenie niepewne.
   if (!def) {
@@ -1048,7 +1116,11 @@ export function getExerciseRegression(
   if (!def) return undefined;
   visited.add(def.id);
 
-  const candidates = [...def.regressionIds, ...def.safeAlternativeIds];
+  const candidates = [
+    ...(def.replacementIds ?? []),
+    ...def.regressionIds,
+    ...def.safeAlternativeIds,
+  ];
   for (const id of candidates) {
     if (visited.has(id)) continue;
     const cand = getExerciseDefinition(id);
@@ -1082,13 +1154,14 @@ export interface SafeAlternativeResult {
   exercise: ExerciseDefinition | null;
   reason: string;
   unresolved: boolean;
+  blockRebuildRequired: boolean;
 }
 
 /**
- * replaceExerciseWithSafeAlternative — zwraca bezpieczny zamiennik.
+ * selectEquipmentAwareReplacement — zwraca bezpieczny zamiennik.
  * Reguła 2: regresja/alternatywa. Reguła 3: jeśli brak — unresolved=true.
  */
-export function replaceExerciseWithSafeAlternative(
+export function selectEquipmentAwareReplacement(
   exercise: ExerciseDefinition | string,
   a: AthleteTrainingProfile,
 ): SafeAlternativeResult {
@@ -1097,7 +1170,12 @@ export function replaceExerciseWithSafeAlternative(
 
   const allowed = isExerciseAllowedForProfile(def, a);
   if (allowed.ok && def)
-    return { exercise: def, reason: "Ćwiczenie dozwolone.", unresolved: false };
+    return {
+      exercise: def,
+      reason: "Ćwiczenie dozwolone.",
+      unresolved: false,
+      blockRebuildRequired: false,
+    };
 
   const regression = def ? getExerciseRegression(def, a) : undefined;
   if (regression)
@@ -1105,13 +1183,23 @@ export function replaceExerciseWithSafeAlternative(
       exercise: regression,
       reason: `„${original}" zamieniono na „${regression.name}" (${allowed.reasons.join(" ")}).`,
       unresolved: false,
+      blockRebuildRequired: false,
     };
 
   return {
     exercise: null,
     reason: `Brak bezpiecznej alternatywy dla „${original}" (${allowed.reasons.join(" ")}).`,
     unresolved: true,
+    blockRebuildRequired: true,
   };
+}
+
+/** Zachowana nazwa kompatybilności wstecznej dla istniejących wywołań. */
+export function replaceExerciseWithSafeAlternative(
+  exercise: ExerciseDefinition | string,
+  a: AthleteTrainingProfile,
+): SafeAlternativeResult {
+  return selectEquipmentAwareReplacement(exercise, a);
 }
 
 // ---------------------------------------------------------------------------
@@ -1173,10 +1261,13 @@ export function validateExerciseDefinition(def: ExerciseDefinition): string[] {
     if (v === undefined || v === null) problems.push(`Brak pola: ${String(field)}.`);
   }
   if (!def.coachingCues?.length) problems.push("Brak coachingCues.");
+  for (const equipment of def.equipmentRequired ?? []) {
+    if (!EQUIPMENT_REGISTRY.some((entry) => entry.id === equipment))
+      problems.push(`Nieznany sprzęt: ${equipment}.`);
+  }
   if (!def.displayNamePl?.trim()) problems.push("Pusta polska nazwa wyświetlana.");
   if (!Array.isArray(def.aliases)) problems.push("aliases musi być tablicą.");
-  if (!def.allowedSessionCategories?.length)
-    problems.push("Brak dozwolonych kategorii sesji.");
+  if (!def.allowedSessionCategories?.length) problems.push("Brak dozwolonych kategorii sesji.");
   for (const cat of def.allowedSessionCategories ?? []) {
     if (!SESSION_CATEGORIES.includes(cat)) problems.push(`Nieznana kategoria sesji: ${cat}.`);
   }
@@ -1234,15 +1325,50 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
     }
 
     // Referencje muszą istnieć.
-    for (const ref of [...def.progressionIds, ...def.regressionIds, ...def.safeAlternativeIds]) {
+    for (const ref of [
+      ...def.progressionIds,
+      ...def.regressionIds,
+      ...def.safeAlternativeIds,
+      ...(def.replacementIds ?? []),
+    ]) {
       if (!LIBRARY_INDEX.has(ref))
         issues.push({ id: def.id, problem: `Nieistniejąca referencja: ${ref}.` });
     }
   }
 
+  // Zamienniki tworzą skierowany graf; cykle oznaczają, że silnik może krążyć
+  // bez końca zamiast uczciwie zgłosić konieczność przebudowy bloku.
+  const colors = new Map<string, "gray" | "black">();
+  const reportedCycles = new Set<string>();
+  const stack: string[] = [];
+  const visit = (id: string) => {
+    if (colors.get(id) === "gray") {
+      const cycle = stack.slice(stack.indexOf(id)).sort();
+      const cycleKey = cycle.join("|");
+      if (!reportedCycles.has(cycleKey)) {
+        issues.push({ id, problem: `Cykl zamienników obejmujący ${id}.` });
+        reportedCycles.add(cycleKey);
+      }
+      return;
+    }
+    if (colors.get(id) === "black") return;
+    const def = LIBRARY_INDEX.get(id);
+    if (!def) return;
+    colors.set(id, "gray");
+    stack.push(id);
+    for (const next of [
+      ...(def.replacementIds ?? []),
+      ...def.regressionIds,
+      ...def.safeAlternativeIds,
+    ])
+      visit(next);
+    stack.pop();
+    colors.set(id, "black");
+  };
+  for (const def of LIBRARY) visit(def.id);
+
   return { ok: issues.length === 0, totalExercises: LIBRARY.length, issues };
 }
-
 
 // ---------------------------------------------------------------------------
 // validateWorkoutExercises — Reguła 4: każdy trening przez ten walidator
@@ -1258,6 +1384,7 @@ export interface WorkoutValidationReport {
   ok: boolean;
   replacements: { original: string; replacement: string; reason: string }[];
   unresolvedIssues: { exercise: string; reason: string }[];
+  blockRebuildRequired: boolean;
 }
 
 /**
@@ -1273,7 +1400,9 @@ export function validateWorkoutExercises(
   const unresolvedIssues: WorkoutValidationReport["unresolvedIssues"] = [];
 
   for (const item of list) {
-    const def = item.exerciseId ? getExerciseDefinition(item.exerciseId) : undefined;
+    const def = item.exerciseId
+      ? getExerciseDefinition(item.exerciseId)
+      : resolveExerciseByName(item.name);
     const allowed = isExerciseAllowedForProfile(def, a);
     if (allowed.ok) continue;
 
@@ -1293,5 +1422,6 @@ export function validateWorkoutExercises(
     ok: unresolvedIssues.length === 0,
     replacements,
     unresolvedIssues,
+    blockRebuildRequired: unresolvedIssues.length > 0,
   };
 }
