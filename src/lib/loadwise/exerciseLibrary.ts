@@ -1747,11 +1747,6 @@ if (plannedCut) {
   plannedCut.variants = [45, 90, 135, 180].map((angle) => ({ id: `${angle}`, labelPl: `${angle}°`, metadata: { angle } }));
   plannedCut.footballRelevance = ["Zmiana kierunku po zaplanowanym bodźcu przestrzennym."];
 }
-for (const id of ["app_audio_reaction_start", "app_audio_forward_left_right", "app_visual_colour_cue_cod", "reactive_180_turn", "reactive_curved_sprint"]) {
-  const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
-  if (def) def.participantMode = "solo";
-}
-
 LIBRARY.push(...PHASE_3A_EXERCISES);
 LIBRARY.push(...FOOTBALL_SPEED_EXERCISES);
 
