@@ -532,6 +532,8 @@ const LIBRARY: ExerciseDefinition[] = [
     safeAlternativeIds: [],
     coachingCues: ["Niska objętość, wysoka jakość", "Pełny rest między biegami", "Napęd z bioder"],
     commonErrors: ["Za duża objętość", "Bieg na zmęczeniu"],
+    approved: true,
+    draft: false,
   },
   // ---- ŚREDNIOZAAWANSOWANE ----
   {
@@ -898,6 +900,8 @@ const LIBRARY: ExerciseDefinition[] = [
     safeAlternativeIds: ["acceleration_mechanics"],
     coachingCues: ["Pełny rest", "Wysoka jakość mechaniki", "Stop przy spadku prędkości"],
     commonErrors: ["Za mały rest", "Bieg na zmęczeniu"],
+    approved: true,
+    draft: false,
   },
   {
     id: "snap_down",
