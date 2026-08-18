@@ -17,6 +17,8 @@ import {
   resolveEquipmentId,
   selectEquipmentAwareReplacement,
   type ExerciseDefinition,
+  getFootballSpeedCatalog,
+  getFoundationalSprintFlow,
 } from "./exerciseLibrary";
 
 function makeProfile(over: Partial<Profile>): Profile {
@@ -315,6 +317,60 @@ describe("library contract 2.0", () => {
     expect(
       PHASE_3A_IDS.filter((id) => getExerciseDefinition(id)?.category === "power").length,
     ).toBe(11);
+  });
+
+  describe("Phase 3B — canonical football speed catalog", () => {
+    it("has unique canonical ids and approved coverage for all nine qualities", () => {
+      const catalog = getFootballSpeedCatalog();
+      expect(new Set(catalog.map((exercise) => exercise.id)).size).toBe(catalog.length);
+      const qualities = new Set(catalog.flatMap((exercise) => exercise.speedQualities ?? []));
+      expect(qualities).toEqual(
+        new Set([
+          "sprint_technique",
+          "acceleration",
+          "maximum_velocity_exposure",
+          "curved_sprint",
+          "deceleration",
+          "planned_change_of_direction",
+          "reactive_agility",
+          "reacceleration",
+          "repeated_sprint",
+        ]),
+      );
+      expect(catalog.every((exercise) => exercise.approved === true && exercise.draft !== true)).toBe(true);
+      expect(catalog.every((exercise) => exercise.equipmentRequired.length === 0)).toBe(true);
+    });
+
+    it("keeps one canonical record for prescription variants and the exact A → C → B → D flow", () => {
+      const flow = getFoundationalSprintFlow();
+      expect(flow.map((step) => step.order)).toEqual(["A", "C", "B", "D"]);
+      expect(flow.every((step) => step.variants.join(",") === "step_in,continuous")).toBe(true);
+      expect(flow.map((step) => step.exerciseId)).toEqual(["a_march", "c_skip", "b_skip", "d_skip"]);
+      expect(getFootballSpeedCatalog().filter((exercise) => exercise.id === "football_curved_sprint")).toHaveLength(1);
+      expect(getExerciseDefinition("football_curved_sprint")?.variants?.map((variant) => variant.id)).toEqual([
+        "wide",
+        "medium",
+        "narrow",
+      ]);
+    });
+
+    it("models acceleration mechanics and distinguishes curved sprint from sharp COD", () => {
+      const acceleration = getExerciseDefinition("free_acceleration_sprint")!;
+      expect(acceleration.instructionsPl?.join(" ")).toMatch(/do przodu|Pchaj podłoże/i);
+      expect(acceleration.instructionsPl?.join(" ")).toMatch(/stopniowo/i);
+      expect(acceleration.instructionsPl?.join(" ")).not.toMatch(/natychmiast.*wyprost|pozostań.*nisko/i);
+      expect(getExerciseDefinition("football_curved_sprint")?.isSharpChangeOfDirection).toBe(false);
+      expect(getExerciseDefinition("football_curved_sprint")?.variants?.every((variant) => variant.metadata?.direction === "left/right")).toBe(true);
+    });
+
+    it("keeps reactive work solo and supports football start/maximum-speed prescriptions", () => {
+      for (const id of ["app_audio_reaction_start", "app_audio_forward_left_right", "app_visual_colour_cue_cod", "reactive_180_turn", "reactive_curved_sprint"]) {
+        const exercise = getExerciseDefinition(id)!;
+        expect(exercise.participantMode).toBe("solo");
+        expect(exercise.requiresPartner ?? false).toBe(false);
+      }
+      expect(getExerciseDefinition("free_acceleration_sprint")?.defaultPrescription?.distanceM).toEqual({ min: 10, max: 20 });
+    });
   });
 
   it("preserves all existing stable ids", () => {
