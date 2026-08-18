@@ -33,6 +33,10 @@ import {
   type WeeklyRequirements,
   type WeekRequirementContext,
 } from "./weeklyRequirements";
+import {
+  buildTrainingContext,
+  validateWeek,
+} from "./globalPlanRules";
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
@@ -298,7 +302,10 @@ export function countSpeedSessionsForDay(day: SessionDay): number {
  * klubu/meczu/szybkości; jeśli się nie da — usuwa duplikat i dodaje unresolvedIssue.
  * Nigdy nie zostawia dwóch speed_sprint w jednym dniu. Idempotentna.
  */
-export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
+export function repairDuplicateSpeedSameDay(
+  weekPlan: SessionDay[],
+  profile?: Profile,
+): {
   weekPlan: SessionDay[];
   moved: number;
   removed: number;
@@ -318,13 +325,14 @@ export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
 
       // Szukaj wolnego dnia (rest) bez klubu, meczu i bez szybkości; nie MD-1 dla pełnej szybkości.
       const restTarget = weekPlan.find(
-        (d) =>
+        (d, index) =>
           d !== day &&
           !d.isUnavailable &&
           d.dayType === "rest" &&
           !isClubSession(d) &&
           !isMatchSession(d) &&
           countSpeedSessionsForDay(d) === 0 &&
+          !adjacentDayHasSpeed(weekPlan, index) &&
           !isDayBeforeMatch(d),
       );
       if (restTarget) {
@@ -343,6 +351,15 @@ export function repairDuplicateSpeedSameDay(weekPlan: SessionDay[]): {
           whyToday:
             "Przeniesiono drugą szybkość na wolny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
         };
+        const candidate = weekPlan.slice();
+        candidate[idx] = relocated;
+        if (!passesGlobalWeekGate(candidate, profile)) {
+          removed += 1;
+          unresolvedIssues.push(
+            `Usunięto zduplikowaną szybkość w dniu ${day.date} — przeniesienie narusza globalne reguły tygodnia.`,
+          );
+          continue;
+        }
         weekPlan[idx] = relocated;
         moved += 1;
       } else {
@@ -404,8 +421,16 @@ function adjacentDayHasSpeed(weekPlan: SessionDay[], dayIndex: number): boolean 
   const next = dayIndex < weekPlan.length - 1 ? weekPlan[dayIndex + 1] : null;
   return (!!prev && hasSpeedSession(prev)) || (!!next && hasSpeedSession(next));
 }
+
+function passesGlobalWeekGate(weekPlan: SessionDay[], profile?: Profile): boolean {
+  if (!profile) return true;
+  const context = buildTrainingContext(profile);
+  return validateWeek(weekPlan, context, { isFullWeek: true }).valid;
+}
+
 export function repairSpeedAcrossWeekBoundaries(
   plan: SessionDay[],
+  profile?: Profile,
 ): {
   plan: SessionDay[];
   moved: number;
@@ -459,7 +484,7 @@ export function repairSpeedAcrossWeekBoundaries(
     ];
 
     const result =
-      repairBackToBackSpeedSessions(boundaryWindow);
+      repairBackToBackSpeedSessions(boundaryWindow, profile);
 
     for (
       let offset = 0;
@@ -492,7 +517,10 @@ export function repairSpeedAcrossWeekBoundaries(
  *  - jeśli się nie da → zamienia dzień na rest i dodaje unresolvedIssue.
  * Idempotentna.
  */
-export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
+export function repairBackToBackSpeedSessions(
+  weekPlan: SessionDay[],
+  profile?: Profile,
+): {
   weekPlan: SessionDay[];
   moved: number;
   removed: number;
@@ -536,7 +564,7 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
 
     if (restTarget) {
       const idx = weekPlan.indexOf(restTarget);
-      weekPlan[idx] = {
+      const relocated: SessionDay = {
         ...duplicate,
         date: restTarget.date,
         dayName: restTarget.dayName || duplicate.dayName,
@@ -550,6 +578,31 @@ export function repairBackToBackSpeedSessions(weekPlan: SessionDay[]): {
         whyToday:
           "Przeniesiono szybkość, aby zachować min. 1 dzień przerwy — speed nie może być dzień po dniu.",
       };
+      const candidate = weekPlan.slice();
+      candidate[idx] = relocated;
+      if (isSpeedSession(laterDay)) {
+        candidate[laterIndex] = {
+          ...laterDay,
+          dayType: "rest" as DayType,
+          title: "Odpoczynek",
+          slotLabel: null,
+          secondSession: laterDay.secondSession ?? null,
+          exercises: [],
+          reason: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
+          whyToday: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
+        };
+      }
+      if (!passesGlobalWeekGate(candidate, profile)) {
+        if (isSpeedSession(laterDay)) {
+          weekPlan[laterIndex] = candidate[laterIndex];
+        }
+        removed += 1;
+        unresolvedIssues.push(
+          `Usunięto szybkość w dniu ${laterDay.date} — przeniesienie narusza globalne reguły tygodnia.`,
+        );
+        continue;
+      }
+      weekPlan[idx] = relocated;
       // Jeśli źródłem był główny dzień (nie secondSession), zamień go na rest.
       if (isSpeedSession(laterDay) && laterDay === weekPlan[laterIndex]) {
         weekPlan[laterIndex] = {
@@ -1210,9 +1263,9 @@ export function validateAndRepairWeekPlan(
   const ctx = weekContextFor(weekPlan, profile);
 
   // TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia — naprawa przed assertem.
-  repairDuplicateSpeedSameDay(weekPlan);
+  repairDuplicateSpeedSameDay(weekPlan, profile);
   // TWARDA ZASADA: nigdy speed dzień po dniu — min. 1 dzień przerwy.
-  repairBackToBackSpeedSessions(weekPlan);
+  repairBackToBackSpeedSessions(weekPlan, profile);
 
   validateNoEnduranceOnClubDays(weekPlan);
   addMissingEnduranceSessions(
@@ -1226,8 +1279,8 @@ export function validateAndRepairWeekPlan(
   addMissingGymSessions(weekPlan, requirements, profile);
   validateNoEnduranceOnClubDays(weekPlan);
   // Ponowna naprawa na wypadek, gdyby endurance zajęło slot (idempotentna).
-  repairDuplicateSpeedSameDay(weekPlan);
-  repairBackToBackSpeedSessions(weekPlan);
+  repairDuplicateSpeedSameDay(weekPlan, profile);
+  repairBackToBackSpeedSessions(weekPlan, profile);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
 
@@ -1308,7 +1361,7 @@ export function finalizeWeekPlan(
   }
 
   // Następnie sprawdź przejścia niedziela → poniedziałek.
-  repairSpeedAcrossWeekBoundaries(firstPassPlan);
+  repairSpeedAcrossWeekBoundaries(firstPassPlan, profile);
 
   // Raporty muszą powstać po wszystkich naprawach.
   const finalWeeks = chunkIntoWeeks(firstPassPlan);
