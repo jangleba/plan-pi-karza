@@ -138,18 +138,17 @@ function ExerciseRow({
   onToggle,
   onOpenDetail,
   onUnavailable,
+  equipmentIds,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
   onOpenDetail: () => void;
   onUnavailable: () => void;
+  equipmentIds: string[];
 }) {
   const presc = compactPrescription(e);
   const rest = restLabel(e);
-  const equipmentIds = specialistEquipmentForExercise(
-    getExerciseDefinition(e.exerciseId ?? e.name),
-  );
   const equipmentNames = equipmentIds.map(
     (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
@@ -263,21 +262,22 @@ const StructuredSections = memo(function StructuredSections({
                   )}
                   {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
                   <div className="divide-y divide-border/40">
-                    {b.exercises.map((e) => (
-                      <ExerciseRow
+                    {b.exercises.map((e) => {
+                      const equipmentIds = specialistEquipmentForExercise(
+                        getExerciseDefinition(e.exerciseId ?? e.name),
+                      );
+                      return <ExerciseRow
                         key={e.id}
                         e={e}
                         done={!!done[e.id]}
                         onToggle={() => toggle(e.id)}
                         onOpenDetail={() => openDetail(e)}
                         onUnavailable={() => {
-                          const equipmentIds = specialistEquipmentForExercise(
-                            getExerciseDefinition(e.exerciseId ?? e.name),
-                          );
                           if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
                         }}
-                      />
-                    ))}
+                        equipmentIds={equipmentIds}
+                      />;
+                    })}
                   </div>
                   {blockRest && (
                     <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">

@@ -143,14 +143,14 @@ function replaceExerciseInSession(
 }
 
 export function applyExerciseReplacements(
-    session: SessionDay,
-    replacements: ExerciseReplacement[],
-  ): SessionDay {
-    return replacements.reduce(
-      (current, item) => replaceExerciseInSession(current, item.exerciseId, item.replacement),
-      session,
-    );
-  }
+  session: SessionDay,
+  replacements: ExerciseReplacement[],
+): SessionDay {
+  return replacements.reduce(
+    (current, item) => replaceExerciseInSession(current, item.exerciseId, item.replacement),
+    session,
+  );
+}
 
 // ---- map DB rows <-> Profile ----
 type AnyRow = Record<string, unknown>;
