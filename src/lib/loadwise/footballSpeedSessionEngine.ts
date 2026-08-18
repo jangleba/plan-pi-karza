@@ -208,14 +208,16 @@ function buildExercise(
 }
 
 function buildSessionDay(input: FootballSpeedEngineInput, exercises: FootballSpeedExercise[], title: string): SessionDay {
-  const items = exercises.map((exercise) => ({
+  const toItem = (exercise: FootballSpeedExercise) => ({
     name: exercise.name,
     exerciseId: exercise.exerciseId,
     purpose: exercise.purpose,
     prescription: `${exercise.sets} serie × ${exercise.reps} powt.; ${exercise.distanceOrDuration}; ${exercise.intensity}`,
     rest: `${exercise.restBetweenReps}; serie: ${exercise.restBetweenSets}`,
     cue: exercise.coachingCuesPl.join(" "),
-  }));
+  });
+  const warmup = exercises.filter((exercise) => exercise.role === "preparation").map(toItem);
+  const main = exercises.filter((exercise) => exercise.role !== "preparation").map(toItem);
   return {
     date: input.date,
     dayName: input.date,
@@ -237,7 +239,7 @@ function buildSessionDay(input: FootballSpeedEngineInput, exercises: FootballSpe
     avoidToday: "Krótki odpoczynek i praca kondycyjna.",
     mdLabel: null,
     slotLabel: null,
-    sections: { warmup: [], main: items, accessory: [], footballTransfer: [], cooldown: [] },
+    sections: { warmup, main, accessory: [], footballTransfer: [], cooldown: [] },
     secondSession: null,
   };
 }
