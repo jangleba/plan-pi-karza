@@ -1726,7 +1726,8 @@ export function getExerciseRegression(
     if (isExerciseAllowedForProfile(cand, a).ok) return cand;
   }
   // Głębsza regresja — spróbuj regresji regresji.
-  for (const id of candidates) {
+  const deeperCandidates = [...def.regressionIds, ...def.safeAlternativeIds];
+  for (const id of deeperCandidates) {
     if (visited.has(id)) continue;
     const deeper = getExerciseRegression(id, a, visited);
     if (deeper) return deeper;

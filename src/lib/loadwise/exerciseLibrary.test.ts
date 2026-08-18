@@ -492,7 +492,9 @@ describe("library contract 2.0", () => {
       }),
     );
     expect(selectEquipmentAwareReplacement("drop_landing", noBox).exercise?.id).toBe("snap_down");
-    expect(selectEquipmentAwareReplacement("hurdle_hops", noBox).exercise?.id).toBe("bilateral_pogo");
+    expect(selectEquipmentAwareReplacement("hurdle_hops", noBox).exercise?.id).toBe(
+      "bilateral_pogo",
+    );
     const noAnchorOrBall = buildAthleteTrainingProfile(
       makeProfile({
         age: 25,
