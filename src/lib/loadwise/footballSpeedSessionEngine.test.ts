@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "./types";
-import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
+import { BALL_WORK_PATTERN, generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
 const profile = (overrides: Partial<Profile> = {}): Profile => ({
   name: "Test",
@@ -59,7 +59,7 @@ describe("football speed session engine", () => {
     expect(
       result.exercises.every((exercise) => {
         const text = `${exercise.exerciseId} ${exercise.name} ${exercise.equipment.requiredEquipment.join(" ")}`;
-        return !/\bball\b|piłka\b|pass|receiv|dribbl|feint|zwod|przyjęci|podani/i.test(text);
+        return !BALL_WORK_PATTERN.test(text);
       }),
     ).toBe(true);
     expect(

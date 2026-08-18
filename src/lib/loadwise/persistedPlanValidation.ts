@@ -2,6 +2,7 @@ import type { Profile, SessionDay } from "./types";
 import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import { assessDaySpeedLoad } from "./speedLoad";
 import { getExerciseDefinition } from "./exerciseLibrary";
+import { BALL_WORK_PATTERN } from "./footballSpeedSessionEngine";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
@@ -21,9 +22,6 @@ export interface PersistedPlanValidation {
   valid: boolean;
   issues: PersistedPlanIssue[];
 }
-
-const BALL_WORK_PATTERN =
-  /\bball\b|piłka\b|passing|pass(?:es|ing)?|receiv(?:e|ing)|dribbl|feint|zwod|przyjęci|podani/i;
 
 function hasInvalidSpeedContent(day: SessionDay): boolean {
   if (!/speed|sprint|szybk|prędko|akcelerac|zwinno|cod/i.test(`${day.sessionType} ${day.title}`)) {

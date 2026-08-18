@@ -71,7 +71,7 @@ export interface FootballSpeedSession {
 
 const SKIP_FLOW = ["a_skip", "c_skip", "b_skip", "d_skip"] as const;
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-const BALL_WORK_PATTERN =
+export const BALL_WORK_PATTERN =
   /\bball\b|piłka\b|passing|pass(?:es|ing)?|receiv(?:e|ing)|dribbl|feint|zwod|przyjęci|podani/i;
 const ACCELERATION_CUES = [
   "Pchaj podłoże do tyłu.",
@@ -323,7 +323,6 @@ export function generateFootballSpeedSession(
     };
   }
   const activation = isMatchMinusOne(input) || input.recentHighSpeedExposure === true;
-  const activationOnly = activation;
   const low = readiness(input) <= 5 || (input.fatigue ?? 0) >= 8;
   const exercises: FootballSpeedExercise[] = [];
   let order = 1;
@@ -407,7 +406,7 @@ export function generateFootballSpeedSession(
     catalog,
     unavailableEquipmentIds,
   );
-  if (!activationOnly) {
+  if (!activation) {
     exercises.push(
       buildExercise(
         primary,
@@ -465,7 +464,7 @@ export function generateFootballSpeedSession(
     title,
     session: buildSessionDay(input, exercises, title),
     exercises,
-    primaryExerciseId: activationOnly ? undefined : primary.id,
+    primaryExerciseId: activation ? undefined : primary.id,
     secondaryExerciseId: undefined,
     excludedExerciseIds,
     safetyNote:
