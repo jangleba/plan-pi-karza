@@ -1,21 +1,15 @@
-import type {
-  Profile,
-  SessionDay,
-} from "./types";
-import {
-  addDays,
-  isoDate,
-  isoDayOfWeek,
-  parseIso,
-} from "./labels";
+import type { Profile, SessionDay } from "./types";
+import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import { assessDaySpeedLoad } from "./speedLoad";
+import { getExerciseDefinition } from "./exerciseLibrary";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
   | "stale-generator"
   | "club-day-mismatch"
   | "duplicate-speed-same-day"
-  | "adjacent-speed-days";
+  | "adjacent-speed-days"
+  | "invalid-speed-content";
 
 export interface PersistedPlanIssue {
   code: PersistedPlanIssueCode;
@@ -26,6 +20,30 @@ export interface PersistedPlanIssue {
 export interface PersistedPlanValidation {
   valid: boolean;
   issues: PersistedPlanIssue[];
+}
+
+const BALL_WORK_PATTERN =
+  /\bball\b|piłka\b|passing|pass(?:es|ing)?|receiv(?:e|ing)|dribbl|feint|zwod|przyjęci|podani/i;
+
+function hasInvalidSpeedContent(day: SessionDay): boolean {
+  if (!/speed|sprint|szybk|prędko|akcelerac|zwinno|cod/i.test(`${day.sessionType} ${day.title}`)) {
+    return false;
+  }
+  return [
+    ...(day.exercises ?? []),
+    ...day.sections.warmup,
+    ...day.sections.main,
+    ...day.sections.accessory,
+    ...day.sections.footballTransfer,
+    ...day.sections.cooldown,
+  ].some((exercise) => {
+    const definition = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
+    return (
+      definition?.requiresBall === true ||
+      definition?.equipmentRequired.includes("med_ball") ||
+      BALL_WORK_PATTERN.test(`${exercise.exerciseId ?? ""} ${exercise.name}`)
+    );
+  });
 }
 
 export function validatePersistedPlan(
@@ -47,48 +65,42 @@ export function validatePersistedPlan(
     };
   }
 
-  if (
-    plan.some(
-      (day) =>
-        day.generatorVersion !== engineVersion,
-    )
-  ) {
+  if (plan.some((day) => day.generatorVersion !== engineVersion)) {
     issues.push({
       code: "stale-generator",
-      message:
-        "Plan został utworzony przez starszą wersję generatora.",
+      message: "Plan został utworzony przez starszą wersję generatora.",
     });
   }
 
-  for (
-    let index = 0;
-    index < plan.length;
-    index += 1
-  ) {
+  for (let index = 0; index < plan.length; index += 1) {
     const day = plan[index];
 
     if (
       day.dayType === "club" &&
-      !profile.clubTrainingDays.includes(
-        isoDayOfWeek(parseIso(day.date)),
-      )
+      !profile.clubTrainingDays.includes(isoDayOfWeek(parseIso(day.date)))
     ) {
       issues.push({
         code: "club-day-mismatch",
         date: day.date,
-        message:
-          "Trening klubowy znajduje się w nieprawidłowym dniu.",
+        message: "Trening klubowy znajduje się w nieprawidłowym dniu.",
       });
     }
 
     const speed = assessDaySpeedLoad(day);
 
+    if (hasInvalidSpeedContent(day)) {
+      issues.push({
+        code: "invalid-speed-content",
+        date: day.date,
+        message: "Sesja szybkościowa zawiera pracę z piłką i wymaga regeneracji.",
+      });
+    }
+
     if (speed.hasDuplicateRealSpeedExposures) {
       issues.push({
         code: "duplicate-speed-same-day",
         date: day.date,
-        message:
-          "Dzień zawiera więcej niż jedną realną ekspozycję szybkościową.",
+        message: "Dzień zawiera więcej niż jedną realną ekspozycję szybkościową.",
       });
     }
 
@@ -96,25 +108,17 @@ export function validatePersistedPlan(
 
     const previous = plan[index - 1];
 
-    const consecutive =
-      isoDate(
-        addDays(parseIso(previous.date), 1),
-      ) === day.date;
+    const consecutive = isoDate(addDays(parseIso(previous.date), 1)) === day.date;
 
     if (!consecutive) continue;
 
-    const previousSpeed =
-      assessDaySpeedLoad(previous);
+    const previousSpeed = assessDaySpeedLoad(previous);
 
-    if (
-      previousSpeed.blocksAdjacentSpeedDay &&
-      speed.realExposureCount > 0
-    ) {
+    if (previousSpeed.blocksAdjacentSpeedDay && speed.realExposureCount > 0) {
       issues.push({
         code: "adjacent-speed-days",
         date: day.date,
-        message:
-          "Realne ekspozycje szybkościowe występują dzień po dniu.",
+        message: "Realne ekspozycje szybkościowe występują dzień po dniu.",
       });
     }
   }
@@ -130,9 +134,5 @@ export function persistedPlanNeedsRegeneration(
   profile: Profile,
   engineVersion: string,
 ): boolean {
-  return !validatePersistedPlan(
-    plan,
-    profile,
-    engineVersion,
-  ).valid;
+  return !validatePersistedPlan(plan, profile, engineVersion).valid;
 }

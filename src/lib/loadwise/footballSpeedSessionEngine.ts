@@ -72,7 +72,7 @@ export interface FootballSpeedSession {
 const SKIP_FLOW = ["a_skip", "c_skip", "b_skip", "d_skip"] as const;
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
 const BALL_WORK_PATTERN =
-  /\b(ball|piłka|passing|pass(?:es|ing)?|receiv(?:e|ing)|dribbl(?:e|ing)?|feint|zwod|przyjęci|podani)\b/i;
+  /\bball\b|piłka\b|passing|pass(?:es|ing)?|receiv(?:e|ing)|dribbl|feint|zwod|przyjęci|podani/i;
 const ACCELERATION_CUES = [
   "Pchaj podłoże do tyłu.",
   "Przykładaj siłę w dół i do tyłu.",
@@ -101,14 +101,6 @@ const FAMILY_PRIMARY: Record<FootballSpeedFamily, string[]> = {
   ],
 };
 
-const FAMILY_SECONDARY: Record<FootballSpeedFamily, string[]> = {
-  acceleration: ["progressive_deceleration_5_10_15", "accel_decel_reaccel"],
-  maximum_velocity: ["football_curved_sprint", "progressive_build_up_sprint"],
-  curved_sprinting: ["reactive_curved_sprint", "football_curved_sprint"],
-  deceleration_cod: ["cut_and_reaccelerate", "deceleration_lateral_exit"],
-  reactive_agility_reacceleration: ["accel_decel_reaccel", "cut_and_reaccelerate"],
-};
-
 export function isOffBallSpeedExercise(exercise: ExerciseDefinition): boolean {
   return (
     exercise.requiresBall === false &&
@@ -121,9 +113,7 @@ export function isOffBallSpeedExercise(exercise: ExerciseDefinition): boolean {
 
 function approved(id: string): ExerciseDefinition | undefined {
   const exercise = getExerciseDefinition(id);
-  return exercise?.approved === true &&
-    exercise.draft === false &&
-    isOffBallSpeedExercise(exercise)
+  return exercise?.approved === true && exercise.draft === false && isOffBallSpeedExercise(exercise)
     ? exercise
     : undefined;
 }
@@ -340,18 +330,22 @@ export function generateFootballSpeedSession(
   if (!preparation) throw new Error("Brak zatwierdzonego przygotowania A-march.");
   exercises.push(
     buildExercise(preparation, order++, input, "preparation", undefined, undefined, {
-      name: "RAMP — przygotowanie off-ball",
+      name: "RAMP — przygotowanie atletyczne",
       purpose: "Podnieś temperaturę i przygotuj zakres ruchu bez piłki.",
       sets: "1",
       reps: "ciągłe",
       distanceOrDuration: "8–12 min",
       restBetweenReps: "bez przerwy",
       restBetweenSets: "—",
-      coachingCuesPl: ["Stopniowo zwiększaj tempo", "Bez piłki i bez pracy technicznej z piłką"],
+      coachingCuesPl: [
+        "Stopniowo zwiększaj tempo",
+        "Tylko przygotowanie ruchowe, bez pracy technicznej",
+      ],
     }),
   );
   const flow = SKIP_FLOW.map((id) => approved(id));
-  if (flow.some((def) => !def)) throw new Error("Brak zatwierdzonego ćwiczenia w sekwencji A → C → B → D.");
+  if (flow.some((def) => !def))
+    throw new Error("Brak zatwierdzonego ćwiczenia w sekwencji A → C → B → D.");
   exercises.push(
     buildExercise(flow[0]!, order++, input, "technical", undefined, undefined, {
       name: "A → C → B → D — sekwencja techniki biegu",
@@ -381,19 +375,28 @@ export function generateFootballSpeedSession(
       distanceOrDuration: "10–15 s",
       restBetweenReps: "30–45 s",
       restBetweenSets: "60–90 s",
-      coachingCuesPl: ["Single, double, triple switch", "Przejdź płynnie do A-skip", "Miednica stabilna"],
+      coachingCuesPl: [
+        "Single, double, triple switch",
+        "Przejdź płynnie do A-skip",
+        "Miednica stabilna",
+      ],
     }),
   );
   exercises.push(
     buildExercise(bounds, order++, input, "technical", undefined, undefined, {
       name: "Naprzemienne boundy pionowe",
-      purpose: "Maksymalny pionowy odbiór, zmiana nóg w locie, lądowanie na jednej nodze i odbicie z drugiej.",
+      purpose:
+        "Maksymalny pionowy odbiór, zmiana nóg w locie, lądowanie na jednej nodze i odbicie z drugiej.",
       sets: low ? "2" : "3",
       reps: "4–6 kontaktów na stronę",
       distanceOrDuration: "4–6 kontaktów na stronę",
       restBetweenReps: "60–90 s",
       restBetweenSets: "90 s",
-      coachingCuesPl: ["Maksymalny pionowy take-off", "Zmień nogę w locie", "Ląduj cicho i odbij się z drugiej nogi"],
+      coachingCuesPl: [
+        "Maksymalny pionowy take-off",
+        "Zmień nogę w locie",
+        "Ląduj cicho i odbij się z drugiej nogi",
+      ],
     }),
   );
   const unavailableEquipmentIds = input.profile.unavailableEquipmentIds ?? [];
