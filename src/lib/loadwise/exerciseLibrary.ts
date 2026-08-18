@@ -963,7 +963,7 @@ function phase3AExercise(
     loadingType: power ? "ballistic" : "external",
     impactLevel: power ? "moderate" : "none",
     spinalLoadLevel: "low",
-    kneeLoadLevel: power ? "moderate" : "moderate",
+    kneeLoadLevel: power ? "moderate" : "low",
     ankleLoadLevel: power ? "moderate" : "low",
     hamstringLoadLevel: "moderate",
     plyometricIntensity: power ? "moderate" : "none",
