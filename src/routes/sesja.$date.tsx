@@ -42,6 +42,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
+
 
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
   slot: Number(s.slot) === 2 ? 2 : 1,
@@ -148,9 +150,8 @@ function ExerciseRow({
   const equipmentIds = specialistEquipmentForExercise(
     getExerciseDefinition(e.exerciseId ?? e.name),
   );
-  const equipmentDefinitions = getAllEquipmentDefinitions();
   const equipmentNames = equipmentIds.map(
-    (id) => equipmentDefinitions.find((item) => item.id === id)?.displayName ?? id,
+    (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
   return (
     <div className="py-2">

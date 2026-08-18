@@ -81,7 +81,14 @@ function loadLocal(userId: string): LocalState {
     return { readiness: {}, tests: [], scouting: emptyScouting, unavailableEquipmentIds: [], exerciseReplacements: {} };
   try {
     const raw = window.localStorage.getItem(localKey(userId));
-    if (!raw) return { readiness: {}, tests: [], scouting: emptyScouting };
+    if (!raw)
+      return {
+        readiness: {},
+        tests: [],
+        scouting: emptyScouting,
+        unavailableEquipmentIds: [],
+        exerciseReplacements: {},
+      };
     const parsed = JSON.parse(raw) as Partial<LocalState>;
     return {
       readiness: parsed.readiness ?? {},
