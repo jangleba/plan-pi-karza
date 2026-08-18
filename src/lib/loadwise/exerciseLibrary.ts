@@ -1714,7 +1714,7 @@ const CURVE_VARIANTS: FootballSpeedVariant[] = [
   { id: "medium", labelPl: "Średni łuk", metadata: { radius: "medium", direction: "left/right", entrySpeed: "fast" } },
   { id: "narrow", labelPl: "Wąski łuk — progresja", metadata: { radius: "narrow", direction: "left/right", entrySpeed: "fast" } },
 ];
-for (const id of ["a_skip", "c_skip", "b_skip", "d_skip"]) {
+for (const id of ["a_march", "a_skip", "c_skip", "b_skip", "d_skip"]) {
   const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
   if (def) {
     def.variants = [
@@ -1735,7 +1735,7 @@ for (const id of ["a_march", "a_skip", "c_skip", "b_skip", "d_skip", "wall_march
 for (const id of ["football_curved_sprint", "reactive_curved_sprint"]) {
   const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
   if (def) {
-    def.variants = CURVE_VARIANTS;
+    def.variants = [...CURVE_VARIANTS];
     def.footballRelevance = ["Pressing po łuku", "Bieg za obrońcę", "Bieg za plecy z martwego pola", "Obieg i underlap", "Powrót i asekuracja"];
     def.commonErrors = ["Ostry hamulec i cięcie zamiast ciągłej zmiany kierunku", "Zawsze ten sam kierunek", "Za mały promień przy zbyt dużej prędkości"];
     def.defaultPrescription = { distanceM: { min: 10, max: 20 }, repetitions: { min: 2, max: 4 }, restSeconds: { min: 90, max: 180 }, intensity: "controlled" };
