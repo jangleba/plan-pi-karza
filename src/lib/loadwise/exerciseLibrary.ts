@@ -198,6 +198,53 @@ export interface ExerciseDefinition {
   commonErrors: string[];
   /** Deterministyczna, uporządkowana lista uczciwych zamienników. */
   replacementIds?: string[];
+  /** Football speed taxonomy and prescription metadata (Phase 3B). */
+  speedQualities?: FootballSpeedQuality[];
+  sessionRoles?: FootballSessionRole[];
+  instructionsPl?: string[];
+  objective?: string;
+  footballRelevance?: string[];
+  defaultPrescription?: FootballPrescription;
+  variants?: FootballSpeedVariant[];
+  approved?: boolean;
+  draft?: boolean;
+  requiresPartner?: boolean;
+  isSharpChangeOfDirection?: boolean;
+}
+
+export type FootballSpeedQuality =
+  | "sprint_technique"
+  | "acceleration"
+  | "maximum_velocity_exposure"
+  | "curved_sprint"
+  | "deceleration"
+  | "planned_change_of_direction"
+  | "reactive_agility"
+  | "reacceleration"
+  | "repeated_sprint";
+
+export type FootballSessionRole =
+  | "preparation"
+  | "technical"
+  | "primer"
+  | "primary"
+  | "secondary"
+  | "conditioning";
+
+export interface FootballPrescription {
+  distanceM?: { min: number; max: number };
+  sets?: { min: number; max: number };
+  repetitions?: { min: number; max: number };
+  workSeconds?: { min: number; max: number };
+  restSeconds?: { min: number; max: number };
+  intensity?: "controlled" | "fast" | "high" | "maximum";
+}
+
+export interface FootballSpeedVariant {
+  id: string;
+  labelPl: string;
+  prescription?: FootballPrescription;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1524,7 +1571,203 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
   }),
 ];
 
+const ACCELERATION_CUES = [
+  "Pchnij boisko za siebie.",
+  "Pochyl całe ciało — nie zginaj się w pasie.",
+  "Nie sięgaj stopą przed siebie.",
+  "Wstawaj stopniowo wraz ze wzrostem prędkości.",
+  "Najpierw mocne pchnięcie, później coraz szybszy rytm.",
+];
+
+const ACCELERATION_ERRORS = [
+  "Natychmiastowe wyprostowanie",
+  "Sztucznie przedłużona niska pozycja",
+  "Zgięcie w pasie",
+  "Sięganie stopą i overstriding",
+  "Kontakt stopy daleko przed środkiem masy",
+  "Zbyt pionowe pierwsze kroki",
+  "Za małe pchanie podłoża do tyłu",
+  "Zapadanie tułowia lub miednicy",
+  "Kroki skrzyżne",
+  "Nadmierny lub asymetryczny ruch miednicy w bok",
+];
+
+function footballSpeedExercise(
+  overrides: Pick<ExerciseDefinition, "id" | "name" | "displayNamePl"> &
+    Partial<ExerciseDefinition>,
+): ExerciseDefinition {
+  const qualities = overrides.speedQualities ?? ["sprint_technique"];
+  const acceleration = qualities.includes("acceleration") || qualities.includes("reacceleration");
+  return {
+    id: overrides.id,
+    name: overrides.name,
+    displayNamePl: overrides.displayNamePl,
+    aliases: [],
+    requiresBall: false,
+    allowedSessionCategories: ["speed_sprint"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "sprint_lane",
+    category: "speed",
+    movementPattern: "sprint",
+    primaryAdaptation: acceleration ? "acceleration" : "speed",
+    difficultyLevel: 2,
+    technicalComplexity: 2,
+    minAge: 10,
+    recommendedDevelopmentStage: "child_foundation",
+    requiredGymExperienceLevel: "none",
+    requiredMovementCompetenceLevel: "low",
+    requiredSupervisionLevel: "none",
+    equipmentRequired: [],
+    contraindications: ["ankle"],
+    injuryCautions: ["Przerwij przy bólu; sprint wymaga świeżości i jakości."],
+    loadingType: "impact",
+    impactLevel: "low",
+    spinalLoadLevel: "none",
+    kneeLoadLevel: "low",
+    ankleLoadLevel: "moderate",
+    hamstringLoadLevel: "low",
+    plyometricIntensity: "low",
+    speedIntensity: "moderate",
+    enduranceIntensity: "none",
+    allowedForYouth: true,
+    allowedForBeginner: true,
+    progressionIds: [],
+    regressionIds: [],
+    safeAlternativeIds: [],
+    coachingCues: acceleration ? ACCELERATION_CUES : ["Naturalna praca ramion", "Jakość przed zmęczeniem"],
+    commonErrors: acceleration ? ACCELERATION_ERRORS : ["Utrata rytmu", "Bieg na zmęczeniu"],
+    speedQualities: qualities,
+    sessionRoles: ["technical"],
+    instructionsPl: acceleration
+      ? [
+          "Projekuj ciało do przodu i twórz jedną linię głowy, tułowia, miednicy i nogi podporowej.",
+          "Pchaj podłoże aktywnie do tyłu; stopa ląduje blisko lub lekko za środkiem masy.",
+          "Wznoszenie do pozycji wyprostowanej następuje stopniowo wraz ze wzrostem prędkości.",
+        ]
+      : ["Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.", "Kończ serię, gdy spada jakość."],
+    objective: "Rozwój szybkości piłkarskiej bez specjalistycznego sprzętu.",
+    footballRelevance: ["Pierwszy krok, wyjście do piłki i reakcja na przestrzeń."],
+    defaultPrescription: { distanceM: { min: 10, max: 20 }, sets: { min: 2, max: 4 }, repetitions: { min: 2, max: 4 }, restSeconds: { min: 60, max: 180 }, intensity: "controlled" },
+    approved: true,
+    draft: false,
+    ...overrides,
+  };
+}
+
+const FOOTBALL_SPEED_EXERCISES: ExerciseDefinition[] = [
+  ["a_march", "A march", "Marsz A", ["sprint_technique"], "preparation"],
+  ["a_skip", "A skip", "Skip A", ["sprint_technique"], "technical"],
+  ["c_skip", "C skip", "Skip C", ["sprint_technique"], "technical"],
+  ["b_skip", "B skip", "Skip B", ["sprint_technique"], "technical"],
+  ["d_skip", "D skip", "Skip D", ["sprint_technique"], "technical"],
+  ["ankling", "Ankling", "Ankling", ["sprint_technique"], "preparation"],
+  ["low_dribble", "Low dribble", "Niski dribble", ["sprint_technique"], "technical"],
+  ["high_dribble", "High dribble", "Wysoki dribble", ["sprint_technique"], "technical"],
+  ["straight_leg_run_bound", "Straight-leg run/bound", "Bieg z prostą nogą / bound", ["sprint_technique"], "technical"],
+  ["wall_march", "Wall march", "Marsz przy ścianie", ["sprint_technique"], "preparation"],
+  ["wall_single_switch", "Wall single switch", "Pojedyncza zmiana przy ścianie", ["sprint_technique", "acceleration"], "technical"],
+  ["wall_double_switch", "Wall double switch", "Podwójna zmiana przy ścianie", ["sprint_technique", "acceleration"], "technical"],
+  ["wall_triple_switch", "Wall triple switch", "Potrójna zmiana przy ścianie", ["sprint_technique", "acceleration"], "technical"],
+  ["dribble_to_sprint_transition", "Dribble-to-sprint transition", "Przejście z dribblingu do sprintu", ["sprint_technique", "acceleration"], "primer"],
+  ["falling_start", "Falling start", "Start z upadku", ["acceleration"], "primary"],
+  ["split_stance_start", "Split-stance start", "Start z pozycji wykrocznej", ["acceleration"], "primary"],
+  ["push_up_start", "Push-up start", "Start z podporu", ["acceleration"], "primary"],
+  ["half_kneeling_start", "Half-kneeling start", "Start z półklęku", ["acceleration"], "primary"],
+  ["lateral_start_acceleration", "Lateral start into acceleration", "Start boczny do przyspieszenia", ["acceleration", "reacceleration"], "primary"],
+  ["crossover_start_acceleration", "Crossover start into acceleration", "Start skrzyżny do przyspieszenia", ["acceleration"], "primary"],
+  ["turn_and_go_start", "Turn-and-go start", "Start obróć się i biegnij", ["acceleration", "reactive_agility"], "primary"],
+  ["app_audio_reaction_start", "App audio-cue reaction start", "Start reakcyjny na sygnał audio aplikacji", ["acceleration", "reactive_agility"], "primary"],
+  ["free_acceleration_sprint", "Free acceleration sprint", "Swobodny sprint akceleracyjny", ["acceleration"], "primary"],
+  ["progressive_build_up_sprint", "Progressive build-up sprint", "Progresywny bieg narastający", ["maximum_velocity_exposure"], "primer"],
+  ["flying_sprint", "Flying sprint", "Sprint lotny", ["maximum_velocity_exposure"], "primary"],
+  ["upright_football_sprint", "Upright 30–40 m football sprint", "Piłkarski sprint wyprostowany 30–40 m", ["maximum_velocity_exposure"], "primary"],
+  ["fast_relaxed_fast_run", "Controlled fast–relaxed–fast run", "Kontrolowany bieg szybko–luźno–szybko", ["maximum_velocity_exposure"], "technical"],
+  ["football_curved_sprint", "Football curved sprint", "Piłkarski sprint po łuku", ["curved_sprint"], "primary"],
+  ["reactive_curved_sprint", "Reactive left/right curved sprint", "Reaktywny sprint po łuku lewo/prawo", ["curved_sprint", "reactive_agility"], "primary"],
+  ["progressive_run_three_step_stop", "Progressive run-to-three-step stop", "Progresywny bieg i zatrzymanie w trzech krokach", ["deceleration"], "technical"],
+  ["run_two_step_stop", "Run-to-two-step stop", "Bieg i zatrzymanie w dwóch krokach", ["deceleration"], "technical"],
+  ["progressive_deceleration_5_10_15", "Progressive 5 m → 10 m → 15 m deceleration", "Progresywne hamowanie 5 → 10 → 15 m", ["deceleration"], "primary"],
+  ["accel_decel_reaccel", "Acceleration–deceleration–reacceleration", "Przyspieszenie–hamowanie–ponowne przyspieszenie", ["acceleration", "deceleration", "reacceleration"], "primary"],
+  ["deceleration_lateral_exit", "Deceleration into lateral exit", "Hamowanie z wyjściem bocznym", ["deceleration", "reacceleration"], "primary"],
+  ["planned_cut", "Planned cut", "Zaplanowane cięcie", ["planned_change_of_direction"], "primary"],
+  ["planned_505", "Planned 5-0-5", "Zaplanowany test 5-0-5", ["planned_change_of_direction"], "primary"],
+  ["cut_and_reaccelerate", "Cut-and-reaccelerate", "Cięcie i ponowne przyspieszenie", ["planned_change_of_direction", "reacceleration"], "primary"],
+  ["app_audio_forward_left_right", "App audio cue: forward/left/right", "Sygnał audio aplikacji: przód/lewo/prawo", ["reactive_agility"], "primary"],
+  ["app_visual_colour_cue_cod", "App visual or colour cue change of direction", "Zmiana kierunku na sygnał wizualny/kolor", ["reactive_agility"], "primary"],
+  ["reactive_180_turn", "Reactive 180° turn", "Reaktywny obrót 180°", ["reactive_agility", "reacceleration"], "primary"],
+  ["repeated_linear_short_sprints", "Repeated linear short sprints", "Powtarzane krótkie sprinty liniowe", ["repeated_sprint"], "conditioning"],
+  ["repeated_curved_sprints", "Repeated curved sprints", "Powtarzane sprinty po łuku", ["repeated_sprint", "curved_sprint"], "conditioning"],
+  ["repeated_shuttle_sprints", "Repeated shuttle sprints", "Powtarzane sprinty wahadłowe", ["repeated_sprint"], "conditioning"],
+].map(([id, name, displayNamePl, qualities, role]) =>
+  footballSpeedExercise({
+    id: id as string,
+    name: name as string,
+    displayNamePl: displayNamePl as string,
+    speedQualities: qualities as FootballSpeedQuality[],
+    sessionRoles: [role as FootballSessionRole],
+  }),
+);
+
+const CURVE_VARIANTS: FootballSpeedVariant[] = [
+  { id: "wide", labelPl: "Szeroki łuk — regresja", metadata: { radius: "wide", direction: "left/right", entrySpeed: "controlled" } },
+  { id: "medium", labelPl: "Średni łuk", metadata: { radius: "medium", direction: "left/right", entrySpeed: "fast" } },
+  { id: "narrow", labelPl: "Wąski łuk — progresja", metadata: { radius: "narrow", direction: "left/right", entrySpeed: "fast" } },
+];
+for (const id of ["a_march", "a_skip", "c_skip", "b_skip", "d_skip"]) {
+  const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
+  if (def) {
+    def.variants = [
+      { id: "step_in", labelPl: "Wariant step-in" },
+      { id: "continuous", labelPl: "Wariant ciągły" },
+    ];
+    def.defaultPrescription = { repetitions: { min: 2, max: 4 }, workSeconds: { min: 10, max: 20 }, restSeconds: { min: 30, max: 60 }, intensity: "controlled" };
+  }
+}
+for (const id of ["a_march", "a_skip", "c_skip", "b_skip", "d_skip", "wall_march", "wall_single_switch", "wall_double_switch", "wall_triple_switch"]) {
+  const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
+  if (def) {
+    def.variants = def.variants ?? [];
+    def.variants.push({ id: "controlled_pass", labelPl: "Pierwszy przebieg: wolniej, kontrolnie i technicznie" });
+    def.variants.push({ id: "fast_pass", labelPl: "Drugi przebieg: szybciej, z zachowaniem techniki" });
+  }
+}
+for (const id of ["football_curved_sprint", "reactive_curved_sprint"]) {
+  const def = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === id);
+  if (def) {
+    def.variants = [...CURVE_VARIANTS];
+    def.footballRelevance = ["Pressing po łuku", "Bieg za obrońcę", "Bieg za plecy z martwego pola", "Obieg i underlap", "Powrót i asekuracja"];
+    def.commonErrors = ["Ostry hamulec i cięcie zamiast ciągłej zmiany kierunku", "Zawsze ten sam kierunek", "Za mały promień przy zbyt dużej prędkości"];
+    def.defaultPrescription = { distanceM: { min: 10, max: 20 }, repetitions: { min: 2, max: 4 }, restSeconds: { min: 90, max: 180 }, intensity: "controlled" };
+    def.isSharpChangeOfDirection = false;
+  }
+}
+const plannedCut = FOOTBALL_SPEED_EXERCISES.find((exercise) => exercise.id === "planned_cut");
+if (plannedCut) {
+  plannedCut.variants = [45, 90, 135, 180].map((angle) => ({ id: `${angle}`, labelPl: `${angle}°`, metadata: { angle } }));
+  plannedCut.footballRelevance = ["Zmiana kierunku po zaplanowanym bodźcu przestrzennym."];
+}
 LIBRARY.push(...PHASE_3A_EXERCISES);
+LIBRARY.push(...FOOTBALL_SPEED_EXERCISES);
+
+const existingAcceleration = LIBRARY.find((exercise) => exercise.id === "acceleration_mechanics");
+if (existingAcceleration) {
+  existingAcceleration.speedQualities = ["acceleration"];
+  existingAcceleration.sessionRoles = ["technical", "primer"];
+  existingAcceleration.instructionsPl = [...ACCELERATION_CUES];
+  existingAcceleration.objective = "Nauka projekcji i progresywnego wzrostu prędkości.";
+}
+const existingMaxVelocity = LIBRARY.find((exercise) => exercise.id === "max_velocity_high_volume");
+if (existingMaxVelocity) {
+  existingMaxVelocity.speedQualities = ["maximum_velocity_exposure"];
+  existingMaxVelocity.sessionRoles = ["primary"];
+  existingMaxVelocity.defaultPrescription = { distanceM: { min: 10, max: 20 }, intensity: "maximum" };
+}
+const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
+  ...FOOTBALL_SPEED_EXERCISES.map((exercise) => exercise.id),
+  "acceleration_mechanics",
+  "max_velocity_high_volume",
+]);
 
 const LIBRARY_INDEX = new Map<string, ExerciseDefinition>(LIBRARY.map((e) => [e.id, e]));
 
@@ -1534,6 +1777,28 @@ export function getAllExerciseDefinitions(): ExerciseDefinition[] {
 
 export function getExerciseDefinition(exerciseId: string): ExerciseDefinition | undefined {
   return LIBRARY_INDEX.get(exerciseId);
+}
+
+export interface FoundationalSprintFlowStep {
+  order: "A" | "C" | "B" | "D";
+  exerciseId: string;
+  variants: readonly ["step_in", "continuous"];
+}
+
+/** Deterministic teaching sequence; competency selection is intentionally deferred. */
+export const FOUNDATIONAL_SPRINT_FLOW: readonly FoundationalSprintFlowStep[] = [
+  { order: "A", exerciseId: "a_march", variants: ["step_in", "continuous"] },
+  { order: "C", exerciseId: "c_skip", variants: ["step_in", "continuous"] },
+  { order: "B", exerciseId: "b_skip", variants: ["step_in", "continuous"] },
+  { order: "D", exerciseId: "d_skip", variants: ["step_in", "continuous"] },
+];
+
+export function getFoundationalSprintFlow(): readonly FoundationalSprintFlowStep[] {
+  return FOUNDATIONAL_SPRINT_FLOW;
+}
+
+export function getFootballSpeedCatalog(): readonly ExerciseDefinition[] {
+  return LIBRARY.filter((exercise) => FOOTBALL_SPEED_CATALOG_IDS.has(exercise.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -1660,6 +1925,8 @@ export function isExerciseAllowedForProfile(
   }
 
   const reasons: string[] = [];
+  if (def.draft === true || def.approved === false)
+    reasons.push("Ćwiczenie nie jest zatwierdzone do sesji zawodnika.");
   const youth = isYouthProfile(a);
   const beginner = isBeginnerProfile(a);
 
