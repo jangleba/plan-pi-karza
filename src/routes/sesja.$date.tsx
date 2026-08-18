@@ -148,6 +148,10 @@ function ExerciseRow({
   const equipmentIds = specialistEquipmentForExercise(
     getExerciseDefinition(e.exerciseId ?? e.name),
   );
+  const equipmentDefinitions = getAllEquipmentDefinitions();
+  const equipmentNames = equipmentIds.map(
+    (id) => equipmentDefinitions.find((item) => item.id === id)?.displayName ?? id,
+  );
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
@@ -203,9 +207,7 @@ function ExerciseRow({
                 className="mt-1 text-[11px] font-medium text-primary"
               >
                 Nie mam{" "}
-                {equipmentIds
-                  .map((id) => getAllEquipmentDefinitions().find((item) => item.id === id)?.displayName ?? id)
-                  .join(", ")}
+                {equipmentNames.join(", ")}
               </button>
             )}
           </div>
@@ -772,8 +774,12 @@ function SessionDetail() {
         )}
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
-          <div className="soft-card flex items-center justify-between gap-3 p-3 text-xs">
-            <span className="text-muted-foreground">Ćwiczenie zostało zamienione.</span>
+          <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
+            <span className="text-muted-foreground">
+              {(state.exerciseReplacements[date] ?? []).length === 1
+                ? "Ćwiczenie zostało zamienione."
+                : "Ćwiczenia zostały zamienione."}
+            </span>
             {(state.exerciseReplacements[date] ?? []).map((replacement) => (
               <span key={replacement.id} className="inline-flex items-center gap-2">
                 <span className="text-muted-foreground">

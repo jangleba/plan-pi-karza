@@ -106,34 +106,34 @@ function saveLocal(userId: string, s: LocalState) {
 }
 
 function replaceExerciseInSession(
-    session: SessionDay,
-    exerciseId: string,
-    replacement: TrainingExercise,
-  ): SessionDay {
-    const replace = (exercise: TrainingExercise) =>
-      exercise.id === exerciseId ? replacement : exercise;
+  session: SessionDay,
+  exerciseId: string,
+  replacement: TrainingExercise,
+): SessionDay {
+  const replace = (exercise: TrainingExercise) =>
+    exercise.id === exerciseId ? replacement : exercise;
   const replaceFlat = (item: ExerciseItem) =>
     item.exerciseId === exerciseId
       ? { ...item, name: replacement.name, exerciseId: replacement.exerciseId }
       : item;
-    return {
-      ...session,
-      structuredSections: session.structuredSections?.map((section) => ({
-        ...section,
-        blocks: section.blocks.map((block) => ({
-          ...block,
-          exercises: block.exercises.map(replace),
-        })),
+  return {
+    ...session,
+    structuredSections: session.structuredSections?.map((section) => ({
+      ...section,
+      blocks: section.blocks.map((block) => ({
+        ...block,
+        exercises: block.exercises.map(replace),
       })),
-      sections: {
-        warmup: session.sections.warmup.map(replaceFlat),
-        main: session.sections.main.map(replaceFlat),
-        accessory: session.sections.accessory.map(replaceFlat),
-        footballTransfer: session.sections.footballTransfer.map(replaceFlat),
-        cooldown: session.sections.cooldown.map(replaceFlat),
-      },
-    };
-  }
+    })),
+    sections: {
+      warmup: session.sections.warmup.map(replaceFlat),
+      main: session.sections.main.map(replaceFlat),
+      accessory: session.sections.accessory.map(replaceFlat),
+      footballTransfer: session.sections.footballTransfer.map(replaceFlat),
+      cooldown: session.sections.cooldown.map(replaceFlat),
+    },
+  };
+}
 
 export function applyExerciseReplacements(
     session: SessionDay,
@@ -922,6 +922,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       };
       const next = {
         ...s,
+        equipmentNotice: null,
         profile: {
           ...s.profile,
           unavailableEquipmentIds: Array.from(
