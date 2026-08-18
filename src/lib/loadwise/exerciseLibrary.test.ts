@@ -230,7 +230,57 @@ describe("workout validation report", () => {
 // Exercise Library 2.0 — kontrakt danych
 // ---------------------------------------------------------------------------
 
-const EXPECTED_IDS = [
+const PHASE_3A_IDS = [
+  "heavy_back_squat",
+  "front_squat",
+  "goblet_squat",
+  "trap_bar_deadlift",
+  "barbell_deadlift",
+  "barbell_romanian_deadlift",
+  "romanian_deadlift_db",
+  "hip_thrust",
+  "bodyweight_split_squat",
+  "bulgarian_split_squat",
+  "reverse_lunge",
+  "lateral_lunge",
+  "step_up",
+  "single_leg_romanian_deadlift",
+  "leg_press",
+  "leg_extension",
+  "seated_leg_curl",
+  "lying_leg_curl",
+  "standing_calf_raise",
+  "seated_soleus_raise",
+  "snap_down",
+  "drop_landing",
+  "countermovement_jump",
+  "squat_jump",
+  "broad_jump",
+  "repeated_broad_jump",
+  "bilateral_pogo",
+  "single_leg_pogo",
+  "lateral_pogo",
+  "split_squat_jump",
+  "box_jump",
+  "depth_jump",
+  "hurdle_hops",
+  "lateral_bound_to_stick",
+  "single_leg_hop_and_stick",
+  "diagonal_bound_to_stick",
+  "trap_bar_jump",
+  "dumbbell_jump_squat",
+  "barbell_jump_squat",
+  "kettlebell_swing",
+  "push_press",
+  "power_clean",
+  "med_ball_throw",
+  "medicine_ball_overhead_backward_throw",
+  "medicine_ball_rotational_scoop_toss",
+  "medicine_ball_slam",
+  "band_assisted_jump",
+];
+
+const EXISTING_IDS = [
   "bodyweight_split_squat",
   "bodyweight_squat",
   "glute_bridge",
@@ -252,10 +302,24 @@ const EXPECTED_IDS = [
 ];
 
 describe("library contract 2.0", () => {
-  it("keeps exactly the existing 18 ids", () => {
+  it("resolves exactly the approved Phase 3A catalog", () => {
+    const resolved = PHASE_3A_IDS.map((id) => resolveExerciseId(id));
+    expect(resolved).toEqual(PHASE_3A_IDS);
+    expect(new Set(resolved).size).toBe(47);
+    expect(
+      PHASE_3A_IDS.filter((id) => getExerciseDefinition(id)?.category === "strength").length,
+    ).toBe(20);
+    expect(
+      PHASE_3A_IDS.filter((id) => getExerciseDefinition(id)?.category === "plyometric").length,
+    ).toBe(16);
+    expect(
+      PHASE_3A_IDS.filter((id) => getExerciseDefinition(id)?.category === "power").length,
+    ).toBe(11);
+  });
+
+  it("preserves all existing stable ids", () => {
     const ids = getAllExerciseDefinitions().map((d) => d.id);
-    expect(ids.length).toBe(18);
-    expect([...ids].sort()).toEqual([...EXPECTED_IDS].sort());
+    expect(EXISTING_IDS.every((id) => ids.includes(id))).toBe(true);
   });
 
   it("ids are unique", () => {
@@ -362,6 +426,120 @@ describe("library contract 2.0", () => {
     const result = selectEquipmentAwareReplacement("mystery_move", youthBeginner());
     expect(result.exercise).toBeNull();
     expect(result.blockRebuildRequired).toBe(true);
+  });
+
+  it("has acyclic, equipment-aware Phase 3A replacement behavior", () => {
+    const adult = adultAdvanced();
+    const noTrapBar = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+        unavailableEquipmentIds: ["trap_bar"],
+      }),
+    );
+    expect(selectEquipmentAwareReplacement("trap_bar_jump", noTrapBar).exercise?.id).toBe(
+      "dumbbell_jump_squat",
+    );
+    const noBarbellSetup = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+        unavailableEquipmentIds: ["barbell", "rack"],
+      }),
+    );
+    expect(selectEquipmentAwareReplacement("barbell_jump_squat", noBarbellSetup).exercise?.id).toBe(
+      "dumbbell_jump_squat",
+    );
+    expect(selectEquipmentAwareReplacement("trap_bar_deadlift", noTrapBar).exercise?.id).toBe(
+      "barbell_deadlift",
+    );
+    expect(
+      selectEquipmentAwareReplacement(
+        "trap_bar_deadlift",
+        buildAthleteTrainingProfile(
+          makeProfile({
+            age: 25,
+            level: "advanced",
+            gymExperienceLevel: "advanced",
+            movementCompetence: "high",
+            supervisionLevel: "full",
+            unavailableEquipmentIds: ["trap_bar", "barbell"],
+          }),
+        ),
+      ).blockRebuildRequired,
+    ).toBe(true);
+    expect(selectEquipmentAwareReplacement("trap_bar_jump", adult).exercise?.id).toBe(
+      "trap_bar_jump",
+    );
+  });
+
+  it("handles landing, reactive, assisted and medicine-ball replacement rules", () => {
+    const adult = adultAdvanced();
+    const noBox = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+        unavailableEquipmentIds: ["platform"],
+      }),
+    );
+    expect(selectEquipmentAwareReplacement("drop_landing", noBox).exercise?.id).toBe("snap_down");
+    const lowReadiness = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+      }),
+      {},
+      { readiness: 3 },
+    );
+    expect(selectEquipmentAwareReplacement("hurdle_hops", lowReadiness).exercise?.id).toBe(
+      "bilateral_pogo",
+    );
+    const noAnchorOrBall = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+        unavailableEquipmentIds: ["rack", "med_ball"],
+      }),
+    );
+    expect(
+      selectEquipmentAwareReplacement("band_assisted_jump", noAnchorOrBall).blockRebuildRequired,
+    ).toBe(true);
+    expect(
+      selectEquipmentAwareReplacement("med_ball_throw", noAnchorOrBall).blockRebuildRequired,
+    ).toBe(true);
+    expect(
+      selectEquipmentAwareReplacement("medicine_ball_slam", noAnchorOrBall).blockRebuildRequired,
+    ).toBe(true);
+    const lowCompetence = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "low",
+        supervisionLevel: "full",
+      }),
+    );
+    expect(selectEquipmentAwareReplacement("hurdle_hops", lowCompetence).blockRebuildRequired).toBe(
+      true,
+    );
+    expect(
+      validateExerciseLibraryCompleteness().issues.filter((i) => i.problem.includes("Cykl")).length,
+    ).toBe(0);
   });
 
   it("rejects unavailable equipment in definition metadata", () => {
