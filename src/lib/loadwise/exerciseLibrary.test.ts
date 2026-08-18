@@ -488,11 +488,22 @@ describe("library contract 2.0", () => {
         gymExperienceLevel: "advanced",
         movementCompetence: "high",
         supervisionLevel: "full",
-        unavailableEquipmentIds: ["box"],
+        unavailableEquipmentIds: ["platform"],
       }),
     );
     expect(selectEquipmentAwareReplacement("drop_landing", noBox).exercise?.id).toBe("snap_down");
-    expect(selectEquipmentAwareReplacement("hurdle_hops", noBox).exercise?.id).toBe(
+    const lowReadiness = buildAthleteTrainingProfile(
+      makeProfile({
+        age: 25,
+        level: "advanced",
+        gymExperienceLevel: "advanced",
+        movementCompetence: "high",
+        supervisionLevel: "full",
+      }),
+      {},
+      { readiness: 3 },
+    );
+    expect(selectEquipmentAwareReplacement("hurdle_hops", lowReadiness).exercise?.id).toBe(
       "bilateral_pogo",
     );
     const noAnchorOrBall = buildAthleteTrainingProfile(
