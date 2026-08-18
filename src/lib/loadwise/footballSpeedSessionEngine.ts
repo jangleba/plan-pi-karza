@@ -113,12 +113,13 @@ function approved(id: string): ExerciseDefinition | undefined {
   return exercise?.approved === true && exercise.draft === false ? exercise : undefined;
 }
 
+/** Prefer the deterministic ID order, then use an approved primary catalog fallback. */
 function choose(
   ids: string[],
   quality: FootballSpeedQuality[],
+  catalog: readonly ExerciseDefinition[],
   avoidId?: string,
 ): ExerciseDefinition {
-  const catalog = getFootballSpeedCatalog();
   for (const id of ids) {
     const exercise = approved(id);
     if (
@@ -225,7 +226,7 @@ function buildExercise(
       replacementStatus: def.equipmentRequired.some((equipment) =>
         (input.profile.unavailableEquipmentIds ?? []).includes(equipment),
       )
-        ? "replaced"
+        ? "blocked"
         : "not_required",
     },
     pass,
@@ -277,7 +278,8 @@ function buildSessionDay(
 export function generateFootballSpeedSession(
   input: FootballSpeedEngineInput,
 ): FootballSpeedSession {
-  const excludedExerciseIds = getFootballSpeedCatalog()
+  const catalog = getFootballSpeedCatalog();
+  const excludedExerciseIds = catalog
     .filter((exercise) => exercise.speedQualities?.includes(REPEATED_SPRINT))
     .map((exercise) => exercise.id);
   if (hasPain(input)) {
@@ -318,10 +320,11 @@ export function generateFootballSpeedSession(
     exercises.push(buildExercise(def, order++, input, "technical", "controlled"));
     exercises.push(buildExercise(def, order++, input, "technical", "faster"));
   }
-  const primary = choose(FAMILY_PRIMARY[input.family], FAMILY_QUALITIES[input.family]);
+  const primary = choose(FAMILY_PRIMARY[input.family], FAMILY_QUALITIES[input.family], catalog);
   const secondary = choose(
     FAMILY_SECONDARY[input.family],
     FAMILY_QUALITIES[input.family],
+    catalog,
     primary.id,
   );
   exercises.push(
