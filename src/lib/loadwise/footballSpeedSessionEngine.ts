@@ -388,7 +388,7 @@ export function generateFootballSpeedSession(
       purpose:
         "Maksymalny pionowy odbiór, zmiana nóg w locie, lądowanie na jednej nodze i odbicie z drugiej.",
       sets: low ? "2" : "3",
-      reps: "4–6 kontaktów na stronę",
+      reps: "4–6",
       distanceOrDuration: "4–6 kontaktów na stronę",
       restBetweenReps: "60–90 s",
       restBetweenSets: "90 s",
