@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "./types";
-import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
+import { BALL_WORK_PATTERN, generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
 const profile = (overrides: Partial<Profile> = {}): Profile => ({
   name: "Test",
@@ -31,18 +31,42 @@ const profile = (overrides: Partial<Profile> = {}): Profile => ({
 });
 
 describe("football speed session engine", () => {
-  it("keeps preparation, A→C→B→D order and two passes", () => {
+  it("keeps the RAMP, exactly three technique drills and sprint order", () => {
     const result = generateFootballSpeedSession({
       profile: profile(),
       date: "2026-08-20",
       family: "acceleration",
     });
     expect(result.status).toBe("generated");
+    expect(result.exercises[0]?.distanceOrDuration).toBe("8–12 min");
     expect(result.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId)).toEqual(
-      ["a_skip", "a_skip", "c_skip", "c_skip", "b_skip", "b_skip", "d_skip", "d_skip"],
+      ["a_skip", "wall_triple_switch", "straight_leg_run_bound"],
     );
-    expect(result.exercises.filter((e) => e.role === "technical").every((e) => e.pass)).toBe(true);
+    expect(result.exercises.findIndex((e) => e.role === "primary")).toBeGreaterThan(
+      result.exercises.findIndex((e) => e.role === "technical"),
+    );
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
+  });
+
+  it.each([
+    "acceleration",
+    "maximum_velocity",
+    "curved_sprinting",
+    "deceleration_cod",
+    "reactive_agility_reacceleration",
+  ] as const)("is off-ball for %s", (family) => {
+    const result = generateFootballSpeedSession({ profile: profile(), date: "2026-08-20", family });
+    expect(
+      result.exercises.every((exercise) => {
+        const text = `${exercise.exerciseId} ${exercise.name} ${exercise.equipment.requiredEquipment.join(" ")}`;
+        return !BALL_WORK_PATTERN.test(text);
+      }),
+    ).toBe(true);
+    expect(
+      result.exercises.every((exercise) =>
+        exercise.equipment.requiredEquipment.every((item) => item !== "med_ball"),
+      ),
+    ).toBe(true);
   });
 
   it.each([
@@ -82,7 +106,7 @@ describe("football speed session engine", () => {
       family: "maximum_velocity",
       readiness: 4,
     });
-    expect(result.exercises.filter((e) => e.role === "technical").length).toBe(8);
+    expect(result.exercises.filter((e) => e.role === "technical").length).toBe(3);
     expect(result.exercises.some((e) => e.exerciseId.includes("repeated"))).toBe(false);
     expect(result.excludedExerciseIds.length).toBeGreaterThan(0);
   });

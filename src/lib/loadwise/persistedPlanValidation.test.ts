@@ -1,19 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ExerciseItem,
-  Profile,
-  SessionDay,
-} from "./types";
-import {
-  persistedPlanNeedsRegeneration,
-  validatePersistedPlan,
-} from "./persistedPlanValidation";
+import type { ExerciseItem, Profile, SessionDay } from "./types";
+import { persistedPlanNeedsRegeneration, validatePersistedPlan } from "./persistedPlanValidation";
 
 const ENGINE_VERSION = "test-engine-v1";
 
-function sections(
-  main: ExerciseItem[],
-): SessionDay["sections"] {
+function sections(main: ExerciseItem[]): SessionDay["sections"] {
   return {
     warmup: [],
     main,
@@ -23,19 +14,14 @@ function sections(
   };
 }
 
-function profile(
-  overrides: Partial<Profile> = {},
-): Profile {
+function profile(overrides: Partial<Profile> = {}): Profile {
   return {
     clubTrainingDays: [],
     ...overrides,
   } as Profile;
 }
 
-function session(
-  date: string,
-  overrides: Partial<SessionDay> = {},
-): SessionDay {
+function session(date: string, overrides: Partial<SessionDay> = {}): SessionDay {
   return {
     generatorVersion: ENGINE_VERSION,
     date,
@@ -60,9 +46,7 @@ function session(
   };
 }
 
-function fullSprint(
-  date: string,
-): SessionDay {
+function fullSprint(date: string): SessionDay {
   return session(date, {
     title: "Sprint i przyspieszenie",
     sessionType: "Szybkość",
@@ -76,9 +60,7 @@ function fullSprint(
   });
 }
 
-function speedMicrodose(
-  date: string,
-): SessionDay {
+function speedMicrodose(date: string): SessionDay {
   return session(date, {
     title: "Wejście w prędkość",
     sessionType: "Ekspozycja szybkościowa",
@@ -92,9 +74,7 @@ function speedMicrodose(
   });
 }
 
-function restDay(
-  date: string,
-): SessionDay {
+function restDay(date: string): SessionDay {
   return session(date, {
     dayType: "rest",
     title: "Dzień wolny",
@@ -111,115 +91,67 @@ describe("validatePersistedPlan", () => {
 
     day.title = "Dziś: szybkość";
 
-    day.secondSession = speedMicrodose(
-      "2026-08-06",
-    );
+    day.secondSession = speedMicrodose("2026-08-06");
 
-    day.secondSession.title =
-      "Sprint — wejście w prędkość";
+    day.secondSession.title = "Sprint — wejście w prędkość";
 
-    const result = validatePersistedPlan(
-      [day],
-      profile(),
-      ENGINE_VERSION,
-    );
+    const result = validatePersistedPlan([day], profile(), ENGINE_VERSION);
 
     expect(result.valid).toBe(false);
 
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.code ===
-          "duplicate-speed-same-day",
-      ),
-    ).toBe(true);
+    expect(result.issues.some((issue) => issue.code === "duplicate-speed-same-day")).toBe(true);
   });
   it("odrzuca pusty plan", () => {
-    const result = validatePersistedPlan(
-      [],
-      profile(),
-      ENGINE_VERSION,
-    );
+    const result = validatePersistedPlan([], profile(), ENGINE_VERSION);
 
     expect(result.valid).toBe(false);
-    expect(
-      result.issues.some(
-        (issue) => issue.code === "missing-plan",
-      ),
-    ).toBe(true);
+    expect(result.issues.some((issue) => issue.code === "missing-plan")).toBe(true);
+  });
+
+  it("oznacza zapisaną sesję szybkościową z pracą z piłką do regeneracji", () => {
+    const day = fullSprint("2026-08-03");
+    day.sections.main[0] = {
+      name: "Sprint po podaniu",
+      exerciseId: "dribble_to_sprint_transition",
+      prescription: "4 × 20 m",
+    };
+
+    const result = validatePersistedPlan([day], profile(), ENGINE_VERSION);
+
+    expect(result.valid).toBe(false);
+    expect(result.issues.some((issue) => issue.code === "invalid-speed-content")).toBe(true);
   });
 
   it("odrzuca plan ze starej wersji generatora", () => {
-    const plan = [
-      restDay("2026-08-03"),
-    ];
+    const plan = [restDay("2026-08-03")];
 
     plan[0].generatorVersion = "old-engine";
 
-    const result = validatePersistedPlan(
-      plan,
-      profile(),
-      ENGINE_VERSION,
-    );
+    const result = validatePersistedPlan(plan, profile(), ENGINE_VERSION);
 
     expect(result.valid).toBe(false);
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.code === "stale-generator",
-      ),
-    ).toBe(true);
+    expect(result.issues.some((issue) => issue.code === "stale-generator")).toBe(true);
   });
 
   it("wykrywa dwa realne bodźce szybkościowe jednego dnia", () => {
     const day = fullSprint("2026-08-03");
-    day.secondSession =
-      speedMicrodose("2026-08-03");
+    day.secondSession = speedMicrodose("2026-08-03");
 
-    const result = validatePersistedPlan(
-      [day],
-      profile(),
-      ENGINE_VERSION,
-    );
+    const result = validatePersistedPlan([day], profile(), ENGINE_VERSION);
 
     expect(result.valid).toBe(false);
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.code ===
-          "duplicate-speed-same-day",
-      ),
-    ).toBe(true);
+    expect(result.issues.some((issue) => issue.code === "duplicate-speed-same-day")).toBe(true);
 
-    expect(
-      persistedPlanNeedsRegeneration(
-        [day],
-        profile(),
-        ENGINE_VERSION,
-      ),
-    ).toBe(true);
+    expect(persistedPlanNeedsRegeneration([day], profile(), ENGINE_VERSION)).toBe(true);
   });
 
   it("wykrywa realną szybkość dzień po dniu", () => {
-    const plan = [
-      fullSprint("2026-08-03"),
-      speedMicrodose("2026-08-04"),
-    ];
+    const plan = [fullSprint("2026-08-03"), speedMicrodose("2026-08-04")];
 
-    const result = validatePersistedPlan(
-      plan,
-      profile(),
-      ENGINE_VERSION,
-    );
+    const result = validatePersistedPlan(plan, profile(), ENGINE_VERSION);
 
     expect(result.valid).toBe(false);
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.code ===
-          "adjacent-speed-days",
-      ),
-    ).toBe(true);
+    expect(result.issues.some((issue) => issue.code === "adjacent-speed-days")).toBe(true);
   });
 
   it("wykrywa trening klubowy w złym dniu", () => {
@@ -238,13 +170,7 @@ describe("validatePersistedPlan", () => {
     );
 
     expect(result.valid).toBe(false);
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.code ===
-          "club-day-mismatch",
-      ),
-    ).toBe(true);
+    expect(result.issues.some((issue) => issue.code === "club-day-mismatch")).toBe(true);
   });
 
   it("akceptuje aktualny i bezpieczny plan", () => {
@@ -257,21 +183,11 @@ describe("validatePersistedPlan", () => {
       }),
     ];
 
-    const result = validatePersistedPlan(
-      plan,
-      profile(),
-      ENGINE_VERSION,
-    );
+    const result = validatePersistedPlan(plan, profile(), ENGINE_VERSION);
 
     expect(result.valid).toBe(true);
     expect(result.issues).toEqual([]);
 
-    expect(
-      persistedPlanNeedsRegeneration(
-        plan,
-        profile(),
-        ENGINE_VERSION,
-      ),
-    ).toBe(false);
+    expect(persistedPlanNeedsRegeneration(plan, profile(), ENGINE_VERSION)).toBe(false);
   });
 });

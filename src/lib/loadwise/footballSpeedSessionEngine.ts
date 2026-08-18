@@ -71,6 +71,8 @@ export interface FootballSpeedSession {
 
 const SKIP_FLOW = ["a_skip", "c_skip", "b_skip", "d_skip"] as const;
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
+export const BALL_WORK_PATTERN =
+  /\bball\b|piłka\b|passing|pass(?:es|ing)?|receiv(?:e|ing)|dribbl|feint|zwod|przyjęci|podani/i;
 const ACCELERATION_CUES = [
   "Pchaj podłoże do tyłu.",
   "Przykładaj siłę w dół i do tyłu.",
@@ -99,17 +101,21 @@ const FAMILY_PRIMARY: Record<FootballSpeedFamily, string[]> = {
   ],
 };
 
-const FAMILY_SECONDARY: Record<FootballSpeedFamily, string[]> = {
-  acceleration: ["progressive_deceleration_5_10_15", "accel_decel_reaccel"],
-  maximum_velocity: ["football_curved_sprint", "progressive_build_up_sprint"],
-  curved_sprinting: ["reactive_curved_sprint", "football_curved_sprint"],
-  deceleration_cod: ["cut_and_reaccelerate", "deceleration_lateral_exit"],
-  reactive_agility_reacceleration: ["accel_decel_reaccel", "cut_and_reaccelerate"],
-};
+export function isOffBallSpeedExercise(exercise: ExerciseDefinition): boolean {
+  return (
+    exercise.requiresBall === false &&
+    !exercise.equipmentRequired.includes("med_ball") &&
+    !BALL_WORK_PATTERN.test(
+      [exercise.id, exercise.name, exercise.displayNamePl, ...exercise.aliases].join(" "),
+    )
+  );
+}
 
 function approved(id: string): ExerciseDefinition | undefined {
   const exercise = getExerciseDefinition(id);
-  return exercise?.approved === true && exercise.draft === false ? exercise : undefined;
+  return exercise?.approved === true && exercise.draft === false && isOffBallSpeedExercise(exercise)
+    ? exercise
+    : undefined;
 }
 
 /** Prefer the deterministic ID order, then use an approved primary catalog fallback. */
@@ -121,6 +127,7 @@ function choose(
   avoidId?: string,
 ): ExerciseDefinition {
   const available = (exercise: ExerciseDefinition) =>
+    isOffBallSpeedExercise(exercise) &&
     exercise.equipmentRequired.every((equipment) => !unavailableEquipmentIds.includes(equipment));
   for (const id of ids) {
     const exercise = approved(id);
@@ -137,6 +144,7 @@ function choose(
       exercise.approved === true &&
       exercise.draft === false &&
       available(exercise) &&
+      isOffBallSpeedExercise(exercise) &&
       exercise.id !== avoidId &&
       exercise.sessionRoles?.includes("primary") &&
       exercise.speedQualities?.some((item) => quality.includes(item)),
@@ -192,6 +200,7 @@ function buildExercise(
   role: "preparation" | "technical" | "primary" | "secondary" | "primer",
   pass?: "controlled" | "faster",
   direction?: "left" | "right" | "left/right",
+  overrides: Partial<FootballSpeedExercise> = {},
 ): FootballSpeedExercise {
   const low = readiness(input) <= 5;
   const prescription = def.defaultPrescription;
@@ -236,6 +245,7 @@ function buildExercise(
     },
     pass,
     direction,
+    ...overrides,
   };
 }
 
@@ -318,13 +328,77 @@ export function generateFootballSpeedSession(
   let order = 1;
   const preparation = approved("a_march");
   if (!preparation) throw new Error("Brak zatwierdzonego przygotowania A-march.");
-  exercises.push(buildExercise(preparation, order++, input, "preparation"));
-  for (const id of SKIP_FLOW) {
-    const def = approved(id);
-    if (!def) throw new Error(`Brak zatwierdzonego skipu ${id}.`);
-    exercises.push(buildExercise(def, order++, input, "technical", "controlled"));
-    exercises.push(buildExercise(def, order++, input, "technical", "faster"));
-  }
+  exercises.push(
+    buildExercise(preparation, order++, input, "preparation", undefined, undefined, {
+      name: "RAMP — przygotowanie atletyczne",
+      purpose: "Podnieś temperaturę i przygotuj zakres ruchu bez piłki.",
+      sets: "1",
+      reps: "ciągłe",
+      distanceOrDuration: "8–12 min",
+      restBetweenReps: "bez przerwy",
+      restBetweenSets: "—",
+      coachingCuesPl: [
+        "Stopniowo zwiększaj tempo",
+        "Tylko przygotowanie ruchowe, bez pracy technicznej",
+      ],
+    }),
+  );
+  const flow = SKIP_FLOW.map((id) => approved(id));
+  if (flow.some((def) => !def))
+    throw new Error("Brak zatwierdzonego ćwiczenia w sekwencji A → C → B → D.");
+  exercises.push(
+    buildExercise(flow[0]!, order++, input, "technical", undefined, undefined, {
+      name: "A → C → B → D — sekwencja techniki biegu",
+      purpose: "Dwa przejścia 15–20 m: pierwsze kontrolowane, drugie szybsze.",
+      sets: "2",
+      reps: "2 przejścia",
+      distanceOrDuration: "15–20 m",
+      intensity: "1. kontrolowana; 2. szybka",
+      restBetweenReps: "30–60 s, pełny powrót",
+      restBetweenSets: "60–90 s",
+      coachingCuesPl: [
+        "Wykonaj kolejno A → C → B → D",
+        "Pierwsze przejście kontrolowane, drugie szybsze",
+        "Zatrzymaj serię przy utracie rytmu",
+      ],
+    }),
+  );
+  const wallSwitch = approved("wall_triple_switch");
+  const bounds = approved("straight_leg_run_bound");
+  if (!wallSwitch || !bounds) throw new Error("Brak zatwierdzonych ćwiczeń techniki biegu.");
+  exercises.push(
+    buildExercise(wallSwitch, order++, input, "technical", undefined, undefined, {
+      name: "Single → double → triple A-switch → A-skip",
+      purpose: "Sekwencja zmian A-switch zakończona A-skip.",
+      sets: low ? "2" : "3",
+      reps: "1 sekwencja",
+      distanceOrDuration: "10–15 s",
+      restBetweenReps: "30–45 s",
+      restBetweenSets: "60–90 s",
+      coachingCuesPl: [
+        "Single, double, triple switch",
+        "Przejdź płynnie do A-skip",
+        "Miednica stabilna",
+      ],
+    }),
+  );
+  exercises.push(
+    buildExercise(bounds, order++, input, "technical", undefined, undefined, {
+      name: "Naprzemienne boundy pionowe",
+      purpose:
+        "Maksymalny pionowy odbiór, zmiana nóg w locie, lądowanie na jednej nodze i odbicie z drugiej.",
+      sets: low ? "2" : "3",
+      reps: "4–6",
+      distanceOrDuration: "4–6 kontaktów na stronę",
+      restBetweenReps: "60–90 s",
+      restBetweenSets: "90 s",
+      coachingCuesPl: [
+        "Maksymalny pionowy take-off",
+        "Zmień nogę w locie",
+        "Ląduj cicho i odbij się z drugiej nogi",
+      ],
+    }),
+  );
   const unavailableEquipmentIds = input.profile.unavailableEquipmentIds ?? [];
   const primary = choose(
     FAMILY_PRIMARY[input.family],
@@ -332,33 +406,54 @@ export function generateFootballSpeedSession(
     catalog,
     unavailableEquipmentIds,
   );
-  const secondary = choose(
-    FAMILY_SECONDARY[input.family],
-    FAMILY_QUALITIES[input.family],
-    catalog,
-    unavailableEquipmentIds,
-    primary.id,
-  );
-  exercises.push(
-    buildExercise(
-      primary,
-      order++,
-      input,
-      activation || low ? "primer" : "primary",
-      undefined,
-      input.family === "curved_sprinting" ? "left" : undefined,
-    ),
-  );
-  exercises.push(
-    buildExercise(
-      secondary,
-      order++,
-      input,
-      "secondary",
-      undefined,
-      input.family === "curved_sprinting" ? "right" : undefined,
-    ),
-  );
+  if (!activation) {
+    exercises.push(
+      buildExercise(
+        primary,
+        order++,
+        input,
+        low ? "primer" : "primary",
+        undefined,
+        input.family === "curved_sprinting" ? "left" : undefined,
+        input.family === "acceleration"
+          ? {
+              sets: low ? "3" : "4–6",
+              reps: "1",
+              distanceOrDuration: "10–20 m",
+              restBetweenReps: "90–180 s",
+              restBetweenSets: "90–180 s",
+              coachingCuesPl: [
+                "Pochylenie od kostek",
+                "Projekuj ciało do przodu",
+                "Uderzaj pod lub lekko za biodrami i unoś się stopniowo",
+              ],
+            }
+          : input.family === "maximum_velocity"
+            ? {
+                sets: low ? "2" : "3–5",
+                reps: "1",
+                distanceOrDuration: "20 m lotu + 20–30 m nabiegu",
+                restBetweenReps: "3–5 min",
+                restBetweenSets: "3–5 min",
+              }
+            : input.family === "curved_sprinting"
+              ? {
+                  sets: low ? "2" : "3–4",
+                  reps: "1 na stronę",
+                  distanceOrDuration: "20–30 m na stronę",
+                  restBetweenReps: "2–3 min",
+                  restBetweenSets: "2–3 min",
+                }
+              : {
+                  sets: low ? "2" : "3",
+                  reps: "1 na stronę",
+                  distanceOrDuration: "10–20 m",
+                  restBetweenReps: "2–3 min, pełna regeneracja",
+                  restBetweenSets: "3 min",
+                },
+      ),
+    );
+  }
   const title = activation
     ? "Aktywacja szybkości piłkarskiej"
     : `Szybkość piłkarska: ${input.family}`;
@@ -369,8 +464,8 @@ export function generateFootballSpeedSession(
     title,
     session: buildSessionDay(input, exercises, title),
     exercises,
-    primaryExerciseId: primary.id,
-    secondaryExerciseId: secondary.id,
+    primaryExerciseId: activation ? undefined : primary.id,
+    secondaryExerciseId: undefined,
     excludedExerciseIds,
     safetyNote:
       "Pełny odpoczynek między powtórzeniami; zatrzymaj serię przy bólu lub spadku jakości.",
