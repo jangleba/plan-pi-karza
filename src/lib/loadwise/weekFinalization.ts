@@ -315,7 +315,8 @@ export function repairDuplicateSpeedSameDay(
   let moved = 0;
   let removed = 0;
 
-  for (const day of weekPlan) {
+  for (let dayIndex = 0; dayIndex < weekPlan.length; dayIndex += 1) {
+    const day = weekPlan[dayIndex];
     if (countSpeedSessionsForDay(day) <= 1) continue;
     // main i secondSession to szybkość — zostaw main, wyjmij secondSession.
     if (day.secondSession && isSpeedSession(day.secondSession)) {
@@ -352,7 +353,7 @@ export function repairDuplicateSpeedSameDay(
             "Przeniesiono drugą szybkość na wolny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
         };
         const candidate = weekPlan.slice();
-        candidate[weekPlan.indexOf(day)] = { ...day };
+        candidate[dayIndex] = { ...day };
         candidate[idx] = relocated;
         if (!passesGlobalWeekGate(candidate, profile)) {
           removed += 1;
@@ -596,7 +597,12 @@ export function repairBackToBackSpeedSessions(
       if (!passesGlobalWeekGate(candidate, profile)) {
         if (isSpeedSession(laterDay)) {
           weekPlan[laterIndex] = {
-            ...candidate[laterIndex],
+            ...laterDay,
+            dayType: "rest" as DayType,
+            title: "Odpoczynek",
+            slotLabel: null,
+            secondSession: laterDay.secondSession ?? null,
+            exercises: [],
             reason: "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
             whyToday: "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
           };
