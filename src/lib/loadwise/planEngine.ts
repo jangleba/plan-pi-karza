@@ -4377,7 +4377,11 @@ export function generatePlan(
         },
         secondSession: null,
       };
-      if (cell?.stimulus === "sprint" || cell?.stimulus === "speed_exposure" || cell?.stimulus === "cod") {
+      const integratedSpeed =
+        cell?.stimulus === "sprint" ||
+        cell?.stimulus === "speed_exposure" ||
+        cell?.stimulus === "cod";
+      if (integratedSpeed) {
         applyFootballSpeedPlan(session, cell.stimulus);
       }
       // Strukturalne, wariantowe sesje siłowni (rola + periodyzacja + anty-powtórzenia).
@@ -4385,7 +4389,7 @@ export function generatePlan(
         applyGymPlan(session);
         reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
         session.reason = reason;
-      } else if (toMatch !== 2 && sinceMatch !== 1) {
+      } else if (!integratedSpeed && toMatch !== 2 && sinceMatch !== 1) {
         // Wymuszenie czystości kategorii: sprint/piłka/bieganie/prehab generowane
         // z puli właściwej kategorii i walidowane (bez mieszania kategorii).
         const cat = enforceSessionCategory(session, profile, {
