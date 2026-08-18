@@ -113,16 +113,26 @@ function approved(id: string): ExerciseDefinition | undefined {
   return exercise?.approved === true && exercise.draft === false ? exercise : undefined;
 }
 
-function choose(ids: string[], quality: FootballSpeedQuality[]): ExerciseDefinition {
+function choose(
+  ids: string[],
+  quality: FootballSpeedQuality[],
+  avoidId?: string,
+): ExerciseDefinition {
   const catalog = getFootballSpeedCatalog();
   for (const id of ids) {
     const exercise = approved(id);
-    if (exercise && exercise.speedQualities?.some((item) => quality.includes(item))) return exercise;
+    if (
+      exercise &&
+      exercise.id !== avoidId &&
+      exercise.speedQualities?.some((item) => quality.includes(item))
+    )
+      return exercise;
   }
   const fallback = catalog.find(
     (exercise) =>
       exercise.approved === true &&
       exercise.draft === false &&
+      exercise.id !== avoidId &&
       exercise.sessionRoles?.includes("primary") &&
       exercise.speedQualities?.some((item) => quality.includes(item)),
   );
@@ -150,7 +160,10 @@ function hasHardConflict(input: FootballSpeedEngineInput): boolean {
   return (input.externalSessions ?? []).some((exposure) => {
     if (exposure.kind === "match" && exposure.date === input.date) return true;
     if (exposure.date === input.date && (exposure.hard ?? exposure.kind === "club")) return true;
-    return exposure.hard === true && [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(exposure.date);
+    return (
+      exposure.hard === true &&
+      [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(exposure.date)
+    );
   });
 }
 
@@ -170,7 +183,7 @@ function buildExercise(
   def: ExerciseDefinition,
   order: number,
   input: FootballSpeedEngineInput,
-  role: "technical" | "primary" | "secondary" | "primer",
+  role: "preparation" | "technical" | "primary" | "secondary" | "primer",
   pass?: "controlled" | "faster",
   direction?: "left" | "right" | "left/right",
 ): FootballSpeedExercise {
@@ -181,8 +194,16 @@ function buildExercise(
   const distance = prescription?.distanceM
     ? `${low ? prescription.distanceM.min : prescription.distanceM.max} m`
     : `${prescription?.workSeconds?.min ?? 10}–${prescription?.workSeconds?.max ?? 20} s`;
-  const intensity = low || pass === "controlled" ? "kontrolowana (60–75%)" : role === "technical" ? "szybka" : "wysoka, bez utraty jakości";
-  const cues = [...(def.coachingCues ?? []), ...(def.speedQualities?.includes("acceleration") ? ACCELERATION_CUES : [])];
+  const intensity =
+    low || pass === "controlled"
+      ? "kontrolowana (60–75%)"
+      : role === "technical"
+        ? "szybka"
+        : "wysoka, bez utraty jakości";
+  const cues = [
+    ...(def.coachingCues ?? []),
+    ...(def.speedQualities?.includes("acceleration") ? ACCELERATION_CUES : []),
+  ];
   return {
     order,
     role,
@@ -196,18 +217,27 @@ function buildExercise(
     restBetweenReps: `${prescription?.restSeconds?.min ?? 60}–${prescription?.restSeconds?.max ?? 180} s, pełny powrót jakości`,
     restBetweenSets: `${Math.max(90, prescription?.restSeconds?.max ?? 120)} s`,
     coachingCuesPl: cues,
-    safetyStopRule: "Natychmiast przerwij przy bólu, pogorszeniu kontroli lub wyraźnym spadku jakości.",
+    safetyStopRule:
+      "Natychmiast przerwij przy bólu, pogorszeniu kontroli lub wyraźnym spadku jakości.",
     equipment: {
       requiredEquipment: def.equipmentRequired.map(String),
       unavailableEquipment: input.profile.unavailableEquipmentIds ?? [],
-      replacementStatus: def.equipmentRequired.length ? "replaced" : "not_required",
+      replacementStatus: def.equipmentRequired.some((equipment) =>
+        (input.profile.unavailableEquipmentIds ?? []).includes(equipment),
+      )
+        ? "replaced"
+        : "not_required",
     },
     pass,
     direction,
   };
 }
 
-function buildSessionDay(input: FootballSpeedEngineInput, exercises: FootballSpeedExercise[], title: string): SessionDay {
+function buildSessionDay(
+  input: FootballSpeedEngineInput,
+  exercises: FootballSpeedExercise[],
+  title: string,
+): SessionDay {
   const toItem = (exercise: FootballSpeedExercise) => ({
     name: exercise.name,
     exerciseId: exercise.exerciseId,
@@ -244,15 +274,36 @@ function buildSessionDay(input: FootballSpeedEngineInput, exercises: FootballSpe
   };
 }
 
-export function generateFootballSpeedSession(input: FootballSpeedEngineInput): FootballSpeedSession {
+export function generateFootballSpeedSession(
+  input: FootballSpeedEngineInput,
+): FootballSpeedSession {
   const excludedExerciseIds = getFootballSpeedCatalog()
     .filter((exercise) => exercise.speedQualities?.includes(REPEATED_SPRINT))
     .map((exercise) => exercise.id);
   if (hasPain(input)) {
-    return { status: "blocked", date: input.date, family: input.family, title: "Szybkość wstrzymana", session: null, exercises: [], excludedExerciseIds, safetyNote: "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą." };
+    return {
+      status: "blocked",
+      date: input.date,
+      family: input.family,
+      title: "Szybkość wstrzymana",
+      session: null,
+      exercises: [],
+      excludedExerciseIds,
+      safetyNote:
+        "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą.",
+    };
   }
   if (isMatchDay(input) || isMatchPlusOne(input) || hasHardConflict(input)) {
-    return { status: "blocked", date: input.date, family: input.family, title: "Szybkość przełożona", session: null, exercises: [], excludedExerciseIds, safetyNote: "Dzień meczu lub twarda sąsiednia ekspozycja — brak hard speed." };
+    return {
+      status: "blocked",
+      date: input.date,
+      family: input.family,
+      title: "Szybkość przełożona",
+      session: null,
+      exercises: [],
+      excludedExerciseIds,
+      safetyNote: "Dzień meczu lub twarda sąsiednia ekspozycja — brak hard speed.",
+    };
   }
   const activation = isMatchMinusOne(input) || input.recentHighSpeedExposure === true;
   const low = readiness(input) <= 5 || (input.fatigue ?? 0) >= 8;
@@ -268,10 +319,34 @@ export function generateFootballSpeedSession(input: FootballSpeedEngineInput): F
     exercises.push(buildExercise(def, order++, input, "technical", "faster"));
   }
   const primary = choose(FAMILY_PRIMARY[input.family], FAMILY_QUALITIES[input.family]);
-  const secondary = choose(FAMILY_SECONDARY[input.family], FAMILY_QUALITIES[input.family]);
-  exercises.push(buildExercise(primary, order++, input, activation || low ? "primer" : "primary", undefined, input.family === "curved_sprinting" ? "left" : undefined));
-  exercises.push(buildExercise(secondary, order++, input, "secondary", undefined, input.family === "curved_sprinting" ? "right" : undefined));
-  const title = activation ? "Aktywacja szybkości piłkarskiej" : `Szybkość piłkarska: ${input.family}`;
+  const secondary = choose(
+    FAMILY_SECONDARY[input.family],
+    FAMILY_QUALITIES[input.family],
+    primary.id,
+  );
+  exercises.push(
+    buildExercise(
+      primary,
+      order++,
+      input,
+      activation || low ? "primer" : "primary",
+      undefined,
+      input.family === "curved_sprinting" ? "left" : undefined,
+    ),
+  );
+  exercises.push(
+    buildExercise(
+      secondary,
+      order++,
+      input,
+      "secondary",
+      undefined,
+      input.family === "curved_sprinting" ? "right" : undefined,
+    ),
+  );
+  const title = activation
+    ? "Aktywacja szybkości piłkarskiej"
+    : `Szybkość piłkarska: ${input.family}`;
   return {
     status: activation ? "activation" : "generated",
     date: input.date,
@@ -282,8 +357,10 @@ export function generateFootballSpeedSession(input: FootballSpeedEngineInput): F
     primaryExerciseId: primary.id,
     secondaryExerciseId: secondary.id,
     excludedExerciseIds,
-    safetyNote: "Pełny odpoczynek między powtórzeniami; zatrzymaj serię przy bólu lub spadku jakości.",
+    safetyNote:
+      "Pełny odpoczynek między powtórzeniami; zatrzymaj serię przy bólu lub spadku jakości.",
   };
 }
 
+/** Backward-compatible descriptive alias for the engine entry point. */
 export const buildFootballSpeedSession = generateFootballSpeedSession;

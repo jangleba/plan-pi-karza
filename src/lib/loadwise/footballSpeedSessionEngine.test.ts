@@ -38,16 +38,9 @@ describe("football speed session engine", () => {
       family: "acceleration",
     });
     expect(result.status).toBe("generated");
-    expect(result.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId)).toEqual([
-      "a_skip",
-      "a_skip",
-      "c_skip",
-      "c_skip",
-      "b_skip",
-      "b_skip",
-      "d_skip",
-      "d_skip",
-    ]);
+    expect(result.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId)).toEqual(
+      ["a_skip", "a_skip", "c_skip", "c_skip", "b_skip", "b_skip", "d_skip", "d_skip"],
+    );
     expect(result.exercises.filter((e) => e.role === "technical").every((e) => e.pass)).toBe(true);
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
   });
@@ -65,9 +58,21 @@ describe("football speed session engine", () => {
 
   it("protects MD, MD+1 and uses activation on MD-1", () => {
     const match = profile({ matchDate: "2026-08-20" });
-    expect(generateFootballSpeedSession({ profile: match, date: "2026-08-20", family: "acceleration" }).status).toBe("blocked");
-    expect(generateFootballSpeedSession({ profile: match, date: "2026-08-21", family: "acceleration" }).status).toBe("blocked");
-    expect(generateFootballSpeedSession({ profile: match, date: "2026-08-19", family: "maximum_velocity" }).status).toBe("activation");
+    expect(
+      generateFootballSpeedSession({ profile: match, date: "2026-08-20", family: "acceleration" })
+        .status,
+    ).toBe("blocked");
+    expect(
+      generateFootballSpeedSession({ profile: match, date: "2026-08-21", family: "acceleration" })
+        .status,
+    ).toBe("blocked");
+    expect(
+      generateFootballSpeedSession({
+        profile: match,
+        date: "2026-08-19",
+        family: "maximum_velocity",
+      }).status,
+    ).toBe("activation");
   });
 
   it("reduces volume for low readiness without conditioning or RSA", () => {
