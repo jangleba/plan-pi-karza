@@ -1755,6 +1755,25 @@ for (const id of ["app_audio_reaction_start", "app_audio_forward_left_right", "a
 LIBRARY.push(...PHASE_3A_EXERCISES);
 LIBRARY.push(...FOOTBALL_SPEED_EXERCISES);
 
+const existingAcceleration = LIBRARY.find((exercise) => exercise.id === "acceleration_mechanics");
+if (existingAcceleration) {
+  existingAcceleration.speedQualities = ["acceleration"];
+  existingAcceleration.sessionRoles = ["technical", "primer"];
+  existingAcceleration.instructionsPl = [...ACCELERATION_CUES];
+  existingAcceleration.objective = "Nauka projekcji i progresywnego wzrostu prędkości.";
+}
+const existingMaxVelocity = LIBRARY.find((exercise) => exercise.id === "max_velocity_high_volume");
+if (existingMaxVelocity) {
+  existingMaxVelocity.speedQualities = ["maximum_velocity_exposure"];
+  existingMaxVelocity.sessionRoles = ["primary"];
+  existingMaxVelocity.defaultPrescription = { distanceM: { min: 10, max: 20 }, intensity: "maximum" };
+}
+const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
+  ...FOOTBALL_SPEED_EXERCISES.map((exercise) => exercise.id),
+  "acceleration_mechanics",
+  "max_velocity_high_volume",
+]);
+
 const LIBRARY_INDEX = new Map<string, ExerciseDefinition>(LIBRARY.map((e) => [e.id, e]));
 
 export function getAllExerciseDefinitions(): ExerciseDefinition[] {
@@ -1773,7 +1792,7 @@ export interface FoundationalSprintFlowStep {
 
 /** Deterministic teaching sequence; competency selection is intentionally deferred. */
 export const FOUNDATIONAL_SPRINT_FLOW: readonly FoundationalSprintFlowStep[] = [
-  { order: "A", exerciseId: "a_skip", variants: ["step_in", "continuous"] },
+  { order: "A", exerciseId: "a_march", variants: ["step_in", "continuous"] },
   { order: "C", exerciseId: "c_skip", variants: ["step_in", "continuous"] },
   { order: "B", exerciseId: "b_skip", variants: ["step_in", "continuous"] },
   { order: "D", exerciseId: "d_skip", variants: ["step_in", "continuous"] },
@@ -1784,7 +1803,7 @@ export function getFoundationalSprintFlow(): readonly FoundationalSprintFlowStep
 }
 
 export function getFootballSpeedCatalog(): readonly ExerciseDefinition[] {
-  return FOOTBALL_SPEED_EXERCISES;
+  return LIBRARY.filter((exercise) => FOOTBALL_SPEED_CATALOG_IDS.has(exercise.id));
 }
 
 // ---------------------------------------------------------------------------
