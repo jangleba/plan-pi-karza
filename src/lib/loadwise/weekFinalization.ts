@@ -352,6 +352,7 @@ export function repairDuplicateSpeedSameDay(
             "Przeniesiono drugą szybkość na wolny dzień — dwie jednostki szybkości jednego dnia są zabronione.",
         };
         const candidate = weekPlan.slice();
+        candidate[weekPlan.indexOf(day)] = { ...day };
         candidate[idx] = relocated;
         if (!passesGlobalWeekGate(candidate, profile)) {
           removed += 1;
@@ -594,7 +595,11 @@ export function repairBackToBackSpeedSessions(
       }
       if (!passesGlobalWeekGate(candidate, profile)) {
         if (isSpeedSession(laterDay)) {
-          weekPlan[laterIndex] = candidate[laterIndex];
+          weekPlan[laterIndex] = {
+            ...candidate[laterIndex],
+            reason: "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
+            whyToday: "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
+          };
         }
         removed += 1;
         unresolvedIssues.push(
