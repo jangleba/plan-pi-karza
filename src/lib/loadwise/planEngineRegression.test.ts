@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generatePlan, weekRanges } from "./planEngine";
-import { isMainGymSession, isClubSession } from "./sessionClassification";
-import { classifySession } from "./sessionClassification";
+import { classifySession, isMainGymSession, isClubSession } from "./sessionClassification";
 import type { Profile, SessionDay } from "./types";
 
 // ---------------------------------------------------------------------------

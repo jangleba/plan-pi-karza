@@ -4092,6 +4092,7 @@ export function generatePlan(
       };
       section.blocks.push(block);
     }
+    sections.sort((a, b) => (a.type === "warmup" ? -1 : b.type === "warmup" ? 1 : 0));
     Object.assign(target, {
       title: speed.title,
       sessionType: "Szybkość piłkarska",
