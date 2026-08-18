@@ -215,11 +215,9 @@ function ExerciseRow({
 const StructuredSections = memo(function StructuredSections({
   sections,
   date,
-  session,
 }: {
   sections: TrainingSection[];
   date: string;
-  session: SessionDay;
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
 
@@ -270,7 +268,7 @@ const StructuredSections = memo(function StructuredSections({
                           const equipmentId = specialistEquipmentForExercise(
                             getExerciseDefinition(e.exerciseId ?? e.name),
                           )[0];
-                          if (equipmentId) markEquipmentUnavailable(date, session, e, equipmentId);
+                          if (equipmentId) markEquipmentUnavailable(date, e, equipmentId);
                         }}
                       />
                     ))}
@@ -554,7 +552,7 @@ function SessionDetail() {
   const { date } = Route.useParams();
   const { slot } = Route.useSearch();
   const router = useRouter();
-  const { state, hydrated, todayIso, undoModification } = useLoadwise();
+  const { state, hydrated, todayIso, undoModification, undoExerciseReplacement } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
   const goBack = useInstantBack("/plan");
 
@@ -748,12 +746,17 @@ function SessionDetail() {
             {shortNote}
           </div>
         )}
+        {state.equipmentNotice && (
+          <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
+            {state.equipmentNotice}
+          </div>
+        )}
 
         {isClub ? (
           <>
             <ClubMonitoring />
             {structured.length > 0 && (
-              <StructuredSections sections={structured} date={date} session={displayedSession} />
+              <StructuredSections sections={structured} date={date} />
             )}
           </>
         ) : (
@@ -761,8 +764,24 @@ function SessionDetail() {
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <StructuredSections sections={structured} date={date} session={displayedSession} />
+            <StructuredSections sections={structured} date={date} />
           </>
+        )}
+
+        {(state.exerciseReplacements[date] ?? []).length > 0 && (
+          <div className="soft-card flex items-center justify-between gap-3 p-3 text-xs">
+            <span className="text-muted-foreground">Ćwiczenie zostało zamienione.</span>
+            {(state.exerciseReplacements[date] ?? []).map((replacement) => (
+              <button
+                key={replacement.id}
+                type="button"
+                onClick={() => undoExerciseReplacement(date, replacement.id)}
+                className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Cofnij
+              </button>
+            ))}
+          </div>
         )}
 
         {canShowPostSessionForm(session) && <CompletionPanel session={session} />}

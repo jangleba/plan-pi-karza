@@ -646,6 +646,7 @@ export interface LoadwiseState {
   modifications: Record<string, SessionModification[]>; // keyed by date
   transitions: Record<number, WeeklyTransition>; // keyed by week_number
   exerciseReplacements: Record<string, ExerciseReplacement[]>;
+  equipmentNotice: string | null;
 }
 
 export interface ExerciseReplacement {

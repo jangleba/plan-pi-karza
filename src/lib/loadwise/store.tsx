@@ -12,6 +12,7 @@ import type {
   Readiness,
   TestResult,
   ScoutingData,
+  ExerciseItem,
   SessionDay,
   SessionCompletion,
   SessionModification,
@@ -50,6 +51,7 @@ const initialState: LoadwiseState = {
   modifications: {},
   transitions: {},
   exerciseReplacements: {},
+  equipmentNotice: null,
 };
 
 const ONBOARDING_SCHEMA_VERSION = 1;
@@ -101,16 +103,19 @@ function saveLocal(userId: string, s: LocalState) {
   } catch {
     /* ignore */
   }
+}
 
-  function replaceExerciseInSession(
+function replaceExerciseInSession(
     session: SessionDay,
     exerciseId: string,
     replacement: TrainingExercise,
   ): SessionDay {
     const replace = (exercise: TrainingExercise) =>
       exercise.id === exerciseId ? replacement : exercise;
-    const replaceFlat = (item: any) =>
-      item.exerciseId === exerciseId ? { ...item, name: replacement.name, exerciseId: replacement.exerciseId } : item;
+  const replaceFlat = (item: ExerciseItem) =>
+    item.exerciseId === exerciseId
+      ? { ...item, name: replacement.name, exerciseId: replacement.exerciseId }
+      : item;
     return {
       ...session,
       structuredSections: session.structuredSections?.map((section) => ({
@@ -130,7 +135,7 @@ function saveLocal(userId: string, s: LocalState) {
     };
   }
 
-  export function applyExerciseReplacements(
+export function applyExerciseReplacements(
     session: SessionDay,
     replacements: ExerciseReplacement[],
   ): SessionDay {
@@ -139,7 +144,6 @@ function saveLocal(userId: string, s: LocalState) {
       session,
     );
   }
-}
 
 // ---- map DB rows <-> Profile ----
 type AnyRow = Record<string, unknown>;
@@ -397,7 +401,6 @@ interface LoadwiseContextValue {
   undoModification: (date: string, id: string) => Promise<void>;
   markEquipmentUnavailable: (
     date: string,
-    session: SessionDay,
     exercise: TrainingExercise,
     equipmentId: string,
   ) => void;
@@ -615,6 +618,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         modifications,
         transitions,
         exerciseReplacements: local.exerciseReplacements,
+        equipmentNotice: null,
       });
       setHydrated(true);
       if (clearFutureOverlays) {
@@ -876,7 +880,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   function markEquipmentUnavailable(
     date: string,
-    session: SessionDay,
     exercise: TrainingExercise,
     equipmentId: string,
   ) {
@@ -890,7 +893,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         ),
       });
       const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
-      if (!result.exercise || result.blockRebuildRequired) return s;
+      if (!result.exercise || result.blockRebuildRequired) {
+        return {
+          ...s,
+          equipmentNotice:
+            "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
+        };
+      }
       const replacement: TrainingExercise = {
         ...exercise,
         exerciseId: result.exercise.id,
