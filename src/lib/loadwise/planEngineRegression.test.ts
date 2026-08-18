@@ -37,7 +37,7 @@ function baseProfile(p: Partial<Profile> = {}): Profile {
 }
 
 const START = new Date("2026-07-13T00:00:00"); // poniedziałek
-const EXPECTED_SPEED_BLOCK_COUNT = 11; // A-march + 8 skip passes + primary + secondary
+const EXPECTED_SPEED_BLOCK_COUNT = 5; // RAMP + 3 technique drills + one primary stimulus
 
 function fullWeeks(plan: SessionDay[]) {
   const ranges = weekRanges(START, plan.length).filter(

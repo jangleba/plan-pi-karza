@@ -323,6 +323,7 @@ export function generateFootballSpeedSession(
     };
   }
   const activation = isMatchMinusOne(input) || input.recentHighSpeedExposure === true;
+  const activationOnly = activation;
   const low = readiness(input) <= 5 || (input.fatigue ?? 0) >= 8;
   const exercises: FootballSpeedExercise[] = [];
   let order = 1;
@@ -406,52 +407,54 @@ export function generateFootballSpeedSession(
     catalog,
     unavailableEquipmentIds,
   );
-  exercises.push(
-    buildExercise(
-      primary,
-      order++,
-      input,
-      activation || low ? "primer" : "primary",
-      undefined,
-      input.family === "curved_sprinting" ? "left" : undefined,
-      input.family === "acceleration"
-        ? {
-            sets: low ? "3" : "4–6",
-            reps: "1",
-            distanceOrDuration: "10–20 m",
-            restBetweenReps: "90–180 s",
-            restBetweenSets: "90–180 s",
-            coachingCuesPl: [
-              "Pochylenie od kostek",
-              "Projekuj ciało do przodu",
-              "Uderzaj pod lub lekko za biodrami i unoś się stopniowo",
-            ],
-          }
-        : input.family === "maximum_velocity"
+  if (!activationOnly) {
+    exercises.push(
+      buildExercise(
+        primary,
+        order++,
+        input,
+        low ? "primer" : "primary",
+        undefined,
+        input.family === "curved_sprinting" ? "left" : undefined,
+        input.family === "acceleration"
           ? {
-              sets: low ? "2" : "3–5",
+              sets: low ? "3" : "4–6",
               reps: "1",
-              distanceOrDuration: "20 m lotu + 20–30 m nabiegu",
-              restBetweenReps: "3–5 min",
-              restBetweenSets: "3–5 min",
+              distanceOrDuration: "10–20 m",
+              restBetweenReps: "90–180 s",
+              restBetweenSets: "90–180 s",
+              coachingCuesPl: [
+                "Pochylenie od kostek",
+                "Projekuj ciało do przodu",
+                "Uderzaj pod lub lekko za biodrami i unoś się stopniowo",
+              ],
             }
-          : input.family === "curved_sprinting"
+          : input.family === "maximum_velocity"
             ? {
-                sets: low ? "2" : "3–4",
-                reps: "1 na stronę",
-                distanceOrDuration: "20–30 m na stronę",
-                restBetweenReps: "2–3 min",
-                restBetweenSets: "2–3 min",
+                sets: low ? "2" : "3–5",
+                reps: "1",
+                distanceOrDuration: "20 m lotu + 20–30 m nabiegu",
+                restBetweenReps: "3–5 min",
+                restBetweenSets: "3–5 min",
               }
-            : {
-                sets: low ? "2" : "3",
-                reps: "1 na stronę",
-                distanceOrDuration: "10–20 m",
-                restBetweenReps: "2–3 min, pełna regeneracja",
-                restBetweenSets: "3 min",
-              },
-    ),
-  );
+            : input.family === "curved_sprinting"
+              ? {
+                  sets: low ? "2" : "3–4",
+                  reps: "1 na stronę",
+                  distanceOrDuration: "20–30 m na stronę",
+                  restBetweenReps: "2–3 min",
+                  restBetweenSets: "2–3 min",
+                }
+              : {
+                  sets: low ? "2" : "3",
+                  reps: "1 na stronę",
+                  distanceOrDuration: "10–20 m",
+                  restBetweenReps: "2–3 min, pełna regeneracja",
+                  restBetweenSets: "3 min",
+                },
+      ),
+    );
+  }
   const title = activation
     ? "Aktywacja szybkości piłkarskiej"
     : `Szybkość piłkarska: ${input.family}`;
@@ -462,7 +465,7 @@ export function generateFootballSpeedSession(
     title,
     session: buildSessionDay(input, exercises, title),
     exercises,
-    primaryExerciseId: primary.id,
+    primaryExerciseId: activationOnly ? undefined : primary.id,
     secondaryExerciseId: undefined,
     excludedExerciseIds,
     safetyNote:
