@@ -145,6 +145,9 @@ function ExerciseRow({
 }) {
   const presc = compactPrescription(e);
   const rest = restLabel(e);
+  const equipmentIds = specialistEquipmentForExercise(
+    getExerciseDefinition(e.exerciseId ?? e.name),
+  );
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
@@ -193,14 +196,14 @@ function ExerciseRow({
                 {rest}
               </div>
             )}
-            {!done && specialistEquipmentForExercise(getExerciseDefinition(e.exerciseId ?? e.name)).length > 0 && (
+            {!done && equipmentIds.length > 0 && (
               <button
                 type="button"
                 onClick={onUnavailable}
                 className="mt-1 text-[11px] font-medium text-primary"
               >
                 Nie mam{" "}
-                {specialistEquipmentForExercise(getExerciseDefinition(e.exerciseId ?? e.name))
+                {equipmentIds
                   .map((id) => getAllEquipmentDefinitions().find((item) => item.id === id)?.displayName ?? id)
                   .join(", ")}
               </button>
@@ -265,10 +268,10 @@ const StructuredSections = memo(function StructuredSections({
                         onToggle={() => toggle(e.id)}
                         onOpenDetail={() => openDetail(e)}
                         onUnavailable={() => {
-                          const equipmentId = specialistEquipmentForExercise(
+                          const equipmentIds = specialistEquipmentForExercise(
                             getExerciseDefinition(e.exerciseId ?? e.name),
-                          )[0];
-                          if (equipmentId) markEquipmentUnavailable(date, e, equipmentId);
+                          );
+                          if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
                         }}
                       />
                     ))}
@@ -772,14 +775,18 @@ function SessionDetail() {
           <div className="soft-card flex items-center justify-between gap-3 p-3 text-xs">
             <span className="text-muted-foreground">Ćwiczenie zostało zamienione.</span>
             {(state.exerciseReplacements[date] ?? []).map((replacement) => (
-              <button
-                key={replacement.id}
-                type="button"
-                onClick={() => undoExerciseReplacement(date, replacement.id)}
-                className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
-              >
-                <Undo2 className="h-3.5 w-3.5" /> Cofnij
-              </button>
+              <span key={replacement.id} className="inline-flex items-center gap-2">
+                <span className="text-muted-foreground">
+                  {replacement.original.name} → {replacement.replacement.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => undoExerciseReplacement(date, replacement.id)}
+                  className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
+                >
+                  <Undo2 className="h-3.5 w-3.5" /> Cofnij
+                </button>
+              </span>
             ))}
           </div>
         )}

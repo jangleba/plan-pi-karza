@@ -402,7 +402,7 @@ interface LoadwiseContextValue {
   markEquipmentUnavailable: (
     date: string,
     exercise: TrainingExercise,
-    equipmentId: string,
+    equipmentIds: string[],
   ) => void;
   undoExerciseReplacement: (date: string, replacementId: string) => void;
   confirmWeeklyTransition: (
@@ -650,6 +650,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         exerciseReplacements: next.exerciseReplacements,
       });
     }
+
+    useEffect(() => {
+      if (user && hydrated) persistLocal(state);
+    }, [user?.id, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
   }
 
   async function clearFutureScheduleOverlays() {
@@ -881,7 +885,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   function markEquipmentUnavailable(
     date: string,
     exercise: TrainingExercise,
-    equipmentId: string,
+    equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
     setState((s) => {
@@ -889,7 +893,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       if (!s.profile) return s;
       const athlete = buildAthleteTrainingProfile(s.profile, {
         unavailableEquipmentIds: Array.from(
-          new Set([...(s.profile.unavailableEquipmentIds ?? []), equipmentId]),
+          new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
         ),
       });
       const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
@@ -913,7 +917,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         exerciseId: exercise.id,
         original: exercise,
         replacement,
-        equipmentId,
+        equipmentIds,
         createdAt: new Date().toISOString(),
       };
       const next = {
@@ -921,7 +925,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         profile: {
           ...s.profile,
           unavailableEquipmentIds: Array.from(
-            new Set([...(s.profile.unavailableEquipmentIds ?? []), equipmentId]),
+            new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
           ),
         },
         exerciseReplacements: {
@@ -929,7 +933,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           [date]: [...(s.exerciseReplacements[date] ?? []), item],
         },
       };
-      persistLocal(next);
       return next;
     });
   }
@@ -941,7 +944,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       if (!removed) return s;
       const stillUsed = Object.values(s.exerciseReplacements)
         .flat()
-        .some((r) => r.id !== replacementId && r.equipmentId === removed.equipmentId);
+        .some(
+          (r) =>
+            r.id !== replacementId &&
+            r.equipmentIds.some((id) => removed.equipmentIds.includes(id)),
+        );
       const next = {
         ...s,
         profile:
@@ -949,7 +956,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             ? {
                 ...s.profile,
                 unavailableEquipmentIds: (s.profile.unavailableEquipmentIds ?? []).filter(
-                  (id) => id !== removed.equipmentId,
+                  (id) => !removed.equipmentIds.includes(id),
                 ),
               }
             : s.profile,
@@ -958,7 +965,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           [date]: current.filter((r) => r.id !== replacementId),
         },
       };
-      persistLocal(next);
       return next;
     });
   }

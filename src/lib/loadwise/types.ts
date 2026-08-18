@@ -654,6 +654,6 @@ export interface ExerciseReplacement {
   exerciseId: string;
   original: TrainingExercise;
   replacement: TrainingExercise;
-  equipmentId: string;
+  equipmentIds: string[];
   createdAt: string;
 }
