@@ -159,7 +159,8 @@ function dateOffset(date: string, days: number): string {
 function hasHardConflict(input: FootballSpeedEngineInput): boolean {
   return (input.externalSessions ?? []).some((exposure) => {
     if (exposure.kind === "match" && exposure.date === input.date) return true;
-    if (exposure.date === input.date && (exposure.hard ?? exposure.kind === "club")) return true;
+    if (exposure.date === input.date && (exposure.hard === true || exposure.kind === "club"))
+      return true;
     return (
       exposure.hard === true &&
       [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(exposure.date)
