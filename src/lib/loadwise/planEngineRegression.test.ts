@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generatePlan, weekRanges } from "./planEngine";
-import { isMainGymSession, isClubSession } from "./sessionClassification";
+import { classifySession, isMainGymSession, isClubSession } from "./sessionClassification";
 import type { Profile, SessionDay } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -37,6 +37,7 @@ function baseProfile(p: Partial<Profile> = {}): Profile {
 }
 
 const START = new Date("2026-07-13T00:00:00"); // poniedziałek
+const EXPECTED_SPEED_BLOCK_COUNT = 11; // A-march + 8 skip passes + primary + secondary
 
 function fullWeeks(plan: SessionDay[]) {
   const ranges = weekRanges(START, plan.length).filter(
@@ -69,6 +70,74 @@ describe("regression — gym access + full week", () => {
         const gym = countGym(week);
         expect(gym).toBeGreaterThanOrEqual(2);
       }
+    });
+
+    describe("Phase 3D live football speed integration", () => {
+      it("uses the Phase 3C engine on an eligible speed day and preserves ordered blocks", () => {
+        const plan = generatePlan(
+          baseProfile({
+            goal: "speed",
+            hasGym: false,
+            individualTrainingDays: [1, 3, 5],
+          }),
+          START,
+          7,
+        );
+        const speedDay = plan.find(
+          (day) =>
+            day.dayType === "training" &&
+            day.sessionType === "Szybkość piłkarska" &&
+            day.structuredSections?.length,
+        );
+        expect(speedDay).toBeDefined();
+        expect(speedDay?.reason).toContain("Phase 3C");
+        expect(speedDay?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
+          EXPECTED_SPEED_BLOCK_COUNT,
+        );
+        expect(speedDay?.structuredSections?.flatMap((section) => section.blocks).map((block) => block.exercises[0].exerciseId))
+          .toEqual(speedDay?.sections.warmup.concat(speedDay.sections.main).map((item) => item.exerciseId));
+      });
+
+      it("never replaces club or match commitments with an owned speed session", () => {
+        const plan = generatePlan(
+          baseProfile({
+            goal: "speed",
+            clubTrainingDays: [2],
+            matchDate: "2026-07-19",
+          }),
+          START,
+          7,
+        );
+        expect(plan.find((day) => day.dayType === "club")?.sessionType).toBe("Klub");
+        expect(plan.find((day) => day.dayType === "match")?.sessionType).toBe("Mecz");
+        expect(plan.filter((day) => day.dayType === "club" || day.dayType === "match")
+          .every((day) => day.sessionType !== "Szybkość piłkarska")).toBe(true);
+      });
+
+      it("keeps repeated sprint classified as conditioning", () => {
+        const session: SessionDay = {
+          ...generatePlan(baseProfile({ hasGym: false }), START, 7)[0],
+          sessionType: "Wydolność — repeated sprint RSA",
+          title: "Powtarzane sprinty",
+          sections: {
+            warmup: [],
+            main: [{ name: "Repeated sprint", prescription: "6 × 30 m" }],
+            accessory: [],
+            footballTransfer: [],
+            cooldown: [],
+          },
+        };
+        expect(classifySession(session).category).toBe("endurance_conditioning");
+        expect(classifySession(session).countsAsSpeed).toBe(false);
+      });
+
+      it("is deterministic and survives JSON persistence unchanged", () => {
+        const profile = baseProfile({ goal: "speed", hasGym: false });
+        const first = generatePlan(profile, START, 7);
+        const hydrated = JSON.parse(JSON.stringify(first)) as SessionDay[];
+        expect(hydrated).toEqual(first);
+        expect(generatePlan(profile, START, 7)).toEqual(first);
+      });
     });
   }
 

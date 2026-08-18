@@ -12,6 +12,9 @@ import type {
   WeekStats,
   LoadTag,
   Mesocycle,
+  TrainingSection,
+  TrainingBlock,
+  TrainingExercise,
 } from "./types";
 import { assertPlanExerciseContract } from "./planExerciseContract";
 import {
@@ -40,6 +43,11 @@ import {
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
+import {
+  generateFootballSpeedSession,
+  type FootballSpeedFamily,
+} from "./footballSpeedSessionEngine";
+import { hasRealSpeedExposure } from "./speedLoad";
 import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import {
   finalizeWeekPlan,
@@ -4000,6 +4008,106 @@ export function generatePlan(
     gymSessionsThisWeek++;
   };
 
+  const speedFamilyFor = (stimulus: Stimulus, date: string): FootballSpeedFamily => {
+    if (stimulus === "cod") return "deceleration_cod";
+    if (stimulus === "speed_exposure") {
+      return isoDayOfWeek(parseIso(date)) % 2 === 0
+        ? "maximum_velocity"
+        : "curved_sprinting";
+    }
+    return "acceleration";
+  };
+
+  const externalSpeedSessionsFor = (date: string) => {
+    const current = parseIso(date);
+    const exposures: {
+      date: string;
+      kind: "club" | "match";
+      hard: boolean;
+    }[] = [];
+    for (let offset = -1; offset <= 1; offset++) {
+      const candidate = addDays(current, offset);
+      const candidateIso = isoDate(candidate);
+      if (profile.matchDate === candidateIso) {
+        exposures.push({ date: candidateIso, kind: "match", hard: true });
+      }
+      if (profile.clubTrainingDays.includes(isoDayOfWeek(candidate))) {
+        exposures.push({ date: candidateIso, kind: "club", hard: true });
+      }
+    }
+    return exposures;
+  };
+
+  const applyFootballSpeedPlan = (target: SessionDay, stimulus: Stimulus): void => {
+    const generated = generateFootballSpeedSession({
+      profile,
+      date: target.date,
+      family: speedFamilyFor(stimulus, target.date),
+      externalSessions: externalSpeedSessionsFor(target.date),
+      recentHighSpeedExposure: out.length > 0 && hasRealSpeedExposure(out[out.length - 1]),
+    });
+    if (!generated.session) return;
+    const speed = generated.session;
+    const sections: TrainingSection[] = [];
+    for (const exercise of generated.exercises) {
+      const trainingExercise: TrainingExercise = {
+        id: `${target.date}-${exercise.order}-${exercise.exerciseId}`,
+        exerciseId: exercise.exerciseId,
+        name: exercise.name,
+        purpose: exercise.purpose,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        duration: exercise.distanceOrDuration,
+        restAfterExercise: exercise.restBetweenReps,
+        restAfterPair: exercise.restBetweenSets,
+        displayPrescription: `${exercise.sets} serie × ${exercise.reps} powt. · ${exercise.distanceOrDuration}`,
+        equipment: exercise.equipment.requiredEquipment.join(", ") || undefined,
+        cue: exercise.coachingCuesPl.join(" "),
+        commonMistake: exercise.safetyStopRule,
+      };
+      const sectionType = exercise.role === "preparation" ? "warmup" : "main";
+      let section = sections.find((item) => item.type === sectionType);
+      if (!section) {
+        section = {
+          id: `${target.date}-${sectionType}`,
+          title: sectionType === "warmup" ? "Przygotowanie" : "Bloki szybkości",
+          type: sectionType,
+          blocks: [],
+        };
+        sections.push(section);
+      }
+      const block: TrainingBlock = {
+        id: trainingExercise.id,
+        title: exercise.purpose,
+        blockType: "single",
+        intent:
+          stimulus === "cod" && exercise.role !== "preparation"
+            ? "braking"
+            : exercise.role === "preparation"
+              ? "mobility"
+              : "power",
+        exercises: [trainingExercise],
+        restAfterBlock: exercise.restBetweenSets,
+        safetyNotes: exercise.safetyStopRule,
+      };
+      section.blocks.push(block);
+    }
+    sections.sort((a, b) => (a.type === "warmup" ? -1 : b.type === "warmup" ? 1 : 0));
+    Object.assign(target, {
+      title: speed.title,
+      sessionType: "Szybkość piłkarska",
+      goalOfSession: speed.goalOfSession,
+      intensity: speed.intensity,
+      durationMin: speed.durationMin,
+      reason: "Sesja wygenerowana przez deterministyczny silnik Phase 3C.",
+      riskManaged: speed.riskManaged,
+      avoidToday: speed.avoidToday,
+      safetyNote: speed.safetyNote,
+      sections: speed.sections,
+      structuredSections: sections,
+    });
+  };
+
   for (let i = 0; i < days; i++) {
     const date = addDays(startDate, i);
     const iso = isoDate(date);
@@ -4270,12 +4378,19 @@ export function generatePlan(
         },
         secondSession: null,
       };
+      const integratedSpeed =
+        cell?.stimulus === "sprint" ||
+        cell?.stimulus === "speed_exposure" ||
+        cell?.stimulus === "cod";
+      if (integratedSpeed) {
+        applyFootballSpeedPlan(session, cell.stimulus);
+      }
       // Strukturalne, wariantowe sesje siłowni (rola + periodyzacja + anty-powtórzenia).
       if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/i.test(built.sessionType)) {
         applyGymPlan(session);
         reason = `Bodziec siłowni z rolą tygodnia: ${session.sessionType.toLowerCase()} — bez kopiowania tego samego szablonu.`;
         session.reason = reason;
-      } else if (toMatch !== 2 && sinceMatch !== 1) {
+      } else if (!integratedSpeed && toMatch !== 2 && sinceMatch !== 1) {
         // Wymuszenie czystości kategorii: sprint/piłka/bieganie/prehab generowane
         // z puli właściwej kategorii i walidowane (bez mieszania kategorii).
         const cat = enforceSessionCategory(session, profile, {
