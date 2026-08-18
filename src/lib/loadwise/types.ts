@@ -69,6 +69,8 @@ export interface Profile {
   usualMatchDay: UsualMatchDay; // weekday usually played, or no fixed day
   matchDate: string | null; // yyyy-MM-dd
   equipment: string[];
+  /** Sprzęt oznaczony przez zawodnika jako niedostępny (stan per użytkownik). */
+  unavailableEquipmentIds?: string[];
   painInjury: boolean;
   doubleSessionsAllowed: DoubleSessions;
   guardianConsent: boolean;
@@ -643,4 +645,14 @@ export interface LoadwiseState {
   scouting: ScoutingData;
   modifications: Record<string, SessionModification[]>; // keyed by date
   transitions: Record<number, WeeklyTransition>; // keyed by week_number
+  exerciseReplacements: Record<string, ExerciseReplacement[]>;
+}
+
+export interface ExerciseReplacement {
+  id: string;
+  exerciseId: string;
+  original: TrainingExercise;
+  replacement: TrainingExercise;
+  equipmentId: string;
+  createdAt: string;
 }

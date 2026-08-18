@@ -104,6 +104,7 @@ export interface AthleteTrainingProfile {
   equipmentAccess: string[];
   gymAccess: boolean;
   homeEquipment: string[];
+  unavailableEquipmentIds?: string[];
   injuryHistory: PainLocation[];
   currentPain: PainLocation[];
   contraindications: string[];
@@ -526,6 +527,7 @@ export function buildAthleteTrainingProfile(
     equipmentAccess: p.equipment ?? [],
     gymAccess,
     homeEquipment: p.homeEquipment ?? [],
+    unavailableEquipmentIds: p.unavailableEquipmentIds ?? [],
     injuryHistory: injuryConstraints.injuryHistory,
     currentPain: injuryConstraints.painLocations,
     contraindications: injuryConstraints.contraindications,

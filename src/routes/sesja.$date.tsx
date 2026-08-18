@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { memo, useEffect, useState, type ReactNode } from "react";
-import { useLoadwise } from "@/lib/loadwise/store";
+import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
@@ -16,6 +16,11 @@ import type {
   
   TrainingExercise,
 } from "@/lib/loadwise/types";
+import {
+  getExerciseDefinition,
+  getAllEquipmentDefinitions,
+  specialistEquipmentForExercise,
+} from "@/lib/loadwise/exerciseLibrary";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
@@ -130,11 +135,13 @@ function ExerciseRow({
   done,
   onToggle,
   onOpenDetail,
+  onUnavailable,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
   onOpenDetail: () => void;
+  onUnavailable: () => void;
 }) {
   const presc = compactPrescription(e);
   const rest = restLabel(e);
@@ -186,6 +193,18 @@ function ExerciseRow({
                 {rest}
               </div>
             )}
+            {!done && specialistEquipmentForExercise(getExerciseDefinition(e.exerciseId ?? e.name)).length > 0 && (
+              <button
+                type="button"
+                onClick={onUnavailable}
+                className="mt-1 text-[11px] font-medium text-primary"
+              >
+                Nie mam{" "}
+                {specialistEquipmentForExercise(getExerciseDefinition(e.exerciseId ?? e.name))
+                  .map((id) => getAllEquipmentDefinitions().find((item) => item.id === id)?.displayName ?? id)
+                  .join(", ")}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -195,9 +214,14 @@ function ExerciseRow({
 
 const StructuredSections = memo(function StructuredSections({
   sections,
+  date,
+  session,
 }: {
   sections: TrainingSection[];
+  date: string;
+  session: SessionDay;
 }) {
+  const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [detail, setDetail] = useState<TrainingExercise | null>(null);
@@ -242,6 +266,12 @@ const StructuredSections = memo(function StructuredSections({
                         done={!!done[e.id]}
                         onToggle={() => toggle(e.id)}
                         onOpenDetail={() => openDetail(e)}
+                        onUnavailable={() => {
+                          const equipmentId = specialistEquipmentForExercise(
+                            getExerciseDefinition(e.exerciseId ?? e.name),
+                          )[0];
+                          if (equipmentId) markEquipmentUnavailable(date, session, e, equipmentId);
+                        }}
                       />
                     ))}
                   </div>
@@ -604,13 +634,17 @@ function SessionDetail() {
   const fallbackExercises = hasFlatSectionContent
     ? []
     : session.exercises ?? [];
+  const displayedSession = applyExerciseReplacements(
+    session,
+    state.exerciseReplacements[date] ?? [],
+  );
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
-    session.structuredSections && session.structuredSections.length
-      ? session.structuredSections
+    displayedSession.structuredSections && displayedSession.structuredSections.length
+      ? displayedSession.structuredSections
       : hasFlatSectionContent
-        ? flatToStructured(session.sections)
+        ? flatToStructured(displayedSession.sections)
         : fallbackExercises.length
           ? flatToStructured({
               warmup: [],
@@ -718,14 +752,16 @@ function SessionDetail() {
         {isClub ? (
           <>
             <ClubMonitoring />
-            {structured.length > 0 && <StructuredSections sections={structured} />}
+            {structured.length > 0 && (
+              <StructuredSections sections={structured} date={date} session={displayedSession} />
+            )}
           </>
         ) : (
           <>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <StructuredSections sections={structured} />
+            <StructuredSections sections={structured} date={date} session={displayedSession} />
           </>
         )}
 

@@ -1031,8 +1031,15 @@ function hasEquipment(def: ExerciseDefinition, a: AthleteTrainingProfile): boole
     return id ? [id] : [];
   });
   return def.equipmentRequired.every((req) => {
-    return owned.includes(req);
+    return owned.includes(req) && !(a.unavailableEquipmentIds ?? []).includes(req);
   });
+}
+
+export function specialistEquipmentForExercise(
+  exercise: ExerciseDefinition | string | undefined,
+): EquipmentId[] {
+  const def = typeof exercise === "string" ? getExerciseDefinition(exercise) : exercise;
+  return (def?.equipmentRequired ?? []).filter((id) => id !== "none");
 }
 
 // ---------------------------------------------------------------------------

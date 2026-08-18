@@ -18,6 +18,8 @@ import type {
   ModificationType,
   SessionStatus,
   WeeklyTransition,
+  ExerciseReplacement,
+  TrainingExercise,
 } from "./types";
 import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
 import { persistMonthlyPlan } from "./persist";
@@ -27,6 +29,8 @@ import { localToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { selectEquipmentAwareReplacement } from "./exerciseLibrary";
 
 const emptyScouting: ScoutingData = {
   strengths: "",
@@ -45,6 +49,7 @@ const initialState: LoadwiseState = {
   scouting: emptyScouting,
   modifications: {},
   transitions: {},
+  exerciseReplacements: {},
 };
 
 const ONBOARDING_SCHEMA_VERSION = 1;
@@ -65,11 +70,13 @@ interface LocalState {
   readiness: Record<string, Readiness>;
   tests: TestResult[];
   scouting: ScoutingData;
+  unavailableEquipmentIds: string[];
+  exerciseReplacements: Record<string, ExerciseReplacement[]>;
 }
 
 function loadLocal(userId: string): LocalState {
   if (typeof window === "undefined")
-    return { readiness: {}, tests: [], scouting: emptyScouting };
+    return { readiness: {}, tests: [], scouting: emptyScouting, unavailableEquipmentIds: [], exerciseReplacements: {} };
   try {
     const raw = window.localStorage.getItem(localKey(userId));
     if (!raw) return { readiness: {}, tests: [], scouting: emptyScouting };
@@ -78,9 +85,13 @@ function loadLocal(userId: string): LocalState {
       readiness: parsed.readiness ?? {},
       tests: parsed.tests ?? [],
       scouting: { ...emptyScouting, ...(parsed.scouting ?? {}) },
+      unavailableEquipmentIds: Array.isArray(parsed.unavailableEquipmentIds)
+        ? parsed.unavailableEquipmentIds
+        : [],
+      exerciseReplacements: parsed.exerciseReplacements ?? {},
     };
   } catch {
-    return { readiness: {}, tests: [], scouting: emptyScouting };
+    return { readiness: {}, tests: [], scouting: emptyScouting, unavailableEquipmentIds: [], exerciseReplacements: {} };
   }
 }
 
@@ -89,6 +100,44 @@ function saveLocal(userId: string, s: LocalState) {
     window.localStorage.setItem(localKey(userId), JSON.stringify(s));
   } catch {
     /* ignore */
+  }
+
+  function replaceExerciseInSession(
+    session: SessionDay,
+    exerciseId: string,
+    replacement: TrainingExercise,
+  ): SessionDay {
+    const replace = (exercise: TrainingExercise) =>
+      exercise.id === exerciseId ? replacement : exercise;
+    const replaceFlat = (item: any) =>
+      item.exerciseId === exerciseId ? { ...item, name: replacement.name, exerciseId: replacement.exerciseId } : item;
+    return {
+      ...session,
+      structuredSections: session.structuredSections?.map((section) => ({
+        ...section,
+        blocks: section.blocks.map((block) => ({
+          ...block,
+          exercises: block.exercises.map(replace),
+        })),
+      })),
+      sections: {
+        warmup: session.sections.warmup.map(replaceFlat),
+        main: session.sections.main.map(replaceFlat),
+        accessory: session.sections.accessory.map(replaceFlat),
+        footballTransfer: session.sections.footballTransfer.map(replaceFlat),
+        cooldown: session.sections.cooldown.map(replaceFlat),
+      },
+    };
+  }
+
+  export function applyExerciseReplacements(
+    session: SessionDay,
+    replacements: ExerciseReplacement[],
+  ): SessionDay {
+    return replacements.reduce(
+      (current, item) => replaceExerciseInSession(current, item.exerciseId, item.replacement),
+      session,
+    );
   }
 }
 
@@ -346,6 +395,13 @@ interface LoadwiseContextValue {
     reason: string,
   ) => Promise<void>;
   undoModification: (date: string, id: string) => Promise<void>;
+  markEquipmentUnavailable: (
+    date: string,
+    session: SessionDay,
+    exercise: TrainingExercise,
+    equipmentId: string,
+  ) => void;
+  undoExerciseReplacement: (date: string, replacementId: string) => void;
   confirmWeeklyTransition: (
     weekNumber: number,
     nextMatchDate: string | null,
@@ -443,11 +499,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .eq("user_id", user.id),
       ]);
 
-      const profile = buildProfile(
+      const rowProfile = buildProfile(
         profRes.data as AnyRow | null,
         athRes.data as AnyRow | null,
       );
       const local = loadLocal(user.id);
+      const profile = rowProfile
+        ? { ...rowProfile, unavailableEquipmentIds: local.unavailableEquipmentIds }
+        : null;
 
      let plan: SessionDay[] = [];
      let planGeneratedFor: string | null = null;
@@ -555,6 +614,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         scouting: local.scouting,
         modifications,
         transitions,
+        exerciseReplacements: local.exerciseReplacements,
       });
       setHydrated(true);
       if (clearFutureOverlays) {
@@ -582,6 +642,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         readiness: next.readiness,
         tests: next.tests,
         scouting: next.scouting,
+        unavailableEquipmentIds: next.profile?.unavailableEquipmentIds ?? [],
+        exerciseReplacements: next.exerciseReplacements,
       });
     }
   }
@@ -687,6 +749,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const revision = await saveProfileRows(profile, true);
     const nextProfile: Profile = {
       ...profile,
+      unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
       onboardingComplete: true,
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
@@ -729,6 +792,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const revision = await saveProfileRows(profile, true);
     const nextProfile: Profile = {
       ...profile,
+      unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
       onboardingComplete: true,
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
@@ -808,6 +872,86 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id,session_id" },
     );
+  }
+
+  function markEquipmentUnavailable(
+    date: string,
+    session: SessionDay,
+    exercise: TrainingExercise,
+    equipmentId: string,
+  ) {
+    if (!user || exercise.completed) return;
+    setState((s) => {
+      if ((s.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return s;
+      if (!s.profile) return s;
+      const athlete = buildAthleteTrainingProfile(s.profile, {
+        unavailableEquipmentIds: Array.from(
+          new Set([...(s.profile.unavailableEquipmentIds ?? []), equipmentId]),
+        ),
+      });
+      const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
+      if (!result.exercise || result.blockRebuildRequired) return s;
+      const replacement: TrainingExercise = {
+        ...exercise,
+        exerciseId: result.exercise.id,
+        name: result.exercise.displayNamePl,
+        equipment: result.exercise.equipmentRequired.join(", "),
+        replacementForBlockedExercise: exercise.name,
+        wasAdjustedForAthleteProfile: true,
+      };
+      const item: ExerciseReplacement = {
+        id: crypto.randomUUID(),
+        exerciseId: exercise.id,
+        original: exercise,
+        replacement,
+        equipmentId,
+        createdAt: new Date().toISOString(),
+      };
+      const next = {
+        ...s,
+        profile: {
+          ...s.profile,
+          unavailableEquipmentIds: Array.from(
+            new Set([...(s.profile.unavailableEquipmentIds ?? []), equipmentId]),
+          ),
+        },
+        exerciseReplacements: {
+          ...s.exerciseReplacements,
+          [date]: [...(s.exerciseReplacements[date] ?? []), item],
+        },
+      };
+      persistLocal(next);
+      return next;
+    });
+  }
+
+  function undoExerciseReplacement(date: string, replacementId: string) {
+    setState((s) => {
+      const current = s.exerciseReplacements[date] ?? [];
+      const removed = current.find((r) => r.id === replacementId);
+      if (!removed) return s;
+      const stillUsed = Object.values(s.exerciseReplacements)
+        .flat()
+        .some((r) => r.id !== replacementId && r.equipmentId === removed.equipmentId);
+      const next = {
+        ...s,
+        profile:
+          s.profile && !stillUsed
+            ? {
+                ...s.profile,
+                unavailableEquipmentIds: (s.profile.unavailableEquipmentIds ?? []).filter(
+                  (id) => id !== removed.equipmentId,
+                ),
+              }
+            : s.profile,
+        exerciseReplacements: {
+          ...s.exerciseReplacements,
+          [date]: current.filter((r) => r.id !== replacementId),
+        },
+      };
+      persistLocal(next);
+      return next;
+    });
   }
 
   async function applyModification(
@@ -1010,7 +1154,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   }
 
   function resetAll() {
-    if (user) saveLocal(user.id, { readiness: {}, tests: [], scouting: emptyScouting });
+    if (user)
+      saveLocal(user.id, {
+        readiness: {},
+        tests: [],
+        scouting: emptyScouting,
+        unavailableEquipmentIds: [],
+        exerciseReplacements: {},
+      });
     setState(initialState);
   }
 
@@ -1028,6 +1179,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completeSession,
         applyModification,
         undoModification,
+        markEquipmentUnavailable,
+        undoExerciseReplacement,
         confirmWeeklyTransition,
         saveReadiness,
         addTest,

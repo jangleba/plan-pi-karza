@@ -7,6 +7,8 @@ import type {
   TrainingExercise,
   AgeSafetyLevel,
 } from "./types";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { selectEquipmentAwareReplacement } from "./exerciseLibrary";
 
 /**
  * Wariantowy generator sesji siłowni dla Loadwise.
@@ -18,6 +20,37 @@ import type {
  */
 
 export type GymWeekPhase = "adaptation" | "development" | "peak" | "deload";
+
+export function filterUnavailableEquipment(
+  sections: TrainingSection[],
+  profile: Profile,
+): TrainingSection[] {
+  if (!(profile.unavailableEquipmentIds?.length ?? 0)) return sections;
+  const athlete = buildAthleteTrainingProfile(profile);
+  return sections.map((section) => ({
+    ...section,
+    blocks: section.blocks.map((block) => ({
+      ...block,
+      exercises: block.exercises.map((exercise) => {
+        const result = selectEquipmentAwareReplacement(
+          exercise.exerciseId ?? exercise.name,
+          athlete,
+        );
+        if (!result.exercise || result.blockRebuildRequired) return exercise;
+        return result.exercise.id === exercise.exerciseId
+          ? exercise
+          : {
+              ...exercise,
+              exerciseId: result.exercise.id,
+              name: result.exercise.displayNamePl,
+              equipment: result.exercise.equipmentRequired.join(", "),
+              replacementForBlockedExercise: exercise.name,
+              wasAdjustedForAthleteProfile: true,
+            };
+      }),
+    })),
+  }));
+}
 
 export type GymRole =
   | "lower_strength_power"
