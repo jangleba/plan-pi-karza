@@ -37,6 +37,7 @@ function baseProfile(p: Partial<Profile> = {}): Profile {
 }
 
 const START = new Date("2026-07-13T00:00:00"); // poniedziałek
+const EXPECTED_SPEED_BLOCK_COUNT = 11; // A-march + 8 skip passes + primary + secondary
 
 function fullWeeks(plan: SessionDay[]) {
   const ranges = weekRanges(START, plan.length).filter(
@@ -90,7 +91,9 @@ describe("regression — gym access + full week", () => {
         );
         expect(speedDay).toBeDefined();
         expect(speedDay?.reason).toContain("Phase 3C");
-        expect(speedDay?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(11);
+        expect(speedDay?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
+          EXPECTED_SPEED_BLOCK_COUNT,
+        );
         expect(speedDay?.structuredSections?.flatMap((section) => section.blocks).map((block) => block.exercises[0].exerciseId))
           .toEqual(speedDay?.sections.warmup.concat(speedDay.sections.main).map((item) => item.exerciseId));
       });
