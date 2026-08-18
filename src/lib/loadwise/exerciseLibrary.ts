@@ -936,7 +936,8 @@ const LIBRARY: ExerciseDefinition[] = [
 ];
 
 function phase3AExercise(
-  overrides: Partial<ExerciseDefinition> & Pick<ExerciseDefinition, "id" | "name" | "displayNamePl">,
+  overrides: Partial<ExerciseDefinition> &
+    Pick<ExerciseDefinition, "id" | "name" | "displayNamePl">,
 ): ExerciseDefinition {
   const power = overrides.category === "power" || overrides.category === "plyometric";
   return {
@@ -1017,8 +1018,8 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     hamstringLoadLevel: "high",
     allowedForYouth: false,
     replacementIds: ["barbell_deadlift"],
-    regressionIds: ["romanian_deadlift_db"],
-    safeAlternativeIds: ["romanian_deadlift_db"],
+    regressionIds: [],
+    safeAlternativeIds: [],
   }),
   phase3AExercise({
     id: "barbell_romanian_deadlift",
@@ -1250,9 +1251,9 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     loadingType: "impact",
     allowedForYouth: true,
     allowedForBeginner: false,
-    replacementIds: ["snap_down"],
-    regressionIds: ["snap_down"],
-    safeAlternativeIds: ["snap_down"],
+    replacementIds: [],
+    regressionIds: [],
+    safeAlternativeIds: [],
   }),
   phase3AExercise({
     id: "single_leg_pogo",
