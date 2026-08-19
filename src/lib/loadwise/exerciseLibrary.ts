@@ -2264,7 +2264,6 @@ export function validateCanonicalReplacementChains(
 ): CanonicalReplacementValidationReport {
   const issues: CanonicalReplacementIssue[] = [];
   const colors = new Map<string, "gray" | "black">();
-  const stack: string[] = [];
   const reported = new Set<string>();
 
   const addIssue = (sourceId: string, targetId: string, problem: string) => {
@@ -2294,18 +2293,14 @@ export function validateCanonicalReplacementChains(
     }
     if (colors.get(target.id) === "black") return;
     colors.set(target.id, "gray");
-    stack.push(target.id);
     for (const nextId of target.replacementIds ?? []) visit(target, nextId);
-    stack.pop();
     colors.set(target.id, "black");
   };
 
   for (const source of getApprovedExerciseDefinitions()) {
     if (colors.get(source.id) === "black") continue;
     colors.set(source.id, "gray");
-    stack.push(source.id);
     for (const targetId of source.replacementIds ?? []) visit(source, targetId);
-    stack.pop();
     colors.set(source.id, "black");
   }
 
