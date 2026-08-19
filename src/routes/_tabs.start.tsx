@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { resolveAdjustedDay, nextMatchDate } from "@/lib/loadwise/dailyCheckin";
+import { resolveEffectiveDay, nextMatchDate } from "@/lib/loadwise/dailyCheckin";
 import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
 import { AppHeader } from "@/components/loadwise/ui";
 import { Button } from "@/components/ui/button";
@@ -194,8 +194,7 @@ function StartScreen() {
 
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const adjustedBase = resolveAdjustedDay(session, readiness, profile);
-  const adjustedToday = swapMod ? swapMod.session : adjustedBase;
+  const adjustedToday = resolveEffectiveDay(session, readiness, profile, todayMods);
 
   const matchDate = nextMatchDate(state.plan, todayIso, profile.matchDate);
   const isMatch = session.dayType === "match";

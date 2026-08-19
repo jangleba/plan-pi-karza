@@ -3,7 +3,7 @@ import { memo, useEffect, useState, type ReactNode } from "react";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
-import { resolveAdjustedDay } from "@/lib/loadwise/dailyCheckin";
+import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
@@ -600,12 +600,12 @@ function SessionDetail() {
 
   // Sesja główna: zamieniona (jeśli jest) lub zaplanowana z gotowością.
   let primary: SessionDay = day;
-  if (swapMod) {
-    primary = swapMod.session;
-  } else if (isToday) {
-    const readiness = state.readiness[todayIso];
-    primary = resolveAdjustedDay(day, readiness, state.profile);
-  }
+  primary = resolveEffectiveDay(
+    day,
+    isToday ? state.readiness[todayIso] : undefined,
+    state.profile,
+    mods,
+  );
 
 
   let session: SessionDay = primary;

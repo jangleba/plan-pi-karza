@@ -4,6 +4,7 @@ import {
   generateFootballSpeedSession,
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
+import { PLAN_ENGINE_VERSION } from "./planEngine";
 import { classifySession } from "./sessionClassification";
 import {
   nearestFutureValidFootballSpeedDate,
@@ -47,6 +48,7 @@ function migrateSession(session: SessionDay, profile: Profile): SessionDay | nul
     dayDbId: session.dayDbId,
     canonicalRevision: session.canonicalRevision,
     canonicalSchemaVersion: session.canonicalSchemaVersion,
+    generatorVersion: PLAN_ENGINE_VERSION,
     readinessAdjustedDate: session.readinessAdjustedDate,
     readinessOriginalSession: session.readinessOriginalSession,
   };

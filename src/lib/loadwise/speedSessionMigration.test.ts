@@ -73,6 +73,7 @@ describe("persisted football speed migration", () => {
     expect(first.migratedDates).toEqual(["2026-08-21"]);
     expect(first.plan[0].dbId).toBe("session-1");
     expect(first.plan[0].speedGeneratorVersion).toBe(FOOTBALL_SPEED_GENERATOR_VERSION);
+    expect(first.plan[0].generatorVersion).toBeDefined();
     const second = migratePersistedSpeedSessions(first.plan, profile(), "2026-08-19", {});
     expect(second.migratedDates).toEqual([]);
     expect(second.plan).toBe(first.plan);

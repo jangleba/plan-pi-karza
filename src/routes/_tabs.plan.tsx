@@ -10,7 +10,7 @@ import {
   validatePlanWeeks,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
-import { resolveAdjustedDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
+import { resolveEffectiveDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
@@ -291,7 +291,12 @@ function PlanScreen() {
   // Obciążenie dnia po korekcie daily readiness (osobna wartość od planned).
   const todayAdjusted =
     todaySession && profile
-      ? resolveAdjustedDay(todaySession, state.readiness[todayIso], profile)
+      ? resolveEffectiveDay(
+          todaySession,
+          state.readiness[todayIso],
+          profile,
+          state.modifications[todayIso] ?? [],
+        )
       : todaySession;
 
   // Tryb sezonu: świadomy wybór w profilu. "Poza sezonem" TYLKO gdy
