@@ -1703,6 +1703,9 @@ const FOOTBALL_SPEED_EXERCISES: ExerciseDefinition[] = [
   ["repeated_linear_short_sprints", "Repeated linear short sprints", "Powtarzane krótkie sprinty liniowe", ["repeated_sprint"], "conditioning"],
   ["repeated_curved_sprints", "Repeated curved sprints", "Powtarzane sprinty po łuku", ["repeated_sprint", "curved_sprint"], "conditioning"],
   ["repeated_shuttle_sprints", "Repeated shuttle sprints", "Powtarzane sprinty wahadłowe", ["repeated_sprint"], "conditioning"],
+  ["a_switch_progression", "A-switch single/double/triple", "Zmiany A: pojedyncza → podwójna → potrójna", ["sprint_technique", "acceleration"], "technical"],
+  ["scissor_bounds", "Scissor bounds", "Naprzemienne wyskoki nożycowe", ["sprint_technique", "acceleration"], "technical"],
+
 ].map(([id, name, displayNamePl, qualities, role]) =>
   footballSpeedExercise({
     id: id as string,
