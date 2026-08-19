@@ -1604,8 +1604,7 @@ function footballSpeedExercise(
   const acceleration = qualities.includes("acceleration") || qualities.includes("reacceleration");
   return {
     id: overrides.id,
-    name: overrides.name,
-    displayNamePl: overrides.displayNamePl,
+
     aliases: [],
     requiresBall: false,
     allowedSessionCategories: ["speed_sprint"],
