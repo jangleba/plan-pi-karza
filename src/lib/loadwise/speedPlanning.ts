@@ -455,7 +455,9 @@ export function getSafeSpeedPlacements(
   const placements: SpeedPlacement[] = [];
 
   (weekPlan ?? []).forEach((day, dayIndex) => {
-    if (isMatchDay(day)) return;
+    // Match day and MD-1 are hard exclusions. A primer is not a hidden
+    // replacement for a blocked speed session.
+    if (isMatchDay(day) || isDayBeforeMatch(day)) return;
     if (dayHasSpeed(day)) return; // nie dwie szybkości tego samego dnia
     // TWARDA ZASADA: min. 1 dzień przerwy między speed — nie dzień po dniu.
     if (adjacentDayHasSpeed(weekPlan, dayIndex)) return;
@@ -871,7 +873,14 @@ export function findAlternativeDayForSpeed(
     context.athleteTrainingProfile,
   ).filter((p) => p.dayIndex !== context.excludeDayIndex);
 
-  const best = placements[0];
+  // Relocation is deliberately directional: use the nearest future valid
+  // date, never a higher-scoring earlier date.
+  const best = placements
+    .filter(
+      (placement) =>
+        context.excludeDayIndex === undefined || placement.dayIndex > context.excludeDayIndex,
+    )
+    .sort((a, b) => a.dayIndex - b.dayIndex)[0];
   if (!best) {
     return {
       dayIndex: null,

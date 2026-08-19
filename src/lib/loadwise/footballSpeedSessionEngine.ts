@@ -376,10 +376,6 @@ function isMatchDay(input: FootballSpeedEngineInput): boolean {
   return input.profile.matchDate === input.date;
 }
 
-function isMatchMinusOne(input: FootballSpeedEngineInput): boolean {
-  return input.profile.matchDate === dateOffset(input.date, 1);
-}
-
 function isMatchPlusOne(input: FootballSpeedEngineInput): boolean {
   return input.profile.matchDate === dateOffset(input.date, -1);
 }
@@ -510,7 +506,14 @@ export function generateFootballSpeedSession(
         "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą.",
     };
   }
-  if (isMatchDay(input) || isMatchPlusOne(input) || hasHardConflict(input)) {
+  // MD-1 is a protected date as well: activation is not a speed-session
+  // replacement and must not be emitted by this engine.
+  if (
+    isMatchDay(input) ||
+    input.profile.matchDate === dateOffset(input.date, 1) ||
+    isMatchPlusOne(input) ||
+    hasHardConflict(input)
+  ) {
     return {
       status: "blocked",
       date: input.date,
@@ -524,7 +527,7 @@ export function generateFootballSpeedSession(
     };
   }
 
-  const activation = isMatchMinusOne(input) || input.recentHighSpeedExposure === true;
+  const activation = input.recentHighSpeedExposure === true;
   const low = activation || readiness(input) <= 5 || (input.fatigue ?? 0) >= 8;
 
   const exercises: FootballSpeedExercise[] = [];

@@ -56,7 +56,7 @@ describe("football speed session engine", () => {
     expect(result.exercises.some((e) => e.exerciseId === exerciseId)).toBe(true);
   });
 
-  it("protects MD, MD+1 and uses activation on MD-1", () => {
+  it("protects MD, MD-1 and MD+1", () => {
     const match = profile({ matchDate: "2026-08-20" });
     expect(
       generateFootballSpeedSession({ profile: match, date: "2026-08-20", family: "acceleration" })
@@ -72,7 +72,7 @@ describe("football speed session engine", () => {
         date: "2026-08-19",
         family: "maximum_velocity",
       }).status,
-    ).toBe("activation");
+    ).toBe("blocked");
   });
 
   it("reduces volume for low readiness without conditioning or RSA", () => {

@@ -48,6 +48,100 @@ function migrateSession(session: SessionDay, profile: Profile): SessionDay {
   };
 }
 
+function dateOffset(date: string, days: number): string {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function isMatchProtectedDate(date: string, profile: Profile): boolean {
+  return (
+    profile.matchDate === date ||
+    profile.matchDate === dateOffset(date, 1) ||
+    profile.matchDate === dateOffset(date, -1)
+  );
+}
+
+function isEligibleForRelocation(
+  date: string,
+  speedDates: Set<string>,
+  planDates: Set<string>,
+  profile: Profile,
+): boolean {
+  if (!planDates.has(date) || isMatchProtectedDate(date, profile) || speedDates.has(date)) {
+    return false;
+  }
+  return !speedDates.has(dateOffset(date, -1)) && !speedDates.has(dateOffset(date, 1));
+}
+
+function relocateInvalidGeneratedSpeedSessions(
+  plan: SessionDay[],
+  profile: Profile,
+  today: string,
+  completions: Record<string, SessionCompletion>,
+  modifications: Record<string, SessionModification[]>,
+): { plan: SessionDay[]; migratedDates: string[] } {
+  const migratedDates: string[] = [];
+  const planDates = new Set(plan.map((day) => day.date));
+  const speedDates = new Set(
+    plan.filter((day) => isSpeed(day)).map((day) => day.date),
+  );
+  const next = [...plan];
+
+  for (let index = 0; index < next.length; index += 1) {
+    const day = next[index];
+    if (
+      day.date <= today ||
+      !isSpeed(day) ||
+      !isAppGeneratedSpeed(day) ||
+      ((day.dbId || day.sessionId) && completions[day.dbId ?? day.sessionId ?? ""]?.completed) ||
+      (modifications[day.date] ?? []).some((mod) => mod.type === "swap")
+    ) {
+      continue;
+    }
+
+    const duplicate = next.some(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index && candidate.date === day.date && isSpeed(candidate),
+    );
+    const previous = index > 0 ? next[index - 1] : undefined;
+    const nextDay = index + 1 < next.length ? next[index + 1] : undefined;
+    const consecutive =
+      (previous && previous.date === dateOffset(day.date, -1) && isSpeed(previous)) ||
+      (nextDay && nextDay.date === dateOffset(day.date, 1) && isSpeed(nextDay));
+    const invalid = duplicate || isMatchProtectedDate(day.date, profile) || Boolean(consecutive);
+    if (!invalid) continue;
+
+    speedDates.delete(day.date);
+    const target = next
+      .slice(index + 1)
+      .map((candidate) => candidate.date)
+      .find((candidateDate) =>
+        isEligibleForRelocation(candidateDate, speedDates, planDates, profile),
+      );
+
+    if (!target) {
+      next.splice(index, 1);
+      index -= 1;
+      migratedDates.push(day.date);
+      continue;
+    }
+
+    const migrated = migrateSession({ ...day, date: target }, profile);
+    if (migrated === day) {
+      next.splice(index, 1);
+      index -= 1;
+      migratedDates.push(day.date);
+      continue;
+    }
+    next[index] = migrated;
+    speedDates.add(target);
+    migratedDates.push(day.date);
+  }
+
+  return { plan: migratedDates.length ? next : plan, migratedDates };
+}
+
 export interface SpeedMigrationResult {
   plan: SessionDay[];
   migratedDates: string[];
@@ -77,5 +171,15 @@ export function migratePersistedSpeedSessions(
     migratedDates.push(day.date);
     return migrated;
   });
-  return { plan: migratedDates.length ? next : plan, migratedDates };
+  const relocated = relocateInvalidGeneratedSpeedSessions(
+    next,
+    profile,
+    today,
+    completions,
+    modifications,
+  );
+  return {
+    plan: relocated.migratedDates.length || migratedDates.length ? relocated.plan : plan,
+    migratedDates: [...migratedDates, ...relocated.migratedDates],
+  };
 }
