@@ -943,22 +943,31 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       equipmentIds,
       createdAt: new Date().toISOString(),
     };
+    let added = false;
     setState((s) => ({
       ...s,
-      equipmentNotice: null,
-      profile: s.profile
-        ? {
-            ...s.profile,
-            unavailableEquipmentIds: Array.from(
-              new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-            ),
-          }
-        : s.profile,
-      exerciseReplacements: {
-        ...s.exerciseReplacements,
-        [date]: [...(s.exerciseReplacements[date] ?? []), item],
-      },
+      ...(s.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)
+        ? {}
+        : (() => {
+            added = true;
+            return {
+              equipmentNotice: null,
+              profile: s.profile
+                ? {
+                    ...s.profile,
+                    unavailableEquipmentIds: Array.from(
+                      new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+                    ),
+                  }
+                : s.profile,
+              exerciseReplacements: {
+                ...s.exerciseReplacements,
+                [date]: [...(s.exerciseReplacements[date] ?? []), item],
+              },
+            };
+          })(),
     }));
+    if (!added) return;
     void supabase
       .from("exercise_replacements" as never)
       .insert({
@@ -969,9 +978,19 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         original_json: item.original,
         replacement_json: item.replacement,
         equipment_ids: item.equipmentIds,
+        active: true,
       } as never)
       .then(({ error }) => {
         if (error) console.warn("[loadwise] replacement persistence failed", error);
+      });
+    void supabase
+      .from("athlete_profiles")
+      .update({
+        unavailable_equipment_ids: athlete.unavailableEquipmentIds,
+      } as never)
+      .eq("user_id", user.id)
+      .then(({ error }) => {
+        if (error) console.warn("[loadwise] equipment availability persistence failed", error);
       });
   }
 
