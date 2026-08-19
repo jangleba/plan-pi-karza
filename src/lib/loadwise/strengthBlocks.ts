@@ -155,7 +155,7 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "step-up na skrzynię": "step_up",
   "wykrok w miejscu": "bodyweight_split_squat",
   "przysiad na jednej nodze do skrzyni": "bodyweight_split_squat",
-  "przysiad": "bodyweight_squat",
+  przysiad: "bodyweight_squat",
   "wiosłowanie sztangą": "romanian_deadlift_db",
   "podciąganie / pull-up": "bodyweight_split_squat",
   "wiosłowanie hantlą jednorącz": "romanian_deadlift_db",
@@ -189,7 +189,7 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "pogo hops (niskie)": "bilateral_pogo",
   "line hops (przeskoki przez linię)": "bilateral_pogo",
   "ankle stiffness hops": "bilateral_pogo",
-  "ankling": "acceleration_mechanics",
+  ankling: "acceleration_mechanics",
   "wall drive (acceleration)": "acceleration_mechanics",
   "a-skip": "acceleration_mechanics",
   "band-assisted pogo (guma)": "bilateral_pogo",
@@ -246,17 +246,22 @@ function canonicalizeGeneratedExercise(name: string) {
   return resolved;
 }
 
-function ex(e: Omit<TrainingExercise, "id">): TrainingExercise {
-  const canonical = canonicalizeGeneratedExercise(e.name);
+function ex(e: Omit<TrainingExercise, "id"> & { canonicalize?: boolean }): TrainingExercise {
+  const { canonicalize = true, ...exercise } = e;
+  const canonical = canonicalize ? canonicalizeGeneratedExercise(exercise.name) : undefined;
   return {
     id: uid("ex"),
     completed: false,
-    ...e,
-    exerciseId: canonical.id,
-    name: canonical.displayNamePl,
-    purpose: e.purpose ?? canonical.stimulus,
-    visualId: e.visualId ?? canonical.id,
-    equipment: e.equipment ?? canonical.equipmentRequired.join(", "),
+    ...exercise,
+    ...(canonical
+      ? {
+          exerciseId: canonical.id,
+          name: canonical.displayNamePl,
+          purpose: exercise.purpose ?? canonical.stimulus,
+          visualId: exercise.visualId ?? canonical.id,
+          equipment: exercise.equipment ?? canonical.equipmentRequired.join(", "),
+        }
+      : {}),
   };
 }
 function block(b: Omit<TrainingBlock, "id">): TrainingBlock {
@@ -390,7 +395,12 @@ const PULL_ADULT = [
   "Wiosłowanie hantlą jednorącz",
   "Wiosłowanie TRX",
 ];
-const PULL_YOUTH = ["Wiosłowanie TRX", "Wiosłowanie hantlą lekko", "Australijskie podciąganie", "Band row"];
+const PULL_YOUTH = [
+  "Wiosłowanie TRX",
+  "Wiosłowanie hantlą lekko",
+  "Australijskie podciąganie",
+  "Band row",
+];
 
 const CARRY = [
   "Farmer's carry",
@@ -449,50 +459,158 @@ interface HamPower {
 
 // Progresja: początkujący / powrót do treningu.
 const HAM_LADDER_BEGINNER: HamEx[] = [
-  { name: "Long-lever hamstring bridge iso", kind: "iso", lowStress: true, cue: "Pięty wbite, biodra wysoko, trzymaj napięcie tylnej taśmy." },
-  { name: "Slider hamstring iso", kind: "iso", lowStress: true, cue: "Pięty na sliderach, biodra w górze, utrzymaj pozycję." },
-  { name: "Hamstring slider curl wspomagany", kind: "curl", lowStress: true, cue: "Powolny ekscentryk, dopomóż rękami w fazie powrotu." },
-  { name: "Nordic wspomagany (assisted)", kind: "nordic", lowStress: true, cue: "Opadaj powoli z asekuracją gumy/rąk, kontrola ekscentryka." },
+  {
+    name: "Long-lever hamstring bridge iso",
+    kind: "iso",
+    lowStress: true,
+    cue: "Pięty wbite, biodra wysoko, trzymaj napięcie tylnej taśmy.",
+  },
+  {
+    name: "Slider hamstring iso",
+    kind: "iso",
+    lowStress: true,
+    cue: "Pięty na sliderach, biodra w górze, utrzymaj pozycję.",
+  },
+  {
+    name: "Hamstring slider curl wspomagany",
+    kind: "curl",
+    lowStress: true,
+    cue: "Powolny ekscentryk, dopomóż rękami w fazie powrotu.",
+  },
+  {
+    name: "Nordic wspomagany (assisted)",
+    kind: "nordic",
+    lowStress: true,
+    cue: "Opadaj powoli z asekuracją gumy/rąk, kontrola ekscentryka.",
+  },
 ];
 
 // Progresja: średniozaawansowani.
 const HAM_LADDER_INTERMEDIATE: HamEx[] = [
-  { name: "Hamstring slider curl", kind: "curl", cue: "Powolny ekscentryk, biodra w linii, kontrola." },
-  { name: "Uginanie nóg siedząc — ekscentryka", kind: "curl", cue: "3 s opuszczania, pełna kontrola." },
-  { name: "Uginanie nóg leżąc — ekscentryka", kind: "curl", cue: "Powolny ekscentryk, biodra przy ławce." },
+  {
+    name: "Hamstring slider curl",
+    kind: "curl",
+    cue: "Powolny ekscentryk, biodra w linii, kontrola.",
+  },
+  {
+    name: "Uginanie nóg siedząc — ekscentryka",
+    kind: "curl",
+    cue: "3 s opuszczania, pełna kontrola.",
+  },
+  {
+    name: "Uginanie nóg leżąc — ekscentryka",
+    kind: "curl",
+    cue: "Powolny ekscentryk, biodra przy ławce.",
+  },
   { name: "Hip thrust ze sztangą", kind: "hip", cue: "Pełny wyprost bioder, podbródek schowany." },
-  { name: "Martwy ciąg rumuński (RDL)", kind: "hip", cue: "Biodra w tył, plecy proste, czuj tylne uda." },
-  { name: "Nordic wspomagany (assisted)", kind: "nordic", lowStress: true, cue: "Opadaj powoli z asekuracją, kontrola ekscentryka." },
+  {
+    name: "Martwy ciąg rumuński (RDL)",
+    kind: "hip",
+    cue: "Biodra w tył, plecy proste, czuj tylne uda.",
+  },
+  {
+    name: "Nordic wspomagany (assisted)",
+    kind: "nordic",
+    lowStress: true,
+    cue: "Opadaj powoli z asekuracją, kontrola ekscentryka.",
+  },
 ];
 
 // Progresja: zaawansowani.
 const HAM_LADDER_ADVANCED: HamEx[] = [
-  { name: "Nordic hamstring", kind: "nordic", cue: "Maks. kontrola ekscentryka, biodra wyprostowane." },
+  {
+    name: "Nordic hamstring",
+    kind: "nordic",
+    cue: "Maks. kontrola ekscentryka, biodra wyprostowane.",
+  },
   { name: "Razor curl", kind: "nordic", cue: "Biodra zginają się aktywnie, kontrola opadania." },
   { name: "Glute-ham raise (GHR)", kind: "nordic", cue: "Pełny zakres, napięta tylna taśma." },
   { name: "RDL jednonóż", kind: "hip", cue: "Biodro w tył, miednica stabilna, czuj tylne udo." },
-  { name: "Martwy ciąg rumuński (RDL)", kind: "hip", cue: "Biodra w tył, plecy proste, mocny wyprost bioder." },
+  {
+    name: "Martwy ciąg rumuński (RDL)",
+    kind: "hip",
+    cue: "Biodra w tył, plecy proste, mocny wyprost bioder.",
+  },
 ];
 
 // Wysokie zmęczenie / blisko meczu / in-season / po ciężkim hinge:
 // niska objętość, izometria lub wariant wspomagany/ekscentryczny — bez pełnych Nordic eccentrics.
 const HAM_LADDER_FATIGUE: HamEx[] = [
-  { name: "Long-lever hamstring bridge iso", kind: "iso", lowStress: true, cue: "Pięty wbite, biodra wysoko, trzymaj napięcie." },
-  { name: "Heel-dig bridge iso", kind: "iso", lowStress: true, cue: "Wbij pięty, unieś biodra, utrzymaj pozycję." },
-  { name: "Slider hamstring iso", kind: "iso", lowStress: true, cue: "Pięty na sliderach, biodra w górze, kontrola." },
-  { name: "Hamstring slider curl", kind: "curl", cue: "Powolny ekscentryk, niska objętość, bez upadku." },
-  { name: "Nordic ekscentryczny (tylko ekscentryk)", kind: "nordic", lowStress: true, cue: "Sam ekscentryk, niska objętość, asekuracja." },
+  {
+    name: "Long-lever hamstring bridge iso",
+    kind: "iso",
+    lowStress: true,
+    cue: "Pięty wbite, biodra wysoko, trzymaj napięcie.",
+  },
+  {
+    name: "Heel-dig bridge iso",
+    kind: "iso",
+    lowStress: true,
+    cue: "Wbij pięty, unieś biodra, utrzymaj pozycję.",
+  },
+  {
+    name: "Slider hamstring iso",
+    kind: "iso",
+    lowStress: true,
+    cue: "Pięty na sliderach, biodra w górze, kontrola.",
+  },
+  {
+    name: "Hamstring slider curl",
+    kind: "curl",
+    cue: "Powolny ekscentryk, niska objętość, bez upadku.",
+  },
+  {
+    name: "Nordic ekscentryczny (tylko ekscentryk)",
+    kind: "nordic",
+    lowStress: true,
+    cue: "Sam ekscentryk, niska objętość, asekuracja.",
+  },
 ];
 
 // Para mocy biodrowej / poziomej do B2.
 const HAM_POWER_PAIR: HamPower[] = [
-  { name: "Skok w dal z miejsca", contacts: 5, reps: "3–5 skoków", cue: "Maks. intencja, miękkie lądowanie na całej stopie." },
-  { name: "Bounds (skoki zamaszyste)", contacts: 6, reps: "4–6 odbić", cue: "Długi lot, rytm, kontrola lądowania." },
-  { name: "Kettlebell swing", contacts: 12, reps: "6–8", cue: "Napęd z bioder, ostry zamach, plecy proste." },
-  { name: "Skok w dal z oporem gumy (band-resisted)", contacts: 5, reps: "3–5 skoków", cue: "Eksplozja bioder mimo oporu gumy." },
-  { name: "Rzut piłką lekarską z bioder (hip-dominant)", contacts: 6, reps: "4–6 rzutów", cue: "Wyrzut z dynamicznego wyprostu bioder." },
-  { name: "Przeskoki przez niskie płotki (bound)", contacts: 6, reps: "4–6 odbić", cue: "Sprężyna, krótki kontakt, kontrola lądowania." },
-  { name: "Horizontal pogo (poziomy)", contacts: 14, reps: "10–14 kontaktów", cue: "Krótki kontakt, napęd do przodu." },
+  {
+    name: "Skok w dal z miejsca",
+    contacts: 5,
+    reps: "3–5 skoków",
+    cue: "Maks. intencja, miękkie lądowanie na całej stopie.",
+  },
+  {
+    name: "Bounds (skoki zamaszyste)",
+    contacts: 6,
+    reps: "4–6 odbić",
+    cue: "Długi lot, rytm, kontrola lądowania.",
+  },
+  {
+    name: "Kettlebell swing",
+    contacts: 12,
+    reps: "6–8",
+    cue: "Napęd z bioder, ostry zamach, plecy proste.",
+  },
+  {
+    name: "Skok w dal z oporem gumy (band-resisted)",
+    contacts: 5,
+    reps: "3–5 skoków",
+    cue: "Eksplozja bioder mimo oporu gumy.",
+  },
+  {
+    name: "Rzut piłką lekarską z bioder (hip-dominant)",
+    contacts: 6,
+    reps: "4–6 rzutów",
+    cue: "Wyrzut z dynamicznego wyprostu bioder.",
+  },
+  {
+    name: "Przeskoki przez niskie płotki (bound)",
+    contacts: 6,
+    reps: "4–6 odbić",
+    cue: "Sprężyna, krótki kontakt, kontrola lądowania.",
+  },
+  {
+    name: "Horizontal pogo (poziomy)",
+    contacts: 14,
+    reps: "10–14 kontaktów",
+    cue: "Krótki kontakt, napęd do przodu.",
+  },
 ];
 
 function hamProgressionLevel(profile: Profile): "beginner" | "intermediate" | "advanced" {
@@ -507,7 +625,11 @@ function hamProgressionLevel(profile: Profile): "beginner" | "intermediate" | "a
  * ciężkim hinge/trap bar. Po ciężkim hinge oraz przy zmęczeniu/in-season
  * używamy kontrolowanej drabinki (izometria / assisted / eccentric-only).
  */
-function selectHamstringB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHinge: boolean): HamEx {
+function selectHamstringB1(
+  profile: Profile,
+  ctx: StrengthBlockContext,
+  aHeavyHinge: boolean,
+): HamEx {
   const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
   const highFatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
   const inseason = profile.seasonPhase === "inseason";
@@ -517,7 +639,11 @@ function selectHamstringB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHi
   } else {
     const lvl = hamProgressionLevel(profile);
     ladder =
-      lvl === "beginner" ? HAM_LADDER_BEGINNER : lvl === "intermediate" ? HAM_LADDER_INTERMEDIATE : HAM_LADDER_ADVANCED;
+      lvl === "beginner"
+        ? HAM_LADDER_BEGINNER
+        : lvl === "intermediate"
+          ? HAM_LADDER_INTERMEDIATE
+          : HAM_LADDER_ADVANCED;
   }
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
   const seed = ctx.weekIndex; // rotacja progresji w czasie
@@ -532,7 +658,10 @@ interface HamDose {
 }
 
 /** Spójne dawkowanie B1 wg kategorii hamstring + reguła zmęczenia po ciężkim hinge. */
-function hamB1Dose(h: HamEx, opts: { aHeavyHinge: boolean; nearMatch: boolean; fatigue: boolean }): HamDose {
+function hamB1Dose(
+  h: HamEx,
+  opts: { aHeavyHinge: boolean; nearMatch: boolean; fatigue: boolean },
+): HamDose {
   const lowDose = opts.nearMatch || opts.fatigue;
   switch (h.kind) {
     case "iso":
@@ -566,7 +695,6 @@ function selectHamPower(ctx: StrengthBlockContext, avoidNames: string[]): HamPow
   return ordered.find((p) => !avoidNames.includes(p.name)) ?? ordered[0];
 }
 
-
 const ADDUCTOR = [
   "Copenhagen plank",
   "Adductor squeeze (piłka)",
@@ -594,36 +722,198 @@ const HYPERTROPHY_FINISHER = [
 
 const JUMPS: JumpVariant[] = [
   // --- POZIOM 1: lądowanie + sztywność ---
-  { name: "Snap-down do stick", contacts: 9, cue: "Zatrzymaj się sztywno, niskie biodra, zamroź.", kind: "snap", level: 1 },
-  { name: "Drop to stick (niska skrzynia)", contacts: 8, cue: "Miękkie lądowanie, natychmiastowe zatrzymanie.", kind: "snap", level: 1 },
-  { name: "Pogo hops (niskie)", contacts: 30, cue: "Krótki kontakt, sztywna kostka, sprężyna.", kind: "pogo", level: 1 },
-  { name: "Line hops (przeskoki przez linię)", contacts: 30, cue: "Szybkie, niskie, sztywna kostka.", kind: "pogo", level: 1 },
-  { name: "Ankle stiffness hops", contacts: 25, cue: "Praca samej kostki, minimalne zgięcie kolan.", kind: "pogo", level: 1 },
-  { name: "Ankling", contacts: 30, cue: "Praca kostek, lekkie, szybkie stopy.", kind: "ankling", level: 1 },
-  { name: "Wall drive (acceleration)", contacts: 0, cue: "Mocny napęd kolana, pochylenie tułowia.", kind: "wall", level: 1 },
-  { name: "A-skip", contacts: 0, cue: "Wysokie kolano, aktywne lądowanie pod biodrem.", kind: "ankling", level: 1 },
+  {
+    name: "Snap-down do stick",
+    contacts: 9,
+    cue: "Zatrzymaj się sztywno, niskie biodra, zamroź.",
+    kind: "snap",
+    level: 1,
+  },
+  {
+    name: "Drop to stick (niska skrzynia)",
+    contacts: 8,
+    cue: "Miękkie lądowanie, natychmiastowe zatrzymanie.",
+    kind: "snap",
+    level: 1,
+  },
+  {
+    name: "Pogo hops (niskie)",
+    contacts: 30,
+    cue: "Krótki kontakt, sztywna kostka, sprężyna.",
+    kind: "pogo",
+    level: 1,
+  },
+  {
+    name: "Line hops (przeskoki przez linię)",
+    contacts: 30,
+    cue: "Szybkie, niskie, sztywna kostka.",
+    kind: "pogo",
+    level: 1,
+  },
+  {
+    name: "Ankle stiffness hops",
+    contacts: 25,
+    cue: "Praca samej kostki, minimalne zgięcie kolan.",
+    kind: "pogo",
+    level: 1,
+  },
+  {
+    name: "Ankling",
+    contacts: 30,
+    cue: "Praca kostek, lekkie, szybkie stopy.",
+    kind: "ankling",
+    level: 1,
+  },
+  {
+    name: "Wall drive (acceleration)",
+    contacts: 0,
+    cue: "Mocny napęd kolana, pochylenie tułowia.",
+    kind: "wall",
+    level: 1,
+  },
+  {
+    name: "A-skip",
+    contacts: 0,
+    cue: "Wysokie kolano, aktywne lądowanie pod biodrem.",
+    kind: "ankling",
+    level: 1,
+  },
   // --- POZIOM 2: wspomagane gumą / niski impakt reaktywny ---
-  { name: "Band-assisted pogo (guma)", contacts: 25, cue: "Guma odciąża lądowanie, krótki kontakt.", kind: "pogo", level: 2 },
-  { name: "Band-assisted jump (guma)", contacts: 6, cue: "Guma wspomaga wyskok, miękkie lądowanie.", kind: "vertical", level: 2 },
-  { name: "Niskie płotki — przeskoki", contacts: 10, cue: "Niskie płotki, kontrola lądowania, sztywna kostka.", kind: "hurdle", level: 2 },
-  { name: "Lateral pogo (boczne)", contacts: 20, cue: "Krótki kontakt w bok, stabilna kostka.", kind: "lateral", level: 2 },
-  { name: "Przeskok przez niski płotek do stick", contacts: 8, cue: "Kontrola w lądowaniu, kolano stabilne.", kind: "hurdle", level: 2 },
+  {
+    name: "Band-assisted pogo (guma)",
+    contacts: 25,
+    cue: "Guma odciąża lądowanie, krótki kontakt.",
+    kind: "pogo",
+    level: 2,
+  },
+  {
+    name: "Band-assisted jump (guma)",
+    contacts: 6,
+    cue: "Guma wspomaga wyskok, miękkie lądowanie.",
+    kind: "vertical",
+    level: 2,
+  },
+  {
+    name: "Niskie płotki — przeskoki",
+    contacts: 10,
+    cue: "Niskie płotki, kontrola lądowania, sztywna kostka.",
+    kind: "hurdle",
+    level: 2,
+  },
+  {
+    name: "Lateral pogo (boczne)",
+    contacts: 20,
+    cue: "Krótki kontakt w bok, stabilna kostka.",
+    kind: "lateral",
+    level: 2,
+  },
+  {
+    name: "Przeskok przez niski płotek do stick",
+    contacts: 8,
+    cue: "Kontrola w lądowaniu, kolano stabilne.",
+    kind: "hurdle",
+    level: 2,
+  },
   // --- POZIOM 3: normalne jakościowe skoki ---
-  { name: "Skok w dal z miejsca", contacts: 5, cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.", kind: "horizontal", level: 3 },
-  { name: "Potrójny skok w dal", contacts: 6, cue: "Rytm, sprężyna, kontrola lądowania.", kind: "horizontal", level: 3 },
-  { name: "Bounds (skoki zamaszyste)", contacts: 8, cue: "Długi lot, rytm, kontrola lądowania.", kind: "horizontal", level: 3 },
-  { name: "Skok pionowy (CMJ)", contacts: 5, cue: "Szybkie zejście, eksplozja w górę.", kind: "vertical", level: 3 },
-  { name: "Box jump (niska skrzynia)", contacts: 5, cue: "Wejdź na skrzynię, ciche, stabilne lądowanie.", kind: "vertical", level: 3 },
-  { name: "Single-leg pogo (jednonóż)", contacts: 16, cue: "Sprężyna na jednej nodze, sztywna kostka.", kind: "pogo", level: 3 },
-  { name: "Lateral bound to stick", contacts: 8, cue: "Odbij w bok, wyląduj i zatrzymaj na jednej nodze.", kind: "lateral", level: 3 },
-  { name: "Med ball slam", contacts: 8, cue: "Pełen wyrzut w dół, napięty tułów.", kind: "medball", level: 3 },
-  { name: "Med ball rotacyjny rzut", contacts: 8, cue: "Obrót przez biodro, transfer w piłkę.", kind: "medball", level: 3 },
-  { name: "Med ball chest pass", contacts: 8, cue: "Dynamiczny wyrzut, stabilny tułów.", kind: "medball", level: 3 },
+  {
+    name: "Skok w dal z miejsca",
+    contacts: 5,
+    cue: "Maksymalna intencja, miękkie lądowanie na całej stopie.",
+    kind: "horizontal",
+    level: 3,
+  },
+  {
+    name: "Potrójny skok w dal",
+    contacts: 6,
+    cue: "Rytm, sprężyna, kontrola lądowania.",
+    kind: "horizontal",
+    level: 3,
+  },
+  {
+    name: "Bounds (skoki zamaszyste)",
+    contacts: 8,
+    cue: "Długi lot, rytm, kontrola lądowania.",
+    kind: "horizontal",
+    level: 3,
+  },
+  {
+    name: "Skok pionowy (CMJ)",
+    contacts: 5,
+    cue: "Szybkie zejście, eksplozja w górę.",
+    kind: "vertical",
+    level: 3,
+  },
+  {
+    name: "Box jump (niska skrzynia)",
+    contacts: 5,
+    cue: "Wejdź na skrzynię, ciche, stabilne lądowanie.",
+    kind: "vertical",
+    level: 3,
+  },
+  {
+    name: "Single-leg pogo (jednonóż)",
+    contacts: 16,
+    cue: "Sprężyna na jednej nodze, sztywna kostka.",
+    kind: "pogo",
+    level: 3,
+  },
+  {
+    name: "Lateral bound to stick",
+    contacts: 8,
+    cue: "Odbij w bok, wyląduj i zatrzymaj na jednej nodze.",
+    kind: "lateral",
+    level: 3,
+  },
+  {
+    name: "Med ball slam",
+    contacts: 8,
+    cue: "Pełen wyrzut w dół, napięty tułów.",
+    kind: "medball",
+    level: 3,
+  },
+  {
+    name: "Med ball rotacyjny rzut",
+    contacts: 8,
+    cue: "Obrót przez biodro, transfer w piłkę.",
+    kind: "medball",
+    level: 3,
+  },
+  {
+    name: "Med ball chest pass",
+    contacts: 8,
+    cue: "Dynamiczny wyrzut, stabilny tułów.",
+    kind: "medball",
+    level: 3,
+  },
   // --- POZIOM 4: intensywne reaktywne / depth (tylko zaawansowani, świeży, nie blisko meczu) ---
-  { name: "Depth drop do stick", contacts: 5, cue: "Zejdź z niskiej skrzyni, wyląduj i zamroź sztywno.", kind: "depth", level: 4 },
-  { name: "Depth jump (skok głęboki)", contacts: 5, cue: "Krótki kontakt po zeskoku, natychmiast eksploduj w górę.", kind: "depth", level: 4 },
-  { name: "Hurdle rebound (reaktywne płotki)", contacts: 6, cue: "Minimalny czas kontaktu, sprężyna między płotkami.", kind: "depth", level: 4 },
-  { name: "Reactive bounds (reaktywne skoki)", contacts: 6, cue: "Maksymalna sprężyna, krótki kontakt, długi lot.", kind: "depth", level: 4 },
+  {
+    name: "Depth drop do stick",
+    contacts: 5,
+    cue: "Zejdź z niskiej skrzyni, wyląduj i zamroź sztywno.",
+    kind: "depth",
+    level: 4,
+  },
+  {
+    name: "Depth jump (skok głęboki)",
+    contacts: 5,
+    cue: "Krótki kontakt po zeskoku, natychmiast eksploduj w górę.",
+    kind: "depth",
+    level: 4,
+  },
+  {
+    name: "Hurdle rebound (reaktywne płotki)",
+    contacts: 6,
+    cue: "Minimalny czas kontaktu, sprężyna między płotkami.",
+    kind: "depth",
+    level: 4,
+  },
+  {
+    name: "Reactive bounds (reaktywne skoki)",
+    contacts: 6,
+    cue: "Maksymalna sprężyna, krótki kontakt, długi lot.",
+    kind: "depth",
+    level: 4,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -649,7 +939,12 @@ function lockKey(ctx: StrengthBlockContext, slot: string): string {
  * Wybiera ćwiczenie i BLOKUJE je na cały blok. W 1. tygodniu wybiera świeże
  * (rotatePick), w kolejnych zwraca to samo — progresja idzie dawką.
  */
-function lockedPick(slot: string, pool: string[], ctx: StrengthBlockContext, avoid: string[]): string {
+function lockedPick(
+  slot: string,
+  pool: string[],
+  ctx: StrengthBlockContext,
+  avoid: string[],
+): string {
   const lock = ctx.history.lockedThemes;
   if (!lock) return rotatePick(pool, ctx, avoid);
   const key = lockKey(ctx, slot);
@@ -661,7 +956,12 @@ function lockedPick(slot: string, pool: string[], ctx: StrengthBlockContext, avo
 }
 
 /** Jak lockedPick, ale dla wariantów plyo (zwraca obiekt JumpVariant). */
-function lockedJump(slot: string, ctx: StrengthBlockContext, kinds: PlyoKind[], avoid: string[]): JumpVariant {
+function lockedJump(
+  slot: string,
+  ctx: StrengthBlockContext,
+  kinds: PlyoKind[],
+  avoid: string[],
+): JumpVariant {
   const lock = ctx.history.lockedThemes;
   if (!lock) return pickJumps(ctx, kinds, avoid);
   const key = lockKey(ctx, slot);
@@ -694,7 +994,8 @@ function lockedHamB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHinge: b
   const existing = lock[key];
   if (existing) {
     const found = all.find((h) => h.name === existing);
-    if (found && (!mustControl || HAM_LADDER_FATIGUE.some((h) => h.name === existing))) return found;
+    if (found && (!mustControl || HAM_LADDER_FATIGUE.some((h) => h.name === existing)))
+      return found;
   }
   const pick = selectHamstringB1(profile, ctx, aHeavyHinge);
   if (!mustControl) lock[key] = pick.name;
@@ -738,17 +1039,15 @@ function computeMaxPlyoLevel(profile: Profile, ctx: StrengthBlockContext): numbe
   return depthEligible ? 4 : 3;
 }
 
-function pickJumps(
-  ctx: StrengthBlockContext,
-  kinds: PlyoKind[],
-  avoid: string[],
-): JumpVariant {
+function pickJumps(ctx: StrengthBlockContext, kinds: PlyoKind[], avoid: string[]): JumpVariant {
   const maxLevel = ctx.maxPlyoLevel ?? 3;
   let pool = JUMPS.filter((j) => kinds.includes(j.kind) && j.level <= maxLevel);
   // Brak dopasowania na danym poziomie → zejdź do bezpiecznych wariantów
   // lądowania / sztywności (poziom 1), nigdy nie eskaluj ponad limit.
   if (pool.length === 0) {
-    pool = JUMPS.filter((j) => j.level <= Math.max(1, maxLevel) && (j.kind === "snap" || j.kind === "pogo"));
+    pool = JUMPS.filter(
+      (j) => j.level <= Math.max(1, maxLevel) && (j.kind === "snap" || j.kind === "pogo"),
+    );
   }
   if (pool.length === 0) pool = JUMPS.filter((j) => j.level === 1);
   const seed = ctx.weekIndex * 3 + ctx.gymSessionIndexInWeek + 1;
@@ -775,17 +1074,45 @@ function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
   let d: Dosage;
   switch (ctx.weekPhase) {
     case "adaptation":
-      d = { mainSets: "3", mainReps: "6–8", rpe: "RPE 6–7", accSets: "3", accReps: "10–12", contactScale: 0.8 };
+      d = {
+        mainSets: "3",
+        mainReps: "6–8",
+        rpe: "RPE 6–7",
+        accSets: "3",
+        accReps: "10–12",
+        contactScale: 0.8,
+      };
       break;
     case "development":
-      d = { mainSets: "4", mainReps: "4–6", rpe: "RPE 7–8", accSets: "3", accReps: "8–10", contactScale: 1 };
+      d = {
+        mainSets: "4",
+        mainReps: "4–6",
+        rpe: "RPE 7–8",
+        accSets: "3",
+        accReps: "8–10",
+        contactScale: 1,
+      };
       break;
     case "peak":
-      d = { mainSets: "4", mainReps: "3–4", rpe: "RPE 8", accSets: "2", accReps: "6–8", contactScale: 0.9 };
+      d = {
+        mainSets: "4",
+        mainReps: "3–4",
+        rpe: "RPE 8",
+        accSets: "2",
+        accReps: "6–8",
+        contactScale: 0.9,
+      };
       break;
     case "deload":
     default:
-      d = { mainSets: "2", mainReps: "4–5", rpe: "RPE 6", accSets: "2", accReps: "8–10", contactScale: 0.55 };
+      d = {
+        mainSets: "2",
+        mainReps: "4–5",
+        rpe: "RPE 6",
+        accSets: "2",
+        accReps: "8–10",
+        contactScale: 0.55,
+      };
       break;
   }
   if (gentle) {
@@ -874,17 +1201,44 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
 
   switch (ctx.weekPhase) {
     case "adaptation":
-      return { sets: "4", reps: "3–5", rpe: "RPE 7–7,5", rest: "3 min", loadTarget: "80–85% 1RM", cue: strongCue };
+      return {
+        sets: "4",
+        reps: "3–5",
+        rpe: "RPE 7–7,5",
+        rest: "3 min",
+        loadTarget: "80–85% 1RM",
+        cue: strongCue,
+      };
     case "peak":
-      return { sets: "4–5", reps: "1–3", rpe: "RPE 8–9", rest: "3–5 min", loadTarget: "87–92% 1RM", cue: strongCue };
+      return {
+        sets: "4–5",
+        reps: "1–3",
+        rpe: "RPE 8–9",
+        rest: "3–5 min",
+        loadTarget: "87–92% 1RM",
+        cue: strongCue,
+      };
     case "deload":
-      return { sets: "3", reps: "2–3", rpe: "RPE 6–7", rest: "3 min", loadTarget: "~80% 1RM, świeżo, prędkość", cue: strongCue };
+      return {
+        sets: "3",
+        reps: "2–3",
+        rpe: "RPE 6–7",
+        rest: "3 min",
+        loadTarget: "~80% 1RM, świeżo, prędkość",
+        cue: strongCue,
+      };
     case "development":
     default:
-      return { sets: "4", reps: "2–4", rpe: "RPE 7,5–8,5", rest: "3–4 min", loadTarget: "85–90% 1RM", cue: strongCue };
+      return {
+        sets: "4",
+        reps: "2–4",
+        rpe: "RPE 7,5–8,5",
+        rest: "3–4 min",
+        loadTarget: "85–90% 1RM",
+        cue: strongCue,
+      };
   }
 }
-
 
 // ---------------------------------------------------------------------------
 // Wspólne sekcje
@@ -901,10 +1255,21 @@ function warmupSection(withBall = false): TrainingSection {
         intent: "mobility",
         restAfterBlock: "przejdź płynnie dalej",
         exercises: [
-          ex({ name: "Rower / trucht", duration: "5–7 min", rpe: "RPE 3", cue: "Spokojny oddech, podnoś tętno." }),
-          ex({ name: "Mobilność: biodra, kostki, T-spine", duration: "6 min", cue: "Pełen zakres, kontrola tułowia." }),
           ex({
-            name: withBall ? "Aktywacja pośladków, core + czucie piłki" : "Aktywacja pośladków i core",
+            name: "Rower / trucht",
+            duration: "5–7 min",
+            rpe: "RPE 3",
+            cue: "Spokojny oddech, podnoś tętno.",
+          }),
+          ex({
+            name: "Mobilność: biodra, kostki, T-spine",
+            duration: "6 min",
+            cue: "Pełen zakres, kontrola tułowia.",
+          }),
+          ex({
+            name: withBall
+              ? "Aktywacja pośladków, core + czucie piłki"
+              : "Aktywacja pośladków i core",
             sets: "2",
             reps: "10–12",
             cue: "Napięcie pośladka, neutralny kręgosłup.",
@@ -941,7 +1306,14 @@ function cooldownSection(): TrainingSection {
 /** Dobiera ćwiczenie izometryczne pasujące do głównego liftu. */
 function isoForMain(mainName: string): { name: string; cue: string } {
   const n = mainName.toLowerCase();
-  if (n.includes("trap bar") || n.includes("martwy ciąg") || n.includes("rdl") || n.includes("hip thrust") || n.includes("good morning") || n.includes("hinge")) {
+  if (
+    n.includes("trap bar") ||
+    n.includes("martwy ciąg") ||
+    n.includes("rdl") ||
+    n.includes("hip thrust") ||
+    n.includes("good morning") ||
+    n.includes("hinge")
+  ) {
     return {
       name: "Przysiad przy pinach (iso) — cała stopa",
       cue: "Noga w górze 90°, napór całą stopą w podłoże, 3–5 s maks.",
@@ -980,7 +1352,6 @@ function overcomingIsoSection(mainName: string): TrainingSection {
           }),
         ],
       }),
-
     ],
   });
 }
@@ -1004,10 +1375,16 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
   const squat = rotatePick(mainPool, ctx, avoid);
   const jump = trapBar
     ? pickJumps(ctx, ["horizontal", "vertical"], avoid)
-    : pickJumps(ctx, ctx.powerFocus ? ["horizontal", "vertical"] : ["vertical", "horizontal"], avoid);
+    : pickJumps(
+        ctx,
+        ctx.powerFocus ? ["horizontal", "vertical"] : ["vertical", "horizontal"],
+        avoid,
+      );
   // Trap bar to dominanta hinge → akcesoria tylnej taśmy MUSZĄ być kontrolowane
   // (bez ciężkiego RDL / Nordic), żeby nie dublować obciążenia hinge.
-  const acc = trapBar ? rotatePick(CONTROLLED_HAM, ctx, avoid) : rotatePick(POSTERIOR_ACC, ctx, avoid);
+  const acc = trapBar
+    ? rotatePick(CONTROLLED_HAM, ctx, avoid)
+    : rotatePick(POSTERIOR_ACC, ctx, avoid);
   const core = rotatePick(CORE_ANTI, ctx, avoid);
   const useContrast = adult && (ctx.weekPhase === "development" || ctx.weekPhase === "peak");
 
@@ -1055,7 +1432,6 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
               commonMistake: "Zaokrąglone plecy, kolana do środka.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
-
           ],
         }),
       ],
@@ -1070,7 +1446,13 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
           intent: "strength",
           restAfterBlock: "Przerwa po bloku: 60–90 s",
           exercises: [
-            ex({ name: acc, sets: d.accSets, reps: d.accReps, cue: "Kontrola tylnej taśmy, bez bólu.", ageSafetyLevel: "youth_ok" }),
+            ex({
+              name: acc,
+              sets: d.accSets,
+              reps: d.accReps,
+              cue: "Kontrola tylnej taśmy, bez bólu.",
+              ageSafetyLevel: "youth_ok",
+            }),
           ],
         }),
         block({
@@ -1080,14 +1462,18 @@ function lowerStrengthPower(profile: Profile, ctx: StrengthBlockContext): GymSes
           restAfterBlock: "45–60 s",
           exercises: [
             ex({ name: core, sets: d.accSets, reps: d.accReps, cue: "Sztywny tułów, kontrola." }),
-            ex({ name: rotatePick(ADDUCTOR, ctx, avoid), sets: "2", reps: "8 / strona", cue: "Bez bólu, kontrola." }),
+            ex({
+              name: rotatePick(ADDUCTOR, ctx, avoid),
+              sets: "2",
+              reps: "8 / strona",
+              cue: "Bez bólu, kontrola.",
+            }),
           ],
         }),
       ],
     }),
     cooldownSection(),
   ];
-
 
   return {
     role: "lower_strength_power",
@@ -1140,8 +1526,22 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
           intent: "rfd",
           restAfterBlock: "60 s",
           exercises: [
-            ex({ label: "P1", name: sprintDrill.name, sets: "3", reps: "10–15 m / 20 s", cue: sprintDrill.cue, ageSafetyLevel: "youth_ok" }),
-            ex({ label: "P2", name: "A-skip + dribble bounding", sets: "2", reps: "20 m", cue: "Wysokie kolano, aktywne lądowanie pod biodrem.", ageSafetyLevel: "all" }),
+            ex({
+              label: "P1",
+              name: sprintDrill.name,
+              sets: "3",
+              reps: "10–15 m / 20 s",
+              cue: sprintDrill.cue,
+              ageSafetyLevel: "youth_ok",
+            }),
+            ex({
+              label: "P2",
+              name: "A-skip + dribble bounding",
+              sets: "2",
+              reps: "20 m",
+              cue: "Wysokie kolano, aktywne lądowanie pod biodrem.",
+              ageSafetyLevel: "all",
+            }),
           ],
         }),
       ],
@@ -1182,7 +1582,6 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
               regression: "Hip thrust / hamstring bridge.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
-
           ],
         }),
 
@@ -1227,7 +1626,13 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
           restAfterBlock: "Przerwa po bloku: 60–90 s",
           safetyNotes: "Tylko jedno ćwiczenie hamstring — bez przeciążenia tylnej taśmy.",
           exercises: [
-            ex({ name: ham, sets: "2–3", reps: "5–6", cue: "Powolny ekscentryk, pełna kontrola, bez bólu.", ageSafetyLevel: "youth_ok" }),
+            ex({
+              name: ham,
+              sets: "2–3",
+              reps: "5–6",
+              cue: "Powolny ekscentryk, pełna kontrola, bez bólu.",
+              ageSafetyLevel: "youth_ok",
+            }),
           ],
         }),
         block({
@@ -1238,7 +1643,12 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
           exercises: [
             ex({ name: adductor, sets: d.accSets, reps: "8 / strona", cue: "Kontrola, bez bólu." }),
             ex({ name: core, sets: "2", reps: d.accReps, cue: "Sztywny tułów, anty-rotacja." }),
-            ex({ name: "Izometria łydki / soleus (holding)", sets: "2", reps: "12–15 s", cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji." }),
+            ex({
+              name: "Izometria łydki / soleus (holding)",
+              sets: "2",
+              reps: "12–15 s",
+              cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji.",
+            }),
           ],
         }),
       ],
@@ -1251,7 +1661,8 @@ function posteriorSprint(profile: Profile, ctx: StrengthBlockContext): GymSessio
     role: "posterior_sprint",
     title: "Siłownia: tylna taśma + wsparcie sprintu",
     sessionType: "Siła / moc",
-    goalOfSession: "Ścięgna udowe, pośladki, wyprost biodra i mechanika sprintu — bez kopiowania bloku przysiadu.",
+    goalOfSession:
+      "Ścięgna udowe, pośladki, wyprost biodra i mechanika sprintu — bez kopiowania bloku przysiadu.",
     intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
     durationMin: 55,
     sections,
@@ -1283,7 +1694,15 @@ function unilateralDecel(profile: Profile, ctx: StrengthBlockContext): GymSessio
           intent: "braking",
           restAfterBlock: "60 s",
           exercises: [
-            ex({ label: "P1", name: "Lądowanie jednonóż (low pogo / stick)", sets: "2", reps: "4 / noga", groundContacts: contacts(8, d), cue: "Ciche, stabilne lądowanie, kolano w linii stopy.", ageSafetyLevel: "youth_ok" }),
+            ex({
+              label: "P1",
+              name: "Lądowanie jednonóż (low pogo / stick)",
+              sets: "2",
+              reps: "4 / noga",
+              groundContacts: contacts(8, d),
+              cue: "Ciche, stabilne lądowanie, kolano w linii stopy.",
+              ageSafetyLevel: "youth_ok",
+            }),
           ],
         }),
       ],
@@ -1328,7 +1747,15 @@ function unilateralDecel(profile: Profile, ctx: StrengthBlockContext): GymSessio
               technique: "Amortyzuj biodrem i kolanem, nie zawalaj kolana do środka.",
               ageSafetyLevel: "youth_ok",
             }),
-            ex({ label: "B2", name: "Decel step (kontrolowane zatrzymanie po biegu)", sets: "3", reps: "4", restAfterPair: "90 s po parze", cue: "Niskie biodra, krótkie kroki w zatrzymaniu.", ageSafetyLevel: "youth_ok" }),
+            ex({
+              label: "B2",
+              name: "Decel step (kontrolowane zatrzymanie po biegu)",
+              sets: "3",
+              reps: "4",
+              restAfterPair: "90 s po parze",
+              cue: "Niskie biodra, krótkie kroki w zatrzymaniu.",
+              ageSafetyLevel: "youth_ok",
+            }),
           ],
         }),
       ],
@@ -1343,8 +1770,18 @@ function unilateralDecel(profile: Profile, ctx: StrengthBlockContext): GymSessio
           intent: "stability",
           restAfterBlock: "45 s",
           exercises: [
-            ex({ name: core, sets: d.accSets, reps: d.accReps, cue: "Anty-rotacja, sztywny tułów." }),
-            ex({ name: rotatePick(POSTERIOR_ACC, ctx, avoid), sets: "2", reps: "6–8", cue: "Kontrola tylnej taśmy." }),
+            ex({
+              name: core,
+              sets: d.accSets,
+              reps: d.accReps,
+              cue: "Anty-rotacja, sztywny tułów.",
+            }),
+            ex({
+              name: rotatePick(POSTERIOR_ACC, ctx, avoid),
+              sets: "2",
+              reps: "6–8",
+              cue: "Kontrola tylnej taśmy.",
+            }),
           ],
         }),
       ],
@@ -1356,7 +1793,8 @@ function unilateralDecel(profile: Profile, ctx: StrengthBlockContext): GymSessio
     role: "unilateral_decel",
     title: "Siłownia: jednonóż + hamowanie",
     sessionType: "Siła / moc",
-    goalOfSession: "Siła jednonóż, hamowanie i tolerancja zmiany kierunku — inna struktura niż dzień siły dolnej.",
+    goalOfSession:
+      "Siła jednonóż, hamowanie i tolerancja zmiany kierunku — inna struktura niż dzień siły dolnej.",
     intensity: ctx.weekPhase === "deload" ? "umiarkowana" : adult ? "wysoka" : "umiarkowana",
     durationMin: 50,
     sections,
@@ -1390,8 +1828,26 @@ function upperCore(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan 
           intent: "strength",
           restAfterBlock: "Przerwa po bloku: 90 s",
           exercises: [
-            ex({ label: "A1", name: push, sets: d.mainSets, reps: d.mainReps, rpe: d.rpe, restAfterExercise: "30 s do A2", cue: "Pełen zakres, łopatki ustawione.", ageSafetyLevel: adult ? "all" : "youth_ok" }),
-            ex({ label: "A2", name: pull, sets: d.mainSets, reps: d.mainReps, rpe: d.rpe, restAfterPair: "90 s po parze", cue: "Ściągnij łopatki, kontrola.", ageSafetyLevel: adult ? "all" : "youth_ok" }),
+            ex({
+              label: "A1",
+              name: push,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              restAfterExercise: "30 s do A2",
+              cue: "Pełen zakres, łopatki ustawione.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
+            ex({
+              label: "A2",
+              name: pull,
+              sets: d.mainSets,
+              reps: d.mainReps,
+              rpe: d.rpe,
+              restAfterPair: "90 s po parze",
+              cue: "Ściągnij łopatki, kontrola.",
+              ageSafetyLevel: adult ? "all" : "youth_ok",
+            }),
           ],
         }),
         block({
@@ -1400,8 +1856,23 @@ function upperCore(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan 
           intent: "stability",
           restAfterBlock: "Przerwa po bloku: 75 s",
           exercises: [
-            ex({ label: "B1", name: carry, sets: "3", reps: "20–30 m", cue: "Tułów sztywny, oddech kontrolowany.", ageSafetyLevel: "all" }),
-            ex({ label: "B2", name: core, sets: d.accSets, reps: d.accReps, restAfterPair: "60 s po parze", cue: "Anty-rotacja, nie obracaj się za oporem.", ageSafetyLevel: "all" }),
+            ex({
+              label: "B1",
+              name: carry,
+              sets: "3",
+              reps: "20–30 m",
+              cue: "Tułów sztywny, oddech kontrolowany.",
+              ageSafetyLevel: "all",
+            }),
+            ex({
+              label: "B2",
+              name: core,
+              sets: d.accSets,
+              reps: d.accReps,
+              restAfterPair: "60 s po parze",
+              cue: "Anty-rotacja, nie obracaj się za oporem.",
+              ageSafetyLevel: "all",
+            }),
           ],
         }),
       ],
@@ -1417,7 +1888,12 @@ function upperCore(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan 
           restAfterBlock: "45 s",
           exercises: [
             ex({ name: adductor, sets: "2", reps: "8 / strona", cue: "Kontrola, bez bólu." }),
-            ex({ name: "Praca rotatorów barku (guma)", sets: "2", reps: "12", cue: "Wolno, pełen zakres." }),
+            ex({
+              name: "Praca rotatorów barku (guma)",
+              sets: "2",
+              reps: "12",
+              cue: "Wolno, pełen zakres.",
+            }),
           ],
         }),
       ],
@@ -1429,7 +1905,8 @@ function upperCore(profile: Profile, ctx: StrengthBlockContext): GymSessionPlan 
     role: "upper_core",
     title: "Siłownia: góra + tułów + robustność",
     sessionType: "Siła / moc",
-    goalOfSession: "Góra ciała, tułów i odporność na kontakt — niższy koszt nerwowy, dobra jako druga/lżejsza sesja.",
+    goalOfSession:
+      "Góra ciała, tułów i odporność na kontakt — niższy koszt nerwowy, dobra jako druga/lżejsza sesja.",
     intensity: "umiarkowana",
     durationMin: 45,
     sections,
@@ -1497,7 +1974,6 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
               regression: "Goblet squat / przysiad do skrzyni.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
-
           ],
         }),
 
@@ -1567,7 +2043,12 @@ function fullBodyAthletic(profile: Profile, ctx: StrengthBlockContext): GymSessi
           restAfterBlock: "45 s",
           exercises: [
             ex({ name: adductor, sets: "2", reps: "8 / strona", cue: "Kontrola, bez bólu." }),
-            ex({ name: "Wspięcia na palce (łydka)", sets: "2", reps: "12–15", cue: "Pełen zakres, kontrola." }),
+            ex({
+              name: "Wspięcia na palce (łydka)",
+              sets: "2",
+              reps: "12–15",
+              cue: "Pełen zakres, kontrola.",
+            }),
           ],
         }),
       ],
@@ -1608,8 +2089,22 @@ function powerPrimer(profile: Profile, ctx: StrengthBlockContext): GymSessionPla
           intent: "power",
           restAfterBlock: "pełna przerwa, świeżość > objętość",
           exercises: [
-            ex({ label: "A1", name: "Izometria napędowa (split squat iso / wall drive)", sets: "3", reps: "3 × 5 s", cue: "Maksymalne napięcie, krótko." }),
-            ex({ label: "A2", name: jump.name, sets: "3", reps: "3", groundContacts: contacts(Math.min(jump.contacts, 8), d), restAfterPair: "90 s po parze", cue: jump.cue }),
+            ex({
+              label: "A1",
+              name: "Izometria napędowa (split squat iso / wall drive)",
+              sets: "3",
+              reps: "3 × 5 s",
+              cue: "Maksymalne napięcie, krótko.",
+            }),
+            ex({
+              label: "A2",
+              name: jump.name,
+              sets: "3",
+              reps: "3",
+              groundContacts: contacts(Math.min(jump.contacts, 8), d),
+              restAfterPair: "90 s po parze",
+              cue: jump.cue,
+            }),
           ],
         }),
         block({
@@ -1618,7 +2113,12 @@ function powerPrimer(profile: Profile, ctx: StrengthBlockContext): GymSessionPla
           intent: "rfd",
           restAfterBlock: "pełna przerwa",
           exercises: [
-            ex({ name: "Band acceleration (3–5 kroków z oporem)", sets: "4", reps: "10 m", cue: "Mocny pierwszy krok, niski tułów." }),
+            ex({
+              name: "Band acceleration (3–5 kroków z oporem)",
+              sets: "4",
+              reps: "10 m",
+              cue: "Mocny pierwszy krok, niski tułów.",
+            }),
           ],
         }),
       ],
@@ -1629,7 +2129,8 @@ function powerPrimer(profile: Profile, ctx: StrengthBlockContext): GymSessionPla
     role: "primer",
     title: "Siłownia: primer mocy (lekko)",
     sessionType: "Aktywacja (primer)",
-    goalOfSession: "Świeżość nerwowa i jakość eksplozywna przy niskim zmęczeniu — bez ciężkiej siły.",
+    goalOfSession:
+      "Świeżość nerwowa i jakość eksplozywna przy niskim zmęczeniu — bez ciężkiej siły.",
     intensity: "niska",
     durationMin: 30,
     sections,
@@ -1652,7 +2153,14 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
           title: "Aerobik regeneracyjny",
           blockType: "single",
           intent: "mobility",
-          exercises: [ex({ name: "Rower / spacer", duration: "10–15 min", rpe: "RPE 2–3", cue: "Bardzo lekko, tylko krążenie." })],
+          exercises: [
+            ex({
+              name: "Rower / spacer",
+              duration: "10–15 min",
+              rpe: "RPE 2–3",
+              cue: "Bardzo lekko, tylko krążenie.",
+            }),
+          ],
         }),
       ],
     }),
@@ -1666,10 +2174,30 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
           intent: "stability",
           restAfterBlock: "45 s",
           exercises: [
-            ex({ name: rotatePick(ADDUCTOR, ctx, avoid), sets: "2", reps: "8 / strona", cue: "Kontrola, bez bólu." }),
-            ex({ name: rotatePick(CONTROLLED_HAM, ctx, avoid), sets: "2", reps: "8", cue: "Lekko, pełna kontrola." }),
-            ex({ name: rotatePick(CORE_ANTI, ctx, avoid), sets: "2", reps: "10", cue: "Spokojnie, sztywny tułów." }),
-            ex({ name: "Aktywacja pośladków i łydek", sets: "2", reps: "12", cue: "Czuj mięsień, bez pośpiechu." }),
+            ex({
+              name: rotatePick(ADDUCTOR, ctx, avoid),
+              sets: "2",
+              reps: "8 / strona",
+              cue: "Kontrola, bez bólu.",
+            }),
+            ex({
+              name: rotatePick(CONTROLLED_HAM, ctx, avoid),
+              sets: "2",
+              reps: "8",
+              cue: "Lekko, pełna kontrola.",
+            }),
+            ex({
+              name: rotatePick(CORE_ANTI, ctx, avoid),
+              sets: "2",
+              reps: "10",
+              cue: "Spokojnie, sztywny tułów.",
+            }),
+            ex({
+              name: "Aktywacja pośladków i łydek",
+              sets: "2",
+              reps: "12",
+              cue: "Czuj mięsień, bez pośpiechu.",
+            }),
           ],
         }),
       ],
@@ -1684,7 +2212,11 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
           intent: "mobility",
           exercises: [
             ex({ name: "Mobilność całego ciała", duration: "8 min" }),
-            ex({ name: "Oddech przeponowy", duration: "3 min", cue: "Długi wydech, rozluźnij barki." }),
+            ex({
+              name: "Oddech przeponowy",
+              duration: "3 min",
+              cue: "Długi wydech, rozluźnij barki.",
+            }),
           ],
         }),
       ],
@@ -1694,7 +2226,8 @@ function recoveryPrehab(profile: Profile, ctx: StrengthBlockContext): GymSession
     role: "recovery_prehab",
     title: "Siłownia: regeneracja i prehab",
     sessionType: "Regeneracja / prehab",
-    goalOfSession: "Mobilność, aktywacja i redukcja sztywności przy niskiej gotowości — bez ciężkich bloków.",
+    goalOfSession:
+      "Mobilność, aktywacja i redukcja sztywności przy niskiej gotowości — bez ciężkich bloków.",
     intensity: "niska",
     durationMin: 30,
     sections,
@@ -1738,7 +2271,8 @@ function canonicalGymSession(
   // wg progresji + zmęczenia. Po ciężkim hinge (trap bar) używamy kontrolowanej
   // drabinki (assisted / eccentric-only / izometria), nigdy drugiego ciężkiego RDL.
   const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
-  const fatigue = (ctx.readiness !== undefined && ctx.readiness <= 5) || profile.seasonPhase === "inseason";
+  const fatigue =
+    (ctx.readiness !== undefined && ctx.readiness <= 5) || profile.seasonPhase === "inseason";
   // Hamstring B1 zablokowany na blok (jeśli kontekst zmęczenia pozwala utrzymać wybór).
   const hamB1 = lockedHamB1(profile, ctx, trapBar);
   const hamDose = hamB1Dose(hamB1, { aHeavyHinge: trapBar, nearMatch, fatigue });
@@ -1749,13 +2283,16 @@ function canonicalGymSession(
   // Depth/poziom 4 dopuszczamy w A2 tylko, gdy zawodnik jest do tego uprawniony.
   const allowDepth = (ctx.maxPlyoLevel ?? 3) >= 4;
   const aKinds: PlyoKind[] = trapBar
-    ? (allowDepth ? ["horizontal", "depth"] : ["horizontal"])
-    : (allowDepth ? ["vertical", "depth"] : ["vertical"]);
+    ? allowDepth
+      ? ["horizontal", "depth"]
+      : ["horizontal"]
+    : allowDepth
+      ? ["vertical", "depth"]
+      : ["vertical"];
   // Temat mocy A2 zablokowany na blok — progresja kontaktami/objętością.
   const powerA = lockedJump("powerA", ctx, aKinds, avoid);
   // B2 = kompatybilna moc pozioma / biodrowa (skok w dal, bounds, KB swing, pogo...).
   const powerPair = lockedHamPower(ctx, [...avoid, powerA.name]);
-
 
   const calf = "Wspięcia na palce (łydka)";
   const core1 = lockedPick("core", CORE_ANTI, ctx, avoid);
@@ -1771,17 +2308,11 @@ function canonicalGymSession(
   // meczu. Wariant dobierany przez isoForMain: "cała stopa" przed trap barem/hinge,
   // "staw skokowy" przed przysiadem. Bramki: NIE w tygodniu 1, tylko przy dobrej
   // gotowości i z dala od meczu (structuredStrengthAllowed blokuje MD-2/MD-1/MD/MD+1).
-  const includeIso =
-    adult &&
-    !week1 &&
-    readyHigh &&
-    structuredStrengthAllowed(ctx.mdLabel);
-
+  const includeIso = adult && !week1 && readyHigh && structuredStrengthAllowed(ctx.mdLabel);
 
   // BLOK E (finisher hipertroficzny) NIE jest generowany domyślnie po sesji
   // dolnej o wysokim napędzie nerwowym. Pozostaje tylko poza pracą dolną.
   const includeFinisher = false;
-
 
   const accessoryBlocks: TrainingBlock[] = [
     // BLOK C — wyłącznie core / stabilizacja.
@@ -1792,8 +2323,20 @@ function canonicalGymSession(
       restAfterBlock: "Przerwa po bloku: 45–60 s",
       safetyNotes: "Tylko praca tułowia / anty-rotacja — bez ćwiczeń na nogi czy ramiona.",
       exercises: [
-        ex({ label: "C1", name: core1, sets: d.accSets, reps: d.accReps, cue: "Sztywny tułów, kontrola." }),
-        ex({ label: "C2", name: core2, sets: "2", reps: d.accReps, cue: "Anty-rotacja, nie obracaj się za oporem." }),
+        ex({
+          label: "C1",
+          name: core1,
+          sets: d.accSets,
+          reps: d.accReps,
+          cue: "Sztywny tułów, kontrola.",
+        }),
+        ex({
+          label: "C2",
+          name: core2,
+          sets: "2",
+          reps: d.accReps,
+          cue: "Anty-rotacja, nie obracaj się za oporem.",
+        }),
       ],
     }),
     // BLOK D — support atletyczny: krótki, max 2 lekkie ćwiczenia.
@@ -1807,7 +2350,14 @@ function canonicalGymSession(
       restAfterBlock: "Przerwa po bloku: 45–60 s",
       safetyNotes: "Lekkie uzupełnienie — bez dobijania obciążonych grup.",
       exercises: [
-        ex({ label: "D1", name: calf, sets: "2", reps: "12–15", cue: "Pełny zakres.", ageSafetyLevel: "all" }),
+        ex({
+          label: "D1",
+          name: calf,
+          sets: "2",
+          reps: "12–15",
+          cue: "Pełny zakres.",
+          ageSafetyLevel: "all",
+        }),
         ex({
           label: "D2",
           name: ctx.weekIndex % 2 === 0 ? "Copenhagen plank" : "Face pull (guma / wyciąg)",
@@ -1827,9 +2377,17 @@ function canonicalGymSession(
         blockType: "accessory",
         intent: "strength",
         restAfterBlock: "45–60 s",
-        safetyNotes: "Lekka izolacja na koniec (biceps / triceps / barki). Można pominąć przy zmęczeniu.",
+        safetyNotes:
+          "Lekka izolacja na koniec (biceps / triceps / barki). Można pominąć przy zmęczeniu.",
         exercises: [
-          ex({ label: "E1", name: finisher, sets: "2–3", reps: "12–15", rpe: "RPE 6–7", cue: "Czuj mięsień, kontrola, bez zarzucania." }),
+          ex({
+            label: "E1",
+            name: finisher,
+            sets: "2–3",
+            reps: "12–15",
+            rpe: "RPE 6–7",
+            cue: "Czuj mięsień, kontrola, bez zarzucania.",
+          }),
         ],
       }),
     );
@@ -1862,8 +2420,12 @@ function canonicalGymSession(
               tempo: adult ? "3-1-1" : "2-1-1",
               restAfterExercise: "60–180 s do A2",
               cue: `${pd.cue} ${trapBar ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra." : "Napnij tułów, kontrolowane zejście, mocne wyjście."}`,
-              technique: trapBar ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder." : "Kolana w linii stóp, pełen zakres.",
-              regression: trapBar ? "Trap bar z wysokich pinów / kettlebell deadlift." : "Goblet squat / przysiad do skrzyni.",
+              technique: trapBar
+                ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder."
+                : "Kolana w linii stóp, pełen zakres.",
+              regression: trapBar
+                ? "Trap bar z wysokich pinów / kettlebell deadlift."
+                : "Goblet squat / przysiad do skrzyni.",
               commonMistake: "Zaokrąglone plecy, kolana do środka.",
               ageSafetyLevel: adult ? "all" : "youth_ok",
             }),
@@ -1918,7 +2480,6 @@ function canonicalGymSession(
             }),
           ],
         }),
-
       ],
     }),
     section({
@@ -1982,7 +2543,7 @@ export function pickGymRole(profile: Profile, ctx: StrengthBlockContext): GymRol
   // Temat slotu jest STABILNY w obrębie bloku: slot 0 → rola[0], slot 1 → rola[1]...
   // Nie zależy od numeru tygodnia, żeby główny temat nie zmieniał się co tydzień.
   // (Anty-powtórzenia w obrębie tygodnia nadal przez usedRolesThisWeek.)
-  let idx = ctx.gymSessionIndexInWeek % order.length;
+  const idx = ctx.gymSessionIndexInWeek % order.length;
   for (let step = 0; step < order.length; step++) {
     const role = order[(idx + step) % order.length];
     if (!ctx.history.usedRolesThisWeek.includes(role)) return role;
@@ -2096,7 +2657,8 @@ interface LoadGuide {
 const GUIDE_MAIN: LoadGuide = {
   loadTarget: "80–90% 1RM lub RPE 7,5–9",
   rir: "1–3 RIR",
-  loadGuidance: "Dobierz ciężar tak, by w zapasie zostały 1–3 powtórzenia, a technika była idealna.",
+  loadGuidance:
+    "Dobierz ciężar tak, by w zapasie zostały 1–3 powtórzenia, a technika była idealna.",
   loadReduceWhen: "Zmniejsz przy bólu, spadku techniki, słabym śnie/gotowości lub blisko meczu.",
 };
 const GUIDE_BSTRENGTH: LoadGuide = {
@@ -2112,7 +2674,8 @@ const GUIDE_ACCESSORY: LoadGuide = {
 };
 const GUIDE_POWER: LoadGuide = {
   loadTarget: "Maks. prędkość / intencja",
-  loadGuidance: "Niskie powtórzenia, bez obciążenia lub minimalne — liczy się jakość każdego odbicia.",
+  loadGuidance:
+    "Niskie powtórzenia, bez obciążenia lub minimalne — liczy się jakość każdego odbicia.",
   loadReduceWhen: "Przerwij serię, gdy spada wysokość/dystans skoku lub jakość lądowania.",
 };
 const GUIDE_CORE: LoadGuide = {
@@ -2153,7 +2716,9 @@ function pctForReps(r: number): number {
 
 /** Zamienia zakres powtórzeń (np. "4–6") na spójny zakres %1RM (np. "80–85% 1RM"). */
 function pctRangeFromReps(reps?: string): string | null {
-  const nums = (reps?.match(/\d+/g) ?? []).map((x) => parseInt(x, 10)).filter((x) => x > 0 && x <= 30);
+  const nums = (reps?.match(/\d+/g) ?? [])
+    .map((x) => parseInt(x, 10))
+    .filter((x) => x > 0 && x <= 30);
   if (!nums.length) return null;
   const lo = Math.min(...nums);
   const hi = Math.max(...nums);
@@ -2164,7 +2729,9 @@ function pctRangeFromReps(reps?: string): string | null {
 
 /** RIR spójny z RPE (RIR ≈ 10 − RPE). Jeden zakres, bez sprzeczności. */
 function rirFromRpe(rpe?: string): string | null {
-  const nums = (rpe?.match(/\d+/g) ?? []).map((x) => parseInt(x, 10)).filter((x) => x >= 1 && x <= 10);
+  const nums = (rpe?.match(/\d+/g) ?? [])
+    .map((x) => parseInt(x, 10))
+    .filter((x) => x >= 1 && x <= 10);
   if (!nums.length) return null;
   const lo = Math.min(...nums);
   const hi = Math.max(...nums);
@@ -2204,7 +2771,10 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
         const isMainLift =
           sec.type === "main" &&
           e.label === "A1" &&
-          (pattern === "squat" || pattern === "hinge" || pattern === "unilateral" || pattern === "other");
+          (pattern === "squat" ||
+            pattern === "hinge" ||
+            pattern === "unilateral" ||
+            pattern === "other");
         if (isMainLift) {
           // Spójny model: JEDEN RPE (ten z ćwiczenia / fazy), %1RM zgodne z
           // powtórzeniami, RIR wyliczone z RPE. Bez nadpisywania RPE i bez
@@ -2217,7 +2787,7 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
             e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           } else {
             const pct = pctRangeFromReps(e.reps);
-            e.loadTarget = pct ?? (e.rpe ?? "RPE 7–8");
+            e.loadTarget = pct ?? e.rpe ?? "RPE 7–8";
             e.rir = rirFromRpe(e.rpe) ?? "2–3 RIR";
             e.loadGuidance =
               "Dobierz ciężar zgodny z docelowym RPE i %1RM — technika idealna, prędkość ruchu zachowana.";
@@ -2226,7 +2796,7 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
         } else if (sec.type === "main") {
           // Bloki B / drugorzędne: jeden RPE z ćwiczenia, RIR spójne z tym RPE.
           if (e.rpe) {
-            e.rir = e.rir ?? (rirFromRpe(e.rpe) ?? "2–3 RIR");
+            e.rir = e.rir ?? rirFromRpe(e.rpe) ?? "2–3 RIR";
             if (!e.loadTarget) e.loadTarget = `Ciężar na ${e.reps ?? "powt."} przy ${e.rpe}`;
             if (!e.loadGuidance) e.loadGuidance = GUIDE_BSTRENGTH.loadGuidance;
             if (!e.loadReduceWhen) e.loadReduceWhen = GUIDE_BSTRENGTH.loadReduceWhen;
@@ -2234,7 +2804,6 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
             applyGuide(e, GUIDE_BSTRENGTH);
           }
         } else applyGuide(e, GUIDE_ACCESSORY);
-
       }
     }
   }
@@ -2246,15 +2815,7 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
 // ===========================================================================
 
 export type MovementPattern =
-  | "squat"
-  | "hinge"
-  | "unilateral"
-  | "hamstring"
-  | "calf"
-  | "adductor"
-  | "core"
-  | "power"
-  | "other";
+  "squat" | "hinge" | "unilateral" | "hamstring" | "calf" | "adductor" | "core" | "power" | "other";
 
 export type GymValidationCode =
   | "heavy_duplicate_pattern"
@@ -2281,7 +2842,11 @@ export interface GymValidationIssue {
   exerciseId?: string;
 }
 
-const LOWER_BODY_ROLES: GymRole[] = ["lower_strength_power", "posterior_sprint", "unilateral_decel"];
+const LOWER_BODY_ROLES: GymRole[] = [
+  "lower_strength_power",
+  "posterior_sprint",
+  "unilateral_decel",
+];
 
 function hasAny(name: string, keywords: string[]): boolean {
   const n = name.toLowerCase();
@@ -2320,9 +2885,21 @@ export function classifyExercise(ex: TrainingExercise): MovementPattern {
   // CORE RULE 3: trap bar / hex bar deadlift = hybrydowa siła kolanowo-dominująca
   // (quady + pośladki + total force). NIE liczy się jako ekspozycja hamstring.
   if (hasAny(n, ["trap bar", "trap-bar", "hex bar", "hex-bar", "trapbar"])) return "squat";
-  if (hasAny(n, ["nordic", "leg curl", "slider", "hamstring", "glute bridge", "bridge march", "good morning", "ścięgn"]))
+  if (
+    hasAny(n, [
+      "nordic",
+      "leg curl",
+      "slider",
+      "hamstring",
+      "glute bridge",
+      "bridge march",
+      "good morning",
+      "ścięgn",
+    ])
+  )
     return "hamstring";
-  if (hasAny(n, ["rdl", "martwy ciąg", "hip thrust", "hip hinge", "hinge", "deadlift"])) return "hinge";
+  if (hasAny(n, ["rdl", "martwy ciąg", "hip thrust", "hip hinge", "hinge", "deadlift"]))
+    return "hinge";
   if (
     hasAny(n, [
       "bułgar",
@@ -2343,7 +2920,19 @@ export function classifyExercise(ex: TrainingExercise): MovementPattern {
   if (hasAny(n, ["przysiad", "squat", "goblet", "leg press"])) return "squat";
   if (hasAny(n, ["łydk", "soleus", "calf", "kostk"])) return "calf";
   if (hasAny(n, ["copenhagen", "przywodzic", "adduct", "suwak"])) return "adductor";
-  if (hasAny(n, ["pallof", "plank", "dead bug", "bird dog", "core", "tułów", "anty-rotacj", "carry", "farmer"]))
+  if (
+    hasAny(n, [
+      "pallof",
+      "plank",
+      "dead bug",
+      "bird dog",
+      "core",
+      "tułów",
+      "anty-rotacj",
+      "carry",
+      "farmer",
+    ])
+  )
     return "core";
   return "other";
 }
@@ -2447,7 +3036,10 @@ function checkNoHeavyDuplicatePattern(refs: ExerciseRef[]): GymValidationIssue[]
   return issues;
 }
 
-function checkComplementaryQualities(plan: GymSessionPlan, refs: ExerciseRef[]): GymValidationIssue[] {
+function checkComplementaryQualities(
+  plan: GymSessionPlan,
+  refs: ExerciseRef[],
+): GymValidationIssue[] {
   if (!LOWER_BODY_ROLES.includes(plan.role)) return [];
   const hasPower = refs.some(isPowerExercise);
   return hasPower
@@ -2460,17 +3052,30 @@ function checkHamstringExposure(plan: GymSessionPlan, refs: ExerciseRef[]): GymV
   const hasHam = refs.some((r) => r.pattern === "hamstring" || r.pattern === "hinge");
   return hasHam
     ? []
-    : [{ code: "missing_hamstring", message: "Sesja dolna bez ekspozycji tylnej taśmy / hamstring." }];
+    : [
+        {
+          code: "missing_hamstring",
+          message: "Sesja dolna bez ekspozycji tylnej taśmy / hamstring.",
+        },
+      ];
 }
 
-function checkCalfAdductorCoreSupport(plan: GymSessionPlan, refs: ExerciseRef[]): GymValidationIssue[] {
+function checkCalfAdductorCoreSupport(
+  plan: GymSessionPlan,
+  refs: ExerciseRef[],
+): GymValidationIssue[] {
   if (!LOWER_BODY_ROLES.includes(plan.role)) return [];
   const hasSupport = refs.some(
     (r) => r.pattern === "calf" || r.pattern === "adductor" || r.pattern === "core",
   );
   return hasSupport
     ? []
-    : [{ code: "missing_support", message: "Sesja dolna bez wsparcia tułów/przywodziciele/łydka." }];
+    : [
+        {
+          code: "missing_support",
+          message: "Sesja dolna bez wsparcia tułów/przywodziciele/łydka.",
+        },
+      ];
 }
 
 function checkNoRepeatedPowerExercise(refs: ExerciseRef[]): GymValidationIssue[] {
@@ -2492,7 +3097,11 @@ function checkNoRepeatedPowerExercise(refs: ExerciseRef[]): GymValidationIssue[]
   return issues;
 }
 
-function checkMatchDaySafety(plan: GymSessionPlan, ctx: StrengthBlockContext, refs: ExerciseRef[]): GymValidationIssue[] {
+function checkMatchDaySafety(
+  plan: GymSessionPlan,
+  ctx: StrengthBlockContext,
+  refs: ExerciseRef[],
+): GymValidationIssue[] {
   const md = ctx.mdLabel;
   const restricted = md === "MD-2" || md === "MD-1" || md === "MD" || md === "MD+1";
   if (!restricted) return [];
@@ -2504,17 +3113,31 @@ function checkMatchDaySafety(plan: GymSessionPlan, ctx: StrengthBlockContext, re
 
 /** Czy ćwiczenie to przezwyciężająca izometria (overcoming iso). */
 function isOvercomingIso(ref: ExerciseRef): boolean {
-  return hasAny(ref.ex.name.toLowerCase(), ["izometria przezwyciężająca", "overcoming iso", "overcoming isometric"]);
+  return hasAny(ref.ex.name.toLowerCase(), [
+    "izometria przezwyciężająca",
+    "overcoming iso",
+    "overcoming isometric",
+  ]);
 }
 
 /** Czy ćwiczenie to zaawansowana reaktywna plyometria / depth (poziom 4). */
 function isAdvancedReactivePlyo(ref: ExerciseRef): boolean {
-  return hasAny(ref.ex.name.toLowerCase(), ["depth", "głęboki", "rebound", "reaktywn", "hurdle rebound"]);
+  return hasAny(ref.ex.name.toLowerCase(), [
+    "depth",
+    "głęboki",
+    "rebound",
+    "reaktywn",
+    "hurdle rebound",
+  ]);
 }
 
 /** Czy w sesji jest ciężka praca dolna o wysokim napędzie nerwowym. */
 function hasHeavyLower(refs: ExerciseRef[]): boolean {
-  return refs.some((r) => isHeavyStrength(r) && (r.pattern === "squat" || r.pattern === "hinge" || r.pattern === "unilateral"));
+  return refs.some(
+    (r) =>
+      isHeavyStrength(r) &&
+      (r.pattern === "squat" || r.pattern === "hinge" || r.pattern === "unilateral"),
+  );
 }
 
 /** Tydzień 1 (kalibracja): bez metod zaawansowanych domyślnie. */
@@ -2523,11 +3146,23 @@ function checkWeek1Safety(ctx: StrengthBlockContext, refs: ExerciseRef[]): GymVa
   const issues: GymValidationIssue[] = [];
   for (const r of refs) {
     if (isOvercomingIso(r)) {
-      issues.push({ code: "week1_advanced_method", message: `Izometria przezwyciężająca w tygodniu 1 (${r.ex.name}) — odłóż na tydzień 2+.`, exerciseId: r.ex.id });
+      issues.push({
+        code: "week1_advanced_method",
+        message: `Izometria przezwyciężająca w tygodniu 1 (${r.ex.name}) — odłóż na tydzień 2+.`,
+        exerciseId: r.ex.id,
+      });
     } else if (isAdvancedReactivePlyo(r)) {
-      issues.push({ code: "week1_advanced_method", message: `Zaawansowana plyometria w tygodniu 1 (${r.ex.name}) — użyj wariantu lądowanie/sztywność.`, exerciseId: r.ex.id });
+      issues.push({
+        code: "week1_advanced_method",
+        message: `Zaawansowana plyometria w tygodniu 1 (${r.ex.name}) — użyj wariantu lądowanie/sztywność.`,
+        exerciseId: r.ex.id,
+      });
     } else if ((r.pattern === "squat" || r.pattern === "hinge") && (rpeMax(r.ex.rpe) ?? 0) >= 9) {
-      issues.push({ code: "week1_advanced_method", message: `Maksymalny ciężki lift w tygodniu 1 (${r.ex.name}) — utrzymaj RPE ≤ 8.`, exerciseId: r.ex.id });
+      issues.push({
+        code: "week1_advanced_method",
+        message: `Maksymalny ciężki lift w tygodniu 1 (${r.ex.name}) — utrzymaj RPE ≤ 8.`,
+        exerciseId: r.ex.id,
+      });
     }
   }
   return issues;
@@ -2538,11 +3173,22 @@ function checkOvercomingIsoStacking(refs: ExerciseRef[]): GymValidationIssue[] {
   const hasIso = refs.some(isOvercomingIso);
   if (!hasIso) return [];
   const heavyHinge = refs.some(
-    (r) => isHeavyStrength(r) && (r.pattern === "hinge" || isConventionalDeadliftName(r.ex.name) || hasAny(r.ex.name.toLowerCase(), ["trap bar", "trap-bar", "trapbar", "hex bar"])),
+    (r) =>
+      isHeavyStrength(r) &&
+      (r.pattern === "hinge" ||
+        isConventionalDeadliftName(r.ex.name) ||
+        hasAny(r.ex.name.toLowerCase(), ["trap bar", "trap-bar", "trapbar", "hex bar"])),
   );
   if (!heavyHinge) return [];
   const isoRef = refs.find(isOvercomingIso);
-  return [{ code: "overcoming_iso_stacking", message: "Overcoming iso + ciężki hinge/martwy ciąg/trap bar w jednej sesji — usuń izometrię.", exerciseId: isoRef?.ex.id }];
+  return [
+    {
+      code: "overcoming_iso_stacking",
+      message:
+        "Overcoming iso + ciężki hinge/martwy ciąg/trap bar w jednej sesji — usuń izometrię.",
+      exerciseId: isoRef?.ex.id,
+    },
+  ];
 }
 
 /** Akcesoria po ciężkiej pracy muszą być nisko/umiarkowanie obciążone (RPE ≤ 7). */
@@ -2553,7 +3199,11 @@ function checkAccessoryStress(refs: ExerciseRef[]): GymValidationIssue[] {
     if (r.section.type !== "accessory") continue;
     if (r.pattern === "power" || r.pattern === "core") continue;
     if ((rpeMax(r.ex.rpe) ?? 0) >= 8) {
-      issues.push({ code: "excessive_accessory_load", message: `Akcesorium po ciężkiej pracy zbyt obciążone (${r.ex.name}) — obniż do RPE ≤ 7.`, exerciseId: r.ex.id });
+      issues.push({
+        code: "excessive_accessory_load",
+        message: `Akcesorium po ciężkiej pracy zbyt obciążone (${r.ex.name}) — obniż do RPE ≤ 7.`,
+        exerciseId: r.ex.id,
+      });
     }
   }
   return issues;
@@ -2566,7 +3216,11 @@ function checkPlyoVolumeAfterHeavy(refs: ExerciseRef[]): GymValidationIssue[] {
   const issues: GymValidationIssue[] = [];
   if (powerRefs.length > 2) {
     for (let i = 2; i < powerRefs.length; i++) {
-      issues.push({ code: "excessive_plyo_after_heavy", message: `Nadmiarowy blok mocy po ciężkiej pracy dolnej (${powerRefs[i].ex.name}) — maks. 2.`, exerciseId: powerRefs[i].ex.id });
+      issues.push({
+        code: "excessive_plyo_after_heavy",
+        message: `Nadmiarowy blok mocy po ciężkiej pracy dolnej (${powerRefs[i].ex.name}) — maks. 2.`,
+        exerciseId: powerRefs[i].ex.id,
+      });
     }
   }
   return issues;
@@ -2592,7 +3246,12 @@ function isConventionalDeadliftName(name: string): boolean {
 }
 /** Maksymalna prędkość / sprint jako stresor tylnej taśmy. */
 function isMaxVelocityName(name: string): boolean {
-  return hasAny(name.toLowerCase(), ["max velocity", "maksymalna prędkość", "flying", "sprint maks"]);
+  return hasAny(name.toLowerCase(), [
+    "max velocity",
+    "maksymalna prędkość",
+    "flying",
+    "sprint maks",
+  ]);
 }
 
 export type HamstringStressorKind = "rdl" | "nordic" | "heavy_hinge" | "deadlift" | "sprint";
@@ -2720,7 +3379,11 @@ export function validateHamstringAndHeavyLiftRules(
   const md = ctx.mdLabel;
   if (md === "MD-2" || md === "MD-1" || md === "MD+1") {
     const heavyHam = stressors.some(
-      (s) => s.kind === "rdl" || s.kind === "heavy_hinge" || s.kind === "deadlift" || s.kind === "nordic",
+      (s) =>
+        s.kind === "rdl" ||
+        s.kind === "heavy_hinge" ||
+        s.kind === "deadlift" ||
+        s.kind === "nordic",
     );
     if (heavyHam) {
       issues.push({
@@ -2745,7 +3408,10 @@ export function validateHamstringAndHeavyLiftRules(
 }
 
 /** Pełna walidacja sesji siłowni. Zwraca listę naruszeń (pusta = OK). */
-export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockContext): GymValidationIssue[] {
+export function validateGymSession(
+  plan: GymSessionPlan,
+  ctx: StrengthBlockContext,
+): GymValidationIssue[] {
   const refs = flattenExercises(plan);
   return [
     ...checkMainHeavyPatternLimit(refs),
@@ -2762,7 +3428,6 @@ export function validateGymSession(plan: GymSessionPlan, ctx: StrengthBlockConte
     ...validateHamstringAndHeavyLiftRules(plan, ctx),
   ];
 }
-
 
 // --- Naprawa sesji (regeneracja problematycznych elementów) ---
 
@@ -2798,7 +3463,10 @@ export function repairGymSession(
       const alt = altJumpByName([...usedPower, ref.ex.name]);
       ref.ex.name = alt.name;
       ref.ex.cue = alt.cue;
-      ref.ex.groundContacts = contacts(alt.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+      ref.ex.groundContacts = contacts(
+        alt.contacts,
+        dosageFor({ age: 18, level: "advanced" } as Profile, ctx),
+      );
       usedPower.push(alt.name.toLowerCase());
     } else {
       usedPower.push(key);
@@ -2848,12 +3516,39 @@ export function repairGymSession(
       );
     }
     if (needsSupport) {
-      exs.push(ex({ name: "Izometria łydki / soleus (holding)", sets: "2", reps: "12–15 s", cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji." }));
-      exs.push(ex({ name: "Copenhagen plank", sets: "2", reps: "8 / strona", cue: "Kontrola przywodzicieli, bez bólu." }));
-      exs.push(ex({ name: "Pallof press (anty-rotacja)", sets: "2", reps: "10 / strona", cue: "Sztywny tułów." }));
+      exs.push(
+        ex({
+          name: "Izometria łydki / soleus (holding)",
+          sets: "2",
+          reps: "12–15 s",
+          cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji.",
+        }),
+      );
+      exs.push(
+        ex({
+          name: "Copenhagen plank",
+          sets: "2",
+          reps: "8 / strona",
+          cue: "Kontrola przywodzicieli, bez bólu.",
+        }),
+      );
+      exs.push(
+        ex({
+          name: "Pallof press (anty-rotacja)",
+          sets: "2",
+          reps: "10 / strona",
+          cue: "Sztywny tułów.",
+        }),
+      );
     }
     accSec.blocks.push(
-      block({ title: "Wsparcie i robustność", blockType: "accessory", intent: "stability", restAfterBlock: "45–60 s", exercises: exs }),
+      block({
+        title: "Wsparcie i robustność",
+        blockType: "accessory",
+        intent: "stability",
+        restAfterBlock: "45–60 s",
+        exercises: exs,
+      }),
     );
   }
 
@@ -2872,7 +3567,10 @@ export function repairGymSession(
               name: alt.name,
               sets: "3",
               reps: "3",
-              groundContacts: contacts(alt.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx)),
+              groundContacts: contacts(
+                alt.contacts,
+                dosageFor({ age: 18, level: "advanced" } as Profile, ctx),
+              ),
               cue: alt.cue,
               ageSafetyLevel: "all",
             }),
@@ -2919,7 +3617,9 @@ export function repairGymSession(
 
   // 6) Brak ekspozycji quad/glute w sesji dolnej → dołóż kontrolowany goblet squat.
   if (issues.some((i) => i.code === "missing_quad_glute")) {
-    const mainSec = plan.sections.find((s) => s.type === "main") ?? plan.sections.find((s) => s.type === "accessory");
+    const mainSec =
+      plan.sections.find((s) => s.type === "main") ??
+      plan.sections.find((s) => s.type === "accessory");
     if (mainSec) {
       mainSec.blocks.push(
         block({
@@ -2928,7 +3628,13 @@ export function repairGymSession(
           intent: "strength",
           restAfterBlock: "90 s",
           exercises: [
-            ex({ name: "Goblet squat (tempo)", sets: "3", reps: "8–10", rpe: "RPE 6–7", cue: "Pełen zakres, pięty na ziemi, kontrola." }),
+            ex({
+              name: "Goblet squat (tempo)",
+              sets: "3",
+              reps: "8–10",
+              rpe: "RPE 6–7",
+              cue: "Pełen zakres, pięty na ziemi, kontrola.",
+            }),
           ],
         }),
       );
@@ -2943,7 +3649,10 @@ export function repairGymSession(
       if (target.pattern === "power") {
         if (!target.ex.reps || !target.ex.reps.trim()) target.ex.reps = "3";
         if (target.ex.groundContacts === undefined || target.ex.groundContacts <= 0) {
-          target.ex.groundContacts = contacts(8, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+          target.ex.groundContacts = contacts(
+            8,
+            dosageFor({ age: 18, level: "advanced" } as Profile, ctx),
+          );
         }
       } else {
         if (!target.ex.sets || !target.ex.sets.trim()) target.ex.sets = "3";
@@ -2979,10 +3688,14 @@ export function repairGymSession(
     if (isOvercomingIso(target)) {
       removeExerciseById(issue.exerciseId);
     } else if (isAdvancedReactivePlyo(target)) {
-      const safe = JUMPS.find((j) => j.level === 1 && (j.kind === "pogo" || j.kind === "snap")) ?? JUMPS[0];
+      const safe =
+        JUMPS.find((j) => j.level === 1 && (j.kind === "pogo" || j.kind === "snap")) ?? JUMPS[0];
       target.ex.name = safe.name;
       target.ex.cue = safe.cue;
-      target.ex.groundContacts = contacts(safe.contacts, dosageFor({ age: 18, level: "advanced" } as Profile, ctx));
+      target.ex.groundContacts = contacts(
+        safe.contacts,
+        dosageFor({ age: 18, level: "advanced" } as Profile, ctx),
+      );
     } else {
       target.ex.rpe = "RPE 7–8";
     }
@@ -3031,24 +3744,29 @@ export function structuredToFlat(sections: TrainingSection[]): {
   cooldown: ExerciseItem[];
 } {
   const toItem = (e: TrainingExercise) => {
-    const parts = [e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps || e.sets, e.duration, e.rpe, e.loadTarget]
+    const parts = [
+      e.sets && e.reps ? `${e.sets} × ${e.reps}` : e.reps || e.sets,
+      e.duration,
+      e.rpe,
+      e.loadTarget,
+    ]
       .filter(Boolean)
       .join(", ");
-   const item: ExerciseItem = {
-  name: e.label ? `${e.label} — ${e.name}` : e.name,
-  exerciseId: e.exerciseId,
-  purpose: e.purpose,
-  visualId: e.visualId,
-  displayPrescription: e.displayPrescription,
-  instructionSteps: e.instructionSteps,
-  prescription: parts || "wg techniki",
-  rest: e.restAfterExercise || e.restAfterPair || undefined,
-  cue: e.cue,
-  technique: e.technique,
-  commonMistake: e.commonMistake,
-  easier: e.regression,
-  harder: e.progression,
-};
+    const item: ExerciseItem = {
+      name: e.label ? `${e.label} — ${e.name}` : e.name,
+      exerciseId: e.exerciseId,
+      purpose: e.purpose,
+      visualId: e.visualId,
+      displayPrescription: e.displayPrescription,
+      instructionSteps: e.instructionSteps,
+      prescription: parts || "wg techniki",
+      rest: e.restAfterExercise || e.restAfterPair || undefined,
+      cue: e.cue,
+      technique: e.technique,
+      commonMistake: e.commonMistake,
+      easier: e.regression,
+      harder: e.progression,
+    };
     return item;
   };
   const out = {
@@ -3111,6 +3829,7 @@ export function flatToStructured(sections: {
             intent: "strength",
             exercises: g.items.map((it) =>
               ex({
+                canonicalize: false,
                 name: it.name,
                 purpose: it.purpose,
                 visualId: it.visualId,
