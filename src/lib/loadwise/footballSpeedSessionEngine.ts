@@ -472,11 +472,17 @@ function buildSessionDay(
         .map(toItem),
       accessory: [],
       footballTransfer: [],
+      // Speed plans use one ordered flat work list; the detail sections retain
+      // the same order through structuredSections below.
       cooldown: [],
     },
     secondSession: null,
     speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,
-    structuredSections: buildFootballSpeedStructuredSections(input.date, exercises),
+    structuredSections: buildFootballSpeedStructuredSections(
+      input.date,
+      exercises,
+      input.family === "deceleration_cod",
+    ),
   };
 }
 
