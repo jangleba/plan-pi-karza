@@ -5,7 +5,7 @@ import {
   type ExerciseDefinition,
   type FootballSpeedQuality,
 } from "./exerciseLibrary";
-import type { PainLocation, Profile, SessionDay } from "./types";
+import type { PainLocation, Profile, SessionDay, TrainingBlock, TrainingSection } from "./types";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 
 export type FootballSpeedFamily =
@@ -468,21 +468,71 @@ function buildSessionDay(
     sections: {
       warmup: exercises.filter((e) => e.role === "preparation" || e.role === "primer").map(toItem),
       main: exercises
-        .filter(
-          (e) =>
-            e.role !== "preparation" &&
-            e.role !== "primer" &&
-            e.role !== "conditioning" &&
-            e.role !== "cooldown",
-        )
+        .filter((e) => e.role !== "preparation" && e.role !== "primer" && e.role !== "conditioning")
         .map(toItem),
       accessory: [],
       footballTransfer: [],
-      cooldown: exercises.filter((e) => e.role === "cooldown").map(toItem),
+      // Speed plans use one ordered flat work list; the detail sections retain
+      // the same order through structuredSections below.
+      cooldown: [],
     },
     secondSession: null,
     speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,
+    structuredSections: buildFootballSpeedStructuredSections(
+      input.date,
+      exercises,
+      input.family === "deceleration_cod",
+    ),
   };
+}
+
+/** Builds the detail-screen representation from the same canonical rows as the plan. */
+export function buildFootballSpeedStructuredSections(
+  date: string,
+  exercises: FootballSpeedExercise[],
+  braking = false,
+): TrainingSection[] {
+  const sections: TrainingSection[] = [];
+  for (const exercise of exercises) {
+    const sectionType = exercise.role === "preparation" ? "warmup" : "main";
+    let section = sections.find((item) => item.type === sectionType);
+    if (!section) {
+      section = {
+        id: `${date}-${sectionType}`,
+        title: sectionType === "warmup" ? "Przygotowanie" : "Bloki szybkości",
+        type: sectionType,
+        blocks: [],
+      };
+      sections.push(section);
+    }
+    const id = `${date}-${exercise.order}-${exercise.exerciseId}`;
+    const trainingExercise = {
+      id,
+      exerciseId: exercise.exerciseId,
+      name: exercise.name,
+      purpose: exercise.purpose,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      duration: exercise.distanceOrDuration,
+      restAfterExercise: exercise.restBetweenReps,
+      restAfterPair: exercise.restBetweenSets,
+      displayPrescription: `${exercise.sets} serie × ${exercise.reps} powt. · ${exercise.distanceOrDuration}`,
+      equipment: exercise.equipment.requiredEquipment.join(", ") || undefined,
+      cue: exercise.coachingCuesPl.join(" "),
+      commonMistake: exercise.safetyStopRule,
+    };
+    const block: TrainingBlock = {
+      id,
+      title: exercise.purpose,
+      blockType: "single",
+      intent: exercise.role === "preparation" ? "mobility" : braking ? "braking" : "power",
+      exercises: [trainingExercise],
+      restAfterBlock: exercise.restBetweenSets,
+      safetyNotes: exercise.safetyStopRule,
+    };
+    section.blocks.push(block);
+  }
+  return sections;
 }
 
 export function generateFootballSpeedSession(

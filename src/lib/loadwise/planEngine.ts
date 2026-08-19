@@ -12,9 +12,6 @@ import type {
   WeekStats,
   LoadTag,
   Mesocycle,
-  TrainingSection,
-  TrainingBlock,
-  TrainingExercise,
 } from "./types";
 import { assertPlanExerciseContract } from "./planExerciseContract";
 import {
@@ -44,6 +41,7 @@ import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import {
+  buildFootballSpeedStructuredSections,
   generateFootballSpeedSession,
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
@@ -4085,51 +4083,11 @@ export function generatePlan(
     });
     if (!generated.session) return;
     const speed = generated.session;
-    const sections: TrainingSection[] = [];
-    for (const exercise of generated.exercises) {
-      const trainingExercise: TrainingExercise = {
-        id: `${target.date}-${exercise.order}-${exercise.exerciseId}`,
-        exerciseId: exercise.exerciseId,
-        name: exercise.name,
-        purpose: exercise.purpose,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        duration: exercise.distanceOrDuration,
-        restAfterExercise: exercise.restBetweenReps,
-        restAfterPair: exercise.restBetweenSets,
-        displayPrescription: `${exercise.sets} serie × ${exercise.reps} powt. · ${exercise.distanceOrDuration}`,
-        equipment: exercise.equipment.requiredEquipment.join(", ") || undefined,
-        cue: exercise.coachingCuesPl.join(" "),
-        commonMistake: exercise.safetyStopRule,
-      };
-      const sectionType = exercise.role === "preparation" ? "warmup" : "main";
-      let section = sections.find((item) => item.type === sectionType);
-      if (!section) {
-        section = {
-          id: `${target.date}-${sectionType}`,
-          title: sectionType === "warmup" ? "Przygotowanie" : "Bloki szybkości",
-          type: sectionType,
-          blocks: [],
-        };
-        sections.push(section);
-      }
-      const block: TrainingBlock = {
-        id: trainingExercise.id,
-        title: exercise.purpose,
-        blockType: "single",
-        intent:
-          stimulus === "cod" && exercise.role !== "preparation"
-            ? "braking"
-            : exercise.role === "preparation"
-              ? "mobility"
-              : "power",
-        exercises: [trainingExercise],
-        restAfterBlock: exercise.restBetweenSets,
-        safetyNotes: exercise.safetyStopRule,
-      };
-      section.blocks.push(block);
-    }
-    sections.sort((a, b) => (a.type === "warmup" ? -1 : b.type === "warmup" ? 1 : 0));
+    const sections = buildFootballSpeedStructuredSections(
+      target.date,
+      generated.exercises,
+      stimulus === "cod",
+    );
     Object.assign(target, {
       title: speed.title,
       sessionType: "Szybkość piłkarska",
