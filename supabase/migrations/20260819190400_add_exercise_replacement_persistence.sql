@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS public.exercise_replacements (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.exercise_replacements TO authenticated;
+GRANT ALL ON public.exercise_replacements TO service_role;
+
 ALTER TABLE public.exercise_replacements ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users manage their own exercise replacements"
