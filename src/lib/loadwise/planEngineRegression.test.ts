@@ -40,9 +40,7 @@ const START = new Date("2026-07-13T00:00:00"); // poniedziałek
 const EXPECTED_SPEED_BLOCK_COUNT = 10; // warmup + 2 transitions + 3 drills + plyo + primary + terminal + cooldown
 
 function fullWeeks(plan: SessionDay[]) {
-  const ranges = weekRanges(START, plan.length).filter(
-    (r) => r.end - r.start === 7,
-  );
+  const ranges = weekRanges(START, plan.length).filter((r) => r.end - r.start === 7);
   return ranges.map((r) => plan.slice(r.start, r.end));
 }
 
@@ -94,8 +92,13 @@ describe("regression — gym access + full week", () => {
         expect(speedDay?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
           EXPECTED_SPEED_BLOCK_COUNT,
         );
-        expect(speedDay?.structuredSections?.flatMap((section) => section.blocks).map((block) => block.exercises[0].exerciseId))
-          .toEqual(speedDay?.sections.warmup.concat(speedDay.sections.main).map((item) => item.exerciseId));
+        expect(
+          speedDay?.structuredSections
+            ?.flatMap((section) => section.blocks)
+            .map((block) => block.exercises[0].exerciseId),
+        ).toEqual(
+          speedDay?.sections.warmup.concat(speedDay.sections.main).map((item) => item.exerciseId),
+        );
       });
 
       it("never replaces club or match commitments with an owned speed session", () => {
@@ -110,8 +113,11 @@ describe("regression — gym access + full week", () => {
         );
         expect(plan.find((day) => day.dayType === "club")?.sessionType).toBe("Klub");
         expect(plan.find((day) => day.dayType === "match")?.sessionType).toBe("Mecz");
-        expect(plan.filter((day) => day.dayType === "club" || day.dayType === "match")
-          .every((day) => day.sessionType !== "Szybkość")).toBe(true);
+        expect(
+          plan
+            .filter((day) => day.dayType === "club" || day.dayType === "match")
+            .every((day) => day.sessionType !== "Szybkość"),
+        ).toBe(true);
       });
 
       it("keeps repeated sprint classified as conditioning", () => {
@@ -263,9 +269,7 @@ describe("regression — MD-1/MD-2 safety", () => {
     });
     const plan = generatePlan(profile, START, 28);
 
-    const md1Days = plan.filter(
-      (d) => d.dayType === "md-1" || d.mdLabel === "MD-1",
-    );
+    const md1Days = plan.filter((d) => d.dayType === "md-1" || d.mdLabel === "MD-1");
 
     for (const day of md1Days) {
       const cat = day.classification?.category;

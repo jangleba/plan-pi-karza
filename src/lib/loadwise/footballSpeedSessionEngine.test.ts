@@ -38,13 +38,17 @@ describe("football speed session engine", () => {
       family: "acceleration",
     });
     expect(result.status).toBe("generated");
-    expect(result.exercises.filter((e) => e.role === "primer").map((e) => e.exerciseId)).toEqual(
-      ["a_skip", "a_skip", "scissor_bounds"],
-    );
+    expect(result.exercises.filter((e) => e.role === "primer").map((e) => e.exerciseId)).toEqual([
+      "a_switch_progression",
+      "a_skip",
+      "scissor_bounds",
+    ]);
     expect(result.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId)).toEqual(
       ["a_switch_progression", "a_skip", "scissor_bounds"],
     );
-    expect(result.exercises.filter((e) => e.role === "technical").every((e) => e.sets === "2")).toBe(true);
+    expect(
+      result.exercises.filter((e) => e.role === "technical").every((e) => e.sets === "2"),
+    ).toBe(true);
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
   });
 

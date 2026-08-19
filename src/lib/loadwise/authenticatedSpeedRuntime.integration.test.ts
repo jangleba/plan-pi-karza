@@ -44,11 +44,14 @@ describe("authenticated onboarding edit speed runtime", () => {
     const md3 = regeneratedAfterEdit.find((day) => day.date === "2026-08-19");
 
     expect(persistedBeforeEdit.find((day) => day.date === "2026-08-19")).toBeDefined();
+    expect(md3).toBeDefined();
     expect(md3?.secondSession).toBeNull();
     expect(md3?.sessionType).toBe("Szybkość");
     expect(md3?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(10);
     expect(md3?.sections.main.filter((item) => item.exerciseId).length).toBe(6);
     expect(md3 ? allText(md3) : "").not.toMatch(/piłk|aktywacja z piłką|sprinty z piłką/);
-    expect(md3 ? allText(md3) : "").not.toMatch(/zwody i zmiana kierunku|przyjęcie–zwrot–przyspieszenie/);
+    expect(md3 ? allText(md3) : "").not.toMatch(
+      /zwody i zmiana kierunku|przyjęcie–zwrot–przyspieszenie/,
+    );
   });
 });

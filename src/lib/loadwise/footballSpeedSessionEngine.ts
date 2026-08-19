@@ -43,7 +43,14 @@ export interface SpeedEquipmentStatus {
  *  Dokładnie: 1 × warmup, 3 × drill, 1 × primary, 1 × terminal, 0–1 × optional.
  */
 export type FootballSpeedRole =
-  "preparation" | "technical" | "primer" | "primary" | "secondary" | "conditioning" | "cooldown";
+  | "preparation"
+  | "technical"
+  | "primer"
+  | "primary"
+  | "terminal"
+  | "secondary"
+  | "conditioning"
+  | "cooldown";
 
 export interface FootballSpeedExercise {
   order: number;
@@ -134,8 +141,8 @@ const COOLDOWN: RowSpec = {
 
 const SKIP_TRANSITIONS: RowSpec[] = [
   {
-    id: "a_skip",
-    name: "Przejście skip — runda 1",
+    id: "a_switch_progression",
+    name: "Przejście zmiany A — runda 1",
     purpose: "Rytm i aktywna stopa przed pracą szybkościową.",
     dose: "1 runda × 15 m",
     rest: "Przejście bez przerwy",
@@ -150,11 +157,41 @@ const SKIP_TRANSITIONS: RowSpec[] = [
 ];
 
 const TERMINAL_BY_FAMILY: Record<FootballSpeedFamily, RowSpec> = {
-  acceleration: { id: "progressive_deceleration_5_10_15", name: "Hamowanie po sprincie", purpose: "Bezpieczne wytracenie prędkości po głównym bodźcu.", dose: "2 serie × 5–10 m", rest: "Pełna przerwa 90 s" },
-  maximum_velocity: { id: "progressive_deceleration_5_10_15", name: "Hamowanie po sprincie", purpose: "Kontrolowane wytracenie prędkości po ekspozycji maksymalnej.", dose: "2 serie × 5–10 m", rest: "Pełna przerwa 90 s" },
-  curved_sprinting: { id: "football_curved_sprint", name: "Kontrolowany łuk", purpose: "Utrzymanie mechaniki i bezpieczne wyjście z biegu po łuku.", dose: "2 × 20 m", rest: "Pełna przerwa 90 s" },
-  deceleration_cod: { id: "planned_cut", name: "Kontrolowana zmiana kierunku", purpose: "Zakończenie sesji hamowaniem i kontrolowanym wyjściem.", dose: "2 powtórzenia na stronę", rest: "Pełna przerwa 90 s" },
-  reactive_agility_reacceleration: { id: "accel_decel_reaccel", name: "Hamowanie i ponowne przyspieszenie", purpose: "Zakończenie sesji kontrolą hamowania i ponownym startem.", dose: "2 × 10 m", rest: "Pełna przerwa 90 s" },
+  acceleration: {
+    id: "progressive_deceleration_5_10_15",
+    name: "Hamowanie po sprincie",
+    purpose: "Bezpieczne wytracenie prędkości po głównym bodźcu.",
+    dose: "2 serie × 5–10 m",
+    rest: "Pełna przerwa 90 s",
+  },
+  maximum_velocity: {
+    id: "progressive_deceleration_5_10_15",
+    name: "Hamowanie po sprincie",
+    purpose: "Kontrolowane wytracenie prędkości po ekspozycji maksymalnej.",
+    dose: "2 serie × 5–10 m",
+    rest: "Pełna przerwa 90 s",
+  },
+  curved_sprinting: {
+    id: "football_curved_sprint",
+    name: "Kontrolowany łuk",
+    purpose: "Utrzymanie mechaniki i bezpieczne wyjście z biegu po łuku.",
+    dose: "2 × 20 m",
+    rest: "Pełna przerwa 90 s",
+  },
+  deceleration_cod: {
+    id: "planned_cut",
+    name: "Kontrolowana zmiana kierunku",
+    purpose: "Zakończenie sesji hamowaniem i kontrolowanym wyjściem.",
+    dose: "2 powtórzenia na stronę",
+    rest: "Pełna przerwa 90 s",
+  },
+  reactive_agility_reacceleration: {
+    id: "accel_decel_reaccel",
+    name: "Hamowanie i ponowne przyspieszenie",
+    purpose: "Zakończenie sesji kontrolą hamowania i ponownym startem.",
+    dose: "2 × 10 m",
+    rest: "Pełna przerwa 90 s",
+  },
 };
 
 const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
@@ -588,9 +625,7 @@ export function generateFootballSpeedSession(
     );
   }
   exercises.push(buildRow(spec.primary, order++, "primary", input, low));
-  exercises.push(
-    buildRow(TERMINAL_BY_FAMILY[input.family], order++, "secondary", input, low),
-  );
+  exercises.push(buildRow(TERMINAL_BY_FAMILY[input.family], order++, "terminal", input, low));
   exercises.push(buildRow(COOLDOWN, order++, "cooldown", input, low));
 
   const title = activation ? `${spec.title} — aktywacja` : spec.title;

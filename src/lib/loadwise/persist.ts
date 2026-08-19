@@ -139,8 +139,6 @@ export async function persistMonthlyPlan(
     status: "active",
   });
   if (dayRows.length) await supabase.from("training_days").insert(dayRows as never);
-  if (sessionRows.length)
-    await supabase.from("training_sessions").insert(sessionRows as never);
-  if (exerciseRows.length)
-    await supabase.from("session_exercises").insert(exerciseRows as never);
+  if (sessionRows.length) await supabase.from("training_sessions").insert(sessionRows as never);
+  if (exerciseRows.length) await supabase.from("session_exercises").insert(exerciseRows as never);
 }
