@@ -2247,10 +2247,11 @@ function isCanonicalReplacementCompatible(
   target: ExerciseDefinition,
 ): boolean {
   const stimulusMatches =
-    source.stimulus !== undefined || target.stimulus !== undefined
-      ? replacementStimulus(source) === replacementStimulus(target)
-      : replacementStimulus(source) === replacementStimulus(target) ||
-        (source.family === target.family && source.movementPattern === target.movementPattern);
+    replacementStimulus(source) === replacementStimulus(target) ||
+    source.family === target.family ||
+    (source.family === "power" && target.family === "plyometric") ||
+    (source.family === "plyometric" && target.family === "power") ||
+    source.movementPattern === target.movementPattern;
   return (
     stimulusMatches &&
     hasSharedSessionRole(source, target)
