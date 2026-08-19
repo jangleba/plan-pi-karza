@@ -471,11 +471,11 @@ function buildSessionDay(
     mdLabel: null,
     slotLabel: null,
     sections: {
-      warmup: exercises.filter((e) => e.role === "preparation").map(toItem),
-      main: exercises.filter((e) => e.role !== "preparation" && e.role !== "conditioning" && e.role !== "cooldown").map(toItem),
+      warmup: exercises.filter((e) => e.role === "preparation" || e.role === "primer").map(toItem),
+      main: exercises.filter((e) => e.role !== "preparation" && e.role !== "primer" && e.role !== "conditioning").map(toItem),
       accessory: [],
       footballTransfer: [],
-      cooldown: exercises.filter((e) => e.role === "cooldown").map(toItem),
+      cooldown: [],
     },
     secondSession: null,
     speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,
@@ -528,25 +528,27 @@ export function generateFootballSpeedSession(
   exercises.push(buildRow(WARMUP, order++, "preparation", input, low));
   const flow = getFoundationalSprintFlow();
   for (const step of flow) {
-  for (const [index] of step.variants.entries()) {
-    const drill = spec.drills[index % spec.drills.length];
-    const definition = approved(step.exerciseId);
-    if (!definition) throw new Error(`Brak zatwierdzonego ćwiczenia ${step.exerciseId}.`);
-    exercises.push(
-      buildRow(
-        {
-          ...drill,
-          id: step.exerciseId,
-          name: definition.displayNamePl,
-          purpose: drill.purpose,
-        },
-        order++,
-        "technical",
-        input,
-        low,
-        index + 1,
-      ),
-    );
+    for (const [index] of step.variants.entries()) {
+      const drill = spec.drills[index % spec.drills.length];
+      const exerciseId = step.exerciseId === "a_march" ? "a_skip" : step.exerciseId;
+      const definition = approved(exerciseId);
+      if (!definition) throw new Error(`Brak zatwierdzonego ćwiczenia ${exerciseId}.`);
+      exercises.push(
+        buildRow(
+          {
+            ...drill,
+            id: exerciseId,
+            name: definition.displayNamePl,
+            purpose: drill.purpose,
+          },
+          order++,
+          "technical",
+          input,
+          low,
+          index + 1,
+        ),
+      );
+    }
   }
   exercises.push(buildRow(spec.primary, order++, "primary", input, low));
   if (spec.secondary && !low) {

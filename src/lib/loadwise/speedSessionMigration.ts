@@ -14,7 +14,7 @@ function familyFor(session: SessionDay): FootballSpeedFamily {
   if (subcategory === "max_velocity" || subcategory === "flying_sprints") {
     return "maximum_velocity";
   }
-  if (subcategory === "curved_sprint") return "curved_sprinting";
+  if (/łuk|curved/i.test(`${session.title} ${session.sessionType}`)) return "curved_sprinting";
   if (subcategory === "agility_speed") return "reactive_agility_reacceleration";
   return "acceleration";
 }

@@ -555,11 +555,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         );
         if (migrated.migratedDates.length > 0) {
           plan = migrated.plan;
-          if (planRow.id) {
+          const planId = planRow?.id as string | undefined;
+          if (planId) {
             await supabase
               .from("training_plans")
               .update({ plan_json: plan as unknown as never })
-              .eq("id", planRow.id)
+              .eq("id", planId)
               .eq("user_id", user.id);
           }
         }
