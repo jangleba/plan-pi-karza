@@ -161,23 +161,28 @@ describe("daily check-in integration", () => {
 
   it("uses the same swapped session for every surface", () => {
     const swapped = { ...makeSession(), title: "Ręcznie zamieniona szybkość" };
+    const result = resolveEffectiveDay(makeSession(), readiness({}), PROFILE, [
+      {
+        id: "swap-1",
+        date: "2026-08-17",
+        type: "swap",
+        reason: "manual",
+        safetyStatus: "swapped_by_user",
+        session: swapped,
+        originalSession: makeSession(),
+        createdAt: "2026-08-17T08:00:00Z",
+      },
+    ]);
+    expect(result).toBe(swapped);
+  });
+
+  it("falls through to the readiness-adjusted canonical session without a swap", () => {
     const result = resolveEffectiveDay(
       makeSession(),
-      readiness({}),
+      readiness({ overall: 2, fatigue: 9, jointPain: 7 }),
       PROFILE,
-      [
-        {
-          id: "swap-1",
-          date: "2026-08-17",
-          type: "swap",
-          reason: "manual",
-          safetyStatus: "swapped_by_user",
-          session: swapped,
-          originalSession: makeSession(),
-          createdAt: "2026-08-17T08:00:00Z",
-        },
-      ],
     );
-    expect(result).toBe(swapped);
+    expect(result.secondSession).toBeNull();
+    expect(result.readinessAdjustedDate).toBeUndefined();
   });
 });
