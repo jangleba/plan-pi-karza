@@ -5,6 +5,7 @@ import {
   generateFootballSpeedSession,
 } from "./footballSpeedSessionEngine";
 import { migratePersistedSpeedSessions } from "./speedSessionMigration";
+import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 
 const profile = (): Profile =>
   ({
@@ -107,5 +108,53 @@ describe("persisted football speed migration", () => {
           .map((exercise) => exercise.exerciseId),
       ),
     ).toEqual(new Set(["c_skip", "b_skip", "d_skip"]));
+  });
+
+  it("moves an invalid speed candidate to the nearest future valid date", () => {
+    const first = legacySpeed({ date: "2026-08-20", sessionId: "first" });
+    const second = legacySpeed({ date: "2026-08-21", sessionId: "second" });
+    const rest = (date: string): SessionDay =>
+      legacySpeed({
+        date,
+        title: "Dzień wolny",
+        dayType: "rest",
+        sessionType: "Dzień wolny",
+        isOwnSession: false,
+        isRecoveryOrPrehab: true,
+        sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+      });
+    const result = migratePersistedSpeedSessions(
+      [first, second, rest("2026-08-22"), rest("2026-08-23")],
+      profile(),
+      "2026-08-19",
+      {},
+    );
+    expect(result.plan.map((day) => day.date)).toEqual(["2026-08-20", "2026-08-22", "2026-08-23"]);
+    expect(result.plan.map((day) => [day.date, day.sessionId])).toEqual([
+      ["2026-08-20", "first"],
+      ["2026-08-22", "second"],
+      ["2026-08-23", undefined],
+    ]);
+  });
+
+  it("omits a blocked candidate when the horizon has no valid future date", () => {
+    const result = migratePersistedSpeedSessions(
+      [legacySpeed({ date: "2026-08-20" }), legacySpeed({ date: "2026-08-21" })],
+      profile(),
+      "2026-08-19",
+      {},
+    );
+    expect(result.plan.map((day) => day.date)).toEqual(["2026-08-20"]);
+  });
+
+  it("evaluates ISO dates at calendar boundaries without timezone drift", () => {
+    expect(
+      validateFootballSpeedDate("2026-08-20", { matchDate: "2026-08-21" }).issues,
+    ).toContain("match_minus_one");
+    expect(
+      validateFootballSpeedDate("2026-08-20", {
+        speedDates: ["2026-08-19", "2026-08-21"],
+      }).valid,
+    ).toBe(false);
   });
 });

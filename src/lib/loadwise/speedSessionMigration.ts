@@ -5,6 +5,10 @@ import {
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
 import { classifySession } from "./sessionClassification";
+import {
+  nearestFutureValidFootballSpeedDate,
+  validateFootballSpeedDate,
+} from "./footballSpeedScheduling";
 
 function familyFor(session: SessionDay): FootballSpeedFamily {
   const subcategory = session.classification?.subcategory ?? classifySession(session).subcategory;
@@ -48,32 +52,6 @@ function migrateSession(session: SessionDay, profile: Profile): SessionDay {
   };
 }
 
-function dateOffset(date: string, days: number): string {
-  const value = new Date(`${date}T12:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
-function isMatchProtectedDate(date: string, profile: Profile): boolean {
-  return (
-    profile.matchDate === date ||
-    profile.matchDate === dateOffset(date, 1) ||
-    profile.matchDate === dateOffset(date, -1)
-  );
-}
-
-function isEligibleForRelocation(
-  date: string,
-  speedDates: Set<string>,
-  planDates: Set<string>,
-  profile: Profile,
-): boolean {
-  if (!planDates.has(date) || isMatchProtectedDate(date, profile) || speedDates.has(date)) {
-    return false;
-  }
-  return !speedDates.has(dateOffset(date, -1)) && !speedDates.has(dateOffset(date, 1));
-}
-
 function relocateInvalidGeneratedSpeedSessions(
   plan: SessionDay[],
   profile: Profile,
@@ -83,42 +61,51 @@ function relocateInvalidGeneratedSpeedSessions(
 ): { plan: SessionDay[]; migratedDates: string[] } {
   const migratedDates: string[] = [];
   const planDates = new Set(plan.map((day) => day.date));
-  const speedDates = new Set(
-    plan.filter((day) => isSpeed(day)).map((day) => day.date),
-  );
+  const occupiedSpeedDates = new Set(plan.filter((day) => isSpeed(day)).map((day) => day.date));
+  const acceptedSpeedDates = new Set<string>();
   const next = [...plan];
 
   for (let index = 0; index < next.length; index += 1) {
     const day = next[index];
-    if (
+    const eligible =
       day.date <= today ||
       !isSpeed(day) ||
       !isAppGeneratedSpeed(day) ||
       ((day.dbId || day.sessionId) && completions[day.dbId ?? day.sessionId ?? ""]?.completed) ||
-      (modifications[day.date] ?? []).some((mod) => mod.type === "swap")
-    ) {
+      (modifications[day.date] ?? []).some((mod) => mod.type === "swap");
+    if (eligible) {
+      if (isSpeed(day)) acceptedSpeedDates.add(day.date);
       continue;
     }
 
-    const duplicate = next.some(
-      (candidate, candidateIndex) =>
-        candidateIndex !== index && candidate.date === day.date && isSpeed(candidate),
-    );
-    const previous = index > 0 ? next[index - 1] : undefined;
-    const nextDay = index + 1 < next.length ? next[index + 1] : undefined;
-    const consecutive =
-      (previous && previous.date === dateOffset(day.date, -1) && isSpeed(previous)) ||
-      (nextDay && nextDay.date === dateOffset(day.date, 1) && isSpeed(nextDay));
-    const invalid = duplicate || isMatchProtectedDate(day.date, profile) || Boolean(consecutive);
-    if (!invalid) continue;
+    const validation = validateFootballSpeedDate(day.date, {
+      matchDate: profile.matchDate,
+      speedDates: acceptedSpeedDates,
+    });
+    occupiedSpeedDates.delete(day.date);
+    if (validation.valid) {
+      acceptedSpeedDates.add(day.date);
+      occupiedSpeedDates.add(day.date);
+      continue;
+    }
 
-    speedDates.delete(day.date);
-    const target = next
-      .slice(index + 1)
-      .map((candidate) => candidate.date)
-      .find((candidateDate) =>
-        isEligibleForRelocation(candidateDate, speedDates, planDates, profile),
-      );
+    const target = nearestFutureValidFootballSpeedDate(
+      day.date,
+      [...planDates].filter((candidateDate) => {
+        if (candidateDate <= day.date) return false;
+        const candidate = next.find((item) => item.date === candidateDate);
+        return (
+          candidate &&
+          candidate.isOwnSession !== true &&
+          candidate.dayType !== "club" &&
+          candidate.dayType !== "match"
+        );
+      }),
+      {
+        matchDate: profile.matchDate,
+        speedDates: new Set([...acceptedSpeedDates, ...occupiedSpeedDates]),
+      },
+    );
 
     if (!target) {
       next.splice(index, 1);
@@ -134,8 +121,12 @@ function relocateInvalidGeneratedSpeedSessions(
       migratedDates.push(day.date);
       continue;
     }
-    next[index] = migrated;
-    speedDates.add(target);
+    next.splice(index, 1);
+    const targetIndex = next.findIndex((candidate) => candidate.date === target);
+    if (targetIndex < 0) break;
+    next[targetIndex] = migrated;
+    acceptedSpeedDates.add(target);
+    occupiedSpeedDates.add(target);
     migratedDates.push(day.date);
   }
 

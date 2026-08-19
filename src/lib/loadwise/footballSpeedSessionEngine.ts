@@ -6,6 +6,7 @@ import {
   type FootballSpeedQuality,
 } from "./exerciseLibrary";
 import type { PainLocation, Profile, SessionDay } from "./types";
+import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 
 export type FootballSpeedFamily =
   | "acceleration"
@@ -377,7 +378,9 @@ function isMatchDay(input: FootballSpeedEngineInput): boolean {
 }
 
 function isMatchPlusOne(input: FootballSpeedEngineInput): boolean {
-  return input.profile.matchDate === dateOffset(input.date, -1);
+  const value = new Date(`${input.date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() - 1);
+  return input.profile.matchDate === value.toISOString().slice(0, 10);
 }
 
 function buildRow(
@@ -510,7 +513,9 @@ export function generateFootballSpeedSession(
   // replacement and must not be emitted by this engine.
   if (
     isMatchDay(input) ||
-    input.profile.matchDate === dateOffset(input.date, 1) ||
+    validateFootballSpeedDate(input.date, { matchDate: input.profile.matchDate }).issues.includes(
+      "match_minus_one",
+    ) ||
     isMatchPlusOne(input) ||
     hasHardConflict(input)
   ) {

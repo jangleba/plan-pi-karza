@@ -51,6 +51,7 @@ import {
 } from "./sessionVariants";
 import type { AthleteTrainingProfile } from "./athleteProfile";
 import type { PainLocation } from "./types";
+import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 
 // ---------------------------------------------------------------------------
 // Typy
@@ -461,6 +462,16 @@ export function getSafeSpeedPlacements(
     if (dayHasSpeed(day)) return; // nie dwie szybkości tego samego dnia
     // TWARDA ZASADA: min. 1 dzień przerwy między speed — nie dzień po dniu.
     if (adjacentDayHasSpeed(weekPlan, dayIndex)) return;
+    if (
+      day.date &&
+      !validateFootballSpeedDate(day.date, {
+        speedDates: (weekPlan ?? [])
+          .filter((candidate) => candidate.date && hasSpeedSession(candidate))
+          .map((candidate) => candidate.date!),
+      }).valid
+    ) {
+      return;
+    }
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
     // Tego samego dnia: nie po ciężkiej sile nóg ani ciężkim conditioning
     // (szybkość musi być świeża i pierwsza — dwa ciężkie bodźce blokuje canAddSessionToDay).
