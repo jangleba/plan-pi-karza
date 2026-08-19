@@ -62,7 +62,8 @@ export function validatePersistedPlan(
     });
   }
 
-  if (plan.some((day) => day.canonicalSchemaVersion !== undefined)) {
+  // Only plans stamped by the canonical generator carry this numeric marker.
+  if (plan.some((day) => typeof day.canonicalSchemaVersion === "number")) {
     for (const issue of validatePlanExerciseContract(plan)) {
       issues.push({
         code: "invalid-exercise-contract",

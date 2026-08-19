@@ -665,7 +665,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         modifications,
         transitions,
         exerciseReplacements:
-          Object.keys(persistedReplacements).length > 0
+          !replacementRes.error
             ? persistedReplacements
             : local.exerciseReplacements,
         equipmentNotice: null,
