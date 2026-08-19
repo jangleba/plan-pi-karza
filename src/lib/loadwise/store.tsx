@@ -509,11 +509,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
       const rowProfile = buildProfile(profRes.data as AnyRow | null, athRes.data as AnyRow | null);
       const local = loadLocal(user.id);
+      const persistedUnavailableEquipment = (athRes.data as AnyRow | null)?.unavailable_equipment_ids;
       const profile = rowProfile
         ? {
             ...rowProfile,
-            unavailableEquipmentIds: Array.isArray((athRes.data as AnyRow | null)?.unavailable_equipment_ids)
-              ? ((athRes.data as AnyRow).unavailable_equipment_ids as string[])
+            unavailableEquipmentIds: Array.isArray(persistedUnavailableEquipment)
+              ? (persistedUnavailableEquipment as string[])
               : local.unavailableEquipmentIds,
           }
         : null;
@@ -965,16 +966,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           [date]: [...(s.exerciseReplacements[date] ?? []), item],
         },
       };
-      void supabase
-        .from("exercise_replacements" as never)
-        .update({ active: false } as never)
-        .eq("id", replacementId)
-        .eq("user_id", user?.id);
       return next;
     });
+    void supabase
+      .from("exercise_replacements" as never)
+      .update({ active: false } as never)
+      .eq("id", replacementId)
+      .eq("user_id", user.id);
   }
 
   function undoExerciseReplacement(date: string, replacementId: string) {
+    if (!user) return;
     setState((s) => {
       const current = s.exerciseReplacements[date] ?? [];
       const removed = current.find((r) => r.id === replacementId);
