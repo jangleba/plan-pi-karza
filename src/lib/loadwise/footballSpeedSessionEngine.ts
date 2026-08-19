@@ -66,6 +66,7 @@ export interface FootballSpeedExercise {
   distanceOrDuration?: string;
   restBetweenReps?: string;
   restBetweenSets?: string;
+  variant?: string;
 }
 
 export interface FootballSpeedSession {
@@ -390,6 +391,7 @@ function buildRow(
   input: FootballSpeedEngineInput,
   low: boolean,
   pass?: number,
+  variant?: string,
 ): FootballSpeedExercise {
   const def = approved(spec.id);
   if (!def) throw new Error(`Brak zatwierdzonego ćwiczenia ${spec.id}.`);
@@ -419,6 +421,7 @@ function buildRow(
     },
     direction: spec.direction,
     pass,
+    variant,
     sets: "1",
     reps: (low && spec.lowDose) || spec.dose,
     distanceOrDuration: (low && spec.lowDose) || spec.dose,
@@ -529,7 +532,7 @@ export function generateFootballSpeedSession(
   exercises.push(buildRow(WARMUP, order++, "preparation", input, low));
   const flow = getFoundationalSprintFlow();
   for (const step of flow) {
-    for (const [index] of step.variants.entries()) {
+    for (const [index, variant] of step.variants.entries()) {
       const drill = spec.drills[index % spec.drills.length];
       const exerciseId = step.exerciseId === "a_march" ? "a_skip" : step.exerciseId;
       const definition = approved(exerciseId);
@@ -547,6 +550,7 @@ export function generateFootballSpeedSession(
           input,
           low,
           index + 1,
+          variant,
         ),
       );
     }
