@@ -839,7 +839,7 @@ function SessionDetail() {
                 <Undo2 className="h-3.5 w-3.5" /> Cofnij
               </button>
             </div>
-            <StructuredSections sections={flatToStructured(m.session.sections)} />
+            <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
 
           </div>
         ))}

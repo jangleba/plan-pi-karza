@@ -4383,7 +4383,7 @@ export function generatePlan(
         cell?.stimulus === "speed_exposure" ||
         cell?.stimulus === "cod";
       if (integratedSpeed) {
-        applyFootballSpeedPlan(session, cell.stimulus);
+        applyFootballSpeedPlan(session, cell!.stimulus!);
       }
       // Strukturalne, wariantowe sesje siłowni (rola + periodyzacja + anty-powtórzenia).
       if (/sił|\bmoc(?:y|ą|owy|owa|owe)?\b|power/i.test(built.sessionType)) {
