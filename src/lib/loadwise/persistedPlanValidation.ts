@@ -9,13 +9,15 @@ import {
   parseIso,
 } from "./labels";
 import { assessDaySpeedLoad } from "./speedLoad";
+import { validatePlanExerciseContract } from "./planExerciseContract";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
   | "stale-generator"
   | "club-day-mismatch"
   | "duplicate-speed-same-day"
-  | "adjacent-speed-days";
+  | "adjacent-speed-days"
+  | "invalid-exercise-contract";
 
 export interface PersistedPlanIssue {
   code: PersistedPlanIssueCode;
@@ -57,6 +59,14 @@ export function validatePersistedPlan(
       code: "stale-generator",
       message:
         "Plan został utworzony przez starszą wersję generatora.",
+    });
+  }
+
+  for (const issue of validatePlanExerciseContract(plan)) {
+    issues.push({
+      code: "invalid-exercise-contract",
+      date: issue.date,
+      message: issue.message,
     });
   }
 

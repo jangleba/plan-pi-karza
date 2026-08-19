@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useLoadwise } from "@/lib/loadwise/store";
+import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import {
@@ -291,11 +291,14 @@ function PlanScreen() {
   // Obciążenie dnia po korekcie daily readiness (osobna wartość od planned).
   const todayAdjusted =
     todaySession && profile
-      ? resolveEffectiveDay(
-          todaySession,
-          state.readiness[todayIso],
-          profile,
-          state.modifications[todayIso] ?? [],
+      ? applyExerciseReplacements(
+          resolveEffectiveDay(
+            todaySession,
+            state.readiness[todayIso],
+            profile,
+            state.modifications[todayIso] ?? [],
+          ),
+          state.exerciseReplacements[todayIso] ?? [],
         )
       : todaySession;
 

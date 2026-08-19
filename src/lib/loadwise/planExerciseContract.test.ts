@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generatePlan } from "./planEngine";
 import { validatePlanExerciseContract } from "./planExerciseContract";
+import { getExerciseDefinition, isApprovedCanonicalExercise } from "./exerciseLibrary";
 import type { Goal, Profile } from "./types";
 
 const START = new Date("2026-07-13T00:00:00");
@@ -76,5 +77,55 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
     expect(
       issues.some((issue) => issue.code === "placeholder-exercise"),
     ).toBe(true);
+  });
+
+  it("requires every generated exercise to use an approved canonical ID", () => {
+    const plan = generatePlan(makeProfile("strength"), START, 14);
+    const exercises = plan.flatMap((day) => [
+      ...day.sections.warmup,
+      ...day.sections.main,
+      ...day.sections.accessory,
+      ...day.sections.footballTransfer,
+      ...day.sections.cooldown,
+    ]);
+
+    expect(exercises.length).toBeGreaterThan(0);
+    expect(
+      exercises.every((exercise) =>
+        isApprovedCanonicalExercise(getExerciseDefinition(exercise.exerciseId ?? "")),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects free-form structured exercises as well as flat exercises", () => {
+    const plan = generatePlan(makeProfile("general"), START, 7);
+    const trainingDay = plan.find((day) => day.dayType === "training")!;
+    trainingDay.sections = {
+      warmup: [],
+      main: [],
+      accessory: [],
+      footballTransfer: [],
+      cooldown: [],
+    };
+    trainingDay.structuredSections = [
+      {
+        id: "free-form",
+        title: "Main",
+        type: "main",
+        blocks: [
+          {
+            id: "free-form-block",
+            title: "Main",
+            blockType: "single",
+            intent: "strength",
+            exercises: [{ id: "free-form", name: "Dowolny ruch" }],
+          },
+        ],
+      },
+    ];
+
+    expect(validatePlanExerciseContract(plan).some((issue) => issue.code === "invalid-exercise-id")).toBe(
+      true,
+    );
   });
 });

@@ -653,6 +653,7 @@ export interface LoadwiseState {
 
 export interface ExerciseReplacement {
   id: string;
+  date: string;
   exerciseId: string;
   original: TrainingExercise;
   replacement: TrainingExercise;

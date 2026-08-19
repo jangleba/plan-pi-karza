@@ -32,9 +32,13 @@ function collectSessionExercises(session: SessionDay): ExerciseItem[] {
     ...session.sections.footballTransfer,
     ...session.sections.cooldown,
   ];
+  const structuredExercises =
+    session.structuredSections?.flatMap((section) =>
+      section.blocks.flatMap((block) => block.exercises),
+    ) ?? [];
 
-  if (sectionExercises.length > 0) {
-    return sectionExercises;
+  if (sectionExercises.length > 0 || structuredExercises.length > 0) {
+    return [...sectionExercises, ...structuredExercises];
   }
 
   return session.exercises ?? [];

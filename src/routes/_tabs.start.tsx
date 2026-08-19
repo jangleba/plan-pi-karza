@@ -25,6 +25,7 @@ import {
   Apple,
 } from "lucide-react";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
+import { applyExerciseReplacements } from "@/lib/loadwise/store";
 import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
 
 export const Route = createFileRoute("/_tabs/start")({
@@ -194,7 +195,10 @@ function StartScreen() {
 
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const adjustedToday = resolveEffectiveDay(session, readiness, profile, todayMods);
+  const adjustedToday = applyExerciseReplacements(
+    resolveEffectiveDay(session, readiness, profile, todayMods),
+    state.exerciseReplacements[todayIso] ?? [],
+  );
 
   const matchDate = nextMatchDate(state.plan, todayIso, profile.matchDate);
   const isMatch = session.dayType === "match";
