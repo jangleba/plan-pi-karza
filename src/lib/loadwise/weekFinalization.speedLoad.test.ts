@@ -175,6 +175,45 @@ describe("weekFinalization korzysta ze speedLoad", () => {
     ).toBe(true);
   });
 
+  it("wybiera legalny dzień zapasowy bez sąsiedniej szybkości", () => {
+    const week = [
+      rsaDay(DATES[0]),
+      sprintDay(DATES[1]),
+      restDay(DATES[2]),
+      restDay(DATES[3]),
+      restDay(DATES[4]),
+      restDay(DATES[5]),
+      restDay(DATES[6]),
+    ];
+
+    const result = repairBackToBackSpeedSessions(week);
+
+    expect(result.moved).toBe(1);
+    expect(week[2].dayType).toBe("rest");
+    expect(validateNoBackToBackSpeedDays(week).ok).toBe(true);
+  });
+
+  it("pomija szybkość, gdy nie ma legalnego dnia, i zachowuje zobowiązania", () => {
+    const club = makeDay(DATES[2], "club", { sessionType: "Klub" });
+    const match = makeDay(DATES[3], "match", { sessionType: "Mecz" });
+    const week = [
+      rsaDay(DATES[0]),
+      sprintDay(DATES[1]),
+      club,
+      match,
+      makeDay(DATES[4], "training"),
+      makeDay(DATES[5], "training"),
+      makeDay(DATES[6], "training"),
+    ];
+
+    const result = repairBackToBackSpeedSessions(week);
+
+    expect(result.removed).toBeGreaterThan(0);
+    expect(week[2].sessionType).toBe("Klub");
+    expect(week[3].sessionType).toBe("Mecz");
+    expect(validateNoBackToBackSpeedDays(week).ok).toBe(true);
+  });
+
   it("same skipy nie blokują sprintu następnego dnia", () => {
     const week = [
       skipDay(DATES[0]),
