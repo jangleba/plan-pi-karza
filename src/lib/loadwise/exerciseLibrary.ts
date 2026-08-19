@@ -11,6 +11,7 @@
 // ============================================================================
 
 import type { PainLocation } from "./types";
+import type { ExerciseItem } from "./types";
 import type {
   AthleteTrainingProfile,
   DevelopmentStage,
@@ -2359,6 +2360,61 @@ export function resolveExerciseId(nameOrAlias: string): string | undefined {
 export function resolveExerciseByName(nameOrAlias: string): ExerciseDefinition | undefined {
   const id = resolveExerciseId(nameOrAlias);
   return id ? LIBRARY_INDEX.get(id) : undefined;
+}
+
+const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
+  strength: "bodyweight_squat",
+  power: "kettlebell_swing",
+  plyometric: "countermovement_jump",
+  speed: "acceleration_mechanics",
+  tendon_isometric: "long_lever_hamstring_iso",
+  mobility: "hip_mobility_flow",
+  recovery: "easy_cycle_recovery",
+  conditioning: "easy_aerobic_run",
+  trunk: "side_plank",
+};
+
+function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
+  const value = normalizeExerciseName(name);
+  if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value))
+    return "speed";
+  if (/skok|pogo|bound|lądowani|plyo|zeskok/.test(value)) return "plyometric";
+  if (/mobil|rozciąg|oddech|ramp|rozgrzew|ruchomo/.test(value)) return "mobility";
+  if (/rower|basen|regener|spacer|wycisz|trucht/.test(value)) return "recovery";
+  if (/bieg|tempo|interwa|aerob|kondyc|wytrzymał/.test(value)) return "conditioning";
+  if (/plank|core|dead bug|pallof|tułów|brzuch|stabil/.test(value)) return "trunk";
+  if (/izometr|iso|soleus|łydk|ścięg|hamstring/.test(value)) return "tendon_isometric";
+  if (/moc|power|rzut|swing/.test(value)) return "power";
+  return "strength";
+}
+
+/**
+ * Resolves a newly generated flat exercise to an approved canonical record.
+ * Existing historical exercises are intentionally not passed through this helper.
+ */
+export function canonicalizeGeneratedExercise(
+  exercise: ExerciseItem,
+  family?: CanonicalExerciseFamily,
+): ExerciseItem {
+  const byId = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
+  const byName = resolveExerciseByName(exercise.name);
+  const canonical =
+    (isApprovedCanonicalExercise(byId) && byId) ||
+    (isApprovedCanonicalExercise(byName) && byName) ||
+    getExerciseDefinition(GENERATED_FAMILY_FALLBACKS[family ?? inferGeneratedFamily(exercise.name)]);
+
+  if (!isApprovedCanonicalExercise(canonical)) {
+    throw new Error(`No approved canonical mapping found for generated exercise: ${exercise.name}`);
+  }
+
+  return {
+    ...exercise,
+    exerciseId: canonical.id,
+    name: canonical.displayNamePl,
+    purpose: exercise.purpose ?? canonical.stimulus,
+    visualId: exercise.visualId ?? canonical.id,
+    equipment: exercise.equipment ?? canonical.equipmentRequired.join(", "),
+  };
 }
 
 // ---------------------------------------------------------------------------
