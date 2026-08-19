@@ -18,6 +18,7 @@ import {
   selectEquipmentAwareReplacement,
   getApprovedExerciseDefinitions,
   isApprovedCanonicalExercise,
+  validateCanonicalReplacementChains,
   type ExerciseDefinition,
   getFootballSpeedCatalog,
   getFoundationalSprintFlow,
@@ -381,6 +382,26 @@ describe("library contract 2.0", () => {
         current = replacement!;
       }
       expect(isApprovedCanonicalExercise(current)).toBe(true);
+    }
+  });
+
+  it("validates terminal canonical replacement chains deterministically", () => {
+    const first = validateCanonicalReplacementChains();
+    const second = validateCanonicalReplacementChains();
+    expect(first).toEqual(second);
+    expect(first.ok).toBe(true);
+    expect(first.issues).toEqual([]);
+    for (const source of getApprovedExerciseDefinitions()) {
+      for (const replacementId of source.replacementIds ?? []) {
+        let current = getExerciseDefinition(replacementId);
+        const visited = new Set<string>();
+        while (current?.replacementIds?.length) {
+          expect(visited.has(current.id)).toBe(false);
+          visited.add(current.id);
+          current = getExerciseDefinition(current.replacementIds[0]!);
+        }
+        expect(isApprovedCanonicalExercise(current)).toBe(true);
+      }
     }
   });
 
