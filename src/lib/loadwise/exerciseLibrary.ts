@@ -2252,10 +2252,7 @@ function isCanonicalReplacementCompatible(
     (source.family === "power" && target.family === "plyometric") ||
     (source.family === "plyometric" && target.family === "power") ||
     source.movementPattern === target.movementPattern;
-  return (
-    stimulusMatches &&
-    hasSharedSessionRole(source, target)
-  );
+  return stimulusMatches && hasSharedSessionRole(source, target);
 }
 
 /**
