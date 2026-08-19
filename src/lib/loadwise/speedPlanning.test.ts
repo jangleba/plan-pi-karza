@@ -208,15 +208,14 @@ describe("getSafeSpeedPlacements / findBestDay", () => {
     expect(idx).not.toContain(1);
   });
 
-  it("MD-1 oznaczone jako forcedPrimer", () => {
+  it("MD-1 jest wykluczone jako hard speed date", () => {
     const w = week();
     [0, 1, 2, 3, 4].forEach((i) => w[i].sessions.push(s("club")));
     w[5].toMatch = 1;
     w[6].toMatch = 0;
     w[6].sessions.push(s("match"));
     const res = findBestDayForSpeedSession(w, {}, { maxSessionsPerDay: 1 }, "szybkość", adult);
-    expect(res.dayIndex).toBe(5);
-    expect(res.forcedPrimer).toBe(true);
+    expect(res.dayIndex).toBe(null);
   });
 });
 
@@ -303,7 +302,7 @@ describe("addMissingSpeedSessions", () => {
     expect(firstReal(w[3])!.category).toBe("speed_sprint");
   });
 
-  it("nie tworzy pełnej max velocity dzień przed meczem", () => {
+  it("nie tworzy szybkości dzień przed meczem", () => {
     const w = week([0, 1, 2, 3, 4], { matchDay: 6 });
     w[5].toMatch = 1;
     const req = reqFor(4, "szybkość", adult);
@@ -314,8 +313,7 @@ describe("addMissingSpeedSessions", () => {
       req,
       adult,
     );
-    const md1Speed = w[5].sessions.find((x) => x.category === "speed_sprint");
-    if (md1Speed) expect(md1Speed.isMaxVelocity).not.toBe(true);
+    expect(w[5].sessions.some((x) => x.category === "speed_sprint")).toBe(false);
   });
 
   it("przy niskim readiness szybkość zmienia się na microdose, nie znika", () => {

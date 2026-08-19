@@ -48,6 +48,7 @@ import {
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
 import { hasRealSpeedExposure } from "./speedLoad";
+import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import {
   finalizeWeekPlan,
@@ -4039,6 +4040,42 @@ export function generatePlan(
   };
 
   const applyFootballSpeedPlan = (target: SessionDay, stimulus: Stimulus): void => {
+    const priorSpeedDates = out
+      .filter(
+        (day) =>
+          day.speedGeneratorVersion !== undefined ||
+          day.sessionType === "Szybkość piłkarska",
+      )
+      .map((day) => day.date);
+    if (
+      !validateFootballSpeedDate(target.date, {
+        matchDate: profile.matchDate,
+        speedDates: priorSpeedDates,
+      }).valid
+    ) {
+      const fallback = recoverySession();
+      Object.assign(target, {
+        title: fallback.title,
+        sessionType: fallback.sessionType,
+        goalOfSession: fallback.goalOfSession,
+        intensity: "niska",
+        durationMin: fallback.durationMin,
+        reason: "Szybkość pominięta — dzień nie spełnia twardego kontraktu.",
+        riskManaged: fallback.riskManaged,
+        avoidToday: fallback.avoidToday,
+        safetyNote: "Szybkość pominięta — zachowano dzień bez dodatkowej ekspozycji.",
+        sections: {
+          warmup: [],
+          main: fallback.main,
+          accessory: fallback.accessory,
+          footballTransfer: fallback.footballTransfer,
+          cooldown: cooldown(),
+        },
+        structuredSections: undefined,
+        speedGeneratorVersion: undefined,
+      });
+      return;
+    }
     const generated = generateFootballSpeedSession({
       profile,
       date: target.date,
@@ -4103,7 +4140,12 @@ export function generatePlan(
       riskManaged: speed.riskManaged,
       avoidToday: speed.avoidToday,
       safetyNote: speed.safetyNote,
-      sections: speed.sections,
+      speedGeneratorVersion: speed.speedGeneratorVersion,
+      sections: {
+        ...speed.sections,
+        main: [...speed.sections.main, ...speed.sections.cooldown],
+        cooldown: [],
+      },
       structuredSections: sections,
     });
   };

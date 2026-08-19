@@ -1,10 +1,12 @@
 import {
   getExerciseDefinition,
   getFootballSpeedCatalog,
+  getFoundationalSprintFlow,
   type ExerciseDefinition,
   type FootballSpeedQuality,
 } from "./exerciseLibrary";
 import type { PainLocation, Profile, SessionDay } from "./types";
+import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 
 export type FootballSpeedFamily =
   | "acceleration"
@@ -41,7 +43,8 @@ export interface SpeedEquipmentStatus {
  * Rola wiersza w kanonicznej jednostce szybkościowej.
  * Dokładnie: 1 × warmup, 3 × drill, 1–2 × main, 0–1 × cooldown.
  */
-export type FootballSpeedRole = "warmup" | "drill" | "primary" | "secondary" | "cooldown";
+export type FootballSpeedRole =
+  "preparation" | "technical" | "primer" | "primary" | "secondary" | "conditioning" | "cooldown";
 
 export interface FootballSpeedExercise {
   order: number;
@@ -58,6 +61,13 @@ export interface FootballSpeedExercise {
   safetyStopRule: string;
   equipment: SpeedEquipmentStatus;
   direction?: "left" | "right" | "left/right";
+  pass?: number;
+  sets?: string;
+  reps?: string;
+  distanceOrDuration?: string;
+  restBetweenReps?: string;
+  restBetweenSets?: string;
+  variant?: string;
 }
 
 export interface FootballSpeedSession {
@@ -76,6 +86,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v2";
 
 const ACCELERATION_CUES = [
   "Pchaj podłoże do tyłu.",
@@ -131,8 +142,7 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
       {
         id: "a_switch_progression",
         name: "Zmiany A: pojedyncza → podwójna → potrójna",
-        purpose:
-          "Nauka mocnego pchnięcia podłoża i szybkiej zmiany nogi w pozycji akceleracyjnej.",
+        purpose: "Nauka mocnego pchnięcia podłoża i szybkiej zmiany nogi w pozycji akceleracyjnej.",
         dose: "2–3 rundy × 3 na stronę",
         lowDose: "2 rundy × 3 na stronę",
         rest: "Przerwa 30–45 s",
@@ -367,12 +377,10 @@ function isMatchDay(input: FootballSpeedEngineInput): boolean {
   return input.profile.matchDate === input.date;
 }
 
-function isMatchMinusOne(input: FootballSpeedEngineInput): boolean {
-  return input.profile.matchDate === dateOffset(input.date, 1);
-}
-
 function isMatchPlusOne(input: FootballSpeedEngineInput): boolean {
-  return input.profile.matchDate === dateOffset(input.date, -1);
+  const value = new Date(`${input.date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() - 1);
+  return input.profile.matchDate === value.toISOString().slice(0, 10);
 }
 
 function buildRow(
@@ -381,6 +389,8 @@ function buildRow(
   role: FootballSpeedRole,
   input: FootballSpeedEngineInput,
   low: boolean,
+  pass?: number,
+  variant?: string,
 ): FootballSpeedExercise {
   const def = approved(spec.id);
   if (!def) throw new Error(`Brak zatwierdzonego ćwiczenia ${spec.id}.`);
@@ -397,7 +407,7 @@ function buildRow(
     rest: spec.rest,
     intensity: low
       ? "kontrolowana (60–75%)"
-      : (spec.intensity ?? (role === "drill" ? "techniczna, bez zmęczenia" : "wysoka")),
+      : (spec.intensity ?? (role === "technical" ? "techniczna, bez zmęczenia" : "wysoka")),
     coachingCuesPl: Array.from(new Set(cues)).slice(0, 5),
     safetyStopRule:
       "Natychmiast przerwij przy bólu, pogorszeniu kontroli lub wyraźnym spadku jakości.",
@@ -409,6 +419,13 @@ function buildRow(
         : "available",
     },
     direction: spec.direction,
+    pass,
+    variant,
+    sets: "1",
+    reps: (low && spec.lowDose) || spec.dose,
+    distanceOrDuration: (low && spec.lowDose) || spec.dose,
+    restBetweenReps: spec.rest,
+    restBetweenSets: spec.rest,
   };
 }
 
@@ -449,13 +466,22 @@ function buildSessionDay(
     mdLabel: null,
     slotLabel: null,
     sections: {
-      warmup: exercises.filter((e) => e.role === "warmup").map(toItem),
-      main: exercises.filter((e) => e.role === "drill" || e.role === "primary" || e.role === "secondary").map(toItem),
+      warmup: exercises.filter((e) => e.role === "preparation" || e.role === "primer").map(toItem),
+      main: exercises
+        .filter(
+          (e) =>
+            e.role !== "preparation" &&
+            e.role !== "primer" &&
+            e.role !== "conditioning" &&
+            e.role !== "cooldown",
+        )
+        .map(toItem),
       accessory: [],
       footballTransfer: [],
       cooldown: exercises.filter((e) => e.role === "cooldown").map(toItem),
     },
     secondSession: null,
+    speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,
   };
 }
 
@@ -483,7 +509,16 @@ export function generateFootballSpeedSession(
         "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą.",
     };
   }
-  if (isMatchDay(input) || isMatchPlusOne(input) || hasHardConflict(input)) {
+  // MD-1 is a protected date as well: activation is not a speed-session
+  // replacement and must not be emitted by this engine.
+  if (
+    isMatchDay(input) ||
+    validateFootballSpeedDate(input.date, { matchDate: input.profile.matchDate }).issues.includes(
+      "match_minus_one",
+    ) ||
+    isMatchPlusOne(input) ||
+    hasHardConflict(input)
+  ) {
     return {
       status: "blocked",
       date: input.date,
@@ -497,14 +532,36 @@ export function generateFootballSpeedSession(
     };
   }
 
-  const activation = isMatchMinusOne(input) || input.recentHighSpeedExposure === true;
+  const activation = input.recentHighSpeedExposure === true;
   const low = activation || readiness(input) <= 5 || (input.fatigue ?? 0) >= 8;
 
   const exercises: FootballSpeedExercise[] = [];
   let order = 1;
-  exercises.push(buildRow(WARMUP, order++, "warmup", input, low));
-  for (const drill of spec.drills) {
-    exercises.push(buildRow(drill, order++, "drill", input, low));
+  exercises.push(buildRow(WARMUP, order++, "preparation", input, low));
+  const flow = getFoundationalSprintFlow();
+  for (const step of flow) {
+    for (const [index, variant] of step.variants.entries()) {
+      const drill = spec.drills[index % spec.drills.length];
+      const exerciseId = step.exerciseId === "a_march" ? "a_skip" : step.exerciseId;
+      const definition = approved(exerciseId);
+      if (!definition) throw new Error(`Brak zatwierdzonego ćwiczenia ${exerciseId}.`);
+      exercises.push(
+        buildRow(
+          {
+            ...drill,
+            id: exerciseId,
+            name: definition.displayNamePl,
+            purpose: drill.purpose,
+          },
+          order++,
+          "technical",
+          input,
+          low,
+          index + 1,
+          variant,
+        ),
+      );
+    }
   }
   exercises.push(buildRow(spec.primary, order++, "primary", input, low));
   if (spec.secondary && !low) {
