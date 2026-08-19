@@ -1793,7 +1793,7 @@ export interface FoundationalSprintFlowStep {
 
 /** Deterministic teaching sequence; competency selection is intentionally deferred. */
 export const FOUNDATIONAL_SPRINT_FLOW: readonly FoundationalSprintFlowStep[] = [
-  { order: "A", exerciseId: "a_skip", variants: ["step_in", "continuous"] },
+  { order: "A", exerciseId: "a_march", variants: ["step_in", "continuous"] },
   { order: "C", exerciseId: "c_skip", variants: ["step_in", "continuous"] },
   { order: "B", exerciseId: "b_skip", variants: ["step_in", "continuous"] },
   { order: "D", exerciseId: "d_skip", variants: ["step_in", "continuous"] },

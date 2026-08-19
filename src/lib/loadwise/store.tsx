@@ -495,6 +495,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         : null;
 
       let plan: SessionDay[] = [];
+      let migrationOriginalPlan: SessionDay[] | null = null;
       let planGeneratedFor: string | null = null;
       let clearFutureOverlays = false;
       const planRow = planRes.data as AnyRow | null;
@@ -529,18 +530,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           persistedModifications,
         );
         if (migrated.migratedDates.length > 0) {
-          const previousPlan = plan;
-          const planId = planRow?.id as string | undefined;
-          if (planId) {
-            const migrationWrite = await supabase
-              .from("training_plans")
-              .update({ plan_json: migrated.plan as unknown as never })
-              .eq("id", planId)
-              .eq("user_id", user.id);
-            if (!migrationWrite.error) plan = migrated.plan;
-          } else {
-            plan = previousPlan;
-          }
+          migrationOriginalPlan = plan;
+          plan = migrated.plan;
         }
       }
 
@@ -585,6 +576,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
           await persistMonthlyPlan(user.id, profile, plan);
           planGeneratedFor = todayIso;
+        } else if (migrationOriginalPlan) {
+          const planId = planRow?.id as string | undefined;
+          if (planId) {
+            const migrationWrite = await supabase
+              .from("training_plans")
+              .update({ plan_json: plan as unknown as never })
+              .eq("id", planId)
+              .eq("user_id", user.id);
+            if (migrationWrite.error) plan = migrationOriginalPlan;
+          } else {
+            plan = migrationOriginalPlan;
+          }
         }
       }
       const completions: Record<string, SessionCompletion> = {};
