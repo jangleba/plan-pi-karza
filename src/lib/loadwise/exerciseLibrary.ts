@@ -1050,9 +1050,15 @@ function supportExercise(
           ? "stability"
           : family === "conditioning"
             ? "endurance"
-            : family === "tendon_isometric"
-              ? "stability"
-              : "stability",
+            : family === "power"
+              ? "power"
+              : family === "trunk"
+                ? "stability"
+                : family === "strength"
+                  ? "hypertrophy"
+                  : family === "tendon_isometric"
+                    ? "stability"
+                    : "stability",
     difficultyLevel: 1,
     technicalComplexity: 1,
     minAge: 8,
@@ -1130,6 +1136,16 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
   supportExercise("side_plank", "Side plank", "trunk", "lateral trunk stability"),
   supportExercise("copenhagen_plank", "Copenhagen plank", "trunk", "adductor and trunk stability"),
   supportExercise("face_pull_band", "Face pull (guma / wyciąg)", "trunk", "scapular stability"),
+  supportExercise("bodyweight_row", "Bodyweight row", "strength", "upper-body pulling strength", {
+    movementPattern: "pull",
+    allowedSessionCategories: ["strength_gym"],
+    spaceRequirement: "indoor_gym",
+  }),
+  supportExercise("pull_up", "Pull-up", "strength", "vertical pulling strength", {
+    movementPattern: "pull",
+    allowedSessionCategories: ["strength_gym"],
+    spaceRequirement: "indoor_gym",
+  }),
 ];
 
 function phase3AExercise(
@@ -1633,9 +1649,9 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     movementPattern: "hinge",
     equipmentRequired: ["kettlebell"],
     loadingType: "ballistic",
-    replacementIds: ["countermovement_jump"],
-    regressionIds: ["countermovement_jump"],
-    safeAlternativeIds: ["countermovement_jump"],
+    replacementIds: ["romanian_deadlift_db"],
+    regressionIds: ["romanian_deadlift_db"],
+    safeAlternativeIds: ["romanian_deadlift_db"],
   }),
   phase3AExercise({
     id: "push_press",

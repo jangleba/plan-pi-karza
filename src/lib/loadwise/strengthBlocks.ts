@@ -127,6 +127,8 @@ function uid(prefix: string): string {
 
 const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "przysiad ze sztangą (high bar)": "heavy_back_squat",
+  "przysiad przy pinach (iso) — cała stopa": "long_lever_hamstring_iso",
+  "przysiad przy pinach (iso) — staw skokowy": "soleus_iso_hold",
   "przysiad czołowy (front squat)": "front_squat",
   "safety bar squat (przysiad)": "heavy_back_squat",
   "przysiad ze sztangą do skrzyni": "heavy_back_squat",
@@ -156,13 +158,13 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "wykrok w miejscu": "bodyweight_split_squat",
   "przysiad na jednej nodze do skrzyni": "bodyweight_split_squat",
   przysiad: "bodyweight_squat",
-  "wiosłowanie sztangą": "romanian_deadlift_db",
-  "podciąganie / pull-up": "bodyweight_split_squat",
-  "wiosłowanie hantlą jednorącz": "romanian_deadlift_db",
-  "wiosłowanie trx": "bodyweight_split_squat",
-  "wiosłowanie hantlą lekko": "romanian_deadlift_db",
-  "australijskie podciąganie": "bodyweight_split_squat",
-  "band row": "bodyweight_split_squat",
+  "wiosłowanie sztangą": "bodyweight_row",
+  "podciąganie / pull-up": "pull_up",
+  "wiosłowanie hantlą jednorącz": "bodyweight_row",
+  "wiosłowanie trx": "bodyweight_row",
+  "wiosłowanie hantlą lekko": "bodyweight_row",
+  "australijskie podciąganie": "bodyweight_row",
+  "band row": "bodyweight_row",
   "farmer's carry": "kettlebell_swing",
   "suitcase carry (jednostronnie)": "kettlebell_swing",
   "front rack carry": "kettlebell_swing",
@@ -171,10 +173,13 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "plank boczny": "side_plank",
   "anty-rotacja z gumą w półklęku": "pallof_press",
   "nordic curl ekscentryczny": "seated_leg_curl",
+  "uginanie nóg siedząc — ekscentryka": "seated_leg_curl",
+  "uginanie nóg leżąc — ekscentryka": "lying_leg_curl",
   "glute bridge march": "glute_bridge",
   "wspięcia na łydki (ekscentryczne)": "standing_calf_raise",
   "hamstring bridge (kontrola)": "glute_bridge",
   "heel-dig bridge iso": "long_lever_hamstring_iso",
+  "slider hamstring iso": "long_lever_hamstring_iso",
   "nordic ekscentryczny (tylko ekscentryk)": "seated_leg_curl",
   "nordic hamstring": "lying_leg_curl",
   "razor curl": "lying_leg_curl",
@@ -236,12 +241,12 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
 
 function canonicalizeGeneratedExercise(name: string) {
   const normalized = name.trim().toLocaleLowerCase();
-  const resolved =
-    resolveExerciseByName(name) ??
-    getExerciseDefinition(LEGACY_EXERCISE_IDS[normalized]) ??
-    getExerciseDefinition(normalized.includes("mobil") ? "hip_mobility_flow" : "glute_bridge");
+  const fromName = resolveExerciseByName(name);
+  const resolved = isApprovedCanonicalExercise(fromName)
+    ? fromName
+    : getExerciseDefinition(LEGACY_EXERCISE_IDS[normalized]);
   if (!isApprovedCanonicalExercise(resolved)) {
-    throw new Error(`Strength generator resolved an unapproved exercise: ${name}`);
+    throw new Error(`No approved canonical mapping found for generated exercise: ${name}`);
   }
   return resolved;
 }

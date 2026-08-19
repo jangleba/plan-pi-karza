@@ -374,7 +374,8 @@ describe("library contract 2.0", () => {
         expect(
           replacement?.family === current.family ||
             (replacement?.family === "power" && current.family === "plyometric") ||
-            (replacement?.family === "plyometric" && current.family === "power"),
+            (replacement?.family === "plyometric" && current.family === "power") ||
+            replacement?.movementPattern === current.movementPattern,
           `${source.id} -> ${replacement?.id}`,
         ).toBe(true);
         current = replacement!;
