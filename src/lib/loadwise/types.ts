@@ -514,6 +514,8 @@ export interface SessionDay {
   /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
   isUnavailable?: boolean;
   generatorVersion?: string;
+  /** Version of the football-speed generator that produced this session. */
+  speedGeneratorVersion?: string;
   canonicalRevision?: string | null;
   canonicalSchemaVersion?: number;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)

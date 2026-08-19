@@ -4103,6 +4103,7 @@ export function generatePlan(
       riskManaged: speed.riskManaged,
       avoidToday: speed.avoidToday,
       safetyNote: speed.safetyNote,
+      speedGeneratorVersion: speed.speedGeneratorVersion,
       sections: speed.sections,
       structuredSections: sections,
     });

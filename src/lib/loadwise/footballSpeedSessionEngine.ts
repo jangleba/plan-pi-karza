@@ -1,6 +1,7 @@
 import {
   getExerciseDefinition,
   getFootballSpeedCatalog,
+  getFoundationalSprintFlow,
   type ExerciseDefinition,
   type FootballSpeedQuality,
 } from "./exerciseLibrary";
@@ -41,7 +42,14 @@ export interface SpeedEquipmentStatus {
  * Rola wiersza w kanonicznej jednostce szybkościowej.
  * Dokładnie: 1 × warmup, 3 × drill, 1–2 × main, 0–1 × cooldown.
  */
-export type FootballSpeedRole = "warmup" | "drill" | "primary" | "secondary" | "cooldown";
+export type FootballSpeedRole =
+  | "preparation"
+  | "technical"
+  | "primer"
+  | "primary"
+  | "secondary"
+  | "conditioning"
+  | "cooldown";
 
 export interface FootballSpeedExercise {
   order: number;
@@ -58,6 +66,12 @@ export interface FootballSpeedExercise {
   safetyStopRule: string;
   equipment: SpeedEquipmentStatus;
   direction?: "left" | "right" | "left/right";
+  pass?: number;
+  sets?: string;
+  reps?: string;
+  distanceOrDuration?: string;
+  restBetweenReps?: string;
+  restBetweenSets?: string;
 }
 
 export interface FootballSpeedSession {
@@ -76,6 +90,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v2";
 
 const ACCELERATION_CUES = [
   "Pchaj podłoże do tyłu.",
@@ -381,6 +396,7 @@ function buildRow(
   role: FootballSpeedRole,
   input: FootballSpeedEngineInput,
   low: boolean,
+  pass?: number,
 ): FootballSpeedExercise {
   const def = approved(spec.id);
   if (!def) throw new Error(`Brak zatwierdzonego ćwiczenia ${spec.id}.`);
@@ -397,7 +413,7 @@ function buildRow(
     rest: spec.rest,
     intensity: low
       ? "kontrolowana (60–75%)"
-      : (spec.intensity ?? (role === "drill" ? "techniczna, bez zmęczenia" : "wysoka")),
+      : (spec.intensity ?? (role === "technical" ? "techniczna, bez zmęczenia" : "wysoka")),
     coachingCuesPl: Array.from(new Set(cues)).slice(0, 5),
     safetyStopRule:
       "Natychmiast przerwij przy bólu, pogorszeniu kontroli lub wyraźnym spadku jakości.",
@@ -409,6 +425,12 @@ function buildRow(
         : "available",
     },
     direction: spec.direction,
+    pass,
+    sets: "1",
+    reps: (low && spec.lowDose) || spec.dose,
+    distanceOrDuration: spec.dose,
+    restBetweenReps: spec.rest,
+    restBetweenSets: spec.rest,
   };
 }
 
@@ -449,13 +471,14 @@ function buildSessionDay(
     mdLabel: null,
     slotLabel: null,
     sections: {
-      warmup: exercises.filter((e) => e.role === "warmup").map(toItem),
-      main: exercises.filter((e) => e.role === "drill" || e.role === "primary" || e.role === "secondary").map(toItem),
+      warmup: exercises.filter((e) => e.role === "preparation").map(toItem),
+      main: exercises.filter((e) => e.role !== "preparation" && e.role !== "conditioning" && e.role !== "cooldown").map(toItem),
       accessory: [],
       footballTransfer: [],
       cooldown: exercises.filter((e) => e.role === "cooldown").map(toItem),
     },
     secondSession: null,
+    speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,
   };
 }
 
@@ -502,9 +525,28 @@ export function generateFootballSpeedSession(
 
   const exercises: FootballSpeedExercise[] = [];
   let order = 1;
-  exercises.push(buildRow(WARMUP, order++, "warmup", input, low));
-  for (const drill of spec.drills) {
-    exercises.push(buildRow(drill, order++, "drill", input, low));
+  exercises.push(buildRow(WARMUP, order++, "preparation", input, low));
+  const flow = getFoundationalSprintFlow();
+  for (const step of flow) {
+  for (const [index] of step.variants.entries()) {
+    const drill = spec.drills[index % spec.drills.length];
+    const definition = approved(step.exerciseId);
+    if (!definition) throw new Error(`Brak zatwierdzonego ćwiczenia ${step.exerciseId}.`);
+    exercises.push(
+      buildRow(
+        {
+          ...drill,
+          id: step.exerciseId,
+          name: definition.displayNamePl,
+          purpose: drill.purpose,
+        },
+        order++,
+        "technical",
+        input,
+        low,
+        index + 1,
+      ),
+    );
   }
   exercises.push(buildRow(spec.primary, order++, "primary", input, low));
   if (spec.secondary && !low) {

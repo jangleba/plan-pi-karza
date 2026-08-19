@@ -32,6 +32,7 @@ import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import { selectEquipmentAwareReplacement } from "./exerciseLibrary";
+import { migratePersistedSpeedSessions } from "./speedSessionMigration";
 
 const emptyScouting: ScoutingData = {
   strengths: "",
@@ -528,6 +529,40 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
        planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
        const normalized = normalizeLegacyPersistedPlan(plan);
        plan = normalized.plan;
+      }
+      if (profile && plan.length > 0) {
+        const persistedCompletions: Record<string, SessionCompletion> = {};
+        for (const row of (logRes.data as AnyRow[] | null) ?? []) {
+          const sid = row.session_id as string | null;
+          if (!sid) continue;
+          persistedCompletions[sid] = {
+            completed: Boolean(row.completed),
+            rpe: (row.rpe as number) ?? null,
+            notes: (row.notes as string) ?? "",
+          };
+        }
+        const persistedModifications: Record<string, SessionModification[]> = {};
+        for (const row of (modRes.data as AnyRow[] | null) ?? []) {
+          const mod = rowToModification(row);
+          if (mod) (persistedModifications[mod.date] ??= []).push(mod);
+        }
+        const migrated = migratePersistedSpeedSessions(
+          plan,
+          profile,
+          todayIso,
+          persistedCompletions,
+          persistedModifications,
+        );
+        if (migrated.migratedDates.length > 0) {
+          plan = migrated.plan;
+          if (planRow.id) {
+            await supabase
+              .from("training_plans")
+              .update({ plan_json: plan as unknown as never })
+              .eq("id", planRow.id)
+              .eq("user_id", user.id);
+          }
+        }
       }
 
      if (!profile?.onboardingComplete) {
