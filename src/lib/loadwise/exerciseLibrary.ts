@@ -11,7 +11,7 @@
 // ============================================================================
 
 import type { PainLocation } from "./types";
-import type { ExerciseItem } from "./types";
+import type { ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,
   DevelopmentStage,
@@ -2415,6 +2415,84 @@ export function canonicalizeGeneratedExercise(
     visualId: exercise.visualId ?? canonical.id,
     equipment: exercise.equipment ?? canonical.equipmentRequired.join(", "),
   };
+}
+
+export interface PersistedExerciseMigrationResult {
+  plan: SessionDay[];
+  changed: boolean;
+}
+
+function canonicalDefinitionForPersisted(
+  exerciseId: unknown,
+  name: unknown,
+): ExerciseDefinition | undefined {
+  const byId = typeof exerciseId === "string" ? getExerciseDefinition(exerciseId) : undefined;
+  const byName = typeof name === "string" ? resolveExerciseByName(name) : undefined;
+  return (
+    (isApprovedCanonicalExercise(byId) && byId) ||
+    (isApprovedCanonicalExercise(byName) && byName) ||
+    undefined
+  );
+}
+
+function migratePersistedExerciseItem(item: ExerciseItem): ExerciseItem {
+  const canonical = canonicalDefinitionForPersisted(item.exerciseId, item.name);
+  if (!canonical) return item;
+  const next = {
+    ...item,
+    exerciseId: canonical.id,
+    name: canonical.displayNamePl,
+    visualId: item.visualId ?? canonical.id,
+    equipment: item.equipment ?? canonical.equipmentRequired.join(", "),
+  };
+  return JSON.stringify(next) === JSON.stringify(item) ? item : next;
+}
+
+function migratePersistedTrainingExercise(exercise: TrainingExercise): TrainingExercise {
+  const canonical = canonicalDefinitionForPersisted(exercise.exerciseId, exercise.name);
+  if (!canonical) return exercise;
+  const next = {
+    ...exercise,
+    exerciseId: canonical.id,
+    name: canonical.displayNamePl,
+    visualId: exercise.visualId ?? canonical.id,
+    equipment: exercise.equipment ?? canonical.equipmentRequired.join(", "),
+  };
+  return JSON.stringify(next) === JSON.stringify(exercise) ? exercise : next;
+}
+
+/**
+ * Idempotently upgrades legacy persisted plan exercises to approved library IDs.
+ * User-owned prescriptions, completion markers, replacements and session metadata
+ * are retained; unresolved malformed entries are left for normal safe regeneration.
+ */
+export function migratePersistedExerciseData(
+  plan: SessionDay[],
+): PersistedExerciseMigrationResult {
+  let changed = false;
+  const migrateSession = (session: SessionDay): SessionDay => {
+    const sections = {
+      warmup: session.sections.warmup.map(migratePersistedExerciseItem),
+      main: session.sections.main.map(migratePersistedExerciseItem),
+      accessory: session.sections.accessory.map(migratePersistedExerciseItem),
+      footballTransfer: session.sections.footballTransfer.map(migratePersistedExerciseItem),
+      cooldown: session.sections.cooldown.map(migratePersistedExerciseItem),
+    };
+    const structuredSections = session.structuredSections?.map((section) => ({
+      ...section,
+      blocks: section.blocks.map((block) => ({
+        ...block,
+        exercises: block.exercises.map(migratePersistedTrainingExercise),
+      })),
+    }));
+    const exercises = session.exercises?.map(migratePersistedExerciseItem);
+    const next = { ...session, sections, structuredSections, exercises };
+    if (JSON.stringify(next) !== JSON.stringify(session)) changed = true;
+    if (session.secondSession) next.secondSession = migrateSession(session.secondSession);
+    return next;
+  };
+  const migrated = plan.map(migrateSession);
+  return { plan: changed ? migrated : plan, changed };
 }
 
 // ---------------------------------------------------------------------------
