@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile, Readiness, SessionDay } from "./types";
-import { applyCheckInToPlanDay, nextMatchDate } from "./dailyCheckin";
+import { applyCheckInToPlanDay, nextMatchDate, resolveEffectiveDay } from "./dailyCheckin";
 
 const PROFILE: Profile = {
   id: "p1",
@@ -157,5 +157,27 @@ describe("daily check-in integration", () => {
       "2026-08-25",
     );
     expect(nearest).toBe("2026-08-19");
+  });
+
+  it("uses the same swapped session for every surface", () => {
+    const swapped = { ...makeSession(), title: "Ręcznie zamieniona szybkość" };
+    const result = resolveEffectiveDay(
+      makeSession(),
+      readiness({}),
+      PROFILE,
+      [
+        {
+          id: "swap-1",
+          date: "2026-08-17",
+          type: "swap",
+          reason: "manual",
+          safetyStatus: "swapped_by_user",
+          session: swapped,
+          originalSession: makeSession(),
+          createdAt: "2026-08-17T08:00:00Z",
+        },
+      ],
+    );
+    expect(result).toBe(swapped);
   });
 });

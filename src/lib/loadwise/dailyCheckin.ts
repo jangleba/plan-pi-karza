@@ -1,5 +1,5 @@
 import { applyReadiness } from "./planEngine";
-import type { Profile, Readiness, SessionDay } from "./types";
+import type { Profile, Readiness, SessionDay, SessionModification } from "./types";
 import { classifySession } from "./sessionClassification";
 
 const LEGACY_RECOVERY_RE =
@@ -157,6 +157,19 @@ export function resolveAdjustedDay(
   }
   const adjusted = applyReadiness(normalized, readiness, profile).session;
   return normalizeLegacyExternalCommitmentDay(adjusted).session;
+}
+
+/** Resolves the one session shown by every surface without dropping a user swap. */
+export function resolveEffectiveDay(
+  day: SessionDay,
+  readiness: Readiness | undefined,
+  profile: Profile | null,
+  modifications: SessionModification[] = [],
+): SessionDay {
+  const swapped = modifications.find((mod) => mod.type === "swap");
+  return swapped
+    ? swapped.session
+    : resolveAdjustedDay(day, readiness, profile);
 }
 
 export function resolveTodayPlanRowSource(
