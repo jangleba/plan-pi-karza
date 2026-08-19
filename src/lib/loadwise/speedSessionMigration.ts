@@ -123,7 +123,10 @@ function relocateInvalidGeneratedSpeedSessions(
     }
     next.splice(index, 1);
     const targetIndex = next.findIndex((candidate) => candidate.date === target);
-    if (targetIndex < 0) break;
+    if (targetIndex < 0) {
+      index -= 1;
+      continue;
+    }
     next[targetIndex] = migrated;
     acceptedSpeedDates.add(target);
     occupiedSpeedDates.add(target);
