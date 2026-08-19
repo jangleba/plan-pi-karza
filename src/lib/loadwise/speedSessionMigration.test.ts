@@ -81,12 +81,17 @@ describe("persisted football speed migration", () => {
   it("does not touch history, commitments, or user-owned sessions", () => {
     const completed = legacySpeed({ dbId: "done" });
     const club = legacySpeed({ dayType: "club", isClubSession: true });
-    const user = legacySpeed({ isOwnSession: false });
-    const result = migratePersistedSpeedSessions([completed, club, user], profile(), "2026-08-19", {
-      done: { completed: true, rpe: null, notes: "history" },
-    });
+    const externalSession = legacySpeed({ isOwnSession: false });
+    const result = migratePersistedSpeedSessions(
+      [completed, club, externalSession],
+      profile(),
+      "2026-08-19",
+      {
+        done: { completed: true, rpe: null, notes: "history" },
+      },
+    );
     expect(result.migratedDates).toEqual([]);
-    expect(result.plan).toEqual([completed, club, user]);
+    expect(result.plan).toEqual([completed, club, externalSession]);
   });
 
   it("produces no-ball speed work with exactly three selected drills", () => {
@@ -148,9 +153,9 @@ describe("persisted football speed migration", () => {
   });
 
   it("evaluates ISO dates at calendar boundaries without timezone drift", () => {
-    expect(
-      validateFootballSpeedDate("2026-08-20", { matchDate: "2026-08-21" }).issues,
-    ).toContain("match_minus_one");
+    expect(validateFootballSpeedDate("2026-08-20", { matchDate: "2026-08-21" }).issues).toContain(
+      "match_minus_one",
+    );
     expect(
       validateFootballSpeedDate("2026-08-20", {
         speedDates: ["2026-08-19", "2026-08-21"],

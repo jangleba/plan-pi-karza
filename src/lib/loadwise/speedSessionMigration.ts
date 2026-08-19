@@ -33,13 +33,13 @@ function isSpeed(session: SessionDay): boolean {
   return session.classification?.isSpeed ?? classifySession(session).isSpeed;
 }
 
-function migrateSession(session: SessionDay, profile: Profile): SessionDay {
+function migrateSession(session: SessionDay, profile: Profile): SessionDay | null {
   const generated = generateFootballSpeedSession({
     profile,
     date: session.date,
     family: familyFor(session),
   }).session;
-  if (!generated) return session;
+  if (!generated) return null;
   return {
     ...generated,
     dbId: session.dbId,
@@ -115,7 +115,7 @@ function relocateInvalidGeneratedSpeedSessions(
     }
 
     const migrated = migrateSession({ ...day, date: target }, profile);
-    if (migrated === day) {
+    if (!migrated) {
       next.splice(index, 1);
       index -= 1;
       migratedDates.push(day.date);
@@ -158,7 +158,7 @@ export function migratePersistedSpeedSessions(
       return day;
     }
     const migrated = migrateSession(day, profile);
-    if (migrated === day) return day;
+    if (!migrated) return day;
     migratedDates.push(day.date);
     return migrated;
   });
