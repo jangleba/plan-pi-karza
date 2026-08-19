@@ -425,6 +425,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
+  const replacementInFlightRef = useRef(new Set<string>());
   const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
   useEffect(() => {
@@ -910,8 +911,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
-    if ((state.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return;
     if (!state.profile) return;
+    const replacementKey = `${date}:${exercise.id}`;
+    if (replacementInFlightRef.current.has(replacementKey)) return;
+    replacementInFlightRef.current.add(replacementKey);
     const athlete = buildAthleteTrainingProfile(state.profile, {
       unavailableEquipmentIds: Array.from(
         new Set([...(state.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
@@ -919,6 +922,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     });
     const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
     if (!result.exercise || result.blockRebuildRequired) {
+      replacementInFlightRef.current.delete(replacementKey);
       setState((s) => ({
         ...s,
         equipmentNotice:
@@ -967,7 +971,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             };
           })(),
     }));
-    if (!added) return;
+    if (!added) {
+      replacementInFlightRef.current.delete(replacementKey);
+      return;
+    }
     void supabase
       .from("exercise_replacements" as never)
       .insert({
@@ -992,6 +999,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .then(({ error }) => {
         if (error) console.warn("[loadwise] equipment availability persistence failed", error);
       });
+    replacementInFlightRef.current.delete(replacementKey);
   }
 
   function undoExerciseReplacement(date: string, replacementId: string) {
