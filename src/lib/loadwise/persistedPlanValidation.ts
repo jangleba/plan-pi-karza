@@ -62,12 +62,14 @@ export function validatePersistedPlan(
     });
   }
 
-  for (const issue of validatePlanExerciseContract(plan)) {
-    issues.push({
-      code: "invalid-exercise-contract",
-      date: issue.date,
-      message: issue.message,
-    });
+  if (plan.some((day) => day.canonicalSchemaVersion !== undefined)) {
+    for (const issue of validatePlanExerciseContract(plan)) {
+      issues.push({
+        code: "invalid-exercise-contract",
+        date: issue.date,
+        message: issue.message,
+      });
+    }
   }
 
   for (

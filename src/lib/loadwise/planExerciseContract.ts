@@ -82,13 +82,12 @@ function validateOwnSession(
       });
     }
 
-    const name = exercise.name.trim();
-    const prescription = exercise.prescription.trim();
+    const name = String(exercise.name ?? "").trim();
+    const prescription = String(exercise.prescription ?? "").trim();
     const searchableText = `${name} ${prescription}`;
-
     const isPlaceholder =
       name.length === 0 ||
-      prescription.length === 0 ||
+      (prescription.length === 0 && !exercise.exerciseId) ||
       PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(searchableText));
 
     if (!isPlaceholder) {
