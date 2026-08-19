@@ -2222,6 +2222,93 @@ export function getExerciseDefinition(exerciseId: string): ExerciseDefinition | 
   return LIBRARY_INDEX.get(exerciseId);
 }
 
+export interface CanonicalReplacementIssue {
+  sourceId: string;
+  targetId: string;
+  problem: string;
+}
+
+export interface CanonicalReplacementValidationReport {
+  ok: boolean;
+  issues: CanonicalReplacementIssue[];
+}
+
+function replacementStimulus(exercise: ExerciseDefinition): string {
+  return exercise.stimulus ?? exercise.primaryAdaptation;
+}
+
+function hasSharedSessionRole(source: ExerciseDefinition, target: ExerciseDefinition): boolean {
+  if (!source.sessionRoles?.length || !target.sessionRoles?.length) return true;
+  return source.sessionRoles.some((role) => target.sessionRoles?.includes(role));
+}
+
+function isCanonicalReplacementCompatible(
+  source: ExerciseDefinition,
+  target: ExerciseDefinition,
+): boolean {
+  return (
+    replacementStimulus(source) === replacementStimulus(target) &&
+    hasSharedSessionRole(source, target)
+  );
+}
+
+/**
+ * Validates the ordered, canonical replacement graph. An athlete is optional:
+ * when supplied, every target in the chain must also be usable by that athlete.
+ */
+export function validateCanonicalReplacementChains(
+  athlete?: AthleteTrainingProfile,
+): CanonicalReplacementValidationReport {
+  const issues: CanonicalReplacementIssue[] = [];
+  const colors = new Map<string, "gray" | "black">();
+  const stack: string[] = [];
+  const reported = new Set<string>();
+
+  const addIssue = (sourceId: string, targetId: string, problem: string) => {
+    const key = `${sourceId}|${targetId}|${problem}`;
+    if (!reported.has(key)) {
+      reported.add(key);
+      issues.push({ sourceId, targetId, problem });
+    }
+  };
+
+  const visit = (source: ExerciseDefinition, targetId: string) => {
+    const target = getExerciseDefinition(targetId);
+    if (!target) {
+      addIssue(source.id, targetId, "Brak docelowego ćwiczenia.");
+      return;
+    }
+    if (!isApprovedCanonicalExercise(target))
+      addIssue(source.id, target.id, "Cel zamiennika nie jest zatwierdzony.");
+    if (!isCanonicalReplacementCompatible(source, target))
+      addIssue(source.id, target.id, "Niezgodny bodziec lub rola sesji.");
+    if (athlete && !isExerciseAllowedForProfile(target, athlete).ok)
+      addIssue(source.id, target.id, "Cel zamiennika niedozwolony dla profilu zawodnika.");
+
+    if (colors.get(target.id) === "gray") {
+      addIssue(source.id, target.id, "Cykl zamienników.");
+      return;
+    }
+    if (colors.get(target.id) === "black") return;
+    colors.set(target.id, "gray");
+    stack.push(target.id);
+    for (const nextId of target.replacementIds ?? []) visit(target, nextId);
+    stack.pop();
+    colors.set(target.id, "black");
+  };
+
+  for (const source of getApprovedExerciseDefinitions()) {
+    if (colors.get(source.id) === "black") continue;
+    colors.set(source.id, "gray");
+    stack.push(source.id);
+    for (const targetId of source.replacementIds ?? []) visit(source, targetId);
+    stack.pop();
+    colors.set(source.id, "black");
+  }
+
+  return { ok: issues.length === 0, issues };
+}
+
 export interface FoundationalSprintFlowStep {
   order: "A" | "C" | "B" | "D";
   exerciseId: string;
@@ -2433,6 +2520,7 @@ export function getExerciseRegression(
     if (visited.has(id)) continue;
     const cand = getExerciseDefinition(id);
     if (!cand) continue;
+    if (!isCanonicalReplacementCompatible(def, cand)) continue;
     if (isExerciseAllowedForProfile(cand, a).ok) return cand;
   }
   // Głębsza regresja — spróbuj regresji regresji.
