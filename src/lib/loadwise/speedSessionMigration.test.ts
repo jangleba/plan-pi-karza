@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Profile, SessionDay } from "./types";
-import { FOOTBALL_SPEED_GENERATOR_VERSION, generateFootballSpeedSession } from "./footballSpeedSessionEngine";
+import {
+  FOOTBALL_SPEED_GENERATOR_VERSION,
+  generateFootballSpeedSession,
+} from "./footballSpeedSessionEngine";
 import { migratePersistedSpeedSessions } from "./speedSessionMigration";
 
 const profile = (): Profile =>
@@ -65,12 +68,7 @@ const legacySpeed = (overrides: Partial<SessionDay> = {}): SessionDay =>
 describe("persisted football speed migration", () => {
   it("migrates once and preserves the session identity", () => {
     const original = legacySpeed({ dbId: "session-1" });
-    const first = migratePersistedSpeedSessions(
-      [original],
-      profile(),
-      "2026-08-19",
-      {},
-    );
+    const first = migratePersistedSpeedSessions([original], profile(), "2026-08-19", {});
     expect(first.migratedDates).toEqual(["2026-08-21"]);
     expect(first.plan[0].dbId).toBe("session-1");
     expect(first.plan[0].speedGeneratorVersion).toBe(FOOTBALL_SPEED_GENERATOR_VERSION);
@@ -83,12 +81,9 @@ describe("persisted football speed migration", () => {
     const completed = legacySpeed({ dbId: "done" });
     const club = legacySpeed({ dayType: "club", isClubSession: true });
     const user = legacySpeed({ isOwnSession: false });
-    const result = migratePersistedSpeedSessions(
-      [completed, club, user],
-      profile(),
-      "2026-08-19",
-      { done: { completed: true, rpe: null, notes: "history" } },
-    );
+    const result = migratePersistedSpeedSessions([completed, club, user], profile(), "2026-08-19", {
+      done: { completed: true, rpe: null, notes: "history" },
+    });
     expect(result.migratedDates).toEqual([]);
     expect(result.plan).toEqual([completed, club, user]);
   });
@@ -101,9 +96,9 @@ describe("persisted football speed migration", () => {
     });
     const all = generated.exercises;
     expect(all.some((exercise) => /piłk|ball/i.test(exercise.name))).toBe(false);
-    expect(new Set(all.filter((exercise) => exercise.role === "technical").map((e) => e.exerciseId))).toEqual(
-      new Set(["a_skip", "c_skip", "b_skip", "d_skip"]),
-    );
+    expect(
+      new Set(all.filter((exercise) => exercise.role === "technical").map((e) => e.exerciseId)),
+    ).toEqual(new Set(["a_skip", "c_skip", "b_skip", "d_skip"]));
     expect(all.filter((exercise) => exercise.role === "technical").length).toBe(8);
     expect(
       new Set(

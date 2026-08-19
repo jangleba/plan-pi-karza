@@ -43,13 +43,7 @@ export interface SpeedEquipmentStatus {
  * Dokładnie: 1 × warmup, 3 × drill, 1–2 × main, 0–1 × cooldown.
  */
 export type FootballSpeedRole =
-  | "preparation"
-  | "technical"
-  | "primer"
-  | "primary"
-  | "secondary"
-  | "conditioning"
-  | "cooldown";
+  "preparation" | "technical" | "primer" | "primary" | "secondary" | "conditioning" | "cooldown";
 
 export interface FootballSpeedExercise {
   order: number;
@@ -146,8 +140,7 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
       {
         id: "a_switch_progression",
         name: "Zmiany A: pojedyncza → podwójna → potrójna",
-        purpose:
-          "Nauka mocnego pchnięcia podłoża i szybkiej zmiany nogi w pozycji akceleracyjnej.",
+        purpose: "Nauka mocnego pchnięcia podłoża i szybkiej zmiany nogi w pozycji akceleracyjnej.",
         dose: "2–3 rundy × 3 na stronę",
         lowDose: "2 rundy × 3 na stronę",
         rest: "Przerwa 30–45 s",
@@ -428,7 +421,7 @@ function buildRow(
     pass,
     sets: "1",
     reps: (low && spec.lowDose) || spec.dose,
-    distanceOrDuration: spec.dose,
+    distanceOrDuration: (low && spec.lowDose) || spec.dose,
     restBetweenReps: spec.rest,
     restBetweenSets: spec.rest,
   };
@@ -472,10 +465,18 @@ function buildSessionDay(
     slotLabel: null,
     sections: {
       warmup: exercises.filter((e) => e.role === "preparation" || e.role === "primer").map(toItem),
-      main: exercises.filter((e) => e.role !== "preparation" && e.role !== "primer" && e.role !== "conditioning").map(toItem),
+      main: exercises
+        .filter(
+          (e) =>
+            e.role !== "preparation" &&
+            e.role !== "primer" &&
+            e.role !== "conditioning" &&
+            e.role !== "cooldown",
+        )
+        .map(toItem),
       accessory: [],
       footballTransfer: [],
-      cooldown: [],
+      cooldown: exercises.filter((e) => e.role === "cooldown").map(toItem),
     },
     secondSession: null,
     speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,

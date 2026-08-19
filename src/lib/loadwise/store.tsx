@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type {
   LoadwiseState,
   Profile,
@@ -79,7 +72,13 @@ interface LocalState {
 
 function loadLocal(userId: string): LocalState {
   if (typeof window === "undefined")
-    return { readiness: {}, tests: [], scouting: emptyScouting, unavailableEquipmentIds: [], exerciseReplacements: {} };
+    return {
+      readiness: {},
+      tests: [],
+      scouting: emptyScouting,
+      unavailableEquipmentIds: [],
+      exerciseReplacements: {},
+    };
   try {
     const raw = window.localStorage.getItem(localKey(userId));
     if (!raw)
@@ -101,7 +100,13 @@ function loadLocal(userId: string): LocalState {
       exerciseReplacements: parsed.exerciseReplacements ?? {},
     };
   } catch {
-    return { readiness: {}, tests: [], scouting: emptyScouting, unavailableEquipmentIds: [], exerciseReplacements: {} };
+    return {
+      readiness: {},
+      tests: [],
+      scouting: emptyScouting,
+      unavailableEquipmentIds: [],
+      exerciseReplacements: {},
+    };
   }
 }
 
@@ -170,9 +175,7 @@ const VALID_GOALS: Profile["goal"][] = [
 
 /** Cel zawsze musi być prawidłowy — nigdy undefined. Fallback: gotowość meczowa. */
 function normalizeGoal(v: unknown): Profile["goal"] {
-  return VALID_GOALS.includes(v as Profile["goal"])
-    ? (v as Profile["goal"])
-    : "matchready";
+  return VALID_GOALS.includes(v as Profile["goal"]) ? (v as Profile["goal"]) : "matchready";
 }
 
 const VALID_LIMITERS: NonNullable<Profile["secondaryLimiter"]>[] = [
@@ -231,17 +234,10 @@ function normalizeCompLevel(v: unknown): Profile["competitionLevel"] {
     : "okregowka";
 }
 
-const VALID_LEVELS: Profile["level"][] = [
-  "beginner",
-  "intermediate",
-  "advanced",
-  "elite",
-];
+const VALID_LEVELS: Profile["level"][] = ["beginner", "intermediate", "advanced", "elite"];
 
 function normalizeLevel(v: unknown): Profile["level"] {
-  return VALID_LEVELS.includes(v as Profile["level"])
-    ? (v as Profile["level"])
-    : "intermediate";
+  return VALID_LEVELS.includes(v as Profile["level"]) ? (v as Profile["level"]) : "intermediate";
 }
 
 function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
@@ -285,10 +281,7 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
       ath.has_gym === null || ath.has_gym === undefined
         ? equipment.includes("Dostęp do siłowni")
         : Boolean(ath.has_gym),
-    hasPitch:
-      ath.has_pitch === null || ath.has_pitch === undefined
-        ? true
-        : Boolean(ath.has_pitch),
+    hasPitch: ath.has_pitch === null || ath.has_pitch === undefined ? true : Boolean(ath.has_pitch),
     hasSprintSpace:
       ath.has_sprint_space === null || ath.has_sprint_space === undefined
         ? true
@@ -365,10 +358,7 @@ function rowToModification(row: AnyRow): SessionModification | null {
   };
 }
 
-export function shouldReusePersistedPlan(
-  plan: SessionDay[],
-  profile: Profile,
-): boolean {
+export function shouldReusePersistedPlan(plan: SessionDay[], profile: Profile): boolean {
   const hasMonthly = plan.length >= 14;
   const today = isoDate(localToday());
   const coversToday = plan.some((day) => day.date === today);
@@ -376,29 +366,18 @@ export function shouldReusePersistedPlan(
   const sameRevision = (profile.onboardingRevision ?? null) === (revision.revision ?? null);
   const schemaOk =
     (revision.schemaVersion ?? ONBOARDING_SCHEMA_VERSION) === ONBOARDING_SCHEMA_VERSION;
-  const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(
-    plan,
-    profile,
-    PLAN_ENGINE_VERSION,
-  );
+  const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION);
   return hasMonthly && coversToday && persistedPlanIsSafe && sameRevision && schemaOk;
 }
 
 interface LoadwiseContextValue {
   state: LoadwiseState;
   hydrated: boolean;
-  completeOnboarding: (
-    profile: Profile,
-    consents?: Record<string, boolean>,
-  ) => Promise<void>;
+  completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   restartOnboarding: () => Promise<void>;
   refreshPlanIfNeeded: () => void;
-  completeSession: (
-    session: SessionDay,
-    rpe: number | null,
-    notes: string,
-  ) => Promise<void>;
+  completeSession: (session: SessionDay, rpe: number | null, notes: string) => Promise<void>;
   applyModification: (
     date: string,
     type: ModificationType,
@@ -446,10 +425,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       const now = new Date();
       const nextMidnight = new Date(now);
       nextMidnight.setHours(24, 0, 1, 0);
-      timeout = setTimeout(() => {
-        refreshToday();
-        scheduleMidnight();
-      }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+      timeout = setTimeout(
+        () => {
+          refreshToday();
+          scheduleMidnight();
+        },
+        Math.max(1000, nextMidnight.getTime() - now.getTime()),
+      );
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") refreshToday();
@@ -481,11 +463,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     (async () => {
       const [profRes, athRes, planRes, logRes, modRes, transRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase
-          .from("athlete_profiles")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle(),
+        supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("training_plans")
           .select("*")
@@ -510,25 +488,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .eq("user_id", user.id),
       ]);
 
-      const rowProfile = buildProfile(
-        profRes.data as AnyRow | null,
-        athRes.data as AnyRow | null,
-      );
+      const rowProfile = buildProfile(profRes.data as AnyRow | null, athRes.data as AnyRow | null);
       const local = loadLocal(user.id);
       const profile = rowProfile
         ? { ...rowProfile, unavailableEquipmentIds: local.unavailableEquipmentIds }
         : null;
 
-     let plan: SessionDay[] = [];
-     let planGeneratedFor: string | null = null;
-     let clearFutureOverlays = false;
+      let plan: SessionDay[] = [];
+      let planGeneratedFor: string | null = null;
+      let clearFutureOverlays = false;
       const planRow = planRes.data as AnyRow | null;
-     const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
-     if (planRow && Array.isArray(planRow.plan_json)) {
-       plan = planRow.plan_json as SessionDay[];
-       planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
-       const normalized = normalizeLegacyPersistedPlan(plan);
-       plan = normalized.plan;
+      const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
+      if (planRow && Array.isArray(planRow.plan_json)) {
+        plan = planRow.plan_json as SessionDay[];
+        planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
+        const normalized = normalizeLegacyPersistedPlan(plan);
+        plan = normalized.plan;
       }
       if (profile && plan.length > 0) {
         const persistedCompletions: Record<string, SessionCompletion> = {};
@@ -554,70 +529,65 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           persistedModifications,
         );
         if (migrated.migratedDates.length > 0) {
-          plan = migrated.plan;
+          const previousPlan = plan;
           const planId = planRow?.id as string | undefined;
           if (planId) {
-            await supabase
+            const migrationWrite = await supabase
               .from("training_plans")
-              .update({ plan_json: plan as unknown as never })
+              .update({ plan_json: migrated.plan as unknown as never })
               .eq("id", planId)
               .eq("user_id", user.id);
+            if (!migrationWrite.error) plan = migrated.plan;
+          } else {
+            plan = previousPlan;
           }
         }
       }
 
-     if (!profile?.onboardingComplete) {
-       plan = [];
-       planGeneratedFor = null;
-     } else {
-       const revisionInfo = planRevisionInfo(plan);
-       const profileRevision = profile.onboardingRevision ?? null;
-       const schemaMissingOrMismatched =
-         revisionInfo.schemaVersion === null ||
-         revisionInfo.schemaVersion !== ONBOARDING_SCHEMA_VERSION;
-       const revisionMismatch =
-         (profileRevision && revisionInfo.revision !== profileRevision) ||
-         (!revisionInfo.revision && !!profileRevision);
-       const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
-       const planOlderThanProfile =
-         !!profileRevision && !!planRowCreatedAt && planRowCreatedAt < profileRevision;
-       const missingToday = !plan.some((day) => day.date === todayIso);
-       const invalidCanonical =
-         plan.length === 0 ||
-         missingToday ||
-         persistedPlanNeedsRegeneration(
-           plan,
-           profile,
-           PLAN_ENGINE_VERSION,
-         );
-       const shouldRebuildCanonical =
-         invalidCanonical ||
-         mixedRevisionData ||
-         schemaMissingOrMismatched ||
-         revisionMismatch ||
-         planOlderThanProfile;
+      if (!profile?.onboardingComplete) {
+        plan = [];
+        planGeneratedFor = null;
+      } else {
+        const revisionInfo = planRevisionInfo(plan);
+        const profileRevision = profile.onboardingRevision ?? null;
+        const schemaMissingOrMismatched =
+          revisionInfo.schemaVersion === null ||
+          revisionInfo.schemaVersion !== ONBOARDING_SCHEMA_VERSION;
+        const revisionMismatch =
+          (profileRevision && revisionInfo.revision !== profileRevision) ||
+          (!revisionInfo.revision && !!profileRevision);
+        const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
+        const planOlderThanProfile =
+          !!profileRevision && !!planRowCreatedAt && planRowCreatedAt < profileRevision;
+        const missingToday = !plan.some((day) => day.date === todayIso);
+        const invalidCanonical =
+          plan.length === 0 ||
+          missingToday ||
+          persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION);
+        const shouldRebuildCanonical =
+          invalidCanonical ||
+          mixedRevisionData ||
+          schemaMissingOrMismatched ||
+          revisionMismatch ||
+          planOlderThanProfile;
 
-       if (shouldRebuildCanonical) {
-         const canonical = stampPlanRevision(
-           generatePlan(profile, localToday()),
-           profileRevision,
-           ONBOARDING_SCHEMA_VERSION,
-         );
-         plan = canonical;
-         await persistMonthlyPlan(
-           user.id,
-           profile,
-           canonical,
-         );
-         planGeneratedFor = todayIso;
-         clearFutureOverlays = true;
-       } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
-         plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
-         await persistMonthlyPlan(user.id, profile, plan);
-         planGeneratedFor = todayIso;
-       }
-     }
-     const completions: Record<string, SessionCompletion> = {};
+        if (shouldRebuildCanonical) {
+          const canonical = stampPlanRevision(
+            generatePlan(profile, localToday()),
+            profileRevision,
+            ONBOARDING_SCHEMA_VERSION,
+          );
+          plan = canonical;
+          await persistMonthlyPlan(user.id, profile, canonical);
+          planGeneratedFor = todayIso;
+          clearFutureOverlays = true;
+        } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
+          plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
+          await persistMonthlyPlan(user.id, profile, plan);
+          planGeneratedFor = todayIso;
+        }
+      }
+      const completions: Record<string, SessionCompletion> = {};
       for (const row of (logRes.data as AnyRow[] | null) ?? []) {
         const sid = row.session_id as string | null;
         if (!sid) continue;
@@ -762,13 +732,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           secondary_limiter: profile.secondaryLimiter,
           equipment: profile.equipment as unknown as never,
           club_training_days: profile.clubTrainingDays as unknown as never,
-          individual_training_days:
-            profile.individualTrainingDays as unknown as never,
+          individual_training_days: profile.individualTrainingDays as unknown as never,
           unavailable_days: profile.unavailableDays as unknown as never,
-          usual_match_day:
-            profile.usualMatchDay === null
-              ? null
-              : String(profile.usualMatchDay),
+          usual_match_day: profile.usualMatchDay === null ? null : String(profile.usualMatchDay),
           match_date: profile.matchDate,
           pain_injury: profile.painInjury,
           double_sessions_allowed: profile.doubleSessionsAllowed,
@@ -792,15 +758,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  async function completeOnboarding(
-    profile: Profile,
-    consents?: Record<string, boolean>,
-  ) {
+  async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
     if (!user) return;
     const revision = await saveProfileRows(profile, true);
     const nextProfile: Profile = {
       ...profile,
-      unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
+      unavailableEquipmentIds:
+        state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
       onboardingComplete: true,
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
@@ -843,7 +807,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const revision = await saveProfileRows(profile, true);
     const nextProfile: Profile = {
       ...profile,
-      unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
+      unavailableEquipmentIds:
+        state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
       onboardingComplete: true,
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
@@ -867,16 +832,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     await supabase
       .from("profiles")
-      .upsert(
-        { user_id: user.id, onboarding_completed: false },
-        { onConflict: "user_id" },
-      );
+      .upsert({ user_id: user.id, onboarding_completed: false }, { onConflict: "user_id" });
     setState((s) => ({
       ...s,
       profile: s.profile ? { ...s.profile, onboardingComplete: false } : null,
     }));
   }
-
 
   // Nie regenerujemy planu przy każdym otwarciu ekranu.
   function refreshPlanIfNeeded() {
@@ -901,11 +862,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     })();
   }
 
-  async function completeSession(
-    session: SessionDay,
-    rpe: number | null,
-    notes: string,
-  ) {
+  async function completeSession(session: SessionDay, rpe: number | null, notes: string) {
     const sid = session.dbId;
     if (!user || !sid) return;
     const completion: SessionCompletion = { completed: true, rpe, notes };
@@ -1022,8 +979,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   ) {
     if (!user) return;
     const id = crypto.randomUUID();
-    const safetyStatus: SessionStatus =
-      type === "swap" ? "swapped_by_user" : "added_by_user";
+    const safetyStatus: SessionStatus = type === "swap" ? "swapped_by_user" : "added_by_user";
     const mod: SessionModification = {
       id,
       date,
@@ -1037,8 +993,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setState((s) => {
       const existing = s.modifications[date] ?? [];
       // Tylko jedna zamiana naraz na dany dzień.
-      const filtered =
-        type === "swap" ? existing.filter((m) => m.type !== "swap") : existing;
+      const filtered = type === "swap" ? existing.filter((m) => m.type !== "swap") : existing;
       return {
         ...s,
         modifications: { ...s.modifications, [date]: [...filtered, mod] },
@@ -1113,18 +1068,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       };
       const regenDays = range.end - range.start;
       const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
-      newPlan = [
-        ...current.slice(0, startIdx),
-        ...fresh,
-        ...current.slice(startIdx + regenDays),
-      ];
+      newPlan = [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)];
       // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
       await persistMonthlyPlan(user.id, profile, newPlan);
     }
 
-
-    const id =
-      state.transitions[weekNumber]?.id ?? crypto.randomUUID();
+    const id = state.transitions[weekNumber]?.id ?? crypto.randomUUID();
     const transition: WeeklyTransition = {
       id,
       weekNumber,

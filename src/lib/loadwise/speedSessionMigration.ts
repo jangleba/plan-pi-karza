@@ -67,8 +67,7 @@ export function migratePersistedSpeedSessions(
       day.speedGeneratorVersion === FOOTBALL_SPEED_GENERATOR_VERSION ||
       !isSpeed(day) ||
       !isAppGeneratedSpeed(day) ||
-      ((day.dbId || day.sessionId) &&
-        completions[day.dbId ?? day.sessionId ?? ""]?.completed) ||
+      ((day.dbId || day.sessionId) && completions[day.dbId ?? day.sessionId ?? ""]?.completed) ||
       (modifications[day.date] ?? []).some((mod) => mod.type === "swap")
     ) {
       return day;
