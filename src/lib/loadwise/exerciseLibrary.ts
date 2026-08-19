@@ -1603,7 +1603,7 @@ function footballSpeedExercise(
   const qualities = overrides.speedQualities ?? ["sprint_technique"];
   const acceleration = qualities.includes("acceleration") || qualities.includes("reacceleration");
   return {
-    id: overrides.id,
+    
 
     aliases: [],
     requiresBall: false,
