@@ -5,13 +5,7 @@ import {
   type ExerciseDefinition,
   type FootballSpeedQuality,
 } from "./exerciseLibrary";
-import type {
-  PainLocation,
-  Profile,
-  SessionDay,
-  TrainingBlock,
-  TrainingSection,
-} from "./types";
+import type { PainLocation, Profile, SessionDay, TrainingBlock, TrainingSection } from "./types";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 
 export type FootballSpeedFamily =
@@ -474,13 +468,7 @@ function buildSessionDay(
     sections: {
       warmup: exercises.filter((e) => e.role === "preparation" || e.role === "primer").map(toItem),
       main: exercises
-        .filter(
-          (e) =>
-            e.role !== "preparation" &&
-            e.role !== "primer" &&
-            e.role !== "conditioning" &&
-            e.role !== "cooldown",
-        )
+        .filter((e) => e.role !== "preparation" && e.role !== "primer" && e.role !== "conditioning")
         .map(toItem),
       accessory: [],
       footballTransfer: [],
@@ -531,12 +519,7 @@ export function buildFootballSpeedStructuredSections(
       id,
       title: exercise.purpose,
       blockType: "single",
-      intent:
-        exercise.role === "preparation"
-          ? "mobility"
-          : braking
-            ? "braking"
-            : "power",
+      intent: exercise.role === "preparation" ? "mobility" : braking ? "braking" : "power",
       exercises: [trainingExercise],
       restAfterBlock: exercise.restBetweenSets,
       safetyNotes: exercise.safetyStopRule,

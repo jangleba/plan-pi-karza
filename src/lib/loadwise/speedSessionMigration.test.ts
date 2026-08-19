@@ -78,6 +78,23 @@ describe("persisted football speed migration", () => {
     expect(second.plan).toBe(first.plan);
   });
 
+  it("uses the same canonical detail blocks as fresh generation", () => {
+    const fresh = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-21",
+      family: "acceleration",
+    }).session;
+    const migrated = migratePersistedSpeedSessions(
+      [legacySpeed({ dbId: "session-1" })],
+      profile(),
+      "2026-08-19",
+      {},
+    ).plan[0];
+
+    expect(migrated.sections).toEqual(fresh?.sections);
+    expect(migrated.structuredSections).toEqual(fresh?.structuredSections);
+  });
+
   it("does not touch history, commitments, or user-owned sessions", () => {
     const completed = legacySpeed({ dbId: "done" });
     const club = legacySpeed({ dayType: "club", isClubSession: true });
