@@ -2246,8 +2246,13 @@ function isCanonicalReplacementCompatible(
   source: ExerciseDefinition,
   target: ExerciseDefinition,
 ): boolean {
+  const stimulusMatches =
+    source.stimulus !== undefined || target.stimulus !== undefined
+      ? replacementStimulus(source) === replacementStimulus(target)
+      : replacementStimulus(source) === replacementStimulus(target) ||
+        (source.family === target.family && source.movementPattern === target.movementPattern);
   return (
-    replacementStimulus(source) === replacementStimulus(target) &&
+    stimulusMatches &&
     hasSharedSessionRole(source, target)
   );
 }
@@ -2763,6 +2768,13 @@ export function validateExerciseLibraryCompleteness(): LibraryCompletenessReport
     colors.set(id, "black");
   };
   for (const def of LIBRARY) visit(def.id);
+
+  for (const issue of validateCanonicalReplacementChains().issues) {
+    issues.push({
+      id: issue.sourceId,
+      problem: `${issue.problem} (${issue.targetId}).`,
+    });
+  }
 
   return { ok: issues.length === 0, totalExercises: LIBRARY.length, issues };
 }
