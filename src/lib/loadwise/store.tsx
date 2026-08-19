@@ -654,10 +654,20 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         const replacement = rowToExerciseReplacement(row);
         if (replacement) (persistedReplacements[replacement.date] ??= []).push(replacement);
       }
+      const persistedEquipment = Object.values(persistedReplacements)
+        .flat()
+        .flatMap((replacement) => replacement.equipmentIds);
 
       if (cancelled) return;
       setState({
-        profile,
+        profile: profile
+          ? {
+              ...profile,
+              unavailableEquipmentIds: Array.from(
+                new Set([...(profile.unavailableEquipmentIds ?? []), ...persistedEquipment]),
+              ),
+            }
+          : profile,
         plan,
         planGeneratedFor,
         readiness: local.readiness,
@@ -911,6 +921,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
+    if ((state.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return;
     if (!state.profile) return;
     const replacementKey = `${date}:${exercise.id}`;
     if (replacementInFlightRef.current.has(replacementKey)) return;
@@ -947,34 +958,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       equipmentIds,
       createdAt: new Date().toISOString(),
     };
-    let added = false;
     setState((s) => ({
       ...s,
-      ...(s.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)
-        ? {}
-        : (() => {
-            added = true;
-            return {
-              equipmentNotice: null,
-              profile: s.profile
-                ? {
-                    ...s.profile,
-                    unavailableEquipmentIds: Array.from(
-                      new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-                    ),
-                  }
-                : s.profile,
-              exerciseReplacements: {
-                ...s.exerciseReplacements,
-                [date]: [...(s.exerciseReplacements[date] ?? []), item],
-              },
-            };
-          })(),
+      equipmentNotice: null,
+      profile: s.profile
+        ? {
+            ...s.profile,
+            unavailableEquipmentIds: Array.from(
+              new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+            ),
+          }
+        : s.profile,
+      exerciseReplacements: {
+        ...s.exerciseReplacements,
+        [date]: [...(s.exerciseReplacements[date] ?? []), item],
+      },
     }));
-    if (!added) {
-      replacementInFlightRef.current.delete(replacementKey);
-      return;
-    }
     void supabase
       .from("exercise_replacements" as never)
       .insert({
@@ -989,17 +988,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       } as never)
       .then(({ error }) => {
         if (error) console.warn("[loadwise] replacement persistence failed", error);
+        replacementInFlightRef.current.delete(replacementKey);
       });
-    void supabase
-      .from("athlete_profiles")
-      .update({
-        unavailable_equipment_ids: athlete.unavailableEquipmentIds,
-      } as never)
-      .eq("user_id", user.id)
-      .then(({ error }) => {
-        if (error) console.warn("[loadwise] equipment availability persistence failed", error);
-      });
-    replacementInFlightRef.current.delete(replacementKey);
   }
 
   function undoExerciseReplacement(date: string, replacementId: string) {
