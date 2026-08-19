@@ -943,15 +943,20 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         equipmentIds,
         createdAt: new Date().toISOString(),
       };
-      void supabase.from("exercise_replacements" as never).insert({
-        id: item.id,
-        user_id: user.id,
-        date,
-        exercise_id: item.exerciseId,
-        original_json: item.original,
-        replacement_json: item.replacement,
-        equipment_ids: item.equipmentIds,
-      } as never);
+      void supabase
+        .from("exercise_replacements" as never)
+        .insert({
+          id: item.id,
+          user_id: user.id,
+          date,
+          exercise_id: item.exerciseId,
+          original_json: item.original,
+          replacement_json: item.replacement,
+          equipment_ids: item.equipmentIds,
+        } as never)
+        .then(({ error }) => {
+          if (error) console.warn("[loadwise] replacement persistence failed", error);
+        });
       const next = {
         ...s,
         equipmentNotice: null,
@@ -972,7 +977,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .from("exercise_replacements" as never)
       .update({ active: false } as never)
       .eq("id", replacementId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .then(({ error }) => {
+        if (error) console.warn("[loadwise] replacement undo persistence failed", error);
+      });
   }
 
   function undoExerciseReplacement(date: string, replacementId: string) {
