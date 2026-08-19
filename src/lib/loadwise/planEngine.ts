@@ -4102,7 +4102,8 @@ export function generatePlan(
         cue: exercise.coachingCuesPl.join(" "),
         commonMistake: exercise.safetyStopRule,
       };
-      const sectionType = exercise.role === "preparation" ? "warmup" : "main";
+      const sectionType =
+        exercise.role === "preparation" || exercise.role === "primer" ? "warmup" : "main";
       let section = sections.find((item) => item.type === sectionType);
       if (!section) {
         section = {
