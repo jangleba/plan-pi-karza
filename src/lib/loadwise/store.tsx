@@ -24,10 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
-import {
-  migratePersistedExerciseData,
-  selectEquipmentAwareReplacement,
-} from "./exerciseLibrary";
+import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
 import { migratePersistedSpeedSessions } from "./speedSessionMigration";
 
 const emptyScouting: ScoutingData = {
@@ -529,6 +526,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
       let plan: SessionDay[] = [];
       let migrationOriginalPlan: SessionDay[] | null = null;
+      let migrationChanged = false;
       let planGeneratedFor: string | null = null;
       let clearFutureOverlays = false;
       const planRow = planRes.data as AnyRow | null;
@@ -538,7 +536,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
         const normalized = normalizeLegacyPersistedPlan(plan);
         plan = normalized.plan;
-        plan = migratePersistedExerciseData(plan).plan;
+        const exerciseMigration = migratePersistedExerciseData(plan);
+        if (exerciseMigration.changed) {
+          migrationOriginalPlan = plan;
+          migrationChanged = true;
+          plan = exerciseMigration.plan;
+        }
       }
       if (profile && plan.length > 0) {
         const persistedCompletions: Record<string, SessionCompletion> = {};
@@ -566,6 +569,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         if (migrated.migratedDates.length > 0) {
           migrationOriginalPlan = plan;
           plan = migrated.plan;
+          migrationChanged = true;
         }
       }
 
@@ -610,7 +614,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
           await persistMonthlyPlan(user.id, profile, plan);
           planGeneratedFor = todayIso;
-        } else if (migrationOriginalPlan) {
+        } else if (migrationOriginalPlan && migrationChanged) {
           const planId = planRow?.id as string | undefined;
           if (planId) {
             const migrationWrite = await supabase

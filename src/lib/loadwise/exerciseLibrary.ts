@@ -2401,7 +2401,9 @@ export function canonicalizeGeneratedExercise(
   const canonical =
     (isApprovedCanonicalExercise(byId) && byId) ||
     (isApprovedCanonicalExercise(byName) && byName) ||
-    getExerciseDefinition(GENERATED_FAMILY_FALLBACKS[family ?? inferGeneratedFamily(exercise.name)]);
+    getExerciseDefinition(
+      GENERATED_FAMILY_FALLBACKS[family ?? inferGeneratedFamily(exercise.name)],
+    );
 
   if (!isApprovedCanonicalExercise(canonical)) {
     throw new Error(`No approved canonical mapping found for generated exercise: ${exercise.name}`);
@@ -2466,9 +2468,7 @@ function migratePersistedTrainingExercise(exercise: TrainingExercise): TrainingE
  * User-owned prescriptions, completion markers, replacements and session metadata
  * are retained; unresolved malformed entries are left for normal safe regeneration.
  */
-export function migratePersistedExerciseData(
-  plan: SessionDay[],
-): PersistedExerciseMigrationResult {
+export function migratePersistedExerciseData(plan: SessionDay[]): PersistedExerciseMigrationResult {
   let changed = false;
   const migrateSession = (session: SessionDay): SessionDay => {
     const sections = {
