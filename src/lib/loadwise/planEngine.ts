@@ -76,9 +76,38 @@ import {
   validatePlan as validateGlobalPlan,
 } from "./globalPlanRules";
 import type { WeekMeta } from "./types";
+import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 
 export const PLAN_ENGINE_VERSION = "loadwise-exercise-library-v21";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
+
+function canonicalizeGeneratedSessionExercises(session: SessionDay): SessionDay {
+  if (
+    session.dayType === "match" ||
+    session.dayType === "club" ||
+    session.dayType === "rest" ||
+    session.speedGeneratorVersion !== undefined
+  ) {
+    return session;
+  }
+
+  const canonicalize = (items: ExerciseItem[]) =>
+    items.map((exercise) => canonicalizeGeneratedExercise(exercise));
+
+  return {
+    ...session,
+    sections: {
+      warmup: canonicalize(session.sections.warmup),
+      main: canonicalize(session.sections.main),
+      accessory: canonicalize(session.sections.accessory),
+      footballTransfer: canonicalize(session.sections.footballTransfer),
+      cooldown: canonicalize(session.sections.cooldown),
+    },
+    secondSession: session.secondSession
+      ? canonicalizeGeneratedSessionExercises(session.secondSession)
+      : null,
+  };
+}
 
 function isYoung(age: number): boolean {
   return age >= 13 && age <= 15;
@@ -4703,6 +4732,9 @@ export function generatePlan(
       }
     }
   });
+  for (let i = 0; i < finalPlan.length; i++) {
+    finalPlan[i] = canonicalizeGeneratedSessionExercises(finalPlan[i]);
+  }
   assertPlanExerciseContract(finalPlan);
 return finalPlan;
 }

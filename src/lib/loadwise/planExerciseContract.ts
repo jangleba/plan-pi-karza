@@ -1,8 +1,10 @@
 import type { ExerciseItem, SessionDay } from "./types";
+import { getExerciseDefinition, isApprovedCanonicalExercise } from "./exerciseLibrary";
 
 export type PlanExerciseContractIssueCode =
   | "empty-own-session"
-  | "placeholder-exercise";
+  | "placeholder-exercise"
+  | "invalid-exercise-id";
 
 export interface PlanExerciseContractIssue {
   date: string;
@@ -61,6 +63,22 @@ function validateOwnSession(
   }
 
   for (const exercise of exercises) {
+    const canonical = exercise.exerciseId
+      ? getExerciseDefinition(exercise.exerciseId)
+      : undefined;
+    if (!isApprovedCanonicalExercise(canonical)) {
+      issues.push({
+        date: session.date,
+        slot,
+        code: "invalid-exercise-id",
+        exerciseName: exercise.name,
+        message:
+          `Ćwiczenie "${exercise.name}" w sesji ${session.date}, slot ${slot}, ` +
+          "nie ma zatwierdzonego kanonicznego ID.",
+      });
+      continue;
+    }
+
     const name = exercise.name.trim();
     const prescription = exercise.prescription.trim();
     const searchableText = `${name} ${prescription}`;
