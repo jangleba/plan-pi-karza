@@ -124,6 +124,7 @@ function relocateInvalidGeneratedSpeedSessions(
     next.splice(index, 1);
     const targetIndex = next.findIndex((candidate) => candidate.date === target);
     if (targetIndex < 0) {
+      migratedDates.push(day.date);
       index -= 1;
       continue;
     }
