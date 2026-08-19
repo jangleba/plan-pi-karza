@@ -37,7 +37,7 @@ function baseProfile(p: Partial<Profile> = {}): Profile {
 }
 
 const START = new Date("2026-07-13T00:00:00"); // poniedziałek
-const EXPECTED_SPEED_BLOCK_COUNT = 11; // A-march + 8 skip passes + primary + secondary
+const EXPECTED_SPEED_BLOCK_COUNT = 10; // warmup + 2 transitions + 3 drills + plyo + primary + terminal + cooldown
 
 function fullWeeks(plan: SessionDay[]) {
   const ranges = weekRanges(START, plan.length).filter(
@@ -86,7 +86,7 @@ describe("regression — gym access + full week", () => {
         const speedDay = plan.find(
           (day) =>
             day.dayType === "training" &&
-            day.sessionType === "Szybkość piłkarska" &&
+            day.sessionType === "Szybkość" &&
             day.structuredSections?.length,
         );
         expect(speedDay).toBeDefined();
@@ -111,7 +111,7 @@ describe("regression — gym access + full week", () => {
         expect(plan.find((day) => day.dayType === "club")?.sessionType).toBe("Klub");
         expect(plan.find((day) => day.dayType === "match")?.sessionType).toBe("Mecz");
         expect(plan.filter((day) => day.dayType === "club" || day.dayType === "match")
-          .every((day) => day.sessionType !== "Szybkość piłkarska")).toBe(true);
+          .every((day) => day.sessionType !== "Szybkość")).toBe(true);
       });
 
       it("keeps repeated sprint classified as conditioning", () => {

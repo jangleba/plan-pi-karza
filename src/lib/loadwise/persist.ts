@@ -64,8 +64,12 @@ export async function persistMonthlyPlan(
   profile: Profile,
   plan: SessionDay[],
 ): Promise<void> {
-  // Usuwamy poprzednie plany użytkownika (kaskadowo czyści dni/sesje/ćwiczenia).
-  await supabase.from("training_plans").delete().eq("user_id", userId);
+  // Archiwizujemy poprzedni plan zamiast usuwać jego dni, sesje i historię.
+  await supabase
+    .from("training_plans")
+    .update({ status: "archived" })
+    .eq("user_id", userId)
+    .eq("status", "active");
 
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);

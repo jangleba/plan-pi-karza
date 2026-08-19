@@ -97,9 +97,9 @@ function warmup(): ExerciseItem[] {
       cue: "Pełen zakres ruchu, kontroluj tułów.",
     },
     {
-      name: "Aktywacja z piłką",
-      prescription: "lekkie podania i prowadzenie — 4 min",
-      cue: "Miękki pierwszy kontakt, głowa do góry.",
+      name: "Aktywacja bioder i stóp",
+      prescription: "marsz, ankling i mobilizacja — 4 min",
+      cue: "Spokojny oddech i kontrolowany zakres ruchu.",
     },
   ];
 }
@@ -146,7 +146,7 @@ function buildByGoal(profile: Profile): Built {
           "Nie łącz dziś z ciężkim treningiem nóg ani twardym kondycyjnym. Przerwij przy spadku jakości.",
         main: [
           {
-            name: "Sprinty z piłką (akceleracja)",
+            name: "Sprinty liniowe (akceleracja)",
             prescription: `6 × 20 m, pełna przerwa — łącznie ${Math.min(120, sprintCap)} m`,
             rest: "90–120 s między powtórzeniami",
             cue: "Mocny pierwszy krok, niski tułów na starcie.",
@@ -164,16 +164,16 @@ function buildByGoal(profile: Profile): Built {
         ],
         accessory: [
           {
-            name: "Zwody i zmiana kierunku",
-            prescription: "5 × przejście slalomu z piłką",
+            name: "Hamowanie i zmiana kierunku",
+            prescription: "5 × kontrolowane wyjście ze slalomu",
             cue: "Niskie biodra, krótkie kroki w zwrocie.",
           },
         ],
         footballTransfer: [
           {
-            name: "Przyjęcie–zwrot–przyspieszenie",
-            prescription: "6 powtórzeń: przyjęcie tyłem, zwrot, 10 m sprintu",
-            cue: "Pierwszy kontakt w kierunku biegu.",
+            name: "Hamowanie–zwrot–przyspieszenie",
+            prescription: "6 powtórzeń: zwrot, 10 m sprintu",
+            cue: "Pierwszy krok w kierunku biegu.",
           },
         ],
       };
@@ -4044,7 +4044,7 @@ export function generatePlan(
       .filter(
         (day) =>
           day.speedGeneratorVersion !== undefined ||
-          day.sessionType === "Szybkość piłkarska",
+          day.sessionType === "Szybkość",
       )
       .map((day) => day.date);
     if (
@@ -4132,7 +4132,7 @@ export function generatePlan(
     sections.sort((a, b) => (a.type === "warmup" ? -1 : b.type === "warmup" ? 1 : 0));
     Object.assign(target, {
       title: speed.title,
-      sessionType: "Szybkość piłkarska",
+      sessionType: "Szybkość",
       goalOfSession: speed.goalOfSession,
       intensity: speed.intensity,
       durationMin: speed.durationMin,
