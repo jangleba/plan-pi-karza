@@ -358,6 +358,19 @@ function rowToModification(row: AnyRow): SessionModification | null {
   };
 }
 
+function rowToExerciseReplacement(row: AnyRow): ExerciseReplacement | null {
+  if (!row.original_json || !row.replacement_json) return null;
+  return {
+    id: row.id as string,
+    date: row.date as string,
+    exerciseId: row.exercise_id as string,
+    original: row.original_json as TrainingExercise,
+    replacement: row.replacement_json as TrainingExercise,
+    equipmentIds: Array.isArray(row.equipment_ids) ? (row.equipment_ids as string[]) : [],
+    createdAt: (row.created_at as string) ?? new Date().toISOString(),
+  };
+}
+
 export function shouldReusePersistedPlan(plan: SessionDay[], profile: Profile): boolean {
   const hasMonthly = plan.length >= 14;
   const today = isoDate(localToday());
@@ -412,6 +425,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
+  const replacementInFlightRef = useRef(new Set<string>());
   const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
   useEffect(() => {
@@ -461,7 +475,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes, logRes, modRes, transRes] = await Promise.all([
+      const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
@@ -486,12 +500,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .from("weekly_transitions" as never)
           .select("*")
           .eq("user_id", user.id),
+        supabase
+          .from("exercise_replacements" as never)
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .order("created_at", { ascending: true }),
       ]);
 
       const rowProfile = buildProfile(profRes.data as AnyRow | null, athRes.data as AnyRow | null);
       const local = loadLocal(user.id);
+      const persistedUnavailableEquipment = (athRes.data as AnyRow | null)?.unavailable_equipment_ids;
       const profile = rowProfile
-        ? { ...rowProfile, unavailableEquipmentIds: local.unavailableEquipmentIds }
+        ? {
+            ...rowProfile,
+            unavailableEquipmentIds: Array.isArray(persistedUnavailableEquipment)
+              ? (persistedUnavailableEquipment as string[])
+              : local.unavailableEquipmentIds,
+          }
         : null;
 
       let plan: SessionDay[] = [];
@@ -583,7 +609,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .from("training_plans")
               .update({ plan_json: plan as unknown as never })
               .eq("id", planId)
-              .eq("user_id", user.id);
+              .eq("user_id", user.id)
+              .eq("active", true);
             if (migrationWrite.error) plan = migrationOriginalPlan;
           } else {
             plan = migrationOriginalPlan;
@@ -622,9 +649,25 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      const persistedReplacements: Record<string, ExerciseReplacement[]> = {};
+      for (const row of (replacementRes.data as AnyRow[] | null) ?? []) {
+        const replacement = rowToExerciseReplacement(row);
+        if (replacement) (persistedReplacements[replacement.date] ??= []).push(replacement);
+      }
+      const persistedEquipment = Object.values(persistedReplacements)
+        .flat()
+        .flatMap((replacement) => replacement.equipmentIds);
+
       if (cancelled) return;
       setState({
-        profile,
+        profile: profile
+          ? {
+              ...profile,
+              unavailableEquipmentIds: Array.from(
+                new Set([...(profile.unavailableEquipmentIds ?? []), ...persistedEquipment]),
+              ),
+            }
+          : profile,
         plan,
         planGeneratedFor,
         readiness: local.readiness,
@@ -633,7 +676,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         scouting: local.scouting,
         modifications,
         transitions,
-        exerciseReplacements: local.exerciseReplacements,
+        exerciseReplacements:
+          !replacementRes.error
+            ? persistedReplacements
+            : local.exerciseReplacements,
         equipmentNotice: null,
       });
       setHydrated(true);
@@ -735,6 +781,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           has_gym: profile.hasGym,
           has_pitch: profile.hasPitch,
           has_sprint_space: profile.hasSprintSpace,
+          unavailable_equipment_ids: profile.unavailableEquipmentIds ?? [],
         },
         { onConflict: "user_id" },
       )
@@ -874,57 +921,79 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
-    setState((s) => {
-      if ((s.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return s;
-      if (!s.profile) return s;
-      const athlete = buildAthleteTrainingProfile(s.profile, {
-        unavailableEquipmentIds: Array.from(
-          new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-        ),
-      });
-      const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
-      if (!result.exercise || result.blockRebuildRequired) {
-        return {
-          ...s,
-          equipmentNotice:
-            "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
-        };
-      }
-      const replacement: TrainingExercise = {
-        ...exercise,
-        exerciseId: result.exercise.id,
-        name: result.exercise.displayNamePl,
-        equipment: result.exercise.equipmentRequired.join(", "),
-        replacementForBlockedExercise: exercise.name,
-        wasAdjustedForAthleteProfile: true,
-      };
-      const item: ExerciseReplacement = {
-        id: crypto.randomUUID(),
-        exerciseId: exercise.id,
-        original: exercise,
-        replacement,
-        equipmentIds,
-        createdAt: new Date().toISOString(),
-      };
-      const next = {
-        ...s,
-        equipmentNotice: null,
-        profile: {
-          ...s.profile,
-          unavailableEquipmentIds: Array.from(
-            new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-          ),
-        },
-        exerciseReplacements: {
-          ...s.exerciseReplacements,
-          [date]: [...(s.exerciseReplacements[date] ?? []), item],
-        },
-      };
-      return next;
+    if ((state.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return;
+    if (!state.profile) return;
+    const replacementKey = `${date}:${exercise.id}`;
+    if (replacementInFlightRef.current.has(replacementKey)) return;
+    replacementInFlightRef.current.add(replacementKey);
+    const athlete = buildAthleteTrainingProfile(state.profile, {
+      unavailableEquipmentIds: Array.from(
+        new Set([...(state.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+      ),
     });
+    const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
+    if (!result.exercise || result.blockRebuildRequired) {
+      replacementInFlightRef.current.delete(replacementKey);
+      setState((s) => ({
+        ...s,
+        equipmentNotice:
+          "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
+      }));
+      return;
+    }
+    const replacement: TrainingExercise = {
+      ...exercise,
+      exerciseId: result.exercise.id,
+      name: result.exercise.displayNamePl,
+      equipment: result.exercise.equipmentRequired.join(", "),
+      replacementForBlockedExercise: exercise.name,
+      wasAdjustedForAthleteProfile: true,
+    };
+    const item: ExerciseReplacement = {
+      id: crypto.randomUUID(),
+      date,
+      exerciseId: exercise.id,
+      original: exercise,
+      replacement,
+      equipmentIds,
+      createdAt: new Date().toISOString(),
+    };
+    setState((s) => ({
+      ...s,
+      equipmentNotice: null,
+      profile: s.profile
+        ? {
+            ...s.profile,
+            unavailableEquipmentIds: Array.from(
+              new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+            ),
+          }
+        : s.profile,
+      exerciseReplacements: {
+        ...s.exerciseReplacements,
+        [date]: [...(s.exerciseReplacements[date] ?? []), item],
+      },
+    }));
+    void supabase
+      .from("exercise_replacements" as never)
+      .insert({
+        id: item.id,
+        user_id: user.id,
+        date,
+        exercise_id: item.exerciseId,
+        original_json: item.original,
+        replacement_json: item.replacement,
+        equipment_ids: item.equipmentIds,
+        active: true,
+      } as never)
+      .then(({ error }) => {
+        if (error) console.warn("[loadwise] replacement persistence failed", error);
+        replacementInFlightRef.current.delete(replacementKey);
+      });
   }
 
   function undoExerciseReplacement(date: string, replacementId: string) {
+    if (!user) return;
     setState((s) => {
       const current = s.exerciseReplacements[date] ?? [];
       const removed = current.find((r) => r.id === replacementId);
@@ -954,6 +1023,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       };
       return next;
     });
+    void supabase
+      .from("exercise_replacements" as never)
+      .update({ active: false } as never)
+      .eq("id", replacementId)
+      .eq("user_id", user.id)
+      .then(({ error }) => {
+        if (error) console.warn("[loadwise] replacement undo persistence failed", error);
+      });
   }
 
   async function applyModification(

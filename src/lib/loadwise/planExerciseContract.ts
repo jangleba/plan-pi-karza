@@ -32,9 +32,13 @@ function collectSessionExercises(session: SessionDay): ExerciseItem[] {
     ...session.sections.footballTransfer,
     ...session.sections.cooldown,
   ];
+  const structuredExercises =
+    session.structuredSections?.flatMap((section) =>
+      section.blocks.flatMap((block) => block.exercises),
+    ) ?? [];
 
-  if (sectionExercises.length > 0) {
-    return sectionExercises;
+  if (sectionExercises.length > 0 || structuredExercises.length > 0) {
+    return [...sectionExercises, ...structuredExercises];
   }
 
   return session.exercises ?? [];
@@ -78,13 +82,12 @@ function validateOwnSession(
       });
     }
 
-    const name = exercise.name.trim();
-    const prescription = exercise.prescription.trim();
+    const name = String(exercise.name ?? "").trim();
+    const prescription = String(exercise.prescription ?? "").trim();
     const searchableText = `${name} ${prescription}`;
-
     const isPlaceholder =
       name.length === 0 ||
-      prescription.length === 0 ||
+      (prescription.length === 0 && !exercise.exerciseId) ||
       PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(searchableText));
 
     if (!isPlaceholder) {

@@ -6,6 +6,7 @@ import type {
   ModificationType,
 } from "./types";
 import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
+import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 
 export type Place = "dom" | "boisko" | "silownia";
 export type Choice = "add" | "swap" | "keep";
@@ -389,6 +390,9 @@ function makeSession(
   place: Place,
   timeMin: number,
 ): SessionDay {
+  const sections = c.build(place, timeMin);
+  const canonicalize = (items: ExerciseItem[]) =>
+    items.map((exercise) => canonicalizeGeneratedExercise(exercise));
   return {
     date: ctx.date,
     dayName: dayName(parseIso(ctx.date)),
@@ -406,7 +410,13 @@ function makeSession(
     avoidToday: "",
     mdLabel: ctx.mdLabel,
     slotLabel: null,
-    sections: c.build(place, timeMin),
+    sections: {
+      warmup: canonicalize(sections.warmup),
+      main: canonicalize(sections.main),
+      accessory: canonicalize(sections.accessory),
+      footballTransfer: canonicalize(sections.footballTransfer),
+      cooldown: canonicalize(sections.cooldown),
+    },
     secondSession: null,
   };
 }
