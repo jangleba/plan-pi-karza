@@ -18,6 +18,7 @@ import {
   selectEquipmentAwareReplacement,
   getApprovedExerciseDefinitions,
   isApprovedCanonicalExercise,
+  canonicalizeGeneratedExercise,
   validateCanonicalReplacementChains,
   type ExerciseDefinition,
   getFootballSpeedCatalog,
@@ -325,6 +326,46 @@ describe("library contract 2.0", () => {
     expect(isApprovedCanonicalExercise({ approved: true, draft: true } as ExerciseDefinition)).toBe(
       false,
     );
+  });
+
+  it("canonicalizes every production exercise family", () => {
+    const families = [
+      "strength",
+      "power",
+      "plyometric",
+      "trunk",
+      "tendon_isometric",
+      "mobility",
+      "recovery",
+      "conditioning",
+    ] as const;
+
+    for (const family of families) {
+      const result = canonicalizeGeneratedExercise(
+        { name: `unresolved ${family}`, prescription: "2 × 5" },
+        family,
+      );
+      const definition = getExerciseDefinition(result.exerciseId!);
+      expect(isApprovedCanonicalExercise(definition)).toBe(true);
+      expect(definition?.family).toBe(family);
+      expect(result.name).toBe(definition?.displayNamePl);
+    }
+  });
+
+  it("replaces invalid, draft, and unapproved IDs with an approved canonical record", () => {
+    const source = getExerciseDefinition("bodyweight_squat")!;
+    for (const exerciseId of ["missing-id", source.id]) {
+      const result = canonicalizeGeneratedExercise(
+        { exerciseId, name: "Przysiad z masą ciała", prescription: "3 × 8" },
+        "strength",
+      );
+      expect(isApprovedCanonicalExercise(getExerciseDefinition(result.exerciseId!))).toBe(true);
+    }
+
+    const draft = { ...source, approved: true, draft: true };
+    expect(isApprovedCanonicalExercise(draft)).toBe(false);
+    const unapproved = { ...source, approved: false, draft: false };
+    expect(isApprovedCanonicalExercise(unapproved)).toBe(false);
   });
 
   it("resolves every generated strength exercise to an approved canonical record", () => {

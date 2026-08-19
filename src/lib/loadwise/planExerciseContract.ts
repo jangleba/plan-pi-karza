@@ -2,9 +2,7 @@ import type { ExerciseItem, SessionDay } from "./types";
 import { getExerciseDefinition, isApprovedCanonicalExercise } from "./exerciseLibrary";
 
 export type PlanExerciseContractIssueCode =
-  | "empty-own-session"
-  | "placeholder-exercise"
-  | "invalid-exercise-id";
+  "empty-own-session" | "placeholder-exercise" | "invalid-exercise-id";
 
 export interface PlanExerciseContractIssue {
   date: string;
@@ -40,10 +38,7 @@ function collectSessionExercises(session: SessionDay): ExerciseItem[] {
   return session.exercises ?? [];
 }
 
-function validateOwnSession(
-  session: SessionDay,
-  slot: 1 | 2,
-): PlanExerciseContractIssue[] {
+function validateOwnSession(session: SessionDay, slot: 1 | 2): PlanExerciseContractIssue[] {
   if (session.dayType !== "training") {
     return [];
   }
@@ -63,9 +58,7 @@ function validateOwnSession(
   }
 
   for (const exercise of exercises) {
-    const canonical = exercise.exerciseId
-      ? getExerciseDefinition(exercise.exerciseId)
-      : undefined;
+    const canonical = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
     if (!isApprovedCanonicalExercise(canonical)) {
       issues.push({
         date: session.date,
@@ -76,7 +69,6 @@ function validateOwnSession(
           `Ćwiczenie "${exercise.name}" w sesji ${session.date}, slot ${slot}, ` +
           "nie ma zatwierdzonego kanonicznego ID.",
       });
-      continue;
     }
 
     const name = exercise.name.trim();
@@ -98,17 +90,14 @@ function validateOwnSession(
       code: "placeholder-exercise",
       exerciseName: exercise.name,
       message:
-        `Niedozwolony placeholder w sesji ${session.date}, slot ${slot}: ` +
-        `"${exercise.name}".`,
+        `Niedozwolony placeholder w sesji ${session.date}, slot ${slot}: ` + `"${exercise.name}".`,
     });
   }
 
   return issues;
 }
 
-export function validatePlanExerciseContract(
-  plan: SessionDay[],
-): PlanExerciseContractIssue[] {
+export function validatePlanExerciseContract(plan: SessionDay[]): PlanExerciseContractIssue[] {
   const issues: PlanExerciseContractIssue[] = [];
 
   for (const day of plan) {
@@ -130,10 +119,7 @@ export function assertPlanExerciseContract(plan: SessionDay[]): void {
   }
 
   const details = issues
-    .map(
-      (issue) =>
-        `[${issue.code}] ${issue.date}, slot ${issue.slot}: ${issue.message}`,
-    )
+    .map((issue) => `[${issue.code}] ${issue.date}, slot ${issue.slot}: ${issue.message}`)
     .join("\n");
 
   throw new Error(

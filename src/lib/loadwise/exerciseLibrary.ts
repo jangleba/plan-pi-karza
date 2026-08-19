@@ -2376,8 +2376,7 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
 
 function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
   const value = normalizeExerciseName(name);
-  if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value))
-    return "speed";
+  if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value)) return "speed";
   if (/skok|pogo|bound|lądowani|plyo|zeskok/.test(value)) return "plyometric";
   if (/mobil|rozciąg|oddech|ramp|rozgrzew|ruchomo/.test(value)) return "mobility";
   if (/rower|basen|regener|spacer|wycisz|trucht/.test(value)) return "recovery";
@@ -2401,7 +2400,9 @@ export function canonicalizeGeneratedExercise(
   const canonical =
     (isApprovedCanonicalExercise(byId) && byId) ||
     (isApprovedCanonicalExercise(byName) && byName) ||
-    getExerciseDefinition(GENERATED_FAMILY_FALLBACKS[family ?? inferGeneratedFamily(exercise.name)]);
+    getExerciseDefinition(
+      GENERATED_FAMILY_FALLBACKS[family ?? inferGeneratedFamily(exercise.name)],
+    );
 
   if (!isApprovedCanonicalExercise(canonical)) {
     throw new Error(`No approved canonical mapping found for generated exercise: ${exercise.name}`);
