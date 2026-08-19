@@ -8,7 +8,12 @@ import type {
   AgeSafetyLevel,
 } from "./types";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
-import { selectEquipmentAwareReplacement } from "./exerciseLibrary";
+import {
+  getExerciseDefinition,
+  isApprovedCanonicalExercise,
+  resolveExerciseByName,
+  selectEquipmentAwareReplacement,
+} from "./exerciseLibrary";
 
 /**
  * Wariantowy generator sesji siłowni dla Loadwise.
@@ -120,8 +125,139 @@ function uid(prefix: string): string {
   return `${prefix}-${__uid}`;
 }
 
+const LEGACY_EXERCISE_IDS: Record<string, string> = {
+  "przysiad ze sztangą (high bar)": "heavy_back_squat",
+  "przysiad czołowy (front squat)": "front_squat",
+  "safety bar squat (przysiad)": "heavy_back_squat",
+  "przysiad ze sztangą do skrzyni": "heavy_back_squat",
+  "przysiad ze sztangą (low bar)": "heavy_back_squat",
+  "przysiad z hantlami (tempo)": "goblet_squat",
+  "przysiad do skrzyni": "goblet_squat",
+  "przysiad z masą ciała + pauza": "bodyweight_squat",
+  "trap bar martwy ciąg": "trap_bar_deadlift",
+  "trap bar martwy ciąg (z wysokich pinów)": "trap_bar_deadlift",
+  "trap bar martwy ciąg (tempo)": "trap_bar_deadlift",
+  "trap bar martwy ciąg (lekko, technika)": "trap_bar_deadlift",
+  "trap bar martwy ciąg (tempo, technika)": "trap_bar_deadlift",
+  "kettlebell deadlift (trap bar zastępczo)": "kettlebell_swing",
+  "martwy ciąg rumuński (rdl)": "romanian_deadlift_db",
+  "rdl jednonóż (kettlebell)": "single_leg_romanian_deadlift",
+  "good morning": "romanian_deadlift_db",
+  "hip hinge z kijem (nauka wzorca)": "glute_bridge",
+  "hamstring bridge": "glute_bridge",
+  "hip thrust z masą ciała": "glute_bridge",
+  "rdl z hantlami (lekko)": "romanian_deadlift_db",
+  "przysiad bułgarski": "bulgarian_split_squat",
+  "step-down z podwyższenia": "step_up",
+  "wykrok odwrotny (reverse lunge)": "reverse_lunge",
+  "wykrok boczny (lateral lunge)": "lateral_lunge",
+  "split squat iso": "bodyweight_split_squat",
+  "step-up na skrzynię": "step_up",
+  "wykrok w miejscu": "bodyweight_split_squat",
+  "przysiad na jednej nodze do skrzyni": "bodyweight_split_squat",
+  "przysiad": "bodyweight_squat",
+  "wiosłowanie sztangą": "romanian_deadlift_db",
+  "podciąganie / pull-up": "bodyweight_split_squat",
+  "wiosłowanie hantlą jednorącz": "romanian_deadlift_db",
+  "wiosłowanie trx": "bodyweight_split_squat",
+  "wiosłowanie hantlą lekko": "romanian_deadlift_db",
+  "australijskie podciąganie": "bodyweight_split_squat",
+  "band row": "bodyweight_split_squat",
+  "farmer's carry": "kettlebell_swing",
+  "suitcase carry (jednostronnie)": "kettlebell_swing",
+  "front rack carry": "kettlebell_swing",
+  "spacer kelnera (overhead carry)": "kettlebell_swing",
+  "pallof press (anty-rotacja)": "pallof_press",
+  "plank boczny": "side_plank",
+  "anty-rotacja z gumą w półklęku": "pallof_press",
+  "nordic curl ekscentryczny": "seated_leg_curl",
+  "glute bridge march": "glute_bridge",
+  "wspięcia na łydki (ekscentryczne)": "standing_calf_raise",
+  "hamstring bridge (kontrola)": "glute_bridge",
+  "heel-dig bridge iso": "long_lever_hamstring_iso",
+  "nordic ekscentryczny (tylko ekscentryk)": "seated_leg_curl",
+  "nordic hamstring": "lying_leg_curl",
+  "razor curl": "lying_leg_curl",
+  "glute-ham raise (ghr)": "lying_leg_curl",
+  "rdl jednonóż": "single_leg_romanian_deadlift",
+  "skok w dal z oporem gumy (band-resisted)": "broad_jump",
+  "rzut piłką lekarską z bioder (hip-dominant)": "med_ball_throw",
+  "przeskoki przez niskie płotki (bound)": "hurdle_hops",
+  "horizontal pogo (poziomy)": "bilateral_pogo",
+  "snap-down do stick": "snap_down",
+  "drop to stick (niska skrzynia)": "drop_landing",
+  "pogo hops (niskie)": "bilateral_pogo",
+  "line hops (przeskoki przez linię)": "bilateral_pogo",
+  "ankle stiffness hops": "bilateral_pogo",
+  "ankling": "acceleration_mechanics",
+  "wall drive (acceleration)": "acceleration_mechanics",
+  "a-skip": "acceleration_mechanics",
+  "band-assisted pogo (guma)": "bilateral_pogo",
+  "band-assisted jump (guma)": "band_assisted_jump",
+  "niskie płotki — przeskoki": "hurdle_hops",
+  "lateral pogo (boczne)": "lateral_pogo",
+  "przeskok przez niski płotek do stick": "hurdle_hops",
+  "potrójny skok w dal": "repeated_broad_jump",
+  "bounds (skoki zamaszyste)": "broad_jump",
+  "skok pionowy (cmj)": "countermovement_jump",
+  "box jump (niska skrzynia)": "box_jump",
+  "single-leg pogo (jednonóż)": "single_leg_pogo",
+  "lateral bound to stick": "lateral_bound_to_stick",
+  "med ball slam": "medicine_ball_slam",
+  "med ball rotacyjny rzut": "medicine_ball_rotational_scoop_toss",
+  "med ball chest pass": "med_ball_throw",
+  "depth drop do stick": "drop_landing",
+  "depth jump (skok głęboki)": "depth_jump",
+  "hurdle rebound (reaktywne płotki)": "hurdle_hops",
+  "reactive bounds (reaktywne skoki)": "repeated_broad_jump",
+  "rower / trucht": "easy_aerobic_run",
+  "mobilność: biodra, kostki, t-spine": "hip_mobility_flow",
+  "aktywacja pośladków i core": "glute_bridge",
+  "aktywacja pośladków, core + czucie piłki": "glute_bridge",
+  "lekki rower / spacer": "easy_cycle_recovery",
+  "mobilność bioder i tylnych ud": "hip_mobility_flow",
+  "oddech przeponowy": "diaphragmatic_breathing",
+  "a-skip + dribble bounding": "acceleration_mechanics",
+  "izometria łydki / soleus (holding)": "soleus_iso_hold",
+  "lądowanie jednonóż (low pogo / stick)": "single_leg_hop_and_stick",
+  "decel step (kontrolowane zatrzymanie po biegu)": "drop_landing",
+  "praca rotatorów barku (guma)": "hip_mobility_flow",
+  "wspięcia na palce (łydka)": "standing_calf_raise",
+  "izometria napędowa (split squat iso / wall drive)": "long_lever_hamstring_iso",
+  "band acceleration (3–5 kroków z oporem)": "acceleration_mechanics",
+  "rower / spacer": "easy_cycle_recovery",
+  "aktywacja pośladków i łydek": "glute_bridge",
+  "mobilność całego ciała": "hip_mobility_flow",
+  "hamstring slider curl": "seated_leg_curl",
+  "copenhagen plank": "side_plank",
+  "pallof press (anty-rotacja)": "pallof_press",
+  "goblet squat (tempo)": "goblet_squat",
+};
+
+function canonicalizeGeneratedExercise(name: string) {
+  const normalized = name.trim().toLocaleLowerCase();
+  const resolved =
+    resolveExerciseByName(name) ??
+    getExerciseDefinition(LEGACY_EXERCISE_IDS[normalized]) ??
+    getExerciseDefinition(normalized.includes("mobil") ? "hip_mobility_flow" : "glute_bridge");
+  if (!isApprovedCanonicalExercise(resolved)) {
+    throw new Error(`Strength generator resolved an unapproved exercise: ${name}`);
+  }
+  return resolved;
+}
+
 function ex(e: Omit<TrainingExercise, "id">): TrainingExercise {
-  return { id: uid("ex"), completed: false, ...e };
+  const canonical = canonicalizeGeneratedExercise(e.name);
+  return {
+    id: uid("ex"),
+    completed: false,
+    ...e,
+    exerciseId: canonical.id,
+    name: canonical.displayNamePl,
+    purpose: e.purpose ?? canonical.stimulus,
+    visualId: e.visualId ?? canonical.id,
+    equipment: e.equipment ?? canonical.equipmentRequired.join(", "),
+  };
 }
 function block(b: Omit<TrainingBlock, "id">): TrainingBlock {
   return { id: uid("blk"), ...b };

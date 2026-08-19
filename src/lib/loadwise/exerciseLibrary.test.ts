@@ -16,10 +16,13 @@ import {
   getAllEquipmentDefinitions,
   resolveEquipmentId,
   selectEquipmentAwareReplacement,
+  getApprovedExerciseDefinitions,
+  isApprovedCanonicalExercise,
   type ExerciseDefinition,
   getFootballSpeedCatalog,
   getFoundationalSprintFlow,
 } from "./exerciseLibrary";
+import { buildStrengthPowerStructured, type StrengthBlockContext } from "./strengthBlocks";
 
 function makeProfile(over: Partial<Profile>): Profile {
   return {
@@ -304,6 +307,77 @@ const EXISTING_IDS = [
 ];
 
 describe("library contract 2.0", () => {
+  it("covers every required canonical family with approved, non-draft records", () => {
+    const families = new Set(getApprovedExerciseDefinitions().map((exercise) => exercise.family));
+    expect(families).toEqual(
+      expect.arrayContaining(["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"]),
+    );
+  });
+
+  it("enforces the production approval and draft gate", () => {
+    expect(getAllExerciseDefinitions().every((exercise) => isApprovedCanonicalExercise(exercise))).toBe(true);
+    expect(isApprovedCanonicalExercise({ approved: false, draft: false } as ExerciseDefinition)).toBe(false);
+    expect(isApprovedCanonicalExercise({ approved: true, draft: true } as ExerciseDefinition)).toBe(false);
+  });
+
+  it("resolves every generated strength exercise to an approved canonical record", () => {
+    const profile = makeProfile({
+      age: 25,
+      level: "advanced",
+      gymExperienceLevel: "advanced",
+      movementCompetence: "high",
+      supervisionLevel: "full",
+    });
+    const ctx: StrengthBlockContext = {
+      mdLabel: null,
+      powerFocus: true,
+      weekPhase: "development",
+      weekIndex: 2,
+      gymSessionIndexInWeek: 0,
+      gymSessionsThisWeekTotal: 2,
+      readiness: 8,
+      history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
+    };
+    const plan = buildStrengthPowerStructured(profile, ctx)!;
+    const exercises = plan.sections.flatMap((section) => section.blocks.flatMap((block) => block.exercises));
+    expect(exercises.every((exercise) => exercise.exerciseId && isApprovedCanonicalExercise(getExerciseDefinition(exercise.exerciseId)))).toBe(true);
+    expect(exercises.every((exercise) => exercise.name === getExerciseDefinition(exercise.exerciseId!)?.displayNamePl)).toBe(true);
+  });
+
+  it("keeps replacement chains approved and within the same stimulus family", () => {
+    for (const source of getAllExerciseDefinitions()) {
+      let current = source;
+      const visited = new Set<string>();
+      while (current.replacementIds?.length) {
+        expect(visited.has(current.id)).toBe(false);
+        visited.add(current.id);
+        const replacement = getExerciseDefinition(current.replacementIds[0]);
+        expect(isApprovedCanonicalExercise(replacement)).toBe(true);
+        expect(replacement?.family).toBe(current.family);
+        current = replacement!;
+      }
+      expect(isApprovedCanonicalExercise(current)).toBe(true);
+    }
+  });
+
+  it("generates the same canonical exercise sequence repeatedly", () => {
+    const profile = makeProfile({ age: 17, level: "intermediate" });
+    const ctx: StrengthBlockContext = {
+      mdLabel: null,
+      powerFocus: false,
+      weekPhase: "adaptation",
+      weekIndex: 1,
+      gymSessionIndexInWeek: 1,
+      gymSessionsThisWeekTotal: 2,
+      history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
+    };
+    const sequence = () =>
+      buildStrengthPowerStructured(profile, ctx)!.sections.flatMap((section) =>
+        section.blocks.flatMap((block) => block.exercises.map((exercise) => exercise.exerciseId)),
+      );
+    expect(sequence()).toEqual(sequence());
+  });
+
   it("resolves exactly the approved Phase 3A catalog", () => {
     const resolved = PHASE_3A_IDS.map((id) => resolveExerciseId(id));
     expect(resolved).toEqual(PHASE_3A_IDS);
