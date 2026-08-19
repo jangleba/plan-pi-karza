@@ -1083,6 +1083,8 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
   supportExercise("tempo_conditioning_block", "Tempo conditioning block", "conditioning", "tempo aerobic conditioning"),
   supportExercise("pallof_press", "Pallof press", "trunk", "anti-rotation trunk stability"),
   supportExercise("side_plank", "Side plank", "trunk", "lateral trunk stability"),
+  supportExercise("copenhagen_plank", "Copenhagen plank", "trunk", "adductor and trunk stability"),
+  supportExercise("face_pull_band", "Face pull (guma / wyciąg)", "trunk", "scapular stability"),
 ];
 
 function phase3AExercise(
@@ -1586,9 +1588,9 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     movementPattern: "hinge",
     equipmentRequired: ["kettlebell"],
     loadingType: "ballistic",
-    replacementIds: ["romanian_deadlift_db"],
-    regressionIds: ["romanian_deadlift_db"],
-    safeAlternativeIds: ["romanian_deadlift_db"],
+    replacementIds: ["countermovement_jump"],
+    regressionIds: ["countermovement_jump"],
+    safeAlternativeIds: ["countermovement_jump"],
   }),
   phase3AExercise({
     id: "push_press",

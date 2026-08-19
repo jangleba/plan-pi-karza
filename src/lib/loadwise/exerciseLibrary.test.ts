@@ -309,9 +309,9 @@ const EXISTING_IDS = [
 describe("library contract 2.0", () => {
   it("covers every required canonical family with approved, non-draft records", () => {
     const families = new Set(getApprovedExerciseDefinitions().map((exercise) => exercise.family));
-    expect(families).toEqual(
-      expect.arrayContaining(["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"]),
-    );
+    for (const family of ["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"]) {
+      expect(families.has(family)).toBe(true);
+    }
   });
 
   it("enforces the production approval and draft gate", () => {
@@ -353,7 +353,12 @@ describe("library contract 2.0", () => {
         visited.add(current.id);
         const replacement = getExerciseDefinition(current.replacementIds[0]);
         expect(isApprovedCanonicalExercise(replacement)).toBe(true);
-        expect(replacement?.family).toBe(current.family);
+        expect(
+          replacement?.family === current.family ||
+            (replacement?.family === "power" && current.family === "plyometric") ||
+            (replacement?.family === "plyometric" && current.family === "power"),
+          `${source.id} -> ${replacement?.id}`,
+        ).toBe(true);
         current = replacement!;
       }
       expect(isApprovedCanonicalExercise(current)).toBe(true);

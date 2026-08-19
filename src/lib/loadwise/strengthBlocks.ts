@@ -229,8 +229,8 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "aktywacja pośladków i łydek": "glute_bridge",
   "mobilność całego ciała": "hip_mobility_flow",
   "hamstring slider curl": "seated_leg_curl",
-  "copenhagen plank": "side_plank",
-  "pallof press (anty-rotacja)": "pallof_press",
+  "copenhagen plank": "copenhagen_plank",
+  "face pull (guma / wyciąg)": "face_pull_band",
   "goblet squat (tempo)": "goblet_squat",
 };
 
