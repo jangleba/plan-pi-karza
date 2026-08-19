@@ -31,17 +31,24 @@ const profile = (overrides: Partial<Profile> = {}): Profile => ({
 });
 
 describe("football speed session engine", () => {
-  it("keeps preparation, A→C→B→D order and two passes", () => {
+  it("keeps preparation, two skip transitions and three drills", () => {
     const result = generateFootballSpeedSession({
       profile: profile(),
       date: "2026-08-20",
       family: "acceleration",
     });
     expect(result.status).toBe("generated");
+    expect(result.exercises.filter((e) => e.role === "primer").map((e) => e.exerciseId)).toEqual([
+      "a_switch_progression",
+      "a_skip",
+      "scissor_bounds",
+    ]);
     expect(result.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId)).toEqual(
-      ["a_skip", "a_skip", "c_skip", "c_skip", "b_skip", "b_skip", "d_skip", "d_skip"],
+      ["a_switch_progression", "a_skip", "scissor_bounds"],
     );
-    expect(result.exercises.filter((e) => e.role === "technical").every((e) => e.pass)).toBe(true);
+    expect(
+      result.exercises.filter((e) => e.role === "technical").every((e) => e.sets === "2"),
+    ).toBe(true);
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
   });
 
@@ -82,7 +89,7 @@ describe("football speed session engine", () => {
       family: "maximum_velocity",
       readiness: 4,
     });
-    expect(result.exercises.filter((e) => e.role === "technical").length).toBe(8);
+    expect(result.exercises.filter((e) => e.role === "technical").length).toBe(3);
     expect(result.exercises.some((e) => e.exerciseId.includes("repeated"))).toBe(false);
     expect(result.excludedExerciseIds.length).toBeGreaterThan(0);
   });

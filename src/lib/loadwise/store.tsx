@@ -672,20 +672,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }, [user?.id, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
   }
 
-  async function clearFutureScheduleOverlays() {
-    if (!user) return;
-    await supabase
-      .from("session_modifications" as never)
-      .update({ active: false } as never)
-      .eq("user_id", user.id)
-      .eq("active", true)
-      .gte("date", todayIso);
-    await supabase
-      .from("weekly_transitions" as never)
-      .delete()
-      .eq("user_id", user.id);
-  }
-
   async function savePlanToDb(
     profile: Profile,
     revision: string | null,
@@ -772,8 +758,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    await clearFutureScheduleOverlays();
-
     await supabase.from("onboarding_answers").insert({
       user_id: user.id,
       answers_json: nextProfile as unknown as never,
@@ -816,7 +800,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    await clearFutureScheduleOverlays();
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
     setState((s) => ({
       ...s,

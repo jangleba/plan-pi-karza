@@ -105,15 +105,8 @@ describe("persisted football speed migration", () => {
     expect(all.some((exercise) => /piłk|ball/i.test(exercise.name))).toBe(false);
     expect(
       new Set(all.filter((exercise) => exercise.role === "technical").map((e) => e.exerciseId)),
-    ).toEqual(new Set(["a_skip", "c_skip", "b_skip", "d_skip"]));
-    expect(all.filter((exercise) => exercise.role === "technical").length).toBe(8);
-    expect(
-      new Set(
-        all
-          .filter((exercise) => exercise.role === "technical" && exercise.exerciseId !== "a_skip")
-          .map((exercise) => exercise.exerciseId),
-      ),
-    ).toEqual(new Set(["c_skip", "b_skip", "d_skip"]));
+    ).toEqual(new Set(["a_switch_progression", "a_skip", "scissor_bounds"]));
+    expect(all.filter((exercise) => exercise.role === "technical").length).toBe(3);
   });
 
   it("moves an invalid speed candidate to the nearest future valid date", () => {

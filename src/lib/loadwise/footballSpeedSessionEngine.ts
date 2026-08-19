@@ -1,7 +1,6 @@
 import {
   getExerciseDefinition,
   getFootballSpeedCatalog,
-  getFoundationalSprintFlow,
   type ExerciseDefinition,
   type FootballSpeedQuality,
 } from "./exerciseLibrary";
@@ -41,10 +40,17 @@ export interface SpeedEquipmentStatus {
 
 /**
  * Rola wiersza w kanonicznej jednostce szybkościowej.
- * Dokładnie: 1 × warmup, 3 × drill, 1–2 × main, 0–1 × cooldown.
+ *  Dokładnie: 1 × warmup, 3 × drill, 1 × primary, 1 × terminal, 0–1 × optional.
  */
 export type FootballSpeedRole =
-  "preparation" | "technical" | "primer" | "primary" | "secondary" | "conditioning" | "cooldown";
+  | "preparation"
+  | "technical"
+  | "primer"
+  | "primary"
+  | "terminal"
+  | "secondary"
+  | "conditioning"
+  | "cooldown";
 
 export interface FootballSpeedExercise {
   order: number;
@@ -131,6 +137,61 @@ const COOLDOWN: RowSpec = {
   dose: "5 min: bardzo lekki trucht + spokojny oddech",
   rest: "—",
   intensity: "bardzo niska",
+};
+
+const SKIP_TRANSITIONS: RowSpec[] = [
+  {
+    id: "a_switch_progression",
+    name: "Przejście zmiany A — runda 1",
+    purpose: "Rytm i aktywna stopa przed pracą szybkościową.",
+    dose: "1 runda × 15 m",
+    rest: "Przejście bez przerwy",
+  },
+  {
+    id: "a_skip",
+    name: "Przejście skip — runda 2",
+    purpose: "Powtórzenie rytmu i aktywnej stopy bez zmęczenia.",
+    dose: "1 runda × 15 m",
+    rest: "Przejście bez przerwy",
+  },
+];
+
+const TERMINAL_BY_FAMILY: Record<FootballSpeedFamily, RowSpec> = {
+  acceleration: {
+    id: "progressive_deceleration_5_10_15",
+    name: "Hamowanie po sprincie",
+    purpose: "Bezpieczne wytracenie prędkości po głównym bodźcu.",
+    dose: "2 serie × 5–10 m",
+    rest: "Pełna przerwa 90 s",
+  },
+  maximum_velocity: {
+    id: "progressive_deceleration_5_10_15",
+    name: "Hamowanie po sprincie",
+    purpose: "Kontrolowane wytracenie prędkości po ekspozycji maksymalnej.",
+    dose: "2 serie × 5–10 m",
+    rest: "Pełna przerwa 90 s",
+  },
+  curved_sprinting: {
+    id: "football_curved_sprint",
+    name: "Kontrolowany łuk",
+    purpose: "Utrzymanie mechaniki i bezpieczne wyjście z biegu po łuku.",
+    dose: "2 × 20 m",
+    rest: "Pełna przerwa 90 s",
+  },
+  deceleration_cod: {
+    id: "planned_cut",
+    name: "Kontrolowana zmiana kierunku",
+    purpose: "Zakończenie sesji hamowaniem i kontrolowanym wyjściem.",
+    dose: "2 powtórzenia na stronę",
+    rest: "Pełna przerwa 90 s",
+  },
+  reactive_agility_reacceleration: {
+    id: "accel_decel_reaccel",
+    name: "Hamowanie i ponowne przyspieszenie",
+    purpose: "Zakończenie sesji kontrolą hamowania i ponownym startem.",
+    dose: "2 × 10 m",
+    rest: "Pełna przerwa 90 s",
+  },
 };
 
 const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
@@ -449,7 +510,7 @@ function buildSessionDay(
     dayName: input.date,
     dayType: "training",
     title,
-    goalLabel: "Szybkość piłkarska",
+    goalLabel: "Szybkość",
     intensity: low ? "umiarkowana" : "wysoka",
     durationMin: low ? 35 : 50,
     isOwnSession: true,
@@ -459,10 +520,10 @@ function buildSessionDay(
     reason: "Kanoniczna jednostka szybkościowa: rozgrzewka, 3 drille, sprint główny.",
     safetyNote: "Ból lub spadek jakości kończy serię.",
     whyToday: "Świeża ekspozycja szybkościowa z pełnym odpoczynkiem.",
-    sessionType: "Szybkość piłkarska",
+    sessionType: "Szybkość",
     goalOfSession: spec.goal,
     riskManaged: "Niska objętość, pełne przerwy i ochrona dni okołomeczowych.",
-    avoidToday: "Bez pracy kondycyjnej i bez ćwiczeń z piłką w tej jednostce.",
+    avoidToday: "Bez pracy kondycyjnej i dodatkowych ćwiczeń poza sesją.",
     mdLabel: null,
     slotLabel: null,
     sections: {
@@ -538,35 +599,33 @@ export function generateFootballSpeedSession(
   const exercises: FootballSpeedExercise[] = [];
   let order = 1;
   exercises.push(buildRow(WARMUP, order++, "preparation", input, low));
-  const flow = getFoundationalSprintFlow();
-  for (const step of flow) {
-    for (const [index, variant] of step.variants.entries()) {
-      const drill = spec.drills[index % spec.drills.length];
-      const exerciseId = step.exerciseId === "a_march" ? "a_skip" : step.exerciseId;
-      const definition = approved(exerciseId);
-      if (!definition) throw new Error(`Brak zatwierdzonego ćwiczenia ${exerciseId}.`);
-      exercises.push(
-        buildRow(
-          {
-            ...drill,
-            id: exerciseId,
-            name: definition.displayNamePl,
-            purpose: drill.purpose,
-          },
-          order++,
-          "technical",
-          input,
-          low,
-          index + 1,
-          variant,
-        ),
-      );
-    }
+  for (const transition of SKIP_TRANSITIONS) {
+    exercises.push(buildRow(transition, order++, "primer", input, true));
+  }
+  for (const [index, drill] of spec.drills.entries()) {
+    const row = buildRow(drill, order++, "technical", input, low, index + 1);
+    row.sets = "2";
+    exercises.push(row);
+  }
+  if (!low) {
+    exercises.push(
+      buildRow(
+        {
+          id: "scissor_bounds",
+          name: "Niskie wyskoki nożycowe",
+          purpose: "Niska objętość sprężystej pracy przed sprintem.",
+          dose: "2 × 4 na stronę",
+          rest: "Przerwa 60 s",
+        },
+        order++,
+        "primer",
+        input,
+        true,
+      ),
+    );
   }
   exercises.push(buildRow(spec.primary, order++, "primary", input, low));
-  if (spec.secondary && !low) {
-    exercises.push(buildRow(spec.secondary, order++, "secondary", input, low));
-  }
+  exercises.push(buildRow(TERMINAL_BY_FAMILY[input.family], order++, "terminal", input, low));
   exercises.push(buildRow(COOLDOWN, order++, "cooldown", input, low));
 
   const title = activation ? `${spec.title} — aktywacja` : spec.title;
