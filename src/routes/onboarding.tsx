@@ -48,7 +48,7 @@ import { pl } from "date-fns/locale";
 import { ChevronLeft, CalendarIcon } from "lucide-react";
 
 export const Route = createFileRoute("/onboarding")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { edit?: boolean } => ({
     edit: search.edit === true || search.edit === "true" || search.edit === "1",
   }),
   component: Onboarding,
