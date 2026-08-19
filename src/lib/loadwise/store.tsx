@@ -910,76 +910,68 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
-    setState((s) => {
-      if ((s.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return s;
-      if (!s.profile) return s;
-      const athlete = buildAthleteTrainingProfile(s.profile, {
-        unavailableEquipmentIds: Array.from(
-          new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-        ),
-      });
-      const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
-      if (!result.exercise || result.blockRebuildRequired) {
-        return {
-          ...s,
-          equipmentNotice:
-            "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
-        };
-      }
-      const replacement: TrainingExercise = {
-        ...exercise,
-        exerciseId: result.exercise.id,
-        name: result.exercise.displayNamePl,
-        equipment: result.exercise.equipmentRequired.join(", "),
-        replacementForBlockedExercise: exercise.name,
-        wasAdjustedForAthleteProfile: true,
-      };
-      const item: ExerciseReplacement = {
-        id: crypto.randomUUID(),
-        date,
-        exerciseId: exercise.id,
-        original: exercise,
-        replacement,
-        equipmentIds,
-        createdAt: new Date().toISOString(),
-      };
-      void supabase
-        .from("exercise_replacements" as never)
-        .insert({
-          id: item.id,
-          user_id: user.id,
-          date,
-          exercise_id: item.exerciseId,
-          original_json: item.original,
-          replacement_json: item.replacement,
-          equipment_ids: item.equipmentIds,
-        } as never)
-        .then(({ error }) => {
-          if (error) console.warn("[loadwise] replacement persistence failed", error);
-        });
-      const next = {
-        ...s,
-        equipmentNotice: null,
-        profile: {
-          ...s.profile,
-          unavailableEquipmentIds: Array.from(
-            new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-          ),
-        },
-        exerciseReplacements: {
-          ...s.exerciseReplacements,
-          [date]: [...(s.exerciseReplacements[date] ?? []), item],
-        },
-      };
-      return next;
+    if ((state.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return;
+    if (!state.profile) return;
+    const athlete = buildAthleteTrainingProfile(state.profile, {
+      unavailableEquipmentIds: Array.from(
+        new Set([...(state.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+      ),
     });
+    const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
+    if (!result.exercise || result.blockRebuildRequired) {
+      setState((s) => ({
+        ...s,
+        equipmentNotice:
+          "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
+      }));
+      return;
+    }
+    const replacement: TrainingExercise = {
+      ...exercise,
+      exerciseId: result.exercise.id,
+      name: result.exercise.displayNamePl,
+      equipment: result.exercise.equipmentRequired.join(", "),
+      replacementForBlockedExercise: exercise.name,
+      wasAdjustedForAthleteProfile: true,
+    };
+    const item: ExerciseReplacement = {
+      id: crypto.randomUUID(),
+      date,
+      exerciseId: exercise.id,
+      original: exercise,
+      replacement,
+      equipmentIds,
+      createdAt: new Date().toISOString(),
+    };
+    setState((s) => ({
+      ...s,
+      equipmentNotice: null,
+      profile: s.profile
+        ? {
+            ...s.profile,
+            unavailableEquipmentIds: Array.from(
+              new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+            ),
+          }
+        : s.profile,
+      exerciseReplacements: {
+        ...s.exerciseReplacements,
+        [date]: [...(s.exerciseReplacements[date] ?? []), item],
+      },
+    }));
     void supabase
       .from("exercise_replacements" as never)
-      .update({ active: false } as never)
-      .eq("id", replacementId)
-      .eq("user_id", user.id)
+      .insert({
+        id: item.id,
+        user_id: user.id,
+        date,
+        exercise_id: item.exerciseId,
+        original_json: item.original,
+        replacement_json: item.replacement,
+        equipment_ids: item.equipmentIds,
+      } as never)
       .then(({ error }) => {
-        if (error) console.warn("[loadwise] replacement undo persistence failed", error);
+        if (error) console.warn("[loadwise] replacement persistence failed", error);
       });
   }
 
@@ -1014,6 +1006,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       };
       return next;
     });
+    void supabase
+      .from("exercise_replacements" as never)
+      .update({ active: false } as never)
+      .eq("id", replacementId)
+      .eq("user_id", user.id)
+      .then(({ error }) => {
+        if (error) console.warn("[loadwise] replacement undo persistence failed", error);
+      });
   }
 
   async function applyModification(
