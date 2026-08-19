@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Profile } from "./types";
+import type { Profile, SessionDay } from "./types";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import {
   getAllExerciseDefinitions,
@@ -19,6 +19,7 @@ import {
   getApprovedExerciseDefinitions,
   isApprovedCanonicalExercise,
   canonicalizeGeneratedExercise,
+  migratePersistedExerciseData,
   validateCanonicalReplacementChains,
   type ExerciseDefinition,
   getFootballSpeedCatalog,
@@ -309,6 +310,28 @@ const EXISTING_IDS = [
 ];
 
 describe("library contract 2.0", () => {
+  it("migrates legacy exercise names to approved IDs idempotently", () => {
+    const legacy = {
+      date: "2026-08-19",
+      sections: {
+        warmup: [{ name: "Przysiad goblet", prescription: "3 x 8" }],
+        main: [],
+        accessory: [],
+        footballTransfer: [],
+        cooldown: [],
+      },
+      secondSession: null,
+    } as unknown as SessionDay;
+
+    const first = migratePersistedExerciseData([legacy]);
+    const second = migratePersistedExerciseData(first.plan);
+
+    expect(first.changed).toBe(true);
+    expect(first.plan[0].sections.warmup[0].exerciseId).toBeTruthy();
+    expect(second.changed).toBe(false);
+    expect(second.plan).toEqual(first.plan);
+  });
+
   it("covers every required canonical family with approved, non-draft records", () => {
     const families = new Set(getApprovedExerciseDefinitions().map((exercise) => exercise.family));
     for (const family of ["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"]) {

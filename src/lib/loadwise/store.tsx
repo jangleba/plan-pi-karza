@@ -24,7 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { LEGAL_VERSION } from "./legal";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
-import { selectEquipmentAwareReplacement } from "./exerciseLibrary";
+import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
 import { migratePersistedSpeedSessions } from "./speedSessionMigration";
 
 const emptyScouting: ScoutingData = {
@@ -475,7 +475,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     setHydrated(false);
     (async () => {
-      const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes] = await Promise.all([
+      let safeProfile: Profile | null = null;
+      let safeLocal: LocalState = loadLocal(user.id);
+      try {
+        const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
@@ -509,7 +512,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       ]);
 
       const rowProfile = buildProfile(profRes.data as AnyRow | null, athRes.data as AnyRow | null);
-      const local = loadLocal(user.id);
+      const local = safeLocal;
       const persistedUnavailableEquipment = (athRes.data as AnyRow | null)?.unavailable_equipment_ids;
       const profile = rowProfile
         ? {
@@ -519,9 +522,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               : local.unavailableEquipmentIds,
           }
         : null;
+      safeProfile = profile;
 
       let plan: SessionDay[] = [];
       let migrationOriginalPlan: SessionDay[] | null = null;
+      let migrationChanged = false;
       let planGeneratedFor: string | null = null;
       let clearFutureOverlays = false;
       const planRow = planRes.data as AnyRow | null;
@@ -531,6 +536,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
         const normalized = normalizeLegacyPersistedPlan(plan);
         plan = normalized.plan;
+        const exerciseMigration = migratePersistedExerciseData(plan);
+        if (exerciseMigration.changed) {
+          migrationOriginalPlan = plan;
+          migrationChanged = true;
+          plan = exerciseMigration.plan;
+        }
       }
       if (profile && plan.length > 0) {
         const persistedCompletions: Record<string, SessionCompletion> = {};
@@ -558,6 +569,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         if (migrated.migratedDates.length > 0) {
           migrationOriginalPlan = plan;
           plan = migrated.plan;
+          migrationChanged = true;
         }
       }
 
@@ -602,7 +614,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
           await persistMonthlyPlan(user.id, profile, plan);
           planGeneratedFor = todayIso;
-        } else if (migrationOriginalPlan) {
+        } else if (migrationOriginalPlan && migrationChanged) {
           const planId = planRow?.id as string | undefined;
           if (planId) {
             const migrationWrite = await supabase
@@ -695,6 +707,23 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .delete()
           .eq("user_id", user.id);
       }
+      } catch (error) {
+        console.error("[loadwise] hydration failed; using safe persisted state", error);
+        if (!cancelled) {
+          setState({
+            ...initialState,
+            profile: safeProfile,
+            readiness: safeLocal.readiness,
+            tests: safeLocal.tests,
+            scouting: safeLocal.scouting,
+            exerciseReplacements: safeLocal.exerciseReplacements,
+            equipmentNotice:
+              "Nie udało się wczytać zapisanej części planu. Twoje dane profilu pozostały bez zmian.",
+          });
+        }
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -713,10 +742,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    useEffect(() => {
-      if (user && hydrated) persistLocal(state);
-    }, [user?.id, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
   }
+
+  useEffect(() => {
+    if (user && hydrated) persistLocal(state);
+  }, [user?.id, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
 
   async function savePlanToDb(
     profile: Profile,
