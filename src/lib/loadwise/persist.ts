@@ -2,6 +2,26 @@ import type { Profile, SessionDay, ExerciseItem } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { isoDate, localToday } from "./labels";
 
+function supabaseErrorMessage(error: unknown): string {
+  if (error && typeof error === "object") {
+    const row = error as Record<string, unknown>;
+    const parts = [
+      typeof row.message === "string" ? row.message : null,
+      typeof row.details === "string" ? row.details : null,
+      typeof row.hint === "string" ? row.hint : null,
+      typeof row.code === "string" ? `code: ${row.code}` : null,
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(" | ");
+  }
+  if (error instanceof Error) return error.message;
+  return "Unknown Supabase error";
+}
+
+function assertNoSupabaseError(context: string, error: unknown): void {
+  if (!error) return;
+  throw new Error(`[${context}] ${supabaseErrorMessage(error)}`);
+}
+
 /** Wyciąga łączny dystans (w metrach) z opisu ćwiczenia, jeśli dotyczy sprintu. */
 function extractDistance(name: string, prescription: string): string | null {
   if (!/sprint|zryw|przyspiesz|bieg|tempo|lotne|odcin/i.test(name + prescription)) {
@@ -64,13 +84,6 @@ export async function persistMonthlyPlan(
   profile: Profile,
   plan: SessionDay[],
 ): Promise<void> {
-  // Archiwizujemy poprzedni plan zamiast usuwać jego dni, sesje i historię.
-  await supabase
-    .from("training_plans")
-    .update({ status: "archived" })
-    .eq("user_id", userId)
-    .eq("status", "active");
-
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 
@@ -130,15 +143,43 @@ export async function persistMonthlyPlan(
   }
 
   // Kolejność: plan -> dni -> sesje -> ćwiczenia (klucze obce).
-  await supabase.from("training_plans").insert({
+  const planInsert = await supabase.from("training_plans").insert({
     id: planId,
     user_id: userId,
     goal: profile.goal,
     month,
     plan_json: plan as unknown as never,
-    status: "active",
+    status: "archived",
   });
-  if (dayRows.length) await supabase.from("training_days").insert(dayRows as never);
-  if (sessionRows.length) await supabase.from("training_sessions").insert(sessionRows as never);
-  if (exerciseRows.length) await supabase.from("session_exercises").insert(exerciseRows as never);
+  assertNoSupabaseError("training_plans.insert", planInsert.error);
+  try {
+    if (dayRows.length) {
+      const dayInsert = await supabase.from("training_days").insert(dayRows as never);
+      assertNoSupabaseError("training_days.insert", dayInsert.error);
+    }
+    if (sessionRows.length) {
+      const sessionInsert = await supabase.from("training_sessions").insert(sessionRows as never);
+      assertNoSupabaseError("training_sessions.insert", sessionInsert.error);
+    }
+    if (exerciseRows.length) {
+      const exerciseInsert = await supabase.from("session_exercises").insert(exerciseRows as never);
+      assertNoSupabaseError("session_exercises.insert", exerciseInsert.error);
+    }
+    const activatePlan = await supabase
+      .from("training_plans")
+      .update({ status: "active" })
+      .eq("id", planId)
+      .eq("user_id", userId);
+    assertNoSupabaseError("training_plans.activate", activatePlan.error);
+    const archivePrevious = await supabase
+      .from("training_plans")
+      .update({ status: "archived" })
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .neq("id", planId);
+    assertNoSupabaseError("training_plans.archive_previous", archivePrevious.error);
+  } catch (error) {
+    await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
+    throw error;
+  }
 }
