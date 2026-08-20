@@ -29,12 +29,11 @@ import {
   Clock,
   Target,
   Flag,
-  CheckCircle2,
   Plus,
   Repeat,
   Undo2,
 } from "lucide-react";
-import { ExerciseDetailSheet } from "@/components/loadwise/ExerciseDetailSheet";
+import { MovementBlueprint } from "@/components/loadwise/MovementBlueprint";
 import {
   Accordion,
   AccordionContent,
@@ -135,43 +134,47 @@ function restLabel(e: TrainingExercise): string | null {
 function ExerciseRow({
   e,
   done,
-  onToggle,
-  onOpenDetail,
   onUnavailable,
   equipmentIds,
 }: {
   e: TrainingExercise;
   done: boolean;
-  onToggle: () => void;
-  onOpenDetail: () => void;
   onUnavailable: () => void;
   equipmentIds: string[];
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [restRunning, setRestRunning] = useState(false);
+  const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    if (!restRunning || restSeconds === null) return;
+    const timer = window.setInterval(() => {
+      setRestSeconds((current) => {
+        if (current === null || current <= 1) {
+          setRestRunning(false);
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [restRunning, restSeconds]);
   const presc = compactPrescription(e);
   const rest = restLabel(e);
+  const definition = getExerciseDefinition(e.exerciseId ?? e.name);
+  const cues = (definition?.coachingCues ?? e.cue?.split(/[.;]\s*/).filter(Boolean) ?? []).slice(0, 3);
+  const errors = (definition?.commonErrors ?? (e.commonMistake ? [e.commonMistake] : [])).slice(0, 2);
   const equipmentNames = equipmentIds.map(
     (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label="Zrobione"
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-            done
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border"
-          }`}
-        >
-          {done && <CheckCircle2 className="h-3.5 w-3.5" />}
-        </button>
+        <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-border"}`} aria-label={done ? "Wykonane" : "Nieoznaczone"} />
         <div className="min-w-0 flex-1">
           {/* Wiersz 1: badge kodu + nazwa + chevron (otwiera szczegóły) */}
           <button
             type="button"
-            onClick={onOpenDetail}
+            onClick={() => setExpanded((current) => !current)}
             className="flex w-full items-center gap-2 text-left"
           >
             {e.label && (
@@ -211,6 +214,30 @@ function ExerciseRow({
               </button>
             )}
           </div>
+          {expanded && (
+            <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
+              {e.purpose && <p className="text-sm leading-relaxed text-foreground">{e.purpose}</p>}
+              {cues.length > 0 && (
+                <div><div className="font-semibold text-muted-foreground">Wskazówki</div><ul className="mt-1 list-disc space-y-1 pl-4">{cues.map((cue, i) => <li key={i}>{cue}</li>)}</ul></div>
+              )}
+              {errors.length > 0 && (
+                <div><div className="font-semibold text-muted-foreground">Błędy</div><ul className="mt-1 list-disc space-y-1 pl-4">{errors.map((error, i) => <li key={i}>{error}</li>)}</ul></div>
+              )}
+              <MovementBlueprint exercise={e} />
+            </div>
+          )}
+          {rest && (
+            <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span>{rest}</span>
+              <button type="button" className="font-semibold text-primary" onClick={() => {
+                const seconds = Number(rest.match(/\d+/)?.[0] ?? 90);
+                setRestSeconds((current) => current ?? seconds);
+                setRestRunning(true);
+              }}>{restRunning ? "Pauza" : "Start"}</button>
+              {restRunning && <button type="button" className="text-muted-foreground" onClick={() => { setRestRunning(false); setRestSeconds(null); }}>Reset</button>}
+              {restSeconds !== null && <span className="tabular-nums">{restSeconds} s</span>}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -226,14 +253,7 @@ const StructuredSections = memo(function StructuredSections({
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
 
-  const [done, setDone] = useState<Record<string, boolean>>({});
-  const [detail, setDetail] = useState<TrainingExercise | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
-  const openDetail = (e: TrainingExercise) => {
-    setDetail(e);
-    setDetailOpen(true);
-  };
+  const [openBlocks, setOpenBlocks] = useState<Record<string, boolean>>({});
   return (
     <div className="space-y-4">
       {sections.map((sec) => (
@@ -243,25 +263,20 @@ const StructuredSections = memo(function StructuredSections({
           </h3>
           <div className="mt-2.5 space-y-4">
             {sec.blocks.map((b) => {
-              const hideHeader =
-                !b.title ||
-                (b.exercises.length === 1 &&
-                  b.blockType === "single" &&
-                  b.title === b.exercises[0].name);
+              const blockTitle = b.title || b.exercises[0]?.name || "Blok";
               const blockRest = b.restAfterBlock
                 ? /przerwa|rest|śwież|przejdź|pełna/i.test(b.restAfterBlock)
                   ? b.restAfterBlock
                   : `Przerwa po bloku: ${b.restAfterBlock}`
                 : null;
+              const blockOpen = openBlocks[b.id] === true;
               return (
                 <div key={b.id}>
-                  {!hideHeader && (
-                    <div className="mb-0.5 text-[12px] font-bold uppercase tracking-tight text-foreground/90">
-                      {b.title}
-                    </div>
-                  )}
-                  {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
-                  <div className="divide-y divide-border/40">
+                  <button type="button" onClick={() => setOpenBlocks((current) => ({ ...current, [b.id]: !blockOpen }))} className="mb-0.5 flex w-full items-center justify-between text-left text-[12px] font-bold uppercase tracking-tight text-foreground/90">
+                      {blockTitle}
+                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${blockOpen ? "rotate-90" : ""}`} />
+                  </button>
+                  <div className={`divide-y divide-border/40 ${!blockOpen ? "hidden" : ""}`}>
                     {b.exercises.map((e) => {
                       const equipmentIds = specialistEquipmentForExercise(
                         getExerciseDefinition(e.exerciseId ?? e.name),
@@ -269,9 +284,7 @@ const StructuredSections = memo(function StructuredSections({
                       return <ExerciseRow
                         key={e.id}
                         e={e}
-                        done={!!done[e.id]}
-                        onToggle={() => toggle(e.id)}
-                        onOpenDetail={() => openDetail(e)}
+                        done={false}
                         onUnavailable={() => {
                           if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
                         }}
@@ -290,11 +303,6 @@ const StructuredSections = memo(function StructuredSections({
           </div>
         </div>
       ))}
-      <ExerciseDetailSheet
-        exercise={detail}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
     </div>
   );
 });
