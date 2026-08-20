@@ -47,8 +47,8 @@ describe("authenticated onboarding edit speed runtime", () => {
     expect(md3).toBeDefined();
     expect(md3?.secondSession).toBeNull();
     expect(md3?.sessionType).toBe("Szybkość");
-    expect(md3?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(10);
-    expect(md3?.sections.main.filter((item) => item.exerciseId).length).toBe(6);
+    expect(md3?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(16);
+    expect(md3?.sections.main.filter((item) => item.exerciseId).length).toBe(7);
     expect(md3 ? allText(md3) : "").not.toMatch(/piłk|aktywacja z piłką|sprinty z piłką/);
     expect(md3 ? allText(md3) : "").not.toMatch(
       /zwody i zmiana kierunku|przyjęcie–zwrot–przyspieszenie/,

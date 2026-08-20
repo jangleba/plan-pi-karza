@@ -37,7 +37,7 @@ function baseProfile(p: Partial<Profile> = {}): Profile {
 }
 
 const START = new Date("2026-07-13T00:00:00"); // poniedziałek
-const EXPECTED_SPEED_BLOCK_COUNT = 10; // warmup + 2 transitions + 3 drills + plyo + primary + terminal + cooldown
+const EXPECTED_SPEED_BLOCK_COUNT = 16; // warmup + A/C/B/D skips × 2 + 3 drills + plyo + primary + terminal + cooldown
 
 function fullWeeks(plan: SessionDay[]) {
   const ranges = weekRanges(START, plan.length).filter((r) => r.end - r.start === 7);
