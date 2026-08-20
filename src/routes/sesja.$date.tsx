@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { memo, useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
@@ -10,12 +10,7 @@ import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import type {
-  SessionDay,
-  TrainingSection,
-  
-  TrainingExercise,
-} from "@/lib/loadwise/types";
+import type { SessionDay, TrainingSection, TrainingExercise } from "@/lib/loadwise/types";
 import {
   getExerciseDefinition,
   getAllEquipmentDefinitions,
@@ -25,7 +20,6 @@ import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   ChevronLeft,
   ChevronRight,
-
   Clock,
   Target,
   Flag,
@@ -34,7 +28,7 @@ import {
   Repeat,
   Undo2,
 } from "lucide-react";
-import { ExerciseDetailSheet } from "@/components/loadwise/ExerciseDetailSheet";
+import { MovementBlueprint } from "@/components/loadwise/MovementBlueprint";
 import {
   Accordion,
   AccordionContent,
@@ -44,7 +38,6 @@ import {
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
-
 const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
   slot: Number(s.slot) === 2 ? 2 : 1,
 });
@@ -53,9 +46,6 @@ export const Route = createFileRoute("/sesja/$date")({
   validateSearch: searchSchema,
   component: SessionDetail,
 });
-
-
-
 
 // ---------- Renderowanie strukturalne (bloki) ----------
 
@@ -117,12 +107,8 @@ function compactPrescription(e: TrainingExercise): string {
     return display;
   }
 
-  return [primaryDose(e), primaryQualifier(e)]
-    .filter(Boolean)
-    .join(" · ");
+  return [primaryDose(e), primaryQualifier(e)].filter(Boolean).join(" · ");
 }
-
-
 
 function restLabel(e: TrainingExercise): string | null {
   const r = e.restAfterPair ?? e.restAfterExercise;
@@ -130,25 +116,55 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
-
+function restSecondsFromLabel(label: string): number {
+  const values = [...label.matchAll(/\d+/g)].map(([value]) => Number(value));
+  if (values.length === 0) return 90;
+  if (values.length === 1) return values[0];
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
 
 function ExerciseRow({
   e,
   done,
   onToggle,
-  onOpenDetail,
   onUnavailable,
   equipmentIds,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
-  onOpenDetail: () => void;
   onUnavailable: () => void;
   equipmentIds: string[];
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [restRunning, setRestRunning] = useState(false);
+  const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  const restSecondsRef = useRef(restSeconds);
+  restSecondsRef.current = restSeconds;
+  useEffect(() => {
+    if (!restRunning || restSecondsRef.current === null) return;
+    const timer = window.setInterval(() => {
+      setRestSeconds((current) => {
+        if (current === null || current <= 1) {
+          setRestRunning(false);
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [restRunning]);
   const presc = compactPrescription(e);
   const rest = restLabel(e);
+  const definition = getExerciseDefinition(e.exerciseId ?? e.name);
+  const cues = (definition?.coachingCues ?? e.cue?.split(/[.;]\s*/).filter(Boolean) ?? []).slice(
+    0,
+    3,
+  );
+  const errors = (definition?.commonErrors ?? (e.commonMistake ? [e.commonMistake] : [])).slice(
+    0,
+    2,
+  );
   const equipmentNames = equipmentIds.map(
     (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
@@ -158,20 +174,14 @@ function ExerciseRow({
         <button
           type="button"
           onClick={onToggle}
-          aria-label="Zrobione"
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-            done
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border"
-          }`}
-        >
-          {done && <CheckCircle2 className="h-3.5 w-3.5" />}
-        </button>
+          className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-border"}`}
+          aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
+        />
         <div className="min-w-0 flex-1">
           {/* Wiersz 1: badge kodu + nazwa + chevron (otwiera szczegóły) */}
           <button
             type="button"
-            onClick={onOpenDetail}
+            onClick={() => setExpanded((current) => !current)}
             className="flex w-full items-center gap-2 text-left"
           >
             {e.label && (
@@ -195,22 +205,75 @@ function ExerciseRow({
                 {presc}
               </div>
             )}
-            {rest && (
-              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">
-                {rest}
-              </div>
-            )}
             {!done && equipmentIds.length > 0 && (
               <button
                 type="button"
                 onClick={onUnavailable}
                 className="mt-1 text-[11px] font-medium text-primary"
               >
-                Nie mam{" "}
-                {equipmentNames.join(", ")}
+                Nie mam {equipmentNames.join(", ")}
               </button>
             )}
           </div>
+          {expanded && (
+            <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
+              {e.purpose && <p className="text-sm leading-relaxed text-foreground">{e.purpose}</p>}
+              {cues.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Wskazówki</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {cues.map((cue, i) => (
+                      <li key={i}>{cue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {errors.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Błędy</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {errors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <MovementBlueprint exercise={e} />
+            </div>
+          )}
+          {rest && (
+            <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span>{rest}</span>
+              <button
+                type="button"
+                className="font-semibold text-primary"
+                onClick={() => {
+                  if (restRunning) {
+                    setRestRunning(false);
+                    return;
+                  }
+                  const seconds = restSecondsFromLabel(rest);
+                  setRestSeconds((current) => current ?? seconds);
+                  setRestRunning(true);
+                }}
+              >
+                {restRunning ? "Pauza" : "Start"}
+              </button>
+              {restRunning && (
+                <button
+                  type="button"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setRestRunning(false);
+                    setRestSeconds(null);
+                  }}
+                >
+                  Reset
+                </button>
+              )}
+              {restSeconds !== null && <span className="tabular-nums">{restSeconds} s</span>}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -227,13 +290,8 @@ const StructuredSections = memo(function StructuredSections({
   const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [detail, setDetail] = useState<TrainingExercise | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const toggle = (id: string) => setDone((p) => ({ ...p, [id]: !p[id] }));
-  const openDetail = (e: TrainingExercise) => {
-    setDetail(e);
-    setDetailOpen(true);
-  };
+  const [openBlocks, setOpenBlocks] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
   return (
     <div className="space-y-4">
       {sections.map((sec) => (
@@ -243,40 +301,46 @@ const StructuredSections = memo(function StructuredSections({
           </h3>
           <div className="mt-2.5 space-y-4">
             {sec.blocks.map((b) => {
-              const hideHeader =
-                !b.title ||
-                (b.exercises.length === 1 &&
-                  b.blockType === "single" &&
-                  b.title === b.exercises[0].name);
+              const blockTitle = b.title || b.exercises[0]?.name || "Blok";
               const blockRest = b.restAfterBlock
                 ? /przerwa|rest|śwież|przejdź|pełna/i.test(b.restAfterBlock)
                   ? b.restAfterBlock
                   : `Przerwa po bloku: ${b.restAfterBlock}`
                 : null;
+              const blockOpen = openBlocks[b.id] === true;
               return (
                 <div key={b.id}>
-                  {!hideHeader && (
-                    <div className="mb-0.5 text-[12px] font-bold uppercase tracking-tight text-foreground/90">
-                      {b.title}
-                    </div>
-                  )}
-                  {/* safetyNotes to logika silnika — nie pokazujemy w widoku zawodnika. */}
-                  <div className="divide-y divide-border/40">
+                  <button
+                    type="button"
+                    onClick={() => setOpenBlocks((current) => ({ ...current, [b.id]: !blockOpen }))}
+                    className="mb-0.5 flex w-full items-center gap-2 text-left text-[12px] font-bold uppercase tracking-tight text-foreground/90"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{blockTitle}</span>
+                    <span className="truncate text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+                      {b.exercises[0] ? compactPrescription(b.exercises[0]) : ""}
+                    </span>
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 transition-transform ${blockOpen ? "rotate-90" : ""}`}
+                    />
+                  </button>
+                  <div className={`divide-y divide-border/40 ${!blockOpen ? "hidden" : ""}`}>
                     {b.exercises.map((e) => {
                       const equipmentIds = specialistEquipmentForExercise(
                         getExerciseDefinition(e.exerciseId ?? e.name),
                       );
-                      return <ExerciseRow
-                        key={e.id}
-                        e={e}
-                        done={!!done[e.id]}
-                        onToggle={() => toggle(e.id)}
-                        onOpenDetail={() => openDetail(e)}
-                        onUnavailable={() => {
-                          if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
-                        }}
-                        equipmentIds={equipmentIds}
-                      />;
+                      return (
+                        <ExerciseRow
+                          key={e.id}
+                          e={e}
+                          done={!!done[e.id]}
+                          onToggle={() => toggle(e.id)}
+                          onUnavailable={() => {
+                            if (equipmentIds.length)
+                              markEquipmentUnavailable(date, e, equipmentIds);
+                          }}
+                          equipmentIds={equipmentIds}
+                        />
+                      );
                     })}
                   </div>
                   {blockRest && (
@@ -290,24 +354,13 @@ const StructuredSections = memo(function StructuredSections({
           </div>
         </div>
       ))}
-      <ExerciseDetailSheet
-        exercise={detail}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
     </div>
   );
 });
 
 // ---------- Powłoka ekranu + skeleton (płynne ładowanie) ----------
 
-function SessionScreenShell({
-  onBack,
-  children,
-}: {
-  onBack: () => void;
-  children: ReactNode;
-}) {
+function SessionScreenShell({ onBack, children }: { onBack: () => void; children: ReactNode }) {
   return (
     <div className="app-shell min-h-screen pb-[140px]">
       <div className="px-5 pt-6">
@@ -324,9 +377,7 @@ function SessionScreenShell({
 }
 
 function SkeletonBar({ className = "" }: { className?: string }) {
-  return (
-    <div className={`animate-pulse rounded-md bg-muted ${className}`} />
-  );
+  return <div className={`animate-pulse rounded-md bg-muted ${className}`} />;
 }
 
 function SessionSkeleton() {
@@ -350,10 +401,6 @@ function SessionSkeleton() {
     </>
   );
 }
-
-
-
-
 
 function LogField({
   label,
@@ -420,9 +467,7 @@ function CompletionPanel({ session }: { session: SessionDay }) {
   return (
     <div className="soft-card p-4">
       <div className="flex items-center gap-2">
-        <CheckCircle2
-          className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`}
-        />
+        <CheckCircle2 className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`} />
         <h3 className="text-sm font-semibold">
           {done ? "Sesja oznaczona jako wykonana" : "Oznacz sesję jako wykonaną"}
         </h3>
@@ -433,13 +478,7 @@ function CompletionPanel({ session }: { session: SessionDay }) {
           <span className="font-medium">RPE (ciężkość) 0–10</span>
           <span className="text-muted-foreground">{rpe}/10</span>
         </div>
-        <Slider
-          min={0}
-          max={10}
-          step={1}
-          value={[rpe]}
-          onValueChange={(v) => setRpe(v[0])}
-        />
+        <Slider min={0} max={10} step={1} value={[rpe]} onValueChange={(v) => setRpe(v[0])} />
       </div>
 
       <div className="mt-3 space-y-2">
@@ -462,11 +501,7 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         disabled={saving}
         className="mt-3 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
       >
-        {saving
-          ? "Zapisywanie…"
-          : done
-            ? "Zaktualizuj wpis"
-            : "Oznacz jako wykonane"}
+        {saving ? "Zapisywanie…" : done ? "Zaktualizuj wpis" : "Oznacz jako wykonane"}
       </button>
     </div>
   );
@@ -483,9 +518,7 @@ function ClubMonitoring() {
     <>
       <div className="soft-card p-4">
         <h3 className="text-sm font-semibold">Trening klubowy</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          To główne obciążenie dnia.
-        </p>
+        <p className="mt-0.5 text-sm text-muted-foreground">To główne obciążenie dnia.</p>
         <ol className="mt-3 space-y-2">
           {steps.map((s, i) => (
             <li key={i} className="flex items-center gap-2.5 text-sm">
@@ -500,7 +533,6 @@ function ClubMonitoring() {
     </>
   );
 }
-
 
 // Krótki komunikat decyzji — max 1 zdanie, tylko jeśli naprawdę potrzebne.
 export function shortDecisionNote(session: SessionDay): string | null {
@@ -542,9 +574,7 @@ function DecisionLogic({ session }: { session: SessionDay }) {
         <AccordionContent className="space-y-2 pb-3">
           {rows.map((r) => (
             <div key={r.label}>
-              <div className="text-xs font-semibold text-foreground">
-                {r.label}
-              </div>
+              <div className="text-xs font-semibold text-foreground">{r.label}</div>
               <p className="text-xs text-muted-foreground">{r.value}</p>
             </div>
           ))}
@@ -570,7 +600,11 @@ function SessionDetail() {
   const showSkeleton = useDelayedFlag(stillLoading);
 
   if (stillLoading) {
-    return <SessionScreenShell onBack={goBack}>{showSkeleton ? <SessionSkeleton /> : null}</SessionScreenShell>;
+    return (
+      <SessionScreenShell onBack={goBack}>
+        {showSkeleton ? <SessionSkeleton /> : null}
+      </SessionScreenShell>
+    );
   }
 
   if (!day || !state.profile) {
@@ -578,9 +612,7 @@ function SessionDetail() {
     return (
       <SessionScreenShell onBack={goBack}>
         <div className="soft-card p-5 text-center">
-          <p className="text-sm font-medium text-foreground">
-            Nie znaleziono tej sesji.
-          </p>
+          <p className="text-sm font-medium text-foreground">Nie znaleziono tej sesji.</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Mogła zostać zmieniona w planie. Wróć do planu tygodnia.
           </p>
@@ -591,7 +623,6 @@ function SessionDetail() {
       </SessionScreenShell>
     );
   }
-
 
   const isToday = date === todayIso;
   const mods = state.modifications[date] ?? [];
@@ -607,19 +638,16 @@ function SessionDetail() {
     mods,
   );
 
-
   let session: SessionDay = primary;
   if (slot === 2) {
     if (!primary.secondSession) {
       return (
         <SessionScreenShell onBack={goBack}>
           <p className="text-sm text-muted-foreground">
-            Druga sesja nie jest dziś dostępna (zbyt niska gotowość, ból lub
-            bliskość meczu).
+            Druga sesja nie jest dziś dostępna (zbyt niska gotowość, ból lub bliskość meczu).
           </p>
         </SessionScreenShell>
       );
-
     }
     session = primary.secondSession;
   }
@@ -635,9 +663,7 @@ function SessionDetail() {
       session.sections.cooldown.length >
     0;
 
-  const fallbackExercises = hasFlatSectionContent
-    ? []
-    : session.exercises ?? [];
+  const fallbackExercises = hasFlatSectionContent ? [] : (session.exercises ?? []);
   const displayedSession = applyExerciseReplacements(
     session,
     state.exerciseReplacements[date] ?? [],
@@ -666,7 +692,6 @@ function SessionDetail() {
           onClick={goBack}
           className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
         >
-
           <ChevronLeft className="h-4 w-4" /> Wstecz
         </button>
 
@@ -690,9 +715,7 @@ function SessionDetail() {
           </div>
         )}
 
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">
-          {session.title}
-        </h1>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">{session.title}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <DayTypeTag type={session.dayType} />
@@ -719,9 +742,7 @@ function SessionDetail() {
                 })
               }
               className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
-                slot === 1
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
+                slot === 1 ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
             >
               1. {primary.title}
@@ -735,16 +756,13 @@ function SessionDetail() {
                 })
               }
               className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
-                slot === 2
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
+                slot === 2 ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
             >
               2. {primary.secondSession.title}
             </button>
           </div>
         )}
-
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
         {shortNote && (
@@ -761,9 +779,7 @@ function SessionDetail() {
         {isClub ? (
           <>
             <ClubMonitoring />
-            {structured.length > 0 && (
-              <StructuredSections sections={structured} date={date} />
-            )}
+            {structured.length > 0 && <StructuredSections sections={structured} date={date} />}
           </>
         ) : (
           <>
@@ -803,9 +819,7 @@ function SessionDetail() {
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && (
           <div className="soft-card flex items-center justify-between p-3 text-xs">
-            <span className="text-muted-foreground">
-              Sesja zamieniona. {swapMod.reason}
-            </span>
+            <span className="text-muted-foreground">Sesja zamieniona. {swapMod.reason}</span>
             <button
               type="button"
               onClick={() => undoModification(date, swapMod.id)}
@@ -824,9 +838,7 @@ function SessionDetail() {
                 <div className="text-xs font-medium uppercase tracking-wide text-primary">
                   Dodana sesja
                 </div>
-                <div className="mt-0.5 text-sm font-semibold">
-                  {m.session.title}
-                </div>
+                <div className="mt-0.5 text-sm font-semibold">{m.session.title}</div>
                 <div className="text-xs text-muted-foreground">
                   {m.session.durationMin} min · {m.session.intensity}
                 </div>
@@ -840,7 +852,6 @@ function SessionDetail() {
               </button>
             </div>
             <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
-
           </div>
         ))}
 
@@ -863,5 +874,4 @@ function SessionDetail() {
       <ModifySheet open={modifyOpen} onOpenChange={setModifyOpen} date={date} />
     </div>
   );
-
 }

@@ -31,7 +31,7 @@ const profile = (overrides: Partial<Profile> = {}): Profile => ({
 });
 
 describe("football speed session engine", () => {
-  it("keeps preparation, two skip transitions and three drills", () => {
+  it("keeps the mandatory A → C → B → D skips and three rotating drills", () => {
     const result = generateFootballSpeedSession({
       profile: profile(),
       date: "2026-08-20",
@@ -39,17 +39,36 @@ describe("football speed session engine", () => {
     });
     expect(result.status).toBe("generated");
     expect(result.exercises.filter((e) => e.role === "primer").map((e) => e.exerciseId)).toEqual([
-      "a_switch_progression",
       "a_skip",
-      "scissor_bounds",
+      "c_skip",
+      "b_skip",
+      "d_skip",
+      "a_skip",
+      "c_skip",
+      "b_skip",
+      "d_skip",
     ]);
-    expect(result.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId)).toEqual(
-      ["a_switch_progression", "a_skip", "scissor_bounds"],
-    );
+    expect(result.exercises.filter((e) => e.role === "technical")).toHaveLength(3);
     expect(
       result.exercises.filter((e) => e.role === "technical").every((e) => e.sets === "2"),
     ).toBe(true);
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
+    expect(result.exercises.some((e) => e.role === "secondary")).toBe(true);
+  });
+
+  it("rotates the post-skip trio from progression and recent-session inputs", () => {
+    const base = { profile: profile(), date: "2026-08-20", family: "acceleration" as const };
+    const first = generateFootballSpeedSession({ ...base, progressionWeek: 1 });
+    const second = generateFootballSpeedSession({
+      ...base,
+      progressionWeek: 1,
+      recentPostSkipExerciseIds: first.exercises
+        .filter((e) => e.role === "technical")
+        .map((e) => e.exerciseId),
+    });
+    expect(
+      second.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId),
+    ).not.toEqual(first.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId));
   });
 
   it.each([
