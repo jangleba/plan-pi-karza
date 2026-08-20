@@ -785,7 +785,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id" },
     );
-    if (profileRes.error) throw new Error(`[profiles.upsert] ${profileRes.error.message}`);
+    if (profileRes.error) {
+      throw new Error(`[profiles.upsert] ${profileRes.error.code}: ${profileRes.error.message}`);
+    }
     const athleteRes = await supabase
       .from("athlete_profiles")
       .upsert(
@@ -819,7 +821,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .select("updated_at,created_at")
       .maybeSingle();
     if (athleteRes.error) {
-      throw new Error(`[athlete_profiles.upsert] ${athleteRes.error.message}`);
+      throw new Error(
+        `[athlete_profiles.upsert] ${athleteRes.error.code}: ${athleteRes.error.message}`,
+      );
     }
     return (
       (athleteRes.data?.updated_at as string | undefined) ??
@@ -845,7 +849,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       completed_at: new Date().toISOString(),
     });
     if (answersRes.error) {
-      throw new Error(`[onboarding_answers.insert] ${answersRes.error.message}`);
+      throw new Error(
+        `[onboarding_answers.insert] ${answersRes.error.code}: ${answersRes.error.message}`,
+      );
     }
 
     if (consents) {
@@ -859,7 +865,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       }));
       const consentsRes = await supabase.from("consent_logs").insert(rows);
       if (consentsRes.error) {
-        throw new Error(`[consent_logs.insert] ${consentsRes.error.message}`);
+        throw new Error(
+          `[consent_logs.insert] ${consentsRes.error.code}: ${consentsRes.error.message}`,
+        );
       }
     }
 

@@ -31,6 +31,10 @@ interface ExerciseRow {
   coaching_cues: string | null;
 }
 
+function persistenceError(operation: string, error: { code?: string; message: string }): Error {
+  return new Error(`[${operation}] ${error.code ? `${error.code}: ` : ""}${error.message}`);
+}
+
 function buildExerciseRows(
   userId: string,
   sessionId: string,
@@ -132,20 +136,20 @@ export async function persistMonthlyPlan(
     status: "active",
     active: true,
   });
-  if (planInsert.error) throw new Error(`[training_plans.insert] ${planInsert.error.message}`);
+  if (planInsert.error) throw persistenceError("training_plans.insert", planInsert.error);
 
   try {
     if (dayRows.length) {
       const result = await supabase.from("training_days").insert(dayRows as never);
-      if (result.error) throw new Error(`[training_days.insert] ${result.error.message}`);
+      if (result.error) throw persistenceError("training_days.insert", result.error);
     }
     if (sessionRows.length) {
       const result = await supabase.from("training_sessions").insert(sessionRows as never);
-      if (result.error) throw new Error(`[training_sessions.insert] ${result.error.message}`);
+      if (result.error) throw persistenceError("training_sessions.insert", result.error);
     }
     if (exerciseRows.length) {
       const result = await supabase.from("session_exercises").insert(exerciseRows as never);
-      if (result.error) throw new Error(`[session_exercises.insert] ${result.error.message}`);
+      if (result.error) throw persistenceError("session_exercises.insert", result.error);
     }
 
     // Archive only after the complete replacement is durable.
@@ -155,13 +159,9 @@ export async function persistMonthlyPlan(
       .eq("user_id", userId)
       .eq("status", "active")
       .neq("id", planId);
-    if (archive.error) throw new Error(`[training_plans.archive] ${archive.error.message}`);
+    if (archive.error) throw persistenceError("training_plans.archive", archive.error);
   } catch (error) {
-    await supabase
-      .from("training_plans")
-      .delete()
-      .eq("id", planId)
-      .eq("user_id", userId);
+    await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
     throw error;
   }
 }

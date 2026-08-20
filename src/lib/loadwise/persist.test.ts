@@ -62,9 +62,10 @@ vi.mock("@/integrations/supabase/client", () => ({
       }
       return {
         insert: async (rows: unknown) => ({
-          error: table === "training_sessions" && backend.failSessionInsert
-            ? { message: "simulated session insert failure" }
-            : null,
+          error:
+            table === "training_sessions" && backend.failSessionInsert
+              ? { message: "simulated session insert failure" }
+              : null,
           rows,
         }),
       };
@@ -121,9 +122,7 @@ const plan = [
 
 describe("authenticated onboarding plan persistence and reload hydration", () => {
   beforeEach(() => {
-    backend.plans = [
-      { id: "previous", user_id: "user-1", status: "active", active: true },
-    ];
+    backend.plans = [{ id: "previous", user_id: "user-1", status: "active", active: true }];
     backend.failSessionInsert = false;
   });
 
