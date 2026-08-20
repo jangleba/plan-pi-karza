@@ -3636,6 +3636,7 @@ function repairWeekErrors(
   range: { start: number; end: number },
   profile: Profile,
   errors: string[],
+  applySprintFn?: (target: SessionDay, stimulus: Stimulus) => void,
 ): boolean {
   const findConvertible = (): number => {
     for (let i = range.start; i < range.end; i++) {
@@ -3713,6 +3714,12 @@ function repairWeekErrors(
       profile,
       `Rule-based walidator: cel główny (${GOAL_LABELS[profile.goal]}) wymaga min. ${MAIN_GOAL_RULES[profile.goal].mandatoryCount} obowiązkowych bodźców — dodano zamiast biernej regeneracji.`,
     );
+    if (
+      MAIN_GOAL_RULES[profile.goal].mandatoryCategories.includes("speed_sprint") &&
+      applySprintFn
+    ) {
+      applySprintFn(out[idx], "sprint");
+    }
     return true;
   }
 
@@ -3773,6 +3780,12 @@ function repairWeekErrors(
       profile,
       "Rule-based walidator: regeneracja nie może dominować tygodnia — nadmiarowy dzień zamieniono na jednostkę zgodną z celem.",
     );
+    if (
+      MAIN_GOAL_RULES[profile.goal].mandatoryCategories.includes("speed_sprint") &&
+      applySprintFn
+    ) {
+      applySprintFn(out[idx], "sprint");
+    }
     return true;
   }
 
@@ -3843,6 +3856,7 @@ function applyRuleBasedWeekLayer(
   profile: Profile,
   startDate: Date,
   weekOffset: number,
+  applySprintFn?: (target: SessionDay, stimulus: Stimulus) => void,
 ): {
   weeklyLoadScores: number[];
   validationErrors: string[][];
@@ -3875,7 +3889,7 @@ function applyRuleBasedWeekLayer(
       });
       validationErrors[wi] = v.errors;
       if (v.status === "valid") break;
-      const changed = repairWeekErrors(out, info.range, profile, v.errors);
+      const changed = repairWeekErrors(out, info.range, profile, v.errors, applySprintFn);
       if (changed) rebuiltFlags[wi] = true;
       else break;
     }
@@ -4607,7 +4621,7 @@ export function generatePlan(
   const { plan: finalPlan } = finalizeWeekPlan(normalized, profile);
 
   // Rule-based warstwa: walidacja + przebudowa tygodnia, progresja bloku, metadane.
-  const ruleReport = applyRuleBasedWeekLayer(finalPlan, profile, startDate, weekOffset);
+  const ruleReport = applyRuleBasedWeekLayer(finalPlan, profile, startDate, weekOffset, applyFootballSpeedPlan);
 
   // TWARDA reguła (ostatni gate): nigdy dwa dni siłowni z rzędu, także po
   // przebudowie tygodnia. Zdegradowane dni przechodzą ponowną klasyfikację.
@@ -4938,6 +4952,7 @@ export function applyReadiness(
           : factor < 1
             ? lowerIntensity(session.intensity, 1)
             : session.intensity,
+      structuredSections: removeHard ? undefined : session.structuredSections,
       sections: {
         ...session.sections,
         main: removeHard
