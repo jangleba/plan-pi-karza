@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { generatePlan } from "./planEngine";
 import { validatePlanExerciseContract } from "./planExerciseContract";
 import { getExerciseDefinition, isApprovedCanonicalExercise } from "./exerciseLibrary";
+import { isEnduranceSession } from "./sessionClassification";
 import type { Goal, Profile } from "./types";
 
 const START = new Date("2026-07-13T00:00:00");
@@ -95,6 +96,24 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
         isApprovedCanonicalExercise(getExerciseDefinition(exercise.exerciseId ?? "")),
       ),
     ).toBe(true);
+  });
+
+  it("canonicalizes generated endurance exercises deterministically", () => {
+    const profile = makeProfile("endurance");
+    profile.clubTrainingDays = [];
+    const first = generatePlan(profile, START, 28);
+    const second = generatePlan(profile, START, 28);
+    const enduranceExercises = first
+      .filter((day) => isEnduranceSession(day))
+      .flatMap((day) => day.sections.main);
+
+    expect(enduranceExercises.length).toBeGreaterThan(0);
+    expect(
+      enduranceExercises.every((exercise) =>
+        isApprovedCanonicalExercise(getExerciseDefinition(exercise.exerciseId ?? "")),
+      ),
+    ).toBe(true);
+    expect(first).toEqual(second);
   });
 
   it("rejects free-form structured exercises as well as flat exercises", () => {

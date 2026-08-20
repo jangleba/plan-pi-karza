@@ -37,6 +37,7 @@ import {
   buildTrainingContext,
   validateWeek,
 } from "./globalPlanRules";
+import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
@@ -162,8 +163,20 @@ function normalEnduranceBuild(index: number): EnduranceBuild {
       sessionType: "Wytrzymałość — tempo aerobowe",
       goalOfSession: "Rozwój bazy tlenowej kontrolowanym tempem, bez wyczerpania.",
       main: [
-        canonicalItem("tempo_conditioning_block", { prescription: "6–10 × 100 m luźnym tempem", rest: "trucht powrotny", cue: "Równy rytm, kontroluj oddech." }),
-        canonicalItem("easy_aerobic_run", { prescription: "2–4 × 4 min, przerwa 2 min", rest: "2 min", cue: "Tempo konwersacyjne, nie na maksa." }),
+        canonicalizeGeneratedExercise({
+          exerciseId: "tempo_conditioning_block",
+          name: "Tempo conditioning block",
+          prescription: "6–10 × 100 m luźnym tempem",
+          rest: "trucht powrotny",
+          cue: "Równy rytm, kontroluj oddech.",
+        }, "conditioning"),
+        canonicalizeGeneratedExercise({
+          exerciseId: "easy_aerobic_run",
+          name: "Easy aerobic run",
+          prescription: "2–4 × 4 min, przerwa 2 min",
+          rest: "2 min",
+          cue: "Tempo konwersacyjne, nie na maksa.",
+        }, "conditioning"),
       ],
     },
     {
