@@ -434,7 +434,9 @@ function Onboarding() {
       );
       navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Nieznany błąd";
+      console.error("[onboarding] save failed", error);
+      const raw = error instanceof Error ? error.message : "Nieznany błąd";
+      const message = raw.replace(/^\[[^\]]+\]\s*/, "").split(" | ")[0]?.trim() || "Nieznany błąd";
       toast.error(`Nie udało się zapisać. ${message}`);
     } finally {
       setBusy(false);
