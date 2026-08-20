@@ -76,6 +76,7 @@ export interface FootballSpeedExercise {
   distanceOrDuration?: string;
   restBetweenReps?: string;
   restBetweenSets?: string;
+  groundContacts?: number;
   variant?: string;
 }
 
@@ -465,52 +466,196 @@ const FAMILY_SPECS: Record<FootballSpeedFamily, FamilySpec> = {
 const POST_SKIP_POOLS: Record<FootballSpeedFamily, RowSpec[][]> = {
   acceleration: [
     [
-      { id: "a_switch_progression", name: "A-switch: pojedyncza → podwójna → potrójna", purpose: "Szybka zmiana nogi i mocne pchnięcie w akceleracji.", dose: "2–3 × 3 na stronę", rest: "Przerwa 60 s" },
-      { id: "a_accent", name: "A-accent", purpose: "Akcent mocy po trzech luźnych krokach.", dose: "2–3 × 10–15 m", rest: "Przerwa 60 s" },
-      { id: "alternate_leg_bounds", name: "Wieloskok naprzemienny", purpose: "Przeniesienie siły poziomo przed sprintem.", dose: "2 × 5 na stronę", rest: "Przerwa 90 s" },
+      {
+        id: "a_switch_progression",
+        name: "A-switch: pojedyncza → podwójna → potrójna",
+        purpose: "Szybka zmiana nogi i mocne pchnięcie w akceleracji.",
+        dose: "2–3 × 3 na stronę",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "a_accent",
+        name: "A-accent",
+        purpose: "Akcent mocy po trzech luźnych krokach.",
+        dose: "2–3 × 10–15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "alternate_leg_bounds",
+        name: "Wieloskok naprzemienny",
+        purpose: "Przeniesienie siły poziomo przed sprintem.",
+        dose: "2 × 5 na stronę",
+        rest: "Przerwa 90 s",
+      },
     ],
     [
-      { id: "a_skip_add_step", name: "Skip A z add-step", purpose: "Rytm i aktywna stopa w pozycji startowej.", dose: "2–3 × 15–20 m", rest: "Przerwa 60 s" },
-      { id: "switch_skip_a", name: "Switch → Skip A", purpose: "Połączenie szybkiej zmiany z rytmem A.", dose: "2–3 × 15 m", rest: "Przerwa 60 s" },
-      { id: "power_skip_distance", name: "Power skip na odległość", purpose: "Mocne pchnięcie podłoża do tyłu.", dose: "2 × 15 m", rest: "Przerwa 90 s" },
+      {
+        id: "a_skip_add_step",
+        name: "Skip A z add-step",
+        purpose: "Rytm i aktywna stopa w pozycji startowej.",
+        dose: "2–3 × 15–20 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "switch_skip_a",
+        name: "Switch → Skip A",
+        purpose: "Połączenie szybkiej zmiany z rytmem A.",
+        dose: "2–3 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "power_skip_distance",
+        name: "Power skip na odległość",
+        purpose: "Mocne pchnięcie podłoża do tyłu.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 90 s",
+      },
     ],
   ],
   maximum_velocity: [
     [
-      { id: "c_accent", name: "C-accent", purpose: "Akcent cyklu pod biodrem po luźnych krokach.", dose: "2–3 × 10–15 m", rest: "Przerwa 60 s" },
-      { id: "a_skip_no_add_step", name: "Skip A bez add-step", purpose: "Wysokie biodra i kontakt pod środkiem masy.", dose: "2–3 × 15–20 m", rest: "Przerwa 60 s" },
-      { id: "scissor_exchange_jump", name: "Naprzemienny skok nożycowy z wymianą", purpose: "Sprężysta wymiana nogi przed maksymalną prędkością.", dose: "2 × 4 na stronę", rest: "Przerwa 90 s" },
+      {
+        id: "c_accent",
+        name: "C-accent",
+        purpose: "Akcent cyklu pod biodrem po luźnych krokach.",
+        dose: "2–3 × 10–15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "a_skip_no_add_step",
+        name: "Skip A bez add-step",
+        purpose: "Wysokie biodra i kontakt pod środkiem masy.",
+        dose: "2–3 × 15–20 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "scissor_exchange_jump",
+        name: "Naprzemienny skok nożycowy z wymianą",
+        purpose: "Sprężysta wymiana nogi przed maksymalną prędkością.",
+        dose: "2 × 4 na stronę",
+        rest: "Przerwa 90 s",
+      },
     ],
     [
-      { id: "skip_a_to_d", name: "Skip A → Skip D", purpose: "Płynne przejście do szybkiego cyklu biegowego.", dose: "2–3 × 15 m", rest: "Przerwa 60 s" },
-      { id: "c_skip", name: "Skip C", purpose: "Aktywna stopa bez sięgania i overstridingu.", dose: "2–3 × 15–20 m", rest: "Przerwa 60 s" },
-      { id: "power_skip_height", name: "Power skip na wysokość", purpose: "Sprężystość i rytm przy wysokich biodrach.", dose: "2 × 4 na stronę", rest: "Przerwa 90 s" },
+      {
+        id: "skip_a_to_d",
+        name: "Skip A → Skip D",
+        purpose: "Płynne przejście do szybkiego cyklu biegowego.",
+        dose: "2–3 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "c_skip",
+        name: "Skip C",
+        purpose: "Aktywna stopa bez sięgania i overstridingu.",
+        dose: "2–3 × 15–20 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "power_skip_height",
+        name: "Power skip na wysokość",
+        purpose: "Sprężystość i rytm przy wysokich biodrach.",
+        dose: "2 × 4 na stronę",
+        rest: "Przerwa 90 s",
+      },
     ],
   ],
   curved_sprinting: [
     [
-      { id: "a_accent", name: "A-accent", purpose: "Przygotowanie aktywnej stopy do wejścia w łuk.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "skip_b_alternate_bounds", name: "Skip B → wieloskok naprzemienny", purpose: "Rytm i kontrola wymiany nogi.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "alternate_leg_bounds", name: "Wieloskok naprzemienny", purpose: "Sprężysta projekcja w kierunku biegu.", dose: "2 × 5 na stronę", rest: "Przerwa 90 s" },
+      {
+        id: "a_accent",
+        name: "A-accent",
+        purpose: "Przygotowanie aktywnej stopy do wejścia w łuk.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "skip_b_alternate_bounds",
+        name: "Skip B → wieloskok naprzemienny",
+        purpose: "Rytm i kontrola wymiany nogi.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "alternate_leg_bounds",
+        name: "Wieloskok naprzemienny",
+        purpose: "Sprężysta projekcja w kierunku biegu.",
+        dose: "2 × 5 na stronę",
+        rest: "Przerwa 90 s",
+      },
     ],
     [
-      { id: "switch_skip_a", name: "Switch → Skip A", purpose: "Szybka zmiana nogi przy stabilnych biodrach.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "c_accent", name: "C-accent", purpose: "Kontakt pod biodrem przed biegiem po łuku.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "power_skip_distance", name: "Power skip na odległość", purpose: "Kontrolowana siła pozioma bez zmęczenia.", dose: "2 × 15 m", rest: "Przerwa 90 s" },
+      {
+        id: "switch_skip_a",
+        name: "Switch → Skip A",
+        purpose: "Szybka zmiana nogi przy stabilnych biodrach.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "c_accent",
+        name: "C-accent",
+        purpose: "Kontakt pod biodrem przed biegiem po łuku.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "power_skip_distance",
+        name: "Power skip na odległość",
+        purpose: "Kontrolowana siła pozioma bez zmęczenia.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 90 s",
+      },
     ],
   ],
   deceleration_cod: [
     [
-      { id: "a_skip_no_add_step", name: "Skip A bez add-step", purpose: "Ustawienie stopy i bioder przed hamowaniem.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "c_skip", name: "Skip C", purpose: "Rytm i kontrola środka masy przed zmianą kierunku.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "skip_b_alternate_bounds", name: "Skip B → wieloskok naprzemienny", purpose: "Kontrolowana absorpcja i ponowne wybicie.", dose: "2 × 15 m", rest: "Przerwa 90 s" },
+      {
+        id: "a_skip_no_add_step",
+        name: "Skip A bez add-step",
+        purpose: "Ustawienie stopy i bioder przed hamowaniem.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "c_skip",
+        name: "Skip C",
+        purpose: "Rytm i kontrola środka masy przed zmianą kierunku.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "skip_b_alternate_bounds",
+        name: "Skip B → wieloskok naprzemienny",
+        purpose: "Kontrolowana absorpcja i ponowne wybicie.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 90 s",
+      },
     ],
   ],
   reactive_agility_reacceleration: [
     [
-      { id: "double_switch_skip_a", name: "Double switch → Skip A", purpose: "Szybka zmiana nogi przed reaktywnym startem.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "a_accent", name: "A-accent", purpose: "Krótki akcent mocy i koordynacji ramion.", dose: "2 × 15 m", rest: "Przerwa 60 s" },
-      { id: "scissor_exchange_jump", name: "Naprzemienny skok nożycowy z wymianą", purpose: "Reaktywna wymiana podporu.", dose: "2 × 4 na stronę", rest: "Przerwa 90 s" },
+      {
+        id: "double_switch_skip_a",
+        name: "Double switch → Skip A",
+        purpose: "Szybka zmiana nogi przed reaktywnym startem.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "a_accent",
+        name: "A-accent",
+        purpose: "Krótki akcent mocy i koordynacji ramion.",
+        dose: "2 × 15 m",
+        rest: "Przerwa 60 s",
+      },
+      {
+        id: "scissor_exchange_jump",
+        name: "Naprzemienny skok nożycowy z wymianą",
+        purpose: "Reaktywna wymiana podporu.",
+        dose: "2 × 4 na stronę",
+        rest: "Przerwa 90 s",
+      },
     ],
   ],
 };
@@ -520,7 +665,8 @@ function selectPostSkipDrills(input: FootballSpeedEngineInput, fallback: FamilyS
   const recent = new Set(input.recentPostSkipExerciseIds ?? []);
   const seed = (input.progressionWeek ?? 1) + Math.max(0, Math.round((input.readiness ?? 6) - 6));
   const preferred = pools[Math.abs(seed) % pools.length];
-  const alternative = pools.find((pool) => pool.every((drill) => !recent.has(drill.id))) ?? preferred;
+  const alternative =
+    pools.find((pool) => pool.every((drill) => !recent.has(drill.id))) ?? preferred;
   return alternative.map((drill) => ({ ...drill }));
 }
 

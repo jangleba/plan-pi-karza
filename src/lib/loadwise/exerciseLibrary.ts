@@ -2073,23 +2073,89 @@ const FOOTBALL_SPEED_EXERCISES: ExerciseDefinition[] = [
 );
 
 const SPRINT_LIBRARY_ENRICHMENTS: ExerciseDefinition[] = [
-  ["a_skip_add_step", "A skip with add step", "Skip A z add-step", ["sprint_technique", "acceleration"], "technical"],
-  ["a_skip_no_add_step", "A skip without add step", "Skip A bez add-step", ["sprint_technique", "acceleration"], "technical"],
-  ["switch_skip_a", "Switch to A skip", "Switch → Skip A", ["sprint_technique", "acceleration"], "technical"],
-  ["double_switch_skip_a", "Double switch to A skip", "Double switch → Skip A", ["sprint_technique", "acceleration"], "technical"],
-  ["skip_a_to_d", "A skip to D skip", "Skip A → Skip D", ["sprint_technique", "acceleration"], "technical"],
-  ["skip_b_alternate_bounds", "B skip to alternate-leg bounds", "Skip B → wieloskok naprzemienny", ["sprint_technique", "acceleration"], "technical"],
+  [
+    "a_skip_add_step",
+    "A skip with add step",
+    "Skip A z add-step",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "a_skip_no_add_step",
+    "A skip without add step",
+    "Skip A bez add-step",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "switch_skip_a",
+    "Switch to A skip",
+    "Switch → Skip A",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "double_switch_skip_a",
+    "Double switch to A skip",
+    "Double switch → Skip A",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "skip_a_to_d",
+    "A skip to D skip",
+    "Skip A → Skip D",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "skip_b_alternate_bounds",
+    "B skip to alternate-leg bounds",
+    "Skip B → wieloskok naprzemienny",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
   ["a_accent", "A accent", "A-accent", ["sprint_technique", "acceleration"], "technical"],
-  ["c_accent", "C accent", "C-accent", ["sprint_technique", "maximum_velocity_exposure"], "technical"],
-  ["alternate_leg_bounds", "Alternate-leg bounds", "Wieloskok naprzemienny", ["sprint_technique", "acceleration"], "technical"],
-  ["power_skip_height", "Power skip for height", "Power skip na wysokość", ["sprint_technique", "acceleration"], "technical"],
-  ["power_skip_distance", "Power skip for distance", "Power skip na odległość", ["sprint_technique", "acceleration"], "technical"],
-  ["scissor_exchange_jump", "Alternating scissor exchange jump", "Naprzemienny skok nożycowy z wymianą", ["sprint_technique", "acceleration"], "technical"],
+  [
+    "c_accent",
+    "C accent",
+    "C-accent",
+    ["sprint_technique", "maximum_velocity_exposure"],
+    "technical",
+  ],
+  [
+    "alternate_leg_bounds",
+    "Alternate-leg bounds",
+    "Wieloskok naprzemienny",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "power_skip_height",
+    "Power skip for height",
+    "Power skip na wysokość",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "power_skip_distance",
+    "Power skip for distance",
+    "Power skip na odległość",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
+  [
+    "scissor_exchange_jump",
+    "Alternating scissor exchange jump",
+    "Naprzemienny skok nożycowy z wymianą",
+    ["sprint_technique", "acceleration"],
+    "technical",
+  ],
 ].map(([id, name, displayNamePl, qualities, role]) =>
   footballSpeedExercise({
-    id,
-    name,
-    displayNamePl,
+    id: id as string,
+    name: name as string,
+    displayNamePl: displayNamePl as string,
     speedQualities: qualities as FootballSpeedQuality[],
     sessionRoles: [role as FootballSessionRole],
     coachingCues: [
@@ -2103,7 +2169,12 @@ const SPRINT_LIBRARY_ENRICHMENTS: ExerciseDefinition[] = [
       "Drugą serię przyspiesz, ale przerwij przy utracie postawy.",
     ],
     objective: "Przygotowanie mechaniki sprintu bez zmęczenia kondycyjnego.",
-    defaultPrescription: { distanceM: { min: 15, max: 20 }, sets: { min: 2, max: 3 }, restSeconds: { min: 45, max: 90 }, intensity: "controlled" },
+    defaultPrescription: {
+      distanceM: { min: 15, max: 20 },
+      sets: { min: 2, max: 3 },
+      restSeconds: { min: 45, max: 90 },
+      intensity: "controlled",
+    },
   }),
 );
 LIBRARY.push(...SPRINT_LIBRARY_ENRICHMENTS);
@@ -2235,6 +2306,7 @@ if (existingMaxVelocity) {
 }
 const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
   ...FOOTBALL_SPEED_EXERCISES.map((exercise) => exercise.id),
+  ...SPRINT_LIBRARY_ENRICHMENTS.map((exercise) => exercise.id),
   "acceleration_mechanics",
   "max_velocity_high_volume",
 ]);
@@ -2412,8 +2484,7 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
 
 function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
   const value = normalizeExerciseName(name);
-  if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value))
-    return "speed";
+  if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value)) return "speed";
   if (/skok|pogo|bound|lądowani|plyo|zeskok/.test(value)) return "plyometric";
   if (/mobil|rozciąg|oddech|ramp|rozgrzew|ruchomo/.test(value)) return "mobility";
   if (/rower|basen|regener|spacer|wycisz|trucht/.test(value)) return "recovery";
