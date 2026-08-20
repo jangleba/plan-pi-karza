@@ -880,7 +880,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function updateProfile(profile: Profile) {
     if (!user?.id) throw new Error("[loadwise] Cannot update profile without authenticated user");
-    const revision = await saveProfileRows(profile, false);
+    const revision = await saveProfileRows(profile, true);
     const nextProfile: Profile = {
       ...profile,
       unavailableEquipmentIds:
