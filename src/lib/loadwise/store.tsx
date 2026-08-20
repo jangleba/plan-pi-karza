@@ -161,6 +161,26 @@ export function applyExerciseReplacements(
 // ---- map DB rows <-> Profile ----
 type AnyRow = Record<string, unknown>;
 
+function supabaseErrorMessage(error: unknown): string {
+  if (error && typeof error === "object") {
+    const row = error as Record<string, unknown>;
+    const parts = [
+      typeof row.message === "string" ? row.message : null,
+      typeof row.details === "string" ? row.details : null,
+      typeof row.hint === "string" ? row.hint : null,
+      typeof row.code === "string" ? `code: ${row.code}` : null,
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(" | ");
+  }
+  if (error instanceof Error) return error.message;
+  return "Unknown Supabase error";
+}
+
+function assertNoSupabaseError(context: string, error: unknown): void {
+  if (!error) return;
+  throw new Error(`[${context}] ${supabaseErrorMessage(error)}`);
+}
+
 const VALID_GOALS: Profile["goal"][] = [
   "speed",
   "strength",
@@ -776,7 +796,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function saveProfileRows(profile: Profile, completed: boolean): Promise<string | null> {
     if (!user) return null;
-    await supabase.from("profiles").upsert(
+    const profileWrite = await supabase.from("profiles").upsert(
       {
         user_id: user.id,
         full_name: profile.name,
@@ -785,6 +805,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id" },
     );
+    assertNoSupabaseError("profiles.upsert", profileWrite.error);
     const athleteRes = await supabase
       .from("athlete_profiles")
       .upsert(
@@ -817,6 +838,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       )
       .select("updated_at,created_at")
       .maybeSingle();
+    assertNoSupabaseError("athlete_profiles.upsert", athleteRes.error);
     return (
       (athleteRes.data?.updated_at as string | undefined) ??
       (athleteRes.data?.created_at as string | undefined) ??
@@ -826,7 +848,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
     if (!user) return;
-    const revision = await saveProfileRows(profile, true);
+    const revision = await saveProfileRows(profile, false);
     const nextProfile: Profile = {
       ...profile,
       unavailableEquipmentIds:
@@ -835,11 +857,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    await supabase.from("onboarding_answers").insert({
+    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
+    const profileCompleteWrite = await supabase
+      .from("profiles")
+      .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
+    assertNoSupabaseError("profiles.mark_onboarding_complete", profileCompleteWrite.error);
+    const onboardingAnswersWrite = await supabase.from("onboarding_answers").insert({
       user_id: user.id,
       answers_json: nextProfile as unknown as never,
       completed_at: new Date().toISOString(),
     });
+    assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
 
     if (consents) {
       const { CONSENTS } = await import("./legal");
@@ -850,10 +878,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         version: LEGAL_VERSION,
         text_snapshot: c.text,
       }));
-      await supabase.from("consent_logs").insert(rows);
+      const consentWrite = await supabase.from("consent_logs").insert(rows);
+      assertNoSupabaseError("consent_logs.insert", consentWrite.error);
     }
-
-    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
     setState((s) => ({
       ...s,
       profile: nextProfile,
