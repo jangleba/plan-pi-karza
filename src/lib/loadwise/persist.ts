@@ -64,13 +64,6 @@ export async function persistMonthlyPlan(
   profile: Profile,
   plan: SessionDay[],
 ): Promise<void> {
-  // Archiwizujemy poprzedni plan zamiast usuwać jego dni, sesje i historię.
-  await supabase
-    .from("training_plans")
-    .update({ status: "archived" })
-    .eq("user_id", userId)
-    .eq("status", "active");
-
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 
@@ -130,15 +123,45 @@ export async function persistMonthlyPlan(
   }
 
   // Kolejność: plan -> dni -> sesje -> ćwiczenia (klucze obce).
-  await supabase.from("training_plans").insert({
+  const planInsert = await supabase.from("training_plans").insert({
     id: planId,
     user_id: userId,
     goal: profile.goal,
     month,
     plan_json: plan as unknown as never,
     status: "active",
+    active: true,
   });
-  if (dayRows.length) await supabase.from("training_days").insert(dayRows as never);
-  if (sessionRows.length) await supabase.from("training_sessions").insert(sessionRows as never);
-  if (exerciseRows.length) await supabase.from("session_exercises").insert(exerciseRows as never);
+  if (planInsert.error) throw new Error(`[training_plans.insert] ${planInsert.error.message}`);
+
+  try {
+    if (dayRows.length) {
+      const result = await supabase.from("training_days").insert(dayRows as never);
+      if (result.error) throw new Error(`[training_days.insert] ${result.error.message}`);
+    }
+    if (sessionRows.length) {
+      const result = await supabase.from("training_sessions").insert(sessionRows as never);
+      if (result.error) throw new Error(`[training_sessions.insert] ${result.error.message}`);
+    }
+    if (exerciseRows.length) {
+      const result = await supabase.from("session_exercises").insert(exerciseRows as never);
+      if (result.error) throw new Error(`[session_exercises.insert] ${result.error.message}`);
+    }
+
+    // Archive only after the complete replacement is durable.
+    const archive = await supabase
+      .from("training_plans")
+      .update({ status: "archived", active: false } as never)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .neq("id", planId);
+    if (archive.error) throw new Error(`[training_plans.archive] ${archive.error.message}`);
+  } catch (error) {
+    await supabase
+      .from("training_plans")
+      .delete()
+      .eq("id", planId)
+      .eq("user_id", userId);
+    throw error;
+  }
 }
