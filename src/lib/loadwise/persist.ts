@@ -64,13 +64,6 @@ export async function persistMonthlyPlan(
   profile: Profile,
   plan: SessionDay[],
 ): Promise<void> {
-  // Archiwizujemy poprzedni plan zamiast usuwać jego dni, sesje i historię.
-  await supabase
-    .from("training_plans")
-    .update({ status: "archived" })
-    .eq("user_id", userId)
-    .eq("status", "active");
-
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 
@@ -129,16 +122,48 @@ export async function persistMonthlyPlan(
     }
   }
 
-  // Kolejność: plan -> dni -> sesje -> ćwiczenia (klucze obce).
-  await supabase.from("training_plans").insert({
-    id: planId,
-    user_id: userId,
-    goal: profile.goal,
-    month,
-    plan_json: plan as unknown as never,
-    status: "active",
-  });
-  if (dayRows.length) await supabase.from("training_days").insert(dayRows as never);
-  if (sessionRows.length) await supabase.from("training_sessions").insert(sessionRows as never);
-  if (exerciseRows.length) await supabase.from("session_exercises").insert(exerciseRows as never);
+  const ensure = (operation: string, error: { message: string } | null) => {
+    if (error) throw new Error(`[loadwise] ${operation}: ${error.message}`);
+  };
+
+  try {
+    // Insert the replacement first. The previous active plan remains available
+    // until every dependent row has been written successfully.
+    const planRes = await supabase.from("training_plans").insert({
+      id: planId,
+      user_id: userId,
+      goal: profile.goal,
+      month,
+      plan_json: plan as unknown as never,
+      status: "active",
+      active: true,
+    });
+    ensure("training_plans.insert", planRes.error);
+    if (dayRows.length) {
+      const res = await supabase.from("training_days").insert(dayRows as never);
+      ensure("training_days.insert", res.error);
+    }
+    if (sessionRows.length) {
+      const res = await supabase.from("training_sessions").insert(sessionRows as never);
+      ensure("training_sessions.insert", res.error);
+    }
+    if (exerciseRows.length) {
+      const res = await supabase.from("session_exercises").insert(exerciseRows as never);
+      ensure("session_exercises.insert", res.error);
+    }
+
+    // Archiwizujemy poprzedni plan dopiero po udanym zapisie nowego.
+    const archiveRes = await supabase
+      .from("training_plans")
+      .update({ status: "archived", active: false })
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .neq("id", planId);
+    ensure("training_plans.archive", archiveRes.error);
+  } catch (error) {
+    // training_plans cascades its dependent rows, so failed replacements do
+    // not leave partial plans and never remove the last valid plan.
+    await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
+    throw error;
+  }
 }

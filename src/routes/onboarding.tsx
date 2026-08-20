@@ -197,7 +197,7 @@ function ChoiceGrid<T extends string>({
 }
 
 function Onboarding() {
-  const { state, hydrated, completeOnboarding } = useLoadwise();
+  const { state, hydrated, completeOnboarding, updateProfile } = useLoadwise();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { edit } = Route.useSearch();
@@ -426,7 +426,11 @@ function Onboarding() {
     };
     setBusy(true);
     try {
-      await completeOnboarding(profile, consents);
+      if (isEditing) {
+        await updateProfile(profile);
+      } else {
+        await completeOnboarding(profile, consents);
+      }
       toast.success(
         isEditing
           ? "Profil zaktualizowany."

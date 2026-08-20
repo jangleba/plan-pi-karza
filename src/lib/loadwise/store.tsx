@@ -425,6 +425,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
+  const rebuildAttemptedRef = useRef<string | null>(null);
   const replacementInFlightRef = useRef(new Set<string>());
   const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
@@ -476,6 +477,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setHydrated(false);
     (async () => {
       let safeProfile: Profile | null = null;
+      let safePlan: SessionDay[] = [];
       let safeLocal: LocalState = loadLocal(user.id);
       try {
         const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes] = await Promise.all([
@@ -533,6 +535,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
       if (planRow && Array.isArray(planRow.plan_json)) {
         plan = planRow.plan_json as SessionDay[];
+        safePlan = plan;
         planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
         const normalized = normalizeLegacyPersistedPlan(plan);
         plan = normalized.plan;
@@ -600,7 +603,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           revisionMismatch ||
           planOlderThanProfile;
 
-        if (shouldRebuildCanonical) {
+        const rebuildKey = `${user.id}:${profileRevision ?? "none"}`;
+        if (shouldRebuildCanonical && rebuildAttemptedRef.current !== rebuildKey) {
+          rebuildAttemptedRef.current = rebuildKey;
           const canonical = stampPlanRevision(
             generatePlan(profile, localToday()),
             profileRevision,
@@ -713,6 +718,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           setState({
             ...initialState,
             profile: safeProfile,
+            plan: safePlan,
             readiness: safeLocal.readiness,
             tests: safeLocal.tests,
             scouting: safeLocal.scouting,
@@ -775,8 +781,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   }
 
   async function saveProfileRows(profile: Profile, completed: boolean): Promise<string | null> {
-    if (!user) return null;
-    await supabase.from("profiles").upsert(
+    if (!user?.id) throw new Error("[loadwise] Cannot save profile without authenticated user");
+    const profileRes = await supabase.from("profiles").upsert(
       {
         user_id: user.id,
         full_name: profile.name,
@@ -785,6 +791,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id" },
     );
+    if (profileRes.error) throw new Error(`[loadwise] profiles.upsert: ${profileRes.error.message}`);
     const athleteRes = await supabase
       .from("athlete_profiles")
       .upsert(
@@ -817,6 +824,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       )
       .select("updated_at,created_at")
       .maybeSingle();
+    if (athleteRes.error) {
+      throw new Error(`[loadwise] athlete_profiles.upsert: ${athleteRes.error.message}`);
+    }
     return (
       (athleteRes.data?.updated_at as string | undefined) ??
       (athleteRes.data?.created_at as string | undefined) ??
@@ -825,8 +835,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   }
 
   async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
-    if (!user) return;
-    const revision = await saveProfileRows(profile, true);
+    if (!user?.id) throw new Error("[loadwise] Cannot complete onboarding without authenticated user");
+    const revision = await saveProfileRows(profile, false);
     const nextProfile: Profile = {
       ...profile,
       unavailableEquipmentIds:
@@ -835,11 +845,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    await supabase.from("onboarding_answers").insert({
+    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
+    await saveProfileRows(profile, true);
+    const answersRes = await supabase.from("onboarding_answers").insert({
       user_id: user.id,
       answers_json: nextProfile as unknown as never,
       completed_at: new Date().toISOString(),
     });
+    if (answersRes.error) throw new Error(`[loadwise] onboarding_answers.insert: ${answersRes.error.message}`);
 
     if (consents) {
       const { CONSENTS } = await import("./legal");
@@ -850,10 +863,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         version: LEGAL_VERSION,
         text_snapshot: c.text,
       }));
-      await supabase.from("consent_logs").insert(rows);
+      const consentRes = await supabase.from("consent_logs").insert(rows);
+      if (consentRes.error) throw new Error(`[loadwise] consent_logs.insert: ${consentRes.error.message}`);
     }
-
-    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
     setState((s) => ({
       ...s,
       profile: nextProfile,
@@ -867,8 +879,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   }
 
   async function updateProfile(profile: Profile) {
-    if (!user) return;
-    const revision = await saveProfileRows(profile, true);
+    if (!user?.id) throw new Error("[loadwise] Cannot update profile without authenticated user");
+    const revision = await saveProfileRows(profile, false);
     const nextProfile: Profile = {
       ...profile,
       unavailableEquipmentIds:
@@ -878,6 +890,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
+    await saveProfileRows(profile, true);
     setState((s) => ({
       ...s,
       profile: nextProfile,
@@ -910,6 +923,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
     if (shouldReusePersistedPlan(state.plan, profile)) return;
     if (generatingRef.current) return;
+    const rebuildKey = `${user?.id ?? "none"}:${profile.onboardingRevision ?? "none"}`;
+    if (rebuildAttemptedRef.current === rebuildKey) return;
+    rebuildAttemptedRef.current = rebuildKey;
     generatingRef.current = true;
     (async () => {
       try {
