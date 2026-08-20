@@ -49,7 +49,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       {
         global: {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `******`,
           },
         },
         auth: {
