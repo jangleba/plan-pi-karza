@@ -846,7 +846,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
-    await saveProfileRows(profile, true);
+    await saveProfileRows(nextProfile, true);
     const answersRes = await supabase.from("onboarding_answers").insert({
       user_id: user.id,
       answers_json: nextProfile as unknown as never,
@@ -890,7 +890,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
-    await saveProfileRows(profile, true);
+    await saveProfileRows(nextProfile, true);
     setState((s) => ({
       ...s,
       profile: nextProfile,
