@@ -1109,6 +1109,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
   ),
   supportExercise("hip_mobility_flow", "Hip mobility flow", "mobility", "hip range of motion"),
   supportExercise(
+    "static_stretch_cooldown",
+    "Rozciąganie statyczne (wyciszenie)",
+    "mobility",
+    "post-session static flexibility and recovery",
+  ),
+  supportExercise(
     "ankle_mobility_flow",
     "Ankle mobility flow",
     "mobility",

@@ -862,21 +862,46 @@ function buildGymSessionDay(
     mdLabel: templateDay.mdLabel ?? null,
     slotLabel: opts.slotLabel ?? null,
     sections: {
-      warmup: [{ name: "Rozgrzewka dynamiczna", prescription: "5–8 min mobilizacja" }],
+      warmup: [
+        canonicalizeGeneratedExercise(
+          { exerciseId: "hip_mobility_flow", name: "Rozgrzewka dynamiczna", prescription: "5–8 min mobilizacja" },
+          "mobility",
+        ),
+      ],
       main: youth
         ? [
-            { name: "Przysiad z masą ciała", prescription: "3 × 10", cue: "Kolana w linii stóp." },
-            { name: "Plank", prescription: "3 × 30 s", cue: "Napięty brzuch, biodra w linii." },
+            canonicalizeGeneratedExercise(
+              { exerciseId: "bodyweight_squat", name: "Przysiad z masą ciała", prescription: "3 × 10", cue: "Kolana w linii stóp." },
+              "strength",
+            ),
+            canonicalizeGeneratedExercise(
+              { exerciseId: "plank", name: "Plank", prescription: "3 × 30 s", cue: "Napięty brzuch, biodra w linii." },
+              "trunk",
+            ),
           ]
         : [
-            { name: "Przysiad goblet", prescription: "3 × 8", rest: "90 s", cue: "Pełen zakres." },
-            { name: "RDL / Hip hinge", prescription: "3 × 8", rest: "75 s", cue: "Biodra w tył, proste plecy." },
+            canonicalizeGeneratedExercise(
+              { exerciseId: "goblet_squat", name: "Przysiad goblet", prescription: "3 × 8", rest: "90 s", cue: "Pełen zakres." },
+              "strength",
+            ),
+            canonicalizeGeneratedExercise(
+              { exerciseId: "romanian_deadlift_db", name: "RDL / Hip hinge", prescription: "3 × 8", rest: "75 s", cue: "Biodra w tył, proste plecy." },
+              "strength",
+            ),
           ],
       accessory: [
-        { name: "Stabilizacja core", prescription: "2 × 30 s plank boczny", cue: "Linia ciała prosta." },
+        canonicalizeGeneratedExercise(
+          { exerciseId: "side_plank", name: "Stabilizacja core", prescription: "2 × 30 s plank boczny", cue: "Linia ciała prosta." },
+          "trunk",
+        ),
       ],
       footballTransfer: [],
-      cooldown: [{ name: "Rozciąganie", prescription: "5 min" }],
+      cooldown: [
+        canonicalizeGeneratedExercise(
+          { exerciseId: "static_stretch_cooldown", name: "Rozciąganie", prescription: "5 min" },
+          "mobility",
+        ),
+      ],
     },
     secondSession: null,
   };
