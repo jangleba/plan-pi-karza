@@ -103,9 +103,11 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
     profile.clubTrainingDays = [];
     const first = generatePlan(profile, START, 28);
     const second = generatePlan(profile, START, 28);
-    const enduranceExercises = first
-      .filter((day) => isEnduranceSession(day))
-      .flatMap((day) => day.sections.main);
+    const enduranceExercises = [first, second].flatMap((plan) =>
+      plan
+        .filter((day) => isEnduranceSession(day))
+        .flatMap((day) => day.sections.main),
+    );
 
     expect(enduranceExercises.length).toBeGreaterThan(0);
     expect(
