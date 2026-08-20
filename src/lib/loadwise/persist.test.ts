@@ -47,12 +47,16 @@ vi.mock("@/integrations/supabase/client", () => ({
           delete() {
             const query = {
               id: null as string | null,
+              userId: null as string | null,
               eq(column: string, value: string) {
                 if (column === "id") query.id = value;
+                if (column === "user_id") query.userId = value;
                 return query;
               },
               then(resolve: (value: { error: null }) => unknown) {
-                backend.plans = backend.plans.filter((plan) => plan.id !== query.id);
+                backend.plans = backend.plans.filter(
+                  (plan) => plan.id !== query.id || plan.user_id !== query.userId,
+                );
                 return Promise.resolve(resolve({ error: null }));
               },
             };
