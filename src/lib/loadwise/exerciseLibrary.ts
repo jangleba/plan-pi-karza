@@ -2389,8 +2389,8 @@ export function validateCanonicalReplacementChains(
       addIssue(source.id, targetId, "Brak docelowego ćwiczenia.");
       return;
     }
-    if (!isApprovedCanonicalExercise(target))
-      addIssue(source.id, target.id, "Cel zamiennika nie jest zatwierdzony.");
+    if (!isApprovedCanonicalExercise(target as ExerciseDefinition | undefined))
+      addIssue(source.id, targetId, "Cel zamiennika nie jest zatwierdzony.");
     if (!isCanonicalReplacementCompatible(source, target))
       addIssue(source.id, target.id, "Niezgodny bodziec lub rola sesji.");
     if (athlete && !isExerciseAllowedForProfile(target, athlete).ok)
