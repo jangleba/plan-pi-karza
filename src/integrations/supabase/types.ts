@@ -42,6 +42,8 @@ export type Database = {
           secondary_limiter: string | null
           sex_optional: string | null
           training_experience: string | null
+          unavailable_days: Json
+          unavailable_equipment_ids: Json
           updated_at: string
           user_id: string
           usual_match_day: string | null
@@ -75,6 +77,8 @@ export type Database = {
           secondary_limiter?: string | null
           sex_optional?: string | null
           training_experience?: string | null
+          unavailable_days?: Json
+          unavailable_equipment_ids?: Json
           updated_at?: string
           user_id: string
           usual_match_day?: string | null
@@ -108,6 +112,8 @@ export type Database = {
           secondary_limiter?: string | null
           sex_optional?: string | null
           training_experience?: string | null
+          unavailable_days?: Json
+          unavailable_equipment_ids?: Json
           updated_at?: string
           user_id?: string
           usual_match_day?: string | null
@@ -572,6 +578,7 @@ export type Database = {
       }
       training_plans: {
         Row: {
+          active: boolean
           created_at: string
           goal: string | null
           id: string
@@ -581,6 +588,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active?: boolean
           created_at?: string
           goal?: string | null
           id?: string
@@ -590,6 +598,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active?: boolean
           created_at?: string
           goal?: string | null
           id?: string
