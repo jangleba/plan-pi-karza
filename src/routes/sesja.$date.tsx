@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { memo, useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
@@ -119,19 +119,23 @@ function restLabel(e: TrainingExercise): string | null {
 function ExerciseRow({
   e,
   done,
+  onToggle,
   onUnavailable,
   equipmentIds,
 }: {
   e: TrainingExercise;
   done: boolean;
+  onToggle: () => void;
   onUnavailable: () => void;
   equipmentIds: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [restRunning, setRestRunning] = useState(false);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  const restSecondsRef = useRef(restSeconds);
+  restSecondsRef.current = restSeconds;
   useEffect(() => {
-    if (!restRunning || restSeconds === null) return;
+    if (!restRunning || restSecondsRef.current === null) return;
     const timer = window.setInterval(() => {
       setRestSeconds((current) => {
         if (current === null || current <= 1) {
@@ -142,7 +146,7 @@ function ExerciseRow({
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [restRunning, restSeconds]);
+  }, [restRunning]);
   const presc = compactPrescription(e);
   const rest = restLabel(e);
   const definition = getExerciseDefinition(e.exerciseId ?? e.name);
@@ -160,9 +164,11 @@ function ExerciseRow({
   return (
     <div className="py-2">
       <div className="flex items-start gap-3">
-        <span
+        <button
+          type="button"
+          onClick={onToggle}
           className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-border"}`}
-          aria-label={done ? "Wykonane" : "Nieoznaczone"}
+          aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
         />
         <div className="min-w-0 flex-1">
           {/* Wiersz 1: badge kodu + nazwa + chevron (otwiera szczegóły) */}
@@ -191,9 +197,6 @@ function ExerciseRow({
               <div className="text-[13px] font-semibold tabular-nums text-foreground/80">
                 {presc}
               </div>
-            )}
-            {rest && (
-              <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">{rest}</div>
             )}
             {!done && equipmentIds.length > 0 && (
               <button
@@ -275,7 +278,9 @@ const StructuredSections = memo(function StructuredSections({
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
 
+  const [done, setDone] = useState<Record<string, boolean>>({});
   const [openBlocks, setOpenBlocks] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
   return (
     <div className="space-y-4">
       {sections.map((sec) => (
@@ -316,7 +321,8 @@ const StructuredSections = memo(function StructuredSections({
                         <ExerciseRow
                           key={e.id}
                           e={e}
-                          done={false}
+                          done={!!done[e.id]}
+                          onToggle={() => toggle(e.id)}
                           onUnavailable={() => {
                             if (equipmentIds.length)
                               markEquipmentUnavailable(date, e, equipmentIds);
