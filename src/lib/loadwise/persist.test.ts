@@ -71,7 +71,12 @@ describe("persistMonthlyPlan", () => {
 
     await persistMonthlyPlan("user-1", profile, plan);
 
-    expect(plans.insert).toHaveBeenCalledOnce();
+    expect(from.mock.calls.map(([table]) => table)).toEqual([
+      "training_plans",
+      "training_days",
+      "training_sessions",
+      "training_plans",
+    ]);
     expect(plans.update).toHaveBeenCalledOnce();
     expect(plans.delete).not.toHaveBeenCalled();
   });

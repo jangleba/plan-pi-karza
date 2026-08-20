@@ -407,6 +407,7 @@ function Onboarding() {
       usualMatchDay: null,
       matchDate: matchDate || null,
       equipment,
+      unavailableEquipmentIds: existing?.unavailableEquipmentIds ?? [],
       painInjury,
       doubleSessionsAllowed: doubleSessions,
       guardianConsent: isMinor ? consent : true,
