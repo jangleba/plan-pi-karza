@@ -2105,7 +2105,7 @@ const SPRINT_LIBRARY_ENRICHMENTS: ExerciseDefinition[] = [
     "skip_a_to_d",
     "A skip to D skip",
     "Skip A → Skip D",
-    ["sprint_technique", "acceleration"],
+    ["sprint_technique", "acceleration", "maximum_velocity_exposure"],
     "technical",
   ],
   [

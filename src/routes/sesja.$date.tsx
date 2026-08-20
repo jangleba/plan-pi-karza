@@ -116,6 +116,13 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
+function restSecondsFromLabel(label: string): number {
+  const values = [...label.matchAll(/\d+/g)].map(([value]) => Number(value));
+  if (values.length === 0) return 90;
+  if (values.length === 1) return values[0];
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
 function ExerciseRow({
   e,
   done,
@@ -241,7 +248,11 @@ function ExerciseRow({
                 type="button"
                 className="font-semibold text-primary"
                 onClick={() => {
-                  const seconds = Number(rest.match(/\d+/)?.[0] ?? 90);
+                  if (restRunning) {
+                    setRestRunning(false);
+                    return;
+                  }
+                  const seconds = restSecondsFromLabel(rest);
                   setRestSeconds((current) => current ?? seconds);
                   setRestRunning(true);
                 }}

@@ -665,8 +665,9 @@ function selectPostSkipDrills(input: FootballSpeedEngineInput, fallback: FamilyS
   const recent = new Set(input.recentPostSkipExerciseIds ?? []);
   const seed = (input.progressionWeek ?? 1) + Math.max(0, Math.round((input.readiness ?? 6) - 6));
   const preferred = pools[Math.abs(seed) % pools.length];
-  const alternative =
-    pools.find((pool) => pool.every((drill) => !recent.has(drill.id))) ?? preferred;
+  const alternative = preferred.every((drill) => !recent.has(drill.id))
+    ? preferred
+    : (pools.find((pool) => pool.every((drill) => !recent.has(drill.id))) ?? preferred);
   return alternative.map((drill) => ({ ...drill }));
 }
 

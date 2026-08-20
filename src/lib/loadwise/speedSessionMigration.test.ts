@@ -105,7 +105,7 @@ describe("persisted football speed migration", () => {
     expect(all.some((exercise) => /piłk|ball/i.test(exercise.name))).toBe(false);
     expect(
       new Set(all.filter((exercise) => exercise.role === "technical").map((e) => e.exerciseId)),
-    ).toEqual(new Set(["a_switch_progression", "a_accent", "alternate_leg_bounds"]));
+    ).toEqual(new Set(["a_skip_add_step", "switch_skip_a", "power_skip_distance"]));
     expect(all.filter((exercise) => exercise.role === "technical").length).toBe(3);
   });
 
