@@ -776,7 +776,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function saveProfileRows(profile: Profile, completed: boolean): Promise<string | null> {
     if (!user) return null;
-    await supabase.from("profiles").upsert(
+    const profileRes = await supabase.from("profiles").upsert(
       {
         user_id: user.id,
         full_name: profile.name,
@@ -785,6 +785,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id" },
     );
+    if (profileRes.error) throw profileRes.error;
     const athleteRes = await supabase
       .from("athlete_profiles")
       .upsert(
@@ -817,6 +818,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       )
       .select("updated_at,created_at")
       .maybeSingle();
+    if (athleteRes.error) throw athleteRes.error;
     return (
       (athleteRes.data?.updated_at as string | undefined) ??
       (athleteRes.data?.created_at as string | undefined) ??
@@ -835,11 +837,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    await supabase.from("onboarding_answers").insert({
+    const answersRes = await supabase.from("onboarding_answers").insert({
       user_id: user.id,
       answers_json: nextProfile as unknown as never,
       completed_at: new Date().toISOString(),
     });
+    if (answersRes.error) throw answersRes.error;
 
     if (consents) {
       const { CONSENTS } = await import("./legal");
@@ -850,7 +853,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         version: LEGAL_VERSION,
         text_snapshot: c.text,
       }));
-      await supabase.from("consent_logs").insert(rows);
+      const consentRes = await supabase.from("consent_logs").insert(rows);
+      if (consentRes.error) throw consentRes.error;
     }
 
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);

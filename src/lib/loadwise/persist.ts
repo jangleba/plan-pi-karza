@@ -2,6 +2,19 @@ import type { Profile, SessionDay, ExerciseItem } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { isoDate, localToday } from "./labels";
 
+function assertSupabaseOperation(
+  operation: string,
+  result: { error: { code?: string; message: string; details?: string; hint?: string } | null },
+): void {
+  if (!result.error) return;
+  const { code, message, details, hint } = result.error;
+  throw new Error(
+    `[loadwise] ${operation} failed${code ? ` (${code})` : ""}: ${message}${
+      details ? `; ${details}` : ""
+    }${hint ? `; hint: ${hint}` : ""}`,
+  );
+}
+
 /** Wyciąga łączny dystans (w metrach) z opisu ćwiczenia, jeśli dotyczy sprintu. */
 function extractDistance(name: string, prescription: string): string | null {
   if (!/sprint|zryw|przyspiesz|bieg|tempo|lotne|odcin/i.test(name + prescription)) {
@@ -64,13 +77,6 @@ export async function persistMonthlyPlan(
   profile: Profile,
   plan: SessionDay[],
 ): Promise<void> {
-  // Archiwizujemy poprzedni plan zamiast usuwać jego dni, sesje i historię.
-  await supabase
-    .from("training_plans")
-    .update({ status: "archived" })
-    .eq("user_id", userId)
-    .eq("status", "active");
-
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 
@@ -130,7 +136,7 @@ export async function persistMonthlyPlan(
   }
 
   // Kolejność: plan -> dni -> sesje -> ćwiczenia (klucze obce).
-  await supabase.from("training_plans").insert({
+  const planInsert = await supabase.from("training_plans").insert({
     id: planId,
     user_id: userId,
     goal: profile.goal,
@@ -138,7 +144,27 @@ export async function persistMonthlyPlan(
     plan_json: plan as unknown as never,
     status: "active",
   });
-  if (dayRows.length) await supabase.from("training_days").insert(dayRows as never);
-  if (sessionRows.length) await supabase.from("training_sessions").insert(sessionRows as never);
-  if (exerciseRows.length) await supabase.from("session_exercises").insert(exerciseRows as never);
+  assertSupabaseOperation("training_plans insert", planInsert);
+  if (dayRows.length) {
+    const result = await supabase.from("training_days").insert(dayRows as never);
+    assertSupabaseOperation("training_days insert", result);
+  }
+  if (sessionRows.length) {
+    const result = await supabase.from("training_sessions").insert(sessionRows as never);
+    assertSupabaseOperation("training_sessions insert", result);
+  }
+  if (exerciseRows.length) {
+    const result = await supabase.from("session_exercises").insert(exerciseRows as never);
+    assertSupabaseOperation("session_exercises insert", result);
+  }
+
+  // Archive only after the replacement is complete, so a failed save keeps the
+  // previous active plan available for hydration.
+  const archive = await supabase
+    .from("training_plans")
+    .update({ status: "archived" })
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .neq("id", planId);
+  assertSupabaseOperation("training_plans archive", archive);
 }
