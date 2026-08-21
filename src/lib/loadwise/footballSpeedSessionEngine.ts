@@ -775,6 +775,8 @@ function buildSessionDay(
   const toItem = (exercise: FootballSpeedExercise) => ({
     name: exercise.name,
     exerciseId: exercise.exerciseId,
+    // Rola sprintowa musi przetrwać do widoku (mapowanie bloków 01–07).
+    speedRole: exercise.role,
     purpose: exercise.purpose,
     prescription: exercise.dose,
     rest: exercise.rest,

@@ -19,6 +19,7 @@ import {
 } from "@/lib/loadwise/exerciseLibrary";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -166,6 +167,8 @@ export type SprintBlockView = {
   title: string;
   estimatedMin: number;
   exercises: SprintExerciseView[];
+  /** Pusty obowiązkowy blok sprintu = błąd danych, nie prawidłowy wynik. */
+  hasDataError?: boolean;
 };
 
 type SprintExerciseMeta = {
@@ -248,7 +251,9 @@ function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | n
   if (role === "conditioning" || (!role && !id)) return null;
   if (role === "cooldown") return "cooldown";
   if (role === "preparation" || role === "primer") return "ramp";
-  if (role === "terminal" || isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
+  if (role === "terminal") return "terminal";
+  if (role === "technical") return "technical";
+  if (!role && isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
   if (role === "secondary" || id === "scissor_bounds") return "plyo";
   if (role === "primary") return "main";
   if (role === "technical") return "technical";
@@ -330,7 +335,13 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
     const exercises = source.map((meta) => ({
       id: meta.exercise.id,
       exercise: meta.exercise,
-      canonicalName: canonicalExerciseName(meta.exercise),
+      // Ćwiczenia z rolą sprintową mają precyzyjną nazwę z silnika; kanoniczna
+      // definicja dostarcza jedynie opis, instrukcję, wskazówki i błędy.
+      // Blok skipów jest scalany po ID, więc pozostaje przy nazwie kanonicznej.
+      canonicalName:
+        meta.exercise.speedRole && block.key !== "skip"
+          ? meta.exercise.name
+          : canonicalExerciseName(meta.exercise),
       prescription:
         block.key === "skip" ? SPRINT_SKIP_PRESCRIPTION : formatSprintPrescription(meta.exercise),
       showSkipSetLabels: block.key === "skip",
@@ -341,6 +352,7 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
       title: block.title,
       estimatedMin: block.estMin,
       exercises,
+      hasDataError: exercises.length === 0 && block.key !== "cooldown",
     };
   });
 }
@@ -825,14 +837,23 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
                   {block.title}
                 </span>
                 {!isExpanded && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {exerciseCount} ćw. · ~{block.estimatedMin} min
+                  <span
+                    className={`text-[11px] ${block.hasDataError ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {block.hasDataError
+                      ? "Błąd danych sesji"
+                      : `${exerciseCount} ćw. · ~${block.estimatedMin} min`}
                   </span>
                 )}
                 <ChevronRight
                   className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
                 />
               </button>
+              {isExpanded && block.hasDataError && (
+                <div className="mt-2 text-xs font-medium text-destructive">
+                  Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
+                </div>
+              )}
               {isExpanded && (
                 <div className="mt-2 divide-y divide-border/50">
                   {block.exercises.map((item) => {

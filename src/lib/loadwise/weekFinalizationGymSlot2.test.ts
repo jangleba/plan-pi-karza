@@ -30,7 +30,7 @@ function makeProfile(over: Partial<Profile> = {}): Profile {
     secondaryLimiter: null,
     clubTrainingDays: [],
     individualTrainingDays: [],
-    usualMatchDay: "none",
+    usualMatchDay: "no_fixed_day",
     matchDate: null,
     equipment: ["barbell", "dumbbells", "kettlebell"],
     painInjury: false,
@@ -155,7 +155,11 @@ describe("buildGymSessionDay — wygenerowane ID ćwiczeń są kanoniczne", () =
   it("1. brak błędów invalid-exercise-id w wygenerowanej sesji gym", () => {
     const profile = makeProfile();
     const weekPlan = buildWeekWithOneGym();
-    const requirements = calculateWeeklyMinimumRequirements({ profile, weekPlan });
+    const requirements = calculateWeeklyMinimumRequirements(
+      { seasonPhase: profile.seasonPhase, clubTrainingCount: profile.clubTrainingDays.length, matchCount: 0 },
+      { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays, matchDate: profile.matchDate },
+      profile.goal,
+    );
     const { weekPlan: repaired } = addMissingGymSessions(weekPlan, requirements, profile);
 
     const issues = validatePlanExerciseContract(repaired);
@@ -167,7 +171,11 @@ describe("buildGymSessionDay — wygenerowane ID ćwiczeń są kanoniczne", () =
   it("2. każde wygenerowane ID ćwiczenia wskazuje na zatwierdzoną kanonową definicję", () => {
     const profile = makeProfile();
     const weekPlan = buildWeekWithOneGym();
-    const requirements = calculateWeeklyMinimumRequirements({ profile, weekPlan });
+    const requirements = calculateWeeklyMinimumRequirements(
+      { seasonPhase: profile.seasonPhase, clubTrainingCount: profile.clubTrainingDays.length, matchCount: 0 },
+      { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays, matchDate: profile.matchDate },
+      profile.goal,
+    );
     const { weekPlan: repaired } = addMissingGymSessions(weekPlan, requirements, profile);
 
     const generated = findGeneratedGymSessions(buildWeekWithOneGym(), repaired);
@@ -187,10 +195,11 @@ describe("buildGymSessionDay — wygenerowane ID ćwiczeń są kanoniczne", () =
 
   it("3. wielokrotna generacja jest deterministyczna", () => {
     const profile = makeProfile();
-    const requirements = calculateWeeklyMinimumRequirements({
-      profile,
-      weekPlan: buildWeekWithOneGym(),
-    });
+    const requirements = calculateWeeklyMinimumRequirements(
+      { seasonPhase: profile.seasonPhase, clubTrainingCount: profile.clubTrainingDays.length, matchCount: 0 },
+      { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays, matchDate: profile.matchDate },
+      profile.goal,
+    );
 
     const run1 = addMissingGymSessions(buildWeekWithOneGym(), requirements, profile);
     const run2 = addMissingGymSessions(buildWeekWithOneGym(), requirements, profile);
