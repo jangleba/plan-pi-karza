@@ -225,3 +225,45 @@ describe("speedRole mapping regression", () => {
     }
   });
 });
+
+describe("sprint runner blocks from the real engine", () => {
+  it.each(["acceleration", "maximum_velocity"] as const)(
+    "ma siedem niepustych bloków dla %s",
+    async (family) => {
+      const { generateFootballSpeedSession } = await import("./footballSpeedSessionEngine");
+      const { buildSprintRunnerBlocks } = await import("../../routes/sesja.$date");
+      const { flatToStructured } = await import("./strengthBlocks");
+
+      const result = generateFootballSpeedSession({
+        profile: { ...BASE_PROFILE, matchDate: null },
+        date: "2026-08-20",
+        family,
+      });
+      expect(result.status).toBe("generated");
+      const session = JSON.parse(JSON.stringify(result.session)) as SessionDay;
+      const blocks = buildSprintRunnerBlocks(flatToStructured(session.sections));
+
+      expect(blocks).toHaveLength(7);
+      for (const block of blocks) {
+        expect(block.exercises.length).toBeGreaterThan(0);
+        expect(block.hasDataError ?? false).toBe(false);
+      }
+      const byKey = Object.fromEntries(blocks.map((block) => [block.key, block]));
+      expect(byKey.skip.exercises.map((e) => e.exercise.exerciseId)).toEqual([
+        "a_skip",
+        "c_skip",
+        "b_skip",
+        "d_skip",
+      ]);
+      expect(byKey.technical.exercises).toHaveLength(3);
+      expect(byKey.terminal.exercises).toHaveLength(1);
+      const names = [
+        ...byKey.technical.exercises,
+        ...byKey.main.exercises,
+        ...byKey.terminal.exercises,
+      ].map((e) => e.canonicalName);
+      expect(new Set(names).size).toBe(names.length);
+      expect(names).not.toContain("Mechanika przyspieszenia");
+    },
+  );
+});
