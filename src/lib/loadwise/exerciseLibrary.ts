@@ -11,7 +11,12 @@
 // ============================================================================
 
 import type { PainLocation } from "./types";
-import type { ExerciseItem, SessionDay, TrainingExercise } from "./types";
+import type {
+  ExerciseInstructionStep,
+  ExerciseItem,
+  SessionDay,
+  TrainingExercise,
+} from "./types";
 import type {
   AthleteTrainingProfile,
   DevelopmentStage,
@@ -1100,14 +1105,33 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "Long-lever hamstring bridge iso",
     "tendon_isometric",
     "hamstring isometric",
+    {
+      displayNamePl: "Most hamstring izometryczny z długą dźwignią",
+      aliases: ["Long-lever hamstring bridge iso", "Heel-dig bridge iso", "Slider hamstring iso"],
+    },
   ),
   supportExercise(
     "soleus_iso_hold",
     "Soleus isometric hold",
     "tendon_isometric",
     "calf tendon isometric",
+    {
+      displayNamePl: "Izometryczne wspięcie na mięsień płaszczkowaty",
+      aliases: ["Soleus isometric hold", "Izometria łydki / soleus (holding)"],
+    },
   ),
-  supportExercise("hip_mobility_flow", "Hip mobility flow", "mobility", "hip range of motion"),
+  supportExercise("hip_mobility_flow", "Hip mobility flow", "mobility", "hip range of motion", {
+    displayNamePl: "Mobilność bioder",
+    aliases: [
+      "Hip mobility flow",
+      "Mobilność bioder i tylnych ud",
+      "Mobilność bioder i kostek",
+      "Mobilność bioder, kostek i kręgosłupa",
+      "Mobilność całego ciała",
+      "Mobilność i prehab tylnej taśmy",
+      "Mobilność i aktywacja",
+    ],
+  }),
   supportExercise(
     "static_stretch_cooldown",
     "Rozciąganie statyczne (wyciszenie)",
@@ -1119,25 +1143,69 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "Ankle mobility flow",
     "mobility",
     "ankle range of motion",
+    {
+      displayNamePl: "Mobilność stawu skokowego",
+      aliases: ["Ankle mobility flow", "Aktywacja bioder i stóp"],
+    },
   ),
   supportExercise(
     "easy_cycle_recovery",
     "Easy cycle recovery",
     "recovery",
     "low intensity circulation",
+    {
+      displayNamePl: "Lekki rower regeneracyjny",
+      aliases: [
+        "Easy cycle recovery",
+        "Lekki rower / spacer",
+        "Lekki bieg / rower",
+        "Spacer / bardzo lekki rower",
+        "Spacer / bardzo lekki trucht lub rower",
+        "Rower / basen — łatwy tlenowy",
+        "Rower / basen ciągły",
+        "Recovery jog / rower",
+      ],
+    },
   ),
   supportExercise(
     "diaphragmatic_breathing",
     "Diaphragmatic breathing",
     "recovery",
     "parasympathetic recovery",
+    {
+      displayNamePl: "Oddech przeponowy",
+      aliases: ["Diaphragmatic breathing", "Oddech i wyciszenie", "Wyciszenie i oddech"],
+    },
   ),
-  supportExercise("easy_aerobic_run", "Easy aerobic run", "conditioning", "aerobic base"),
+  supportExercise("easy_aerobic_run", "Easy aerobic run", "conditioning", "aerobic base", {
+    displayNamePl: "Łatwy bieg tlenowy",
+    aliases: [
+      "Easy aerobic run",
+      "Łatwy bieg / marszobieg",
+      "Łatwy bieg tlenowy / rower",
+      "Lekki bieg ciągły",
+      "Ciągły bieg tlenowy",
+      "Ciągły bieg / rower",
+      "Easy aerobic jog",
+    ],
+  }),
   supportExercise(
     "tempo_conditioning_block",
     "Tempo conditioning block",
     "conditioning",
     "tempo aerobic conditioning",
+    {
+      displayNamePl: "Blok tempa tlenowego",
+      aliases: [
+        "Tempo conditioning block",
+        "Interwały aerobowe",
+        "Ciągły bieg strefa 2",
+        "Tempo ekstensywne",
+        "Interwały ekstensywne z piłką",
+        "Powtarzane tempo z piłką",
+        "Krótkie tempo z piłką",
+      ],
+    },
   ),
   supportExercise("pallof_press", "Pallof press", "trunk", "anti-rotation trunk stability"),
   supportExercise("side_plank", "Side plank", "trunk", "lateral trunk stability"),
@@ -2522,14 +2590,11 @@ export function canonicalizeGeneratedExercise(
     throw new Error(`No approved canonical mapping found for generated exercise: ${exercise.name}`);
   }
 
-  return {
+  return hydrateExerciseItemFromDefinition({
     ...exercise,
     exerciseId: canonical.id,
     name: canonical.displayNamePl,
-    purpose: exercise.purpose ?? canonical.stimulus,
-    visualId: exercise.visualId ?? canonical.id,
-    equipment: exercise.equipment ?? canonical.equipmentRequired.join(", "),
-  };
+  });
 }
 
 export interface PersistedExerciseMigrationResult {
@@ -2550,29 +2615,193 @@ function canonicalDefinitionForPersisted(
   );
 }
 
-function migratePersistedExerciseItem(item: ExerciseItem): ExerciseItem {
+function fallbackPurpose(definition: ExerciseDefinition): string {
+  if (definition.objective?.trim()) return definition.objective.trim();
+  switch (definition.family) {
+    case "conditioning":
+      return "Buduje wydolność potrzebną do utrzymania jakości pracy przez całą sesję.";
+    case "recovery":
+      return "Wspiera regenerację i obniża zmęczenie po wcześniejszym obciążeniu.";
+    case "mobility":
+      return "Poprawia zakres ruchu i przygotowuje ciało do kolejnych akcji.";
+    case "tendon_isometric":
+      return "Wzmacnia tkanki i poprawia tolerancję obciążenia bez zbędnego zmęczenia.";
+    case "trunk":
+      return "Stabilizuje tułów, aby łatwiej utrzymać pozycję w biegu i walce o piłkę.";
+    case "plyometric":
+    case "power":
+      return "Rozwija sprężystość i szybkie oddawanie siły w ruchu sportowym.";
+    case "speed":
+      return "Buduje jakość szybkościową potrzebną do pierwszego kroku i gry na przestrzeni.";
+    case "strength":
+    default:
+      return "Buduje siłę i kontrolę ruchu potrzebną do stabilnej pracy w meczu.";
+  }
+}
+
+function fallbackInstructionStepDescriptions(definition: ExerciseDefinition): string[] {
+  if (definition.instructionsPl?.length) return definition.instructionsPl.slice(0, 6);
+  switch (definition.movementPattern) {
+    case "squat":
+      return [
+        "Ustaw stopy mniej więcej na szerokość bioder i napnij brzuch.",
+        "Zejdź w dół kontrolowanie, prowadząc biodra w tył i kolana nad stopami.",
+        "Wstań dynamicznie, utrzymując pełny kontakt stóp z podłożem.",
+      ];
+    case "hinge":
+      return [
+        "Ustaw neutralny kręgosłup i lekko ugnij kolana.",
+        "Cofnij biodra, aż poczujesz napięcie tylnej taśmy, bez zaokrąglania pleców.",
+        "Wróć do wyprostu, mocno dopinając pośladki.",
+      ];
+    case "lunge":
+      return [
+        "Ustaw stabilny wykrok i trzymaj tułów wysoko.",
+        "Schodź pionowo w dół, utrzymując kolano prowadzącej nogi nad stopą.",
+        "Odepchnij się od podłoża i wróć do pozycji wyjściowej bez utraty równowagi.",
+      ];
+    case "jump":
+    case "olympic":
+      return [
+        "Przygotuj pozycję startową i napnij tułów przed wybiciem.",
+        "Wykonaj dynamiczne wybicie lub rzut z pełną kontrolą ustawienia.",
+        "Wyląduj miękko albo zakończ ruch w stabilnej pozycji, bez utraty jakości.",
+      ];
+    case "sprint":
+    case "gait":
+      return [
+        "Ustaw pozycję startową lub rytm wejścia zgodnie z celem ćwiczenia.",
+        "Wykonuj odcinek z aktywną pracą stopy pod biodrem i spokojnymi barkami.",
+        "Zakończ powtórzenie przed utratą jakości, bólem albo przeciążeniem techniki.",
+      ];
+    case "brace":
+    case "rotation":
+      return [
+        "Ustaw żebra nad miednicą i napnij brzuch przed rozpoczęciem ruchu.",
+        "Utrzymuj stabilny tułów, oddychając spokojnie przez całe powtórzenie.",
+        "Zakończ serię, gdy nie utrzymujesz napięcia albo zaczynasz kompensować ruchem.",
+      ];
+    case "push":
+    case "pull":
+      return [
+        "Ustaw łopatki i napnij brzuch przed każdym powtórzeniem.",
+        "Wykonaj ruch płynnie, prowadząc ciężar lub ciało pełnym zakresem.",
+        "Wróć kontrolowanie do pozycji startowej bez utraty ustawienia barków.",
+      ];
+    case "isometric":
+      return [
+        "Ustaw pozycję, w której czujesz pracę docelowego obszaru bez bólu ostrego.",
+        "Utrzymuj napięcie równomiernie przez cały zadany czas i spokojnie oddychaj.",
+        "Przerwij serię, jeśli napięcie ucieka albo pojawia się nasilający ból.",
+      ];
+    default:
+      return [
+        "Przygotuj stabilną pozycję wyjściową i napnij brzuch.",
+        "Wykonuj ruch płynnie i kontrolowanie zgodnie z celem ćwiczenia.",
+        "Zakończ serię, gdy spada jakość ruchu albo pojawia się ból.",
+      ];
+  }
+}
+
+function fallbackInstructionSteps(definition: ExerciseDefinition): ExerciseInstructionStep[] {
+  return fallbackInstructionStepDescriptions(definition).map((description, index) => ({
+    title: `Krok ${index + 1}`,
+    description,
+    visualId: definition.id,
+  }));
+}
+
+function fallbackTechnique(definition: ExerciseDefinition): string {
+  return fallbackInstructionStepDescriptions(definition).join(" ");
+}
+
+function canonicalReplacementName(
+  ids: string[] | undefined,
+  predicate?: (candidate: ExerciseDefinition) => boolean,
+): string | undefined {
+  for (const id of ids ?? []) {
+    const candidate = getExerciseDefinition(id);
+    if (!candidate || (predicate && !predicate(candidate))) continue;
+    return candidate.displayNamePl;
+  }
+  return undefined;
+}
+
+export function hydrateExerciseItemFromDefinition(item: ExerciseItem): ExerciseItem {
   const canonical = canonicalDefinitionForPersisted(item.exerciseId, item.name);
   if (!canonical) return item;
-  const next = {
+  return {
     ...item,
     exerciseId: canonical.id,
     name: canonical.displayNamePl,
+    purpose: item.purpose ?? fallbackPurpose(canonical),
     visualId: item.visualId ?? canonical.id,
-    equipment: item.equipment ?? canonical.equipmentRequired.join(", "),
+    instructionSteps:
+      item.instructionSteps?.length && item.instructionSteps.some((step) => step.description?.trim())
+        ? item.instructionSteps
+        : fallbackInstructionSteps(canonical),
+    technique: item.technique ?? fallbackTechnique(canonical),
+    cue: item.cue ?? canonical.coachingCues.slice(0, 3).join(". "),
+    commonMistake: item.commonMistake ?? canonical.commonErrors.slice(0, 2).join(". "),
+    easier: item.easier ?? canonicalReplacementName(canonical.regressionIds),
+    harder: item.harder ?? canonicalReplacementName(canonical.progressionIds),
   };
+}
+
+export function hydrateTrainingExerciseFromDefinition(
+  exercise: TrainingExercise,
+): TrainingExercise {
+  const canonical = canonicalDefinitionForPersisted(exercise.exerciseId, exercise.name);
+  if (!canonical) return exercise;
+  return {
+    ...exercise,
+    exerciseId: canonical.id,
+    name: canonical.displayNamePl,
+    purpose: exercise.purpose ?? fallbackPurpose(canonical),
+    visualId: exercise.visualId ?? canonical.id,
+    instructionSteps:
+      exercise.instructionSteps?.length &&
+      exercise.instructionSteps.some((step) => step.description?.trim())
+        ? exercise.instructionSteps
+        : fallbackInstructionSteps(canonical),
+    technique: exercise.technique ?? fallbackTechnique(canonical),
+    equipment:
+      exercise.equipment ??
+      (
+        specialistEquipmentForExercise(canonical)
+          .map((id) => EQUIPMENT_REGISTRY.find((equipment) => equipment.id === id)?.displayName ?? id)
+          .join(", ") || "Masa ciała"
+      ),
+    cue: exercise.cue ?? canonical.coachingCues.slice(0, 3).join(". "),
+    regression: exercise.regression ?? canonicalReplacementName(canonical.regressionIds),
+    progression: exercise.progression ?? canonicalReplacementName(canonical.progressionIds),
+    commonMistake: exercise.commonMistake ?? canonical.commonErrors.slice(0, 2).join(". "),
+    contraindications:
+      exercise.contraindications ??
+      canonical.injuryCautions[0] ??
+      "Przerwij ćwiczenie, jeśli pojawia się ból albo tracisz kontrolę ruchu.",
+  };
+}
+
+function migratePersistedExerciseItem(item: ExerciseItem): ExerciseItem {
+  const canonical = canonicalDefinitionForPersisted(item.exerciseId, item.name);
+  if (!canonical) return item;
+  const next = hydrateExerciseItemFromDefinition({
+    ...item,
+    exerciseId: canonical.id,
+    name: canonical.displayNamePl,
+  });
   return JSON.stringify(next) === JSON.stringify(item) ? item : next;
 }
 
 function migratePersistedTrainingExercise(exercise: TrainingExercise): TrainingExercise {
   const canonical = canonicalDefinitionForPersisted(exercise.exerciseId, exercise.name);
   if (!canonical) return exercise;
-  const next = {
+  const next = hydrateTrainingExerciseFromDefinition({
     ...exercise,
     exerciseId: canonical.id,
     name: canonical.displayNamePl,
-    visualId: exercise.visualId ?? canonical.id,
-    equipment: exercise.equipment ?? canonical.equipmentRequired.join(", "),
-  };
+  });
   return JSON.stringify(next) === JSON.stringify(exercise) ? exercise : next;
 }
 
