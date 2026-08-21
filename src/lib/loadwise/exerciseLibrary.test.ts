@@ -336,7 +336,7 @@ describe("library contract 2.0", () => {
 
   it("covers every required canonical family with approved, non-draft records", () => {
     const families = new Set(getApprovedExerciseDefinitions().map((exercise) => exercise.family));
-    for (const family of ["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"]) {
+    for (const family of ["tendon_isometric", "mobility", "recovery", "conditioning", "trunk"] as const) {
       expect(families.has(family)).toBe(true);
     }
   });
