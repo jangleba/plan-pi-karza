@@ -3801,24 +3801,41 @@ export function flatToStructured(sections: {
 }): TrainingSection[] {
   __uid = 0;
 
+  const byRole = (items: ExerciseItem[], ...roles: Array<ExerciseItem["speedRole"]>) =>
+    items.filter((item) => roles.includes(item.speedRole));
+  const notByRole = (items: ExerciseItem[], ...roles: Array<ExerciseItem["speedRole"]>) =>
+    items.filter((item) => !roles.includes(item.speedRole));
+
+  const normalized = {
+    warmup: [...sections.warmup, ...byRole(sections.main, "preparation", "primer")],
+    main: notByRole(sections.main, "preparation", "primer", "cooldown"),
+    accessory: notByRole(sections.accessory, "cooldown"),
+    footballTransfer: sections.footballTransfer,
+    cooldown: [
+      ...sections.cooldown,
+      ...byRole(sections.main, "cooldown"),
+      ...byRole(sections.accessory, "cooldown"),
+    ],
+  };
+
   const groups: {
     title: string;
     type: TrainingSection["type"];
     items: ExerciseItem[];
   }[] = [
-    { title: "Rozgrzewka", type: "warmup", items: sections.warmup },
-    { title: "Część główna", type: "main", items: sections.main },
+    { title: "Rozgrzewka", type: "warmup", items: normalized.warmup },
+    { title: "Część główna", type: "main", items: normalized.main },
     {
       title: "Część dodatkowa / stabilizacja",
       type: "accessory",
-      items: sections.accessory,
+      items: normalized.accessory,
     },
     {
       title: "Transfer piłkarski",
       type: "main",
-      items: sections.footballTransfer,
+      items: normalized.footballTransfer,
     },
-    { title: "Wyciszenie", type: "cooldown", items: sections.cooldown },
+    { title: "Wyciszenie", type: "cooldown", items: normalized.cooldown },
   ];
 
   return groups
@@ -3831,11 +3848,18 @@ export function flatToStructured(sections: {
           block({
             title: "",
             blockType: "single",
-            intent: "strength",
+            intent:
+              g.type === "warmup" || g.type === "cooldown"
+                ? "mobility"
+                : g.items.some((item) => item.speedRole === "terminal")
+                  ? "braking"
+                  : "strength",
             exercises: g.items.map((it) =>
               ex({
                 canonicalize: false,
                 name: it.name,
+                exerciseId: it.exerciseId,
+                speedRole: it.speedRole,
                 purpose: it.purpose,
                 visualId: it.visualId,
                 displayPrescription: it.displayPrescription,

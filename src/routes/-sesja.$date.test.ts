@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
+import { getExerciseDefinition } from "@/lib/loadwise/exerciseLibrary";
+import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
+import type { ExerciseItem, SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import {
   buildSprintRunnerBlocks,
   canShowPostSessionForm,
   formatSprintPrescription,
   isSprintRunnerSession,
+  resolveSprintExerciseDetails,
   SPRINT_RUNNER_CONTAINER_CLASS,
   shortDecisionNote,
   statusBadgeLabel,
@@ -290,5 +293,227 @@ describe("sprint runner layout", () => {
     const nonSprint = baseSession();
     expect(isSprintRunnerSession(acceleration)).toBe(true);
     expect(isSprintRunnerSession(nonSprint)).toBe(false);
+  });
+
+  function sprintItem(
+    exerciseId: string,
+    speedRole: ExerciseItem["speedRole"],
+    name: string,
+    prescription: string,
+    rest?: string,
+    purpose?: string,
+  ): ExerciseItem {
+    return {
+      name,
+      exerciseId,
+      speedRole,
+      prescription,
+      rest,
+      purpose,
+    };
+  }
+
+  function persistedSprintSessionFixture(kind: "acceleration" | "maximum_velocity"): SessionDay {
+    const warmup = [
+      sprintItem(
+        "a_march",
+        "preparation",
+        "Rozgrzewka biegowa",
+        "8–10 min",
+        "Bez przerw",
+        "Krótka ogólna rozgrzewka.",
+      ),
+      sprintItem("a_skip", "primer", "Skip A — seria 1", "2 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("c_skip", "primer", "Skip C — seria 1", "2 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("b_skip", "primer", "Skip B — seria 1", "2 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("d_skip", "primer", "Skip D — seria 1", "2 × 15–20 m", "Przerwa 45 s"),
+      sprintItem("a_skip", "primer", "Skip A — seria 2", "2 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("c_skip", "primer", "Skip C — seria 2", "2 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("b_skip", "primer", "Skip B — seria 2", "2 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("d_skip", "primer", "Skip D — seria 2", "2 × 15–20 m", "Przerwa 45 s"),
+    ];
+    const technical =
+      kind === "acceleration"
+        ? [
+            sprintItem(
+              "a_switch_progression",
+              "technical",
+              "Zmiany A: pojedyncza → podwójna → potrójna",
+              "2 rundy × 3 na stronę",
+              "Przerwa 30–45 s",
+            ),
+            sprintItem(
+              "a_skip_add_step",
+              "technical",
+              "Skip A z add-step",
+              "2 × 15 m",
+              "Przerwa 60 s",
+            ),
+            sprintItem(
+              "a_skip_no_add_step",
+              "technical",
+              "Skip A bez add-step",
+              "2 × 15 m",
+              "Przerwa 60 s",
+            ),
+          ]
+        : [
+            sprintItem("c_accent", "technical", "C-accent", "2–3 × 10–15 m", "Przerwa 60 s"),
+            sprintItem(
+              "a_skip_no_add_step",
+              "technical",
+              "Skip A bez add-step",
+              "2–3 × 15–20 m",
+              "Przerwa 60 s",
+            ),
+            sprintItem(
+              "scissor_exchange_jump",
+              "technical",
+              "Naprzemienny skok nożycowy z wymianą",
+              "2 × 4 na stronę",
+              "Przerwa 90 s",
+            ),
+          ];
+    const primary =
+      kind === "acceleration"
+        ? sprintItem(
+            "free_acceleration_sprint",
+            "primary",
+            "Swobodny sprint akceleracyjny",
+            "4 × 20 m z najazdu 15 m",
+            "Pełna przerwa 3 min",
+            "Główny bodziec: maksymalne przyspieszenie.",
+          )
+        : sprintItem(
+            "flying_sprint",
+            "primary",
+            "Sprint lotny",
+            "4 × 20 m z najazdu 15 m",
+            "Pełna przerwa 3–4 min",
+            "Główny bodziec: 2–3 s pracy przy prędkości bliskiej maksymalnej.",
+          );
+    const cooldown = sprintItem("a_march", "cooldown", "Wyciszenie", "5 min", "—");
+    const canonicalFlat = {
+      warmup,
+      main: [
+        ...technical,
+        sprintItem(
+          "scissor_bounds",
+          "secondary",
+          "Niskie wyskoki nożycowe",
+          "2–3 × 4 kontakty na stronę",
+          "Przerwa 60–90 s",
+        ),
+        primary,
+        sprintItem(
+          "progressive_deceleration_5_10_15",
+          "terminal",
+          "Hamowanie po sprincie",
+          "2 serie × 5–10 m",
+          "Pełna przerwa 90 s",
+        ),
+      ],
+      accessory: [] as ExerciseItem[],
+      footballTransfer: [] as ExerciseItem[],
+      cooldown: [cooldown],
+    };
+
+    return baseSession({
+      title: kind === "acceleration" ? "Sprint: akceleracja" : "Sprint: prędkość maksymalna",
+      sessionType: "Szybkość",
+      sections: {
+        ...canonicalFlat,
+        main: [...canonicalFlat.main, cooldown],
+        cooldown: [],
+      },
+      structuredSections: flatToStructured(canonicalFlat),
+    });
+  }
+
+  function expectSprintFixture(
+    kind: "acceleration" | "maximum_velocity",
+    expectedMainId: string,
+    expectedTechnicalIds: string[],
+  ) {
+    const persisted = JSON.parse(
+      JSON.stringify(persistedSprintSessionFixture(kind)),
+    ) as SessionDay;
+    const startBlocks = buildSprintRunnerBlocks(persisted.structuredSections ?? []);
+    const detailsBlocks = buildSprintRunnerBlocks(flatToStructured(persisted.sections));
+    const summarize = (blocks: ReturnType<typeof buildSprintRunnerBlocks>) =>
+      blocks.map((block) => ({
+        key: block.key,
+        ids: block.exercises.map((exercise) => exercise.exercise.exerciseId),
+      }));
+
+    expect(summarize(detailsBlocks)).toEqual(summarize(startBlocks));
+    expect(detailsBlocks.map((block) => block.index)).toEqual(["01", "02", "03", "04", "05", "06", "07"]);
+    expect(detailsBlocks.map((block) => block.title)).toEqual([
+      "Przygotowanie RAMP",
+      "Skipy A → C → B → D",
+      "Drille techniczne",
+      "Plyometria",
+      "Sprint główny",
+      "Hamowanie / zwrotność / łuk",
+      "Wyciszenie",
+    ]);
+
+    const byKey = Object.fromEntries(detailsBlocks.map((block) => [block.key, block]));
+    expect(byKey.skip.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      "a_skip",
+      "c_skip",
+      "b_skip",
+      "d_skip",
+    ]);
+    expect(byKey.skip.exercises.map((exercise) => exercise.canonicalName)).toEqual([
+      "Skip A",
+      "Skip C",
+      "Skip B",
+      "Skip D",
+    ]);
+    expect(byKey.technical.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual(
+      expectedTechnicalIds,
+    );
+    expect(byKey.technical.exercises).toHaveLength(3);
+    expect(byKey.plyo.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      "scissor_bounds",
+    ]);
+    expect(byKey.main.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      expectedMainId,
+    ]);
+    expect(byKey.terminal.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      "progressive_deceleration_5_10_15",
+    ]);
+    expect(byKey.cooldown.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      "a_march",
+    ]);
+
+    for (const block of detailsBlocks) {
+      for (const exercise of block.exercises) {
+        const definition = getExerciseDefinition(exercise.exercise.exerciseId ?? "");
+        expect(definition?.approved).toBe(true);
+        expect(exercise.canonicalName).toBe(definition?.displayNamePl);
+        expect(exercise.canonicalName).not.toBe(block.title);
+        const details = resolveSprintExerciseDetails(exercise.exercise);
+        expect(details.howTo).toBeTruthy();
+        expect(details.cues.length).toBeGreaterThanOrEqual(1);
+      }
+    }
+  }
+
+  it("utrzymuje kanoniczne bloki i szczegóły dla zapisanej sesji akceleracji", () => {
+    expectSprintFixture("acceleration", "free_acceleration_sprint", [
+      "a_switch_progression",
+      "a_skip_add_step",
+      "a_skip_no_add_step",
+    ]);
+  });
+
+  it("utrzymuje kanoniczne bloki i szczegóły dla zapisanej sesji max velocity", () => {
+    expectSprintFixture("maximum_velocity", "flying_sprint", [
+      "c_accent",
+      "a_skip_no_add_step",
+      "scissor_exchange_jump",
+    ]);
   });
 });
