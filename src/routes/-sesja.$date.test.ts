@@ -489,15 +489,33 @@ describe("sprint runner layout", () => {
     ]);
 
     for (const block of detailsBlocks) {
+      expect(block.exercises.length).toBeGreaterThan(0);
+      expect(block.hasDataError ?? false).toBe(false);
       for (const exercise of block.exercises) {
         const definition = getExerciseDefinition(exercise.exercise.exerciseId ?? "");
         expect(definition?.approved).toBe(true);
-        expect(exercise.canonicalName).toBe(definition?.displayNamePl);
+        if (exercise.exercise.speedRole && block.key !== "skip") {
+          // Precyzyjna nazwa z silnika, nie ogólna etykieta kanoniczna.
+          expect(exercise.canonicalName).toBe(exercise.exercise.name);
+        } else {
+          expect(exercise.canonicalName).toBe(definition?.displayNamePl);
+        }
         expect(exercise.canonicalName).not.toBe(block.title);
         const details = resolveSprintExerciseDetails(exercise.exercise);
         expect(details.howTo).toBeTruthy();
         expect(details.cues.length).toBeGreaterThanOrEqual(1);
       }
+    }
+
+    // Drille, sprint główny i element końcowy nie mogą być generycznymi duplikatami.
+    const distinctNames = [
+      ...byKey.technical.exercises,
+      ...byKey.main.exercises,
+      ...byKey.terminal.exercises,
+    ].map((exercise) => exercise.canonicalName);
+    expect(new Set(distinctNames).size).toBe(distinctNames.length);
+    for (const name of distinctNames) {
+      expect(name).not.toBe("Mechanika przyspieszenia");
     }
   }
 
