@@ -4133,6 +4133,7 @@ export function generatePlan(
       const trainingExercise: TrainingExercise = {
         id: `${target.date}-${exercise.order}-${exercise.exerciseId}`,
         exerciseId: exercise.exerciseId,
+        speedRole: exercise.role,
         name: exercise.name,
         purpose: exercise.purpose,
         sets: exercise.sets,
@@ -4142,7 +4143,7 @@ export function generatePlan(
         restAfterPair: exercise.restBetweenSets,
         displayPrescription: `${exercise.sets} serie × ${exercise.reps} powt. · ${exercise.distanceOrDuration}`,
         equipment: exercise.equipment.requiredEquipment.join(", ") || undefined,
-        cue: exercise.coachingCuesPl.join(" "),
+        cue: exercise.coachingCuesPl.join(". "),
         commonMistake: exercise.safetyStopRule,
       };
       const sectionType =
@@ -4174,6 +4175,15 @@ export function generatePlan(
       section.blocks.push(block);
     }
     sections.sort((a, b) => (a.type === "warmup" ? -1 : b.type === "warmup" ? 1 : 0));
+    const toPersistedItem = (exercise: (typeof generated.exercises)[number]) => ({
+      name: exercise.name,
+      exerciseId: exercise.exerciseId,
+      speedRole: exercise.role,
+      purpose: exercise.purpose,
+      prescription: exercise.dose,
+      rest: exercise.rest,
+      cue: exercise.coachingCuesPl.join(". "),
+    });
     Object.assign(target, {
       title: speed.title,
       sessionType: "Szybkość",
@@ -4186,8 +4196,19 @@ export function generatePlan(
       safetyNote: speed.safetyNote,
       speedGeneratorVersion: speed.speedGeneratorVersion,
       sections: {
-        ...speed.sections,
-        main: [...speed.sections.main, ...speed.sections.cooldown],
+        warmup: generated.exercises
+          .filter((exercise) => exercise.role === "preparation" || exercise.role === "primer")
+          .map(toPersistedItem),
+        main: generated.exercises
+          .filter(
+            (exercise) =>
+              exercise.role !== "preparation" &&
+              exercise.role !== "primer" &&
+              exercise.role !== "conditioning",
+          )
+          .map(toPersistedItem),
+        accessory: [],
+        footballTransfer: [],
         cooldown: [],
       },
       structuredSections: sections,

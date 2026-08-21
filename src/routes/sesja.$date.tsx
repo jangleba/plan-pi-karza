@@ -24,7 +24,6 @@ import {
   Clock,
   Target,
   Flag,
-  CheckCircle2,
   Plus,
   Repeat,
   Undo2,
@@ -168,8 +167,16 @@ export type SprintBlockView = {
 type SprintExerciseMeta = {
   exercise: TrainingExercise;
   sectionType: TrainingSection["type"];
-  blockIntent: string;
-  blockTitle: string;
+};
+
+type SprintResolvedDetails = {
+  purpose: string | null;
+  howTo: string | null;
+  cues: string[];
+  errors: string[];
+  safety: string | null;
+  equipment: string;
+  noEquipmentReplacement: string;
 };
 
 function cleanSprintPrescription(value: string): string {
@@ -204,37 +211,80 @@ export function formatSprintPrescription(e: TrainingExercise): string {
   return joinDeduped(display.split("·"));
 }
 
-function isSprintRunnerTerminalExercise(meta: SprintExerciseMeta): boolean {
-  const definition = resolveDefinitionForExercise(meta.exercise);
+function isSprintRunnerTerminalExercise(exercise: TrainingExercise): boolean {
+  const definition = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
   const qualities = definition?.speedQualities ?? [];
-  return (
-    qualities.some((quality) =>
-      [
-        "deceleration",
-        "planned_change_of_direction",
-        "reactive_agility",
-        "reacceleration",
-        "curved_sprint",
-      ].includes(quality),
-    ) ||
-    /hamow|zwrot|łuk|zmian/i.test(
-      `${meta.exercise.name} ${meta.blockTitle} ${meta.exercise.purpose ?? ""}`,
-    )
+  return qualities.some((quality) =>
+    [
+      "deceleration",
+      "planned_change_of_direction",
+      "reactive_agility",
+      "reacceleration",
+      "curved_sprint",
+    ].includes(quality),
   );
 }
 
-function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey {
-  const id = resolveDefinitionForExercise(meta.exercise)?.id ?? meta.exercise.exerciseId ?? "";
-  const fullText =
-    `${meta.exercise.name} ${meta.blockTitle} ${meta.exercise.purpose ?? ""}`.toLowerCase();
+function sprintRoleForExercise(meta: SprintExerciseMeta): TrainingExercise["speedRole"] | null {
+  if (meta.exercise.speedRole) return meta.exercise.speedRole;
+  if (meta.sectionType === "cooldown") return "cooldown";
+  const definition = meta.exercise.exerciseId
+    ? getExerciseDefinition(meta.exercise.exerciseId)
+    : undefined;
+  const role = definition?.sessionRoles?.[0];
+  if (!role) return meta.sectionType === "warmup" ? "preparation" : null;
+  if (role === "preparation" && meta.sectionType !== "warmup") return "cooldown";
+  return role;
+}
+
+function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | null {
+  const id = meta.exercise.exerciseId ?? "";
+  const role = sprintRoleForExercise(meta);
   if (id === "a_skip" || id === "b_skip" || id === "c_skip" || id === "d_skip") return "skip";
-  if (fullText.includes("wyciszenie")) return "cooldown";
-  if (meta.sectionType === "warmup" || meta.blockIntent === "mobility") return "ramp";
-  if (fullText.includes("główny bodziec")) return "main";
-  if (fullText.includes("plyometr") || fullText.includes("sprężysto") || id === "scissor_bounds")
-    return "plyo";
-  if (isSprintRunnerTerminalExercise(meta)) return "terminal";
-  return "technical";
+  if (role === "conditioning" || (!role && !id)) return null;
+  if (role === "cooldown") return "cooldown";
+  if (role === "preparation" || role === "primer") return "ramp";
+  if (role === "terminal" || isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
+  if (role === "secondary" || id === "scissor_bounds") return "plyo";
+  if (role === "primary") return "main";
+  if (role === "technical") return "technical";
+  return null;
+}
+
+export function resolveSprintExerciseDetails(exercise: TrainingExercise): SprintResolvedDetails {
+  const definition = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
+  const cues = (
+    definition?.coachingCues ??
+    exercise.cue?.split(/[.;]\s*/).filter(Boolean) ??
+    []
+  ).slice(0, 3);
+  const errors = (
+    definition?.commonErrors ?? (exercise.commonMistake ? [exercise.commonMistake] : [])
+  ).slice(0, 2);
+  const equipment = specialistEquipmentForExercise(definition)
+    .map((id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id)
+    .join(", ");
+  const noEquipmentReplacementId =
+    definition?.replacementIds?.find((candidateId) => {
+      const candidate = getExerciseDefinition(candidateId);
+      return candidate && specialistEquipmentForExercise(candidate).length === 0;
+    }) ?? null;
+  const noEquipmentReplacement = noEquipmentReplacementId
+    ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ?? noEquipmentReplacementId)
+    : (equipment ? "Brak zatwierdzonej zamiany bez sprzętu" : "Nie dotyczy — ćwiczenie bez sprzętu");
+  return {
+    purpose: exercise.purpose ?? definition?.objective ?? definition?.stimulus ?? null,
+    howTo:
+      definition?.instructionsPl?.join(" ") ??
+      exercise.instructionSteps?.map((step) => step.text).join(" ") ??
+      exercise.technique ??
+      null,
+    cues,
+    errors,
+    safety: definition?.injuryCautions?.[0] ?? null,
+    equipment: equipment || "Masa ciała",
+    noEquipmentReplacement,
+  };
 }
 
 export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBlockView[] {
@@ -253,10 +303,9 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
         const meta: SprintExerciseMeta = {
           exercise,
           sectionType: section.type,
-          blockIntent: block.intent,
-          blockTitle: block.title,
         };
-        buckets[sprintBlockKeyForExercise(meta)].push(meta);
+        const key = sprintBlockKeyForExercise(meta);
+        if (key) buckets[key].push(meta);
       }
     }
   }
@@ -491,15 +540,7 @@ function SprintExerciseRow({
   }, [restRunning]);
   const exercise = view.exercise;
   const rest = restLabel(exercise);
-  const definition = resolveDefinitionForExercise(exercise);
-  const cues = (
-    definition?.coachingCues ??
-    exercise.cue?.split(/[.;]\s*/).filter(Boolean) ??
-    []
-  ).slice(0, 3);
-  const errors = (
-    definition?.commonErrors ?? (exercise.commonMistake ? [exercise.commonMistake] : [])
-  ).slice(0, 2);
+  const details = resolveSprintExerciseDetails(exercise);
   const equipmentNames = equipmentIds.map(
     (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
@@ -509,9 +550,7 @@ function SprintExerciseRow({
         <button
           type="button"
           onClick={onToggle}
-          className={`mt-1.5 h-4 w-4 shrink-0 rounded-full border ${
-            done ? "border-primary bg-primary" : "border-border bg-background"
-          }`}
+          className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-border"}`}
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
         />
         <div className="min-w-0 flex-1">
@@ -596,29 +635,56 @@ function SprintExerciseRow({
           )}
           {expanded && (
             <div className="mt-2 space-y-2 border-l border-border pl-3 text-xs">
-              {exercise.purpose && (
-                <p className="text-sm leading-relaxed text-foreground">{exercise.purpose}</p>
+              {details.purpose && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Cel</div>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground">{details.purpose}</p>
+                </div>
               )}
-              {cues.length > 0 && (
+              {details.howTo && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Jak wykonać</div>
+                  <p className="mt-1 leading-relaxed text-foreground">{details.howTo}</p>
+                </div>
+              )}
+              {details.cues.length > 0 && (
                 <div>
                   <div className="font-semibold text-muted-foreground">Wskazówki</div>
                   <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {cues.map((cue, i) => (
+                    {details.cues.map((cue, i) => (
                       <li key={i}>{cue}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {errors.length > 0 && (
+              {details.errors.length > 0 && (
                 <div>
                   <div className="font-semibold text-muted-foreground">Błędy</div>
                   <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {errors.map((error, i) => (
+                    {details.errors.map((error, i) => (
                       <li key={i}>{error}</li>
                     ))}
                   </ul>
                 </div>
               )}
+              {details.safety && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Bezpieczeństwo</div>
+                  <p className="mt-1 leading-relaxed text-foreground">{details.safety}</p>
+                </div>
+              )}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <div className="font-semibold text-muted-foreground">Sprzęt</div>
+                  <p className="mt-1 leading-relaxed text-foreground">{details.equipment}</p>
+                </div>
+                <div>
+                  <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
+                  <p className="mt-1 leading-relaxed text-foreground">
+                    {details.noEquipmentReplacement}
+                  </p>
+                </div>
+              </div>
               <MovementBlueprint exercise={exercise} />
             </div>
           )}

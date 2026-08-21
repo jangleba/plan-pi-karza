@@ -136,6 +136,17 @@ export interface ExerciseInstructionStep {
   description: string;
   visualId?: string;
 }
+
+export type SpeedRole =
+  | "preparation"
+  | "technical"
+  | "primer"
+  | "primary"
+  | "secondary"
+  | "conditioning"
+  | "terminal"
+  | "cooldown";
+
 export interface ExerciseItem {
   name: string;
   /** Krótko: po co zawodnik wykonuje to ćwiczenie. */
@@ -157,6 +168,8 @@ instructionSteps?: ExerciseInstructionStep[];
 
   /** Stałe ID ćwiczenia z centralnej biblioteki. */
 exerciseId?: string;
+  /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
+  speedRole?: SpeedRole;
   prescription: string;
   rest?: string;
   cue?: string;
@@ -209,6 +222,8 @@ export interface TrainingExercise {
   id: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
 exerciseId?: string;
+  /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
+  speedRole?: SpeedRole;
   label?: string; // A1 | A2 | B1 | B2 ...
   name: string;
   /** Krótko: co ćwiczenie rozwija i dlaczego znajduje się w sesji. */
