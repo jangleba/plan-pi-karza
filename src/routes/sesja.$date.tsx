@@ -14,6 +14,7 @@ import type { SessionDay, TrainingSection, TrainingExercise } from "@/lib/loadwi
 import {
   getExerciseDefinition,
   getAllEquipmentDefinitions,
+  resolveExerciseByName,
   specialistEquipmentForExercise,
 } from "@/lib/loadwise/exerciseLibrary";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
@@ -123,6 +124,182 @@ function restSecondsFromLabel(label: string): number {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
+function resolveDefinitionForExercise(e: TrainingExercise) {
+  return (
+    (e.exerciseId ? getExerciseDefinition(e.exerciseId) : undefined) ??
+    resolveExerciseByName(e.name)
+  );
+}
+
+function canonicalExerciseName(e: TrainingExercise): string {
+  return resolveDefinitionForExercise(e)?.displayNamePl?.trim() || e.name;
+}
+
+const SPRINT_BLOCK_FLOW = [
+  { key: "ramp", index: "01", title: "Przygotowanie RAMP", estMin: 10 },
+  { key: "skip", index: "02", title: "Skipy A → C → B → D", estMin: 8 },
+  { key: "technical", index: "03", title: "Drille techniczne", estMin: 8 },
+  { key: "plyo", index: "04", title: "Plyometria", estMin: 6 },
+  { key: "main", index: "05", title: "Sprint główny", estMin: 10 },
+  { key: "terminal", index: "06", title: "Hamowanie / zwrotność / łuk", estMin: 6 },
+  { key: "cooldown", index: "07", title: "Wyciszenie", estMin: 5 },
+] as const;
+const SPRINT_SKIP_PRESCRIPTION = "2 × 15–20 m";
+export const SPRINT_RUNNER_CONTAINER_CLASS = "space-y-3 overflow-x-hidden";
+
+type SprintBlockKey = (typeof SPRINT_BLOCK_FLOW)[number]["key"];
+
+type SprintExerciseView = {
+  id: string;
+  exercise: TrainingExercise;
+  canonicalName: string;
+  prescription: string;
+  showSkipSetLabels?: boolean;
+};
+
+export type SprintBlockView = {
+  key: SprintBlockKey;
+  index: string;
+  title: string;
+  estimatedMin: number;
+  exercises: SprintExerciseView[];
+};
+
+type SprintExerciseMeta = {
+  exercise: TrainingExercise;
+  sectionType: TrainingSection["type"];
+  blockIntent: string;
+  blockTitle: string;
+};
+
+function cleanSprintPrescription(value: string): string {
+  return value
+    .replace(/\bpowt\.?\b/gi, "")
+    .replace(/\b(\d+)\s*seri[aeyi]?\s*×\s*/gi, (_m, count: string) =>
+      Number(count) > 1 ? `${count} × ` : "",
+    )
+    .replace(/\s*·\s*/g, " · ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:])/g, "$1")
+    .trim()
+    .replace(/[.]+$/g, "")
+    .trim();
+}
+
+export function formatSprintPrescription(e: TrainingExercise): string {
+  const joinDeduped = (parts: string[]) =>
+    parts
+      .map((part) => cleanSprintPrescription(part))
+      .filter(Boolean)
+      .filter(
+        (part, index, all) =>
+          all.findIndex((candidate) => candidate.toLowerCase() === part.toLowerCase()) === index,
+      )
+      .join(" · ");
+
+  const fromFields = [e.reps, e.duration].filter(Boolean) as string[];
+  if (fromFields.length) return joinDeduped(fromFields);
+  const display = e.displayPrescription?.trim();
+  if (!display) return "";
+  return joinDeduped(display.split("·"));
+}
+
+function isSprintRunnerTerminalExercise(meta: SprintExerciseMeta): boolean {
+  const definition = resolveDefinitionForExercise(meta.exercise);
+  const qualities = definition?.speedQualities ?? [];
+  return (
+    qualities.some((quality) =>
+      [
+        "deceleration",
+        "planned_change_of_direction",
+        "reactive_agility",
+        "reacceleration",
+        "curved_sprint",
+      ].includes(quality),
+    ) ||
+    /hamow|zwrot|łuk|zmian/i.test(
+      `${meta.exercise.name} ${meta.blockTitle} ${meta.exercise.purpose ?? ""}`,
+    )
+  );
+}
+
+function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey {
+  const id = resolveDefinitionForExercise(meta.exercise)?.id ?? meta.exercise.exerciseId ?? "";
+  const fullText =
+    `${meta.exercise.name} ${meta.blockTitle} ${meta.exercise.purpose ?? ""}`.toLowerCase();
+  if (id === "a_skip" || id === "b_skip" || id === "c_skip" || id === "d_skip") return "skip";
+  if (fullText.includes("wyciszenie")) return "cooldown";
+  if (meta.sectionType === "warmup" || meta.blockIntent === "mobility") return "ramp";
+  if (fullText.includes("główny bodziec")) return "main";
+  if (fullText.includes("plyometr") || fullText.includes("sprężysto") || id === "scissor_bounds")
+    return "plyo";
+  if (isSprintRunnerTerminalExercise(meta)) return "terminal";
+  return "technical";
+}
+
+export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBlockView[] {
+  const buckets: Record<SprintBlockKey, SprintExerciseMeta[]> = {
+    ramp: [],
+    skip: [],
+    technical: [],
+    plyo: [],
+    main: [],
+    terminal: [],
+    cooldown: [],
+  };
+  for (const section of sections) {
+    for (const block of section.blocks) {
+      for (const exercise of block.exercises) {
+        const meta: SprintExerciseMeta = {
+          exercise,
+          sectionType: section.type,
+          blockIntent: block.intent,
+          blockTitle: block.title,
+        };
+        buckets[sprintBlockKeyForExercise(meta)].push(meta);
+      }
+    }
+  }
+
+  const skipById = new Map<string, SprintExerciseMeta>();
+  for (const meta of buckets.skip) {
+    const id = resolveDefinitionForExercise(meta.exercise)?.id ?? meta.exercise.exerciseId;
+    if (id && !skipById.has(id)) skipById.set(id, meta);
+  }
+
+  return SPRINT_BLOCK_FLOW.map((block) => {
+    const source =
+      block.key === "skip"
+        ? (["a_skip", "c_skip", "b_skip", "d_skip"]
+            .map((id) => skipById.get(id))
+            .filter(Boolean) as SprintExerciseMeta[])
+        : buckets[block.key];
+    const exercises = source.map((meta) => ({
+      id: meta.exercise.id,
+      exercise: meta.exercise,
+      canonicalName: canonicalExerciseName(meta.exercise),
+      prescription:
+        block.key === "skip" ? SPRINT_SKIP_PRESCRIPTION : formatSprintPrescription(meta.exercise),
+      showSkipSetLabels: block.key === "skip",
+    }));
+    return {
+      key: block.key,
+      index: block.index,
+      title: block.title,
+      estimatedMin: block.estMin,
+      exercises,
+    };
+  });
+}
+
+export function isSprintRunnerSession(session: SessionDay): boolean {
+  return Boolean(
+    session.classification &&
+    session.classification.isSpeed &&
+    (session.classification.isAcceleration || session.classification.isMaxVelocity),
+  );
+}
+
 function ExerciseRow({
   e,
   done,
@@ -156,7 +333,8 @@ function ExerciseRow({
   }, [restRunning]);
   const presc = compactPrescription(e);
   const rest = restLabel(e);
-  const definition = getExerciseDefinition(e.exerciseId ?? e.name);
+  const definition = resolveDefinitionForExercise(e);
+  const title = canonicalExerciseName(e);
   const cues = (definition?.coachingCues ?? e.cue?.split(/[.;]\s*/).filter(Boolean) ?? []).slice(
     0,
     3,
@@ -194,7 +372,7 @@ function ExerciseRow({
                 done ? "text-muted-foreground line-through" : "text-foreground"
               }`}
             >
-              {e.name}
+              {title}
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
           </button>
@@ -279,6 +457,322 @@ function ExerciseRow({
     </div>
   );
 }
+
+function SprintExerciseRow({
+  view,
+  done,
+  onToggle,
+  onUnavailable,
+  equipmentIds,
+}: {
+  view: SprintExerciseView;
+  done: boolean;
+  onToggle: () => void;
+  onUnavailable: () => void;
+  equipmentIds: string[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [restRunning, setRestRunning] = useState(false);
+  const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  const restSecondsRef = useRef(restSeconds);
+  restSecondsRef.current = restSeconds;
+  useEffect(() => {
+    if (!restRunning || restSecondsRef.current === null) return;
+    const timer = window.setInterval(() => {
+      setRestSeconds((current) => {
+        if (current === null || current <= 1) {
+          setRestRunning(false);
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [restRunning]);
+  const exercise = view.exercise;
+  const rest = restLabel(exercise);
+  const definition = resolveDefinitionForExercise(exercise);
+  const cues = (
+    definition?.coachingCues ??
+    exercise.cue?.split(/[.;]\s*/).filter(Boolean) ??
+    []
+  ).slice(0, 3);
+  const errors = (
+    definition?.commonErrors ?? (exercise.commonMistake ? [exercise.commonMistake] : [])
+  ).slice(0, 2);
+  const equipmentNames = equipmentIds.map(
+    (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
+  );
+  return (
+    <div className="py-2">
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`mt-1.5 h-4 w-4 shrink-0 rounded-full border ${
+            done ? "border-primary bg-primary" : "border-border bg-background"
+          }`}
+          aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
+        />
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            className="flex w-full items-start gap-2 text-left"
+          >
+            <span
+              className={`min-w-0 flex-1 text-sm font-semibold leading-5 ${
+                done ? "text-muted-foreground line-through" : "text-foreground"
+              }`}
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {view.canonicalName}
+            </span>
+            <ChevronRight
+              className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground ${expanded ? "rotate-90" : ""}`}
+            />
+          </button>
+          {view.prescription && (
+            <div className="mt-1 text-xs font-medium tabular-nums text-foreground/80">
+              {view.prescription}
+            </div>
+          )}
+          {view.showSkipSetLabels && (
+            <div className="mt-1 flex gap-1.5">
+              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                1 TECHNIKA
+              </span>
+              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                2 DYNAMICZNIE
+              </span>
+            </div>
+          )}
+          {!done && equipmentIds.length > 0 && (
+            <button
+              type="button"
+              onClick={onUnavailable}
+              className="mt-1 text-[11px] font-medium text-primary"
+            >
+              Nie mam {equipmentNames.join(", ")}
+            </button>
+          )}
+          {rest && (
+            <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span>{rest}</span>
+              <button
+                type="button"
+                className="font-semibold text-primary"
+                onClick={() => {
+                  if (restRunning) {
+                    setRestRunning(false);
+                    return;
+                  }
+                  const seconds = restSecondsFromLabel(rest);
+                  setRestSeconds((current) => current ?? seconds);
+                  setRestRunning(true);
+                }}
+              >
+                {restRunning ? "Pauza" : "Start"}
+              </button>
+              {restRunning && (
+                <button
+                  type="button"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setRestRunning(false);
+                    setRestSeconds(null);
+                  }}
+                >
+                  Reset
+                </button>
+              )}
+              {restSeconds !== null && <span className="tabular-nums">{restSeconds} s</span>}
+            </div>
+          )}
+          {expanded && (
+            <div className="mt-2 space-y-2 border-l border-border pl-3 text-xs">
+              {exercise.purpose && (
+                <p className="text-sm leading-relaxed text-foreground">{exercise.purpose}</p>
+              )}
+              {cues.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Wskazówki</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {cues.map((cue, i) => (
+                      <li key={i}>{cue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {errors.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Błędy</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {errors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <MovementBlueprint exercise={exercise} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SprintStructuredSections = memo(function SprintStructuredSections({
+  sections,
+  date,
+  session,
+  onFinish,
+}: {
+  sections: TrainingSection[];
+  date: string;
+  session: SessionDay;
+  onFinish: () => void;
+}) {
+  const { markEquipmentUnavailable } = useLoadwise();
+  const blocks = buildSprintRunnerBlocks(sections);
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const [started, setStarted] = useState(false);
+  const [currentBlockIdx, setCurrentBlockIdx] = useState(0);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [finished, setFinished] = useState(false);
+
+  useEffect(() => {
+    setDone({});
+    setStarted(false);
+    setCurrentBlockIdx(0);
+    setExpanded({});
+    setFinished(false);
+  }, [date, sections]);
+
+  const mdRelation = session.mdLabel ?? session.mdRelation ?? "—";
+  const equipmentPool = Array.from(
+    new Set(
+      blocks.flatMap((block) =>
+        block.exercises.flatMap((item) =>
+          specialistEquipmentForExercise(resolveDefinitionForExercise(item.exercise)),
+        ),
+      ),
+    ),
+  ).map((id) => EQUIPMENT_DEFINITIONS.find((eq) => eq.id === id)?.displayName ?? id);
+
+  const actionLabel = !started
+    ? "Rozpocznij blok"
+    : currentBlockIdx >= blocks.length - 1
+      ? "Zakończ sesję"
+      : "Następny blok";
+
+  return (
+    <div className={SPRINT_RUNNER_CONTAINER_CLASS}>
+      <div className="rounded-lg border border-border bg-card px-3 py-3">
+        <div className="text-xs text-muted-foreground">Cel</div>
+        <div className="text-sm font-semibold text-foreground">
+          {session.goalOfSession || session.goalLabel}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div>Czas: {session.durationMin} min</div>
+          <div>Intensywność: {session.intensity}</div>
+          <div className="col-span-2">
+            Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}
+          </div>
+          <div className="col-span-2">Relacja MD: {mdRelation}</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {blocks.map((block, index) => {
+          const isCurrent = index === currentBlockIdx;
+          const isExpanded = isCurrent || expanded[block.key];
+          const exerciseCount = block.exercises.length;
+          return (
+            <div key={block.key} className="rounded-lg border border-border bg-card px-3 py-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isCurrent) {
+                    setExpanded((current) => ({ ...current, [block.key]: !isExpanded }));
+                  }
+                }}
+                className="flex w-full items-center gap-2 text-left"
+              >
+                <span className="w-7 shrink-0 text-base font-bold text-foreground">
+                  {block.index}
+                </span>
+                <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+                  {block.title}
+                </span>
+                {!isExpanded && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {exerciseCount} ćw. · ~{block.estimatedMin} min
+                  </span>
+                )}
+                <ChevronRight
+                  className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                />
+              </button>
+              {isExpanded && (
+                <div className="mt-2 divide-y divide-border/50">
+                  {block.exercises.map((item) => {
+                    const definition = resolveDefinitionForExercise(item.exercise);
+                    const equipmentIds = specialistEquipmentForExercise(definition);
+                    return (
+                      <SprintExerciseRow
+                        key={item.id}
+                        view={item}
+                        done={!!done[item.id]}
+                        onToggle={() =>
+                          setDone((current) => ({ ...current, [item.id]: !current[item.id] }))
+                        }
+                        onUnavailable={() => {
+                          if (equipmentIds.length)
+                            markEquipmentUnavailable(date, item.exercise, equipmentIds);
+                        }}
+                        equipmentIds={equipmentIds}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {!finished && (
+        <div className="sticky bottom-3 z-20">
+          <button
+            type="button"
+            onClick={() => {
+              if (!started) {
+                setStarted(true);
+                return;
+              }
+              if (currentBlockIdx < blocks.length - 1) {
+                setCurrentBlockIdx((value) => value + 1);
+                return;
+              }
+              setFinished(true);
+              onFinish();
+            }}
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm"
+          >
+            {actionLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
 
 const StructuredSections = memo(function StructuredSections({
   sections,
@@ -590,7 +1084,11 @@ function SessionDetail() {
   const router = useRouter();
   const { state, hydrated, todayIso, undoModification, undoExerciseReplacement } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
+  const [showSprintCompletion, setShowSprintCompletion] = useState(false);
   const goBack = useInstantBack("/plan");
+  useEffect(() => {
+    setShowSprintCompletion(false);
+  }, [date, slot]);
 
   const day = state.plan.find((p) => p.date === date);
 
@@ -684,6 +1182,7 @@ function SessionDetail() {
               cooldown: [],
             })
           : [];
+  const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
 
   return (
     <div className="app-shell min-h-screen pb-[140px]">
@@ -781,6 +1280,13 @@ function SessionDetail() {
             <ClubMonitoring />
             {structured.length > 0 && <StructuredSections sections={structured} date={date} />}
           </>
+        ) : sprintRunner ? (
+          <SprintStructuredSections
+            sections={structured}
+            date={date}
+            session={session}
+            onFinish={() => setShowSprintCompletion(true)}
+          />
         ) : (
           <>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -814,7 +1320,9 @@ function SessionDetail() {
           </div>
         )}
 
-        {canShowPostSessionForm(session) && <CompletionPanel session={session} />}
+        {canShowPostSessionForm(session) && (!sprintRunner || showSprintCompletion) && (
+          <CompletionPanel session={session} />
+        )}
 
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && (
