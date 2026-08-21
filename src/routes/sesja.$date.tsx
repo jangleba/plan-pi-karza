@@ -247,12 +247,12 @@ function sprintRoleForExercise(meta: SprintExerciseMeta): TrainingExercise["spee
 function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | null {
   const id = meta.exercise.exerciseId ?? "";
   const role = sprintRoleForExercise(meta);
+  if (role === "technical") return "technical";
   if (id === "a_skip" || id === "b_skip" || id === "c_skip" || id === "d_skip") return "skip";
   if (role === "conditioning" || (!role && !id)) return null;
   if (role === "cooldown") return "cooldown";
   if (role === "preparation" || role === "primer") return "ramp";
   if (role === "terminal") return "terminal";
-  if (role === "technical") return "technical";
   if (!role && isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
   if (role === "secondary" || id === "scissor_bounds") return "plyo";
   if (role === "primary") return "main";
