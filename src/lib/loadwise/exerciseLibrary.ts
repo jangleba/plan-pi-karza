@@ -3098,8 +3098,14 @@ const aliasEnrichments: Record<string, string[]> = {
 for (const [id, aliases] of Object.entries(aliasEnrichments)) {
   const definition = LIBRARY.find((exercise) => exercise.id === id);
   if (definition) {
-    definition.aliases = [...new Set(aliases)];
+    definition.aliases = [...new Set([...definition.aliases, ...aliases])];
   }
+}
+const longLeverHamstringIso = LIBRARY.find((exercise) => exercise.id === "long_lever_hamstring_iso");
+if (longLeverHamstringIso) {
+  longLeverHamstringIso.aliases = longLeverHamstringIso.aliases.filter(
+    (alias) => alias !== "Heel-dig bridge iso",
+  );
 }
 for (const exercise of LIBRARY) {
   exercise.approved ??= true;

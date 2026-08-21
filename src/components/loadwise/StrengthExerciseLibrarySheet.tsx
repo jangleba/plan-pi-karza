@@ -7,6 +7,7 @@ import {
   buildStrengthLibraryTrainingExercise,
   filterStrengthLibraryExercises,
   getStrengthLibraryFilterOptions,
+  getStrengthLibraryExercises,
   movementLabelForStrengthExercise,
   musclesForStrengthExercise,
 } from "@/lib/loadwise/strengthExerciseLibrary";
@@ -27,16 +28,25 @@ export function StrengthExerciseLibrarySheet({
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
 
   const options = useMemo(() => getStrengthLibraryFilterOptions(), []);
+  const allExercises = useMemo(() => getStrengthLibraryExercises(), []);
   const exercises = useMemo(
     () => filterStrengthLibraryExercises({ query, movement, muscle, equipment, level, place }),
     [equipment, level, movement, muscle, place, query],
   );
+  const exerciseCards = useMemo(
+    () =>
+      exercises.map((exercise) => ({
+        exercise,
+        preview: buildStrengthLibraryTrainingExercise(exercise),
+      })),
+    [exercises],
+  );
   const selectedExercise = useMemo(
     () =>
       exercises.find((exercise) => exercise.id === selectedExerciseId) ??
-      filterStrengthLibraryExercises().find((exercise) => exercise.id === selectedExerciseId) ??
+      allExercises.find((exercise) => exercise.id === selectedExerciseId) ??
       null,
-    [exercises, selectedExerciseId],
+    [allExercises, exercises, selectedExerciseId],
   );
 
   const detailExercise = selectedExercise
@@ -141,27 +151,28 @@ export function StrengthExerciseLibrarySheet({
 
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <div className="space-y-3">
-                {exercises.map((exercise) => (
-                  <button
-                    key={exercise.id}
-                    type="button"
-                    onClick={() => setSelectedExerciseId(exercise.id)}
-                    className="w-full rounded-2xl border border-border/70 bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-primary/40"
-                  >
-                    <div className="text-sm font-semibold leading-snug text-foreground">
-                      {exercise.displayNamePl}
-                    </div>
-                    <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {movementLabelForStrengthExercise(exercise)} ·{" "}
-                      {musclesForStrengthExercise(exercise).slice(0, 3).join(", ")}
-                    </div>
-                    <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      {buildStrengthLibraryTrainingExercise(exercise).equipment} ·{" "}
-                      {buildStrengthLibraryTrainingExercise(exercise).displayPrescription}
-                    </div>
-                  </button>
-                ))}
-                {exercises.length === 0 && (
+                {exerciseCards.map(({ exercise, preview }) => {
+                  return (
+                    <button
+                      key={exercise.id}
+                      type="button"
+                      onClick={() => setSelectedExerciseId(exercise.id)}
+                      className="w-full rounded-2xl border border-border/70 bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-primary/40"
+                    >
+                      <div className="text-sm font-semibold leading-snug text-foreground">
+                        {exercise.displayNamePl}
+                      </div>
+                      <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {movementLabelForStrengthExercise(exercise)} ·{" "}
+                        {musclesForStrengthExercise(exercise).slice(0, 3).join(", ")}
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        {preview.equipment} · {preview.displayPrescription}
+                      </div>
+                    </button>
+                  );
+                })}
+                {exerciseCards.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-sm text-muted-foreground">
                     Brak wyników dla wybranych filtrów. Wyczyść część filtrów albo wyszukaj inną
                     nazwę.
