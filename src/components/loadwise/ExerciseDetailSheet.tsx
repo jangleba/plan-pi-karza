@@ -39,6 +39,16 @@ function rpeChip(e: TrainingExercise): string | null {
   return m ? m[0] : null;
 }
 
+function intensityChip(e: TrainingExercise): string | null {
+  const load = e.loadTarget?.trim();
+  if (!load) return e.rir?.trim() ?? null;
+  return rpeChip(e) === load ? null : load;
+}
+
+function tempoChip(e: TrainingExercise): string | null {
+  return e.tempo?.trim() ?? null;
+}
+
 function restChip(e: TrainingExercise): string | null {
   const r = e.restAfterPair ?? e.restAfterExercise;
   if (!r) return null;
@@ -79,6 +89,7 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
   });
   return {
     purpose: exercise.purpose?.trim() || definition?.objective?.trim() || definition?.stimulus || null,
+    setup: exercise.setup?.trim() || null,
     steps,
     cues,
     errors,
@@ -146,7 +157,7 @@ export function ExerciseDetailSheet({
             </DrawerTitle>
 
             {/* Chipy: dawka / RPE / przerwa */}
-            {(dose || rpe || details.rest) && (
+            {(dose || rpe || intensityChip(e) || tempoChip(e) || details.rest) && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {dose && (
                   <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-semibold tabular-nums text-foreground shadow-sm">
@@ -156,6 +167,16 @@ export function ExerciseDetailSheet({
                 {rpe && (
                   <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-semibold text-foreground shadow-sm">
                     {rpe}
+                  </span>
+                )}
+                {intensityChip(e) && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-foreground shadow-sm">
+                    {intensityChip(e)}
+                  </span>
+                )}
+                {tempoChip(e) && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                    Tempo {tempoChip(e)}
                   </span>
                 )}
                 {details.rest && (
@@ -183,6 +204,14 @@ export function ExerciseDetailSheet({
           </div>
 
           <div className="mt-2 divide-y divide-border/50">
+            {details.setup && (
+              <Section
+                icon={<ListChecks className="h-3.5 w-3.5" />}
+                title="Ustawienie startowe"
+              >
+                <p className="text-sm leading-relaxed text-muted-foreground">{details.setup}</p>
+              </Section>
+            )}
             {details.steps.length > 0 && (
               <Section
                 icon={<ListOrdered className="h-3.5 w-3.5" />}
