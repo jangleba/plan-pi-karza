@@ -155,6 +155,8 @@ interface Built {
   goalOfSession: string;
   riskManaged: string;
   avoidToday: string;
+  /** Structured sections preserved when built via buildStrengthPowerStructured. */
+  structuredSections?: TrainingSection[];
 }
 
 function buildByGoal(profile: Profile): Built {
@@ -206,7 +208,39 @@ function buildByGoal(profile: Profile): Built {
           },
         ],
       };
-    case "strength":
+    case "strength": {
+      // For gym profiles, delegate to the canonical structured engine so that
+      // all exercises come from the approved library with proper age/level rules.
+      if (profile.hasGym) {
+        const gymPlan = buildStrengthPowerStructured(profile, {
+          mdLabel: null,
+          powerFocus: false,
+          weekPhase: "development",
+          weekIndex: 0,
+          gymSessionIndexInWeek: 0,
+          gymSessionsThisWeekTotal: 1,
+          history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
+        });
+        if (gymPlan) {
+          const filteredSections = filterUnavailableEquipment(gymPlan.sections, profile);
+          const flat = structuredToFlat(filteredSections);
+          return {
+            title: gymPlan.title,
+            sessionType: gymPlan.sessionType,
+            intensity: gymPlan.intensity,
+            durationMin: gymPlan.durationMin,
+            goalOfSession: gymPlan.goalOfSession,
+            riskManaged: "Kontrolowany ciężar i RIR ograniczają ryzyko przeciążenia.",
+            avoidToday:
+              "Nie planuj dziś dodatkowo twardych sprintów ani plyometrii. Bez ciężkich nóg na 48 h przed meczem.",
+            main: flat.main,
+            accessory: flat.accessory,
+            footballTransfer: [],
+            structuredSections: filteredSections,
+          };
+        }
+      }
+      // Non-gym or fallback: bodyweight / minimal-equipment canonical exercises.
       return {
         title: young ? "Sesja siły bazowej" : "Sesja siły piłkarskiej",
         sessionType: "Siła",
@@ -223,6 +257,7 @@ function buildByGoal(profile: Profile): Built {
         main: young
           ? [
               {
+                exerciseId: "bodyweight_squat",
                 name: "Przysiad z masą ciała",
                 prescription: "4 × 10, technika",
                 rest: "60 s",
@@ -231,53 +266,77 @@ function buildByGoal(profile: Profile): Built {
                 harder: "Przysiad z lekkim obciążeniem (gdy technika pewna).",
               },
               {
-                name: "Wykroki w miejscu",
+                exerciseId: "bodyweight_split_squat",
+                name: "Split squat",
                 prescription: "3 × 8 na nogę",
                 rest: "45 s",
                 cue: "Tułów pionowo, kolano nie ucieka do środka.",
                 easier: "Mniejszy zakres / przytrzymaj się podpory.",
               },
               {
-                name: "Plank",
-                prescription: "3 × 30 s",
-                cue: "Napięty brzuch, biodra w linii.",
-                easier: "Plank z kolan.",
-                harder: "Plank z unoszeniem nogi.",
+                exerciseId: "glute_bridge",
+                name: "Glute bridge",
+                prescription: "3 × 12",
+                rest: "45 s",
+                cue: "Biodra w górę, ściskaj pośladki w górnym punkcie.",
+                easier: "Mniejszy zakres ruchu.",
+              },
+              {
+                exerciseId: "push_up",
+                name: "Pompki",
+                prescription: "3 × 8–12",
+                rest: "45 s",
+                cue: "Ciało w linii prostej, łokcie niezbyt szeroko.",
+                easier: "Pompki z kolan.",
               },
             ]
           : [
               {
-                name: "Przysiad",
-                prescription: "4 × 6, ciężar kontrolowany",
-                rest: "120 s",
+                exerciseId: "goblet_squat",
+                name: "Goblet squat",
+                prescription: "4 × 6–8",
+                rest: "90 s",
                 cue: "Napnij tułów przed zejściem, pełny zakres.",
-                easier: "Przysiad goblet z lżejszym ciężarem.",
+                easier: "Zmniejsz ciężar / przysiad z masą ciała.",
                 harder: "Tempo 3-1-1 lub +5% ciężaru.",
               },
               {
-                name: "Martwy ciąg rumuński",
+                exerciseId: "romanian_deadlift_db",
+                name: "RDL z hantlami",
                 prescription: "3 × 8",
                 rest: "90 s",
                 cue: "Biodra w tył, plecy proste, czuj tylne uda.",
                 easier: "Mniejszy zakres / lżejszy ciężar.",
               },
               {
-                name: "Wykrok bułgarski",
+                exerciseId: "bodyweight_split_squat",
+                name: "Split squat",
                 prescription: "3 × 8 na nogę",
                 rest: "75 s",
                 cue: "Pion tułowia, stabilne kolano.",
-                easier: "Wykrok w miejscu.",
+                easier: "Zmniejsz zakres ruchu.",
+              },
+              {
+                exerciseId: "push_up",
+                name: "Pompki",
+                prescription: "3 × 10–15",
+                rest: "60 s",
+                cue: "Ciało w linii, kontrolowane zejście.",
+                easier: "Pompki z kolan.",
+                harder: "Pompki z obciążeniem / z podwyższenia.",
               },
             ],
         accessory: [
           {
-            name: "Stabilizacja core",
-            prescription: "3 × 40 s plank boczny",
+            exerciseId: "side_plank",
+            name: "Plank boczny",
+            prescription: "3 × 30–40 s / stronę",
             cue: "Linia ciała prosta, biodra wysoko.",
           },
         ],
         footballTransfer: [],
       };
+    }
     case "endurance":
       return {
         title: "Interwały piłkarskie kontrolowane",
@@ -988,7 +1047,37 @@ function buildLightAlternative(profile: Profile): Built {
         accessory: [],
         footballTransfer: [],
       };
-    case "strength":
+    case "strength": {
+      // For gym profiles, use a reduced-load canonical structured session.
+      if (profile.hasGym) {
+        const gymPlan = buildStrengthPowerStructured(profile, {
+          mdLabel: null,
+          powerFocus: false,
+          weekPhase: "deload",
+          weekIndex: 0,
+          gymSessionIndexInWeek: 0,
+          gymSessionsThisWeekTotal: 1,
+          history: { usedRolesThisWeek: [], usedMainThisWeek: [], usedMainLastWeek: [] },
+        });
+        if (gymPlan) {
+          const filteredSections = filterUnavailableEquipment(gymPlan.sections, profile);
+          const flat = structuredToFlat(filteredSections);
+          return {
+            title: "Podtrzymanie siły",
+            sessionType: "Siła (podtrzymanie)",
+            intensity: "umiarkowana",
+            durationMin: 30,
+            goalOfSession: "Utrzymanie siły i odporności bez gonienia za zmęczeniem.",
+            riskManaged: "Mała objętość, 2–3 RIR — bez przeciążenia po cięższym dniu.",
+            avoidToday: "Bez maksymalnych prób i dużej objętości.",
+            main: flat.main,
+            accessory: flat.accessory,
+            footballTransfer: [],
+            structuredSections: filteredSections,
+          };
+        }
+      }
+      // Non-gym or fallback: canonical bodyweight exercises.
       return {
         title: "Podtrzymanie siły",
         sessionType: "Siła (podtrzymanie)",
@@ -1000,27 +1089,31 @@ function buildLightAlternative(profile: Profile): Built {
         avoidToday: "Bez maksymalnych prób i dużej objętości.",
         main: [
           {
-            name: young ? "Przysiad z masą ciała" : "Przysiad / split squat",
+            exerciseId: young ? "bodyweight_squat" : "goblet_squat",
+            name: young ? "Przysiad z masą ciała" : "Goblet squat",
             prescription: "2 × 6",
             rest: "90 s",
             cue: "Kontrola, technika ponad ciężar.",
           },
           {
-            name: "Martwy ciąg rumuński (lekko)",
+            exerciseId: "romanian_deadlift_db",
+            name: "RDL z hantlami",
             prescription: "2 × 8",
             rest: "90 s",
             cue: "Biodra w tył, plecy proste.",
             easier: "Mniejszy zakres / lżejszy ciężar.",
           },
           {
-            name: "Core i prehab",
-            prescription: "2 × 40 s plank + przywodziciele",
-            cue: "Napięcie tułowia, kontrola.",
+            exerciseId: "plank",
+            name: "Plank",
+            prescription: "2 × 30–40 s",
+            cue: "Napięcie tułowia, biodra w linii.",
           },
         ],
         accessory: [],
         footballTransfer: [],
       };
+    }
     case "endurance":
       return {
         title: "Lekki trening tlenowy",
@@ -3605,7 +3698,7 @@ function convertRecoveryToBuilt(
   day.goalOfSession = built.goalOfSession;
   day.riskManaged = built.riskManaged;
   day.avoidToday = built.avoidToday;
-  day.structuredSections = undefined;
+  day.structuredSections = built.structuredSections;
   day.sections = {
     warmup: warmup(),
     main: built.main,
