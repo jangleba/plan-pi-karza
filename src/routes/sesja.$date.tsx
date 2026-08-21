@@ -251,7 +251,9 @@ function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | n
   if (role === "conditioning" || (!role && !id)) return null;
   if (role === "cooldown") return "cooldown";
   if (role === "preparation" || role === "primer") return "ramp";
-  if (role === "terminal" || isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
+  if (role === "terminal") return "terminal";
+  if (role === "technical") return "technical";
+  if (!role && isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
   if (role === "secondary" || id === "scissor_bounds") return "plyo";
   if (role === "primary") return "main";
   if (role === "technical") return "technical";
