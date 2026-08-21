@@ -281,7 +281,7 @@ export function resolveSprintExerciseDetails(exercise: TrainingExercise): Sprint
       null,
     cues,
     errors,
-    safety: exercise.commonMistake ?? definition?.injuryCautions?.[0] ?? null,
+    safety: definition?.injuryCautions?.[0] ?? null,
     equipment: equipment || "Masa ciała",
     noEquipmentReplacement,
   };

@@ -4143,7 +4143,7 @@ export function generatePlan(
         restAfterPair: exercise.restBetweenSets,
         displayPrescription: `${exercise.sets} serie × ${exercise.reps} powt. · ${exercise.distanceOrDuration}`,
         equipment: exercise.equipment.requiredEquipment.join(", ") || undefined,
-        cue: exercise.coachingCuesPl.join(" "),
+        cue: exercise.coachingCuesPl.join(". "),
         commonMistake: exercise.safetyStopRule,
       };
       const sectionType =
@@ -4182,7 +4182,7 @@ export function generatePlan(
       purpose: exercise.purpose,
       prescription: exercise.dose,
       rest: exercise.rest,
-      cue: exercise.coachingCuesPl.join(" "),
+      cue: exercise.coachingCuesPl.join(". "),
     });
     Object.assign(target, {
       title: speed.title,
