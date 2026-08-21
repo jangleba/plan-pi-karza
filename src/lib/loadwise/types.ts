@@ -228,6 +228,8 @@ exerciseId?: string;
   name: string;
   /** Krótko: co ćwiczenie rozwija i dlaczego znajduje się w sesji. */
   purpose?: string;
+  /** Krótkie ustawienie startowe pokazywane w bibliotece ćwiczeń. */
+  setup?: string;
 
   /** Jednoznaczny klucz dedykowanej ilustracji ćwiczenia. */
   visualId?: string;
