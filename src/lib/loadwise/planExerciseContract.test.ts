@@ -98,6 +98,23 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
     ).toBe(true);
   });
 
+  it("hydrates athlete-visible instructions across generation and JSON hydration", () => {
+    const profile = makeProfile("general");
+    profile.clubTrainingDays = [];
+    const generated = generatePlan(profile, START, 28);
+    const hydrated = JSON.parse(JSON.stringify(generated)) as ReturnType<typeof generatePlan>;
+
+    for (const plan of [generated, hydrated]) {
+      const issues = validatePlanExerciseContract(plan);
+      expect(
+        issues.filter((issue) => issue.code === "missing-execution-instructions"),
+      ).toEqual([]);
+      expect(
+        issues.filter((issue) => issue.code === "missing-prescription"),
+      ).toEqual([]);
+    }
+  });
+
   it("canonicalizes generated endurance exercises deterministically", () => {
     const profile = makeProfile("endurance");
     profile.clubTrainingDays = [];
@@ -148,5 +165,32 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
     expect(validatePlanExerciseContract(plan).some((issue) => issue.code === "invalid-exercise-id")).toBe(
       true,
     );
+  });
+
+  it("reports missing athlete-visible execution instructions before persistence", () => {
+    const plan = generatePlan(makeProfile("general"), START, 7);
+    const trainingDay = plan.find((day) => day.dayType === "training")!;
+    trainingDay.sections = {
+      warmup: [],
+      main: [
+        {
+          name: "Przysiad z masą własnego ciała",
+          exerciseId: "bodyweight_squat",
+          prescription: "3 × 8",
+          technique: "",
+          instructionSteps: [],
+        },
+      ],
+      accessory: [],
+      footballTransfer: [],
+      cooldown: [],
+    };
+    trainingDay.structuredSections = undefined;
+
+    expect(
+      validatePlanExerciseContract(plan).some(
+        (issue) => issue.code === "missing-execution-instructions",
+      ),
+    ).toBe(true);
   });
 });

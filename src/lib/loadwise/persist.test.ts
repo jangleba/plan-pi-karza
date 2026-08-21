@@ -149,4 +149,21 @@ describe("persistMonthlyPlan", () => {
       operations.some((op) => op.table === "training_plans" && op.method === "delete"),
     ).toBe(true);
   });
+
+  it("rejects persistence when executable session misses athlete-visible instructions", async () => {
+    const invalidDay = makeDay("2026-08-20");
+    invalidDay.dayType = "training";
+    invalidDay.sections.main = [
+      {
+        name: "Przysiad z masą własnego ciała",
+        exerciseId: "bodyweight_squat",
+        prescription: "3 × 8",
+      },
+    ];
+
+    await expect(persistMonthlyPlan("user-1", profile, [invalidDay])).rejects.toThrow(
+      "[PLAN_EXERCISE_CONTRACT]",
+    );
+    expect(operations).toHaveLength(0);
+  });
 });

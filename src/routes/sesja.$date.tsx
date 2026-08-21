@@ -30,6 +30,10 @@ import {
 } from "lucide-react";
 import { MovementBlueprint } from "@/components/loadwise/MovementBlueprint";
 import {
+  ExerciseDetailSheet,
+  resolveExerciseSheetViewModel,
+} from "@/components/loadwise/ExerciseDetailSheet";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -276,7 +280,7 @@ export function resolveSprintExerciseDetails(exercise: TrainingExercise): Sprint
     purpose: exercise.purpose ?? definition?.objective ?? definition?.stimulus ?? null,
     howTo:
       definition?.instructionsPl?.join(" ") ??
-      exercise.instructionSteps?.map((step) => step.text).join(" ") ??
+      exercise.instructionSteps?.map((step) => [step.title, step.description].filter(Boolean).join(" — ")).join(" ") ??
       exercise.technique ??
       null,
     cues,
@@ -363,6 +367,7 @@ function ExerciseRow({
   equipmentIds: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [restRunning, setRestRunning] = useState(false);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const restSecondsRef = useRef(restSeconds);
@@ -384,14 +389,7 @@ function ExerciseRow({
   const rest = restLabel(e);
   const definition = resolveDefinitionForExercise(e);
   const title = canonicalExerciseName(e);
-  const cues = (definition?.coachingCues ?? e.cue?.split(/[.;]\s*/).filter(Boolean) ?? []).slice(
-    0,
-    3,
-  );
-  const errors = (definition?.commonErrors ?? (e.commonMistake ? [e.commonMistake] : [])).slice(
-    0,
-    2,
-  );
+  const details = resolveExerciseSheetViewModel(e);
   const equipmentNames = equipmentIds.map(
     (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
@@ -444,27 +442,58 @@ function ExerciseRow({
           </div>
           {expanded && (
             <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
-              {e.purpose && <p className="text-sm leading-relaxed text-foreground">{e.purpose}</p>}
-              {cues.length > 0 && (
+              {details.purpose && (
+                <p className="text-sm leading-relaxed text-foreground">{details.purpose}</p>
+              )}
+              {details.steps.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Jak wykonać</div>
+                  <ol className="mt-1 space-y-1 pl-4 text-sm text-foreground">
+                    {details.steps.map((step, index) => (
+                      <li key={index} className="list-decimal">
+                        {[step.title, step.description].filter(Boolean).join(" — ")}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {details.cues.length > 0 && (
                 <div>
                   <div className="font-semibold text-muted-foreground">Wskazówki</div>
                   <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {cues.map((cue, i) => (
+                    {details.cues.map((cue, i) => (
                       <li key={i}>{cue}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {errors.length > 0 && (
+              {details.errors.length > 0 && (
                 <div>
                   <div className="font-semibold text-muted-foreground">Błędy</div>
                   <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {errors.map((error, i) => (
+                    {details.errors.map((error, i) => (
                       <li key={i}>{error}</li>
                     ))}
                   </ul>
                 </div>
               )}
+              <div className="grid gap-2 text-sm text-foreground/80 sm:grid-cols-2">
+                <div>
+                  <div className="font-semibold text-muted-foreground">Sprzęt</div>
+                  <p className="mt-1">{details.equipment}</p>
+                </div>
+                <div>
+                  <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
+                  <p className="mt-1">{details.replacement}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailSheetOpen(true)}
+                className="text-[11px] font-semibold text-primary"
+              >
+                Otwórz pełne szczegóły ćwiczenia
+              </button>
               <MovementBlueprint exercise={e} />
             </div>
           )}
@@ -503,6 +532,11 @@ function ExerciseRow({
           )}
         </div>
       </div>
+      <ExerciseDetailSheet
+        exercise={e}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+      />
     </div>
   );
 }
@@ -521,6 +555,7 @@ function SprintExerciseRow({
   equipmentIds: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [restRunning, setRestRunning] = useState(false);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const restSecondsRef = useRef(restSeconds);
@@ -685,11 +720,23 @@ function SprintExerciseRow({
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setDetailSheetOpen(true)}
+                className="text-[11px] font-semibold text-primary"
+              >
+                Otwórz pełne szczegóły ćwiczenia
+              </button>
               <MovementBlueprint exercise={exercise} />
             </div>
           )}
         </div>
       </div>
+      <ExerciseDetailSheet
+        exercise={exercise}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+      />
     </div>
   );
 }

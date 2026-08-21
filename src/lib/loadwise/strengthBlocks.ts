@@ -10,6 +10,7 @@ import type {
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import {
   getExerciseDefinition,
+  hydrateTrainingExerciseFromDefinition,
   isApprovedCanonicalExercise,
   resolveExerciseByName,
   selectEquipmentAwareReplacement,
@@ -239,7 +240,7 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "goblet squat (tempo)": "goblet_squat",
 };
 
-function canonicalizeGeneratedExercise(name: string) {
+function canonicalizeExerciseDefinition(name: string) {
   const normalized = name.trim().toLocaleLowerCase();
   const fromName = resolveExerciseByName(name);
   const resolved = isApprovedCanonicalExercise(fromName)
@@ -253,8 +254,8 @@ function canonicalizeGeneratedExercise(name: string) {
 
 function ex(e: Omit<TrainingExercise, "id"> & { canonicalize?: boolean }): TrainingExercise {
   const { canonicalize = true, ...exercise } = e;
-  const canonical = canonicalize ? canonicalizeGeneratedExercise(exercise.name) : undefined;
-  return {
+  const canonical = canonicalize ? canonicalizeExerciseDefinition(exercise.name) : undefined;
+  const next = {
     id: uid("ex"),
     completed: false,
     ...exercise,
@@ -268,6 +269,7 @@ function ex(e: Omit<TrainingExercise, "id"> & { canonicalize?: boolean }): Train
         }
       : {}),
   };
+  return canonicalize ? hydrateTrainingExerciseFromDefinition(next) : next;
 }
 function block(b: Omit<TrainingBlock, "id">): TrainingBlock {
   return { id: uid("blk"), ...b };
@@ -3855,7 +3857,8 @@ export function flatToStructured(sections: {
                   ? "braking"
                   : "strength",
             exercises: g.items.map((it) =>
-              ex({
+              hydrateTrainingExerciseFromDefinition(
+                ex({
                 canonicalize: false,
                 name: it.name,
                 exerciseId: it.exerciseId,
@@ -3871,7 +3874,8 @@ export function flatToStructured(sections: {
                 commonMistake: it.commonMistake,
                 regression: it.easier,
                 progression: it.harder,
-              }),
+                 }),
+               ),
             ),
           }),
         ],

@@ -1,6 +1,7 @@
 import type { Profile, SessionDay, ExerciseItem } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { isoDate, localToday } from "./labels";
+import { assertPlanExerciseContract } from "./planExerciseContract";
 
 function supabaseErrorMessage(error: unknown): string {
   if (error && typeof error === "object") {
@@ -84,6 +85,7 @@ export async function persistMonthlyPlan(
   profile: Profile,
   plan: SessionDay[],
 ): Promise<void> {
+  assertPlanExerciseContract(plan);
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 

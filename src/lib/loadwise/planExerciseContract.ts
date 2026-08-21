@@ -1,10 +1,17 @@
-import type { ExerciseItem, SessionDay } from "./types";
+import type {
+  ExerciseInstructionStep,
+  ExerciseItem,
+  SessionDay,
+  TrainingExercise,
+} from "./types";
 import { getExerciseDefinition, isApprovedCanonicalExercise } from "./exerciseLibrary";
 
 export type PlanExerciseContractIssueCode =
   | "empty-own-session"
   | "placeholder-exercise"
-  | "invalid-exercise-id";
+  | "invalid-exercise-id"
+  | "missing-prescription"
+  | "missing-execution-instructions";
 
 export interface PlanExerciseContractIssue {
   date: string;
@@ -24,24 +31,79 @@ const PLACEHOLDER_PATTERNS: RegExp[] = [
   /\btodo\b/i,
 ];
 
-function collectSessionExercises(session: SessionDay): ExerciseItem[] {
+interface ContractExercise {
+  exerciseId?: string;
+  name: string;
+  prescription: string;
+  technique?: string;
+  instructionSteps?: ExerciseInstructionStep[];
+  exerciseSource: "flat" | "structured";
+}
+
+function structuredPrescription(exercise: TrainingExercise): string {
+  return (
+    exercise.displayPrescription?.trim() ||
+    [exercise.sets && exercise.reps ? `${exercise.sets} × ${exercise.reps}` : exercise.reps || exercise.sets]
+      .concat([exercise.duration, exercise.loadTarget, exercise.rpe])
+      .filter(Boolean)
+      .join(" · ")
+  );
+}
+
+function collectSessionExercises(session: SessionDay): ContractExercise[] {
+  const structuredExercises =
+    session.structuredSections?.flatMap((section) =>
+      section.blocks.flatMap((block) =>
+        block.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          name: exercise.name,
+          prescription: structuredPrescription(exercise),
+          technique: exercise.technique,
+          instructionSteps: exercise.instructionSteps,
+          exerciseSource: "structured" as const,
+        })),
+      ),
+    ) ?? [];
+
+  if (structuredExercises.length > 0) {
+    return structuredExercises;
+  }
+
   const sectionExercises = [
     ...session.sections.warmup,
     ...session.sections.main,
     ...session.sections.accessory,
     ...session.sections.footballTransfer,
     ...session.sections.cooldown,
-  ];
-  const structuredExercises =
-    session.structuredSections?.flatMap((section) =>
-      section.blocks.flatMap((block) => block.exercises),
-    ) ?? [];
+  ].map((exercise) => ({
+    exerciseId: exercise.exerciseId,
+    name: exercise.name,
+    prescription: String(exercise.displayPrescription ?? exercise.prescription ?? "").trim(),
+    technique: exercise.technique,
+    instructionSteps: exercise.instructionSteps,
+    exerciseSource: "flat" as const,
+  }));
 
-  if (sectionExercises.length > 0 || structuredExercises.length > 0) {
-    return [...sectionExercises, ...structuredExercises];
+  if (sectionExercises.length > 0) {
+    return sectionExercises;
   }
 
-  return session.exercises ?? [];
+  return (session.exercises ?? []).map((exercise) => ({
+    exerciseId: exercise.exerciseId,
+    name: exercise.name,
+    prescription: String(exercise.displayPrescription ?? exercise.prescription ?? "").trim(),
+    technique: exercise.technique,
+    instructionSteps: exercise.instructionSteps,
+    exerciseSource: "flat" as const,
+  }));
+}
+
+function hasInstructionSteps(steps: ExerciseInstructionStep[] | undefined): boolean {
+  return Boolean(
+    steps?.some(
+      (step) => step.title?.trim().length || step.description?.trim().length,
+    ),
+  );
 }
 
 function validateOwnSession(
@@ -91,6 +153,35 @@ function validateOwnSession(
       PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(searchableText));
 
     if (!isPlaceholder) {
+      if (prescription.length === 0) {
+        issues.push({
+          date: session.date,
+          slot,
+          code: "missing-prescription",
+          exerciseName: exercise.name,
+          message:
+            `Ćwiczenie "${exercise.name}" w sesji ${session.date}, slot ${slot}, ` +
+            "nie zawiera czytelnej dawki dla zawodnika.",
+        });
+      }
+
+      const hasInstructions =
+        hasInstructionSteps(exercise.instructionSteps) ||
+        String(exercise.technique ?? "").trim().length > 0 ||
+        Boolean(canonical?.instructionsPl?.some((step) => step.trim().length > 0));
+
+      if (!hasInstructions) {
+        issues.push({
+          date: session.date,
+          slot,
+          code: "missing-execution-instructions",
+          exerciseName: exercise.name,
+          message:
+            `Ćwiczenie "${exercise.name}" w sesji ${session.date}, slot ${slot}, ` +
+            "nie ma instrukcji wykonania widocznych dla zawodnika.",
+        });
+      }
+
       continue;
     }
 

@@ -1,5 +1,11 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import {
+  getAllEquipmentDefinitions,
+  getExerciseDefinition,
+  resolveExerciseByName,
+  specialistEquipmentForExercise,
+} from "@/lib/loadwise/exerciseLibrary";
+import {
   Drawer,
   DrawerContent,
   DrawerTitle,
@@ -12,6 +18,8 @@ import {
   ArrowDownRight,
   ArrowUpRight,
 } from "lucide-react";
+
+const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 function doseChip(e: TrainingExercise): string | null {
   const display = e.displayPrescription?.trim();
 
@@ -48,6 +56,43 @@ function techniqueCues(e: TrainingExercise): string[] {
     .slice(0, 3);
 }
 
+export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
+  const definition =
+    (exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined) ??
+    resolveExerciseByName(exercise.name);
+  const steps =
+    exercise.instructionSteps?.filter(
+      (step) => step.title?.trim().length || step.description?.trim().length,
+    ) ??
+    [];
+  const cues =
+    definition?.coachingCues?.slice(0, 3) ?? techniqueCues(exercise);
+  const errors =
+    definition?.commonErrors?.slice(0, 2) ??
+    (exercise.commonMistake ? [exercise.commonMistake] : []);
+  const equipmentNames = specialistEquipmentForExercise(definition).map(
+    (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
+  );
+  const noEquipmentReplacementId = definition?.replacementIds?.find((candidateId) => {
+    const candidate = getExerciseDefinition(candidateId);
+    return candidate && specialistEquipmentForExercise(candidate).length === 0;
+  });
+  return {
+    purpose: exercise.purpose?.trim() || definition?.objective?.trim() || definition?.stimulus || null,
+    steps,
+    cues,
+    errors,
+    rest: restChip(exercise),
+    equipment: equipmentNames.length ? equipmentNames.join(", ") : "Masa ciała",
+    replacement: noEquipmentReplacementId
+      ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ?? noEquipmentReplacementId)
+      : (equipmentNames.length ? "Brak zatwierdzonej zamiany bez sprzętu" : "Nie dotyczy"),
+    regression: exercise.regression?.trim() || null,
+    progression: exercise.progression?.trim() || null,
+    stopRule: exercise.contraindications?.trim() || definition?.injuryCautions?.[0] || null,
+  };
+}
+
 function Section({
   icon,
   title,
@@ -81,10 +126,7 @@ export function ExerciseDetailSheet({
   const e = exercise;
   const dose = doseChip(e);
   const rpe = rpeChip(e);
-  const rest = restChip(e);
-  const cues = techniqueCues(e);
-  const purpose = e.purpose?.trim();
-  const steps = e.instructionSteps ?? [];
+  const details = resolveExerciseSheetViewModel(e);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -104,7 +146,7 @@ export function ExerciseDetailSheet({
             </DrawerTitle>
 
             {/* Chipy: dawka / RPE / przerwa */}
-            {(dose || rpe || rest) && (
+            {(dose || rpe || details.rest) && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {dose && (
                   <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-semibold tabular-nums text-foreground shadow-sm">
@@ -116,22 +158,22 @@ export function ExerciseDetailSheet({
                     {rpe}
                   </span>
                 )}
-                {rest && (
+               {details.rest && (
                   <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-                    ⏱ {rest}
+                   ⏱ {details.rest}
                   </span>
                 )}
               </div>
             )}
           </div>
-{purpose && (
+{details.purpose && (
   <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
       Po co to ćwiczenie
     </div>
 
     <p className="mt-1 text-sm leading-relaxed text-foreground">
-      {purpose}
+      {details.purpose}
     </p>
   </div>
 )}
@@ -141,13 +183,13 @@ export function ExerciseDetailSheet({
           </div>
 
           <div className="mt-2 divide-y divide-border/50">
-            {steps.length > 0 && (
+            {details.steps.length > 0 && (
               <Section
                 icon={<ListOrdered className="h-3.5 w-3.5" />}
                 title="Jak wykonać"
               >
                 <ol className="space-y-3">
-                  {steps.map((step, i) => {
+                  {details.steps.map((step, i) => {
                     const title = step?.title?.trim?.() ?? "";
                     const description = step?.description?.trim?.() ?? "";
                     if (!title && !description) return null;
@@ -180,13 +222,13 @@ export function ExerciseDetailSheet({
                 </ol>
               </Section>
             )}
-            {cues.length > 0 && (
+            {details.cues.length > 0 && (
               <Section
                 icon={<ListChecks className="h-3.5 w-3.5" />}
                 title="Technika"
               >
                 <ul className="space-y-1.5">
-                  {cues.map((c, i) => (
+                  {details.cues.map((c, i) => (
                     <li key={i} className="flex gap-2 text-sm text-foreground">
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
                       <span>{c}</span>
@@ -196,12 +238,16 @@ export function ExerciseDetailSheet({
               </Section>
             )}
 
-            {e.commonMistake && (
+            {details.errors.length > 0 && (
               <Section
                 icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                title="Najczęstszy błąd"
+                title="Najczęstsze błędy"
               >
-                <p className="text-sm text-muted-foreground">{e.commonMistake}</p>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  {details.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
               </Section>
             )}
 
@@ -220,6 +266,23 @@ export function ExerciseDetailSheet({
                 title="Trudniejsza wersja"
               >
                 <p className="text-sm text-muted-foreground">{e.progression}</p>
+              </Section>
+            )}
+            <Section
+              icon={<ListChecks className="h-3.5 w-3.5" />}
+              title="Sprzęt i zamiana"
+            >
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Sprzęt: {details.equipment}</p>
+                <p>Zamiana bez sprzętu: {details.replacement}</p>
+              </div>
+            </Section>
+            {details.stopRule && (
+              <Section
+                icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                title="Kiedy przerwać"
+              >
+                <p className="text-sm text-muted-foreground">{details.stopRule}</p>
               </Section>
             )}
           </div>

@@ -19,6 +19,8 @@ import {
   getApprovedExerciseDefinitions,
   isApprovedCanonicalExercise,
   canonicalizeGeneratedExercise,
+  hydrateExerciseItemFromDefinition,
+  hydrateTrainingExerciseFromDefinition,
   migratePersistedExerciseData,
   validateCanonicalReplacementChains,
   type ExerciseDefinition,
@@ -389,6 +391,31 @@ describe("library contract 2.0", () => {
     expect(isApprovedCanonicalExercise(draft)).toBe(false);
     const unapproved = { ...source, approved: false, draft: false };
     expect(isApprovedCanonicalExercise(unapproved)).toBe(false);
+  });
+
+  it("hydrates persisted flat exercises with purpose and execution details", () => {
+    const hydrated = hydrateExerciseItemFromDefinition({
+      name: "Easy aerobic run",
+      exerciseId: "easy_aerobic_run",
+      prescription: "20 min",
+    });
+    expect(hydrated.name).toBe("Łatwy bieg tlenowy");
+    expect(hydrated.purpose).toBeTruthy();
+    expect(hydrated.technique).toBeTruthy();
+    expect(hydrated.instructionSteps?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("hydrates persisted structured exercises with consistent canonical details", () => {
+    const hydrated = hydrateTrainingExerciseFromDefinition({
+      id: "ex-1",
+      name: "Pallof press",
+      exerciseId: "pallof_press",
+      reps: "3 × 8 / stronę",
+    });
+    expect(hydrated.name).toBe("Pallof press");
+    expect(hydrated.purpose).toBeTruthy();
+    expect(hydrated.technique).toBeTruthy();
+    expect(hydrated.instructionSteps?.length).toBeGreaterThanOrEqual(3);
   });
 
   it("resolves every generated strength exercise to an approved canonical record", () => {
