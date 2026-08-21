@@ -333,7 +333,11 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
     const exercises = source.map((meta) => ({
       id: meta.exercise.id,
       exercise: meta.exercise,
-      canonicalName: canonicalExerciseName(meta.exercise),
+      // Ćwiczenia z rolą sprintową mają precyzyjną nazwę z silnika; kanoniczna
+      // definicja dostarcza jedynie opis, instrukcję, wskazówki i błędy.
+      canonicalName: meta.exercise.speedRole
+        ? meta.exercise.name
+        : canonicalExerciseName(meta.exercise),
       prescription:
         block.key === "skip" ? SPRINT_SKIP_PRESCRIPTION : formatSprintPrescription(meta.exercise),
       showSkipSetLabels: block.key === "skip",
@@ -344,6 +348,7 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
       title: block.title,
       estimatedMin: block.estMin,
       exercises,
+      hasDataError: exercises.length === 0 && block.key !== "cooldown",
     };
   });
 }
