@@ -833,8 +833,12 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
                   {block.title}
                 </span>
                 {!isExpanded && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {exerciseCount} ćw. · ~{block.estimatedMin} min
+                  <span
+                    className={`text-[11px] ${block.hasDataError ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {block.hasDataError
+                      ? "Błąd danych sesji"
+                      : `${exerciseCount} ćw. · ~${block.estimatedMin} min`}
                   </span>
                 )}
                 <ChevronRight
