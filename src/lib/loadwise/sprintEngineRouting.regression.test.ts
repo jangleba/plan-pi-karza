@@ -199,3 +199,29 @@ describe("sprint engine routing regression (issue #52)", () => {
     }
   });
 });
+
+describe("speedRole mapping regression", () => {
+  it("zachowuje speedRole po generacji, JSON round-trip i flatToStructured", async () => {
+    const { flatToStructured } = await import("./strengthBlocks");
+    const plan = generatePlan(BASE_PROFILE, new Date("2026-08-17"), 7);
+    const sprints = sprintSessions(plan);
+    expect(sprints.length).toBeGreaterThanOrEqual(1);
+
+    for (const original of sprints) {
+      const persisted = JSON.parse(JSON.stringify(original)) as SessionDay;
+      const items = [
+        ...persisted.sections.warmup,
+        ...persisted.sections.main,
+        ...persisted.sections.cooldown,
+      ];
+      expect(items.length).toBeGreaterThan(0);
+      expect(items.every((item) => Boolean(item.speedRole))).toBe(true);
+
+      const structured = flatToStructured(persisted.sections);
+      const structuredExercises = structured.flatMap((section) =>
+        section.blocks.flatMap((block) => block.exercises),
+      );
+      expect(structuredExercises.every((exercise) => Boolean(exercise.speedRole))).toBe(true);
+    }
+  });
+});
