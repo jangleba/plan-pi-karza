@@ -158,25 +158,25 @@ export function ExerciseDetailSheet({
                     {rpe}
                   </span>
                 )}
-               {details.rest && (
+                {details.rest && (
                   <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-                   ⏱ {details.rest}
+                    ⏱ {details.rest}
                   </span>
                 )}
               </div>
             )}
           </div>
-{details.purpose && (
-  <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
-    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
-      Po co to ćwiczenie
-    </div>
+          {details.purpose && (
+            <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
+                Po co to ćwiczenie
+              </div>
 
-    <p className="mt-1 text-sm leading-relaxed text-foreground">
-      {details.purpose}
-    </p>
-  </div>
-)}
+              <p className="mt-1 text-sm leading-relaxed text-foreground">
+                {details.purpose}
+              </p>
+            </div>
+          )}
           {/* Movement Blueprint */}
           <div className="mt-5">
             <MovementBlueprint exercise={e} />
