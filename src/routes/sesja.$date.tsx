@@ -167,6 +167,8 @@ export type SprintBlockView = {
   title: string;
   estimatedMin: number;
   exercises: SprintExerciseView[];
+  /** Pusty obowiązkowy blok sprintu = błąd danych, nie prawidłowy wynik. */
+  hasDataError?: boolean;
 };
 
 type SprintExerciseMeta = {
