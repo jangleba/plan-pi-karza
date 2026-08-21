@@ -845,6 +845,11 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
                   className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
                 />
               </button>
+              {isExpanded && block.hasDataError && (
+                <div className="mt-2 text-xs font-medium text-destructive">
+                  Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
+                </div>
+              )}
               {isExpanded && (
                 <div className="mt-2 divide-y divide-border/50">
                   {block.exercises.map((item) => {
