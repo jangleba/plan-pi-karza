@@ -335,9 +335,11 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
       exercise: meta.exercise,
       // Ćwiczenia z rolą sprintową mają precyzyjną nazwę z silnika; kanoniczna
       // definicja dostarcza jedynie opis, instrukcję, wskazówki i błędy.
-      canonicalName: meta.exercise.speedRole
-        ? meta.exercise.name
-        : canonicalExerciseName(meta.exercise),
+      // Blok skipów jest scalany po ID, więc pozostaje przy nazwie kanonicznej.
+      canonicalName:
+        meta.exercise.speedRole && block.key !== "skip"
+          ? meta.exercise.name
+          : canonicalExerciseName(meta.exercise),
       prescription:
         block.key === "skip" ? SPRINT_SKIP_PRESCRIPTION : formatSprintPrescription(meta.exercise),
       showSkipSetLabels: block.key === "skip",
