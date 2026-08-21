@@ -152,7 +152,8 @@ describe("Canonical exercise IDs — strength sessions", () => {
   it("no-gym: all strength-session exercises carry approved canonical IDs", () => {
     const plan = generatePlan(makeProfile({ hasGym: false }), START, 28);
     const days = strengthDays(plan);
-    if (days.length === 0) return; // no strength days scheduled — not an error
+    // Non-gym strength profiles should still schedule some strength-type sessions.
+    expect(days.length).toBeGreaterThan(0);
 
     const exercises = collectExercises(days);
     for (const ex of exercises) {
@@ -190,7 +191,6 @@ describe("Age rules — youth (13–14) strength sessions", () => {
 });
 
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // MD rules: no heavy strength load on MD-1 / MD-2
 // ---------------------------------------------------------------------------
 
@@ -200,14 +200,16 @@ describe("Match-day rules", () => {
   it("MD-1 (Friday): session is primer/reduced, not full heavy strength", () => {
     const plan = generatePlan(makeProfile({ matchDate }), START, 14);
     const md1 = plan.find((d) => d.mdLabel === "MD-1");
-    if (!md1 || md1.dayType !== "training") return;
-    // MD-1 should NOT be a full heavy gym strength session
+    expect(md1, "Plan should include an MD-1 day when matchDate is set").toBeDefined();
+    if (md1?.dayType !== "training") return; // rest/recovery on MD-1 is acceptable
+    // MD-1 training must NOT be a full heavy gym strength session
     expect(md1.sessionType).not.toMatch(/^Siła$/);
   });
 
   it("MD (match day): no training session scheduled", () => {
     const plan = generatePlan(makeProfile({ matchDate }), START, 14);
     const matchDay = plan.find((d) => d.mdLabel === "MD" || d.dayType === "match");
+    expect(matchDay, "Plan should include a match day when matchDate is set").toBeDefined();
     if (!matchDay) return;
     expect(matchDay.dayType).toBe("match");
   });
