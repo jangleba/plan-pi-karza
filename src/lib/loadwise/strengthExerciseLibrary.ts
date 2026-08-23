@@ -6,8 +6,9 @@ import {
   normalizeExerciseName,
   specialistEquipmentForExercise,
   type ExerciseDefinition,
+  type SessionCategory,
 } from "./exerciseLibrary";
-import type { SessionCategory, TrainingExercise } from "./types";
+import type { TrainingExercise } from "./types";
 
 export interface StrengthLibraryFilters {
   query?: string;
