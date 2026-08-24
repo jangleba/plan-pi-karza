@@ -649,6 +649,8 @@ const HAM_POWER_PAIR: HamPower[] = [
 
 function hamProgressionLevel(profile: Profile): "beginner" | "intermediate" | "advanced" {
   if (isYoung(profile.age) || profile.level === "beginner") return "beginner";
+  // 15–16: realna praca ekscentryczna tylnej taśmy, ale bez najtrudniejszej drabinki.
+  if (isDevelopingYouth(profile.age)) return "intermediate";
   if (profile.level === "advanced" || profile.level === "elite") return "advanced";
   return "intermediate";
 }
