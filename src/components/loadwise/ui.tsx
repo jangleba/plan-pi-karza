@@ -1,6 +1,23 @@
 import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import type { Intensity, DayType } from "@/lib/loadwise/types";
-import { ShieldAlert, Waves } from "lucide-react";
+import { ShieldAlert, Waves, User } from "lucide-react";
+import { useLoadwise } from "@/lib/loadwise/store";
+
+/** Avatar w prawym górnym rogu — wejście do profilu, konta i ustawień. */
+export function ProfileAvatar() {
+  const { state } = useLoadwise();
+  const initial = state.profile?.name?.trim().slice(0, 1).toUpperCase();
+  return (
+    <Link
+      to="/profil"
+      aria-label="Profil, konto i ustawienia"
+      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+    >
+      {initial || <User className="h-4 w-4" />}
+    </Link>
+  );
+}
 
 export function AppHeader({
   title,
