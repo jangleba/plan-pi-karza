@@ -265,6 +265,7 @@ function ProgressScreen() {
                 <Link
                   to="/sesja/$date"
                   params={{ date: upcoming.date }}
+                  search={{ slot: 1 }}
                   className="mt-1 flex items-center justify-between gap-2"
                 >
                   <span className="text-sm font-medium">
@@ -392,6 +393,7 @@ function ProgressScreen() {
                   key={h.key}
                   to="/sesja/$date"
                   params={{ date: h.date }}
+                  search={{ slot: 1 }}
                   className="soft-card flex items-center gap-3 p-4"
                 >
                   <div className="min-w-0 flex-1">
