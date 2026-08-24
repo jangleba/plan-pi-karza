@@ -24,6 +24,7 @@ import { Route as VisionLabAcceptanceRouteImport } from './routes/vision-lab.acc
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
+import { Route as TabsPostepRouteImport } from './routes/_tabs.postep'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
 import { Route as TabsFootballIqRouteImport } from './routes/_tabs.football-iq'
@@ -115,6 +116,11 @@ const TabsStartRoute = TabsStartRouteImport.update({
 const TabsProfilRoute = TabsProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsPostepRoute = TabsPostepRouteImport.update({
+  id: '/postep',
+  path: '/postep',
   getParentRoute: () => TabsRoute,
 } as any)
 const TabsPlanRoute = TabsPlanRouteImport.update({
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/football-iq': typeof TabsFootballIqRoute
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
+  '/postep': typeof TabsPostepRoute
   '/profil': typeof TabsProfilRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/football-iq': typeof TabsFootballIqRoute
   '/fuel': typeof TabsFuelRoute
   '/plan': typeof TabsPlanRoute
+  '/postep': typeof TabsPostepRoute
   '/profil': typeof TabsProfilRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
@@ -300,6 +308,7 @@ export interface FileRoutesById {
   '/_tabs/football-iq': typeof TabsFootballIqRoute
   '/_tabs/fuel': typeof TabsFuelRoute
   '/_tabs/plan': typeof TabsPlanRoute
+  '/_tabs/postep': typeof TabsPostepRoute
   '/_tabs/profil': typeof TabsProfilRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/football-iq'
     | '/fuel'
     | '/plan'
+    | '/postep'
     | '/profil'
     | '/start'
     | '/sesja/$date'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/football-iq'
     | '/fuel'
     | '/plan'
+    | '/postep'
     | '/profil'
     | '/start'
     | '/sesja/$date'
@@ -405,6 +416,7 @@ export interface FileRouteTypes {
     | '/_tabs/football-iq'
     | '/_tabs/fuel'
     | '/_tabs/plan'
+    | '/_tabs/postep'
     | '/_tabs/profil'
     | '/_tabs/start'
     | '/sesja/$date'
@@ -565,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsProfilRouteImport
       parentRoute: typeof TabsRoute
     }
+    '/_tabs/postep': {
+      id: '/_tabs/postep'
+      path: '/postep'
+      fullPath: '/postep'
+      preLoaderRoute: typeof TabsPostepRouteImport
+      parentRoute: typeof TabsRoute
+    }
     '/_tabs/plan': {
       id: '/_tabs/plan'
       path: '/plan'
@@ -698,6 +717,7 @@ interface TabsRouteChildren {
   TabsFootballIqRoute: typeof TabsFootballIqRoute
   TabsFuelRoute: typeof TabsFuelRoute
   TabsPlanRoute: typeof TabsPlanRoute
+  TabsPostepRoute: typeof TabsPostepRoute
   TabsProfilRoute: typeof TabsProfilRoute
   TabsStartRoute: typeof TabsStartRoute
 }
@@ -706,6 +726,7 @@ const TabsRouteChildren: TabsRouteChildren = {
   TabsFootballIqRoute: TabsFootballIqRoute,
   TabsFuelRoute: TabsFuelRoute,
   TabsPlanRoute: TabsPlanRoute,
+  TabsPostepRoute: TabsPostepRoute,
   TabsProfilRoute: TabsProfilRoute,
   TabsStartRoute: TabsStartRoute,
 }
