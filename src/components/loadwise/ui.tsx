@@ -42,7 +42,10 @@ export function AppHeader({
               Loadwise
             </span>
           </div>
-          {right}
+          <div className="flex items-center gap-2">
+            {right}
+            <ProfileAvatar />
+          </div>
         </div>
       )}
       <div className="flex items-end justify-between gap-3">
