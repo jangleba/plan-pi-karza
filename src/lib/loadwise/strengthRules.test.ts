@@ -207,8 +207,17 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
     expect(names).toMatch(/core|plank|deska|pallof|anty|brzuch|tułow/);
   });
 
-  it("16 zaawansowany: tydzień zachowuje kontrolę jednonóż", () => {
-    const names = [0, 1]
+  it("16 zaawansowany: struktura sesji identyczna jak u dorosłego (bez okrojenia jakości ruchu)", () => {
+    const dev = buildStrengthPowerStructured(devProfile({ age: 16, level: "advanced" }), baseCtx)!;
+    const adult = buildStrengthPowerStructured(devProfile({ age: 24, level: "advanced" }), baseCtx)!;
+    expect(dev.sections.map((s) => s.type)).toEqual(adult.sections.map((s) => s.type));
+    expect(dev.sections.flatMap((s) => s.blocks).length).toBe(
+      adult.sections.flatMap((s) => s.blocks).length,
+    );
+  });
+
+  it("16 zaawansowany: brak metod zaawansowanych (depth jump / kompleksy siła→moc)", () => {
+    const names = [0, 1, 2]
       .flatMap((i) =>
         allExercises(devProfile({ age: 16, level: "advanced" }), {
           ...baseCtx,
@@ -217,6 +226,6 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
       )
       .map((e) => e.name.toLowerCase())
       .join(" | ");
-    expect(names).toMatch(/jednonóż|jednonoż|split|bulgar|wykrok|step[- ]up|na jednej|copenhagen/);
+    expect(names).not.toMatch(/depth|zeskok w głąb|cluster|klaster|kompleks/);
   });
 });
