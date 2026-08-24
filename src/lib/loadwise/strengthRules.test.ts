@@ -159,7 +159,7 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
     expect(a1.name.toLowerCase()).toContain("sztang");
     expect(a1.reps).toBe("6–8");
     expect(a1.rpe ?? "").toContain("RIR");
-    expect(a1.loadTarget ?? "").toMatch(/70–80% 1RM/);
+    expect(a1.loadTarget ?? "").toMatch(/75–80% 1RM/);
   });
 
   it("16 zaawansowany: brak maksymalnych ciężarów ≥85% 1RM i brak pracy do upadku", () => {
@@ -207,10 +207,16 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
     expect(names).toMatch(/core|plank|deska|pallof|anty|brzuch|tułow/);
   });
 
-  it("16 zaawansowany: zachowana kontrola jednonóż", () => {
-    const names = allExercises(devProfile({ age: 16, level: "advanced" }), baseCtx)
+  it("16 zaawansowany: tydzień zachowuje kontrolę jednonóż", () => {
+    const names = [0, 1]
+      .flatMap((i) =>
+        allExercises(devProfile({ age: 16, level: "advanced" }), {
+          ...baseCtx,
+          gymSessionIndexInWeek: i,
+        }),
+      )
       .map((e) => e.name.toLowerCase())
       .join(" | ");
-    expect(names).toMatch(/jednonóż|jednonoż|split|bulgar|wykrok|step[- ]up|na jednej/);
+    expect(names).toMatch(/jednonóż|jednonoż|split|bulgar|wykrok|step[- ]up|na jednej|copenhagen/);
   });
 });

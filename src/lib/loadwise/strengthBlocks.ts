@@ -1243,7 +1243,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
       case "peak":
         return {
           sets: "4",
-          reps: "4–6",
+          reps: "5–6",
           rpe: "RPE 7,5 (2 RIR)",
           rest: "2–3 min",
           loadTarget: "75–82% 1RM (submaksymalnie, bez prób maksymalnych)",
