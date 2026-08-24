@@ -1156,9 +1156,20 @@ function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
       rpe: "RPE 5–6 (technika)",
       contactScale: d.contactScale * 0.6,
     };
+  } else if (isDevelopingYouth(profile.age)) {
+    // 15–16: strukturalna siła + umiarkowana hipertrofia, zawsze 2–3 RIR.
+    d = {
+      ...d,
+      mainReps: ctx.weekPhase === "peak" ? "4–6" : "6–8",
+      rpe: "RPE 7 (2–3 RIR, bez upadku)",
+      accSets: "3",
+      accReps: ctx.weekPhase === "deload" ? "8–10" : "8–12",
+      contactScale: d.contactScale * 0.8,
+    };
   }
   return d;
 }
+
 
 function contacts(base: number, d: Dosage): number {
   return Math.max(4, Math.round(base * d.contactScale));
