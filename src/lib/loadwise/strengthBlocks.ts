@@ -1202,6 +1202,9 @@ function gobletExceptionFor16Plus(profile: Profile, ctx: StrengthBlockContext): 
  * Goblet squat NIGDY nie jest globalnym defaultem/fallbackiem dla 16+.
  */
 function squatPoolFor(profile: Profile, ctx: StrengthBlockContext): string[] {
+  // 15–16 z siłownią, bez bólu i ponad poziomem początkującym → wzorzec ze sztangą
+  // z progresywnym, submaksymalnym obciążeniem.
+  if (developingLoadingAllowed(profile) && ctx.weekPhase !== "deload") return SQUAT_ADULT;
   if (profile.age < 16) return SQUAT_YOUTH;
   return gobletExceptionFor16Plus(profile, ctx) ? SQUAT_YOUTH : SQUAT_ADULT;
 }
