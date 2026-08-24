@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCareerJournal } from "@/lib/loadwise/careerJournal";
+import { useCareerJournal } from "@/lib/progress/careerJournal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

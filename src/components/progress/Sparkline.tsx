@@ -1,4 +1,4 @@
-import type { MetricPoint } from "@/lib/loadwise/progress";
+import type { MetricPoint } from "@/lib/progress/progress";
 
 /** Minimalistyczny wykres rozwoju w czasie (bez osi, bez ozdobników). */
 export function Sparkline({

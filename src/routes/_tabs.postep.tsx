@@ -17,7 +17,7 @@ import {
   METRIC_CATEGORY_LABELS,
   type TrainingCategoryKey,
   type MetricCategoryKey,
-} from "@/lib/loadwise/progress";
+} from "@/lib/progress/progress";
 import { listAllResults } from "@/lib/vision/visionResultService";
 import type { VisionTestResult } from "@/lib/vision/types";
 import {

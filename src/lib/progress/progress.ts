@@ -2,7 +2,7 @@ import type {
   SessionDay,
   SessionCompletion,
   TestResult,
-} from "./types";
+} from "@/lib/loadwise/types";
 import type { VisionTestResult } from "@/lib/vision/types";
 
 /** Kategorie treningu używane w historii i filtrach zakładki Postęp. */
