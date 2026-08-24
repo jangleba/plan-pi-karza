@@ -1232,6 +1232,52 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
     profile.age >= 16 &&
     !gobletExceptionFor16Plus(profile, ctx);
 
+  if (!heavyEligible && developingLoadingAllowed(profile)) {
+    // 15–16: strukturalna siła z progresywnym, submaksymalnym obciążeniem.
+    const devCue =
+      "Progresja obciążenia tydzień po tygodniu, każde powtórzenie czyste technicznie. " +
+      "Bez serii do upadku — zawsze 2–3 RIR.";
+    switch (ctx.weekPhase) {
+      case "peak":
+        return {
+          sets: "4",
+          reps: "4–6",
+          rpe: "RPE 7,5 (2 RIR)",
+          rest: "2–3 min",
+          loadTarget: "75–82% 1RM (submaksymalnie, bez prób maksymalnych)",
+          cue: devCue,
+        };
+      case "deload":
+        return {
+          sets: "2–3",
+          reps: "5–6",
+          rpe: "RPE 6",
+          rest: "2 min",
+          loadTarget: "~65% 1RM, świeżo, prędkość",
+          cue: devCue,
+        };
+      case "adaptation":
+        return {
+          sets: "3",
+          reps: "8",
+          rpe: "RPE 6,5 (3 RIR)",
+          rest: "2 min",
+          loadTarget: "60–70% 1RM, wzorzec przed ciężarem",
+          cue: devCue,
+        };
+      case "development":
+      default:
+        return {
+          sets: "4",
+          reps: "6–8",
+          rpe: "RPE 7 (2–3 RIR)",
+          rest: "2–3 min",
+          loadTarget: "70–80% 1RM (progresja +2,5–5% tygodniowo przy czystej technice)",
+          cue: devCue,
+        };
+    }
+  }
+
   if (!heavyEligible) {
     // Młodzież / początkujący / wyjątek goblet → nauka wzorca, bez maks. ciężaru.
     return {
@@ -1243,6 +1289,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
       cue: "Nauka wzorca: pełen zakres, kontrola tułowia, głębokość i stabilizacja.",
     };
   }
+
 
   const strongCue =
     "Każde powtórzenie mocne, dynamiczne i technicznie czyste. Bez serii do upadku, zostaw 1–3 RIR.";
