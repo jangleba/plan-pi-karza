@@ -278,8 +278,20 @@ function section(s: Omit<TrainingSection, "id">): TrainingSection {
   return { id: uid("sec"), ...s };
 }
 
+/** Faza techniczna (13–14): nauka wzorca, brak strukturalnego obciążenia. */
 function isYoung(age: number): boolean {
-  return age >= 13 && age <= 15;
+  return age >= 13 && age <= 14;
+}
+
+/**
+ * Faza rozwojowa 15–16 lat.
+ * Zachowujemy jakość ruchu i kontrolę jednonóż, ale dopuszczamy strukturalną
+ * pracę siłową i umiarkowaną hipertrofię z progresywnym obciążeniem zewnętrznym
+ * (zależnym od poziomu i sprzętu). Bez serii do upadku i bez metod zaawansowanych
+ * (maks. ciężary ≥85% 1RM, depth jumps, klastry itp.).
+ */
+export function isDevelopingYouth(age: number): boolean {
+  return age >= 15 && age <= 16;
 }
 
 /** Czy zawodnik jest uprawniony do zaawansowanej pracy siła→moc + plyo. */
@@ -287,9 +299,24 @@ export function isAdvancedEligible(profile: Profile): boolean {
   if (profile.painInjury) return false;
   if (profile.seasonPhase === "return_injury") return false;
   if (isYoung(profile.age)) return false;
+  if (isDevelopingYouth(profile.age)) return false;
   if (profile.level === "beginner") return false;
   return true;
 }
+
+/**
+ * Czy 15–16-latek może progresować obciążenie zewnętrzne w głównym wzorcu.
+ * Wymaga siłowni, braku bólu/powrotu po urazie i poziomu ponad początkujący.
+ */
+export function developingLoadingAllowed(profile: Profile): boolean {
+  if (!isDevelopingYouth(profile.age)) return false;
+  if (profile.painInjury) return false;
+  if (profile.seasonPhase === "return_injury") return false;
+  if (profile.movementCompetence === "low") return false;
+  if (!profile.hasGym) return false;
+  return profile.level !== "beginner";
+}
+
 
 /** Czy w ogóle generować strukturalne bloki dla tej sesji (MD-restrictions). */
 export function structuredStrengthAllowed(mdLabel: string | null): boolean {
@@ -622,6 +649,8 @@ const HAM_POWER_PAIR: HamPower[] = [
 
 function hamProgressionLevel(profile: Profile): "beginner" | "intermediate" | "advanced" {
   if (isYoung(profile.age) || profile.level === "beginner") return "beginner";
+  // 15–16: realna praca ekscentryczna tylnej taśmy, ale bez najtrudniejszej drabinki.
+  if (isDevelopingYouth(profile.age)) return "intermediate";
   if (profile.level === "advanced" || profile.level === "elite") return "advanced";
   return "intermediate";
 }
@@ -1129,9 +1158,20 @@ function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
       rpe: "RPE 5–6 (technika)",
       contactScale: d.contactScale * 0.6,
     };
+  } else if (isDevelopingYouth(profile.age)) {
+    // 15–16: strukturalna siła + umiarkowana hipertrofia, zawsze 2–3 RIR.
+    d = {
+      ...d,
+      mainReps: ctx.weekPhase === "peak" ? "4–6" : "6–8",
+      rpe: "RPE 7 (2–3 RIR, bez upadku)",
+      accSets: "3",
+      accReps: ctx.weekPhase === "deload" ? "8–10" : "8–12",
+      contactScale: d.contactScale * 0.8,
+    };
   }
   return d;
 }
+
 
 function contacts(base: number, d: Dosage): number {
   return Math.max(4, Math.round(base * d.contactScale));
@@ -1164,6 +1204,9 @@ function gobletExceptionFor16Plus(profile: Profile, ctx: StrengthBlockContext): 
  * Goblet squat NIGDY nie jest globalnym defaultem/fallbackiem dla 16+.
  */
 function squatPoolFor(profile: Profile, ctx: StrengthBlockContext): string[] {
+  // 15–16 z siłownią, bez bólu i ponad poziomem początkującym → wzorzec ze sztangą
+  // z progresywnym, submaksymalnym obciążeniem.
+  if (developingLoadingAllowed(profile) && ctx.weekPhase !== "deload") return SQUAT_ADULT;
   if (profile.age < 16) return SQUAT_YOUTH;
   return gobletExceptionFor16Plus(profile, ctx) ? SQUAT_YOUTH : SQUAT_ADULT;
 }
@@ -1191,6 +1234,52 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
     profile.age >= 16 &&
     !gobletExceptionFor16Plus(profile, ctx);
 
+  if (!heavyEligible && developingLoadingAllowed(profile)) {
+    // 15–16: strukturalna siła z progresywnym, submaksymalnym obciążeniem.
+    const devCue =
+      "Progresja obciążenia tydzień po tygodniu, każde powtórzenie czyste technicznie. " +
+      "Bez serii do upadku — zawsze 2–3 RIR.";
+    switch (ctx.weekPhase) {
+      case "peak":
+        return {
+          sets: "4",
+          reps: "5–6",
+          rpe: "RPE 7,5 (2 RIR)",
+          rest: "2–3 min",
+          loadTarget: "75–82% 1RM (submaksymalnie, bez prób maksymalnych)",
+          cue: devCue,
+        };
+      case "deload":
+        return {
+          sets: "2–3",
+          reps: "5–6",
+          rpe: "RPE 6",
+          rest: "2 min",
+          loadTarget: "~65% 1RM, świeżo, prędkość",
+          cue: devCue,
+        };
+      case "adaptation":
+        return {
+          sets: "3",
+          reps: "8",
+          rpe: "RPE 6,5 (3 RIR)",
+          rest: "2 min",
+          loadTarget: "60–70% 1RM, wzorzec przed ciężarem",
+          cue: devCue,
+        };
+      case "development":
+      default:
+        return {
+          sets: "4",
+          reps: "6–8",
+          rpe: "RPE 7 (2–3 RIR)",
+          rest: "2–3 min",
+          loadTarget: "70–80% 1RM (progresja +2,5–5% tygodniowo przy czystej technice)",
+          cue: devCue,
+        };
+    }
+  }
+
   if (!heavyEligible) {
     // Młodzież / początkujący / wyjątek goblet → nauka wzorca, bez maks. ciężaru.
     return {
@@ -1202,6 +1291,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
       cue: "Nauka wzorca: pełen zakres, kontrola tułowia, głębokość i stabilizacja.",
     };
   }
+
 
   const strongCue =
     "Każde powtórzenie mocne, dynamiczne i technicznie czyste. Bez serii do upadku, zostaw 1–3 RIR.";
