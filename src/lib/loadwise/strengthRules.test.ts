@@ -207,13 +207,15 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
     expect(names).toMatch(/core|plank|deska|pallof|anty|brzuch|tułow/);
   });
 
-  it("16 zaawansowany: struktura sesji identyczna jak u dorosłego (bez okrojenia jakości ruchu)", () => {
+  it("16 zaawansowany: pełna struktura sesji, bez izometrii overcoming", () => {
     const dev = buildStrengthPowerStructured(devProfile({ age: 16, level: "advanced" }), baseCtx)!;
-    const adult = buildStrengthPowerStructured(devProfile({ age: 24, level: "advanced" }), baseCtx)!;
-    expect(dev.sections.map((s) => s.type)).toEqual(adult.sections.map((s) => s.type));
-    expect(dev.sections.flatMap((s) => s.blocks).length).toBe(
-      adult.sections.flatMap((s) => s.blocks).length,
-    );
+    const types = dev.sections.map((s) => s.type);
+    expect(types).toContain("warmup");
+    expect(types).toContain("main");
+    expect(types).toContain("accessory");
+    expect(types).toContain("cooldown");
+    // Izometria overcoming to metoda zaawansowana — nie dla 15–16.
+    expect(types).not.toContain("prep");
   });
 
   it("16 zaawansowany: brak metod zaawansowanych (depth jump / kompleksy siła→moc)", () => {
