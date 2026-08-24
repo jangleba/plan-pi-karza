@@ -143,3 +143,74 @@ describe("Blok D — support krótki, bez dublowania dwójek", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Faza rozwojowa 15–16 lat
+// ---------------------------------------------------------------------------
+
+function devProfile(over: Partial<Profile>): Profile {
+  return { ...baseProfile, age: 16, ...over };
+}
+
+describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
+  it("16 zaawansowany z siłownią: główny lift ze sztangą, 6–8 powt., 70–80% 1RM, 2–3 RIR", () => {
+    const p = devProfile({ age: 16, level: "advanced" });
+    const a1 = findByLabel(p, baseCtx, "A1")!;
+    expect(a1.name.toLowerCase()).toContain("sztang");
+    expect(a1.reps).toBe("6–8");
+    expect(a1.rpe ?? "").toContain("RIR");
+    expect(a1.loadTarget ?? "").toMatch(/70–80% 1RM/);
+  });
+
+  it("16 zaawansowany: brak maksymalnych ciężarów ≥85% 1RM i brak pracy do upadku", () => {
+    for (const phase of ["adaptation", "development", "peak", "deload"] as const) {
+      const p = devProfile({ age: 16, level: "advanced" });
+      const exs = allExercises(p, { ...baseCtx, weekPhase: phase });
+      for (const e of exs) {
+        expect(e.loadTarget ?? "").not.toMatch(/8[5-9]%|9[0-9]%/);
+        expect((e.rpe ?? "").toLowerCase()).not.toContain("upadk");
+        expect((e.rpe ?? "").toLowerCase()).not.toMatch(/rpe 9|rpe 10/);
+      }
+    }
+  });
+
+  it("15 zaawansowany dostaje tę samą progresję co 16 (jedna konfiguracja wieku)", () => {
+    const a15 = findByLabel(devProfile({ age: 15, level: "advanced" }), baseCtx, "A1")!;
+    const a16 = findByLabel(devProfile({ age: 16, level: "advanced" }), baseCtx, "A1")!;
+    expect(a15.reps).toBe(a16.reps);
+    expect(a15.loadTarget).toBe(a16.loadTarget);
+  });
+
+  it("16 początkujący: wariant techniczny, bez progresji ciężaru maksymalnego", () => {
+    const a1 = findByLabel(devProfile({ age: 16, level: "beginner" }), baseCtx, "A1")!;
+    expect(a1.rpe ?? "").toContain("technika");
+    expect(a1.loadTarget ?? "").not.toMatch(/% 1RM/);
+  });
+
+  it("16 bez siłowni: brak progresji obciążenia zewnętrznego w głównym wzorcu", () => {
+    const a1 = findByLabel(devProfile({ age: 16, level: "advanced", hasGym: false }), baseCtx, "A1")!;
+    expect(a1.loadTarget ?? "").not.toMatch(/% 1RM/);
+  });
+
+  it("16 zaawansowany: akcesoria w zakresie umiarkowanej hipertrofii (8–12)", () => {
+    const exs = allExercises(devProfile({ age: 16, level: "advanced" }), baseCtx);
+    const hyper = exs.filter((e) => (e.reps ?? "").includes("8–12"));
+    expect(hyper.length).toBeGreaterThan(0);
+  });
+
+  it("16 zaawansowany: sesja zawiera pracę tułowia, tylnej taśmy, łydki/przywodziciela", () => {
+    const names = allExercises(devProfile({ age: 16, level: "advanced" }), baseCtx)
+      .map((e) => e.name.toLowerCase())
+      .join(" | ");
+    expect(names).toMatch(/nordic|rdl|hamstring|martwy|dwugłow|hip hinge|good morning|bridge|slider/);
+    expect(names).toMatch(/łydk|palce|copenhagen|przywodzic/);
+    expect(names).toMatch(/core|plank|deska|pallof|anty|brzuch|tułow/);
+  });
+
+  it("16 zaawansowany: zachowana kontrola jednonóż", () => {
+    const names = allExercises(devProfile({ age: 16, level: "advanced" }), baseCtx)
+      .map((e) => e.name.toLowerCase())
+      .join(" | ");
+    expect(names).toMatch(/jednonóż|jednonoż|split|bulgar|wykrok|step[- ]up|na jednej/);
+  });
+});
