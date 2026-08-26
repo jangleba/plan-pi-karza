@@ -3,10 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
-import { ProgressSummary } from "@/components/progress/ProgressSummary";
+import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 import { ProgressTests } from "@/components/progress/ProgressTests";
-import { ProgressOpportunities } from "@/components/progress/ProgressOpportunities";
-import { ProgressCareer } from "@/components/progress/ProgressCareer";
+import { ProgressHistory } from "@/components/progress/ProgressHistory";
 import {
   buildTrainingHistory,
   buildMetricSeries,
@@ -19,7 +18,13 @@ import {
   buildVisionParameters,
   visionInterpretation,
 } from "@/lib/progress/center";
-import type { OpportunityFilters } from "@/lib/progress/opportunities";
+import {
+  buildCycleBar,
+  buildLoadReport,
+  buildEvidence,
+  buildDevelopmentMap,
+  buildTimeline,
+} from "@/lib/progress/dashboard";
 import { listAllResults } from "@/lib/vision/visionResultService";
 import { getVisionTest } from "@/lib/vision/visionTests";
 import { SUPPORTED_VISION_TESTS } from "@/lib/vision/supportedTests";
@@ -29,17 +34,17 @@ export const Route = createFileRoute("/_tabs/postep")({
   component: ProgressScreen,
   head: () => ({
     meta: [
-      { title: "Centrum zawodnika – postęp, testy i szanse | BallWise" },
+      { title: "Pulpit rozwoju – testy i historia treningów | BallWise" },
       {
         name: "description",
         content:
-          "Mikrocykl, kierunek rozwoju, pełne podsumowanie testów, dopasowane nabory klubowe i oś kariery w jednym miejscu.",
+          "Kierunek rozwoju, dowody postępu, obciążenie treningowe z RPE, zmiana wyników w czasie oraz pełna historia treningów i testów.",
       },
-      { property: "og:title", content: "Centrum zawodnika – BallWise" },
+      { property: "og:title", content: "Pulpit rozwoju – BallWise" },
       {
         property: "og:description",
         content:
-          "Realne dane z treningów i testów: wykonanie mikrocyklu, zmiany wyników, szanse klubowe i tracker zgłoszeń.",
+          "Realne dane zawodnika: obciążenie, rekordy, mapa rozwoju i historia treningów w jednym miejscu.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -48,10 +53,9 @@ export const Route = createFileRoute("/_tabs/postep")({
 });
 
 const TABS = [
-  { id: "summary", label: "PODSUMOWANIE" },
+  { id: "dashboard", label: "PULPIT" },
   { id: "tests", label: "TESTY" },
-  { id: "opportunities", label: "SZANSE" },
-  { id: "career", label: "KARIERA" },
+  { id: "history", label: "HISTORIA" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -59,7 +63,7 @@ type TabId = (typeof TABS)[number]["id"];
 function ProgressScreen() {
   const { state, todayIso } = useLoadwise();
   const { user } = useAuth();
-  const [tab, setTab] = useState<TabId>("summary");
+  const [tab, setTab] = useState<TabId>("dashboard");
   const [vision, setVision] = useState<VisionTestResult[]>([]);
 
   useEffect(() => {
@@ -111,6 +115,28 @@ function ProgressScreen() {
     [state.profile, micro, improvement, series, nextSession],
   );
 
+  const cycle = useMemo(
+    () => buildCycleBar(state.profile, state.plan, todayIso),
+    [state.profile, state.plan, todayIso],
+  );
+
+  const load = useMemo(() => buildLoadReport(history, todayIso), [history, todayIso]);
+
+  const evidence = useMemo(
+    () => buildEvidence(micro, series, vision, history, todayIso),
+    [micro, series, vision, history, todayIso],
+  );
+
+  const areas = useMemo(
+    () => buildDevelopmentMap(series, micro, history, vision, todayIso),
+    [series, micro, history, vision, todayIso],
+  );
+
+  const timeline = useMemo(
+    () => buildTimeline(history, series, vision),
+    [history, series, vision],
+  );
+
   const testRows = useMemo(
     () => buildTestSummaries(series, vision, todayIso),
     [series, vision, todayIso],
@@ -126,23 +152,11 @@ function ProgressScreen() {
     return t ? { id: t.id, name: t.name } : null;
   }, [vision]);
 
-  const filters: OpportunityFilters = useMemo(
-    () => ({
-      city: "",
-      radiusKm: 50,
-      age: state.profile?.age ?? null,
-      position: state.profile?.position ?? null,
-      gender: "any",
-    }),
-    [state.profile],
-  );
-
   return (
     <div>
-      <AppHeader title="Centrum zawodnika" subtitle="Rozwój oparty na realnych danych." />
+      <AppHeader title="Pulpit rozwoju" subtitle="Rozwój oparty na realnych danych." />
 
-      {/* Wewnętrzne widoki */}
-      <div className="sticky top-0 z-10 -mx-0 mb-4 bg-background/85 px-5 py-2 backdrop-blur">
+      <div className="sticky top-0 z-10 mb-4 bg-background/85 px-5 py-2 backdrop-blur">
         <div className="flex gap-1 rounded-full bg-muted p-1">
           {TABS.map((t) => (
             <button
@@ -161,8 +175,16 @@ function ProgressScreen() {
       </div>
 
       <div key={tab} className="px-5 pb-28">
-        {tab === "summary" && (
-          <ProgressSummary direction={direction} micro={micro} series={series} />
+        {tab === "dashboard" && (
+          <ProgressDashboard
+            cycle={cycle}
+            direction={direction}
+            evidence={evidence}
+            load={load}
+            series={series}
+            areas={areas}
+            onNavigateTests={() => setTab("tests")}
+          />
         )}
         {tab === "tests" && (
           <ProgressTests
@@ -172,12 +194,7 @@ function ProgressScreen() {
             recommendedVisionTest={recommendedVisionTest}
           />
         )}
-        {tab === "opportunities" && (
-          <ProgressOpportunities defaults={filters} todayIso={todayIso} />
-        )}
-        {tab === "career" && (
-          <ProgressCareer history={history} tests={testRows} filters={filters} />
-        )}
+        {tab === "history" && <ProgressHistory events={timeline} />}
       </div>
 
       <Disclaimer />
