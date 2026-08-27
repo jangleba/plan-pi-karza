@@ -30,7 +30,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { MovementBlueprint } from "@/components/loadwise/MovementBlueprint";
-import { SetLogger } from "@/components/loadwise/SetLogger";
+import { ExerciseRunnerScreen } from "@/components/loadwise/ExerciseRunnerScreen";
 import { plannedSets } from "@/lib/loadwise/setLogs";
 import {
   ExerciseDetailSheet,
