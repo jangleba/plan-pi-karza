@@ -30,6 +30,8 @@ import {
   Undo2,
 } from "lucide-react";
 import { MovementBlueprint } from "@/components/loadwise/MovementBlueprint";
+import { SetLogger } from "@/components/loadwise/SetLogger";
+import { plannedSets } from "@/lib/loadwise/setLogs";
 import {
   ExerciseDetailSheet,
   resolveExerciseSheetViewModel,
@@ -370,14 +372,18 @@ function ExerciseRow({
   onToggle,
   onUnavailable,
   equipmentIds,
+  sessionId,
 }: {
   e: TrainingExercise;
   done: boolean;
   onToggle: () => void;
   onUnavailable: () => void;
   equipmentIds: string[];
+  sessionId?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [logging, setLogging] = useState(false);
+  const canLogSets = plannedSets(e) > 0;
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [restRunning, setRestRunning] = useState(false);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
@@ -450,6 +456,16 @@ function ExerciseRow({
                 Nie mam {equipmentNames.join(", ")}
               </button>
             )}
+            {canLogSets && !logging && (
+              <button
+                type="button"
+                onClick={() => setLogging(true)}
+                className="mt-1.5 rounded-md border border-primary/30 px-2.5 py-1 text-[11px] font-semibold text-primary"
+              >
+                Start
+              </button>
+            )}
+            {canLogSets && logging && <SetLogger exercise={e} sessionId={sessionId} />}
           </div>
           {expanded && (
             <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
@@ -910,9 +926,11 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
 const StructuredSections = memo(function StructuredSections({
   sections,
   date,
+  sessionId,
 }: {
   sections: TrainingSection[];
   date: string;
+  sessionId?: string | null;
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
 
@@ -966,6 +984,7 @@ const StructuredSections = memo(function StructuredSections({
                               markEquipmentUnavailable(date, e, equipmentIds);
                           }}
                           equipmentIds={equipmentIds}
+                          sessionId={sessionId}
                         />
                       );
                     })}
@@ -1411,7 +1430,9 @@ function SessionDetail() {
         {isClub ? (
           <>
             <ClubMonitoring />
-            {structured.length > 0 && <StructuredSections sections={structured} date={date} />}
+            {structured.length > 0 && (
+              <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+            )}
           </>
         ) : sprintRunner ? (
           <SprintStructuredSections
@@ -1425,7 +1446,7 @@ function SessionDetail() {
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <StructuredSections sections={structured} date={date} />
+            <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
           </>
         )}
 

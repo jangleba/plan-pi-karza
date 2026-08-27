@@ -221,6 +221,51 @@ export type Database = {
         }
         Relationships: []
       }
+      exercise_set_logs: {
+        Row: {
+          created_at: string
+          exercise_key: string
+          exercise_name: string | null
+          id: string
+          performed_at: string
+          reps: number | null
+          rir: number | null
+          session_id: string | null
+          set_number: number
+          updated_at: string
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          exercise_key: string
+          exercise_name?: string | null
+          id?: string
+          performed_at?: string
+          reps?: number | null
+          rir?: number | null
+          session_id?: string | null
+          set_number: number
+          updated_at?: string
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          exercise_key?: string
+          exercise_name?: string | null
+          id?: string
+          performed_at?: string
+          reps?: number | null
+          rir?: number | null
+          session_id?: string | null
+          set_number?: number
+          updated_at?: string
+          user_id?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       onboarding_answers: {
         Row: {
           answers_json: Json
