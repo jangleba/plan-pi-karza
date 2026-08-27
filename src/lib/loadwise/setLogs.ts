@@ -65,7 +65,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
       .eq("exercise_key", key)
       .order("performed_at", { ascending: false })
       .limit(60);
-    const rows = ((data ?? []) as unknown as (SetLogRow & { performed_at: string })[]) ?? [];
+    const rows = (data ?? []) as unknown as (SetLogRow & { performed_at: string })[];
     const mine: Record<number, SetLog> = {};
     const last: Record<number, SetLog> = {};
     for (const row of rows) {
