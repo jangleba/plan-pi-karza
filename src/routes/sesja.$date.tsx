@@ -465,7 +465,7 @@ function ExerciseRow({
                 Start
               </button>
             )}
-            {canLogSets && logging && <SetLogger exercise={e} sessionId={sessionId} />}
+
           </div>
           {expanded && (
             <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
@@ -563,6 +563,12 @@ function ExerciseRow({
         exercise={e}
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
+      />
+      <ExerciseRunnerScreen
+        exercise={e}
+        sessionId={sessionId}
+        open={logging}
+        onClose={() => setLogging(false)}
       />
     </div>
   );
