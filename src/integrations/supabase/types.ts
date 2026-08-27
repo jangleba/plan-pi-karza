@@ -227,6 +227,8 @@ export type Database = {
           exercise_key: string
           exercise_name: string | null
           id: string
+          metric_kind: string | null
+          metric_value: number | null
           performed_at: string
           reps: number | null
           rir: number | null
@@ -241,6 +243,8 @@ export type Database = {
           exercise_key: string
           exercise_name?: string | null
           id?: string
+          metric_kind?: string | null
+          metric_value?: number | null
           performed_at?: string
           reps?: number | null
           rir?: number | null
@@ -255,6 +259,8 @@ export type Database = {
           exercise_key?: string
           exercise_name?: string | null
           id?: string
+          metric_kind?: string | null
+          metric_value?: number | null
           performed_at?: string
           reps?: number | null
           rir?: number | null
