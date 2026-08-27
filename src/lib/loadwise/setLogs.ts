@@ -43,6 +43,9 @@ function toLog(row: SetLogRow): SetLog {
     weightKg: row.weight_kg === null ? null : Number(row.weight_kg),
     reps: row.reps,
     rir: row.rir,
+    metricKind: row.metric_kind ?? null,
+    metricValue:
+      row.metric_value === null || row.metric_value === undefined ? null : Number(row.metric_value),
   };
 }
 
@@ -65,7 +68,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
     }
     setLoading(true);
     const { data } = await table()
-      .select("session_id,exercise_key,set_number,weight_kg,reps,rir,performed_at")
+      .select("session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at")
       .eq("user_id", user.id)
       .eq("exercise_key", key)
       .order("performed_at", { ascending: false })
@@ -101,6 +104,8 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
           weight_kg: log.weightKg,
           reps: log.reps,
           rir: log.rir,
+          metric_kind: log.metricKind ?? null,
+          metric_value: log.metricValue ?? null,
           performed_at: new Date().toISOString(),
         } as never,
         { onConflict: "user_id,session_id,exercise_key,set_number" } as never,
@@ -112,6 +117,8 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
             weight_kg: log.weightKg,
             reps: log.reps,
             rir: log.rir,
+            metric_kind: log.metricKind ?? null,
+            metric_value: log.metricValue ?? null,
             performed_at: new Date().toISOString(),
           } as never)
           .eq("user_id", user.id)
