@@ -3,12 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 
-/** Jeden zapisany zestaw (seria) ćwiczenia siłowego. */
+/** Jeden zapisany zestaw (seria) ćwiczenia. */
 export interface SetLog {
   setNumber: number;
   weightKg: number | null;
   reps: number | null;
   rir: number | null;
+  /** Rodzaj pomiaru innego niż ciężar/powtórzenia (czas, dystans, kontakty, utrzymanie). */
+  metricKind?: string | null;
+  metricValue?: number | null;
 }
 
 interface SetLogRow {
@@ -18,6 +21,8 @@ interface SetLogRow {
   weight_kg: number | string | null;
   reps: number | null;
   rir: number | null;
+  metric_kind?: string | null;
+  metric_value?: number | string | null;
 }
 
 /** Stabilny klucz ćwiczenia — po ID z biblioteki, w ostateczności po nazwie. */
