@@ -21,6 +21,8 @@ export type Database = {
           club_training_days: Json
           competition_level: string | null
           created_at: string
+          current_pitch_feelings: string[]
+          desired_pitch_feelings: string[]
           double_sessions_allowed: string | null
           equipment: Json
           guardian_consent: boolean | null
@@ -56,6 +58,8 @@ export type Database = {
           club_training_days?: Json
           competition_level?: string | null
           created_at?: string
+          current_pitch_feelings?: string[]
+          desired_pitch_feelings?: string[]
           double_sessions_allowed?: string | null
           equipment?: Json
           guardian_consent?: boolean | null
@@ -91,6 +95,8 @@ export type Database = {
           club_training_days?: Json
           competition_level?: string | null
           created_at?: string
+          current_pitch_feelings?: string[]
+          desired_pitch_feelings?: string[]
           double_sessions_allowed?: string | null
           equipment?: Json
           guardian_consent?: boolean | null
