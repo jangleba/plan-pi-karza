@@ -146,9 +146,10 @@ const SPRINT_BLOCK_FLOW = [
   { key: "skip", index: "02", title: "Skipy A → C → B → D", estMin: 8 },
   { key: "technical", index: "03", title: "Drille techniczne", estMin: 8 },
   { key: "plyo", index: "04", title: "Plyometria", estMin: 6 },
-  { key: "main", index: "05", title: "Sprint główny", estMin: 10 },
-  { key: "terminal", index: "06", title: "Hamowanie / zwrotność / łuk", estMin: 6 },
-  { key: "cooldown", index: "07", title: "Wyciszenie", estMin: 5 },
+  { key: "resisted", index: "05", title: "Opór / przygotowanie startu", estMin: 5 },
+  { key: "main", index: "06", title: "Sprint główny", estMin: 10 },
+  { key: "terminal", index: "07", title: "Hamowanie / zwrotność / łuk", estMin: 6 },
+  { key: "cooldown", index: "08", title: "Wyciszenie", estMin: 4 },
 ] as const;
 const SPRINT_SKIP_PRESCRIPTION = "2 × 15–20 m";
 export const SPRINT_RUNNER_CONTAINER_CLASS = "space-y-3 overflow-x-hidden";
@@ -266,6 +267,7 @@ function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | n
   if (role === "conditioning" || (!role && !id)) return null;
   if (role === "cooldown") return "cooldown";
   if (role === "preparation" || role === "primer") return "ramp";
+  if (role === "resisted") return "resisted";
   if (role === "terminal") return "terminal";
   if (!role && isSprintRunnerTerminalExercise(meta.exercise)) return "terminal";
   if (role === "secondary" || id === "scissor_bounds") return "plyo";
@@ -293,12 +295,16 @@ export function resolveSprintExerciseDetails(exercise: TrainingExercise): Sprint
     }) ?? null;
   const noEquipmentReplacement = noEquipmentReplacementId
     ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ?? noEquipmentReplacementId)
-    : (equipment ? "Brak zatwierdzonej zamiany bez sprzętu" : "Nie dotyczy — ćwiczenie bez sprzętu");
+    : equipment
+      ? "Brak zatwierdzonej zamiany bez sprzętu"
+      : "Nie dotyczy — ćwiczenie bez sprzętu";
   return {
     purpose: exercise.purpose ?? definition?.objective ?? definition?.stimulus ?? null,
     howTo:
       definition?.instructionsPl?.join(" ") ??
-      exercise.instructionSteps?.map((step) => [step.title, step.description].filter(Boolean).join(" — ")).join(" ") ??
+      exercise.instructionSteps
+        ?.map((step) => [step.title, step.description].filter(Boolean).join(" — "))
+        .join(" ") ??
       exercise.technique ??
       null,
     cues,
@@ -315,6 +321,7 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
     skip: [],
     technical: [],
     plyo: [],
+    resisted: [],
     main: [],
     terminal: [],
     cooldown: [],
@@ -371,9 +378,11 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
 }
 
 export function isSprintRunnerSession(session: SessionDay): boolean {
+  if (session.speedGeneratorVersion) {
+    return !session.classification || session.classification.isSpeed;
+  }
   return Boolean(
-    session.classification &&
-    session.classification.isSpeed &&
+    session.classification?.isSpeed &&
     (session.classification.isAcceleration || session.classification.isMaxVelocity),
   );
 }
@@ -477,7 +486,6 @@ function ExerciseRow({
                 Start
               </button>
             )}
-
           </div>
           {expanded && (
             <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
@@ -571,11 +579,7 @@ function ExerciseRow({
           )}
         </div>
       </div>
-      <ExerciseDetailSheet
-        exercise={e}
-        open={detailSheetOpen}
-        onOpenChange={setDetailSheetOpen}
-      />
+      <ExerciseDetailSheet exercise={e} open={detailSheetOpen} onOpenChange={setDetailSheetOpen} />
       <ExerciseRunnerScreen
         exercise={e}
         sessionId={sessionId}
@@ -664,10 +668,10 @@ function SprintExerciseRow({
           {view.showSkipSetLabels && (
             <div className="mt-1 flex gap-1.5">
               <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                1 TECHNIKA
+                1 Z ADD-STEP
               </span>
               <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                2 DYNAMICZNIE
+                2 BEZ ADD-STEP
               </span>
             </div>
           )}
@@ -799,6 +803,10 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
   const blocks = buildSprintRunnerBlocks(sections);
+  const progressKey = `loadwise:sprint-progress:${
+    session.dbId ?? session.sessionId ?? `${date}:${session.title}:${session.slotLabel ?? "1"}`
+  }`;
+  const skipNextPersist = useRef(true);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [started, setStarted] = useState(false);
   const [currentBlockIdx, setCurrentBlockIdx] = useState(0);
@@ -806,12 +814,35 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    setDone({});
-    setStarted(false);
-    setCurrentBlockIdx(0);
+    skipNextPersist.current = true;
+    try {
+      const saved = window.localStorage.getItem(progressKey);
+      const parsed = saved
+        ? (JSON.parse(saved) as {
+            done?: Record<string, boolean>;
+            started?: boolean;
+            currentBlockIdx?: number;
+          })
+        : null;
+      setDone(parsed?.done ?? {});
+      setStarted(parsed?.started ?? false);
+      setCurrentBlockIdx(Math.max(0, Math.min(blocks.length - 1, parsed?.currentBlockIdx ?? 0)));
+    } catch {
+      setDone({});
+      setStarted(false);
+      setCurrentBlockIdx(0);
+    }
     setExpanded({});
     setFinished(false);
-  }, [date, sections]);
+  }, [blocks.length, progressKey]);
+
+  useEffect(() => {
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      return;
+    }
+    window.localStorage.setItem(progressKey, JSON.stringify({ done, started, currentBlockIdx }));
+  }, [currentBlockIdx, done, progressKey, started]);
 
   const mdRelation = session.mdLabel ?? session.mdRelation ?? "—";
   const equipmentPool = Array.from(
@@ -829,6 +860,11 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
     : currentBlockIdx >= blocks.length - 1
       ? "Zakończ sesję"
       : "Następny blok";
+  const currentBlock = blocks[currentBlockIdx];
+  const currentBlockCompleted = Boolean(
+    currentBlock?.exercises.length && currentBlock.exercises.every((exercise) => done[exercise.id]),
+  );
+  const actionDisabled = started && !currentBlockCompleted;
 
   return (
     <div className={SPRINT_RUNNER_CONTAINER_CLASS}>
@@ -852,6 +888,7 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
           const isCurrent = index === currentBlockIdx;
           const isExpanded = isCurrent || expanded[block.key];
           const exerciseCount = block.exercises.length;
+          const completedCount = block.exercises.filter((exercise) => done[exercise.id]).length;
           return (
             <div key={block.key} className="rounded-lg border border-border bg-card px-3 py-2">
               <button
@@ -868,6 +905,9 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
                 </span>
                 <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
                   {block.title}
+                </span>
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                  {completedCount}/{exerciseCount}
                 </span>
                 {!isExpanded && (
                   <span
@@ -919,6 +959,7 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
         <div className="sticky bottom-3 z-20">
           <button
             type="button"
+            disabled={actionDisabled}
             onClick={() => {
               if (!started) {
                 setStarted(true);
@@ -931,10 +972,15 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
               setFinished(true);
               onFinish();
             }}
-            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm"
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-45"
           >
             {actionLabel}
           </button>
+          {actionDisabled && (
+            <div className="mt-1.5 rounded-md bg-card/95 px-3 py-1.5 text-center text-[11px] text-muted-foreground shadow-sm">
+              Oznacz wszystkie ćwiczenia bieżącego bloku jako wykonane.
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "./types";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
+import { applyReadiness } from "./planEngine";
+import { classifySession } from "./sessionClassification";
 
 const profile = (overrides: Partial<Profile> = {}): Profile => ({
   name: "Test",
@@ -54,6 +56,31 @@ describe("football speed session engine", () => {
     ).toBe(true);
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
     expect(result.exercises.some((e) => e.role === "secondary")).toBe(true);
+    expect(result.exercises.filter((e) => e.role === "resisted")).toHaveLength(1);
+    expect(result.exercises.find((e) => e.role === "resisted")?.exerciseId).toBe("wall_march");
+    expect(result.session?.sections.main).toHaveLength(7);
+    expect(result.session?.sections.cooldown).toHaveLength(1);
+    expect(result.session?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
+      17,
+    );
+  });
+
+  it("uses sled only when the athlete explicitly declares it available", () => {
+    const withoutSled = generateFootballSpeedSession({
+      profile: profile({ equipment: [] }),
+      date: "2026-08-20",
+      family: "acceleration",
+    });
+    const withSled = generateFootballSpeedSession({
+      profile: profile({ equipment: ["sled"], unavailableEquipmentIds: [] }),
+      date: "2026-08-20",
+      family: "acceleration",
+    });
+
+    expect(withoutSled.exercises.find((e) => e.role === "resisted")?.exerciseId).toBe("wall_march");
+    expect(withSled.exercises.find((e) => e.role === "resisted")?.exerciseId).toBe(
+      "resisted_sled_acceleration",
+    );
   });
 
   it("rotates the post-skip trio from progression and recent-session inputs", () => {
@@ -80,6 +107,10 @@ describe("football speed session engine", () => {
     const result = generateFootballSpeedSession({ profile: profile(), date: "2026-08-20", family });
     expect(result.primaryExerciseId).toBe(exerciseId);
     expect(result.exercises.some((e) => e.exerciseId === exerciseId)).toBe(true);
+    expect(result.secondaryExerciseId).toBe(
+      result.exercises.find((exercise) => exercise.role === "terminal")?.exerciseId,
+    );
+    expect(result.primaryExerciseId).not.toBe(result.secondaryExerciseId);
   });
 
   it("protects MD, MD-1 and MD+1", () => {
@@ -111,6 +142,63 @@ describe("football speed session engine", () => {
     expect(result.exercises.filter((e) => e.role === "technical").length).toBe(3);
     expect(result.exercises.some((e) => e.exerciseId.includes("repeated"))).toBe(false);
     expect(result.excludedExerciseIds.length).toBeGreaterThan(0);
+    expect(result.status).toBe("activation");
+    expect(result.exercises.find((e) => e.role === "primary")?.dose).toBe(
+      "2 × 20 m z najazdu 15 m",
+    );
+    expect(result.exercises.find((e) => e.role === "primary")?.intensity).toContain("75–85%");
+  });
+
+  it("keeps sprint intensity and reduces dose at readiness 6–7", () => {
+    const full = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+    });
+    const reduced = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+      readiness: 6,
+    });
+
+    expect(full.exercises.find((e) => e.role === "primary")?.dose).toBe("4–6 × 10–20 m");
+    expect(reduced.exercises.find((e) => e.role === "primary")?.dose).toBe("3 × 10–15 m");
+    expect(reduced.exercises.find((e) => e.role === "primary")?.intensity).toBe(
+      "maksymalna jakość",
+    );
+    expect(reduced.session?.durationMin).toBeLessThan(full.session?.durationMin ?? 0);
+  });
+
+  it("regenerates the persisted canonical session when the daily check-in reduces volume", () => {
+    const base = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+    }).session!;
+    const adjusted = applyReadiness(
+      base,
+      {
+        date: "2026-08-20",
+        sleep: 7,
+        energy: 6,
+        fatigue: 6,
+        soreness: 4,
+        jointPain: 1,
+        stress: 4,
+        motivation: 7,
+        overall: 6,
+      },
+      profile(),
+    ).session;
+
+    expect(base.speedGeneratorVersion).toBeTruthy();
+    expect(classifySession(base).isSpeed).toBe(true);
+    expect(adjusted.sections.main.find((e) => e.speedRole === "primary")?.prescription).toBe(
+      "3 × 10–15 m",
+    );
+    expect(adjusted.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(17);
+    expect(adjusted.sections.cooldown).toHaveLength(1);
   });
 
   it("is deterministic and follows the pain stop path", () => {

@@ -152,6 +152,22 @@ function sprintSectionsFixture(): TrainingSection[] {
           ],
         },
         {
+          id: "resisted",
+          title: "Przygotowanie startu bez sprzętu",
+          blockType: "single",
+          intent: "power",
+          exercises: [
+            {
+              id: "resisted-ex",
+              exerciseId: "wall_march",
+              speedRole: "resisted",
+              name: "Wall march — pozycja akceleracyjna",
+              reps: "3 × 5 na stronę",
+              restAfterExercise: "Przerwa 45–60 s",
+            },
+          ],
+        },
+        {
           id: "terminal",
           title: "Hamowanie",
           blockType: "single",
@@ -185,16 +201,17 @@ function sprintSectionsFixture(): TrainingSection[] {
 }
 
 describe("sprint runner layout", () => {
-  it("renderuje 7 bloków w poprawnej kolejności", () => {
+  it("renderuje 8 bloków w poprawnej kolejności", () => {
     const blocks = buildSprintRunnerBlocks(sprintSectionsFixture());
     expect(blocks.map((block) => `${block.index} ${block.title}`)).toEqual([
       "01 Przygotowanie RAMP",
       "02 Skipy A → C → B → D",
       "03 Drille techniczne",
       "04 Plyometria",
-      "05 Sprint główny",
-      "06 Hamowanie / zwrotność / łuk",
-      "07 Wyciszenie",
+      "05 Opór / przygotowanie startu",
+      "06 Sprint główny",
+      "07 Hamowanie / zwrotność / łuk",
+      "08 Wyciszenie",
     ]);
   });
 
@@ -241,7 +258,7 @@ describe("sprint runner layout", () => {
   it("używa nazw kanonicznych zamiast etykiet intencji", () => {
     const blocks = buildSprintRunnerBlocks(sprintSectionsFixture());
     expect(blocks[0].exercises[0].canonicalName).toBe("Marsz A");
-    expect(blocks[4].exercises[0].canonicalName).toBe("Swobodny sprint akceleracyjny");
+    expect(blocks[5].exercises[0].canonicalName).toBe("Swobodny sprint akceleracyjny");
   });
 
   it("przetwarza dane sprintowe bez mutowania sesji źródłowej", () => {
@@ -256,7 +273,7 @@ describe("sprint runner layout", () => {
     expect(SPRINT_RUNNER_CONTAINER_CLASS).toContain("overflow-x-hidden");
   });
 
-  it("aktywuje nowy runner tylko dla sesji akceleracji i max velocity", () => {
+  it("aktywuje runner dla starych sesji sprintu i każdej nowej rodziny z wersją silnika", () => {
     const acceleration = baseSession({
       classification: {
         category: "speed_sprint",
@@ -291,7 +308,16 @@ describe("sprint runner layout", () => {
       },
     });
     const nonSprint = baseSession();
+    const canonicalCod = baseSession({
+      speedGeneratorVersion: "football-speed-v3-complete-flow",
+      classification: {
+        ...acceleration.classification!,
+        isAcceleration: false,
+        isDeceleration: true,
+      },
+    });
     expect(isSprintRunnerSession(acceleration)).toBe(true);
+    expect(isSprintRunnerSession(canonicalCod)).toBe(true);
     expect(isSprintRunnerSession(nonSprint)).toBe(false);
   });
 
@@ -316,21 +342,21 @@ describe("sprint runner layout", () => {
   function persistedSprintSessionFixture(kind: "acceleration" | "maximum_velocity"): SessionDay {
     const warmup = [
       sprintItem(
-        "a_march",
+        "sprint_ramp_warmup",
         "preparation",
         "Rozgrzewka biegowa",
-        "8–10 min",
+        "8–10 min: Raise → Activate/Mobilise → Potentiate",
         "Bez przerw",
         "Krótka ogólna rozgrzewka.",
       ),
-      sprintItem("a_skip", "primer", "Skip A — seria 1", "2 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("c_skip", "primer", "Skip C — seria 1", "2 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("b_skip", "primer", "Skip B — seria 1", "2 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("d_skip", "primer", "Skip D — seria 1", "2 × 15–20 m", "Przerwa 45 s"),
-      sprintItem("a_skip", "primer", "Skip A — seria 2", "2 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("c_skip", "primer", "Skip C — seria 2", "2 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("b_skip", "primer", "Skip B — seria 2", "2 × 15–20 m", "Przerwa 30 s"),
-      sprintItem("d_skip", "primer", "Skip D — seria 2", "2 × 15–20 m", "Przerwa 45 s"),
+      sprintItem("a_skip", "primer", "Skip A — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("c_skip", "primer", "Skip C — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("b_skip", "primer", "Skip B — seria 1", "1 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("d_skip", "primer", "Skip D — seria 1", "1 × 15–20 m", "Przerwa 45 s"),
+      sprintItem("a_skip", "primer", "Skip A — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("c_skip", "primer", "Skip C — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("b_skip", "primer", "Skip B — seria 2", "1 × 15–20 m", "Przerwa 30 s"),
+      sprintItem("d_skip", "primer", "Skip D — seria 2", "1 × 15–20 m", "Przerwa 45 s"),
     ];
     const technical =
       kind === "acceleration"
@@ -392,7 +418,20 @@ describe("sprint runner layout", () => {
             "Pełna przerwa 3–4 min",
             "Główny bodziec: 2–3 s pracy przy prędkości bliskiej maksymalnej.",
           );
-    const cooldown = sprintItem("a_march", "cooldown", "Wyciszenie", "5 min", "—");
+    const resisted = sprintItem(
+      "wall_march",
+      "resisted",
+      "Wall march — pozycja akceleracyjna",
+      "3 × 5 na stronę",
+      "Przerwa 45–60 s",
+    );
+    const cooldown = sprintItem(
+      "sprint_cooldown_walk",
+      "cooldown",
+      "Marsz i uspokojenie oddechu",
+      "3–4 min",
+      "—",
+    );
     const canonicalFlat = {
       warmup,
       main: [
@@ -404,6 +443,7 @@ describe("sprint runner layout", () => {
           "2–3 × 4 kontakty na stronę",
           "Przerwa 60–90 s",
         ),
+        resisted,
         primary,
         sprintItem(
           "progressive_deceleration_5_10_15",
@@ -423,8 +463,6 @@ describe("sprint runner layout", () => {
       sessionType: "Szybkość",
       sections: {
         ...canonicalFlat,
-        main: [...canonicalFlat.main, cooldown],
-        cooldown: [],
       },
       structuredSections: flatToStructured(canonicalFlat),
     });
@@ -435,9 +473,7 @@ describe("sprint runner layout", () => {
     expectedMainId: string,
     expectedTechnicalIds: string[],
   ) {
-    const persisted = JSON.parse(
-      JSON.stringify(persistedSprintSessionFixture(kind)),
-    ) as SessionDay;
+    const persisted = JSON.parse(JSON.stringify(persistedSprintSessionFixture(kind))) as SessionDay;
     const startBlocks = buildSprintRunnerBlocks(persisted.structuredSections ?? []);
     const detailsBlocks = buildSprintRunnerBlocks(flatToStructured(persisted.sections));
     const summarize = (blocks: ReturnType<typeof buildSprintRunnerBlocks>) =>
@@ -447,12 +483,22 @@ describe("sprint runner layout", () => {
       }));
 
     expect(summarize(detailsBlocks)).toEqual(summarize(startBlocks));
-    expect(detailsBlocks.map((block) => block.index)).toEqual(["01", "02", "03", "04", "05", "06", "07"]);
+    expect(detailsBlocks.map((block) => block.index)).toEqual([
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+    ]);
     expect(detailsBlocks.map((block) => block.title)).toEqual([
       "Przygotowanie RAMP",
       "Skipy A → C → B → D",
       "Drille techniczne",
       "Plyometria",
+      "Opór / przygotowanie startu",
       "Sprint główny",
       "Hamowanie / zwrotność / łuk",
       "Wyciszenie",
@@ -478,6 +524,9 @@ describe("sprint runner layout", () => {
     expect(byKey.plyo.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
       "scissor_bounds",
     ]);
+    expect(byKey.resisted.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
+      "wall_march",
+    ]);
     expect(byKey.main.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
       expectedMainId,
     ]);
@@ -485,7 +534,7 @@ describe("sprint runner layout", () => {
       "progressive_deceleration_5_10_15",
     ]);
     expect(byKey.cooldown.exercises.map((exercise) => exercise.exercise.exerciseId)).toEqual([
-      "a_march",
+      "sprint_cooldown_walk",
     ]);
 
     for (const block of detailsBlocks) {

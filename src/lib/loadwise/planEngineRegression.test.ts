@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generatePlan, weekRanges } from "./planEngine";
+import { FOOTBALL_SPEED_GENERATOR_VERSION } from "./footballSpeedSessionEngine";
 import { classifySession, isMainGymSession, isClubSession } from "./sessionClassification";
 import type { Profile, SessionDay } from "./types";
 
@@ -37,7 +38,7 @@ function baseProfile(p: Partial<Profile> = {}): Profile {
 }
 
 const START = new Date("2026-07-13T00:00:00"); // poniedziałek
-const EXPECTED_SPEED_BLOCK_COUNT = 16; // warmup + A/C/B/D skips × 2 + 3 drills + plyo + primary + terminal + cooldown
+const EXPECTED_SPEED_BLOCK_COUNT = 17; // RAMP + A/C/B/D × 2 + 3 drills + plyo + opór + sprint + terminal + cooldown
 
 function fullWeeks(plan: SessionDay[]) {
   const ranges = weekRanges(START, plan.length).filter((r) => r.end - r.start === 7);
@@ -88,7 +89,7 @@ describe("regression — gym access + full week", () => {
             day.structuredSections?.length,
         );
         expect(speedDay).toBeDefined();
-        expect(speedDay?.reason).toContain("Phase 3C");
+        expect(speedDay?.speedGeneratorVersion).toBe(FOOTBALL_SPEED_GENERATOR_VERSION);
         expect(speedDay?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
           EXPECTED_SPEED_BLOCK_COUNT,
         );
@@ -97,7 +98,9 @@ describe("regression — gym access + full week", () => {
             ?.flatMap((section) => section.blocks)
             .map((block) => block.exercises[0].exerciseId),
         ).toEqual(
-          speedDay?.sections.warmup.concat(speedDay.sections.main).map((item) => item.exerciseId),
+          speedDay?.sections.warmup
+            .concat(speedDay.sections.main, speedDay.sections.cooldown)
+            .map((item) => item.exerciseId),
         );
       });
 

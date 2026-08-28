@@ -13,8 +13,6 @@ import type {
   LoadTag,
   Mesocycle,
   TrainingSection,
-  TrainingBlock,
-  TrainingExercise,
 } from "./types";
 import { assertPlanExerciseContract } from "./planExerciseContract";
 import {
@@ -4221,90 +4219,21 @@ export function generatePlan(
     });
     if (!generated.session) return;
     const speed = generated.session;
-    const sections: TrainingSection[] = [];
-    for (const exercise of generated.exercises) {
-      const trainingExercise: TrainingExercise = {
-        id: `${target.date}-${exercise.order}-${exercise.exerciseId}`,
-        exerciseId: exercise.exerciseId,
-        speedRole: exercise.role,
-        name: exercise.name,
-        purpose: exercise.purpose,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        duration: exercise.distanceOrDuration,
-        restAfterExercise: exercise.restBetweenReps,
-        restAfterPair: exercise.restBetweenSets,
-        displayPrescription: `${exercise.sets} serie × ${exercise.reps} powt. · ${exercise.distanceOrDuration}`,
-        equipment: exercise.equipment.requiredEquipment.join(", ") || undefined,
-        cue: exercise.coachingCuesPl.join(". "),
-        commonMistake: exercise.safetyStopRule,
-      };
-      const sectionType =
-        exercise.role === "preparation" || exercise.role === "primer" ? "warmup" : "main";
-      let section = sections.find((item) => item.type === sectionType);
-      if (!section) {
-        section = {
-          id: `${target.date}-${sectionType}`,
-          title: sectionType === "warmup" ? "Przygotowanie" : "Bloki szybkości",
-          type: sectionType,
-          blocks: [],
-        };
-        sections.push(section);
-      }
-      const block: TrainingBlock = {
-        id: trainingExercise.id,
-        title: exercise.purpose,
-        blockType: "single",
-        intent:
-          stimulus === "cod" && exercise.role !== "preparation"
-            ? "braking"
-            : exercise.role === "preparation"
-              ? "mobility"
-              : "power",
-        exercises: [trainingExercise],
-        restAfterBlock: exercise.restBetweenSets,
-        safetyNotes: exercise.safetyStopRule,
-      };
-      section.blocks.push(block);
-    }
-    sections.sort((a, b) => (a.type === "warmup" ? -1 : b.type === "warmup" ? 1 : 0));
-    const toPersistedItem = (exercise: (typeof generated.exercises)[number]) => ({
-      name: exercise.name,
-      exerciseId: exercise.exerciseId,
-      speedRole: exercise.role,
-      purpose: exercise.purpose,
-      prescription: exercise.dose,
-      rest: exercise.rest,
-      cue: exercise.coachingCuesPl.join(". "),
-    });
     Object.assign(target, {
       title: speed.title,
-      sessionType: "Szybkość",
+      goalLabel: speed.goalLabel,
+      sessionType: speed.sessionType,
       goalOfSession: speed.goalOfSession,
       intensity: speed.intensity,
       durationMin: speed.durationMin,
-      reason: "Sesja wygenerowana przez deterministyczny silnik Phase 3C.",
+      reason: speed.reason,
+      whyToday: speed.whyToday,
       riskManaged: speed.riskManaged,
       avoidToday: speed.avoidToday,
       safetyNote: speed.safetyNote,
       speedGeneratorVersion: speed.speedGeneratorVersion,
-      sections: {
-        warmup: generated.exercises
-          .filter((exercise) => exercise.role === "preparation" || exercise.role === "primer")
-          .map(toPersistedItem),
-        main: generated.exercises
-          .filter(
-            (exercise) =>
-              exercise.role !== "preparation" &&
-              exercise.role !== "primer" &&
-              exercise.role !== "conditioning",
-          )
-          .map(toPersistedItem),
-        accessory: [],
-        footballTransfer: [],
-        cooldown: [],
-      },
-      structuredSections: sections,
+      sections: speed.sections,
+      structuredSections: speed.structuredSections,
     });
   };
 
@@ -4884,6 +4813,32 @@ export function secondSessionAllowedToday(
   return true;
 }
 
+function speedFamilyFromSession(session: SessionDay): FootballSpeedFamily {
+  const subcategory = session.classification?.subcategory ?? classifySession(session).subcategory;
+  if (
+    subcategory === "change_of_direction" ||
+    subcategory === "deceleration" ||
+    subcategory === "braking" ||
+    subcategory === "acceleration_deceleration"
+  ) {
+    return "deceleration_cod";
+  }
+  if (
+    subcategory === "max_velocity" ||
+    subcategory === "max_velocity_cod" ||
+    subcategory === "flying_sprints"
+  ) {
+    return "maximum_velocity";
+  }
+  if (/łuk|curved/i.test(`${session.title} ${session.sessionType}`)) {
+    return "curved_sprinting";
+  }
+  if (subcategory === "agility_speed" || /reakcj/i.test(session.title)) {
+    return "reactive_agility_reacceleration";
+  }
+  return "acceleration";
+}
+
 /** Nakłada logikę readiness/bólu na dzisiejszą sesję i zwraca decyzję. */
 export function applyReadiness(
   session: SessionDay,
@@ -5054,6 +5009,36 @@ export function applyReadiness(
       structuredSections: undefined,
       exercises: undefined,
     };
+  } else if (
+    session.speedGeneratorVersion &&
+    cls.isSpeed &&
+    !painOverride &&
+    r < 8
+  ) {
+    const regenerated = generateFootballSpeedSession({
+      profile,
+      date: session.date,
+      family: speedFamilyFromSession(session),
+      readiness: r,
+      fatigue: readiness.fatigue,
+    }).session;
+    if (regenerated) {
+      adjusted = {
+        ...session,
+        ...regenerated,
+        dayName: session.dayName,
+        dayOfWeek: session.dayOfWeek,
+        mdRelation: session.mdRelation,
+        mdLabel: session.mdLabel,
+        slotLabel: session.slotLabel,
+        weekMeta: session.weekMeta,
+        loadTags: session.loadTags,
+        dbId: session.dbId,
+        dayDbId: session.dayDbId,
+        sessionId: session.sessionId,
+        secondSession: session.secondSession,
+      };
+    }
   } else {
 
     adjusted = {

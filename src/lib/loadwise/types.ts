@@ -164,6 +164,7 @@ export type SpeedRole =
   | "preparation"
   | "technical"
   | "primer"
+  | "resisted"
   | "primary"
   | "secondary"
   | "conditioning"

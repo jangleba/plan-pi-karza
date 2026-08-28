@@ -250,7 +250,7 @@ export type FootballSpeedQuality =
   | "repeated_sprint";
 
 export type FootballSessionRole =
-  "preparation" | "technical" | "primer" | "primary" | "secondary" | "conditioning";
+  "preparation" | "technical" | "primer" | "resisted" | "primary" | "secondary" | "conditioning";
 
 export interface FootballPrescription {
   distanceM?: { min: number; max: number };
@@ -2975,6 +2975,101 @@ const SPRINT_LIBRARY_ENRICHMENTS: ExerciseDefinition[] = [
 );
 LIBRARY.push(...SPRINT_LIBRARY_ENRICHMENTS);
 
+/** Kanoniczne wiersze złożone używane przez produkcyjny runner sprintu. */
+const FOOTBALL_SPEED_SPECIAL_EXERCISES: ExerciseDefinition[] = [
+  footballSpeedExercise({
+    id: "sprint_ramp_warmup",
+    name: "Sprint RAMP warm-up",
+    displayNamePl: "Przygotowanie RAMP do sprintu",
+    speedQualities: ["sprint_technique"],
+    sessionRoles: ["preparation"],
+    impactLevel: "low",
+    ankleLoadLevel: "low",
+    plyometricIntensity: "none",
+    speedIntensity: "low",
+    objective:
+      "Podnieść temperaturę, odzyskać zakres ruchu i przygotować układ nerwowy bez zmęczenia.",
+    instructionsPl: [
+      "Raise: 2–3 min lekkiego truchtu, stopniowo podnoś temperaturę.",
+      "Activate i Mobilise: po 6–8 powtórzeń na stronę dla biodra, kostki i tylnej taśmy.",
+      "Potentiate: 2 krótkie przebieżki 15 m od około 60% do 80%, bez sprintu maksymalnego.",
+    ],
+    coachingCues: [
+      "Każda minuta ma zwiększać gotowość, nie zmęczenie.",
+      "Ruch płynny, bez długiego statycznego rozciągania.",
+      "Ostatnia przebieżka ma być szybka i swobodna.",
+    ],
+    commonErrors: ["Zbyt szybki start rozgrzewki", "Zmęczenie nóg przed częścią szybkościową"],
+    defaultPrescription: {
+      workSeconds: { min: 480, max: 600 },
+      intensity: "controlled",
+    },
+  }),
+  footballSpeedExercise({
+    id: "resisted_sled_acceleration",
+    name: "Resisted sled acceleration",
+    displayNamePl: "Przyspieszenie z oporem sań",
+    speedQualities: ["acceleration"],
+    sessionRoles: ["resisted"],
+    equipmentRequired: ["sled"],
+    loadingType: "external",
+    speedIntensity: "high",
+    impactLevel: "moderate",
+    replacementIds: ["wall_march"],
+    safeAlternativeIds: ["wall_march"],
+    objective: "Wzmocnić poziome pchnięcie w pierwszych krokach bez psucia pozycji akceleracyjnej.",
+    instructionsPl: [
+      "Dobierz taki opór, aby pierwsze kroki pozostały dynamiczne, a tułów tworzył jedną linię.",
+      "Pchaj podłoże za siebie przez 10 m; nie ciągnij sań samą pracą bioder.",
+      "Zakończ serię, gdy krok staje się ciężki albo pozycja wyraźnie się rozpada.",
+    ],
+    coachingCues: [
+      "Mocne pchnięcie za siebie.",
+      "Niska pozycja wynika z przyspieszenia, nie ze zgięcia w pasie.",
+      "Pełny odpoczynek przed kolejnym startem.",
+    ],
+    commonErrors: ["Za duży opór i marsz zamiast dynamicznego startu", "Załamanie tułowia w pasie"],
+    defaultPrescription: {
+      distanceM: { min: 8, max: 10 },
+      sets: { min: 2, max: 3 },
+      repetitions: { min: 1, max: 1 },
+      restSeconds: { min: 90, max: 120 },
+      intensity: "high",
+    },
+  }),
+  footballSpeedExercise({
+    id: "sprint_cooldown_walk",
+    name: "Post-sprint walk and breathing",
+    displayNamePl: "Marsz i uspokojenie oddechu",
+    speedQualities: ["sprint_technique"],
+    sessionRoles: ["preparation"],
+    category: "mobility",
+    movementPattern: "gait",
+    primaryAdaptation: "mobility",
+    loadingType: "none",
+    impactLevel: "none",
+    ankleLoadLevel: "none",
+    plyometricIntensity: "none",
+    speedIntensity: "none",
+    objective: "Stopniowo obniżyć tętno i zakończyć sesję bez dokładania obciążenia.",
+    instructionsPl: [
+      "Maszeruj spokojnie 3–4 min, aż oddech wyraźnie się uspokoi.",
+      "Nie dodawaj sprintów, interwałów ani intensywnego rozciągania po zakończeniu jakościowej pracy.",
+    ],
+    coachingCues: ["Spokojny marsz", "Długi wydech", "Zakończ sesję bez dodatkowej objętości"],
+    commonErrors: ["Dokładanie biegania kondycyjnego po sprintach"],
+    contraindications: [],
+    injuryCautions: [
+      "Jeżeli po sesji pojawił się ból, zapisz go w podsumowaniu i nie dokładaj obciążenia.",
+    ],
+    defaultPrescription: {
+      workSeconds: { min: 180, max: 240 },
+      intensity: "controlled",
+    },
+  }),
+];
+LIBRARY.push(...FOOTBALL_SPEED_SPECIAL_EXERCISES);
+
 const CURVE_VARIANTS: FootballSpeedVariant[] = [
   {
     id: "wide",
@@ -3006,6 +3101,14 @@ for (const id of ["a_march", "a_skip", "c_skip", "b_skip", "d_skip"]) {
       intensity: "controlled",
     };
   }
+}
+const wallMarchForResistedBlock = FOOTBALL_SPEED_EXERCISES.find(
+  (exercise) => exercise.id === "wall_march",
+);
+if (wallMarchForResistedBlock) {
+  wallMarchForResistedBlock.sessionRoles = Array.from(
+    new Set([...(wallMarchForResistedBlock.sessionRoles ?? []), "resisted"]),
+  );
 }
 for (const id of [
   "a_march",
@@ -3142,6 +3245,9 @@ if (existingMaxVelocity) {
 const FOOTBALL_SPEED_CATALOG_IDS = new Set<string>([
   ...FOOTBALL_SPEED_EXERCISES.map((exercise) => exercise.id),
   ...SPRINT_LIBRARY_ENRICHMENTS.map((exercise) => exercise.id),
+  ...FOOTBALL_SPEED_SPECIAL_EXERCISES.filter(
+    (exercise) => exercise.equipmentRequired.length === 0,
+  ).map((exercise) => exercise.id),
   "acceleration_mechanics",
   "max_velocity_high_volume",
 ]);
