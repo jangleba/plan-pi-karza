@@ -13,7 +13,18 @@ import type {
   SeasonStage,
   CompetitionLevel,
   SecondaryLimiter,
+  CurrentPitchFeeling,
+  DesiredPitchFeeling,
 } from "@/lib/loadwise/types";
+import {
+  CURRENT_PITCH_FEELINGS,
+  DESIRED_PITCH_FEELINGS,
+  CURRENT_PITCH_FEELING_LABELS,
+  DESIRED_PITCH_FEELING_LABELS,
+  normalizeCurrentPitchFeelings,
+  normalizeDesiredPitchFeelings,
+  togglePitchFeeling,
+} from "@/lib/loadwise/playerDirection";
 import {
   GOAL_LABELS,
   SECONDARY_LIMITER_LABELS,
@@ -265,6 +276,30 @@ function Onboarding() {
   const [seasonPhaseOverride, setSeasonPhaseOverride] = useState(
     existing?.seasonPhaseOverride ?? false,
   );
+  const [currentFeelings, setCurrentFeelings] = useState<CurrentPitchFeeling[]>(
+    normalizeCurrentPitchFeelings(existing?.currentPitchFeelings),
+  );
+  const [desiredFeelings, setDesiredFeelings] = useState<DesiredPitchFeeling[]>(
+    normalizeDesiredPitchFeelings(existing?.desiredPitchFeelings),
+  );
+
+  function toggleCurrentFeeling(id: CurrentPitchFeeling) {
+    const next = togglePitchFeeling(currentFeelings, id);
+    if (next.limitReached) {
+      toast.info("Możesz wybrać maksymalnie 2 odpowiedzi");
+      return;
+    }
+    setCurrentFeelings(next.value);
+  }
+
+  function toggleDesiredFeeling(id: DesiredPitchFeeling) {
+    const next = togglePitchFeeling(desiredFeelings, id);
+    if (next.limitReached) {
+      toast.info("Możesz wybrać maksymalnie 2 odpowiedzi");
+      return;
+    }
+    setDesiredFeelings(next.value);
+  }
 
   // Walidacja spójności stanu sezonu z kalendarzem i datą meczu.
   const seasonValidation = validateSeason({
@@ -285,7 +320,7 @@ function Onboarding() {
   const ageNum = parseInt(age, 10);
   const isMinor = ageNum >= 13 && ageNum <= 17;
 
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showErrors, setShowErrors] = useState(false);
@@ -348,6 +383,8 @@ function Onboarding() {
     if (step === 3) return goal !== null && secondaryLimiter !== null;
     if (step === 4)
       return doubleSessions !== null && matchDate.trim().length > 0;
+    if (step === 5)
+      return currentFeelings.length > 0 && desiredFeelings.length > 0;
     return true;
   }
 
@@ -390,6 +427,12 @@ function Onboarding() {
       setStep(4);
       return;
     }
+    if (currentFeelings.length === 0 || desiredFeelings.length === 0) {
+      toast.error("Wybierz, jak czujesz się teraz i jak chcesz się czuć.");
+      setShowErrors(true);
+      setStep(5);
+      return;
+    }
     // Loadwise sam decyduje o dniach — dostępne są wszystkie dni poza niedostępnymi.
     const availableDays = [1, 2, 3, 4, 5, 6, 7].filter(
       (d) => !unavailableDays.includes(d),
@@ -423,6 +466,8 @@ function Onboarding() {
       hasGym,
       hasPitch,
       hasSprintSpace,
+      currentPitchFeelings: normalizeCurrentPitchFeelings(currentFeelings),
+      desiredPitchFeelings: normalizeDesiredPitchFeelings(desiredFeelings),
     };
     setBusy(true);
     try {
@@ -981,6 +1026,130 @@ function Onboarding() {
                 </span>
               </label>
             )}
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="space-y-8">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Twój kierunek
+              </span>
+              <h2 className="mt-1 text-2xl font-semibold">
+                Jak chcesz się czuć na boisku?
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                To Twój punkt startu. Nie zmienia obciążeń — pomaga nazwać, po
+                co trenujesz.
+              </p>
+            </div>
+
+            <section className="space-y-3">
+              <Label>Jak czujesz się teraz na boisku?</Label>
+              <p className="text-xs text-muted-foreground">
+                Wybierz 1–2 odpowiedzi.
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {CURRENT_PITCH_FEELINGS.map((id) => {
+                  const active = currentFeelings.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => toggleCurrentFeeling(id)}
+                      aria-pressed={active}
+                      className={`rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-foreground"
+                      }`}
+                    >
+                      {CURRENT_PITCH_FEELING_LABELS[id]}
+                    </button>
+                  );
+                })}
+              </div>
+              {showErrors && currentFeelings.length === 0 && (
+                <p data-error="true" className="text-xs font-medium text-destructive">
+                  Wybierz przynajmniej jedną odpowiedź.
+                </p>
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <Label>Jak chcesz się czuć na boisku?</Label>
+              <p className="text-xs text-muted-foreground">
+                Wybierz 1–2 odpowiedzi.
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {DESIRED_PITCH_FEELINGS.map((id) => {
+                  const active = desiredFeelings.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => toggleDesiredFeeling(id)}
+                      aria-pressed={active}
+                      className={`rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card text-foreground"
+                      }`}
+                    >
+                      {DESIRED_PITCH_FEELING_LABELS[id]}
+                    </button>
+                  );
+                })}
+              </div>
+              {showErrors && desiredFeelings.length === 0 && (
+                <p data-error="true" className="text-xs font-medium text-destructive">
+                  Wybierz przynajmniej jedną odpowiedź.
+                </p>
+              )}
+            </section>
+
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Punkt startu
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {currentFeelings.length ? (
+                  currentFeelings.map((id) => (
+                    <span
+                      key={id}
+                      className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                    >
+                      {CURRENT_PITCH_FEELING_LABELS[id]}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </div>
+
+              <div className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Twój kierunek
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {desiredFeelings.length ? (
+                  desiredFeelings.map((id) => (
+                    <span
+                      key={id}
+                      className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                    >
+                      {DESIRED_PITCH_FEELING_LABELS[id]}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </div>
+
+              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+                Twój plan będzie prowadził Cię w tym kierunku — zgodnie z celem,
+                kalendarzem i aktualną gotowością.
+              </p>
+            </div>
           </div>
         )}
 

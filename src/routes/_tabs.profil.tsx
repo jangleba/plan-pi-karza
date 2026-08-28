@@ -12,6 +12,12 @@ import {
   COMPETITION_LEVEL_LABELS,
 } from "@/lib/loadwise/labels";
 import type { DoubleSessions } from "@/lib/loadwise/types";
+import {
+  CURRENT_PITCH_FEELING_LABELS,
+  DESIRED_PITCH_FEELING_LABELS,
+  normalizeCurrentPitchFeelings,
+  normalizeDesiredPitchFeelings,
+} from "@/lib/loadwise/playerDirection";
 import { Button } from "@/components/ui/button";
 import { PlayerAnalysis } from "@/components/loadwise/PlayerAnalysis";
 import {
@@ -27,6 +33,7 @@ import {
   FileText,
   LogOut,
   ChevronRight,
+  Compass,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/profil")({
@@ -63,6 +70,8 @@ function ProfilScreen() {
   }
 
   const isMinor = p.age >= 13 && p.age <= 17;
+  const currentFeelings = normalizeCurrentPitchFeelings(p.currentPitchFeelings);
+  const desiredFeelings = normalizeDesiredPitchFeelings(p.desiredPitchFeelings);
 
 
   return (
@@ -105,6 +114,58 @@ function ProfilScreen() {
               value={p.matchDate ?? "Brak daty"}
             />
           </div>
+        </div>
+
+        <div className="soft-card p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Compass className="h-3.5 w-3.5" /> Twój kierunek
+          </div>
+          {currentFeelings.length || desiredFeelings.length ? (
+            <div className="mt-3 space-y-3">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Teraz
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {currentFeelings.length ? (
+                    currentFeelings.map((id) => (
+                      <span
+                        key={id}
+                        className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                      >
+                        {CURRENT_PITCH_FEELING_LABELS[id]}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Buduję
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {desiredFeelings.length ? (
+                    desiredFeelings.map((id) => (
+                      <span
+                        key={id}
+                        className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                      >
+                        {DESIRED_PITCH_FEELING_LABELS[id]}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Uzupełnisz swój kierunek podczas edycji profilu.
+            </p>
+          )}
         </div>
 
         <div className="soft-card p-4">
