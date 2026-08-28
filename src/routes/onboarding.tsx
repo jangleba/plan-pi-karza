@@ -427,6 +427,12 @@ function Onboarding() {
       setStep(4);
       return;
     }
+    if (currentFeelings.length === 0 || desiredFeelings.length === 0) {
+      toast.error("Wybierz, jak czujesz się teraz i jak chcesz się czuć.");
+      setShowErrors(true);
+      setStep(5);
+      return;
+    }
     // Loadwise sam decyduje o dniach — dostępne są wszystkie dni poza niedostępnymi.
     const availableDays = [1, 2, 3, 4, 5, 6, 7].filter(
       (d) => !unavailableDays.includes(d),
