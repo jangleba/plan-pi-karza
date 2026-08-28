@@ -111,6 +111,10 @@ export interface Profile {
   hasSprintSpace: boolean; // miejsce do sprintu
   /** Dni całkowicie niedostępne (1=Pn ... 7=Nd) — Loadwise nic w nie nie zaplanuje. */
   unavailableDays?: number[];
+  /** „Twój kierunek”: jak zawodnik czuje się teraz (maks. 2). Nie wpływa na plan. */
+  currentPitchFeelings?: CurrentPitchFeeling[];
+  /** „Twój kierunek”: jak chce się czuć (maks. 2). Nie wpływa na plan. */
+  desiredPitchFeelings?: DesiredPitchFeeling[];
   // --- Pola opcjonalne przygotowane pod rozszerzenie onboardingu ---
   /** Doświadczenie na siłowni (jawnie z onboardingu, jeśli kiedyś dodane). */
   gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced";
