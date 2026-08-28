@@ -26,6 +26,10 @@ import { LEGAL_VERSION } from "./legal";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
 import { migratePersistedSpeedSessions } from "./speedSessionMigration";
+import {
+  normalizeCurrentPitchFeelings,
+  normalizeDesiredPitchFeelings,
+} from "./playerDirection";
 
 const emptyScouting: ScoutingData = {
   strengths: "",
@@ -835,6 +839,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           has_pitch: profile.hasPitch,
           has_sprint_space: profile.hasSprintSpace,
           unavailable_equipment_ids: profile.unavailableEquipmentIds ?? [],
+          current_pitch_feelings: normalizeCurrentPitchFeelings(profile.currentPitchFeelings),
+          desired_pitch_feelings: normalizeDesiredPitchFeelings(profile.desiredPitchFeelings),
         },
         { onConflict: "user_id" },
       )
