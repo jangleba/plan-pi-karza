@@ -248,9 +248,21 @@ function sprintRoleForExercise(meta: SprintExerciseMeta): TrainingExercise["spee
 
 function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | null {
   const id = meta.exercise.exerciseId ?? "";
+  const explicitRole = meta.exercise.speedRole;
+
+  // Jawnie oznaczony drill techniczny pozostaje drillem,
+  // nawet jeśli używa ruchu podobnego do skipu.
+  if (explicitRole === "technical") return "technical";
+
   const role = sprintRoleForExercise(meta);
+
+  // Kanoniczne skipy muszą trafić do osobnego bloku,
+  // zanim uwzględnimy rolę wywnioskowaną z biblioteki.
+  if (id === "a_skip" || id === "b_skip" || id === "c_skip" || id === "d_skip") {
+    return "skip";
+  }
+
   if (role === "technical") return "technical";
-  if (id === "a_skip" || id === "b_skip" || id === "c_skip" || id === "d_skip") return "skip";
   if (role === "conditioning" || (!role && !id)) return null;
   if (role === "cooldown") return "cooldown";
   if (role === "preparation" || role === "primer") return "ramp";
