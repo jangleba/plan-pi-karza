@@ -154,7 +154,7 @@ export function migratePersistedSpeedSessions(
   const migratedDates: string[] = [];
   const next = plan.map((day) => {
     if (
-      day.date <= today ||
+      day.date < today ||
       day.speedGeneratorVersion === FOOTBALL_SPEED_GENERATOR_VERSION ||
       !isSpeed(day) ||
       !isAppGeneratedSpeed(day) ||
