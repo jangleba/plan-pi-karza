@@ -57,6 +57,25 @@ export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
 
 export type UsualMatchDay = number | "no_fixed_day" | null; // 1=Mon ... 7=Sun
 
+/** Subiektywny punkt startu zawodnika (warstwa motywacyjna, nie wejście planu). */
+export type CurrentPitchFeeling =
+  | "lacking_confidence"
+  | "stagnating"
+  | "lacking_speed"
+  | "lacking_duel_strength"
+  | "fading_late_in_match"
+  | "returning_after_break"
+  | "training_without_direction";
+
+/** Docelowe odczucie na boisku (warstwa motywacyjna, nie wejście planu). */
+export type DesiredPitchFeeling =
+  | "confident_in_decisions"
+  | "fast_and_light"
+  | "strong_in_duels"
+  | "calm_under_pressure"
+  | "ready_full_match"
+  | "prepared_for_higher_level";
+
 export interface Profile {
   name: string;
   age: number;
