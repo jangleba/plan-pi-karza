@@ -306,6 +306,8 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
       ath.has_sprint_space === null || ath.has_sprint_space === undefined
         ? true
         : Boolean(ath.has_sprint_space),
+    currentPitchFeelings: normalizeCurrentPitchFeelings(ath.current_pitch_feelings),
+    desiredPitchFeelings: normalizeDesiredPitchFeelings(ath.desired_pitch_feelings),
   };
 }
 
