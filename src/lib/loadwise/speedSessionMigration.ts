@@ -2,6 +2,7 @@ import type { Profile, SessionCompletion, SessionDay, SessionModification } from
 import {
   FOOTBALL_SPEED_GENERATOR_VERSION,
   generateFootballSpeedSession,
+  persistedFootballSpeedFamily,
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
 import { PLAN_ENGINE_VERSION } from "./planEngine";
@@ -12,6 +13,8 @@ import {
 } from "./footballSpeedScheduling";
 
 function familyFor(session: SessionDay): FootballSpeedFamily {
+  const persisted = persistedFootballSpeedFamily(session);
+  if (persisted) return persisted;
   const subcategory = session.classification?.subcategory ?? classifySession(session).subcategory;
   if (subcategory === "change_of_direction" || subcategory === "deceleration") {
     return "deceleration_cod";
@@ -39,6 +42,7 @@ function migrateSession(session: SessionDay, profile: Profile): SessionDay | nul
     profile,
     date: session.date,
     family: familyFor(session),
+    progressionWeek: session.blockWeekNumber ?? session.weekMeta?.blockWeek,
   }).session;
   if (!generated) return null;
   return {

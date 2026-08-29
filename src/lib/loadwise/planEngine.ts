@@ -43,6 +43,8 @@ import { normalizeSessionCategory, classifySession } from "./sessionClassificati
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import {
   generateFootballSpeedSession,
+  persistedFootballSpeedFamily,
+  postSkipExerciseIdsFromSession,
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
 import { hasRealSpeedExposure } from "./speedLoad";
@@ -4143,12 +4145,24 @@ export function generatePlan(
     gymSessionsThisWeek++;
   };
 
-  const speedFamilyFor = (stimulus: Stimulus, date: string): FootballSpeedFamily => {
-    if (stimulus === "cod") return "deceleration_cod";
+  const speedFamilyFor = (stimulus: Stimulus, _date: string): FootballSpeedFamily => {
+    const previousFamily = [...out]
+      .flatMap((day) => [day, day.secondSession])
+      .filter((candidate): candidate is SessionDay => Boolean(candidate?.speedGeneratorVersion))
+      .map((candidate) => persistedFootballSpeedFamily(candidate))
+      .filter((family): family is FootballSpeedFamily => Boolean(family))
+      .at(-1);
+    const progressionWeek = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
+
+    // Najpierw opanowane hamowanie/COD, dopiero w późniejszym tygodniu bodziec reaktywny.
+    if (stimulus === "cod") {
+      return progressionWeek >= 3 && progressionWeek !== 4
+        ? "reactive_agility_reacceleration"
+        : "deceleration_cod";
+    }
+    // Ekspozycje zmieniają się według poprzedniego bodźca, nie przypadkowej parzystości dnia.
     if (stimulus === "speed_exposure") {
-      return isoDayOfWeek(parseIso(date)) % 2 === 0
-        ? "maximum_velocity"
-        : "curved_sprinting";
+      return previousFamily === "maximum_velocity" ? "curved_sprinting" : "maximum_velocity";
     }
     return "acceleration";
   };
@@ -4210,10 +4224,19 @@ export function generatePlan(
       });
       return;
     }
+    const previousSpeedSession = [...out]
+      .flatMap((day) => [day, day.secondSession])
+      .filter((candidate): candidate is SessionDay => Boolean(candidate?.speedGeneratorVersion))
+      .at(-1);
+    const progressionWeek = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
     const generated = generateFootballSpeedSession({
       profile,
       date: target.date,
       family: speedFamilyFor(stimulus, target.date),
+      progressionWeek,
+      recentPostSkipExerciseIds: previousSpeedSession
+        ? postSkipExerciseIdsFromSession(previousSpeedSession)
+        : undefined,
       externalSessions: externalSpeedSessionsFor(target.date),
       recentHighSpeedExposure: out.length > 0 && hasRealSpeedExposure(out[out.length - 1]),
     });
@@ -4232,6 +4255,9 @@ export function generatePlan(
       avoidToday: speed.avoidToday,
       safetyNote: speed.safetyNote,
       speedGeneratorVersion: speed.speedGeneratorVersion,
+      speedFamily: speed.speedFamily,
+      speedProgressionWeek: speed.speedProgressionWeek,
+      speedRecentPostSkipExerciseIds: speed.speedRecentPostSkipExerciseIds,
       sections: speed.sections,
       structuredSections: speed.structuredSections,
     });
@@ -4789,6 +4815,7 @@ export function generatePlan(
       }
     }
   });
+  rebuildFinalSpeedContext(finalPlan, profile);
   for (let i = 0; i < finalPlan.length; i++) {
     finalPlan[i] = canonicalizeGeneratedSessionExercises(finalPlan[i]);
   }
@@ -4814,6 +4841,8 @@ export function secondSessionAllowedToday(
 }
 
 function speedFamilyFromSession(session: SessionDay): FootballSpeedFamily {
+  const persisted = persistedFootballSpeedFamily(session);
+  if (persisted) return persisted;
   const subcategory = session.classification?.subcategory ?? classifySession(session).subcategory;
   if (
     subcategory === "change_of_direction" ||
@@ -4837,6 +4866,57 @@ function speedFamilyFromSession(session: SessionDay): FootballSpeedFamily {
     return "reactive_agility_reacceleration";
   }
   return "acceleration";
+}
+
+/**
+ * Końcowe post-passy potrafią przenieść całą sesję na inny dzień. Po ich
+ * zakończeniu odbudowujemy rotację w faktycznej kolejności kalendarza.
+ */
+function rebuildFinalSpeedContext(plan: SessionDay[], profile: Profile): void {
+  let recentPostSkipExerciseIds: string[] = [];
+
+  const rebuild = (session: SessionDay): SessionDay => {
+    if (!session.speedGeneratorVersion) return session;
+    const generated = generateFootballSpeedSession({
+      profile,
+      date: session.date,
+      family: speedFamilyFromSession(session),
+      progressionWeek:
+        session.speedProgressionWeek ?? session.blockWeekNumber ?? session.weekMeta?.blockWeek ?? 1,
+      recentPostSkipExerciseIds,
+    }).session;
+    if (!generated) return session;
+
+    const rebuilt: SessionDay = {
+      ...session,
+      ...generated,
+      dbId: session.dbId,
+      dayDbId: session.dayDbId,
+      sessionId: session.sessionId,
+      dayName: session.dayName,
+      dayOfWeek: session.dayOfWeek,
+      mdRelation: session.mdRelation,
+      mdLabel: session.mdLabel,
+      slotLabel: session.slotLabel,
+      blockWeekNumber: session.blockWeekNumber,
+      blockPhaseLabel: session.blockPhaseLabel,
+      weekMeta: session.weekMeta,
+      loadTags: session.loadTags,
+      classification: session.classification,
+      isSupplemental: session.isSupplemental,
+      intensity: session.intensity,
+      secondSession: session.secondSession,
+    };
+    recentPostSkipExerciseIds = postSkipExerciseIdsFromSession(rebuilt);
+    return rebuilt;
+  };
+
+  for (let index = 0; index < plan.length; index += 1) {
+    const day = plan[index];
+    const secondSession = day.secondSession;
+    plan[index] = rebuild(day);
+    if (secondSession) plan[index].secondSession = rebuild(secondSession);
+  }
 }
 
 /** Nakłada logikę readiness/bólu na dzisiejszą sesję i zwraca decyzję. */
@@ -5021,6 +5101,9 @@ export function applyReadiness(
       family: speedFamilyFromSession(session),
       readiness: r,
       fatigue: readiness.fatigue,
+      progressionWeek:
+        session.speedProgressionWeek ?? session.blockWeekNumber ?? session.weekMeta?.blockWeek,
+      recentPostSkipExerciseIds: session.speedRecentPostSkipExerciseIds,
     }).session;
     if (regenerated) {
       adjusted = {

@@ -8,7 +8,11 @@
  */
 import { describe, expect, it } from "vitest";
 import { generatePlan } from "./planEngine";
-import { FOOTBALL_SPEED_GENERATOR_VERSION } from "./footballSpeedSessionEngine";
+import {
+  FOOTBALL_SPEED_GENERATOR_VERSION,
+  postSkipExerciseIdsFromSession,
+} from "./footballSpeedSessionEngine";
+import { getExerciseDefinition } from "./exerciseLibrary";
 import { resolveEffectiveDay } from "./dailyCheckin";
 import type { Profile, SessionDay } from "./types";
 
@@ -53,6 +57,34 @@ function allText(session: SessionDay): string {
 }
 
 describe("sprint engine routing regression (issue #52)", () => {
+  it("0. persists family, block progression, previous drills and canonical names", () => {
+    const plan = generatePlan(
+      { ...BASE_PROFILE, matchDate: null, weeklyMatches: false },
+      new Date("2026-08-17"),
+      28,
+    );
+    const sessions = plan
+      .flatMap((day) => [day, day.secondSession])
+      .filter((session): session is SessionDay => Boolean(session?.speedGeneratorVersion));
+
+    expect(sessions.length).toBeGreaterThan(1);
+    for (const session of sessions) {
+      expect(session.speedFamily).toBeTruthy();
+      expect(session.speedProgressionWeek).toBe(session.blockWeekNumber);
+      expect(session.speedRecentPostSkipExerciseIds).toBeInstanceOf(Array);
+      for (const exercise of (session.structuredSections ?? [])
+        .flatMap((section) => section.blocks)
+        .flatMap((block) => block.exercises)) {
+        expect(exercise.name).toBe(getExerciseDefinition(exercise.exerciseId!)?.displayNamePl);
+      }
+    }
+    for (let index = 1; index < sessions.length; index += 1) {
+      expect(sessions[index].speedRecentPostSkipExerciseIds).toEqual(
+        postSkipExerciseIdsFromSession(sessions[index - 1]),
+      );
+    }
+  });
+
   it("1. generatePlan uses the canonical sprint engine for all speed sessions", () => {
     const plan = generatePlan(BASE_PROFILE, new Date("2026-08-17"), 7);
     const sprints = sprintSessions(plan);

@@ -69,6 +69,9 @@ export function validateWorkoutForAthleteProfile(
   a: AthleteTrainingProfile,
 ): { session: SessionDay; adjustments: WorkoutAdjustment[] } {
   const adjustments: WorkoutAdjustment[] = [];
+  // Kanoniczny silnik sprintu już dobiera dawkę, sprzęt i regresję plyometrii
+  // z profilu. Ponowna naprawa po samej nazwie rozrywała kontrakt name/exerciseId.
+  if (session.speedGeneratorVersion) return { session, adjustments: [] };
 
   const fixItems = (items: ExerciseItem[] | undefined): ExerciseItem[] | undefined => {
     if (!items) return items;
