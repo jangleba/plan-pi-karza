@@ -4,6 +4,7 @@ import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
+import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
 import { formatDateFull } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
@@ -1351,6 +1352,14 @@ function SessionDetail() {
     state.profile,
     mods,
   );
+  // Ostatnia bariera przed runnerem: ekran nie zależy od powodzenia zapisu
+  // migracji i nigdy nie dostaje historycznie uciętego slotu sprintowego.
+  primary = repairRuntimeSpeedDay(primary, state.profile, {
+    today: todayIso,
+    completions: state.completions,
+    modifications: state.modifications,
+    plan: state.plan,
+  });
 
   let session: SessionDay = primary;
   if (slot === 2) {
