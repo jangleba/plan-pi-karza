@@ -11,12 +11,7 @@
 // ============================================================================
 
 import type { PainLocation } from "./types";
-import type {
-  ExerciseInstructionStep,
-  ExerciseItem,
-  SessionDay,
-  TrainingExercise,
-} from "./types";
+import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,
   DevelopmentStage,
@@ -1853,15 +1848,15 @@ function strengthDomainExercise(
   overrides: Pick<ExerciseDefinition, "id" | "name" | "displayNamePl"> &
     Partial<ExerciseDefinition>,
 ): ExerciseDefinition {
-  const family = overrides.family ?? (
-    overrides.category === "core"
+  const family =
+    overrides.family ??
+    (overrides.category === "core"
       ? "trunk"
       : overrides.category === "prehab"
         ? "tendon_isometric"
         : overrides.category === "power"
           ? "power"
-          : "strength"
-  );
+          : "strength");
   const category: ExerciseCategory =
     overrides.category ??
     (family === "trunk" ? "core" : family === "tendon_isometric" ? "prehab" : "strength");
@@ -1889,8 +1884,7 @@ function strengthDomainExercise(
     minParticipants: 1,
     spaceRequirement: "home_small",
     category,
-    movementPattern:
-      category === "core" ? "brace" : category === "prehab" ? "isometric" : "hinge",
+    movementPattern: category === "core" ? "brace" : category === "prehab" ? "isometric" : "hinge",
     primaryAdaptation: category === "core" || category === "prehab" ? "stability" : "hypertrophy",
     difficultyLevel: 2,
     technicalComplexity: 2,
@@ -1943,7 +1937,9 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     technicalComplexity: 3,
     equipmentRequired: ["nordic_setup", "band"],
     hamstringLoadLevel: "high",
-    injuryCautions: ["Zatrzymaj serię, gdy biodra opadają albo pojawia się ostry ból tylnej strony uda."],
+    injuryCautions: [
+      "Zatrzymaj serię, gdy biodra opadają albo pojawia się ostry ból tylnej strony uda.",
+    ],
     regressionIds: ["glute_bridge"],
     safeAlternativeIds: ["glute_bridge"],
     replacementIds: ["glute_bridge"],
@@ -1968,7 +1964,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["assisted_nordic_hamstring"],
     safeAlternativeIds: ["assisted_nordic_hamstring"],
     replacementIds: ["assisted_nordic_hamstring"],
-    objective: "Podnosi ekscentryczną odporność hamstringów przy niskiej objętości i wysokiej jakości.",
+    objective:
+      "Podnosi ekscentryczną odporność hamstringów przy niskiej objętości i wysokiej jakości.",
     instructionsPl: [
       "Ustaw kolana na miękkim podłożu, stopy zablokuj stabilnie i napnij pośladki, żeby nie łamać bioder.",
       "Opadaj jak najwolniej do przodu, cały czas utrzymując prostą linię od kolan do barków.",
@@ -1991,7 +1988,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["eccentric_nordic_hamstring"],
     safeAlternativeIds: ["eccentric_nordic_hamstring"],
     replacementIds: ["eccentric_nordic_hamstring"],
-    objective: "Rozwija pełną siłę dwugłowych uda w długiej dźwigni i poprawia odporność sprintową.",
+    objective:
+      "Rozwija pełną siłę dwugłowych uda w długiej dźwigni i poprawia odporność sprintową.",
     instructionsPl: [
       "Zakotwicz stopy, ustaw kolana pod biodrami i zrób sztywny korpus z napiętymi pośladkami.",
       "Opadaj pod kontrolą, a gdy zbliżysz się do podłoża, aktywnie dołóż zgięcie kolan, żeby wrócić bez załamania bioder.",
@@ -2014,7 +2012,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["assisted_nordic_hamstring"],
     safeAlternativeIds: ["assisted_nordic_hamstring"],
     replacementIds: ["assisted_nordic_hamstring"],
-    objective: "Łączy pracę kolan i bioder, żeby wzmacniać hamstringi w bardziej sportowym torze ruchu.",
+    objective:
+      "Łączy pracę kolan i bioder, żeby wzmacniać hamstringi w bardziej sportowym torze ruchu.",
     instructionsPl: [
       "Ustaw się jak do nordica, ale pozwól biodrom lekko pracować zamiast trzymać je całkiem sztywno.",
       "Opadaj do przodu pod kontrolą, utrzymując napięcie tylnej taśmy i aktywnie zginając kolana.",
@@ -2196,7 +2195,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["long_lever_hamstring_iso"],
     safeAlternativeIds: ["long_lever_hamstring_iso"],
     replacementIds: ["long_lever_hamstring_iso"],
-    objective: "Pozwala budować napięcie hamstringa przy większym zgięciu kolana i mniejszym stresie długościowym.",
+    objective:
+      "Pozwala budować napięcie hamstringa przy większym zgięciu kolana i mniejszym stresie długościowym.",
     instructionsPl: [
       "Ustaw pięty bliżej pośladków, tak żeby kolana były ugięte mniej więcej do kąta prostego.",
       "Wbij pięty mocno w podłoże, delikatnie unoś biodra i poczuj równy nacisk obu nóg.",
@@ -2215,7 +2215,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["long_lever_hamstring_iso"],
     safeAlternativeIds: ["long_lever_hamstring_iso"],
     replacementIds: ["long_lever_hamstring_iso"],
-    objective: "Dodaje małe pulsacje do długiej dźwigni, żeby wydłużyć czas pod napięciem hamstringów.",
+    objective:
+      "Dodaje małe pulsacje do długiej dźwigni, żeby wydłużyć czas pod napięciem hamstringów.",
     instructionsPl: [
       "Ustaw most z długą dźwignią i unieś biodra do wysokości, którą potrafisz stabilnie utrzymać.",
       "Wykonuj małe pulsacje góra–dół bez odkładania bioder i bez utraty napięcia pięt.",
@@ -2335,7 +2336,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["bodyweight_row"],
     safeAlternativeIds: ["bodyweight_row"],
     replacementIds: ["bodyweight_row"],
-    objective: "Daje pionowe przyciąganie dla zawodnika, który nie wykona jeszcze pełnego podciągania.",
+    objective:
+      "Daje pionowe przyciąganie dla zawodnika, który nie wykona jeszcze pełnego podciągania.",
     instructionsPl: [
       "Usiądź stabilnie, zablokuj uda pod poduszką i chwyć drążek trochę szerzej niż barki.",
       "Ściągnij drążek do górnej części klatki, prowadząc łokcie w dół i lekko do tyłu.",
@@ -2390,7 +2392,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     movementPattern: "gait",
     loadingType: "bodyweight",
     ankleLoadLevel: "low",
-    objective: "Wzmacnia mięsień piszczelowy przedni i pomaga lepiej tolerować bieganie oraz hamowanie.",
+    objective:
+      "Wzmacnia mięsień piszczelowy przedni i pomaga lepiej tolerować bieganie oraz hamowanie.",
     instructionsPl: [
       "Oprzyj plecy o ścianę albo usiądź tak, żeby pięty były stabilnie wbite w podłoże.",
       "Unieś palce i przód stopy maksymalnie do góry bez odrywania pięt.",
@@ -2429,7 +2432,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["bodyweight_march_hold"],
     safeAlternativeIds: ["bodyweight_march_hold"],
     replacementIds: ["bodyweight_march_hold"],
-    objective: "Buduje anty-zgięcie boczne tułowia i kontrolę miednicy pod jednostronnym obciążeniem.",
+    objective:
+      "Buduje anty-zgięcie boczne tułowia i kontrolę miednicy pod jednostronnym obciążeniem.",
     instructionsPl: [
       "Chwyć ciężar po jednej stronie ciała, ustaw żebra nad miednicą i wydłuż szyję.",
       "Idź krótkimi, sprężystymi krokami bez przechylania się w stronę ciężaru ani od niego.",
@@ -2475,7 +2479,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     regressionIds: ["farmer_carry"],
     safeAlternativeIds: ["farmer_carry"],
     replacementIds: ["farmer_carry"],
-    objective: "Dodaje większe wymagania dla brzucha i górnej części pleców przy marszu pod obciążeniem.",
+    objective:
+      "Dodaje większe wymagania dla brzucha i górnej części pleców przy marszu pod obciążeniem.",
     instructionsPl: [
       "Ustaw ciężar na przedramieniu przy barku, trzymaj łokieć lekko z przodu i nadgarstek neutralnie.",
       "Maszeruj bez odchylania tułowia do tyłu i bez opuszczania łokcia wraz ze zmęczeniem.",
@@ -2518,7 +2523,8 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     stimulus: "lateral trunk stability",
     coachingCues: ["Żebra nad miednicą", "Wysokie kolano bez kołysania", "Spokojny oddech"],
     commonErrors: ["Przeprost lędźwi", "Kołysanie miednicy na boki"],
-    objective: "Daje prosty zamiennik dla spacerów z ciężarem, gdy nie masz sprzętu ani miejsca na odcinki.",
+    objective:
+      "Daje prosty zamiennik dla spacerów z ciężarem, gdy nie masz sprzętu ani miejsca na odcinki.",
     instructionsPl: [
       "Stań wysoko, napnij brzuch i ustaw ręce jak do spokojnego marszu.",
       "Unoś naprzemiennie kolana do wysokości bioder, utrzymując nieruchomy tułów i stabilną miednicę.",
@@ -3235,7 +3241,9 @@ for (const [id, aliases] of Object.entries(aliasEnrichments)) {
     definition.aliases = [...new Set([...definition.aliases, ...aliases])];
   }
 }
-const longLeverHamstringIso = LIBRARY.find((exercise) => exercise.id === "long_lever_hamstring_iso");
+const longLeverHamstringIso = LIBRARY.find(
+  (exercise) => exercise.id === "long_lever_hamstring_iso",
+);
 if (longLeverHamstringIso) {
   longLeverHamstringIso.aliases = longLeverHamstringIso.aliases.filter(
     (alias) => alias !== "Heel-dig bridge iso",
@@ -3255,6 +3263,323 @@ for (const exercise of LIBRARY) {
             ? "trunk"
             : exercise.category;
   exercise.stimulus ??= exercise.primaryAdaptation;
+}
+
+type SprintGuidance = Pick<
+  ExerciseDefinition,
+  "objective" | "instructionsPl" | "coachingCues" | "commonErrors"
+>;
+
+/**
+ * Instrukcje widoczne w runnerze. Każdy opis mówi: jak się ustawić,
+ * co zrobić i po czym zawodnik pozna poprawne powtórzenie.
+ */
+const SPRINT_GUIDANCE: Record<string, SprintGuidance> = {
+  a_skip: {
+    objective: "Ustawić rytm biegu, aktywną stopę i stabilną miednicę przed sprintem.",
+    instructionsPl: [
+      "Stań wysoko. Unieś kolano do wysokości biodra, stopę trzymaj zadartą, a przeciwne ramię prowadź do przodu.",
+      "Opuść stopę aktywnie pod biodro i od razu odbij się z drugiej nogi; przemieszczaj się krótkimi, sprężystymi krokami.",
+      "Najpierw znajdź równy rytm, dopiero potem przyspiesz. Biodra przez cały odcinek pozostają na tej samej wysokości.",
+    ],
+    coachingCues: ["Kolano w górę, stopa pod biodro", "Biodra wysoko", "Rytm ramion i nóg"],
+    commonErrors: ["Lądowanie przed ciałem", "Odchylanie tułowia i siadanie biodrami"],
+  },
+  c_skip: {
+    objective: "Nauczyć szybkiego odzyskania pięty i cyklicznej pracy nogi bez opadania bioder.",
+    instructionsPl: [
+      "Biegnij wysoko i lekko. Po odbiciu prowadź piętę szybko pod pośladek, a kolano przesuwaj do przodu.",
+      "Nie kop piętą do tyłu. Noga ma zatoczyć krótki cykl pod biodrem, a stopa wrócić pod środek masy.",
+      "Utrzymuj małe przemieszczanie do przodu i równy rytm; zakończ odcinek, jeśli biodra zaczynają opadać.",
+    ],
+    coachingCues: ["Pięta pod pośladek", "Krótki cykl pod biodrem", "Tułów wysoki"],
+    commonErrors: ["Kopanie piętą daleko do tyłu", "Pochylanie się i utrata rytmu"],
+  },
+  b_skip: {
+    objective: "Połączyć uniesienie kolana z aktywnym sprowadzeniem stopy pod biodro.",
+    instructionsPl: [
+      "Unieś kolano jak w Skipie A, następnie delikatnie otwórz podudzie bez blokowania kolana.",
+      "Zgarnij stopę w dół i do tyłu tak, aby kontakt nastąpił pod biodrem, nie przed ciałem.",
+      "Zachowaj sprężysty rytm i stabilny tułów; zakres wyprostu jest mniejszy niż jakość aktywnego kontaktu.",
+    ],
+    coachingCues: ["Unieś — otwórz — zgarnij", "Kontakt pod biodrem", "Nie blokuj kolana"],
+    commonErrors: ["Sięganie wyprostowaną nogą przed ciało", "Hamujący kontakt na pięcie"],
+  },
+  d_skip: {
+    objective:
+      "Przygotować szybką wymianę nóg i sprężysty kontakt potrzebny przy wysokiej prędkości.",
+    instructionsPl: [
+      "Utrzymuj wysoki tułów i wykonuj krótką nożycową wymianę nóg: jedna noga idzie w przód, druga natychmiast wraca pod biodro.",
+      "Kontaktuj podłoże śródstopiem pod ciałem; ruch pochodzi z biodra, a kolano pozostaje lekko miękkie.",
+      "Zwiększaj częstotliwość, nie długość kroku. Przerwij, jeśli zaczynasz sięgać stopą przed siebie.",
+    ],
+    coachingCues: ["Szybka nożyca", "Stopa pod biodrem", "Krótki kontakt"],
+    commonErrors: ["Daleki wykrok przed ciało", "Sztywne kolana i głośne lądowanie"],
+  },
+  a_skip_add_step: {
+    objective: "Nauczyć przejścia z kontrolowanej pozycji A do płynnego rytmu biegu.",
+    instructionsPl: [
+      "Zrób spokojny krok dostawny, po którym ustaw kolano wysoko, stopę zadartą i przeciwne ramię z przodu.",
+      "Z tej pozycji aktywnie sprowadź stopę pod biodro i przejdź do kolejnego kroku dostawnego.",
+      "Po opanowaniu sekwencji skróć pauzę między ruchami, ale nie zwiększaj długości kroku.",
+    ],
+    coachingCues: ["Krok — pozycja A — kontakt", "Stopa pod biodrem", "Najpierw kontrola"],
+    commonErrors: ["Pośpiech bez wyraźnej pozycji A", "Kontakt stopy przed ciałem"],
+  },
+  a_skip_no_add_step: {
+    objective: "Wykonać Skip A płynnie, bez kroku pomocniczego i bez utraty wysokości bioder.",
+    instructionsPl: [
+      "Rozpocznij od marszu A, a po dwóch krokach usuń krok dostawny i przejdź do ciągłego rytmu.",
+      "Każde kolano prowadź do przodu, a stopę sprowadzaj aktywnie pod biodro.",
+      "Utrzymuj tę samą wysokość miednicy i rytmiczną pracę ramion przez cały odcinek.",
+    ],
+    coachingCues: ["Ciągły rytm", "Biodra wysoko", "Aktywny kontakt pod sobą"],
+    commonErrors: ["Podskakiwanie pionowo bez ruchu do przodu", "Sięganie stopą"],
+  },
+  switch_skip_a: {
+    objective: "Połączyć jedną szybką wymianę nóg z natychmiastowym wejściem w rytm Skipu A.",
+    instructionsPl: [
+      "Stań w pozycji A: jedno kolano wysoko, stopa zadarta, tułów stabilny. Wykonaj jedną szybką wymianę nóg w miejscu.",
+      "Stopa schodząca w dół trafia pod biodro; druga noga natychmiast przejmuje pozycję A bez dodatkowego podskoku.",
+      "Po wymianie rusz płynnie w Skip A na 15 m. Pierwsze trzy kroki mają zachować tę samą pozycję i rytm.",
+    ],
+    coachingCues: ["Zmień i rusz", "Kontakt pod biodrem", "Bez pauzy po zmianie"],
+    commonErrors: ["Dodatkowy podskok po wymianie", "Opadnięcie bioder przed ruszeniem"],
+  },
+  double_switch_skip_a: {
+    objective: "Rozwinąć dwie szybkie wymiany podporu i płynne przeniesienie ich do biegu.",
+    instructionsPl: [
+      "Ustaw pozycję A i wykonaj dwie szybkie wymiany nóg w miejscu, bez zmiany wysokości bioder.",
+      "Każdy kontakt ma być krótki i dokładnie pod ciałem; ramiona pracują przeciwnie do nóg.",
+      "Po drugiej wymianie natychmiast przejdź w Skip A, bez resetowania pozycji.",
+    ],
+    coachingCues: ["Dwa szybkie kontakty", "Biodra nieruchomo", "Druga zmiana rozpoczyna ruch"],
+    commonErrors: ["Kołysanie miednicy", "Zatrzymanie po drugiej wymianie"],
+  },
+  a_switch_progression: {
+    objective: "Nauczyć coraz szybszej wymiany nóg przy zachowaniu pozycji akceleracyjnej.",
+    instructionsPl: [
+      "Ustaw pozycję A przy lekkim pochyleniu całego ciała i wykonaj pojedynczą wymianę, zatrzymując nową pozycję na sekundę.",
+      "Następnie wykonaj dwie, a potem trzy wymiany bez pauzy między kontaktami; po każdej serii sprawdź ustawienie bioder i stopy.",
+      "Zwiększaj szybkość tylko wtedy, gdy stopa ląduje pod biodrem, a tułów nie łamie się w pasie.",
+    ],
+    coachingCues: ["Jedna linia ciała", "Stopa wbija pod biodro", "Szybkość bez kołysania"],
+    commonErrors: ["Zgięcie w pasie", "Kontakty coraz dalej przed ciałem"],
+  },
+  a_accent: {
+    objective: "Dodać jeden mocny, techniczny akcent przy zachowaniu rytmu Skipu A.",
+    instructionsPl: [
+      "Wykonaj trzy lekkie kroki Skipu A, po czym czwarty kontakt zrób wyraźnie mocniej i dynamiczniej.",
+      "Mocniejszy krok nadal trafia pod biodro; nie wydłużaj nogi przed siebie i nie wyskakuj wysoko.",
+      "Powtarzaj sekwencję 3 + 1 przez cały odcinek, zachowując równą pracę prawej i lewej strony.",
+    ],
+    coachingCues: ["Trzy lekko, jeden mocno", "Moc w dół i do tyłu", "Równe strony"],
+    commonErrors: ["Mocny krok daleko przed ciałem", "Utrata rytmu po akcencie"],
+  },
+  c_accent: {
+    objective: "Przyspieszyć cykl nogi pod biodrem bez kopania piętą do tyłu.",
+    instructionsPl: [
+      "Wykonaj trzy lekkie cykle Skipu C, a czwarty zrób szybciej, prowadząc piętę krótko pod pośladek.",
+      "Po akcencie stopa wraca pod biodro, a tułów i miednica pozostają wysoko.",
+      "Utrzymuj schemat 3 + 1 i zakończ serię, gdy szybki cykl zaczyna wypychać stopę przed ciało.",
+    ],
+    coachingCues: ["Trzy luźno, jeden szybko", "Krótki cykl", "Kontakt pod sobą"],
+    commonErrors: ["Kopanie piętą do tyłu", "Odchylanie tułowia"],
+  },
+  power_skip_distance: {
+    objective: "Wytworzyć poziomą siłę potrzebną do pierwszych kroków przyspieszenia.",
+    instructionsPl: [
+      "Z pozycji wysokiej odbij się mocno do przodu z jednej nogi, prowadząc przeciwne kolano i ramię.",
+      "Wyląduj sprężyście na drugiej nodze pod biodrem i od razu przejdź do kolejnego odbicia.",
+      "Szukaj odległości przez mocne pchnięcie podłoża, nie przez wyciąganie nogi do przodu.",
+    ],
+    coachingCues: ["Pchaj podłoże za siebie", "Kolano prowadzi", "Ląduj pod biodrem"],
+    commonErrors: ["Sięganie stopą po dystans", "Zapadanie kolana przy lądowaniu"],
+  },
+  alternate_leg_bounds: {
+    objective: "Przenieść siłę naprzemiennie z nogi na nogę w kierunku sprintu.",
+    instructionsPl: [
+      "Odbij się mocno z jednej nogi do przodu, prowadząc przeciwne kolano i utrzymując długi tułów.",
+      "Przyjmij lądowanie pod biodrem na drugiej nodze i bez dodatkowego kroku przejdź do kolejnego odbicia.",
+      "Kontakty mają być sprężyste i symetryczne; zmniejsz długość, jeśli tracisz ustawienie kolana lub miednicy.",
+    ],
+    coachingCues: ["Naprzemiennie i płynnie", "Biodra do przodu", "Kontakt pod sobą"],
+    commonErrors: ["Zbyt długie, hamujące lądowanie", "Uciekanie kolana do środka"],
+  },
+  scissor_bounds: {
+    objective: "Przygotować szybką wymianę nóg i poziome przekazanie siły przed akceleracją.",
+    instructionsPl: [
+      "Ustaw nogi jak w krótkim wykroku, opuść biodra tylko minimalnie i wykonaj dynamiczną wymianę nóg w powietrzu.",
+      "Ląduj miękko na obu stopach w nowym ustawieniu, z kolanami nad stopami i stabilnym tułowiem.",
+      "Kolejne odbicie wykonaj dopiero po odzyskaniu kontroli; liczy się szybka wymiana, nie wysokość skoku.",
+    ],
+    coachingCues: ["Szybka wymiana", "Miękkie stabilne lądowanie", "Tułów spokojny"],
+    commonErrors: ["Głębokie lądowanie i długa pauza", "Kolano zapadające się do środka"],
+  },
+  wall_march: {
+    objective: "Poczuć prawidłowy kąt ciała i kierunek pchnięcia w pierwszych krokach sprintu.",
+    instructionsPl: [
+      "Oprzyj dłonie o ścianę na wysokości barków i odejdź stopami tak, aby ciało tworzyło prostą linię pod kątem.",
+      "Unieś jedno kolano do przodu, stopę zadartą, a nogę podporową wyprostuj przez mocne pchnięcie podłoża.",
+      "Zmieniaj nogi bez unoszenia bioder i bez zginania w pasie; każdy kontakt stopy wypada pod biodrem.",
+    ],
+    coachingCues: ["Jedna linia od głowy do pięty", "Pchaj podłoże", "Stopa pod biodrem"],
+    commonErrors: ["Zgięcie w biodrach", "Za pionowa pozycja i brak pchnięcia"],
+  },
+  falling_start: {
+    objective: "Uruchomić pierwszy krok jako naturalną reakcję na utratę równowagi do przodu.",
+    instructionsPl: [
+      "Stań wysoko ze stopami pod biodrami. Pochylaj całe ciało do przodu jak deskę, bez zginania w pasie i bez wysuwania nogi.",
+      "Gdy musisz postawić krok, uderz stopą pod lub lekko za biodrem i mocno pchnij podłoże do tyłu.",
+      "Wykonaj 4–6 narastających kroków, stopniowo się prostując. Biegnij przez linię 10 m, nie wyskakuj do góry.",
+    ],
+    coachingCues: ["Upadnij jak deska", "Pierwszy krok pod sobą", "Pchaj, potem przyspiesz rytm"],
+    commonErrors: ["Wysunięcie nogi przed utratą równowagi", "Złamanie tułowia w pasie"],
+  },
+  split_stance_start: {
+    objective: "Rozwinąć moc pierwszego kroku z nieruchomej pozycji i obu ustawień nóg.",
+    instructionsPl: [
+      "Ustaw jedną stopę pół długości stopy przed drugą, ciężar przenieś głównie na nogę przednią i pochyl całe ciało lekko do przodu.",
+      "Na start mocno odepchnij podłoże obiema nogami, a tylną nogę przeprowadź szybko pod biodro.",
+      "Pierwsze kroki kieruj do przodu, stopniowo zwiększając długość i częstotliwość. Zmieniaj nogę ustawioną z przodu.",
+    ],
+    coachingCues: [
+      "Ciężar z przodu",
+      "Mocne odepchnięcie obu nóg",
+      "Niski kierunek pierwszych kroków",
+    ],
+    commonErrors: ["Kołysanie do tyłu przed startem", "Natychmiastowe wyprostowanie"],
+  },
+  push_up_start: {
+    objective: "Szybko przejść z podporu do skutecznej pozycji przyspieszenia.",
+    instructionsPl: [
+      "Połóż się w podporze przodem z ciałem w jednej linii. Ustaw dłonie pod barkami i napnij tułów.",
+      "Na sygnał postaw jedną stopę możliwie blisko pod biodrem, jednocześnie odrywając przeciwne ramię.",
+      "Pchnij podłoże do tyłu i wykonaj 5–7 mocnych kroków; nie podnoś najpierw bioder i nie zatrzymuj się po wstaniu.",
+    ],
+    coachingCues: ["Stopa szybko pod biodro", "Wstań w ruchu", "Pchaj przez pierwsze kroki"],
+    commonErrors: ["Najpierw uniesione biodra, potem start", "Dodatkowe kroki ustawiające"],
+  },
+  free_acceleration_sprint: {
+    objective: "Przenieść technikę startu do swobodnego, maksymalnego przyspieszenia.",
+    instructionsPl: [
+      "Ustaw wygodną pozycję startową i wybierz punkt 10–20 m przed sobą. Przed startem weź pełny oddech i rozluźnij barki.",
+      "Przez pierwsze kroki pchaj podłoże mocno za siebie, utrzymując jedną linię ciała; długość kroku zwiększaj stopniowo i naturalnie.",
+      "Przyspieszaj aż do końca wyznaczonego odcinka i wyhamuj dopiero za linią. Powtórzenie kończy się, gdy czas lub technika wyraźnie spada.",
+    ],
+    coachingCues: ["Pchaj boisko za siebie", "Wstawaj stopniowo", "Biegnij przez linię"],
+    commonErrors: ["Natychmiastowe wyprostowanie", "Sztucznie wydłużony pierwszy krok"],
+  },
+  flying_sprint: {
+    objective: "Osiągnąć wysoką prędkość w kontrolowanym odcinku bez zmęczenia kondycyjnego.",
+    instructionsPl: [
+      "Rozpocznij 15 m przed strefą pomiarową i płynnie zwiększaj prędkość bez gwałtownego szarpnięcia.",
+      "W strefie 20 m biegnij wysoko i swobodnie: biodra wysoko, stopa pod środkiem masy, barki i twarz rozluźnione.",
+      "Po strefie utrzymaj kierunek i wyhamuj stopniowo przez co najmniej 20 m. Następne powtórzenie zacznij po pełnym odpoczynku.",
+    ],
+    coachingCues: ["Narastaj płynnie", "Wysoko i luźno", "Krótki kontakt pod biodrem"],
+    commonErrors: ["Sprint maksymalny już na najazdzie", "Napinanie barków i sięganie stopą"],
+  },
+  upright_football_sprint: {
+    objective: "Utrzymać wysoką, swobodną prędkość na dłuższym odcinku podobnym do akcji meczowej.",
+    instructionsPl: [
+      "Wejdź w bieg przez 8–10 m narastania, a następnie przejdź do szybkiej, wysokiej pozycji.",
+      "Utrzymuj biodra wysoko, ramiona blisko tułowia i kontakt stopy bezpośrednio pod ciałem.",
+      "Nie walcz o prędkość napięciem. Jeśli krok robi się ciężki lub głośny, zakończ odcinek i wydłuż odpoczynek.",
+    ],
+    coachingCues: ["Wysoko i swobodnie", "Stopa pod ciałem", "Rozluźniona twarz i barki"],
+    commonErrors: ["Sięganie stopą przed siebie", "Zaciskanie górnej części ciała"],
+  },
+  football_curved_sprint: {
+    objective: "Biec szybko po płynnym łuku bez zamiany ruchu w ostre cięcie.",
+    instructionsPl: [
+      "Wyznacz łuk pachołkami i rozpocznij po jego zewnętrznej stronie. Przyspieszaj stopniowo przed wejściem w zakręt.",
+      "Pochyl całe ciało lekko do środka łuku, zachowując biodra i barki w jednej płaszczyźnie; kroki pozostają sprężyste.",
+      "Wyjdź z łuku płynnie i wyhamuj dopiero na prostej. Wykonaj równą liczbę powtórzeń w obie strony.",
+    ],
+    coachingCues: ["Pochyl całe ciało do środka", "Płynny łuk", "Równe strony"],
+    commonErrors: ["Ostre cięcie zamiast łuku", "Załamanie tułowia w bok"],
+  },
+  reactive_curved_sprint: {
+    objective: "Wybrać kierunek po sygnale i zachować płynny sprint po łuku.",
+    instructionsPl: [
+      "Ustaw dwie szerokie bramki po lewej i prawej stronie. Partner lub aplikacja podaje kierunek tuż przed startem.",
+      "Zareaguj pierwszym krokiem w wybrany łuk, bez zatrzymania i bez ostrego cięcia stopy.",
+      "Przyspieszaj przez cały łuk, wyjdź na prostą i dopiero wtedy kontrolowanie wyhamuj.",
+    ],
+    coachingCues: ["Najpierw sygnał, potem ruch", "Biegnij po łuku", "Nie zgaduj kierunku"],
+    commonErrors: ["Ruch przed sygnałem", "Hamowanie przed wejściem w łuk"],
+  },
+  progressive_deceleration_5_10_15: {
+    objective: "Nauczyć hamowania z rosnącej prędkości bez utraty osi kolana i kontroli tułowia.",
+    instructionsPl: [
+      "Przyspiesz do pierwszej linii, a po jej przekroczeniu stopniowo obniż biodra i skracaj kroki.",
+      "Stawiaj stopy blisko środka masy, zwiększając częstotliwość kontaktów; klatka pozostaje nad biodrami.",
+      "Najpierw opanuj 5 m, następnie 10 i 15 m. Zwiększ dystans wejścia tylko po stabilnym zatrzymaniu.",
+    ],
+    coachingCues: ["Obniż biodra stopniowo", "Krótsze, szybsze kroki", "Kolano nad stopą"],
+    commonErrors: ["Jeden długi hamujący krok", "Zapadanie kolana do środka"],
+  },
+  deceleration_lateral_exit: {
+    objective: "Połączyć kontrolowane hamowanie ze skutecznym ponownym wyjściem w bok.",
+    instructionsPl: [
+      "Przyspiesz 8–10 m, a przed linią obniż biodra i wyhamuj w dwóch–trzech krótkich krokach.",
+      "Ostatnią stopę ustaw stabilnie pod biodrem, kolano nad stopą, a klatkę lekko skieruj w stronę wyjścia.",
+      "Mocno odepchnij się w bok i przyspiesz 5 m. Wykonuj wyjścia na obie strony.",
+    ],
+    coachingCues: ["Najpierw kontrola, potem wyjście", "Nisko nad stopą", "Mocne odepchnięcie"],
+    commonErrors: ["Zmiana kierunku przed wyhamowaniem", "Noga podporowa daleko od ciała"],
+  },
+  planned_cut: {
+    objective: "Wykonać zaplanowaną zmianę kierunku po skutecznym obniżeniu prędkości.",
+    instructionsPl: [
+      "Przyspiesz do pachołka, a dwa–trzy kroki przed nim skróć krok i obniż środek masy.",
+      "Stopę zewnętrzną ustaw pod biodrem, nie daleko na bok; kolano prowadź w tym samym kierunku co palce.",
+      "Odepchnij podłoże i przyspiesz 5–10 m w nowym kierunku. Ćwicz równo w lewo i w prawo.",
+    ],
+    coachingCues: ["Hamuj przed pachołkiem", "Stopa pod biodrem", "Wyjdź nisko i szybko"],
+    commonErrors: ["Hamowanie dopiero na pachołku", "Kolano wpadające do środka"],
+  },
+  app_audio_forward_left_right: {
+    objective: "Szybko rozpoznać sygnał i rozpocząć właściwy ruch bez zgadywania.",
+    instructionsPl: [
+      "Stań w neutralnej pozycji między trzema bramkami: przód, lewo i prawo. Wzrok utrzymuj przed sobą.",
+      "Po sygnale audio rozpoznaj kierunek, wykonaj pierwszy krok odpowiednią nogą i przyspiesz przez wskazaną bramkę.",
+      "Wracaj do pozycji startowej dopiero po pełnym wyhamowaniu. Sygnały muszą być losowe, z równą liczbą stron.",
+    ],
+    coachingCues: ["Usłysz — zdecyduj — rusz", "Pierwszy krok w kierunku", "Nie zgaduj"],
+    commonErrors: ["Ruch przed sygnałem", "Krzyżowanie nóg przy pierwszym kroku bocznym"],
+  },
+  app_visual_colour_cue_cod: {
+    objective:
+      "Zmienić kierunek na bodziec wzrokowy, zachowując jakość hamowania i ponownego startu.",
+    instructionsPl: [
+      "Ustaw dwie kolorowe bramki po bokach i rozpocznij lekki ruch do przodu.",
+      "Po pokazaniu koloru wyhamuj krótkimi krokami, ustaw stopę podporową pod biodrem i skieruj ciało do właściwej bramki.",
+      "Przyspiesz 5–8 m przez wybraną bramkę. Kolejny sygnał pojawia się dopiero po pełnym odpoczynku.",
+    ],
+    coachingCues: ["Zobacz kolor", "Najpierw wyhamuj", "Mocno wyjdź w nowym kierunku"],
+    commonErrors: ["Zgadywanie strony", "Ostry skręt na wyprostowanym kolanie"],
+  },
+  accel_decel_reaccel: {
+    objective: "Połączyć przyspieszenie, kontrolowane hamowanie i ponowny start w jednej akcji.",
+    instructionsPl: [
+      "Przyspiesz 8–10 m z pełną jakością, następnie skróć kroki i obniż biodra przed strefą zatrzymania.",
+      "Zatrzymaj środek masy nad stopami bez dodatkowego kołysania i przygotuj ciało do ponownego startu.",
+      "Natychmiast pchnij podłoże za siebie i przyspiesz kolejne 8–10 m. Jakość drugiego startu jest ważniejsza niż szybkość wejścia.",
+    ],
+    coachingCues: [
+      "Przyspiesz — opanuj — rusz ponownie",
+      "Krótkie kroki hamowania",
+      "Mocny drugi start",
+    ],
+    commonErrors: ["Brak kontroli między fazami", "Ponowny start z pionowej, pasywnej pozycji"],
+  },
+};
+
+for (const [id, guidance] of Object.entries(SPRINT_GUIDANCE)) {
+  const definition = LIBRARY.find((exercise) => exercise.id === id);
+  if (definition) Object.assign(definition, guidance);
 }
 
 const existingAcceleration = LIBRARY.find((exercise) => exercise.id === "acceleration_mechanics");
@@ -3635,7 +3960,8 @@ export function hydrateExerciseItemFromDefinition(item: ExerciseItem): ExerciseI
     purpose: item.purpose ?? fallbackPurpose(canonical),
     visualId: item.visualId ?? canonical.id,
     instructionSteps:
-      item.instructionSteps?.length && item.instructionSteps.some((step) => step.description?.trim())
+      item.instructionSteps?.length &&
+      item.instructionSteps.some((step) => step.description?.trim())
         ? item.instructionSteps
         : fallbackInstructionSteps(canonical),
     technique: item.technique ?? fallbackTechnique(canonical),
@@ -3665,11 +3991,10 @@ export function hydrateTrainingExerciseFromDefinition(
     technique: exercise.technique ?? fallbackTechnique(canonical),
     equipment:
       exercise.equipment ??
-      (
-        specialistEquipmentForExercise(canonical)
-          .map((id) => EQUIPMENT_REGISTRY.find((equipment) => equipment.id === id)?.displayName ?? id)
-          .join(", ") || "Masa ciała"
-      ),
+      (specialistEquipmentForExercise(canonical)
+        .map((id) => EQUIPMENT_REGISTRY.find((equipment) => equipment.id === id)?.displayName ?? id)
+        .join(", ") ||
+        "Masa ciała"),
     cue: exercise.cue ?? canonical.coachingCues.slice(0, 3).join(". "),
     regression: exercise.regression ?? canonicalReplacementName(canonical.regressionIds),
     progression: exercise.progression ?? canonicalReplacementName(canonical.progressionIds),
