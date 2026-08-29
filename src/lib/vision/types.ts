@@ -286,6 +286,11 @@ export interface CalculationBasis {
   method: string;
   items: CalculationBasisItem[];
   coachVerifiedFrames: boolean;
+  /**
+   * Sprint Performance Scan — rozszerzenie istniejącego rekordu wyniku.
+   * Pole opcjonalne: starsze rekordy bez niego działają bez zmian.
+   */
+  sprintScan?: import("@/features/vision-analysis/sprint/types").SprintPerformanceScan;
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {

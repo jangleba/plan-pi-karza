@@ -25,6 +25,7 @@ import { VisionGymResult } from "./VisionGymResult";
 import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { VisionProgressComparison } from "./VisionProgressComparison";
 import { VisionCalculationBasis } from "./VisionCalculationBasis";
+import { SprintScanReport } from "./SprintScanReport";
 import { VisionCoachFeedback } from "./VisionCoachFeedback";
 import { VisionCoachReviewSheet } from "./VisionCoachReviewSheet";
 import { Button } from "@/components/ui/button";
@@ -176,6 +177,11 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
         )}
         {fb.improve && (
           <FeedbackRow icon={Target} tone="text-primary" title="Jedna rzecz do poprawy" text={fb.improve} />
+        )}
+
+        {/* Sprint Performance Scan — tylko gdy silnik go policzył */}
+        {result.calculationBasis?.sprintScan && (
+          <SprintScanReport scan={result.calculationBasis.sprintScan} />
         )}
 
         {/* Jak powstał wynik? */}

@@ -1,3 +1,5 @@
+import { buildSprintPerformanceScan } from "./sprint/scan";
+import { isSprintScanTest, type SprintProtocolId } from "./sprint/types";
 import type {
   AnalysisContext,
   AnalysisPhase,
@@ -921,6 +923,15 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
         homography: calibration?.homography ? [...calibration.homography] : null,
       },
       motionWindow: motionWindowSummary,
+      ...(isSprintScanTest(opts.testType)
+        ? {
+            sprintScan: buildSprintPerformanceScan({
+              protocol: opts.testType as SprintProtocolId,
+              ctx,
+              timingAvailable: adapterOut.metrics.length > 0,
+            }),
+          }
+        : {}),
       pipelineTrace: controller.trace(),
       frameLog: poseOut.frameLog,
       ...(opts.debugDiagnostics
