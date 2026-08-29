@@ -11,18 +11,12 @@
  */
 
 import { round } from "./physics";
-import {
-  fitHomography,
-  type CorrespondencePoint,
-  type Homography,
-} from "./calibrationProfiles";
+import { fitHomography, type CorrespondencePoint, type Homography } from "./calibrationProfiles";
 import { invert3x3, applyInverse } from "./homographyGeometry";
+import type { TimingLineRole, TimingLineSpec } from "./types";
 
 /** Trzy tryby kalibracji sceny filmu. */
-export type CalibrationType =
-  | "AUTOMATIC_MARKERS"
-  | "MANUAL_GROUND_POINTS"
-  | "KNOWN_DISTANCE";
+export type CalibrationType = "AUTOMATIC_MARKERS" | "MANUAL_GROUND_POINTS" | "KNOWN_DISTANCE";
 
 /** Status wyniku przestrzennego względem kalibracji. */
 export type SpatialResultStatus = "OFFICIAL" | "TECHNIQUE_ONLY";
@@ -85,6 +79,8 @@ export interface CalibrationRecord {
   takeoffLinePx?: [ImagePointPx, ImagePointPx];
   /** Wielokąt (piksele) możliwej strefy lądowania. */
   landingAreaPolygonPx?: ImagePointPx[];
+  /** Skalibrowane linie czasu przypisane do geometrii tego filmu. */
+  timingLines?: TimingLineSpec[];
   /** Podpis sceny do dziedziczenia kalibracji między filmami (markery/tło/skala/obrót/kadr). */
   sceneSignature?: SceneSignature;
   calibrationConfidence: number;
@@ -98,6 +94,46 @@ export const MAX_VIDEO_REPROJECTION_ERROR_PX = 3.0;
 
 /** Minimalna liczba poprawnych punktów podłoża. */
 export const MIN_GROUND_POINTS = 4;
+
+const SPRINT_DISTANCE_M: Partial<Record<string, number>> = {
+  sprint_20m: 20,
+  sprint_30m: 30,
+};
+
+function timingLine(role: TimingLineRole, xMm: number, laneWidthMm: number): TimingLineSpec {
+  return {
+    id: `sprint-${role.toLowerCase()}`,
+    role,
+    worldXmm: xMm,
+    groundStartPointMm: { x: xMm, y: 0 },
+    groundEndPointMm: { x: xMm, y: laneWidthMm },
+    direction: "forward",
+  };
+}
+
+/** Buduje linie czasu w tej samej płaszczyźnie świata co homografia filmu. */
+export function buildSprintTimingLines(
+  testId: string | undefined,
+  trackLengthMm: number,
+  laneWidthMm: number,
+): TimingLineSpec[] | undefined {
+  if (!testId || trackLengthMm <= 0 || laneWidthMm <= 0) return undefined;
+  if (testId === "flying_sprint") {
+    return [
+      timingLine("TIMING_A", 0, laneWidthMm),
+      timingLine("TIMING_B", trackLengthMm, laneWidthMm),
+    ];
+  }
+  const distanceM = SPRINT_DISTANCE_M[testId];
+  if (!distanceM) return undefined;
+  const lines: TimingLineSpec[] = [timingLine("START", 0, laneWidthMm)];
+  for (const splitM of [5, 10, 15, 20]) {
+    if (splitM >= distanceM) continue;
+    lines.push(timingLine(`SPLIT_${splitM}M` as TimingLineRole, splitM * 1000, laneWidthMm));
+  }
+  lines.push(timingLine("FINISH", distanceM * 1000, laneWidthMm));
+  return lines;
+}
 
 // ---------------------------------------------------------------------------
 // HASHOWANIE (deterministyczne, bez zależności zewnętrznych)
@@ -246,8 +282,7 @@ export function pointInPolygon(p: ImagePointPx, polygon: ImagePointPx[]): boolea
     const a = polygon[i];
     const b = polygon[j];
     const intersect =
-      a.v > p.v !== b.v > p.v &&
-      p.u < ((b.u - a.u) * (p.v - a.v)) / (b.v - a.v || 1e-9) + a.u;
+      a.v > p.v !== b.v > p.v && p.u < ((b.u - a.u) * (p.v - a.v)) / (b.v - a.v || 1e-9) + a.u;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -287,13 +322,13 @@ export function buildCalibrationRecord(input: {
   takeoffLinePx?: [ImagePointPx, ImagePointPx];
   /** Strefa lądowania (piksele) — opcjonalna. */
   landingAreaPolygonPx?: ImagePointPx[];
+  /** Linie czasu zbudowane w tej samej płaszczyźnie świata co homografia. */
+  timingLines?: TimingLineSpec[];
   /** Podpis sceny do dziedziczenia kalibracji między filmami. */
   sceneSignature?: SceneSignature;
   now?: string;
   calibrationId?: string;
-}):
-  | { ok: true; record: CalibrationRecord }
-  | { ok: false; errors: string[] } {
+}): { ok: true; record: CalibrationRecord } | { ok: false; errors: string[] } {
   const {
     videoHash,
     calibrationType,
@@ -312,11 +347,15 @@ export function buildCalibrationRecord(input: {
     world: groundPointsMm[i],
   }));
   const fit = fitHomography(correspondences);
-  if (!fit) return { ok: false, errors: ["Nie udało się wyznaczyć homografii z podanych punktów."] };
+  if (!fit)
+    return { ok: false, errors: ["Nie udało się wyznaczyć homografii z podanych punktów."] };
 
   const inverse = invert3x3(fit.homography);
   if (!inverse)
-    return { ok: false, errors: ["Homografia jest nieodwracalna — popraw rozmieszczenie punktów."] };
+    return {
+      ok: false,
+      errors: ["Homografia jest nieodwracalna — popraw rozmieszczenie punktów."],
+    };
 
   // Błąd reprojekcji w mm: rzut residuum piksela przez lokalną skalę środka.
   const mmPerPx = localMmPerPixel(inverse, imagePointsPx);
@@ -348,6 +387,11 @@ export function buildCalibrationRecord(input: {
     calibratedAreaPolygonPx: polygon,
     takeoffLinePx: input.takeoffLinePx,
     landingAreaPolygonPx: input.landingAreaPolygonPx,
+    timingLines: input.timingLines?.map((line) => ({
+      ...line,
+      groundStartPointMm: line.groundStartPointMm ? { ...line.groundStartPointMm } : undefined,
+      groundEndPointMm: line.groundEndPointMm ? { ...line.groundEndPointMm } : undefined,
+    })),
     sceneSignature: input.sceneSignature,
     calibrationConfidence,
     spatialResultStatus,
@@ -368,9 +412,7 @@ export function buildKnownDistanceRecord(input: {
   segments: KnownDistanceSegment[];
   now?: string;
   calibrationId?: string;
-}):
-  | { ok: true; record: CalibrationRecord }
-  | { ok: false; errors: string[] } {
+}): { ok: true; record: CalibrationRecord } | { ok: false; errors: string[] } {
   const { segments } = input;
   if (segments.length < 1) return { ok: false, errors: ["Podaj co najmniej jeden odcinek."] };
   const invalid = segments.some((s) => s.lengthMm <= 0);
@@ -424,8 +466,7 @@ function localMmPerPixel(inverse: Homography, imagePointsPx: ImagePointPx[]): nu
 
 /** Wynik próby odziedziczenia kalibracji na drugi film. */
 export type CalibrationInheritance =
-  | { ok: true; reasons: string[] }
-  | { ok: false; code: "CAMERA_SETUP_CHANGED"; reasons: string[] };
+  { ok: true; reasons: string[] } | { ok: false; code: "CAMERA_SETUP_CHANGED"; reasons: string[] };
 
 /**
  * Buduje podpis sceny z rekordu kalibracji (deterministycznie).
@@ -445,9 +486,7 @@ export function sceneSignatureFromRecord(
     ? round(localMmPerPixel(record.inverseHomographyMatrix, record.imagePointsPx), 4)
     : 0;
   return {
-    markerPointsPx: [...record.imagePointsPx].sort((a, b) =>
-      a.u === b.u ? a.v - b.v : a.u - b.u,
-    ),
+    markerPointsPx: [...record.imagePointsPx].sort((a, b) => (a.u === b.u ? a.v - b.v : a.u - b.u)),
     backgroundHash,
     mmPerPixel,
     rotationDeg,
@@ -477,7 +516,11 @@ export function canInheritCalibration(
   if (source.frameConfigHash !== candidate.frameConfigHash)
     reasons.push("Inny kadr (rozdzielczość/orientacja/FPS).");
 
-  if (source.backgroundHash && candidate.backgroundHash && source.backgroundHash !== candidate.backgroundHash)
+  if (
+    source.backgroundHash &&
+    candidate.backgroundHash &&
+    source.backgroundHash !== candidate.backgroundHash
+  )
     reasons.push("Inne tło sceny.");
 
   const scaleDenom = source.mmPerPixel || 1;

@@ -10,6 +10,7 @@ import {
   isAreaWithinCalibration,
   buildCalibrationRecord,
   buildKnownDistanceRecord,
+  buildSprintTimingLines,
   type ImagePointPx,
   type GroundPointMm,
 } from "./videoCalibration";
@@ -31,7 +32,9 @@ const groundPoints: GroundPointMm[] = [
 describe("videoHash", () => {
   it("jest deterministyczny dla tych samych bajtów", () => {
     const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(computeVideoHash(bytes)).toBe(computeVideoHash(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])));
+    expect(computeVideoHash(bytes)).toBe(
+      computeVideoHash(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])),
+    );
   });
   it("różni się dla różnych bajtów", () => {
     expect(computeVideoHash(new Uint8Array([1, 2, 3]))).not.toBe(
@@ -54,7 +57,13 @@ describe("frameConfigurationHash / calibrationHash", () => {
 
 describe("geometria", () => {
   it("wykrywa punkty współliniowe", () => {
-    expect(arePointsCollinear([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }])).toBe(true);
+    expect(
+      arePointsCollinear([
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+        { x: 2, y: 2 },
+      ]),
+    ).toBe(true);
     expect(arePointsCollinear(groundPoints)).toBe(false);
   });
   it("odrzuca <4 punkty", () => {
@@ -76,6 +85,18 @@ describe("geometria", () => {
 });
 
 describe("buildCalibrationRecord", () => {
+  it("buduje właściwe linie START/split/meta dla sprintu 20 m", () => {
+    const lines = buildSprintTimingLines("sprint_20m", 20000, 2000);
+    expect(lines?.map((line) => line.role)).toEqual([
+      "START",
+      "SPLIT_5M",
+      "SPLIT_10M",
+      "SPLIT_15M",
+      "FINISH",
+    ]);
+    expect(lines?.map((line) => line.worldXmm)).toEqual([0, 5000, 10000, 15000, 20000]);
+  });
+
   it("buduje rekord z homografią i odwrotnością", () => {
     const res = buildCalibrationRecord({
       videoHash: "vh_test",
@@ -93,6 +114,38 @@ describe("buildCalibrationRecord", () => {
     expect(res.record.reprojectionErrorPx).toBeGreaterThanOrEqual(0);
     expect(res.record.calibratedAreaPolygonPx.length).toBeGreaterThanOrEqual(3);
     expect(res.record.spatialResultStatus).toBe("OFFICIAL");
+  });
+
+  it("zapisuje linie czasu razem z kalibracją filmu", () => {
+    const timingLines = [
+      {
+        id: "start",
+        role: "START" as const,
+        groundStartPointMm: { x: 0, y: 0 },
+        groundEndPointMm: { x: 0, y: 1000 },
+        direction: "forward" as const,
+      },
+      {
+        id: "finish",
+        role: "FINISH" as const,
+        groundStartPointMm: { x: 2000, y: 0 },
+        groundEndPointMm: { x: 2000, y: 1000 },
+        direction: "forward" as const,
+      },
+    ];
+    const res = buildCalibrationRecord({
+      videoHash: "vh_timing",
+      calibrationType: "MANUAL_GROUND_POINTS",
+      referenceFrameIndex: 12,
+      referenceTimestampUs: 200000,
+      imagePointsPx: imagePoints,
+      groundPointsMm: groundPoints,
+      timingLines,
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.record.timingLines).toEqual(timingLines);
+    expect(res.record.timingLines).not.toBe(timingLines);
   });
 
   it("PONOWNE OTWARCIE FILMU odtwarza identyczną kalibrację (determinizm)", () => {
@@ -127,8 +180,18 @@ describe("buildCalibrationRecord", () => {
       calibrationType: "MANUAL_GROUND_POINTS",
       referenceFrameIndex: 0,
       referenceTimestampUs: 0,
-      imagePointsPx: [{ u: 0, v: 0 }, { u: 1, v: 1 }, { u: 2, v: 2 }, { u: 3, v: 3 }],
-      groundPointsMm: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 3 }],
+      imagePointsPx: [
+        { u: 0, v: 0 },
+        { u: 1, v: 1 },
+        { u: 2, v: 2 },
+        { u: 3, v: 3 },
+      ],
+      groundPointsMm: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+        { x: 2, y: 2 },
+        { x: 3, y: 3 },
+      ],
     });
     expect(res.ok).toBe(false);
   });

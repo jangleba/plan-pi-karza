@@ -200,6 +200,7 @@ function resolveCalibration(
   const record = opts.calibrationRecord ?? null;
   if (record?.homographyMatrix && record.spatialResultStatus === "OFFICIAL") {
     base.homography = record.homographyMatrix;
+    base.timingLines = record.timingLines;
     base.profileId = record.calibrationId;
     base.calibrationHash = record.calibrationHash;
     base.profileMatch = {
@@ -512,8 +513,16 @@ interface BuildDiagnosticsInput {
  * `opts.debugDiagnostics === true`. Wynik istnieje tylko w pamięci.
  */
 function buildVisionDiagnostics(input: BuildDiagnosticsInput): VisionDiagnostics {
-  const { analysisRunId, opts, metadata, poseOut, movementSignals, recognition, calibration, controller } =
-    input;
+  const {
+    analysisRunId,
+    opts,
+    metadata,
+    poseOut,
+    movementSignals,
+    recognition,
+    calibration,
+    controller,
+  } = input;
   const engineDiagnostics = getPoseEngineDiagnostics(analysisRunId);
   const timestamps = poseOut.scheduledTimestampsMs ?? [];
   return {
