@@ -322,6 +322,11 @@ export interface VideoAnalysisResult {
     /** Homografia world→image (do panelu debug). */
     homography: number[] | null;
   };
+  /**
+   * Sprint Performance Scan — rozszerzenie istniejącego wyniku (nie drugi
+   * model). Pole opcjonalne: stare rekordy pozostają w pełni zgodne.
+   */
+  sprintScan?: import("./sprint/types").SprintPerformanceScan;
   /** Realne okno ruchu wykryte w nagraniu (coarse-pass, informacyjne). */
   motionWindow?: {
     startTimestampSeconds: number | null;
