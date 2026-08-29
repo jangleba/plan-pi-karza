@@ -135,6 +135,8 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
     method: analysis.analyzerVersion,
     coachVerifiedFrames: false,
     items,
+    // Scan zapisujemy tylko, gdy silnik faktycznie go policzył.
+    ...(analysis.sprintScan ? { sprintScan: analysis.sprintScan } : {}),
   };
 
   return {
