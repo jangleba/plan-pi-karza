@@ -172,7 +172,12 @@ export type TimingLineRole =
   | "TURN_RIGHT"
   | "BRAKING_ENTRY"
   | "STOP_ZONE_START"
-  | "STOP_ZONE_END";
+  | "STOP_ZONE_END"
+  /** Opcjonalne linie pośrednie sprintu — raportowane tylko gdy skalibrowane. */
+  | "SPLIT_5M"
+  | "SPLIT_10M"
+  | "SPLIT_15M"
+  | "SPLIT_20M";
 
 /** Definicja pojedynczej linii pomiaru czasu na podłożu (world plane). */
 export interface TimingLineSpec {
