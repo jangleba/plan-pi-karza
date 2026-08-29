@@ -59,10 +59,10 @@ describe("football speed session engine", () => {
     expect(result.exercises.some((e) => e.role === "secondary")).toBe(true);
     expect(result.exercises.filter((e) => e.role === "resisted")).toHaveLength(1);
     expect(result.exercises.find((e) => e.role === "resisted")?.exerciseId).toBe("wall_march");
-    expect(result.session?.sections.main).toHaveLength(7);
+    expect(result.session?.sections.main).toHaveLength(8);
     expect(result.session?.sections.cooldown).toHaveLength(1);
     expect(result.session?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
-      17,
+      18,
     );
   });
 
@@ -125,6 +125,33 @@ describe("football speed session engine", () => {
     expect(
       second.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId),
     ).not.toEqual(first.exercises.filter((e) => e.role === "technical").map((e) => e.exerciseId));
+  });
+
+  it("uses two complementary main tasks and rotates the acceleration start by week", () => {
+    const week1 = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+      progressionWeek: 1,
+    });
+    const week2 = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-27",
+      family: "acceleration",
+      progressionWeek: 2,
+    });
+
+    expect(week1.exercises.filter((exercise) => exercise.role === "primary")).toHaveLength(2);
+    expect(
+      week1.exercises.filter((exercise) => exercise.role === "primary").map((e) => e.exerciseId),
+    ).toEqual(["falling_start", "free_acceleration_sprint"]);
+    expect(
+      week2.exercises.filter((exercise) => exercise.role === "primary").map((e) => e.exerciseId),
+    ).toEqual(["split_stance_start", "free_acceleration_sprint"]);
+    for (const exercise of week1.exercises) {
+      const definition = getExerciseDefinition(exercise.exerciseId);
+      expect(definition?.instructionsPl?.length).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it.each([
@@ -191,11 +218,15 @@ describe("football speed session engine", () => {
       readiness: 6,
     });
 
-    expect(full.exercises.find((e) => e.role === "primary")?.dose).toBe("4–6 × 10–20 m");
-    expect(reduced.exercises.find((e) => e.role === "primary")?.dose).toBe("3 × 10–15 m");
-    expect(reduced.exercises.find((e) => e.role === "primary")?.intensity).toBe(
-      "maksymalna jakość",
+    expect(full.exercises.find((e) => e.exerciseId === "free_acceleration_sprint")?.dose).toBe(
+      "4–6 × 10–20 m",
     );
+    expect(reduced.exercises.find((e) => e.exerciseId === "free_acceleration_sprint")?.dose).toBe(
+      "3 × 10–15 m",
+    );
+    expect(
+      reduced.exercises.find((e) => e.exerciseId === "free_acceleration_sprint")?.intensity,
+    ).toBe("maksymalna jakość");
     expect(reduced.session?.durationMin).toBeLessThan(full.session?.durationMin ?? 0);
   });
 
@@ -230,10 +261,10 @@ describe("football speed session engine", () => {
 
     expect(base.speedGeneratorVersion).toBeTruthy();
     expect(classifySession(base).isSpeed).toBe(true);
-    expect(adjusted.sections.main.find((e) => e.speedRole === "primary")?.prescription).toBe(
-      "3 × 10–15 m",
-    );
-    expect(adjusted.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(17);
+    expect(
+      adjusted.sections.main.find((e) => e.exerciseId === "free_acceleration_sprint")?.prescription,
+    ).toBe("3 × 10–15 m");
+    expect(adjusted.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(18);
     expect(adjusted.sections.cooldown).toHaveLength(1);
     expect(adjusted.speedFamily).toBe("acceleration");
     expect(adjusted.speedProgressionWeek).toBe(3);

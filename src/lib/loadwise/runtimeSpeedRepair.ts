@@ -17,7 +17,7 @@ const REQUIRED_SPEED_ROLE_COUNTS = {
   technical: 3,
   secondary: 1,
   resisted: 1,
-  primary: 1,
+  primary: 2,
   terminal: 1,
   cooldown: 1,
 } as const;
@@ -168,10 +168,10 @@ export function hasCompleteRuntimeSpeedPayload(session: SessionDay): boolean {
   }
   if (!Array.isArray(session.speedRecentPostSkipExerciseIds)) return false;
   const blocks = session.structuredSections?.flatMap((section) => section.blocks) ?? [];
-  if (blocks.length !== 17) return false;
+  if (blocks.length !== 18) return false;
   if (blocks.some((block) => block.exercises.length !== 1)) return false;
   const exercises = blocks.map((block) => block.exercises[0]);
-  if (new Set(exercises.map((exercise) => exercise.id)).size !== 17) return false;
+  if (new Set(exercises.map((exercise) => exercise.id)).size !== 18) return false;
   if (
     exercises.some((exercise) => {
       const definition = exercise.exerciseId

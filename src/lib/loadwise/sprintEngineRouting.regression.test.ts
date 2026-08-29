@@ -16,10 +16,10 @@ import { getExerciseDefinition } from "./exerciseLibrary";
 import { resolveEffectiveDay } from "./dailyCheckin";
 import type { Profile, SessionDay } from "./types";
 
-/** 3 technique drills + 1 plyo + 1 resisted/march + 1 primary + 1 terminal */
-const CANONICAL_MAIN_ITEMS = 7;
-/** 1 RAMP + 8 skips + 7 main + 1 cooldown = 17 */
-const CANONICAL_TOTAL_BLOCKS = 17;
+/** 3 technique drills + 1 plyo + 1 resisted/march + 2 primary + 1 terminal */
+const CANONICAL_MAIN_ITEMS = 8;
+/** 1 RAMP + 8 skips + 8 main + 1 cooldown = 18 */
+const CANONICAL_TOTAL_BLOCKS = 18;
 
 const BASE_PROFILE: Profile = {
   name: "Regression athlete",
@@ -149,11 +149,11 @@ describe("sprint engine routing regression (issue #52)", () => {
 
     for (const session of sprints) {
       // sections.main in the plan-engine view contains:
-      // 3 technique drills + 1 plyo + 1 resisted/march + 1 primary + 1 terminal = 7
-      // The canonical engine always produces exactly 7 main items.
+      // 3 technique drills + 1 plyo + 1 resisted/march + 2 primary + 1 terminal = 8
+      // The canonical engine always produces exactly 8 main items.
       expect(session.sections.main).toHaveLength(CANONICAL_MAIN_ITEMS);
 
-      // structuredSections total blocks = 9 warmup + 7 main + 1 cooldown.
+      // structuredSections total blocks = 9 warmup + 8 main + 1 cooldown.
       const totalBlocks = (session.structuredSections ?? []).flatMap((s) => s.blocks);
       expect(totalBlocks).toHaveLength(CANONICAL_TOTAL_BLOCKS);
     }

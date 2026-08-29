@@ -131,7 +131,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v4-contextual-flow";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v5-guided-main-flow";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -827,6 +827,94 @@ const RESISTED_BODYWEIGHT: RowSpec = {
   intensity: "techniczna, mocne napięcie",
 };
 
+const ACCELERATION_START_VARIANTS: RowSpec[] = [
+  {
+    id: "falling_start",
+    name: "Start z upadku",
+    purpose:
+      "Nauczyć pierwszego kroku dokładnie w chwili utraty równowagi, bez siadania biodrami przed startem.",
+    dose: "2 × 10 m",
+    lowDose: "1–2 × 10 m",
+    rest: "Pełna przerwa 75–90 s",
+    intensity: "maksymalna jakość pierwszych kroków",
+  },
+  {
+    id: "split_stance_start",
+    name: "Start z pozycji wykrocznej",
+    purpose:
+      "Rozwinąć mocne odbicie z nieruchomej pozycji i nauczyć równej jakości startu z obu ustawień nóg.",
+    dose: "2 × 10–15 m (po 1 z każdej nogi z przodu)",
+    lowDose: "2 × 10 m (po 1 na stronę)",
+    rest: "Pełna przerwa 75–90 s",
+    intensity: "maksymalna jakość pierwszych kroków",
+  },
+  {
+    id: "push_up_start",
+    name: "Start z podporu",
+    purpose:
+      "Wymusić szybkie ustawienie stóp pod ciałem i agresywne przejście z niskiej pozycji do przyspieszenia.",
+    dose: "2 × 10 m",
+    lowDose: "1–2 × 10 m",
+    rest: "Pełna przerwa 75–90 s",
+    intensity: "maksymalna jakość pierwszych kroków",
+  },
+];
+
+const SECOND_MAIN_BY_FAMILY: Omit<Record<FootballSpeedFamily, RowSpec>, "acceleration"> = {
+  maximum_velocity: {
+    id: "upright_football_sprint",
+    name: "Piłkarski sprint wyprostowany",
+    purpose:
+      "Przenieść prędkość z odcinka lotnego do dłuższego, swobodnego biegu przypominającego sprint meczowy.",
+    dose: "2 × 30 m przy 90–95%",
+    lowDose: "1–2 × 25 m przy 85–90%",
+    rest: "Pełna przerwa 3 min",
+    intensity: "szybko, ale bez zaciskania i walki z techniką",
+  },
+  curved_sprinting: {
+    id: "reactive_curved_sprint",
+    name: "Reaktywny sprint po łuku",
+    purpose:
+      "Dodać decyzję lewo/prawo do opanowanego wcześniej biegu po łuku, bez ostrego cięcia kierunku.",
+    dose: "2 × 20–25 m (1 w lewo, 1 w prawo)",
+    lowDose: "2 × 15–20 m (1 na stronę)",
+    rest: "Pełna przerwa 2–3 min",
+    intensity: "maksymalna jakość i płynny łuk",
+    direction: "left/right",
+  },
+  deceleration_cod: {
+    id: "deceleration_lateral_exit",
+    name: "Hamowanie z wyjściem bocznym",
+    purpose:
+      "Połączyć kontrolowane obniżenie środka masy z krótkim wyjściem w bok, jak po doskoku do rywala.",
+    dose: "4 × 10 m (2 wyjścia w lewo, 2 w prawo)",
+    lowDose: "2 × 10 m (1 na stronę)",
+    rest: "Pełna przerwa 90–120 s",
+    intensity: "wysoka, lecz zawsze pod kontrolą",
+    direction: "left/right",
+  },
+  reactive_agility_reacceleration: {
+    id: "app_visual_colour_cue_cod",
+    name: "Zmiana kierunku na sygnał wizualny",
+    purpose:
+      "Zastosować tę samą jakość hamowania i ponownego startu po innym rodzaju bodźca niż dźwięk.",
+    dose: "4 akcje × 8–10 m (losowo lewo/prawo)",
+    lowDose: "2–3 akcje × 8 m",
+    rest: "Pełna przerwa 90 s",
+    intensity: "maksymalna jakość reakcji, nie zgadywanie",
+    direction: "left/right",
+  },
+};
+
+function mainSprintRows(input: FootballSpeedEngineInput, spec: FamilySpec): RowSpec[] {
+  if (input.family === "acceleration") {
+    const index =
+      Math.max(0, (input.progressionWeek ?? 1) - 1) % ACCELERATION_START_VARIANTS.length;
+    return [ACCELERATION_START_VARIANTS[index], spec.primary];
+  }
+  return [spec.primary, SECOND_MAIN_BY_FAMILY[input.family]];
+}
+
 function hasAvailableSled(profile: Profile): boolean {
   const declared = (profile.equipment ?? []).map((item) => item.toLocaleLowerCase("pl-PL"));
   const unavailable = (profile.unavailableEquipmentIds ?? []).map((item) =>
@@ -1216,9 +1304,14 @@ export function generateFootballSpeedSession(
   resisted.sets = mode === "full" ? "3" : "2";
   exercises.push(resisted);
 
-  const primary = buildRow(spec.primary, order++, "primary", input, mode);
-  primary.sets = mode === "full" ? "4–6" : mode === "reduced" ? "3–4" : "2–3";
-  exercises.push(primary);
+  // Dwa uzupełniające się zadania główne zamiast jednego ogólnego wiersza.
+  // Cel sesji pozostaje jeden, lecz zawodnik najpierw uczy się konkretnego
+  // rozwiązania, a następnie przenosi je do swobodniejszego sprintu.
+  for (const mainRow of mainSprintRows(input, spec)) {
+    const primary = buildRow(mainRow, order++, "primary", input, mode);
+    primary.sets = mode === "full" ? "2–3" : "1–2";
+    exercises.push(primary);
+  }
   const terminal = buildRow(TERMINAL_BY_FAMILY[input.family], order++, "terminal", input, mode);
   terminal.sets = "2";
   exercises.push(terminal);
@@ -1235,7 +1328,7 @@ export function generateFootballSpeedSession(
     shortTitle,
     session: buildSessionDay(input, spec, exercises, title, mode),
     exercises,
-    primaryExerciseId: spec.primary.id,
+    primaryExerciseId: mainSprintRows(input, spec)[0].id,
     secondaryExerciseId: terminal.exerciseId,
     excludedExerciseIds,
     safetyNote:
