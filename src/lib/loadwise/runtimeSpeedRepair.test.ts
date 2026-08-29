@@ -90,6 +90,7 @@ describe("runtime speed payload repair", () => {
     expect(repaired.isSupplemental).toBe(true);
     expect(repaired.intensity).toBe("umiarkowana");
     expect(repaired.classification?.canBeSecondSession).toBe(true);
+    expect(repaired.speedFamily).toBe("acceleration");
     expect(hasCompleteRuntimeSpeedPayload(repaired)).toBe(true);
     expect(repaired.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(17);
 
@@ -97,6 +98,10 @@ describe("runtime speed payload repair", () => {
     const runner = buildSprintRunnerBlocks(repaired.structuredSections ?? []);
     expect(runner.map((block) => block.exercises.length)).toEqual([1, 4, 3, 1, 1, 1, 1, 1]);
     expect(runner.every((block) => !block.hasDataError)).toBe(true);
+    // Naprawa nie może udawać check-inu 7/10 i samodzielnie obniżać dawki.
+    expect(repaired.sections.main.find((item) => item.speedRole === "primary")?.prescription).toBe(
+      "4–6 × 10–20 m",
+    );
 
     expect(repairRuntimeSpeedDay(repairedDay, profile)).toBe(repairedDay);
   });

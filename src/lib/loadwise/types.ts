@@ -557,6 +557,16 @@ export interface SessionDay {
   generatorVersion?: string;
   /** Version of the football-speed generator that produced this session. */
   speedGeneratorVersion?: string;
+  /** Trwała rodzina bodźca sprintowego — nie odgadujemy jej ponownie z tytułu. */
+  speedFamily?:
+    | "acceleration"
+    | "maximum_velocity"
+    | "curved_sprinting"
+    | "deceleration_cod"
+    | "reactive_agility_reacceleration";
+  /** Kontekst rotacji użyty przy generowaniu — potrzebny do stabilnej regeneracji po check-inie. */
+  speedProgressionWeek?: number;
+  speedRecentPostSkipExerciseIds?: string[];
   canonicalRevision?: string | null;
   canonicalSchemaVersion?: number;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)

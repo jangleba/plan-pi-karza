@@ -2,6 +2,8 @@ import type { Profile, SessionCompletion, SessionDay, SessionModification } from
 import {
   FOOTBALL_SPEED_GENERATOR_VERSION,
   generateFootballSpeedSession,
+  persistedFootballSpeedFamily,
+  postSkipExerciseIdsFromSession,
   type FootballSpeedFamily,
   type SpeedExternalExposure,
 } from "./footballSpeedSessionEngine";
@@ -38,6 +40,8 @@ function isCompleted(
 }
 
 function familyFor(session: SessionDay): FootballSpeedFamily {
+  const persisted = persistedFootballSpeedFamily(session);
+  if (persisted) return persisted;
   const subcategory = classifySession(session).subcategory;
   if (
     subcategory === "change_of_direction" ||
@@ -158,6 +162,11 @@ function isRepairableEngineSpeed(session: SessionDay): boolean {
 
 export function hasCompleteRuntimeSpeedPayload(session: SessionDay): boolean {
   if (session.speedGeneratorVersion !== FOOTBALL_SPEED_GENERATOR_VERSION) return false;
+  if (!persistedFootballSpeedFamily(session)) return false;
+  if (!Number.isInteger(session.speedProgressionWeek) || (session.speedProgressionWeek ?? 0) < 1) {
+    return false;
+  }
+  if (!Array.isArray(session.speedRecentPostSkipExerciseIds)) return false;
   const blocks = session.structuredSections?.flatMap((section) => section.blocks) ?? [];
   if (blocks.length !== 17) return false;
   if (blocks.some((block) => block.exercises.length !== 1)) return false;
@@ -171,7 +180,13 @@ export function hasCompleteRuntimeSpeedPayload(session: SessionDay): boolean {
       const hasDose = Boolean(
         exercise.displayPrescription?.trim() || exercise.reps?.trim() || exercise.duration?.trim(),
       );
-      return !definition || definition.approved !== true || definition.draft !== false || !hasDose;
+      return (
+        !definition ||
+        definition.approved !== true ||
+        definition.draft !== false ||
+        exercise.name !== definition.displayNamePl ||
+        !hasDose
+      );
     })
   ) {
     return false;
@@ -203,11 +218,24 @@ function repairSupplementalSession(
     return session;
   }
 
+  const previousSpeed = [...(context.plan ?? [])]
+    .filter(
+      (candidate) =>
+        candidate.date < session.date &&
+        (candidate.speedGeneratorVersion || candidate.secondSession?.speedGeneratorVersion),
+    )
+    .flatMap((candidate) => [candidate, candidate.secondSession])
+    .filter((candidate): candidate is SessionDay => Boolean(candidate?.speedGeneratorVersion))
+    .at(-1);
   const generated = generateFootballSpeedSession({
     profile,
     date: session.date,
     family: familyFor(session),
-    readiness: 7,
+    progressionWeek:
+      session.speedProgressionWeek ?? session.blockWeekNumber ?? session.weekMeta?.blockWeek,
+    recentPostSkipExerciseIds:
+      session.speedRecentPostSkipExerciseIds ??
+      (previousSpeed ? postSkipExerciseIdsFromSession(previousSpeed) : undefined),
     externalSessions: externalExposures(profile, session.date, context),
   }).session;
   if (!generated) return null;

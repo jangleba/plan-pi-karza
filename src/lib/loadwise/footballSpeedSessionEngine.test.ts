@@ -3,6 +3,7 @@ import type { Profile } from "./types";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 import { applyReadiness } from "./planEngine";
 import { classifySession } from "./sessionClassification";
+import { getExerciseDefinition } from "./exerciseLibrary";
 
 const profile = (overrides: Partial<Profile> = {}): Profile => ({
   name: "Test",
@@ -80,6 +81,34 @@ describe("football speed session engine", () => {
     expect(withoutSled.exercises.find((e) => e.role === "resisted")?.exerciseId).toBe("wall_march");
     expect(withSled.exercises.find((e) => e.role === "resisted")?.exerciseId).toBe(
       "resisted_sled_acceleration",
+    );
+  });
+
+  it("uses the approved Polish library name for every visible exercise", () => {
+    const result = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+    });
+    for (const exercise of result.exercises) {
+      expect(exercise.name).toBe(getExerciseDefinition(exercise.exerciseId)?.displayNamePl);
+    }
+  });
+
+  it.each([
+    ["acceleration", "scissor_bounds"],
+    ["maximum_velocity", "bilateral_pogo"],
+    ["curved_sprinting", "lateral_pogo"],
+    ["deceleration_cod", "snap_down"],
+    ["reactive_agility_reacceleration", "lateral_bound_to_stick"],
+  ] as const)("matches plyometrics to the %s family", (family, exerciseId) => {
+    const result = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family,
+    });
+    expect(result.exercises.find((exercise) => exercise.role === "secondary")?.exerciseId).toBe(
+      exerciseId,
     );
   });
 
@@ -175,7 +204,14 @@ describe("football speed session engine", () => {
       profile: profile(),
       date: "2026-08-20",
       family: "acceleration",
+      progressionWeek: 3,
+      recentPostSkipExerciseIds: ["a_switch_progression", "a_accent", "alternate_leg_bounds"],
     }).session!;
+    const baseTechnicalIds = base.structuredSections
+      ?.flatMap((section) => section.blocks)
+      .flatMap((block) => block.exercises)
+      .filter((exercise) => exercise.speedRole === "technical")
+      .map((exercise) => exercise.exerciseId);
     const adjusted = applyReadiness(
       base,
       {
@@ -199,6 +235,15 @@ describe("football speed session engine", () => {
     );
     expect(adjusted.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(17);
     expect(adjusted.sections.cooldown).toHaveLength(1);
+    expect(adjusted.speedFamily).toBe("acceleration");
+    expect(adjusted.speedProgressionWeek).toBe(3);
+    expect(
+      adjusted.structuredSections
+        ?.flatMap((section) => section.blocks)
+        .flatMap((block) => block.exercises)
+        .filter((exercise) => exercise.speedRole === "technical")
+        .map((exercise) => exercise.exerciseId),
+    ).toEqual(baseTechnicalIds);
   });
 
   it("is deterministic and follows the pain stop path", () => {

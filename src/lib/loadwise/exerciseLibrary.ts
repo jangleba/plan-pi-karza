@@ -961,6 +961,13 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: ["depth_jump"],
     regressionIds: [],
     safeAlternativeIds: ["bodyweight_squat"],
+    objective:
+      "Nauczyć szybkiego zejścia do stabilnej pozycji hamowania i bezpiecznej absorpcji siły.",
+    instructionsPl: [
+      "Stań wysoko z rękami nad głową i stopami na szerokość bioder.",
+      "Szybko zejdź do półprzysiadu, cofając biodra i przyjmując ciężar równocześnie na obie stopy.",
+      "Zatrzymaj pozycję na 2 sekundy; kolana utrzymuj nad stopami, a tułów stabilnie.",
+    ],
     coachingCues: ["Ciche, miękkie lądowanie", "Kontrola kolan i stóp"],
     commonErrors: ["Głośne lądowanie", "Kolana do środka"],
   },
@@ -1548,6 +1555,14 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     replacementIds: [],
     regressionIds: [],
     safeAlternativeIds: [],
+    objective: "Rozwinąć sprężystość stawu skokowego i krótki kontakt z podłożem.",
+    instructionsPl: [
+      "Stań wysoko na śródstopiu, ze stopami na szerokość bioder.",
+      "Wykonuj niskie, rytmiczne odbicia z obu nóg, pracując głównie stawem skokowym.",
+      "Utrzymuj proste biodra i kończ serię, gdy kontakt staje się ciężki lub głośny.",
+    ],
+    coachingCues: ["Krótki kontakt", "Biodra wysoko", "Ciche, sprężyste odbicie"],
+    commonErrors: ["Głęboki przysiad między odbiciami", "Lądowanie na piętach"],
   }),
   phase3AExercise({
     id: "single_leg_pogo",
@@ -1579,6 +1594,14 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     replacementIds: ["bilateral_pogo"],
     regressionIds: ["bilateral_pogo"],
     safeAlternativeIds: ["bilateral_pogo"],
+    objective: "Przygotować boczną sprężystość stopy i stabilny podpor do biegu po łuku.",
+    instructionsPl: [
+      "Stań wysoko na śródstopiu z lekko ugiętymi kolanami.",
+      "Wykonuj małe, szybkie odbicia obunóż na boki bez skręcania tułowia.",
+      "Zachowaj równy rytm i małą amplitudę; przerwij przy utracie ustawienia stóp i kolan.",
+    ],
+    coachingCues: ["Mały ruch na boki", "Biodra stabilnie", "Krótki kontakt"],
+    commonErrors: ["Zbyt szerokie skoki", "Kołysanie tułowia"],
   }),
   phase3AExercise({
     id: "split_squat_jump",
@@ -1638,6 +1661,14 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     replacementIds: ["bilateral_pogo"],
     regressionIds: ["bilateral_pogo"],
     safeAlternativeIds: ["bilateral_pogo"],
+    objective: "Rozwinąć boczne wybicie i kontrolowane przyjęcie podporu przed zmianą kierunku.",
+    instructionsPl: [
+      "Stań na jednej nodze i wykonaj kontrolowany skok w bok.",
+      "Wyląduj na przeciwnej nodze, cofając biodra i utrzymując kolano nad stopą.",
+      "Zatrzymaj pozycję na 2 sekundy przed kolejnym powtórzeniem.",
+    ],
+    coachingCues: ["Odepchnij podłoże w bok", "Ląduj cicho", "Utrzymaj oś kolana"],
+    commonErrors: ["Kolano zapada się do środka", "Brak zatrzymania po lądowaniu"],
   }),
   phase3AExercise({
     id: "single_leg_hop_and_stick",

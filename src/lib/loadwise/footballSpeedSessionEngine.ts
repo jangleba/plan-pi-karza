@@ -21,6 +21,32 @@ export type FootballSpeedFamily =
   | "deceleration_cod"
   | "reactive_agility_reacceleration";
 
+const FOOTBALL_SPEED_FAMILIES: readonly FootballSpeedFamily[] = [
+  "acceleration",
+  "maximum_velocity",
+  "curved_sprinting",
+  "deceleration_cod",
+  "reactive_agility_reacceleration",
+];
+
+export function persistedFootballSpeedFamily(session: SessionDay): FootballSpeedFamily | undefined {
+  return FOOTBALL_SPEED_FAMILIES.includes(session.speedFamily as FootballSpeedFamily)
+    ? (session.speedFamily as FootballSpeedFamily)
+    : undefined;
+}
+
+/** Drille z poprzedniej sesji, których kolejny plan powinien unikać. */
+export function postSkipExerciseIdsFromSession(session: SessionDay): string[] {
+  return (
+    session.structuredSections
+      ?.flatMap((section) => section.blocks)
+      .flatMap((block) => block.exercises)
+      .filter((exercise) => exercise.speedRole === "technical")
+      .map((exercise) => exercise.exerciseId)
+      .filter((id): id is string => Boolean(id)) ?? []
+  );
+}
+
 export interface SpeedExternalExposure {
   date: string;
   kind: "club" | "match" | "rest" | "training";
@@ -105,7 +131,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v3-complete-flow";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v4-contextual-flow";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -728,6 +754,69 @@ const RESISTED_SLED: RowSpec = {
   intensity: "wysoka jakość, lekki–umiarkowany opór",
 };
 
+/** Plyometria wspiera konkretny bodziec sprintowy, zamiast powtarzać jeden ruch w każdej sesji. */
+const PLYO_BY_FAMILY: Record<FootballSpeedFamily, RowSpec> = {
+  acceleration: {
+    id: "scissor_bounds",
+    name: "Naprzemienne wyskoki nożycowe",
+    purpose: "Poziome przekazanie siły i szybka wymiana nogi przed akceleracją.",
+    dose: "2–3 × 4 kontakty na stronę",
+    lowDose: "2 × 3 kontakty na stronę",
+    rest: "Przerwa 60–90 s",
+  },
+  maximum_velocity: {
+    id: "bilateral_pogo",
+    name: "Pogo obunóż",
+    purpose: "Krótki kontakt z podłożem i sztywność stawu skokowego przed wysoką prędkością.",
+    dose: "2–3 × 8 kontaktów",
+    lowDose: "2 × 6 kontaktów",
+    rest: "Przerwa 60–90 s",
+  },
+  curved_sprinting: {
+    id: "lateral_pogo",
+    name: "Pogo boczne",
+    purpose: "Boczna sprężystość i kontrola podporu potrzebna podczas sprintu po łuku.",
+    dose: "2–3 × 6 kontaktów na stronę",
+    lowDose: "2 × 4 kontakty na stronę",
+    rest: "Przerwa 60–90 s",
+  },
+  deceleration_cod: {
+    id: "snap_down",
+    name: "Lądowanie snap-down",
+    purpose: "Kontrolowana absorpcja siły i stabilna pozycja przed hamowaniem.",
+    dose: "2–3 × 4 powtórzenia",
+    lowDose: "2 × 3 powtórzenia",
+    rest: "Przerwa 60–90 s",
+  },
+  reactive_agility_reacceleration: {
+    id: "lateral_bound_to_stick",
+    name: "Skok boczny z zatrzymaniem",
+    purpose: "Kontrola podporu bocznego przed reaktywną zmianą kierunku i ponownym startem.",
+    dose: "2–3 × 3 na stronę",
+    lowDose: "2 × 2 na stronę",
+    rest: "Przerwa 60–90 s",
+  },
+};
+
+function plyoSpec(input: FootballSpeedEngineInput): RowSpec {
+  const advancedReactive = PLYO_BY_FAMILY.reactive_agility_reacceleration;
+  if (
+    input.family === "reactive_agility_reacceleration" &&
+    (input.profile.age < 16 || input.profile.level !== "advanced")
+  ) {
+    return PLYO_BY_FAMILY.deceleration_cod;
+  }
+  if (
+    input.family === "curved_sprinting" &&
+    (input.profile.age < 15 || input.profile.level === "beginner")
+  ) {
+    return PLYO_BY_FAMILY.maximum_velocity;
+  }
+  return input.family === "reactive_agility_reacceleration"
+    ? advancedReactive
+    : PLYO_BY_FAMILY[input.family];
+}
+
 const RESISTED_BODYWEIGHT: RowSpec = {
   id: "wall_march",
   name: "Wall march — pozycja akceleracyjna",
@@ -850,7 +939,9 @@ function buildRow(
     order,
     role,
     exerciseId: spec.id,
-    name: spec.name,
+    // Jedno źródło nazw widocznych dla zawodnika: zatwierdzona biblioteka.
+    // RowSpec opisuje cel i dawkę, ale nie może tworzyć drugiej wersji nazwy.
+    name: def.displayNamePl,
     purpose: spec.purpose,
     dose,
     rest: spec.rest,
@@ -1047,6 +1138,11 @@ function buildSessionDay(
     structuredSections: buildStructuredSections(input, exercises),
     secondSession: null,
     speedGeneratorVersion: FOOTBALL_SPEED_GENERATOR_VERSION,
+    speedFamily: input.family,
+    speedProgressionWeek: input.progressionWeek ?? 1,
+    speedRecentPostSkipExerciseIds: input.recentPostSkipExerciseIds
+      ? [...input.recentPostSkipExerciseIds]
+      : [],
   };
 }
 
@@ -1111,20 +1207,7 @@ export function generateFootballSpeedSession(
     row.sets = "2";
     exercises.push(row);
   }
-  const plyo = buildRow(
-    {
-      id: "scissor_bounds",
-      name: "Niskie wyskoki nożycowe",
-      purpose: "Krótki blok plyometryczny: sprężystość bez zmęczenia.",
-      dose: "2–3 × 4 kontakty na stronę",
-      lowDose: "2 × 3 kontakty na stronę",
-      rest: "Przerwa 60–90 s",
-    },
-    order++,
-    "secondary",
-    input,
-    mode,
-  );
+  const plyo = buildRow(plyoSpec(input), order++, "secondary", input, mode);
   plyo.sets = mode === "full" ? "2–3" : "2";
   plyo.groundContacts = mode === "full" ? 4 : 3;
   exercises.push(plyo);
