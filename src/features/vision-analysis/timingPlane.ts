@@ -48,8 +48,10 @@ export type TimingPlaneErrorCode =
 /** Jakość wyniku — nie udajemy oficjalnego czasu, gdy dane są słabe. */
 export type ResultQuality = "OFFICIAL" | "ESTIMATED" | "REJECTED";
 
-/** Minimalny udział wysokości sylwetki w kadrze (0-1). Poniżej → za mała. */
-export const MIN_SILHOUETTE_HEIGHT_FRACTION = 0.18;
+/** Twarde minimum dla samego pomiaru czasu w szerokim kadrze 20–30 m. */
+export const MIN_TIMING_SILHOUETTE_HEIGHT_FRACTION = 0.08;
+/** Poniżej tego progu czas może być zmierzony, ale nie jest oznaczany jako oficjalny. */
+export const OFFICIAL_TIMING_SILHOUETTE_HEIGHT_FRACTION = 0.14;
 /** Minimalna średnia widoczność punktów tułowia. Poniżej → zasłonięty. */
 export const MIN_TORSO_VISIBILITY = 0.4;
 /** Próg niepewności dla wyniku OFFICIAL (ms). Powyżej (do limitu) → ESTIMATED. */
@@ -313,8 +315,10 @@ export function detectTimingPlaneCrossings(input: TimingPlaneInput): TimingPlane
   if (distanceMm == null || !(distanceMm > 0)) {
     return { ok: false, resultQuality: "REJECTED", code: "DISTANCE_UNKNOWN", debug: empty };
   }
-  // 5. Sylwetka wystarczająco duża.
-  if (silhouetteHeightFraction(input.poses) < MIN_SILHOUETTE_HEIGHT_FRACTION) {
+  // 5. Sylwetka wystarczająca do śledzenia czasu. Mechanika ma osobny,
+  // znacznie wyższy próg i może poprosić o dodatkowe zbliżenie.
+  const silhouetteFraction = silhouetteHeightFraction(input.poses);
+  if (silhouetteFraction < MIN_TIMING_SILHOUETTE_HEIGHT_FRACTION) {
     return { ok: false, resultQuality: "REJECTED", code: "ATHLETE_TOO_SMALL", debug: empty };
   }
   // 6. Tułów widoczny (referencyjny punkt czasu).
@@ -379,7 +383,10 @@ export function detectTimingPlaneCrossings(input: TimingPlaneInput): TimingPlane
   const maxUnc = Math.max(...crossings.map((c) => c.crossingUncertaintyMs));
 
   const resultQuality: Exclude<ResultQuality, "REJECTED"> =
-    maxUnc <= OFFICIAL_UNCERTAINTY_MS ? "OFFICIAL" : "ESTIMATED";
+    maxUnc <= OFFICIAL_UNCERTAINTY_MS &&
+    silhouetteFraction >= OFFICIAL_TIMING_SILHOUETTE_HEIGHT_FRACTION
+      ? "OFFICIAL"
+      : "ESTIMATED";
 
   return {
     ok: true,

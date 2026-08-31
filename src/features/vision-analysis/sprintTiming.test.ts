@@ -166,10 +166,18 @@ describe("TimingPlaneCrossingEngine — sprint z importowanego filmu", () => {
 
   it("5. Film zbyt szeroki, mała sylwetka → ATHLETE_TOO_SMALL", () => {
     const res = detectTimingPlaneCrossings(
-      sprintInput({ poses: buildPoses({ silhouetteHeight: 0.08 }) }),
+      sprintInput({ poses: buildPoses({ silhouetteHeight: 0.05 }) }),
     );
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("ATHLETE_TOO_SMALL");
+  });
+
+  it("5a. Szeroki kadr 20–30 m zachowuje czas jako ESTIMATED", () => {
+    const res = detectTimingPlaneCrossings(
+      sprintInput({ poses: buildPoses({ silhouetteHeight: 0.12 }) }),
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.resultQuality).toBe("ESTIMATED");
   });
 
   it("5b. Zasłonięty tułów → TORSO_OCCLUDED", () => {
