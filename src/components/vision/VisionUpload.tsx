@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { UploadCloud, FileVideo, CheckCircle2, Loader2, Info } from "lucide-react";
 import { VisionHeader } from "./visionUi";
+import { VisionRecorder } from "./VisionRecorder";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
@@ -23,7 +24,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const [uploaded, setUploaded] = useState(flow.uploaded);
   const [submitting, setSubmitting] = useState(false);
 
-  async function onFile(file: File) {
+  async function onFile(file: File, detectedFps?: number | null) {
     setFileName(file.name);
     setStatus("uploading");
     const res = user
@@ -34,6 +35,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
       fileName: file.name,
       videoUrl: res.url,
       uploaded: res.uploaded,
+      ...(detectedFps ? { fps: detectedFps } : {}),
     });
     setUploaded(res.uploaded);
     setStatus("done");
@@ -52,27 +54,30 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   return (
     <div className="pb-28">
       <VisionHeader
-        title="Wgraj film"
-        subtitle={`${test.name} · tryb: upload`}
+        title="Nagraj test"
+        subtitle={`${test.name} · kamera BallWise`}
         backTo="/vision-lab"
       />
 
       <div className="space-y-4 px-5">
+        <VisionRecorder minimumFps={protocol.minimumFps} onRecorded={onFile} />
+
+        <div className="flex items-center gap-3 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="h-px flex-1 bg-border" /> albo wybierz gotowy film{" "}
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border bg-card p-8 text-center active:scale-[0.99]"
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left active:scale-[0.99]"
         >
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-brand">
-            <UploadCloud className="h-7 w-7" />
+            <UploadCloud className="h-5 w-5" />
           </span>
           <div>
-            <div className="text-sm font-semibold text-foreground">
-              Dotknij, aby wybrać film
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              MP4 / MOV · zalecane {test.recommendedFps} FPS
-            </div>
+            <div className="text-sm font-semibold text-foreground">Wybierz film z galerii</div>
+            <div className="mt-1 text-xs text-muted-foreground">Opcja zapasowa · MP4 / MOV</div>
           </div>
         </button>
 
@@ -83,7 +88,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) onFile(f);
+            if (f) void onFile(f);
           }}
         />
 
@@ -131,10 +136,11 @@ export function VisionUpload({ test }: { test: VisionTest }) {
             <span className="rounded-full bg-accent px-2 py-0.5">
               Zapas: {protocol.leadingMarginSeconds ?? 2}s / {protocol.trailingMarginSeconds ?? 2}s
             </span>
-            <span className="rounded-full bg-accent px-2 py-0.5">Kamera: {protocol.requiredCameraSetup}</span>
+            <span className="rounded-full bg-accent px-2 py-0.5">
+              Kamera: {protocol.requiredCameraSetup}
+            </span>
           </div>
         </div>
-
       </div>
 
       <div
@@ -153,7 +159,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wysyłanie…
               </>
             ) : (
-              "Wyślij film do analizy"
+              "Analizuj próbę"
             )}
           </Button>
         </div>
