@@ -11,6 +11,7 @@ import {
   buildCalibrationRecord,
   buildKnownDistanceRecord,
   buildSprintTimingLines,
+  projectCalibrationTimingLines,
   type ImagePointPx,
   type GroundPointMm,
 } from "./videoCalibration";
@@ -146,6 +147,40 @@ describe("buildCalibrationRecord", () => {
     if (!res.ok) return;
     expect(res.record.timingLines).toEqual(timingLines);
     expect(res.record.timingLines).not.toBe(timingLines);
+  });
+
+  it("rzutuje START i metę na klatkę filmu", () => {
+    const res = buildCalibrationRecord({
+      videoHash: "vh_projection",
+      calibrationType: "MANUAL_GROUND_POINTS",
+      referenceFrameIndex: 12,
+      referenceTimestampUs: 200000,
+      imagePointsPx: imagePoints,
+      groundPointsMm: groundPoints,
+      timingLines: buildSprintTimingLines("sprint_20m", 20000, 1000),
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const projected = projectCalibrationTimingLines(res.record);
+    expect(projected.map((line) => line.role)).toEqual([
+      "START",
+      "SPLIT_5M",
+      "SPLIT_10M",
+      "SPLIT_15M",
+      "FINISH",
+    ]);
+    expect(projected.flatMap((line) => [line.a.u, line.a.v, line.b.u, line.b.v])).toSatisfy(
+      (values: number[]) => values.every(Number.isFinite),
+    );
+  });
+
+  it("nie rysuje linii bez poprawnej homografii", () => {
+    expect(
+      projectCalibrationTimingLines({
+        homographyMatrix: null,
+        timingLines: buildSprintTimingLines("sprint_20m", 20000, 1000),
+      }),
+    ).toEqual([]);
   });
 
   it("PONOWNE OTWARCIE FILMU odtwarza identyczną kalibrację (determinizm)", () => {

@@ -11,7 +11,12 @@
  */
 
 import { round } from "./physics";
-import { fitHomography, type CorrespondencePoint, type Homography } from "./calibrationProfiles";
+import {
+  fitHomography,
+  projectWorldToImage,
+  type CorrespondencePoint,
+  type Homography,
+} from "./calibrationProfiles";
 import { invert3x3, applyInverse } from "./homographyGeometry";
 import type { TimingLineRole, TimingLineSpec } from "./types";
 
@@ -89,6 +94,14 @@ export interface CalibrationRecord {
   createdAt: string;
 }
 
+/** Linia czasu przeliczona z płaszczyzny boiska na klatkę filmu. */
+export interface ProjectedTimingLine {
+  id: string;
+  role: TimingLineRole;
+  a: ImagePointPx;
+  b: ImagePointPx;
+}
+
 /** Maksymalny akceptowalny błąd reprojekcji dla kalibracji filmu (px). */
 export const MAX_VIDEO_REPROJECTION_ERROR_PX = 3.0;
 
@@ -133,6 +146,33 @@ export function buildSprintTimingLines(
   }
   lines.push(timingLine("FINISH", distanceM * 1000, laneWidthMm));
   return lines;
+}
+
+/**
+ * Rzutuje zapisane linie START/split/meta na klatkę referencyjną.
+ * Niepełna lub zdegenerowana geometria nie produkuje fałszywej linii.
+ */
+export function projectCalibrationTimingLines(
+  record: Pick<CalibrationRecord, "homographyMatrix" | "timingLines">,
+): ProjectedTimingLine[] {
+  const { homographyMatrix, timingLines } = record;
+  if (!homographyMatrix || !timingLines?.length) return [];
+
+  return timingLines.flatMap((line) => {
+    if (!line.groundStartPointMm || !line.groundEndPointMm) return [];
+    const a = projectWorldToImage(
+      homographyMatrix,
+      line.groundStartPointMm.x,
+      line.groundStartPointMm.y,
+    );
+    const b = projectWorldToImage(
+      homographyMatrix,
+      line.groundEndPointMm.x,
+      line.groundEndPointMm.y,
+    );
+    if (!a || !b || ![a.u, a.v, b.u, b.v].every(Number.isFinite)) return [];
+    return [{ id: line.id, role: line.role, a, b }];
+  });
 }
 
 // ---------------------------------------------------------------------------
