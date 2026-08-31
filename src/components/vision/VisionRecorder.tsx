@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Camera,
-  CheckCircle2,
-  CircleStop,
-  Loader2,
-  RotateCcw,
-  ScanLine,
-  Video,
-} from "lucide-react";
+import { Camera, CircleStop, Loader2, ScanLine, Video, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VisionLivePoseOverlay } from "./VisionLivePoseOverlay";
 import { EMPTY_LIVE_POSE_STATUS, type LivePoseStatus } from "./visionLivePose";
 import { closePoseEngine } from "@/features/vision-analysis/poseEngine";
+import {
+  AUTO_RECORDING_SECONDS,
+  IDLE_COUNTDOWN,
+  START_HOLD_MS,
+  STABLE_POSE_MS,
+  cameraErrorMessage,
+  classifyCameraError,
+  cueForCountdown,
+  formatElapsed,
+  isAthleteReady,
+  nextCountdownState,
+  type CountdownState,
+} from "./recorderCountdown";
 
 type RecorderMode = "idle" | "starting" | "preview" | "recording" | "processing";
 
@@ -19,8 +24,6 @@ interface VisionRecorderProps {
   minimumFps: number;
   onRecorded: (file: File, detectedFps: number | null) => Promise<void>;
 }
-
-const AUTO_RECORDING_SECONDS = 12;
 
 function supportedMimeType(): string | undefined {
   const candidates = ["video/mp4;codecs=h264", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
@@ -49,7 +52,9 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   const autoStopRef = useRef<number | null>(null);
   const stablePoseRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const detectedFpsRef = useRef<number | null>(null);
 
   const [mode, setMode] = useState<RecorderMode>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -57,8 +62,9 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   const [previewReady, setPreviewReady] = useState(false);
   const [poseStatus, setPoseStatus] = useState<LivePoseStatus>(EMPTY_LIVE_POSE_STATUS);
   const [autoArmed, setAutoArmed] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<CountdownState>(IDLE_COUNTDOWN);
   const [flashActive, setFlashActive] = useState(false);
+  const [audioAvailable, setAudioAvailable] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const clearTimers = useCallback(() => {
@@ -66,30 +72,59 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
     if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
     if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
     if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
     timerRef.current = null;
     autoStopRef.current = null;
     stablePoseRef.current = null;
     countdownTimerRef.current = null;
+    flashTimerRef.current = null;
   }, []);
 
   const closeCamera = useCallback(() => {
     clearTimers();
     const recorder = recorderRef.current;
-    if (recorder?.state === "recording") {
+    if (recorder && recorder.state !== "inactive") {
       recorder.onstop = null;
-      recorder.stop();
+      try {
+        recorder.stop();
+      } catch {
+        // Recorder mógł zostać już zatrzymany przez przeglądarkę.
+      }
     }
     recorderRef.current = null;
     stopStream(streamRef.current);
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setPreviewReady(false);
     setPoseStatus(EMPTY_LIVE_POSE_STATUS);
     setAutoArmed(false);
-    setCountdown(null);
+    setCountdown(IDLE_COUNTDOWN);
+    setFlashActive(false);
   }, [clearTimers]);
 
-  useEffect(() => closeCamera, [closeCamera]);
+  // Pełne sprzątanie przy unmount / zmianie trasy: kamera, timery, audio, pose engine.
+  useEffect(() => {
+    return () => {
+      closeCamera();
+      const context = audioContextRef.current;
+      audioContextRef.current = null;
+      void context?.close().catch(() => undefined);
+      void closePoseEngine();
+    };
+  }, [closeCamera]);
+
+  const cameraActive = mode === "preview" || mode === "recording" || mode === "processing";
+
+  // Blokada przewijania body na czas pełnoekranowego trybu kamery.
+  useEffect(() => {
+    if (!cameraActive) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [cameraActive]);
 
   useEffect(() => {
     if (mode !== "preview" && mode !== "recording") return;
@@ -111,9 +146,7 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
         await video.play();
         markReady();
       } catch {
-        if (!cancelled) {
-          setError("Podgląd kamery nie wystartował. Dotknij ekranu i spróbuj ponownie.");
-        }
+        if (!cancelled) setError(cameraErrorMessage("PREVIEW_BLOCKED"));
       }
     };
 
@@ -126,6 +159,20 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       video.removeEventListener("canplay", markReady);
     };
   }, [mode]);
+
+  // Przerwany stream (np. odebranie kamery przez system) ma dać czytelny komunikat.
+  useEffect(() => {
+    if (!cameraActive) return;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const onEnded = () => {
+      setError(cameraErrorMessage("STREAM_INTERRUPTED"));
+      closeCamera();
+      setMode("idle");
+    };
+    track.addEventListener("ended", onEnded);
+    return () => track.removeEventListener("ended", onEnded);
+  }, [cameraActive, closeCamera]);
 
   const pulseTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -140,46 +187,70 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
           .catch(() => undefined);
       }, 140);
     } catch {
-      // Latarka nie jest gwarantowana w przeglądarkach mobilnych; dźwięk i ekran są fallbackiem.
+      // Latarka nie jest gwarantowana w przeglądarkach mobilnych; błysk ekranu jest fallbackiem.
     }
   }, []);
 
   const signalCue = useCallback(
-    (frequency = 660, durationMs = 150) => {
+    (frequency: number, durationMs: number) => {
       setFlashActive(true);
-      window.setTimeout(() => setFlashActive(false), durationMs);
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = window.setTimeout(() => {
+        flashTimerRef.current = null;
+        setFlashActive(false);
+      }, durationMs);
       if (navigator.vibrate) navigator.vibrate(durationMs);
       void pulseTorch();
 
       const context = audioContextRef.current;
-      if (!context) return;
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.0001, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.28, context.currentTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + durationMs / 1000);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + durationMs / 1000 + 0.02);
+      if (!context || context.state === "closed") return;
+      try {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.3, context.currentTime + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + durationMs / 1000);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start();
+        oscillator.stop(context.currentTime + durationMs / 1000 + 0.02);
+      } catch {
+        setAudioAvailable(false);
+      }
     },
     [pulseTorch],
   );
 
+  const stopRecording = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (recorder?.state === "recording") recorder.stop();
+  }, []);
+
   const startRecording = useCallback(() => {
     const stream = streamRef.current;
-    if (!stream || recorderRef.current?.state === "recording") return false;
+    if (!stream) return false;
+    if (recorderRef.current && recorderRef.current.state !== "inactive") return true;
+    if (typeof MediaRecorder === "undefined") {
+      setError(cameraErrorMessage("RECORDER_UNSUPPORTED"));
+      return false;
+    }
 
     setError(null);
     chunksRef.current = [];
     const mimeType = supportedMimeType();
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch {
+      setError(cameraErrorMessage("RECORDER_UNSUPPORTED"));
+      return false;
+    }
     recorderRef.current = recorder;
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunksRef.current.push(event.data);
     };
     recorder.onerror = () => {
-      setError("Nagrywanie zostało przerwane przez przeglądarkę. Spróbuj ponownie.");
+      setError(cameraErrorMessage("STREAM_INTERRUPTED"));
     };
     recorder.onstop = async () => {
       clearTimers();
@@ -194,53 +265,59 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       closeCamera();
       try {
         await closePoseEngine();
-        await onRecorded(file, detectedFps);
+        await onRecorded(file, detectedFpsRef.current);
         setMode("idle");
         setElapsedSeconds(0);
       } catch {
-        setError("Film został nagrany, ale nie udało się go zapisać. Spróbuj ponownie.");
+        setError("Film został nagrany, ale nie udało się go przygotować. Spróbuj ponownie.");
         setMode("idle");
       }
     };
     recorder.start(250);
     setElapsedSeconds(0);
     setMode("recording");
+    if (timerRef.current !== null) window.clearInterval(timerRef.current);
     timerRef.current = window.setInterval(() => {
       setElapsedSeconds((seconds) => seconds + 1);
     }, 1000);
     return true;
-  }, [clearTimers, closeCamera, detectedFps, onRecorded]);
+  }, [clearTimers, closeCamera, onRecorded]);
 
-  const stopRecording = useCallback(() => {
-    const recorder = recorderRef.current;
-    if (recorder?.state === "recording") recorder.stop();
-  }, []);
-
+  // Jedno odliczanie: 3 → 2 → 1 → START, każdy krok z beepem i własnym czasem trwania.
   useEffect(() => {
-    if (countdown === null) return;
-    if (countdown > 0) {
-      signalCue(640 + (3 - countdown) * 90);
-      countdownTimerRef.current = window.setTimeout(() => {
-        setCountdown((value) => (value === null ? null : value - 1));
-      }, 900);
-      return () => {
-        if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
-        countdownTimerRef.current = null;
-      };
+    if (countdown.phase === "idle") return;
+    const cue = cueForCountdown(countdown);
+    if (!cue) return;
+    signalCue(cue.frequency, cue.durationMs);
+    if (countdown.phase === "start") speak("Start");
+
+    if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+    countdownTimerRef.current = window.setTimeout(() => {
+      countdownTimerRef.current = null;
+      const next = nextCountdownState(countdown);
+      if (next) {
+        setCountdown(next);
+        return;
+      }
+      setCountdown(IDLE_COUNTDOWN);
+    }, cue.holdMs);
+
+    // Auto-stop liczony dokładnie od sygnału START.
+    if (countdown.phase === "start") {
+      if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
+      autoStopRef.current = window.setTimeout(() => {
+        autoStopRef.current = null;
+        stopRecording();
+      }, AUTO_RECORDING_SECONDS * 1000);
     }
 
-    signalCue(980, 420);
-    speak("Start");
-    setCountdown(null);
-    autoStopRef.current = window.setTimeout(stopRecording, AUTO_RECORDING_SECONDS * 1000);
+    return () => {
+      if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    };
   }, [countdown, signalCue, stopRecording]);
 
-  const athleteReady =
-    poseStatus.detected &&
-    poseStatus.singleAthlete &&
-    poseStatus.fullBody &&
-    poseStatus.timingReady &&
-    poseStatus.confidence >= 0.35;
+  const athleteReady = isAthleteReady(poseStatus);
 
   useEffect(() => {
     if (!autoArmed || mode !== "preview" || !previewReady || !athleteReady) {
@@ -252,10 +329,10 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
     stablePoseRef.current = window.setTimeout(() => {
       stablePoseRef.current = null;
       setAutoArmed(false);
+      // Nagrywanie rusza przed odliczaniem, żeby zachować materiał sprzed sygnału START.
       if (!startRecording()) return;
-      speak("Ustawienie poprawne. Start za trzy sekundy.");
-      setCountdown(3);
-    }, 1500);
+      setCountdown({ phase: "digit", value: 3 });
+    }, STABLE_POSE_MS);
     return () => {
       if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
       stablePoseRef.current = null;
@@ -264,9 +341,22 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
 
   async function openCamera() {
     setError(null);
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setError("Ta przeglądarka nie obsługuje nagrywania w aplikacji. Użyj opcji z galerii.");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError(cameraErrorMessage("NO_CAMERA"));
       return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setError(cameraErrorMessage("RECORDER_UNSUPPORTED"));
+      return;
+    }
+
+    // AudioContext tworzony w geście użytkownika — inaczej iOS zablokuje dźwięk.
+    try {
+      audioContextRef.current ??= new AudioContext();
+      await audioContextRef.current.resume();
+      setAudioAvailable(audioContextRef.current.state === "running");
+    } catch {
+      setAudioAvailable(false);
     }
 
     setMode("starting");
@@ -282,29 +372,21 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       });
       streamRef.current = stream;
       const fps = stream.getVideoTracks()[0]?.getSettings().frameRate;
-      setDetectedFps(typeof fps === "number" ? Math.round(fps) : null);
+      const rounded = typeof fps === "number" ? Math.round(fps) : null;
+      detectedFpsRef.current = rounded;
+      setDetectedFps(rounded);
       setPreviewReady(false);
       setMode("preview");
-    } catch {
+      // Jeden świadomy gest: kamera startuje i tryb solo jest od razu uzbrojony.
+      setAutoArmed(true);
+    } catch (cameraError) {
       closeCamera();
       setMode("idle");
-      setError("Nie udało się uruchomić kamery. Zezwól BallWise na dostęp do kamery.");
+      setError(cameraErrorMessage(classifyCameraError(cameraError)));
     }
   }
 
-  async function armAutomaticRecording() {
-    try {
-      audioContextRef.current ??= new AudioContext();
-      await audioContextRef.current.resume();
-    } catch {
-      // Głos, wibracja i błysk ekranu nadal zadziałają.
-    }
-    setError(null);
-    setAutoArmed(true);
-    speak("Tryb automatyczny. Ustaw się na linii startu.");
-  }
-
-  function cancelPreview() {
+  function closeFullscreen() {
     closeCamera();
     setMode("idle");
     setElapsedSeconds(0);
@@ -312,17 +394,22 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
 
   function cancelAutomaticRecording() {
     setAutoArmed(false);
-    setCountdown(null);
+    setCountdown(IDLE_COUNTDOWN);
     if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
     stablePoseRef.current = null;
+    if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
+    autoStopRef.current = null;
   }
 
   const lowFps = detectedFps !== null && detectedFps < minimumFps;
-  const cameraActive = mode === "preview" || mode === "recording";
 
   if (mode === "idle" || mode === "starting") {
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
+        <p className="rounded-2xl bg-accent px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          Kamera służy do pomiaru czasu i informacji technicznej. Dźwięk nie jest nagrywany. Film
+          jest analizowany na tym urządzeniu i nie jest wysyłany bez osobnej decyzji.
+        </p>
         <Button
           className="h-14 w-full rounded-2xl"
           size="lg"
@@ -339,82 +426,117 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
             </>
           )}
         </Button>
+        {!audioAvailable && (
+          <p className="px-2 text-xs leading-relaxed text-muted-foreground">
+            Dźwięk jest niedostępny na tym urządzeniu — zostanie błysk ekranu i odliczanie wizualne.
+          </p>
+        )}
         {error && <p className="px-2 text-xs leading-relaxed text-destructive">{error}</p>}
       </div>
     );
   }
 
-  return (
-    <div className="overflow-hidden rounded-3xl bg-slate-950 text-white shadow-lg">
-      <div className="relative aspect-video w-full overflow-hidden bg-black">
-        <video ref={videoRef} muted playsInline autoPlay className="h-full w-full object-contain" />
-        <VisionLivePoseOverlay
-          videoRef={videoRef}
-          active={cameraActive && previewReady}
-          onStatus={setPoseStatus}
-        />
+  const countdownLabel =
+    countdown.phase === "digit" ? String(countdown.value) : countdown.phase === "start" ? "START" : null;
 
-        <div className="pointer-events-none absolute inset-0 z-20">
-          <div className="absolute inset-y-0 left-[12%] border-l border-dashed border-white/55" />
-          <div className="absolute inset-y-0 right-[12%] border-r border-dashed border-white/55" />
-          <div className="absolute inset-x-[12%] top-1/2 border-t border-white/25" />
-          <span className="absolute left-[12%] top-3 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold">
-            START W KADRZE
-          </span>
-          <span className="absolute right-[12%] top-3 -translate-x-full rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold">
-            META W KADRZE
+  return (
+    <div
+      className="fixed inset-0 z-[70] bg-black text-white"
+      style={{ height: "100dvh" }}
+      role="dialog"
+      aria-label="Kamera BallWise"
+    >
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        autoPlay
+        className="absolute inset-0 h-full w-full object-contain"
+      />
+      <VisionLivePoseOverlay
+        videoRef={videoRef}
+        active={(mode === "preview" || mode === "recording") && previewReady}
+        onStatus={setPoseStatus}
+      />
+
+      <div className="pointer-events-none absolute inset-0 z-20">
+        <div className="absolute inset-y-0 left-[12%] border-l border-dashed border-white/55" />
+        <div className="absolute inset-y-0 right-[12%] border-r border-dashed border-white/55" />
+        <div className="absolute inset-x-[12%] top-1/2 border-t border-white/25" />
+      </div>
+
+      {!previewReady && mode !== "processing" && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black text-sm">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Łączenie z kamerą…
+        </div>
+      )}
+
+      {flashActive && <div className="pointer-events-none absolute inset-0 z-40 bg-white/85" />}
+
+      {countdownLabel && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/35">
+          <span
+            className={`flex items-center justify-center rounded-full bg-blue-600 font-black shadow-2xl ${
+              countdown.phase === "start"
+                ? "px-8 py-5 text-3xl tracking-widest"
+                : "h-28 w-28 text-6xl"
+            }`}
+          >
+            {countdownLabel}
           </span>
         </div>
+      )}
 
-        {!previewReady && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Łączenie z kamerą…
-          </div>
-        )}
-
-        {flashActive && <div className="pointer-events-none absolute inset-0 z-40 bg-white/85" />}
-
-        {countdown !== null && (
-          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-slate-950/35">
-            <span className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-600 text-5xl font-black shadow-2xl">
-              {countdown === 0 ? "GO" : countdown}
+      {/* Górny pasek: stan nagrywania, FPS, zamknięcie. */}
+      <div
+        className="absolute inset-x-0 top-0 z-40 flex items-start justify-between gap-2 px-4"
+        style={{ paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}
+      >
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+          {mode === "recording" ? (
+            <span className="flex items-center gap-2 rounded-full bg-red-600 px-3 py-1.5">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" />
+              NAGRYWANIE · {formatElapsed(elapsedSeconds)}
             </span>
-          </div>
-        )}
-
-        <div className="absolute bottom-3 left-3 z-30 flex gap-2 text-[10px] font-semibold">
+          ) : (
+            <span className="rounded-full bg-white/15 px-3 py-1.5">PODGLĄD</span>
+          )}
           <span
-            className={`rounded-full px-2 py-1 ${lowFps ? "bg-amber-500/90" : "bg-emerald-500/90"}`}
+            className={`rounded-full px-3 py-1.5 ${lowFps ? "bg-amber-500/90" : "bg-emerald-500/90"}`}
           >
             {detectedFps ? `${detectedFps} FPS` : "FPS: wykrywanie"}
           </span>
-          {mode === "recording" && (
-            <span className="rounded-full bg-red-600 px-2 py-1">● {elapsedSeconds}s</span>
-          )}
         </div>
+        <button
+          type="button"
+          onClick={closeFullscreen}
+          aria-label="Zamknij kamerę"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/60"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
-      <div className="space-y-3 p-4">
+      {/* Dolny kompaktowy overlay sterowania. */}
+      <div
+        className="absolute inset-x-0 bottom-0 z-40 space-y-3 bg-gradient-to-t from-black/85 to-transparent px-4 pt-8"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
+      >
         <div className="grid grid-cols-3 gap-2">
           <PreflightChip label="1 zawodnik" ready={poseStatus.singleAthlete} />
           <PreflightChip label="Cała sylwetka" ready={poseStatus.fullBody} />
           <PreflightChip label="Kadr sprintu" ready={poseStatus.timingReady} />
         </div>
 
-        <p className="text-center text-xs leading-relaxed text-white/75">
-          Prowadnice pomagają ustawić kadr. Dokładne linie START i META powstaną po kalibracji
-          sceny.
-        </p>
-
         {lowFps && (
-          <p className="rounded-xl bg-amber-400/15 px-3 py-2 text-xs text-amber-100">
-            Kamera udostępniła {detectedFps} FPS. Wynik zostanie oznaczony jako estymowany.
+          <p className="rounded-xl bg-amber-400/15 px-3 py-2 text-[11px] text-amber-100">
+            Kamera udostępniła {detectedFps} FPS. Wynik będzie estymacją techniczną.
           </p>
         )}
 
         {autoArmed && (
-          <p className="rounded-xl bg-blue-400/15 px-3 py-2 text-center text-xs text-blue-100">
-            Tryb solo aktywny. Idź na START — po 1,5 s poprawnego ustawienia usłyszysz odliczanie.
+          <p className="rounded-xl bg-blue-400/15 px-3 py-2 text-center text-[11px] text-blue-100">
+            Tryb solo aktywny. Ustaw się na START — po 1,5 s stabilnej pozycji ruszy odliczanie.
           </p>
         )}
 
@@ -427,18 +549,9 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
             <CircleStop className="mr-2 h-5 w-5" /> Zatrzymaj nagranie
           </Button>
         ) : autoArmed ? (
-          <Button
-            variant="secondary"
-            className="w-full"
-            size="lg"
-            onClick={cancelAutomaticRecording}
-          >
-            Anuluj tryb automatyczny
-          </Button>
-        ) : (
-          <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-            <Button className="w-full" size="lg" onClick={armAutomaticRecording}>
-              <ScanLine className="mr-2 h-5 w-5" /> Tryb solo z odliczaniem
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <Button variant="secondary" className="w-full" size="lg" onClick={cancelAutomaticRecording}>
+              Anuluj tryb automatyczny
             </Button>
             <Button
               variant="secondary"
@@ -449,19 +562,30 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
             >
               <Video className="h-4 w-4" />
             </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <Button className="w-full" size="lg" onClick={() => setAutoArmed(true)}>
+              <ScanLine className="mr-2 h-5 w-5" /> Uzbrój tryb solo
+            </Button>
             <Button
               variant="secondary"
               size="icon"
               className="h-11 w-11"
-              onClick={cancelPreview}
-              aria-label="Zamknij kamerę"
+              onClick={startRecording}
+              aria-label="Rozpocznij nagranie ręcznie"
             >
-              <RotateCcw className="h-4 w-4" />
+              <Video className="h-4 w-4" />
             </Button>
           </div>
         )}
 
-        {error && <p className="px-1 text-xs leading-relaxed text-red-200">{error}</p>}
+        {!audioAvailable && (
+          <p className="text-center text-[11px] text-white/70">
+            Dźwięk niedostępny — zostaje błysk ekranu i odliczanie wizualne.
+          </p>
+        )}
+        {error && <p className="px-1 text-[11px] leading-relaxed text-red-200">{error}</p>}
       </div>
     </div>
   );
@@ -471,7 +595,7 @@ function PreflightChip({ label, ready }: { label: string; ready: boolean }) {
   return (
     <div
       className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold ${
-        ready ? "bg-emerald-500/20 text-emerald-100" : "bg-white/10 text-white/60"
+        ready ? "bg-emerald-500/25 text-emerald-100" : "bg-white/10 text-white/60"
       }`}
     >
       {ready ? <CheckCircle2 className="h-3.5 w-3.5" /> : <ScanLine className="h-3.5 w-3.5" />}
