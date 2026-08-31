@@ -43,7 +43,6 @@ import type {
   AnalysisPipelineSnapshot,
   PipelineStageName,
 } from "@/features/vision-analysis/types";
-import { estimateFallbackHeightCm } from "@/features/vision-analysis/autoCalibration";
 
 const PHASE_LABELS: Record<AnalysisPhase, string> = {
   idle: "Gotowe do startu",
@@ -200,9 +199,8 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   /**
    * Rejestrator diagnostyki timeoutu (Phase 2, dev-only). Tworzony PRZED
    * startem `runVideoAnalysis` i aktualizowany na bieżąco, dzięki czemu
-   * jego stan pozostaje czytelny nawet gdy zewnętrzny twardy limit 90s
-   * przerwie oczekiwanie na wynik analizy (obietrznica wewnętrzna wciąż
-   * może działać w tle). Brak wpływu na logikę analizy — wyłącznie diagnostyka.
+   * jego stan pozostaje czytelny nawet gdy zewnętrzny twardy limit analizy
+   * przerwie przebieg. Brak wpływu na logikę pomiarową — wyłącznie diagnostyka.
    */
   const timeoutRecorderRef = useRef<TimeoutDiagnosticsRecorder | null>(null);
   /** Ostatni raport diagnostyczny timeoutu — dostępny po sukcesie i po błędzie. */
@@ -253,7 +251,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     setPreviewSrc(null);
     setLastAnalysis(null);
     // Nowy rejestrator diagnostyki timeoutu — utworzony PRZED startem analizy,
-    // aby jego stan był czytelny nawet jeśli zewnętrzny limit 90s przerwie
+    // aby jego stan był czytelny nawet jeśli zewnętrzny limit przerwie
     // oczekiwanie na wynik `runVideoAnalysis`.
     timeoutRecorderRef.current = isDevDiagnosticsEnabled
       ? new TimeoutDiagnosticsRecorder(analysisRunId)
@@ -320,6 +318,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       return;
     }
 
+    let analysisTimedOut = false;
     try {
       vlog("loading_file", { analysisRunId, file: flow.fileName, uploaded: flow.uploaded });
       // 1-8: pozyskaj film jako zwalidowany Blob URL (Safari-friendly).
@@ -370,12 +369,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           );
           const h = prof?.height_optional;
           if (typeof h === "number" && h >= 100 && h <= 230) athleteHeightCm = h;
-          else {
-            athleteHeightCm = estimateFallbackHeightCm(
-              typeof prof?.age === "number" ? prof.age : null,
-            );
-            vlog("height_fallback", { athleteHeightCm, age: prof?.age ?? null });
-          }
+          else vlog("height_missing", { age: prof?.age ?? null });
         } catch (e) {
           vwarn("profile_fetch", "pominięto auto-kalibrację", (e as Error)?.message);
         }
@@ -384,37 +378,48 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
       // 9-10: analiza startuje na gotowym Blob URL.
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      const analysis = await withTimeout(
-        runVideoAnalysis({
-          testType: test.id as TestType,
-          videoUrl: resolved.objectUrl,
-          declaredFps: flow.fps || null,
-          cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
-          athleteHeightCm,
-          deviceId: detectDevice().deviceId,
-          lens: "wide",
-          zoom: 1,
-          facing: "back",
-          cameraStable: true,
-          videoHash: videoHashRef.current || null,
-          calibrationRecord: calibrationRecordRef.current,
-          techniqueOnly: techniqueOnlyRef.current,
-          abortSignal: controller.signal,
-          debugDiagnostics: isDevDiagnosticsEnabled,
-          timeoutRecorder: timeoutRecorderRef.current ?? undefined,
-          onPipelineUpdate: (snapshot) => {
-            if (cancelled()) return;
-            setPipelineSnapshot(snapshot);
-            setCurrentPhase(snapshot.currentStage);
-            const current = snapshot.stages[snapshot.currentStage as PipelineStageName];
-            setProgress(current ? current.completedUnits / Math.max(1, current.totalUnits) : 0);
-            vlog("phase", snapshot.currentStage);
-          },
-        }),
-        90_000,
-        "Pełna analiza filmu",
-      );
-      if (cancelled()) return;
+      const analysisPromise = runVideoAnalysis({
+        testType: test.id as TestType,
+        videoUrl: resolved.objectUrl,
+        declaredFps: flow.fps || null,
+        cameraSetup: (flow.cameraView ?? test.cameraView) as CameraSetup,
+        athleteHeightCm,
+        deviceId: detectDevice().deviceId,
+        lens: "wide",
+        zoom: 1,
+        facing: "back",
+        cameraStable: true,
+        videoHash: videoHashRef.current || null,
+        calibrationRecord: calibrationRecordRef.current,
+        techniqueOnly: techniqueOnlyRef.current,
+        abortSignal: controller.signal,
+        debugDiagnostics: isDevDiagnosticsEnabled,
+        timeoutRecorder: timeoutRecorderRef.current ?? undefined,
+        onPipelineUpdate: (snapshot) => {
+          if (cancelled()) return;
+          setPipelineSnapshot(snapshot);
+          setCurrentPhase(snapshot.currentStage);
+          const current = snapshot.stages[snapshot.currentStage as PipelineStageName];
+          setProgress(current ? current.completedUnits / Math.max(1, current.totalUnits) : 0);
+          vlog("phase", snapshot.currentStage);
+        },
+      });
+      let analysis: VideoAnalysisResult;
+      try {
+        analysis = await withTimeout(analysisPromise, 120_000, "Pełna analiza filmu");
+      } catch (error) {
+        const code =
+          error && typeof error === "object" && "code" in error
+            ? String((error as { code: unknown }).code)
+            : null;
+        if (code === "TIMEOUT") {
+          analysisTimedOut = true;
+          controller.abort();
+          await closePoseEngine();
+        }
+        throw error;
+      }
+      if (cancelled() && !analysisTimedOut) return;
       setLastAnalysis(analysis);
       if (timeoutRecorderRef.current) {
         setDiagnosticsReport(analysis.timeoutDiagnostics ?? timeoutRecorderRef.current.snapshot());
@@ -494,7 +499,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       // invalid_recording | failed
       setState({ kind: "invalid", analysis });
     } catch (e) {
-      if (cancelled()) return;
+      if (cancelled() && !analysisTimedOut) return;
       const code =
         e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : null;
       const rawMessage = e instanceof Error ? e.message : "Nie udało się przeanalizować filmu.";
@@ -506,9 +511,8 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
           : rawMessage;
       updateDebug({ finalErrorCode: code ?? "UNKNOWN_ERROR", finalStatus: "error" });
-      // Zewnętrzny twardy limit 90s (lub inny wyjątek) mógł przerwać
-      // oczekiwanie na wynik `runVideoAnalysis` — analiza wewnętrzna nigdy
-      // się nie rozstrzygnie, ale rejestrator wciąż zawiera jej AKTUALNY stan.
+      // Twardy limit przerywa również AbortSignal i zwalnia MediaPipe, więc
+      // po błędzie nie pozostaje analiza działająca w tle.
       if (timeoutRecorderRef.current) {
         setDiagnosticsReport(timeoutRecorderRef.current.snapshot());
       }
@@ -684,7 +688,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
 
 function CalibrationRequiredView({
   test,
-  analysis,
   onCalibrate,
   onTechniqueOnly,
 }: {
@@ -704,8 +707,8 @@ function CalibrationRequiredView({
             {test.name} został rozpoznany
           </div>
           <p className="text-sm text-muted-foreground">
-            Aby zmierzyć odległość, skalibruj podłoże na tym filmie. Ruch został poprawnie wykryty (
-            {analysis.keyEvents.length} zdarzeń), brakuje jedynie skali przestrzennej.
+            Ruch został rozpoznany. Skalibruj podłoże i linie na tym filmie, aby silnik mógł
+            wyznaczyć prawdziwe zdarzenia oraz wynik przestrzenny.
           </p>
         </div>
       </div>
