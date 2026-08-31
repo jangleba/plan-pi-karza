@@ -31,10 +31,7 @@ function line(id: string, role: TimingLineSpec["role"], x: number): TimingLineSp
 }
 
 const SPRINT_LINES: TimingLineSpec[] = [line("start", "START", 0), line("finish", "FINISH", 20000)];
-const FLYING_LINES: TimingLineSpec[] = [
-  line("a", "TIMING_A", 0),
-  line("b", "TIMING_B", 10000),
-];
+const FLYING_LINES: TimingLineSpec[] = [line("a", "TIMING_A", 0), line("b", "TIMING_B", 10000)];
 
 function lm(x: number, y: number, vis = 1): Landmark {
   return { x, y, z: 0, visibility: vis };
@@ -54,8 +51,8 @@ function buildPoses(opts?: {
   const fps = opts?.fps ?? 240;
   const vis = opts?.torsoVisibility ?? 1;
   const sil = opts?.silhouetteHeight ?? 0.6;
-  const xs = opts?.reverse ? 0.75 : opts?.xStart ?? 0.02;
-  const xe = opts?.reverse ? 0.02 : opts?.xEnd ?? 0.75;
+  const xs = opts?.reverse ? 0.75 : (opts?.xStart ?? 0.02);
+  const xe = opts?.reverse ? 0.02 : (opts?.xEnd ?? 0.75);
   const intervalUs = Math.round(1_000_000 / fps);
   const poses: FramePose[] = [];
   for (let i = 0; i < frames; i++) {
@@ -101,9 +98,7 @@ function sprintInput(over?: Partial<TimingPlaneInput>): TimingPlaneInput {
 
 describe("TimingPlaneCrossingEngine — sprint z importowanego filmu", () => {
   it("1. Sprint bez linii → TIMING_LINE_NOT_CALIBRATED (REJECTED)", () => {
-    const res = detectTimingPlaneCrossings(
-      sprintInput({ registry: TimingLineRegistry.from([]) }),
-    );
+    const res = detectTimingPlaneCrossings(sprintInput({ registry: TimingLineRegistry.from([]) }));
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.resultQuality).toBe("REJECTED");
@@ -152,6 +147,19 @@ describe("TimingPlaneCrossingEngine — sprint z importowanego filmu", () => {
 
   it("4. Przecięcie w złym kierunku → WRONG_CROSSING_DIRECTION", () => {
     const res = detectTimingPlaneCrossings(sprintInput({ poses: buildPoses({ reverse: true }) }));
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe("WRONG_CROSSING_DIRECTION");
+  });
+
+  it("4b. Odrzuca odwróconą kolejność META → START", () => {
+    const res = detectTimingPlaneCrossings(
+      sprintInput({
+        registry: TimingLineRegistry.from([
+          line("start", "START", 20000),
+          line("finish", "FINISH", 0),
+        ]),
+      }),
+    );
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("WRONG_CROSSING_DIRECTION");
   });

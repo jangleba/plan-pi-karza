@@ -212,7 +212,9 @@ function torsoVisibility(poses: FramePose[]): number {
     const lm = p.landmarks;
     if (!lm) continue;
     const ids = [POSE.LEFT_SHOULDER, POSE.RIGHT_SHOULDER, POSE.LEFT_HIP, POSE.RIGHT_HIP];
-    const vals = ids.map((i) => lm[i]?.visibility).filter((v): v is number => typeof v === "number");
+    const vals = ids
+      .map((i) => lm[i]?.visibility)
+      .filter((v): v is number => typeof v === "number");
     if (vals.length === 4) vis.push(vals.reduce((a, b) => a + b, 0) / 4);
   }
   if (vis.length === 0) return 0;
@@ -284,14 +286,24 @@ export function detectTimingPlaneCrossings(input: TimingPlaneInput): TimingPlane
   }
   // 2. Homografia + geometria kamery.
   if (!input.homography) {
-    return { ok: false, resultQuality: "REJECTED", code: "TIMING_LINE_NOT_CALIBRATED", debug: empty };
+    return {
+      ok: false,
+      resultQuality: "REJECTED",
+      code: "TIMING_LINE_NOT_CALIBRATED",
+      debug: empty,
+    };
   }
   if (!cameraGeometryValid(input.homography, input.width, input.height)) {
     return { ok: false, resultQuality: "REJECTED", code: "INVALID_CAMERA_GEOMETRY", debug: empty };
   }
   // 3. Wymagane role linii.
   if (input.registry.size === 0) {
-    return { ok: false, resultQuality: "REJECTED", code: "TIMING_LINE_NOT_CALIBRATED", debug: empty };
+    return {
+      ok: false,
+      resultQuality: "REJECTED",
+      code: "TIMING_LINE_NOT_CALIBRATED",
+      debug: empty,
+    };
   }
   if (!input.registry.hasRoles(input.requiredRoles)) {
     return { ok: false, resultQuality: "REJECTED", code: "MISSING_TIMING_LINE", debug: empty };
@@ -335,6 +347,30 @@ export function detectTimingPlaneCrossings(input: TimingPlaneInput): TimingPlane
     role: roleById.get(c.lineId) ?? null,
     signedDistanceToPlane: signedDistance(debugByLine.get(c.lineId)),
   }));
+
+  // Każda linia może zostać przecięta poprawnym kierunkiem osobno, ale cały
+  // test jest ważny dopiero wtedy, gdy role wystąpiły w kolejności protokołu.
+  // Chroni to przed zaakceptowaniem nagrania odtworzonego od środka, źle
+  // opisanych linii albo geometrii z odwróconą osią toru.
+  const crossingByRole = new Map<TimingLineRole, TimingPlaneCrossing>();
+  for (const crossing of crossings) {
+    if (crossing.role && !crossingByRole.has(crossing.role)) {
+      crossingByRole.set(crossing.role, crossing);
+    }
+  }
+  const protocolCrossings = input.requiredRoles
+    .map((role) => crossingByRole.get(role))
+    .filter((crossing): crossing is TimingPlaneCrossing => !!crossing);
+  for (let i = 1; i < protocolCrossings.length; i++) {
+    if (protocolCrossings[i].crossingTimestampUs <= protocolCrossings[i - 1].crossingTimestampUs) {
+      return {
+        ok: false,
+        resultQuality: "REJECTED",
+        code: "WRONG_CROSSING_DIRECTION",
+        debug: res.debug,
+      };
+    }
+  }
 
   const ordered = [...crossings].sort((a, b) => a.crossingTimestampUs - b.crossingTimestampUs);
   const first = ordered[0];
