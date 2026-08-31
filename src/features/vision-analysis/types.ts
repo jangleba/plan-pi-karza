@@ -194,7 +194,6 @@ export interface TimingLineSpec {
   direction?: "forward" | "backward" | "any";
 }
 
-
 export interface AnalysisContext {
   testType: TestType;
   metadata: VideoMetadata;
@@ -274,6 +273,9 @@ export interface VideoAnalysisResult {
   status: AnalysisStatus;
   videoMetadata: {
     fps: number;
+    /** Źródło FPS zachowane w raporcie — bez nazywania fallbacku pomiarem. */
+    fpsMeasured?: boolean;
+    declaredFps?: number | null;
     durationSeconds: number;
     frameCount: number;
     width: number;
@@ -523,26 +525,21 @@ export const QUALITY_ISSUE_LABELS: Record<QualityIssueCode, string> = {
     "Dystans nie jest znany. Podaj dystans protokołu lub skalibruj linie o znanej odległości na podłożu.",
   TIMING_LINES_REQUIRED:
     "Test zmiany kierunku wymaga skalibrowanych linii/stref (np. TIMING_A + linia zwrotu lub CENTER + TURN_LEFT + TURN_RIGHT).",
-  TURN_NOT_DETECTED:
-    "Nie wykryto zmiany kierunku. Zwykły bieg bez zwrotu nie jest testem COD.",
+  TURN_NOT_DETECTED: "Nie wykryto zmiany kierunku. Zwykły bieg bez zwrotu nie jest testem COD.",
   TURN_LINE_NOT_REACHED:
     "Zawodnik nie dotarł stopą do linii/strefy zwrotu. Wykonaj pełny zwrot przy linii.",
-  WRONG_LINE_SEQUENCE:
-    "Niewłaściwa kolejność przekroczeń linii dla tego protokołu COD.",
-  WRONG_TURNING_SIDE:
-    "Zwrot wykonano na niewłaściwą nogę względem wybranej strony próby.",
+  WRONG_LINE_SEQUENCE: "Niewłaściwa kolejność przekroczeń linii dla tego protokołu COD.",
+  WRONG_TURNING_SIDE: "Zwrot wykonano na niewłaściwą nogę względem wybranej strony próby.",
   BRAKING_ZONE_REQUIRED:
     "Test hamowania wymaga skalibrowanej strefy: BRAKING_ENTRY, STOP_ZONE_START i STOP_ZONE_END na podłożu.",
   ENTRY_SPEED_UNKNOWN:
     "Nie można wyznaczyć prędkości wejściowej. Podaj znaną prędkość lub skalibruj strefę jej pomiaru.",
   INVALID_APPROACH_SPRINT:
     "Brak prawidłowego sprintu przed hamowaniem. Wejdź w strefę z pełną prędkością.",
-  NO_SPEED_REDUCTION:
-    "Nie wykryto wyraźnej redukcji prędkości. To zwykły bieg, nie hamowanie.",
+  NO_SPEED_REDUCTION: "Nie wykryto wyraźnej redukcji prędkości. To zwykły bieg, nie hamowanie.",
   STOP_NOT_DETECTED:
     "Nie wykryto zatrzymania. Zatrzymaj się w pełni w strefie i pozostań w kadrze.",
-  STOP_OUT_OF_ZONE:
-    "Zatrzymanie nastąpiło poza wymaganą strefą (STOP_ZONE_START–STOP_ZONE_END).",
+  STOP_OUT_OF_ZONE: "Zatrzymanie nastąpiło poza wymaganą strefą (STOP_ZONE_START–STOP_ZONE_END).",
   DIRECTION_CHANGE_NOT_STOP:
     "Wykryto zmianę kierunku zamiast zatrzymania. Test hamowania wymaga pełnego zatrzymania.",
   TEST_WINDOW_INCOMPLETE:

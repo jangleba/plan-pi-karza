@@ -260,6 +260,8 @@ function resolveCalibration(
 function metadataResult(metadata: VideoMetadata): VideoAnalysisResult["videoMetadata"] {
   return {
     fps: metadata.fps,
+    fpsMeasured: metadata.fpsMeasured,
+    declaredFps: metadata.declaredFps,
     durationSeconds: round(metadata.durationSeconds, 2),
     frameCount: metadata.frameCount,
     width: metadata.width,
