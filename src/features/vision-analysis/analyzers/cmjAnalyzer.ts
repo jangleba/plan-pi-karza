@@ -12,7 +12,7 @@ import { hipYSeries, timeSeries } from "../poseSeries";
 import { meanFinite, argMax } from "../signal";
 import { round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 import {
-  calcTemporalResolution,
+  calcTemporalResolutionNearEvents,
   computeMeasurementAccuracy,
   eventUncertaintyMs,
   formatResult,
@@ -85,7 +85,7 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
   )
     return [];
   // h = g · t² / 8 (m) → cm. Zero zaokrągleń przed sekcją accuracy().
-  const heightCm = (G_CMJ * flightTime * flightTime) / 8 * 100;
+  const heightCm = ((G_CMJ * flightTime * flightTime) / 8) * 100;
   if (
     !withinPlausibleRange(
       heightCm,
@@ -155,7 +155,6 @@ function validate(ctx: AnalysisContext): ValidationResult {
   ]);
 }
 
-
 /**
  * Warstwa rzetelności pomiaru dla CMJ. Liczy niepewność czasu lotu z realnej
  * rozdzielczości czasowej (mediana odstępu klatek) i propaguje ją na wysokość.
@@ -167,10 +166,7 @@ function accuracy(
   mtx: CalculatedMetric[],
   ctx: AnalysisContext,
 ): { measurement: MeasurementAccuracy; metrics: CalculatedMetric[] } {
-  const timestampsUs = ctx.poses
-    .map((p) => p.sourceTimestampUs)
-    .filter((t): t is number => typeof t === "number");
-  const temporal = calcTemporalResolution(timestampsUs);
+  const temporal = calcTemporalResolutionNearEvents(ctx.poses, ev);
   const calibration = validateCalibrationQuality({ required: false, present: false });
 
   const flight = mtx.find((m) => m.key === "flight_time_s");

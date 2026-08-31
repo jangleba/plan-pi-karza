@@ -10,7 +10,7 @@ import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents, detectCountermovement } from "./jumpDetection";
 import { flightTimeToHeightCm, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
 import {
-  calcTemporalResolution,
+  calcTemporalResolutionNearEvents,
   computeMeasurementAccuracy,
   eventUncertaintyMs,
   formatResult,
@@ -40,18 +40,38 @@ function metrics(ev: DetectedEvent[]): CalculatedMetric[] {
   if (!takeoff || !landing) return [];
   const flightTime = landing.timestampSeconds - takeoff.timestampSeconds;
   if (
-    !withinPlausibleRange(flightTime, PLAUSIBLE_RANGES.flight_time_s.min, PLAUSIBLE_RANGES.flight_time_s.max)
+    !withinPlausibleRange(
+      flightTime,
+      PLAUSIBLE_RANGES.flight_time_s.min,
+      PLAUSIBLE_RANGES.flight_time_s.max,
+    )
   )
     return [];
   const heightCm = flightTimeToHeightCm(flightTime);
   if (
-    !withinPlausibleRange(heightCm, PLAUSIBLE_RANGES.jump_height_cm.min, PLAUSIBLE_RANGES.jump_height_cm.max)
+    !withinPlausibleRange(
+      heightCm,
+      PLAUSIBLE_RANGES.jump_height_cm.min,
+      PLAUSIBLE_RANGES.jump_height_cm.max,
+    )
   )
     return [];
   const conf = takeoff.confidence;
   return [
-    { key: "jump_height_cm", label: "Wysokość wyskoku", value: heightCm, unit: "cm", confidence: conf },
-    { key: "flight_time_s", label: "Czas w powietrzu", value: round(flightTime, 3), unit: "s", confidence: conf },
+    {
+      key: "jump_height_cm",
+      label: "Wysokość wyskoku",
+      value: heightCm,
+      unit: "cm",
+      confidence: conf,
+    },
+    {
+      key: "flight_time_s",
+      label: "Czas w powietrzu",
+      value: round(flightTime, 3),
+      unit: "s",
+      confidence: conf,
+    },
   ];
 }
 
@@ -86,10 +106,7 @@ function accuracy(
   mtx: CalculatedMetric[],
   ctx: AnalysisContext,
 ): { measurement: MeasurementAccuracy; metrics: CalculatedMetric[] } {
-  const timestampsUs = ctx.poses
-    .map((p) => p.sourceTimestampUs)
-    .filter((t): t is number => typeof t === "number");
-  const temporal = calcTemporalResolution(timestampsUs);
+  const temporal = calcTemporalResolutionNearEvents(ctx.poses, ev);
   const calibration = validateCalibrationQuality({ required: false, present: false });
   const flightTime = mtx.find((m) => m.key === "flight_time_s")?.value ?? 0;
   const evUnc = eventUncertaintyMs({ frameIntervalMs: temporal.frameIntervalMs });
@@ -100,11 +117,21 @@ function accuracy(
   const enriched = mtx.map((m) => {
     if (m.key === "flight_time_s") {
       const f = formatResult(m.value, flightUncS, m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      return {
+        ...m,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     if (m.key === "jump_height_cm") {
       const f = formatResult(m.value, heightUncCm, m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      return {
+        ...m,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     return m;
   });

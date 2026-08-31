@@ -1,6 +1,6 @@
 import type { AnalysisContext, CalculatedMetric, DetectedEvent } from "../types";
 import {
-  calcTemporalResolution,
+  calcTemporalResolutionNearEvents,
   computeMeasurementAccuracy,
   eventUncertaintyMs,
   formatResult,
@@ -30,10 +30,7 @@ export function temporalAccuracy(input: {
   maxRelativeUncertainty?: number;
 }): { measurement: MeasurementAccuracy; metrics: CalculatedMetric[] } {
   const { ev, metrics, ctx, fpsPolicy, timeKey } = input;
-  const timestampsUs = ctx.poses
-    .map((p) => p.sourceTimestampUs)
-    .filter((t): t is number => typeof t === "number");
-  const temporal = calcTemporalResolution(timestampsUs);
+  const temporal = calcTemporalResolutionNearEvents(ctx.poses, ev);
   const calibration = validateCalibrationQuality({ required: false, present: false });
 
   const evUnc = eventUncertaintyMs({ frameIntervalMs: temporal.frameIntervalMs });
@@ -53,15 +50,30 @@ export function temporalAccuracy(input: {
   const enriched = metrics.map((m) => {
     if (m.key === timeKey || m.unit === "s") {
       const f = formatResult(m.value, timeUncS, m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      return {
+        ...m,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     if (m.unit === "m/s") {
       const f = formatResult(m.value, speedUncMs, m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      return {
+        ...m,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     if (m.unit === "km/h") {
       const f = formatResult(m.value, round(speedUncMs * 3.6, 3), m.unit);
-      return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+      return {
+        ...m,
+        uncertainty: f.uncertainty,
+        displayPrecision: f.displayPrecision,
+        display: f.display,
+      };
     }
     return m;
   });

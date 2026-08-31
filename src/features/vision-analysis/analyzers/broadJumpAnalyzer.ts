@@ -12,7 +12,7 @@ import { round } from "../physics";
 import { estimateScaleFromHeight } from "../autoCalibration";
 import { measureGroundHorizontalDistance } from "../horizontalDistance";
 import {
-  calcTemporalResolution,
+  calcTemporalResolutionNearEvents,
   computeMeasurementAccuracy,
   distanceUncertaintyMm,
   formatResult,
@@ -60,8 +60,6 @@ function metersPerPixel(ctx: AnalysisContext): { mpp: number; confMul: number } 
   if (scale) return { mpp: scale.metersPerPixel, confMul: scale.confidence };
   return null;
 }
-
-
 
 /** Długość skoku (cm) — pomiar pięty przez homografię, inaczej skala/piksele. */
 function jumpDistanceCm(
@@ -122,16 +120,11 @@ function accuracy(
   mtx: CalculatedMetric[],
   ctx: AnalysisContext,
 ): { measurement: MeasurementAccuracy; metrics: CalculatedMetric[] } {
-  const timestampsUs = ctx.poses
-    .map((p) => p.sourceTimestampUs)
-    .filter((t): t is number => typeof t === "number");
-  const temporal = calcTemporalResolution(timestampsUs);
+  const temporal = calcTemporalResolutionNearEvents(ctx.poses, ev);
 
   const H = ctx.calibration?.homography;
   const reproPx = ctx.calibration?.profileMatch?.reprojectionErrorPx ?? null;
-  const mmPerPx = ctx.calibration?.metersPerPixel
-    ? ctx.calibration.metersPerPixel * 1000
-    : 3; // ~3 mm/px konserwatywnie, gdy brak profilu
+  const mmPerPx = ctx.calibration?.metersPerPixel ? ctx.calibration.metersPerPixel * 1000 : 3; // ~3 mm/px konserwatywnie, gdy brak profilu
   const calibration = validateCalibrationQuality({
     required: true,
     present: !!H,
@@ -158,14 +151,23 @@ function accuracy(
     if (m.key !== "distance_cm") return m;
     const uncCm = totalDistanceUncertaintyMm / 10;
     const f = formatResult(m.value, uncCm, m.unit);
-    return { ...m, uncertainty: f.uncertainty, displayPrecision: f.displayPrecision, display: f.display };
+    return {
+      ...m,
+      uncertainty: f.uncertainty,
+      displayPrecision: f.displayPrecision,
+      display: f.display,
+    };
   });
 
   const measurement = computeMeasurementAccuracy({
     domain: "spatial",
     fpsPolicy: SPRINT_FPS_POLICY,
     temporal,
-    spatial: { mmPerPixel: round(mmPerPx, 4), spatialResolutionMm: round(mmPerPx, 4), reliable: !!H },
+    spatial: {
+      mmPerPixel: round(mmPerPx, 4),
+      spatialResolutionMm: round(mmPerPx, 4),
+      reliable: !!H,
+    },
     calibration,
     relativeUncertainty: relUnc,
     maxRelativeUncertainty: 0.05,
