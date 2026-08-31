@@ -14,7 +14,10 @@ import { resolveVideoBlob } from "@/lib/vision/videoSource";
 import { analysisToFrameResult } from "@/lib/vision/autoAnalysisBridge";
 import { detectDevice } from "@/lib/vision/calibrationStore";
 import { VisionVideoCalibration } from "./VisionVideoCalibration";
-import { computeVideoHashFromBlob, type CalibrationRecord } from "@/features/vision-analysis/videoCalibration";
+import {
+  computeVideoHashFromBlob,
+  type CalibrationRecord,
+} from "@/features/vision-analysis/videoCalibration";
 import { findVideoCalibration } from "@/lib/vision/videoCalibrationStore";
 import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
 import { ANALYSIS_PIPELINE_STAGES } from "@/features/vision-analysis/AnalysisPipelineController";
@@ -25,7 +28,10 @@ import {
   vwarn,
   withTimeout,
 } from "@/features/vision-analysis/devLog";
-import { closePoseEngine, FRAME_TIMESTAMP_ORDER_USER_MESSAGE } from "@/features/vision-analysis/poseEngine";
+import {
+  closePoseEngine,
+  FRAME_TIMESTAMP_ORDER_USER_MESSAGE,
+} from "@/features/vision-analysis/poseEngine";
 import {
   TimeoutDiagnosticsRecorder,
   type TimeoutDiagnosticsReport,
@@ -168,7 +174,6 @@ const EMPTY_DEBUG_CTX: AnalysisRunDebugContext = {
   finalStatus: null,
 };
 
-
 export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -177,7 +182,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [pipelineSnapshot, setPipelineSnapshot] = useState<AnalysisPipelineSnapshot | null>(null);
   const [state, setState] = useState<UiState>({ kind: "running" });
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-
 
   const runToken = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
@@ -220,7 +224,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     },
     [updateDebug],
   );
-
 
   const runAnalysis = useCallback(async () => {
     // Nowy przebieg — unieważnia poprzedni i sprząta stare źródło.
@@ -294,7 +297,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       analysisInputSource: inputSource,
       currentStage: "loading_file",
     });
-
 
     // Wczesna walidacja — bez filmu nie startujemy pipeline'u.
     if (!file && !flow.videoUrl) {
@@ -431,11 +433,9 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         detectedRepetitions: analysis.recognition?.detectedRepetitions ?? null,
         requiredRepetitions: analysis.recognition?.requiredRepetitions ?? null,
         protocolMatch: analysis.recognition?.protocolMatch ?? null,
-        finalErrorCode:
-          analysis.recognition?.errorCode ?? analysis.qualityIssues[0] ?? null,
+        finalErrorCode: analysis.recognition?.errorCode ?? analysis.qualityIssues[0] ?? null,
         finalStatus: analysis.status,
       });
-
 
       if (analysis.status === "completed") {
         const frame = analysisToFrameResult(analysis);
@@ -486,7 +486,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         const message =
           code === "FRAME_TIMESTAMP_ORDER_ERROR"
             ? FRAME_TIMESTAMP_ORDER_USER_MESSAGE
-            : analysis.retakeInstructions[0] ?? "Nie udało się przeanalizować filmu.";
+            : (analysis.retakeInstructions[0] ?? "Nie udało się przeanalizować filmu.");
         setState({ kind: "error", code, message, phase: lastPhaseRef.current });
         return;
       }
@@ -518,7 +518,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         message,
         phase: lastPhaseRef.current,
       });
-
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -544,8 +543,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
-
   return (
     <div className="pb-28">
       <VisionHeader
@@ -558,7 +555,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       {isDevDiagnosticsEnabled && <TimeoutDiagnosticsCopyButton report={diagnosticsReport} />}
 
       <div className="space-y-4 px-5">
-
         {previewSrc && (
           <video
             key={previewSrc}
@@ -592,6 +588,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
             videoSrc={previewSrc}
             videoHash={videoHashRef.current}
             fps={getFlow(test.id).fps || test.recommendedFps || 30}
+            testId={test.id}
             onSaved={(record) => {
               calibrationRecordRef.current = record;
               techniqueOnlyRef.current = false;
@@ -707,8 +704,8 @@ function CalibrationRequiredView({
             {test.name} został rozpoznany
           </div>
           <p className="text-sm text-muted-foreground">
-            Aby zmierzyć odległość, skalibruj podłoże na tym filmie. Ruch został poprawnie
-            wykryty ({analysis.keyEvents.length} zdarzeń), brakuje jedynie skali przestrzennej.
+            Aby zmierzyć odległość, skalibruj podłoże na tym filmie. Ruch został poprawnie wykryty (
+            {analysis.keyEvents.length} zdarzeń), brakuje jedynie skali przestrzennej.
           </p>
         </div>
       </div>
@@ -790,8 +787,7 @@ function RunningView({
   const pct = Math.round(progress * 100);
   // Indeks bieżącego kroku w realnym pipelinie (bez timerów).
   const rawIndex = PHASE_STEPS.indexOf(phase as PipelineStageName);
-  const currentIndex =
-    phase === "completed" ? PHASE_STEPS.length : rawIndex === -1 ? 0 : rawIndex;
+  const currentIndex = phase === "completed" ? PHASE_STEPS.length : rawIndex === -1 ? 0 : rawIndex;
   const showFrameProgress = phase === "extractFrames" || phase === "estimatePose";
   return (
     <div className="soft-card space-y-5 p-6">

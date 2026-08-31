@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   buildCalibrationRecord,
   buildKnownDistanceRecord,
+  buildSprintTimingLines,
   MAX_VIDEO_REPROJECTION_ERROR_PX,
   type CalibrationRecord,
   type CalibrationType,
@@ -26,10 +27,16 @@ const MODE_LABELS: Record<CalibrationType, string> = {
   AUTOMATIC_MARKERS: "Automatyczne markery",
 };
 
+const SPRINT_DISTANCE_M: Partial<Record<string, number>> = {
+  sprint_20m: 20,
+  sprint_30m: 30,
+};
+
 export function VisionVideoCalibration({
   videoSrc,
   videoHash,
   fps,
+  testId,
   requiredAreaPx,
   onSaved,
   onCancel,
@@ -37,6 +44,8 @@ export function VisionVideoCalibration({
   videoSrc: string;
   videoHash: string;
   fps: number;
+  /** Protokół określa role i odległości linii pomiarowych sprintu. */
+  testId?: string;
   /** Punkty (px) obszaru testu, które muszą znaleźć się w skalibrowanej strefie. */
   requiredAreaPx?: ImagePointPx[];
   onSaved: (record: CalibrationRecord) => void;
@@ -47,8 +56,10 @@ export function VisionVideoCalibration({
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [timestampUs, setTimestampUs] = useState(0);
 
-  const [widthCm, setWidthCm] = useState(200);
-  const [heightCm, setHeightCm] = useState(100);
+  const sprintDistanceM = SPRINT_DISTANCE_M[testId ?? ""];
+  const isSprintCalibration = !!sprintDistanceM || testId === "flying_sprint";
+  const [widthCm, setWidthCm] = useState(() => (sprintDistanceM ? sprintDistanceM * 100 : 200));
+  const [heightCm, setHeightCm] = useState(() => (isSprintCalibration ? 200 : 100));
   const [taps, setTaps] = useState<ImagePointPx[]>([]);
 
   // KNOWN_DISTANCE: pary punktów + długość.
@@ -162,6 +173,7 @@ export function VisionVideoCalibration({
       groundPointsMm,
       takeoffLinePx,
       landingAreaPolygonPx,
+      timingLines: buildSprintTimingLines(testId, wMm, hMm),
     });
     if (!res.ok) {
       setError(res.errors.join(" "));
@@ -189,7 +201,9 @@ export function VisionVideoCalibration({
           <Crosshair className="h-5 w-5" />
         </div>
         <div>
-          <div className="text-base font-semibold text-foreground">Skalibruj podłoże na tym filmie</div>
+          <div className="text-base font-semibold text-foreground">
+            Skalibruj podłoże na tym filmie
+          </div>
           <p className="text-sm text-muted-foreground">
             Kalibracja zostanie przypisana do tego nagrania i użyta ponownie po jego otwarciu.
           </p>
@@ -208,7 +222,9 @@ export function VisionVideoCalibration({
                 reset();
               }}
               className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
-                mode === m ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                mode === m
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground"
               }`}
             >
               {MODE_LABELS[m]}
@@ -219,8 +235,8 @@ export function VisionVideoCalibration({
 
       {mode === "AUTOMATIC_MARKERS" && (
         <p className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-700">
-          Automatyczne wykrycie markerów nie jest dostępne dla tego nagrania. Zaznacz ręcznie
-          co najmniej 4 markery o znanych współrzędnych na podłożu.
+          Automatyczne wykrycie markerów nie jest dostępne dla tego nagrania. Zaznacz ręcznie co
+          najmniej 4 markery o znanych współrzędnych na podłożu.
         </p>
       )}
 
@@ -233,10 +249,30 @@ export function VisionVideoCalibration({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField label="Szerokość prostokąta (cm)" value={widthCm} onChange={setWidthCm} />
-          <NumberField label="Głębokość prostokąta (cm)" value={heightCm} onChange={setHeightCm} />
-        </div>
+        <>
+          {isSprintCalibration && (
+            <p className="rounded-xl bg-primary/10 p-3 text-xs text-foreground">
+              Zaznacz cztery rogi całego pasa sprintu. Linie czasu zostaną zapisane w tej samej
+              kalibracji i nie będą wyznaczane „na oko”.
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            {sprintDistanceM ? (
+              <ReadOnlyField label="Długość toru" value={`${sprintDistanceM} m`} />
+            ) : (
+              <NumberField
+                label={isSprintCalibration ? "Długość odcinka (cm)" : "Szerokość prostokąta (cm)"}
+                value={widthCm}
+                onChange={setWidthCm}
+              />
+            )}
+            <NumberField
+              label={isSprintCalibration ? "Szerokość pasa (cm)" : "Głębokość prostokąta (cm)"}
+              value={heightCm}
+              onChange={setHeightCm}
+            />
+          </div>
+        </>
       )}
 
       {frameUrl ? (
@@ -253,7 +289,6 @@ export function VisionVideoCalibration({
             </button>
           </div>
           <div className="relative">
-            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
             <img
               ref={imgRef}
               src={frameUrl}
@@ -266,7 +301,10 @@ export function VisionVideoCalibration({
                 <span
                   key={i}
                   className="pointer-events-none absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
-                  style={{ left: `${(t.u / natural.w) * 100}%`, top: `${(t.v / natural.h) * 100}%` }}
+                  style={{
+                    left: `${(t.u / natural.w) * 100}%`,
+                    top: `${(t.v / natural.h) * 100}%`,
+                  }}
                 >
                   {i + 1}
                 </span>
@@ -280,7 +318,11 @@ export function VisionVideoCalibration({
       {error && <p className="text-xs font-medium text-destructive">{error}</p>}
 
       {saved ? (
-        <SavedRecordView record={saved} requiredAreaPx={requiredAreaPx} onUse={() => onSaved(saved)} />
+        <SavedRecordView
+          record={saved}
+          requiredAreaPx={requiredAreaPx}
+          onUse={() => onSaved(saved)}
+        />
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" onClick={onCancel}>
@@ -315,9 +357,13 @@ function SavedRecordView({
         <Row label="calibrationHash" value={record.calibrationHash} mono />
         <Row label="Tryb" value={record.calibrationType} />
         <Row label="Klatka referencyjna" value={`${record.referenceFrameIndex}`} />
-        <Row label="reprojectionError" value={`${record.reprojectionErrorPx} px · ${record.reprojectionErrorMm} mm`} />
+        <Row
+          label="reprojectionError"
+          value={`${record.reprojectionErrorPx} px · ${record.reprojectionErrorMm} mm`}
+        />
         <Row label="Limit" value={`≤ ${MAX_VIDEO_REPROJECTION_ERROR_PX} px`} />
         <Row label="Punkty obszaru" value={`${record.calibratedAreaPolygonPx.length}`} />
+        {record.timingLines && <Row label="Linie czasu" value={`${record.timingLines.length}`} />}
         <Row label="Pewność" value={`${Math.round(record.calibrationConfidence * 100)}%`} />
         <Row label="Wynik" value={official ? "Oficjalny (cm/m/prędkość)" : "Tylko technika"} />
         {record.homographyMatrix && (
@@ -334,11 +380,7 @@ function SavedRecordView({
           Uwaga: część obszaru testu wychodzi poza skalibrowaną strefę. Rozszerz zaznaczenie.
         </p>
       )}
-      <Button
-        className="w-full"
-        onClick={onUse}
-        disabled={!official}
-      >
+      <Button className="w-full" onClick={onUse} disabled={!official}>
         {official ? "Użyj kalibracji i policz wynik" : "Kalibracja nieoficjalna — popraw punkty"}
       </Button>
     </div>
@@ -379,11 +421,24 @@ function NumberField({
   );
 }
 
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="mb-1 text-xs font-semibold text-foreground">{label}</div>
+      <div className="w-full rounded-xl border border-border bg-muted px-3 py-2 text-sm font-medium">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className={`truncate text-right font-medium text-foreground ${mono ? "font-mono text-[11px]" : ""}`}>
+      <span
+        className={`truncate text-right font-medium text-foreground ${mono ? "font-mono text-[11px]" : ""}`}
+      >
         {value}
       </span>
     </div>
