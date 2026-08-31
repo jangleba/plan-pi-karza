@@ -13,12 +13,7 @@ import {
   ShieldCheck,
   Info,
 } from "lucide-react";
-import {
-  VisionHeader,
-  ValidityBadge,
-  ConfidenceBadge,
-  ReviewStatusBadge,
-} from "./visionUi";
+import { VisionHeader, ValidityBadge, ConfidenceBadge, ReviewStatusBadge } from "./visionUi";
 import { VisionInvalidResult } from "./VisionInvalidResult";
 import { VisionAnalysisStatus } from "./VisionAnalysisStatus";
 import { VisionGymResult } from "./VisionGymResult";
@@ -26,6 +21,7 @@ import { GYM_EXERCISE_TEST_ID } from "@/lib/vision/visionTests";
 import { VisionProgressComparison } from "./VisionProgressComparison";
 import { VisionCalculationBasis } from "./VisionCalculationBasis";
 import { SprintScanReport } from "./SprintScanReport";
+import { VisionSprintReplay } from "./VisionSprintReplay";
 import { VisionCoachFeedback } from "./VisionCoachFeedback";
 import { VisionCoachReviewSheet } from "./VisionCoachReviewSheet";
 import { Button } from "@/components/ui/button";
@@ -51,10 +47,7 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
 
   // Zawodnik widzi gotowy raport dopiero, gdy analiza jest zakończona i
   // opublikowana. Wcześniej — ekran statusu (bez klatek/markerów).
-  if (
-    result.analysisStatus !== "completed" ||
-    result.visibilityStatus !== "visible_to_player"
-  ) {
+  if (result.analysisStatus !== "completed" || result.visibilityStatus !== "visible_to_player") {
     return <VisionAnalysisStatus result={result} />;
   }
 
@@ -84,6 +77,9 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
       <VisionHeader title={result.testName} subtitle="Raport wydajności" backTo="/vision-lab" />
 
       <div className="space-y-4 px-5">
+        {/* Powtórka istnieje tylko w bieżącej sesji — film nie trafia do chmury. */}
+        {result.calculationBasis?.sprintScan && <VisionSprintReplay result={result} />}
+
         {/* Główny wynik */}
         <div className="hero-card p-5 text-center">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
@@ -105,7 +101,6 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
           </p>
         </div>
 
-
         {/* Meta */}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="soft-card p-3">
@@ -125,15 +120,16 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
         {/* Dokładność */}
         <div className="soft-card p-4">
           <p className="text-xs text-muted-foreground">
-            Wynik oznaczony jako{" "}
+            Status wyniku:{" "}
             <span className="font-semibold text-foreground">
               {fb.accuracy === "accurate"
-                ? "dokładny"
+                ? "warunki pomiaru spełnione"
                 : fb.accuracy === "estimated"
-                  ? "estymowany"
+                  ? "estymacja techniczna"
                   : "nieważny"}
             </span>
-            . Vision Lab nie zawyża dokładności — przy 30/60 FPS wynik jest estymacją.
+            . Podstawa obliczeń, FPS i ewentualna niepewność są widoczne w raporcie. Brak wymaganej
+            kalibracji blokuje metrykę zamiast tworzyć wartość zastępczą.
           </p>
         </div>
 
@@ -141,22 +137,14 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
         {result.measuredMetrics.length > 0 && (
           <div className="soft-card p-4">
             <h2 className="mb-3 text-sm font-semibold text-foreground">Kluczowe metryki</h2>
-            <div className="space-y-2.5">
+            <div className="divide-y divide-border/60">
               {result.measuredMetrics.map((m) => (
-                <div key={m.key}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{m.label}</span>
-                    <span className="font-semibold text-foreground">
-                      {m.value}
-                      {m.unit}
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${Math.min(100, Math.max(0, m.value))}%` }}
-                    />
-                  </div>
+                <div key={m.key} className="flex items-baseline justify-between gap-3 py-2.5">
+                  <span className="text-xs text-muted-foreground">{m.label}</span>
+                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                    {m.value}{" "}
+                    <span className="text-xs font-medium text-muted-foreground">{m.unit}</span>
+                  </span>
                 </div>
               ))}
             </div>
@@ -165,7 +153,12 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
 
         {/* Feedback (tylko gdy AI dostarczyło opis — analiza klatkowa go nie ma) */}
         {fb.good && (
-          <FeedbackRow icon={ThumbsUp} tone="text-emerald-600" title="Co było dobre" text={fb.good} />
+          <FeedbackRow
+            icon={ThumbsUp}
+            tone="text-emerald-600"
+            title="Co było dobre"
+            text={fb.good}
+          />
         )}
         {fb.limitingFactor && (
           <FeedbackRow
@@ -176,7 +169,12 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
           />
         )}
         {fb.improve && (
-          <FeedbackRow icon={Target} tone="text-primary" title="Jedna rzecz do poprawy" text={fb.improve} />
+          <FeedbackRow
+            icon={Target}
+            tone="text-primary"
+            title="Jedna rzecz do poprawy"
+            text={fb.improve}
+          />
         )}
 
         {/* Sprint Performance Scan — tylko gdy silnik go policzył */}
@@ -203,7 +201,7 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
             <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">Poproś o analizę trenera</div>
               <p className="text-xs text-muted-foreground">
-                AI liczy wynik. Trener weryfikuje test i technikę. Opcja premium.
+                Silnik liczy wynik z klatek. Trener weryfikuje test i technikę. Opcja premium.
               </p>
             </div>
           </button>
@@ -211,7 +209,6 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
 
         {/* Porównanie */}
         <VisionProgressComparison comparison={result.comparisonToPrevious} />
-
 
         {/* Ostrzeżenia ważności */}
         {warnings.length > 0 && (
@@ -242,13 +239,17 @@ export function VisionResult({ result: initial }: { result: VisionTestResult }) 
         onRequested={setResult}
       />
 
-
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 px-5 py-3 backdrop-blur"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
       >
         <div className="mx-auto grid w-full max-w-[30rem] grid-cols-2 gap-2.5">
-          <Button variant={saved ? "secondary" : "default"} size="lg" disabled={busy} onClick={toggleSave}>
+          <Button
+            variant={saved ? "secondary" : "default"}
+            size="lg"
+            disabled={busy}
+            onClick={toggleSave}
+          >
             {saved ? (
               <>
                 <BookmarkCheck className="mr-1 h-4 w-4" /> W progresie

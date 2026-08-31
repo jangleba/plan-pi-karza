@@ -119,10 +119,24 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   // Blokada przewijania body na czas pełnoekranowego trybu kamery.
   useEffect(() => {
     if (!cameraActive) return;
+    const scrollY = window.scrollY;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousOverflow = document.body.style.overflow;
+    const previousPosition = document.body.style.position;
+    const previousTop = document.body.style.top;
+    const previousWidth = document.body.style.width;
+    document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
     return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousOverflow;
+      document.body.style.position = previousPosition;
+      document.body.style.top = previousTop;
+      document.body.style.width = previousWidth;
+      window.scrollTo(0, scrollY);
     };
   }, [cameraActive]);
 
@@ -407,8 +421,9 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
     return (
       <div className="space-y-3">
         <p className="rounded-2xl bg-accent px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-          Kamera służy do pomiaru czasu i informacji technicznej. Dźwięk nie jest nagrywany. Film
-          jest analizowany na tym urządzeniu i nie jest wysyłany bez osobnej decyzji.
+          Kamera wykrywa sylwetkę i pozycję stawów, aby policzyć czas oraz opisać technikę ruchu.
+          Dźwięk nie jest nagrywany. Film pozostaje na tym urządzeniu; do konta zapisuje się tylko
+          wynik i jakość pomiaru.
         </p>
         <Button
           className="h-14 w-full rounded-2xl"
@@ -437,13 +452,17 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   }
 
   const countdownLabel =
-    countdown.phase === "digit" ? String(countdown.value) : countdown.phase === "start" ? "START" : null;
+    countdown.phase === "digit"
+      ? String(countdown.value)
+      : countdown.phase === "start"
+        ? "START"
+        : null;
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-black text-white"
-      style={{ height: "100dvh" }}
+      className="fixed inset-0 z-[70] h-[100dvh] w-screen max-w-none overflow-hidden overscroll-none bg-[#04142f] text-white"
       role="dialog"
+      aria-modal="true"
       aria-label="Kamera BallWise"
     >
       <video
@@ -550,7 +569,12 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
           </Button>
         ) : autoArmed ? (
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Button variant="secondary" className="w-full" size="lg" onClick={cancelAutomaticRecording}>
+            <Button
+              variant="secondary"
+              className="w-full"
+              size="lg"
+              onClick={cancelAutomaticRecording}
+            >
               Anuluj tryb automatyczny
             </Button>
             <Button

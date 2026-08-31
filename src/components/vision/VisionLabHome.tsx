@@ -78,8 +78,8 @@ export function VisionLabHome() {
             <Sparkles className="h-6 w-6 text-[oklch(0.78_0.13_256)]" />
           </span>
           <p className="text-sm leading-snug text-graphite-foreground">
-            Każdy wynik pokazuje pewność, ważność i FPS. Vision Lab nie udaje
-            fałszywej dokładności.
+            Każdy wynik pokazuje podstawę obliczeń, jakość nagrania i FPS. Metryki bez wymaganej
+            kalibracji są pomijane.
           </p>
         </div>
 
@@ -99,7 +99,6 @@ export function VisionLabHome() {
           </div>
           <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
-
 
         {coach && (
           <Link
@@ -149,9 +148,7 @@ export function VisionLabHome() {
                 <Dumbbell className="h-6 w-6" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-foreground">
-                  Analyze Gym Exercise
-                </div>
+                <div className="text-sm font-semibold text-foreground">Analyze Gym Exercise</div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Analiza techniki ćwiczeń z aktualnego planu siłowego.
                 </p>

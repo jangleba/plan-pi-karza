@@ -1,17 +1,16 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { UploadCloud, FileVideo, CheckCircle2, Loader2, Info } from "lucide-react";
+import { FolderOpen, FileVideo, CheckCircle2, Loader2, Info } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionRecorder } from "./VisionRecorder";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow, updateFlow } from "@/lib/vision/visionFlow";
-import { uploadVisionVideo } from "@/lib/vision/visionRepo";
 import { getTestProtocol } from "@/features/vision-analysis/testProtocols";
 import type { TestType } from "@/features/vision-analysis/types";
 
-type Status = "idle" | "selected" | "uploading" | "done";
+type Status = "idle" | "done";
 
 export function VisionUpload({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
@@ -19,25 +18,25 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const flow = getFlow(test.id);
   const protocol = getTestProtocol(test.id as TestType);
+  const isSprintScan = ["sprint_20m", "sprint_30m", "flying_sprint"].includes(test.id);
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
-  const [status, setStatus] = useState<Status>(flow.videoUrl ? "done" : "idle");
-  const [uploaded, setUploaded] = useState(flow.uploaded);
+  const [status, setStatus] = useState<Status>(flow.file ? "done" : "idle");
   const [submitting, setSubmitting] = useState(false);
 
   async function onFile(file: File, detectedFps?: number | null) {
     setFileName(file.name);
-    setStatus("uploading");
-    const res = user
-      ? await uploadVisionVideo(user.id, test.id, file)
-      : { url: `placeholder://${test.id}/${file.name}`, uploaded: false };
+    // Dla pliku z galerii nie dziedziczymy domyślnego/starego FPS sprintu.
+    // Pipeline zmierzy go z timestampów klatek albo oznaczy źródło jako niewiarygodne.
+    const fps = detectedFps === undefined && isSprintScan ? null : (detectedFps ?? flow.fps);
+    // Film pozostaje wyłącznie w pamięci bieżącej sesji. Do Supabase zapisuje
+    // się później wynik pomiaru, nigdy automatycznie plik wideo.
     updateFlow(test.id, {
       file,
       fileName: file.name,
-      videoUrl: res.url,
-      uploaded: res.uploaded,
-      ...(detectedFps ? { fps: detectedFps } : {}),
+      videoUrl: null,
+      uploaded: false,
+      fps,
     });
-    setUploaded(res.uploaded);
     setStatus("done");
   }
 
@@ -73,7 +72,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left active:scale-[0.99]"
         >
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-brand">
-            <UploadCloud className="h-5 w-5" />
+            <FolderOpen className="h-5 w-5" />
           </span>
           <div>
             <div className="text-sm font-semibold text-foreground">Wybierz film z galerii</div>
@@ -89,6 +88,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void onFile(f);
+            e.currentTarget.value = "";
           }}
         />
 
@@ -100,21 +100,21 @@ export function VisionUpload({ test }: { test: VisionTest }) {
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-foreground">{fileName}</div>
               <div className="mt-0.5 flex items-center gap-1.5 text-xs">
-                {status === "uploading" && (
-                  <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Wgrywanie…
-                  </span>
-                )}
                 {status === "done" && (
                   <span className="inline-flex items-center gap-1 text-emerald-600">
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    {uploaded ? "Wgrano do chmury" : "Zapisano lokalnie (placeholder)"}
+                    Gotowy do analizy na tym urządzeniu
                   </span>
                 )}
               </div>
             </div>
           </div>
         )}
+
+        <p className="rounded-2xl bg-accent px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          Film nie jest wysyłany do chmury. Analiza klatek odbywa się na tym urządzeniu; do konta
+          zapisuje się wyłącznie wynik pomiaru i informacje o jakości nagrania.
+        </p>
 
         <div className="soft-card space-y-3 p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -156,7 +156,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           >
             {submitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wysyłanie…
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Otwieranie analizy…
               </>
             ) : (
               "Analizuj próbę"
