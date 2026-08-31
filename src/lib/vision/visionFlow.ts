@@ -15,7 +15,8 @@ export interface VisionFlowState {
   fileName: string | null;
   videoUrl: string | null;
   uploaded: boolean;
-  fps: number;
+  /** FPS zadeklarowany przez kamerę/użytkownika; null oznacza brak zaufanego źródła. */
+  fps: number | null;
   cameraView: VisionCameraView | null;
 }
 
@@ -29,7 +30,7 @@ export function getFlow(testId: string): VisionFlowState {
       fileName: null,
       videoUrl: null,
       uploaded: false,
-      fps: 120,
+      fps: null,
       cameraView: null,
     };
   }

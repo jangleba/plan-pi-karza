@@ -57,10 +57,21 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
   const primary = analysis.metrics[0] ?? null;
 
   const acc = analysis.measurement;
+  const fpsSource: NonNullable<CalculationBasis["fpsSource"]> = analysis.videoMetadata.fpsMeasured
+    ? "measured"
+    : analysis.videoMetadata.declaredFps != null && analysis.videoMetadata.declaredFps > 0
+      ? "declared"
+      : "fallback";
+  const fpsLabel =
+    fpsSource === "measured"
+      ? "FPS (zmierzone z klatek)"
+      : fpsSource === "declared"
+        ? "FPS (z ustawień nagrania)"
+        : "FPS (wartość robocza — niezweryfikowana)";
   const items: CalculationBasisItem[] = [
     { label: "Metoda", value: `Silnik analizy wideo (${analysis.analyzerVersion})` },
     {
-      label: "FPS (zmierzone z klatek)",
+      label: fpsLabel,
       value: acc ? `${acc.sourceFrameRate}` : `${analysis.videoMetadata.fps}`,
     },
     { label: "Liczba klatek", value: `${analysis.videoMetadata.frameCount}` },
@@ -75,7 +86,12 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
           { label: "Odstęp klatek (mediana)", value: `${acc.frameIntervalMs} ms` },
           { label: "Rozdzielczość czasowa", value: `± ${acc.temporalResolutionMs} ms` },
           ...(acc.spatialResolutionMmPerPixel != null
-            ? [{ label: "Rozdzielczość przestrzenna", value: `${acc.spatialResolutionMmPerPixel} mm/px` }]
+            ? [
+                {
+                  label: "Rozdzielczość przestrzenna",
+                  value: `${acc.spatialResolutionMmPerPixel} mm/px`,
+                },
+              ]
             : []),
           {
             label: "Powtarzalność",
@@ -134,6 +150,7 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
   const basis: CalculationBasis = {
     method: analysis.analyzerVersion,
     coachVerifiedFrames: false,
+    fpsSource,
     items,
     // Scan zapisujemy tylko, gdy silnik faktycznie go policzył.
     ...(analysis.sprintScan ? { sprintScan: analysis.sprintScan } : {}),
@@ -145,7 +162,7 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
     fps: analysis.videoMetadata.fps,
     markers,
     manual: {},
-    status: "frame_verified",
+    status: analysis.measurement?.officialResult === false ? "estimated" : "frame_verified",
     error: null,
     mainResultValue: primary?.value ?? null,
     mainResultUnit: primary?.unit ?? null,

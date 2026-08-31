@@ -1,21 +1,12 @@
 // Vision Lab — typy współdzielone przez cały moduł.
 
-export type VisionTestCategory =
-  | "jump"
-  | "sprint"
-  | "cod"
-  | "technique";
+export type VisionTestCategory = "jump" | "sprint" | "cod" | "technique";
 
 export type VisionValidityStatus = "valid" | "caution" | "invalid";
 
 export type VisionConfidenceScore = "high" | "medium" | "low";
 
-export type VisionCameraView =
-  | "side"
-  | "front"
-  | "back"
-  | "45deg"
-  | "top";
+export type VisionCameraView = "side" | "front" | "back" | "45deg" | "top";
 
 /** Powody, dla których test może być nieważny. */
 export type VisionInvalidReason =
@@ -146,11 +137,7 @@ export interface VisionTestResult {
 
 /** Status analizy filmu — od uploadu do gotowego raportu. */
 export type AnalysisStatus =
-  | "uploaded"
-  | "waiting_for_analysis"
-  | "in_review"
-  | "completed"
-  | "invalid_video";
+  "uploaded" | "waiting_for_analysis" | "in_review" | "completed" | "invalid_video";
 
 /** Czy zawodnik widzi wynik. */
 export type VisibilityStatus = "hidden_from_player" | "visible_to_player";
@@ -165,27 +152,18 @@ export const ANALYSIS_STATUS_LABELS: Record<AnalysisStatus, string> = {
 
 export const ANALYSIS_STATUS_DESCRIPTIONS: Record<AnalysisStatus, string> = {
   uploaded: "Film został przesłany.",
-  waiting_for_analysis:
-    "Film czeka na analizę klatkową na podstawie FPS i protokołu testu.",
+  waiting_for_analysis: "Film czeka na analizę klatkową na podstawie FPS i protokołu testu.",
   in_review: "Trener analizuje Twój film klatka po klatce.",
   completed: "Analiza gotowa. Zobacz swój raport.",
-  invalid_video:
-    "Film nie spełnia wymagań pomiaru. Powtórz nagranie zgodnie z instrukcją.",
+  invalid_video: "Film nie spełnia wymagań pomiaru. Powtórz nagranie zgodnie z instrukcją.",
 };
 
 /** Tryb analizy ćwiczenia z planu. */
-export type ReviewMode =
-  | "frame_analysis"
-  | "self_review"
-  | "coach_review"
-  | "ai_future";
+export type ReviewMode = "frame_analysis" | "self_review" | "coach_review" | "ai_future";
 
 /** Status recenzji ćwiczenia z planu (Gym Technique). */
 export type GymReviewStatus =
-  | "self_review"
-  | "coach_review_requested"
-  | "coach_reviewed"
-  | "invalid_video";
+  "self_review" | "coach_review_requested" | "coach_reviewed" | "invalid_video";
 
 export const GYM_REVIEW_STATUS_LABELS: Record<GymReviewStatus, string> = {
   self_review: "Self Review",
@@ -196,10 +174,7 @@ export const GYM_REVIEW_STATUS_LABELS: Record<GymReviewStatus, string> = {
 
 /** Sygnał z analizy techniki — nigdy nie zmienia planu automatycznie. */
 export type GymTechniqueSignal =
-  | "technique_issue"
-  | "coach_confirmed_issue"
-  | "invalid_execution"
-  | "good_execution";
+  "technique_issue" | "coach_confirmed_issue" | "invalid_execution" | "good_execution";
 
 /** Ocena techniki ćwiczenia z planu (formularz self/coach review). */
 export interface TechniqueReview {
@@ -218,7 +193,6 @@ export interface TechniqueReview {
 
 export const GYM_TECHNIQUE_MESSAGE =
   "Na tym etapie analiza ćwiczeń z planu działa jako frame review i/lub coach review. Automatyczna analiza AI zostanie podłączona później.";
-
 
 /** Porównanie wyniku do poprzedniego / najlepszego. */
 export interface VisionComparison {
@@ -242,19 +216,11 @@ export type ReviewStatus =
   | "invalid_by_coach";
 
 /** Rodzaj zamówionej usługi trenerskiej. */
-export type ReviewType =
-  | "coach_check"
-  | "technique_review"
-  | "performance_consultation";
+export type ReviewType = "coach_check" | "technique_review" | "performance_consultation";
 
 /** Status płatnej analizy trenera. */
 export type PaidReviewStatus =
-  | "not_requested"
-  | "requested"
-  | "paid"
-  | "in_review"
-  | "completed"
-  | "rejected_invalid_video";
+  "not_requested" | "requested" | "paid" | "in_review" | "completed" | "rejected_invalid_video";
 
 /** Kluczowe klatki — używane do przeliczenia wyniku. */
 export interface CoachFrames {
@@ -286,6 +252,8 @@ export interface CalculationBasis {
   method: string;
   items: CalculationBasisItem[];
   coachVerifiedFrames: boolean;
+  /** Czy FPS pochodzi z timestampów klatek, deklaracji urządzenia, czy technicznego fallbacku. */
+  fpsSource?: "measured" | "declared" | "fallback";
   /**
    * Sprint Performance Scan — rozszerzenie istniejącego rekordu wyniku.
    * Pole opcjonalne: starsze rekordy bez niego działają bez zmian.
@@ -294,22 +262,21 @@ export interface CalculationBasis {
 }
 
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
-  ai_result: "AI Result",
-  ai_estimated: "AI Estimated",
-  ai_high_confidence: "AI High Confidence",
-  coach_verified: "Coach Verified",
-  coach_corrected: "Coach Corrected",
-  coach_feedback_added: "Coach Feedback Added",
-  invalid_by_ai: "Invalid by AI",
-  invalid_by_coach: "Invalid by Coach",
+  ai_result: "Analiza automatyczna",
+  ai_estimated: "Estymacja techniczna",
+  ai_high_confidence: "Wysoka jakość pomiaru",
+  coach_verified: "Zweryfikowane przez trenera",
+  coach_corrected: "Skorygowane przez trenera",
+  coach_feedback_added: "Feedback trenera",
+  invalid_by_ai: "Nagranie odrzucone",
+  invalid_by_coach: "Odrzucone przez trenera",
 };
 
 export const REVIEW_STATUS_DESCRIPTIONS: Record<ReviewStatus, string> = {
-  ai_result: "Wynik policzony automatycznie na podstawie nagrania.",
-  ai_estimated:
-    "Wynik orientacyjny. Nagranie nie spełnia wszystkich warunków dokładnego pomiaru.",
+  ai_result: "Wynik policzony automatycznie z klatek nagrania.",
+  ai_estimated: "Wynik orientacyjny. Nagranie nie spełnia wszystkich warunków pełnego pomiaru.",
   ai_high_confidence:
-    "Wynik automatyczny z wysoką pewnością. Nagranie spełnia wymagania testu.",
+    "Nagranie spełnia wymagania protokołu, a raport pokazuje podstawę i niepewność pomiaru.",
   coach_verified:
     "Trener sprawdził poprawność testu, ustawienie kamery, widoczność kluczowych momentów i sens wyniku.",
   coach_corrected:
@@ -317,8 +284,7 @@ export const REVIEW_STATUS_DESCRIPTIONS: Record<ReviewStatus, string> = {
   coach_feedback_added: "Trener dodał analizę techniki i zalecenia treningowe.",
   invalid_by_ai:
     "System uznał nagranie za niespełniające warunków pomiaru. Powtórz test zgodnie z instrukcją.",
-  invalid_by_coach:
-    "Trener uznał test za nieważny. Powtórz nagranie zgodnie z instrukcją.",
+  invalid_by_coach: "Trener uznał test za nieważny. Powtórz nagranie zgodnie z instrukcją.",
 };
 
 export const REVIEW_TYPE_LABELS: Record<ReviewType, string> = {
@@ -338,7 +304,6 @@ export const PAID_REVIEW_STATUS_LABELS: Record<PaidReviewStatus, string> = {
 
 export const COACH_REVIEW_DISCLAIMER =
   "Coach Review nie zastępuje profesjonalnego sprzętu laboratoryjnego. Jego celem jest weryfikacja jakości testu, analiza techniki i poprawa interpretacji wyniku.";
-
 
 export const CATEGORY_LABELS: Record<VisionTestCategory, string> = {
   jump: "Jump Lab",
@@ -382,11 +347,7 @@ export const CAMERA_VIEW_LABELS: Record<VisionCameraView, string> = {
 
 /** Status realnej analizy klatkowej. */
 export type FrameAnalysisStatus =
-  | "frame_verified"
-  | "user_marked"
-  | "coach_verified"
-  | "estimated"
-  | "invalid";
+  "frame_verified" | "user_marked" | "coach_verified" | "estimated" | "invalid";
 
 export const FRAME_STATUS_LABELS: Record<FrameAnalysisStatus, string> = {
   frame_verified: "Frame Verified",
@@ -397,8 +358,7 @@ export const FRAME_STATUS_LABELS: Record<FrameAnalysisStatus, string> = {
 };
 
 export const FRAME_STATUS_DESCRIPTIONS: Record<FrameAnalysisStatus, string> = {
-  frame_verified:
-    "Wynik policzony z filmu na podstawie zaznaczonych klatek i FPS.",
+  frame_verified: "Wynik policzony z filmu na podstawie zaznaczonych klatek i FPS.",
   user_marked: "Klatki zaznaczone przez użytkownika.",
   coach_verified: "Trener sprawdził klatki i zatwierdził wynik.",
   estimated: "Wynik orientacyjny. FPS albo klatki mogą być niedokładne.",

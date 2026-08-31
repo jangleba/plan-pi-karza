@@ -68,8 +68,15 @@ function buildResult(input: SaveFrameResultInput, id: string): VisionTestResult 
   const { frame } = input;
   const test = getVisionTest(frame.testId);
   const invalid = frame.status === "invalid";
+  const estimated = frame.status === "estimated";
   const reviewStatus =
-    frame.markedBy === "coach" ? "coach_verified" : invalid ? "invalid_by_ai" : "ai_result";
+    frame.markedBy === "coach"
+      ? "coach_verified"
+      : invalid
+        ? "invalid_by_ai"
+        : estimated
+          ? "ai_estimated"
+          : "ai_result";
   return {
     id,
     userId: input.userId ?? "local",
@@ -101,7 +108,12 @@ function buildResult(input: SaveFrameResultInput, id: string): VisionTestResult 
       groundContactClear: true,
       reasons: [],
     },
-    aiFeedback: { good: "", limitingFactor: "", improve: "", accuracy: invalid ? "invalid" : "accurate" },
+    aiFeedback: {
+      good: "",
+      limitingFactor: "",
+      improve: "",
+      accuracy: invalid ? "invalid" : estimated ? "estimated" : "accurate",
+    },
     comparisonToPrevious: null,
     savedToProgress: false,
     createdAt: new Date().toISOString(),
@@ -211,7 +223,11 @@ export async function saveFrameResult(
       const payload = { ...buildDbPayload(input, base), comparison_to_previous: comparison };
       const { data, error } = await db.from("vision_tests").insert(payload).select("id").single();
       if (error) throw error;
-      return { id: data.id as string, result: { ...base, id: data.id, comparisonToPrevious: comparison }, storedIn: "supabase" };
+      return {
+        id: data.id as string,
+        result: { ...base, id: data.id, comparisonToPrevious: comparison },
+        storedIn: "supabase",
+      };
     } catch (e) {
       console.warn("[vision] supabase save failed, using localStorage", e);
     }
