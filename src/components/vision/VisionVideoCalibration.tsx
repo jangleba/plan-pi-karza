@@ -5,6 +5,7 @@ import {
   buildCalibrationRecord,
   buildKnownDistanceRecord,
   buildSprintTimingLines,
+  projectCalibrationTimingLines,
   MAX_VIDEO_REPROJECTION_ERROR_PX,
   type CalibrationRecord,
   type CalibrationType,
@@ -194,6 +195,11 @@ export function VisionVideoCalibration({
         ? `Zaznacz: ${RECT_TEMPLATE[taps.length].label} (${taps.length + 1}/4)`
         : "Wszystkie punkty zaznaczone";
 
+  const projectedTimingLines = useMemo(
+    () => (saved ? projectCalibrationTimingLines(saved) : []),
+    [saved],
+  );
+
   return (
     <div className="soft-card space-y-4 p-5">
       <div className="flex items-start gap-3">
@@ -309,6 +315,47 @@ export function VisionVideoCalibration({
                   {i + 1}
                 </span>
               ))}
+            {natural && projectedTimingLines.length > 0 && (
+              <svg
+                viewBox={`0 0 ${natural.w} ${natural.h}`}
+                className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+                aria-label="Linie pomiarowe sprintu"
+              >
+                {projectedTimingLines.map((line) => {
+                  const label = timingLineLabel(line.role);
+                  const x = (line.a.u + line.b.u) / 2;
+                  const y = Math.min(line.a.v, line.b.v) - 12;
+                  const boundary = line.role === "START" || line.role === "FINISH";
+                  return (
+                    <g key={line.id}>
+                      <line
+                        x1={line.a.u}
+                        y1={line.a.v}
+                        x2={line.b.u}
+                        y2={line.b.v}
+                        stroke={boundary ? "#2563eb" : "#38bdf8"}
+                        strokeWidth={boundary ? 6 : 4}
+                        strokeDasharray={boundary ? undefined : "12 8"}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <text
+                        x={x}
+                        y={y}
+                        textAnchor="middle"
+                        fill="#ffffff"
+                        stroke="#0f172a"
+                        strokeWidth={4}
+                        paintOrder="stroke"
+                        className="font-semibold"
+                        style={{ fontSize: 22 }}
+                      >
+                        {label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
           </div>
         </div>
       ) : (
@@ -321,6 +368,7 @@ export function VisionVideoCalibration({
         <SavedRecordView
           record={saved}
           requiredAreaPx={requiredAreaPx}
+          projectedLineCount={projectedTimingLines.length}
           onUse={() => onSaved(saved)}
         />
       ) : (
@@ -340,13 +388,17 @@ export function VisionVideoCalibration({
 function SavedRecordView({
   record,
   requiredAreaPx,
+  projectedLineCount,
   onUse,
 }: {
   record: CalibrationRecord;
   requiredAreaPx?: ImagePointPx[];
+  projectedLineCount: number;
   onUse: () => void;
 }) {
   const official = record.spatialResultStatus === "OFFICIAL";
+  const timingLineCount = record.timingLines?.length ?? 0;
+  const timingLinesValid = timingLineCount === 0 || projectedLineCount === timingLineCount;
   return (
     <div className="space-y-3">
       <div className="soft-card space-y-1.5 p-4">
@@ -375,16 +427,40 @@ function SavedRecordView({
           </div>
         )}
       </div>
+      {timingLineCount > 0 && (
+        <p
+          className={`rounded-xl p-3 text-xs font-medium ${
+            timingLinesValid
+              ? "bg-emerald-500/10 text-emerald-700"
+              : "bg-amber-500/10 text-amber-700"
+          }`}
+        >
+          {timingLinesValid
+            ? `Linie pomiarowe gotowe: ${projectedLineCount}/${timingLineCount}. Są widoczne na klatce.`
+            : `Popraw kalibrację: udało się wyświetlić ${projectedLineCount}/${timingLineCount} linii.`}
+        </p>
+      )}
       {requiredAreaPx && requiredAreaPx.length > 0 && !areaCovered(requiredAreaPx, record) && (
         <p className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-700">
           Uwaga: część obszaru testu wychodzi poza skalibrowaną strefę. Rozszerz zaznaczenie.
         </p>
       )}
-      <Button className="w-full" onClick={onUse} disabled={!official}>
-        {official ? "Użyj kalibracji i policz wynik" : "Kalibracja nieoficjalna — popraw punkty"}
+      <Button className="w-full" onClick={onUse} disabled={!official || !timingLinesValid}>
+        {!official
+          ? "Kalibracja nieoficjalna — popraw punkty"
+          : !timingLinesValid
+            ? "Nie wszystkie linie są poprawne"
+            : "Użyj kalibracji i policz wynik"}
       </Button>
     </div>
   );
+}
+
+function timingLineLabel(role: string): string {
+  if (role === "START" || role === "TIMING_A") return "START";
+  if (role === "FINISH" || role === "TIMING_B") return "META";
+  const split = role.match(/^SPLIT_(\d+)M$/)?.[1];
+  return split ? `${split} m` : role;
 }
 
 function areaCovered(required: ImagePointPx[], record: CalibrationRecord): boolean {
