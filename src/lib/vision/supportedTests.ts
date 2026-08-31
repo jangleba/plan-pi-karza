@@ -1,7 +1,7 @@
 /**
  * Zakres stabilny Vision Lab.
  *
- * Na pierwszej stabilnej wersji aktywne są WYŁĄCZNIE 4 testy poniżej.
+ * W stabilnej wersji aktywne są wyłącznie testy wymienione poniżej.
  * Pozostałe testy pozostają w repozytorium (kod, adaptery, testy jednostkowe),
  * ale są ukryte w UI za feature flagą `VITE_VISION_EXPERIMENTAL_TESTS`.
  *
@@ -15,6 +15,7 @@ export const SUPPORTED_VISION_TESTS = [
   "pogo_jumps",
   "broad_jump",
   "five_ten_five",
+  "sprint_20m",
 ] as const;
 
 export type SupportedVisionTestId = (typeof SUPPORTED_VISION_TESTS)[number];
@@ -28,7 +29,6 @@ export const EXPERIMENTAL_VISION_TESTS = [
   "drop_jump",
   "repeated_jumps",
   "single_leg_hop",
-  "sprint_20m",
   "sprint_30m",
   "flying_sprint",
   "sprint_to_stop",
