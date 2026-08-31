@@ -21,8 +21,7 @@ export const VISION_TESTS: VisionTest[] = [
     attempts: 3,
     restSeconds: 60,
     goal: "Ocena mocy dolnej części ciała w wyskoku dosiężnym.",
-    whatItMeasures:
-      "Wysokość wyskoku, czas w powietrzu i stabilność lądowania.",
+    whatItMeasures: "Wysokość wyskoku, czas w powietrzu i stabilność lądowania.",
     setupInstructions: [
       "Ustaw kamerę z boku na wysokości bioder, 3–4 m od zawodnika.",
       "Cała sylwetka i stopy muszą być w kadrze.",
@@ -192,18 +191,18 @@ export const VISION_TESTS: VisionTest[] = [
     attempts: 3,
     restSeconds: 180,
     goal: "Ocena przyspieszenia i przejścia do prędkości maksymalnej.",
-    whatItMeasures: "Czas na 20 m, faza przyspieszenia i osiągana prędkość.",
+    whatItMeasures: "Czas na 20 m, splity i profil prędkości odcinkowej.",
     setupInstructions: [
-      "Kamera z boku, obejmująca cały tor lub panning.",
-      "Zaznacz linię startu i mety (20 m).",
-      "Cała sylwetka widoczna.",
+      "Ustaw telefon nieruchomo z boku, najlepiej na statywie. Nie prowadź kamery za zawodnikiem.",
+      "Obiektyw 1×, poziomo, cały odcinek 20 m oraz START i META w jednym kadrze.",
+      "Nagraj w 120 lub 240 FPS i zostaw 2 s przed startem oraz po minięciu mety.",
     ],
     validRules: [
       "Widoczna linia startu i mety.",
       "Start z miejsca.",
       "Stabilne nagranie całego dystansu.",
     ],
-    measuredMetrics: ["Czas 20 m", "Faza przyspieszenia", "Prędkość maksymalna"],
+    measuredMetrics: ["Czas 20 m", "Splity 5 m", "Prędkość odcinkowa"],
   },
   {
     id: "sprint_30m",
@@ -216,18 +215,18 @@ export const VISION_TESTS: VisionTest[] = [
     attempts: 3,
     restSeconds: 180,
     goal: "Ocena przyspieszenia i prędkości maksymalnej na dystansie 30 m.",
-    whatItMeasures: "Czas na 30 m, faza przyspieszenia i prędkość maksymalna.",
+    whatItMeasures: "Czas na 30 m, splity i profil prędkości odcinkowej.",
     setupInstructions: [
-      "Kamera z boku, obejmująca cały tor lub panning.",
-      "Zaznacz linię startu i mety (30 m).",
-      "Cała sylwetka widoczna przez cały bieg.",
+      "Ustaw telefon nieruchomo z boku, najlepiej na statywie. Nie prowadź kamery za zawodnikiem.",
+      "Obiektyw 1×, poziomo, cały odcinek 30 m oraz START i META w jednym kadrze.",
+      "Nagraj w 120 lub 240 FPS i zostaw 2 s przed startem oraz po minięciu mety.",
     ],
     validRules: [
       "Widoczna linia startu i mety.",
       "Start z miejsca.",
       "Stabilne nagranie całego dystansu.",
     ],
-    measuredMetrics: ["Czas 30 m", "Faza przyspieszenia", "Prędkość maksymalna"],
+    measuredMetrics: ["Czas 30 m", "Splity 5–20 m", "Prędkość odcinkowa"],
   },
   {
     id: "flying_sprint",
@@ -253,8 +252,6 @@ export const VISION_TESTS: VisionTest[] = [
     ],
     measuredMetrics: ["Czas odcinka", "Prędkość maksymalna"],
   },
-
-
 
   // ---------------- COD / BRAKING LAB ----------------
   {
@@ -318,8 +315,7 @@ export const VISION_TESTS: VisionTest[] = [
     attempts: 1,
     restSeconds: 0,
     goal: "Analiza techniki ćwiczenia z aktualnego planu siłowego.",
-    whatItMeasures:
-      "Ocena techniki (frame review / coach review) — bez fałszywego pomiaru AI.",
+    whatItMeasures: "Ocena techniki (frame review / coach review) — bez fałszywego pomiaru AI.",
     setupInstructions: [
       "Kamera z boku, widoczna cała sylwetka.",
       "Stabilne, dobre oświetlenie.",
@@ -330,12 +326,7 @@ export const VISION_TESTS: VisionTest[] = [
       "Kontrolowane, wyraźne powtórzenia.",
       "Bez wychodzenia poza kadr.",
     ],
-    measuredMetrics: [
-      "Pozycja tułowia",
-      "Kontrola kolana",
-      "Kontrola biodra",
-      "Zakres ruchu",
-    ],
+    measuredMetrics: ["Pozycja tułowia", "Kontrola kolana", "Kontrola biodra", "Zakres ruchu"],
   },
 ];
 
