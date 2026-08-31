@@ -23,6 +23,18 @@ export interface ScheduledVideoFrame {
   sourceTimestampUs: number;
 }
 
+export interface VideoTimeWindow {
+  startSeconds: number;
+  endSeconds: number;
+}
+
+export interface FrameScheduleOptions {
+  /** Docelowa częstotliwość próbkowania; nigdy nie tworzy klatek spoza źródła. */
+  targetFps?: number;
+  /** Twardy budżet chroniący analizę na telefonie przed tysiącami seeków. */
+  maxFrames?: number;
+}
+
 /** Błąd wczytywania wideo z konkretnym kodem (widoczny dla użytkownika). */
 export class VideoLoadError extends Error {
   code: string;
@@ -300,11 +312,22 @@ export async function iterateFrames(
   throwIfAborted(signal);
   const schedule = createFrameSchedule(metadata);
   await withLoadedVideoElement(url, signal, async (video) => {
+    let processed = 0;
     for (const frame of schedule) {
       throwIfAborted(signal);
-      await seekToFrame(video, frame.mediaTime, signal);
-      await onFrame({ ...frame, video });
-      onProgress?.(frame.sourceFrameIndex + 1, schedule.length);
+      const presentedTime = await seekToFrame(video, frame.mediaTime, signal);
+      const actualTime = Number.isFinite(presentedTime) ? presentedTime : frame.mediaTime;
+      const sourceTimestampUs = Math.round(actualTime * 1_000_000);
+      await onFrame({
+        ...frame,
+        mediaTime: actualTime,
+        presentationTimestamp: actualTime,
+        sourceTimestampMs: Math.round(sourceTimestampUs / 1000),
+        sourceTimestampUs,
+        video,
+      });
+      processed += 1;
+      onProgress?.(processed, schedule.length);
     }
   });
 }
@@ -341,6 +364,88 @@ export function createFrameSchedule(metadata: VideoMetadata): ScheduledVideoFram
     safeTailSeconds,
   });
   return frames;
+}
+
+/**
+ * Rzadki, równomierny przebieg po całym filmie. Służy wyłącznie do znalezienia
+ * sylwetki, rodzaju ruchu i okien zdarzeń — nie jest źródłem końcowego czasu.
+ */
+export function createCoarseFrameSchedule(
+  metadata: VideoMetadata,
+  options: FrameScheduleOptions = {},
+): ScheduledVideoFrame[] {
+  const full = createFrameSchedule(metadata);
+  const targetFps = Math.max(1, Math.min(metadata.fps, options.targetFps ?? 20));
+  const maxFrames = Math.max(2, Math.floor(options.maxFrames ?? 240));
+  const sourceStride = Math.max(1, Math.ceil(metadata.fps / targetFps));
+  const sampled = full.filter((_, index) => index % sourceStride === 0);
+  if (full.length > 0 && sampled.at(-1)?.sourceFrameIndex !== full.at(-1)?.sourceFrameIndex) {
+    sampled.push(full[full.length - 1]);
+  }
+  return evenlyLimitSchedule(sampled, maxFrames);
+}
+
+/**
+ * Dokładny przebieg po wskazanych oknach czasu. Klatki pochodzą z siatki
+ * źródłowej; przy długim materiale budżet może obniżyć częstotliwość, co jest
+ * później widoczne w realnych timestampach i niepewności wyniku.
+ */
+export function createPrecisionFrameSchedule(
+  metadata: VideoMetadata,
+  windows: VideoTimeWindow[],
+  options: FrameScheduleOptions = {},
+): ScheduledVideoFrame[] {
+  if (windows.length === 0) return [];
+  const normalized = normalizeWindows(windows, metadata.durationSeconds);
+  if (normalized.length === 0) return [];
+  const full = createFrameSchedule(metadata);
+  const targetFps = Math.max(1, Math.min(metadata.fps, options.targetFps ?? metadata.fps));
+  const sourceStride = Math.max(1, Math.ceil(metadata.fps / targetFps));
+  const selected = full.filter(
+    (frame, index) =>
+      index % sourceStride === 0 &&
+      normalized.some(
+        (window) => frame.mediaTime >= window.startSeconds && frame.mediaTime <= window.endSeconds,
+      ),
+  );
+  return evenlyLimitSchedule(selected, Math.max(2, Math.floor(options.maxFrames ?? 720)));
+}
+
+function normalizeWindows(windows: VideoTimeWindow[], durationSeconds: number): VideoTimeWindow[] {
+  const clipped = windows
+    .map((window) => ({
+      startSeconds: Math.max(0, Math.min(durationSeconds, window.startSeconds)),
+      endSeconds: Math.max(0, Math.min(durationSeconds, window.endSeconds)),
+    }))
+    .filter((window) => window.endSeconds > window.startSeconds)
+    .sort((a, b) => a.startSeconds - b.startSeconds);
+  const merged: VideoTimeWindow[] = [];
+  for (const window of clipped) {
+    const previous = merged.at(-1);
+    if (!previous || window.startSeconds > previous.endSeconds) {
+      merged.push({ ...window });
+    } else {
+      previous.endSeconds = Math.max(previous.endSeconds, window.endSeconds);
+    }
+  }
+  return merged;
+}
+
+function evenlyLimitSchedule(
+  schedule: ScheduledVideoFrame[],
+  maxFrames: number,
+): ScheduledVideoFrame[] {
+  if (schedule.length <= maxFrames) return schedule;
+  if (maxFrames <= 1) return schedule.length > 0 ? [schedule[0]] : [];
+  const selected: ScheduledVideoFrame[] = [];
+  let lastIndex = -1;
+  for (let i = 0; i < maxFrames; i++) {
+    const index = Math.round((i * (schedule.length - 1)) / (maxFrames - 1));
+    if (index === lastIndex) continue;
+    selected.push(schedule[index]);
+    lastIndex = index;
+  }
+  return selected;
 }
 
 export async function withLoadedVideoElement<T>(
@@ -421,14 +526,15 @@ export function seekToFrame(
   video: HTMLVideoElement,
   time: number,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<number> {
   const safeTailSeconds = 0.05;
   const duration = Number.isFinite(video.duration) ? video.duration : time;
   const maxTarget = Math.max(0, duration - safeTailSeconds);
   const target = Math.min(Math.max(0, time), maxTarget);
 
-  if (video.readyState >= 2 && Math.abs(video.currentTime - target) <= 0.008) {
-    return Promise.resolve();
+  // 0.5 ms nie pomija sąsiedniej klatki nawet przy 240 FPS (odstęp ~4.17 ms).
+  if (video.readyState >= 2 && Math.abs(video.currentTime - target) <= 0.0005) {
+    return Promise.resolve(video.currentTime);
   }
 
   return new Promise((resolve, reject) => {
@@ -436,7 +542,9 @@ export function seekToFrame(
     let animationFrameId: number | null = null;
     let videoFrameCallbackId: number | null = null;
     const videoFrameApi = video as HTMLVideoElement & {
-      requestVideoFrameCallback?: (callback: () => void) => number;
+      requestVideoFrameCallback?: (
+        callback: (now: number, metadata: { mediaTime?: number }) => void,
+      ) => number;
       cancelVideoFrameCallback?: (handle: number) => void;
     };
 
@@ -453,11 +561,11 @@ export function seekToFrame(
       signal?.removeEventListener("abort", onAbort);
     };
 
-    const resolveDone = () => {
+    const resolveDone = (presentedTime?: number) => {
       if (settled) return;
       settled = true;
       cleanup();
-      resolve();
+      resolve(Number.isFinite(presentedTime) ? presentedTime! : video.currentTime);
     };
 
     const rejectWith = (code: string, message: string) => {
@@ -469,14 +577,16 @@ export function seekToFrame(
 
     const waitForPresentedFrame = () => {
       if (videoFrameApi.requestVideoFrameCallback) {
-        videoFrameCallbackId = videoFrameApi.requestVideoFrameCallback(resolveDone);
+        videoFrameCallbackId = videoFrameApi.requestVideoFrameCallback((_now, metadata) =>
+          resolveDone(metadata.mediaTime),
+        );
         return;
       }
       if (typeof requestAnimationFrame === "function") {
-        animationFrameId = requestAnimationFrame(() => resolveDone());
+        animationFrameId = requestAnimationFrame(() => resolveDone(video.currentTime));
         return;
       }
-      resolveDone();
+      resolveDone(video.currentTime);
     };
 
     const onSeeked = () => waitForPresentedFrame();

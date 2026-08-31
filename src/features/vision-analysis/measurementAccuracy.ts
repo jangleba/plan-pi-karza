@@ -13,24 +13,18 @@
  */
 
 import { round } from "./physics";
+import type { DetectedEvent, FramePose } from "./types";
 
 export const GRAVITY_STANDARD = 9.80665;
 
 /** Poziomy jakości pomiaru. LAB_GRADE wymaga walidacji z urządzeniem referencyjnym. */
 export type QualityTier =
-  | "LAB_GRADE"
-  | "HIGH_ACCURACY"
-  | "STANDARD_ESTIMATE"
-  | "INSUFFICIENT_QUALITY";
+  "LAB_GRADE" | "HIGH_ACCURACY" | "STANDARD_ESTIMATE" | "INSUFFICIENT_QUALITY";
 
 /** Status powtarzalności / kalibracji / walidacji. */
 export type RepeatabilityStatus = "verified" | "assumed" | "unknown";
 export type CalibrationStatus =
-  | "not_required"
-  | "calibrated"
-  | "required"
-  | "unstable"
-  | "error_too_high";
+  "not_required" | "calibrated" | "required" | "unstable" | "error_too_high";
 export type ValidationStatus = "official" | "unofficial" | "reference_required";
 
 /** Kody błędów warstwy pomiarowej. */
@@ -123,6 +117,46 @@ export function calcTemporalResolution(sourceTimestampsUs: number[]): TemporalRe
     temporalResolutionMs: round(frameIntervalMs / 2, 3),
     reliable: diffs.length >= 3,
   };
+}
+
+/**
+ * Rozdzielczość czasowa przy faktycznie zmierzonych zdarzeniach. Rzadkie
+ * klatki użyte do rozpoznania całego filmu nie mogą zaniżać ani zawyżać
+ * niepewności gęstego przebiegu przy wybiciu, lądowaniu lub linii czasu.
+ */
+export function calcTemporalResolutionNearEvents(
+  poses: FramePose[],
+  events: DetectedEvent[],
+  radiusSeconds = 0.25,
+): TemporalResolution {
+  const eventTimes = events
+    .map((event) => event.timestampSeconds)
+    .filter((timestamp) => Number.isFinite(timestamp));
+  const selected = poses
+    .filter((pose) => {
+      const timestamp =
+        typeof pose.sourceTimestampUs === "number"
+          ? pose.sourceTimestampUs / 1_000_000
+          : typeof pose.sourceTimestampMs === "number"
+            ? pose.sourceTimestampMs / 1000
+            : pose.mediaTime;
+      return eventTimes.some((eventTime) => Math.abs(timestamp - eventTime) <= radiusSeconds);
+    })
+    .map((pose) =>
+      typeof pose.sourceTimestampUs === "number"
+        ? pose.sourceTimestampUs
+        : Math.round(
+            (typeof pose.sourceTimestampMs === "number"
+              ? pose.sourceTimestampMs / 1000
+              : pose.mediaTime) * 1_000_000,
+          ),
+    );
+  if (selected.length >= 4) return calcTemporalResolution(selected);
+  return calcTemporalResolution(
+    poses
+      .map((pose) => pose.sourceTimestampUs)
+      .filter((timestamp): timestamp is number => typeof timestamp === "number"),
+  );
 }
 
 // ---------------------------------------------------------------------------

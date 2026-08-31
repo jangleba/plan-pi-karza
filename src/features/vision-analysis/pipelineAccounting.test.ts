@@ -38,6 +38,8 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("./videoFrameReader", () => ({
   createFrameSchedule: () => mocks.schedule,
+  createCoarseFrameSchedule: () => mocks.schedule,
+  createPrecisionFrameSchedule: () => [],
   seekToFrame: mocks.seekToFrame,
   withLoadedVideoElement: async (
     _url: string,

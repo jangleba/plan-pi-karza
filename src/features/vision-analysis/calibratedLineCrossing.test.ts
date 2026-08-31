@@ -130,4 +130,17 @@ describe("CalibratedLineCrossingEngine", () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("LINE_CROSSING_NOT_DETECTED");
   });
+
+  it("liczy niepewność z lokalnych klatek przy linii, nie z rzadkiego kontekstu", () => {
+    const full = buildPoses();
+    const keep = new Set([0, 6, 7, 8, 9, 15, 21, 26, 27, 28, 29, 35, 39]);
+    const mixed = full.filter((_, index) => keep.has(index));
+    const res = detectCalibratedCrossings({ ...baseInput(), poses: mixed });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(
+      Math.max(...res.crossings.map((crossing) => crossing.crossingUncertaintyMs)),
+    ).toBeLessThan(5);
+  });
 });

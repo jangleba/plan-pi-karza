@@ -22,7 +22,8 @@ import { AnalysisPipelineController } from "./AnalysisPipelineController";
 import { resolveAnalysisStatus } from "./statusPolicy";
 import { getAnalyzer } from "./testAnalyzerRegistry";
 import {
-  createFrameSchedule,
+  createCoarseFrameSchedule,
+  createPrecisionFrameSchedule,
   readVideoMetadata,
   seekToFrame,
   withLoadedVideoElement,
@@ -50,6 +51,11 @@ import {
   detectRepeatedCycles,
 } from "./analyzers/jumpDetection";
 import { TimeoutDiagnosticsRecorder } from "./timeoutDiagnostics";
+import {
+  buildPrecisionWindows,
+  selectAnalysisPoses,
+  selectRecognitionPoses,
+} from "./precisionPass";
 
 export type { AnalysisPhase } from "./types";
 
@@ -58,6 +64,7 @@ export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
   "single_leg_hop",
   "sprint_20m",
   "sprint_30m",
+  "flying_sprint",
 ]);
 
 export interface RunOptions {
@@ -99,8 +106,12 @@ export interface RunOptions {
 
 interface PoseStageOutput {
   poses: FramePose[];
+  /** Równomierny przebieg używany tylko do rozpoznania protokołu i okna ruchu. */
+  recognitionPoses: FramePose[];
   frameLog: FrameLogEntry[];
   scheduledFrames: number;
+  coarseScheduledFrames: number;
+  precisionScheduledFrames: number;
   processedScheduleFrames: number;
   extractedFrames: number;
   attemptedPoseFrames: number;
@@ -284,20 +295,24 @@ export async function extractFramesAndEstimatePose(
   analysisRunId: string,
   metadata: VideoMetadata,
   recorderParam?: TimeoutDiagnosticsRecorder | null,
+  calibrationParam?: Calibration | null,
 ): Promise<PoseStageOutput> {
   const recorder = opts.debugDiagnostics ? (recorderParam ?? opts.timeoutRecorder ?? null) : null;
   recorder?.setStage("create_schedule");
-  const schedule = createFrameSchedule(metadata);
-  controller.start("extractFrames", schedule.length);
+  const coarseSchedule = createCoarseFrameSchedule(metadata, { targetFps: 20, maxFrames: 240 });
+  let precisionSchedule: ScheduledVideoFrame[] = [];
+  let scheduledFrames = coarseSchedule.length;
+  controller.start("extractFrames", scheduledFrames);
   completePhase(controller, opts, "extractFrames");
   recorder?.setScheduleInfo(
-    schedule.length,
-    schedule.map((frame) => frame.sourceTimestampMs),
-    schedule.map((frame) => frame.sourceTimestampMs),
+    coarseSchedule.length,
+    coarseSchedule.map((frame) => frame.sourceTimestampMs),
+    coarseSchedule.map((frame) => frame.sourceTimestampMs),
   );
   recorder?.markProgress();
   const frameLog: FrameLogEntry[] = [];
-  const poses: FramePose[] = [];
+  const coarsePoses: FramePose[] = [];
+  const precisionPoses: FramePose[] = [];
   let processedScheduleFrames = 0;
   let extractedFrames = 0;
   let attemptedPoseFrames = 0;
@@ -306,106 +321,150 @@ export async function extractFramesAndEstimatePose(
   let timestampOrderErrors = 0;
 
   await withLoadedVideoElement(opts.videoUrl, opts.abortSignal, async (video) => {
-    let scheduleIndex = 0;
-    for (const frame of schedule) {
-      throwIfAborted(opts.abortSignal);
-      recorder?.setCurrentIndices(scheduleIndex, frame.frameIndex);
-      try {
-        recorder?.setStage("seek_frame");
-        await seekToFrame(video, frame.mediaTime, opts.abortSignal);
-        recorder?.setStage("decode_frame");
-        extractedFrames += 1;
-        recorder?.incrementExtractedFrameCount();
-        recorder?.markProgress();
+    const processSchedule = async (
+      schedule: ScheduledVideoFrame[],
+      passType: "coarse" | "precision",
+      target: FramePose[],
+    ) => {
+      for (const frame of schedule) {
+        throwIfAborted(opts.abortSignal);
+        const scheduleIndex = processedScheduleFrames;
+        recorder?.setCurrentIndices(scheduleIndex, frame.frameIndex);
         try {
-          recorder?.setStage("estimate_pose");
-          const pose = await detectPose(video, frame.frameIndex, frame.mediaTime, {
-            analysisRunId,
-            passType: "coarse",
-            sourceTimestampMs: frame.sourceTimestampMs,
-            sourceTimestampUs: frame.sourceTimestampUs,
-            sourceFrameIndex: frame.sourceFrameIndex,
-          });
-          poses.push(pose);
-          recorder?.incrementPoseFrameCount();
+          recorder?.setStage("seek_frame", passType);
+          const presentedTime = await seekToFrame(video, frame.mediaTime, opts.abortSignal);
+          const mediaTime = Number.isFinite(presentedTime) ? presentedTime : frame.mediaTime;
+          const sourceTimestampUs = Math.round(mediaTime * 1_000_000);
+          const sourceTimestampMs = Math.round(sourceTimestampUs / 1000);
+          const sourceFrameIndex = Math.max(0, Math.round(mediaTime * metadata.fps));
+          recorder?.setStage("decode_frame", passType);
+          extractedFrames += 1;
+          recorder?.incrementExtractedFrameCount();
           recorder?.markProgress();
-          if (pose.landmarks != null) {
-            validPoseFrames += 1;
-            recorder?.setLastSuccessfulFrame(frame.frameIndex, frame.mediaTime, scheduleIndex);
+          try {
+            recorder?.setStage("estimate_pose", passType);
+            const pose = await detectPose(video, sourceFrameIndex, mediaTime, {
+              analysisRunId,
+              passType,
+              sourceTimestampMs,
+              sourceTimestampUs,
+              sourceFrameIndex,
+            });
+            target.push(pose);
+            recorder?.incrementPoseFrameCount();
+            recorder?.markProgress();
+            if (pose.landmarks != null) {
+              validPoseFrames += 1;
+              recorder?.setLastSuccessfulFrame(sourceFrameIndex, mediaTime, scheduleIndex);
+            }
+            frameLog.push({
+              sourceFrameIndex,
+              sourceTimestampUs,
+              hasPose: pose.landmarks != null,
+              peopleCount: pose.peopleCount,
+              trackingConfidence: round(pose.trackingConfidence, 3),
+              ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
+            });
+          } catch (error) {
+            poseErrors += 1;
+            recorder?.incrementPoseErrorCount();
+            const orderError = isFrameTimestampOrderError(error);
+            if (orderError) {
+              timestampOrderErrors += 1;
+              recorder?.incrementTimestampOrderErrorCount();
+            }
+            frameLog.push({
+              sourceFrameIndex,
+              sourceTimestampUs,
+              hasPose: false,
+              peopleCount: 0,
+              trackingConfidence: 0,
+              skippedReason: orderError ? "FRAME_TIMESTAMP_ORDER_ERROR" : "POSE_FRAME_ERROR",
+            });
+          } finally {
+            attemptedPoseFrames += 1;
+            if (recorder) {
+              const engineDiagnostics = getPoseEngineDiagnostics(analysisRunId);
+              recorder.setPoseDelegate(engineDiagnostics.poseDelegate);
+              recorder.setTimestampCorrectionCount(engineDiagnostics.timestampCorrectionsCount);
+            }
           }
-          frameLog.push({
-            sourceFrameIndex: frame.sourceFrameIndex,
-            sourceTimestampUs: frame.sourceTimestampUs,
-            hasPose: pose.landmarks != null,
-            peopleCount: pose.peopleCount,
-            trackingConfidence: round(pose.trackingConfidence, 3),
-            ...(pose.landmarks == null ? { skippedReason: "POSE_NOT_DETECTED" } : {}),
-          });
         } catch (error) {
-          poseErrors += 1;
-          recorder?.incrementPoseErrorCount();
-          const orderError = isFrameTimestampOrderError(error);
-          if (orderError) {
-            timestampOrderErrors += 1;
-            recorder?.incrementTimestampOrderErrorCount();
-          }
+          const code =
+            error && typeof error === "object" && "code" in error
+              ? String((error as { code: unknown }).code)
+              : "";
+          const message = error instanceof Error ? error.message : String(error);
           frameLog.push({
             sourceFrameIndex: frame.sourceFrameIndex,
             sourceTimestampUs: frame.sourceTimestampUs,
             hasPose: false,
             peopleCount: 0,
             trackingConfidence: 0,
-            skippedReason: orderError ? "FRAME_TIMESTAMP_ORDER_ERROR" : "POSE_FRAME_ERROR",
+            skippedReason:
+              code === "FRAME_SEEK_TIMEOUT" || message.includes("FRAME_SEEK_TIMEOUT")
+                ? "FRAME_SEEK_TIMEOUT"
+                : "FRAME_SEEK_ERROR",
           });
         } finally {
-          attemptedPoseFrames += 1;
-          if (recorder) {
-            const engineDiagnostics = getPoseEngineDiagnostics(analysisRunId);
-            recorder.setPoseDelegate(engineDiagnostics.poseDelegate);
-            recorder.setTimestampCorrectionCount(engineDiagnostics.timestampCorrectionsCount);
-          }
+          processedScheduleFrames += 1;
+          recorder?.incrementProcessedFrameCount();
+          recorder?.markProgress();
+          controller.progress("extractFrames", processedScheduleFrames, scheduledFrames);
+          opts.onProgress?.(Math.min(1, processedScheduleFrames / Math.max(1, scheduledFrames)));
         }
-      } catch (error) {
-        const code =
-          error && typeof error === "object" && "code" in error
-            ? String((error as { code: unknown }).code)
-            : "";
-        const message = error instanceof Error ? error.message : String(error);
-        frameLog.push({
-          sourceFrameIndex: frame.sourceFrameIndex,
-          sourceTimestampUs: frame.sourceTimestampUs,
-          hasPose: false,
-          peopleCount: 0,
-          trackingConfidence: 0,
-          skippedReason:
-            code === "FRAME_SEEK_TIMEOUT" || message.includes("FRAME_SEEK_TIMEOUT")
-              ? "FRAME_SEEK_TIMEOUT"
-              : "FRAME_SEEK_ERROR",
-        });
-      } finally {
-        processedScheduleFrames += 1;
-        scheduleIndex += 1;
-        recorder?.incrementProcessedFrameCount();
-        recorder?.markProgress();
-        controller.progress("extractFrames", processedScheduleFrames, schedule.length);
-        opts.onProgress?.(Math.min(1, processedScheduleFrames / Math.max(1, schedule.length)));
       }
+    };
+
+    await processSchedule(coarseSchedule, "coarse", coarsePoses);
+
+    const precisionWindows = buildPrecisionWindows({
+      testType: opts.testType,
+      coarsePoses,
+      metadata,
+      calibration: calibrationParam ?? null,
+    });
+    precisionSchedule = createPrecisionFrameSchedule(metadata, precisionWindows, {
+      targetFps: Math.min(240, metadata.fps),
+      maxFrames: 720,
+    });
+    scheduledFrames = coarseSchedule.length + precisionSchedule.length;
+    const allScheduled = [...coarseSchedule, ...precisionSchedule].sort(
+      (a, b) => a.sourceTimestampUs - b.sourceTimestampUs,
+    );
+    recorder?.setScheduleInfo(
+      scheduledFrames,
+      allScheduled.map((frame) => frame.sourceTimestampMs),
+      allScheduled.map((frame) => frame.sourceTimestampMs),
+    );
+    controller.progress("extractFrames", processedScheduleFrames, scheduledFrames);
+
+    if (precisionSchedule.length > 0) {
+      // Drugi przebieg wraca do wcześniejszych timestampów, więc MediaPipe musi
+      // dostać świeżą sesję VIDEO. Timestamp źródła pozostaje niezmieniony.
+      await closePoseEngine(analysisRunId);
+      await processSchedule(precisionSchedule, "precision", precisionPoses);
     }
   });
 
-  if (processedScheduleFrames !== schedule.length) {
+  if (processedScheduleFrames !== scheduledFrames) {
     controller.fail("extractFrames", "PIPELINE_FRAME_ACCOUNTING_ERROR", {
-      scheduledFrames: schedule.length,
+      scheduledFrames,
       processedScheduleFrames,
       extractedFrames,
     });
     throw new Error("PIPELINE_FRAME_ACCOUNTING_ERROR");
   }
   controller.complete("extractFrames", {
-    scheduledFrames: schedule.length,
+    scheduledFrames,
+    coarseScheduledFrames: coarseSchedule.length,
+    precisionScheduledFrames: precisionSchedule.length,
     processedScheduleFrames,
     extractedFrames,
   });
+
+  const poses = selectAnalysisPoses(opts.testType, coarsePoses, precisionPoses);
+  const recognitionPoses = selectRecognitionPoses(opts.testType, coarsePoses, precisionPoses);
 
   recorder?.setStage("estimate_pose");
   controller.start("estimatePose", Math.max(1, extractedFrames));
@@ -422,7 +481,7 @@ export async function extractFramesAndEstimatePose(
     (error as Error & { code: string }).code = "NO_DECODED_FRAMES";
     throw error;
   }
-  const analyzedFrames = validPoseFrames;
+  const analyzedFrames = poses.filter((pose) => pose.landmarks != null).length;
   controller.complete("estimatePose", {
     extractedFrames,
     attemptedPoseFrames,
@@ -434,8 +493,11 @@ export async function extractFramesAndEstimatePose(
 
   return {
     poses,
+    recognitionPoses,
     frameLog,
-    scheduledFrames: schedule.length,
+    scheduledFrames,
+    coarseScheduledFrames: coarseSchedule.length,
+    precisionScheduledFrames: precisionSchedule.length,
     processedScheduleFrames,
     extractedFrames,
     attemptedPoseFrames,
@@ -444,7 +506,11 @@ export async function extractFramesAndEstimatePose(
     poseErrors,
     timestampOrderErrors,
     ...(opts.debugDiagnostics
-      ? { scheduledTimestampsMs: schedule.map((frame) => frame.sourceTimestampMs) }
+      ? {
+          scheduledTimestampsMs: [...coarseSchedule, ...precisionSchedule]
+            .sort((a, b) => a.sourceTimestampUs - b.sourceTimestampUs)
+            .map((frame) => frame.sourceTimestampMs),
+        }
       : {}),
   };
 }
@@ -535,7 +601,7 @@ function buildVisionDiagnostics(input: BuildDiagnosticsInput): VisionDiagnostics
     scheduledFrameCount: poseOut.scheduledFrames,
     firstTimestampsMs: timestamps.slice(0, 10),
     lastTimestampsMs: timestamps.slice(Math.max(0, timestamps.length - 10)),
-    decodedFrames: poseOut.poses.length,
+    decodedFrames: poseOut.extractedFrames,
     attemptedPoseFrames: poseOut.attemptedPoseFrames,
     validPoseFrames: poseOut.validPoseFrames,
     poseErrors: poseOut.poseErrors,
@@ -635,14 +701,25 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       orientation: metadata.orientation,
     });
 
+    // Kalibracja jest potrzebna już do wskazania dokładnych okien START/META.
+    // Rozwiązujemy ją raz i używamy tej samej wersji w obu przebiegach oraz
+    // przy końcowym obliczeniu — bez zmiany geometrii w połowie analizy.
+    const calibration = resolveCalibration(
+      opts,
+      metadata.orientation,
+      metadata.fps,
+      `${metadata.width}x${metadata.height}`,
+    );
+
     const poseOut = await extractFramesAndEstimatePose(
       opts,
       controller,
       analysisRunId,
       metadata,
       recorder,
+      calibration,
     );
-    const decodedFrames = poseOut.poses.length;
+    const decodedFrames = poseOut.extractedFrames;
     if (poseOut.extractedFrames === 0 && poseOut.attemptedPoseFrames === 0) {
       return fail("extractFrames", "NO_DECODED_FRAMES", "Nie udało się zdekodować żadnej klatki.", {
         frameLog: poseOut.frameLog,
@@ -679,7 +756,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     recorder?.setStage("recognize_protocol", "buildMovementSignals");
     controller.start("buildMovementSignals");
     completePhase(controller, opts, "buildMovementSignals");
-    const movementSignals = buildMovementSignals(poseOut.poses);
+    const movementSignals = buildMovementSignals(poseOut.recognitionPoses);
     recorder?.setMovementCounts(
       movementSignals.field?.segments.length ?? 0,
       movementSignals.contacts.length,
@@ -698,7 +775,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     recorder?.setOperation("detectMovementEvents");
     controller.start("detectMovementEvents");
     completePhase(controller, opts, "detectMovementEvents");
-    const motionWindow = detectMotionWindow(poseOut.poses, metadata.durationSeconds);
+    const motionWindow = detectMotionWindow(poseOut.recognitionPoses, metadata.durationSeconds);
     const motionWindowSummary = summarizeMotionWindow(motionWindow, metadata, opts.testType);
     recorder?.markProgress();
     if (motionWindow.activeSegments === 0) {
@@ -722,7 +799,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     recorder?.setOperation("validateProtocol");
     controller.start("validateProtocol");
     completePhase(controller, opts, "validateProtocol");
-    const recognition = recognizeTestProtocol(opts.testType, poseOut.poses);
+    const recognition = recognizeTestProtocol(opts.testType, poseOut.recognitionPoses);
     recorder?.setProtocolRecognition({
       movementSignature: movementSignals.signature.signature,
       selectedTestType: recognition.selectedTestType,
@@ -788,12 +865,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
                 poseOut,
                 movementSignals,
                 recognition,
-                calibration: resolveCalibration(
-                  opts,
-                  metadata.orientation,
-                  metadata.fps,
-                  `${metadata.width}x${metadata.height}`,
-                ),
+                calibration,
                 controller,
               }),
             }
@@ -806,12 +878,6 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     recorder?.setStage("calculate_result");
     controller.start("calculateResult");
     completePhase(controller, opts, "calculateResult");
-    const calibration = resolveCalibration(
-      opts,
-      metadata.orientation,
-      metadata.fps,
-      `${metadata.width}x${metadata.height}`,
-    );
     const ctx: AnalysisContext = {
       testType: opts.testType,
       metadata,
@@ -827,8 +893,9 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     let measurement: VideoAnalysisResult["measurement"];
     const isSpatial = SPATIAL_TESTS.has(opts.testType);
     const hasSpatialCalibration = !!calibration?.homography && !calibration?.mismatchCode;
-    const movementRecognized = events.length > 0;
+    const movementRecognized = recognition.protocolMatch;
     let statusOverride: AnalysisStatus | null = null;
+    let temporalMeasurementRejected = false;
 
     if (isSpatial) {
       if (calibration?.mismatchCode === "CALIBRATION_CAMERA_MOVED") {
@@ -846,6 +913,18 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       const acc = analyzer.computeAccuracy(events, metrics, ctx);
       measurement = acc.measurement;
       metrics = acc.metrics;
+      temporalMeasurementRejected = measurement.errors.some(
+        (error) =>
+          error === "FRAME_RATE_TOO_LOW" ||
+          error === "TEMPORAL_RESOLUTION_TOO_LOW" ||
+          error === "RESULT_UNCERTAINTY_TOO_HIGH",
+      );
+      if (temporalMeasurementRejected) {
+        // Zdarzenia z przebiegu coarse mogą pomóc w diagnostyce, ale nie wolno
+        // z nich zapisać liczbowego wyniku udającego dokładny pomiar.
+        metrics = [];
+        statusOverride = "invalid_recording";
+      }
     }
     const adapterOut: AdapterOutput = {
       events,
@@ -876,6 +955,10 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
     completePhase(controller, opts, "validateRecording");
     recorder?.setStage("validate_recording");
     const validation = analyzer.validateRecording(ctx);
+    if (temporalMeasurementRejected && !validation.issues.includes("INSUFFICIENT_FPS")) {
+      validation.issues.push("INSUFFICIENT_FPS");
+      validation.retakeInstructions.push(QUALITY_ISSUE_LABELS.INSUFFICIENT_FPS);
+    }
     if (calibration?.mismatchCode === "CALIBRATION_CAMERA_MOVED") {
       if (!validation.issues.includes("CALIBRATION_CAMERA_MOVED")) {
         validation.issues.push("CALIBRATION_CAMERA_MOVED");

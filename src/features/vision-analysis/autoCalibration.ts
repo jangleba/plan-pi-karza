@@ -78,8 +78,7 @@ export function estimateScaleFromHeight(
 
   // Pewność: więcej spójnych próbek = wyższa. Spójność = niska zmienność.
   const mean = pixelSegments.reduce((a, b) => a + b, 0) / pixelSegments.length;
-  const variance =
-    pixelSegments.reduce((a, b) => a + (b - mean) ** 2, 0) / pixelSegments.length;
+  const variance = pixelSegments.reduce((a, b) => a + (b - mean) ** 2, 0) / pixelSegments.length;
   const cv = mean > 0 ? Math.sqrt(variance) / mean : 1; // wsp. zmienności
   const sampleScore = Math.min(1, pixelSegments.length / 10);
   const stabilityScore = Math.max(0, 1 - cv * 4); // cv 0.25 → 0
@@ -90,19 +89,6 @@ export function estimateScaleFromHeight(
     confidence: Math.round(confidence * 100) / 100,
     sampleCount: pixelSegments.length,
   };
-}
-
-/**
- * Deterministyczna kalibracja awaryjna, gdy profil nie ma wzrostu.
- * Nie losuje wyniku — używa konserwatywnej estymacji wzrostu wg wieku, a
- * obniżona pewność jasno oznacza pomiar jako mniej dokładny.
- */
-export function estimateFallbackHeightCm(age: number | null | undefined): number {
-  if (!age || age < 10) return 170;
-  if (age <= 12) return 152;
-  if (age <= 14) return 164;
-  if (age <= 16) return 172;
-  return 178;
 }
 
 /**

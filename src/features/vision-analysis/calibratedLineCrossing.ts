@@ -171,7 +171,6 @@ function detectLineCrossing(
   lineU: (v: number) => number,
 ): { crossing: LineCrossing | null; row: CrossingDebugRow; wrongDirectionOnly: boolean } {
   const { poses, width, height } = input;
-  const frameIntervalUs = medianFrameIntervalUs(poses);
   let prev: { idx: number; signed: number; u: number; v: number; ts: number } | null = null;
   let wrongDirectionSeen = false;
   const wanted = line.direction ?? "forward";
@@ -212,7 +211,10 @@ function detectLineCrossing(
           const frac = prev.signed / (prev.signed - signed);
           const clamped = Math.min(1, Math.max(0, frac));
           const crossingTsUs = Math.round(prev.ts + clamped * (ts - prev.ts));
-          const crossingUncertaintyMs = round(frameIntervalUs / 2 / 1000, 3);
+          // Niepewność pochodzi z DWÓCH KLATEK, które rzeczywiście ograniczają
+          // to przecięcie. To pozostaje prawdziwe także po dwustopniowym
+          // próbkowaniu (rzadki kontekst + gęste okno przy linii).
+          const crossingUncertaintyMs = round(Math.abs(ts - prev.ts) / 2 / 1000, 3);
           const row: CrossingDebugRow = {
             lineId: line.id,
             lineImageU: round(lu, 2),

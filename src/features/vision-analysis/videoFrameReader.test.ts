@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { createFrameSchedule, seekToFrame } from "./videoFrameReader";
+import {
+  createCoarseFrameSchedule,
+  createFrameSchedule,
+  createPrecisionFrameSchedule,
+  seekToFrame,
+} from "./videoFrameReader";
 import type { VideoMetadata } from "./types";
 
 function metadata(partial: Partial<VideoMetadata>): VideoMetadata {
@@ -28,6 +33,39 @@ describe("createFrameSchedule", () => {
       expect(schedule[i].mediaTime).toBeGreaterThan(schedule[i - 1].mediaTime);
     }
   });
+
+  it("limits a 120 FPS sprint clip to a phone-safe coarse budget", () => {
+    const schedule = createCoarseFrameSchedule(
+      metadata({ fps: 120, durationSeconds: 12, frameCount: 1440 }),
+      { targetFps: 20, maxFrames: 240 },
+    );
+
+    expect(schedule.length).toBeLessThanOrEqual(240);
+    expect(schedule[0].sourceFrameIndex).toBe(0);
+    expect(schedule.at(-1)?.mediaTime).toBeGreaterThan(11);
+  });
+
+  it("keeps source-rate frames only inside precision windows", () => {
+    const schedule = createPrecisionFrameSchedule(
+      metadata({ fps: 120, durationSeconds: 8, frameCount: 960 }),
+      [
+        { startSeconds: 1, endSeconds: 1.25 },
+        { startSeconds: 5, endSeconds: 5.25 },
+      ],
+      { targetFps: 120, maxFrames: 720 },
+    );
+
+    expect(schedule.length).toBeGreaterThan(40);
+    expect(
+      schedule.every(
+        (frame) =>
+          (frame.mediaTime >= 1 && frame.mediaTime <= 1.25) ||
+          (frame.mediaTime >= 5 && frame.mediaTime <= 5.25),
+      ),
+    ).toBe(true);
+    const firstWindow = schedule.filter((frame) => frame.mediaTime < 2);
+    expect(firstWindow[1].sourceFrameIndex - firstWindow[0].sourceFrameIndex).toBe(1);
+  });
 });
 
 describe("seekToFrame", () => {
@@ -36,12 +74,12 @@ describe("seekToFrame", () => {
     const video = {
       duration: 10,
       readyState: 2,
-      currentTime: 1.004,
+      currentTime: 1.0002,
       addEventListener,
       removeEventListener: vi.fn(),
     } as unknown as HTMLVideoElement;
 
-    await seekToFrame(video, 1);
+    await expect(seekToFrame(video, 1)).resolves.toBe(1.0002);
 
     expect(addEventListener).not.toHaveBeenCalled();
   });
