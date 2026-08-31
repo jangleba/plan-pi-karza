@@ -159,7 +159,7 @@ export function projectCalibrationTimingLines(
   if (!homographyMatrix || !timingLines?.length) return [];
 
   return timingLines.flatMap((line) => {
-    if (!line.groundStartPointMm || !line.groundEndPointMm) return [];
+    if (!line.groundStartPointMm || !line.groundEndPointMm || !line.role) return [];
     const a = projectWorldToImage(
       homographyMatrix,
       line.groundStartPointMm.x,

@@ -200,9 +200,10 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
 
   useEffect(() => {
     if (!active) return;
-    const video = videoRef.current;
+    const video: HTMLVideoElement | null = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+
 
     const runId = `live-pose-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let cancelled = false;
@@ -221,8 +222,9 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
 
     const schedule = () => {
       if (cancelled) return;
-      if ("requestVideoFrameCallback" in video) {
-        callbackId = video.requestVideoFrameCallback((now, metadata) => {
+      const media: HTMLVideoElement = video;
+      if (typeof media.requestVideoFrameCallback === "function") {
+        callbackId = media.requestVideoFrameCallback((now, metadata) => {
           callbackId = null;
           const timestampMs = Math.round(metadata.mediaTime * 1000);
           if (timestampMs - lastAnalyzedTimestampMs < 100) {
@@ -238,13 +240,14 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
         fallbackTimer = null;
         const timestampMs = Math.max(
           lastAnalyzedTimestampMs + 100,
-          Math.round(video.currentTime * 1000),
+          Math.round(media.currentTime * 1000),
           Math.round(performance.now()),
         );
         lastAnalyzedTimestampMs = timestampMs;
-        void analyze(video.currentTime, timestampMs);
+        void analyze(media.currentTime, timestampMs);
       }, 100);
     };
+
 
     const analyze = async (mediaTime: number, timestampMs: number) => {
       if (cancelled || inFlight || video.readyState < 2 || !video.videoWidth) {
