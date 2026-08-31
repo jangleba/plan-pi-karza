@@ -200,9 +200,10 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
 
   useEffect(() => {
     if (!active) return;
-    const video = videoRef.current;
+    const video: HTMLVideoElement | null = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+
 
     const runId = `live-pose-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let cancelled = false;
