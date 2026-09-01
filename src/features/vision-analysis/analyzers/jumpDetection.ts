@@ -19,73 +19,72 @@ export interface FlightPhase {
  * pionową — nie opiera się wyłącznie na ruchu bioder.
  */
 export function detectFlightPhase(poses: FramePose[]): FlightPhase | null {
-  const t = timeSeries(poses);
-  let foot = interpolateShortGaps(footBottomSeries(poses));
-  foot = movingAverage(foot, 3);
-  const hip = movingAverage(interpolateShortGaps(hipYSeries(poses)), 3);
+  const field = analyzeJumpField(poses);
+  if (!field) return null;
+  const { foot, hip, time: t, groundLevel, amplitude, airThreshold } = field;
 
-  const finite = foot.filter((v) => Number.isFinite(v));
-  if (finite.length < 6) return null;
+  // Artefakty landmarków bywają krótkie i mają absurdalnie dużą amplitudę.
+  // Prawdziwy lot musi być ograniczony kontaktem, trwać 0.10–1.10 s i mieć
+  // zgodny ruch środka bioder. Wybieramy najlepiej udokumentowany segment,
+  // a nie po prostu najdłuższy spadek współrzędnej stopy.
+  const candidates = field.segments
+    .filter((segment) => !segment.startsAtBoundary && !segment.endsAtBoundary)
+    .map((segment) => {
+      const duration = segment.landingTime - segment.takeoffTime;
+      const preStart = Math.max(0, segment.takeoffFrame - 6);
+      const preHip = meanFinite(hip.slice(preStart, segment.takeoffFrame));
+      const airHip = hip
+        .slice(segment.takeoffFrame, segment.landingFrame)
+        .filter((value) => Number.isFinite(value));
+      const hasHipEvidence = airHip.length >= 2 && Number.isFinite(preHip);
+      const hipLift = hasHipEvidence ? preHip - Math.min(...airHip) : 0;
+      const detectedFraction =
+        foot
+          .slice(segment.takeoffFrame, segment.landingFrame + 1)
+          .filter((value) => Number.isFinite(value)).length /
+        Math.max(1, segment.landingFrame - segment.takeoffFrame + 1);
+      const durationScore = Math.min(1, duration / 0.35);
+      const liftScore = Math.min(1, Math.max(0, hipLift) / 0.06);
+      return {
+        segment,
+        duration,
+        hipLift,
+        hasHipEvidence,
+        detectedFraction,
+        score: 0.45 * detectedFraction + 0.3 * liftScore + 0.25 * durationScore,
+      };
+    })
+    .filter((candidate) => {
+      if (candidate.duration < 0.1 || candidate.duration > 1.1) return false;
+      // Przy dostępnych biodrach wymagamy ich ruchu w górę. Jeżeli biodra
+      // chwilowo zniknęły, nie zmyślamy zgodności, ale nadal pozwalamy stopom
+      // udokumentować lot z niższą pewnością.
+      return !candidate.hasHipEvidence || candidate.hipLift >= 0.008;
+    })
+    .sort((a, b) => b.score - a.score);
+  const best = candidates[0];
+  if (!best) return null;
+  const { segment } = best;
 
-  // Linia podłoża = najniższa (największe Y) stabilna pozycja stóp.
-  const sorted = [...finite].sort((a, b) => b - a);
-  const groundLevel = meanFinite(sorted.slice(0, Math.max(3, Math.floor(sorted.length * 0.15))));
-
-  // Amplituda ruchu stóp — próg lotu jako ułamek zakresu.
-  const minFoot = Math.min(...finite);
-  const amplitude = groundLevel - minFoot;
-  if (amplitude < 0.02) return null; // brak istotnego wyskoku
-  const airThreshold = groundLevel - amplitude * 0.4;
-
-  // Największy ciągły segment "w powietrzu".
-  let bestStart = -1;
-  let bestEnd = -1;
-  let curStart = -1;
-  for (let i = 0; i < foot.length; i++) {
-    const airborne = Number.isFinite(foot[i]) && foot[i] < airThreshold;
-    if (airborne && curStart === -1) curStart = i;
-    if ((!airborne || i === foot.length - 1) && curStart !== -1) {
-      const end = airborne ? i : i - 1;
-      if (bestStart === -1 || end - curStart > bestEnd - bestStart) {
-        bestStart = curStart;
-        bestEnd = end;
-      }
-      curStart = -1;
-    }
+  // Najniższa pozycja bioder w maks. 1.5 s poprzedzających wybicie.
+  let lowWindowStart = segment.takeoffFrame;
+  while (lowWindowStart > 0 && segment.takeoffTime - t[lowWindowStart - 1] <= 1.5) {
+    lowWindowStart--;
   }
-  if (bestStart <= 0 || bestEnd >= foot.length - 1 || bestEnd <= bestStart) return null;
+  const localLowest = argMax(hip.slice(lowWindowStart, segment.takeoffFrame + 1));
+  const lowestHipFrame = localLowest < 0 ? segment.takeoffFrame : lowWindowStart + localLowest;
 
-  // Interpolowane czasy przekroczenia progu lotu (dokładniejsze niż numer klatki).
-  const takeoffTime = interpolateCrossingTime(
-    t[bestStart - 1],
-    foot[bestStart - 1],
-    t[bestStart],
-    foot[bestStart],
-    airThreshold,
+  const ampScore = Math.min(1, amplitude / 0.08);
+  const confidence = Math.max(
+    0,
+    Math.min(1, 0.45 * best.detectedFraction + 0.3 * ampScore + 0.25 * Math.min(1, best.hipLift / 0.05)),
   );
-  const landingTime = interpolateCrossingTime(
-    t[bestEnd],
-    foot[bestEnd],
-    t[bestEnd + 1],
-    foot[bestEnd + 1],
-    airThreshold,
-  );
-
-  // Najniższa pozycja bioder przed wybiciem (countermovement depth).
-  const lowestHipFrame = argMax(hip.slice(0, bestStart + 1)); // max Y = najniżej
-
-  // Confidence: udział wykrytych stóp w segmencie + wyrazistość amplitudy.
-  const segDetected =
-    foot.slice(bestStart, bestEnd + 1).filter((v) => Number.isFinite(v)).length /
-    (bestEnd - bestStart + 1);
-  const ampScore = Math.min(1, amplitude / 0.1);
-  const confidence = Math.max(0, Math.min(1, 0.5 * segDetected + 0.5 * ampScore));
 
   return {
-    takeoffFrame: bestStart,
-    landingFrame: bestEnd + 1,
-    takeoffTime,
-    landingTime,
+    takeoffFrame: segment.takeoffFrame,
+    landingFrame: segment.landingFrame,
+    takeoffTime: segment.takeoffTime,
+    landingTime: segment.landingTime,
     lowestHipFrame: lowestHipFrame < 0 ? 0 : lowestHipFrame,
     groundLevel,
     confidence,
@@ -201,18 +200,38 @@ export function analyzeJumpField(poses: FramePose[]): JumpField | null {
   const finite = foot.filter((v) => Number.isFinite(v));
   if (finite.length < 6) return null;
 
-  const sorted = [...finite].sort((a, b) => b - a);
-  const groundLevel = meanFinite(sorted.slice(0, Math.max(3, Math.floor(sorted.length * 0.15))));
-  const minFoot = Math.min(...finite);
-  const amplitude = groundLevel - minFoot;
-  if (amplitude < 0.02) return null;
-  const airThreshold = groundLevel - amplitude * 0.4;
+  // Odporna linia podłoża: mediana górnych 30% wartości Y zamiast maksimum.
+  // Pojedynczy błędny landmark przy dolnej krawędzi nie przesuwa więc całej
+  // detekcji. Amplitudę także liczymy z kwantyla, nie z jednego minimum.
+  const ordered = [...finite].sort((a, b) => a - b);
+  const quantile = (q: number) => {
+    const pos = Math.max(0, Math.min(ordered.length - 1, (ordered.length - 1) * q));
+    const lo = Math.floor(pos);
+    const hi = Math.ceil(pos);
+    const weight = pos - lo;
+    return ordered[lo] * (1 - weight) + ordered[hi] * weight;
+  };
+  const contactCut = quantile(0.7);
+  const groundLevel = meanFinite(ordered.filter((value) => value >= contactCut));
+  const airborneLevel = quantile(0.08);
+  const amplitude = groundLevel - airborneLevel;
+  if (amplitude < 0.025) return null;
+  // Próg blisko podłoża lepiej przybliża faktyczne oderwanie i kontakt niż
+  // 40% amplitudy, które systematycznie skracało czas lotu.
+  const groundNoiseMargin = Math.max(0.01, Math.min(0.035, amplitude * 0.12));
+  const airThreshold = groundLevel - groundNoiseMargin;
   const footDetectionRate = finite.length / foot.length;
 
   const segments: AirSegment[] = [];
+  const airMask = foot.map((value) => Number.isFinite(value) && value < airThreshold);
+  // Domykamy pojedynczą lukę detekcji wewnątrz lotu; dłuższych luk nie
+  // interpolujemy, bo oznaczałoby to wymyślanie kontaktu/lotu.
+  for (let i = 1; i < airMask.length - 1; i++) {
+    if (!airMask[i] && airMask[i - 1] && airMask[i + 1]) airMask[i] = true;
+  }
   let curStart = -1;
   for (let i = 0; i < foot.length; i++) {
-    const airborne = Number.isFinite(foot[i]) && foot[i] < airThreshold;
+    const airborne = airMask[i];
     if (airborne && curStart === -1) curStart = i;
     if ((!airborne || i === foot.length - 1) && curStart !== -1) {
       const end = airborne ? i : i - 1;

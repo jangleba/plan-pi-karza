@@ -8,9 +8,10 @@ import type {
 } from "../types";
 import { baseValidation, buildValidation } from "./validation";
 import { detectFlightPhase, flightPhaseEvents } from "./jumpDetection";
-import { hipYSeries, timeSeries } from "../poseSeries";
+import { footBottomSeries, hipYSeries, reliableLm, timeSeries } from "../poseSeries";
 import { meanFinite, argMax } from "../signal";
-import { round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
+import { jointAngleDeg, round, withinPlausibleRange, PLAUSIBLE_RANGES } from "../physics";
+import { POSE, type FramePose } from "../types";
 import {
   calcTemporalResolutionNearEvents,
   computeMeasurementAccuracy,
@@ -31,6 +32,66 @@ const MIN_FPS = 60;
  * pozostałych modułów, bo w tym miejscu każda cyfra znacząca ma znaczenie.
  */
 const G_CMJ = 9.80665;
+
+function movementStartFrame(ctx: AnalysisContext, lowestFrame: number): number | null {
+  const hip = hipYSeries(ctx.poses);
+  if (lowestFrame < 3 || !Number.isFinite(hip[lowestFrame])) return null;
+  const baselineEnd = Math.max(3, Math.min(lowestFrame, Math.floor(hip.length * 0.2)));
+  const baseline = meanFinite(hip.slice(0, baselineEnd));
+  const depth = hip[lowestFrame] - baseline;
+  if (!Number.isFinite(baseline) || depth < 0.01) return null;
+  const threshold = baseline + Math.max(0.005, depth * 0.12);
+  for (let i = 1; i <= lowestFrame; i++) {
+    if (Number.isFinite(hip[i - 1]) && Number.isFinite(hip[i]) && hip[i - 1] < threshold && hip[i] >= threshold) {
+      return i;
+    }
+  }
+  return null;
+}
+
+function meanPair(values: Array<number | null>): number | null {
+  const finite = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  return finite.length > 0 ? finite.reduce((sum, value) => sum + value, 0) / finite.length : null;
+}
+
+function jointAnglesAt(pose: FramePose | undefined): {
+  knee: number | null;
+  hip: number | null;
+} {
+  if (!pose) return { knee: null, hip: null };
+  const side = (left: boolean) => {
+    const shoulder = reliableLm(pose, left ? POSE.LEFT_SHOULDER : POSE.RIGHT_SHOULDER, 0.45);
+    const hip = reliableLm(pose, left ? POSE.LEFT_HIP : POSE.RIGHT_HIP, 0.45);
+    const knee = reliableLm(pose, left ? POSE.LEFT_KNEE : POSE.RIGHT_KNEE, 0.45);
+    const ankle = reliableLm(pose, left ? POSE.LEFT_ANKLE : POSE.RIGHT_ANKLE, 0.45);
+    return {
+      knee: hip && knee && ankle ? jointAngleDeg(hip, knee, ankle) : null,
+      hip: shoulder && hip && knee ? jointAngleDeg(shoulder, hip, knee) : null,
+    };
+  };
+  const left = side(true);
+  const right = side(false);
+  return {
+    knee: meanPair([left.knee, right.knee]),
+    hip: meanPair([left.hip, right.hip]),
+  };
+}
+
+function bodyHeightInFrame(ctx: AnalysisContext, beforeFrame: number): number | null {
+  const foot = footBottomSeries(ctx.poses);
+  const values: number[] = [];
+  const end = Math.max(1, Math.min(beforeFrame, ctx.poses.length));
+  for (let i = 0; i < end; i++) {
+    const pose = ctx.poses[i];
+    const left = reliableLm(pose, POSE.LEFT_SHOULDER, 0.45);
+    const right = reliableLm(pose, POSE.RIGHT_SHOULDER, 0.45);
+    if (!left || !right || !Number.isFinite(foot[i])) continue;
+    const shoulderY = (left.y + right.y) / 2;
+    const height = foot[i] - shoulderY;
+    if (height > 0.15) values.push(height);
+  }
+  return values.length > 0 ? meanFinite(values) : null;
+}
 
 function events(ctx: AnalysisContext): DetectedEvent[] {
   const phase = detectFlightPhase(ctx.poses);
@@ -66,6 +127,15 @@ function events(ctx: AnalysisContext): DetectedEvent[] {
     timestampSeconds: t[phase.landingFrame] ?? phase.landingTime,
     confidence: phase.confidence,
   });
+  const startFrame = movementStartFrame(ctx, phase.lowestHipFrame);
+  if (startFrame != null) {
+    evidence.push({
+      type: "movement_start",
+      frameIndex: startFrame,
+      timestampSeconds: t[startFrame] ?? 0,
+      confidence: phase.confidence * 0.9,
+    });
+  }
   return [...base, ...evidence];
 }
 
@@ -73,6 +143,7 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
   const takeoff = ev.find((e) => e.type === "takeoff");
   const landing = ev.find((e) => e.type === "landing");
   const lowest = ev.find((e) => e.type === "lowest_position");
+  const movementStart = ev.find((e) => e.type === "movement_start");
   if (!takeoff || !landing) return [];
   // Surowy czas lotu z realnych sourceTimestampUs (bez pre-zaokrągleń).
   const flightTime = landing.timestampSeconds - takeoff.timestampSeconds;
@@ -118,13 +189,81 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
     const hip = hipYSeries(ctx.poses);
     const standing = meanFinite(hip.slice(0, Math.max(2, Math.floor(hip.length * 0.1))));
     const depth = (hip[lowest.frameIndex] ?? standing) - standing; // Y rośnie w dół
-    out.push({
-      key: "countermovement_depth",
-      label: "Głębokość zejścia",
-      value: round(Math.max(0, depth) * 100, 1),
-      unit: "% wys.",
-      confidence: conf * 0.8,
-    });
+    const bodyHeight = bodyHeightInFrame(ctx, lowest.frameIndex);
+    if (bodyHeight && depth > 0) {
+      out.push({
+        key: "countermovement_depth_pct",
+        label: "Głębokość zejścia",
+        value: round((depth / bodyHeight) * 100, 1),
+        unit: "% sylwetki",
+        confidence: conf * 0.8,
+      });
+    }
+
+    const angles = jointAnglesAt(ctx.poses[lowest.frameIndex]);
+    if (angles.knee != null && angles.knee >= 20 && angles.knee <= 180) {
+      out.push({
+        key: "knee_angle_bottom_deg",
+        label: "Kąt kolana w dole",
+        value: round(angles.knee, 1),
+        unit: "°",
+        confidence: conf * 0.8,
+      });
+    }
+    if (angles.hip != null && angles.hip >= 20 && angles.hip <= 180) {
+      out.push({
+        key: "hip_angle_bottom_deg",
+        label: "Kąt biodra w dole",
+        value: round(angles.hip, 1),
+        unit: "°",
+        confidence: conf * 0.8,
+      });
+    }
+
+    const propulsionSeconds = takeoff.timestampSeconds - lowest.timestampSeconds;
+    if (propulsionSeconds > 0 && propulsionSeconds < 1.5) {
+      out.push({
+        key: "propulsion_time_s",
+        label: "Czas wybicia od najniższej pozycji",
+        value: round(propulsionSeconds, 3),
+        unit: "s",
+        confidence: conf * 0.85,
+      });
+    }
+  }
+
+  if (movementStart) {
+    const timeToTakeoff = takeoff.timestampSeconds - movementStart.timestampSeconds;
+    if (timeToTakeoff > 0.1 && timeToTakeoff < 2.5) {
+      out.push(
+        {
+          key: "time_to_takeoff_s",
+          label: "Czas do wybicia",
+          value: round(timeToTakeoff, 3),
+          unit: "s",
+          confidence: conf * 0.85,
+        },
+        {
+          key: "rsi_modified",
+          label: "RSI-mod (estymacja wideo)",
+          value: round(heightCm / 100 / timeToTakeoff, 2),
+          unit: "m/s",
+          confidence: conf * 0.8,
+        },
+      );
+      if (lowest) {
+        const eccentricSeconds = lowest.timestampSeconds - movementStart.timestampSeconds;
+        if (eccentricSeconds > 0) {
+          out.push({
+            key: "eccentric_phase_time_s",
+            label: "Czas fazy zejścia",
+            value: round(eccentricSeconds, 3),
+            unit: "s",
+            confidence: conf * 0.8,
+          });
+        }
+      }
+    }
   }
   return out;
 }
@@ -223,7 +362,7 @@ function accuracy(
 
 export const cmjAnalyzer: TestAnalyzer = {
   testType: "cmj",
-  analyzerVersion: "cmj-1.0.0",
+  analyzerVersion: "cmj-2.0.0",
   requiredCameraSetup: "side",
   minimumFps: MIN_FPS,
   requiresCalibration: false,
