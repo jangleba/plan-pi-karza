@@ -541,6 +541,8 @@ export function seekToFrame(
     let settled = false;
     let animationFrameId: number | null = null;
     let videoFrameCallbackId: number | null = null;
+    let presentedFrameFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let resumedForPresentedFrame = false;
     const videoFrameApi = video as HTMLVideoElement & {
       requestVideoFrameCallback?: (
         callback: (now: number, metadata: { mediaTime?: number }) => void,
@@ -550,12 +552,16 @@ export function seekToFrame(
 
     const cleanup = () => {
       clearTimeout(timer);
+      if (presentedFrameFallbackTimer != null) {
+        clearTimeout(presentedFrameFallbackTimer);
+      }
       if (animationFrameId != null && typeof cancelAnimationFrame === "function") {
         cancelAnimationFrame(animationFrameId);
       }
       if (videoFrameCallbackId != null && videoFrameApi.cancelVideoFrameCallback) {
         videoFrameApi.cancelVideoFrameCallback(videoFrameCallbackId);
       }
+      if (resumedForPresentedFrame) video.pause();
       video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("error", onError);
       signal?.removeEventListener("abort", onAbort);
@@ -577,9 +583,32 @@ export function seekToFrame(
 
     const waitForPresentedFrame = () => {
       if (videoFrameApi.requestVideoFrameCallback) {
-        videoFrameCallbackId = videoFrameApi.requestVideoFrameCallback((_now, metadata) =>
-          resolveDone(metadata.mediaTime),
-        );
+        videoFrameCallbackId = videoFrameApi.requestVideoFrameCallback((_now, metadata) => {
+          if (resumedForPresentedFrame) video.pause();
+          resolveDone(metadata.mediaTime);
+        });
+        // Krótkie wznowienie wywołuje prezentację jednej realnej klatki na
+        // Safari. Film jest wyciszony i playsInline; po callbacku natychmiast
+        // wraca do pauzy. Jeśli autoplay zostanie odrzucony, zadziała fallback.
+        if (video.paused && typeof video.play === "function") {
+          try {
+            resumedForPresentedFrame = true;
+            const playAttempt = video.play();
+            if (playAttempt && typeof playAttempt.catch === "function") {
+              void playAttempt.catch(() => undefined);
+            }
+          } catch {
+            resumedForPresentedFrame = false;
+          }
+        }
+        // Safari/iOS potrafi nie wywołać requestVideoFrameCallback dla filmu,
+        // który po seeku nadal jest w pauzie. Nie czekamy wtedy 2,5 s na KAŻDĄ
+        // klatkę: `seeked` + readyState>=2 oznacza, że żądana pozycja została
+        // zdekodowana, więc po krótkim oknie na dokładny timestamp rVFC używamy
+        // currentTime. Główny timeout nadal chroni prawdziwie zablokowany seek.
+        presentedFrameFallbackTimer = setTimeout(() => {
+          if (video.readyState >= 2) resolveDone(video.currentTime);
+        }, 80);
         return;
       }
       if (typeof requestAnimationFrame === "function") {

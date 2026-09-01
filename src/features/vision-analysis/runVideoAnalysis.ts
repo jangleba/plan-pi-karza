@@ -59,6 +59,12 @@ import {
 
 export type { AnalysisPhase } from "./types";
 
+export interface AnalysisFrameProgress {
+  passType: "coarse" | "precision";
+  completedFrames: number;
+  totalFrames: number;
+}
+
 export const SPATIAL_TESTS: ReadonlySet<TestType> = new Set<TestType>([
   "broad_jump",
   "single_leg_hop",
@@ -85,6 +91,8 @@ export interface RunOptions {
   abortSignal?: AbortSignal;
   onPhase?: (phase: AnalysisPhase) => void;
   onProgress?: (fraction: number) => void;
+  /** Postęp realnego przebiegu klatek: skan całego filmu albo dokładne okno ruchu. */
+  onFrameProgress?: (progress: AnalysisFrameProgress) => void;
   onPipelineUpdate?: (snapshot: AnalysisPipelineSnapshot) => void;
   /**
    * Włącza budowanie diagnostycznego snapshotu Vision Lab (Phase 1).
@@ -299,7 +307,10 @@ export async function extractFramesAndEstimatePose(
 ): Promise<PoseStageOutput> {
   const recorder = opts.debugDiagnostics ? (recorderParam ?? opts.timeoutRecorder ?? null) : null;
   recorder?.setStage("create_schedule");
-  const coarseSchedule = createCoarseFrameSchedule(metadata, { targetFps: 20, maxFrames: 240 });
+  // Pierwszy przebieg tylko lokalizuje ruch. 12 FPS wystarcza do wskazania
+  // okna CMJ/sprintu, a wynik czasowy i tak pochodzi wyłącznie z późniejszego
+  // przebiegu źródłowego. Mniejszy budżet chroni Safari przed setkami seeków.
+  const coarseSchedule = createCoarseFrameSchedule(metadata, { targetFps: 12, maxFrames: 144 });
   let precisionSchedule: ScheduledVideoFrame[] = [];
   let scheduledFrames = coarseSchedule.length;
   controller.start("extractFrames", scheduledFrames);
@@ -321,11 +332,18 @@ export async function extractFramesAndEstimatePose(
   let timestampOrderErrors = 0;
 
   await withLoadedVideoElement(opts.videoUrl, opts.abortSignal, async (video) => {
+    const poseInput = createPoseInput(video);
     const processSchedule = async (
       schedule: ScheduledVideoFrame[],
       passType: "coarse" | "precision",
       target: FramePose[],
     ) => {
+      let completedInPass = 0;
+      opts.onFrameProgress?.({
+        passType,
+        completedFrames: 0,
+        totalFrames: schedule.length,
+      });
       for (const frame of schedule) {
         throwIfAborted(opts.abortSignal);
         const scheduleIndex = processedScheduleFrames;
@@ -343,7 +361,8 @@ export async function extractFramesAndEstimatePose(
           recorder?.markProgress();
           try {
             recorder?.setStage("estimate_pose", passType);
-            const pose = await detectPose(video, sourceFrameIndex, mediaTime, {
+            const poseSource = poseInput ? drawPoseInputFrame(video, poseInput) : video;
+            const pose = await detectPose(poseSource, sourceFrameIndex, mediaTime, {
               analysisRunId,
               passType,
               sourceTimestampMs,
@@ -408,10 +427,16 @@ export async function extractFramesAndEstimatePose(
           });
         } finally {
           processedScheduleFrames += 1;
+          completedInPass += 1;
           recorder?.incrementProcessedFrameCount();
           recorder?.markProgress();
           controller.progress("extractFrames", processedScheduleFrames, scheduledFrames);
           opts.onProgress?.(Math.min(1, processedScheduleFrames / Math.max(1, scheduledFrames)));
+          opts.onFrameProgress?.({
+            passType,
+            completedFrames: completedInPass,
+            totalFrames: schedule.length,
+          });
         }
       }
     };
@@ -513,6 +538,39 @@ export async function extractFramesAndEstimatePose(
         }
       : {}),
   };
+}
+
+interface PoseInputCanvas {
+  canvas: HTMLCanvasElement;
+  context: CanvasRenderingContext2D;
+}
+
+/**
+ * MediaPipe zwraca znormalizowane landmarki, dlatego proporcjonalne zmniejszenie
+ * klatki nie zmienia geometrii wyniku. Ogranicza tylko koszt obliczeń modelu na
+ * telefonie; oryginalne wymiary filmu nadal służą do kalibracji i raportu.
+ */
+function createPoseInput(video: HTMLVideoElement): PoseInputCanvas | null {
+  if (typeof document === "undefined" || !video.videoWidth || !video.videoHeight) return null;
+  const maxEdge = 640;
+  const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d", { alpha: false });
+  return context ? { canvas, context } : null;
+}
+
+function drawPoseInputFrame(
+  video: HTMLVideoElement,
+  input: PoseInputCanvas,
+): HTMLVideoElement | HTMLCanvasElement {
+  try {
+    input.context.drawImage(video, 0, 0, input.canvas.width, input.canvas.height);
+    return input.canvas;
+  } catch {
+    return video;
+  }
 }
 
 function buildMovementSignals(poses: FramePose[]): MovementSignalsOutput {

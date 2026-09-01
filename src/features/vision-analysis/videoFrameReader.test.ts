@@ -37,10 +37,10 @@ describe("createFrameSchedule", () => {
   it("limits a 120 FPS sprint clip to a phone-safe coarse budget", () => {
     const schedule = createCoarseFrameSchedule(
       metadata({ fps: 120, durationSeconds: 12, frameCount: 1440 }),
-      { targetFps: 20, maxFrames: 240 },
+      { targetFps: 12, maxFrames: 144 },
     );
 
-    expect(schedule.length).toBeLessThanOrEqual(240);
+    expect(schedule.length).toBeLessThanOrEqual(144);
     expect(schedule[0].sourceFrameIndex).toBe(0);
     expect(schedule.at(-1)?.mediaTime).toBeGreaterThan(11);
   });
@@ -105,6 +105,33 @@ describe("seekToFrame", () => {
     await vi.advanceTimersByTimeAsync(2_500);
 
     await expectation;
+    expect(listeners.size).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("does not wait 2.5 s when paused Safari omits the video-frame callback after seek", async () => {
+    vi.useFakeTimers();
+    const listeners = new Map<string, EventListener>();
+    const video = {
+      duration: 10,
+      readyState: 2,
+      currentTime: 0,
+      requestVideoFrameCallback: vi.fn(() => 7),
+      cancelVideoFrameCallback: vi.fn(),
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        listeners.set(event, listener);
+      }),
+      removeEventListener: vi.fn((event: string) => {
+        listeners.delete(event);
+      }),
+    } as unknown as HTMLVideoElement;
+
+    const result = seekToFrame(video, 1);
+    listeners.get("seeked")?.(new Event("seeked"));
+    await vi.advanceTimersByTimeAsync(80);
+
+    await expect(result).resolves.toBe(1);
+    expect(video.requestVideoFrameCallback).toHaveBeenCalledOnce();
     expect(listeners.size).toBe(0);
     vi.useRealTimers();
   });

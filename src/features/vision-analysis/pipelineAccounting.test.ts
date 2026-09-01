@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => {
   ];
   return {
     schedule,
+    precisionSchedule: [] as typeof schedule,
     seekToFrame: vi.fn(),
     detectPose: vi.fn(),
     video: { currentTime: 0 },
@@ -39,7 +40,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("./videoFrameReader", () => ({
   createFrameSchedule: () => mocks.schedule,
   createCoarseFrameSchedule: () => mocks.schedule,
-  createPrecisionFrameSchedule: () => [],
+  createPrecisionFrameSchedule: () => mocks.precisionSchedule,
   seekToFrame: mocks.seekToFrame,
   withLoadedVideoElement: async (
     _url: string,
@@ -99,6 +100,7 @@ const opts: RunOptions = {
 describe("extractFramesAndEstimatePose accounting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.precisionSchedule.length = 0;
     mocks.seekToFrame.mockResolvedValue(undefined);
     mocks.detectPose.mockImplementation((_video, frameIndex: number) =>
       Promise.resolve(pose(frameIndex)),
@@ -193,5 +195,56 @@ describe("extractFramesAndEstimatePose accounting", () => {
       code: "NO_DECODED_FRAMES",
     });
     expect(controller.snapshot().stages.estimatePose.status).toBe("failed");
+  });
+
+  it("reports coarse and precision frame progress as two truthful passes", async () => {
+    mocks.precisionSchedule.push(
+      {
+        frameIndex: 10,
+        sourceFrameIndex: 10,
+        mediaTime: 0.1,
+        presentationTimestamp: 0.1,
+        sourceTimestampMs: 100,
+        sourceTimestampUs: 100_000,
+      },
+      {
+        frameIndex: 11,
+        sourceFrameIndex: 11,
+        mediaTime: 0.11,
+        presentationTimestamp: 0.11,
+        sourceTimestampMs: 110,
+        sourceTimestampUs: 110_000,
+      },
+    );
+    const frameProgress: Array<{
+      passType: "coarse" | "precision";
+      completedFrames: number;
+      totalFrames: number;
+    }> = [];
+    const controller = new AnalysisPipelineController("run-accounting-progress");
+
+    const output = await extractFramesAndEstimatePose(
+      { ...opts, onFrameProgress: (progress) => frameProgress.push(progress) },
+      controller,
+      "run-accounting-progress",
+      metadata,
+    );
+
+    expect(output.scheduledFrames).toBe(5);
+    expect(frameProgress).toContainEqual({
+      passType: "coarse",
+      completedFrames: 3,
+      totalFrames: 3,
+    });
+    expect(frameProgress).toContainEqual({
+      passType: "precision",
+      completedFrames: 0,
+      totalFrames: 2,
+    });
+    expect(frameProgress.at(-1)).toEqual({
+      passType: "precision",
+      completedFrames: 2,
+      totalFrames: 2,
+    });
   });
 });

@@ -138,7 +138,6 @@ export function flushPoseDebugLog(analysisRunId: string): void {
   if (!visionDebugEnabled()) return;
   const rows = timestampDebugRows.filter((row) => row.analysisRunId === analysisRunId);
   if (rows.length === 0) return;
-  // eslint-disable-next-line no-console
   console.table(rows);
 }
 
@@ -176,7 +175,11 @@ async function getLandmarker(analysisRunId: string): Promise<PoseLandmarkerSessi
     const instanceId = `pose-${++poseLandmarkerInstanceSeq}`;
     const { landmarker, delegate } = await createLandmarkerInstance();
     poseDelegateByRun.set(analysisRunId, delegate);
-    vlog("pose_engine:new_instance", { analysisRunId, poseLandmarkerInstanceId: instanceId, delegate });
+    vlog("pose_engine:new_instance", {
+      analysisRunId,
+      poseLandmarkerInstanceId: instanceId,
+      delegate,
+    });
     return { landmarker, analysisRunId, instanceId, lastTimestampMs: -1, closed: false, delegate };
   })();
   return landmarkerPromise;
@@ -207,7 +210,7 @@ export function isPoseSupported(): boolean {
 
 /** Wykrywa pozę w pojedynczej klatce wideo. */
 export async function detectPose(
-  video: HTMLVideoElement,
+  image: HTMLVideoElement | HTMLCanvasElement,
   frameIndex: number,
   mediaTime: number,
   options: DetectPoseOptions,
@@ -216,10 +219,7 @@ export async function detectPose(
   if (session.closed) {
     throw new FrameTimestampOrderError(FRAME_TIMESTAMP_ORDER_USER_MESSAGE, "PoseLandmarker closed");
   }
-  const sourceTimestampMs = Math.max(
-    0,
-    options.sourceTimestampMs ?? Math.round(mediaTime * 1000),
-  );
+  const sourceTimestampMs = Math.max(0, options.sourceTimestampMs ?? Math.round(mediaTime * 1000));
   const sourceTimestampUs = Math.max(
     0,
     options.sourceTimestampUs ?? Math.round(mediaTime * 1_000_000),
@@ -237,7 +237,7 @@ export async function detectPose(
 
   let result: { landmarks?: Landmark[][] };
   try {
-    result = session.landmarker.detectForVideo(video, mediaPipeTimestampMs);
+    result = session.landmarker.detectForVideo(image, mediaPipeTimestampMs);
   } catch (error) {
     if (isTimestampMismatchError(error)) {
       throw new FrameTimestampOrderError(
