@@ -85,6 +85,7 @@ export function VisionRecorder({
   const [detectedFps, setDetectedFps] = useState<number | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [poseStatus, setPoseStatus] = useState<LivePoseStatus>(EMPTY_LIVE_POSE_STATUS);
+  const [poseEngineState, setPoseEngineState] = useState<"loading" | "ready" | "error">("loading");
   const [countdown, setCountdown] = useState<CountdownState>(IDLE_COUNTDOWN);
   const [preparationActive, setPreparationActive] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
@@ -134,6 +135,7 @@ export function VisionRecorder({
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setPreviewReady(false);
     setPoseStatus(EMPTY_LIVE_POSE_STATUS);
+    setPoseEngineState("loading");
     setCountdown(IDLE_COUNTDOWN);
     setPreparationActive(false);
     setFlashActive(false);
@@ -459,7 +461,11 @@ export function VisionRecorder({
 
   const lowFps = detectedFps !== null && detectedFps < minimumFps;
   const liveMessage = !poseStatus.detected
-    ? "Ustaw całą sylwetkę w kadrze"
+    ? poseEngineState === "loading"
+      ? "Uruchamianie analizy 33 punktów sylwetki…"
+      : poseEngineState === "error"
+        ? "Nie udało się uruchomić szkieletu — nagranie nadal zostanie zapisane"
+        : "Ustaw całą sylwetkę w kadrze"
     : !poseStatus.singleAthlete
       ? "W kadrze może być tylko jedna osoba"
       : !poseStatus.fullBody
@@ -527,6 +533,7 @@ export function VisionRecorder({
         videoRef={videoRef}
         active={(mode === "preview" || mode === "recording") && previewReady && orientationReady}
         onStatus={setPoseStatus}
+        onEngineState={setPoseEngineState}
       />
 
       {!previewReady && mode !== "processing" && (
@@ -542,7 +549,9 @@ export function VisionRecorder({
           <RotateCcw className="h-12 w-12 text-blue-400" />
           <div>
             <p className="text-xl font-bold">
-              {requiredOrientation === "landscape" ? "Obróć telefon poziomo" : "Ustaw telefon pionowo"}
+              {requiredOrientation === "landscape"
+                ? "Obróć telefon poziomo"
+                : "Ustaw telefon pionowo"}
             </p>
             <p className="mt-2 text-sm text-white/70">
               {requiredOrientation === "landscape"
@@ -628,7 +637,12 @@ export function VisionRecorder({
             <CircleStop className="mr-2 h-5 w-5" /> Zatrzymaj nagranie
           </Button>
         ) : (
-          <Button className="w-full" size="lg" onClick={beginTest} disabled={!previewReady || !orientationReady}>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={beginTest}
+            disabled={!previewReady || !orientationReady}
+          >
             <Camera className="mr-2 h-5 w-5" /> Rozpocznij nagranie
           </Button>
         )}

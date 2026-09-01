@@ -7,6 +7,7 @@ interface VisionLivePoseOverlayProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   active: boolean;
   onStatus: (status: LivePoseStatus) => void;
+  onEngineState?: (state: "loading" | "ready" | "error") => void;
 }
 
 const CONNECTIONS: [number, number][] = [
@@ -135,25 +136,45 @@ function drawPose(
   if (!status.mechanicsReady) return;
 
   const angleLabels: { value: number; at: Landmark; label: string }[] = [];
-  const leftHip = landmarks[POSE.LEFT_HIP];
-  const leftKnee = landmarks[POSE.LEFT_KNEE];
-  const leftAnkle = landmarks[POSE.LEFT_ANKLE];
-  const rightHip = landmarks[POSE.RIGHT_HIP];
-  const rightKnee = landmarks[POSE.RIGHT_KNEE];
-  const rightAnkle = landmarks[POSE.RIGHT_ANKLE];
-  if (visible(leftHip) && visible(leftKnee) && visible(leftAnkle)) {
-    angleLabels.push({ value: jointAngle(leftHip, leftKnee, leftAnkle), at: leftKnee, label: "L" });
-  }
-  if (visible(rightHip) && visible(rightKnee) && visible(rightAnkle)) {
+  const chain = (left: boolean) => ({
+    shoulder: landmarks[left ? POSE.LEFT_SHOULDER : POSE.RIGHT_SHOULDER],
+    hip: landmarks[left ? POSE.LEFT_HIP : POSE.RIGHT_HIP],
+    knee: landmarks[left ? POSE.LEFT_KNEE : POSE.RIGHT_KNEE],
+    ankle: landmarks[left ? POSE.LEFT_ANKLE : POSE.RIGHT_ANKLE],
+    toe: landmarks[left ? POSE.LEFT_FOOT_INDEX : POSE.RIGHT_FOOT_INDEX],
+  });
+  const left = chain(true);
+  const right = chain(false);
+  const chainScore = (side: ReturnType<typeof chain>) =>
+    [side.shoulder, side.hip, side.knee, side.ankle, side.toe].reduce(
+      (sum, point) => sum + (point?.visibility ?? 0),
+      0,
+    );
+  const side = chainScore(left) >= chainScore(right) ? left : right;
+  if (visible(side.shoulder) && visible(side.hip) && visible(side.knee)) {
     angleLabels.push({
-      value: jointAngle(rightHip, rightKnee, rightAnkle),
-      at: rightKnee,
-      label: "P",
+      value: jointAngle(side.shoulder, side.hip, side.knee),
+      at: side.hip,
+      label: "BIODRO",
+    });
+  }
+  if (visible(side.hip) && visible(side.knee) && visible(side.ankle)) {
+    angleLabels.push({
+      value: jointAngle(side.hip, side.knee, side.ankle),
+      at: side.knee,
+      label: "KOLANO",
+    });
+  }
+  if (visible(side.knee) && visible(side.ankle) && visible(side.toe)) {
+    angleLabels.push({
+      value: jointAngle(side.knee, side.ankle, side.toe),
+      at: side.ankle,
+      label: "KOSTKA",
     });
   }
   const lean = trunkLean(landmarks);
-  if (lean != null && visible(leftHip)) {
-    angleLabels.push({ value: lean, at: leftHip, label: "TUŁÓW" });
+  if (lean != null && visible(side.hip)) {
+    angleLabels.push({ value: lean, at: side.hip, label: "TUŁÓW" });
   }
 
   context.font = `600 ${10 * ratio}px system-ui, sans-serif`;
@@ -192,13 +213,23 @@ function sameStatus(a: LivePoseStatus, b: LivePoseStatus): boolean {
   );
 }
 
-export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLivePoseOverlayProps) {
+export function VisionLivePoseOverlay({
+  videoRef,
+  active,
+  onStatus,
+  onEngineState,
+}: VisionLivePoseOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onStatusRef = useRef(onStatus);
+  const onEngineStateRef = useRef(onEngineState);
 
   useEffect(() => {
     onStatusRef.current = onStatus;
   }, [onStatus]);
+
+  useEffect(() => {
+    onEngineStateRef.current = onEngineState;
+  }, [onEngineState]);
 
   useEffect(() => {
     if (!active) return;
@@ -213,12 +244,13 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
 
     const runId = `live-pose-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let cancelled = false;
-    let callbackId: number | null = null;
     let fallbackTimer: number | null = null;
     let frameIndex = 0;
     let inFlight = false;
     let lastAnalyzedTimestampMs = -Infinity;
     let lastStatus = EMPTY_LIVE_POSE_STATUS;
+    let engineReady = false;
+    onEngineStateRef.current?.("loading");
 
     const report = (status: LivePoseStatus) => {
       if (sameStatus(lastStatus, status)) return;
@@ -229,26 +261,12 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
     const schedule = () => {
       if (cancelled) return;
       const media: HTMLVideoElement = video;
-      if (typeof media.requestVideoFrameCallback === "function") {
-        callbackId = media.requestVideoFrameCallback((now, metadata) => {
-          callbackId = null;
-          const timestampMs = Math.round(metadata.mediaTime * 1000);
-          if (timestampMs - lastAnalyzedTimestampMs < 100) {
-            schedule();
-            return;
-          }
-          lastAnalyzedTimestampMs = timestampMs;
-          void analyze(metadata.mediaTime, timestampMs || Math.round(now));
-        });
-        return;
-      }
+      // Stały zegar jest pewniejszy dla strumienia kamery w Safari niż
+      // requestVideoFrameCallback, który na części iPhone'ów przestaje wołać
+      // callback po zmianie orientacji lub rozpoczęciu MediaRecorder.
       fallbackTimer = window.setTimeout(() => {
         fallbackTimer = null;
-        const timestampMs = Math.max(
-          lastAnalyzedTimestampMs + 100,
-          Math.round(media.currentTime * 1000),
-          Math.round(performance.now()),
-        );
+        const timestampMs = Math.max(lastAnalyzedTimestampMs + 100, Math.round(performance.now()));
         lastAnalyzedTimestampMs = timestampMs;
         void analyze(media.currentTime, timestampMs);
       }, 100);
@@ -280,11 +298,16 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
         const status = getLivePoseStatus(pose);
         drawPose(canvas, video, pose, status);
         report(status);
+        if (!engineReady) {
+          engineReady = true;
+          onEngineStateRef.current?.("ready");
+        }
         frameIndex += 1;
       } catch {
         if (!cancelled) {
           clearCanvas(canvas);
           report(EMPTY_LIVE_POSE_STATUS);
+          onEngineStateRef.current?.("error");
         }
       } finally {
         inFlight = false;
@@ -295,9 +318,6 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
     schedule();
     return () => {
       cancelled = true;
-      if (callbackId !== null && "cancelVideoFrameCallback" in video) {
-        video.cancelVideoFrameCallback(callbackId);
-      }
       if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
       clearCanvas(canvas);
       onStatusRef.current(EMPTY_LIVE_POSE_STATUS);

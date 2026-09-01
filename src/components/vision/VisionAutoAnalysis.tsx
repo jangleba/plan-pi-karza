@@ -19,7 +19,11 @@ import {
   type CalibrationRecord,
 } from "@/features/vision-analysis/videoCalibration";
 import { findVideoCalibration } from "@/lib/vision/videoCalibrationStore";
-import { runVideoAnalysis, type AnalysisPhase } from "@/features/vision-analysis/runVideoAnalysis";
+import {
+  runVideoAnalysis,
+  type AnalysisFrameProgress,
+  type AnalysisPhase,
+} from "@/features/vision-analysis/runVideoAnalysis";
 import { ANALYSIS_PIPELINE_STAGES } from "@/features/vision-analysis/AnalysisPipelineController";
 import {
   isDevDiagnosticsEnabled,
@@ -178,6 +182,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const { user } = useAuth();
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
   const [progress, setProgress] = useState(0);
+  const [frameProgress, setFrameProgress] = useState<AnalysisFrameProgress | null>(null);
   const [pipelineSnapshot, setPipelineSnapshot] = useState<AnalysisPipelineSnapshot | null>(null);
   const [state, setState] = useState<UiState>({ kind: "running" });
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -248,6 +253,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loadVideo" };
     setDebugCtx(debugCtxRef.current);
     setPipelineSnapshot(null);
+    setFrameProgress(null);
     setPreviewSrc(null);
     setLastAnalysis(null);
     // Nowy rejestrator diagnostyki timeoutu — utworzony PRZED startem analizy,
@@ -402,6 +408,10 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           const current = snapshot.stages[snapshot.currentStage as PipelineStageName];
           setProgress(current ? current.completedUnits / Math.max(1, current.totalUnits) : 0);
           vlog("phase", snapshot.currentStage);
+        },
+        onFrameProgress: (next) => {
+          if (cancelled()) return;
+          setFrameProgress(next);
         },
       });
       let analysis: VideoAnalysisResult;
@@ -572,7 +582,12 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           />
         )}
         {state.kind === "running" && (
-          <RunningView phase={phase} progress={progress} snapshot={pipelineSnapshot} />
+          <RunningView
+            phase={phase}
+            progress={progress}
+            frameProgress={frameProgress}
+            snapshot={pipelineSnapshot}
+          />
         )}
 
         {state.kind === "calibration_required" && (
@@ -781,20 +796,30 @@ function TechniqueOnlyView({
 function RunningView({
   phase,
   progress,
+  frameProgress,
   snapshot,
 }: {
   phase: AnalysisPhase;
   progress: number;
+  frameProgress: AnalysisFrameProgress | null;
   snapshot: AnalysisPipelineSnapshot | null;
 }) {
   const pct = Math.round(progress * 100);
+  const visiblePct = frameProgress
+    ? Math.round((frameProgress.completedFrames / Math.max(1, frameProgress.totalFrames)) * 100)
+    : pct;
   const showFrameProgress = phase === "extractFrames" || phase === "estimatePose";
   const groups: Array<{ label: string; stages: PipelineStageName[] }> = [
     { label: "Wideo", stages: ["loadVideo", "readMetadata"] },
     { label: "Sylwetka", stages: ["extractFrames", "estimatePose"] },
     {
       label: "Ruch",
-      stages: ["buildMovementSignals", "detectMovementEvents", "segmentAttempts", "validateProtocol"],
+      stages: [
+        "buildMovementSignals",
+        "detectMovementEvents",
+        "segmentAttempts",
+        "validateProtocol",
+      ],
     },
     { label: "Wynik", stages: ["calculateResult", "validateRecording"] },
   ];
@@ -821,11 +846,13 @@ function RunningView({
           <div className="h-2 w-full overflow-hidden rounded-full bg-accent">
             <div
               className="h-full rounded-full bg-brand transition-all"
-              style={{ width: `${Math.max(4, pct)}%` }}
+              style={{ width: `${Math.max(4, visiblePct)}%` }}
             />
           </div>
           <div className="text-xs font-medium text-muted-foreground">
-            {pct}% klatek przetworzonych
+            {frameProgress
+              ? `${frameProgress.passType === "coarse" ? "Skan całego filmu" : "Dokładna analiza ruchu"}: ${frameProgress.completedFrames} z ${frameProgress.totalFrames} klatek`
+              : "Przygotowywanie rzeczywistych klatek filmu…"}
           </div>
         </div>
       )}
@@ -839,7 +866,9 @@ function RunningView({
           const active = phase !== "completed" && i === activeGroup;
           return (
             <li key={group.label} className="min-w-0 text-center">
-              <span className={`block h-1.5 rounded-full ${done ? "bg-brand" : active ? "bg-brand/55" : "bg-muted"}`} />
+              <span
+                className={`block h-1.5 rounded-full ${done ? "bg-brand" : active ? "bg-brand/55" : "bg-muted"}`}
+              />
               <span
                 className={`mt-1.5 block truncate text-[11px] ${
                   active
