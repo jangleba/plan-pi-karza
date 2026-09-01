@@ -55,6 +55,64 @@ function buildCmjPoses(fps: number): FramePose[] {
   return poses;
 }
 
+/** CMJ bliższy nagraniu z telefonu: faza zejścia, wybicie, lot i szum landmarków. */
+function buildRealisticCmjPoses(fps = 120): FramePose[] {
+  const poses: FramePose[] = [];
+  for (let i = 0; i < 180; i++) {
+    let hipY = 0.55;
+    let footY = 0.9;
+    if (i >= 40 && i < 70) hipY = 0.55 + ((i - 40) / 30) * 0.09;
+    if (i >= 70 && i < 85) hipY = 0.64 - ((i - 70) / 15) * 0.13;
+    if (i >= 85 && i < 133) {
+      footY = 0.72 + (i % 2 === 0 ? 0.002 : -0.002);
+      const phase = (i - 85) / 48;
+      hipY = 0.51 - Math.sin(Math.PI * phase) * 0.08;
+    }
+    if (i >= 133) hipY = 0.56;
+    const landmarks = landmarksWith(hipY, footY);
+    for (const left of [true, false]) {
+      const x = left ? 0.46 : 0.54;
+      landmarks[left ? POSE.LEFT_SHOULDER : POSE.RIGHT_SHOULDER] = {
+        x,
+        y: hipY - 0.25,
+        z: 0,
+        visibility: 0.95,
+      };
+      landmarks[left ? POSE.LEFT_KNEE : POSE.RIGHT_KNEE] = {
+        x: x + (left ? -0.025 : 0.025),
+        y: hipY + 0.13,
+        z: 0,
+        visibility: 0.95,
+      };
+      landmarks[left ? POSE.LEFT_ANKLE : POSE.RIGHT_ANKLE] = {
+        x,
+        y: footY,
+        z: 0,
+        visibility: 0.95,
+      };
+    }
+    // Jeden absurdalny punkt o niskiej widoczności nie może udawać podłoża.
+    if (i === 20) {
+      for (const index of [27, 28, 29, 30, 31, 32]) {
+        landmarks[index] = { x: 0.5, y: 0.99, z: 0, visibility: 0.05 };
+      }
+    }
+    poses.push({
+      frameIndex: i,
+      sourceFrameIndex: i,
+      mediaTime: i / fps,
+      presentationTimestamp: i / fps,
+      sourceTimestampUs: Math.round((i / fps) * 1_000_000),
+      sourceTimestampMs: Math.round((i / fps) * 1000),
+      mediaPipeTimestampMs: Math.round((i / fps) * 1000),
+      landmarks,
+      peopleCount: 1,
+      trackingConfidence: 0.9,
+    });
+  }
+  return poses;
+}
+
 function meta(fps: number): VideoMetadata {
   return {
     fps,
@@ -149,6 +207,36 @@ describe("cmjAnalyzer", () => {
     const v = cmjAnalyzer.validateRecording(c2);
     expect(v.issues).toContain("EVENTS_NOT_DETECTED");
     expect(v.status).toBe("invalid_recording");
+  });
+
+  it("z realnego przebiegu liczy fazy, kąty i RSI-mod bez fałszywego lotu z szumu", async () => {
+    const poses = buildRealisticCmjPoses();
+    const realCtx: AnalysisContext = {
+      ...ctx,
+      poses,
+      metadata: { ...meta(120), durationSeconds: poses.length / 120, frameCount: poses.length },
+    };
+    const events = await cmjAnalyzer.detectKeyEvents(realCtx);
+    const metrics = cmjAnalyzer.calculateMetrics(events, realCtx);
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(["movement_start", "lowest_position", "takeoff", "landing"]),
+    );
+    expect(metrics.map((metric) => metric.key)).toEqual(
+      expect.arrayContaining([
+        "jump_height_cm",
+        "flight_time_s",
+        "countermovement_depth_pct",
+        "knee_angle_bottom_deg",
+        "hip_angle_bottom_deg",
+        "time_to_takeoff_s",
+        "rsi_modified",
+        "eccentric_phase_time_s",
+        "propulsion_time_s",
+      ]),
+    );
+    const height = metrics.find((metric) => metric.key === "jump_height_cm")!.value;
+    expect(height).toBeGreaterThan(15);
+    expect(height).toBeLessThan(25);
   });
 });
 

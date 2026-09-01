@@ -7,17 +7,25 @@ function lm(pose: FramePose, index: number): Landmark | null {
   return pose.landmarks[index] ?? null;
 }
 
+/** Landmark używany w pomiarze, nie tylko zwrócony przez model. */
+function reliableLm(pose: FramePose, index: number, minVisibility = 0.35): Landmark | null {
+  const point = lm(pose, index);
+  if (!point || point.visibility < minVisibility) return null;
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  return point;
+}
+
 /** Średnia współrzędna Y dwóch landmarków (NaN gdy brak). W obrazie Y rośnie w dół. */
 function avgY(pose: FramePose, a: number, b: number): number {
-  const la = lm(pose, a);
-  const lb = lm(pose, b);
+  const la = reliableLm(pose, a);
+  const lb = reliableLm(pose, b);
   if (!la || !lb) return NaN;
   return (la.y + lb.y) / 2;
 }
 
 function avgX(pose: FramePose, a: number, b: number): number {
-  const la = lm(pose, a);
-  const lb = lm(pose, b);
+  const la = reliableLm(pose, a);
+  const lb = reliableLm(pose, b);
   if (!la || !lb) return NaN;
   return (la.x + lb.x) / 2;
 }
@@ -39,12 +47,12 @@ export function hipXSeries(poses: FramePose[]): number[] {
 export function footBottomSeries(poses: FramePose[]): number[] {
   return poses.map((p) => {
     const candidates = [
-      lm(p, POSE.LEFT_HEEL),
-      lm(p, POSE.RIGHT_HEEL),
-      lm(p, POSE.LEFT_FOOT_INDEX),
-      lm(p, POSE.RIGHT_FOOT_INDEX),
-      lm(p, POSE.LEFT_ANKLE),
-      lm(p, POSE.RIGHT_ANKLE),
+      reliableLm(p, POSE.LEFT_HEEL),
+      reliableLm(p, POSE.RIGHT_HEEL),
+      reliableLm(p, POSE.LEFT_FOOT_INDEX),
+      reliableLm(p, POSE.RIGHT_FOOT_INDEX),
+      reliableLm(p, POSE.LEFT_ANKLE),
+      reliableLm(p, POSE.RIGHT_ANKLE),
     ].filter((l): l is Landmark => !!l);
     if (candidates.length === 0) return NaN;
     return Math.max(...candidates.map((l) => l.y));
@@ -81,4 +89,4 @@ export function feetOutOfFrameRate(poses: FramePose[]): number {
   return out / valid.length;
 }
 
-export { lm };
+export { lm, reliableLm };

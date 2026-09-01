@@ -220,6 +220,7 @@ export function recognizeTestProtocol(
   const { signature, confidence, contactCount, flightCount } = recognizeMovement(poses);
   const { cycles } = detectRepeatedCycles(poses);
   const singleFlight = detectFlightPhase(poses);
+  const dropJump = detectDropJumpPhases(poses);
   const detectedFamilies = SIGNATURE_FAMILIES[signature];
   const familyMatch = detectedFamilies.includes(selectedFamily);
   const detectedTestType = SIGNATURE_TO_TEST_LABEL[signature];
@@ -279,7 +280,10 @@ export function recognizeTestProtocol(
     // Zasada: wybrany test to źródło prawdy. Recognizer NIE zamienia CMJ
     // na Pogo automatycznie. Odrzucamy dopiero przy jednoznacznym dowodzie
     // niezgodności (rytm Pogo bez wyraźnej pojedynczej fazy lotu).
-    if (signature === "UNKNOWN") {
+    if (selectedTestType === "drop_jump" && !dropJump) {
+      errorCode = "INVALID_TEST_EXECUTION";
+      reason = "Nie wykryto sekwencji zejście ze skrzyni → kontakt → ponowne wybicie.";
+    } else if (signature === "UNKNOWN") {
       // Bez wiarygodnych bioder/stóp nie mamy dowodu ani ZA, ani PRZECIW —
       // niech adapter zdecyduje na podstawie swoich własnych detektorów.
       reason = `Sygnatura ruchu niepewna (${signature}, pewność ${confidence.toFixed(2)}).`;

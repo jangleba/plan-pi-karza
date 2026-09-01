@@ -159,6 +159,19 @@ function throwIfAborted(signal?: AbortSignal): void {
   throw error;
 }
 
+/**
+ * Oddaje główny wątek przeglądarce, żeby Safari mogło odmalować postęp i
+ * obsłużyć anulowanie. Sama detekcja MediaPipe jest synchroniczna; bez tego
+ * seria klatek wyglądała jak zawieszenie na jednym procencie i mogła uruchomić
+ * watchdog iOS mimo że obliczenia nadal trwały.
+ */
+function yieldToBrowser(): Promise<void> {
+  if (typeof requestAnimationFrame === "function") {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function isFrameTimestampOrderError(error: unknown): boolean {
   const code =
     error && typeof error === "object" && "code" in error
@@ -437,6 +450,7 @@ export async function extractFramesAndEstimatePose(
             completedFrames: completedInPass,
             totalFrames: schedule.length,
           });
+          if (completedInPass % 3 === 0) await yieldToBrowser();
         }
       }
     };
