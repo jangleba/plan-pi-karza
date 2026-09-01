@@ -20,6 +20,7 @@ import {
 } from "@/lib/loadwise/exerciseLibrary";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -122,6 +123,21 @@ function restLabel(e: TrainingExercise): string | null {
   const r = e.restAfterPair ?? e.restAfterExercise;
   if (!r) return null;
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
+}
+
+function formatRestValue(value: string | undefined): string {
+  if (!value) return "";
+  return value.replace(/^Przerwa:\s*/i, "").replace(/^Rest:\s*/i, "").trim();
+}
+
+function exerciseDataLineParts(e: TrainingExercise): { dose: string; meta: string } {
+  const display = compactPrescription(e);
+  const parts = display.split(" · ");
+  const dose = parts[0] ?? "";
+  const qualifier = parts.slice(1).join(" ");
+  const rest = formatRestValue(e.restAfterPair ?? e.restAfterExercise);
+  const meta = [qualifier, rest].filter(Boolean).join(" ").trim();
+  return { dose, meta };
 }
 
 function restSecondsFromLabel(label: string): number {
@@ -385,6 +401,7 @@ export function isSprintRunnerSession(session: SessionDay): boolean {
 
 function ExerciseRow({
   e,
+  index,
   done,
   onToggle,
   onUnavailable,
@@ -392,6 +409,7 @@ function ExerciseRow({
   sessionId,
 }: {
   e: TrainingExercise;
+  index?: number;
   done: boolean;
   onToggle: () => void;
   onUnavailable: () => void;
@@ -402,179 +420,139 @@ function ExerciseRow({
   const [logging, setLogging] = useState(false);
   const canLogSets = plannedSets(e) > 0;
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-  const [restRunning, setRestRunning] = useState(false);
-  const [restSeconds, setRestSeconds] = useState<number | null>(null);
-  const restSecondsRef = useRef(restSeconds);
-  restSecondsRef.current = restSeconds;
-  useEffect(() => {
-    if (!restRunning || restSecondsRef.current === null) return;
-    const timer = window.setInterval(() => {
-      setRestSeconds((current) => {
-        if (current === null || current <= 1) {
-          setRestRunning(false);
-          return null;
-        }
-        return current - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [restRunning]);
-  const presc = compactPrescription(e);
-  const rest = restLabel(e);
-  const definition = resolveDefinitionForExercise(e);
+  const { dose, meta } = exerciseDataLineParts(e);
   const title = canonicalExerciseName(e);
   const details = resolveExerciseSheetViewModel(e);
   const equipmentNames = equipmentIds.map(
     (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
+  const label = e.label ?? (typeof index === "number" ? String(index + 1) : "");
   return (
-    <div className="py-2">
-      <div className="flex items-start gap-3">
+    <div className="py-3">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onToggle}
-          className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-border"}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+            done
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/10 text-primary"
+          }`}
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
-        />
-        <div className="min-w-0 flex-1">
-          {/* Wiersz 1: badge kodu + nazwa + chevron (otwiera szczegóły) */}
+        >
+          {done ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <span className="text-[11px] font-bold">{label}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="min-w-0 flex-1 text-left"
+        >
+          <span
+            className={`block truncate text-[15px] font-semibold leading-tight ${
+              done ? "text-muted-foreground line-through" : "text-foreground"
+            }`}
+          >
+            {title}
+          </span>
+          {(dose || meta) && (
+            <span className="mt-0.5 block truncate text-[12px] leading-tight text-muted-foreground">
+              {dose && (
+                <span className="mr-2 font-semibold tabular-nums text-foreground">{dose}</span>
+              )}
+              {meta}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/60"
+          aria-label="Szczegóły"
+        >
+          <ChevronRight
+            className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`}
+          />
+        </button>
+      </div>
+      {expanded && (
+        <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3 text-xs">
+          {details.purpose && (
+            <p className="text-sm leading-relaxed text-foreground">{details.purpose}</p>
+          )}
+          {details.steps.length > 0 && (
+            <div>
+              <div className="font-semibold text-muted-foreground">Jak wykonać</div>
+              <ol className="mt-1 space-y-1 pl-4 text-sm text-foreground">
+                {details.steps.map((step, i) => (
+                  <li key={i} className="list-decimal">
+                    {[step.title, step.description].filter(Boolean).join(" — ")}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {details.cues.length > 0 && (
+            <div>
+              <div className="font-semibold text-muted-foreground">Wskazówki</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {details.cues.map((cue, i) => (
+                  <li key={i}>{cue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {details.errors.length > 0 && (
+            <div>
+              <div className="font-semibold text-muted-foreground">Błędy</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {details.errors.map((error, i) => (
+                  <li key={i}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="grid gap-2 text-sm text-foreground/80 sm:grid-cols-2">
+            <div>
+              <div className="font-semibold text-muted-foreground">Sprzęt</div>
+              <p className="mt-1">{details.equipment}</p>
+            </div>
+            <div>
+              <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
+              <p className="mt-1">{details.replacement}</p>
+            </div>
+          </div>
+          {!done && equipmentIds.length > 0 && (
+            <button
+              type="button"
+              onClick={onUnavailable}
+              className="text-[11px] font-medium text-primary"
+            >
+              Nie mam {equipmentNames.join(", ")}
+            </button>
+          )}
+          {canLogSets && (
+            <button
+              type="button"
+              onClick={() => setLogging(true)}
+              className="rounded-md border border-primary/30 px-2.5 py-1 text-[11px] font-semibold text-primary"
+            >
+              Zapisz serie
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setExpanded((current) => !current)}
-            className="flex w-full items-center gap-2 text-left"
+            onClick={() => setDetailSheetOpen(true)}
+            className="block text-[11px] font-semibold text-primary"
           >
-            {e.label && (
-              <span className="inline-flex h-6 min-w-[26px] shrink-0 items-center justify-center rounded-md bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
-                {e.label}
-              </span>
-            )}
-            <span
-              className={`min-w-0 flex-1 truncate text-sm font-semibold ${
-                done ? "text-muted-foreground line-through" : "text-foreground"
-              }`}
-            >
-              {title}
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            Otwórz pełne szczegóły ćwiczenia
           </button>
-          {/* Wiersze 2–3: dawka + przerwa (bez ściany tekstu) */}
-          <div className={e.label ? "mt-1 pl-[34px]" : "mt-1"}>
-            {presc && (
-              <div className="text-[13px] font-semibold tabular-nums text-foreground/80">
-                {presc}
-              </div>
-            )}
-            {!done && equipmentIds.length > 0 && (
-              <button
-                type="button"
-                onClick={onUnavailable}
-                className="mt-1 text-[11px] font-medium text-primary"
-              >
-                Nie mam {equipmentNames.join(", ")}
-              </button>
-            )}
-            {canLogSets && !logging && (
-              <button
-                type="button"
-                onClick={() => setLogging(true)}
-                className="mt-1.5 rounded-md border border-primary/30 px-2.5 py-1 text-[11px] font-semibold text-primary"
-              >
-                Start
-              </button>
-            )}
-          </div>
-          {expanded && (
-            <div className="mt-3 space-y-3 rounded-lg bg-muted/30 p-3 text-xs">
-              {details.purpose && (
-                <p className="text-sm leading-relaxed text-foreground">{details.purpose}</p>
-              )}
-              {details.steps.length > 0 && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Jak wykonać</div>
-                  <ol className="mt-1 space-y-1 pl-4 text-sm text-foreground">
-                    {details.steps.map((step, index) => (
-                      <li key={index} className="list-decimal">
-                        {[step.title, step.description].filter(Boolean).join(" — ")}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-              {details.cues.length > 0 && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Wskazówki</div>
-                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {details.cues.map((cue, i) => (
-                      <li key={i}>{cue}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {details.errors.length > 0 && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Błędy</div>
-                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {details.errors.map((error, i) => (
-                      <li key={i}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="grid gap-2 text-sm text-foreground/80 sm:grid-cols-2">
-                <div>
-                  <div className="font-semibold text-muted-foreground">Sprzęt</div>
-                  <p className="mt-1">{details.equipment}</p>
-                </div>
-                <div>
-                  <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
-                  <p className="mt-1">{details.replacement}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailSheetOpen(true)}
-                className="text-[11px] font-semibold text-primary"
-              >
-                Otwórz pełne szczegóły ćwiczenia
-              </button>
-              <MovementBlueprint exercise={e} />
-            </div>
-          )}
-          {rest && (
-            <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-              <span>{rest}</span>
-              <button
-                type="button"
-                className="font-semibold text-primary"
-                onClick={() => {
-                  if (restRunning) {
-                    setRestRunning(false);
-                    return;
-                  }
-                  const seconds = restSecondsFromLabel(rest);
-                  setRestSeconds((current) => current ?? seconds);
-                  setRestRunning(true);
-                }}
-              >
-                {restRunning ? "Pauza" : "Start"}
-              </button>
-              {restRunning && (
-                <button
-                  type="button"
-                  className="text-muted-foreground"
-                  onClick={() => {
-                    setRestRunning(false);
-                    setRestSeconds(null);
-                  }}
-                >
-                  Reset
-                </button>
-              )}
-              {restSeconds !== null && <span className="tabular-nums">{restSeconds} s</span>}
-            </div>
-          )}
+          <MovementBlueprint exercise={e} />
         </div>
-      </div>
+      )}
       <ExerciseDetailSheet exercise={e} open={detailSheetOpen} onOpenChange={setDetailSheetOpen} />
       <ExerciseRunnerScreen
         exercise={e}
@@ -983,6 +961,14 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
   );
 });
 
+const SECTION_TAB_LABELS: Record<string, string> = {
+  warmup: "Rozgrzewka",
+  prep: "Przygotowanie",
+  main: "Główna",
+  accessory: "Dobór",
+  cooldown: "Schłódzenie",
+};
+
 const StructuredSections = memo(function StructuredSections({
   sections,
   date,
@@ -995,71 +981,82 @@ const StructuredSections = memo(function StructuredSections({
   const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [openBlocks, setOpenBlocks] = useState<Record<string, boolean>>({});
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    sections[0]?.id ?? "",
+  );
   const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
+
+  const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
+
   return (
-    <div className="space-y-4">
-      {sections.map((sec) => (
-        <div key={sec.id} className="soft-card p-4">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
-            {sec.title}
-          </h3>
-          <div className="mt-2.5 space-y-4">
-            {sec.blocks.map((b) => {
-              const blockTitle = b.title || b.exercises[0]?.name || "Blok";
-              const blockRest = b.restAfterBlock
-                ? /przerwa|rest|śwież|przejdź|pełna/i.test(b.restAfterBlock)
-                  ? b.restAfterBlock
-                  : `Przerwa po bloku: ${b.restAfterBlock}`
-                : null;
-              const blockOpen = openBlocks[b.id] === true;
-              return (
-                <div key={b.id}>
-                  <button
-                    type="button"
-                    onClick={() => setOpenBlocks((current) => ({ ...current, [b.id]: !blockOpen }))}
-                    className="mb-0.5 flex w-full items-center gap-2 text-left text-[12px] font-bold uppercase tracking-tight text-foreground/90"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{blockTitle}</span>
-                    <span className="truncate text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-                      {b.exercises[0] ? compactPrescription(b.exercises[0]) : ""}
+    <div className="space-y-3">
+      <div className="flex items-center gap-1 border-b border-border">
+        {sections.map((sec) => (
+          <button
+            key={sec.id}
+            type="button"
+            onClick={() => setActiveSectionId(sec.id)}
+            className={`relative px-2.5 py-2 text-[13px] font-medium transition-colors ${
+              activeSectionId === sec.id ? "text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            {SECTION_TAB_LABELS[sec.type] ?? sec.title}
+            {activeSectionId === sec.id && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-primary" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeSection && (
+        <div className="soft-card p-4">
+          {activeSection.blocks.map((b, blockIndex) => {
+            const blockTitle = b.title || b.exercises[0]?.name || "Blok";
+            const blockRest = b.restAfterBlock ? formatRestValue(b.restAfterBlock) : null;
+            return (
+              <div key={b.id} className={blockIndex > 0 ? "pt-4" : ""}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h4 className="truncate text-[13px] font-bold text-foreground">
+                    {blockTitle}
+                  </h4>
+                  {b.exercises[0] && (
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {compactPrescription(b.exercises[0])}
                     </span>
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 transition-transform ${blockOpen ? "rotate-90" : ""}`}
-                    />
-                  </button>
-                  <div className={`divide-y divide-border/40 ${!blockOpen ? "hidden" : ""}`}>
-                    {b.exercises.map((e) => {
-                      const equipmentIds = specialistEquipmentForExercise(
-                        getExerciseDefinition(e.exerciseId ?? e.name),
-                      );
-                      return (
-                        <ExerciseRow
-                          key={e.id}
-                          e={e}
-                          done={!!done[e.id]}
-                          onToggle={() => toggle(e.id)}
-                          onUnavailable={() => {
-                            if (equipmentIds.length)
-                              markEquipmentUnavailable(date, e, equipmentIds);
-                          }}
-                          equipmentIds={equipmentIds}
-                          sessionId={sessionId}
-                        />
-                      );
-                    })}
-                  </div>
-                  {blockRest && (
-                    <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                      {blockRest}
-                    </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+                <div className="divide-y divide-border/40">
+                  {b.exercises.map((e, exerciseIndex) => {
+                    const equipmentIds = specialistEquipmentForExercise(
+                      getExerciseDefinition(e.exerciseId ?? e.name),
+                    );
+                    return (
+                      <ExerciseRow
+                        key={e.id}
+                        e={e}
+                        index={exerciseIndex}
+                        done={!!done[e.id]}
+                        onToggle={() => toggle(e.id)}
+                        onUnavailable={() => {
+                          if (equipmentIds.length)
+                            markEquipmentUnavailable(date, e, equipmentIds);
+                        }}
+                        equipmentIds={equipmentIds}
+                        sessionId={sessionId}
+                      />
+                    );
+                  })}
+                </div>
+                {blockRest && (
+                  <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+                    Po bloku — {blockRest}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 });
