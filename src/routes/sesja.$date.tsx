@@ -125,6 +125,21 @@ function restLabel(e: TrainingExercise): string | null {
   return /przerwa|rest/i.test(r) ? r : `Przerwa: ${r}`;
 }
 
+function formatRestValue(value: string | undefined): string {
+  if (!value) return "";
+  return value.replace(/^Przerwa:\s*/i, "").replace(/^Rest:\s*/i, "").trim();
+}
+
+function exerciseDataLineParts(e: TrainingExercise): { dose: string; meta: string } {
+  const display = compactPrescription(e);
+  const parts = display.split(" · ");
+  const dose = parts[0] ?? "";
+  const qualifier = parts.slice(1).join(" ");
+  const rest = formatRestValue(e.restAfterPair ?? e.restAfterExercise);
+  const meta = [qualifier, rest].filter(Boolean).join(" ").trim();
+  return { dose, meta };
+}
+
 function restSecondsFromLabel(label: string): number {
   const values = [...label.matchAll(/\d+/g)].map(([value]) => Number(value));
   if (values.length === 0) return 90;
