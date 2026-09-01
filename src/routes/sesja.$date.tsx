@@ -20,6 +20,7 @@ import {
 } from "@/lib/loadwise/exerciseLibrary";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
