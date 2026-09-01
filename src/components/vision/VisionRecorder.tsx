@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, CircleStop, Loader2, RotateCcw, ScanLine, Video, X } from "lucide-react";
+import { Camera, CircleStop, Loader2, RotateCcw, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VisionLivePoseOverlay } from "./VisionLivePoseOverlay";
 import {
@@ -27,6 +27,7 @@ type RecorderMode = "idle" | "starting" | "preview" | "recording" | "processing"
 interface VisionRecorderProps {
   minimumFps: number;
   testType: TestType;
+  buttonLabel?: string;
   onRecorded: (file: File, detectedFps: number | null) => Promise<void>;
 }
 
@@ -48,7 +49,12 @@ function speak(message: string): void {
   window.speechSynthesis.speak(utterance);
 }
 
-export function VisionRecorder({ minimumFps, testType, onRecorded }: VisionRecorderProps) {
+export function VisionRecorder({
+  minimumFps,
+  testType,
+  buttonLabel = "Nagraj test w BallWise",
+  onRecorded,
+}: VisionRecorderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -412,8 +418,9 @@ export function VisionRecorder({ minimumFps, testType, onRecorded }: VisionRecor
       setDetectedFps(rounded);
       setPreviewReady(false);
       setMode("preview");
-      // Jeden świadomy gest: kamera startuje i tryb solo jest od razu uzbrojony.
-      setAutoArmed(true);
+      // Otwarcie kamery służy wyłącznie ustawieniu telefonu i kadru.
+      // Nagranie może uzbroić dopiero osobny, świadomy przycisk użytkownika.
+      setAutoArmed(false);
     } catch (cameraError) {
       closeCamera();
       setMode("idle");
@@ -467,7 +474,7 @@ export function VisionRecorder({ minimumFps, testType, onRecorded }: VisionRecor
             </>
           ) : (
             <>
-              <Camera className="mr-2 h-5 w-5" /> Nagraj test w BallWise
+              <Camera className="mr-2 h-5 w-5" /> {buttonLabel}
             </>
           )}
         </Button>
@@ -591,7 +598,7 @@ export function VisionRecorder({ minimumFps, testType, onRecorded }: VisionRecor
             }`}
           >
             {liveMessage}
-            {autoArmed && athleteReady ? " · auto start" : ""}
+            {autoArmed && athleteReady ? " · start za chwilę" : autoArmed ? " · czekam" : ""}
           </div>
         )}
 
@@ -604,40 +611,18 @@ export function VisionRecorder({ minimumFps, testType, onRecorded }: VisionRecor
             <CircleStop className="mr-2 h-5 w-5" /> Zatrzymaj nagranie
           </Button>
         ) : autoArmed ? (
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Button
-              variant="secondary"
-              className="w-full"
-              size="lg"
-              onClick={cancelAutomaticRecording}
-            >
-              Wyłącz auto start
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-11 w-11"
-              onClick={startRecording}
-              aria-label="Rozpocznij nagranie ręcznie"
-            >
-              <Video className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            className="w-full"
+            size="lg"
+            onClick={cancelAutomaticRecording}
+          >
+            Anuluj oczekiwanie
+          </Button>
         ) : (
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Button className="w-full" size="lg" onClick={() => setAutoArmed(true)}>
-              <ScanLine className="mr-2 h-5 w-5" /> Włącz auto start
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-11 w-11"
-              onClick={startRecording}
-              aria-label="Rozpocznij nagranie ręcznie"
-            >
-              <Video className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button className="w-full" size="lg" onClick={() => setAutoArmed(true)}>
+            <ScanLine className="mr-2 h-5 w-5" /> Rozpocznij test
+          </Button>
         )}
 
         {error && <p className="px-1 text-[11px] leading-relaxed text-red-200">{error}</p>}

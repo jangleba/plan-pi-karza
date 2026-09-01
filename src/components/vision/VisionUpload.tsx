@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { FolderOpen, FileVideo, CheckCircle2, Loader2, Info } from "lucide-react";
+import { FolderOpen, CheckCircle2, Loader2, Info } from "lucide-react";
 import { VisionHeader } from "./visionUi";
 import { VisionRecorder } from "./VisionRecorder";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,26 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const protocol = getTestProtocol(test.id as TestType);
   const isSprintScan = ["sprint_20m", "sprint_30m", "flying_sprint"].includes(test.id);
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
+  const [selectedFile, setSelectedFile] = useState<File | null>(flow.file);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>(flow.file ? "done" : "idle");
   const [sessionProtected, setSessionProtected] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const nextUrl = URL.createObjectURL(selectedFile);
+    setPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [selectedFile]);
+
   async function onFile(file: File, detectedFps?: number | null) {
     const selectionToken = ++selectionTokenRef.current;
     setFileName(file.name);
+    setSelectedFile(file);
     setStatus("preparing");
     setSessionProtected(null);
     // Dla pliku z galerii nie dziedziczymy domyślnego/starego FPS sprintu.
@@ -76,8 +89,48 @@ export function VisionUpload({ test }: { test: VisionTest }) {
         <VisionRecorder
           minimumFps={protocol.minimumFps}
           testType={test.id as TestType}
+          buttonLabel={selectedFile ? "Nagraj ponownie" : "Nagraj test w BallWise"}
           onRecorded={onFile}
         />
+
+        {previewUrl && (
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <video
+              key={previewUrl}
+              src={previewUrl}
+              controls
+              muted
+              playsInline
+              preload="metadata"
+              className="aspect-video w-full bg-black object-contain"
+            />
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                  status === "done"
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : "bg-blue-500/10 text-blue-600"
+                }`}
+              >
+                {status === "done" ? (
+                  <CheckCircle2 className="h-5 w-5" />
+                ) : (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                )}
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">
+                  {status === "done" ? "Nagranie gotowe" : "Przygotowywanie nagrania…"}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {sessionProtected === false
+                    ? "Gotowe w tej karcie — nie odświeżaj przed analizą"
+                    : fileName}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-3 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <span className="h-px flex-1 bg-border" /> albo wybierz gotowy film{" "}
@@ -109,37 +162,6 @@ export function VisionUpload({ test }: { test: VisionTest }) {
             e.currentTarget.value = "";
           }}
         />
-
-        {fileName && (
-          <div className="soft-card flex items-center gap-3 p-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-brand">
-              <FileVideo className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-foreground">{fileName}</div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-xs">
-                {status === "preparing" && (
-                  <span className="inline-flex items-center gap-1 text-brand">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Zabezpieczanie filmu na czas analizy…
-                  </span>
-                )}
-                {status === "done" && (
-                  <span
-                    className={`inline-flex items-center gap-1 ${
-                      sessionProtected === false ? "text-amber-600" : "text-emerald-600"
-                    }`}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {sessionProtected === false
-                      ? "Gotowy w tej karcie — nie odświeżaj ekranu"
-                      : "Gotowy do analizy i ponowienia na tym urządzeniu"}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         <p className="rounded-2xl bg-accent px-4 py-3 text-xs leading-relaxed text-muted-foreground">
           Film nie jest wysyłany do chmury. Analiza klatek odbywa się na tym urządzeniu; do konta

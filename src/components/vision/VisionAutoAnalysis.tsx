@@ -48,7 +48,7 @@ const PHASE_LABELS: Record<AnalysisPhase, string> = {
   idle: "Gotowe do startu",
   loadVideo: "Wczytywanie filmu",
   readMetadata: "Metadane filmu odczytane",
-  extractFrames: "Ekstrakcja klatek",
+  extractFrames: "Analiza klatek i sylwetki",
   estimatePose: "Analiza pozy zawodnika",
   buildMovementSignals: "Budowanie sygnałów ruchu",
   detectMovementEvents: "Wykrywanie zdarzeń ruchu",
@@ -788,12 +788,22 @@ function RunningView({
   snapshot: AnalysisPipelineSnapshot | null;
 }) {
   const pct = Math.round(progress * 100);
-  // Indeks bieżącego kroku w realnym pipelinie (bez timerów).
-  const rawIndex = PHASE_STEPS.indexOf(phase as PipelineStageName);
-  const currentIndex = phase === "completed" ? PHASE_STEPS.length : rawIndex === -1 ? 0 : rawIndex;
   const showFrameProgress = phase === "extractFrames" || phase === "estimatePose";
+  const groups: Array<{ label: string; stages: PipelineStageName[] }> = [
+    { label: "Wideo", stages: ["loadVideo", "readMetadata"] },
+    { label: "Sylwetka", stages: ["extractFrames", "estimatePose"] },
+    {
+      label: "Ruch",
+      stages: ["buildMovementSignals", "detectMovementEvents", "segmentAttempts", "validateProtocol"],
+    },
+    { label: "Wynik", stages: ["calculateResult", "validateRecording"] },
+  ];
+  const activeGroup = Math.max(
+    0,
+    groups.findIndex((group) => group.stages.includes(phase as PipelineStageName)),
+  );
   return (
-    <div className="soft-card space-y-5 p-6">
+    <div className="soft-card space-y-5 p-5">
       <div className="flex flex-col items-center text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-brand">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -820,32 +830,18 @@ function RunningView({
         </div>
       )}
 
-      <ol className="space-y-2.5">
-        {PHASE_STEPS.map((step, i) => {
-          const stage = snapshot?.stages[step];
-          const done = stage?.status === "completed" || stage?.status === "skipped";
-          const active = i === currentIndex && stage?.status === "running";
+      <ol className="grid grid-cols-4 gap-2" aria-label="Postęp analizy">
+        {groups.map((group, i) => {
+          const done = group.stages.every((step) => {
+            const status = snapshot?.stages[step]?.status;
+            return status === "completed" || status === "skipped";
+          });
+          const active = phase !== "completed" && i === activeGroup;
           return (
-            <li key={step} className="flex items-center gap-3">
+            <li key={group.label} className="min-w-0 text-center">
+              <span className={`block h-1.5 rounded-full ${done ? "bg-brand" : active ? "bg-brand/55" : "bg-muted"}`} />
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
-                  done
-                    ? "bg-brand text-white"
-                    : active
-                      ? "bg-accent text-brand"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {done ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : active ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  i + 1
-                )}
-              </span>
-              <span
-                className={`text-sm ${
+                className={`mt-1.5 block truncate text-[11px] ${
                   active
                     ? "font-semibold text-foreground"
                     : done
@@ -853,7 +849,7 @@ function RunningView({
                       : "text-muted-foreground/60"
                 }`}
               >
-                {PHASE_LABELS[step]}
+                {group.label}
               </span>
             </li>
           );
