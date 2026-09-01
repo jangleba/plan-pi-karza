@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { FolderOpen, CheckCircle2, Loader2, Info } from "lucide-react";
 import { VisionHeader } from "./visionUi";
-import { VisionRecorder } from "./VisionRecorder";
+import { requiredRecordingOrientation, VisionRecorder } from "./VisionRecorder";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
@@ -21,6 +21,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
   const flow = getFlow(test.id);
   const protocol = getTestProtocol(test.id as TestType);
   const isSprintScan = ["sprint_20m", "sprint_30m", "flying_sprint"].includes(test.id);
+  const recordingOrientation = requiredRecordingOrientation(test.id as TestType);
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
   const [selectedFile, setSelectedFile] = useState<File | null>(flow.file);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -56,15 +57,19 @@ export function VisionUpload({ test }: { test: VisionTest }) {
       uploaded: false,
       fps,
     });
+    // Plik jest już gotowy w pamięci i może od razu przejść do analizy.
+    // Lokalna kopia bezpieczeństwa nie może blokować interfejsu na iOS.
+    setStatus("done");
     // Kopia pozostaje wyłącznie na tym urządzeniu. Chroni retry przed utratą
     // File po przeładowaniu Lovable Preview lub odzyskaniu karty przez iOS.
     // Najpierw usuń poprzedni film tego testu. Jeśli zapis nowego przekroczy
     // limit pamięci, reload nie może przywrócić starszego, niewłaściwego pliku.
-    await clearVisionSessionVideo(test.id);
-    const protectedLocally = await saveVisionSessionVideo(test.id, file);
-    if (selectionTokenRef.current !== selectionToken) return;
-    setSessionProtected(protectedLocally);
-    setStatus("done");
+    void (async () => {
+      await clearVisionSessionVideo(test.id);
+      const protectedLocally = await saveVisionSessionVideo(test.id, file);
+      if (selectionTokenRef.current !== selectionToken) return;
+      setSessionProtected(protectedLocally);
+    })();
   }
 
   async function submitForAnalysis() {
@@ -182,6 +187,9 @@ export function VisionUpload({ test }: { test: VisionTest }) {
             ))}
           </ul>
           <div className="flex flex-wrap gap-2 text-[11px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-brand/10 px-2 py-0.5 font-semibold text-brand">
+              Telefon: {recordingOrientation === "landscape" ? "poziomo" : "pionowo"}
+            </span>
             <span className="rounded-full bg-accent px-2 py-0.5">
               Zalecane {protocol.preferredFps} FPS (min. {protocol.minimumFps})
             </span>

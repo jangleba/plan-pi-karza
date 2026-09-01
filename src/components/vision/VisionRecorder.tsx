@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, CircleStop, Loader2, RotateCcw, ScanLine, X } from "lucide-react";
+import { Camera, CircleStop, Loader2, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VisionLivePoseOverlay } from "./VisionLivePoseOverlay";
 import {
@@ -13,7 +13,6 @@ import {
   AUTO_RECORDING_SECONDS,
   IDLE_COUNTDOWN,
   START_HOLD_MS,
-  STABLE_POSE_MS,
   cameraErrorMessage,
   classifyCameraError,
   cueForCountdown,
@@ -29,6 +28,21 @@ interface VisionRecorderProps {
   testType: TestType;
   buttonLabel?: string;
   onRecorded: (file: File, detectedFps: number | null) => Promise<void>;
+}
+
+type RecordingOrientation = "portrait" | "landscape";
+
+const LANDSCAPE_TESTS = new Set<TestType>([
+  "sprint_20m",
+  "sprint_30m",
+  "flying_sprint",
+  "five_ten_five",
+  "sprint_to_stop",
+]);
+
+/** Sprint/COD potrzebuje szerokiego kadru. Skoki i technika korzystają z pionu. */
+export function requiredRecordingOrientation(testType: TestType): RecordingOrientation {
+  return LANDSCAPE_TESTS.has(testType) ? "landscape" : "portrait";
 }
 
 function supportedMimeType(): string | undefined {
@@ -61,7 +75,6 @@ export function VisionRecorder({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const autoStopRef = useRef<number | null>(null);
-  const stablePoseRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -72,12 +85,14 @@ export function VisionRecorder({
   const [detectedFps, setDetectedFps] = useState<number | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [poseStatus, setPoseStatus] = useState<LivePoseStatus>(EMPTY_LIVE_POSE_STATUS);
-  const [autoArmed, setAutoArmed] = useState(false);
   const [countdown, setCountdown] = useState<CountdownState>(IDLE_COUNTDOWN);
+  const [preparationActive, setPreparationActive] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
   const [audioAvailable, setAudioAvailable] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLandscape, setIsLandscape] = useState(true);
+  const requiredOrientation = requiredRecordingOrientation(testType);
+  const orientationReady = requiredOrientation === "landscape" ? isLandscape : !isLandscape;
 
   useEffect(() => {
     const updateOrientation = () => setIsLandscape(window.innerWidth > window.innerHeight);
@@ -93,12 +108,10 @@ export function VisionRecorder({
   const clearTimers = useCallback(() => {
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
-    if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
     if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
     if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
     timerRef.current = null;
     autoStopRef.current = null;
-    stablePoseRef.current = null;
     countdownTimerRef.current = null;
     flashTimerRef.current = null;
   }, []);
@@ -121,8 +134,8 @@ export function VisionRecorder({
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setPreviewReady(false);
     setPoseStatus(EMPTY_LIVE_POSE_STATUS);
-    setAutoArmed(false);
     setCountdown(IDLE_COUNTDOWN);
+    setPreparationActive(false);
     setFlashActive(false);
   }, [clearTimers]);
 
@@ -260,12 +273,23 @@ export function VisionRecorder({
 
   const stopRecording = useCallback(() => {
     const recorder = recorderRef.current;
-    if (recorder?.state === "recording") recorder.stop();
+    if (recorder?.state === "recording") {
+      try {
+        recorder.requestData();
+      } catch {
+        // Safari może nie wspierać ręcznego flush; stop() i tak wysyła ostatni chunk.
+      }
+      recorder.stop();
+    }
   }, []);
 
   const startRecording = useCallback(() => {
-    if (!isLandscape) {
-      setError("Obróć telefon poziomo, aby rozpocząć nagranie.");
+    if (!orientationReady) {
+      setError(
+        requiredOrientation === "landscape"
+          ? "Obróć telefon poziomo, aby rozpocząć nagranie."
+          : "Ustaw telefon pionowo, aby rozpocząć nagranie.",
+      );
       return false;
     }
     const stream = streamRef.current;
@@ -299,13 +323,21 @@ export function VisionRecorder({
       const type = recorder.mimeType || mimeType || "video/webm";
       const extension = type.includes("mp4") ? "mp4" : "webm";
       const blob = new Blob(chunksRef.current, { type });
-      const file = new File([blob], `ballwise-sprint-${Date.now()}.${extension}`, {
+      if (blob.size === 0) {
+        closeCamera();
+        setError("Nagranie jest puste. Otwórz kamerę i spróbuj ponownie.");
+        setMode("idle");
+        return;
+      }
+      const file = new File([blob], `ballwise-${testType}-${Date.now()}.${extension}`, {
         type,
         lastModified: Date.now(),
       });
       closeCamera();
       try {
-        await closePoseEngine();
+        // Zwolnienie podglądowego modelu pozy nie może zatrzymać przekazania
+        // gotowego pliku. closePoseEngine odłącza sesję od razu, a domyka ją w tle.
+        void closePoseEngine();
         await onRecorded(file, detectedFpsRef.current);
         setMode("idle");
         setElapsedSeconds(0);
@@ -322,7 +354,7 @@ export function VisionRecorder({
       setElapsedSeconds((seconds) => seconds + 1);
     }, 1000);
     return true;
-  }, [clearTimers, closeCamera, isLandscape, onRecorded]);
+  }, [clearTimers, closeCamera, onRecorded, orientationReady, requiredOrientation, testType]);
 
   // Jedno odliczanie: 3 → 2 → 1 → START, każdy krok z beepem i własnym czasem trwania.
   useEffect(() => {
@@ -360,25 +392,19 @@ export function VisionRecorder({
 
   const athleteReady = isLivePoseReadyForTest(poseStatus, testType);
 
-  useEffect(() => {
-    if (!autoArmed || mode !== "preview" || !previewReady || !isLandscape || !athleteReady) {
-      if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
-      stablePoseRef.current = null;
-      return;
-    }
-    if (stablePoseRef.current !== null) return;
-    stablePoseRef.current = window.setTimeout(() => {
-      stablePoseRef.current = null;
-      setAutoArmed(false);
-      // Nagrywanie rusza przed odliczaniem, żeby zachować materiał sprzed sygnału START.
-      if (!startRecording()) return;
+  const beginTest = useCallback(() => {
+    // Najważniejsza gwarancja przepływu: kliknięcie od razu tworzy aktywny
+    // MediaRecorder. Szkielet pomaga ustawić kadr, ale nie może blokować pliku.
+    if (!startRecording()) return;
+    setPreparationActive(true);
+    // Film już się zapisuje, a zawodnik ma czas odejść od telefonu i stanąć
+    // w pełnym kadrze. Dopiero potem rozpoczyna się właściwe 3–2–1–START.
+    countdownTimerRef.current = window.setTimeout(() => {
+      countdownTimerRef.current = null;
+      setPreparationActive(false);
       setCountdown({ phase: "digit", value: 3 });
-    }, STABLE_POSE_MS);
-    return () => {
-      if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
-      stablePoseRef.current = null;
-    };
-  }, [athleteReady, autoArmed, isLandscape, mode, previewReady, startRecording]);
+    }, 4_000);
+  }, [startRecording]);
 
   async function openCamera() {
     setError(null);
@@ -418,9 +444,6 @@ export function VisionRecorder({
       setDetectedFps(rounded);
       setPreviewReady(false);
       setMode("preview");
-      // Otwarcie kamery służy wyłącznie ustawieniu telefonu i kadru.
-      // Nagranie może uzbroić dopiero osobny, świadomy przycisk użytkownika.
-      setAutoArmed(false);
     } catch (cameraError) {
       closeCamera();
       setMode("idle");
@@ -432,15 +455,6 @@ export function VisionRecorder({
     closeCamera();
     setMode("idle");
     setElapsedSeconds(0);
-  }
-
-  function cancelAutomaticRecording() {
-    setAutoArmed(false);
-    setCountdown(IDLE_COUNTDOWN);
-    if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
-    stablePoseRef.current = null;
-    if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
-    autoStopRef.current = null;
   }
 
   const lowFps = detectedFps !== null && detectedFps < minimumFps;
@@ -511,7 +525,7 @@ export function VisionRecorder({
       />
       <VisionLivePoseOverlay
         videoRef={videoRef}
-        active={(mode === "preview" || mode === "recording") && previewReady && isLandscape}
+        active={(mode === "preview" || mode === "recording") && previewReady && orientationReady}
         onStatus={setPoseStatus}
       />
 
@@ -523,13 +537,17 @@ export function VisionRecorder({
 
       {flashActive && <div className="pointer-events-none absolute inset-0 z-40 bg-white/85" />}
 
-      {!isLandscape && mode === "preview" && previewReady && (
+      {!orientationReady && mode === "preview" && previewReady && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-[#04142f]/95 px-8 text-center">
           <RotateCcw className="h-12 w-12 text-blue-400" />
           <div>
-            <p className="text-xl font-bold">Obróć telefon poziomo</p>
+            <p className="text-xl font-bold">
+              {requiredOrientation === "landscape" ? "Obróć telefon poziomo" : "Ustaw telefon pionowo"}
+            </p>
             <p className="mt-2 text-sm text-white/70">
-              Analiza i nagranie ruszą dopiero w poziomie.
+              {requiredOrientation === "landscape"
+                ? "Sprint i testy biegowe nagrywamy w szerokim kadrze."
+                : "CMJ i pozostałe skoki nagrywamy w pionowym kadrze całej sylwetki."}
             </p>
           </div>
           <button
@@ -597,8 +615,7 @@ export function VisionRecorder({
               athleteReady ? "bg-emerald-500/85 text-white" : "bg-black/65 text-white"
             }`}
           >
-            {liveMessage}
-            {autoArmed && athleteReady ? " · start za chwilę" : autoArmed ? " · czekam" : ""}
+            {preparationActive ? "Ustaw się w kadrze · odliczanie za chwilę" : liveMessage}
           </div>
         )}
 
@@ -610,18 +627,9 @@ export function VisionRecorder({
           <Button variant="destructive" className="w-full" size="lg" onClick={stopRecording}>
             <CircleStop className="mr-2 h-5 w-5" /> Zatrzymaj nagranie
           </Button>
-        ) : autoArmed ? (
-          <Button
-            variant="secondary"
-            className="w-full"
-            size="lg"
-            onClick={cancelAutomaticRecording}
-          >
-            Anuluj oczekiwanie
-          </Button>
         ) : (
-          <Button className="w-full" size="lg" onClick={() => setAutoArmed(true)}>
-            <ScanLine className="mr-2 h-5 w-5" /> Rozpocznij test
+          <Button className="w-full" size="lg" onClick={beginTest} disabled={!previewReady || !orientationReady}>
+            <Camera className="mr-2 h-5 w-5" /> Rozpocznij nagranie
           </Button>
         )}
 

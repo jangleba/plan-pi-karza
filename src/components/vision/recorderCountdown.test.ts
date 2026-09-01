@@ -11,6 +11,7 @@ import {
   isAthleteReady,
 } from "./recorderCountdown";
 import type { LivePoseStatus } from "./visionLivePose";
+import { requiredRecordingOrientation } from "./VisionRecorder";
 
 const READY_POSE: LivePoseStatus = {
   detected: true,
@@ -56,5 +57,14 @@ describe("recorderCountdown", () => {
     expect(formatElapsed(0)).toBe("0:00");
     expect(formatElapsed(65.9)).toBe("1:05");
     expect(formatElapsed(-2)).toBe("0:00");
+  });
+
+  it("ustawia pion dla skoków i poziom dla testów biegowych", () => {
+    expect(requiredRecordingOrientation("cmj")).toBe("portrait");
+    expect(requiredRecordingOrientation("drop_jump")).toBe("portrait");
+    expect(requiredRecordingOrientation("pogo_jumps")).toBe("portrait");
+    expect(requiredRecordingOrientation("sprint_20m")).toBe("landscape");
+    expect(requiredRecordingOrientation("five_ten_five")).toBe("landscape");
+    expect(requiredRecordingOrientation("sprint_to_stop")).toBe("landscape");
   });
 });
