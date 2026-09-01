@@ -169,6 +169,12 @@ export function analysisToFrameResult(analysis: VideoAnalysisResult): FrameAnaly
     method: `Video Analysis Engine (${analysis.analyzerVersion})`,
     markedBy: "ai",
     derived,
+    metrics: analysis.metrics.map((metric) => ({
+      key: metric.key,
+      label: metric.label,
+      value: metric.value,
+      unit: metric.unit,
+    })),
     basis,
   };
 }

@@ -444,5 +444,7 @@ export interface FrameAnalysisResult {
   method: string;
   markedBy: MarkedBy;
   derived: FrameDerived;
+  /** Wszystkie metryki policzone przez silnik (nie tylko starszy zestaw FrameDerived). */
+  metrics?: VisionMetric[];
   basis: CalculationBasis;
 }

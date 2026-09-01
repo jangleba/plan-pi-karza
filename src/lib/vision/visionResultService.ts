@@ -44,6 +44,7 @@ function writeLocal(items: VisionTestResult[]): void {
 
 /** Buduje realne metryki pochodne do wyświetlenia i profilu zawodnika. */
 function frameMetrics(frame: FrameAnalysisResult): VisionMetric[] {
+  if (frame.metrics && frame.metrics.length > 0) return frame.metrics;
   const d = frame.derived;
   const metrics: VisionMetric[] = [];
   const push = (key: string, label: string, value: number | null | undefined, unit: string) => {
