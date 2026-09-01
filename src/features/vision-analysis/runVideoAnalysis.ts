@@ -986,10 +986,7 @@ export async function runVideoAnalysis(opts: RunOptions): Promise<VideoAnalysisR
       measurement = acc.measurement;
       metrics = acc.metrics;
       temporalMeasurementRejected = measurement.errors.some(
-        (error) =>
-          error === "FRAME_RATE_TOO_LOW" ||
-          error === "TEMPORAL_RESOLUTION_TOO_LOW" ||
-          error === "RESULT_UNCERTAINTY_TOO_HIGH",
+        (error) => error === "FRAME_RATE_TOO_LOW" || error === "TEMPORAL_RESOLUTION_TOO_LOW",
       );
       if (temporalMeasurementRejected) {
         // Zdarzenia z przebiegu coarse mogą pomóc w diagnostyce, ale nie wolno

@@ -14,8 +14,10 @@ let activeAnalysisRunId: string | null = null;
 let poseLandmarkerInstanceSeq = 0;
 
 const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
-const MODEL_URL =
+const LITE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+const FULL_MODEL_URL =
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
 
 function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -37,23 +39,26 @@ function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
 export type PoseDelegate = "GPU" | "CPU";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createLandmarkerInstance(): Promise<{ landmarker: any; delegate: PoseDelegate }> {
+async function createLandmarkerInstance(
+  live: boolean,
+): Promise<{ landmarker: any; delegate: PoseDelegate }> {
   const vision = await import("@mediapipe/tasks-vision");
   const { FilesetResolver, PoseLandmarker } = vision;
   filesetPromise ??= timeout(FilesetResolver.forVisionTasks(WASM_ROOT), 12_000, "WASM");
   const fileset = await filesetPromise;
   const options = {
     runningMode: "VIDEO",
-    numPoses: 2,
-    minPoseDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
+    numPoses: live ? 1 : 2,
+    minPoseDetectionConfidence: live ? 0.45 : 0.4,
+    minTrackingConfidence: live ? 0.45 : 0.4,
+    minPosePresenceConfidence: live ? 0.45 : 0.4,
   } as const;
+  const modelAssetPath = live ? LITE_MODEL_URL : FULL_MODEL_URL;
   try {
     const landmarker = await timeout(
       PoseLandmarker.createFromOptions(fileset, {
         ...options,
-        baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+        baseOptions: { modelAssetPath, delegate: "GPU" },
       }),
       12_000,
       "PoseLandmarker GPU",
@@ -63,7 +68,7 @@ async function createLandmarkerInstance(): Promise<{ landmarker: any; delegate: 
     const landmarker = await timeout(
       PoseLandmarker.createFromOptions(fileset, {
         ...options,
-        baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+        baseOptions: { modelAssetPath, delegate: "CPU" },
       }),
       12_000,
       "PoseLandmarker CPU",
@@ -173,7 +178,8 @@ async function getLandmarker(analysisRunId: string): Promise<PoseLandmarkerSessi
   activeAnalysisRunId = analysisRunId;
   landmarkerPromise = (async () => {
     const instanceId = `pose-${++poseLandmarkerInstanceSeq}`;
-    const { landmarker, delegate } = await createLandmarkerInstance();
+    const live = analysisRunId.startsWith("live-pose-");
+    const { landmarker, delegate } = await createLandmarkerInstance(live);
     poseDelegateByRun.set(analysisRunId, delegate);
     vlog("pose_engine:new_instance", {
       analysisRunId,

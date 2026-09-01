@@ -75,9 +75,30 @@ export function detectionRate(poses: FramePose[]): number {
   return detected / poses.length;
 }
 
-/** Czy w którejkolwiek kluczowej klatce wykryto więcej niż jedną osobę. */
+/**
+ * Czy druga osoba jest widoczna w sposób ciągły, a nie tylko w pojedynczej
+ * błędnej klatce modelu. Lustro, cień albo artefakt kompresji nie mogą
+ * automatycznie odrzucić całej poprawnej próby.
+ */
 export function multiplePeopleDetected(poses: FramePose[]): boolean {
-  return poses.some((p) => p.peopleCount > 1);
+  const detectedFrames = poses.filter((pose) => pose.landmarks != null);
+  if (detectedFrames.length === 0) return false;
+
+  let multiFrames = 0;
+  let consecutive = 0;
+  let longestRun = 0;
+  for (const pose of detectedFrames) {
+    if (pose.peopleCount > 1) {
+      multiFrames += 1;
+      consecutive += 1;
+      longestRun = Math.max(longestRun, consecutive);
+    } else {
+      consecutive = 0;
+    }
+  }
+
+  const requiredFrames = Math.min(8, Math.max(3, Math.ceil(detectedFrames.length * 0.12)));
+  return multiFrames / detectedFrames.length >= 0.25 && longestRun >= requiredFrames;
 }
 
 /** Czy stopy wychodzą poza kadr (Y > 0.99) w istotnej części nagrania. */

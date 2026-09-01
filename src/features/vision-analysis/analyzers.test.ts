@@ -5,6 +5,7 @@ import { pogoAnalyzer } from "./analyzers/pogoAnalyzer";
 import { gymAnalyzer } from "./analyzers/gymAnalyzer";
 import type { AnalysisContext, FramePose, Landmark, VideoMetadata } from "./types";
 import { POSE } from "./types";
+import { multiplePeopleDetected } from "./poseSeries";
 
 function landmarksWith(hipY: number, footY: number): Landmark[] {
   const arr: Landmark[] = Array.from({ length: 33 }, () => ({
@@ -45,8 +46,8 @@ function buildCmjPoses(fps: number): FramePose[] {
       frameIndex: i,
       mediaTime: i * dt,
       presentationTimestamp: i * dt,
-        sourceTimestampMs: Math.round(i * dt * 1000),
-        mediaPipeTimestampMs: Math.round(i * dt * 1000),
+      sourceTimestampMs: Math.round(i * dt * 1000),
+      mediaPipeTimestampMs: Math.round(i * dt * 1000),
       landmarks: landmarksWith(hipY, footY),
       peopleCount: 1,
       trackingConfidence: 0.9,
@@ -237,6 +238,39 @@ describe("cmjAnalyzer", () => {
     const height = metrics.find((metric) => metric.key === "jump_height_cm")!.value;
     expect(height).toBeGreaterThan(15);
     expect(height).toBeLessThan(25);
+  });
+
+  it("wykrywa CMJ mimo pojedynczej stopy błędnie przyklejonej do podłoża", async () => {
+    const poses = buildRealisticCmjPoses();
+    for (let i = 85; i < 133; i++) {
+      const landmarks = poses[i].landmarks!;
+      for (const index of [POSE.RIGHT_ANKLE, POSE.RIGHT_HEEL, POSE.RIGHT_FOOT_INDEX]) {
+        landmarks[index] = { ...landmarks[index], y: 0.9 };
+      }
+    }
+    const noisyCtx: AnalysisContext = {
+      ...ctx,
+      poses,
+      metadata: { ...meta(120), durationSeconds: poses.length / 120, frameCount: poses.length },
+    };
+    const events = await cmjAnalyzer.detectKeyEvents(noisyCtx);
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(["takeoff", "landing"]),
+    );
+  });
+});
+
+describe("walidacja liczby osób", () => {
+  it("nie odrzuca filmu przez pojedyncze fałszywe wykrycie drugiej osoby", () => {
+    const poses = buildRealisticCmjPoses();
+    poses[40].peopleCount = 2;
+    expect(multiplePeopleDetected(poses)).toBe(false);
+  });
+
+  it("odrzuca film, gdy druga osoba jest widoczna stale", () => {
+    const poses = buildRealisticCmjPoses();
+    for (let i = 30; i < 90; i++) poses[i].peopleCount = 2;
+    expect(multiplePeopleDetected(poses)).toBe(true);
   });
 });
 
