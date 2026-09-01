@@ -250,6 +250,7 @@ export function VisionLivePoseOverlay({
     let lastAnalyzedTimestampMs = -Infinity;
     let lastStatus = EMPTY_LIVE_POSE_STATUS;
     let engineReady = false;
+    let stablePersonFrames = 0;
     onEngineStateRef.current?.("loading");
 
     const report = (status: LivePoseStatus) => {
@@ -296,8 +297,17 @@ export function VisionLivePoseOverlay({
         });
         if (cancelled) return;
         const status = getLivePoseStatus(pose);
-        drawPose(canvas, video, pose, status);
-        report(status);
+        // Model nie może rysować „człowieka” na palcu, torbie ani plecaku.
+        // Szkielet pokazujemy dopiero po trzech kolejnych klatkach z pełnym,
+        // geometrycznie spójnym ciałem jednej osoby.
+        stablePersonFrames = status.singleAthlete && status.fullBody ? stablePersonFrames + 1 : 0;
+        if (stablePersonFrames >= 3) {
+          drawPose(canvas, video, pose, status);
+          report(status);
+        } else {
+          clearCanvas(canvas);
+          report(EMPTY_LIVE_POSE_STATUS);
+        }
         if (!engineReady) {
           engineReady = true;
           onEngineStateRef.current?.("ready");

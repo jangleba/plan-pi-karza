@@ -82,6 +82,16 @@ export function VisionUpload({ test }: { test: VisionTest }) {
     navigate({ to: "/vision-lab/analyze/$testId", params: { testId: test.id } });
   }
 
+  async function onCameraRecorded(file: File, detectedFps: number | null) {
+    await onFile(file, detectedFps);
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setSubmitting(true);
+    navigate({ to: "/vision-lab/analyze/$testId", params: { testId: test.id } });
+  }
+
   return (
     <div className="pb-28">
       <VisionHeader
@@ -95,7 +105,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
           minimumFps={protocol.minimumFps}
           testType={test.id as TestType}
           buttonLabel={selectedFile ? "Nagraj ponownie" : "Nagraj test w BallWise"}
-          onRecorded={onFile}
+          onRecorded={onCameraRecorded}
         />
 
         {previewUrl && (

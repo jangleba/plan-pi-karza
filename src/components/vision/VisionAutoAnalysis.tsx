@@ -44,7 +44,6 @@ import type {
   VideoAnalysisResult,
   TestType,
   CameraSetup,
-  AnalysisPipelineSnapshot,
   PipelineStageName,
 } from "@/features/vision-analysis/types";
 
@@ -183,7 +182,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
   const [phase, setPhase] = useState<AnalysisPhase>("idle");
   const [progress, setProgress] = useState(0);
   const [frameProgress, setFrameProgress] = useState<AnalysisFrameProgress | null>(null);
-  const [pipelineSnapshot, setPipelineSnapshot] = useState<AnalysisPipelineSnapshot | null>(null);
   const [state, setState] = useState<UiState>({ kind: "running" });
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
@@ -252,7 +250,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     // i klika retry — inaczej zresetujemy jego wybór.
     debugCtxRef.current = { ...EMPTY_DEBUG_CTX, analysisRunId, currentStage: "loadVideo" };
     setDebugCtx(debugCtxRef.current);
-    setPipelineSnapshot(null);
     setFrameProgress(null);
     setPreviewSrc(null);
     setLastAnalysis(null);
@@ -403,7 +400,6 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
         timeoutRecorder: timeoutRecorderRef.current ?? undefined,
         onPipelineUpdate: (snapshot) => {
           if (cancelled()) return;
-          setPipelineSnapshot(snapshot);
           setCurrentPhase(snapshot.currentStage);
           const current = snapshot.stages[snapshot.currentStage as PipelineStageName];
           setProgress(current ? current.completedUnits / Math.max(1, current.totalUnits) : 0);
@@ -557,6 +553,39 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (state.kind !== "running") return;
+    type WakeLockSentinelLike = { release: () => Promise<void> };
+    const wakeLock = (
+      navigator as Navigator & {
+        wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinelLike> };
+      }
+    ).wakeLock;
+    if (!wakeLock) return;
+    let sentinel: WakeLockSentinelLike | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const next = await wakeLock.request("screen");
+        if (cancelled) await next.release();
+        else sentinel = next;
+      } catch {
+        // Brak Wake Lock nie zmienia matematyki; ekran trzeba wtedy zostawić włączony.
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && !sentinel) void acquire();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    void acquire();
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      void sentinel?.release();
+    };
+  }, [state.kind]);
+
   return (
     <div className="pb-28">
       <VisionHeader
@@ -569,7 +598,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
       {isDevDiagnosticsEnabled && <TimeoutDiagnosticsCopyButton report={diagnosticsReport} />}
 
       <div className="space-y-4 px-5">
-        {previewSrc && (
+        {previewSrc && state.kind !== "running" && (
           <video
             key={previewSrc}
             src={previewSrc}
@@ -582,12 +611,7 @@ export function VisionAutoAnalysis({ test }: { test: VisionTest }) {
           />
         )}
         {state.kind === "running" && (
-          <RunningView
-            phase={phase}
-            progress={progress}
-            frameProgress={frameProgress}
-            snapshot={pipelineSnapshot}
-          />
+          <RunningView phase={phase} progress={progress} frameProgress={frameProgress} />
         )}
 
         {state.kind === "calibration_required" && (
@@ -797,36 +821,16 @@ function RunningView({
   phase,
   progress,
   frameProgress,
-  snapshot,
 }: {
   phase: AnalysisPhase;
   progress: number;
   frameProgress: AnalysisFrameProgress | null;
-  snapshot: AnalysisPipelineSnapshot | null;
 }) {
   const pct = Math.round(progress * 100);
   const visiblePct = frameProgress
     ? Math.round((frameProgress.completedFrames / Math.max(1, frameProgress.totalFrames)) * 100)
     : pct;
   const showFrameProgress = phase === "extractFrames" || phase === "estimatePose";
-  const groups: Array<{ label: string; stages: PipelineStageName[] }> = [
-    { label: "Wideo", stages: ["loadVideo", "readMetadata"] },
-    { label: "Sylwetka", stages: ["extractFrames", "estimatePose"] },
-    {
-      label: "Ruch",
-      stages: [
-        "buildMovementSignals",
-        "detectMovementEvents",
-        "segmentAttempts",
-        "validateProtocol",
-      ],
-    },
-    { label: "Wynik", stages: ["calculateResult", "validateRecording"] },
-  ];
-  const activeGroup = Math.max(
-    0,
-    groups.findIndex((group) => group.stages.includes(phase as PipelineStageName)),
-  );
   return (
     <div className="soft-card space-y-5 p-5">
       <div className="flex flex-col items-center text-center">
@@ -834,9 +838,9 @@ function RunningView({
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
         <div className="mt-4">
-          <div className="text-base font-semibold text-foreground">{PHASE_LABELS[phase]}</div>
+          <div className="text-base font-semibold text-foreground">Analizuję ruch</div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Analiza działa na Twoim urządzeniu. Nie zamykaj ekranu.
+            Wykrywam sylwetkę, fazy skoku i obliczam wynik. Ekran pozostanie aktywny.
           </p>
         </div>
       </div>
@@ -856,34 +860,11 @@ function RunningView({
           </div>
         </div>
       )}
-
-      <ol className="grid grid-cols-4 gap-2" aria-label="Postęp analizy">
-        {groups.map((group, i) => {
-          const done = group.stages.every((step) => {
-            const status = snapshot?.stages[step]?.status;
-            return status === "completed" || status === "skipped";
-          });
-          const active = phase !== "completed" && i === activeGroup;
-          return (
-            <li key={group.label} className="min-w-0 text-center">
-              <span
-                className={`block h-1.5 rounded-full ${done ? "bg-brand" : active ? "bg-brand/55" : "bg-muted"}`}
-              />
-              <span
-                className={`mt-1.5 block truncate text-[11px] ${
-                  active
-                    ? "font-semibold text-foreground"
-                    : done
-                      ? "text-muted-foreground"
-                      : "text-muted-foreground/60"
-                }`}
-              >
-                {group.label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      {!showFrameProgress && (
+        <p className="text-center text-xs font-medium text-muted-foreground">
+          Obliczanie wyniku z rzeczywiście wykrytych zdarzeń ruchu…
+        </p>
+      )}
     </div>
   );
 }

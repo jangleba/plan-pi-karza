@@ -1,4 +1,5 @@
 import type { LivePoseStatus } from "./visionLivePose";
+import type { TestType } from "@/features/vision-analysis/types";
 
 /** Czysta logika odliczania kamery sprintu — testowalna bez DOM. */
 
@@ -7,10 +8,19 @@ export const COUNTDOWN_DIGIT_MS = 1000;
 export const START_HOLD_MS = 600;
 export const AUTO_RECORDING_SECONDS = 12;
 
+/**
+ * Krótkie próby kończą się automatycznie, zanim zawodnik podejdzie do telefonu.
+ * Dzięki temu ruch ręki przy obiektywie nie trafia do okna analizy CMJ.
+ */
+export function autoRecordingSeconds(testType: TestType): number {
+  if (["cmj", "squat_jump", "broad_jump", "single_leg_hop"].includes(testType)) return 6;
+  if (testType === "drop_jump") return 8;
+  if (testType === "analyze_gym_exercise") return 15;
+  return AUTO_RECORDING_SECONDS;
+}
+
 export type CountdownState =
-  | { phase: "idle" }
-  | { phase: "digit"; value: 3 | 2 | 1 }
-  | { phase: "start" };
+  { phase: "idle" } | { phase: "digit"; value: 3 | 2 | 1 } | { phase: "start" };
 
 export interface CountdownCue {
   /** Częstotliwość beepu z AudioContext (podstawa sygnału). */
@@ -58,7 +68,10 @@ export function countdownSequence(): CountdownState[] {
 
 /** Łączny czas widocznego odliczania od pierwszej cyfry do końca „START”. */
 export function countdownTotalMs(): number {
-  return countdownSequence().reduce((total, step) => total + (cueForCountdown(step)?.holdMs ?? 0), 0);
+  return countdownSequence().reduce(
+    (total, step) => total + (cueForCountdown(step)?.holdMs ?? 0),
+    0,
+  );
 }
 
 /** Czy pozycja zawodnika jest wystarczająco stabilna, by uzbroić odliczanie. */

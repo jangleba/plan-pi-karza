@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AUTO_RECORDING_SECONDS,
+  autoRecordingSeconds,
   COUNTDOWN_DIGIT_MS,
   START_HOLD_MS,
   STABLE_POSE_MS,
@@ -37,6 +38,13 @@ describe("recorderCountdown", () => {
   it("utrzymuje uzgodnione czasy stabilizacji i automatycznego nagrania", () => {
     expect(STABLE_POSE_MS).toBe(1500);
     expect(AUTO_RECORDING_SECONDS).toBe(12);
+  });
+
+  it("kończy pojedynczy skok zanim zawodnik podejdzie do telefonu", () => {
+    expect(autoRecordingSeconds("cmj")).toBe(6);
+    expect(autoRecordingSeconds("drop_jump")).toBe(8);
+    expect(autoRecordingSeconds("pogo_jumps")).toBe(12);
+    expect(autoRecordingSeconds("sprint_20m")).toBe(12);
   });
 
   it("uzbraja start tylko dla jednego, kompletnego i pewnego zawodnika", () => {

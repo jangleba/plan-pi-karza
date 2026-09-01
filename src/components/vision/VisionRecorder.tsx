@@ -10,7 +10,6 @@ import {
 import { closePoseEngine } from "@/features/vision-analysis/poseEngine";
 import type { TestType } from "@/features/vision-analysis/types";
 import {
-  AUTO_RECORDING_SECONDS,
   IDLE_COUNTDOWN,
   START_HOLD_MS,
   cameraErrorMessage,
@@ -19,6 +18,7 @@ import {
   formatElapsed,
   nextCountdownState,
   type CountdownState,
+  autoRecordingSeconds,
 } from "./recorderCountdown";
 
 type RecorderMode = "idle" | "starting" | "preview" | "recording" | "processing";
@@ -380,17 +380,20 @@ export function VisionRecorder({
     // Auto-stop liczony dokładnie od sygnału START.
     if (countdown.phase === "start") {
       if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
-      autoStopRef.current = window.setTimeout(() => {
-        autoStopRef.current = null;
-        stopRecording();
-      }, AUTO_RECORDING_SECONDS * 1000);
+      autoStopRef.current = window.setTimeout(
+        () => {
+          autoStopRef.current = null;
+          stopRecording();
+        },
+        autoRecordingSeconds(testType) * 1000,
+      );
     }
 
     return () => {
       if (countdownTimerRef.current !== null) window.clearTimeout(countdownTimerRef.current);
       countdownTimerRef.current = null;
     };
-  }, [countdown, signalCue, stopRecording]);
+  }, [countdown, signalCue, stopRecording, testType]);
 
   const athleteReady = isLivePoseReadyForTest(poseStatus, testType);
 
