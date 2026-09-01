@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import { Button } from "@/components/ui/button";
 import { LEGAL_VERSION, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
+import { clearAllVisionSessionVideos } from "@/lib/vision/visionSessionVideo";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -23,7 +24,18 @@ const USER_TABLES = [
   "session_exercises",
   "session_logs",
   "consent_logs",
+  "vision_tests",
 ] as const;
+
+async function deleteLegacyVisionVideos(userId: string): Promise<void> {
+  const bucket = supabase.storage.from("vision-videos");
+  const { data, error } = await bucket.list(userId, { limit: 1000 });
+  if (error) throw error;
+  const paths = (data ?? []).filter((item) => item.name).map((item) => `${userId}/${item.name}`);
+  if (paths.length === 0) return;
+  const { error: removeError } = await bucket.remove(paths);
+  if (removeError) throw removeError;
+}
 
 function DataRights() {
   const router = useRouter();
@@ -96,6 +108,10 @@ function DataRights() {
         version: LEGAL_VERSION,
         text_snapshot: "Użytkownik zażądał usunięcia konta i danych.",
       });
+      // Starsze wersje mogły zapisywać wideo w prywatnym buckecie. Nowy
+      // analizator działa lokalnie, ale żądanie usunięcia obejmuje oba warianty.
+      await deleteLegacyVisionVideos(user.id);
+      await clearAllVisionSessionVideos();
       // Remove all user-owned data (RLS scopes deletes to this user).
       for (const t of USER_TABLES) {
         if (t === "consent_logs") continue;
@@ -166,9 +182,7 @@ function DataRights() {
         >
           <HeartOff className="h-5 w-5 text-destructive" />
           <div>
-            <div className="text-sm font-semibold">
-              Wycofaj zgodę na dane o zdrowiu
-            </div>
+            <div className="text-sm font-semibold">Wycofaj zgodę na dane o zdrowiu</div>
             <div className="text-xs text-muted-foreground">
               Uwaga: generowanie planów treningowych może przestać działać.
             </div>
@@ -182,9 +196,7 @@ function DataRights() {
         >
           <Trash2 className="h-5 w-5 text-destructive" />
           <div>
-            <div className="text-sm font-semibold text-destructive">
-              Usuń konto i dane
-            </div>
+            <div className="text-sm font-semibold text-destructive">Usuń konto i dane</div>
             <div className="text-xs text-muted-foreground">
               Trwale usuwa Twoje dane z aplikacji.
             </div>
