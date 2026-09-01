@@ -42,7 +42,12 @@ function movementStartFrame(ctx: AnalysisContext, lowestFrame: number): number |
   if (!Number.isFinite(baseline) || depth < 0.01) return null;
   const threshold = baseline + Math.max(0.005, depth * 0.12);
   for (let i = 1; i <= lowestFrame; i++) {
-    if (Number.isFinite(hip[i - 1]) && Number.isFinite(hip[i]) && hip[i - 1] < threshold && hip[i] >= threshold) {
+    if (
+      Number.isFinite(hip[i - 1]) &&
+      Number.isFinite(hip[i]) &&
+      hip[i - 1] < threshold &&
+      hip[i] >= threshold
+    ) {
       return i;
     }
   }
@@ -50,23 +55,28 @@ function movementStartFrame(ctx: AnalysisContext, lowestFrame: number): number |
 }
 
 function meanPair(values: Array<number | null>): number | null {
-  const finite = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const finite = values.filter(
+    (value): value is number => typeof value === "number" && Number.isFinite(value),
+  );
   return finite.length > 0 ? finite.reduce((sum, value) => sum + value, 0) / finite.length : null;
 }
 
 function jointAnglesAt(pose: FramePose | undefined): {
   knee: number | null;
   hip: number | null;
+  ankle: number | null;
 } {
-  if (!pose) return { knee: null, hip: null };
+  if (!pose) return { knee: null, hip: null, ankle: null };
   const side = (left: boolean) => {
     const shoulder = reliableLm(pose, left ? POSE.LEFT_SHOULDER : POSE.RIGHT_SHOULDER, 0.45);
     const hip = reliableLm(pose, left ? POSE.LEFT_HIP : POSE.RIGHT_HIP, 0.45);
     const knee = reliableLm(pose, left ? POSE.LEFT_KNEE : POSE.RIGHT_KNEE, 0.45);
     const ankle = reliableLm(pose, left ? POSE.LEFT_ANKLE : POSE.RIGHT_ANKLE, 0.45);
+    const toe = reliableLm(pose, left ? POSE.LEFT_FOOT_INDEX : POSE.RIGHT_FOOT_INDEX, 0.45);
     return {
       knee: hip && knee && ankle ? jointAngleDeg(hip, knee, ankle) : null,
       hip: shoulder && hip && knee ? jointAngleDeg(shoulder, hip, knee) : null,
+      ankle: knee && ankle && toe ? jointAngleDeg(knee, ankle, toe) : null,
     };
   };
   const left = side(true);
@@ -74,6 +84,7 @@ function jointAnglesAt(pose: FramePose | undefined): {
   return {
     knee: meanPair([left.knee, right.knee]),
     hip: meanPair([left.hip, right.hip]),
+    ankle: meanPair([left.ankle, right.ankle]),
   };
 }
 
@@ -217,6 +228,15 @@ function metrics(ev: DetectedEvent[], ctx: AnalysisContext): CalculatedMetric[] 
         value: round(angles.hip, 1),
         unit: "°",
         confidence: conf * 0.8,
+      });
+    }
+    if (angles.ankle != null && angles.ankle >= 20 && angles.ankle <= 180) {
+      out.push({
+        key: "ankle_angle_bottom_deg",
+        label: "Kąt stawu skokowego w dole",
+        value: round(angles.ankle, 1),
+        unit: "°",
+        confidence: conf * 0.75,
       });
     }
 

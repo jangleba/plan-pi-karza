@@ -1,7 +1,8 @@
 import type { FramePose, DetectedEvent } from "../types";
-import { footBottomSeries, hipYSeries, timeSeries } from "../poseSeries";
+import { footBottomSeries, hipYSeries, reliableLm, timeSeries } from "../poseSeries";
 import { movingAverage, interpolateShortGaps, argMin, argMax, meanFinite } from "../signal";
 import { interpolateCrossingTime } from "../physics";
+import { POSE } from "../types";
 
 export interface FlightPhase {
   takeoffFrame: number;
@@ -77,7 +78,10 @@ export function detectFlightPhase(poses: FramePose[]): FlightPhase | null {
   const ampScore = Math.min(1, amplitude / 0.08);
   const confidence = Math.max(
     0,
-    Math.min(1, 0.45 * best.detectedFraction + 0.3 * ampScore + 0.25 * Math.min(1, best.hipLift / 0.05)),
+    Math.min(
+      1,
+      0.45 * best.detectedFraction + 0.3 * ampScore + 0.25 * Math.min(1, best.hipLift / 0.05),
+    ),
   );
 
   return {
@@ -188,12 +192,39 @@ export interface JumpField {
 }
 
 /**
+ * Poziom stóp dla skoków liczony z obu stron sylwetki. Uśrednienie podstawy
+ * lewej i prawej stopy jest odporniejsze od pojedynczego najniższego punktu,
+ * który MediaPipe potrafi na jedną klatkę przykleić do podłoża.
+ */
+function jumpFootLevelSeries(poses: FramePose[]): number[] {
+  const sideLevel = (pose: FramePose, side: "left" | "right"): number => {
+    const indices =
+      side === "left"
+        ? [POSE.LEFT_ANKLE, POSE.LEFT_HEEL, POSE.LEFT_FOOT_INDEX]
+        : [POSE.RIGHT_ANKLE, POSE.RIGHT_HEEL, POSE.RIGHT_FOOT_INDEX];
+    const values = indices
+      .map((index) => reliableLm(pose, index, 0.3)?.y)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+      .sort((a, b) => a - b);
+    if (values.length === 0) return NaN;
+    return values[Math.floor(values.length / 2)];
+  };
+
+  return poses.map((pose) => {
+    const values = [sideLevel(pose, "left"), sideLevel(pose, "right")].filter((value) =>
+      Number.isFinite(value),
+    );
+    return values.length > 0 ? meanFinite(values) : NaN;
+  });
+}
+
+/**
  * Wspólna analiza pola skoku: linia podłoża, próg lotu i wszystkie segmenty
  * "w powietrzu". Zwraca null, gdy brak istotnego ruchu pionowego.
  */
 export function analyzeJumpField(poses: FramePose[]): JumpField | null {
   const t = timeSeries(poses);
-  let foot = interpolateShortGaps(footBottomSeries(poses));
+  let foot = interpolateShortGaps(jumpFootLevelSeries(poses));
   foot = movingAverage(foot, 3);
   const hip = movingAverage(interpolateShortGaps(hipYSeries(poses)), 3);
 
@@ -326,7 +357,10 @@ export function detectDropJumpPhases(poses: FramePose[]): DropJumpPhases | null 
       .slice(rebound.takeoffFrame, rebound.landingFrame + 1)
       .filter((v) => Number.isFinite(v)).length /
     Math.max(1, rebound.landingFrame - rebound.takeoffFrame + 1);
-  const confidence = Math.max(0, Math.min(1, 0.5 * segDetected + 0.5 * Math.min(1, field.amplitude / 0.1)));
+  const confidence = Math.max(
+    0,
+    Math.min(1, 0.5 * segDetected + 0.5 * Math.min(1, field.amplitude / 0.1)),
+  );
 
   return {
     boxDescentLandingTime: fall.landingTime,
@@ -367,8 +401,8 @@ export function detectRepeatedCycles(poses: FramePose[]): {
     const prev = complete[i - 1];
     const contactSeconds = prev ? s.takeoffTime - prev.landingTime : null;
     const segDetected =
-      field.foot.slice(s.takeoffFrame, s.landingFrame + 1).filter((v) => Number.isFinite(v)).length /
-      Math.max(1, s.landingFrame - s.takeoffFrame + 1);
+      field.foot.slice(s.takeoffFrame, s.landingFrame + 1).filter((v) => Number.isFinite(v))
+        .length / Math.max(1, s.landingFrame - s.takeoffFrame + 1);
     return {
       index: i,
       takeoffTime: s.takeoffTime,
