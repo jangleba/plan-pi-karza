@@ -54,6 +54,8 @@ function frameMetrics(frame: FrameAnalysisResult): VisionMetric[] {
   };
   push("jump_height_cm", "Wysokość wyskoku", d.jumpHeightCm, "cm");
   push("flight_time_s", "Czas w powietrzu", d.flightTime, "s");
+  push("contact_time_s", "Czas kontaktu", d.contactTime, "s");
+  push("reactive_strength_index", "RSI", d.reactiveStrengthIndex, "m/s");
   push("distance_cm", "Długość skoku", d.distanceCm, "cm");
   push("distance_m", "Dystans", d.distanceM, "m");
   push("sprint_time_s", "Czas sprintu", d.sprintTime, "s");
@@ -201,6 +203,8 @@ function buildDbPayload(input: SaveFrameResultInput, base: VisionTestResult) {
     speed_m_s: d.speedMs ?? null,
     speed_km_h: d.speedKmh ?? null,
     number_of_contacts: d.numberOfContacts ?? null,
+    temporal_resolution_ms: d.temporalResolutionMs ?? (frame.fps > 0 ? 1000 / frame.fps : null),
+    algorithm_version: "frame-flight-time-v1",
   };
 }
 

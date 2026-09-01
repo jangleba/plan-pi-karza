@@ -418,10 +418,15 @@ export interface FrameManualInputs {
 export interface FrameDerived {
   frameCount?: number | null;
   flightTime?: number | null;
+  contactTime?: number | null;
+  temporalResolutionMs?: number | null;
   sprintTime?: number | null;
   brakingTime?: number | null;
   totalTime?: number | null;
   jumpHeightCm?: number | null;
+  jumpHeightMinCm?: number | null;
+  jumpHeightMaxCm?: number | null;
+  reactiveStrengthIndex?: number | null;
   distanceM?: number | null;
   distanceCm?: number | null;
   speedMs?: number | null;

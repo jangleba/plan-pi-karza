@@ -144,3 +144,19 @@ export async function clearVisionSessionVideo(testId: string): Promise<void> {
     db?.close();
   }
 }
+
+/** Usuwa wszystkie lokalne filmy Vision Lab, np. przy żądaniu usunięcia konta. */
+export async function clearAllVisionSessionVideos(): Promise<void> {
+  if (!hasIndexedDb()) return;
+  let db: IDBDatabase | null = null;
+  try {
+    db = await openSessionDatabase();
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    transaction.objectStore(STORE_NAME).clear();
+    await transactionDone(transaction);
+  } catch {
+    // Czyszczenie pamięci przeglądarki może być niedostępne w trybie prywatnym.
+  } finally {
+    db?.close();
+  }
+}
