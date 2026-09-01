@@ -88,6 +88,18 @@ describe("precision pass windows", () => {
     expect(windows[0].startSeconds).toBeLessThan(0.5);
     expect(windows[0].endSeconds).toBeGreaterThan(1.1);
   });
+
+  it("uruchamia dokładny przebieg CMJ nawet gdy skan 12 FPS nie złapał krótkiego wybicia", () => {
+    const coarse = Array.from({ length: 36 }, (_, index) => pose(index, 12, 0.5, 0.9));
+    const windows = buildPrecisionWindows({
+      testType: "cmj",
+      coarsePoses: coarse,
+      metadata: { ...metadata, durationSeconds: 3, frameCount: 360 },
+      calibration: null,
+    });
+
+    expect(windows).toEqual([{ startSeconds: 0, endSeconds: 3 }]);
+  });
 });
 
 describe("pose pass merge", () => {

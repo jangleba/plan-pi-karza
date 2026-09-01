@@ -14,6 +14,7 @@ import {
   projectGroundLineU,
   torsoReferencePixel,
 } from "./calibratedLineCrossing";
+import { hipYSeries, timeSeries } from "./poseSeries";
 
 export const SPRINT_PRECISION_TESTS: ReadonlySet<TestType> = new Set([
   "sprint_20m",
@@ -131,7 +132,45 @@ function jumpWindow(input: PrecisionWindowInput): VideoTimeWindow[] {
       },
     ];
   }
+
+  // Brak lotu w skanie 12 FPS NIE może wyłączyć dokładnej analizy. Krótki
+  // CMJ potrafi znaleźć się pomiędzy próbkami coarse. Najpierw lokalizujemy
+  // największą rzeczywistą zmianę bioder i analizujemy jej otoczenie. Jeżeli
+  // nawet tego nie widać, dla krótkiego klipu analizujemy cały materiał.
+  if (["cmj", "squat_jump", "broad_jump", "single_leg_hop"].includes(input.testType)) {
+    const center = strongestVerticalMotionTime(input.coarsePoses);
+    if (center != null) {
+      return [{ startSeconds: center - 2, endSeconds: center + 2 }];
+    }
+    if (input.metadata.durationSeconds <= 8) {
+      return [{ startSeconds: 0, endSeconds: input.metadata.durationSeconds }];
+    }
+    return [
+      {
+        startSeconds: input.metadata.durationSeconds - 8,
+        endSeconds: input.metadata.durationSeconds,
+      },
+    ];
+  }
   return [];
+}
+
+function strongestVerticalMotionTime(poses: FramePose[]): number | null {
+  const hip = hipYSeries(poses);
+  const time = timeSeries(poses);
+  let bestIndex = -1;
+  let bestSpeed = 0;
+  for (let index = 1; index < poses.length; index++) {
+    if (!Number.isFinite(hip[index - 1]) || !Number.isFinite(hip[index])) continue;
+    const dt = time[index] - time[index - 1];
+    if (!(dt > 0)) continue;
+    const speed = Math.abs(hip[index] - hip[index - 1]) / dt;
+    if (speed > bestSpeed) {
+      bestSpeed = speed;
+      bestIndex = index;
+    }
+  }
+  return bestIndex >= 0 && bestSpeed >= 0.015 ? time[bestIndex] : null;
 }
 
 /** Łączy przebiegi po rzeczywistym timestampie; dokładna poza ma pierwszeństwo. */

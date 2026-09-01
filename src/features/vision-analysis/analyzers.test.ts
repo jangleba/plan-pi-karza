@@ -259,6 +259,30 @@ describe("cmjAnalyzer", () => {
       expect.arrayContaining(["takeoff", "landing"]),
     );
   });
+
+  it("wykrywa mały realny skok z boku, gdy dalsza stopa jest przyklejona do podłoża", async () => {
+    const poses = buildRealisticCmjPoses();
+    for (let i = 85; i < 133; i++) {
+      const landmarks = poses[i].landmarks!;
+      for (const index of [POSE.LEFT_ANKLE, POSE.LEFT_HEEL, POSE.LEFT_FOOT_INDEX]) {
+        landmarks[index] = { ...landmarks[index], y: 0.865 };
+      }
+      for (const index of [POSE.RIGHT_ANKLE, POSE.RIGHT_HEEL, POSE.RIGHT_FOOT_INDEX]) {
+        landmarks[index] = { ...landmarks[index], y: 0.9 };
+      }
+    }
+    const phoneCtx: AnalysisContext = {
+      ...ctx,
+      poses,
+      metadata: { ...meta(120), durationSeconds: poses.length / 120, frameCount: poses.length },
+    };
+    const events = await cmjAnalyzer.detectKeyEvents(phoneCtx);
+    const metrics = cmjAnalyzer.calculateMetrics(events, phoneCtx);
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(["takeoff", "landing"]),
+    );
+    expect(metrics.find((metric) => metric.key === "jump_height_cm")?.value).toBeGreaterThan(5);
+  });
 });
 
 describe("walidacja liczby osób", () => {
