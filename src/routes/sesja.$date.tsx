@@ -961,6 +961,14 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
   );
 });
 
+const SECTION_TAB_LABELS: Record<string, string> = {
+  warmup: "Rozgrzewka",
+  prep: "Przygotowanie",
+  main: "Główna",
+  accessory: "Dobór",
+  cooldown: "Schłódzenie",
+};
+
 const StructuredSections = memo(function StructuredSections({
   sections,
   date,
@@ -973,71 +981,82 @@ const StructuredSections = memo(function StructuredSections({
   const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [openBlocks, setOpenBlocks] = useState<Record<string, boolean>>({});
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    sections[0]?.id ?? "",
+  );
   const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
+
+  const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
+
   return (
-    <div className="space-y-4">
-      {sections.map((sec) => (
-        <div key={sec.id} className="soft-card p-4">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
-            {sec.title}
-          </h3>
-          <div className="mt-2.5 space-y-4">
-            {sec.blocks.map((b) => {
-              const blockTitle = b.title || b.exercises[0]?.name || "Blok";
-              const blockRest = b.restAfterBlock
-                ? /przerwa|rest|śwież|przejdź|pełna/i.test(b.restAfterBlock)
-                  ? b.restAfterBlock
-                  : `Przerwa po bloku: ${b.restAfterBlock}`
-                : null;
-              const blockOpen = openBlocks[b.id] === true;
-              return (
-                <div key={b.id}>
-                  <button
-                    type="button"
-                    onClick={() => setOpenBlocks((current) => ({ ...current, [b.id]: !blockOpen }))}
-                    className="mb-0.5 flex w-full items-center gap-2 text-left text-[12px] font-bold uppercase tracking-tight text-foreground/90"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{blockTitle}</span>
-                    <span className="truncate text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-                      {b.exercises[0] ? compactPrescription(b.exercises[0]) : ""}
+    <div className="space-y-3">
+      <div className="flex items-center gap-1 border-b border-border">
+        {sections.map((sec) => (
+          <button
+            key={sec.id}
+            type="button"
+            onClick={() => setActiveSectionId(sec.id)}
+            className={`relative px-2.5 py-2 text-[13px] font-medium transition-colors ${
+              activeSectionId === sec.id ? "text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            {SECTION_TAB_LABELS[sec.type] ?? sec.title}
+            {activeSectionId === sec.id && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-primary" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeSection && (
+        <div className="soft-card p-4">
+          {activeSection.blocks.map((b, blockIndex) => {
+            const blockTitle = b.title || b.exercises[0]?.name || "Blok";
+            const blockRest = b.restAfterBlock ? formatRestValue(b.restAfterBlock) : null;
+            return (
+              <div key={b.id} className={blockIndex > 0 ? "pt-4" : ""}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h4 className="truncate text-[13px] font-bold text-foreground">
+                    {blockTitle}
+                  </h4>
+                  {b.exercises[0] && (
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {compactPrescription(b.exercises[0])}
                     </span>
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 transition-transform ${blockOpen ? "rotate-90" : ""}`}
-                    />
-                  </button>
-                  <div className={`divide-y divide-border/40 ${!blockOpen ? "hidden" : ""}`}>
-                    {b.exercises.map((e) => {
-                      const equipmentIds = specialistEquipmentForExercise(
-                        getExerciseDefinition(e.exerciseId ?? e.name),
-                      );
-                      return (
-                        <ExerciseRow
-                          key={e.id}
-                          e={e}
-                          done={!!done[e.id]}
-                          onToggle={() => toggle(e.id)}
-                          onUnavailable={() => {
-                            if (equipmentIds.length)
-                              markEquipmentUnavailable(date, e, equipmentIds);
-                          }}
-                          equipmentIds={equipmentIds}
-                          sessionId={sessionId}
-                        />
-                      );
-                    })}
-                  </div>
-                  {blockRest && (
-                    <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                      {blockRest}
-                    </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+                <div className="divide-y divide-border/40">
+                  {b.exercises.map((e, exerciseIndex) => {
+                    const equipmentIds = specialistEquipmentForExercise(
+                      getExerciseDefinition(e.exerciseId ?? e.name),
+                    );
+                    return (
+                      <ExerciseRow
+                        key={e.id}
+                        e={e}
+                        index={exerciseIndex}
+                        done={!!done[e.id]}
+                        onToggle={() => toggle(e.id)}
+                        onUnavailable={() => {
+                          if (equipmentIds.length)
+                            markEquipmentUnavailable(date, e, equipmentIds);
+                        }}
+                        equipmentIds={equipmentIds}
+                        sessionId={sessionId}
+                      />
+                    );
+                  })}
+                </div>
+                {blockRest && (
+                  <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+                    Po bloku — {blockRest}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 });
