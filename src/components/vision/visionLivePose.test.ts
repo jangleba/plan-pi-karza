@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { POSE, type FramePose, type Landmark } from "@/features/vision-analysis/types";
-import { getLivePoseStatus } from "./visionLivePose";
+import { getLivePoseStatus, isLivePoseReadyForTest } from "./visionLivePose";
 
 function makePose({
   height = 0.5,
@@ -54,6 +54,8 @@ describe("getLivePoseStatus", () => {
 
     expect(status.timingReady).toBe(true);
     expect(status.mechanicsReady).toBe(false);
+    expect(isLivePoseReadyForTest(status, "sprint_20m")).toBe(true);
+    expect(isLivePoseReadyForTest(status, "cmj")).toBe(false);
   });
 
   it("odrzuca kadr bez widocznej głowy", () => {

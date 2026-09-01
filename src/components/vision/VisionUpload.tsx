@@ -7,24 +7,30 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { VisionTest } from "@/lib/vision/types";
 import { getFlow, updateFlow } from "@/lib/vision/visionFlow";
+import { clearVisionSessionVideo, saveVisionSessionVideo } from "@/lib/vision/visionSessionVideo";
 import { getTestProtocol } from "@/features/vision-analysis/testProtocols";
 import type { TestType } from "@/features/vision-analysis/types";
 
-type Status = "idle" | "done";
+type Status = "idle" | "preparing" | "done";
 
 export function VisionUpload({ test }: { test: VisionTest }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectionTokenRef = useRef(0);
   const flow = getFlow(test.id);
   const protocol = getTestProtocol(test.id as TestType);
   const isSprintScan = ["sprint_20m", "sprint_30m", "flying_sprint"].includes(test.id);
   const [fileName, setFileName] = useState<string | null>(flow.fileName);
   const [status, setStatus] = useState<Status>(flow.file ? "done" : "idle");
+  const [sessionProtected, setSessionProtected] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function onFile(file: File, detectedFps?: number | null) {
+    const selectionToken = ++selectionTokenRef.current;
     setFileName(file.name);
+    setStatus("preparing");
+    setSessionProtected(null);
     // Dla pliku z galerii nie dziedziczymy domyślnego/starego FPS sprintu.
     // Pipeline zmierzy go z timestampów klatek albo oznaczy źródło jako niewiarygodne.
     const fps = detectedFps === undefined && isSprintScan ? null : (detectedFps ?? flow.fps);
@@ -37,6 +43,14 @@ export function VisionUpload({ test }: { test: VisionTest }) {
       uploaded: false,
       fps,
     });
+    // Kopia pozostaje wyłącznie na tym urządzeniu. Chroni retry przed utratą
+    // File po przeładowaniu Lovable Preview lub odzyskaniu karty przez iOS.
+    // Najpierw usuń poprzedni film tego testu. Jeśli zapis nowego przekroczy
+    // limit pamięci, reload nie może przywrócić starszego, niewłaściwego pliku.
+    await clearVisionSessionVideo(test.id);
+    const protectedLocally = await saveVisionSessionVideo(test.id, file);
+    if (selectionTokenRef.current !== selectionToken) return;
+    setSessionProtected(protectedLocally);
     setStatus("done");
   }
 
@@ -59,7 +73,11 @@ export function VisionUpload({ test }: { test: VisionTest }) {
       />
 
       <div className="space-y-4 px-5">
-        <VisionRecorder minimumFps={protocol.minimumFps} onRecorded={onFile} />
+        <VisionRecorder
+          minimumFps={protocol.minimumFps}
+          testType={test.id as TestType}
+          onRecorded={onFile}
+        />
 
         <div className="flex items-center gap-3 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <span className="h-px flex-1 bg-border" /> albo wybierz gotowy film{" "}
@@ -100,10 +118,22 @@ export function VisionUpload({ test }: { test: VisionTest }) {
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-foreground">{fileName}</div>
               <div className="mt-0.5 flex items-center gap-1.5 text-xs">
+                {status === "preparing" && (
+                  <span className="inline-flex items-center gap-1 text-brand">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Zabezpieczanie filmu na czas analizy…
+                  </span>
+                )}
                 {status === "done" && (
-                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                  <span
+                    className={`inline-flex items-center gap-1 ${
+                      sessionProtected === false ? "text-amber-600" : "text-emerald-600"
+                    }`}
+                  >
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    Gotowy do analizy na tym urządzeniu
+                    {sessionProtected === false
+                      ? "Gotowy w tej karcie — nie odświeżaj ekranu"
+                      : "Gotowy do analizy i ponowienia na tym urządzeniu"}
                   </span>
                 )}
               </div>

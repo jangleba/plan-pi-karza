@@ -30,6 +30,8 @@ const CONNECTIONS: [number, number][] = [
   [POSE.RIGHT_HEEL, POSE.RIGHT_FOOT_INDEX],
 ];
 
+const MAX_LIVE_INPUT_WIDTH = 640;
+
 function visible(point: Landmark | undefined, threshold = 0.35): point is Landmark {
   return !!point && point.visibility >= threshold;
 }
@@ -204,6 +206,10 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
 
+    // Kamera nadal nagrywa w pełnej jakości, ale model dostaje mniejszą kopię klatki.
+    // Współrzędne MediaPipe są znormalizowane, więc szkielet pozostaje zgodny z podglądem.
+    const poseInput = document.createElement("canvas");
+    const poseInputContext = poseInput.getContext("2d", { alpha: false });
 
     const runId = `live-pose-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let cancelled = false;
@@ -248,7 +254,6 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
       }, 100);
     };
 
-
     const analyze = async (mediaTime: number, timestampMs: number) => {
       if (cancelled || inFlight || video.readyState < 2 || !video.videoWidth) {
         schedule();
@@ -256,7 +261,15 @@ export function VisionLivePoseOverlay({ videoRef, active, onStatus }: VisionLive
       }
       inFlight = true;
       try {
-        const pose = await detectPose(video, frameIndex, mediaTime, {
+        if (!poseInputContext) throw new Error("Brak kontekstu obrazu dla detektora pozy");
+        const scale = Math.min(1, MAX_LIVE_INPUT_WIDTH / video.videoWidth);
+        const inputWidth = Math.max(1, Math.round(video.videoWidth * scale));
+        const inputHeight = Math.max(1, Math.round(video.videoHeight * scale));
+        if (poseInput.width !== inputWidth) poseInput.width = inputWidth;
+        if (poseInput.height !== inputHeight) poseInput.height = inputHeight;
+        poseInputContext.drawImage(video, 0, 0, inputWidth, inputHeight);
+
+        const pose = await detectPose(poseInput, frameIndex, mediaTime, {
           analysisRunId: runId,
           passType: "coarse",
           sourceTimestampMs: timestampMs,

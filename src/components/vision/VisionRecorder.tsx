@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, CircleStop, Loader2, ScanLine, Video, X, CheckCircle2 } from "lucide-react";
+import { Camera, CircleStop, Loader2, RotateCcw, ScanLine, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VisionLivePoseOverlay } from "./VisionLivePoseOverlay";
-import { EMPTY_LIVE_POSE_STATUS, type LivePoseStatus } from "./visionLivePose";
+import {
+  EMPTY_LIVE_POSE_STATUS,
+  isLivePoseReadyForTest,
+  type LivePoseStatus,
+} from "./visionLivePose";
 import { closePoseEngine } from "@/features/vision-analysis/poseEngine";
+import type { TestType } from "@/features/vision-analysis/types";
 import {
   AUTO_RECORDING_SECONDS,
   IDLE_COUNTDOWN,
@@ -13,7 +18,6 @@ import {
   classifyCameraError,
   cueForCountdown,
   formatElapsed,
-  isAthleteReady,
   nextCountdownState,
   type CountdownState,
 } from "./recorderCountdown";
@@ -22,6 +26,7 @@ type RecorderMode = "idle" | "starting" | "preview" | "recording" | "processing"
 
 interface VisionRecorderProps {
   minimumFps: number;
+  testType: TestType;
   onRecorded: (file: File, detectedFps: number | null) => Promise<void>;
 }
 
@@ -43,7 +48,7 @@ function speak(message: string): void {
   window.speechSynthesis.speak(utterance);
 }
 
-export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) {
+export function VisionRecorder({ minimumFps, testType, onRecorded }: VisionRecorderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -66,6 +71,18 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   const [flashActive, setFlashActive] = useState(false);
   const [audioAvailable, setAudioAvailable] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLandscape, setIsLandscape] = useState(true);
+
+  useEffect(() => {
+    const updateOrientation = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    updateOrientation();
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
+  }, []);
 
   const clearTimers = useCallback(() => {
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
@@ -241,6 +258,10 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   }, []);
 
   const startRecording = useCallback(() => {
+    if (!isLandscape) {
+      setError("Obróć telefon poziomo, aby rozpocząć nagranie.");
+      return false;
+    }
     const stream = streamRef.current;
     if (!stream) return false;
     if (recorderRef.current && recorderRef.current.state !== "inactive") return true;
@@ -295,7 +316,7 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       setElapsedSeconds((seconds) => seconds + 1);
     }, 1000);
     return true;
-  }, [clearTimers, closeCamera, onRecorded]);
+  }, [clearTimers, closeCamera, isLandscape, onRecorded]);
 
   // Jedno odliczanie: 3 → 2 → 1 → START, każdy krok z beepem i własnym czasem trwania.
   useEffect(() => {
@@ -331,10 +352,10 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
     };
   }, [countdown, signalCue, stopRecording]);
 
-  const athleteReady = isAthleteReady(poseStatus);
+  const athleteReady = isLivePoseReadyForTest(poseStatus, testType);
 
   useEffect(() => {
-    if (!autoArmed || mode !== "preview" || !previewReady || !athleteReady) {
+    if (!autoArmed || mode !== "preview" || !previewReady || !isLandscape || !athleteReady) {
       if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
       stablePoseRef.current = null;
       return;
@@ -351,7 +372,7 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       if (stablePoseRef.current !== null) window.clearTimeout(stablePoseRef.current);
       stablePoseRef.current = null;
     };
-  }, [athleteReady, autoArmed, mode, previewReady, startRecording]);
+  }, [athleteReady, autoArmed, isLandscape, mode, previewReady, startRecording]);
 
   async function openCamera() {
     setError(null);
@@ -416,6 +437,15 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
   }
 
   const lowFps = detectedFps !== null && detectedFps < minimumFps;
+  const liveMessage = !poseStatus.detected
+    ? "Ustaw całą sylwetkę w kadrze"
+    : !poseStatus.singleAthlete
+      ? "W kadrze może być tylko jedna osoba"
+      : !poseStatus.fullBody
+        ? "Odsuń kamerę — pokaż ciało od głowy do stóp"
+        : athleteReady
+          ? "Zawodnik wykryty · gotowe"
+          : "Dopasuj odległość, aż szkielet będzie cały widoczny";
 
   if (mode === "idle" || mode === "starting") {
     return (
@@ -474,15 +504,9 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       />
       <VisionLivePoseOverlay
         videoRef={videoRef}
-        active={(mode === "preview" || mode === "recording") && previewReady}
+        active={(mode === "preview" || mode === "recording") && previewReady && isLandscape}
         onStatus={setPoseStatus}
       />
-
-      <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute inset-y-0 left-[12%] border-l border-dashed border-white/55" />
-        <div className="absolute inset-y-0 right-[12%] border-r border-dashed border-white/55" />
-        <div className="absolute inset-x-[12%] top-1/2 border-t border-white/25" />
-      </div>
 
       {!previewReady && mode !== "processing" && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-black text-sm">
@@ -491,6 +515,25 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
       )}
 
       {flashActive && <div className="pointer-events-none absolute inset-0 z-40 bg-white/85" />}
+
+      {!isLandscape && mode === "preview" && previewReady && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-[#04142f]/95 px-8 text-center">
+          <RotateCcw className="h-12 w-12 text-blue-400" />
+          <div>
+            <p className="text-xl font-bold">Obróć telefon poziomo</p>
+            <p className="mt-2 text-sm text-white/70">
+              Analiza i nagranie ruszą dopiero w poziomie.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={closeFullscreen}
+            className="mt-2 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold"
+          >
+            Zamknij kamerę
+          </button>
+        </div>
+      )}
 
       {countdownLabel && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/35">
@@ -536,27 +579,20 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
         </button>
       </div>
 
-      {/* Dolny kompaktowy overlay sterowania. */}
+      {/* Tylko stan wykrywania i sterowanie — bez dekoracyjnych linii i listy technicznej. */}
       <div
-        className="absolute inset-x-0 bottom-0 z-40 space-y-3 bg-gradient-to-t from-black/85 to-transparent px-4 pt-8"
+        className="absolute inset-x-0 bottom-0 z-40 space-y-2 bg-gradient-to-t from-black/85 to-transparent px-4 pt-8"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
       >
-        <div className="grid grid-cols-3 gap-2">
-          <PreflightChip label="1 zawodnik" ready={poseStatus.singleAthlete} />
-          <PreflightChip label="Cała sylwetka" ready={poseStatus.fullBody} />
-          <PreflightChip label="Kadr sprintu" ready={poseStatus.timingReady} />
-        </div>
-
-        {lowFps && (
-          <p className="rounded-xl bg-amber-400/15 px-3 py-2 text-[11px] text-amber-100">
-            Kamera udostępniła {detectedFps} FPS. Wynik będzie estymacją techniczną.
-          </p>
-        )}
-
-        {autoArmed && (
-          <p className="rounded-xl bg-blue-400/15 px-3 py-2 text-center text-[11px] text-blue-100">
-            Tryb solo aktywny. Ustaw się na START — po 1,5 s stabilnej pozycji ruszy odliczanie.
-          </p>
+        {mode !== "processing" && (
+          <div
+            className={`mx-auto w-fit max-w-full rounded-full px-4 py-2 text-center text-xs font-semibold backdrop-blur ${
+              athleteReady ? "bg-emerald-500/85 text-white" : "bg-black/65 text-white"
+            }`}
+          >
+            {liveMessage}
+            {autoArmed && athleteReady ? " · auto start" : ""}
+          </div>
         )}
 
         {mode === "processing" ? (
@@ -575,7 +611,7 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
               size="lg"
               onClick={cancelAutomaticRecording}
             >
-              Anuluj tryb automatyczny
+              Wyłącz auto start
             </Button>
             <Button
               variant="secondary"
@@ -590,7 +626,7 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
         ) : (
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <Button className="w-full" size="lg" onClick={() => setAutoArmed(true)}>
-              <ScanLine className="mr-2 h-5 w-5" /> Uzbrój tryb solo
+              <ScanLine className="mr-2 h-5 w-5" /> Włącz auto start
             </Button>
             <Button
               variant="secondary"
@@ -604,26 +640,8 @@ export function VisionRecorder({ minimumFps, onRecorded }: VisionRecorderProps) 
           </div>
         )}
 
-        {!audioAvailable && (
-          <p className="text-center text-[11px] text-white/70">
-            Dźwięk niedostępny — zostaje błysk ekranu i odliczanie wizualne.
-          </p>
-        )}
         {error && <p className="px-1 text-[11px] leading-relaxed text-red-200">{error}</p>}
       </div>
-    </div>
-  );
-}
-
-function PreflightChip({ label, ready }: { label: string; ready: boolean }) {
-  return (
-    <div
-      className={`flex min-w-0 items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold ${
-        ready ? "bg-emerald-500/25 text-emerald-100" : "bg-white/10 text-white/60"
-      }`}
-    >
-      {ready ? <CheckCircle2 className="h-3.5 w-3.5" /> : <ScanLine className="h-3.5 w-3.5" />}
-      <span className="truncate">{label}</span>
     </div>
   );
 }

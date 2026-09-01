@@ -1,4 +1,9 @@
-import { POSE, type FramePose, type Landmark } from "@/features/vision-analysis/types";
+import {
+  POSE,
+  type FramePose,
+  type Landmark,
+  type TestType,
+} from "@/features/vision-analysis/types";
 
 const LEFT_EAR = 7;
 const RIGHT_EAR = 8;
@@ -22,6 +27,14 @@ export const EMPTY_LIVE_POSE_STATUS: LivePoseStatus = {
   confidence: 0,
   silhouetteFraction: 0,
 };
+
+const DISTANCE_TESTS = new Set<TestType>(["sprint_20m", "sprint_30m", "flying_sprint"]);
+
+/** Sprint wymaga szerszego kadru, a skok większej sylwetki do oceny stawów. */
+export function isLivePoseReadyForTest(status: LivePoseStatus, testType: TestType): boolean {
+  if (!status.detected || !status.singleAthlete || !status.fullBody) return false;
+  return DISTANCE_TESTS.has(testType) ? status.timingReady : status.mechanicsReady;
+}
 
 function visible(point: Landmark | undefined, threshold = 0.35): point is Landmark {
   return !!point && point.visibility >= threshold;
