@@ -210,12 +210,28 @@ function jumpFootLevelSeries(poses: FramePose[]): number[] {
     return values[Math.floor(values.length / 2)];
   };
 
-  return poses.map((pose) => {
-    const values = [sideLevel(pose, "left"), sideLevel(pose, "right")].filter((value) =>
-      Number.isFinite(value),
-    );
-    return values.length > 0 ? meanFinite(values) : NaN;
-  });
+  const left = poses.map((pose) => sideLevel(pose, "left"));
+  const right = poses.map((pose) => sideLevel(pose, "right"));
+
+  // W ujęciu bocznym dalsza stopa często jest częściowo zasłonięta i model
+  // potrafi przykleić ją do podłoża przez cały lot. Uśrednienie stron tłumiło
+  // wtedy prawdziwe oderwanie nawet o połowę. Wybieramy jeden, spójny w czasie
+  // bok: ten z lepszym połączeniem wykrywalności i odpornej amplitudy ruchu.
+  const sideScore = (series: number[]) => {
+    const finite = series.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+    if (finite.length < 6) return 0;
+    const at = (q: number) => {
+      const position = (finite.length - 1) * q;
+      const lower = Math.floor(position);
+      const upper = Math.ceil(position);
+      const weight = position - lower;
+      return finite[lower] * (1 - weight) + finite[upper] * weight;
+    };
+    const amplitude = Math.max(0, at(0.7) - at(0.08));
+    return amplitude * (finite.length / Math.max(1, series.length));
+  };
+
+  return sideScore(left) >= sideScore(right) ? left : right;
 }
 
 /**
