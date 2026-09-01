@@ -209,6 +209,53 @@ function meanVisibility(landmarks: Landmark[]): number {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
+function landmarkDistance(a: Landmark, b: Landmark): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/** Odrzuca punkty wyhalucynowane na dłoni, torbie lub fragmencie pokoju. */
+export function isPlausibleHumanPose(landmarks: Landmark[]): boolean {
+  const usable = (index: number) => {
+    const point = landmarks[index];
+    return (
+      !!point && point.visibility >= 0.35 && Number.isFinite(point.x) && Number.isFinite(point.y)
+    );
+  };
+  const chain = (left: boolean) => {
+    const shoulder = landmarks[left ? POSE.LEFT_SHOULDER : POSE.RIGHT_SHOULDER];
+    const hip = landmarks[left ? POSE.LEFT_HIP : POSE.RIGHT_HIP];
+    const knee = landmarks[left ? POSE.LEFT_KNEE : POSE.RIGHT_KNEE];
+    const ankle = landmarks[left ? POSE.LEFT_ANKLE : POSE.RIGHT_ANKLE];
+    const indices = left
+      ? [POSE.LEFT_SHOULDER, POSE.LEFT_HIP, POSE.LEFT_KNEE, POSE.LEFT_ANKLE]
+      : [POSE.RIGHT_SHOULDER, POSE.RIGHT_HIP, POSE.RIGHT_KNEE, POSE.RIGHT_ANKLE];
+    if (!indices.every(usable)) return false;
+    return (
+      landmarkDistance(shoulder, hip) >= 0.035 &&
+      landmarkDistance(hip, knee) >= 0.035 &&
+      landmarkDistance(knee, ankle) >= 0.035
+    );
+  };
+
+  const visiblePoints = landmarks.filter(
+    (point) =>
+      point.visibility >= 0.35 &&
+      Number.isFinite(point.x) &&
+      Number.isFinite(point.y) &&
+      point.x >= -0.1 &&
+      point.x <= 1.1 &&
+      point.y >= -0.1 &&
+      point.y <= 1.1,
+  );
+  if (visiblePoints.length < 8 || (!chain(true) && !chain(false))) return false;
+  const xs = visiblePoints.map((point) => point.x);
+  const ys = visiblePoints.map((point) => point.y);
+  const width = Math.max(...xs) - Math.min(...xs);
+  const height = Math.max(...ys) - Math.min(...ys);
+  const ratio = width / Math.max(height, 0.001);
+  return height >= 0.18 && ratio >= 0.05 && ratio <= 2.2;
+}
+
 /** Sprawdza wsparcie dla analizy w tej przeglądarce. */
 export function isPoseSupported(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
@@ -265,7 +312,8 @@ export async function detectPose(
     poseLandmarkerInstanceId: session.instanceId,
   });
   const poses: Landmark[][] = result?.landmarks ?? [];
-  const peopleCount = poses.length;
+  const plausiblePoses = poses.filter(isPlausibleHumanPose);
+  const peopleCount = plausiblePoses.length;
 
   if (peopleCount === 0) {
     return {
@@ -283,12 +331,12 @@ export async function detectPose(
   }
 
   // Wybór głównego zawodnika = największa widoczność kluczowych landmarków.
-  let best = poses[0];
+  let best = plausiblePoses[0];
   let bestVis = meanVisibility(best);
-  for (let i = 1; i < poses.length; i++) {
-    const v = meanVisibility(poses[i]);
+  for (let i = 1; i < plausiblePoses.length; i++) {
+    const v = meanVisibility(plausiblePoses[i]);
     if (v > bestVis) {
-      best = poses[i];
+      best = plausiblePoses[i];
       bestVis = v;
     }
   }

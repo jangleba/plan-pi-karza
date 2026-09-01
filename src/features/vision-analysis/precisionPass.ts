@@ -7,7 +7,7 @@ import type {
   VideoMetadata,
 } from "./types";
 import type { VideoTimeWindow } from "./videoFrameReader";
-import { analyzeJumpField } from "./analyzers/jumpDetection";
+import { analyzeJumpField, detectFlightPhase } from "./analyzers/jumpDetection";
 import { detectMotionWindow } from "./motionWindow";
 import {
   frameSourceTimestampUs,
@@ -97,6 +97,17 @@ function crossingWindow(input: PrecisionWindowInput, line: TimingLineSpec): Vide
 }
 
 function jumpWindow(input: PrecisionWindowInput): VideoTimeWindow[] {
+  if (["cmj", "squat_jump", "broad_jump", "single_leg_hop"].includes(input.testType)) {
+    const singleFlight = detectFlightPhase(input.coarsePoses);
+    if (singleFlight) {
+      return [
+        {
+          startSeconds: singleFlight.takeoffTime - 1.5,
+          endSeconds: singleFlight.landingTime + 1,
+        },
+      ];
+    }
+  }
   const field = analyzeJumpField(input.coarsePoses);
   if (field && field.segments.length > 0) {
     const first = Math.min(...field.segments.map((segment) => segment.takeoffTime));

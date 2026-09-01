@@ -6,6 +6,7 @@ import { gymAnalyzer } from "./analyzers/gymAnalyzer";
 import type { AnalysisContext, FramePose, Landmark, VideoMetadata } from "./types";
 import { POSE } from "./types";
 import { multiplePeopleDetected } from "./poseSeries";
+import { isPlausibleHumanPose } from "./poseEngine";
 
 function landmarksWith(hipY: number, footY: number): Landmark[] {
   const arr: Landmark[] = Array.from({ length: 33 }, () => ({
@@ -271,6 +272,27 @@ describe("walidacja liczby osób", () => {
     const poses = buildRealisticCmjPoses();
     for (let i = 30; i < 90; i++) poses[i].peopleCount = 2;
     expect(multiplePeopleDetected(poses)).toBe(true);
+  });
+});
+
+describe("filtr prawdziwej sylwetki", () => {
+  it("akceptuje spójną sylwetkę z widocznym łańcuchem stawów", () => {
+    const landmarks = landmarksWith(0.52, 0.9);
+    landmarks[POSE.LEFT_SHOULDER] = { x: 0.44, y: 0.25, z: 0, visibility: 0.95 };
+    landmarks[POSE.LEFT_HIP] = { x: 0.46, y: 0.52, z: 0, visibility: 0.95 };
+    landmarks[POSE.LEFT_KNEE] = { x: 0.47, y: 0.7, z: 0, visibility: 0.95 };
+    landmarks[POSE.LEFT_ANKLE] = { x: 0.48, y: 0.9, z: 0, visibility: 0.95 };
+    expect(isPlausibleHumanPose(landmarks)).toBe(true);
+  });
+
+  it("odrzuca skupisko punktów z dłoni, torby lub fragmentu tła", () => {
+    const landmarks: Landmark[] = Array.from({ length: 33 }, (_, index) => ({
+      x: 0.49 + (index % 3) * 0.004,
+      y: 0.5 + (index % 4) * 0.004,
+      z: 0,
+      visibility: 0.95,
+    }));
+    expect(isPlausibleHumanPose(landmarks)).toBe(false);
   });
 });
 
