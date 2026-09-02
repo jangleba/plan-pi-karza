@@ -1,5 +1,4 @@
 import type { SessionDay, SessionCompletion, Profile } from "@/lib/loadwise/types";
-import type { VisionTestResult } from "@/lib/vision/types";
 import {
   changeOf,
   type CompletedSessionEntry,
@@ -175,7 +174,7 @@ export function buildDirection(
   const needsTest = series.length === 0 || improvement == null;
   const nextStep = needsTest
     ? series.length === 0
-      ? "Wykonaj pierwszy test w Vision Lab, aby uzyskać punkt odniesienia."
+      ? "Wykonaj pierwszy test kontrolny, aby uzyskać punkt odniesienia."
       : `Powtórz test ${series[0]!.label}, aby porównać wynik.`
     : `Utrzymaj wynik w teście ${improvement!.series.label} przy kolejnym pomiarze.`;
 
@@ -190,7 +189,7 @@ export function buildDirection(
     nextStep,
     cta:
       needsTest || !nextSession
-        ? { label: "Przejdź do Vision Lab", to: "test" }
+        ? { label: "Przejdź do testów", to: "test" }
         : { label: "Otwórz następną jednostkę", to: "session", date: nextSession.date },
   };
 }
@@ -206,7 +205,6 @@ export interface TestSummaryRow {
   retestDueIso: string;
   daysToRetest: number;
   conditions: string | null;
-  visionTestId: string | null;
 }
 
 const RETEST_INTERVAL_DAYS = 28;
@@ -225,22 +223,13 @@ function diffDays(fromIso: string, toIso: string): number {
 
 export function buildTestSummaries(
   series: MetricSeries[],
-  vision: VisionTestResult[],
   todayIso: string,
 ): TestSummaryRow[] {
   return series.map((s) => {
     const c = changeOf(s);
     const values = s.points.map((p) => p.value);
     const best = s.lowerIsBetter ? Math.min(...values) : Math.max(...values);
-    const visionTestId = s.id.startsWith("vision:") ? s.id.slice("vision:".length) : null;
-    const latestVision = visionTestId
-      ? vision.find((v) => v.testType === visionTestId) ?? null
-      : null;
     const conditionParts: string[] = [];
-    if (latestVision?.fps) conditionParts.push(`${Math.round(latestVision.fps)} fps`);
-    if (latestVision?.cameraView) conditionParts.push(String(latestVision.cameraView));
-    if (latestVision?.confidenceScore)
-      conditionParts.push(`pewność: ${latestVision.confidenceScore}`);
     const retestDueIso = addDays(c.latest.date, RETEST_INTERVAL_DAYS);
     return {
       series: s,
@@ -250,47 +239,6 @@ export function buildTestSummaries(
       retestDueIso,
       daysToRetest: diffDays(todayIso, retestDueIso),
       conditions: conditionParts.length ? conditionParts.join(" · ") : null,
-      visionTestId,
     };
   });
-}
-
-// ---------------- Vision Lab: tylko realnie mierzone parametry ----------------
-
-export interface VisionParamRow {
-  key: string;
-  label: string;
-  value: number;
-  unit: string;
-  date: string;
-  testName: string;
-}
-
-export function buildVisionParameters(vision: VisionTestResult[]): VisionParamRow[] {
-  const seen = new Map<string, VisionParamRow>();
-  for (const r of [...vision].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))) {
-    if (r.validityStatus === "invalid") continue;
-    for (const m of r.measuredMetrics ?? []) {
-      if (seen.has(m.key)) continue;
-      if (!Number.isFinite(m.value)) continue;
-      seen.set(m.key, {
-        key: m.key,
-        label: m.label,
-        value: m.value,
-        unit: m.unit,
-        date: r.createdAt.slice(0, 10),
-        testName: r.testName,
-      });
-    }
-  }
-  return Array.from(seen.values());
-}
-
-/** Krótka, ostrożna interpretacja — bez diagnozy i bez obietnic poziomu gry. */
-export function visionInterpretation(rows: VisionParamRow[], tests: number): string {
-  if (tests === 0)
-    return "Brak wykonanych analiz. Wykonaj pierwszy test, aby zobaczyć zmierzone parametry.";
-  if (rows.length === 0)
-    return "Analizy zostały wykonane, ale żaden parametr nie został zmierzony z wystarczającą jakością nagrania.";
-  return `Zmierzono ${rows.length} parametrów w ${tests} analizach. Wartości opisują wykonanie w warunkach testu, nie poziom gry.`;
 }
