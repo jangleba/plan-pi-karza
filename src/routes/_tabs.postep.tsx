@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 import { ProgressTests } from "@/components/progress/ProgressTests";
@@ -15,8 +14,6 @@ import {
   buildMicrocycle,
   buildDirection,
   buildTestSummaries,
-  buildVisionParameters,
-  visionInterpretation,
 } from "@/lib/progress/center";
 import {
   buildCycleBar,
@@ -25,10 +22,6 @@ import {
   buildDevelopmentMap,
   buildTimeline,
 } from "@/lib/progress/dashboard";
-import { listAllResults } from "@/lib/vision/visionResultService";
-import { getVisionTest } from "@/lib/vision/visionTests";
-import { SUPPORTED_VISION_TESTS } from "@/lib/vision/supportedTests";
-import type { VisionTestResult } from "@/lib/vision/types";
 
 export const Route = createFileRoute("/_tabs/postep")({
   component: ProgressScreen,
@@ -62,37 +55,16 @@ type TabId = (typeof TABS)[number]["id"];
 
 function ProgressScreen() {
   const { state, todayIso } = useLoadwise();
-  const { user } = useAuth();
   const [tab, setTab] = useState<TabId>("dashboard");
-  const [vision, setVision] = useState<VisionTestResult[]>([]);
-
-  useEffect(() => {
-    let alive = true;
-    listAllResults(user?.id ?? null)
-      .then((r) => alive && setVision(r))
-      .catch(() => alive && setVision([]));
-    return () => {
-      alive = false;
-    };
-  }, [user?.id]);
 
   const history = useMemo(
     () => buildTrainingHistory(state.plan, state.completions),
     [state.plan, state.completions],
   );
 
-  const series = useMemo(
-    () => buildMetricSeries(state.tests, vision),
-    [state.tests, vision],
-  );
+  const series = useMemo(() => buildMetricSeries(state.tests), [state.tests]);
 
-  const testDates = useMemo(
-    () => [
-      ...state.tests.map((t) => t.date),
-      ...vision.map((v) => v.createdAt.slice(0, 10)),
-    ],
-    [state.tests, vision],
-  );
+  const testDates = useMemo(() => state.tests.map((t) => t.date), [state.tests]);
 
   const micro = useMemo(
     () =>
@@ -123,34 +95,24 @@ function ProgressScreen() {
   const load = useMemo(() => buildLoadReport(history, todayIso), [history, todayIso]);
 
   const evidence = useMemo(
-    () => buildEvidence(micro, series, vision, history, todayIso),
-    [micro, series, vision, history, todayIso],
+    () => buildEvidence(micro, series, history, todayIso),
+    [micro, series, history, todayIso],
   );
 
   const areas = useMemo(
-    () => buildDevelopmentMap(series, micro, history, vision, todayIso),
-    [series, micro, history, vision, todayIso],
+    () => buildDevelopmentMap(series, micro, history, todayIso),
+    [series, micro, history, todayIso],
   );
 
   const timeline = useMemo(
-    () => buildTimeline(history, series, vision),
-    [history, series, vision],
+    () => buildTimeline(history, series),
+    [history, series],
   );
 
   const testRows = useMemo(
-    () => buildTestSummaries(series, vision, todayIso),
-    [series, vision, todayIso],
+    () => buildTestSummaries(series, todayIso),
+    [series, todayIso],
   );
-
-  const visionParams = useMemo(() => buildVisionParameters(vision), [vision]);
-
-  const recommendedVisionTest = useMemo(() => {
-    const measured = new Set(vision.map((v) => v.testType));
-    const id =
-      SUPPORTED_VISION_TESTS.find((t) => !measured.has(t)) ?? SUPPORTED_VISION_TESTS[0];
-    const t = getVisionTest(id);
-    return t ? { id: t.id, name: t.name } : null;
-  }, [vision]);
 
   return (
     <div>
@@ -187,12 +149,7 @@ function ProgressScreen() {
           />
         )}
         {tab === "tests" && (
-          <ProgressTests
-            rows={testRows}
-            visionParams={visionParams}
-            visionInterpretationText={visionInterpretation(visionParams, vision.length)}
-            recommendedVisionTest={recommendedVisionTest}
-          />
+          <ProgressTests rows={testRows} />
         )}
         {tab === "history" && <ProgressHistory events={timeline} />}
       </div>
