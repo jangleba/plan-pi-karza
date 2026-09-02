@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, RotateCcw, Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { seekToFrame } from "@/features/vision-analysis/videoFrameReader";
 import {
   buildCalibrationRecord,
   buildKnownDistanceRecord,
@@ -39,6 +40,7 @@ export function VisionVideoCalibration({
   fps,
   testId,
   requiredAreaPx,
+  officialOnly = false,
   onSaved,
   onCancel,
 }: {
@@ -49,6 +51,8 @@ export function VisionVideoCalibration({
   testId?: string;
   /** Punkty (px) obszaru testu, które muszą znaleźć się w skalibrowanej strefie. */
   requiredAreaPx?: ImagePointPx[];
+  /** Ukrywa tryby bez homografii; używane przez oficjalny pomiar Broad Jump. */
+  officialOnly?: boolean;
   onSaved: (record: CalibrationRecord) => void;
   onCancel: () => void;
 }) {
@@ -59,7 +63,9 @@ export function VisionVideoCalibration({
 
   const sprintDistanceM = SPRINT_DISTANCE_M[testId ?? ""];
   const isSprintCalibration = !!sprintDistanceM || testId === "flying_sprint";
-  const [widthCm, setWidthCm] = useState(() => (sprintDistanceM ? sprintDistanceM * 100 : 200));
+  const [widthCm, setWidthCm] = useState(() =>
+    sprintDistanceM ? sprintDistanceM * 100 : testId === "broad_jump" ? 300 : 200,
+  );
   const [heightCm, setHeightCm] = useState(() => (isSprintCalibration ? 200 : 100));
   const [taps, setTaps] = useState<ImagePointPx[]>([]);
 
@@ -72,7 +78,7 @@ export function VisionVideoCalibration({
   const imgRef = useRef<HTMLImageElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Przechwyć klatkę referencyjną (środek filmu) do kalibracji.
+  // Przechwyć początkową klatkę referencyjną, zanim zawodnik zasłoni podłoże.
   useEffect(() => {
     const v = document.createElement("video");
     videoRef.current = v;
@@ -80,8 +86,14 @@ export function VisionVideoCalibration({
     v.muted = true;
     v.crossOrigin = "anonymous";
     const capture = () => {
-      const t = Math.min(v.duration / 2 || 0, v.duration || 0);
-      const onSeeked = () => {
+      void (async () => {
+        const t = Math.min(0.2, Math.max(0, (v.duration || 0) - 0.05));
+        try {
+          await seekToFrame(v, t);
+        } catch {
+          setError("Nie udało się otworzyć klatki kalibracyjnej filmu.");
+          return;
+        }
         const canvas = document.createElement("canvas");
         canvas.width = v.videoWidth;
         canvas.height = v.videoHeight;
@@ -95,10 +107,7 @@ export function VisionVideoCalibration({
         }
         setNatural({ w: v.videoWidth, h: v.videoHeight });
         setTimestampUs(Math.round(v.currentTime * 1e6));
-        v.removeEventListener("seeked", onSeeked);
-      };
-      v.addEventListener("seeked", onSeeked);
-      v.currentTime = t;
+      })();
     };
     v.addEventListener("loadedmetadata", capture, { once: true });
     return () => {
@@ -219,23 +228,25 @@ export function VisionVideoCalibration({
       <div>
         <h3 className="mb-2 text-xs font-semibold text-foreground">Tryb kalibracji</h3>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(MODE_LABELS) as CalibrationType[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setMode(m);
-                reset();
-              }}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
-                mode === m
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              {MODE_LABELS[m]}
-            </button>
-          ))}
+          {(Object.keys(MODE_LABELS) as CalibrationType[])
+            .filter((m) => !officialOnly || m === "MANUAL_GROUND_POINTS")
+            .map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setMode(m);
+                  reset();
+                }}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all active:scale-95 ${
+                  mode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                {MODE_LABELS[m]}
+              </button>
+            ))}
         </div>
       </div>
 
@@ -267,7 +278,13 @@ export function VisionVideoCalibration({
               <ReadOnlyField label="Długość toru" value={`${sprintDistanceM} m`} />
             ) : (
               <NumberField
-                label={isSprintCalibration ? "Długość odcinka (cm)" : "Szerokość prostokąta (cm)"}
+                label={
+                  isSprintCalibration
+                    ? "Długość odcinka (cm)"
+                    : testId === "broad_jump"
+                      ? "Długość strefy (cm)"
+                      : "Szerokość prostokąta (cm)"
+                }
                 value={widthCm}
                 onChange={setWidthCm}
               />

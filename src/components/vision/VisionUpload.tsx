@@ -201,7 +201,7 @@ export function VisionUpload({ test }: { test: VisionTest }) {
               Telefon: {recordingOrientation === "landscape" ? "poziomo" : "pionowo"}
             </span>
             <span className="rounded-full bg-accent px-2 py-0.5">
-              Zalecane {protocol.preferredFps} FPS (min. {protocol.minimumFps})
+              Jakość aparatu dobierana i sprawdzana automatycznie
             </span>
             <span className="rounded-full bg-accent px-2 py-0.5">
               Zapas: {protocol.leadingMarginSeconds ?? 2}s / {protocol.trailingMarginSeconds ?? 2}s

@@ -40,6 +40,8 @@ const LANDSCAPE_TESTS = new Set<TestType>([
   "sprint_to_stop",
 ]);
 
+const SIDE_VIEW_JUMP_TESTS = new Set<TestType>(["cmj", "broad_jump"]);
+
 /** Sprint/COD potrzebuje szerokiego kadru. Skoki i technika korzystają z pionu. */
 export function requiredRecordingOrientation(testType: TestType): RecordingOrientation {
   return LANDSCAPE_TESTS.has(testType) ? "landscape" : "portrait";
@@ -52,6 +54,23 @@ function supportedMimeType(): string | undefined {
 
 function stopStream(stream: MediaStream | null): void {
   stream?.getTracks().forEach((track) => track.stop());
+}
+
+/** Wybiera najwyższy FPS faktycznie udostępniony przez bieżący aparat/przeglądarkę. */
+async function optimizeCaptureFrameRate(track: MediaStreamTrack): Promise<number | null> {
+  try {
+    const range = track.getCapabilities?.().frameRate;
+    const supportedMax =
+      typeof range?.max === "number" && Number.isFinite(range.max) ? Math.min(240, range.max) : 240;
+    await track.applyConstraints({ frameRate: { ideal: supportedMax, max: supportedMax } });
+  } catch {
+    // iOS może odrzucić zmianę po uruchomieniu strumienia. Wtedy zachowujemy
+    // najlepszy tryb wynegocjowany przez getUserMedia i odczytujemy jego ustawienia.
+  }
+  const actual = track.getSettings().frameRate;
+  return typeof actual === "number" && Number.isFinite(actual) && actual > 0
+    ? Math.round(actual)
+    : null;
 }
 
 function speak(message: string): void {
@@ -443,10 +462,10 @@ export function VisionRecorder({
         },
       });
       streamRef.current = stream;
-      const fps = stream.getVideoTracks()[0]?.getSettings().frameRate;
-      const rounded = typeof fps === "number" ? Math.round(fps) : null;
-      detectedFpsRef.current = rounded;
-      setDetectedFps(rounded);
+      const videoTrack = stream.getVideoTracks()[0];
+      const actualFps = videoTrack ? await optimizeCaptureFrameRate(videoTrack) : null;
+      detectedFpsRef.current = actualFps;
+      setDetectedFps(actualFps);
       setPreviewReady(false);
       setMode("preview");
     } catch (cameraError) {
@@ -463,6 +482,7 @@ export function VisionRecorder({
   }
 
   const lowFps = detectedFps !== null && detectedFps < minimumFps;
+  const needsSideView = SIDE_VIEW_JUMP_TESTS.has(testType);
   const liveMessage = !poseStatus.detected
     ? poseEngineState === "loading"
       ? "Uruchamianie analizy 33 punktów sylwetki…"
@@ -474,7 +494,9 @@ export function VisionRecorder({
       : !poseStatus.fullBody
         ? "Odsuń kamerę — pokaż ciało od głowy do stóp"
         : athleteReady
-          ? "Zawodnik wykryty · gotowe"
+          ? needsSideView
+            ? "Sylwetka wykryta · ustaw się bokiem do kamery"
+            : "Zawodnik wykryty · gotowe"
           : "Dopasuj odległość, aż szkielet będzie cały widoczny";
 
   if (mode === "idle" || mode === "starting") {
