@@ -5,6 +5,7 @@ import { VisionAthleteFrameAnalysis } from "@/components/vision/VisionAthleteFra
 import { VisionTestNotFound } from "@/components/vision/VisionTestNotFound";
 import { getVisionTest } from "@/lib/vision/visionTests";
 import { isAthleteFrameAnalysisSupported } from "@/lib/vision/frameAnalysisService";
+import { isTestVisibleInUi } from "@/lib/vision/supportedTests";
 
 export const Route = createFileRoute("/vision-lab/analyze/$testId")({
   ssr: false,
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/vision-lab/analyze/$testId")({
 function AnalyzeRoute() {
   const { testId } = useParams({ from: "/vision-lab/analyze/$testId" });
   const test = getVisionTest(testId);
-  if (!test) return <VisionTestNotFound />;
+  if (!test || !isTestVisibleInUi(test.id)) return <VisionTestNotFound />;
   const supportsVerifiedFrames = isAthleteFrameAnalysisSupported(test.id);
   return (
     <VisionGuard withNav>
