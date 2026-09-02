@@ -57,11 +57,13 @@ Administratorem danych osobowych jest [ADMINISTRATOR_NAME], z siedzibą pod adre
 
 
 3. Cel i podstawa prawna
+Dane przetwarzamy w celu świadczenia usługi (art. 6 ust. 1 lit. b RODO) oraz na podstawie Twojej wyraźnej zgody w odniesieniu do danych o zdrowiu (art. 9 ust. 2 lit. a RODO).
 
 4. Okres przechowywania
+Dane konta i wyniki przechowujemy przez okres [DATA_RETENTION_PERIOD] lub do momentu usunięcia konta.
 
 5. Podmiot przetwarzający
-Dane konta i wyniki przechowywane są w infrastrukturze chmurowej: [SUPABASE_PROCESSOR_INFO]. Film przetwarzany lokalnie nie jest przekazywany temu podmiotowi.
+Dane konta i wyniki przechowywane są w infrastrukturze chmurowej: [SUPABASE_PROCESSOR_INFO].
 
 6. Twoje prawa
 Masz prawo dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia oraz wycofania zgody w dowolnym momencie. Wycofanie zgody na przetwarzanie danych o zdrowiu może spowodować, że generowanie planów treningowych przestanie działać.

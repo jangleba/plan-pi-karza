@@ -3,14 +3,10 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 /**
- * Test granicy modułów: Plan ↔ Vision.
+ * Test granicy modułu Plan.
  *
- * Egzekwuje zasady z PLAN_PROTECTED.md:
- *  - moduł Plan (loadwise + trasy planu + komponenty loadwise) NIE importuje
- *    kodu Vision,
- *  - src/features/vision-analysis NIE sięga do modułu Plan.
- *
- * Dozwolony jest wyłącznie odczyt typów/etykiet Planu przez lib/vision.
+ * Egzekwuje zasadę z PLAN_PROTECTED.md: moduł Plan (loadwise + trasy planu
+ * + komponenty loadwise) nie importuje kodu usuniętego modułu Vision.
  */
 
 const ROOT = resolve(__dirname, "..", "..", "..");
@@ -55,7 +51,7 @@ describe("granica modułu Plan (PLAN_PROTECTED)", () => {
     resolve(ROOT, "src/routes/sesja.$date.tsx"),
   ];
 
-  it("żaden plik Planu nie importuje kodu Vision", () => {
+  it("żaden plik Planu nie importuje usuniętego kodu Vision", () => {
     const visionPatterns = [/features\/vision-analysis/, /lib\/vision/];
     const offenders: string[] = [];
     for (const f of planFiles) {
@@ -69,14 +65,4 @@ describe("granica modułu Plan (PLAN_PROTECTED)", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("vision-analysis nie sięga do modułu Plan", () => {
-    const files = collectFiles(resolve(ROOT, "src/features/vision-analysis"));
-    const planPatterns = [/lib\/loadwise/, /components\/loadwise/, /routes\/_tabs\.plan/];
-    const offenders: string[] = [];
-    for (const f of files) {
-      const hits = importsMatching(f, planPatterns);
-      if (hits.length) offenders.push(`${f.replace(ROOT, "")}: ${hits.join(", ")}`);
-    }
-    expect(offenders).toEqual([]);
-  });
 });
