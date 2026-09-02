@@ -21,12 +21,6 @@ export function MetricTrend({ series }: { series: MetricSeries[] }) {
         <p className="mt-1 text-xs text-muted-foreground">
           Nie masz jeszcze żadnego zapisanego pomiaru.
         </p>
-        <Link
-          to="/vision-lab"
-          className="mt-3 flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-[0.98]"
-        >
-          Wykonaj pierwszy test
-        </Link>
       </section>
     );
   }

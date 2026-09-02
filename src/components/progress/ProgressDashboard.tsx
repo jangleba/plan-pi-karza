@@ -56,12 +56,13 @@ export function ProgressDashboard({
             <Target className="h-4 w-4" /> {direction.cta.label}
           </Link>
         ) : (
-          <Link
-            to="/vision-lab"
-            className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-[0.98]"
+          <button
+            type="button"
+            onClick={onNavigateTests}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-[0.98]"
           >
             <Target className="h-4 w-4" /> {direction.cta.label}
-          </Link>
+          </button>
         )}
       </section>
 
