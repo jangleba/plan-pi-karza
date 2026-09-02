@@ -44,6 +44,47 @@ export interface HorizontalDistanceFailure {
   error: HorizontalDistanceError;
 }
 
+/**
+ * Pomiar po ręcznym wskazaniu bliższej linii wybicia pięty na klatce lądowania.
+ * To deterministyczny fallback, gdy landmark pięty jest zasłonięty albo błędny.
+ */
+export function measureCalibratedLandingPoint(
+  record: CalibrationRecord,
+  landingHeelPointPx: ImagePointPx,
+): HorizontalDistanceResult | HorizontalDistanceFailure {
+  if (record.spatialResultStatus !== "OFFICIAL") return { ok: false, error: "NO_HOMOGRAPHY" };
+  const worldToImage = record.homographyMatrix;
+  if (!worldToImage) return { ok: false, error: "NO_HOMOGRAPHY" };
+  const inverse = record.inverseHomographyMatrix ?? invert3x3(worldToImage);
+  if (!inverse) return { ok: false, error: "NO_HOMOGRAPHY" };
+  const takeoffLine = record.takeoffLinePx;
+  if (!takeoffLine) return { ok: false, error: "NO_TAKEOFF_LINE" };
+  if (
+    (record.calibratedAreaPolygonPx.length > 0 &&
+      !pointInPolygon(landingHeelPointPx, record.calibratedAreaPolygonPx)) ||
+    (record.landingAreaPolygonPx?.length &&
+      !pointInPolygon(landingHeelPointPx, record.landingAreaPolygonPx))
+  ) {
+    return { ok: false, error: "LANDING_OUT_OF_CALIBRATION_AREA" };
+  }
+  const lineAmm = applyInverse(inverse, takeoffLine[0].u, takeoffLine[0].v);
+  const lineBmm = applyInverse(inverse, takeoffLine[1].u, takeoffLine[1].v);
+  const heelMm = applyInverse(inverse, landingHeelPointPx.u, landingHeelPointPx.v);
+  if (!lineAmm || !lineBmm || !heelMm) return { ok: false, error: "NO_HOMOGRAPHY" };
+  const distanceCm = round(perpendicularDistanceMm(heelMm, lineAmm, lineBmm) / 10, 1);
+  if (distanceCm < MIN_DISTANCE_CM || distanceCm > MAX_DISTANCE_CM) {
+    return { ok: false, error: "IMPLAUSIBLE" };
+  }
+  return {
+    ok: true,
+    distanceCm,
+    landingHeelPointPx,
+    landingHeelPointMm: { x: round(heelMm.x, 1), y: round(heelMm.y, 1) },
+    side: "left",
+    reprojectionErrorPx: record.reprojectionErrorPx,
+  };
+}
+
 /** Minimalna widoczność landmarku pięty, by uznać go za wykryty. */
 const MIN_HEEL_VISIBILITY = 0.5;
 
@@ -65,11 +106,7 @@ function heelPixel(
 }
 
 /** Prostopadła odległość punktu od linii (a→b) na płaszczyźnie podłoża (mm). */
-function perpendicularDistanceMm(
-  point: GroundPoint,
-  a: GroundPoint,
-  b: GroundPoint,
-): number {
+function perpendicularDistanceMm(point: GroundPoint, a: GroundPoint, b: GroundPoint): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy);

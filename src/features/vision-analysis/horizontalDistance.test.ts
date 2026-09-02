@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { AnalysisContext, DetectedEvent, FramePose, Landmark } from "./types";
 import { POSE } from "./types";
-import { measureGroundHorizontalDistance } from "./horizontalDistance";
+import {
+  measureCalibratedLandingPoint,
+  measureGroundHorizontalDistance,
+} from "./horizontalDistance";
 import {
   buildCalibrationRecord,
   canInheritCalibration,
@@ -63,7 +66,12 @@ function pose(frameIndex: number, heelXmm: number, heelYmm = 500): FramePose {
   const px = worldToPx(heelXmm, heelYmm);
   const nx = px.u / WIDTH;
   const ny = px.v / HEIGHT;
-  for (const idx of [POSE.LEFT_HEEL, POSE.RIGHT_HEEL, POSE.LEFT_FOOT_INDEX, POSE.RIGHT_FOOT_INDEX]) {
+  for (const idx of [
+    POSE.LEFT_HEEL,
+    POSE.RIGHT_HEEL,
+    POSE.LEFT_FOOT_INDEX,
+    POSE.RIGHT_FOOT_INDEX,
+  ]) {
     lm[idx] = { x: nx, y: ny, z: 0, visibility: 1 };
   }
   return {
@@ -77,7 +85,10 @@ function pose(frameIndex: number, heelXmm: number, heelYmm = 500): FramePose {
   };
 }
 
-function ctxWith(record: ReturnType<typeof buildRecord> | null, landingXmm: number): AnalysisContext {
+function ctxWith(
+  record: ReturnType<typeof buildRecord> | null,
+  landingXmm: number,
+): AnalysisContext {
   return {
     testType: "broad_jump",
     metadata: {
@@ -126,7 +137,12 @@ describe("horizontalDistance — pomiar pięty przez homografię", () => {
 
   it("lądowanie poza obszarem kalibracji → LANDING_OUT_OF_CALIBRATION_AREA", () => {
     // Strefa lądowania ograniczona do x<1500 mm; skok 2200 mm wypada poza nią.
-    const landingArea = [worldToPx(0, 0), worldToPx(1500, 0), worldToPx(1500, 1000), worldToPx(0, 1000)];
+    const landingArea = [
+      worldToPx(0, 0),
+      worldToPx(1500, 0),
+      worldToPx(1500, 1000),
+      worldToPx(0, 1000),
+    ];
     const res = measureGroundHorizontalDistance(
       ctxWith(buildRecord({ landingArea }), 2200),
       EVENTS,
@@ -154,8 +170,26 @@ describe("horizontalDistance — pomiar pięty przez homografię", () => {
   });
 });
 
+describe("measureCalibratedLandingPoint", () => {
+  it("mierzy prostopadłą odległość ręcznie wskazanej pięty", () => {
+    const result = measureCalibratedLandingPoint(buildRecord(), worldToPx(2200, 500));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.distanceCm).toBe(220);
+  });
+
+  it("odrzuca punkt poza skalibrowanym podłożem", () => {
+    const result = measureCalibratedLandingPoint(buildRecord(), worldToPx(5000, 500));
+    expect(result).toEqual({ ok: false, error: "LANDING_OUT_OF_CALIBRATION_AREA" });
+  });
+});
+
 describe("canInheritCalibration — potwierdzenie zgodności sceny", () => {
-  const fc = frameConfigurationHash({ width: WIDTH, height: HEIGHT, fps: 120, orientation: "landscape" });
+  const fc = frameConfigurationHash({
+    width: WIDTH,
+    height: HEIGHT,
+    fps: 120,
+    orientation: "landscape",
+  });
 
   it("druga próba bez zmiany kamery → można odziedziczyć", () => {
     const rec = buildRecord();
