@@ -3,7 +3,6 @@ import type {
   SessionCompletion,
   TestResult,
 } from "@/lib/loadwise/types";
-import type { VisionTestResult } from "@/lib/vision/types";
 
 /** Kategorie treningu używane w historii i filtrach zakładki Postęp. */
 export type TrainingCategoryKey =
@@ -112,13 +111,13 @@ export function summarizeWindow(
 
 // ---------------- Wyniki testów ----------------
 
-export type MetricCategoryKey = "speed" | "strength" | "endurance" | "vision";
+export type MetricCategoryKey = "speed" | "strength" | "endurance" | "technique";
 
 export const METRIC_CATEGORY_LABELS: Record<MetricCategoryKey, string> = {
   speed: "Szybkość",
   strength: "Siła i moc",
   endurance: "Wydolność",
-  vision: "Vision Lab",
+  technique: "Technika",
 };
 
 export interface MetricPoint {
@@ -143,21 +142,8 @@ export interface MetricChange {
   improved: boolean | null;
 }
 
-function lowerIsBetterTest(testType: string): boolean {
-  return /sprint|five_ten_five|505|braking|sprint_to_stop|cod/.test(testType);
-}
-
-function visionCategory(result: VisionTestResult): MetricCategoryKey {
-  if (result.testCategory === "sprint") return "speed";
-  if (result.testCategory === "jump") return "strength";
-  return "vision";
-}
-
-/** Buduje serie pomiarowe z lokalnych testów i wyników Vision Lab. */
-export function buildMetricSeries(
-  tests: TestResult[],
-  vision: VisionTestResult[],
-): MetricSeries[] {
+/** Buduje serie pomiarowe z lokalnych testów. */
+export function buildMetricSeries(tests: TestResult[]): MetricSeries[] {
   const map = new Map<string, MetricSeries>();
 
   const localMeta: Record<
@@ -167,7 +153,7 @@ export function buildMetricSeries(
     sprint: { label: "Sprint", unit: "s", category: "speed", lower: true },
     vertical: { label: "Wyskok pionowy", unit: "cm", category: "strength", lower: false },
     broad: { label: "Skok w dal z miejsca", unit: "cm", category: "strength", lower: false },
-    technique: { label: "Technika", unit: "pkt", category: "vision", lower: false },
+    technique: { label: "Technika", unit: "pkt", category: "technique", lower: false },
   };
 
   for (const t of tests) {
@@ -186,24 +172,6 @@ export function buildMetricSeries(
         points: [],
       } as MetricSeries);
     s.points.push({ date: t.date, value });
-    map.set(id, s);
-  }
-
-  for (const r of vision) {
-    if (r.mainResultValue == null) continue;
-    if (r.validityStatus === "invalid") continue;
-    const id = `vision:${r.testType}`;
-    const s =
-      map.get(id) ??
-      ({
-        id,
-        label: r.testName,
-        unit: r.mainResultUnit ?? "",
-        category: visionCategory(r),
-        lowerIsBetter: lowerIsBetterTest(r.testType),
-        points: [],
-      } as MetricSeries);
-    s.points.push({ date: r.createdAt.slice(0, 10), value: r.mainResultValue });
     map.set(id, s);
   }
 
