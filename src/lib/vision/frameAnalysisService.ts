@@ -33,10 +33,7 @@ export const TEST_MARKERS: Record<string, FrameMarkerDef[]> = {
     { key: "takeoff_frame", label: "Klatka ponownego oderwania", required: true },
     { key: "landing_frame", label: "Klatka końcowego lądowania", required: true },
   ],
-  broad_jump: [
-    { key: "takeoff_frame", label: "Klatka oderwania (opcjonalnie)", required: false },
-    { key: "landing_frame", label: "Klatka lądowania (opcjonalnie)", required: false },
-  ],
+  broad_jump: [{ key: "landing_frame", label: "Pierwszy kontakt przy lądowaniu", required: true }],
   pogo_jumps: [
     { key: "first_contact_frame", label: "Pierwszy kontakt", required: true },
     { key: "last_contact_frame", label: "Ostatni kontakt", required: true },
@@ -68,7 +65,7 @@ export function getTestMarkers(testId: string): FrameMarkerDef[] {
 }
 
 /** Testy, dla których zawodnik może samodzielnie zatwierdzić pełny wynik klatkowy. */
-const ATHLETE_FRAME_TESTS = new Set(["cmj", "squat_jump", "drop_jump", "sprint_20m", "sprint_30m"]);
+const ATHLETE_FRAME_TESTS = new Set(["cmj", "broad_jump"]);
 
 export function isAthleteFrameAnalysisSupported(testId: string): boolean {
   return ATHLETE_FRAME_TESTS.has(testId);
@@ -175,7 +172,14 @@ export function computeFrameResult(params: {
   if (!test) throw new Error(`Nieznany test: ${testId}`);
 
   if (!fps || fps <= 0) {
-    return invalid(testId, test.category, fps, markers, manual, "Brak FPS. Ustaw FPS filmu.");
+    return invalid(
+      testId,
+      test.category,
+      fps,
+      markers,
+      manual,
+      "Nie udało się automatycznie odczytać FPS filmu.",
+    );
   }
 
   const estimated = fps < test.minimumFps;
@@ -325,6 +329,9 @@ export function computeFrameResult(params: {
   // ---------------- Broad Jump ----------------
   if (testId === "broad_jump") {
     const distanceCm = manual.distance_cm;
+    const landing = markers.landing_frame;
+    if (landing == null)
+      return invalid(testId, "jump", fps, markers, manual, "Brak klatki pierwszego lądowania.");
     if (distanceCm == null || distanceCm <= 0)
       return invalid(
         testId,
@@ -332,19 +339,37 @@ export function computeFrameResult(params: {
         fps,
         markers,
         manual,
-        "Odległość wymaga ręcznego pomiaru albo kalibracji skali.",
+        "Nie wskazano pięty lądowania na skalibrowanym podłożu.",
+      );
+    if (!manual.calibration_official || !manual.calibration_id || !manual.calibration_hash)
+      return invalid(
+        testId,
+        "jump",
+        fps,
+        markers,
+        manual,
+        "Broad Jump wymaga pełnej kalibracji podłoża.",
       );
     const derived: FrameDerived = {
       distanceCm: round(distanceCm, 0),
       distanceM: round(distanceCm / 100, 2),
     };
     const basis: CalculationBasis = {
-      method: "Manual Measurement",
+      method: "Calibrated Ground Plane",
       coachVerifiedFrames: markedBy === "coach",
       items: [
-        { label: "Metoda", value: "Pomiar ręczny / kalibracja skali" },
+        { label: "Metoda", value: "Homografia skalibrowanej płaszczyzny podłoża" },
+        { label: "Klatka lądowania", value: `${landing}` },
+        {
+          label: "Punkt pięty",
+          value: `${round(manual.landing_point_u ?? 0, 1)}, ${round(manual.landing_point_v ?? 0, 1)} px`,
+        },
         { label: "Odległość", value: `${round(distanceCm, 0)} cm` },
-        { label: "Jakość lądowania", value: qLabel(manual.landing_quality) },
+        { label: "Kalibracja", value: manual.calibration_id },
+        {
+          label: "Błąd reprojekcji",
+          value: `${round(manual.calibration_reprojection_error_px ?? 0, 2)} px`,
+        },
         { label: "FPS", value: `${fps}` },
         { label: "Oznaczone przez", value: markedByLabel(markedBy) },
       ],
@@ -359,7 +384,7 @@ export function computeFrameResult(params: {
       error: null,
       mainResultValue: round(distanceCm, 0),
       mainResultUnit: "cm",
-      method: "Manual Measurement",
+      method: "Calibrated Ground Plane",
       markedBy,
       derived,
       basis,

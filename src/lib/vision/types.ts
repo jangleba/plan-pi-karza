@@ -406,6 +406,12 @@ export const FRAME_QUALITY_LABELS: Record<FrameQuality, string> = {
 /** Ręczne dane wejściowe (dystans, jakość, oceny techniki COD). */
 export interface FrameManualInputs {
   distance_cm?: number | null;
+  landing_point_u?: number | null;
+  landing_point_v?: number | null;
+  calibration_id?: string | null;
+  calibration_hash?: string | null;
+  calibration_reprojection_error_px?: number | null;
+  calibration_official?: boolean | null;
   landing_quality?: FrameQuality | null;
   number_of_contacts?: number | null;
   knee_control?: FrameQuality | null;

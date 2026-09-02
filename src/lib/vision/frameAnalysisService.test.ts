@@ -4,9 +4,9 @@ import { computeFrameResult, isAthleteFrameAnalysisSupported } from "./frameAnal
 describe("frameAnalysisService — pomiar skoku z potwierdzonych klatek", () => {
   it("kieruje zawodnika tylko do kompletnych przepływów klatkowych", () => {
     expect(isAthleteFrameAnalysisSupported("cmj")).toBe(true);
-    expect(isAthleteFrameAnalysisSupported("drop_jump")).toBe(true);
-    expect(isAthleteFrameAnalysisSupported("sprint_20m")).toBe(true);
-    expect(isAthleteFrameAnalysisSupported("broad_jump")).toBe(false);
+    expect(isAthleteFrameAnalysisSupported("broad_jump")).toBe(true);
+    expect(isAthleteFrameAnalysisSupported("drop_jump")).toBe(false);
+    expect(isAthleteFrameAnalysisSupported("sprint_20m")).toBe(false);
     expect(isAthleteFrameAnalysisSupported("pogo_jumps")).toBe(false);
   });
 
@@ -76,5 +76,38 @@ describe("frameAnalysisService — pomiar skoku z potwierdzonych klatek", () => 
     });
 
     expect(result.status).toBe("estimated");
+  });
+
+  it("akceptuje Broad Jump tylko z oficjalną kalibracją i klatką lądowania", () => {
+    const result = computeFrameResult({
+      testId: "broad_jump",
+      fps: 120,
+      markers: { landing_frame: 80 },
+      manual: {
+        distance_cm: 224.6,
+        landing_point_u: 812.3,
+        landing_point_v: 913.8,
+        calibration_id: "cal-1",
+        calibration_hash: "hash-1",
+        calibration_reprojection_error_px: 0.8,
+        calibration_official: true,
+      },
+    });
+
+    expect(result.status).toBe("user_marked");
+    expect(result.mainResultValue).toBe(225);
+    expect(result.method).toBe("Calibrated Ground Plane");
+  });
+
+  it("odrzuca Broad Jump z centymetrami wpisanymi bez kalibracji", () => {
+    const result = computeFrameResult({
+      testId: "broad_jump",
+      fps: 120,
+      markers: { landing_frame: 80 },
+      manual: { distance_cm: 225 },
+    });
+
+    expect(result.status).toBe("invalid");
+    expect(result.error).toContain("kalibracji podłoża");
   });
 });

@@ -10,13 +10,7 @@
  */
 
 /** Identyfikatory testów aktywnych w stabilnej wersji Vision Lab. */
-export const SUPPORTED_VISION_TESTS = [
-  "cmj",
-  "pogo_jumps",
-  "broad_jump",
-  "five_ten_five",
-  "sprint_20m",
-] as const;
+export const SUPPORTED_VISION_TESTS = ["cmj", "broad_jump"] as const;
 
 export type SupportedVisionTestId = (typeof SUPPORTED_VISION_TESTS)[number];
 
@@ -25,12 +19,10 @@ export type SupportedVisionTestId = (typeof SUPPORTED_VISION_TESTS)[number];
  * eksperymentalną. Pozostają w repozytorium i mogą być testowane wewnętrznie.
  */
 export const EXPERIMENTAL_VISION_TESTS = [
-  "squat_jump",
-  "drop_jump",
-  "repeated_jumps",
-  "single_leg_hop",
+  "sprint_20m",
   "sprint_30m",
   "flying_sprint",
+  "five_ten_five",
   "sprint_to_stop",
 ] as const;
 
