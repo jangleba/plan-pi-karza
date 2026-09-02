@@ -1,33 +1,20 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { AnimatedChart } from "@/components/progress/AnimatedChart";
 import { formatDate } from "@/lib/loadwise/labels";
 import {
   METRIC_CATEGORY_LABELS,
   type MetricCategoryKey,
 } from "@/lib/progress/progress";
-import type { TestSummaryRow, VisionParamRow } from "@/lib/progress/center";
+import type { TestSummaryRow } from "@/lib/progress/center";
 import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
   ChevronDown,
-  RefreshCw,
-  Eye,
 } from "lucide-react";
 
-export function ProgressTests({
-  rows,
-  visionParams,
-  visionInterpretationText,
-  recommendedVisionTest,
-}: {
-  rows: TestSummaryRow[];
-  visionParams: VisionParamRow[];
-  visionInterpretationText: string;
-  recommendedVisionTest: { id: string; name: string } | null;
-}) {
-  const groups: MetricCategoryKey[] = ["speed", "strength", "endurance", "vision"];
+export function ProgressTests({ rows }: { rows: TestSummaryRow[] }) {
+  const groups: MetricCategoryKey[] = ["speed", "strength", "endurance", "technique"];
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -47,52 +34,6 @@ export function ProgressTests({
         );
       })}
 
-      {/* Vision Lab — podsumowanie mierzonych parametrów */}
-      <section className="soft-card p-4">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Eye className="h-4 w-4 text-primary" /> Vision Lab — zmierzone parametry
-        </h2>
-        {visionParams.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">{visionInterpretationText}</p>
-        ) : (
-          <>
-            <div className="mt-3 space-y-1.5">
-              {visionParams.map((p) => (
-                <div
-                  key={p.key}
-                  className="flex items-center justify-between gap-3 border-b border-border/60 pb-1.5 last:border-0"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm">{p.label}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {p.testName} · {formatDate(p.date)}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-sm font-semibold">
-                    {p.value} <span className="text-xs font-normal">{p.unit}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs leading-snug text-muted-foreground">
-              {visionInterpretationText}
-            </p>
-          </>
-        )}
-        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          Czas reakcji, trafność decyzji, szybkość skanowania i widzenie peryferyjne nie są
-          obecnie mierzone przez dostępne testy — nie pokazujemy dla nich wartości.
-        </p>
-        {recommendedVisionTest && (
-          <Link
-            to="/vision-lab/test/$testId"
-            params={{ testId: recommendedVisionTest.id }}
-            className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-primary transition-transform duration-200 active:scale-[0.98]"
-          >
-            Rekomendowany test: {recommendedVisionTest.name}
-          </Link>
-        )}
-      </section>
     </div>
   );
 }
@@ -165,22 +106,6 @@ function TestRow({ row }: { row: TestSummaryRow }) {
                 ? ` (za ${row.daysToRetest} dni)`
                 : " — termin osiągnięty"}
             </div>
-            {row.visionTestId ? (
-              <Link
-                to="/vision-lab/test/$testId"
-                params={{ testId: row.visionTestId }}
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-[0.98]"
-              >
-                <RefreshCw className="h-4 w-4" /> Powtórz test
-              </Link>
-            ) : (
-              <Link
-                to="/vision-lab"
-                className="flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-primary transition-transform duration-200 active:scale-[0.98]"
-              >
-                <RefreshCw className="h-4 w-4" /> Powtórz test
-              </Link>
-            )}
           </div>
         </div>
       </div>

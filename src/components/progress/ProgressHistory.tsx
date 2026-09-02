@@ -121,13 +121,6 @@ export function ProgressHistory({ events }: { events: TimelineEvent[] }) {
                     </Link>
                   );
                 }
-                if (e.link.to === "vision") {
-                  return (
-                    <Link key={e.id} to="/vision-lab" className="block">
-                      {inner}
-                    </Link>
-                  );
-                }
                 return <div key={e.id}>{inner}</div>;
               })}
             </div>

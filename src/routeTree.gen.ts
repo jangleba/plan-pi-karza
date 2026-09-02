@@ -17,10 +17,6 @@ import { Route as DataRightsRouteImport } from './routes/data-rights'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as VisionLabIndexRouteImport } from './routes/vision-lab.index'
-import { Route as VisionLabHistoryRouteImport } from './routes/vision-lab.history'
-import { Route as VisionLabCalibrationRouteImport } from './routes/vision-lab.calibration'
-import { Route as VisionLabAcceptanceRouteImport } from './routes/vision-lab.acceptance'
 import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as TabsStartRouteImport } from './routes/_tabs.start'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
@@ -30,19 +26,7 @@ import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
 import { Route as TabsFootballIqRouteImport } from './routes/_tabs.football-iq'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as VisionLabGymIndexRouteImport } from './routes/vision-lab.gym.index'
-import { Route as VisionLabCoachIndexRouteImport } from './routes/vision-lab.coach.index'
-import { Route as VisionLabResultResultIdRouteImport } from './routes/vision-lab.result.$resultId'
-import { Route as VisionLabGymReviewRouteImport } from './routes/vision-lab.gym.review'
-import { Route as VisionLabFrameAnalyzerTestIdRouteImport } from './routes/vision-lab.frame-analyzer.$testId'
-import { Route as VisionLabCoachResultIdRouteImport } from './routes/vision-lab.coach.$resultId'
-import { Route as VisionLabAnalyzeTestIdRouteImport } from './routes/vision-lab.analyze.$testId'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
-import { Route as VisionLabTestTestIdIndexRouteImport } from './routes/vision-lab.test.$testId.index'
-import { Route as VisionLabTestTestIdUploadRouteImport } from './routes/vision-lab.test.$testId.upload'
-import { Route as VisionLabTestTestIdSetupRouteImport } from './routes/vision-lab.test.$testId.setup'
-import { Route as VisionLabTestTestIdAnalysisRouteImport } from './routes/vision-lab.test.$testId.analysis'
-import { Route as VisionLabCoachAnalyzerResultIdRouteImport } from './routes/vision-lab.coach.analyzer.$resultId'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -81,26 +65,6 @@ const TabsRoute = TabsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabIndexRoute = VisionLabIndexRouteImport.update({
-  id: '/vision-lab/',
-  path: '/vision-lab/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabHistoryRoute = VisionLabHistoryRouteImport.update({
-  id: '/vision-lab/history',
-  path: '/vision-lab/history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabCalibrationRoute = VisionLabCalibrationRouteImport.update({
-  id: '/vision-lab/calibration',
-  path: '/vision-lab/calibration',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabAcceptanceRoute = VisionLabAcceptanceRouteImport.update({
-  id: '/vision-lab/acceptance',
-  path: '/vision-lab/acceptance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SesjaDateRoute = SesjaDateRouteImport.update({
@@ -150,76 +114,10 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
-const VisionLabGymIndexRoute = VisionLabGymIndexRouteImport.update({
-  id: '/vision-lab/gym/',
-  path: '/vision-lab/gym/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabCoachIndexRoute = VisionLabCoachIndexRouteImport.update({
-  id: '/vision-lab/coach/',
-  path: '/vision-lab/coach/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabResultResultIdRoute = VisionLabResultResultIdRouteImport.update({
-  id: '/vision-lab/result/$resultId',
-  path: '/vision-lab/result/$resultId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabGymReviewRoute = VisionLabGymReviewRouteImport.update({
-  id: '/vision-lab/gym/review',
-  path: '/vision-lab/gym/review',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabFrameAnalyzerTestIdRoute =
-  VisionLabFrameAnalyzerTestIdRouteImport.update({
-    id: '/vision-lab/frame-analyzer/$testId',
-    path: '/vision-lab/frame-analyzer/$testId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const VisionLabCoachResultIdRoute = VisionLabCoachResultIdRouteImport.update({
-  id: '/vision-lab/coach/$resultId',
-  path: '/vision-lab/coach/$resultId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VisionLabAnalyzeTestIdRoute = VisionLabAnalyzeTestIdRouteImport.update({
-  id: '/vision-lab/analyze/$testId',
-  path: '/vision-lab/analyze/$testId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
     path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const VisionLabTestTestIdIndexRoute =
-  VisionLabTestTestIdIndexRouteImport.update({
-    id: '/vision-lab/test/$testId/',
-    path: '/vision-lab/test/$testId/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const VisionLabTestTestIdUploadRoute =
-  VisionLabTestTestIdUploadRouteImport.update({
-    id: '/vision-lab/test/$testId/upload',
-    path: '/vision-lab/test/$testId/upload',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const VisionLabTestTestIdSetupRoute =
-  VisionLabTestTestIdSetupRouteImport.update({
-    id: '/vision-lab/test/$testId/setup',
-    path: '/vision-lab/test/$testId/setup',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const VisionLabTestTestIdAnalysisRoute =
-  VisionLabTestTestIdAnalysisRouteImport.update({
-    id: '/vision-lab/test/$testId/analysis',
-    path: '/vision-lab/test/$testId/analysis',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const VisionLabCoachAnalyzerResultIdRoute =
-  VisionLabCoachAnalyzerResultIdRouteImport.update({
-    id: '/vision-lab/coach/analyzer/$resultId',
-    path: '/vision-lab/coach/analyzer/$resultId',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -240,23 +138,7 @@ export interface FileRoutesByFullPath {
   '/profil': typeof TabsProfilRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
-  '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
-  '/vision-lab/calibration': typeof VisionLabCalibrationRoute
-  '/vision-lab/history': typeof VisionLabHistoryRoute
-  '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/vision-lab/analyze/$testId': typeof VisionLabAnalyzeTestIdRoute
-  '/vision-lab/coach/$resultId': typeof VisionLabCoachResultIdRoute
-  '/vision-lab/frame-analyzer/$testId': typeof VisionLabFrameAnalyzerTestIdRoute
-  '/vision-lab/gym/review': typeof VisionLabGymReviewRoute
-  '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
-  '/vision-lab/coach/': typeof VisionLabCoachIndexRoute
-  '/vision-lab/gym/': typeof VisionLabGymIndexRoute
-  '/vision-lab/coach/analyzer/$resultId': typeof VisionLabCoachAnalyzerResultIdRoute
-  '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
-  '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
-  '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
-  '/vision-lab/test/$testId/': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -275,23 +157,7 @@ export interface FileRoutesByTo {
   '/profil': typeof TabsProfilRoute
   '/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
-  '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
-  '/vision-lab/calibration': typeof VisionLabCalibrationRoute
-  '/vision-lab/history': typeof VisionLabHistoryRoute
-  '/vision-lab': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/vision-lab/analyze/$testId': typeof VisionLabAnalyzeTestIdRoute
-  '/vision-lab/coach/$resultId': typeof VisionLabCoachResultIdRoute
-  '/vision-lab/frame-analyzer/$testId': typeof VisionLabFrameAnalyzerTestIdRoute
-  '/vision-lab/gym/review': typeof VisionLabGymReviewRoute
-  '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
-  '/vision-lab/coach': typeof VisionLabCoachIndexRoute
-  '/vision-lab/gym': typeof VisionLabGymIndexRoute
-  '/vision-lab/coach/analyzer/$resultId': typeof VisionLabCoachAnalyzerResultIdRoute
-  '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
-  '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
-  '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
-  '/vision-lab/test/$testId': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -312,23 +178,7 @@ export interface FileRoutesById {
   '/_tabs/profil': typeof TabsProfilRoute
   '/_tabs/start': typeof TabsStartRoute
   '/sesja/$date': typeof SesjaDateRoute
-  '/vision-lab/acceptance': typeof VisionLabAcceptanceRoute
-  '/vision-lab/calibration': typeof VisionLabCalibrationRoute
-  '/vision-lab/history': typeof VisionLabHistoryRoute
-  '/vision-lab/': typeof VisionLabIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/vision-lab/analyze/$testId': typeof VisionLabAnalyzeTestIdRoute
-  '/vision-lab/coach/$resultId': typeof VisionLabCoachResultIdRoute
-  '/vision-lab/frame-analyzer/$testId': typeof VisionLabFrameAnalyzerTestIdRoute
-  '/vision-lab/gym/review': typeof VisionLabGymReviewRoute
-  '/vision-lab/result/$resultId': typeof VisionLabResultResultIdRoute
-  '/vision-lab/coach/': typeof VisionLabCoachIndexRoute
-  '/vision-lab/gym/': typeof VisionLabGymIndexRoute
-  '/vision-lab/coach/analyzer/$resultId': typeof VisionLabCoachAnalyzerResultIdRoute
-  '/vision-lab/test/$testId/analysis': typeof VisionLabTestTestIdAnalysisRoute
-  '/vision-lab/test/$testId/setup': typeof VisionLabTestTestIdSetupRoute
-  '/vision-lab/test/$testId/upload': typeof VisionLabTestTestIdUploadRoute
-  '/vision-lab/test/$testId/': typeof VisionLabTestTestIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -349,23 +199,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/start'
     | '/sesja/$date'
-    | '/vision-lab/acceptance'
-    | '/vision-lab/calibration'
-    | '/vision-lab/history'
-    | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
-    | '/vision-lab/analyze/$testId'
-    | '/vision-lab/coach/$resultId'
-    | '/vision-lab/frame-analyzer/$testId'
-    | '/vision-lab/gym/review'
-    | '/vision-lab/result/$resultId'
-    | '/vision-lab/coach/'
-    | '/vision-lab/gym/'
-    | '/vision-lab/coach/analyzer/$resultId'
-    | '/vision-lab/test/$testId/analysis'
-    | '/vision-lab/test/$testId/setup'
-    | '/vision-lab/test/$testId/upload'
-    | '/vision-lab/test/$testId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -384,23 +218,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/start'
     | '/sesja/$date'
-    | '/vision-lab/acceptance'
-    | '/vision-lab/calibration'
-    | '/vision-lab/history'
-    | '/vision-lab'
     | '/.mcp/invoke-tool/$tool'
-    | '/vision-lab/analyze/$testId'
-    | '/vision-lab/coach/$resultId'
-    | '/vision-lab/frame-analyzer/$testId'
-    | '/vision-lab/gym/review'
-    | '/vision-lab/result/$resultId'
-    | '/vision-lab/coach'
-    | '/vision-lab/gym'
-    | '/vision-lab/coach/analyzer/$resultId'
-    | '/vision-lab/test/$testId/analysis'
-    | '/vision-lab/test/$testId/setup'
-    | '/vision-lab/test/$testId/upload'
-    | '/vision-lab/test/$testId'
   id:
     | '__root__'
     | '/'
@@ -420,23 +238,7 @@ export interface FileRouteTypes {
     | '/_tabs/profil'
     | '/_tabs/start'
     | '/sesja/$date'
-    | '/vision-lab/acceptance'
-    | '/vision-lab/calibration'
-    | '/vision-lab/history'
-    | '/vision-lab/'
     | '/.mcp/invoke-tool/$tool'
-    | '/vision-lab/analyze/$testId'
-    | '/vision-lab/coach/$resultId'
-    | '/vision-lab/frame-analyzer/$testId'
-    | '/vision-lab/gym/review'
-    | '/vision-lab/result/$resultId'
-    | '/vision-lab/coach/'
-    | '/vision-lab/gym/'
-    | '/vision-lab/coach/analyzer/$resultId'
-    | '/vision-lab/test/$testId/analysis'
-    | '/vision-lab/test/$testId/setup'
-    | '/vision-lab/test/$testId/upload'
-    | '/vision-lab/test/$testId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -451,23 +253,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   SesjaDateRoute: typeof SesjaDateRoute
-  VisionLabAcceptanceRoute: typeof VisionLabAcceptanceRoute
-  VisionLabCalibrationRoute: typeof VisionLabCalibrationRoute
-  VisionLabHistoryRoute: typeof VisionLabHistoryRoute
-  VisionLabIndexRoute: typeof VisionLabIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
-  VisionLabAnalyzeTestIdRoute: typeof VisionLabAnalyzeTestIdRoute
-  VisionLabCoachResultIdRoute: typeof VisionLabCoachResultIdRoute
-  VisionLabFrameAnalyzerTestIdRoute: typeof VisionLabFrameAnalyzerTestIdRoute
-  VisionLabGymReviewRoute: typeof VisionLabGymReviewRoute
-  VisionLabResultResultIdRoute: typeof VisionLabResultResultIdRoute
-  VisionLabCoachIndexRoute: typeof VisionLabCoachIndexRoute
-  VisionLabGymIndexRoute: typeof VisionLabGymIndexRoute
-  VisionLabCoachAnalyzerResultIdRoute: typeof VisionLabCoachAnalyzerResultIdRoute
-  VisionLabTestTestIdAnalysisRoute: typeof VisionLabTestTestIdAnalysisRoute
-  VisionLabTestTestIdSetupRoute: typeof VisionLabTestTestIdSetupRoute
-  VisionLabTestTestIdUploadRoute: typeof VisionLabTestTestIdUploadRoute
-  VisionLabTestTestIdIndexRoute: typeof VisionLabTestTestIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -526,34 +312,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/': {
-      id: '/vision-lab/'
-      path: '/vision-lab'
-      fullPath: '/vision-lab/'
-      preLoaderRoute: typeof VisionLabIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/history': {
-      id: '/vision-lab/history'
-      path: '/vision-lab/history'
-      fullPath: '/vision-lab/history'
-      preLoaderRoute: typeof VisionLabHistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/calibration': {
-      id: '/vision-lab/calibration'
-      path: '/vision-lab/calibration'
-      fullPath: '/vision-lab/calibration'
-      preLoaderRoute: typeof VisionLabCalibrationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/acceptance': {
-      id: '/vision-lab/acceptance'
-      path: '/vision-lab/acceptance'
-      fullPath: '/vision-lab/acceptance'
-      preLoaderRoute: typeof VisionLabAcceptanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sesja/$date': {
@@ -619,95 +377,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/vision-lab/gym/': {
-      id: '/vision-lab/gym/'
-      path: '/vision-lab/gym'
-      fullPath: '/vision-lab/gym/'
-      preLoaderRoute: typeof VisionLabGymIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/coach/': {
-      id: '/vision-lab/coach/'
-      path: '/vision-lab/coach'
-      fullPath: '/vision-lab/coach/'
-      preLoaderRoute: typeof VisionLabCoachIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/result/$resultId': {
-      id: '/vision-lab/result/$resultId'
-      path: '/vision-lab/result/$resultId'
-      fullPath: '/vision-lab/result/$resultId'
-      preLoaderRoute: typeof VisionLabResultResultIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/gym/review': {
-      id: '/vision-lab/gym/review'
-      path: '/vision-lab/gym/review'
-      fullPath: '/vision-lab/gym/review'
-      preLoaderRoute: typeof VisionLabGymReviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/frame-analyzer/$testId': {
-      id: '/vision-lab/frame-analyzer/$testId'
-      path: '/vision-lab/frame-analyzer/$testId'
-      fullPath: '/vision-lab/frame-analyzer/$testId'
-      preLoaderRoute: typeof VisionLabFrameAnalyzerTestIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/coach/$resultId': {
-      id: '/vision-lab/coach/$resultId'
-      path: '/vision-lab/coach/$resultId'
-      fullPath: '/vision-lab/coach/$resultId'
-      preLoaderRoute: typeof VisionLabCoachResultIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/analyze/$testId': {
-      id: '/vision-lab/analyze/$testId'
-      path: '/vision-lab/analyze/$testId'
-      fullPath: '/vision-lab/analyze/$testId'
-      preLoaderRoute: typeof VisionLabAnalyzeTestIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
       fullPath: '/.mcp/invoke-tool/$tool'
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/test/$testId/': {
-      id: '/vision-lab/test/$testId/'
-      path: '/vision-lab/test/$testId'
-      fullPath: '/vision-lab/test/$testId/'
-      preLoaderRoute: typeof VisionLabTestTestIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/test/$testId/upload': {
-      id: '/vision-lab/test/$testId/upload'
-      path: '/vision-lab/test/$testId/upload'
-      fullPath: '/vision-lab/test/$testId/upload'
-      preLoaderRoute: typeof VisionLabTestTestIdUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/test/$testId/setup': {
-      id: '/vision-lab/test/$testId/setup'
-      path: '/vision-lab/test/$testId/setup'
-      fullPath: '/vision-lab/test/$testId/setup'
-      preLoaderRoute: typeof VisionLabTestTestIdSetupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/test/$testId/analysis': {
-      id: '/vision-lab/test/$testId/analysis'
-      path: '/vision-lab/test/$testId/analysis'
-      fullPath: '/vision-lab/test/$testId/analysis'
-      preLoaderRoute: typeof VisionLabTestTestIdAnalysisRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vision-lab/coach/analyzer/$resultId': {
-      id: '/vision-lab/coach/analyzer/$resultId'
-      path: '/vision-lab/coach/analyzer/$resultId'
-      fullPath: '/vision-lab/coach/analyzer/$resultId'
-      preLoaderRoute: typeof VisionLabCoachAnalyzerResultIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -746,23 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   SesjaDateRoute: SesjaDateRoute,
-  VisionLabAcceptanceRoute: VisionLabAcceptanceRoute,
-  VisionLabCalibrationRoute: VisionLabCalibrationRoute,
-  VisionLabHistoryRoute: VisionLabHistoryRoute,
-  VisionLabIndexRoute: VisionLabIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
-  VisionLabAnalyzeTestIdRoute: VisionLabAnalyzeTestIdRoute,
-  VisionLabCoachResultIdRoute: VisionLabCoachResultIdRoute,
-  VisionLabFrameAnalyzerTestIdRoute: VisionLabFrameAnalyzerTestIdRoute,
-  VisionLabGymReviewRoute: VisionLabGymReviewRoute,
-  VisionLabResultResultIdRoute: VisionLabResultResultIdRoute,
-  VisionLabCoachIndexRoute: VisionLabCoachIndexRoute,
-  VisionLabGymIndexRoute: VisionLabGymIndexRoute,
-  VisionLabCoachAnalyzerResultIdRoute: VisionLabCoachAnalyzerResultIdRoute,
-  VisionLabTestTestIdAnalysisRoute: VisionLabTestTestIdAnalysisRoute,
-  VisionLabTestTestIdSetupRoute: VisionLabTestTestIdSetupRoute,
-  VisionLabTestTestIdUploadRoute: VisionLabTestTestIdUploadRoute,
-  VisionLabTestTestIdIndexRoute: VisionLabTestTestIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

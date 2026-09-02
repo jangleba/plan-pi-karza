@@ -54,18 +54,16 @@ Administratorem danych osobowych jest [ADMINISTRATOR_NAME], z siedzibą pod adre
 - dane konta: adres e-mail, imię,
 - dane profilu zawodnika: wiek, pozycja, poziom, cel, klub, sprzęt,
 - dane dotyczące treningu i zdrowia: gotowość, zmęczenie, ból, status urazu, bolesność mięśni, obciążenie treningowe.
-- wyniki Vision Lab: rodzaj testu, FPS, numery zaznaczonych klatek, obliczone czasy, wysokości, prędkości i informacje o jakości pomiaru.
 
-Film Vision Lab wybrany z galerii albo nagrany w aplikacji jest domyślnie przetwarzany lokalnie na urządzeniu. Nie wysyłamy go automatycznie do chmury. Tymczasowa kopia może pozostać w pamięci tej przeglądarki maksymalnie 24 godziny, aby umożliwić dokończenie rozpoczętej analizy, i jest usuwana po zapisaniu wyniku albo na żądanie usunięcia danych.
 
 3. Cel i podstawa prawna
-Dane przetwarzamy w celu świadczenia usługi (art. 6 ust. 1 lit. b RODO) oraz na podstawie Twojej wyraźnej zgody w odniesieniu do danych o zdrowiu (art. 9 ust. 2 lit. a RODO). Wynik Vision Lab służy wyłącznie do informacji treningowej i nie stanowi diagnozy medycznej.
+Dane przetwarzamy w celu świadczenia usługi (art. 6 ust. 1 lit. b RODO) oraz na podstawie Twojej wyraźnej zgody w odniesieniu do danych o zdrowiu (art. 9 ust. 2 lit. a RODO).
 
 4. Okres przechowywania
-Wyniki pomiarów i pozostałe dane konta przechowujemy przez okres [DATA_RETENTION_PERIOD] lub do momentu usunięcia konta. Lokalny film roboczy Vision Lab wygasa po 24 godzinach i jest usuwany wcześniej po zapisaniu wyniku. Jeżeli użytkownik świadomie skorzysta z funkcji recenzji filmu przez trenera, zasady i okres przechowywania tego filmu muszą zostać podane osobno przed wysłaniem.
+Dane konta i wyniki przechowujemy przez okres [DATA_RETENTION_PERIOD] lub do momentu usunięcia konta.
 
 5. Podmiot przetwarzający
-Dane konta i wyniki przechowywane są w infrastrukturze chmurowej: [SUPABASE_PROCESSOR_INFO]. Film przetwarzany lokalnie nie jest przekazywany temu podmiotowi.
+Dane konta i wyniki przechowywane są w infrastrukturze chmurowej: [SUPABASE_PROCESSOR_INFO].
 
 6. Twoje prawa
 Masz prawo dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia oraz wycofania zgody w dowolnym momencie. Wycofanie zgody na przetwarzanie danych o zdrowiu może spowodować, że generowanie planów treningowych przestanie działać.

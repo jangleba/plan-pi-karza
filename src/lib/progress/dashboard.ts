@@ -1,5 +1,4 @@
 import type { SessionDay, SessionCompletion, Profile } from "@/lib/loadwise/types";
-import type { VisionTestResult } from "@/lib/vision/types";
 import { GOAL_LABELS, SECONDARY_LIMITER_LABELS } from "@/lib/loadwise/labels";
 import {
   TRAINING_CATEGORY_LABELS,
@@ -183,7 +182,7 @@ export function buildLoadReport(
 // Dowody rozwoju — tylko realne zdarzenia
 // ---------------------------------------------------------------------------
 
-export type EvidenceKind = "record" | "training" | "vision" | "regularity" | "match";
+export type EvidenceKind = "record" | "training" | "regularity" | "match";
 
 export interface EvidenceCard {
   id: string;
@@ -192,14 +191,13 @@ export interface EvidenceCard {
   detail: string;
   value?: number;
   suffix?: string;
-  to: "plan" | "vision" | "tests" | "history";
+  to: "plan" | "tests" | "history";
   isRecord?: boolean;
 }
 
 export function buildEvidence(
   micro: MicrocycleReport,
   series: MetricSeries[],
-  vision: VisionTestResult[],
   history: CompletedSessionEntry[],
   todayIso: string,
 ): EvidenceCard[] {
@@ -251,23 +249,6 @@ export function buildEvidence(
       detail: `${matches.length} w ostatnich 7 dniach`,
       value: matches.length,
       to: "history",
-    });
-  }
-
-  const validVision = vision.filter((v) => v.validityStatus !== "invalid");
-  if (validVision.length > 0) {
-    const latest = [...validVision].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0]!;
-    cards.push({
-      id: "vision-latest",
-      kind: "vision",
-      title: `Vision Lab: ${latest.testName}`,
-      detail:
-        latest.mainResultValue != null
-          ? `${latest.mainResultValue} ${latest.mainResultUnit ?? ""}`.trim()
-          : "Analiza wykonana",
-      value: latest.mainResultValue ?? undefined,
-      suffix: latest.mainResultUnit ?? undefined,
-      to: "vision",
     });
   }
 
@@ -391,7 +372,6 @@ export function buildDevelopmentMap(
   series: MetricSeries[],
   micro: MicrocycleReport,
   history: CompletedSessionEntry[],
-  vision: VisionTestResult[],
   todayIso: string,
 ): AreaNode[] {
   const recent = (cat: TrainingCategoryKey) =>
@@ -421,10 +401,10 @@ export function buildDevelopmentMap(
     ),
     areaFromSeries(
       "perception",
-      series.filter((s) => s.category === "vision"),
+      series.filter((s) => s.category === "technique"),
       todayIso,
-      vision.length > 0,
-      "Wykonaj analizę w Vision Lab, aby zmierzyć jakość wykonania.",
+      false,
+      "Zapisz test techniczny, aby zmierzyć jakość wykonania.",
     ),
   ];
 
@@ -470,13 +450,12 @@ export function buildDevelopmentMap(
 // Historia — wspólna oś zdarzeń
 // ---------------------------------------------------------------------------
 
-export type TimelineKind = "training" | "test" | "record" | "vision" | "match";
+export type TimelineKind = "training" | "test" | "record" | "match";
 
 export const TIMELINE_LABELS: Record<TimelineKind, string> = {
   training: "Trening",
   test: "Test",
   record: "Rekord",
-  vision: "Vision Lab",
   match: "Mecz",
 };
 
@@ -486,13 +465,12 @@ export interface TimelineEvent {
   kind: TimelineKind;
   title: string;
   detail: string;
-  link: { to: "session"; date: string } | { to: "vision" } | { to: "tests" };
+  link: { to: "session"; date: string } | { to: "tests" };
 }
 
 export function buildTimeline(
   history: CompletedSessionEntry[],
   series: MetricSeries[],
-  vision: VisionTestResult[],
 ): TimelineEvent[] {
   const events: TimelineEvent[] = [];
 
@@ -521,15 +499,13 @@ export function buildTimeline(
       events.push({
         id: `m:${s.id}:${p.date}:${i}`,
         date: p.date,
-        kind: isRecord ? "record" : s.id.startsWith("vision:") ? "vision" : "test",
+        kind: isRecord ? "record" : "test",
         title: isRecord ? `Rekord: ${s.label}` : s.label,
         detail: `${p.value} ${s.unit}`,
-        link: s.id.startsWith("vision:") ? { to: "vision" } : { to: "tests" },
+        link: { to: "tests" },
       });
     });
   }
-
-  void vision;
 
   return events.sort((a, b) => (a.date < b.date ? 1 : -1));
 }

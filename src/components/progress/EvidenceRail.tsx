@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Trophy, Dumbbell, Video, CheckCircle2, Flag } from "lucide-react";
+import { Trophy, Dumbbell, CheckCircle2, Flag } from "lucide-react";
 import type { EvidenceCard, EvidenceKind } from "@/lib/progress/dashboard";
 
 const ICON: Record<EvidenceKind, typeof Trophy> = {
   record: Trophy,
   training: Dumbbell,
-  vision: Video,
   regularity: CheckCircle2,
   match: Flag,
 };
@@ -23,7 +22,7 @@ export function EvidenceRail({
       <section className="soft-card p-4">
         <h2 className="text-sm font-semibold">Dowody rozwoju</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Tu pojawią się rekordy, ukończone treningi i analizy Vision Lab, gdy zaczniesz
+          Tu pojawią się rekordy i ukończone treningi, gdy zaczniesz
           je zapisywać.
         </p>
       </section>
@@ -63,13 +62,6 @@ export function EvidenceRail({
             </div>
           );
 
-          if (card.to === "vision") {
-            return (
-              <Link key={card.id} to="/vision-lab" className="contents">
-                {body}
-              </Link>
-            );
-          }
           if (card.to === "plan") {
             return (
               <Link key={card.id} to="/plan" className="contents">
