@@ -23,6 +23,7 @@ interface SetLogRow {
   rir: number | null;
   metric_kind?: string | null;
   metric_value?: number | string | null;
+  performed_at: string;
 }
 
 /** Stabilny klucz ćwiczenia — po ID z biblioteki, w ostateczności po nazwie. */
@@ -51,42 +52,59 @@ function toLog(row: SetLogRow): SetLog {
 
 const table = () => supabase.from("exercise_set_logs" as never);
 
+/** Zwraca serie tylko z jednej, ostatniej poprzedniej sesji. */
+export function previousSessionLogs(
+  rows: SetLogRow[],
+  currentSessionId: string | null | undefined,
+): Record<number, SetLog> {
+  const previousRows = rows.filter(
+    (row) => !currentSessionId || row.session_id !== currentSessionId,
+  );
+  const first = previousRows[0];
+  if (!first) return {};
+  const group = first.session_id ?? first.performed_at.slice(0, 10);
+  const selected = previousRows.filter(
+    (row) => (row.session_id ?? row.performed_at.slice(0, 10)) === group,
+  );
+  return Object.fromEntries(selected.map((row) => [row.set_number, toLog(row)]));
+}
+
 /**
  * Trwałe rejestrowanie serii: zapisy bieżącej sesji + ostatnie wartości
  * z poprzednich sesji (podpowiedź „Ostatnio”).
  */
 export function useExerciseSetLogs(sessionId: string | null | undefined, key: string) {
   const { user } = useAuth();
+  const userId = user?.id;
   const [current, setCurrent] = useState<Record<number, SetLog>>({});
   const [previous, setPrevious] = useState<Record<number, SetLog>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setLoading(false);
       return;
     }
     setLoading(true);
     const { data } = await table()
-      .select("session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at")
-      .eq("user_id", user.id)
+      .select(
+        "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at",
+      )
+      .eq("user_id", userId)
       .eq("exercise_key", key)
       .order("performed_at", { ascending: false })
       .limit(60);
-    const rows = (data ?? []) as unknown as (SetLogRow & { performed_at: string })[];
+    const rows = (data ?? []) as unknown as SetLogRow[];
     const mine: Record<number, SetLog> = {};
-    const last: Record<number, SetLog> = {};
     for (const row of rows) {
       if (sessionId && row.session_id === sessionId) {
         if (!mine[row.set_number]) mine[row.set_number] = toLog(row);
-        continue;
       }
-      if (!last[row.set_number]) last[row.set_number] = toLog(row);
     }
     setCurrent(mine);
-    setPrevious(last);
+    setPrevious(previousSessionLogs(rows, sessionId));
     setLoading(false);
-  }, [user?.id, key, sessionId]);
+  }, [userId, key, sessionId]);
 
   useEffect(() => {
     void load();
@@ -94,10 +112,10 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
 
   const saveSet = useCallback(
     async (log: SetLog) => {
-      if (!user) return false;
+      if (!userId) return false;
       const { error } = await table().upsert(
         {
-          user_id: user.id,
+          user_id: userId,
           session_id: sessionId ?? null,
           exercise_key: key,
           set_number: log.setNumber,
@@ -112,7 +130,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
       );
       if (error) {
         // Brak zapisu z session_id (np. konflikt indeksu częściowego) — spróbuj update.
-        const { error: updateError } = await table()
+        let updateQuery = table()
           .update({
             weight_kg: log.weightKg,
             reps: log.reps,
@@ -121,15 +139,19 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
             metric_value: log.metricValue ?? null,
             performed_at: new Date().toISOString(),
           } as never)
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .eq("exercise_key", key)
           .eq("set_number", log.setNumber);
+        updateQuery = sessionId
+          ? updateQuery.eq("session_id", sessionId)
+          : updateQuery.is("session_id", null);
+        const { error: updateError } = await updateQuery;
         if (updateError) return false;
       }
       setCurrent((state) => ({ ...state, [log.setNumber]: log }));
       return true;
     },
-    [user?.id, key, sessionId],
+    [userId, key, sessionId],
   );
 
   return { current, previous, loading, saveSet };

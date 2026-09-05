@@ -74,11 +74,12 @@ describe("Goblet squat — twarde zasady", () => {
 });
 
 describe("Główny lift siłowy — ciężko i krótko", () => {
-  it("16+ development: 2–4 powtórzeń, wysokie RPE, docelowo ≥85% 1RM", () => {
+  it("16+ development: 2–4 powtórzeń, wysokie RPE i praktyczny cel RIR", () => {
     const a1 = findByLabel(baseProfile, baseCtx, "A1");
     expect(a1!.reps).toBe("2–4");
     expect(a1!.rpe ?? "").toMatch(/RPE 7,5|RPE 8/);
-    expect(a1!.loadTarget ?? "").toMatch(/8[5-9]|9[0-2]|1RM/);
+    expect(a1!.loadTarget ?? "").toMatch(/2–4.*1,5–2,5 RIR/);
+    expect(a1!.loadTarget ?? "").not.toMatch(/%|1RM/i);
   });
 
   it("16+ peak: 1–3 powtórzeń", () => {
@@ -104,7 +105,9 @@ describe("Izometria — osobne typy", () => {
 
   it("holding/yielding iso: 12–15 s, maks. 2 serie (żadnych 20–30 s)", () => {
     const holds = allExercises(baseProfile, baseCtx).filter(
-      (e) => (e.reps ?? "").includes("s") && (e.name.toLowerCase().includes("iso") || (e.reps ?? "").includes("utrzymania")),
+      (e) =>
+        (e.reps ?? "").includes("s") &&
+        (e.name.toLowerCase().includes("iso") || (e.reps ?? "").includes("utrzymania")),
     );
     for (const h of holds) {
       expect(h.reps ?? "").not.toMatch(/20–30 s/);
@@ -115,9 +118,7 @@ describe("Izometria — osobne typy", () => {
 function blockDExercises(profile: Profile, ctx: StrengthBlockContext): TrainingExercise[] {
   const plan = buildStrengthPowerStructured(profile, ctx);
   if (!plan) return [];
-  const blockD = plan.sections
-    .flatMap((s) => s.blocks)
-    .find((b) => b.title.includes("BLOK D"));
+  const blockD = plan.sections.flatMap((s) => s.blocks).find((b) => b.title.includes("BLOK D"));
   return blockD?.exercises ?? [];
 }
 
@@ -129,7 +130,8 @@ describe("Blok D — support krótki, bez dublowania dwójek", () => {
 
   it("Blok D nie zawiera żadnego ćwiczenia na tylną taśmę / hamstring", () => {
     const d = blockDExercises(baseProfile, baseCtx);
-    const banned = /nordic|hamstring|rdl|martwy ciąg|leg curl|uginanie n|hip thrust|hip hinge|bridge|slider|good morning|glute/i;
+    const banned =
+      /nordic|hamstring|rdl|martwy ciąg|leg curl|uginanie n|hip thrust|hip hinge|bridge|slider|good morning|glute/i;
     for (const e of d) {
       expect(e.name).not.toMatch(banned);
     }
@@ -153,13 +155,14 @@ function devProfile(over: Partial<Profile>): Profile {
 }
 
 describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
-  it("16 zaawansowany z siłownią: główny lift ze sztangą, 6–8 powt., 70–80% 1RM, 2–3 RIR", () => {
+  it("16 zaawansowany z siłownią: główny lift ze sztangą, 6–8 powt. i 2–3 RIR", () => {
     const p = devProfile({ age: 16, level: "advanced" });
     const a1 = findByLabel(p, baseCtx, "A1")!;
     expect(a1.name.toLowerCase()).toContain("sztang");
     expect(a1.reps).toBe("6–8");
     expect(a1.rpe ?? "").toContain("RIR");
-    expect(a1.loadTarget ?? "").toMatch(/75–80% 1RM/);
+    expect(a1.loadTarget ?? "").toMatch(/6–8.*2–3 RIR/);
+    expect(a1.loadTarget ?? "").not.toMatch(/%|1RM/i);
   });
 
   it("16 zaawansowany: brak maksymalnych ciężarów ≥85% 1RM i brak pracy do upadku", () => {
@@ -188,7 +191,11 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
   });
 
   it("16 bez siłowni: brak progresji obciążenia zewnętrznego w głównym wzorcu", () => {
-    const a1 = findByLabel(devProfile({ age: 16, level: "advanced", hasGym: false }), baseCtx, "A1")!;
+    const a1 = findByLabel(
+      devProfile({ age: 16, level: "advanced", hasGym: false }),
+      baseCtx,
+      "A1",
+    )!;
     expect(a1.loadTarget ?? "").not.toMatch(/% 1RM/);
   });
 
@@ -202,7 +209,9 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
     const names = allExercises(devProfile({ age: 16, level: "advanced" }), baseCtx)
       .map((e) => e.name.toLowerCase())
       .join(" | ");
-    expect(names).toMatch(/nordic|rdl|hamstring|martwy|dwugłow|hip hinge|good morning|bridge|slider/);
+    expect(names).toMatch(
+      /nordic|rdl|hamstring|martwy|dwugłow|hip hinge|good morning|bridge|slider/,
+    );
     expect(names).toMatch(/łydk|palce|copenhagen|przywodzic/);
     expect(names).toMatch(/core|plank|deska|pallof|anty|brzuch|tułow/);
   });

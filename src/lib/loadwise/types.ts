@@ -1,3 +1,5 @@
+import type { RunningActivity } from "@/lib/running/types";
+
 export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
 export type Level = "beginner" | "intermediate" | "advanced" | "elite";
 
@@ -44,14 +46,7 @@ export type Goal =
 
 /** Co najbardziej ogranicza zawodnika — dodatkowe wsparcie, nie zastępuje celu głównego. */
 export type SecondaryLimiter =
-  | "speed"
-  | "strength"
-  | "endurance"
-  | "cod"
-  | "power"
-  | "ball"
-  | "fatigue"
-  | "return";
+  "speed" | "strength" | "endurance" | "cod" | "power" | "ball" | "fatigue" | "return";
 
 export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
 
@@ -134,14 +129,7 @@ export interface Profile {
 
 /** Lokalizacja bólu / kontuzji — steruje doborem i blokadą ćwiczeń. */
 export type PainLocation =
-  | "knee"
-  | "back"
-  | "ankle"
-  | "hamstring"
-  | "groin"
-  | "hip"
-  | "shoulder"
-  | "other";
+  "knee" | "back" | "ankle" | "hamstring" | "groin" | "hip" | "shoulder" | "other";
 
 export interface Readiness {
   date: string; // yyyy-MM-dd
@@ -185,13 +173,13 @@ export interface ExerciseItem {
   /** Jednoznaczny klucz dedykowanej ilustracji. */
   visualId?: string;
   /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
-displayPrescription?: string;
+  displayPrescription?: string;
 
-/** Kolejne kroki wykonania ćwiczenia. */
-instructionSteps?: ExerciseInstructionStep[];
+  /** Kolejne kroki wykonania ćwiczenia. */
+  instructionSteps?: ExerciseInstructionStep[];
 
   /** Stałe ID ćwiczenia z centralnej biblioteki. */
-exerciseId?: string;
+  exerciseId?: string;
   /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
   speedRole?: SpeedRole;
   prescription: string;
@@ -224,28 +212,16 @@ export type BlockType =
   | "accessory";
 
 export type BlockIntent =
-  | "strength"
-  | "power"
-  | "braking"
-  | "stiffness"
-  | "rfd"
-  | "stability"
-  | "mobility";
+  "strength" | "power" | "braking" | "stiffness" | "rfd" | "stability" | "mobility";
 
-export type SectionType =
-  | "warmup"
-  | "prep"
-  | "main"
-  | "accessory"
-  | "cooldown"
-  | "log";
+export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" | "log";
 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
   id: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
-exerciseId?: string;
+  exerciseId?: string;
   /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
   speedRole?: SpeedRole;
   label?: string; // A1 | A2 | B1 | B2 ...
@@ -258,10 +234,10 @@ exerciseId?: string;
   /** Jednoznaczny klucz dedykowanej ilustracji ćwiczenia. */
   visualId?: string;
   /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
-displayPrescription?: string;
+  displayPrescription?: string;
 
-/** Kolejne kroki wykonania ćwiczenia. */
-instructionSteps?: ExerciseInstructionStep[];
+  /** Kolejne kroki wykonania ćwiczenia. */
+  instructionSteps?: ExerciseInstructionStep[];
   sets?: string;
   reps?: string;
   duration?: string;
@@ -270,7 +246,7 @@ instructionSteps?: ExerciseInstructionStep[];
   tempo?: string;
   rpe?: string;
   rir?: string;
-  loadTarget?: string; // %1RM lub RPE docelowe
+  loadTarget?: string; // praktyczny cel obciążenia, np. zakres powtórzeń i RIR
   loadGuidance?: string; // jak dobrać ciężar
   loadReduceWhen?: string; // kiedy zmniejszyć obciążenie
   plyoLevel?: number; // 1–4 poziom progresji plyometrycznej
@@ -327,7 +303,6 @@ export type PlanSessionType =
   | "endurance_running"
   | "football_technical"
   | "cod_agility"
-  | "testing"
   | "club_training"
   | "match"
   | "activation"
@@ -640,34 +615,29 @@ export interface WeekMeta {
   validationStatus: "valid" | "rebuilt" | "invalid";
 }
 
-export interface TestResult {
-  id: string;
-  type: "sprint" | "vertical" | "broad" | "technique";
-  date: string;
-  value: string;
-  note: string;
-}
-
-export interface ScoutingData {
-  strengths: string;
-  priorities: string;
-  notes: string;
-  opportunities: { id: string; title: string; detail: string }[];
-}
-
 export interface SessionCompletion {
   completed: boolean;
   rpe: number | null;
   notes: string;
 }
 
+export type SessionHistoryCategory =
+  "gym" | "speed" | "endurance" | "ball" | "club" | "match" | "recovery";
+
+/** Ukończona jednostka niezależna od aktualnie aktywnego planu. */
+export interface SessionHistoryRecord {
+  key: string;
+  date: string;
+  title: string;
+  category: SessionHistoryCategory;
+  durationMin: number;
+  rpe: number | null;
+  notes: string;
+}
+
 export type ModificationType = "add" | "swap";
 
-export type SessionStatus =
-  | "planned"
-  | "added_by_user"
-  | "swapped_by_user"
-  | "blocked_by_engine";
+export type SessionStatus = "planned" | "added_by_user" | "swapped_by_user" | "blocked_by_engine";
 
 export interface SessionModification {
   id: string;
@@ -694,11 +664,12 @@ export interface LoadwiseState {
   planGeneratedFor: string | null; // date plan starts
   readiness: Record<string, Readiness>;
   completions: Record<string, SessionCompletion>; // keyed by session dbId
-  tests: TestResult[];
-  scouting: ScoutingData;
+  history: SessionHistoryRecord[];
   modifications: Record<string, SessionModification[]>; // keyed by date
   transitions: Record<number, WeeklyTransition>; // keyed by week_number
   exerciseReplacements: Record<string, ExerciseReplacement[]>;
+  /** Prywatny zapis biegu, kluczowany identyfikatorem sesji treningowej. */
+  runningActivities: Record<string, RunningActivity>;
   equipmentNotice: string | null;
 }
 

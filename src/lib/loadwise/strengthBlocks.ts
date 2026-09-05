@@ -317,7 +317,6 @@ export function developingLoadingAllowed(profile: Profile): boolean {
   return profile.level !== "beginner";
 }
 
-
 /** Czy w ogóle generować strukturalne bloki dla tej sesji (MD-restrictions). */
 export function structuredStrengthAllowed(mdLabel: string | null): boolean {
   if (mdLabel === "MD-1" || mdLabel === "MD-2") return false;
@@ -1172,7 +1171,6 @@ function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
   return d;
 }
 
-
 function contacts(base: number, d: Dosage): number {
   return Math.max(4, Math.round(base * d.contactScale));
 }
@@ -1214,7 +1212,7 @@ function squatPoolFor(profile: Profile, ctx: StrengthBlockContext): string[] {
 // ---------------------------------------------------------------------------
 // Dawkowanie GŁÓWNEGO liftu siłowego (squat, deadlift, trap bar, hip thrust...).
 // Twarda zasada: dla 16+ z siłownią i celem siła/moc → ciężko i krótko:
-// 1–3 (ew. 2–4) powtórzeń, ≥85% 1RM, RPE 7,5–9, przerwa 2,5–5 min, bez upadku.
+// 1–3 (ew. 2–4) powtórzeń, RPE 7,5–9, przerwa 2,5–5 min, bez upadku.
 // Zakres 1–3 dotyczy TYLKO głównego liftu i mocy — nie akcesoriów/core/prehabu.
 // ---------------------------------------------------------------------------
 
@@ -1246,7 +1244,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
           reps: "5–6",
           rpe: "RPE 7,5 (2 RIR)",
           rest: "2–3 min",
-          loadTarget: "75–82% 1RM (submaksymalnie, bez prób maksymalnych)",
+          loadTarget: "Ciężar na 5–6 powt. · 2 RIR",
           cue: devCue,
         };
       case "deload":
@@ -1255,7 +1253,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
           reps: "5–6",
           rpe: "RPE 6",
           rest: "2 min",
-          loadTarget: "~65% 1RM, świeżo, prędkość",
+          loadTarget: "Lekko · 4 RIR · pełna prędkość",
           cue: devCue,
         };
       case "adaptation":
@@ -1264,7 +1262,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
           reps: "8",
           rpe: "RPE 6,5 (3 RIR)",
           rest: "2 min",
-          loadTarget: "60–70% 1RM, wzorzec przed ciężarem",
+          loadTarget: "Lekko–umiarkowanie · 3–4 RIR",
           cue: devCue,
         };
       case "development":
@@ -1274,7 +1272,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
           reps: "6–8",
           rpe: "RPE 7 (2–3 RIR)",
           rest: "2–3 min",
-          loadTarget: "70–80% 1RM (progresja +2,5–5% tygodniowo przy czystej technice)",
+          loadTarget: "Ciężar na 6–8 powt. · 2–3 RIR",
           cue: devCue,
         };
     }
@@ -1292,7 +1290,6 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
     };
   }
 
-
   const strongCue =
     "Każde powtórzenie mocne, dynamiczne i technicznie czyste. Bez serii do upadku, zostaw 1–3 RIR.";
 
@@ -1303,7 +1300,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
         reps: "3–5",
         rpe: "RPE 7–7,5",
         rest: "3 min",
-        loadTarget: "80–85% 1RM",
+        loadTarget: "Ciężar na 3–5 powt. · 2–3 RIR",
         cue: strongCue,
       };
     case "peak":
@@ -1312,7 +1309,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
         reps: "1–3",
         rpe: "RPE 8–9",
         rest: "3–5 min",
-        loadTarget: "87–92% 1RM",
+        loadTarget: "Ciężar na 1–3 powt. · 1–2 RIR",
         cue: strongCue,
       };
     case "deload":
@@ -1321,7 +1318,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
         reps: "2–3",
         rpe: "RPE 6–7",
         rest: "3 min",
-        loadTarget: "~80% 1RM, świeżo, prędkość",
+        loadTarget: "Lekko · 3–4 RIR · pełna prędkość",
         cue: strongCue,
       };
     case "development":
@@ -1331,7 +1328,7 @@ function primaryStrengthDose(profile: Profile, ctx: StrengthBlockContext): Prima
         reps: "2–4",
         rpe: "RPE 7,5–8,5",
         rest: "3–4 min",
-        loadTarget: "85–90% 1RM",
+        loadTarget: "Ciężar na 2–4 powt. · 1–3 RIR",
         cue: strongCue,
       };
   }
@@ -2740,7 +2737,7 @@ export function buildStrengthPowerStructured(
 }
 
 // ---------------------------------------------------------------------------
-// Wytyczne obciążenia (%1RM / RPE) + jak dobrać i kiedy zmniejszyć ciężar.
+// Wytyczne obciążenia (RPE / RIR) + jak dobrać i kiedy zmniejszyć ciężar.
 // Dodawane centralnie do wszystkich obciążonych ćwiczeń przed renderem.
 // ---------------------------------------------------------------------------
 
@@ -2752,7 +2749,7 @@ interface LoadGuide {
 }
 
 const GUIDE_MAIN: LoadGuide = {
-  loadTarget: "80–90% 1RM lub RPE 7,5–9",
+  loadTarget: "Ciężar na zakres powtórzeń · 1–3 RIR",
   rir: "1–3 RIR",
   loadGuidance:
     "Dobierz ciężar tak, by w zapasie zostały 1–3 powtórzenia, a technika była idealna.",
@@ -2794,47 +2791,29 @@ function applyGuide(e: TrainingExercise, g: LoadGuide): void {
 }
 
 // ---------------------------------------------------------------------------
-// Spójny model obciążenia (jeden RPE → %1RM zgodne z powtórzeniami → RIR z RPE).
-// Eliminuje sprzeczne zakresy typu "RPE 6–7 + 80–90% 1RM + RPE 7,5–9".
+// Spójny model obciążenia bez wymagania znajomości 1RM.
 // ---------------------------------------------------------------------------
-
-/** Orientacyjny %1RM dla pojedynczej liczby powtórzeń (im więcej powt., tym niżej). */
-function pctForReps(r: number): number {
-  if (r <= 2) return 92;
-  if (r <= 3) return 88;
-  if (r <= 4) return 85;
-  if (r <= 5) return 82;
-  if (r <= 6) return 80;
-  if (r <= 8) return 75;
-  if (r <= 10) return 68;
-  if (r <= 12) return 62;
-  return 55;
-}
-
-/** Zamienia zakres powtórzeń (np. "4–6") na spójny zakres %1RM (np. "80–85% 1RM"). */
-function pctRangeFromReps(reps?: string): string | null {
-  const nums = (reps?.match(/\d+/g) ?? [])
-    .map((x) => parseInt(x, 10))
-    .filter((x) => x > 0 && x <= 30);
-  if (!nums.length) return null;
-  const lo = Math.min(...nums);
-  const hi = Math.max(...nums);
-  const high = pctForReps(lo); // mniej powtórzeń → wyższy %1RM
-  const low = pctForReps(hi);
-  return low === high ? `${low}% 1RM` : `${low}–${high}% 1RM`;
-}
 
 /** RIR spójny z RPE (RIR ≈ 10 − RPE). Jeden zakres, bez sprzeczności. */
 function rirFromRpe(rpe?: string): string | null {
-  const nums = (rpe?.match(/\d+/g) ?? [])
-    .map((x) => parseInt(x, 10))
-    .filter((x) => x >= 1 && x <= 10);
-  if (!nums.length) return null;
-  const lo = Math.min(...nums);
-  const hi = Math.max(...nums);
+  const explicit = rpe?.match(/(\d+(?:[.,]\d+)?)\s*(?:[–-]\s*(\d+(?:[.,]\d+)?)\s*)?RIR/i);
+  if (explicit) {
+    return explicit[2]
+      ? `${explicit[1].replace(".", ",")}–${explicit[2].replace(".", ",")} RIR`
+      : `${explicit[1].replace(".", ",")} RIR`;
+  }
+  const match = rpe?.match(
+    /RPE\s*(\d+(?:[.,]\d+)?)(?:\s*[–-]\s*(\d+(?:[.,]\d+)?))?/i,
+  );
+  if (!match) return null;
+  const lo = Number(match[1].replace(",", "."));
+  const hi = Number((match[2] ?? match[1]).replace(",", "."));
   const rirHi = Math.max(0, 10 - lo);
   const rirLo = Math.max(0, 10 - hi);
-  return rirLo === rirHi ? `${rirLo} RIR` : `${rirLo}–${rirHi} RIR`;
+  const display = (value: number) => String(value).replace(".", ",");
+  return rirLo === rirHi
+    ? `${display(rirLo)} RIR`
+    : `${display(rirLo)}–${display(rirHi)} RIR`;
 }
 
 function isMobilityName(name: string): boolean {
@@ -2873,9 +2852,7 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
             pattern === "unilateral" ||
             pattern === "other");
         if (isMainLift) {
-          // Spójny model: JEDEN RPE (ten z ćwiczenia / fazy), %1RM zgodne z
-          // powtórzeniami, RIR wyliczone z RPE. Bez nadpisywania RPE i bez
-          // sprzecznych zakresów (np. "RPE 6–7 + 80–90% 1RM + RPE 7,5–9").
+          // Spójny model: zakres powtórzeń i RIR wyliczone z RPE.
           if (/technik/i.test(e.rpe ?? "")) {
             // Sesja techniczna (młodzież / początkujący): lekko–umiarkowanie, nie %1RM.
             e.loadTarget = "Lekko–umiarkowanie (technika)";
@@ -2883,11 +2860,10 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
             e.loadGuidance = "Dobierz ciężar, przy którym technika jest idealna, z dużym zapasem.";
             e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           } else {
-            const pct = pctRangeFromReps(e.reps);
-            e.loadTarget = pct ?? e.rpe ?? "RPE 7–8";
             e.rir = rirFromRpe(e.rpe) ?? "2–3 RIR";
+            e.loadTarget = `Ciężar na ${e.reps ?? "docelowe powt."} · ${e.rir}`;
             e.loadGuidance =
-              "Dobierz ciężar zgodny z docelowym RPE i %1RM — technika idealna, prędkość ruchu zachowana.";
+              "Pierwszy raz dobierz ciężar z wymaganym zapasem. Kolejne sesje wyliczymy z zapisanych serii.";
             e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           }
         } else if (sec.type === "main") {
@@ -3949,23 +3925,23 @@ export function flatToStructured(sections: {
             exercises: g.items.map((it) =>
               hydrateTrainingExerciseFromDefinition(
                 ex({
-                canonicalize: false,
-                name: it.name,
-                exerciseId: it.exerciseId,
-                speedRole: it.speedRole,
-                purpose: it.purpose,
-                visualId: it.visualId,
-                displayPrescription: it.displayPrescription,
-                instructionSteps: it.instructionSteps,
-                reps: it.prescription,
-                restAfterExercise: it.rest,
-                cue: it.cue,
-                technique: it.technique,
-                commonMistake: it.commonMistake,
-                regression: it.easier,
-                progression: it.harder,
-                 }),
-               ),
+                  canonicalize: false,
+                  name: it.name,
+                  exerciseId: it.exerciseId,
+                  speedRole: it.speedRole,
+                  purpose: it.purpose,
+                  visualId: it.visualId,
+                  displayPrescription: it.displayPrescription,
+                  instructionSteps: it.instructionSteps,
+                  reps: it.prescription,
+                  restAfterExercise: it.rest,
+                  cue: it.cue,
+                  technique: it.technique,
+                  commonMistake: it.commonMistake,
+                  regression: it.easier,
+                  progression: it.harder,
+                }),
+              ),
             ),
           }),
         ],
