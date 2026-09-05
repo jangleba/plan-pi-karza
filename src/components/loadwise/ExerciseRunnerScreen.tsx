@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronDown } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
-import {
-  exerciseKey,
-  plannedSets,
-  useExerciseSetLogs,
-  type SetLog,
-} from "@/lib/loadwise/setLogs";
+import { exerciseKey, plannedSets, useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
 import {
   fieldsForMetric,
   metricKindForExercise,
   metricUnit,
   type MetricField,
 } from "@/lib/loadwise/exerciseMetrics";
+import { recommendNextLoad } from "@/lib/loadwise/strengthProgression";
 import {
   PoseFigure,
   getIllustration,
@@ -23,6 +19,10 @@ import { resolveExerciseSheetViewModel } from "@/components/loadwise/ExerciseDet
 type FieldValues = Record<MetricField["id"], string>;
 
 const EMPTY: FieldValues = { weight: "", reps: "", rir: "", value: "" };
+
+function formatKg(value: number): string {
+  return value.toLocaleString("pl-PL", { maximumFractionDigits: 2 });
+}
 
 function toValues(log: SetLog | undefined): FieldValues {
   if (!log) return EMPTY;
@@ -67,13 +67,12 @@ function NumberField({
           inputMode="decimal"
           step={field.step ?? 1}
           min={0}
+          max={field.id === "rir" ? 10 : undefined}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className="w-full min-w-0 bg-transparent text-lg font-semibold tabular-nums text-foreground outline-none"
         />
-        {field.suffix && (
-          <span className="text-[11px] text-muted-foreground">{field.suffix}</span>
-        )}
+        {field.suffix && <span className="text-[11px] text-muted-foreground">{field.suffix}</span>}
       </div>
     </label>
   );
@@ -111,17 +110,24 @@ export function ExerciseRunnerScreen({
   const details = resolveExerciseSheetViewModel(exercise);
   const cues = details.cues.slice(0, 3);
   const doneCount = Object.keys(current).length;
+  const recommendation = useMemo(
+    () =>
+      metricKind === "load"
+        ? recommendNextLoad(Object.values(previous), exercise.reps, exercise.rir)
+        : null,
+    [metricKind, previous, exercise.reps, exercise.rir],
+  );
 
   useEffect(() => {
     if (!open || loading) return;
     let next = 1;
     while (next <= total && current[next]) next += 1;
     setSetNumber(Math.min(next, total));
-  }, [open, loading, total, doneCount]);
+  }, [open, loading, total, doneCount, current]);
 
   useEffect(() => {
     setValues(toValues(current[setNumber]));
-  }, [setNumber, loading, open]);
+  }, [setNumber, loading, open, current]);
 
   useEffect(() => {
     if (!open) setView("sets");
@@ -131,7 +137,11 @@ export function ExerciseRunnerScreen({
 
   const last = previous[setNumber] ?? previous[1];
   const hint = describeLog(last, fields, unit);
-  const num = (raw: string) => (raw.trim() === "" ? null : Number(raw));
+  const num = (raw: string) => {
+    if (raw.trim() === "") return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background pb-[env(safe-area-inset-bottom)]">
@@ -145,13 +155,9 @@ export function ExerciseRunnerScreen({
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold text-foreground">
-            {exercise.name}
-          </div>
+          <div className="truncate text-[15px] font-semibold text-foreground">{exercise.name}</div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {view === "technique"
-              ? "Technika"
-              : exercise.displayPrescription || `${total} serie`}
+            {view === "technique" ? "Technika" : exercise.displayPrescription || `${total} serie`}
           </div>
         </div>
       </header>
@@ -217,6 +223,37 @@ export function ExerciseRunnerScreen({
             )}
           </div>
 
+          {recommendation && (
+            <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[13px] font-semibold text-foreground">
+                    {recommendation.weightKg === null
+                      ? recommendation.title
+                      : `${recommendation.title}: ${formatKg(recommendation.weightKg)} kg`}
+                  </div>
+                  <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    {recommendation.reason}
+                  </div>
+                </div>
+                {recommendation.weightKg !== null && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setValues((state) => ({
+                        ...state,
+                        weight: String(recommendation.weightKg),
+                      }))
+                    }
+                    className="shrink-0 text-[12px] font-semibold text-primary"
+                  >
+                    Ustaw
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 flex items-end gap-3">
             {fields.map((field) => (
               <NumberField
@@ -248,11 +285,7 @@ export function ExerciseRunnerScreen({
             }}
             className="mt-5 w-full rounded-xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {saving
-              ? "Zapisuję…"
-              : setNumber < total
-                ? "Zapisz serię"
-                : "Zapisz i zakończ"}
+            {saving ? "Zapisuję…" : setNumber < total ? "Zapisz serię" : "Zapisz i zakończ"}
           </button>
         </div>
       ) : (
