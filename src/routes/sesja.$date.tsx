@@ -1,6 +1,8 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
+import { useAuth } from "@/lib/loadwise/auth";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
@@ -44,11 +46,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
+import { isTrackableEnduranceRun } from "@/lib/running/session";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
-const searchSchema = (s: Record<string, unknown>): { slot: number } => ({
-  slot: Number(s.slot) === 2 ? 2 : 1,
+const searchSchema = (search: Record<string, unknown>): { slot: number; mod?: string } => ({
+  slot: Number(search.slot) === 2 ? 2 : 1,
+  mod: typeof search.mod === "string" && search.mod ? search.mod : undefined,
 });
 
 export const Route = createFileRoute("/sesja/$date")({
@@ -74,7 +79,7 @@ function stripRpe(text: string): string {
 // Jeden dodatkowy parametr wg hierarchii typu ćwiczenia. Nigdy RPE.
 function primaryQualifier(e: TrainingExercise): string | null {
   const load = e.loadTarget ? stripRpe(e.loadTarget) : "";
-  if (load && /%|1rm/i.test(load)) return load; // główny lift → %1RM
+  if (load && /RIR|ciężar na/i.test(load)) return load;
   const repsHasContacts = /kontakt|odbi/i.test(e.reps ?? "");
   if (typeof e.groundContacts === "number" && !repsHasContacts)
     return `${e.groundContacts} kontaktów`; // moc / plyo
@@ -87,7 +92,9 @@ export function statusBadgeLabel(session: SessionDay): string | null {
 }
 
 export function canShowPostSessionForm(session: SessionDay): boolean {
-  return Boolean(session.dbId);
+  if (!session.dbId || session.isUnavailable || session.dayType === "rest") return false;
+  if (session.loadLabelOverride === "Wstrzymaj trening") return false;
+  return true;
 }
 
 function parseCompletionNotes(raw: string): { pain: number; legFatigue: number; notes: string } {
@@ -127,7 +134,10 @@ function restLabel(e: TrainingExercise): string | null {
 
 function formatRestValue(value: string | undefined): string {
   if (!value) return "";
-  return value.replace(/^Przerwa:\s*/i, "").replace(/^Rest:\s*/i, "").trim();
+  return value
+    .replace(/^Przerwa:\s*/i, "")
+    .replace(/^Rest:\s*/i, "")
+    .trim();
 }
 
 function exerciseDataLineParts(e: TrainingExercise): { dose: string; meta: string } {
@@ -434,9 +444,7 @@ function ExerciseRow({
           type="button"
           onClick={onToggle}
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-            done
-              ? "bg-primary text-primary-foreground"
-              : "bg-primary/10 text-primary"
+            done ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
           }`}
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
         >
@@ -473,9 +481,7 @@ function ExerciseRow({
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/60"
           aria-label="Szczegóły"
         >
-          <ChevronRight
-            className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`}
-          />
+          <ChevronRight className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
       </div>
       {expanded && (
@@ -981,9 +987,7 @@ const StructuredSections = memo(function StructuredSections({
   const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [activeSectionId, setActiveSectionId] = useState<string>(
-    sections[0]?.id ?? "",
-  );
+  const [activeSectionId, setActiveSectionId] = useState<string>(sections[0]?.id ?? "");
   const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
 
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
@@ -1016,9 +1020,7 @@ const StructuredSections = memo(function StructuredSections({
             return (
               <div key={b.id} className={blockIndex > 0 ? "pt-4" : ""}>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <h4 className="truncate text-[13px] font-bold text-foreground">
-                    {blockTitle}
-                  </h4>
+                  <h4 className="truncate text-[13px] font-bold text-foreground">{blockTitle}</h4>
                   {b.exercises[0] && (
                     <span className="shrink-0 text-[11px] text-muted-foreground">
                       {compactPrescription(b.exercises[0])}
@@ -1038,8 +1040,7 @@ const StructuredSections = memo(function StructuredSections({
                         done={!!done[e.id]}
                         onToggle={() => toggle(e.id)}
                         onUnavailable={() => {
-                          if (equipmentIds.length)
-                            markEquipmentUnavailable(date, e, equipmentIds);
+                          if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
                         }}
                         equipmentIds={equipmentIds}
                         sessionId={sessionId}
@@ -1163,8 +1164,14 @@ function CompletionPanel({ session }: { session: SessionDay }) {
 
   async function save() {
     setSaving(true);
-    await completeSession(session, rpe, composeCompletionNotes(notes, pain, legFatigue));
-    setSaving(false);
+    try {
+      await completeSession(session, rpe, composeCompletionNotes(notes, pain, legFatigue));
+      toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
+    } catch {
+      toast.error("Nie udało się zapisać treningu. Spróbuj ponownie.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -1289,22 +1296,42 @@ function DecisionLogic({ session }: { session: SessionDay }) {
 
 function SessionDetail() {
   const { date } = Route.useParams();
-  const { slot } = Route.useSearch();
+  const { slot, mod } = Route.useSearch();
   const router = useRouter();
-  const { state, hydrated, todayIso, undoModification, undoExerciseReplacement } = useLoadwise();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const {
+    state,
+    hydrated,
+    todayIso,
+    undoModification,
+    undoExerciseReplacement,
+    saveRunningActivity,
+    deleteRunningActivity,
+  } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
   const [showSprintCompletion, setShowSprintCompletion] = useState(false);
   const goBack = useInstantBack("/plan");
   useEffect(() => {
     setShowSprintCompletion(false);
-  }, [date, slot]);
+  }, [date, slot, mod]);
+  useEffect(() => {
+    if (!authLoading && !user) navigate({ to: "/auth", replace: true });
+  }, [authLoading, user, navigate]);
 
   const day = state.plan.find((p) => p.date === date);
-
   // Dane jeszcze się ładują (np. po odświeżeniu / deep link) — nie pokazuj
   // pustego białego ekranu. Skeleton w tym samym layoucie, z krótkim delay.
   const stillLoading = !hydrated || (!day && !state.profile);
   const showSkeleton = useDelayedFlag(stillLoading);
+
+  if (authLoading || !user) {
+    return (
+      <div className="app-shell flex min-h-screen items-center justify-center">
+        <p className="text-sm text-muted-foreground">Ładowanie…</p>
+      </div>
+    );
+  }
 
   if (stillLoading) {
     return (
@@ -1335,6 +1362,7 @@ function SessionDetail() {
   const mods = state.modifications[date] ?? [];
   const swapMod = mods.find((m) => m.type === "swap");
   const addMods = mods.filter((m) => m.type === "add");
+  const selectedAdd = addMods.find((item) => item.id === mod) ?? null;
 
   // Sesja główna: zamieniona (jeśli jest) lub zaplanowana z gotowością.
   let primary: SessionDay = day;
@@ -1353,14 +1381,23 @@ function SessionDetail() {
     plan: state.plan,
   });
 
-  let session: SessionDay = primary;
-  if (slot === 2) {
+  let session: SessionDay = selectedAdd?.session ?? primary;
+  if (!selectedAdd && slot === 2) {
     if (!primary.secondSession) {
       return (
         <SessionScreenShell onBack={goBack}>
-          <p className="text-sm text-muted-foreground">
-            Druga sesja nie jest dziś dostępna (zbyt niska gotowość, ból lub bliskość meczu).
+          <h1 className="text-xl font-semibold text-foreground">Plan dnia został zaktualizowany</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ten drugi slot nie występuje już w aktualnym planie. Nie oznacza to automatycznie, że
+            trening jest za blisko meczu — plan mógł zostać przebudowany po zmianie kalendarza albo
+            check-inie.
           </p>
+          <Button
+            className="mt-4"
+            onClick={() => navigate({ to: "/sesja/$date", params: { date }, search: { slot: 1 } })}
+          >
+            Otwórz aktualną sesję dnia
+          </Button>
         </SessionScreenShell>
       );
     }
@@ -1400,6 +1437,16 @@ function SessionDetail() {
             })
           : [];
   const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
+  const trackableEndurance = isTrackableEnduranceRun(session) && Boolean(session.dbId);
+
+  async function undo(dateToUndo: string, id: string) {
+    try {
+      await undoModification(dateToUndo, id);
+      toast.success("Zmiana została cofnięta.");
+    } catch {
+      toast.error("Nie udało się cofnąć zmiany.");
+    }
+  }
 
   return (
     <div className="app-shell min-h-screen pb-[140px]">
@@ -1492,6 +1539,18 @@ function SessionDetail() {
           </div>
         )}
 
+        {trackableEndurance && session.dbId && (
+          <EnduranceRunTracker
+            session={session}
+            sessionId={session.dbId}
+            date={session.date}
+            canRecord={isToday}
+            activity={state.runningActivities[session.dbId] ?? null}
+            onSave={saveRunningActivity}
+            onDelete={deleteRunningActivity}
+          />
+        )}
+
         {isClub ? (
           <>
             <ClubMonitoring />
@@ -1529,7 +1588,11 @@ function SessionDetail() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => undoExerciseReplacement(date, replacement.id)}
+                  onClick={() => {
+                    void undoExerciseReplacement(date, replacement.id)
+                      .then(() => toast.success("Przywrócono poprzednie ćwiczenie."))
+                      .catch(() => toast.error("Nie udało się cofnąć zamiennika."));
+                  }}
                   className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
                 >
                   <Undo2 className="h-3.5 w-3.5" /> Cofnij
@@ -1544,12 +1607,12 @@ function SessionDetail() {
         )}
 
         {/* Status zmiany + cofnij */}
-        {swapMod && slot === 1 && (
+        {swapMod && slot === 1 && !selectedAdd && (
           <div className="soft-card flex items-center justify-between p-3 text-xs">
             <span className="text-muted-foreground">Sesja zamieniona. {swapMod.reason}</span>
             <button
               type="button"
-              onClick={() => undoModification(date, swapMod.id)}
+              onClick={() => void undo(date, swapMod.id)}
               className="inline-flex items-center gap-1 font-medium text-primary"
             >
               <Undo2 className="h-3.5 w-3.5" /> Cofnij
@@ -1558,29 +1621,31 @@ function SessionDetail() {
         )}
 
         {/* Sesje dodane przez zawodnika */}
-        {addMods.map((m) => (
-          <div key={m.id} className="soft-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs font-medium uppercase tracking-wide text-primary">
-                  Dodana sesja
+        {addMods
+          .filter((item) => item.id !== selectedAdd?.id)
+          .map((m) => (
+            <div key={m.id} className="soft-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium uppercase tracking-wide text-primary">
+                    Dodana sesja
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold">{m.session.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {m.session.durationMin} min · {m.session.intensity}
+                  </div>
                 </div>
-                <div className="mt-0.5 text-sm font-semibold">{m.session.title}</div>
-                <div className="text-xs text-muted-foreground">
-                  {m.session.durationMin} min · {m.session.intensity}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void undo(date, m.id)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                >
+                  <Undo2 className="h-3.5 w-3.5" /> Cofnij
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => undoModification(date, m.id)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-              >
-                <Undo2 className="h-3.5 w-3.5" /> Cofnij
-              </button>
+              <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
             </div>
-            <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
-          </div>
-        ))}
+          ))}
 
         {/* Dodaj / zamień sesję */}
         {!isClub && session.dayType !== "match" && (
