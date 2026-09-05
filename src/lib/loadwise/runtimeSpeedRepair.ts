@@ -98,43 +98,30 @@ function externalExposures(
     isoDate(addDays(current, -1)),
     isoDate(addDays(current, 1)),
   ]);
+  const addSessionExposures = (candidateDate: string, sessions: SessionDay[]): void => {
+    for (const candidate of sessions) {
+      const classification = classifySession(candidate);
+      if (classification.countsAsMatch) {
+        exposures.push({ date: candidateDate, kind: "match", hard: true });
+      } else if (classification.countsAsClub) {
+        exposures.push({ date: candidateDate, kind: "club", hard: true });
+      } else if (classification.countsAsSpeed || candidate.externalCommitment === true) {
+        exposures.push({ date: candidateDate, kind: "training", hard: true });
+      }
+    }
+  };
   for (const day of context.plan ?? []) {
     if (!relevantDates.has(day.date)) continue;
     const modifications = context.modifications?.[day.date] ?? [];
     // Zastąpiona sesja bazowa nie jest już częścią efektywnego grafiku.
     if (modifications.some((modification) => modification.type === "swap")) continue;
-    const sessions = exposureSessions(day, day.date !== date);
-    if (
-      sessions.some((candidate) => {
-        const classification = classifySession(candidate);
-        return (
-          classification.countsAsSpeed ||
-          classification.countsAsClub ||
-          classification.countsAsMatch ||
-          candidate.externalCommitment === true
-        );
-      })
-    ) {
-      exposures.push({ date: day.date, kind: "training", hard: true });
-    }
+    addSessionExposures(day.date, exposureSessions(day, day.date !== date));
   }
   for (const relevantDate of relevantDates) {
     const modifiedSessions = (context.modifications?.[relevantDate] ?? []).flatMap((modification) =>
       exposureSessions(modification.session, true),
     );
-    if (
-      modifiedSessions.some((candidate) => {
-        const classification = classifySession(candidate);
-        return (
-          classification.countsAsSpeed ||
-          classification.countsAsClub ||
-          classification.countsAsMatch ||
-          candidate.externalCommitment === true
-        );
-      })
-    ) {
-      exposures.push({ date: relevantDate, kind: "training", hard: true });
-    }
+    addSessionExposures(relevantDate, modifiedSessions);
   }
   return exposures;
 }

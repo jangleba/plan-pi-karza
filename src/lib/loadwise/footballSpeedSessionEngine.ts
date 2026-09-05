@@ -131,7 +131,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v5-guided-main-flow";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v6-club-aware";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -979,14 +979,19 @@ function dateOffset(date: string, days: number): string {
 }
 
 function hasHardConflict(input: FootballSpeedEngineInput): boolean {
+  const canShareClubDay =
+    input.profile.age >= 16 &&
+    input.profile.level !== "beginner" &&
+    input.profile.doubleSessionsAllowed === "yes_if_safe";
   return (input.externalSessions ?? []).some((exposure) => {
-    if (exposure.kind === "match" && exposure.date === input.date) return true;
-    if (exposure.date === input.date && (exposure.hard === true || exposure.kind === "club"))
-      return true;
-    return (
-      exposure.hard === true &&
-      [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(exposure.date)
+    const adjacent = [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(
+      exposure.date,
     );
+    if (exposure.kind === "match") return exposure.date === input.date || adjacent;
+    if (exposure.kind === "club") {
+      return exposure.date === input.date && !canShareClubDay;
+    }
+    return exposure.hard === true && (exposure.date === input.date || adjacent);
   });
 }
 

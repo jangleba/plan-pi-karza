@@ -188,6 +188,36 @@ describe("football speed session engine", () => {
     ).toBe("blocked");
   });
 
+  it("does not treat an adjacent club training as a hard sprint conflict", () => {
+    const result = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+      externalSessions: [{ date: "2026-08-19", kind: "club", hard: true }],
+    });
+    expect(result.status).toBe("generated");
+  });
+
+  it("allows a same-day club plus sprint only for an eligible double-session athlete", () => {
+    const exposure = [{ date: "2026-08-20", kind: "club" as const, hard: true }];
+    expect(
+      generateFootballSpeedSession({
+        profile: profile({ doubleSessionsAllowed: "yes_if_safe" }),
+        date: "2026-08-20",
+        family: "acceleration",
+        externalSessions: exposure,
+      }).status,
+    ).toBe("generated");
+    expect(
+      generateFootballSpeedSession({
+        profile: profile({ level: "beginner", doubleSessionsAllowed: "yes_if_safe" }),
+        date: "2026-08-20",
+        family: "acceleration",
+        externalSessions: exposure,
+      }).status,
+    ).toBe("blocked");
+  });
+
   it("reduces volume for low readiness without conditioning or RSA", () => {
     const result = generateFootballSpeedSession({
       profile: profile(),

@@ -37,14 +37,7 @@ function makeProfile(goal: Goal): Profile {
 }
 
 describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
-  const goals: Goal[] = [
-    "general",
-    "speed",
-    "strength",
-    "endurance",
-    "power",
-    "agility",
-  ];
+  const goals: Goal[] = ["general", "speed", "strength", "endurance", "power", "agility"];
 
   for (const goal of goals) {
     it(`plan dla celu "${goal}" nie zawiera pustych sesji ani placeholderów`, () => {
@@ -60,6 +53,9 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
 
     expect(trainingDay).toBeDefined();
 
+    // Wymuszamy historyczny, płaski payload — strukturalne ćwiczenia mają
+    // pierwszeństwo i inaczej poprawnie zasłoniłyby wstrzyknięty fallback.
+    trainingDay!.structuredSections = undefined;
     trainingDay!.sections = {
       warmup: [],
       main: [
@@ -75,9 +71,7 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
 
     const issues = validatePlanExerciseContract(plan);
 
-    expect(
-      issues.some((issue) => issue.code === "placeholder-exercise"),
-    ).toBe(true);
+    expect(issues.some((issue) => issue.code === "placeholder-exercise")).toBe(true);
   });
 
   it("requires every generated exercise to use an approved canonical ID", () => {
@@ -106,12 +100,8 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
 
     for (const plan of [generated, hydrated]) {
       const issues = validatePlanExerciseContract(plan);
-      expect(
-        issues.filter((issue) => issue.code === "missing-execution-instructions"),
-      ).toEqual([]);
-      expect(
-        issues.filter((issue) => issue.code === "missing-prescription"),
-      ).toEqual([]);
+      expect(issues.filter((issue) => issue.code === "missing-execution-instructions")).toEqual([]);
+      expect(issues.filter((issue) => issue.code === "missing-prescription")).toEqual([]);
     }
   });
 
@@ -121,9 +111,7 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
     const first = generatePlan(profile, START, 28);
     const second = generatePlan(profile, START, 28);
     const enduranceExercises = [first, second].flatMap((plan) =>
-      plan
-        .filter((day) => isEnduranceSession(day))
-        .flatMap((day) => day.sections.main),
+      plan.filter((day) => isEnduranceSession(day)).flatMap((day) => day.sections.main),
     );
 
     expect(enduranceExercises.length).toBeGreaterThan(0);
@@ -162,9 +150,9 @@ describe("Plan Exercise Contract — rzeczywisty generatePlan", () => {
       },
     ];
 
-    expect(validatePlanExerciseContract(plan).some((issue) => issue.code === "invalid-exercise-id")).toBe(
-      true,
-    );
+    expect(
+      validatePlanExerciseContract(plan).some((issue) => issue.code === "invalid-exercise-id"),
+    ).toBe(true);
   });
 
   it("reports missing athlete-visible execution instructions before persistence", () => {

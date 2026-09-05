@@ -176,24 +176,41 @@ describe("runtime speed payload repair", () => {
     ).toBe(swapped);
   });
 
-  it("removes a broken slot instead of regenerating it beside a hard club exposure", () => {
+  it("repairs a broken slot when club training is only on the adjacent day", () => {
     const clubConflictProfile = { ...profile, clubTrainingDays: [4] };
     const repaired = repairRuntimeSpeedDay(
       strengthHost(malformedEngineSlot()),
       clubConflictProfile,
     );
 
-    expect(repaired.secondSession).toBeNull();
+    expect(hasCompleteRuntimeSpeedPayload(repaired.secondSession!)).toBe(true);
   });
 
-  it("revalidates and removes an already complete slot after a new hard conflict", () => {
+  it("keeps an already complete slot when club training is only on the adjacent day", () => {
     const complete = repairRuntimeSpeedDay(strengthHost(malformedEngineSlot()), profile);
     expect(hasCompleteRuntimeSpeedPayload(complete.secondSession!)).toBe(true);
 
     const clubConflictProfile = { ...profile, clubTrainingDays: [4] };
     const revalidated = repairRuntimeSpeedDay(complete, clubConflictProfile);
 
-    expect(revalidated.secondSession).toBeNull();
+    expect(hasCompleteRuntimeSpeedPayload(revalidated.secondSession!)).toBe(true);
+  });
+
+  it("keeps a same-day club plus sprint slot for an eligible advanced athlete", () => {
+    const clubDayProfile = { ...profile, clubTrainingDays: [5] };
+    const repaired = repairRuntimeSpeedDay(strengthHost(malformedEngineSlot()), clubDayProfile);
+    expect(hasCompleteRuntimeSpeedPayload(repaired.secondSession!)).toBe(true);
+  });
+
+  it("removes a same-day club plus sprint double for a beginner", () => {
+    const beginner = {
+      ...profile,
+      age: 15,
+      level: "beginner" as const,
+      clubTrainingDays: [5],
+    };
+    const repaired = repairRuntimeSpeedDay(strengthHost(malformedEngineSlot()), beginner);
+    expect(repaired.secondSession).toBeNull();
   });
 
   it("removes a broken slot when the adjacent plan day already contains speed", () => {
