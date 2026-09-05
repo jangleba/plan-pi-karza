@@ -167,8 +167,8 @@ describe("regression — gym access + full week", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Club + safe second gym session — light gym allowed as second session
-//    on a club day when doubleSessionsAllowed != "no"
+// 2. Club + safe second gym session — decyzja wynika z poziomu i bezpieczeństwa,
+//    a nie ze starego przełącznika profilu.
 // ---------------------------------------------------------------------------
 
 describe("regression — club + safe second gym session", () => {
@@ -193,17 +193,28 @@ describe("regression — club + safe second gym session", () => {
     }
   });
 
-  it("doubleSessionsAllowed='no' does not add second sessions", () => {
-    const profile = baseProfile({
+  it("stary przełącznik nie blokuje bezpiecznych podwójnych dni intermediate", () => {
+    const common: Partial<Profile> = {
       goal: "strength",
       hasGym: true,
       clubTrainingDays: [2, 4],
       individualTrainingDays: [1, 3, 5, 6],
-      doubleSessionsAllowed: "no",
-    });
-    const plan = generatePlan(profile, START, 28);
-    const secondSessions = plan.filter((d) => d.secondSession !== null);
-    expect(secondSessions.length).toBe(0);
+      level: "intermediate",
+    };
+    const legacyNo = generatePlan(
+      baseProfile({ ...common, doubleSessionsAllowed: "no" }),
+      START,
+      28,
+    );
+    const legacyYes = generatePlan(
+      baseProfile({ ...common, doubleSessionsAllowed: "yes_if_safe" }),
+      START,
+      28,
+    );
+
+    expect(legacyNo.map((day) => Boolean(day.secondSession))).toEqual(
+      legacyYes.map((day) => Boolean(day.secondSession)),
+    );
   });
 });
 

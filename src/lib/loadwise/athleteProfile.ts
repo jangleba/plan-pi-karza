@@ -521,7 +521,9 @@ export function buildAthleteTrainingProfile(
     seasonPhase: p.seasonPhase ?? "inseason",
     clubTrainingCount: p.clubTrainingDays?.length ?? 0,
     matchCount: p.matchDate ? 1 : 0,
-    maxSessionsPerDay: p.doubleSessionsAllowed && p.doubleSessionsAllowed !== "no" ? 2 : 1,
+    // Każdy profil może mieć technicznie dwa sloty. Poziom i reguły kombinacji
+    // decydują, czy druga sesja może być pełna, czy wyłącznie lekka.
+    maxSessionsPerDay: 2,
     availableTrainingDays: p.individualTrainingDays ?? [],
     availableTimePerSession: developmentStage === "child_foundation" ? 40 : 60,
     equipmentAccess: p.equipment ?? [],

@@ -431,6 +431,51 @@ function isHardSession(session: SessionDay): boolean {
   );
 }
 
+const UNIQUE_DAILY_STIMULI = new Set<SessionCategory>([
+  "club",
+  "gym_strength",
+  "endurance_conditioning",
+  "speed_sprint",
+  "match",
+]);
+
+function categoryOf(session: SessionDay): SessionCategory | undefined {
+  return session.classification?.category;
+}
+
+function sessionsOnDay(day: SessionDay | undefined | null): SessionDay[] {
+  if (!day || day.dayType === "rest") return [];
+  return [day, ...(day.secondSession ? [day.secondSession] : [])];
+}
+
+function repeatsDominantStimulus(
+  current: SessionDay | undefined | null,
+  candidate: SessionDay,
+): boolean {
+  const category = categoryOf(candidate);
+  if (!category || !UNIQUE_DAILY_STIMULI.has(category)) return false;
+  return sessionsOnDay(current).some((item) => categoryOf(item) === category);
+}
+
+function restrictedToLightSecondSession(context?: TrainingContext): boolean {
+  return (
+    context?.trainingLevel === "beginner" ||
+    (typeof context?.age === "number" && context.age <= 15)
+  );
+}
+
+function dayHasHardEndurance(day: SessionDay | undefined | null): boolean {
+  return sessionsOnDay(day).some(
+    (item) => isEnduranceSession(item) && item.intensity === "wysoka",
+  );
+}
+
+function dayHasHardClub(day: SessionDay | undefined | null): boolean {
+  return sessionsOnDay(day).some(
+    (item) => isClubSession(item) && item.intensity === "wysoka",
+  );
+}
+
 /**
  * Sprawdza, czy sesja może wejść w dany dzień tygodnia (indeks dayIndex).
  * Blokuje twarde konflikty następstwa i tego samego dnia.
@@ -439,7 +484,7 @@ export function canPlaceSession(
   dayIndex: number,
   session: SessionDay,
   week: SessionDay[],
-  _context?: TrainingContext,
+  context?: TrainingContext,
 ): PlacementCheck {
   const prev = dayIndex > 0 ? week[dayIndex - 1] : null;
   const next = dayIndex < week.length - 1 ? week[dayIndex + 1] : null;
@@ -456,9 +501,24 @@ export function canPlaceSession(
   if (realSessionsOnDay(current) >= 2) {
     return { allowed: false, reason: "Maksymalnie 2 jednostki dziennie." };
   }
-  // dwie mocne jednostki sportowe tego samego dnia
-  if (isHardSession(session) && current && current.dayType !== "rest" && isHardSession(current)) {
-    return { allowed: false, reason: "Dwie mocne jednostki sportowe tego samego dnia są zabronione." };
+  // Nigdy dwa razy ten sam dominujący bodziec jednego dnia.
+  if (repeatsDominantStimulus(current, session)) {
+    return {
+      allowed: false,
+      reason: "Tego samego dominującego bodźca nie planujemy dwa razy jednego dnia.",
+    };
+  }
+  // Początkujący i zawodnicy do 15 r.ż. mogą mieć drugą sesję wyłącznie lekką.
+  // Intermediate/advanced/elite mogą łączyć dwie pełne, komplementarne sesje.
+  if (
+    restrictedToLightSecondSession(context) &&
+    isHardSession(session) &&
+    sessionsOnDay(current).some(isHardSession)
+  ) {
+    return {
+      allowed: false,
+      reason: "Druga mocna sesja jest zablokowana dla początkującego lub młodego zawodnika.",
+    };
   }
   // speed + speed tego samego dnia
   if (isSpeed && dayHasSpeed(current)) {
@@ -468,10 +528,8 @@ export function canPlaceSession(
   if (isSpeed && (dayHasSpeed(prev) || dayHasSpeed(next))) {
     return { allowed: false, reason: "Speed_sprint musi mieć minimum 1 dzień przerwy od kolejnego speed." };
   }
-  // speed dzień po ciężkiej siłowni nóg
-  if (isSpeed && dayHasHeavyLegs(prev)) {
-    return { allowed: false, reason: "Speed dzień po ciężkiej siłowni nóg jest zabroniony." };
-  }
+  // Speed po ciężkich nogach nie jest automatycznie blokowany. Scoring i
+  // check-in decydują, czy zachować pełny bodziec, czy zejść do microdose.
   // hard COD dzień po speed / po heavy lower gym
   if (isHardCOD && (dayHasSpeed(prev) || dayHasHeavyLegs(prev))) {
     return { allowed: false, reason: "Hard COD dzień po speed lub ciężkiej siłowni nóg jest zabroniony." };
@@ -501,16 +559,26 @@ export function canPlaceSession(
     if ((addsGym && currentHasRun) || (addsRun && currentHasGym)) {
       return { allowed: false, reason: "Club + gym + running w jeden dzień jest zabronione." };
     }
-    // club + hard cokolwiek — ale LEKKA siłownia (primer/activation) jest
-    // dozwolona jako druga sesja dnia klubowego, o ile nie łamie innych reguł.
-    if (isHardSession(session) && !addsGym) {
-      return { allowed: false, reason: "Trening klubowy + mocna jednostka tego samego dnia jest zabroniony." };
+    // Klub może być połączony z pełną, komplementarną siłą lub szybkością u
+    // intermediate/advanced/elite. Blokujemy tylko dwa ciężkie bodźce
+    // metaboliczne: ciężki klub + ciężka wydolność.
+    if (
+      isEnduranceSession(session) &&
+      session.intensity === "wysoka" &&
+      dayHasHardClub(current)
+    ) {
+      return {
+        allowed: false,
+        reason: "Ciężki trening klubowy + ciężka wydolność tego samego dnia są zablokowane.",
+      };
     }
-    // club + ciężka siłownia (heavy legs / wysoka intensywność) jest blokowana;
-    // lekki wariant (primer, maintenance, upper, umiarkowana) jest dozwolony.
-    if (addsGym && isHardSession(session)) {
-      return { allowed: false, reason: "Trening klubowy + ciężka siłownia tego samego dnia jest zabroniony." };
-    }
+  }
+
+  if (isClubSession(session) && session.intensity === "wysoka" && dayHasHardEndurance(current)) {
+    return {
+      allowed: false,
+      reason: "Ciężka wydolność + ciężki trening klubowy tego samego dnia są zablokowane.",
+    };
   }
 
   return { allowed: true, reason: null };
@@ -708,8 +776,17 @@ export function findWeekConflicts(week: SessionDay[], context: TrainingContext):
       const run = isEnduranceSession(day) || (day.secondSession && isEnduranceSession(day.secondSession));
       if (gym && run) conflicts.push("club-gym-running-same-day");
     }
-    // dwie mocne jednostki tego samego dnia
-    if (day.secondSession && isHardSession(day) && isHardSession(day.secondSession)) {
+    // Dwie mocne jednostki są blokowane dla beginnerów i młodszych graczy.
+    // Intermediate/advanced/elite mogą mieć pełną parę komplementarną.
+    const restrictedTwoADay =
+      context.trainingLevel === "beginner" ||
+      (typeof context.age === "number" && context.age <= 15);
+    if (
+      restrictedTwoADay &&
+      day.secondSession &&
+      isHardSession(day) &&
+      isHardSession(day.secondSession)
+    ) {
       conflicts.push("two-hard-sessions-same-day");
     }
   }

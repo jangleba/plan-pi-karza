@@ -51,6 +51,7 @@ export function normalizeLegacyExternalCommitmentDay(
   const base = stripLegacyRecoveryBlocks(session);
   const title = canonicalExternalTitle(kind);
   const sessionType = canonicalExternalSessionType(kind);
+  const secondSession = base.secondSession ?? null;
 
   const normalized: SessionDay = {
     ...base,
@@ -60,8 +61,11 @@ export function normalizeLegacyExternalCommitmentDay(
     sessionType,
     loadLabelOverride:
       base.loadLabelOverride === "Ogranicz" ? "Ogranicz obciążenie" : base.loadLabelOverride,
-    secondSession: null,
-    slotLabel: null,
+    // Trening klubowy i mecz są stałym pierwszym punktem dnia, ale nie mogą
+    // kasować prawidłowo zaplanowanej, uzupełniającej sesji BallWise.
+    // O jej redukcji lub usunięciu decyduje dopiero check-in i reguły bólu.
+    secondSession,
+    slotLabel: secondSession ? (base.slotLabel ?? "Sesja 1") : null,
   };
 
   const changed = JSON.stringify(session) !== JSON.stringify(normalized);

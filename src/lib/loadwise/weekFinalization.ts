@@ -122,7 +122,17 @@ function isYouthOrBeginner(profile: Profile): boolean {
   return isYouthOrBeginnerSched({
     developmentStage: getDevelopmentStage(profile.age),
     gymExperienceLevel: profile.gymExperienceLevel ?? null,
+    trainingLevel: profile.level,
   });
+}
+
+function requiresLightSecondSession(profile: Profile): boolean {
+  const stage = getDevelopmentStage(profile.age);
+  return (
+    stage === "child_foundation" ||
+    stage === "early_youth" ||
+    profile.level === "beginner"
+  );
 }
 
 function hasLowerLimbPain(profile: Profile): boolean {
@@ -688,9 +698,9 @@ export function addMissingEnduranceSessions(
 
   const required = Math.max(1, weeklyRequirements.requiredEnduranceSessions);
   const absoluteMinimum = Math.max(1, weeklyRequirements.absoluteMinimumEnduranceSessions);
-  const maxPerDay = getMaxSessionsPerDay({
-    doubleSessionsAllowed: userSettings?.doubleSessionsAllowed ?? profile.doubleSessionsAllowed,
-  });
+  // Slot 2 jest dostępny technicznie dla każdego profilu; jego intensywność
+  // ograniczają poziom, wiek, ból i reguły bezpiecznego łączenia bodźców.
+  const maxPerDay = getMaxSessionsPerDay({ maxSessionsPerDay: 2 });
   const overloaded = weekIsOverloaded(weekPlan);
 
   const lowReadinessReasons = (day: SessionDay): boolean =>
@@ -702,7 +712,7 @@ export function addMissingEnduranceSessions(
 
   while (countEnduranceSessions(weekPlan) < required && guard < 14) {
     guard += 1;
-    let idx = countEnduranceSessions(weekPlan);
+    const idx = countEnduranceSessions(weekPlan);
 
     // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
     const recoveryDays = weekPlan.filter(
@@ -762,13 +772,18 @@ export function addMissingEnduranceSessions(
           !isEnduranceSession(d),
       );
       if (host) {
-        const light = isDayBeforeMatch(host) || lowReadinessReasons(host) || true; // 2. sesja zawsze lekka
+        const light =
+          isDayBeforeMatch(host) ||
+          lowReadinessReasons(host) ||
+          requiresLightSecondSession(profile);
         const second = buildEnduranceSessionDay(profile, host, {
           light,
           index: idx,
-          slotLabel: "Sesja 2 (lekka)",
+          slotLabel: light ? "Sesja 2 (lekka)" : "Sesja 2",
           placementReason:
-            "Dodano wydolność jako drugą (lekką) sesję dnia — bez łamania limitu i bez dnia klubowego.",
+            light
+              ? "Dodano wydolność jako drugą lekką sesję dnia — zgodnie z profilem zawodnika."
+              : "Dodano pełną wydolność jako drugą, komplementarną sesję dnia.",
         });
         host.secondSession = second;
         host.slotLabel = host.slotLabel ?? "Sesja 1";
@@ -942,9 +957,7 @@ export function addMissingGymSessions(
   }
 
   const required = weeklyRequirements.requiredGymSessions;
-  const maxPerDay = getMaxSessionsPerDay({
-    doubleSessionsAllowed: profile.doubleSessionsAllowed,
-  });
+  const maxPerDay = getMaxSessionsPerDay({ maxSessionsPerDay: 2 });
 
   let added = 0;
   let converted = 0;
@@ -1027,11 +1040,14 @@ export function addMissingGymSessions(
       );
       if (hostIdx >= 0) {
         const host = weekPlan[hostIdx];
+        const light = requiresLightSecondSession(profile);
         const second = buildGymSessionDay(profile, host, {
-          light: true, // druga sesja zawsze lekka
-          slotLabel: "Sesja 2 (siłownia lekka)",
+          light,
+          slotLabel: light ? "Sesja 2 (siłownia lekka)" : "Sesja 2 (siłownia)",
           placementReason:
-            "Dodano siłownię jako drugą (lekką) sesję dnia — bez łamania limitu.",
+            light
+              ? "Dodano siłownię jako drugą lekką sesję dnia — zgodnie z profilem zawodnika."
+              : "Dodano pełną siłownię jako drugą, komplementarną sesję dnia.",
         });
         host.secondSession = second;
         host.slotLabel = host.slotLabel ?? "Sesja 1";

@@ -135,6 +135,48 @@ describe("globalPlanRules — scoring i konflikty", () => {
     }
   });
 
+  it("intermediate może połączyć dwie pełne, komplementarne sesje", () => {
+    const gym = generatePlan(baseProfile({ goal: "strength" }), START, 7).find(
+      (day) => day.classification?.category === "gym_strength",
+    )!;
+    const speed = generatePlan(baseProfile({ goal: "speed" }), START, 7).find(
+      (day) => day.classification?.category === "speed_sprint",
+    )!;
+    const current = { ...gym, intensity: "wysoka" as const, secondSession: null };
+    const candidate = { ...speed, intensity: "wysoka" as const, secondSession: null };
+    const context = buildTrainingContext(baseProfile({ level: "intermediate" }));
+
+    expect(canPlaceSession(0, candidate, [current], context)).toEqual({
+      allowed: true,
+      reason: null,
+    });
+  });
+
+  it("beginner nie może połączyć dwóch mocnych sesji", () => {
+    const gym = generatePlan(baseProfile({ goal: "strength" }), START, 7).find(
+      (day) => day.classification?.category === "gym_strength",
+    )!;
+    const speed = generatePlan(baseProfile({ goal: "speed" }), START, 7).find(
+      (day) => day.classification?.category === "speed_sprint",
+    )!;
+    const current = { ...gym, intensity: "wysoka" as const, secondSession: null };
+    const candidate = { ...speed, intensity: "wysoka" as const, secondSession: null };
+    const context = buildTrainingContext(baseProfile({ level: "beginner" }));
+
+    expect(canPlaceSession(0, candidate, [current], context).allowed).toBe(false);
+  });
+
+  it("nie pozwala na dwie siłownie tego samego dnia", () => {
+    const gym = generatePlan(baseProfile({ goal: "strength" }), START, 7).find(
+      (day) => day.classification?.category === "gym_strength",
+    )!;
+    const current = { ...gym, secondSession: null };
+    const candidate = { ...gym, secondSession: null };
+    const context = buildTrainingContext(baseProfile({ level: "advanced" }));
+
+    expect(canPlaceSession(0, candidate, [current], context).allowed).toBe(false);
+  });
+
   it("findWeekConflicts nie znajduje konfliktów w wygenerowanym pełnym tygodniu", () => {
     // Uwaga: cel "speed" korzysta z osobnego, gęstego harmonogramu sprintu i jest
     // testowany na poziomie canPlaceSession; tu sprawdzamy cele o rozłożonym bodźcu.

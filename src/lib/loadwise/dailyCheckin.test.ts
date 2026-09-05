@@ -67,6 +67,27 @@ function makeSession(): SessionDay {
   } as SessionDay;
 }
 
+function makeClubDay(): SessionDay {
+  const strength = makeSession();
+  return {
+    ...strength,
+    dayType: "club",
+    title: "Trening klubowy",
+    sessionType: "Klub",
+    externalCommitment: true,
+    intensity: "wysoka",
+    sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+    secondSession: {
+      ...strength,
+      title: "Siła uzupełniająca",
+      sessionType: "Siła",
+      secondSession: null,
+      slotLabel: "Sesja 2",
+    },
+    slotLabel: "Sesja 1 (klub)",
+  };
+}
+
 function readiness(overrides: Partial<Readiness>): Readiness {
   return {
     date: "2026-08-17",
@@ -83,6 +104,32 @@ function readiness(overrides: Partial<Readiness>): Readiness {
 }
 
 describe("daily check-in integration", () => {
+  it("nie usuwa zaplanowanej drugiej sesji z dnia klubowego przy dobrej gotowości", () => {
+    const result = applyCheckInToPlanDay(
+      [makeClubDay()],
+      "2026-08-17",
+      readiness({ overall: 8, jointPain: 2 }),
+      PROFILE,
+    );
+
+    expect(result.adjusted?.dayType).toBe("club");
+    expect(result.adjusted?.secondSession?.title).toBe("Siła uzupełniająca");
+    expect(result.adjusted?.slotLabel).toBe("Sesja 1 (klub)");
+  });
+
+  it("usuwa drugą sesję z dnia klubowego dopiero przy istotnym bólu", () => {
+    const result = applyCheckInToPlanDay(
+      [makeClubDay()],
+      "2026-08-17",
+      readiness({ overall: 8, jointPain: 6 }),
+      PROFILE,
+    );
+
+    expect(result.adjusted?.dayType).toBe("club");
+    expect(result.adjusted?.secondSession).toBeNull();
+    expect(result.adjusted?.loadLabelOverride).toBe("Wstrzymaj trening");
+  });
+
   it("submit low readiness + pain applies safety adaptation and removes second session", () => {
     const basePlan = [makeSession()];
     const result = applyCheckInToPlanDay(
@@ -94,6 +141,18 @@ describe("daily check-in integration", () => {
     expect(result.changed).toBe(true);
     expect(result.adjusted?.secondSession).toBeNull();
     expect(result.adjusted?.safetyNote).toMatch(/ból nasila|fizjoterapeut/i);
+  });
+
+  it("dla gotowości 3/10 zmniejsza objętość o 25%, ale nie zamienia sesji na regenerację", () => {
+    const result = applyCheckInToPlanDay(
+      [makeSession()],
+      "2026-08-17",
+      readiness({ overall: 3 }),
+      PROFILE,
+    );
+    expect(result.adjusted?.durationMin).toBe(68);
+    expect(result.adjusted?.title).toBe("Szybkość");
+    expect(result.adjusted?.secondSession).toBeNull();
   });
 
   it("immediately updates plan day and persists readiness marker", () => {
