@@ -120,12 +120,12 @@ describe("countEnduranceSessions / hasEnough", () => {
 // ---------------------------------------------------------------------------
 
 describe("blockEnduranceOnClubDays", () => {
-  it("usuwa endurance wrzucone w dzień klubowy", () => {
+  it("nie usuwa poprawnej pary club + endurance", () => {
     const w = week([2]);
     w[2].sessions.push(s("endurance_conditioning"));
     const res = blockEnduranceOnClubDays(w);
-    expect(res.removed).toBe(1);
-    expect(w[2].sessions.some((x) => x.category === "endurance_conditioning")).toBe(false);
+    expect(res.removed).toBe(0);
+    expect(w[2].sessions.some((x) => x.category === "endurance_conditioning")).toBe(true);
   });
 });
 
@@ -187,8 +187,8 @@ describe("findBestDayForEnduranceSession", () => {
 // ---------------------------------------------------------------------------
 
 describe("createEnduranceSessionVariant", () => {
-  it("zwraca null dla dnia klubowego", () => {
-    expect(createEnduranceSessionVariant({ hasClub: true }, adult)).toBeNull();
+  it("dla dnia klubowego zwraca lekki wariant komplementarny", () => {
+    expect(createEnduranceSessionVariant({ hasClub: true }, adult)).toMatchObject({ loadLevel: "low" });
   });
 
   it("niski readiness → low-impact", () => {
@@ -390,13 +390,14 @@ describe("validateWeeklyEnduranceMinimum", () => {
     expect(rep.unresolvedIssues.length).toBeGreaterThan(0);
   });
 
-  it("wykrywa endurance w dzień klubowy jako unresolvedIssue", () => {
+  it("raportuje club + endurance informacyjnie, ale nie uznaje bezpiecznej pary za błąd", () => {
     const w = week([2]);
     w[2].sessions.push(s("endurance_conditioning"));
     const req = reqFor(2, "general", adult);
     const rep = validateWeeklyEnduranceMinimum(w, wctx, null, req, adult);
     expect(rep.onClubDay).toBe(1);
-    expect(rep.ok).toBe(false);
+    expect(rep.ok).toBe(true);
+    expect(rep.warnings.length).toBeGreaterThan(0);
   });
 
   it("poprawny tydzień przechodzi walidację", () => {

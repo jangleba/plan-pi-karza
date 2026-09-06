@@ -3,11 +3,11 @@ import type {
   LoadwiseState,
   Profile,
   Readiness,
-  TestResult,
-  ScoutingData,
   ExerciseItem,
   SessionDay,
   SessionCompletion,
+  SessionHistoryCategory,
+  SessionHistoryRecord,
   SessionModification,
   ModificationType,
   SessionStatus,
@@ -15,28 +15,17 @@ import type {
   ExerciseReplacement,
   TrainingExercise,
 } from "./types";
-import { generatePlan, weekRanges, PLAN_ENGINE_VERSION } from "./planEngine";
-import { persistMonthlyPlan } from "./persist";
-import { persistedPlanNeedsRegeneration } from "./persistedPlanValidation";
-import { applyCheckInToPlanDay, normalizeLegacyPersistedPlan } from "./dailyCheckin";
+import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { localToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
-import { LEGAL_VERSION } from "./legal";
-import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { CONSENTS, LEGAL_VERSION } from "./legal";
 import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
-import { migratePersistedSpeedSessions } from "./speedSessionMigration";
-import {
-  normalizeCurrentPitchFeelings,
-  normalizeDesiredPitchFeelings,
-} from "./playerDirection";
-
-const emptyScouting: ScoutingData = {
-  strengths: "",
-  priorities: "",
-  notes: "",
-  opportunities: [],
-};
+import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "./playerDirection";
+import { sanitizeRoute } from "@/lib/running/metrics";
+import { sanitizeIntervalResults } from "@/lib/running/intervals";
+import type { KilometerSplit, RunningActivity, RunningActivityDraft } from "@/lib/running/types";
+import { deriveRunningEngineState, fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running/engine";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -44,11 +33,11 @@ const initialState: LoadwiseState = {
   planGeneratedFor: null,
   readiness: {},
   completions: {},
-  tests: [],
-  scouting: emptyScouting,
+  history: [],
   modifications: {},
   transitions: {},
   exerciseReplacements: {},
+  runningActivities: {},
   equipmentNotice: null,
 };
 
@@ -61,15 +50,13 @@ const ONBOARDING_SCHEMA_VERSION = 1;
  * dniu, jest nieaktualny i musi zostać wygenerowany ponownie.
  */
 
-// ---- local-only state (readiness/tests/scouting), namespaced per user ----
+// ---- local-only state, namespaced per user ----
 function localKey(userId: string) {
   return `loadwise:v3:${userId}`;
 }
 
 interface LocalState {
   readiness: Record<string, Readiness>;
-  tests: TestResult[];
-  scouting: ScoutingData;
   unavailableEquipmentIds: string[];
   exerciseReplacements: Record<string, ExerciseReplacement[]>;
 }
@@ -78,8 +65,6 @@ function loadLocal(userId: string): LocalState {
   if (typeof window === "undefined")
     return {
       readiness: {},
-      tests: [],
-      scouting: emptyScouting,
       unavailableEquipmentIds: [],
       exerciseReplacements: {},
     };
@@ -88,16 +73,12 @@ function loadLocal(userId: string): LocalState {
     if (!raw)
       return {
         readiness: {},
-        tests: [],
-        scouting: emptyScouting,
         unavailableEquipmentIds: [],
         exerciseReplacements: {},
       };
     const parsed = JSON.parse(raw) as Partial<LocalState>;
     return {
       readiness: parsed.readiness ?? {},
-      tests: parsed.tests ?? [],
-      scouting: { ...emptyScouting, ...(parsed.scouting ?? {}) },
       unavailableEquipmentIds: Array.isArray(parsed.unavailableEquipmentIds)
         ? parsed.unavailableEquipmentIds
         : [],
@@ -106,8 +87,6 @@ function loadLocal(userId: string): LocalState {
   } catch {
     return {
       readiness: {},
-      tests: [],
-      scouting: emptyScouting,
       unavailableEquipmentIds: [],
       exerciseReplacements: {},
     };
@@ -183,6 +162,134 @@ function supabaseErrorMessage(error: unknown): string {
 function assertNoSupabaseError(context: string, error: unknown): void {
   if (!error) return;
   throw new Error(`[${context}] ${supabaseErrorMessage(error)}`);
+}
+
+async function clearFutureOverlaysForUser(userId: string, fromDate: string): Promise<void> {
+  const [modifications, transitions] = await Promise.all([
+    supabase
+      .from("session_modifications" as never)
+      .update({ active: false } as never)
+      .eq("user_id", userId)
+      .eq("active", true)
+      .gte("date", fromDate),
+    supabase
+      .from("weekly_transitions" as never)
+      .delete()
+      .eq("user_id", userId),
+  ]);
+  assertNoSupabaseError("session_modifications.clear_future", modifications.error);
+  assertNoSupabaseError("weekly_transitions.clear", transitions.error);
+}
+
+function historyCategoryOf(
+  sessionType: string | null | undefined,
+  dayType: string | null | undefined,
+): SessionHistoryCategory | null {
+  const normalized = (sessionType ?? "").toLowerCase();
+  if (normalized === "testing" || /\btest/.test(normalized)) return null;
+  if (dayType === "match" || normalized === "match" || /mecz/.test(normalized)) {
+    return "match";
+  }
+  if (dayType === "club" || normalized === "club_training" || /klub/.test(normalized)) {
+    return "club";
+  }
+  if (normalized === "strength_power" || /sił|moc|power/.test(normalized)) return "gym";
+  if (
+    normalized === "sprint_acceleration" ||
+    normalized === "cod_agility" ||
+    /sprint|szybko|agility|cod|motory/.test(normalized)
+  ) {
+    return "speed";
+  }
+  if (normalized === "endurance_running" || /wydol|wytrzyma|tlen|rsa/.test(normalized)) {
+    return "endurance";
+  }
+  if (normalized === "football_technical" || /piłk|technik/.test(normalized)) return "ball";
+  if (
+    dayType === "recovery" ||
+    normalized === "recovery" ||
+    normalized === "prehab_mobility" ||
+    normalized === "activation" ||
+    /regener|prehab|mobil|aktywac/.test(normalized)
+  ) {
+    return "recovery";
+  }
+  return "gym";
+}
+
+async function loadSessionHistory(
+  userId: string,
+  logRows: AnyRow[],
+): Promise<SessionHistoryRecord[]> {
+  const completedRows = logRows.filter(
+    (row) => Boolean(row.completed) && typeof row.session_id === "string",
+  );
+  const sessionIds = Array.from(new Set(completedRows.map((row) => row.session_id as string)));
+  if (sessionIds.length === 0) return [];
+
+  const sessionRows: AnyRow[] = [];
+  for (let i = 0; i < sessionIds.length; i += 200) {
+    const result = await supabase
+      .from("training_sessions")
+      .select("id,training_day_id,session_type,title,duration_min")
+      .eq("user_id", userId)
+      .in("id", sessionIds.slice(i, i + 200));
+    if (result.error) {
+      console.warn("[loadwise] session history metadata unavailable", result.error);
+      return [];
+    }
+    sessionRows.push(...((result.data as AnyRow[] | null) ?? []));
+  }
+
+  const dayIds = Array.from(
+    new Set(
+      sessionRows
+        .map((row) => row.training_day_id)
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  );
+  const dayRows: AnyRow[] = [];
+  for (let i = 0; i < dayIds.length; i += 200) {
+    const result = await supabase
+      .from("training_days")
+      .select("id,date,day_type")
+      .eq("user_id", userId)
+      .in("id", dayIds.slice(i, i + 200));
+    if (result.error) {
+      console.warn("[loadwise] session history dates unavailable", result.error);
+      return [];
+    }
+    dayRows.push(...((result.data as AnyRow[] | null) ?? []));
+  }
+
+  const sessionsById = new Map(sessionRows.map((row) => [row.id as string, row]));
+  const daysById = new Map(dayRows.map((row) => [row.id as string, row]));
+  const history: SessionHistoryRecord[] = [];
+
+  for (const log of completedRows) {
+    const key = log.session_id as string;
+    const session = sessionsById.get(key);
+    if (!session) continue;
+    const day = daysById.get(session.training_day_id as string);
+    const date = day?.date;
+    if (typeof date !== "string") continue;
+    const category = historyCategoryOf(
+      session.session_type as string | null,
+      day?.day_type as string | null,
+    );
+    if (!category) continue;
+    history.push({
+      key,
+      date,
+      title: typeof session.title === "string" && session.title.trim() ? session.title : "Trening",
+      category,
+      durationMin: typeof session.duration_min === "number" ? session.duration_min : 0,
+      rpe: typeof log.rpe === "number" ? log.rpe : null,
+      notes: typeof log.notes === "string" ? log.notes : "",
+    });
+  }
+
+  return history.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 const VALID_GOALS: Profile["goal"][] = [
@@ -312,7 +419,19 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
         : Boolean(ath.has_sprint_space),
     currentPitchFeelings: normalizeCurrentPitchFeelings(ath.current_pitch_feelings),
     desiredPitchFeelings: normalizeDesiredPitchFeelings(ath.desired_pitch_feelings),
+    fieldMasKmh: null,
+    fieldMasTestedAt: null,
+    runningProgressionLevel: 0,
+    runningProgressionUpdatedAt: null,
   };
+}
+
+function findSessionByDbId(plan: SessionDay[], sessionId: string): SessionDay | null {
+  for (const day of plan) {
+    if (day.dbId === sessionId) return day;
+    if (day.secondSession?.dbId === sessionId) return day.secondSession;
+  }
+  return null;
 }
 
 function stampDayRevision(
@@ -370,7 +489,15 @@ function planRevisionInfo(plan: SessionDay[]): {
 }
 
 function rowToModification(row: AnyRow): SessionModification | null {
-  const session = row.new_session_json as SessionDay | null;
+  const rawSession = row.new_session_json as SessionDay | null;
+  const session = rawSession
+    ? {
+        ...rawSession,
+        dbId:
+          rawSession.dbId ??
+          (typeof row.new_session_id === "string" ? row.new_session_id : undefined),
+      }
+    : null;
   if (!session) return null;
   return {
     id: row.id as string,
@@ -397,7 +524,76 @@ function rowToExerciseReplacement(row: AnyRow): ExerciseReplacement | null {
   };
 }
 
-export function shouldReusePersistedPlan(plan: SessionDay[], profile: Profile): boolean {
+function rowToRunningActivity(row: AnyRow): RunningActivity | null {
+  const durationSec = Number(row.duration_sec);
+  const distanceM = Number(row.distance_m);
+  const paceValue = row.avg_pace_sec_per_km;
+  const avgPaceSecPerKm = paceValue == null ? null : Number(paceValue);
+  if (
+    typeof row.id !== "string" ||
+    typeof row.session_id !== "string" ||
+    typeof row.date !== "string" ||
+    typeof row.started_at !== "string" ||
+    typeof row.ended_at !== "string" ||
+    !Number.isFinite(durationSec) ||
+    durationSec <= 0 ||
+    !Number.isFinite(distanceM) ||
+    distanceM < 0 ||
+    (avgPaceSecPerKm != null && !Number.isFinite(avgPaceSecPerKm)) ||
+    (row.source !== "gps" && row.source !== "gpx")
+  ) {
+    return null;
+  }
+  const splits: KilometerSplit[] = Array.isArray(row.splits)
+    ? row.splits.flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const split = value as Record<string, unknown>;
+        const kilometer = Number(split.kilometer);
+        const splitDistance = Number(split.distanceM);
+        const splitDuration = Number(split.durationSec);
+        const splitPace = Number(split.paceSecPerKm);
+        if (
+          !Number.isFinite(kilometer) ||
+          !Number.isFinite(splitDistance) ||
+          !Number.isFinite(splitDuration) ||
+          !Number.isFinite(splitPace)
+        ) {
+          return [];
+        }
+        return [
+          {
+            kilometer,
+            distanceM: splitDistance,
+            durationSec: splitDuration,
+            paceSecPerKm: splitPace,
+            isPartial: Boolean(split.isPartial),
+          },
+        ];
+      })
+    : [];
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    date: row.date,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    durationSec,
+    distanceM,
+    avgPaceSecPerKm,
+    route: sanitizeRoute(row.route_points),
+    splits,
+    intervalResults: sanitizeIntervalResults(row.interval_results),
+    source: row.source,
+    createdAt: typeof row.created_at === "string" ? row.created_at : row.started_at,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : row.ended_at,
+  };
+}
+
+export async function shouldReusePersistedPlan(
+  plan: SessionDay[],
+  profile: Profile,
+): Promise<boolean> {
+  const { persistedPlanNeedsRegeneration } = await import("./persistedPlanValidation");
   const hasMonthly = plan.length >= 14;
   const today = isoDate(localToday());
   const coversToday = plan.some((day) => day.date === today);
@@ -414,7 +610,6 @@ interface LoadwiseContextValue {
   hydrated: boolean;
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
-  restartOnboarding: () => Promise<void>;
   refreshPlanIfNeeded: () => void;
   completeSession: (session: SessionDay, rpe: number | null, notes: string) => Promise<void>;
   applyModification: (
@@ -429,17 +624,16 @@ interface LoadwiseContextValue {
     date: string,
     exercise: TrainingExercise,
     equipmentIds: string[],
-  ) => void;
-  undoExerciseReplacement: (date: string, replacementId: string) => void;
+  ) => Promise<void>;
+  undoExerciseReplacement: (date: string, replacementId: string) => Promise<void>;
+  saveRunningActivity: (draft: RunningActivityDraft) => Promise<void>;
+  deleteRunningActivity: (activityId: string) => Promise<void>;
   confirmWeeklyTransition: (
     weekNumber: number,
     nextMatchDate: string | null,
     noMatchNextWeek: boolean,
   ) => Promise<void>;
-  saveReadiness: (r: Readiness) => void;
-  addTest: (t: TestResult) => void;
-  updateScouting: (s: Partial<ScoutingData>) => void;
-  resetAll: () => void;
+  saveReadiness: (r: Readiness) => Promise<void>;
   todayIso: string;
   todaySession: SessionDay | null;
 }
@@ -447,7 +641,7 @@ interface LoadwiseContextValue {
 const LoadwiseContext = createContext<LoadwiseContextValue | null>(null);
 
 export function LoadwiseProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, recoveryMode } = useAuth();
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
@@ -494,6 +688,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     if (authLoading) return;
+    if (recoveryMode) {
+      setHydrated(false);
+      return;
+    }
     if (!user) {
       setState(initialState);
       setHydrated(true);
@@ -502,237 +700,273 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setHydrated(false);
     (async () => {
       let safeProfile: Profile | null = null;
-      let safeLocal: LocalState = loadLocal(user.id);
+      const safeLocal: LocalState = loadLocal(user.id);
       try {
-        const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase
-          .from("training_plans")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("session_logs")
-          .select("session_id, completed, rpe, notes")
-          .eq("user_id", user.id),
-        supabase
-          .from("session_modifications" as never)
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("active", true)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("weekly_transitions" as never)
-          .select("*")
-          .eq("user_id", user.id),
-        supabase
-          .from("exercise_replacements" as never)
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("active", true)
-          .order("created_at", { ascending: true }),
-      ]);
+        const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes, runningRes] =
+          await Promise.all([
+            supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+            supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+            supabase
+              .from("training_plans")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("status", "active")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("session_logs")
+              .select("session_id, completed, rpe, notes")
+              .eq("user_id", user.id),
+            supabase
+              .from("session_modifications" as never)
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("active", true)
+              .order("created_at", { ascending: true }),
+            supabase
+              .from("weekly_transitions" as never)
+              .select("*")
+              .eq("user_id", user.id),
+            supabase
+              .from("exercise_replacements" as never)
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("active", true)
+              .order("created_at", { ascending: true }),
+            supabase
+              .from("running_activities")
+              .select("*")
+              .eq("user_id", user.id)
+              .order("date", { ascending: false }),
+          ]);
 
-      const rowProfile = buildProfile(profRes.data as AnyRow | null, athRes.data as AnyRow | null);
-      const local = safeLocal;
-      const persistedUnavailableEquipment = (athRes.data as AnyRow | null)?.unavailable_equipment_ids;
-      const profile = rowProfile
-        ? {
-            ...rowProfile,
-            unavailableEquipmentIds: Array.isArray(persistedUnavailableEquipment)
-              ? (persistedUnavailableEquipment as string[])
-              : local.unavailableEquipmentIds,
+        assertNoSupabaseError("profiles.load", profRes.error);
+        assertNoSupabaseError("athlete_profiles.load", athRes.error);
+
+        const rowProfile = buildProfile(
+          profRes.data as AnyRow | null,
+          athRes.data as AnyRow | null,
+        );
+        const local = safeLocal;
+        const persistedUnavailableEquipment = (athRes.data as AnyRow | null)
+          ?.unavailable_equipment_ids;
+        let profile = rowProfile
+          ? {
+              ...rowProfile,
+              unavailableEquipmentIds: Array.isArray(persistedUnavailableEquipment)
+                ? (persistedUnavailableEquipment as string[])
+                : local.unavailableEquipmentIds,
+            }
+          : null;
+        const runningActivities: Record<string, RunningActivity> = {};
+        if (!runningRes.error) {
+          for (const row of (runningRes.data as AnyRow[] | null) ?? []) {
+            const activity = rowToRunningActivity(row);
+            if (activity) runningActivities[activity.sessionId] = activity;
           }
-        : null;
-      safeProfile = profile;
-
-      let plan: SessionDay[] = [];
-      let migrationOriginalPlan: SessionDay[] | null = null;
-      let migrationChanged = false;
-      let planGeneratedFor: string | null = null;
-      let clearFutureOverlays = false;
-      const planRow = planRes.data as AnyRow | null;
-      const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
-      if (planRow && Array.isArray(planRow.plan_json)) {
-        plan = planRow.plan_json as SessionDay[];
-        planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
-        const normalized = normalizeLegacyPersistedPlan(plan);
-        plan = normalized.plan;
-        const exerciseMigration = migratePersistedExerciseData(plan);
-        if (exerciseMigration.changed) {
-          migrationOriginalPlan = plan;
-          migrationChanged = true;
-          plan = exerciseMigration.plan;
         }
-      }
-      if (profile && plan.length > 0) {
-        const persistedCompletions: Record<string, SessionCompletion> = {};
+        if (profile) {
+          const rpeBySession: Record<string, number | null> = {};
+          for (const row of (logRes.data as AnyRow[] | null) ?? []) {
+            const sessionId = row.session_id as string | null;
+            if (sessionId) rpeBySession[sessionId] = (row.rpe as number | null) ?? null;
+          }
+          profile = {
+            ...profile,
+            ...deriveRunningEngineState(Object.values(runningActivities), rpeBySession),
+          };
+        }
+        safeProfile = profile;
+        assertNoSupabaseError("training_plans.load", planRes.error);
+        assertNoSupabaseError("session_logs.load", logRes.error);
+        assertNoSupabaseError("session_modifications.load", modRes.error);
+        assertNoSupabaseError("weekly_transitions.load", transRes.error);
+
+        let plan: SessionDay[] = [];
+        let migrationOriginalPlan: SessionDay[] | null = null;
+        let migrationChanged = false;
+        let planGeneratedFor: string | null = null;
+        let clearFutureOverlays = false;
+        const planRow = planRes.data as AnyRow | null;
+        const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
+        if (planRow && Array.isArray(planRow.plan_json)) {
+          const { normalizeLegacyPersistedPlan } = await import("./dailyCheckin");
+          plan = planRow.plan_json as SessionDay[];
+          planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
+          const normalized = normalizeLegacyPersistedPlan(plan);
+          plan = normalized.plan;
+          const exerciseMigration = migratePersistedExerciseData(plan);
+          if (exerciseMigration.changed) {
+            migrationOriginalPlan = plan;
+            migrationChanged = true;
+            plan = exerciseMigration.plan;
+          }
+        }
+        if (profile && plan.length > 0) {
+          const { migratePersistedSpeedSessions } = await import("./speedSessionMigration");
+          const persistedCompletions: Record<string, SessionCompletion> = {};
+          for (const row of (logRes.data as AnyRow[] | null) ?? []) {
+            const sid = row.session_id as string | null;
+            if (!sid) continue;
+            persistedCompletions[sid] = {
+              completed: Boolean(row.completed),
+              rpe: (row.rpe as number) ?? null,
+              notes: (row.notes as string) ?? "",
+            };
+          }
+          const persistedModifications: Record<string, SessionModification[]> = {};
+          for (const row of (modRes.data as AnyRow[] | null) ?? []) {
+            const mod = rowToModification(row);
+            if (mod) (persistedModifications[mod.date] ??= []).push(mod);
+          }
+          const migrated = migratePersistedSpeedSessions(
+            plan,
+            profile,
+            todayIso,
+            persistedCompletions,
+            persistedModifications,
+          );
+          if (migrated.migratedDates.length > 0) {
+            migrationOriginalPlan = plan;
+            plan = migrated.plan;
+            migrationChanged = true;
+          }
+        }
+
+        if (!profile?.onboardingComplete) {
+          plan = [];
+          planGeneratedFor = null;
+        } else {
+          const { persistedPlanNeedsRegeneration } = await import("./persistedPlanValidation");
+          const revisionInfo = planRevisionInfo(plan);
+          const profileRevision = profile.onboardingRevision ?? null;
+          const schemaMissingOrMismatched =
+            revisionInfo.schemaVersion === null ||
+            revisionInfo.schemaVersion !== ONBOARDING_SCHEMA_VERSION;
+          const revisionMismatch =
+            (profileRevision && revisionInfo.revision !== profileRevision) ||
+            (!revisionInfo.revision && !!profileRevision);
+          const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
+          const planOlderThanProfile =
+            !!profileRevision && !!planRowCreatedAt && planRowCreatedAt < profileRevision;
+          const missingToday = !plan.some((day) => day.date === todayIso);
+          const invalidCanonical =
+            plan.length === 0 ||
+            missingToday ||
+            persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION);
+          const shouldRebuildCanonical =
+            invalidCanonical ||
+            mixedRevisionData ||
+            schemaMissingOrMismatched ||
+            revisionMismatch ||
+            planOlderThanProfile;
+
+          if (shouldRebuildCanonical) {
+            const [{ generatePlan }, { persistMonthlyPlan }] = await Promise.all([
+              import("./planEngine"),
+              import("./persist"),
+            ]);
+            const canonical = stampPlanRevision(
+              generatePlan(profile, localToday()),
+              profileRevision,
+              ONBOARDING_SCHEMA_VERSION,
+            );
+            plan = canonical;
+            await persistMonthlyPlan(user.id, profile, canonical);
+            planGeneratedFor = todayIso;
+            clearFutureOverlays = true;
+          } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
+            const { persistMonthlyPlan } = await import("./persist");
+            plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
+            await persistMonthlyPlan(user.id, profile, plan);
+            planGeneratedFor = todayIso;
+          } else if (migrationOriginalPlan && migrationChanged) {
+            const planId = planRow?.id as string | undefined;
+            if (planId) {
+              const migrationWrite = await supabase
+                .from("training_plans")
+                .update({ plan_json: plan as unknown as never })
+                .eq("id", planId)
+                .eq("user_id", user.id)
+                .eq("active", true);
+              if (migrationWrite.error) plan = migrationOriginalPlan;
+            } else {
+              plan = migrationOriginalPlan;
+            }
+          }
+        }
+        const completions: Record<string, SessionCompletion> = {};
         for (const row of (logRes.data as AnyRow[] | null) ?? []) {
           const sid = row.session_id as string | null;
           if (!sid) continue;
-          persistedCompletions[sid] = {
+          completions[sid] = {
             completed: Boolean(row.completed),
             rpe: (row.rpe as number) ?? null,
             notes: (row.notes as string) ?? "",
           };
         }
-        const persistedModifications: Record<string, SessionModification[]> = {};
+        const history = await loadSessionHistory(user.id, (logRes.data as AnyRow[] | null) ?? []);
+
+        const modifications: Record<string, SessionModification[]> = {};
         for (const row of (modRes.data as AnyRow[] | null) ?? []) {
           const mod = rowToModification(row);
-          if (mod) (persistedModifications[mod.date] ??= []).push(mod);
+          if (!mod) continue;
+          if (clearFutureOverlays && mod.date >= todayIso) continue;
+          (modifications[mod.date] ??= []).push(mod);
         }
-        const migrated = migratePersistedSpeedSessions(
+
+        const transitions: Record<number, WeeklyTransition> = {};
+        for (const row of clearFutureOverlays ? [] : ((transRes.data as AnyRow[] | null) ?? [])) {
+          const wn = Number(row.week_number);
+          if (!Number.isFinite(wn)) continue;
+          transitions[wn] = {
+            id: row.id as string,
+            weekNumber: wn,
+            nextMatchDate: (row.next_match_date as string) ?? null,
+            noMatchNextWeek: Boolean(row.no_match_next_week),
+            confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
+          };
+        }
+
+        const persistedReplacements: Record<string, ExerciseReplacement[]> = {};
+        for (const row of (replacementRes.data as AnyRow[] | null) ?? []) {
+          const replacement = rowToExerciseReplacement(row);
+          if (replacement) (persistedReplacements[replacement.date] ??= []).push(replacement);
+        }
+        const persistedEquipment = Object.values(persistedReplacements)
+          .flat()
+          .flatMap((replacement) => replacement.equipmentIds);
+
+        if (clearFutureOverlays) {
+          await clearFutureOverlaysForUser(user.id, todayIso);
+        }
+        if (cancelled) return;
+        setState({
+          profile: profile
+            ? {
+                ...profile,
+                unavailableEquipmentIds: Array.from(
+                  new Set([...(profile.unavailableEquipmentIds ?? []), ...persistedEquipment]),
+                ),
+              }
+            : profile,
           plan,
-          profile,
-          todayIso,
-          persistedCompletions,
-          persistedModifications,
-        );
-        if (migrated.migratedDates.length > 0) {
-          migrationOriginalPlan = plan;
-          plan = migrated.plan;
-          migrationChanged = true;
-        }
-      }
-
-      if (!profile?.onboardingComplete) {
-        plan = [];
-        planGeneratedFor = null;
-      } else {
-        const revisionInfo = planRevisionInfo(plan);
-        const profileRevision = profile.onboardingRevision ?? null;
-        const schemaMissingOrMismatched =
-          revisionInfo.schemaVersion === null ||
-          revisionInfo.schemaVersion !== ONBOARDING_SCHEMA_VERSION;
-        const revisionMismatch =
-          (profileRevision && revisionInfo.revision !== profileRevision) ||
-          (!revisionInfo.revision && !!profileRevision);
-        const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
-        const planOlderThanProfile =
-          !!profileRevision && !!planRowCreatedAt && planRowCreatedAt < profileRevision;
-        const missingToday = !plan.some((day) => day.date === todayIso);
-        const invalidCanonical =
-          plan.length === 0 ||
-          missingToday ||
-          persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION);
-        const shouldRebuildCanonical =
-          invalidCanonical ||
-          mixedRevisionData ||
-          schemaMissingOrMismatched ||
-          revisionMismatch ||
-          planOlderThanProfile;
-
-        if (shouldRebuildCanonical) {
-          const canonical = stampPlanRevision(
-            generatePlan(profile, localToday()),
-            profileRevision,
-            ONBOARDING_SCHEMA_VERSION,
-          );
-          plan = canonical;
-          await persistMonthlyPlan(user.id, profile, canonical);
-          planGeneratedFor = todayIso;
-          clearFutureOverlays = true;
-        } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
-          plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
-          await persistMonthlyPlan(user.id, profile, plan);
-          planGeneratedFor = todayIso;
-        } else if (migrationOriginalPlan && migrationChanged) {
-          const planId = planRow?.id as string | undefined;
-          if (planId) {
-            const migrationWrite = await supabase
-              .from("training_plans")
-              .update({ plan_json: plan as unknown as never })
-              .eq("id", planId)
-              .eq("user_id", user.id)
-              .eq("active", true);
-            if (migrationWrite.error) plan = migrationOriginalPlan;
-          } else {
-            plan = migrationOriginalPlan;
-          }
-        }
-      }
-      const completions: Record<string, SessionCompletion> = {};
-      for (const row of (logRes.data as AnyRow[] | null) ?? []) {
-        const sid = row.session_id as string | null;
-        if (!sid) continue;
-        completions[sid] = {
-          completed: Boolean(row.completed),
-          rpe: (row.rpe as number) ?? null,
-          notes: (row.notes as string) ?? "",
-        };
-      }
-
-      const modifications: Record<string, SessionModification[]> = {};
-      for (const row of (modRes.data as AnyRow[] | null) ?? []) {
-        const mod = rowToModification(row);
-        if (!mod) continue;
-        if (clearFutureOverlays && mod.date >= todayIso) continue;
-        (modifications[mod.date] ??= []).push(mod);
-      }
-
-      const transitions: Record<number, WeeklyTransition> = {};
-      for (const row of clearFutureOverlays ? [] : ((transRes.data as AnyRow[] | null) ?? [])) {
-        const wn = Number(row.week_number);
-        if (!Number.isFinite(wn)) continue;
-        transitions[wn] = {
-          id: row.id as string,
-          weekNumber: wn,
-          nextMatchDate: (row.next_match_date as string) ?? null,
-          noMatchNextWeek: Boolean(row.no_match_next_week),
-          confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
-        };
-      }
-
-      const persistedReplacements: Record<string, ExerciseReplacement[]> = {};
-      for (const row of (replacementRes.data as AnyRow[] | null) ?? []) {
-        const replacement = rowToExerciseReplacement(row);
-        if (replacement) (persistedReplacements[replacement.date] ??= []).push(replacement);
-      }
-      const persistedEquipment = Object.values(persistedReplacements)
-        .flat()
-        .flatMap((replacement) => replacement.equipmentIds);
-
-      if (cancelled) return;
-      setState({
-        profile: profile
-          ? {
-              ...profile,
-              unavailableEquipmentIds: Array.from(
-                new Set([...(profile.unavailableEquipmentIds ?? []), ...persistedEquipment]),
-              ),
-            }
-          : profile,
-        plan,
-        planGeneratedFor,
-        readiness: local.readiness,
-        completions,
-        tests: local.tests,
-        scouting: local.scouting,
-        modifications,
-        transitions,
-        exerciseReplacements:
-          !replacementRes.error
+          planGeneratedFor,
+          readiness: local.readiness,
+          completions,
+          history,
+          modifications,
+          transitions,
+          exerciseReplacements: !replacementRes.error
             ? persistedReplacements
             : local.exerciseReplacements,
-        equipmentNotice: null,
-      });
-      setHydrated(true);
-      if (clearFutureOverlays) {
-        await supabase
-          .from("session_modifications" as never)
-          .update({ active: false } as never)
-          .eq("user_id", user.id)
-          .eq("active", true)
-          .gte("date", todayIso);
-        await supabase
-          .from("weekly_transitions" as never)
-          .delete()
-          .eq("user_id", user.id);
-      }
+          runningActivities,
+          equipmentNotice: replacementRes.error
+            ? "Nie udało się wczytać zapisanych zamienników sprzętu."
+            : null,
+        });
+        setHydrated(true);
       } catch (error) {
         console.error("[loadwise] hydration failed; using safe persisted state", error);
         if (!cancelled) {
@@ -740,8 +974,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             ...initialState,
             profile: safeProfile,
             readiness: safeLocal.readiness,
-            tests: safeLocal.tests,
-            scouting: safeLocal.scouting,
             exerciseReplacements: safeLocal.exerciseReplacements,
             equipmentNotice:
               "Nie udało się wczytać zapisanej części planu. Twoje dane profilu pozostały bez zmian.",
@@ -755,30 +987,41 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, recoveryMode]);
 
   function persistLocal(next: LoadwiseState) {
     if (user) {
       saveLocal(user.id, {
         readiness: next.readiness,
-        tests: next.tests,
-        scouting: next.scouting,
         unavailableEquipmentIds: next.profile?.unavailableEquipmentIds ?? [],
         exerciseReplacements: next.exerciseReplacements,
       });
     }
-
   }
 
   useEffect(() => {
-    if (user && hydrated) persistLocal(state);
-  }, [user?.id, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
+    if (!user || !hydrated) return;
+    saveLocal(user.id, {
+      readiness: state.readiness,
+      unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? [],
+      exerciseReplacements: state.exerciseReplacements,
+    });
+  }, [
+    user,
+    hydrated,
+    state.readiness,
+    state.profile?.unavailableEquipmentIds,
+    state.exerciseReplacements,
+  ]);
 
   async function savePlanToDb(
     profile: Profile,
     revision: string | null,
     readinessForToday?: Readiness | null,
   ): Promise<SessionDay[]> {
+    const [{ generatePlan }, { applyCheckInToPlanDay }, { persistMonthlyPlan }] = await Promise.all(
+      [import("./planEngine"), import("./dailyCheckin"), import("./persist")],
+    );
     const canonical = stampPlanRevision(
       generatePlan(profile, localToday()),
       revision,
@@ -866,10 +1109,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
-    const profileCompleteWrite = await supabase
-      .from("profiles")
-      .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
-    assertNoSupabaseError("profiles.mark_onboarding_complete", profileCompleteWrite.error);
     const onboardingAnswersWrite = await supabase.from("onboarding_answers").insert({
       user_id: user.id,
       answers_json: nextProfile as unknown as never,
@@ -878,7 +1117,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
 
     if (consents) {
-      const { CONSENTS } = await import("./legal");
       const rows = CONSENTS.map((c) => ({
         user_id: user.id,
         consent_type: c.type,
@@ -889,6 +1127,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       const consentWrite = await supabase.from("consent_logs").insert(rows);
       assertNoSupabaseError("consent_logs.insert", consentWrite.error);
     }
+    await clearFutureOverlaysForUser(user.id, todayIso);
+    const profileCompleteWrite = await supabase
+      .from("profiles")
+      .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
+    assertNoSupabaseError("profiles.mark_onboarding_complete", profileCompleteWrite.error);
     setState((s) => ({
       ...s,
       profile: nextProfile,
@@ -913,6 +1156,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
+    await clearFutureOverlaysForUser(user.id, todayIso);
     setState((s) => ({
       ...s,
       profile: nextProfile,
@@ -925,35 +1169,34 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }));
   }
 
-  // Resetuje onboarding (np. do testów). Użytkownik wypełni go ponownie.
-  async function restartOnboarding() {
-    if (!user) return;
-    await supabase
-      .from("profiles")
-      .upsert({ user_id: user.id, onboarding_completed: false }, { onConflict: "user_id" });
-    setState((s) => ({
-      ...s,
-      profile: s.profile ? { ...s.profile, onboardingComplete: false } : null,
-    }));
-  }
-
   // Nie regenerujemy planu przy każdym otwarciu ekranu.
   function refreshPlanIfNeeded() {
     const profile = state.profile;
-    if (!profile?.onboardingComplete) return;
+    if (!user || !profile?.onboardingComplete) return;
     // Regeneruj tylko, gdy brak planu lub plan pochodzi ze starej wersji
     // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
-    if (shouldReusePersistedPlan(state.plan, profile)) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     (async () => {
       try {
+        if (await shouldReusePersistedPlan(state.plan, profile)) return;
         const plan = await savePlanToDb(
           profile,
           profile.onboardingRevision ?? null,
           state.readiness[todayIso],
         );
-        setState((s) => ({ ...s, plan, planGeneratedFor: todayIso }));
+        await clearFutureOverlaysForUser(user.id, todayIso);
+        setState((s) => ({
+          ...s,
+          plan,
+          planGeneratedFor: todayIso,
+          modifications: Object.fromEntries(
+            Object.entries(s.modifications).filter(([date]) => date < todayIso),
+          ),
+          transitions: {},
+        }));
+      } catch (error) {
+        console.error("[loadwise] plan refresh failed", error);
       } finally {
         generatingRef.current = false;
       }
@@ -964,11 +1207,19 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const sid = session.dbId;
     if (!user || !sid) return;
     const completion: SessionCompletion = { completed: true, rpe, notes };
-    setState((s) => ({
-      ...s,
-      completions: { ...s.completions, [sid]: completion },
-    }));
-    await supabase.from("session_logs").upsert(
+    const category = historyCategoryOf(session.sessionType, session.dayType);
+    const record: SessionHistoryRecord | null = category
+      ? {
+          key: sid,
+          date: session.date,
+          title: session.title,
+          category,
+          durationMin: session.durationMin ?? 0,
+          rpe,
+          notes,
+        }
+      : null;
+    const result = await supabase.from("session_logs").upsert(
       {
         user_id: user.id,
         session_id: sid,
@@ -978,9 +1229,128 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       },
       { onConflict: "user_id,session_id" },
     );
+    assertNoSupabaseError("session_logs.upsert", result.error);
+    let updatedProfile = state.profile;
+    const runningActivity = state.runningActivities[sid];
+    if (
+      updatedProfile &&
+      runningActivity &&
+      session.classification?.isEndurance &&
+      session.classification.subcategory !== "field_mas_test"
+    ) {
+      const nextLevel = nextRunningProgressionLevel({
+        currentLevel: updatedProfile.runningProgressionLevel ?? 0,
+        rpe,
+        results: runningActivity.intervalResults,
+      });
+      if (nextLevel !== (updatedProfile.runningProgressionLevel ?? 0)) {
+        const updatedAt = new Date().toISOString();
+        updatedProfile = {
+          ...updatedProfile,
+          runningProgressionLevel: nextLevel,
+          runningProgressionUpdatedAt: updatedAt,
+        };
+      }
+    }
+    const refreshedPlan = updatedProfile && updatedProfile !== state.profile
+      ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
+      : state.plan;
+    setState((s) => ({
+      ...s,
+      profile: updatedProfile,
+      plan: refreshedPlan,
+      planGeneratedFor: updatedProfile !== state.profile ? todayIso : s.planGeneratedFor,
+      completions: { ...s.completions, [sid]: completion },
+      history: record
+        ? [record, ...s.history.filter((item) => item.key !== sid)].sort((a, b) =>
+            a.date < b.date ? 1 : -1,
+          )
+        : s.history,
+    }));
   }
 
-  function markEquipmentUnavailable(
+  async function saveRunningActivity(draft: RunningActivityDraft) {
+    if (!user) throw new Error("Musisz być zalogowany, aby zapisać bieg.");
+    const linkedSessionBeforeSave = findSessionByDbId(state.plan, draft.sessionId);
+    const pendingFieldMas =
+      linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test"
+        ? fieldMasFromActivity(draft as RunningActivity)
+        : null;
+    if (linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" && !pendingFieldMas) {
+      throw new Error("Test 5-minutowy nie ma pełnego, wiarygodnego odcinka GPS. Powtórz test na otwartej przestrzeni.");
+    }
+    const write = await supabase
+      .from("running_activities")
+      .upsert(
+        {
+          user_id: user.id,
+          session_id: draft.sessionId,
+          date: draft.date,
+          started_at: draft.startedAt,
+          ended_at: draft.endedAt,
+          duration_sec: draft.durationSec,
+          distance_m: draft.distanceM,
+          avg_pace_sec_per_km: draft.avgPaceSecPerKm,
+          route_points: draft.route as unknown as never,
+          splits: draft.splits as unknown as never,
+          interval_results: draft.intervalResults as unknown as never,
+          source: draft.source,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,session_id" },
+      )
+      .select("*")
+      .single();
+    assertNoSupabaseError("running_activities.upsert", write.error);
+    const activity = rowToRunningActivity(write.data as AnyRow);
+    if (!activity) throw new Error("Baza zwróciła nieprawidłowy zapis biegu.");
+    const linkedSession = findSessionByDbId(state.plan, activity.sessionId);
+    let updatedProfile = state.profile;
+    if (linkedSession?.classification?.subcategory === "field_mas_test" && updatedProfile) {
+      const fieldMasKmh = pendingFieldMas;
+      if (!fieldMasKmh) throw new Error("Nie udało się wyliczyć terenowego MAS.");
+      const testedAt = activity.date;
+      updatedProfile = {
+        ...updatedProfile,
+        fieldMasKmh,
+        fieldMasTestedAt: testedAt,
+        runningProgressionLevel: 0,
+        runningProgressionUpdatedAt: testedAt,
+      };
+    }
+    const refreshedPlan = updatedProfile && updatedProfile !== state.profile
+      ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
+      : state.plan;
+    setState((current) => ({
+      ...current,
+      profile: updatedProfile,
+      plan: refreshedPlan,
+      planGeneratedFor: updatedProfile !== state.profile ? todayIso : current.planGeneratedFor,
+      runningActivities: {
+        ...current.runningActivities,
+        [activity.sessionId]: activity,
+      },
+    }));
+  }
+
+  async function deleteRunningActivity(activityId: string) {
+    if (!user) throw new Error("Musisz być zalogowany, aby usunąć bieg.");
+    const activity = Object.values(state.runningActivities).find((item) => item.id === activityId);
+    const remove = await supabase
+      .from("running_activities")
+      .delete()
+      .eq("id", activityId)
+      .eq("user_id", user.id);
+    assertNoSupabaseError("running_activities.delete", remove.error);
+    if (!activity) return;
+    setState((current) => {
+      const runningActivities = { ...current.runningActivities };
+      delete runningActivities[activity.sessionId];
+      return { ...current, runningActivities };
+    });
+  }
+
+  async function markEquipmentUnavailable(
     date: string,
     exercise: TrainingExercise,
     equipmentIds: string[],
@@ -991,57 +1361,41 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const replacementKey = `${date}:${exercise.id}`;
     if (replacementInFlightRef.current.has(replacementKey)) return;
     replacementInFlightRef.current.add(replacementKey);
-    const athlete = buildAthleteTrainingProfile(state.profile, {
-      unavailableEquipmentIds: Array.from(
+    try {
+      const { buildAthleteTrainingProfile } = await import("./athleteProfile");
+      const unavailableEquipmentIds = Array.from(
         new Set([...(state.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-      ),
-    });
-    const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
-    if (!result.exercise || result.blockRebuildRequired) {
-      replacementInFlightRef.current.delete(replacementKey);
-      setState((s) => ({
-        ...s,
-        equipmentNotice:
-          "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
-      }));
-      return;
-    }
-    const replacement: TrainingExercise = {
-      ...exercise,
-      exerciseId: result.exercise.id,
-      name: result.exercise.displayNamePl,
-      equipment: result.exercise.equipmentRequired.join(", "),
-      replacementForBlockedExercise: exercise.name,
-      wasAdjustedForAthleteProfile: true,
-    };
-    const item: ExerciseReplacement = {
-      id: crypto.randomUUID(),
-      date,
-      exerciseId: exercise.id,
-      original: exercise,
-      replacement,
-      equipmentIds,
-      createdAt: new Date().toISOString(),
-    };
-    setState((s) => ({
-      ...s,
-      equipmentNotice: null,
-      profile: s.profile
-        ? {
-            ...s.profile,
-            unavailableEquipmentIds: Array.from(
-              new Set([...(s.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
-            ),
-          }
-        : s.profile,
-      exerciseReplacements: {
-        ...s.exerciseReplacements,
-        [date]: [...(s.exerciseReplacements[date] ?? []), item],
-      },
-    }));
-    void supabase
-      .from("exercise_replacements" as never)
-      .insert({
+      );
+      const athlete = buildAthleteTrainingProfile(state.profile, {
+        unavailableEquipmentIds,
+      });
+      const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
+      if (!result.exercise || result.blockRebuildRequired) {
+        setState((s) => ({
+          ...s,
+          equipmentNotice:
+            "Nie znaleziono bezpiecznego zamiennika. Plan i historia pozostały bez zmian.",
+        }));
+        return;
+      }
+      const replacement: TrainingExercise = {
+        ...exercise,
+        exerciseId: result.exercise.id,
+        name: result.exercise.displayNamePl,
+        equipment: result.exercise.equipmentRequired.join(", "),
+        replacementForBlockedExercise: exercise.name,
+        wasAdjustedForAthleteProfile: true,
+      };
+      const item: ExerciseReplacement = {
+        id: crypto.randomUUID(),
+        date,
+        exerciseId: exercise.id,
+        original: exercise,
+        replacement,
+        equipmentIds,
+        createdAt: new Date().toISOString(),
+      };
+      const insert = await supabase.from("exercise_replacements" as never).insert({
         id: item.id,
         user_id: user.id,
         date,
@@ -1050,52 +1404,85 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         replacement_json: item.replacement,
         equipment_ids: item.equipmentIds,
         active: true,
-      } as never)
-      .then(({ error }) => {
-        if (error) console.warn("[loadwise] replacement persistence failed", error);
-        replacementInFlightRef.current.delete(replacementKey);
-      });
-  }
-
-  function undoExerciseReplacement(date: string, replacementId: string) {
-    if (!user) return;
-    setState((s) => {
-      const current = s.exerciseReplacements[date] ?? [];
-      const removed = current.find((r) => r.id === replacementId);
-      if (!removed) return s;
-      const stillUsed = Object.values(s.exerciseReplacements)
-        .flat()
-        .some(
-          (r) =>
-            r.id !== replacementId &&
-            r.equipmentIds.some((id) => removed.equipmentIds.includes(id)),
-        );
-      const next = {
+      } as never);
+      assertNoSupabaseError("exercise_replacements.insert", insert.error);
+      const profileUpdate = await supabase
+        .from("athlete_profiles")
+        .update({ unavailable_equipment_ids: unavailableEquipmentIds })
+        .eq("user_id", user.id);
+      if (profileUpdate.error) {
+        await supabase
+          .from("exercise_replacements" as never)
+          .delete()
+          .eq("id", item.id)
+          .eq("user_id", user.id);
+        assertNoSupabaseError("athlete_profiles.equipment", profileUpdate.error);
+      }
+      setState((s) => ({
         ...s,
-        profile:
-          s.profile && !stillUsed
-            ? {
-                ...s.profile,
-                unavailableEquipmentIds: (s.profile.unavailableEquipmentIds ?? []).filter(
-                  (id) => !removed.equipmentIds.includes(id),
-                ),
-              }
-            : s.profile,
+        equipmentNotice: null,
+        profile: s.profile ? { ...s.profile, unavailableEquipmentIds } : s.profile,
         exerciseReplacements: {
           ...s.exerciseReplacements,
-          [date]: current.filter((r) => r.id !== replacementId),
+          [date]: [...(s.exerciseReplacements[date] ?? []), item],
         },
-      };
-      return next;
-    });
-    void supabase
+      }));
+    } catch {
+      setState((s) => ({
+        ...s,
+        equipmentNotice: "Nie udało się zapisać zamiennika. Plan i historia pozostały bez zmian.",
+      }));
+    } finally {
+      replacementInFlightRef.current.delete(replacementKey);
+    }
+  }
+
+  async function undoExerciseReplacement(date: string, replacementId: string) {
+    if (!user) return;
+    const current = state.exerciseReplacements[date] ?? [];
+    const removed = current.find((replacement) => replacement.id === replacementId);
+    if (!removed) return;
+    const stillUsed = Object.values(state.exerciseReplacements)
+      .flat()
+      .some(
+        (replacement) =>
+          replacement.id !== replacementId &&
+          replacement.equipmentIds.some((id) => removed.equipmentIds.includes(id)),
+      );
+    const unavailableEquipmentIds = stillUsed
+      ? (state.profile?.unavailableEquipmentIds ?? [])
+      : (state.profile?.unavailableEquipmentIds ?? []).filter(
+          (id) => !removed.equipmentIds.includes(id),
+        );
+    const deactivate = await supabase
       .from("exercise_replacements" as never)
       .update({ active: false } as never)
       .eq("id", replacementId)
-      .eq("user_id", user.id)
-      .then(({ error }) => {
-        if (error) console.warn("[loadwise] replacement undo persistence failed", error);
-      });
+      .eq("user_id", user.id);
+    assertNoSupabaseError("exercise_replacements.undo", deactivate.error);
+    const profileUpdate = await supabase
+      .from("athlete_profiles")
+      .update({ unavailable_equipment_ids: unavailableEquipmentIds })
+      .eq("user_id", user.id);
+    if (profileUpdate.error) {
+      await supabase
+        .from("exercise_replacements" as never)
+        .update({ active: true } as never)
+        .eq("id", replacementId)
+        .eq("user_id", user.id);
+      assertNoSupabaseError("athlete_profiles.equipment_undo", profileUpdate.error);
+    }
+    setState((s) => ({
+      ...s,
+      equipmentNotice: null,
+      profile: s.profile ? { ...s.profile, unavailableEquipmentIds } : s.profile,
+      exerciseReplacements: {
+        ...s.exerciseReplacements,
+        [date]: (s.exerciseReplacements[date] ?? []).filter(
+          (replacement) => replacement.id !== replacementId,
+        ),
+      },
+    }));
   }
 
   async function applyModification(
@@ -1108,34 +1495,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const id = crypto.randomUUID();
     const safetyStatus: SessionStatus = type === "swap" ? "swapped_by_user" : "added_by_user";
+    const trainingDayId =
+      originalSession?.dayDbId ?? state.plan.find((day) => day.date === date)?.dayDbId;
+    if (!trainingDayId) {
+      throw new Error("Brak zapisanego dnia treningowego dla tej sesji.");
+    }
+    const { persistModifiedSession } = await import("./persist");
+    const persistedSession = await persistModifiedSession(user.id, trainingDayId, session);
     const mod: SessionModification = {
       id,
       date,
       type,
       reason,
       safetyStatus,
-      session,
+      session: persistedSession,
       originalSession,
       createdAt: new Date().toISOString(),
     };
-    setState((s) => {
-      const existing = s.modifications[date] ?? [];
-      // Tylko jedna zamiana naraz na dany dzień.
-      const filtered = type === "swap" ? existing.filter((m) => m.type !== "swap") : existing;
-      return {
-        ...s,
-        modifications: { ...s.modifications, [date]: [...filtered, mod] },
-      };
-    });
-    if (type === "swap") {
-      await supabase
-        .from("session_modifications" as never)
-        .update({ active: false } as never)
-        .eq("user_id", user.id)
-        .eq("date", date)
-        .eq("type", "swap");
-    }
-    await supabase.from("session_modifications" as never).insert({
+    const modificationWrite = await supabase.from("session_modifications" as never).insert({
       id,
       user_id: user.id,
       date,
@@ -1143,28 +1520,98 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       reason,
       safety_status: safetyStatus,
       original_session_id: originalSession?.dbId ?? null,
-      new_session_id: session.dbId ?? null,
+      new_session_id: persistedSession.dbId ?? null,
       original_session_json: originalSession,
-      new_session_json: session,
+      new_session_json: persistedSession,
       active: true,
     } as never);
+    if (modificationWrite.error) {
+      await supabase
+        .from("training_sessions")
+        .delete()
+        .eq("id", persistedSession.dbId!)
+        .eq("user_id", user.id);
+      assertNoSupabaseError("session_modifications.insert", modificationWrite.error);
+    }
+    if (type === "swap") {
+      const deactivate = await supabase
+        .from("session_modifications" as never)
+        .update({ active: false } as never)
+        .eq("user_id", user.id)
+        .eq("date", date)
+        .eq("type", "swap")
+        .neq("id", id);
+      if (deactivate.error) {
+        await supabase
+          .from("session_modifications" as never)
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id);
+        await supabase
+          .from("training_sessions")
+          .delete()
+          .eq("id", persistedSession.dbId!)
+          .eq("user_id", user.id);
+        assertNoSupabaseError("session_modifications.deactivate_previous", deactivate.error);
+      }
+    }
+    setState((current) => {
+      const existing = current.modifications[date] ?? [];
+      const filtered = type === "swap" ? existing.filter((item) => item.type !== "swap") : existing;
+      return {
+        ...current,
+        modifications: {
+          ...current.modifications,
+          [date]: [...filtered, mod],
+        },
+      };
+    });
   }
 
   async function undoModification(date: string, id: string) {
     if (!user) return;
-    setState((s) => {
-      const existing = s.modifications[date] ?? [];
-      const next = existing.filter((m) => m.id !== id);
-      const map = { ...s.modifications };
-      if (next.length) map[date] = next;
-      else delete map[date];
-      return { ...s, modifications: map };
-    });
-    await supabase
+    const modification = (state.modifications[date] ?? []).find((item) => item.id === id);
+    const deactivate = await supabase
       .from("session_modifications" as never)
       .update({ active: false } as never)
       .eq("user_id", user.id)
       .eq("id", id);
+    assertNoSupabaseError("session_modifications.undo", deactivate.error);
+    const modifiedSessionId = modification?.session.dbId;
+    if (modifiedSessionId) {
+      const logDelete = await supabase
+        .from("session_logs")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("session_id", modifiedSessionId);
+      assertNoSupabaseError("session_logs.delete_modified", logDelete.error);
+      const sessionDelete = await supabase
+        .from("training_sessions")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("id", modifiedSessionId);
+      assertNoSupabaseError("training_sessions.delete_modified", sessionDelete.error);
+    }
+    setState((current) => {
+      const existing = current.modifications[date] ?? [];
+      const next = existing.filter((item) => item.id !== id);
+      const modifications = { ...current.modifications };
+      if (next.length) modifications[date] = next;
+      else delete modifications[date];
+      const completions = { ...current.completions };
+      if (modifiedSessionId) delete completions[modifiedSessionId];
+      const runningActivities = { ...current.runningActivities };
+      if (modifiedSessionId) delete runningActivities[modifiedSessionId];
+      return {
+        ...current,
+        modifications,
+        completions,
+        runningActivities,
+        history: modifiedSessionId
+          ? current.history.filter((item) => item.key !== modifiedSessionId)
+          : current.history,
+      };
+    });
   }
 
   // Weekly gate: zapisuje datę kolejnego meczu i przebudowuje kolejny tydzień planu.
@@ -1176,6 +1623,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const profile = state.profile;
     if (!profile) return;
+    const [{ generatePlan, weekRanges }, { persistMonthlyPlan }] = await Promise.all([
+      import("./planEngine"),
+      import("./persist"),
+    ]);
 
     // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
     // Wyznaczamy jego przedział w planie wg granic poniedziałek–niedziela.
@@ -1210,13 +1661,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       confirmedAt: new Date().toISOString(),
     };
 
-    setState((s) => ({
-      ...s,
-      plan: newPlan,
-      transitions: { ...s.transitions, [weekNumber]: transition },
-    }));
-
-    await supabase.from("weekly_transitions" as never).upsert(
+    const transitionWrite = await supabase.from("weekly_transitions" as never).upsert(
       {
         id,
         user_id: user.id,
@@ -1227,78 +1672,40 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       } as never,
       { onConflict: "user_id,week_number" } as never,
     );
+    assertNoSupabaseError("weekly_transitions.upsert", transitionWrite.error);
+    setState((s) => ({
+      ...s,
+      plan: newPlan,
+      transitions: { ...s.transitions, [weekNumber]: transition },
+    }));
   }
 
-  function saveReadiness(r: Readiness) {
-    let planToPersist: SessionDay[] | null = null;
-    let profileToPersist: Profile | null = null;
+  async function saveReadiness(r: Readiness) {
+    const { applyCheckInToPlanDay } = await import("./dailyCheckin");
+    if (user) {
+      const write = await supabase.from("readiness_logs").insert({
+        user_id: user.id,
+        date: r.date,
+        sleep: r.sleep,
+        energy: r.energy,
+        fatigue: r.fatigue,
+        soreness: r.soreness,
+        stress: r.stress,
+        motivation: r.motivation,
+        pain_status: r.jointPain >= 5,
+      });
+      assertNoSupabaseError("readiness_logs.insert", write.error);
+    }
 
     setState((s) => {
       const nextReadiness = { ...s.readiness, [r.date]: r };
-      let nextPlan = s.plan;
-
-      if (s.profile) {
-        const adapted = applyCheckInToPlanDay(s.plan, r.date, r, s.profile);
-        nextPlan = adapted.plan;
-        if (adapted.changed) {
-          planToPersist = adapted.plan;
-          profileToPersist = s.profile;
-        }
-      }
-
+      const nextPlan = s.profile
+        ? applyCheckInToPlanDay(s.plan, r.date, r, s.profile).plan
+        : s.plan;
       const next = { ...s, readiness: nextReadiness, plan: nextPlan };
       persistLocal(next);
       return next;
     });
-
-    if (user) {
-      supabase
-        .from("readiness_logs")
-        .insert({
-          user_id: user.id,
-          date: r.date,
-          sleep: r.sleep,
-          energy: r.energy,
-          fatigue: r.fatigue,
-          soreness: r.soreness,
-          stress: r.stress,
-          motivation: r.motivation,
-          pain_status: r.jointPain >= 5,
-        })
-        .then(() => {});
-
-      if (profileToPersist && planToPersist) {
-        void persistMonthlyPlan(user.id, profileToPersist, planToPersist);
-      }
-    }
-  }
-
-  function addTest(t: TestResult) {
-    setState((s) => {
-      const next = { ...s, tests: [t, ...s.tests] };
-      persistLocal(next);
-      return next;
-    });
-  }
-
-  function updateScouting(patch: Partial<ScoutingData>) {
-    setState((s) => {
-      const next = { ...s, scouting: { ...s.scouting, ...patch } };
-      persistLocal(next);
-      return next;
-    });
-  }
-
-  function resetAll() {
-    if (user)
-      saveLocal(user.id, {
-        readiness: {},
-        tests: [],
-        scouting: emptyScouting,
-        unavailableEquipmentIds: [],
-        exerciseReplacements: {},
-      });
-    setState(initialState);
   }
 
   const todaySession = state.plan.find((p) => p.date === todayIso) ?? null;
@@ -1310,18 +1717,16 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         hydrated,
         completeOnboarding,
         updateProfile,
-        restartOnboarding,
         refreshPlanIfNeeded,
         completeSession,
         applyModification,
         undoModification,
         markEquipmentUnavailable,
         undoExerciseReplacement,
+        saveRunningActivity,
+        deleteRunningActivity,
         confirmWeeklyTransition,
         saveReadiness,
-        addTest,
-        updateScouting,
-        resetAll,
         todayIso,
         todaySession,
       }}

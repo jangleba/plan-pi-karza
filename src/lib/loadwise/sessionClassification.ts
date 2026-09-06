@@ -96,6 +96,7 @@ interface CategoryResult {
 }
 
 function classifyEndurance(text: string): SessionSubcategory {
+  if (has(text, /test.{0,12}(?:5|minut).{0,20}mas|terenow.{0,8}mas/)) return "field_mas_test";
   if (has(text, /recovery run|bieg regener/)) return "recovery_run";
   if (has(text, /rower|bike/)) return "bike_conditioning";
   if (has(text, /basen|pool/)) return "pool_conditioning";

@@ -135,12 +135,12 @@ describe("weeklyRequirements — sezon i klub nie kasują kategorii", () => {
     expect(many.requiredGymSessions).toBe(2);
   });
 
-  it("forbidEnduranceOnClubDays zawsze wynosi true", () => {
-    expect(calculateWeeklyMinimumRequirements(ctx(), settings, "general").forbidEnduranceOnClubDays).toBe(true);
+  it("nie ma globalnej blokady club + endurance — bezpieczeństwo ocenia scheduler par", () => {
+    expect(calculateWeeklyMinimumRequirements(ctx(), settings, "general").forbidEnduranceOnClubDays).toBe(false);
     expect(
       calculateWeeklyMinimumRequirements(ctx({ seasonPhase: "inseason", clubTrainingCount: 5 }), settings, "wydolność")
         .forbidEnduranceOnClubDays,
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

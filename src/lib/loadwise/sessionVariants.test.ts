@@ -111,9 +111,10 @@ describe("endurance session variant", () => {
     expect(s!.countsAsEndurance).toBe(true);
   });
 
-  it("nie tworzy sesji dla dnia klubowego", () => {
+  it("w dniu klubowym tworzy wyłącznie lekki, komplementarny bieg", () => {
     const s = createEnduranceSessionVariant({ hasClub: true }, adult());
-    expect(s).toBeNull();
+    expect(s).toMatchObject({ category: "endurance_conditioning", loadLevel: "low", intensity: "niska" });
+    expect(s?.blocks.some((block) => /piłk/i.test(`${block.name} ${block.detail}`))).toBe(false);
   });
 
   it("niski readiness zmienia endurance na low-impact", () => {

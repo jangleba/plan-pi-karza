@@ -21,6 +21,7 @@ import type { SchedLoadLevel } from "./dailyScheduling";
 import type { AthleteTrainingProfile } from "./athleteProfile";
 import { classifyExerciseTypes } from "./athleteProfile";
 import { getAthleteGoalRules } from "./weeklyRequirements";
+import { buildRunningSessionPrescription } from "@/lib/running/engine";
 
 // ---------------------------------------------------------------------------
 // Typy
@@ -56,6 +57,8 @@ export interface GeneratedSession {
 
 /** Kontekst umiejscowienia sesji — steruje adaptacją treści. */
 export interface SessionGenContext {
+  /** Data sesji yyyy-mm-dd; potrzebna do ważności testu terenowego MAS. */
+  date?: string;
   /** Dzień ma już trening klubowy. */
   hasClub?: boolean;
   /** Dni do meczu: 0 = mecz, 1 = MD-1, null/undefined = brak meczu. */
@@ -353,15 +356,12 @@ export function createShortAerobicBlock(
     category: "endurance_conditioning",
     subcategory: "short_aerobic_block",
     title: "Krótki blok tlenowy 20–30 min",
-    description:
-      "Krótka, kontrolowana praca tlenowa z lekkimi odcinkami technicznymi. " +
-      "Utrzymuje bazę bez agresywnego HIIT.",
+    description: "Krótka, kontrolowana praca tlenowa bez piłki. Utrzymuje bazę bez agresywnego HIIT.",
     durationMinutes: 25,
     intensity: "niska",
     loadLevel: "low",
     blocks: [
-      { name: "Easy aerobic jog", detail: "12–15 min konwersacyjnie" },
-      { name: "Krótkie odcinki techniczne z piłką", detail: "4–6 x 30 m spokojnie" },
+      { name: "Spokojny bieg", detail: "15–20 min, tempo konwersacyjne (RPE 3–4/10)" },
       { name: "Mobilność + oddech", detail: "5 min" },
     ],
     generatedBy: "engine",
@@ -373,15 +373,14 @@ export function createShortAerobicBlock(
 }
 
 /**
- * Buduje sesję wydolnościową. Zwraca `null`, gdy dzień jest dniem klubowym
- * (endurance na dniu klubowym jest ZABLOKOWane) lub meczowym.
+ * Buduje sesję wydolnościową. Mecz blokuje sesję; dzień klubowy dostaje
+ * wyłącznie komplementarny wariant tlenowy, o ile scheduler dopuści drugi slot.
  */
 export function createEnduranceSessionVariant(
   ctx: SessionGenContext,
   a: AthleteTrainingProfile | null | undefined,
 ): GeneratedSession | null {
-  // Twarda zasada: nie twórz endurance w dniu klubowym ani meczowym.
-  if (ctx.hasClub || isMatchDay(ctx)) {
+  if (isMatchDay(ctx)) {
     return null;
   }
 
@@ -390,6 +389,13 @@ export function createEnduranceSessionVariant(
   const beforeMatch = isDayBeforeMatch(ctx);
   const afterMatch = ctx.isDayAfterMatch === true;
   const goal = getAthleteGoalRules(resolveGoal(ctx, a));
+
+  if (ctx.hasClub) {
+    return createShortAerobicBlock(
+      { ...ctx, placementReason: ctx.placementReason ?? "Komplementarny bieg tlenowy w drugim slocie dnia klubowego." },
+      a,
+    );
+  }
 
   // Niski readiness → low-impact.
   if (low) {
@@ -420,50 +426,41 @@ export function createEnduranceSessionVariant(
     return createShortAerobicBlock(ctx, a);
   }
 
-  // Warianty normalne — dobór wg celu i wydolności.
-  if (goal.isEnduranceGoal) {
-    return normalizeGeneratedSession({
-      category: "endurance_conditioning",
-      subcategory: "extensive_intervals",
-      title: "Wydolność: interwały ekstensywne",
-      description:
-        "Kontrolowane interwały tlenowe rozwijające bazę wydolnościową. " +
-        "Objętość dobrana do świeżości i oddalenia od meczu.",
-      durationMinutes: 45,
-      intensity: "wysoka",
-      loadLevel: "high",
-      blocks: [
-        { name: "Rozgrzewka", detail: "10 min + drills" },
-        { name: "Interwały", detail: "4 x 3 min @ tempo, 2 min przerwy" },
-        { name: "Schłodzenie", detail: "5 min" },
-      ],
-      generatedBy: "engine",
-      placementReason: reason(ctx, "Cel wydolność — interwały ekstensywne w świeży dzień."),
-      sourceRule: "endurance/extensive_intervals",
-      athleteProfileApplied: true,
-      safetyProfileApplied: true,
-    });
-  }
-
+  const prescription = buildRunningSessionPrescription({
+    fieldMasKmh: a?.fieldMasKmh,
+    fieldMasTestedAt: a?.fieldMasTestedAt,
+    date: ctx.date ?? new Date().toISOString().slice(0, 10),
+    sessionIndex: goal.isEnduranceGoal ? 0 : 1,
+    progressionLevel: a?.runningProgressionLevel,
+  });
+  const subcategory: SessionSubcategory =
+    prescription.method === "field_mas_test"
+      ? "field_mas_test"
+      : prescription.method === "easy_aerobic"
+        ? "easy_aerobic"
+        : prescription.method === "tempo_intervals"
+          ? "tempo_aerobic"
+          : "extensive_intervals";
   return normalizeGeneratedSession({
     category: "endurance_conditioning",
-    subcategory: "tempo_aerobic",
-    title: "Wydolność: tempo tlenowe",
-    description: "Kontrolowany bieg tempo / ciągły w strefie tlenowej dla podtrzymania bazy.",
-    durationMinutes: 35,
-    intensity: "umiarkowana",
-    loadLevel: "moderate",
+    subcategory,
+    title: prescription.title,
+    description: prescription.goal,
+    durationMinutes: prescription.durationMin,
+    intensity: prescription.intensity,
+    loadLevel: prescription.loadLevel,
     blocks: [
-      { name: "Rozgrzewka", detail: "8 min" },
-      { name: "Tempo ciągłe / 6–8 x 100 m", detail: "kontrolowane, nie na maksa" },
-      { name: "Schłodzenie", detail: "5 min" },
+      { name: "Rozgrzewka", detail: "8–12 min spokojnie + 3 krótkie narastające przebieżki" },
+      ...prescription.main.map((item) => ({ name: item.name, detail: item.prescription })),
+      { name: "Schłodzenie", detail: "5–8 min spokojnego truchtu" },
     ],
     generatedBy: "engine",
-    placementReason: reason(ctx, "Podtrzymanie bazy tlenowej — tempo aerobowe."),
-    sourceRule: "endurance/tempo_aerobic",
+    placementReason: reason(ctx, "Metoda i dawka dobrane przez silnik biegowy."),
+    sourceRule: `endurance/${prescription.method}`,
     athleteProfileApplied: true,
     safetyProfileApplied: true,
   });
+
 }
 
 // ---------------------------------------------------------------------------

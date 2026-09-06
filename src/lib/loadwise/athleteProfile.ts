@@ -119,6 +119,9 @@ export interface AthleteTrainingProfile {
   injuryConstraints: InjuryConstraints;
   preferredTrainingStyle: "foundation" | "development" | "performance";
   onboardingWarnings: string[];
+  fieldMasKmh: number | null;
+  fieldMasTestedAt: string | null;
+  runningProgressionLevel: number;
 }
 
 export interface WeekContext {
@@ -544,6 +547,13 @@ export function buildAthleteTrainingProfile(
     injuryConstraints,
     preferredTrainingStyle,
     onboardingWarnings: warnings,
+    fieldMasKmh:
+      typeof p.fieldMasKmh === "number" && Number.isFinite(p.fieldMasKmh) ? p.fieldMasKmh : null,
+    fieldMasTestedAt: typeof p.fieldMasTestedAt === "string" ? p.fieldMasTestedAt : null,
+    runningProgressionLevel:
+      typeof p.runningProgressionLevel === "number"
+        ? Math.max(0, Math.min(3, Math.round(p.runningProgressionLevel)))
+        : 0,
   };
 
   partial.blockedExerciseTypes = getBlockedExerciseTypes(partial);

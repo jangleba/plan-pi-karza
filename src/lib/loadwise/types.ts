@@ -125,6 +125,12 @@ export interface Profile {
   injuryHistory?: PainLocation[];
   /** Sprzęt domowy dostępny zawodnikowi. */
   homeEquipment?: string[];
+  /** Terenowe MAS wyliczone z ostatniego testu 5-minutowego GPS. */
+  fieldMasKmh?: number | null;
+  fieldMasTestedAt?: string | null;
+  /** Poziom 0–3 sterujący dawką biegu; tempo bazowe zmienia tylko kolejny test. */
+  runningProgressionLevel?: number;
+  runningProgressionUpdatedAt?: string | null;
 }
 
 /** Lokalizacja bólu / kontuzji — steruje doborem i blokadą ćwiczeń. */
@@ -447,6 +453,7 @@ export type SessionSubcategory =
   | "zone2_aerobic"
   | "recovery_run"
   | "short_aerobic_block"
+  | "field_mas_test"
   // speed_sprint
   | "acceleration"
   | "acceleration_deceleration"

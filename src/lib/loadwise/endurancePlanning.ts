@@ -8,7 +8,8 @@
 //   - Cel wydolnościowy → liczba endurance zależy od liczby treningów klubowych:
 //       0–2 klubowe → 3, 3 klubowe → 2, >3 klubowe → próba 2, absolutne minimum 1.
 //   - Trening klubowy NIE liczy się jako endurance.
-//   - Endurance NIGDY w dzień klubowy (twarda blokada).
+//   - Klub liczy się do obciążenia, ale nie zastępuje własnego endurance.
+//   - Intermediate/advanced może połączyć klub + komplementarny endurance.
 //   - Endurance nie może być ciężkie dzień przed meczem (MD-1) — tylko lekkie.
 //   - Przy niskim readiness / bólu → low-impact (rower / basen / easy aerobic).
 //   - Youth/beginner → bez agresywnego HIIT i dużej objętości jako domyślnej opcji.
@@ -226,21 +227,8 @@ export function blockEnduranceOnClubDays(
   weekPlan: SchedDay[],
   _weeklyRequirements?: unknown,
 ): { removed: number; unresolvedIssues: string[] } {
-  let removed = 0;
-  const unresolvedIssues: string[] = [];
-  for (const day of weekPlan ?? []) {
-    if (!hasClubSession(day)) continue;
-    const before = (day.sessions ?? []).length;
-    day.sessions = (day.sessions ?? []).filter((s) => s.category !== "endurance_conditioning");
-    const diff = before - day.sessions.length;
-    if (diff > 0) {
-      removed += diff;
-      unresolvedIssues.push(
-        "Usunięto endurance z dnia klubowego (endurance nie może być w dzień klubowy).",
-      );
-    }
-  }
-  return { removed, unresolvedIssues };
+  void weekPlan;
+  return { removed: 0, unresolvedIssues: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -248,8 +236,8 @@ export function blockEnduranceOnClubDays(
 // ---------------------------------------------------------------------------
 
 /**
- * Zwraca listę dni, w których wolno zaplanować endurance, posortowaną malejąco
- * wg score. Dni klubowe, meczowe oraz dni bez wolnego slotu są wykluczone.
+ * Zwraca listę dni, w których wolno zaplanować endurance. Dzień klubowy jest
+ * dopuszczalnym, niżej ocenionym drugim slotem, jeśli wspólny scheduler pozwala.
  */
 export function getSafeEndurancePlacements(
   weekPlan: SchedDay[],
@@ -263,13 +251,12 @@ export function getSafeEndurancePlacements(
 
   (weekPlan ?? []).forEach((day, dayIndex) => {
     // Twarde blokady.
-    if (hasClubSession(day)) return; // endurance nigdy w dzień klubowy
     if (isMatchDay(day)) return;
     if (hasEnduranceSession(day)) return; // już ma endurance
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
 
     // MD-1 — tylko lekka wersja (forcedLow), inaczej dopuszczalne pełne.
-    const forcedLow = isDayBeforeMatch(day) || isDayAfterMatch(day, weekPlan);
+    const forcedLow = isDayBeforeMatch(day) || isDayAfterMatch(day, weekPlan) || hasClubSession(day);
 
     // Czy dodanie lekkiej sesji jest w ogóle dozwolone (limit / kombinacje).
     const candidate: SchedSession = {
@@ -289,13 +276,16 @@ export function getSafeEndurancePlacements(
     let score = 50;
     const empty = countSessionsForDay(day) === 0;
     if (empty) score += 25; // wolny dzień bez klubu/meczu
+    if (hasClubSession(day)) score -= 30; // fallback, ale dozwolony
     if (dayHasCategory(day, "gym_strength")) score += 45; // preferowane: endurance + siłownia
     if (dayHasCategory(day, "speed_sprint") && speedIsFirst(day)) score += 10; // szybkość pierwsza
     if (goal.isEnduranceGoal) score += 8;
     if (isDayBeforeMatch(day)) score -= 40; // MD-1 mocno odradzane
     if (isDayAfterMatch(day, weekPlan)) score -= 10; // po meczu tylko lekkie
 
-    const reason = dayHasCategory(day, "gym_strength")
+    const reason = hasClubSession(day)
+      ? "Dodano komplementarny, lekki endurance jako drugi slot dnia klubowego."
+      : dayHasCategory(day, "gym_strength")
       ? "Wybrano ten dzień dla wydolności — brak klubu/meczu, można połączyć z siłownią."
       : empty
         ? "Wybrano wolny dzień bez klubu i meczu — najlepsze miejsce na wydolność."
@@ -308,8 +298,8 @@ export function getSafeEndurancePlacements(
 }
 
 /**
- * Znajduje najlepszy dzień na sesję endurance. Nigdy nie wybiera dnia
- * klubowego ani meczowego. Gdy brak bezpiecznego dnia → unresolvedIssue.
+ * Znajduje najlepszy dzień na sesję endurance. Mecz jest blokadą; klub może
+ * zostać użyty jako fallback dla bezpiecznej, komplementarnej pary.
  */
 export function findBestDayForEnduranceSession(
   weekPlan: SchedDay[],
@@ -331,7 +321,7 @@ export function findBestDayForEnduranceSession(
       dayIndex: null,
       forcedLow: false,
       unresolvedIssue:
-        "Nie znaleziono bezpiecznego dnia na endurance bez dnia klubowego — nie łamiemy zasady.",
+        "Nie znaleziono bezpiecznego slotu na endurance bez łamania limitu lub reguł meczu.",
     };
   }
   return {
@@ -346,8 +336,8 @@ export function findBestDayForEnduranceSession(
 // ---------------------------------------------------------------------------
 
 /**
- * Buduje sesję endurance dopasowaną do dnia i profilu. Zwraca `null` gdy dzień
- * jest klubowy/meczowy (endurance zablokowane). Ból kończyn dolnych oraz niski
+ * Buduje sesję endurance dopasowaną do dnia i profilu. Zwraca `null` w dniu
+ * meczu. Ból kończyn dolnych oraz niski
  * readiness → wymuszony wariant low-impact.
  */
 export function createEnduranceSessionVariant(
@@ -460,7 +450,8 @@ function buildContextForDay(
   placementReason?: string,
 ): SessionGenContext {
   return {
-    hasClub: false,
+    date: day.date,
+    hasClub: hasClubSession(day),
     toMatch: day.toMatch ?? null,
     isDayAfterMatch: isDayAfterMatch(day, weekPlan),
     readiness: forcedLow ? Math.min(resolveReadiness(athlete), 4) : resolveReadiness(athlete),
@@ -488,7 +479,7 @@ export function addMissingEnduranceSessions(
   const unresolvedIssues: string[] = [];
   const warnings: string[] = [];
 
-  // Najpierw twarda zasada: usuń endurance z dni klubowych.
+  // Zachowaj poprawne pary club + endurance; wspólny scheduler ocenia drugi slot.
   const cleanup = blockEnduranceOnClubDays(weekPlan, weeklyRequirements);
   unresolvedIssues.push(...cleanup.unresolvedIssues);
 
@@ -529,11 +520,11 @@ export function addMissingEnduranceSessions(
 
   if (count < absoluteMinimum) {
     unresolvedIssues.push(
-      `Tydzień ma ${count} sesji endurance, absolutne minimum ${absoluteMinimum} — nie da się dodać bez dnia klubowego.`,
+      `Tydzień ma ${count} sesji endurance, absolutne minimum ${absoluteMinimum} — brak bezpiecznego slotu.`,
     );
   } else if (count < required) {
     unresolvedIssues.push(
-      `Tydzień ma ${count} z ${required} wymaganych sesji endurance — brakującej nie da się dodać bez łamania zasad (dzień klubowy/mecz).`,
+      `Tydzień ma ${count} z ${required} wymaganych sesji endurance — brakującej nie da się dodać bez łamania reguł obciążenia lub meczu.`,
     );
   }
 
@@ -579,11 +570,7 @@ export function validateWeeklyEnduranceMinimum(
       onClubDay += (day.sessions ?? []).filter((s) => s.category === "endurance_conditioning").length;
     }
   }
-  if (onClubDay > 0) {
-    unresolvedIssues.push(
-      `${onClubDay} sesji endurance zaplanowano w dzień klubowy — to jest zabronione.`,
-    );
-  }
+  if (onClubDay > 0) warnings.push(`${onClubDay} sesji endurance połączono z treningiem klubowym jako drugi, komplementarny slot.`);
 
   if (count < absoluteMinimum) {
     unresolvedIssues.push(

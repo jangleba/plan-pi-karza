@@ -12,7 +12,8 @@
 //   - cel szybkościowy → minimum 2 speed_sprint,
 //   - cel wydolnościowy → liczba endurance zależy od liczby klubowych,
 //   - wiek/poziom NIE kasują kategorii — zmieniają tylko treść/objętość/wariant,
-//   - endurance NIGDY w dzień klubowy (forbidEnduranceOnClubDays = true).
+//   - club liczy się do obciążenia, ale nie zastępuje własnego endurance;
+//     komplementarny endurance może być drugim slotem u intermediate/advanced.
 // ============================================================
 
 import type { DevelopmentStage } from "./athleteProfile";
@@ -402,7 +403,7 @@ export function calculateWeeklyMinimumRequirements(
   if (goalRules.isEnduranceGoal)
     reasonParts.push(`cel wydolnościowy → endurance wg ${clubTrainingCount} klubowych`);
   if (seasonRules.isInSeason) reasonParts.push("w sezonie: możliwa redukcja objętości, kategorie zostają");
-  reasonParts.push("endurance zakazane w dni klubowe");
+  reasonParts.push("club nie zastępuje endurance; para możliwa tylko gdy komplementarna");
 
   return {
     requiredGymSessions,
@@ -411,7 +412,7 @@ export function calculateWeeklyMinimumRequirements(
     requiredSpeedSessions,
     recommendedEnduranceSessions: requiredEnduranceSessions,
     recommendedSpeedSessions: requiredSpeedSessions,
-    forbidEnduranceOnClubDays: true, // TWARDA ZASADA — zawsze
+    forbidEnduranceOnClubDays: false,
     reason: reasonParts.join("; "),
     goalDetected: goalRules.goalDetected,
     isEnduranceGoal: goalRules.isEnduranceGoal,
