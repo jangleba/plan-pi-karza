@@ -35,6 +35,7 @@ import {
   Activity,
   Gauge,
   CalendarDays,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -479,6 +480,24 @@ function PlanScreen() {
         </div>
       )}
 
+      <div className="px-5 pt-3">
+        <Link
+          to="/reakcja"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 transition-colors active:bg-secondary"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <ScanLine className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-foreground">Trener reakcji</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Kierunki, kolory i decyzje do własnej pracy z piłką
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
+      </div>
+
 
       {todaySession &&
         (() => {
@@ -549,13 +568,15 @@ function PlanScreen() {
           </div>
         )}
         {visibleDays.map(({ source }) => {
-          const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+          const baseDay = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+          const mods = state.modifications[baseDay.date] ?? [];
+          const swappedMod = mods.find((item) => item.type === "swap");
+          const additions = mods.filter((item) => item.type === "add");
+          const day = swappedMod?.session ?? baseDay;
           const isToday = day.date === todayIso;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
-          const mods = state.modifications[day.date] ?? [];
-          const swapped = mods.some((m) => m.type === "swap");
-          const added = mods.some((m) => m.type === "add");
+          const swapped = Boolean(swappedMod);
           const d = parseIso(day.date);
           const dayNum = d.getDate();
           const monthShort = d
@@ -623,9 +644,7 @@ function PlanScreen() {
                     />
                     {swapped
                       ? "Zamieniona"
-                      : added
-                        ? "Dodana"
-                        : day.loadLabelOverride ?? shortTag(day)}
+                      : day.loadLabelOverride ?? shortTag(day)}
                   </p>
                 </div>
 
@@ -645,6 +664,32 @@ function PlanScreen() {
                   <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
                 </Link>
               )}
+
+              {additions.map((modification) => {
+                const addedDone = modification.session.dbId
+                  ? completions[modification.session.dbId]?.completed
+                  : false;
+                return (
+                  <Link
+                    key={modification.id}
+                    to="/sesja/$date"
+                    params={{ date: day.date }}
+                    search={{ slot: 1, mod: modification.id }}
+                    className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
+                  >
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span className="truncate">
+                      Dodana: {modification.session.title}
+                    </span>
+                    {addedDone && (
+                      <CheckCircle2 className="ml-auto h-3.5 w-3.5 shrink-0 text-primary" />
+                    )}
+                    {!addedDone && (
+                      <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           );
         })}

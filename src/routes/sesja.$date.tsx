@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
@@ -24,6 +24,7 @@ import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import {
   Check,
   CheckCircle2,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -48,6 +49,7 @@ import {
 } from "@/components/ui/accordion";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { isTrackableEnduranceRun } from "@/lib/running/session";
+import { isBallTechnicalSession } from "@/lib/loadwise/sessionClassification";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
@@ -1438,6 +1440,7 @@ function SessionDetail() {
           : [];
   const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
   const trackableEndurance = isTrackableEnduranceRun(session) && Boolean(session.dbId);
+  const ballTechnicalSession = isBallTechnicalSession(session);
 
   async function undo(dateToUndo: string, id: string) {
     try {
@@ -1537,6 +1540,21 @@ function SessionDetail() {
           <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
             {state.equipmentNotice}
           </div>
+        )}
+
+        {ballTechnicalSession && (
+          <Link
+            to="/reakcja"
+            className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
+          >
+            <div>
+              <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
+              <p className="mt-0.5 text-xs text-primary-foreground/75">
+                Włącz bodźce w wybranym fragmencie własnego treningu.
+              </p>
+            </div>
+            <ArrowRight className="h-5 w-5 shrink-0" />
+          </Link>
         )}
 
         {trackableEndurance && session.dbId && (
