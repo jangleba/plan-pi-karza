@@ -35,8 +35,8 @@ jobs:
       - name: Zainstaluj zależności
         run: npm ci
 
-      - name: Sprawdź ESLint
-        run: npm run lint
+      - name: Sprawdź ESLint aktywnego kodu
+        run: npx eslint src
 
       - name: Sprawdź TypeScript
         run: npm run typecheck
