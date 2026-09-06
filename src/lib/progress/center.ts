@@ -1,13 +1,10 @@
-import type { SessionDay, SessionCompletion, Profile } from "@/lib/loadwise/types";
-import {
-  changeOf,
-  type CompletedSessionEntry,
-  type MetricChange,
-  type MetricSeries,
-  type TrainingCategoryKey,
+import type { Profile, SessionDay } from "@/lib/loadwise/types";
+import type {
+  CompletedSessionEntry,
+  TrainingCategoryKey,
 } from "@/lib/progress/progress";
 
-/** Dzień mikrocyklu — realne dane z planu i logów, bez syntetycznych wyników. */
+/** Dzień mikrocyklu — wyłącznie realny plan i zapisane wykonanie. */
 export interface MicrocycleDay {
   date: string;
   weekdayLabel: string;
@@ -26,82 +23,99 @@ export interface MicrocycleReport {
   executionPct: number | null;
   totalMinutes: number;
   avgRpe: number | null;
-  testsCount: number;
   byCategory: Record<TrainingCategoryKey, number>;
-  /** Kierunek na kolejny tydzień, wyprowadzony z wykonania i RPE. */
   nextWeekDirection: string;
 }
 
 const WEEKDAYS = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
 function isoMinus(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function planSessions(day: SessionDay): SessionDay[] {
+  if (day.dayType === "rest" || day.isUnavailable) return [];
+  return day.secondSession ? [day, day.secondSession] : [day];
 }
 
 export function buildMicrocycle(
   plan: SessionDay[],
-  completions: Record<string, SessionCompletion>,
   history: CompletedSessionEntry[],
-  testDates: string[],
   todayIso: string,
 ): MicrocycleReport {
-  const dates = Array.from({ length: 7 }, (_, i) => isoMinus(todayIso, 6 - i));
-  const historyByDate = new Map(history.map((h) => [h.date, h]));
+  const dates = Array.from({ length: 7 }, (_, index) => isoMinus(todayIso, 6 - index));
+  const fromIso = dates[0]!;
+  const recentHistory = history.filter(
+    (item) => item.date >= fromIso && item.date <= todayIso,
+  );
+  const recentPlan = plan.filter(
+    (day) => day.date >= fromIso && day.date <= todayIso,
+  );
   const byCategory: Record<TrainingCategoryKey, number> = {
     gym: 0,
     speed: 0,
     endurance: 0,
+    ball: 0,
     club: 0,
     match: 0,
     recovery: 0,
   };
 
+  for (const item of recentHistory) byCategory[item.category] += 1;
+
   const days: MicrocycleDay[] = dates.map((date) => {
-    const day = plan.find((p) => p.date === date) ?? null;
-    const id = day ? (day.dbId ?? day.sessionId) : null;
-    const completion = id ? completions[id] : undefined;
-    const h = historyByDate.get(date) ?? null;
-    if (h) byCategory[h.category] += 1;
+    const planned = recentPlan.flatMap(planSessions).filter((item) => item.date === date);
+    const completed = recentHistory.filter((item) => item.date === date);
+    const dayRpes = completed
+      .map((item) => item.rpe)
+      .filter((rpe): rpe is number => rpe != null);
     return {
       date,
       weekdayLabel: WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]!,
-      planned: !!day && day.dayType !== "rest" && !day.isUnavailable,
-      completed: !!completion?.completed,
-      category: h?.category ?? null,
-      durationMin: h?.durationMin ?? day?.durationMin ?? 0,
-      rpe: completion?.rpe ?? null,
+      planned: planned.length > 0,
+      completed: completed.length > 0,
+      category: completed[0]?.category ?? null,
+      durationMin: completed.reduce((sum, item) => sum + item.durationMin, 0),
+      rpe: dayRpes.length
+        ? dayRpes.reduce((sum, value) => sum + value, 0) / dayRpes.length
+        : null,
       isToday: date === todayIso,
     };
   });
 
-  const plannedCount = days.filter((d) => d.planned).length;
-  const completedCount = days.filter((d) => d.completed).length;
-  const rpes = days.map((d) => d.rpe).filter((r): r is number => r != null);
-  const avgRpe = rpes.length ? rpes.reduce((a, b) => a + b, 0) / rpes.length : null;
+  const plannedCount = recentPlan.flatMap(planSessions).length;
+  const completedCount = recentHistory.length;
+  const rpes = recentHistory
+    .map((item) => item.rpe)
+    .filter((rpe): rpe is number => rpe != null);
+  const avgRpe = rpes.length
+    ? rpes.reduce((sum, value) => sum + value, 0) / rpes.length
+    : null;
   const executionPct =
     plannedCount > 0
       ? Math.min(100, Math.round((completedCount / plannedCount) * 100))
       : null;
-  const totalMinutes = days
-    .filter((d) => d.completed)
-    .reduce((a, b) => a + (b.durationMin || 0), 0);
+  const totalMinutes = recentHistory.reduce(
+    (sum, item) => sum + item.durationMin,
+    0,
+  );
 
   let nextWeekDirection: string;
   if (plannedCount === 0) {
-    nextWeekDirection = "Brak zaplanowanych jednostek w tym mikrocyklu.";
+    nextWeekDirection = "Uzupełnij plan, aby rozpocząć kolejny mikrocykl.";
   } else if (executionPct != null && executionPct < 60) {
     nextWeekDirection =
-      "Wykonanie poniżej planu — kolejny tydzień utrzymaj bez zwiększania objętości.";
+      "Utrzymaj objętość i najpierw popraw regularność wykonania.";
   } else if (avgRpe != null && avgRpe >= 8) {
     nextWeekDirection =
-      "Wysokie odczuwane obciążenie — kolejny tydzień bez wzrostu intensywności.";
+      "Nie zwiększaj intensywności — ostatnie odczuwane obciążenie było wysokie.";
   } else if (executionPct === 100 && (avgRpe == null || avgRpe <= 7)) {
     nextWeekDirection =
-      "Pełne wykonanie przy kontrolowanym obciążeniu — możliwa progresja jednej zmiennej.";
+      "Możesz progresować jedną zmienną zgodnie z następną jednostką planu.";
   } else {
-    nextWeekDirection = "Utrzymaj obecną strukturę tygodnia.";
+    nextWeekDirection = "Utrzymaj obecną strukturę i zapisuj RPE po treningu.";
   }
 
   return {
@@ -111,21 +125,18 @@ export function buildMicrocycle(
     executionPct,
     totalMinutes,
     avgRpe,
-    testsCount: testDates.filter((d) => d >= dates[0]! && d <= todayIso).length,
     byCategory,
     nextWeekDirection,
   };
 }
 
-// ---------------- Kierunek zawodnika ----------------
-
 export interface DirectionCard {
   stage: string;
   execution: string;
-  detectedChange: string;
+  loadSignal: string;
   limiter: string;
   nextStep: string;
-  cta: { label: string; to: "test" | "session"; date?: string };
+  cta: { label: string; to: "plan" | "session"; date?: string };
 }
 
 const LIMITER_LABELS: Record<string, string> = {
@@ -142,7 +153,7 @@ const LIMITER_LABELS: Record<string, string> = {
 export function developmentStage(age: number | null): string {
   if (age == null) return "Etap nieokreślony";
   if (age <= 12) return "Etap koordynacji i techniki";
-  if (age <= 14) return "Etap jakości ruchu (okołoskokowy)";
+  if (age <= 14) return "Etap jakości ruchu";
   if (age <= 16) return "Etap budowy siły strukturalnej";
   if (age <= 18) return "Etap rozwoju mocy i szybkości";
   return "Etap wydajności seniorskiej";
@@ -151,32 +162,17 @@ export function developmentStage(age: number | null): string {
 export function buildDirection(
   profile: Profile | null,
   micro: MicrocycleReport,
-  improvement: MetricChange | null,
-  series: MetricSeries[],
   nextSession: SessionDay | null,
 ): DirectionCard {
   const limiterKey = profile?.secondaryLimiter ?? null;
-  const limiter = limiterKey
-    ? LIMITER_LABELS[limiterKey] ?? "Nieokreślony"
-    : micro.avgRpe != null && micro.avgRpe >= 8
+  const limiter =
+    micro.avgRpe != null && micro.avgRpe >= 8
       ? "Wysokie obciążenie w mikrocyklu"
       : micro.executionPct != null && micro.executionPct < 60
         ? "Regularność wykonania"
-        : "Brak wskazanego ogranicznika";
-
-  const detectedChange =
-    improvement && improvement.changePct != null
-      ? `${improvement.series.label}: ${improvement.latest.value} ${improvement.series.unit} (${Math.abs(improvement.changePct).toFixed(1)}% lepiej)`
-      : series.length > 0
-        ? "Za mało powtórzonych pomiarów, aby wykryć zmianę."
-        : "Brak pomiarów kontrolnych.";
-
-  const needsTest = series.length === 0 || improvement == null;
-  const nextStep = needsTest
-    ? series.length === 0
-      ? "Wykonaj pierwszy test kontrolny, aby uzyskać punkt odniesienia."
-      : `Powtórz test ${series[0]!.label}, aby porównać wynik.`
-    : `Utrzymaj wynik w teście ${improvement!.series.label} przy kolejnym pomiarze.`;
+        : limiterKey
+          ? LIMITER_LABELS[limiterKey] ?? "Nieokreślony"
+          : "Brak wskazanego ogranicznika";
 
   return {
     stage: developmentStage(profile?.age ?? null),
@@ -184,61 +180,20 @@ export function buildDirection(
       micro.executionPct != null
         ? `${micro.completedCount}/${micro.plannedCount} jednostek (${micro.executionPct}%)`
         : "Brak zaplanowanych jednostek",
-    detectedChange,
+    loadSignal:
+      micro.completedCount > 0
+        ? `${micro.totalMinutes} min pracy${
+            micro.avgRpe != null ? ` · średnie RPE ${micro.avgRpe.toFixed(1)}` : ""
+          }`
+        : "Brak ukończonych jednostek w ostatnich 7 dniach",
     limiter,
-    nextStep,
-    cta:
-      needsTest || !nextSession
-        ? { label: "Przejdź do testów", to: "test" }
-        : { label: "Otwórz następną jednostkę", to: "session", date: nextSession.date },
+    nextStep: micro.nextWeekDirection,
+    cta: nextSession
+      ? {
+          label: "Otwórz następną jednostkę",
+          to: "session",
+          date: nextSession.date,
+        }
+      : { label: "Otwórz plan", to: "plan" },
   };
-}
-
-// ---------------- Podsumowanie testów ----------------
-
-export interface TestSummaryRow {
-  series: MetricSeries;
-  change: MetricChange;
-  best: number;
-  isPersonalBest: boolean;
-  /** Zalecany termin powtórzenia (28 dni od ostatniego pomiaru). */
-  retestDueIso: string;
-  daysToRetest: number;
-  conditions: string | null;
-}
-
-const RETEST_INTERVAL_DAYS = 28;
-
-function addDays(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function diffDays(fromIso: string, toIso: string): number {
-  return Math.round(
-    (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86400000,
-  );
-}
-
-export function buildTestSummaries(
-  series: MetricSeries[],
-  todayIso: string,
-): TestSummaryRow[] {
-  return series.map((s) => {
-    const c = changeOf(s);
-    const values = s.points.map((p) => p.value);
-    const best = s.lowerIsBetter ? Math.min(...values) : Math.max(...values);
-    const conditionParts: string[] = [];
-    const retestDueIso = addDays(c.latest.date, RETEST_INTERVAL_DAYS);
-    return {
-      series: s,
-      change: c,
-      best,
-      isPersonalBest: c.latest.value === best,
-      retestDueIso,
-      daysToRetest: diffDays(todayIso, retestDueIso),
-      conditions: conditionParts.length ? conditionParts.join(" · ") : null,
-    };
-  });
 }

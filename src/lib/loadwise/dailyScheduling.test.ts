@@ -28,8 +28,8 @@ import {
 const oneADay: UserSchedulingSettings = { maxSessionsPerDay: 1 };
 const twoADay: UserSchedulingSettings = { maxSessionsPerDay: 2 };
 
-const youth: AthleteSchedProfile = { developmentStage: "early_youth", gymExperienceLevel: "beginner" };
-const adult: AthleteSchedProfile = { developmentStage: "adult", gymExperienceLevel: "advanced" };
+const youth: AthleteSchedProfile = { developmentStage: "early_youth", gymExperienceLevel: "beginner", trainingLevel: "beginner" };
+const adult: AthleteSchedProfile = { developmentStage: "adult", gymExperienceLevel: "advanced", trainingLevel: "advanced" };
 
 function day(sessions: SchedSession[], extra: Partial<SchedDay> = {}): SchedDay {
   return { sessions, ...extra };
@@ -119,7 +119,7 @@ describe("dozwolone kombinacje", () => {
 });
 
 describe("zablokowane kombinacje", () => {
-  it("dwie ciężkie sesje jednego dnia są zablokowane", () => {
+  it("adult advanced może wykonać dwie pełne, komplementarne sesje", () => {
     const res = validateTwoADayCombination(
       day([gym({ loadLevel: "high" })]),
       speed({ isFullSpeed: true }),
@@ -127,7 +127,7 @@ describe("zablokowane kombinacje", () => {
       null,
       adult,
     );
-    expect(res.allowed).toBe(false);
+    expect(res.allowed).toBe(true);
   });
 
   it("ciężka siła nóg + ciężkie conditioning tego samego dnia", () => {
@@ -151,6 +151,28 @@ describe("zablokowane kombinacje", () => {
 
   it("dwie pełne sesje szybkościowe jednego dnia", () => {
     const res = validateTwoADayCombination(day([speed()]), speed(), null, null, adult);
+    expect(res.allowed).toBe(false);
+  });
+
+  it("nigdy nie planuje dwóch takich samych sesji siłowych", () => {
+    const res = validateTwoADayCombination(day([gym()]), gym(), null, null, adult);
+    expect(res.allowed).toBe(false);
+    expect(res.blockReason).toContain("dominującego bodźca");
+  });
+
+  it("adult beginner nie dostaje dwóch ciężkich sesji", () => {
+    const beginner: AthleteSchedProfile = {
+      developmentStage: "adult",
+      gymExperienceLevel: "intermediate",
+      trainingLevel: "beginner",
+    };
+    const res = validateTwoADayCombination(
+      day([club({ loadLevel: "high" })]),
+      gym({ loadLevel: "high" }),
+      null,
+      null,
+      beginner,
+    );
     expect(res.allowed).toBe(false);
   });
 

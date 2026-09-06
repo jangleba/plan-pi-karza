@@ -1,208 +1,81 @@
 import type {
-  SessionDay,
   SessionCompletion,
-  TestResult,
+  SessionDay,
+  SessionHistoryCategory,
+  SessionHistoryRecord,
 } from "@/lib/loadwise/types";
 
-/** Kategorie treningu używane w historii i filtrach zakładki Postęp. */
-export type TrainingCategoryKey =
-  | "gym"
-  | "speed"
-  | "endurance"
-  | "club"
-  | "match"
-  | "recovery";
+/** Kategorie treningu używane w historii i na pulpicie Postępu. */
+export type TrainingCategoryKey = SessionHistoryCategory;
 
 export const TRAINING_CATEGORY_LABELS: Record<TrainingCategoryKey, string> = {
   gym: "Siła",
   speed: "Szybkość",
   endurance: "Wydolność",
+  ball: "Piłka",
   club: "Klub",
   match: "Mecz",
   recovery: "Regeneracja",
 };
 
-export interface CompletedSessionEntry {
-  key: string;
-  date: string;
-  title: string;
-  category: TrainingCategoryKey;
-  durationMin: number;
-  rpe: number | null;
-  notes: string;
-}
+export type CompletedSessionEntry = SessionHistoryRecord;
 
-function categoryOf(day: SessionDay): TrainingCategoryKey {
-  const t = day.type ?? "";
-  if (day.dayType === "match" || t === "match") return "match";
-  if (day.isClubSession || t === "club_training") return "club";
-  if (t === "strength_power") return "gym";
-  if (t === "sprint_acceleration" || t === "cod_agility") return "speed";
-  if (t === "endurance_running") return "endurance";
-  if (t === "recovery" || t === "prehab_mobility" || t === "activation")
+function categoryOf(day: SessionDay): TrainingCategoryKey | null {
+  const type = day.type ?? day.sessionType ?? "";
+  if (type === "testing") return null;
+  if (day.dayType === "match" || type === "match") return "match";
+  if (day.isClubSession || type === "club_training") return "club";
+  if (type === "strength_power") return "gym";
+  if (type === "sprint_acceleration" || type === "cod_agility") return "speed";
+  if (type === "endurance_running") return "endurance";
+  if (type === "football_technical") return "ball";
+  if (
+    type === "recovery" ||
+    type === "prehab_mobility" ||
+    type === "activation" ||
+    day.isRecoveryOrPrehab
+  ) {
     return "recovery";
-  if (day.isRecoveryOrPrehab) return "recovery";
+  }
   return "gym";
 }
 
-export function daysAgoIso(days: number, today = new Date()): string {
-  const d = new Date(today);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Wszystkie ukończone sesje z zapisanego planu, najnowsze pierwsze. */
+/** Ukończone sesje widoczne w aktualnym planie. */
 export function buildTrainingHistory(
   plan: SessionDay[],
   completions: Record<string, SessionCompletion>,
 ): CompletedSessionEntry[] {
-  const out: CompletedSessionEntry[] = [];
+  const history: CompletedSessionEntry[] = [];
   for (const day of plan) {
-    const id = day.dbId ?? day.sessionId;
-    if (!id) continue;
-    const c = completions[id];
-    if (!c?.completed) continue;
-    if (day.dayType === "rest") continue;
-    out.push({
-      key: id,
-      date: day.date,
-      title: day.title,
-      category: categoryOf(day),
-      durationMin: day.durationMin ?? 0,
-      rpe: c.rpe,
-      notes: c.notes ?? "",
-    });
+    const sessions = day.secondSession ? [day, day.secondSession] : [day];
+    for (const session of sessions) {
+      const id = session.dbId ?? session.sessionId;
+      if (!id || session.dayType === "rest") continue;
+      const completion = completions[id];
+      if (!completion?.completed) continue;
+      const category = categoryOf(session);
+      if (!category) continue;
+      history.push({
+        key: id,
+        date: session.date,
+        title: session.title,
+        category,
+        durationMin: session.durationMin ?? 0,
+        rpe: completion.rpe,
+        notes: completion.notes ?? "",
+      });
+    }
   }
-  return out.sort((a, b) => (a.date < b.date ? 1 : -1));
+  return history.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-export interface WindowSummary {
-  completedCount: number;
-  plannedCount: number;
-  regularityPct: number | null;
-  totalMinutes: number;
-  avgRpe: number | null;
-  testsCount: number;
-}
-
-export function summarizeWindow(
-  plan: SessionDay[],
-  history: CompletedSessionEntry[],
-  testDates: string[],
-  fromIso: string,
-  toIso: string,
-): WindowSummary {
-  const inWindow = (d: string) => d >= fromIso && d <= toIso;
-  const planned = plan.filter(
-    (d) => inWindow(d.date) && d.dayType !== "rest" && !d.isUnavailable,
-  ).length;
-  const done = history.filter((h) => inWindow(h.date));
-  const rpes = done.map((d) => d.rpe).filter((r): r is number => r != null);
-  return {
-    completedCount: done.length,
-    plannedCount: planned,
-    regularityPct:
-      planned > 0 ? Math.min(100, Math.round((done.length / planned) * 100)) : null,
-    totalMinutes: done.reduce((a, b) => a + (b.durationMin || 0), 0),
-    avgRpe: rpes.length ? rpes.reduce((a, b) => a + b, 0) / rpes.length : null,
-    testsCount: testDates.filter(inWindow).length,
-  };
-}
-
-// ---------------- Wyniki testów ----------------
-
-export type MetricCategoryKey = "speed" | "strength" | "endurance" | "technique";
-
-export const METRIC_CATEGORY_LABELS: Record<MetricCategoryKey, string> = {
-  speed: "Szybkość",
-  strength: "Siła i moc",
-  endurance: "Wydolność",
-  technique: "Technika",
-};
-
-export interface MetricPoint {
-  date: string;
-  value: number;
-}
-
-export interface MetricSeries {
-  id: string;
-  label: string;
-  unit: string;
-  category: MetricCategoryKey;
-  lowerIsBetter: boolean;
-  points: MetricPoint[]; // rosnąco po dacie
-}
-
-export interface MetricChange {
-  series: MetricSeries;
-  latest: MetricPoint;
-  previous: MetricPoint | null;
-  changePct: number | null;
-  improved: boolean | null;
-}
-
-/** Buduje serie pomiarowe z lokalnych testów. */
-export function buildMetricSeries(tests: TestResult[]): MetricSeries[] {
-  const map = new Map<string, MetricSeries>();
-
-  const localMeta: Record<
-    TestResult["type"],
-    { label: string; unit: string; category: MetricCategoryKey; lower: boolean }
-  > = {
-    sprint: { label: "Sprint", unit: "s", category: "speed", lower: true },
-    vertical: { label: "Wyskok pionowy", unit: "cm", category: "strength", lower: false },
-    broad: { label: "Skok w dal z miejsca", unit: "cm", category: "strength", lower: false },
-    technique: { label: "Technika", unit: "pkt", category: "technique", lower: false },
-  };
-
-  for (const t of tests) {
-    const value = Number.parseFloat(String(t.value).replace(",", "."));
-    if (!Number.isFinite(value)) continue;
-    const meta = localMeta[t.type];
-    const id = `local:${t.type}`;
-    const s =
-      map.get(id) ??
-      ({
-        id,
-        label: meta.label,
-        unit: meta.unit,
-        category: meta.category,
-        lowerIsBetter: meta.lower,
-        points: [],
-      } as MetricSeries);
-    s.points.push({ date: t.date, value });
-    map.set(id, s);
-  }
-
-  return Array.from(map.values())
-    .map((s) => ({
-      ...s,
-      points: [...s.points].sort((a, b) => (a.date < b.date ? -1 : 1)),
-    }))
-    .filter((s) => s.points.length > 0);
-}
-
-export function changeOf(series: MetricSeries): MetricChange {
-  const points = series.points;
-  const latest = points[points.length - 1]!;
-  const previous = points.length > 1 ? points[points.length - 2]! : null;
-  let changePct: number | null = null;
-  let improved: boolean | null = null;
-  if (previous && previous.value !== 0) {
-    changePct = ((latest.value - previous.value) / Math.abs(previous.value)) * 100;
-    improved = series.lowerIsBetter ? changePct < 0 : changePct > 0;
-  }
-  return { series, latest, previous, changePct, improved };
-}
-
-/** Największa realna poprawa (wymaga min. 2 pomiarów w tej samej serii). */
-export function bestImprovement(series: MetricSeries[]): MetricChange | null {
-  const changes = series
-    .map(changeOf)
-    .filter((c) => c.improved === true && c.changePct != null);
-  if (!changes.length) return null;
-  return changes.sort(
-    (a, b) => Math.abs(b.changePct!) - Math.abs(a.changePct!),
-  )[0]!;
+/** Łączy historię archiwalną z bezpiecznym fallbackiem z aktywnego planu. */
+export function mergeTrainingHistory(
+  persisted: CompletedSessionEntry[],
+  currentPlan: CompletedSessionEntry[],
+): CompletedSessionEntry[] {
+  const byId = new Map<string, CompletedSessionEntry>();
+  for (const item of currentPlan) byId.set(item.key, item);
+  for (const item of persisted) byId.set(item.key, item);
+  return Array.from(byId.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
 }

@@ -1,15 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import {
-  POSITION_LABELS,
-  LEVEL_LABELS,
-  GOAL_LABELS,
-  DOUBLE_SESSION_LABELS,
-  SEASON_PHASE_LABELS,
   COMPETITION_LEVEL_LABELS,
+  DOUBLE_SESSION_LABELS,
+  GOAL_LABELS,
+  ISO_DAY_LABELS,
+  LEVEL_LABELS,
+  POSITION_LABELS,
+  SECONDARY_LIMITER_LABELS,
+  SEASON_PHASE_LABELS,
+  formatDate,
 } from "@/lib/loadwise/labels";
 import type { DoubleSessions } from "@/lib/loadwise/types";
 import {
@@ -19,295 +23,363 @@ import {
   normalizeDesiredPitchFeelings,
 } from "@/lib/loadwise/playerDirection";
 import { Button } from "@/components/ui/button";
-import { PlayerAnalysis } from "@/components/loadwise/PlayerAnalysis";
 import {
-  User,
-  Target,
-  Dumbbell,
-  ShieldCheck,
-  FileDown,
-  Pencil,
-  CircleCheck,
-  CircleAlert,
-  ShieldCheck as ShieldIcon,
-  FileText,
-  LogOut,
+  CalendarDays,
   ChevronRight,
+  CircleAlert,
+  CircleCheck,
   Compass,
+  Dumbbell,
+  FileDown,
+  FileText,
+  Loader2,
+  LogOut,
+  Pencil,
+  ShieldCheck,
+  Target,
+  User,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/profil")({
-  component: ProfilScreen,
+  component: ProfileScreen,
 });
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-2.5">
+    <div className="flex items-start justify-between gap-4 py-2.5">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-foreground">{value}</span>
+      <span className="max-w-[58%] text-right text-sm font-medium text-foreground">
+        {value}
+      </span>
     </div>
   );
 }
 
-function ProfilScreen() {
-  const { state, updateProfile, restartOnboarding } = useLoadwise();
-  const { signOut } = useAuth();
-  const navigate = useNavigate();
-  const p = state.profile;
+function daysLabel(days: number[]): string {
+  if (days.length === 0) return "Brak";
+  return days
+    .map((day) => ISO_DAY_LABELS.find((item) => item.value === day)?.short)
+    .filter(Boolean)
+    .join(", ");
+}
 
-  if (!p) return null;
+function ProfileScreen() {
+  const { state, updateProfile } = useLoadwise();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [savingPreference, setSavingPreference] = useState(false);
+  const profile = state.profile;
+
+  if (!profile) return null;
 
   async function handleSignOut() {
     await signOut();
     navigate({ to: "/auth", replace: true });
   }
 
-
-  function setDouble(v: DoubleSessions) {
-    if (!p || p.doubleSessionsAllowed === v) return;
-    updateProfile({ ...p, doubleSessionsAllowed: v });
-    toast.success("Zaktualizowano podwójne sesje. Plan przeliczony.");
+  async function setDouble(value: DoubleSessions) {
+    if (!profile || profile.doubleSessionsAllowed === value || savingPreference) return;
+    setSavingPreference(true);
+    try {
+      await updateProfile({ ...profile, doubleSessionsAllowed: value });
+      toast.success("Ustawienie zapisane, a plan przeliczony.");
+    } catch {
+      toast.error("Nie udało się zapisać ustawienia. Spróbuj ponownie.");
+    } finally {
+      setSavingPreference(false);
+    }
   }
 
-  const isMinor = p.age >= 13 && p.age <= 17;
-  const currentFeelings = normalizeCurrentPitchFeelings(p.currentPitchFeelings);
-  const desiredFeelings = normalizeDesiredPitchFeelings(p.desiredPitchFeelings);
-
+  const isMinor = profile.age >= 13 && profile.age <= 17;
+  const currentFeelings = normalizeCurrentPitchFeelings(profile.currentPitchFeelings);
+  const desiredFeelings = normalizeDesiredPitchFeelings(profile.desiredPitchFeelings);
+  const usualMatchDay =
+    profile.usualMatchDay === "no_fixed_day"
+      ? "Brak stałego dnia"
+      : typeof profile.usualMatchDay === "number"
+        ? ISO_DAY_LABELS.find((item) => item.value === profile.usualMatchDay)?.label ?? "Brak"
+        : "Brak";
+  const facilities = [
+    { label: "Siłownia", available: profile.hasGym },
+    { label: "Boisko", available: profile.hasPitch },
+    { label: "Miejsce do sprintu", available: profile.hasSprintSpace },
+  ];
 
   return (
     <div>
-      <AppHeader title="Profil" subtitle="Twoje dane i ustawienia." />
+      <AppHeader title="Profil" subtitle="Dane, które sterują Twoim planem." />
 
       <div className="space-y-3 px-5">
-        <div className="soft-card p-4">
+        <section className="soft-card p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-              {p.name.slice(0, 1).toUpperCase()}
+              {profile.name.slice(0, 1).toUpperCase()}
             </div>
-            <div>
-              <div className="text-base font-semibold">{p.name}</div>
-              <div className="text-sm text-muted-foreground">
-                {p.age} lat · {POSITION_LABELS[p.position]}
+            <div className="min-w-0">
+              <div className="truncate text-base font-semibold">{profile.name}</div>
+              <div className="truncate text-sm text-muted-foreground">
+                {profile.age} lat · {POSITION_LABELS[profile.position]}
               </div>
+              {user?.email && (
+                <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+              )}
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="soft-card p-4">
+        <section className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <User className="h-3.5 w-3.5" /> Podstawowe
+            <User className="h-3.5 w-3.5" aria-hidden="true" /> Profil sportowy
           </div>
           <div className="mt-1 divide-y divide-border">
-            <Row label="Pozycja" value={POSITION_LABELS[p.position]} />
-            <Row label="Poziom" value={LEVEL_LABELS[p.level]} />
-            <Row label="Cel główny" value={GOAL_LABELS[p.goal]} />
+            <Row label="Pozycja" value={POSITION_LABELS[profile.position]} />
+            <Row label="Poziom" value={LEVEL_LABELS[profile.level]} />
+            <Row label="Cel główny" value={GOAL_LABELS[profile.goal]} />
             <Row
-              label="Okres sezonu"
-              value={SEASON_PHASE_LABELS[p.seasonPhase]}
+              label="Ogranicznik"
+              value={
+                profile.secondaryLimiter
+                  ? SECONDARY_LIMITER_LABELS[profile.secondaryLimiter]
+                  : "Nie wskazano"
+              }
             />
+            <Row label="Okres sezonu" value={SEASON_PHASE_LABELS[profile.seasonPhase]} />
             <Row
               label="Poziom rozgrywkowy"
-              value={COMPETITION_LEVEL_LABELS[p.competitionLevel]}
+              value={COMPETITION_LEVEL_LABELS[profile.competitionLevel]}
             />
+          </div>
+        </section>
+
+        <section className="soft-card p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Tydzień
+          </div>
+          <div className="mt-1 divide-y divide-border">
+            <Row label="Treningi klubowe" value={daysLabel(profile.clubTrainingDays)} />
+            <Row label="Stały dzień meczu" value={usualMatchDay} />
             <Row
               label="Najbliższy mecz"
-              value={p.matchDate ?? "Brak daty"}
+              value={profile.matchDate ? formatDate(profile.matchDate) : "Brak daty"}
+            />
+            <Row
+              label="Dni niedostępne"
+              value={daysLabel(profile.unavailableDays ?? [])}
             />
           </div>
-        </div>
+        </section>
 
-        <div className="soft-card p-4">
+        <section className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Compass className="h-3.5 w-3.5" /> Twój kierunek
+            <Compass className="h-3.5 w-3.5" aria-hidden="true" /> Twój kierunek
           </div>
-          {currentFeelings.length || desiredFeelings.length ? (
-            <div className="mt-3 space-y-3">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Teraz
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {currentFeelings.length ? (
-                    currentFeelings.map((id) => (
-                      <span
-                        key={id}
-                        className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-                      >
-                        {CURRENT_PITCH_FEELING_LABELS[id]}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Buduję
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {desiredFeelings.length ? (
-                    desiredFeelings.map((id) => (
-                      <span
-                        key={id}
-                        className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                      >
-                        {DESIRED_PITCH_FEELING_LABELS[id]}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-              </div>
+          <div className="mt-3 space-y-3">
+            <DirectionTags
+              label="Teraz"
+              values={currentFeelings.map((id) => CURRENT_PITCH_FEELING_LABELS[id])}
+              tone="secondary"
+            />
+            <DirectionTags
+              label="Buduję"
+              values={desiredFeelings.map((id) => DESIRED_PITCH_FEELING_LABELS[id])}
+              tone="primary"
+            />
+          </div>
+        </section>
+
+        <section className="soft-card p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Dumbbell className="h-3.5 w-3.5" aria-hidden="true" /> Warunki treningowe
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {facilities.map((item) => (
+              <span
+                key={item.label}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  item.available
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {item.available ? "✓ " : "— "}
+                {item.label}
+              </span>
+            ))}
+          </div>
+          <div className="mt-3 border-t border-border pt-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Sprzęt
             </div>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Uzupełnisz swój kierunek podczas edycji profilu.
-            </p>
-          )}
-        </div>
-
-        <div className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Target className="h-3.5 w-3.5" /> Podwójne sesje
-          </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Czy możesz trenować 2 razy jednego dnia?
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-2">
-            {(["no", "light_only", "yes_if_safe"] as DoubleSessions[]).map(
-              (opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setDouble(opt)}
-                  className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                    p.doubleSessionsAllowed === opt
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground"
-                  }`}
-                >
-                  {DOUBLE_SESSION_LABELS[opt]}
-                </button>
-              ),
+            {profile.equipment.length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {profile.equipment.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">Nie wybrano sprzętu.</p>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="soft-card p-4">
+        <section className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Dumbbell className="h-3.5 w-3.5" /> Sprzęt
+            <Target className="h-3.5 w-3.5" aria-hidden="true" /> Podwójne sesje
+            {savingPreference && (
+              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin" aria-label="Zapisywanie" />
+            )}
           </div>
-          {p.equipment.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {p.equipment.map((e) => (
-                <span
-                  key={e}
-                  className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-                >
-                  {e}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Nie wybrano sprzętu.
-            </p>
-          )}
-        </div>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Zmień tylko wtedy, gdy realnie możesz trenować dwa razy jednego dnia.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-2">
+            {(["no", "light_only", "yes_if_safe"] as DoubleSessions[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                disabled={savingPreference}
+                aria-pressed={profile.doubleSessionsAllowed === option}
+                onClick={() => void setDouble(option)}
+                className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 ${
+                  profile.doubleSessionsAllowed === option
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground"
+                }`}
+              >
+                {DOUBLE_SESSION_LABELS[option]}
+              </button>
+            ))}
+          </div>
+        </section>
 
-        <div className="soft-card p-4">
+        <section className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5" /> Status i zgody
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Bezpieczeństwo
           </div>
           <div className="mt-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
-              {p.painInjury ? (
-                <CircleAlert className="h-4 w-4 text-destructive" />
+              {profile.painInjury ? (
+                <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
               ) : (
-                <CircleCheck className="h-4 w-4 text-primary" />
+                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
               )}
-              {p.painInjury
-                ? "Zgłoszony ból / uraz — plan ograniczony"
-                : "Brak zgłoszonego bólu / urazu"}
+              {profile.painInjury
+                ? "Zgłoszony ból lub uraz — plan ograniczony"
+                : "Brak zgłoszonego bólu lub urazu"}
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <CircleCheck className="h-4 w-4 text-primary" />
+              {isMinor && !profile.guardianConsent ? (
+                <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
+              ) : (
+                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+              )}
               {isMinor
-                ? p.guardianConsent
-                  ? "Zgoda rodzica/opiekuna potwierdzona"
-                  : "Brak zgody opiekuna"
-                : "Pełnoletni — zgoda niewymagana"}
+                ? profile.guardianConsent
+                  ? "Zgoda rodzica lub opiekuna potwierdzona"
+                  : "Brak zgody rodzica lub opiekuna"
+                : "Pełnoletni — zgoda opiekuna niewymagana"}
             </div>
           </div>
-        </div>
-
-        <div className="pt-1">
-          <div className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Target className="h-3.5 w-3.5" /> Analiza zawodnika · Player Analysis
-          </div>
-          <PlayerAnalysis />
-        </div>
+        </section>
 
         <Button
           className="w-full gap-2"
           onClick={() => navigate({ to: "/onboarding", search: { edit: true } })}
         >
-          <Pencil className="h-4 w-4" /> Edytuj profil
+          <Pencil className="h-4 w-4" aria-hidden="true" /> Edytuj profil i plan
         </Button>
 
         <div className="soft-card divide-y divide-border p-0">
-          <button
+          <SettingsLink
+            icon={FileDown}
+            label="Moje dane i prawa (RODO)"
             onClick={() => navigate({ to: "/data-rights" })}
-            className="flex w-full items-center gap-3 p-4 text-left"
-          >
-            <ShieldIcon className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Moje dane i prawa (RODO)</span>
-            <FileDown className="ml-auto h-4 w-4 text-muted-foreground" />
-          </button>
-          <button
+          />
+          <SettingsLink
+            icon={FileText}
+            label="Polityka prywatności"
             onClick={() => navigate({ to: "/privacy-policy" })}
-            className="flex w-full items-center gap-3 p-4 text-left"
-          >
-            <FileText className="h-4 w-4 text-foreground" />
-            <span className="text-sm font-medium">Polityka prywatności</span>
-            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
-          </button>
-          <button
+          />
+          <SettingsLink
+            icon={FileText}
+            label="Regulamin"
             onClick={() => navigate({ to: "/terms" })}
-            className="flex w-full items-center gap-3 p-4 text-left"
-          >
-            <FileText className="h-4 w-4 text-foreground" />
-            <span className="text-sm font-medium">Regulamin</span>
-            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
-          </button>
+          />
         </div>
-
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={async () => {
-            await restartOnboarding();
-            navigate({ to: "/onboarding" });
-          }}
-        >
-          <Pencil className="h-4 w-4" /> Resetuj onboarding (od nowa)
-        </Button>
 
         <Button
           variant="outline"
           className="w-full gap-2 text-destructive"
           onClick={handleSignOut}
         >
-          <LogOut className="h-4 w-4" /> Wyloguj się
+          <LogOut className="h-4 w-4" aria-hidden="true" /> Wyloguj się
         </Button>
-
-
-
       </div>
 
       <Disclaimer />
     </div>
+  );
+}
+
+function DirectionTags({
+  label,
+  values,
+  tone,
+}: {
+  label: string;
+  values: string[];
+  tone: "primary" | "secondary";
+}) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {values.length ? (
+          values.map((value) => (
+            <span
+              key={value}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                tone === "primary"
+                  ? "bg-primary/10 text-primary"
+                  : "bg-secondary text-secondary-foreground"
+              }`}
+            >
+              {value}
+            </span>
+          ))
+        ) : (
+          <span className="text-xs text-muted-foreground">Nie ustawiono</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SettingsLink({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof FileText;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 p-4 text-left"
+    >
+      <Icon className="h-4 w-4 text-foreground" aria-hidden="true" />
+      <span className="text-sm font-medium">{label}</span>
+      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
+    </button>
   );
 }

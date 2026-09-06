@@ -10,7 +10,7 @@
 // / timingHint / unresolvedIssue — nigdy nie pomijamy problemu po cichu.
 // ============================================================================
 
-import type { DoubleSessions, Intensity, SessionCategory } from "./types";
+import type { DoubleSessions, Intensity, Level, SessionCategory } from "./types";
 import type { DevelopmentStage } from "./athleteProfile";
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,8 @@ export interface AthleteSchedProfile {
   developmentStage?: DevelopmentStage | null;
   safetyLevel?: "youth_safe" | "developmental" | "performance" | null;
   gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced" | null;
+  /** Ogólny poziom sportowy steruje zgodą na dwie pełne sesje. */
+  trainingLevel?: Level | null;
 }
 
 export interface SchedWeekContext {
@@ -198,6 +200,20 @@ export function wouldCreateDuplicateSpeedDay(day: SchedDay, newSession: SchedSes
   return hasSpeedSession(day);
 }
 
+const UNIQUE_DOMINANT_CATEGORIES = new Set<SessionCategory>([
+  "club",
+  "gym_strength",
+  "endurance_conditioning",
+  "speed_sprint",
+  "match",
+]);
+
+/** Nigdy nie planujemy drugi raz tego samego dominującego bodźca jednego dnia. */
+export function wouldRepeatDominantStimulus(day: SchedDay, newSession: SchedSession): boolean {
+  if (!UNIQUE_DOMINANT_CATEGORIES.has(newSession.category)) return false;
+  return (day.sessions ?? []).some((session) => session.category === newSession.category);
+}
+
 // ---------------------------------------------------------------------------
 // Obciążenie sesji / klubu
 // ---------------------------------------------------------------------------
@@ -274,6 +290,20 @@ export function isYouthOrBeginner(athlete?: AthleteSchedProfile | null): boolean
   ) {
     return true;
   }
+  return athlete.gymExperienceLevel === "none" || athlete.gymExperienceLevel === "beginner";
+}
+
+/** Czy druga pełna/ciężka sesja jest dla tego profilu niedozwolona. */
+export function requiresLightSecondSession(athlete?: AthleteSchedProfile | null): boolean {
+  if (!athlete) return false;
+  if (athlete.safetyLevel === "youth_safe") return true;
+  if (
+    athlete.developmentStage === "child_foundation" ||
+    athlete.developmentStage === "early_youth"
+  ) {
+    return true;
+  }
+  if (athlete.trainingLevel != null) return athlete.trainingLevel === "beginner";
   return athlete.gymExperienceLevel === "none" || athlete.gymExperienceLevel === "beginner";
 }
 
@@ -354,6 +384,13 @@ export function validateTwoADayCombination(
   const other = existing[0];
   const toMatch = day.toMatch;
 
+  if (wouldRepeatDominantStimulus(day, newSession)) {
+    return {
+      allowed: false,
+      blockReason: "Tego samego dominującego bodźca nie planujemy dwa razy jednego dnia.",
+    };
+  }
+
   // Reguły dnia przed meczem (MD-1).
   if (toMatch === 1) {
     if (newSession.isHeavyLegs || other.isHeavyLegs) {
@@ -386,22 +423,15 @@ export function validateTwoADayCombination(
   }
 
   // Druga ciężka sesja u youth/beginner (sprawdzane przed ogólną regułą).
-  if (isYouthOrBeginner(athlete) && isHeavySession(newSession) && isHeavySession(other)) {
+  if (requiresLightSecondSession(athlete) && isHeavySession(newSession) && isHeavySession(other)) {
     return {
       allowed: false,
       blockReason: "Zablokowano drugą ciężką sesję, bo zawodnik jest youth/beginner.",
     };
   }
 
-  // Dwa bardzo ciężkie bodźce jednego dnia.
-  if (isHeavySession(other) && isHeavySession(newSession)) {
-    return { allowed: false, blockReason: "Dwa bardzo ciężkie bodźce jednego dnia są zablokowane." };
-  }
-
-  // Dwie pełne sesje szybkościowe jednego dnia.
-  if (other.category === "speed_sprint" && newSession.category === "speed_sprint") {
-    return { allowed: false, blockReason: "Dwie pełne sesje szybkościowe jednego dnia są zablokowane." };
-  }
+  // Intermediate/advanced/elite mogą wykonać dwie pełne sesje, jeśli para
+  // jest komplementarna. Ryzykowne pary są blokowane powyżej i poniżej.
 
   // Ciężkie endurance + ciężki club tego samego dnia.
   if (
@@ -468,13 +498,11 @@ export function canAddSessionToDay(
     };
   }
 
-  // 1b) TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia.
-  // Obowiązuje zawsze — niezależnie od celu, wieku i limitu 2 sesji.
-  if (wouldCreateDuplicateSpeedDay(day, session)) {
+  // 1b) TWARDA ZASADA: nigdy dwa takie same dominujące bodźce jednego dnia.
+  if (wouldRepeatDominantStimulus(day, session)) {
     return {
       allowed: false,
-      blockReason:
-        "Dzień ma już speed_sprint — druga jednostka szybkościowa tego samego dnia jest zablokowana.",
+      blockReason: "Dzień ma już taki dominujący bodziec — druga taka sama sesja jest zablokowana.",
     };
   }
 

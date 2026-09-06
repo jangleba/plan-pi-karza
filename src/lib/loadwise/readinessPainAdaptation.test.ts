@@ -311,9 +311,11 @@ describe("Second session removal", () => {
     expect(session.secondSession).not.toBeNull();
   });
 
-  it("readiness 6: second session removed", () => {
+  it("readiness 6: second session zostaje, ale ma mniejszą objętość", () => {
     const { session } = applyReadiness(withSecond, makeReadiness(6), BASE_PROFILE);
-    expect(session.secondSession).toBeNull();
+    expect(session.secondSession).not.toBeNull();
+    expect(session.secondSession?.durationMin).toBeLessThan(withSecond.secondSession!.durationMin);
+    expect(session.secondSession?.safetyNote).toContain("Niższa gotowość");
   });
 
   it("pain: second session removed regardless of readiness", () => {

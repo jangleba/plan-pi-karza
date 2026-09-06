@@ -115,7 +115,7 @@ export async function persistMonthlyPlan(
         id: sessionId,
         user_id: userId,
         training_day_id: dayId,
-        session_type: s.sessionType,
+        session_type: s.type ?? s.sessionType,
         title: s.title,
         goal: s.goalOfSession,
         duration_min: s.durationMin,
@@ -152,6 +152,7 @@ export async function persistMonthlyPlan(
     month,
     plan_json: plan as unknown as never,
     status: "archived",
+    active: false,
   });
   assertNoSupabaseError("training_plans.insert", planInsert.error);
   try {
@@ -169,13 +170,13 @@ export async function persistMonthlyPlan(
     }
     const activatePlan = await supabase
       .from("training_plans")
-      .update({ status: "active" })
+      .update({ status: "active", active: true })
       .eq("id", planId)
       .eq("user_id", userId);
     assertNoSupabaseError("training_plans.activate", activatePlan.error);
     const archivePrevious = await supabase
       .from("training_plans")
-      .update({ status: "archived" })
+      .update({ status: "archived", active: false })
       .eq("user_id", userId)
       .eq("status", "active")
       .neq("id", planId);
@@ -184,4 +185,63 @@ export async function persistMonthlyPlan(
     await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
     throw error;
   }
+}
+
+/**
+ * Zapisuje sesję dodaną lub zamienioną przez zawodnika w tym samym modelu,
+ * którego używa plan. Dzięki temu można ją ukończyć i zachować w historii.
+ */
+export async function persistModifiedSession(
+  userId: string,
+  trainingDayId: string,
+  session: SessionDay,
+): Promise<SessionDay> {
+  const sessionId = crypto.randomUUID();
+  const persisted: SessionDay = {
+    ...session,
+    dbId: sessionId,
+    dayDbId: trainingDayId,
+  };
+  const sessionInsert = await supabase.from("training_sessions").insert({
+    id: sessionId,
+    user_id: userId,
+    training_day_id: trainingDayId,
+    session_type: session.type ?? session.sessionType,
+    title: session.title,
+    goal: session.goalOfSession,
+    duration_min: session.durationMin,
+    intensity: session.intensity,
+    warmup_json: session.sections.warmup as unknown as never,
+    main_work_json: [
+      ...session.sections.main,
+      ...session.sections.accessory,
+      ...session.sections.footballTransfer,
+    ] as unknown as never,
+    cooldown_json: session.sections.cooldown as unknown as never,
+    safety_notes: session.safetyNote,
+  });
+  assertNoSupabaseError("training_sessions.insert_modified", sessionInsert.error);
+
+  const rows: ExerciseRow[] = [];
+  let index = 0;
+  const push = (label: string, items: ExerciseItem[]) => {
+    const next = buildExerciseRows(userId, sessionId, index, label, items);
+    index += next.length;
+    rows.push(...next);
+  };
+  push("warmup", session.sections.warmup);
+  push("main", session.sections.main);
+  push("accessory", session.sections.accessory);
+  push("footballTransfer", session.sections.footballTransfer);
+  push("cooldown", session.sections.cooldown);
+
+  if (rows.length > 0) {
+    const exerciseInsert = await supabase.from("session_exercises").insert(rows as never);
+    if (exerciseInsert.error) {
+      await supabase.from("training_sessions").delete().eq("id", sessionId).eq("user_id", userId);
+      assertNoSupabaseError("session_exercises.insert_modified", exerciseInsert.error);
+    }
+  }
+
+  return persisted;
 }

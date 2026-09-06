@@ -6,6 +6,7 @@ const CAT_COLOR: Record<TrainingCategoryKey, string> = {
   gym: "bg-primary",
   speed: "bg-primary/70",
   endurance: "bg-primary/50",
+  ball: "bg-accent-foreground/55",
   club: "bg-muted-foreground/60",
   match: "bg-destructive/70",
   recovery: "bg-primary/25",
@@ -60,6 +61,8 @@ export function LoadCard({ report }: { report: LoadReport }) {
             <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
               <div className="flex h-20 w-full items-end">
                 <div
+                  role="img"
+                  aria-label={`${d.weekdayLabel}: obciążenie ${d.load}`}
                   className="flex w-full flex-col-reverse overflow-hidden rounded-md motion-safe:transition-[height] motion-safe:duration-300 motion-safe:ease-out"
                   style={{ height: `${h}%`, minHeight: d.load > 0 ? 4 : 0 }}
                 >
@@ -86,7 +89,7 @@ export function LoadCard({ report }: { report: LoadReport }) {
               key={k}
               className="flex items-center gap-1 text-[10px] text-muted-foreground"
             >
-              <i className={`h-2 w-2 rounded-full ${CAT_COLOR[k]}`} />
+              <i aria-hidden="true" className={`h-2 w-2 rounded-full ${CAT_COLOR[k]}`} />
               {TRAINING_CATEGORY_LABELS[k]}
             </span>
           ))}
