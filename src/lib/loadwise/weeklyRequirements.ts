@@ -9,6 +9,7 @@
 //   - 2 sesje gym_strength (niezależnie od sezonu, klubu, meczu, celu),
 //   - minimum 1 sesja endurance_conditioning,
 //   - minimum 1 sesja speed_sprint,
+//   - minimum 1 własna sesja ball_technical (klub i mecz jej nie zastępują),
 //   - cel szybkościowy → minimum 2 speed_sprint,
 //   - cel wydolnościowy → liczba endurance zależy od liczby klubowych,
 //   - wiek/poziom NIE kasują kategorii — zmieniają tylko treść/objętość/wariant,
@@ -58,6 +59,7 @@ export interface WeeklyRequirements {
   requiredEnduranceSessions: number;
   absoluteMinimumEnduranceSessions: number;
   requiredSpeedSessions: number;
+  requiredBallSessions: number;
   recommendedEnduranceSessions: number;
   recommendedSpeedSessions: number;
   forbidEnduranceOnClubDays: boolean;
@@ -312,6 +314,24 @@ export function getRequiredSpeedSessions(
 }
 
 /**
+ * Własna sesja piłkarska jest stałym minimum i nie jest zastępowana przez
+ * klub ani mecz. Jedyny wyjątek bezpieczeństwa: początkujący/młody zawodnik,
+ * którego wszystkie 7 dni zajmują już stałe punkty (mecze + klub).
+ */
+export function getRequiredBallSessions(
+  ctx: WeekRequirementContext,
+  athlete?: AthleteRequirementProfile | null,
+): number {
+  const fixedDays = getClubTrainingCount(ctx) + getMatchCount(ctx);
+  const safety = resolveSafetyLevel(athlete);
+  const beginner =
+    athlete?.gymExperienceLevel === "none" ||
+    athlete?.gymExperienceLevel === "beginner";
+  if (fixedDays >= 7 && (beginner || safety.level === "youth_safe")) return 0;
+  return 1;
+}
+
+/**
  * Czy dokładać dodatkowe endurance ponad minimum bazowe (cel wydolnościowy).
  */
 export function shouldAddExtraEnduranceSessions(
@@ -394,22 +414,28 @@ export function calculateWeeklyMinimumRequirements(
     athleteGoal,
     athleteTrainingProfile,
   );
+  const requiredBallSessions = getRequiredBallSessions(
+    weekContext,
+    athleteTrainingProfile,
+  );
 
   const reasonParts: string[] = [];
   reasonParts.push(`${requiredGymSessions}× siłownia`);
   reasonParts.push(`${requiredEnduranceSessions}× wydolność`);
   reasonParts.push(`${requiredSpeedSessions}× szybkość`);
+  reasonParts.push(`${requiredBallSessions}× własna piłka`);
   if (goalRules.isSpeedGoal) reasonParts.push("cel szybkościowy → 2 szybkości");
   if (goalRules.isEnduranceGoal)
     reasonParts.push(`cel wydolnościowy → endurance wg ${clubTrainingCount} klubowych`);
   if (seasonRules.isInSeason) reasonParts.push("w sezonie: możliwa redukcja objętości, kategorie zostają");
-  reasonParts.push("club nie zastępuje endurance; para możliwa tylko gdy komplementarna");
+  reasonParts.push("club nie zastępuje własnych minimów BallWise; para możliwa tylko gdy komplementarna");
 
   return {
     requiredGymSessions,
     requiredEnduranceSessions,
     absoluteMinimumEnduranceSessions,
     requiredSpeedSessions,
+    requiredBallSessions,
     recommendedEnduranceSessions: requiredEnduranceSessions,
     recommendedSpeedSessions: requiredSpeedSessions,
     forbidEnduranceOnClubDays: false,

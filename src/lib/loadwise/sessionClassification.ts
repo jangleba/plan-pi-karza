@@ -514,6 +514,11 @@ export function isSpeedSession(session: SessionDay): boolean {
   return classOf(session).countsAsSpeed;
 }
 
+/** Własna sesja techniczna z piłką — klub i mecz nie spełniają tego minimum. */
+export function isBallTechnicalSession(session: SessionDay): boolean {
+  return classOf(session).subcategory === "ball_technical";
+}
+
 export function isClubSession(session: SessionDay): boolean {
   return classOf(session).countsAsClub;
 }

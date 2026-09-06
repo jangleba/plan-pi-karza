@@ -8,6 +8,7 @@ import {
   getRequiredGymSessions,
   getRequiredEnduranceSessions,
   getRequiredSpeedSessions,
+  getRequiredBallSessions,
   shouldAddExtraEnduranceSessions,
   shouldAddSecondSpeedSession,
   type WeekRequirementContext,
@@ -28,11 +29,27 @@ function ctx(overrides: Partial<WeekRequirementContext> = {}): WeekRequirementCo
 const settings: UserRequirementSettings = { hasGym: true };
 
 describe("weeklyRequirements — cel normalny", () => {
-  it("zwykły tydzień zwraca 2 gym, 1 endurance, 1 speed", () => {
+  it("zwykły tydzień zwraca 2 gym, 1 endurance, 1 speed i 1 własną piłkę", () => {
     const r = calculateWeeklyMinimumRequirements(ctx(), settings, "general");
     expect(r.requiredGymSessions).toBe(2);
     expect(r.requiredEnduranceSessions).toBe(1);
     expect(r.requiredSpeedSessions).toBe(1);
+    expect(r.requiredBallSessions).toBe(1);
+  });
+
+  it("klub i mecz nie zastępują własnej sesji piłkarskiej", () => {
+    const r = calculateWeeklyMinimumRequirements(
+      ctx({ clubTrainingCount: 4, matchCount: 1 }),
+      settings,
+      "general",
+    );
+    expect(r.requiredBallSessions).toBe(1);
+  });
+
+  it("wyjątek bezpieczeństwa dotyczy tylko początkującego z 7 stałymi dniami", () => {
+    const crowded = ctx({ clubTrainingCount: 5, matchCount: 2 });
+    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "beginner" })).toBe(0);
+    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "advanced" })).toBe(1);
   });
 
   it("brak celu wydolnościowego i 4 klubowe zwraca requiredEnduranceSessions = 1", () => {

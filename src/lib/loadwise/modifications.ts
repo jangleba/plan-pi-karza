@@ -4,6 +4,7 @@ import type {
   ExerciseItem,
   Intensity,
   ModificationType,
+  PlanSessionType,
 } from "./types";
 import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
@@ -27,6 +28,16 @@ type Category =
   | "endurance"
   | "sprint"
   | "strength";
+
+const PLAN_TYPE_BY_CATEGORY: Record<Category, PlanSessionType> = {
+  mobility: "prehab_mobility",
+  ball: "football_technical",
+  recovery: "recovery",
+  activation: "activation",
+  endurance: "endurance_running",
+  sprint: "sprint_acceleration",
+  strength: "strength_power",
+};
 
 export interface Proposal {
   id: string;
@@ -196,28 +207,24 @@ const CANDIDATES: Candidate[] = [
   },
   {
     category: "ball",
-    title: "Technika z piłką",
-    sessionType: "Technika z piłką (lekka)",
+    title: "Własna technika z piłką + reakcja",
+    sessionType: "Technika z piłką — własna sesja",
     intensity: "niska",
     intensityLabel: "niska",
     baseDuration: 30,
-    reason: "Uzupełnia plan bez dużego obciążenia nóg.",
-    build: (place, timeMin) => ({
+    reason: "Własna praca z piłką, której klub i mecz nie zastępują.",
+    build: (_place, timeMin) => ({
       warmup: warmupLight(),
       main: [
         {
-          name: "Pierwszy kontakt i skanowanie",
-          prescription: `${clampTime(10, timeMin)} min przyjęć kierunkowych`,
-          cue: "Skan przed przyjęciem, kontakt w ruch.",
+          name: "Własny blok techniczny",
+          prescription: `${clampTime(30, timeMin)} min łącznie`,
+          cue: "Wybierz element, który chcesz poprawić: prowadzenie, pierwszy kontakt, zwód, podanie albo wykończenie.",
         },
         {
-          name:
-            place === "dom"
-              ? "Podania o ścianę / odbojnik"
-              : "Podania obunóż na dystansie",
-          prescription: "10 min, różne kierunki",
-          cue: "Celność przed siłą, obie nogi.",
-          harder: "Słabsza noga co drugie powtórzenie.",
+          name: "Trener reakcji BallWise",
+          prescription: "Uruchamiaj w wybranych fragmentach",
+          cue: "Telefon pokazuje kierunek, kolor lub zamknięty sektor. Ty przypisujesz bodźcowi akcję z piłką.",
         },
       ],
       accessory: [],
@@ -397,6 +404,7 @@ function makeSession(
     date: ctx.date,
     dayName: dayName(parseIso(ctx.date)),
     dayType: c.category === "recovery" ? "recovery" : "training",
+    type: PLAN_TYPE_BY_CATEGORY[c.category],
     title: c.title,
     goalLabel: c.sessionType,
     intensity: c.intensity,
@@ -405,6 +413,8 @@ function makeSession(
     safetyNote: null,
     whyToday: c.reason,
     sessionType: c.sessionType,
+    isOwnSession: c.category !== "recovery" && c.category !== "mobility",
+    isRecoveryOrPrehab: c.category === "recovery" || c.category === "mobility",
     goalOfSession: c.reason,
     riskManaged: "Dobrana tak, aby pasowała do meczu, klubu i obciążenia tygodnia.",
     avoidToday: "",

@@ -21,6 +21,7 @@ import {
   normalizeSessionCategory,
   isEnduranceSession,
   isMainGymSession,
+  isBallTechnicalSession,
   isClubSession,
   isMatchSession,
   isRecoverySession,
@@ -56,16 +57,27 @@ export interface AddMissingEnduranceResult {
   unresolvedIssues: string[];
 }
 
+export interface AddMissingBallResult {
+  weekPlan: SessionDay[];
+  added: number;
+  converted: number;
+  count: number;
+  requiredBallSessions: number;
+  unresolvedIssues: string[];
+}
+
 export interface WeekValidationReport {
   ok: boolean;
   finalStatus: "valid" | "invalid";
   gymSessionsCount: number;
   enduranceSessionsCount: number;
   speedSessionsCount: number;
+  ballSessionsCount: number;
   requiredGymSessions: number;
   requiredEnduranceSessions: number;
   absoluteMinimumEnduranceSessions: number;
   requiredSpeedSessions: number;
+  requiredBallSessions: number;
   noEnduranceOnClubDays: boolean;
   noMoreThanMaxSessionsPerDay: boolean;
   noDuplicateSpeedSameDay: boolean;
@@ -111,6 +123,13 @@ function countGymSessions(weekPlan: SessionDay[]): number {
 function countSpeedSessions(weekPlan: SessionDay[]): number {
   return weekPlan.reduce(
     (n, d) => n + eachSession(d).filter((s) => isSpeedSession(s)).length,
+    0,
+  );
+}
+
+export function countBallSessions(weekPlan: SessionDay[]): number {
+  return weekPlan.reduce(
+    (n, d) => n + eachSession(d).filter((s) => isBallTechnicalSession(s)).length,
     0,
   );
 }
@@ -862,6 +881,193 @@ export function addMissingEnduranceSessions(
 }
 
 // ---------------------------------------------------------------------------
+// Własna sesja piłkarska — minimum niezależne od klubu i meczu
+// ---------------------------------------------------------------------------
+
+function buildBallSessionDay(
+  templateDay: SessionDay,
+  opts: { slotLabel?: string | null; placementReason?: string },
+): SessionDay {
+  const placementReason =
+    opts.placementReason ??
+    "Dodano własną sesję piłkarską — klub i mecz liczą się do obciążenia, ale jej nie zastępują.";
+  const raw: SessionDay = {
+    date: templateDay.date,
+    dayName: templateDay.dayName || dayNameOf(parseIso(templateDay.date)),
+    dayType: "training" as DayType,
+    title: "Własna technika z piłką + reakcja",
+    goalLabel: "Piłka",
+    intensity: "niska",
+    durationMin: 30,
+    reason: placementReason,
+    safetyNote: null,
+    whyToday: placementReason,
+    sessionType: "Technika z piłką — własna sesja",
+    goalOfSession:
+      "Minimum 30 minut własnej pracy z piłką. Zawodnik wybiera ćwiczenia, a Trener reakcji dostarcza bodźce wizualne.",
+    riskManaged:
+      "Niska intensywność planowana wokół stałych punktów tygodnia; bez automatycznej oceny jakości wykonania.",
+    avoidToday:
+      "Nie zamieniaj tej sesji w dodatkowy maksymalny sprint ani ciężki trening kondycyjny.",
+    mdLabel: templateDay.mdLabel ?? null,
+    slotLabel: opts.slotLabel ?? null,
+    sections: {
+      warmup: [
+        {
+          name: "Swobodne prowadzenie piłki",
+          prescription: "5 min",
+          cue: "Obie nogi, stopniowo zwiększaj zakres ruchu.",
+        },
+      ],
+      main: [
+        {
+          name: "Własny blok techniczny",
+          prescription: "Łącznie minimum 30 min sesji",
+          cue: "Wybierz element, który chcesz poprawić: prowadzenie, pierwszy kontakt, zwód, podanie albo wykończenie.",
+        },
+        {
+          name: "Trener reakcji BallWise",
+          prescription: "Uruchamiaj w wybranych fragmentach",
+          cue: "Telefon pokazuje kierunek, kolor lub zamknięty sektor. Ty przypisujesz bodźcowi konkretną akcję z piłką.",
+        },
+      ],
+      accessory: [],
+      footballTransfer: [],
+      cooldown: [
+        {
+          name: "Spokojne zakończenie z piłką",
+          prescription: "2–3 min",
+          cue: "Obniż tempo i zakończ bez dodatkowego zmęczenia.",
+        },
+      ],
+    },
+    secondSession: null,
+  };
+
+  const normalized = normalizeSessionCategory(raw);
+  if (normalized.classification) {
+    normalized.classification.generatedBy = "final-week-validator";
+    normalized.classification.repairTag = "missing-ball";
+    normalized.classification.placementReason = placementReason;
+  }
+  return normalized;
+}
+
+/**
+ * Gwarantuje własną sesję piłkarską bez uznawania klubu lub meczu za zamiennik.
+ * Początkujący dostaje ją tylko jako osobny, lekki dzień. Zawodnik
+ * intermediate/advanced może dostać ją jako komplementarny drugi slot.
+ */
+export function addMissingBallSessions(
+  weekPlan: SessionDay[],
+  weeklyRequirements: WeeklyRequirements,
+  profile: Profile,
+): AddMissingBallResult {
+  const required = weeklyRequirements.requiredBallSessions;
+  const unresolvedIssues: string[] = [];
+  let added = 0;
+  let converted = 0;
+  let guard = 0;
+
+  while (countBallSessions(weekPlan) < required && guard < 4) {
+    guard += 1;
+
+    const restTarget = weekPlan.find(
+      (day) =>
+        !day.isUnavailable &&
+        day.dayType === "rest" &&
+        !isMatchSession(day) &&
+        !isClubSession(day) &&
+        !isDayBeforeMatch(day) &&
+        !isDayAfterMatch(day),
+    ) ?? weekPlan.find(
+      (day) =>
+        !day.isUnavailable &&
+        day.dayType === "rest" &&
+        !isMatchSession(day) &&
+        !isClubSession(day),
+    );
+
+    if (restTarget) {
+      const rebuilt = buildBallSessionDay(restTarget, {
+        placementReason:
+          "Wybrano wolny dzień na minimum 30 minut własnej pracy z piłką.",
+      });
+      weekPlan[weekPlan.indexOf(restTarget)] = rebuilt;
+      added += 1;
+      continue;
+    }
+
+    const recoveryTarget = weekPlan.find(
+      (day) =>
+        !day.isUnavailable &&
+        isRecoverySession(day) &&
+        !day.secondSession &&
+        !isMatchSession(day) &&
+        !isClubSession(day) &&
+        !isDayBeforeMatch(day) &&
+        !isDayAfterMatch(day),
+    );
+    if (recoveryTarget) {
+      weekPlan[weekPlan.indexOf(recoveryTarget)] = buildBallSessionDay(recoveryTarget, {
+        placementReason:
+          "Zamieniono lekki dzień na niskointensywną własną technikę z piłką.",
+      });
+      converted += 1;
+      continue;
+    }
+
+    if (!requiresLightSecondSession(profile)) {
+      const secondSlotHost = weekPlan.find(
+        (day) =>
+          !day.isUnavailable &&
+          !isMatchSession(day) &&
+          !day.secondSession &&
+          realSessionCount(day) < 2 &&
+          !isBallTechnicalSession(day) &&
+          !isDayBeforeMatch(day),
+      ) ?? weekPlan.find(
+        (day) =>
+          !day.isUnavailable &&
+          !isMatchSession(day) &&
+          !day.secondSession &&
+          realSessionCount(day) < 2 &&
+          !isBallTechnicalSession(day),
+      );
+
+      if (secondSlotHost) {
+        secondSlotHost.secondSession = buildBallSessionDay(secondSlotHost, {
+          slotLabel: "Sesja 2 (własna piłka)",
+          placementReason:
+            "Dodano lekką, komplementarną własną sesję piłkarską w drugim slocie dnia.",
+        });
+        secondSlotHost.slotLabel = secondSlotHost.slotLabel ?? "Sesja 1";
+        added += 1;
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  const count = countBallSessions(weekPlan);
+  if (count < required) {
+    unresolvedIssues.push(
+      `Tydzień ma ${count}/${required} własnych sesji piłkarskich — brak bezpiecznego miejsca bez łamania stałych punktów tygodnia.`,
+    );
+  }
+
+  return {
+    weekPlan,
+    added,
+    converted,
+    count,
+    requiredBallSessions: required,
+    unresolvedIssues,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Naprawa brakujących sesji siłowni (analogicznie do endurance)
 // ---------------------------------------------------------------------------
 
@@ -1106,11 +1312,6 @@ export function addMissingGymSessions(
     const speedCount =
       countSpeedSessions(weekPlan);
 
-    const hasFootballExposure = weekPlan.some(
-      (day) =>
-        isClubSession(day) || isMatchSession(day),
-    );
-
     const ballCount = weekPlan.reduce(
       (total, day) =>
         total +
@@ -1209,7 +1410,7 @@ export function addMissingGymSessions(
           }
 
           if (subcategory === "ball_technical") {
-            return hasFootballExposure || ballCount > 1;
+            return ballCount > weeklyRequirements.requiredBallSessions;
           }
 
           return (
@@ -1273,6 +1474,7 @@ export function assertFinalPlanMeetsMinimums(
   const gymSessionsCount = countGymSessions(weekPlan);
   const enduranceSessionsCount = countEnduranceSessions(weekPlan);
   const speedSessionsCount = countSpeedSessions(weekPlan);
+  const ballSessionsCount = countBallSessions(weekPlan);
 
   const requiredGymSessions = weeklyRequirements.requiredGymSessions;
   const requiredEnduranceSessions = weeklyRequirements.requiredEnduranceSessions;
@@ -1281,6 +1483,7 @@ export function assertFinalPlanMeetsMinimums(
     weeklyRequirements.absoluteMinimumEnduranceSessions,
   );
   const requiredSpeedSessions = weeklyRequirements.requiredSpeedSessions;
+  const requiredBallSessions = weeklyRequirements.requiredBallSessions;
 
   const noEnduranceOnClubDays = !weekPlan.some(
     (d) =>
@@ -1303,6 +1506,8 @@ export function assertFinalPlanMeetsMinimums(
     );
   if (speedSessionsCount < requiredSpeedSessions)
     unresolvedIssues.push(`Za mało szybkości: ${speedSessionsCount}/${requiredSpeedSessions}.`);
+  if (ballSessionsCount < requiredBallSessions)
+    unresolvedIssues.push(`Za mało własnej piłki: ${ballSessionsCount}/${requiredBallSessions}.`);
   if (!noEnduranceOnClubDays) unresolvedIssues.push("Zbyt ciężki endurance w dzień klubowy.");
   if (!noMoreThanMaxSessionsPerDay) unresolvedIssues.push("Dzień z 3 sesjami.");
   if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
@@ -1318,10 +1523,12 @@ export function assertFinalPlanMeetsMinimums(
     gymSessionsCount,
     enduranceSessionsCount,
     speedSessionsCount,
+    ballSessionsCount,
     requiredGymSessions,
     requiredEnduranceSessions,
     absoluteMinimumEnduranceSessions,
     requiredSpeedSessions,
+    requiredBallSessions,
     noEnduranceOnClubDays,
     noMoreThanMaxSessionsPerDay,
     noDuplicateSpeedSameDay,
@@ -1392,6 +1599,9 @@ export function validateAndRepairWeekPlan(
     profile,
   );
   validateNoEnduranceOnClubDays(weekPlan, profile);
+  // Własna piłka jest dodawana na końcu, żeby wcześniejsze naprawy siły i
+  // wydolności nie mogły jej skasować. Klub i mecz nie spełniają tego minimum.
+  addMissingBallSessions(weekPlan, requirements, profile);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
 
