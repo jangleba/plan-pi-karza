@@ -1,17 +1,26 @@
-name: Plan Engine Contract
+name: BallWise Quality
 
 on:
   push:
     branches:
-      - plann-enginev2-exercises-contract
+      - main
   pull_request:
-    paths:
-      - "src/lib/loadwise/**"
-      - ".github/workflows/plan-engine-contract.yml"
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ballwise-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  test-plan-contract:
+  quality:
+    name: Lint, typy, testy i build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Pobierz repozytorium
@@ -26,8 +35,14 @@ jobs:
       - name: Zainstaluj zależności
         run: npm ci
 
-      - name: Uruchom wszystkie testy Planu
-        run: npx vitest run src/lib/loadwise
+      - name: Sprawdź ESLint
+        run: npm run lint
+
+      - name: Sprawdź TypeScript
+        run: npm run typecheck
+
+      - name: Uruchom wszystkie testy aktywnego kodu
+        run: npx vitest run --dir src
 
       - name: Sprawdź pełny build aplikacji
         run: npm run build
