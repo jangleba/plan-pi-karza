@@ -30,20 +30,13 @@ function useSvgPoint(ref: React.RefObject<SVGSVGElement | null>) {
   );
 }
 
-export function PitchView({
-  scenario,
-  decision,
-  onDecision,
-  locked = false,
-  best,
-}: Props) {
+export function PitchView({ scenario, decision, onDecision, locked = false, best }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const toPoint = useSvgPoint(svgRef);
   const [dragging, setDragging] = useState(false);
 
   const self = scenario.markers.find((m) => m.kind === "self");
-  const tapMode =
-    scenario.interaction === "pass" || scenario.interaction === "press";
+  const tapMode = scenario.interaction === "pass" || scenario.interaction === "press";
 
   const selectableIds = new Set(scenario.targets.map((t) => t.id));
 
@@ -216,14 +209,10 @@ export function PitchView({
         return (
           <g
             key={mk.id}
-            onPointerDown={
-              tappable ? () => selectMarker(mk.id, mk.x, mk.y) : undefined
-            }
+            onPointerDown={tappable ? () => selectMarker(mk.id, mk.x, mk.y) : undefined}
             style={{ cursor: tappable ? "pointer" : "default" }}
           >
-            {tappable && (
-              <circle cx={mk.x} cy={mk.y} r="11" fill="transparent" />
-            )}
+            {tappable && <circle cx={mk.x} cy={mk.y} r="11" fill="transparent" />}
             {selected && (
               <circle
                 cx={mk.x}

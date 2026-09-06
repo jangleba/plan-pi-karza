@@ -16,7 +16,6 @@ export type SimPitchActor = {
   facingDeg?: number;
 };
 
-
 export type SimPitchPath = {
   points: { x: number; y: number }[];
   variant: "user" | "alt";
@@ -71,14 +70,7 @@ export function SimPitch({ actors, paths, pulse }: Props) {
       </g>
 
       <defs>
-        <marker
-          id="sim-arrow"
-          markerWidth="4"
-          markerHeight="4"
-          refX="2.4"
-          refY="2"
-          orient="auto"
-        >
+        <marker id="sim-arrow" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 Z" className="fill-foreground" />
         </marker>
         <marker
