@@ -7,6 +7,7 @@ import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
 import { AppHeader } from "@/components/loadwise/ui";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -26,24 +27,21 @@ import {
 } from "lucide-react";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { applyExerciseReplacements } from "@/lib/loadwise/store";
-import type { Readiness, SessionDay, Intensity } from "@/lib/loadwise/types";
+import type { PainLocation, SessionDay, Intensity } from "@/lib/loadwise/types";
+import { buildReadiness, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
 });
 
 const readinessFields: {
-  key: keyof Omit<Readiness, "date">;
+  key: "sleep" | "energy" | "fatigue" | "jointPain";
   label: string;
 }[] = [
   { key: "sleep", label: "Sen" },
   { key: "energy", label: "Energia" },
-  { key: "fatigue", label: "Zmęczenie" },
-  { key: "soreness", label: "Bolesność mięśni" },
-  { key: "jointPain", label: "Ból stawów" },
-  { key: "stress", label: "Stres" },
-  { key: "motivation", label: "Motywacja" },
-  { key: "overall", label: "Ogólna gotowość" },
+  { key: "fatigue", label: "Zmęczenie nóg" },
+  { key: "jointPain", label: "Ból lub dyskomfort" },
 ];
 
 const LOAD_LABEL: Record<Intensity, string> = {
@@ -117,25 +115,20 @@ function ReadinessDialog({
     sleep: existing?.sleep ?? 7,
     energy: existing?.energy ?? 7,
     fatigue: existing?.fatigue ?? 4,
-    soreness: existing?.soreness ?? 3,
-    jointPain: existing?.jointPain ?? 2,
-    stress: existing?.stress ?? 3,
-    motivation: existing?.motivation ?? 7,
-    overall: existing?.overall ?? 7,
+    jointPain: existing?.jointPain ?? 0,
   }));
+  const [painLocation, setPainLocation] = useState<PainLocation | null>(
+    existing?.painLocation ?? null,
+  );
 
   function save() {
-    saveReadiness({
-      date: todayIso,
+    saveReadiness(buildReadiness(todayIso, {
       sleep: vals.sleep,
       energy: vals.energy,
       fatigue: vals.fatigue,
-      soreness: vals.soreness,
       jointPain: vals.jointPain,
-      stress: vals.stress,
-      motivation: vals.motivation,
-      overall: vals.overall,
-    });
+      painLocation,
+    }));
     onOpenChange(false);
     toast.success("Zapisano check-in gotowości.");
   }
@@ -155,7 +148,7 @@ function ReadinessDialog({
                 <span className="text-muted-foreground">{vals[f.key]}/10</span>
               </div>
               <Slider
-                min={1}
+                min={f.key === "jointPain" ? 0 : 1}
                 max={10}
                 step={1}
                 value={[vals[f.key]]}
@@ -163,6 +156,20 @@ function ReadinessDialog({
               />
             </div>
           ))}
+          {vals.jointPain > 0 && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Którego obszaru dotyczy dyskomfort?</span>
+              <Select value={painLocation ?? "other"} onValueChange={(value) => setPainLocation(value as PainLocation)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAIN_LOCATION_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Ta informacja służy wyłącznie do dobrania bezpieczniejszego wariantu obciążenia danego obszaru.</p>
+            </div>
+          )}
           <Button className="w-full" size="lg" onClick={save}>
             Zapisz check-in
           </Button>

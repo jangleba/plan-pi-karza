@@ -370,11 +370,14 @@ export type Database = {
           id: string;
           match_today: boolean | null;
           motivation: number | null;
+          overall: number | null;
+          pain_level: number | null;
           pain_location: string | null;
           pain_status: boolean | null;
           sleep: number | null;
           soreness: number | null;
           stress: number | null;
+          updated_at: string;
           user_id: string;
         };
         Insert: {
@@ -387,11 +390,14 @@ export type Database = {
           id?: string;
           match_today?: boolean | null;
           motivation?: number | null;
+          overall?: number | null;
+          pain_level?: number | null;
           pain_location?: string | null;
           pain_status?: boolean | null;
           sleep?: number | null;
           soreness?: number | null;
           stress?: number | null;
+          updated_at?: string;
           user_id: string;
         };
         Update: {
@@ -404,11 +410,14 @@ export type Database = {
           id?: string;
           match_today?: boolean | null;
           motivation?: number | null;
+          overall?: number | null;
+          pain_level?: number | null;
           pain_location?: string | null;
           pain_status?: boolean | null;
           sleep?: number | null;
           soreness?: number | null;
           stress?: number | null;
+          updated_at?: string;
           user_id?: string;
         };
         Relationships: [];
@@ -539,31 +548,43 @@ export type Database = {
       };
       session_logs: {
         Row: {
+          activity_type: string | null;
           completed: boolean | null;
+          completion_status: string;
           created_at: string;
+          duration_minutes: number | null;
           id: string;
           notes: string | null;
           rpe: number | null;
           session_id: string | null;
           user_id: string;
+          updated_at: string;
         };
         Insert: {
+          activity_type?: string | null;
           completed?: boolean | null;
+          completion_status?: string;
           created_at?: string;
+          duration_minutes?: number | null;
           id?: string;
           notes?: string | null;
           rpe?: number | null;
           session_id?: string | null;
           user_id: string;
+          updated_at?: string;
         };
         Update: {
+          activity_type?: string | null;
           completed?: boolean | null;
+          completion_status?: string;
           created_at?: string;
+          duration_minutes?: number | null;
           id?: string;
           notes?: string | null;
           rpe?: number | null;
           session_id?: string | null;
           user_id?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

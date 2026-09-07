@@ -300,17 +300,23 @@ function buildEnduranceSessionDay(
 }
 
 // ---------------------------------------------------------------------------
-// Twarda blokada: endurance nigdy w dzień klubowy
+// Jedna polityka club + endurance: para jest dozwolona u zawodnika, który może
+// trenować dwa razy dziennie, o ile nie łączy dwóch ciężkich bodźców.
 // ---------------------------------------------------------------------------
 
 export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[], profile?: Profile): { removed: number } {
   let removed = 0;
   for (const day of weekPlan) {
     if (!isClubSession(day)) continue;
+    const clubIsHard = eachSession(day).some(
+      (session) => isClubSession(session) && session.intensity === "wysoka",
+    );
     if (
       day.secondSession &&
       isEnduranceSession(day.secondSession) &&
-      (requiresLightSecondSession(profile ?? ({} as Profile)) || day.secondSession.intensity !== "niska")
+      ((requiresLightSecondSession(profile ?? ({} as Profile)) &&
+        day.secondSession.intensity !== "niska") ||
+        (clubIsHard && day.secondSession.intensity === "wysoka"))
     ) {
       day.secondSession = null;
       day.slotLabel = null;
@@ -1488,7 +1494,14 @@ export function assertFinalPlanMeetsMinimums(
   const noEnduranceOnClubDays = !weekPlan.some(
     (d) =>
       isClubSession(d) &&
-      eachSession(d).some((s) => isEnduranceSession(s) && s.intensity !== "niska"),
+      eachSession(d).some(
+        (s) =>
+          isEnduranceSession(s) &&
+          s.intensity === "wysoka" &&
+          eachSession(d).some(
+            (club) => isClubSession(club) && club.intensity === "wysoka",
+          ),
+      ),
   );
   const noMoreThanMaxSessionsPerDay = !weekPlan.some((d) => realSessionCount(d) > 2);
   const noDuplicateSpeedSameDay = !weekPlan.some(
@@ -1563,6 +1576,9 @@ function requirementsFor(weekPlan: SessionDay[], profile: Profile): WeeklyRequir
     {
       developmentStage: athlete.developmentStage,
       gymExperienceLevel: athlete.gymExperienceLevel,
+      hasActivePain:
+        profile.painInjury ||
+        (profile.painLocations?.length ?? 0) > 0,
     },
   );
 }

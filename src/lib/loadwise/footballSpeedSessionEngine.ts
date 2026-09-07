@@ -981,8 +981,7 @@ function dateOffset(date: string, days: number): string {
 function hasHardConflict(input: FootballSpeedEngineInput): boolean {
   const canShareClubDay =
     input.profile.age >= 16 &&
-    input.profile.level !== "beginner" &&
-    input.profile.doubleSessionsAllowed === "yes_if_safe";
+    input.profile.level !== "beginner";
   return (input.externalSessions ?? []).some((exposure) => {
     const adjacent = [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(
       exposure.date,

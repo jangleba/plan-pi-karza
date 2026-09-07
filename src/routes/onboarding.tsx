@@ -8,7 +8,6 @@ import type {
   Position,
   Level,
   Goal,
-  DoubleSessions,
   SeasonPhase,
   SeasonStage,
   CompetitionLevel,
@@ -246,9 +245,6 @@ function Onboarding() {
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
   const equipment: string[] = existing?.equipment ?? [];
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
-  const [doubleSessions, setDoubleSessions] = useState<DoubleSessions | null>(
-    existing?.doubleSessionsAllowed ?? null,
-  );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
   const [unavailableDays, setUnavailableDays] = useState<number[]>(
     existing?.unavailableDays ?? [],
@@ -381,8 +377,7 @@ function Onboarding() {
         !seasonBlocksContinue
       );
     if (step === 3) return goal !== null && secondaryLimiter !== null;
-    if (step === 4)
-      return doubleSessions !== null && matchDate.trim().length > 0;
+    if (step === 4) return matchDate.trim().length > 0;
     if (step === 5)
       return currentFeelings.length > 0 && desiredFeelings.length > 0;
     return true;
@@ -390,7 +385,7 @@ function Onboarding() {
 
   async function handleSubmit() {
     if (busy) return;
-    if (!position || !level || !goal || !doubleSessions || !(ageNum >= 13)) {
+    if (!position || !level || !goal || !(ageNum >= 13)) {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
@@ -451,7 +446,7 @@ function Onboarding() {
       matchDate: matchDate || null,
       equipment,
       painInjury,
-      doubleSessionsAllowed: doubleSessions,
+      doubleSessionsAllowed: level === "beginner" ? "light_only" : "yes_if_safe",
       guardianConsent: isMinor ? consent : true,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
@@ -923,35 +918,10 @@ function Onboarding() {
                 )}
               </div>
 
-              {/* Dwa treningi dziennie */}
-              <div className="space-y-2.5">
-                <Label>Czy możesz trenować 2 razy jednego dnia?</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      { v: "yes_if_safe", label: "Tak" },
-                      { v: "no", label: "Nie" },
-                    ] as { v: DoubleSessions; label: string }[]
-                  ).map((o) => (
-                    <button
-                      key={o.v}
-                      type="button"
-                      onClick={() => setDoubleSessions(o.v)}
-                      className={`rounded-full border px-3 py-2.5 text-sm font-medium transition-colors ${
-                        doubleSessions === o.v
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-foreground"
-                      }`}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Np. siłownia rano i trening klubowy wieczorem. Loadwise nie
-                  połączy dwóch ciężkich bodźców bez sensu.
-                </p>
-              </div>
+              <p className="rounded-xl bg-secondary px-4 py-3 text-xs text-muted-foreground">
+                Liczbę sesji dobiera Loadwise z poziomu zawodnika i obciążenia tygodnia.
+                Początkujący nie dostanie dwóch mocnych treningów jednego dnia.
+              </p>
             </div>
 
             {/* Warunki treningowe */}

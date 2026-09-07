@@ -31,7 +31,7 @@ function makeDay(date: string, revision: string): SessionDay {
 }
 
 describe("persisted plan reuse", () => {
-  it("does not require dbId to reuse valid persisted monthly plan", async () => {
+  it("rejects a persisted monthly plan that has no weekly training minimums", async () => {
     const revision = "2026-08-17T10:00:00.000Z";
     const start = addDays(localToday(), -7);
     const plan = Array.from({ length: 21 }, (_, i) =>
@@ -42,7 +42,7 @@ describe("persisted plan reuse", () => {
       onboardingRevision: revision,
     } as unknown as Profile;
 
-    await expect(shouldReusePersistedPlan(plan, profile)).resolves.toBe(true);
+    await expect(shouldReusePersistedPlan(plan, profile)).resolves.toBe(false);
   });
 
   it("requires regeneration when plan revision differs from profile revision", async () => {

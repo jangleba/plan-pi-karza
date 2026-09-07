@@ -113,7 +113,7 @@ describe("dozwolone kombinacje", () => {
     expect(place.allowed).toBe(true);
     const adapted = adaptEnduranceForClubDay(d, endurance({ durationMin: 40 }), adult);
     expect(adapted.adaptationReason).toBeTruthy();
-    expect(adapted.timingHint).toContain("4–6");
+    expect(adapted.timingHint).toContain("wydolność przed treningiem klubowym");
     expect(adapted.placementReason).toContain("minimum tygodniowego");
   });
 });

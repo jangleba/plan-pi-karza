@@ -631,10 +631,11 @@ export function adaptEnduranceForClubDay(
 
   const adapted: SchedSession = { ...enduranceSession };
 
-  // Domyślnie zalecamy endurance PRZED klubowym z zapasem czasu.
+  // Domyślnie zalecamy endurance przed klubowym, ale zgodnie z polityką
+  // podwójnych sesji nie narzucamy sztucznego minimalnego odstępu godzinowego.
   adapted.afterClub = enduranceSession.afterClub ?? false;
   adapted.timingHint =
-    "Wykonaj endurance minimum 4–6 godzin przed treningiem klubowym. Jeśli musi być po klubowym — tylko bardzo lekkie / recovery.";
+    "Najlepsza kolejność: wydolność przed treningiem klubowym. Jeśli wykonujesz ją po klubie, wybierz wyłącznie lekki wariant.";
 
   let level: SchedLoadLevel;
   let note: string;

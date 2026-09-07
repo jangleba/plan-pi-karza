@@ -26,6 +26,7 @@ import { sanitizeRoute } from "@/lib/running/metrics";
 import { sanitizeIntervalResults } from "@/lib/running/intervals";
 import type { KilometerSplit, RunningActivity, RunningActivityDraft } from "@/lib/running/types";
 import { deriveRunningEngineState, fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running/engine";
+import { expiredUnfinishedSessions } from "./sessionStatus";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -611,7 +612,12 @@ interface LoadwiseContextValue {
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   refreshPlanIfNeeded: () => void;
-  completeSession: (session: SessionDay, rpe: number | null, notes: string) => Promise<void>;
+  completeSession: (
+    session: SessionDay,
+    rpe: number | null,
+    notes: string,
+    details?: Pick<SessionCompletion, "durationMin" | "activityType">,
+  ) => Promise<void>;
   applyModification: (
     date: string,
     type: ModificationType,
@@ -646,6 +652,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
   const replacementInFlightRef = useRef(new Set<string>());
+  const missedSyncRef = useRef<string | null>(null);
   const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
   useEffect(() => {
@@ -702,7 +709,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       let safeProfile: Profile | null = null;
       const safeLocal: LocalState = loadLocal(user.id);
       try {
-        const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes, runningRes] =
+        const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes, runningRes, readinessRes] =
           await Promise.all([
             supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
             supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
@@ -716,7 +723,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .maybeSingle(),
             supabase
               .from("session_logs")
-              .select("session_id, completed, rpe, notes")
+              .select("session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type")
               .eq("user_id", user.id),
             supabase
               .from("session_modifications" as never)
@@ -739,6 +746,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .select("*")
               .eq("user_id", user.id)
               .order("date", { ascending: false }),
+            supabase
+              .from("readiness_logs")
+              .select("date, sleep, energy, fatigue, soreness, stress, motivation, pain_level, pain_location, overall")
+              .eq("user_id", user.id)
+              .order("date", { ascending: false })
+              .limit(45),
           ]);
 
         assertNoSupabaseError("profiles.load", profRes.error);
@@ -782,6 +795,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         assertNoSupabaseError("session_logs.load", logRes.error);
         assertNoSupabaseError("session_modifications.load", modRes.error);
         assertNoSupabaseError("weekly_transitions.load", transRes.error);
+        assertNoSupabaseError("readiness_logs.load", readinessRes.error);
 
         let plan: SessionDay[] = [];
         let migrationOriginalPlan: SessionDay[] | null = null;
@@ -811,8 +825,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             if (!sid) continue;
             persistedCompletions[sid] = {
               completed: Boolean(row.completed),
+              status: row.completion_status === "missed" ? "missed" : "completed",
               rpe: (row.rpe as number) ?? null,
               notes: (row.notes as string) ?? "",
+              durationMin: (row.duration_minutes as number) ?? null,
+              activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
             };
           }
           const persistedModifications: Record<string, SessionModification[]> = {};
@@ -902,8 +919,28 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           if (!sid) continue;
           completions[sid] = {
             completed: Boolean(row.completed),
+            status: row.completion_status === "missed" ? "missed" : "completed",
             rpe: (row.rpe as number) ?? null,
             notes: (row.notes as string) ?? "",
+            durationMin: (row.duration_minutes as number) ?? null,
+            activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
+          };
+        }
+        const persistedReadiness: Record<string, Readiness> = { ...local.readiness };
+        for (const row of (readinessRes.data as AnyRow[] | null) ?? []) {
+          const date = row.date as string | null;
+          if (!date) continue;
+          persistedReadiness[date] = {
+            date,
+            sleep: Number(row.sleep ?? 7),
+            energy: Number(row.energy ?? 7),
+            fatigue: Number(row.fatigue ?? 4),
+            soreness: Number(row.soreness ?? row.fatigue ?? 4),
+            jointPain: Number(row.pain_level ?? 0),
+            painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
+            stress: Number(row.stress ?? 3),
+            motivation: Number(row.motivation ?? row.energy ?? 7),
+            overall: Number(row.overall ?? 7),
           };
         }
         const history = await loadSessionHistory(user.id, (logRes.data as AnyRow[] | null) ?? []);
@@ -953,7 +990,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             : profile,
           plan,
           planGeneratedFor,
-          readiness: local.readiness,
+          readiness: persistedReadiness,
           completions,
           history,
           modifications,
@@ -1013,6 +1050,71 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     state.profile?.unavailableEquipmentIds,
     state.exerciseReplacements,
   ]);
+
+  // Sesja z poprzedniego dnia nie przenosi się automatycznie. Zapisujemy ją
+  // jako pominiętą i przebudowujemy wyłącznie przyszłą część planu.
+  useEffect(() => {
+    if (!user || !hydrated || !state.profile?.onboardingComplete) return;
+    const syncKey = `${user.id}:${todayIso}`;
+    if (missedSyncRef.current === syncKey) return;
+    const expired = expiredUnfinishedSessions(state.plan, todayIso, state.completions);
+    missedSyncRef.current = syncKey;
+    if (expired.length === 0) return;
+
+    void (async () => {
+      try {
+        const now = new Date().toISOString();
+        await Promise.all(
+          expired.map(async (session) => {
+            const result = await supabase.from("session_logs").upsert(
+              {
+                user_id: user.id,
+                session_id: session.dbId!,
+                completed: false,
+                completion_status: "missed",
+                rpe: null,
+                notes: "",
+                duration_minutes: 0,
+                activity_type: null,
+                updated_at: now,
+              },
+              { onConflict: "user_id,session_id" },
+            );
+            assertNoSupabaseError("session_logs.mark_missed", result.error);
+          }),
+        );
+        const plan = await savePlanToDb(
+          state.profile!,
+          state.profile!.onboardingRevision ?? null,
+          state.readiness[todayIso],
+        );
+        await clearFutureOverlaysForUser(user.id, todayIso);
+        setState((current) => ({
+          ...current,
+          plan,
+          planGeneratedFor: todayIso,
+          completions: {
+            ...current.completions,
+            ...Object.fromEntries(
+              expired.map((session) => [
+                session.dbId!,
+                { completed: false, status: "missed", rpe: null, notes: "", durationMin: 0 },
+              ]),
+            ),
+          },
+          modifications: Object.fromEntries(
+            Object.entries(current.modifications).filter(([date]) => date < todayIso),
+          ),
+          transitions: {},
+        }));
+      } catch (error) {
+        missedSyncRef.current = null;
+        console.error("[loadwise] missed-session sync failed", error);
+      }
+    })();
+    // savePlanToDb is provider-local; state inputs above are the intended triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, state.plan, state.completions, state.profile, state.readiness, todayIso, user]);
 
   async function savePlanToDb(
     profile: Profile,
@@ -1203,10 +1305,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     })();
   }
 
-  async function completeSession(session: SessionDay, rpe: number | null, notes: string) {
+  async function completeSession(
+    session: SessionDay,
+    rpe: number | null,
+    notes: string,
+    details: Pick<SessionCompletion, "durationMin" | "activityType"> = {},
+  ) {
     const sid = session.dbId;
     if (!user || !sid) return;
-    const completion: SessionCompletion = { completed: true, rpe, notes };
+    const completion: SessionCompletion = {
+      completed: true,
+      status: "completed",
+      rpe,
+      notes,
+      durationMin: details.durationMin ?? session.durationMin ?? null,
+      activityType: details.activityType ?? null,
+    };
     const category = historyCategoryOf(session.sessionType, session.dayType);
     const record: SessionHistoryRecord | null = category
       ? {
@@ -1214,7 +1328,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           date: session.date,
           title: session.title,
           category,
-          durationMin: session.durationMin ?? 0,
+          durationMin: completion.durationMin ?? session.durationMin ?? 0,
           rpe,
           notes,
         }
@@ -1224,8 +1338,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         user_id: user.id,
         session_id: sid,
         completed: true,
+        completion_status: "completed",
         rpe,
         notes,
+        duration_minutes: completion.durationMin,
+        activity_type: completion.activityType,
+        updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,session_id" },
     );
@@ -1683,7 +1801,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   async function saveReadiness(r: Readiness) {
     const { applyCheckInToPlanDay } = await import("./dailyCheckin");
     if (user) {
-      const write = await supabase.from("readiness_logs").insert({
+      const write = await supabase.from("readiness_logs").upsert({
         user_id: user.id,
         date: r.date,
         sleep: r.sleep,
@@ -1692,9 +1810,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         soreness: r.soreness,
         stress: r.stress,
         motivation: r.motivation,
-        pain_status: r.jointPain >= 5,
-      });
-      assertNoSupabaseError("readiness_logs.insert", write.error);
+        pain_status: r.jointPain > 0,
+        pain_level: r.jointPain,
+        pain_location: r.painLocation ?? null,
+        overall: r.overall,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,date" });
+      assertNoSupabaseError("readiness_logs.upsert", write.error);
     }
 
     setState((s) => {

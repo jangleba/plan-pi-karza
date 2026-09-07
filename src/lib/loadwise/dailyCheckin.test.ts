@@ -121,7 +121,7 @@ describe("daily check-in integration", () => {
     const result = applyCheckInToPlanDay(
       [makeClubDay()],
       "2026-08-17",
-      readiness({ overall: 8, jointPain: 6 }),
+      readiness({ overall: 8, jointPain: 7, painLocation: "knee" }),
       PROFILE,
     );
 
@@ -170,7 +170,7 @@ describe("daily check-in integration", () => {
     const result = applyCheckInToPlanDay(
       [makeSession()],
       "2026-08-17",
-      readiness({ overall: 8, jointPain: 5 }),
+      readiness({ overall: 8, jointPain: 7, painLocation: "knee" }),
       PROFILE,
     );
     expect(result.adjusted?.secondSession).toBeNull();

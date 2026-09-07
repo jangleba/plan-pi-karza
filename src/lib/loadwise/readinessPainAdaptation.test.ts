@@ -385,7 +385,7 @@ describe("Daily pain override without profile pain flag", () => {
     it(`readiness ${r} + daily pain removes risky work and second session`, () => {
       const { session } = applyReadiness(
         day,
-        makeReadiness(r, { jointPain: 5 }),
+        makeReadiness(r, { jointPain: 7, painLocation: "knee" }),
         BASE_PROFILE,
       );
       expect(session.secondSession).toBeNull();

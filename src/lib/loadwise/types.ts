@@ -144,6 +144,7 @@ export interface Readiness {
   fatigue: number;
   soreness: number;
   jointPain: number;
+  painLocation?: PainLocation | null;
   stress: number;
   motivation: number;
   overall: number;
@@ -624,8 +625,11 @@ export interface WeekMeta {
 
 export interface SessionCompletion {
   completed: boolean;
+  status?: "completed" | "missed";
   rpe: number | null;
   notes: string;
+  durationMin?: number | null;
+  activityType?: "technical" | "mixed" | "running_endurance" | null;
 }
 
 export type SessionHistoryCategory =

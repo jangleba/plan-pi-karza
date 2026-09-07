@@ -1,12 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import {
   COMPETITION_LEVEL_LABELS,
-  DOUBLE_SESSION_LABELS,
   GOAL_LABELS,
   ISO_DAY_LABELS,
   LEVEL_LABELS,
@@ -15,7 +12,6 @@ import {
   SEASON_PHASE_LABELS,
   formatDate,
 } from "@/lib/loadwise/labels";
-import type { DoubleSessions } from "@/lib/loadwise/types";
 import {
   CURRENT_PITCH_FEELING_LABELS,
   DESIRED_PITCH_FEELING_LABELS,
@@ -32,11 +28,9 @@ import {
   Dumbbell,
   FileDown,
   FileText,
-  Loader2,
   LogOut,
   Pencil,
   ShieldCheck,
-  Target,
   User,
 } from "lucide-react";
 
@@ -64,10 +58,9 @@ function daysLabel(days: number[]): string {
 }
 
 function ProfileScreen() {
-  const { state, updateProfile } = useLoadwise();
+  const { state } = useLoadwise();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [savingPreference, setSavingPreference] = useState(false);
   const profile = state.profile;
 
   if (!profile) return null;
@@ -77,18 +70,6 @@ function ProfileScreen() {
     navigate({ to: "/auth", replace: true });
   }
 
-  async function setDouble(value: DoubleSessions) {
-    if (!profile || profile.doubleSessionsAllowed === value || savingPreference) return;
-    setSavingPreference(true);
-    try {
-      await updateProfile({ ...profile, doubleSessionsAllowed: value });
-      toast.success("Ustawienie zapisane, a plan przeliczony.");
-    } catch {
-      toast.error("Nie udało się zapisać ustawienia. Spróbuj ponownie.");
-    } finally {
-      setSavingPreference(false);
-    }
-  }
 
   const isMinor = profile.age >= 13 && profile.age <= 17;
   const currentFeelings = normalizeCurrentPitchFeelings(profile.currentPitchFeelings);
@@ -224,36 +205,6 @@ function ProfileScreen() {
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">Nie wybrano sprzętu.</p>
             )}
-          </div>
-        </section>
-
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Target className="h-3.5 w-3.5" aria-hidden="true" /> Podwójne sesje
-            {savingPreference && (
-              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin" aria-label="Zapisywanie" />
-            )}
-          </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Zmień tylko wtedy, gdy realnie możesz trenować dwa razy jednego dnia.
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-2">
-            {(["no", "light_only", "yes_if_safe"] as DoubleSessions[]).map((option) => (
-              <button
-                key={option}
-                type="button"
-                disabled={savingPreference}
-                aria-pressed={profile.doubleSessionsAllowed === option}
-                onClick={() => void setDouble(option)}
-                className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 ${
-                  profile.doubleSessionsAllowed === option
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground"
-                }`}
-              >
-                {DOUBLE_SESSION_LABELS[option]}
-              </button>
-            ))}
           </div>
         </section>
 

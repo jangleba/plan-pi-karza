@@ -52,6 +52,8 @@ export interface AthleteRequirementProfile {
   /** Poziom bezpieczeństwa contentu: im młodszy/mniej doświadczony, tym niżej. */
   safetyLevel?: "youth_safe" | "developmental" | "performance" | null;
   gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced" | null;
+  /** Aktywny ból/ograniczenie zgłoszone przez zawodnika. */
+  hasActivePain?: boolean;
 }
 
 export interface WeeklyRequirements {
@@ -252,19 +254,27 @@ function resolveSafetyLevel(
 export function getRequiredGymSessions(
   ctx: WeekRequirementContext,
   _settings?: UserRequirementSettings | null,
-  _athlete?: AthleteRequirementProfile | null,
+  athlete?: AthleteRequirementProfile | null,
 ): number {
   const seasonRules = getSeasonPhaseRules(ctx.seasonPhase);
-  if (ctx.isFullWeek === false || seasonRules.isReducedLoadPhase) {
-    // Kongestia / roztrenowanie — minima pełnego tygodnia nie obowiązują.
-    return seasonRules.isReducedLoadPhase ? 0 : 1;
-  }
+  const hasActivePain = athlete?.hasActivePain === true;
+
+  // Uzgodniony wyjątek: dwa mecze w jednym tygodniu zostawiają co najmniej
+  // jedną krótką sesję podtrzymującą zamiast wymuszania dwóch pełnych siłowni.
+  if ((ctx.matchCount ?? 0) >= 2) return 1;
+
+  // Powrót po urazie nie ma sztucznego minimum. Aktywny ból może wyzerować
+  // siłę, a powrót bez aktualnego bólu zachowuje jedną bezpieczną ekspozycję.
+  if (ctx.seasonPhase === "return_injury") return hasActivePain ? 0 : 1;
+
+  if (ctx.isFullWeek === false) return 1;
+  if (seasonRules.isReducedLoadPhase) return 0;
   return 2;
 }
 
 /**
- * Liczba endurance. Domyślnie 1. Przy celu wydolnościowym rośnie wg tabeli
- * zależnej od liczby treningów klubowych.
+ * Liczba endurance. Domyślnie 1, a przy celu wydolnościowym zawsze minimum 2.
+ * Klub liczy się do obciążenia, ale nie zmniejsza własnego minimum BallWise.
  */
 export function getRequiredEnduranceSessions(
   ctx: WeekRequirementContext,
@@ -273,18 +283,15 @@ export function getRequiredEnduranceSessions(
   _athlete?: AthleteRequirementProfile | null,
 ): number {
   const goalRules = getAthleteGoalRules(athleteGoal);
-  const clubCount = getClubTrainingCount(ctx, settings);
-
   if (!goalRules.isEnduranceGoal) return 1;
-
-  // Cel wydolnościowy — tabela zależna od liczby klubowych.
-  if (clubCount <= 2) return 3;
-  return 2; // clubCount === 3 oraz clubCount > 3
+  void settings;
+  return 2;
 }
 
 /**
- * Bezwzględne minimum endurance. Dla celu wydolnościowego przy >3 klubowych
- * schodzi do 1 (generator próbuje 2, ale musi zapewnić minimum 1).
+ * Bezwzględne minimum endurance jest identyczne z wymaganiem celu. Dzięki temu
+ * walidator nie może uznać tygodnia z jedną wydolnością za poprawny, gdy cel
+ * zawodnika wymaga dwóch.
  */
 export function getAbsoluteMinimumEnduranceSessions(
   ctx: WeekRequirementContext,
@@ -292,12 +299,6 @@ export function getAbsoluteMinimumEnduranceSessions(
   athleteGoal: string | null | undefined,
   athlete?: AthleteRequirementProfile | null,
 ): number {
-  const goalRules = getAthleteGoalRules(athleteGoal);
-  if (!goalRules.isEnduranceGoal) return 1;
-
-  const clubCount = getClubTrainingCount(ctx, settings);
-  if (clubCount > 3) return 1;
-
   return getRequiredEnduranceSessions(ctx, settings, athleteGoal, athlete);
 }
 
@@ -367,10 +368,8 @@ export function calculateRecommendedExtraSessions(
   athlete?: AthleteRequirementProfile | null,
 ): { recommendedEnduranceSessions: number; recommendedSpeedSessions: number } {
   const required = calculateWeeklyMinimumRequirements(ctx, settings, athleteGoal, athlete);
-  // Rekomendacja = wymóg + ewentualny bufor gdy jest miejsce (brak meczu).
-  const noMatchBonus = ctx.matchCount === 0 ? 0 : 0;
   return {
-    recommendedEnduranceSessions: required.requiredEnduranceSessions + noMatchBonus,
+    recommendedEnduranceSessions: required.requiredEnduranceSessions,
     recommendedSpeedSessions: required.requiredSpeedSessions,
   };
 }

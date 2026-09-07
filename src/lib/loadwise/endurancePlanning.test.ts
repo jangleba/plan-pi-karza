@@ -82,18 +82,18 @@ describe("wymagana liczba endurance", () => {
     expect(getRequiredEnduranceSessions(ctxOf(4), null, "general", adult)).toBe(1);
   });
 
-  it("cel wydolność + 2 klubowe → 3 endurance", () => {
-    expect(getRequiredEnduranceSessions(ctxOf(2), null, "endurance", adult)).toBe(3);
+  it("cel wydolność + 2 klubowe → 2 endurance", () => {
+    expect(getRequiredEnduranceSessions(ctxOf(2), null, "endurance", adult)).toBe(2);
   });
 
   it("cel wydolność + 3 klubowe → 2 endurance", () => {
     expect(getRequiredEnduranceSessions(ctxOf(3), null, "endurance", adult)).toBe(2);
   });
 
-  it("cel wydolność + 4 klubowe → 2 endurance, absoluteMinimum 1", () => {
+  it("cel wydolność + 4 klubowe → 2 endurance bez zastępowania przez klub", () => {
     const r = reqFor(4, "endurance", adult);
     expect(r.requiredEnduranceSessions).toBe(2);
-    expect(r.absoluteMinimumEnduranceSessions).toBe(1);
+    expect(r.absoluteMinimumEnduranceSessions).toBe(2);
   });
 });
 
@@ -273,7 +273,7 @@ describe("addMissingEnduranceSessions", () => {
     );
   });
 
-  it("cel wydolność + 2 klubowe → 3 endurance", () => {
+  it("cel wydolność + 2 klubowe → 2 endurance", () => {
     const w = week([1, 3]);
     const req = reqFor(2, "endurance", adult);
     const res = addMissingEnduranceSessions(
@@ -283,8 +283,8 @@ describe("addMissingEnduranceSessions", () => {
       req,
       adult,
     );
-    expect(res.requiredEnduranceSessions).toBe(3);
-    expect(res.count).toBe(3);
+    expect(res.requiredEnduranceSessions).toBe(2);
+    expect(res.count).toBe(2);
     expect(res.unresolvedIssues).toHaveLength(0);
   });
 
@@ -302,7 +302,7 @@ describe("addMissingEnduranceSessions", () => {
     expect(res.count).toBe(2);
   });
 
-  it("cel wydolność + 4 klubowe → próba 2, absoluteMinimum 1, brak endurance w dni klubowe", () => {
+  it("cel wydolność + 4 klubowe → minimum 2, brak endurance w dni klubowe", () => {
     const w = week([0, 1, 2, 3]);
     const req = reqFor(4, "endurance", adult);
     const res = addMissingEnduranceSessions(
@@ -312,8 +312,8 @@ describe("addMissingEnduranceSessions", () => {
       req,
       adult,
     );
-    expect(res.absoluteMinimumEnduranceSessions).toBe(1);
-    expect(res.count).toBeGreaterThanOrEqual(1);
+    expect(res.absoluteMinimumEnduranceSessions).toBe(2);
+    expect(res.count).toBeGreaterThanOrEqual(2);
     [0, 1, 2, 3].forEach((i) =>
       expect(w[i].sessions.some((x) => x.category === "endurance_conditioning")).toBe(false),
     );

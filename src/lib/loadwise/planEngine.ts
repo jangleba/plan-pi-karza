@@ -4737,7 +4737,7 @@ export function secondSessionAllowedToday(
   profile: Profile,
 ): boolean {
   if (profile.painInjury) return false;
-  if (readiness && readiness.jointPain >= 5) return false;
+  if (readiness && readiness.jointPain >= 7) return false;
   return true;
 }
 
@@ -4850,7 +4850,8 @@ export function applyReadiness(
   const r = readiness.overall;
   // Sygnały bardzo złego dnia (skala 1–10): zły sen, silne zmęczenie,
   // mocna bolesność lub istotny ból stawów — mogą zadziałać jak readiness 1–3.
-  const dailyPain = readiness.jointPain >= 5;
+  const localizedPain = readiness.jointPain >= 4 && Boolean(readiness.painLocation);
+  const dailyPain = readiness.jointPain >= 7;
   const severeSignals =
     readiness.sleep <= 2 ||
     readiness.fatigue >= 9 ||
@@ -5076,6 +5077,29 @@ export function applyReadiness(
       safetyNote:
         adjusted.safetyNote ??
         "Zatrzymaj się, jeśli ból nasila się lub pojawia się nowy ból. Skonsultuj się z lekarzem lub fizjoterapeutą.",
+    };
+  }
+
+  // Przy umiarkowanym dyskomforcie nie kasujemy całej jednostki. Przepuszczamy
+  // ją przez istniejący walidator ćwiczeń z dokładnie wskazanym obszarem, aby
+  // zamienić tylko ruchy, które ten obszar obciążają.
+  if (localizedPain && !externalCommitment && !recoveryOnly && readiness.painLocation) {
+    const painProfile: Profile = {
+      ...profile,
+      painInjury: true,
+      painLocations: Array.from(
+        new Set([...(profile.painLocations ?? []), readiness.painLocation]),
+      ),
+    };
+    adjusted = repairUnsafeExercisesForAthleteProfile([adjusted], painProfile).plan[0];
+    adjustment =
+      (adjustment ? adjustment + " " : "") +
+      "Dyskomfort 4–6/10: zmieniono wyłącznie ruchy obciążające wskazany obszar.";
+    adjusted = {
+      ...adjusted,
+      safetyNote:
+        adjusted.safetyNote ??
+        "Plan nie diagnozuje urazu. Przerwij ćwiczenie, jeśli dyskomfort się nasila.",
     };
   }
 

@@ -12,6 +12,8 @@ import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import type { SessionDay, TrainingSection, TrainingExercise } from "@/lib/loadwise/types";
 import {
@@ -1149,6 +1151,9 @@ function CompletionPanel({ session }: { session: SessionDay }) {
   const [pain, setPain] = useState(parsed.pain);
   const [legFatigue, setLegFatigue] = useState(parsed.legFatigue);
   const [notes, setNotes] = useState(parsed.notes);
+  const externalSession = session.dayType === "club" || session.dayType === "match";
+  const [durationMin, setDurationMin] = useState(existing?.durationMin ?? session.durationMin ?? 90);
+  const [activityType, setActivityType] = useState(existing?.activityType ?? "mixed");
   const [saving, setSaving] = useState(false);
   const done = existing?.completed ?? false;
   const existingRpe = existing?.rpe ?? 6;
@@ -1160,14 +1165,21 @@ function CompletionPanel({ session }: { session: SessionDay }) {
     setPain(next.pain);
     setLegFatigue(next.legFatigue);
     setNotes(next.notes);
-  }, [existingRpe, existingNotes]);
+    setDurationMin(existing?.durationMin ?? session.durationMin ?? 90);
+    setActivityType(existing?.activityType ?? "mixed");
+  }, [existingRpe, existingNotes, existing?.durationMin, existing?.activityType, session.durationMin]);
 
   if (!session.dbId) return null;
 
   async function save() {
     setSaving(true);
     try {
-      await completeSession(session, rpe, composeCompletionNotes(notes, pain, legFatigue));
+      await completeSession(
+        session,
+        rpe,
+        composeCompletionNotes(notes, pain, legFatigue),
+        externalSession ? { durationMin, activityType } : { durationMin: session.durationMin },
+      );
       toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
     } catch {
       toast.error("Nie udało się zapisać treningu. Spróbuj ponownie.");
@@ -1192,6 +1204,35 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         </div>
         <Slider min={0} max={10} step={1} value={[rpe]} onValueChange={(v) => setRpe(v[0])} />
       </div>
+
+      {externalSession && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1.5 text-sm font-medium">
+            Dokładne minuty
+            <Input
+              type="number"
+              min={0}
+              max={300}
+              value={durationMin}
+              onChange={(event) => setDurationMin(Math.max(0, Math.min(300, Number(event.target.value) || 0)))}
+            />
+          </label>
+          <label className="space-y-1.5 text-sm font-medium">
+            Charakter wysiłku
+            <Select value={activityType} onValueChange={(value) => setActivityType(value as typeof activityType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="technical">Głównie z piłką</SelectItem>
+                <SelectItem value="mixed">Mieszany</SelectItem>
+                <SelectItem value="running_endurance">Głównie biegowy / wydolnościowy</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+          <p className="text-xs text-muted-foreground sm:col-span-2">
+            Minuty × RPE opisują rzeczywiste obciążenie. Rodzaj wysiłku pomaga nie dokładać podobnego mocnego bodźca.
+          </p>
+        </div>
+      )}
 
       <div className="mt-3 space-y-2">
         <LogField label="Ból 0–10" value={pain} onChange={setPain} />

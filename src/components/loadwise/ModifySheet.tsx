@@ -7,7 +7,8 @@ import {
   type Place,
   type Proposal,
 } from "@/lib/loadwise/modifications";
-import type { SessionDay } from "@/lib/loadwise/types";
+import type { PainLocation, SessionDay } from "@/lib/loadwise/types";
+import { buildReadiness, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShieldAlert, Clock, Gauge } from "lucide-react";
 
 type Step = "choice" | "details" | "readiness" | "proposals";
@@ -27,10 +29,8 @@ const PLACE_OPTIONS: Place[] = ["dom", "boisko", "silownia"];
 const readinessFields: { key: string; label: string; def: number }[] = [
   { key: "sleep", label: "Sen", def: 7 },
   { key: "energy", label: "Energia", def: 7 },
-  { key: "fatigue", label: "Zmęczenie", def: 4 },
-  { key: "soreness", label: "Bolesność", def: 3 },
-  { key: "jointPain", label: "Ból stawów", def: 2 },
-  { key: "overall", label: "Ogólna gotowość", def: 7 },
+  { key: "fatigue", label: "Zmęczenie nóg", def: 4 },
+  { key: "jointPain", label: "Ból lub dyskomfort", def: 0 },
 ];
 
 export function ModifySheet({
@@ -50,6 +50,7 @@ export function ModifySheet({
   const [vals, setVals] = useState<Record<string, number>>(() =>
     Object.fromEntries(readinessFields.map((f) => [f.key, f.def])),
   );
+  const [painLocation, setPainLocation] = useState<PainLocation | null>(null);
 
   const profile = state.profile;
   const readiness = state.readiness[date];
@@ -78,17 +79,13 @@ export function ModifySheet({
   }
 
   function saveReadinessStep() {
-    saveReadiness({
-      date,
+    saveReadiness(buildReadiness(date, {
       sleep: vals.sleep,
       energy: vals.energy,
       fatigue: vals.fatigue,
-      soreness: vals.soreness,
       jointPain: vals.jointPain,
-      stress: 3,
-      motivation: 7,
-      overall: vals.overall,
-    });
+      painLocation,
+    }));
     setStep("proposals");
   }
 
@@ -233,7 +230,7 @@ export function ModifySheet({
                   </span>
                 </div>
                 <Slider
-                  min={1}
+                  min={f.key === "jointPain" ? 0 : 1}
                   max={10}
                   step={1}
                   value={[vals[f.key]]}
@@ -243,6 +240,19 @@ export function ModifySheet({
                 />
               </div>
             ))}
+            {vals.jointPain > 0 && (
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Obszar dyskomfortu</span>
+                <Select value={painLocation ?? "other"} onValueChange={(value) => setPainLocation(value as PainLocation)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PAIN_LOCATION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button className="w-full" size="lg" onClick={saveReadinessStep}>
               Zapisz i pokaż propozycje
             </Button>
