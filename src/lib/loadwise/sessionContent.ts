@@ -7,6 +7,7 @@
 // ============================================================
 
 import type { ExerciseItem, Position, Profile, SessionDay } from "./types";
+import { buildRunningSessionPrescription } from "@/lib/running/engine";
 
 // ---------- Taksonomia kategorii ----------
 
@@ -105,7 +106,14 @@ const CONDITIONING_LONG_RE =
   /tempo|interwa|aerob|kondyc|wytrzymał|powtarzalne sprinty|\brsa\b|conversational|tlenow/i;
 
 export function exerciseRequiresBall(e: ExerciseItem): boolean {
-  return BALL_RE.test(txt(e));
+  // Nazwy z kanonicznych silnikow jawnie opisuja zakaz pilki (np. "bez pilki").
+  // Prosty regex widzial w takim zdaniu samo slowo "pilka" i usuwal poprawne
+  // cwiczenie z sesji biegowej. Najpierw neutralizujemy jednoznaczne negacje.
+  const normalized = txt(e).replace(
+    /\b(?:bez|without)\s+(?:uzycia\s+)?pi(?:l|ł)(?:ki|ka)|\bnie\s+(?:wymaga|uzywaj)\s+pi(?:l|ł)(?:ki|ka)/gi,
+    " ",
+  );
+  return BALL_RE.test(normalized);
 }
 export function exerciseIsGymStrength(e: ExerciseItem): boolean {
   return GYM_RE.test(txt(e)) || STRENGTH_PREHAB_RE.test(txt(e));
@@ -858,15 +866,25 @@ export function buildFootball(
 // RUNNING / CONDITIONING — bieg/tempo/interwał, BEZ piłki i siłowni
 // ============================================================
 
-type RunTheme = "aerobic" | "tempo" | "interval" | "rsa";
-const RUN_THEMES: RunTheme[] = ["aerobic", "tempo", "interval", "rsa"];
-
 export function buildRunningConditioning(
   profile: Profile,
-  opts: { seed: number; intensity?: string; light?: boolean },
+  opts: {
+    seed: number;
+    intensity?: string;
+    light?: boolean;
+    date?: string;
+    scheduleFieldMasTest?: boolean;
+  },
 ): BuiltContent {
-  const young = isYoung(profile.age);
-  const theme = opts.light ? "aerobic" : pick(RUN_THEMES, opts.seed);
+  const prescription = buildRunningSessionPrescription({
+    fieldMasKmh: profile.fieldMasKmh,
+    fieldMasTestedAt: profile.fieldMasTestedAt,
+    date: opts.date ?? "1970-01-01",
+    sessionIndex: opts.seed,
+    progressionLevel: profile.runningProgressionLevel,
+    scheduleFieldMasTest: opts.scheduleFieldMasTest,
+    forceLight: opts.light,
+  });
 
   const warmup: CatExercise[] = [
     mk(
@@ -879,49 +897,23 @@ export function buildRunningConditioning(
     ),
   ];
 
-  let main: CatExercise[];
-  let title: string;
-  let goal: string;
-  switch (theme) {
-    case "tempo":
-      title = "Tempo ekstensywne";
-      goal = "Ekonomia biegu i baza tempowa — kontrolowane, równe tempo bez piłki.";
-      main = [
-        mk({ name: "Tempo ekstensywne", prescription: `${young ? 6 : 8} × 100 m luźnego tempa`, rest: "trucht 100 m", cue: "Relaks w barkach, równe tempo, nie na czas." }, { isRunningBased: true, primaryQuality: "tempo", allowedSessionTypes: ["running_conditioning"] }),
-        mk({ name: "Bieg ciągły", prescription: `${young ? 12 : 16} min tętno tlenowe`, cue: "Tempo konwersacyjne, kontroluj oddech." }, { isRunningBased: true, primaryQuality: "baza tlenowa", allowedSessionTypes: ["running_conditioning"] }),
-      ];
-      break;
-    case "interval":
-      title = "Interwały biegowe";
-      goal = "Wytrzymałość specjalna — kontrolowane interwały biegowe bez piłki.";
-      main = [
-        mk({ name: "Interwały biegowe", prescription: `${young ? 6 : 8} × 1 min bieg / 1 min trucht`, rest: "1 min trucht", cue: "Równe tempo, kontrola oddechu na każdym powtórzeniu.", easier: "Skróć do 4–5 powtórzeń." }, { isRunningBased: true, primaryQuality: "wytrzymałość specjalna", allowedSessionTypes: ["running_conditioning"] }),
-        mk({ name: "Bieg ciągły wyrównujący", prescription: "8 min spokojnie", cue: "Rozluźnij tempo, kontroluj oddech." }, { isRunningBased: true, primaryQuality: "baza tlenowa", allowedSessionTypes: ["running_conditioning"] }),
-      ];
-      break;
-    case "rsa":
-      title = "Powtarzalne sprinty (RSA) — bieg";
-      goal = "Zdolność do powtarzanego wysiłku biegowego — wysoka specyfika, bez piłki.";
-      main = [
-        mk({ name: "Powtarzalne sprinty", prescription: `${young ? 6 : 10} × 20–25 m, przerwa 30–40 s`, rest: "30–40 s aktywnej przerwy", cue: "Utrzymaj mechanikę i tempo do końca serii." }, { isRunningBased: true, isSprintSpecific: true, primaryQuality: "RSA", ageSafety: "advanced_only", allowedSessionTypes: ["running_conditioning"] }),
-        mk({ name: "Bieg regeneracyjny", prescription: "6 min bardzo lekko", cue: "Rozluźnienie po seriach." }, { isRunningBased: true, primaryQuality: "regeneracja biegowa", allowedSessionTypes: ["running_conditioning"] }),
-      ];
-      break;
-    case "aerobic":
-    default:
-      title = "Baza tlenowa";
-      goal = "Budowa bazy tlenowej i ekonomii biegu — spokojny, ciągły wysiłek bez piłki.";
-      main = [
-        mk({ name: "Ciągły bieg tlenowy", prescription: `${young ? 18 : 24} min tętno komfortowe`, cue: "Równe, konwersacyjne tempo.", easier: "Marszobieg w blokach." }, { isRunningBased: true, primaryQuality: "baza tlenowa", allowedSessionTypes: ["running_conditioning"] }),
-      ];
-      break;
-  }
+  const main = prescription.main.map((exercise) =>
+    mk(
+      exercise,
+      {
+        isRunningBased: true,
+        primaryQuality: prescription.method,
+        allowedSessionTypes: ["running_conditioning"],
+      },
+    ),
+  );
 
   return {
-    title,
-    sessionType: "Wydolność / bieganie",
-    goalOfSession: goal,
-    riskManaged: "Praca wyłącznie biegowa, kontrolowane tempo — bez twardych interwałów na 48 h przed meczem.",
+    title: prescription.title,
+    sessionType: prescription.sessionType,
+    goalOfSession: prescription.goal,
+    riskManaged:
+      "Metoda, tempo i dawka pochodzą z jednego silnika biegowego. Praca bez piłki; progresja zmienia jedną główną zmienną naraz.",
     avoidToday: "Bez piłki i bez bloków siłowych w tej sesji. To trening biegowy/kondycyjny.",
     sections: {
       warmup: warmup.map(toItem),
@@ -1111,8 +1103,14 @@ export function enforceSessionCategory(
       break;
     }
     case "running_conditioning": {
-      const seed = ctx.counters.running + ctx.weekIndex;
-      built = buildRunningConditioning(profile, { seed, light: ctx.light });
+      const runningIndexInWeek = ctx.counters.running;
+      const seed = runningIndexInWeek + ctx.weekIndex;
+      built = buildRunningConditioning(profile, {
+        seed,
+        light: ctx.light,
+        date: session.date,
+        scheduleFieldMasTest: runningIndexInWeek === 0,
+      });
       ctx.counters.running++;
       break;
     }

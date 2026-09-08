@@ -33,6 +33,25 @@ describe("silnik biegowy", () => {
   it("przed pierwszym testem planuje test, a pozostałe biegi pozostawia łatwe", () => {
     expect(buildRunningSessionPrescription({ date: "2026-09-05", sessionIndex: 0 }).method).toBe("field_mas_test");
     expect(buildRunningSessionPrescription({ date: "2026-09-05", sessionIndex: 1 }).method).toBe("easy_aerobic");
+    expect(buildRunningSessionPrescription({
+      date: "2026-09-05",
+      sessionIndex: 8,
+      scheduleFieldMasTest: true,
+    }).method).toBe("field_mas_test");
+  });
+
+  it("lekki kontekst nigdy nie uruchamia testu ani mocnych interwałów", () => {
+    const light = buildRunningSessionPrescription({
+      fieldMasKmh: 15,
+      fieldMasTestedAt: "2026-09-01",
+      date: "2026-09-05",
+      sessionIndex: 0,
+      scheduleFieldMasTest: true,
+      forceLight: true,
+    });
+    expect(light.method).toBe("easy_aerobic");
+    expect(light.intensity).toBe("niska");
+    expect(light.main[0].prescription).toContain("/km");
   });
 
   it("po ważnym teście tworzy indywidualne tempo, a po 28 dniach ponawia test", () => {

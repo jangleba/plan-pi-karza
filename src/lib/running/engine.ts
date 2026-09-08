@@ -86,12 +86,37 @@ export function buildRunningSessionPrescription(input: {
   date: string;
   sessionIndex: number;
   progressionLevel?: number | null;
+  /** Jawnie wskaż pierwszą sesję tygodnia jako miejsce testu, jeśli MAS wygasł. */
+  scheduleFieldMasTest?: boolean;
+  /** Wymusza lekki wariant, np. drugi slot, niski readiness albo okolice meczu. */
+  forceLight?: boolean;
 }): RunningSessionPrescription {
   const hasCurrentMas =
     typeof input.fieldMasKmh === "number" &&
     isFieldMasCurrent(input.fieldMasTestedAt, input.date);
 
-  if (!hasCurrentMas && input.sessionIndex === 0) {
+  if (input.forceLight) {
+    const range = hasCurrentMas ? paceRangeFromMas(input.fieldMasKmh!, 65, 75) : null;
+    return {
+      method: "easy_aerobic",
+      title: "Spokojny bieg tlenowy",
+      sessionType: "Wytrzymałość — easy aerobic",
+      goal: "Lekka praca tlenowa bez dokładania dużego zmęczenia mechanicznego.",
+      durationMin: 30,
+      intensity: "niska",
+      loadLevel: "low",
+      main: [
+        {
+          name: "Bieg ciągły bez piłki",
+          prescription: `20–30 min, ${paceText(range)}`,
+          cue: "Równe tempo, swobodny oddech i pełne zdania bez zadyszki.",
+        },
+      ],
+    };
+  }
+
+  const shouldScheduleTest = input.scheduleFieldMasTest ?? input.sessionIndex === 0;
+  if (!hasCurrentMas && shouldScheduleTest) {
     return {
       method: "field_mas_test",
       title: "Test biegowy 5 min",

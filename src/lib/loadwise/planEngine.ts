@@ -4674,8 +4674,27 @@ export function generatePlan(
   for (let i = 0; i < finalPlan.length; i++) {
     finalPlan[i] = normalizeSessionCategory(revalidatedPlan[i]);
   }
-  // Odśwież metadane tygodni po wszystkich końcowych naprawach.
+
+  // Odbudowa treści sprintu i kanonizacja ćwiczeń muszą wydarzyć się przed
+  // ostatecznym policzeniem obciążenia. Wcześniej te kroki następowały już po
+  // metadanych i mogły sprawić, że opis tygodnia różnił się od realnego planu.
+  rebuildFinalSpeedContext(finalPlan, profile);
+  for (let i = 0; i < finalPlan.length; i++) {
+    finalPlan[i] = canonicalizeGeneratedSessionExercises(finalPlan[i]);
+  }
+
+  // Ostatni walidator może dodać albo zamienić sesję. Dlatego progresję bloku
+  // domykamy dopiero teraz, na faktycznie zwracanym planie.
   const metadataRanges = weekRanges(startDate, finalPlan.length);
+  enforceBlockProgression(
+    finalPlan,
+    metadataRanges.map((range, weekIndex) => ({
+      range,
+      blockWeek: blockWeekOf(weekOffset + weekIndex),
+    })),
+  );
+
+  // Odśwież metadane tygodni po wszystkich końcowych naprawach.
 
   metadataRanges.forEach((range, weekIndex) => {
     const week = finalPlan.slice(range.start, range.end);
@@ -4717,10 +4736,6 @@ export function generatePlan(
       }
     }
   });
-  rebuildFinalSpeedContext(finalPlan, profile);
-  for (let i = 0; i < finalPlan.length; i++) {
-    finalPlan[i] = canonicalizeGeneratedSessionExercises(finalPlan[i]);
-  }
   assertPlanExerciseContract(finalPlan);
   return finalPlan;
 }
