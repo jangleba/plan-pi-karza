@@ -27,7 +27,11 @@ import {
   isRecoverySession,
 } from "./sessionClassification";
 import { hasRealSpeedExposure } from "./speedLoad";
-import { getMaxSessionsPerDay, isYouthOrBeginner as isYouthOrBeginnerSched } from "./dailyScheduling";
+import {
+  getMaxSessionsPerDay,
+  isYouthOrBeginner as isYouthOrBeginnerSched,
+  type UserSchedulingSettings,
+} from "./dailyScheduling";
 import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
 import {
   calculateWeeklyMinimumRequirements,
@@ -702,12 +706,13 @@ export function repairBackToBackSpeedSessions(
 export function addMissingEnduranceSessions(
   weekPlan: SessionDay[],
   weekContext: WeekRequirementContext,
-  userSettings: Pick<Profile, "doubleSessionsAllowed"> | null | undefined,
+  userSettings: UserSchedulingSettings | null | undefined,
   weeklyRequirements: WeeklyRequirements,
   profile: Profile,
 ): AddMissingEnduranceResult {
   const unresolvedIssues: string[] = [];
   void weekContext;
+  void userSettings;
 
   validateNoEnduranceOnClubDays(weekPlan, profile);
 
@@ -1610,7 +1615,7 @@ export function validateAndRepairWeekPlan(
   addMissingEnduranceSessions(
     weekPlan,
     ctx,
-    { doubleSessionsAllowed: profile.doubleSessionsAllowed },
+    { maxSessionsPerDay: 2 },
     requirements,
     profile,
   );

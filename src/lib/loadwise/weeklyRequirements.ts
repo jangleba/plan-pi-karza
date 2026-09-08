@@ -257,15 +257,20 @@ export function getRequiredGymSessions(
   athlete?: AthleteRequirementProfile | null,
 ): number {
   const seasonRules = getSeasonPhaseRules(ctx.seasonPhase);
-  const hasActivePain = athlete?.hasActivePain === true;
+  const painStatus = athlete?.hasActivePain;
 
   // Uzgodniony wyjątek: dwa mecze w jednym tygodniu zostawiają co najmniej
   // jedną krótką sesję podtrzymującą zamiast wymuszania dwóch pełnych siłowni.
   if ((ctx.matchCount ?? 0) >= 2) return 1;
 
-  // Powrót po urazie nie ma sztucznego minimum. Aktywny ból może wyzerować
-  // siłę, a powrót bez aktualnego bólu zachowuje jedną bezpieczną ekspozycję.
-  if (ctx.seasonPhase === "return_injury") return hasActivePain ? 0 : 1;
+  // Powrót po urazie: 0–2 zależnie od aktualnego ograniczenia. Aktywny ból
+  // wyłącza obowiązkową siłę, brak bólu przywraca normalne minimum, a brak
+  // odpowiedzi zostawia jedną ostrożną ekspozycję.
+  if (ctx.seasonPhase === "return_injury") {
+    if (painStatus === true) return 0;
+    if (painStatus === false) return 2;
+    return 1;
+  }
 
   if (ctx.isFullWeek === false) return 1;
   if (seasonRules.isReducedLoadPhase) return 0;

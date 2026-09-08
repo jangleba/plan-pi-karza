@@ -63,7 +63,11 @@ export interface SchedDay {
 export interface UserSchedulingSettings {
   /** Jawny limit sesji dziennie (1 lub 2). Ma priorytet. */
   maxSessionsPerDay?: number;
-  /** Ustawienie z onboardingu (fallback, gdy brak jawnego limitu). */
+  /**
+   * @deprecated Pole zachowane wyłącznie dla zgodności ze starszymi profilami.
+   * O zgodzie na dwie pełne sesje decydują poziom, wiek i reguły łączenia
+   * bodźców, a nie dawny przełącznik użytkownika.
+   */
   doubleSessionsAllowed?: DoubleSessions;
 }
 
@@ -120,14 +124,11 @@ export function getMaxSessionsPerDay(userSettings?: UserSchedulingSettings | nul
     // Nigdy nie pozwalamy na 3 sesje jednego dnia.
     return Math.max(1, Math.min(2, Math.floor(explicit)));
   }
-  switch (userSettings?.doubleSessionsAllowed) {
-    case "yes_if_safe":
-    case "light_only":
-      return 2;
-    case "no":
-    default:
-      return 1;
-  }
+  // Dwa sloty są dostępne technicznie. To, czy drugi slot może być pełny,
+  // rozstrzyga validateTwoADayCombination na podstawie profilu zawodnika.
+  // Dzięki temu stara wartość doubleSessionsAllowed="no" nie blokuje kont,
+  // które zostały założone przed wprowadzeniem obecnej polityki.
+  return 2;
 }
 
 export function isTwoADayAllowed(userSettings?: UserSchedulingSettings | null): boolean {

@@ -222,4 +222,20 @@ describe("weeklyRequirements — liczniki kontekstu", () => {
       ),
     ).toBe(0);
   });
+
+  it("powrót po urazie wraca do dwóch siłowni po potwierdzeniu braku bólu", () => {
+    expect(
+      getRequiredGymSessions(
+        ctx({ seasonPhase: "return_injury" }),
+        settings,
+        { hasActivePain: false },
+      ),
+    ).toBe(2);
+  });
+
+  it("powrót po urazie zachowuje jedną ostrożną siłownię bez odpowiedzi", () => {
+    expect(
+      getRequiredGymSessions(ctx({ seasonPhase: "return_injury" }), settings),
+    ).toBe(1);
+  });
 });

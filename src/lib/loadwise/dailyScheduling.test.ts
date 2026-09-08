@@ -59,10 +59,11 @@ describe("limity dzienne", () => {
     expect(res.allowed).toBe(true);
   });
 
-  it("doubleSessionsAllowed steruje limitem gdy brak jawnego", () => {
-    expect(getMaxSessionsPerDay({ doubleSessionsAllowed: "no" })).toBe(1);
+  it("stary przełącznik nie steruje już limitem gdy brak jawnego", () => {
+    expect(getMaxSessionsPerDay({ doubleSessionsAllowed: "no" })).toBe(2);
     expect(getMaxSessionsPerDay({ doubleSessionsAllowed: "light_only" })).toBe(2);
     expect(getMaxSessionsPerDay({ doubleSessionsAllowed: "yes_if_safe" })).toBe(2);
+    expect(getMaxSessionsPerDay()).toBe(2);
   });
 
   it("dzień z 2 sesjami nie dostaje trzeciej", () => {
