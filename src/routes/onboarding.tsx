@@ -948,9 +948,10 @@ function Onboarding() {
                   className="mt-0.5"
                 />
                 <span className="text-sm">
-                  Mam aktualnie ból lub uraz
+                  Mam aktualnie ból lub dyskomfort
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Dostosujemy plan i ograniczymy ryzykowne obciążenia.
+                    Ograniczymy obciążenie treningowe. BallWise nie diagnozuje
+                    urazu, nie prowadzi rehabilitacji i nie wyznacza powrotu do gry.
                   </span>
                 </span>
               </label>

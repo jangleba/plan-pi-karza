@@ -16,6 +16,7 @@ import {
   PLANNING_PRIORITY_ORDER,
 } from "./globalPlanRules";
 import type { Profile, Goal } from "./types";
+import { normalizeSessionCategory } from "./sessionClassification";
 
 function baseProfile(p: Partial<Profile>): Profile {
   return {
@@ -166,6 +167,58 @@ describe("globalPlanRules — scoring i konflikty", () => {
     expect(canPlaceSession(0, candidate, [current], context).allowed).toBe(false);
   });
 
+  it("ciężki klub + ciężka wydolność: od 17 lat dla intermediate, bez bólu", () => {
+    const endurance = generatePlan(baseProfile({ goal: "endurance" }), START, 7).find(
+      (day) => day.classification?.category === "endurance_conditioning",
+    )!;
+    const hardEndurance = normalizeSessionCategory({
+      ...endurance,
+      intensity: "wysoka" as const,
+      secondSession: null,
+    });
+    const club = normalizeSessionCategory({
+      ...endurance,
+      dayType: "club" as const,
+      title: "Trening klubowy",
+      sessionType: "Klub",
+      intensity: "wysoka" as const,
+      secondSession: null,
+    });
+
+    expect(
+      canPlaceSession(
+        0,
+        hardEndurance,
+        [club],
+        buildTrainingContext(baseProfile({ age: 17, level: "intermediate" })),
+      ).allowed,
+    ).toBe(true);
+    expect(
+      canPlaceSession(
+        0,
+        hardEndurance,
+        [club],
+        buildTrainingContext(baseProfile({ age: 16, level: "intermediate" })),
+      ).allowed,
+    ).toBe(false);
+    expect(
+      canPlaceSession(
+        0,
+        hardEndurance,
+        [club],
+        buildTrainingContext(baseProfile({ age: 20, level: "beginner" })),
+      ).allowed,
+    ).toBe(false);
+    expect(
+      canPlaceSession(
+        0,
+        hardEndurance,
+        [club],
+        buildTrainingContext(baseProfile({ age: 20, painInjury: true })),
+      ).allowed,
+    ).toBe(false);
+  });
+
   it("nie pozwala na dwie siłownie tego samego dnia", () => {
     const gym = generatePlan(baseProfile({ goal: "strength" }), START, 7).find(
       (day) => day.classification?.category === "gym_strength",
@@ -216,15 +269,14 @@ describe("globalPlanRules — walidacja tygodnia i planu", () => {
     }
   });
 
-  it("validatePlan spełnia progresję i brak copy-paste", () => {
+  it("validatePlan sprawdza strukturę bez wymuszania wzrostu łącznego loadu", () => {
     for (const goal of goals) {
       const plan = generatePlan(baseProfile({ goal }), START, 28);
       const ctx = buildTrainingContext(baseProfile({ goal }));
       const report = validatePlan(fullWeeks(plan), ctx);
-      // progresja
-      expect(report.weekScores[0]).toBeLessThan(report.weekScores[1]);
-      expect(report.weekScores[1]).toBeLessThan(report.weekScores[2]);
-      expect(report.weekScores[3]).toBeLessThan(report.weekScores[2]);
+      expect(report.weekScores).toHaveLength(4);
+      expect(report.weekScores.every((score) => Number.isFinite(score) && score > 0)).toBe(true);
+      expect(report.errors.some((error) => error.startsWith("progression:"))).toBe(false);
       // brak copy-paste między kolejnymi tygodniami
       for (const sim of report.weekSimilarityScores) {
         expect(sim).toBeLessThanOrEqual(0.75);

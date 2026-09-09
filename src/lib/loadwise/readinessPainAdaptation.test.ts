@@ -393,4 +393,44 @@ describe("Daily pain override without profile pain flag", () => {
       expect(allMainText(session)).not.toMatch(/sprint/i);
     });
   }
+
+  it("umiarkowany dyskomfort kończyny dolnej wstrzymuje kanoniczny sprint bez pseudo-rehabilitacji", () => {
+    const canonicalSprint = {
+      ...withSecond,
+      speedGeneratorVersion: "test-speed-engine",
+      speedFamily: "acceleration" as const,
+    };
+    const { session, decision } = applyReadiness(
+      canonicalSprint,
+      makeReadiness(8, { jointPain: 5, painLocation: "hamstring" }),
+      BASE_PROFILE,
+    );
+
+    expect(session.durationMin).toBe(0);
+    expect(session.classification?.countsAsSpeed).toBe(false);
+    expect(session.sections.main).toEqual([]);
+    expect(session.speedGeneratorVersion).toBeUndefined();
+    expect(`${session.riskManaged} ${decision.adjustment}`).toMatch(/nie diagnozuje|rehabilitacji/i);
+  });
+
+  it("umiarkowany dyskomfort przed klubem zachowuje wpis, ale ogranicza load i usuwa sesję 2", () => {
+    const club = normalizeSessionCategory({
+      ...day,
+      dayType: "club" as const,
+      title: "Trening klubowy",
+      sessionType: "Klub",
+      externalCommitment: true,
+    });
+    const { session, decision } = applyReadiness(
+      club,
+      makeReadiness(8, { jointPain: 5, painLocation: "knee" }),
+      BASE_PROFILE,
+    );
+
+    expect(session.dayType).toBe("club");
+    expect(session.loadLabelOverride).toBe("Ogranicz obciążenie");
+    expect(session.secondSession).toBeNull();
+    expect(session.safetyNote).toMatch(/trenerowi|nie diagnozuje|lekarzem|fizjoterapeut/i);
+    expect(decision.headline).toBe("Ogranicz obciążenie");
+  });
 });

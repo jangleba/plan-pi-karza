@@ -45,6 +45,7 @@ import {
 } from "./globalPlanRules";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 import { buildRunningSessionPrescription } from "@/lib/running/engine";
+import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
@@ -68,6 +69,15 @@ export interface AddMissingBallResult {
   converted: number;
   count: number;
   requiredBallSessions: number;
+  unresolvedIssues: string[];
+}
+
+export interface AddMissingSpeedResult {
+  weekPlan: SessionDay[];
+  added: number;
+  converted: number;
+  count: number;
+  requiredSpeedSessions: number;
   unresolvedIssues: string[];
 }
 
@@ -318,6 +328,147 @@ function profileAllowsHeavyClubEndurance(profile?: Profile): boolean {
     return false;
   }
   return !profile.painInjury && (profile.painLocations?.length ?? 0) === 0;
+}
+
+function adjacentHasRealSpeedExposure(weekPlan: SessionDay[], index: number): boolean {
+  const prev = index > 0 ? weekPlan[index - 1] : null;
+  const next = index < weekPlan.length - 1 ? weekPlan[index + 1] : null;
+  return Boolean(
+    (prev && eachSession(prev).some((session) => hasRealSpeedExposure(session))) ||
+    (next && eachSession(next).some((session) => hasRealSpeedExposure(session))),
+  );
+}
+
+function buildCanonicalSpeedRepair(
+  profile: Profile,
+  templateDay: SessionDay,
+): SessionDay | null {
+  const generated = generateFootballSpeedSession({
+    profile,
+    date: templateDay.date,
+    family: "acceleration",
+    readiness: isYouthOrBeginner(profile) ? 5 : 7,
+    progressionWeek:
+      templateDay.speedProgressionWeek ??
+      templateDay.blockWeekNumber ??
+      templateDay.weekMeta?.blockWeek ??
+      1,
+  }).session;
+
+  if (!generated) return null;
+
+  const normalized = normalizeSessionCategory({
+    ...generated,
+    date: templateDay.date,
+    dayName: templateDay.dayName || dayNameOf(parseIso(templateDay.date)),
+    dayOfWeek: templateDay.dayOfWeek,
+    mdLabel: templateDay.mdLabel ?? null,
+    slotLabel: templateDay.slotLabel ?? null,
+    weekMeta: templateDay.weekMeta,
+    blockWeekNumber: templateDay.blockWeekNumber,
+    reason:
+      "Dodano brakującą kanoniczną sesję szybkościową — klub, mecz i RSA nie zastępują tygodniowego minimum sprintu.",
+    whyToday:
+      "To najbezpieczniejsze dostępne miejsce z zachowaniem odstępu od innych ekspozycji szybkościowych.",
+  });
+  if (normalized.classification) {
+    normalized.classification.generatedBy = "final-week-validator";
+    normalized.classification.repairTag = "missing-speed";
+    normalized.classification.placementReason = normalized.reason;
+  }
+  return normalized;
+}
+
+/** Dodaje brakujący sprint przez kanoniczny silnik; RSA nie realizuje minimum sprintu. */
+export function addMissingCanonicalSpeedSessions(
+  weekPlan: SessionDay[],
+  weeklyRequirements: WeeklyRequirements,
+  profile: Profile,
+): AddMissingSpeedResult {
+  const required = Math.max(1, weeklyRequirements.requiredSpeedSessions);
+  const unresolvedIssues: string[] = [];
+  let added = 0;
+  let converted = 0;
+  let guard = 0;
+
+  while (countSpeedSessions(weekPlan) < required && guard < 6) {
+    guard += 1;
+
+    const openIndex = weekPlan.findIndex(
+      (day, index) =>
+        !day.isUnavailable &&
+        !isClubSession(day) &&
+        !isMatchSession(day) &&
+        !isDayBeforeMatch(day) &&
+        !isDayAfterMatch(day) &&
+        !adjacentHasRealSpeedExposure(weekPlan, index) &&
+        (day.dayType === "rest" || isRecoverySession(day)),
+    );
+    if (openIndex >= 0) {
+      const rebuilt = buildCanonicalSpeedRepair(profile, weekPlan[openIndex]);
+      if (!rebuilt) break;
+      weekPlan[openIndex] = rebuilt;
+      added += 1;
+      continue;
+    }
+
+    // W pełnym grafiku sprint ma pierwszeństwo przed lekką piłką/recovery.
+    // Piłka jest dokładana ponownie później jako lekki drugi slot.
+    const replaceSecondIndex = weekPlan.findIndex(
+      (day, index) =>
+        !day.isUnavailable &&
+        !isClubSession(day) &&
+        !isMatchSession(day) &&
+        !isDayBeforeMatch(day) &&
+        !isDayAfterMatch(day) &&
+        !adjacentHasRealSpeedExposure(weekPlan, index) &&
+        Boolean(
+          day.secondSession &&
+          (isBallTechnicalSession(day.secondSession) || isRecoverySession(day.secondSession)),
+        ),
+    );
+    if (replaceSecondIndex >= 0) {
+      const host = weekPlan[replaceSecondIndex];
+      const rebuilt = buildCanonicalSpeedRepair(profile, host);
+      if (!rebuilt) break;
+      rebuilt.secondSession = { ...host, secondSession: null, slotLabel: "Sesja 2" };
+      rebuilt.slotLabel = "Sesja 1 (szybkość)";
+      weekPlan[replaceSecondIndex] = rebuilt;
+      converted += 1;
+      continue;
+    }
+
+    const secondSlotIndex = weekPlan.findIndex(
+      (day, index) =>
+        !day.isUnavailable &&
+        !isClubSession(day) &&
+        !isMatchSession(day) &&
+        !day.secondSession &&
+        !isDayBeforeMatch(day) &&
+        !isDayAfterMatch(day) &&
+        !adjacentHasRealSpeedExposure(weekPlan, index),
+    );
+    if (secondSlotIndex >= 0) {
+      const host = weekPlan[secondSlotIndex];
+      const rebuilt = buildCanonicalSpeedRepair(profile, host);
+      if (!rebuilt) break;
+      rebuilt.secondSession = { ...host, secondSession: null, slotLabel: "Sesja 2" };
+      rebuilt.slotLabel = "Sesja 1 (szybkość)";
+      weekPlan[secondSlotIndex] = rebuilt;
+      added += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  const count = countSpeedSessions(weekPlan);
+  if (count < required) {
+    unresolvedIssues.push(
+      `Tydzień ma ${count}/${required} sesji szybkości — brak bezpiecznego miejsca bez łamania odstępów i ochrony meczu.`,
+    );
+  }
+  return { weekPlan, added, converted, count, requiredSpeedSessions: required, unresolvedIssues };
 }
 
 export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[], profile?: Profile): { removed: number } {
@@ -588,6 +739,31 @@ export function repairBackToBackSpeedSessions(
   let moved = 0;
   let removed = 0;
 
+  const clearSpeedSession = (
+    day: SessionDay,
+    reason: string,
+  ): SessionDay => ({
+    ...day,
+    dayType: "rest" as DayType,
+    title: "Odpoczynek",
+    goalLabel: "Regeneracja",
+    intensity: "niska",
+    durationMin: 0,
+    sessionType: "Odpoczynek",
+    goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
+    slotLabel: null,
+    secondSession: day.secondSession ?? null,
+    exercises: [],
+    sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+    classification: undefined,
+    speedGeneratorVersion: undefined,
+    speedFamily: undefined,
+    speedProgressionWeek: undefined,
+    speedRecentPostSkipExerciseIds: undefined,
+    reason,
+    whyToday: reason,
+  });
+
   let guard = 0;
   while (guard < 14) {
     guard += 1;
@@ -649,43 +825,17 @@ export function repairBackToBackSpeedSessions(
       const candidate = weekPlan.slice();
       candidate[idx] = relocated;
       if (isSpeedSession(laterDay)) {
-        candidate[repairIndex] = {
-          ...laterDay,
-          dayType: "rest" as DayType,
-          title: "Odpoczynek",
-          goalLabel: "Regeneracja",
-          intensity: "niska",
-          durationMin: 0,
-          sessionType: "Odpoczynek",
-          goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
-          slotLabel: null,
-          secondSession: laterDay.secondSession ?? null,
-          exercises: [],
-          sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
-          classification: undefined,
-          reason: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
-          whyToday: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
-        };
+        candidate[repairIndex] = clearSpeedSession(
+          laterDay,
+          "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
+        );
       }
       if (!passesGlobalWeekGate(candidate, profile)) {
         if (isSpeedSession(laterDay)) {
-          weekPlan[repairIndex] = {
-            ...laterDay,
-            dayType: "rest" as DayType,
-            title: "Odpoczynek",
-            goalLabel: "Regeneracja",
-            intensity: "niska",
-            durationMin: 0,
-            sessionType: "Odpoczynek",
-            goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
-            slotLabel: null,
-            secondSession: laterDay.secondSession ?? null,
-            exercises: [],
-            sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
-            classification: undefined,
-            reason: "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
-            whyToday: "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
-          };
+          weekPlan[repairIndex] = clearSpeedSession(
+            laterDay,
+            "Usunięto szybkość — przeniesienie narusza globalne reguły tygodnia.",
+          );
         }
         removed += 1;
         unresolvedIssues.push(
@@ -696,45 +846,19 @@ export function repairBackToBackSpeedSessions(
       weekPlan[idx] = relocated;
       // Jeśli źródłem był główny dzień (nie secondSession), zamień go na rest.
       if (isSpeedSession(laterDay) && laterDay === weekPlan[repairIndex]) {
-        weekPlan[repairIndex] = {
-          ...laterDay,
-          dayType: "rest" as DayType,
-          title: "Odpoczynek",
-          goalLabel: "Regeneracja",
-          intensity: "niska",
-          durationMin: 0,
-          sessionType: "Odpoczynek",
-          goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
-          slotLabel: null,
-          secondSession: laterDay.secondSession ?? null,
-          exercises: [],
-          sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
-          classification: undefined,
-          reason: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
-          whyToday: "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
-        };
+        weekPlan[repairIndex] = clearSpeedSession(
+          laterDay,
+          "Szybkość przeniesiona — zachowano min. 1 dzień przerwy między speed.",
+        );
       }
       moved += 1;
     } else {
       // Brak miejsca — zamień późniejszy dzień na rest (usuń szybkość).
       if (isSpeedSession(laterDay) && laterDay === weekPlan[repairIndex] && !laterDay.secondSession) {
-        weekPlan[repairIndex] = {
-          ...laterDay,
-          dayType: "rest" as DayType,
-          title: "Odpoczynek",
-          goalLabel: "Regeneracja",
-          intensity: "niska",
-          durationMin: 0,
-          sessionType: "Odpoczynek",
-          goalOfSession: "Regeneracja między bodźcami szybkościowymi.",
-          slotLabel: null,
-          secondSession: null,
-          exercises: [],
-          sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
-          classification: undefined,
-          reason: "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
-          whyToday: "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
-        };
+        weekPlan[repairIndex] = clearSpeedSession(
+          { ...laterDay, secondSession: null },
+          "Usunięto szybkość dzień po dniu — brak dnia z min. 1 dniem przerwy.",
+        );
       }
       removed += 1;
       unresolvedIssues.push(
@@ -1568,6 +1692,7 @@ export function addMissingGymSessions(
 export function assertFinalPlanMeetsMinimums(
   weekPlan: SessionDay[],
   weeklyRequirements: WeeklyRequirements,
+  profile?: Profile,
 ): WeekValidationReport {
   const unresolvedIssues: string[] = [];
 
@@ -1585,7 +1710,7 @@ export function assertFinalPlanMeetsMinimums(
   const requiredSpeedSessions = weeklyRequirements.requiredSpeedSessions;
   const requiredBallSessions = weeklyRequirements.requiredBallSessions;
 
-  const noEnduranceOnClubDays = !weekPlan.some(
+  const noEnduranceOnClubDays = profileAllowsHeavyClubEndurance(profile) || !weekPlan.some(
     (d) =>
       isClubSession(d) &&
       eachSession(d).some(
@@ -1660,7 +1785,7 @@ function weekContextFor(weekPlan: SessionDay[], profile: Profile): WeekRequireme
   };
 }
 
-function requirementsFor(weekPlan: SessionDay[], profile: Profile): WeeklyRequirements {
+export function requirementsFor(weekPlan: SessionDay[], profile: Profile): WeeklyRequirements {
   const ctx = weekContextFor(weekPlan, profile);
   const athlete = buildAthleteTrainingProfile(profile);
   return calculateWeeklyMinimumRequirements(
@@ -1697,6 +1822,7 @@ export function validateAndRepairWeekPlan(
   validateNoEnduranceOnClubDays(weekPlan, profile);
   // Najpierw siłownia i szybkość, ponieważ ich naprawy mogą przebudować cały dzień.
   addMissingGymSessions(weekPlan, requirements, profile);
+  addMissingCanonicalSpeedSessions(weekPlan, requirements, profile);
   repairDuplicateSpeedSameDay(weekPlan, profile);
   repairBackToBackSpeedSessions(weekPlan, profile);
   // Endurance dodajemy jako ostatnie: późniejsza naprawa innej kategorii nie może
@@ -1713,7 +1839,7 @@ export function validateAndRepairWeekPlan(
   // wydolności nie mogły jej skasować. Klub i mecz nie spełniają tego minimum.
   addMissingBallSessions(weekPlan, requirements, profile);
 
-  const report = assertFinalPlanMeetsMinimums(weekPlan, requirements);
+  const report = assertFinalPlanMeetsMinimums(weekPlan, requirements, profile);
 
   const inheritedWeekMeta =
     weekPlan.find((day) => day.weekMeta)?.weekMeta;
@@ -1824,7 +1950,7 @@ export function finalizeWeekPlan(
   // dodawania sesji, które odtworzyłoby właśnie usunięty konflikt.
   reports = chunkIntoWeeks(finalPlan)
     .filter(isFullCalendarWeek)
-    .map((week) => assertFinalPlanMeetsMinimums(week, requirementsFor(week, profile)));
+    .map((week) => assertFinalPlanMeetsMinimums(week, requirementsFor(week, profile), profile));
 
   return {
     plan: finalPlan,

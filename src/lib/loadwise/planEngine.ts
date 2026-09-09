@@ -46,8 +46,10 @@ import { hasRealSpeedExposure } from "./speedLoad";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import {
+  assertFinalPlanMeetsMinimums,
   finalizeWeekPlan,
   repairSpeedAcrossWeekBoundaries,
+  requirementsFor,
   validateAndRepairWeekPlan,
 } from "./weekFinalization";
 import {
@@ -695,6 +697,7 @@ function lowerIntensity(i: Intensity, steps: number): Intensity {
  * in one place.
  */
 const PAIN_RISKY_RE = /sprint|zryw|przyspiesz|maksym|przysiad|martwy|wykrok|skok|plyo/i;
+const LOWER_LIMB_DISCOMFORT = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
 /**
  * Returns a category-safe replacement exercise for blocked/hard exercises.
@@ -4685,6 +4688,11 @@ export function generatePlan(
       blockWeek: blockWeekOf(weekOffset + weekIndex),
       limitation: profile.secondaryLimiter,
     });
+    const hardGate = assertFinalPlanMeetsMinimums(
+      week,
+      requirementsFor(week, profile),
+      profile,
+    );
 
     const previousMeta = week.find((day) => day.weekMeta)?.weekMeta;
 
@@ -4699,7 +4707,7 @@ export function generatePlan(
       recoverySessions: counts.recovery,
       weeklyLoadScore: computeWeeklyLoadScore(week),
       validationStatus:
-        validation.status !== "valid"
+        validation.status !== "valid" || hardGate.finalStatus !== "valid"
           ? "invalid"
           : previousMeta.validationStatus === "invalid"
             ? "rebuilt"
@@ -4857,6 +4865,7 @@ export function applyReadiness(
   let removeHard = false;
   let keepIntensity = false;
   let recoveryOnly = false;
+  let wellnessSafetyHold = false;
 
   if (r >= 8) {
     // 8–10: pełny plan.
@@ -4914,7 +4923,48 @@ export function applyReadiness(
   const externalTitle = externalKind === "match" ? "Mecz" : "Trening klubowy";
   const externalType = externalKind === "match" ? "Mecz" : "Klub";
 
-  if (recoveryOnly && externalCommitment) {
+  // Zakres fitness/wellness: aplikacja nie diagnozuje urazu ani nie układa
+  // rehabilitacji. Umiarkowany dyskomfort kończyny dolnej w dniu sprintu
+  // wstrzymuje tę sesję zamiast podmieniać ją na pozornie "leczniczy" wariant.
+  if (
+    localizedPain &&
+    !externalCommitment &&
+    session.speedGeneratorVersion &&
+    readiness.painLocation &&
+    LOWER_LIMB_DISCOMFORT.has(readiness.painLocation)
+  ) {
+    wellnessSafetyHold = true;
+    adjusted = {
+      ...session,
+      dayType: "recovery",
+      title: "Sesja wstrzymana po check-inie",
+      sessionType: "Przerwa ostrożnościowa",
+      goalLabel: "Bezpieczeństwo",
+      goalOfSession: "Nie rozpoczynaj dziś zaplanowanej sesji szybkościowej.",
+      intensity: "niska",
+      durationMin: 0,
+      reason:
+        "Zgłoszony dyskomfort kończyny dolnej nie pozwala aplikacji fitness dobrać wiarygodnej zamiany sprintu.",
+      whyToday: "Decyzja ostrożnościowa na podstawie dzisiejszego check-inu.",
+      riskManaged:
+        "BallWise nie diagnozuje urazu i nie generuje rehabilitacji ani terminu powrotu.",
+      avoidToday: "Bez sprintów, skoków i szybkich zmian kierunku.",
+      safetyNote:
+        "Jeśli ból utrzymuje się, nasila lub ogranicza normalny ruch, skonsultuj dalszy trening z lekarzem albo fizjoterapeutą.",
+      sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+      structuredSections: undefined,
+      exercises: undefined,
+      secondSession: null,
+      slotLabel: null,
+      speedGeneratorVersion: undefined,
+      speedFamily: undefined,
+      speedProgressionWeek: undefined,
+      speedRecentPostSkipExerciseIds: undefined,
+      classification: undefined,
+    };
+    adjustment =
+      "Dyskomfort 4–6/10 w kończynie dolnej: sesja szybkościowa została wstrzymana; aplikacja nie dobiera rehabilitacji.";
+  } else if (recoveryOnly && externalCommitment) {
     const painStop = painOverride || severeSignals;
     adjusted = {
       ...session,
@@ -4966,6 +5016,21 @@ export function applyReadiness(
       exercises: undefined,
     };
     adjustment = "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą.";
+  } else if (externalCommitment && localizedPain) {
+    adjusted = {
+      ...session,
+      dayType: externalKind,
+      title: externalTitle,
+      sessionType: externalType,
+      externalCommitment: true,
+      loadLabelOverride: "Ogranicz obciążenie",
+      secondSession: null,
+      slotLabel: null,
+      safetyNote:
+        "Zgłoś dyskomfort trenerowi przed rozpoczęciem. BallWise nie diagnozuje urazu ani nie wyznacza powrotu do gry. Przerwij wysiłek, jeśli ból się nasila lub ogranicza ruch; dalszy trening ustal z lekarzem albo fizjoterapeutą.",
+    };
+    adjustment =
+      "Zgłoszony dyskomfort: zachowujemy informację o treningu klubowym, usuwamy dodatkową sesję i oznaczamy konieczność ograniczenia obciążenia z trenerem.";
   } else if (recoveryOnly) {
     const built = recoverySession();
     adjusted = {
@@ -5076,7 +5141,13 @@ export function applyReadiness(
   // Przy umiarkowanym dyskomforcie nie kasujemy całej jednostki. Przepuszczamy
   // ją przez istniejący walidator ćwiczeń z dokładnie wskazanym obszarem, aby
   // zamienić tylko ruchy, które ten obszar obciążają.
-  if (localizedPain && !externalCommitment && !recoveryOnly && readiness.painLocation) {
+  if (
+    localizedPain &&
+    !externalCommitment &&
+    !recoveryOnly &&
+    !wellnessSafetyHold &&
+    readiness.painLocation
+  ) {
     const painProfile: Profile = {
       ...profile,
       painInjury: true,
@@ -5087,7 +5158,7 @@ export function applyReadiness(
     adjusted = repairUnsafeExercisesForAthleteProfile([adjusted], painProfile).plan[0];
     adjustment =
       (adjustment ? adjustment + " " : "") +
-      "Dyskomfort 4–6/10: zmieniono wyłącznie ruchy obciążające wskazany obszar.";
+      "Dyskomfort 4–6/10: usunięto ruchy niezgodne z ostrożnościowym filtrem obciążenia.";
     adjusted = {
       ...adjusted,
       safetyNote:

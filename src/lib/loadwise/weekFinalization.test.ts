@@ -351,6 +351,31 @@ import {
 } from "./weekFinalization";
 
 describe("SessionDay: min. 1 dzień przerwy między speed", () => {
+  it("usunięty konflikt nie zachowuje znacznika, który odtworzyłby sprint", () => {
+    const wk = [
+      speedDay(DATES[0]),
+      {
+        ...speedDay(DATES[1]),
+        speedGeneratorVersion: "test-speed-engine",
+        speedFamily: "acceleration" as const,
+        speedProgressionWeek: 2,
+      },
+      gymDay(DATES[2]),
+      gymDay(DATES[3]),
+      recoveryDay(DATES[4]),
+      clubDay(DATES[5]),
+      clubDay(DATES[6]),
+    ];
+
+    repairBackToBackSpeedSessions(wk, profile());
+
+    const removed = wk.find((day) => day.date === DATES[1])!;
+    expect(hasSpeedSession(removed)).toBe(false);
+    expect(removed.speedGeneratorVersion).toBeUndefined();
+    expect(removed.speedFamily).toBeUndefined();
+    expect(removed.speedProgressionWeek).toBeUndefined();
+  });
+
   it("wykrywa speed dzień po dniu", () => {
     const wk = [
       speedDay(DATES[0]),

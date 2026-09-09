@@ -220,8 +220,8 @@ function ProfileScreen() {
                 <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
               )}
               {profile.painInjury
-                ? "Zgłoszony ból lub uraz — plan ograniczony"
-                : "Brak zgłoszonego bólu lub urazu"}
+                ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
+                : "Brak zgłoszonego bólu lub dyskomfortu"}
             </div>
             <div className="flex items-center gap-2 text-sm">
               {isMinor && !profile.guardianConsent ? (

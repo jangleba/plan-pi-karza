@@ -190,7 +190,10 @@ export const SEASON_RULES: Record<SeasonPhase, { loadFactor: number; note: strin
   preseason: { loadFactor: 1.1, note: "Przedsezon: budowanie bazy i intensywności." },
   inseason: { loadFactor: 0.9, note: "W sezonie: freshness, ostrość, utrzymanie." },
   transition: { loadFactor: 0.7, note: "Okres przejściowy: lżej, mobilność." },
-  return_injury: { loadFactor: 0.6, note: "Powrót po kontuzji: ostrożna progresja." },
+  return_injury: {
+    loadFactor: 0.6,
+    note: "Ograniczony trening po przerwie. Powrót po urazie ustala lekarz lub fizjoterapeuta.",
+  },
 };
 
 /** 8. competitionLevelRules — wyższy poziom rozgrywkowy = bardziej zorganizowany plan. */
@@ -247,8 +250,8 @@ export const VALIDATION_RULES = {
   minEndurancePerFullWeek: 1,
   /** Regeneracja/prehab nie może dominować bez powodu. */
   recoveryMustNotDominate: true,
-  /** Wynik obciążenia musi rosnąć w1<w2<w3 i maleć w4<w3. */
-  enforceBlockProgression: true,
+  /** Progresja odbywa się osobno dla każdej zdolności, nie przez łączny load. */
+  enforceBlockProgression: false,
 } as const;
 
 // ---------------------------------------------------------------------------

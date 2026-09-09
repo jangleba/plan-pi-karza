@@ -114,7 +114,8 @@ export function Disclaimer() {
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <p className="text-xs leading-relaxed text-muted-foreground">
         Loadwise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej.
-        Nie diagnozuje, nie leczy i nie zastępuje konsultacji medycznej.
+        Nie diagnozuje, nie leczy, nie prowadzi rehabilitacji ani nie wyznacza
+        powrotu do gry. Te decyzje należą do lekarza lub fizjoterapeuty.
       </p>
     </div>
   );

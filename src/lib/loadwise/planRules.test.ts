@@ -56,20 +56,23 @@ describe("rule-based week layer — progresja bloku", () => {
     }
   });
 
-  it("load rośnie w1<w2<w3 i maleje w4<w3 (deload niepusty)", () => {
+  it("progresja nie pompuje sztucznie całego tygodnia razem z klubem", () => {
     const plan = generatePlan(baseProfile({}), START, 28);
     const scores = fullWeeks(plan).map((w) => computeWeeklyLoadScore(w));
     expect(scores).toHaveLength(4);
-    expect(scores[0]).toBeLessThan(scores[1]);
-    expect(scores[1]).toBeLessThan(scores[2]);
-    expect(scores[3]).toBeLessThan(scores[2]);
-    expect(scores[3]).toBeGreaterThan(0);
+    expect(scores.every((score) => Number.isFinite(score) && score > 0)).toBe(true);
+    const canonicalSpeed = plan.filter((day) => Boolean(day.speedGeneratorVersion));
+    expect(canonicalSpeed.length).toBeGreaterThan(0);
+    expect(canonicalSpeed.every((day) => day.durationMin <= 60)).toBe(true);
   });
 
-  it("tydzień 3 ma najwyższy load", () => {
+  it("każda rodzina szybkości zachowuje własny tydzień progresji", () => {
     const plan = generatePlan(baseProfile({ goal: "speed" }), START, 28);
-    const scores = fullWeeks(plan).map((w) => computeWeeklyLoadScore(w));
-    expect(Math.max(...scores)).toBe(scores[2]);
+    const progressionWeeks = plan
+      .filter((day) => Boolean(day.speedGeneratorVersion))
+      .map((day) => day.speedProgressionWeek);
+    expect(progressionWeeks.length).toBeGreaterThan(0);
+    expect(progressionWeeks.every((week) => typeof week === "number" && week >= 1 && week <= 4)).toBe(true);
   });
 
   it("tygodnie 1–4 nie mają identycznego rozkładu", () => {

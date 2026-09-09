@@ -15,7 +15,7 @@ export const SEASON_PHASE_LABELS: Record<SeasonPhase, string> = {
   preseason: "Przedsezon",
   inseason: "W sezonie",
   transition: "Okres przejściowy / roztrenowanie",
-  return_injury: "Powrót po kontuzji",
+  return_injury: "Ograniczony trening po przerwie",
 };
 
 export const SEASON_STAGE_LABELS: Record<SeasonStage, string> = {
@@ -136,7 +136,7 @@ export const GOAL_LABELS: Record<Goal, string> = {
   agility: "Zwrotność i hamowanie",
   general: "Rozwój z piłką",
   mobility: "Mobilność / prehab",
-  return: "Powrót po przerwie lub kontuzji",
+  return: "Powrót po przerwie",
   matchready: "Gotowość meczowa",
 };
 

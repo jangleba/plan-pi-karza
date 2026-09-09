@@ -476,6 +476,14 @@ function dayHasHardClub(day: SessionDay | undefined | null): boolean {
   );
 }
 
+function contextAllowsHeavyClubEndurance(context?: TrainingContext): boolean {
+  if (!context || context.age < 17) return false;
+  if (!(["intermediate", "advanced", "elite"] as const).includes(
+    context.trainingLevel as "intermediate" | "advanced" | "elite",
+  )) return false;
+  return !context.injuryStatus.hasPainOrInjury && !context.fatigueStatus.highFatigue;
+}
+
 /**
  * Sprawdza, czy sesja może wejść w dany dzień tygodnia (indeks dayIndex).
  * Blokuje twarde konflikty następstwa i tego samego dnia.
@@ -565,7 +573,8 @@ export function canPlaceSession(
     if (
       isEnduranceSession(session) &&
       session.intensity === "wysoka" &&
-      dayHasHardClub(current)
+      dayHasHardClub(current) &&
+      !contextAllowsHeavyClubEndurance(context)
     ) {
       return {
         allowed: false,
@@ -574,7 +583,12 @@ export function canPlaceSession(
     }
   }
 
-  if (isClubSession(session) && session.intensity === "wysoka" && dayHasHardEndurance(current)) {
+  if (
+    isClubSession(session) &&
+    session.intensity === "wysoka" &&
+    dayHasHardEndurance(current) &&
+    !contextAllowsHeavyClubEndurance(context)
+  ) {
     return {
       allowed: false,
       reason: "Ciężka wydolność + ciężki trening klubowy tego samego dnia są zablokowane.",
@@ -825,15 +839,9 @@ export function validatePlan(weeks: SessionDay[][], context: TrainingContext): P
 
   const weekScores = weeks.map((w) => calculateWeeklyLoadScore(w));
 
-  // progresja bloku — tylko dla pełnego 4-tygodniowego bloku pełnych tygodni.
-  if (fullWeeks.length === 4) {
-    const s = fullWeeks.map((w) => calculateWeeklyLoadScore(w));
-    if (!(s[0] < s[1])) errors.push("progression:w1>=w2");
-    if (!(s[1] < s[2])) errors.push("progression:w2>=w3");
-    if (!(s[3] < s[2])) errors.push("progression:w4>=w3");
-    if (Math.max(...s) !== s[2]) errors.push("progression:w3-not-peak");
-    if (!(s[3] > 0)) errors.push("progression:deload-empty");
-  }
+  // Klub i mecze są obciążeniem zewnętrznym, więc nie wymuszamy sztucznej
+  // progresji ich sumy. Każdy silnik rozwija własną zdolność osobno.
+  void fullWeeks;
 
   // similarity — kolejne pary tygodni nie mogą przekraczać 75%.
   const weekSimilarityScores: number[] = [];
