@@ -5,6 +5,8 @@ import type {
   Intensity,
   ModificationType,
   PlanSessionType,
+  PainLocation,
+  Readiness,
 } from "./types";
 import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
@@ -71,6 +73,9 @@ interface DayContext {
   hardTomorrow: boolean; // jutro mocna sesja / ciężki klub
   readiness: number | null;
   pain: boolean;
+  painLevel: number;
+  painLocation: PainLocation | null;
+  severePain: boolean;
   goal: Profile["goal"];
   daysToMatch: number | null;
   weekBall: number;
@@ -85,7 +90,7 @@ function buildContext(
   plan: SessionDay[],
   profile: Profile,
   date: string,
-  readiness: number | null,
+  readiness: Readiness | null,
 ): DayContext {
   const today = dayTypeOf(plan, date);
   const tomorrowIso = isoDate(addDays(parseIso(date), 1));
@@ -126,6 +131,10 @@ function buildContext(
   const clubCount = week.filter((d) => d.dayType === "club").length;
   const heavyWeek = highCount + clubCount >= 4;
 
+  const painLevel = readiness?.jointPain ?? (profile.painInjury ? 4 : 0);
+  const painLocation =
+    readiness?.painLocation ?? profile.painLocations?.[0] ?? null;
+
   return {
     date,
     mdLabel: today?.mdLabel ?? null,
@@ -134,8 +143,11 @@ function buildContext(
     isMDplus1,
     clubToday,
     hardTomorrow,
-    readiness,
-    pain: profile.painInjury,
+    readiness: readiness?.overall ?? null,
+    pain: profile.painInjury || painLevel >= 4,
+    painLevel,
+    painLocation,
+    severePain: painLevel >= 7,
     goal: profile.goal,
     daysToMatch,
     weekBall,
@@ -456,6 +468,15 @@ function gating(ctx: DayContext): {
     };
   }
 
+  if (ctx.severePain) {
+    return {
+      canModify: false,
+      allowed: [],
+      message:
+        "Ból 7–10/10 — nie dokładamy ani nie podmieniamy treningu. Wstrzymaj wysiłek i ustal dalsze postępowanie z lekarzem lub fizjoterapeutą.",
+    };
+  }
+
   let allowed = all;
   let message = "Bezpieczne dziś.";
 
@@ -493,7 +514,9 @@ function gating(ctx: DayContext): {
   // ból zawsze ogranicza
   if (ctx.pain) {
     allowed = allowed.filter((c) => c === "recovery" || c === "mobility");
-    message = "Zgłoszony ból — tylko regeneracja i mobilność.";
+    message = ctx.painLocation
+      ? "Zgłoszony dyskomfort — bez sprintu i siły; wyłącznie lekki, bezbolesny wariant."
+      : "Zgłoszony dyskomfort — bez sprintu i siły; przerwij, jeśli objawy się nasilają.";
   }
 
   return { canModify: allowed.length > 0, allowed, message };
@@ -529,7 +552,8 @@ function blockReason(ctx: DayContext): string {
   if (ctx.isMD1) return "Za blisko meczu.";
   if (ctx.isMDplus1) return "Dzień po meczu — regeneracja.";
   if (ctx.clubToday) return "Klub był głównym obciążeniem.";
-  if (ctx.pain) return "Zgłoszony ból.";
+  if (ctx.severePain) return "Ból 7–10/10 — wstrzymaj wysiłek.";
+  if (ctx.pain) return "Zgłoszony ból lub dyskomfort.";
   if (ctx.readiness !== null && ctx.readiness <= 5) return "Gotowość niska.";
   if (ctx.hardTomorrow) return "Jutro mocna sesja.";
   return "Nie pasuje do tygodnia.";
@@ -539,7 +563,7 @@ export function buildProposals(
   plan: SessionDay[],
   profile: Profile,
   date: string,
-  readiness: number | null,
+  readiness: Readiness | null,
   choice: ModificationType,
   place: Place,
   timeMin: number,

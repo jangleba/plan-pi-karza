@@ -18,6 +18,7 @@ import {
   normalizeCurrentPitchFeelings,
   normalizeDesiredPitchFeelings,
 } from "@/lib/loadwise/playerDirection";
+import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
 import {
   CalendarDays,
@@ -72,6 +73,13 @@ function ProfileScreen() {
 
 
   const isMinor = profile.age >= 13 && profile.age <= 17;
+  const painLocationLabel = (profile.painLocations ?? [])
+    .map(
+      (location) =>
+        PAIN_LOCATION_OPTIONS.find((option) => option.value === location)?.label,
+    )
+    .filter(Boolean)
+    .join(", ");
   const currentFeelings = normalizeCurrentPitchFeelings(profile.currentPitchFeelings);
   const desiredFeelings = normalizeDesiredPitchFeelings(profile.desiredPitchFeelings);
   const usualMatchDay =
@@ -223,6 +231,11 @@ function ProfileScreen() {
                 ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
                 : "Brak zgłoszonego bólu lub dyskomfortu"}
             </div>
+            {profile.painInjury && painLocationLabel && (
+              <div className="pl-6 text-xs text-muted-foreground">
+                Obszar: {painLocationLabel}
+              </div>
+            )}
             <div className="flex items-center gap-2 text-sm">
               {isMinor && !profile.guardianConsent ? (
                 <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />

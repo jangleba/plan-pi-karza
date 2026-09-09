@@ -14,6 +14,7 @@ import type {
   SecondaryLimiter,
   CurrentPitchFeeling,
   DesiredPitchFeeling,
+  PainLocation,
 } from "@/lib/loadwise/types";
 import {
   CURRENT_PITCH_FEELINGS,
@@ -36,6 +37,7 @@ import {
 } from "@/lib/loadwise/labels";
 import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
+import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -245,6 +247,9 @@ function Onboarding() {
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
   const equipment: string[] = existing?.equipment ?? [];
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
+  const [painLocations, setPainLocations] = useState<PainLocation[]>(
+    existing?.painLocations ?? [],
+  );
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
   const [unavailableDays, setUnavailableDays] = useState<number[]>(
     existing?.unavailableDays ?? [],
@@ -363,6 +368,13 @@ function Onboarding() {
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
     );
   }
+  function togglePainLocation(location: PainLocation) {
+    setPainLocations((current) =>
+      current.includes(location)
+        ? current.filter((item) => item !== location)
+        : [...current, location],
+    );
+  }
 
   function canNext(): boolean {
     if (step === 0) return requiredConsentsOk;
@@ -377,7 +389,8 @@ function Onboarding() {
         !seasonBlocksContinue
       );
     if (step === 3) return goal !== null && secondaryLimiter !== null;
-    if (step === 4) return matchDate.trim().length > 0;
+    if (step === 4)
+      return matchDate.trim().length > 0 && (!painInjury || painLocations.length > 0);
     if (step === 5)
       return currentFeelings.length > 0 && desiredFeelings.length > 0;
     return true;
@@ -422,6 +435,11 @@ function Onboarding() {
       setStep(4);
       return;
     }
+    if (painInjury && painLocations.length === 0) {
+      toast.error("Wybierz obszar bólu lub dyskomfortu.");
+      setStep(4);
+      return;
+    }
     if (currentFeelings.length === 0 || desiredFeelings.length === 0) {
       toast.error("Wybierz, jak czujesz się teraz i jak chcesz się czuć.");
       setShowErrors(true);
@@ -446,6 +464,7 @@ function Onboarding() {
       matchDate: matchDate || null,
       equipment,
       painInjury,
+      painLocations: painInjury ? painLocations : [],
       doubleSessionsAllowed: level === "beginner" ? "light_only" : "yes_if_safe",
       guardianConsent: isMinor ? consent : true,
       onboardingComplete: true,
@@ -955,6 +974,38 @@ function Onboarding() {
                   </span>
                 </span>
               </label>
+              {painInjury && (
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-sm font-medium">Gdzie odczuwasz ból lub dyskomfort?</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Wybierz wszystkie pasujące obszary. Służy to tylko do ograniczenia obciążenia ćwiczeń.
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {PAIN_LOCATION_OPTIONS.map((option) => {
+                      const selected = painLocations.includes(option.value);
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => togglePainLocation(option.value)}
+                          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background text-foreground"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {painLocations.length === 0 && (
+                    <p className="mt-2 text-xs font-medium text-destructive">
+                      Wybierz przynajmniej jeden obszar.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Dni całkowicie niedostępne */}

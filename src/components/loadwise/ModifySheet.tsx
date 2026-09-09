@@ -7,7 +7,7 @@ import {
   type Place,
   type Proposal,
 } from "@/lib/loadwise/modifications";
-import type { PainLocation, SessionDay } from "@/lib/loadwise/types";
+import type { PainLocation, Readiness, SessionDay } from "@/lib/loadwise/types";
 import { buildReadiness, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import {
   Dialog,
@@ -51,6 +51,8 @@ export function ModifySheet({
     Object.fromEntries(readinessFields.map((f) => [f.key, f.def])),
   );
   const [painLocation, setPainLocation] = useState<PainLocation | null>(null);
+  const [draftReadiness, setDraftReadiness] = useState<Readiness | null>(null);
+  const [savingReadiness, setSavingReadiness] = useState(false);
 
   const profile = state.profile;
   const readiness = state.readiness[date];
@@ -58,6 +60,7 @@ export function ModifySheet({
   function reset() {
     setStep("choice");
     setChoice("add");
+    setDraftReadiness(null);
   }
 
   function close(v: boolean) {
@@ -78,15 +81,25 @@ export function ModifySheet({
     }
   }
 
-  function saveReadinessStep() {
-    saveReadiness(buildReadiness(date, {
+  async function saveReadinessStep() {
+    if (savingReadiness) return;
+    const nextReadiness = buildReadiness(date, {
       sleep: vals.sleep,
       energy: vals.energy,
       fatigue: vals.fatigue,
       jointPain: vals.jointPain,
       painLocation,
-    }));
-    setStep("proposals");
+    });
+    setSavingReadiness(true);
+    try {
+      await saveReadiness(nextReadiness);
+      setDraftReadiness(nextReadiness);
+      setStep("proposals");
+    } catch {
+      toast.error("Nie udało się zapisać check-inu. Spróbuj ponownie.");
+    } finally {
+      setSavingReadiness(false);
+    }
   }
 
   async function apply(p: Proposal) {
@@ -101,14 +114,14 @@ export function ModifySheet({
 
   if (!profile) return null;
 
-  const readinessOverall = readiness?.overall ?? null;
+  const effectiveReadiness = readiness ?? draftReadiness;
   const result =
     step === "proposals"
       ? buildProposals(
           state.plan,
           profile,
           date,
-          readinessOverall,
+          effectiveReadiness,
           choice,
           place,
           time,
@@ -253,8 +266,8 @@ export function ModifySheet({
                 </Select>
               </div>
             )}
-            <Button className="w-full" size="lg" onClick={saveReadinessStep}>
-              Zapisz i pokaż propozycje
+            <Button className="w-full" size="lg" onClick={() => void saveReadinessStep()} disabled={savingReadiness}>
+              {savingReadiness ? "Zapisywanie…" : "Zapisz i pokaż propozycje"}
             </Button>
           </div>
         )}
