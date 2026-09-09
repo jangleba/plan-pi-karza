@@ -1,252 +1,148 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { useAuth } from "@/lib/loadwise/auth";
-import { useLoadwise } from "@/lib/loadwise/store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Link } from "@tanstack/react-router";
-import {
-  ageOnDate,
-  birthDateForApproximateAge,
-  type AccountOwnerType,
-} from "@/lib/loadwise/agePolicy";
-import { authErrorMessage } from "@/lib/authMessages";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import type { AccountOwnerType } from "./agePolicy";
 
-export const Route = createFileRoute("/auth")({
-  component: AuthScreen,
-});
+interface AuthContextValue {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  recoveryMode: boolean;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    accountOwnerType: AccountOwnerType,
+    athleteBirthDate: string,
+  ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  resendSignupConfirmation: (email: string) => Promise<{ error: string | null }>;
+  requestAccountEmailChange: (email: string) => Promise<{ error: string | null }>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
+  signOut: () => Promise<void>;
+}
 
-function AuthScreen() {
-  const { user, loading, signIn, signUp } = useAuth();
-  const { hydrated, state } = useLoadwise();
-  const navigate = useNavigate();
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-  const [mode, setMode] = useState<"login" | "register">("register");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [accountOwnerType, setAccountOwnerType] = useState<AccountOwnerType>("athlete");
-  const [athleteBirthDate, setAthleteBirthDate] = useState("");
-  const [busy, setBusy] = useState(false);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
-  // Redirect signed-in users onward.
   useEffect(() => {
-    if (loading || !user || !hydrated) return;
-    if (state.profile?.onboardingComplete) {
-      navigate({ to: "/start", replace: true });
-    } else {
-      navigate({ to: "/onboarding", replace: true });
-    }
-  }, [loading, user, hydrated, state.profile?.onboardingComplete, navigate]);
+    // Register the listener first, then read the existing session.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      setSession(sess);
+      setUser(sess?.user ?? null);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "SIGNED_OUT") setRecoveryMode(false);
+    });
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    try {
-      if (mode === "register") {
-        if (name.trim().length < 2) {
-          toast.error("Podaj imię.");
-          return;
-        }
-        const athleteAge = athleteBirthDate ? ageOnDate(athleteBirthDate) : null;
-        if (athleteAge == null || athleteAge < 13) {
-          toast.error("Spersonalizowane konto jest dostępne dopiero od 13 lat.");
-          return;
-        }
-        if (accountOwnerType === "athlete" && athleteAge < 16) {
-          toast.error("Dla zawodnika 13–15 konto musi utworzyć rodzic lub opiekun.");
-          return;
-        }
-        if (accountOwnerType === "guardian" && athleteAge >= 16) {
-          toast.error("Nowe konto zawodnika od 16 lat powinno należeć do zawodnika.");
-          return;
-        }
-        const { error, needsEmailConfirmation } = await signUp(
-          email.trim(),
-          password,
-          name.trim(),
-          accountOwnerType,
-          athleteBirthDate,
-        );
-        if (error) {
-          toast.error(authErrorMessage(error, "register"));
-          return;
-        }
-        toast.success(
-          needsEmailConfirmation
-            ? "Sprawdź pocztę i potwierdź e-mail. Potem zaloguj się do aplikacji."
-            : "Konto utworzone. Przejdźmy do konfiguracji.",
-        );
-      } else {
-        const { error } = await signIn(email.trim(), password);
-        if (error) {
-          toast.error(authErrorMessage(error, "login"));
-          return;
-        }
-      }
-    } finally {
-      setBusy(false);
-    }
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  async function signUp(
+    email: string,
+    password: string,
+    fullName: string,
+    accountOwnerType: AccountOwnerType,
+    athleteBirthDate: string,
+  ) {
+    const redirectUrl = typeof window !== "undefined" ? window.location.origin : undefined;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: fullName,
+          account_owner_type: accountOwnerType,
+          athlete_birth_date: athleteBirthDate,
+        },
+      },
+    });
+    return {
+      error: error?.message ?? null,
+      needsEmailConfirmation: !error && data.session === null,
+    };
   }
 
-  if (loading || (user && !hydrated)) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
+  async function signIn(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error: error?.message ?? null };
+  }
+
+  async function resendSignupConfirmation(email: string) {
+    const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo },
+    });
+    return { error: error?.message ?? null };
+  }
+
+  async function requestAccountEmailChange(email: string) {
+    const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const { error } = await supabase.auth.updateUser(
+      { email },
+      { emailRedirectTo },
     );
+    return { error: error?.message ?? null };
+  }
+
+  async function requestPasswordReset(email: string) {
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    return { error: error?.message ?? null };
+  }
+
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecoveryMode(false);
+    return { error: error?.message ?? null };
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
   }
 
   return (
-    <div className="app-shell flex min-h-screen flex-col justify-center px-6 py-10">
-      <div className="mx-auto w-full max-w-sm">
-        <div className="text-center">
-          <div className="text-3xl font-semibold tracking-tight text-primary">
-            BallWise
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "register"
-              ? "Załóż konto, aby zacząć trenować mądrzej."
-              : "Zaloguj się do swojego konta."}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          {mode === "register" && (
-            <>
-              <div className="space-y-2">
-                <Label>Kto będzie właścicielem konta?</Label>
-                <div className="grid gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={accountOwnerType === "athlete"}
-                    onClick={() => setAccountOwnerType("athlete")}
-                    className={`rounded-2xl border p-3 text-left text-sm ${
-                      accountOwnerType === "athlete"
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <span className="font-semibold">Zawodnik — mam co najmniej 16 lat</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      Konto i adres e-mail należą do zawodnika.
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={accountOwnerType === "guardian"}
-                    onClick={() => setAccountOwnerType("guardian")}
-                    className={`rounded-2xl border p-3 text-left text-sm ${
-                      accountOwnerType === "guardian"
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <span className="font-semibold">Rodzic lub opiekun zawodnika 13–15</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      Dorosły posiada konto, potwierdza e-mail i zarządza profilem dziecka.
-                    </span>
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-birth-date">Data urodzenia zawodnika</Label>
-                <Input
-                  id="register-birth-date"
-                  type="date"
-                  required
-                  min={birthDateForApproximateAge(80)}
-                  max={birthDateForApproximateAge(13)}
-                  value={athleteBirthDate}
-                  onChange={(event) => setAthleteBirthDate(event.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Służy do sprawdzenia progów 13, 16 i 18 lat. Osoba poniżej 13 lat może korzystać tylko z demo bez konta.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  {accountOwnerType === "guardian" ? "Imię rodzica lub opiekuna" : "Imię zawodnika"}
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={accountOwnerType === "guardian" ? "Imię opiekuna" : "Twoje imię"}
-                  autoComplete="given-name"
-                />
-              </div>
-            </>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ty@example.com"
-              autoComplete="email"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Hasło</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="min. 6 znaków"
-              autoComplete={
-                mode === "register" ? "new-password" : "current-password"
-              }
-            />
-          </div>
-
-          <Button type="submit" className="w-full" size="lg" disabled={busy}>
-            {busy
-              ? "Chwila…"
-              : mode === "register"
-                ? "Utwórz konto"
-                : "Zaloguj się"}
-          </Button>
-        </form>
-
-        <button
-          type="button"
-          onClick={() => setMode(mode === "register" ? "login" : "register")}
-          className="mt-5 w-full text-center text-sm text-muted-foreground"
-        >
-          {mode === "register"
-            ? "Masz już konto? Zaloguj się"
-            : "Nie masz konta? Zarejestruj się"}
-        </button>
-
-        <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
-          Regulamin i zgody zatwierdzisz osobno podczas konfiguracji profilu. Zobacz{" "}
-          <Link to="/terms" className="underline">
-            Regulamin
-          </Link>{" "}
-          oraz{" "}
-          <Link to="/privacy-policy" className="underline">
-            Politykę prywatności
-          </Link>
-          .
-        </p>
-        <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-          Masz mniej niż 13 lat? Nie twórz konta. Możesz bezpiecznie zobaczyć{" "}
-          <Link to="/demo" className="font-medium text-primary underline">
-            publiczną wersję demonstracyjną
-          </Link>
-          , która niczego nie zapisuje.
-        </p>
-      </div>
-    </div>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        recoveryMode,
+        signUp,
+        signIn,
+        resendSignupConfirmation,
+        requestAccountEmailChange,
+        requestPasswordReset,
+        updatePassword,
+        signOut,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
