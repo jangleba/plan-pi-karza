@@ -53,7 +53,7 @@ const SPEED_ACTION_RE =
   /sprint|zryw|przyspiesz|akceler|flying|prędkość maks|max velocity/i;
 
 const NEGATED_SPEED_RE =
-  /bez\s+(?:maksymaln\w*\s+)?(?:sprint|zryw|przyspiesz)|nie\s+(?:rób|wykonuj|dodawaj)\s+(?:sprint|zryw|przyspiesz)/i;
+  /bez\s+(?:maksymaln\w*\s+)?(?:sprint|zryw|przyspiesz)|nie\s+(?:(?:rób|wykonuj|dodawaj)\s+(?:sprint|zryw|przyspiesz)|przyspiesz\w*)/i;
 
 const RSA_RE =
   /\brsa\b|powtarzaln\w*\s+sprint|repeated sprint/i;
@@ -116,17 +116,19 @@ function normalizeText(value: string): string {
 }
 
 function sessionExercises(session: SessionDay): ExerciseItem[] {
-  if (session.exercises?.length) {
-    return session.exercises;
-  }
-
-  return [
+  const sectionExercises = [
     ...session.sections.warmup,
     ...session.sections.main,
     ...session.sections.accessory,
     ...session.sections.footballTransfer,
     ...session.sections.cooldown,
   ];
+  // Po kanonicznym zbudowaniu treści to sekcje są tym, co zawodnik
+  // faktycznie widzi i wykonuje. `exercises` może zawierać starszy szkic
+  // generatora i nie może nadpisywać oceny realnego obciążenia.
+  return sectionExercises.length > 0
+    ? sectionExercises
+    : (session.exercises ?? []);
 }
 
 function exerciseText(exercise: ExerciseItem): string {

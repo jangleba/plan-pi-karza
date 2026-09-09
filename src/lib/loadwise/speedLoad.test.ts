@@ -171,6 +171,26 @@ describe("assessSpeedLoad", () => {
     expect(result.exposure).toBe("none");
   });
 
+  it("instrukcja 'nie przyspieszaj' nie tworzy fałszywego sprintu", () => {
+    const result = assessSpeedLoad(
+      session({
+        title: "Spokojny bieg tlenowy",
+        sessionType: "Wytrzymałość — easy aerobic",
+        intensity: "niska",
+        sections: sections([
+          {
+            name: "Łatwy bieg tlenowy",
+            prescription: "20–30 min, tempo konwersacyjne",
+            cue: "Pełne zdania bez zadyszki. Nie przyspieszaj.",
+          },
+        ]),
+      }),
+    );
+
+    expect(result.exposure).toBe("none");
+    expect(result.countsAsSpeedExposure).toBe(false);
+  });
+
   it("wylicza 6 × 20 m jako 120 m", () => {
     const value = estimateSprintMeters(
       session({
