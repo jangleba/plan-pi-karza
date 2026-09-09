@@ -1,21 +1,14 @@
-# Routes
+# delete-account
 
-TanStack Start uses **file-based routing**. Every `.tsx` file in this directory
-is a route. Do **not** create `src/pages/`, `src/routes/_app/index.tsx`, or
-`app/layout.tsx` — those are Next.js / Remix conventions. The only root layout
-is `src/routes/__root.tsx`.
+Authenticated Edge Function used by the in-app **Usuń konto i dane** action.
+It validates the caller's JWT server-side and deletes that exact Auth user.
+All user-owned database rows are then removed through `ON DELETE CASCADE`.
 
-## Conventions
+Deploy after applying the release migration:
 
-| File | URL |
-| --- | --- |
-| `index.tsx` | `/` |
-| `about.tsx` | `/about` |
-| `users/index.tsx` | `/users` |
-| `users/$id.tsx` | `/users/:id` (dynamic — bare `$`, no curly braces) |
-| `posts/{-$category}.tsx` | `/posts/:category?` (optional segment) |
-| `files/$.tsx` | `/files/*` (splat — read via `_splat` param, never `*`) |
-| `_layout.tsx` | layout route (renders children via `<Outlet />`) |
-| `__root.tsx` | app shell — wraps every page; preserve `<Outlet />` |
+```sh
+supabase functions deploy delete-account --project-ref bdfatyynxbzspjzkrjgg
+```
 
-`routeTree.gen.ts` is auto-generated. Don't edit it by hand.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided to hosted Supabase
+functions. Never place the service-role key in Vite variables or client code.
