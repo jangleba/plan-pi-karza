@@ -27,6 +27,7 @@ import { sanitizeIntervalResults } from "@/lib/running/intervals";
 import type { KilometerSplit, RunningActivity, RunningActivityDraft } from "@/lib/running/types";
 import { deriveRunningEngineState, fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running/engine";
 import { expiredUnfinishedSessions } from "./sessionStatus";
+import { normalizePersistedPainLocations } from "./profilePainPersistence";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -372,7 +373,11 @@ function normalizeLevel(v: unknown): Profile["level"] {
   return VALID_LEVELS.includes(v as Profile["level"]) ? (v as Profile["level"]) : "intermediate";
 }
 
-function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
+function buildProfile(
+  prof: AnyRow | null,
+  ath: AnyRow | null,
+  onboardingAnswers: AnyRow | null,
+): Profile | null {
   if (!prof || !ath) return null;
   const onboardingRevision =
     (ath.updated_at as string | null) ??
@@ -395,6 +400,7 @@ function buildProfile(prof: AnyRow | null, ath: AnyRow | null): Profile | null {
     matchDate: (ath.match_date as string) ?? null,
     equipment,
     painInjury: Boolean(ath.pain_injury),
+    painLocations: normalizePersistedPainLocations(onboardingAnswers?.painLocations),
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
@@ -709,10 +715,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       let safeProfile: Profile | null = null;
       const safeLocal: LocalState = loadLocal(user.id);
       try {
-        const [profRes, athRes, planRes, logRes, modRes, transRes, replacementRes, runningRes, readinessRes] =
+        const [profRes, athRes, onboardingRes, planRes, logRes, modRes, transRes, replacementRes, runningRes, readinessRes] =
           await Promise.all([
             supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
             supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+            supabase
+              .from("onboarding_answers")
+              .select("answers_json")
+              .eq("user_id", user.id)
+              .order("completed_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
             supabase
               .from("training_plans")
               .select("*")
@@ -757,9 +770,19 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         assertNoSupabaseError("profiles.load", profRes.error);
         assertNoSupabaseError("athlete_profiles.load", athRes.error);
 
+        assertNoSupabaseError("onboarding_answers.load", onboardingRes.error);
+        const rawOnboardingAnswers = (onboardingRes.data as AnyRow | null)?.answers_json;
+        const onboardingAnswers =
+          rawOnboardingAnswers &&
+          typeof rawOnboardingAnswers === "object" &&
+          !Array.isArray(rawOnboardingAnswers)
+            ? (rawOnboardingAnswers as AnyRow)
+            : null;
+
         const rowProfile = buildProfile(
           profRes.data as AnyRow | null,
           athRes.data as AnyRow | null,
+          onboardingAnswers,
         );
         const local = safeLocal;
         const persistedUnavailableEquipment = (athRes.data as AnyRow | null)
