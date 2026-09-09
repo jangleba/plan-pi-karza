@@ -101,7 +101,7 @@ export const MAIN_GOAL_RULES: Record<Goal, MainGoalRule> = {
     focusLabel: "Wydolność",
     safeDefault: {
       subcategory: "easy_aerobic",
-      label: "Lekkie aerobowe / tempo / interwały piłkarskie",
+      label: "Lekkie aerobowe / tempo / interwały biegowe",
       intensity: "umiarkowana",
     },
   },

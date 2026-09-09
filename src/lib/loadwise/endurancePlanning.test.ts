@@ -44,10 +44,22 @@ function week(clubDays: number[] = [], opts: { matchDay?: number } = {}): SchedD
 }
 
 const adult: EnduranceAthleteProfile = {
+  age: 22,
   developmentStage: "adult",
   gymExperienceLevel: "advanced",
+  trainingLevel: "advanced",
   preferredTrainingStyle: "performance",
   readiness: 8,
+};
+
+const endurance17: EnduranceAthleteProfile = {
+  ...adult,
+  age: 17,
+  developmentStage: "late_youth",
+  gymExperienceLevel: "intermediate",
+  trainingLevel: "intermediate",
+  athleteGoal: "endurance",
+  currentPain: [],
 };
 
 const youth: EnduranceAthleteProfile = {
@@ -155,6 +167,15 @@ describe("getSafeEndurancePlacements", () => {
 // ---------------------------------------------------------------------------
 
 describe("findBestDayForEnduranceSession", () => {
+  it("cel endurance 17+ może wybrać ciężki dzień klubowy jako kontrolowany high-day", () => {
+    const w = week([0]);
+    w[0].sessions[0] = s("club", { rpe: 8, loadLevel: "high" });
+    const res = findBestDayForEnduranceSession(w, {}, { maxSessionsPerDay: 2 }, undefined, endurance17);
+    expect(res.dayIndex).toBe(0);
+    expect(res.forcedLow).toBe(false);
+    expect(res.placementReason).toContain("high-day");
+  });
+
   it("wybiera dzień bez klubu i bez meczu", () => {
     const w = week([0, 1, 2, 3], { matchDay: 6 });
     const res = findBestDayForEnduranceSession(w, {}, { maxSessionsPerDay: 1 }, undefined, adult);

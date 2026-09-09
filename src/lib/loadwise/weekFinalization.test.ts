@@ -241,11 +241,29 @@ describe("weekFinalization — twarda zasada endurance", () => {
     expect(after2).toBe(after1);
   });
 
-  it("validateNoEnduranceOnClubDays usuwa endurance z 2. slotu dnia klubowego", () => {
+  it("validateNoEnduranceOnClubDays zachowuje lekką endurance u intermediate", () => {
     const club = clubDay(DATES[0]);
-    club.secondSession = baseDay("training", { date: DATES[0], title: "Tempo aerobowe", sessionType: "Wytrzymałość" });
+    club.secondSession = baseDay("training", { date: DATES[0], title: "Tempo aerobowe", sessionType: "Wytrzymałość", intensity: "niska" });
     const week = [club];
-    const res = validateNoEnduranceOnClubDays(week);
+    const res = validateNoEnduranceOnClubDays(week, profile());
+    expect(res.removed).toBe(0);
+    expect(club.secondSession).not.toBeNull();
+  });
+
+  it("validateNoEnduranceOnClubDays zachowuje ciężką parę dla 17+ intermediate", () => {
+    const club = clubDay(DATES[0]);
+    club.intensity = "wysoka";
+    club.secondSession = baseDay("training", { date: DATES[0], title: "Ciężkie interwały", sessionType: "Wytrzymałość", intensity: "wysoka" });
+    const res = validateNoEnduranceOnClubDays([club], profile({ age: 17, level: "intermediate" }));
+    expect(res.removed).toBe(0);
+    expect(club.secondSession).not.toBeNull();
+  });
+
+  it("validateNoEnduranceOnClubDays usuwa ciężką parę u zawodnika 16-letniego", () => {
+    const club = clubDay(DATES[0]);
+    club.intensity = "wysoka";
+    club.secondSession = baseDay("training", { date: DATES[0], title: "Ciężkie interwały", sessionType: "Wytrzymałość", intensity: "wysoka" });
+    const res = validateNoEnduranceOnClubDays([club], profile({ age: 16, level: "advanced" }));
     expect(res.removed).toBe(1);
     expect(club.secondSession).toBeNull();
   });

@@ -25,6 +25,7 @@ import {
   hasEnduranceSession,
   hasMatchSession,
   canAddSessionToDay,
+  canScheduleHeavyClubEndurance,
   type AthleteSchedProfile,
   type SchedDay,
   type SchedSession,
@@ -255,13 +256,23 @@ export function getSafeEndurancePlacements(
     if (hasEnduranceSession(day)) return; // już ma endurance
     if (!hasAvailableSecondSessionSlot(day, userSettings)) return;
 
-    // MD-1 — tylko lekka wersja (forcedLow), inaczej dopuszczalne pełne.
-    const forcedLow = isDayBeforeMatch(day) || isDayAfterMatch(day, weekPlan) || hasClubSession(day);
+    const performanceClubCluster =
+      hasClubSession(day) &&
+      goal.isEnduranceGoal &&
+      canScheduleHeavyClubEndurance(athleteTrainingProfile) &&
+      !isDayBeforeMatch(day) &&
+      !isDayAfterMatch(day, weekPlan);
+    // Klub jest lekki domyślnie; kwalifikowany cel wydolnościowy może utworzyć high-day.
+    const forcedLow =
+      isDayBeforeMatch(day) ||
+      isDayAfterMatch(day, weekPlan) ||
+      (hasClubSession(day) && !performanceClubCluster);
 
     // Czy dodanie lekkiej sesji jest w ogóle dozwolone (limit / kombinacje).
     const candidate: SchedSession = {
       category: "endurance_conditioning",
-      loadLevel: forcedLow ? "low" : "moderate",
+      loadLevel: forcedLow ? "low" : performanceClubCluster ? "high" : "moderate",
+      isHeavyConditioning: performanceClubCluster,
     };
     const add = canAddSessionToDay(
       day,
@@ -276,14 +287,16 @@ export function getSafeEndurancePlacements(
     let score = 50;
     const empty = countSessionsForDay(day) === 0;
     if (empty) score += 25; // wolny dzień bez klubu/meczu
-    if (hasClubSession(day)) score -= 30; // fallback, ale dozwolony
+    if (hasClubSession(day)) score += performanceClubCluster ? 50 : -30;
     if (dayHasCategory(day, "gym_strength")) score += 45; // preferowane: endurance + siłownia
     if (dayHasCategory(day, "speed_sprint") && speedIsFirst(day)) score += 10; // szybkość pierwsza
     if (goal.isEnduranceGoal) score += 8;
     if (isDayBeforeMatch(day)) score -= 40; // MD-1 mocno odradzane
     if (isDayAfterMatch(day, weekPlan)) score -= 10; // po meczu tylko lekkie
 
-    const reason = hasClubSession(day)
+    const reason = performanceClubCluster
+      ? "Cel wydolnościowy: świadomie skupiono ciężki klub i ciężką wydolność w jednym high-day."
+      : hasClubSession(day)
       ? "Dodano komplementarny, lekki endurance jako drugi slot dnia klubowego."
       : dayHasCategory(day, "gym_strength")
       ? "Wybrano ten dzień dla wydolności — brak klubu/meczu, można połączyć z siłownią."

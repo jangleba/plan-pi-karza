@@ -22,7 +22,8 @@ const oneADay: UserSchedulingSettings = { maxSessionsPerDay: 1 };
 const twoADay: UserSchedulingSettings = { maxSessionsPerDay: 2 };
 
 const youth: AthleteSchedProfile = { developmentStage: "early_youth", gymExperienceLevel: "beginner" };
-const adult: AthleteSchedProfile = { developmentStage: "adult", gymExperienceLevel: "advanced" };
+const adult: AthleteSchedProfile = { age: 22, developmentStage: "adult", gymExperienceLevel: "advanced", trainingLevel: "advanced", readiness: 8, currentPain: [] };
+const endurance17: AthleteSchedProfile = { age: 17, developmentStage: "late_youth", gymExperienceLevel: "intermediate", trainingLevel: "intermediate", readiness: 8, currentPain: [], athleteGoal: "endurance" };
 
 function day(sessions: SchedSession[], extra: Partial<SchedDay> = {}): SchedDay {
   return { sessions, ...extra };
@@ -36,27 +37,37 @@ const endurance = (o: Partial<SchedSession> = {}): SchedSession => ({
 });
 
 describe("isDayBlockedForEndurance", () => {
-  it("dzień klubowy jest zablokowany dla wydolności", () => {
-    expect(isDayBlockedForEndurance(day([club()]))).toBe(true);
+  it("dzień klubowy nie jest twardo zablokowany, ale mecz jest", () => {
+    expect(isDayBlockedForEndurance(day([club()]))).toBe(false);
     expect(isDayBlockedForEndurance(day([gym()]))).toBe(false);
     expect(isDayBlockedForEndurance(day([], { toMatch: 0 }))).toBe(true);
   });
 });
 
-describe("scoreDayForEndurance — twarda blokada club", () => {
-  it("zwraca blocked=true i dokładny reason w dzień klubowy", () => {
+describe("scoreDayForEndurance — club jako fallback", () => {
+  it("dopuszcza tylko obniżonego kandydata w dzień klubowy", () => {
     const week = [day([club()])];
-    const res = scoreDayForEndurance(week[0], week, null, twoADay, "wydolność", null, adult);
-    expect(res.blocked).toBe(true);
-    expect(res.reason).toBe("Endurance cannot be scheduled on club training day");
+    const res = scoreDayForEndurance(week[0], week, null, twoADay, "general", null, adult);
+    expect(res.blocked).toBe(false);
+    expect(res.warnings.some((warning) => warning.includes("uzupełniający"))).toBe(true);
+  });
+
+  it("dla celu endurance i kwalifikacji 17+ traktuje ciężki dzień klubowy jako high-day", () => {
+    const week = [day([club({ loadLevel: "high", rpe: 8 })])];
+    const res = scoreDayForEndurance(week[0], week, null, twoADay, "endurance", null, endurance17);
+    expect(res.blocked).toBe(false);
+    expect(res.warnings.some((warning) => warning.includes("high-day"))).toBe(true);
   });
 });
 
 describe("canSafelyPairSessions", () => {
-  it("club + endurance zablokowane", () => {
-    const res = canSafelyPairSessions(club(), endurance(), null, null, adult);
-    expect(res.allowed).toBe(false);
-    expect(res.reason).toBe("Endurance cannot be scheduled on club training day");
+  it("club + lekka endurance dozwolone", () => {
+    const res = canSafelyPairSessions(club({ loadLevel: "moderate" }), endurance({ loadLevel: "low" }), null, null, adult);
+    expect(res.allowed).toBe(true);
+  });
+  it("club + ciężka endurance dozwolone dla kwalifikowanego zawodnika 17+", () => {
+    const res = canSafelyPairSessions(club({ loadLevel: "high" }), endurance({ loadLevel: "high" }), null, null, adult);
+    expect(res.allowed).toBe(true);
   });
   it("gym + endurance dozwolone", () => {
     const res = canSafelyPairSessions(gym({ loadLevel: "high" }), endurance({ loadLevel: "low" }), null, null, adult);
@@ -117,14 +128,15 @@ describe("brakująca wydolność", () => {
     expect(res.dayIndex).toBe(1);
   });
 
-  it("nigdy nie trafia w dzień klubowy", () => {
+  it("trafia w dzień klubowy tylko jako obniżony fallback", () => {
     const week: SchedDay[] = [
       day([club()], { dayOfWeek: 1 }),
       day([club()], { dayOfWeek: 2 }),
     ];
     const res = findBestPlacementForSession("endurance", week, null, twoADay, "wydolność", null, adult);
-    expect(res.dayIndex).toBeNull();
-    expect(res.unresolvedIssue).toBeTruthy();
+    expect(res.dayIndex).not.toBeNull();
+    expect(res.session?.loadLevel).toBe("low");
+    expect(res.session?.adaptationReason).toBeTruthy();
   });
 
   it("ciężkie bieganie nie trafia dzień przed meczem", () => {

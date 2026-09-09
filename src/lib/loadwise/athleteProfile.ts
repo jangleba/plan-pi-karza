@@ -84,6 +84,7 @@ export interface InjuryConstraints {
 
 export interface AthleteTrainingProfile {
   age: number | null;
+  trainingLevel: Profile["level"];
   developmentStage: DevelopmentStage;
   trainingAge: number; // lata ogólnego treningu sportowego
   strengthTrainingAge: number; // miesiące doświadczenia siłowego
@@ -510,6 +511,7 @@ export function buildAthleteTrainingProfile(
 
   const partial: AthleteTrainingProfile = {
     age,
+    trainingLevel: p.level ?? "beginner",
     developmentStage,
     trainingAge: getTrainingAge(p),
     strengthTrainingAge,

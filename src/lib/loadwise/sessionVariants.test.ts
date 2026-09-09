@@ -115,6 +115,24 @@ describe("endurance session variant", () => {
     const s = createEnduranceSessionVariant({ hasClub: true }, adult());
     expect(s).toMatchObject({ category: "endurance_conditioning", loadLevel: "low", intensity: "niska" });
     expect(s?.blocks.some((block) => /piłk/i.test(`${block.name} ${block.detail}`))).toBe(false);
+    expect(validateWorkoutForAthleteProfile(s!, adult(), { hasClub: true }).ok).toBe(true);
+  });
+
+  it("w dniu klubowym dopuszcza ciężką wydolność u kwalifikowanego zawodnika 17+", () => {
+    const s = createEnduranceSessionVariant({}, adult())!;
+    const heavy = { ...s, loadLevel: "high" as const };
+    expect(validateWorkoutForAthleteProfile(heavy, adult(), { hasClub: true }).ok).toBe(true);
+  });
+
+  it("cel wydolność: 17-letni intermediate z dobrym check-inem może dostać pełny wariant w high-day klubowym", () => {
+    const athlete = buildAthleteTrainingProfile(
+      makeProfile({ age: 17, level: "intermediate", goal: "endurance", gymExperienceLevel: "intermediate" }),
+      {},
+      { readiness: 8, fatigue: 3, sleepQuality: 8 },
+    );
+    const s = createEnduranceSessionVariant({ hasClub: true, goal: "endurance", readiness: 8 }, athlete)!;
+    expect(s.loadLevel).toBe("high");
+    expect(validateWorkoutForAthleteProfile(s, athlete, { hasClub: true, goal: "endurance", readiness: 8 }).ok).toBe(true);
   });
 
   it("niski readiness zmienia endurance na low-impact", () => {

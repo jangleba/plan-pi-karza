@@ -16,6 +16,7 @@ import {
   findBestDayForEndurance,
   canPlaceEnduranceOnClubDay,
   adaptEnduranceForClubDay,
+  canScheduleHeavyClubEndurance,
   getClubSessionLoadLevel,
   sortSessionsWithinDay,
   getSessionOrderPriority,
@@ -29,7 +30,8 @@ const oneADay: UserSchedulingSettings = { maxSessionsPerDay: 1 };
 const twoADay: UserSchedulingSettings = { maxSessionsPerDay: 2 };
 
 const youth: AthleteSchedProfile = { developmentStage: "early_youth", gymExperienceLevel: "beginner", trainingLevel: "beginner" };
-const adult: AthleteSchedProfile = { developmentStage: "adult", gymExperienceLevel: "advanced", trainingLevel: "advanced" };
+const adult: AthleteSchedProfile = { age: 22, developmentStage: "adult", gymExperienceLevel: "advanced", trainingLevel: "advanced", readiness: 8, currentPain: [] };
+const endurance17: AthleteSchedProfile = { age: 17, developmentStage: "late_youth", gymExperienceLevel: "intermediate", trainingLevel: "intermediate", athleteGoal: "endurance", readiness: 8, currentPain: [], recoveryStatus: "good" };
 
 function day(sessions: SchedSession[], extra: Partial<SchedDay> = {}): SchedDay {
   return { sessions, ...extra };
@@ -115,11 +117,30 @@ describe("dozwolone kombinacje", () => {
     const adapted = adaptEnduranceForClubDay(d, endurance({ durationMin: 40 }), adult);
     expect(adapted.adaptationReason).toBeTruthy();
     expect(adapted.timingHint).toContain("wydolność przed treningiem klubowym");
-    expect(adapted.placementReason).toContain("minimum tygodniowego");
+    expect(adapted.placementReason).toContain("uzupełniający");
   });
 });
 
 describe("zablokowane kombinacje", () => {
+  it("17-letni intermediate z dobrym check-inem może połączyć ciężki klub i ciężką wydolność", () => {
+    expect(canScheduleHeavyClubEndurance(endurance17)).toBe(true);
+    const res = validateTwoADayCombination(
+      day([club({ loadLevel: "high" })]),
+      endurance({ loadLevel: "high", isHeavyConditioning: true }),
+      null,
+      null,
+      endurance17,
+    );
+    expect(res.allowed).toBe(true);
+    expect(adaptEnduranceForClubDay(day([club({ rpe: 8 })]), endurance({ durationMin: 35 }), endurance17).loadLevel).toBe("high");
+  });
+
+  it("wiek 16, beginner, niski readiness lub ból blokują ciężką parę", () => {
+    expect(canScheduleHeavyClubEndurance({ ...endurance17, age: 16 })).toBe(false);
+    expect(canScheduleHeavyClubEndurance({ ...endurance17, trainingLevel: "beginner" })).toBe(false);
+    expect(canScheduleHeavyClubEndurance({ ...endurance17, readiness: 6 })).toBe(false);
+    expect(canScheduleHeavyClubEndurance({ ...endurance17, currentPain: ["knee"] })).toBe(false);
+  });
   it("adult advanced może wykonać dwie pełne, komplementarne sesje", () => {
     const res = validateTwoADayCombination(
       day([gym({ loadLevel: "high" })]),
@@ -196,10 +217,10 @@ describe("zablokowane kombinacje", () => {
     expect(adapted.loadLevel).toBe("low");
     expect(adapted.adaptationReason).toContain("ciężki");
 
-    // Bardzo ciężki club + próba ciężkiego endurance → unresolved / block.
+    // Kwalifikowany dorosły z dobrym check-inem może przyjąć ciężką parę.
     const veryHeavy = day([club({ rpe: 10 })]);
     const place = canPlaceEnduranceOnClubDay(veryHeavy, endurance({ loadLevel: "high" }), twoADay, null, null, adult);
-    expect(place.allowed).toBe(false);
+    expect(place.allowed).toBe(true);
     expect(place.clubLoad).toBe("very_heavy");
   });
 });

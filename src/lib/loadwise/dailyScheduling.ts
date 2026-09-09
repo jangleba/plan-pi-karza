@@ -72,11 +72,38 @@ export interface UserSchedulingSettings {
 }
 
 export interface AthleteSchedProfile {
+  age?: number | null;
   developmentStage?: DevelopmentStage | null;
   safetyLevel?: "youth_safe" | "developmental" | "performance" | null;
   gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced" | null;
   /** Ogólny poziom sportowy steruje zgodą na dwie pełne sesje. */
   trainingLevel?: Level | null;
+  athleteGoal?: string | null;
+  readiness?: number | null;
+  currentPain?: readonly unknown[] | null;
+  recoveryStatus?: "good" | "moderate" | "poor" | null;
+}
+
+/**
+ * Jedna reguła dla kontrolowanego połączenia: ciężki klub + ciężka wydolność.
+ * Wiek jest warunkiem głównym; poziom, check-in i brak bólu potwierdzają, że
+ * zawodnik może przyjąć drugi mocny bodziec. Brak danych nigdy nie daje zgody.
+ */
+export function canScheduleHeavyClubEndurance(
+  athlete?: AthleteSchedProfile | null,
+): boolean {
+  if (!athlete || (athlete.age ?? 0) < 17) return false;
+  if (!(["intermediate", "advanced", "elite"] as const).includes(athlete.trainingLevel as "intermediate" | "advanced" | "elite")) {
+    return false;
+  }
+  if ((athlete.readiness ?? 0) < 7 || athlete.recoveryStatus === "poor") return false;
+  if ((athlete.currentPain?.length ?? 0) > 0) return false;
+  return true;
+}
+
+function isEnduranceGoal(athlete?: AthleteSchedProfile | null): boolean {
+  const goal = (athlete?.athleteGoal ?? "").toLowerCase();
+  return goal === "endurance" || goal.includes("wydol");
 }
 
 export interface SchedWeekContext {
@@ -434,16 +461,19 @@ export function validateTwoADayCombination(
   // Intermediate/advanced/elite mogą wykonać dwie pełne sesje, jeśli para
   // jest komplementarna. Ryzykowne pary są blokowane powyżej i poniżej.
 
-  // Ciężkie endurance + ciężki club tego samego dnia.
+  // Ciężkie endurance + ciężki club: wyłącznie kontrolowany high-day cluster
+  // od 17 lat, u intermediate/advanced/elite, po dobrym check-inie i bez bólu.
   if (
     key === comboKey("club", "endurance_conditioning") &&
     ((other.category === "club" && isHeavySession(other) && isHeavySession(newSession)) ||
       (newSession.category === "club" && isHeavySession(newSession) && isHeavySession(other)))
   ) {
-    return {
-      allowed: false,
-      blockReason: "Ciężkie endurance + ciężki trening klubowy tego samego dnia jest zablokowane.",
-    };
+    if (!canScheduleHeavyClubEndurance(athlete)) {
+      return {
+        allowed: false,
+        blockReason: "Ciężki klub + ciężka wydolność wymagają wieku 17+, poziomu co najmniej intermediate, dobrej gotowości i braku bólu.",
+      };
+    }
   }
 
 
@@ -593,7 +623,7 @@ export function canPlaceEnduranceOnClubDay(
 
   // Bardzo ciężki club: tylko minimalny recovery flush — jeśli endurance ma być
   // realnym bodźcem, jest to niebezpieczne (unresolved rozstrzyga wyżej).
-  if (clubLoad === "very_heavy" && isHeavySession(enduranceSession)) {
+  if (clubLoad === "very_heavy" && isHeavySession(enduranceSession) && !canScheduleHeavyClubEndurance(athleteTrainingProfile)) {
     return {
       allowed: false,
       blockReason: "Bardzo ciężki trening klubowy — dozwolony tylko minimalny recovery flush.",
@@ -629,6 +659,10 @@ export function adaptEnduranceForClubDay(
   const club = (day.sessions ?? []).find((s) => s.category === "club");
   const clubLoad = club ? getClubSessionLoadLevel(club, athleteTrainingProfile) : "moderate";
   const youth = isYouthOrBeginner(athleteTrainingProfile);
+  const heavyPairAllowed =
+    canScheduleHeavyClubEndurance(athleteTrainingProfile) &&
+    (isEnduranceGoal(athleteTrainingProfile) || isHeavySession(enduranceSession)) &&
+    !enduranceSession.afterClub;
 
   const adapted: SchedSession = { ...enduranceSession };
 
@@ -655,14 +689,18 @@ export function adaptEnduranceForClubDay(
       note = "Obniżono intensywność endurance, bo trening klubowy był średni — krótkie, lekkie, low-intensity.";
       break;
     case "heavy":
-      level = "low";
+      level = heavyPairAllowed ? "high" : "low";
       adapted.category = "endurance_conditioning";
-      note = "Obniżono intensywność endurance, bo zawodnik ocenił trening klubowy jako ciężki — tylko bardzo lekkie low-impact/recovery.";
+      note = heavyPairAllowed
+        ? "Utrzymano ciężką wydolność jako kontrolowany high-day cluster: wiek 17+, odpowiedni poziom, dobra gotowość, brak bólu i cel wydolnościowy."
+        : "Obniżono intensywność endurance po ciężkim treningu klubowym — tylko bardzo lekkie low-impact/recovery.";
       break;
     case "very_heavy":
     default:
-      level = "low";
-      note = "Bardzo ciężki club — endurance zredukowane do minimalnego recovery flush.";
+      level = heavyPairAllowed ? "high" : "low";
+      note = heavyPairAllowed
+        ? "Utrzymano ciężką wydolność przed bardzo ciężkim klubem jako wyjątkowy, kontrolowany high-day cluster."
+        : "Bardzo ciężki club — endurance zredukowane do minimalnego recovery flush.";
       break;
   }
 
@@ -679,17 +717,18 @@ export function adaptEnduranceForClubDay(
       adapted.durationMin = Math.min(adapted.durationMin, 25);
     }
     note += " Youth/beginner — druga sesja krótsza, lżejsza lub techniczna.";
-  } else if (clubLoad === "heavy" || clubLoad === "very_heavy") {
+  } else if ((clubLoad === "heavy" || clubLoad === "very_heavy") && !heavyPairAllowed) {
     if (typeof adapted.durationMin === "number") {
       adapted.durationMin = Math.min(adapted.durationMin, 20);
     }
   }
 
   adapted.loadLevel = level;
-  adapted.intensity = level === "low" ? "niska" : level === "moderate" ? "umiarkowana" : "niska";
+  adapted.intensity = level === "low" ? "niska" : level === "moderate" ? "umiarkowana" : "wysoka";
   adapted.adaptationReason = note;
-  adapted.placementReason =
-    "Dodano endurance w dzień klubowy, bo to było jedyne bezpieczne miejsce do spełnienia minimum tygodniowego.";
+  adapted.placementReason = heavyPairAllowed
+    ? "Cel wydolnościowy: świadomie połączono dwa mocne bodźce w jednym high-day, aby chronić dni lżejsze."
+    : "Dodano endurance w dzień klubowy jako bezpieczny wariant uzupełniający.";
 
   return adapted;
 }
@@ -717,6 +756,30 @@ export function findBestDayForEndurance(
     day.toMatch !== 1 && // nie MD-1
     !hasEnduranceSession(day) &&
     dayHasSlot(day, userSettings);
+
+  // Przy celu wydolnościowym kwalifikowany zawodnik może świadomie skupić
+  // dwa mocne bodźce w dniu klubowym, zamiast rozlewać obciążenie na cały tydzień.
+  if (canScheduleHeavyClubEndurance(athleteTrainingProfile) && isEnduranceGoal(athleteTrainingProfile)) {
+    for (let i = 0; i < (weekPlan ?? []).length; i++) {
+      const day = weekPlan[i];
+      if (!eligible(day) || !hasClubSession(day)) continue;
+      const place = canPlaceEnduranceOnClubDay(
+        day,
+        { category: "endurance_conditioning", loadLevel: "high", isHeavyConditioning: true },
+        userSettings,
+        weekContext,
+        weeklyRequirements,
+        athleteTrainingProfile,
+      );
+      if (place.allowed && (place.clubLoad === "heavy" || place.clubLoad === "very_heavy")) {
+        return {
+          dayIndex: i,
+          tier: "club_fallback",
+          placementReason: "Cel wydolnościowy: wybrano kontrolowany high-day club + endurance.",
+        };
+      }
+    }
+  }
 
   // Tier 1 — całkowicie wolny dzień (bez club, bez match, bez innych sesji).
   for (let i = 0; i < (weekPlan ?? []).length; i++) {

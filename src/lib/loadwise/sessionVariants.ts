@@ -19,6 +19,7 @@ import type {
 } from "./types";
 import type { SchedLoadLevel } from "./dailyScheduling";
 import type { AthleteTrainingProfile } from "./athleteProfile";
+import { canScheduleHeavyClubEndurance } from "./dailyScheduling";
 import { classifyExerciseTypes } from "./athleteProfile";
 import { getAthleteGoalRules } from "./weeklyRequirements";
 import { buildRunningSessionPrescription } from "@/lib/running/engine";
@@ -391,6 +392,29 @@ export function createEnduranceSessionVariant(
   const goal = getAthleteGoalRules(resolveGoal(ctx, a));
 
   if (ctx.hasClub) {
+    const heavyClubEndurance = canScheduleHeavyClubEndurance({
+      age: a?.age,
+      trainingLevel: a?.trainingLevel,
+      athleteGoal: resolveGoal(ctx, a),
+      readiness: resolveReadiness(ctx, a),
+      currentPain: a?.currentPain,
+      recoveryStatus: a?.recoveryStatus,
+    }) && goal.isEnduranceGoal && !beforeMatch && !afterMatch && !ctx.weekLoadHigh;
+
+    if (heavyClubEndurance) {
+      // Budujemy normalną jednostkę, ale bez flagi hasClub, aby nie wejść
+      // ponownie w gałąź lekkiego fallbacku. Walidator nadal zna pełny profil.
+      return createEnduranceSessionVariant(
+        {
+          ...ctx,
+          hasClub: false,
+          placementReason:
+            ctx.placementReason ??
+            "Cel wydolnościowy: ciężka wydolność przed klubem w kontrolowanym high-day cluster.",
+        },
+        a,
+      );
+    }
     return createShortAerobicBlock(
       { ...ctx, placementReason: ctx.placementReason ?? "Komplementarny bieg tlenowy w drugim slocie dnia klubowego." },
       a,
@@ -751,12 +775,27 @@ export function validateWorkoutForAthleteProfile(
     }
   }
 
-  // Endurance w dniu klubowym nie powinno istnieć.
-  if (ctx.hasClub && workout.countsAsEndurance) {
+  const heavyClubEnduranceAllowed = canScheduleHeavyClubEndurance({
+    age: a?.age,
+    trainingLevel: a?.trainingLevel,
+    athleteGoal: resolveGoal(ctx, a),
+    readiness: resolveReadiness(ctx, a),
+    currentPain: a?.currentPain,
+    recoveryStatus: a?.recoveryStatus,
+  });
+
+  // Ciężka wydolność w dzień klubowy jest wyjątkiem 17+ dla przygotowanego
+  // intermediate/advanced/elite. W pozostałych profilach walidator ją blokuje.
+  if (
+    ctx.hasClub &&
+    workout.countsAsEndurance &&
+    (workout.loadLevel === "high" || workout.loadLevel === "very_high") &&
+    !heavyClubEnduranceAllowed
+  ) {
     issues.push({
       exercise: workout.title,
       blockedType: "endurance_on_club_day",
-      reason: "Endurance nie może być zaplanowane w dniu klubowym.",
+      reason: "Ciężki klub + ciężka wydolność wymagają wieku 17+, poziomu intermediate+ i dobrego check-inu bez bólu.",
     });
   }
 

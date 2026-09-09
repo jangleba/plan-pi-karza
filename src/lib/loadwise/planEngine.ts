@@ -45,7 +45,11 @@ import {
 import { hasRealSpeedExposure } from "./speedLoad";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
-import { finalizeWeekPlan, validateAndRepairWeekPlan } from "./weekFinalization";
+import {
+  finalizeWeekPlan,
+  repairSpeedAcrossWeekBoundaries,
+  validateAndRepairWeekPlan,
+} from "./weekFinalization";
 import {
   MAIN_GOAL_RULES,
   LIMITATION_RULES,
@@ -335,19 +339,19 @@ function buildByGoal(profile: Profile): Built {
     }
     case "endurance":
       return {
-        title: "Interwały piłkarskie kontrolowane",
+        title: "Interwały biegowe kontrolowane",
         sessionType: "Wytrzymałość",
         intensity: "umiarkowana",
         durationMin: young ? 45 : 55,
         goalOfSession:
-          "Poprawa wytrzymałości specjalnej i zdolności do powtarzanego wysiłku z piłką.",
+          "Poprawa wytrzymałości specjalnej i zdolności do powtarzanego wysiłku biegowego.",
         riskManaged:
           "Kontrolowane interwały zamiast bezsensownej objętości — bez wyczerpania na ślepo.",
         avoidToday:
           "Bez twardych interwałów na 48 h przed meczem (MD-2/MD-1). Bez długich biegów na zmęczeniu przed meczem.",
         main: [
           {
-            name: "Interwały biegowe z piłką",
+            name: "Interwały biegowe bez piłki",
             prescription: `${young ? 6 : 8} × 1 min bieg / 1 min trucht`,
             rest: "1 min trucht",
             cue: "Równe tempo, kontroluj oddech.",
@@ -355,26 +359,20 @@ function buildByGoal(profile: Profile): Built {
             harder: young ? undefined : "Skróć przerwę do 45 s.",
           },
           {
-            name: "Gra na małym polu (symulacja)",
-            prescription: "4 × 3 min, przerwa 2 min",
-            rest: "2 min",
-            cue: "Aktywne ustawianie się, szybka decyzja.",
+            name: "Dłuższe odcinki tempowe",
+            prescription: "4 × 3 min biegu, przerwa 2 min trucht",
+            rest: "2 min trucht",
+            cue: "Utrzymaj równe tempo i technikę biegu.",
           },
         ],
         accessory: [
           {
-            name: "Prowadzenie piłki tempem",
-            prescription: "6 × 40 m luźno",
-            cue: "Luźne barki, miękkie kontakty.",
+            name: "Mobilność po biegu",
+            prescription: "6 min: biodra, łydki, tylna taśma",
+            cue: "Spokojny zakres, bez bólu.",
           },
         ],
-        footballTransfer: [
-          {
-            name: "Obieg pozycyjny z podaniem",
-            prescription: "4 × bieg na pozycję + podanie",
-            cue: "Skan przed przyjęciem.",
-          },
-        ],
+        footballTransfer: [],
       };
     case "power":
       return buildPower(profile);
@@ -1093,9 +1091,10 @@ function buildLightAlternative(profile: Profile): Built {
             easier: "Marszobieg.",
           },
           {
-            name: "Prowadzenie piłki tempem",
-            prescription: "6 × 40 m luźno",
-            cue: "Miękkie kontakty, luźne barki.",
+            name: "Luźne przebieżki techniczne",
+            prescription: "4 × 45 s spokojnego tempa / 75 s trucht",
+            rest: "75 s trucht",
+            cue: "Swobodny krok, bez ścigania i bez piłki.",
           },
         ],
         accessory: [],
@@ -1514,9 +1513,10 @@ function buildEnduranceLight(profile: Profile): Built {
         easier: "Marszobieg.",
       },
       {
-        name: "Prowadzenie piłki tempem",
-        prescription: "6 × 40 m luźno",
-        cue: "Miękkie kontakty, luźne barki.",
+        name: "Luźne przebieżki techniczne",
+        prescription: "4 × 45 s spokojnego tempa / 75 s trucht",
+        rest: "75 s trucht",
+        cue: "Swobodny krok, bez ścigania i bez piłki.",
       },
     ],
     accessory: [],
@@ -1623,18 +1623,12 @@ function buildEnduranceAerobic(profile: Profile): Built {
     ],
     accessory: [
       {
-        name: "Prowadzenie piłki tempem",
-        prescription: "6 × 40 m luźno",
-        cue: "Miękkie kontakty, głowa do góry.",
+        name: "Mobilność po biegu",
+        prescription: "6 min: biodra, łydki, tylna taśma",
+        cue: "Spokojny zakres, bez bólu.",
       },
     ],
-    footballTransfer: [
-      {
-        name: "Obieg pozycyjny z podaniem",
-        prescription: "4 × bieg na pozycję + podanie",
-        cue: "Skan przed przyjęciem.",
-      },
-    ],
+    footballTransfer: [],
   };
 }
 
@@ -1646,12 +1640,12 @@ function buildEnduranceSpecial(profile: Profile): Built {
     sessionType: "Wytrzymałość specjalna",
     intensity: young ? "umiarkowana" : "wysoka",
     durationMin: young ? 45 : 55,
-    goalOfSession: "Rozwój wytrzymałości specjalnej i zdolności do powtarzanego wysiłku z piłką.",
+    goalOfSession: "Rozwój wytrzymałości specjalnej i zdolności do powtarzanego wysiłku biegowego.",
     riskManaged: "Kontrolowana objętość interwałów — bez twardej pracy na 48 h przed meczem.",
     avoidToday: "Bez interwałów MD-2/MD-1 i długich biegów na zmęczeniu.",
     main: [
       {
-        name: "Interwały ekstensywne z piłką",
+        name: "Interwały ekstensywne bez piłki",
         prescription: `${young ? 6 : 8} × 1 min bieg / 1 min trucht`,
         rest: "1 min trucht",
         cue: "Równe tempo, kontrola oddechu na każdym powtórzeniu.",
@@ -1659,10 +1653,10 @@ function buildEnduranceSpecial(profile: Profile): Built {
         harder: young ? undefined : "Skróć przerwę do 45 s.",
       },
       {
-        name: "Gra na małym polu (symulacja)",
-        prescription: "4 × 3 min, przerwa 2 min",
-        rest: "2 min",
-        cue: "Aktywne ustawianie się, szybka decyzja.",
+        name: "Dłuższe interwały biegowe",
+        prescription: "4 × 3 min biegu, przerwa 2 min trucht",
+        rest: "2 min trucht",
+        cue: "Równe tempo i powtarzalna technika biegu.",
       },
     ],
     accessory: [
@@ -1672,20 +1666,13 @@ function buildEnduranceSpecial(profile: Profile): Built {
         cue: "Realizuj wzorce biegowe swojej pozycji.",
       },
     ],
-    footballTransfer: [
-      {
-        name: "Akcja pozycyjna z podaniem",
-        prescription: "8 min wg roli",
-        cue: "Skan przed przyjęciem, decyzja przed kontaktem.",
-      },
-    ],
+    footballTransfer: [],
   };
 }
 
 /** Tydz. 3 (szczyt): RSA / wysoka specyfika, kontrolowana objętość. */
 function buildEnduranceRSA(profile: Profile): Built {
   const young = isYoung(profile.age);
-  const reps = young ? 6 : 10;
   return {
     title: "Powtarzalne sprinty (RSA)",
     sessionType: "Zdolność do powtarzanego sprintu (RSA)",
@@ -1693,23 +1680,22 @@ function buildEnduranceRSA(profile: Profile): Built {
     durationMin: young ? 40 : 50,
     goalOfSession:
       "Zdolność do powtarzanego wysiłku sprinterskiego — najwyższy specyficzny bodziec bloku.",
-    riskManaged: `Kontrolowana objętość (${reps} powtórzeń) i pełne przerwy chronią mechanikę — przerwij przy spadku jakości.`,
+    riskManaged: "Kontrolowana objętość 10 odcinków i pełna przerwa między seriami chronią mechanikę — przerwij przy spadku jakości.",
     avoidToday:
       "Nie dla 13–15 lat domyślnie w pełnej formie. Bez RSA na MD-2/MD-1 i przy zmęczeniu nóg.",
     main: [
       {
         name: "Powtarzalne sprinty",
-        prescription: `${reps} × 20–25 m, przerwa 30–40 s`,
-        rest: "30–40 s aktywnej przerwy",
+        prescription: "2 × (5 × 20 m), przerwa 20 s; 3 min między seriami",
+        rest: "20 s między odcinkami; 3 min między seriami",
         cue: "Maksymalna jakość biegu, utrzymaj mechanikę do końca.",
-        easier: "Skróć do 6 × 20 m lub wydłuż przerwy.",
-        harder: young ? undefined : "Seria 2 × (5 × 20 m), 3 min między seriami.",
+        easier: "Zakończ po pierwszej serii lub wydłuż przerwy.",
       },
       {
-        name: "Powtarzalny wysiłek z piłką",
-        prescription: "4 × 45 s prowadzenie + akcja / 45 s trucht",
-        rest: "45 s trucht",
-        cue: "Wysoka intensywność z kontrolą piłki.",
+        name: "Przerwa między seriami",
+        prescription: "3 min spokojnego marszu",
+        rest: "3 min",
+        cue: "Uspokój oddech i zachowaj jakość drugiej serii.",
       },
     ],
     accessory: [
@@ -1719,13 +1705,7 @@ function buildEnduranceRSA(profile: Profile): Built {
         cue: "Kontrola, przygotuj się na kolejne powtórzenia.",
       },
     ],
-    footballTransfer: [
-      {
-        name: "Sprint + akcja wg pozycji",
-        prescription: "4 × sprint + wykończenie/podanie",
-        cue: "Decyzja pod zmęczeniem, jakość ponad ilość.",
-      },
-    ],
+    footballTransfer: [],
   };
 }
 
@@ -1743,26 +1723,20 @@ function buildEnduranceDeload(profile: Profile): Built {
     avoidToday: "Bez dużej objętości interwałów i biegów na zmęczeniu.",
     main: [
       {
-        name: "Krótkie tempo z piłką",
+        name: "Krótkie tempo bez piłki",
         prescription: `${young ? 4 : 6} × 40 m tempo, trucht powrót`,
         rest: "trucht 40 m",
         cue: "Płynnie i lekko, jakość ruchu ponad objętość.",
       },
       {
-        name: "Gra/technika w tempie",
-        prescription: "2 × 3 min lekkiej gry, przerwa 2 min",
+        name: "Lekki bieg tempowy",
+        prescription: "2 × 3 min lekkiego biegu, przerwa 2 min trucht",
         rest: "2 min",
         cue: "Aktywnie, ale kończysz świeży.",
       },
     ],
     accessory: [],
-    footballTransfer: [
-      {
-        name: "Akcja pozycyjna w spokojnym tempie",
-        prescription: "6 min wg roli",
-        cue: "Realizuj zadania swojej pozycji.",
-      },
-    ],
+    footballTransfer: [],
   };
 }
 
@@ -4682,6 +4656,10 @@ export function generatePlan(
   for (let i = 0; i < finalPlan.length; i++) {
     finalPlan[i] = canonicalizeGeneratedSessionExercises(finalPlan[i]);
   }
+  // Odbudowa kanonicznej treści może dopiero tutaj ujawnić pełny bodziec
+  // (np. RSA albo sprint). Sprawdź więc ponownie granice niedziela–poniedziałek
+  // na dokładnie tej wersji sesji, którą otrzyma zawodnik.
+  repairSpeedAcrossWeekBoundaries(finalPlan, profile);
 
   // Ostatni walidator może dodać albo zamienić sesję. Dlatego progresję bloku
   // domykamy dopiero teraz, na faktycznie zwracanym planie.

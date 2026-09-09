@@ -308,9 +308,17 @@ function buildEnduranceSessionDay(
 }
 
 // ---------------------------------------------------------------------------
-// Jedna polityka club + endurance: para jest dozwolona u zawodnika, który może
-// trenować dwa razy dziennie, o ile nie łączy dwóch ciężkich bodźców.
+// Jedna polityka club + endurance. Ciężka para jest wyjątkiem dla zawodnika
+// 17+ na poziomie intermediate/advanced/elite, bez zgłoszonego bólu.
 // ---------------------------------------------------------------------------
+
+function profileAllowsHeavyClubEndurance(profile?: Profile): boolean {
+  if (!profile || profile.age < 17) return false;
+  if (!(["intermediate", "advanced", "elite"] as const).includes(profile.level as "intermediate" | "advanced" | "elite")) {
+    return false;
+  }
+  return !profile.painInjury && (profile.painLocations?.length ?? 0) === 0;
+}
 
 export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[], profile?: Profile): { removed: number } {
   let removed = 0;
@@ -324,7 +332,9 @@ export function validateNoEnduranceOnClubDays(weekPlan: SessionDay[], profile?: 
       isEnduranceSession(day.secondSession) &&
       ((requiresLightSecondSession(profile ?? ({} as Profile)) &&
         day.secondSession.intensity !== "niska") ||
-        (clubIsHard && day.secondSession.intensity === "wysoka"))
+        (clubIsHard &&
+          day.secondSession.intensity === "wysoka" &&
+          !profileAllowsHeavyClubEndurance(profile)))
     ) {
       day.secondSession = null;
       day.slotLabel = null;
@@ -776,6 +786,36 @@ export function addMissingEnduranceSessions(
     guard += 1;
     const idx = countEnduranceSessions(weekPlan);
 
+    // Cel wydolnościowy: kwalifikowany zawodnik 17+ może świadomie skupić
+    // ciężki klub i ciężką wydolność w jednym high-day. Nie robimy tego blisko
+    // meczu ani przy bólu; check-in w dniu sesji może później obniżyć wariant.
+    if (profile.goal === "endurance" && profileAllowsHeavyClubEndurance(profile)) {
+      const highDayClub = weekPlan.find(
+        (d) =>
+          !d.isUnavailable &&
+          isClubSession(d) &&
+          !isMatchSession(d) &&
+          !d.secondSession &&
+          realSessionCount(d) < maxPerDay &&
+          !isDayBeforeMatch(d) &&
+          !isDayAfterMatch(d) &&
+          d.mdLabel !== "MD-2" &&
+          d.intensity === "wysoka",
+      );
+      if (highDayClub) {
+        highDayClub.secondSession = buildEnduranceSessionDay(profile, highDayClub, {
+          light: false,
+          index: idx,
+          slotLabel: "Sesja 2 (wydolność)",
+          placementReason:
+            "Cel wydolnościowy: kontrolowany high-day club + endurance dla zawodnika 17+; check-in może obniżyć obciążenie.",
+        });
+        highDayClub.slotLabel = highDayClub.slotLabel ?? "Sesja 1 (klub)";
+        added += 1;
+        continue;
+      }
+    }
+
     // Krok 1: zamiana nadmiarowej regeneracji/prehab (≥2 recovery/prehab, 0 endurance).
     const recoveryDays = weekPlan.filter(
       (d) =>
@@ -881,7 +921,8 @@ export function addMissingEnduranceSessions(
         continue;
       }
 
-      // Krok 4: u intermediate/advanced klub + lekki, komplementarny endurance.
+      // Krok 4: klub + endurance. Domyślnie lekko; kwalifikowany zawodnik 17+
+      // może utrzymać pełny bodziec poza bliskością meczu i przy braku bólu.
       // Klub liczy się do obciążenia, ale nie zastępuje własnej sesji biegowej.
       if (!requiresLightSecondSession(profile)) {
         const clubHost = weekPlan.find(
@@ -894,11 +935,17 @@ export function addMissingEnduranceSessions(
             !isDayBeforeMatch(d),
         );
         if (clubHost) {
+          const fullClubEndurance =
+            profileAllowsHeavyClubEndurance(profile) &&
+            clubHost.mdLabel !== "MD-2" &&
+            !isDayAfterMatch(clubHost);
           clubHost.secondSession = buildEnduranceSessionDay(profile, clubHost, {
-            light: true,
+            light: !fullClubEndurance,
             index: idx,
-            slotLabel: "Sesja 2 (lekka wydolność)",
-            placementReason: "Lekki bieg uzupełniający w dniu klubowym — klub nie zastępuje minimum BallWise.",
+            slotLabel: fullClubEndurance ? "Sesja 2 (wydolność)" : "Sesja 2 (lekka wydolność)",
+            placementReason: fullClubEndurance
+              ? "Pełna wydolność w dniu klubowym dla zawodnika 17+ o odpowiednim poziomie; klub nie zastępuje minimum BallWise."
+              : "Lekki bieg uzupełniający w dniu klubowym — klub nie zastępuje minimum BallWise.",
           });
           clubHost.slotLabel = clubHost.slotLabel ?? "Sesja 1 (klub)";
           added += 1;

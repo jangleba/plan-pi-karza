@@ -8,7 +8,9 @@
 // ============================================================================
 
 import {
+  adaptEnduranceForClubDay,
   canAddSessionToDay,
+  canScheduleHeavyClubEndurance,
   countSessionsForDay,
   getMaxSessionsPerDay,
   hasAvailableSecondSessionSlot,
@@ -180,11 +182,8 @@ export function canSafelyPairSessions(
   weeklyRequirements?: unknown,
   athleteTrainingProfile?: AthleteSchedProfile | null,
 ): PairResult {
-  // Klub + wydolność jest ZABLOKOWANE (twarda zasada).
-  const cats = [existingSession.category, newSession.category];
-  if (cats.includes("club") && cats.includes("endurance_conditioning")) {
-    return { allowed: false, reason: "Endurance cannot be scheduled on club training day" };
-  }
+  // Jedna wspólna polityka: club + endurance może być bezpiecznym fallbackiem.
+  // O dopuszczeniu decyduje ten sam walidator par co w schedulerze dziennym.
   const pseudoDay: SchedDay = { sessions: [existingSession] };
   const res = validateTwoADayCombination(
     pseudoDay,
@@ -204,7 +203,6 @@ export function isDayBlockedForEndurance(
   day: SchedDay,
   _weeklyRequirements?: unknown,
 ): boolean {
-  if (hasClubSession(day)) return true; // klub + wydolność zablokowane
   if (isMatchDay(day)) return true;
   return false;
 }
@@ -342,19 +340,19 @@ export function scoreDayForEndurance(
   athleteTrainingProfile?: AthleteSchedProfile | null,
 ): DayScore {
   const dayIndex = indexOfDay(day, weekPlan);
-  const candidate = buildCandidateSession("endurance", athleteTrainingProfile);
+  const baseCandidate = buildCandidateSession("endurance", athleteTrainingProfile);
+  const performanceClubCluster =
+    hasClubSession(day) &&
+    getAthleteGoalRules(athleteGoal).isEnduranceGoal &&
+    canScheduleHeavyClubEndurance({ ...athleteTrainingProfile, athleteGoal });
+  const candidate = hasClubSession(day)
+    ? performanceClubCluster
+      ? { ...baseCandidate, loadLevel: "high" as const, isHeavyConditioning: true }
+      : { ...baseCandidate, loadLevel: "low" as const, isHeavyConditioning: false }
+    : baseCandidate;
   const warnings: string[] = [];
 
   // --- Twarde blokady ---
-  if (hasClubSession(day)) {
-    return {
-      dayIndex,
-      score: BLOCKED,
-      blocked: true,
-      reason: "Endurance cannot be scheduled on club training day",
-      warnings,
-    };
-  }
   if (isMatchDay(day)) {
     return { dayIndex, score: BLOCKED, blocked: true, reason: "Dzień meczowy — brak wydolności.", warnings };
   }
@@ -402,6 +400,14 @@ export function scoreDayForEndurance(
     }
   }
   if (goal.isEnduranceGoal) score += 8;
+  if (hasClubSession(day)) {
+    score += performanceClubCluster ? 45 : -35;
+    warnings.push(
+      performanceClubCluster
+        ? "Cel wydolnościowy i kwalifikacja 17+: kontrolowany high-day club + endurance."
+        : "Dzień klubowy — wydolność tylko jako lekki wariant uzupełniający po ocenie obciążenia klubu.",
+    );
+  }
 
   return { dayIndex, score, blocked: false, warnings };
 }
@@ -521,6 +527,10 @@ function reasonForType(sessionType: PlacementSessionType, day: SchedDay, athlete
       if (hasClubSession(day)) return "Wybrano ten dzień na siłownię przy treningu klubowym, bo dozwolone są 2 treningi dziennie.";
       return "Wybrano ten dzień na siłownię, bo jest wolny, oddalony od meczu i od drugiej ciężkiej siłowni.";
     case "endurance":
+      if (hasClubSession(day))
+        return canScheduleHeavyClubEndurance(athlete) && getAthleteGoalRules(athlete?.athleteGoal).isEnduranceGoal
+          ? "Cel wydolnościowy: wybrano kontrolowany high-day club + endurance dla zawodnika 17+ z dobrym check-inem."
+          : "Wybrano dzień klubowy jako uzupełniający drugi slot; obciążenie dopasowano do profilu i check-inu.";
       if (dayHasCategory(day, "gym_strength"))
         return "Wybrano ten dzień dla wydolności, bo nie ma treningu klubowego i można połączyć ją z siłownią.";
       return "Wybrano ten dzień dla wydolności, bo nie ma treningu klubowego ani meczu.";
@@ -588,7 +598,16 @@ export function findBestPlacementForSession(
   }
 
   const targetDay = weekPlan[best.dayIndex];
-  const candidate = buildCandidateSession(sessionType, athleteTrainingProfile);
+  const baseCandidate = buildCandidateSession(sessionType, athleteTrainingProfile);
+  const candidate =
+    sessionType === "endurance" && hasClubSession(targetDay)
+      ? adaptEnduranceForClubDay(
+          targetDay,
+          baseCandidate,
+          { ...athleteTrainingProfile, athleteGoal },
+          weekContext,
+        )
+      : baseCandidate;
   const reason = reasonForType(sessionType, targetDay, athleteTrainingProfile);
   const session = placeSessionWithReason(candidate, targetDay, reason);
 
