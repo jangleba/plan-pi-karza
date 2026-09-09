@@ -1,714 +1,191 @@
-import type { RunningActivity } from "@/lib/running/types";
-import type {
-  AccountOwnerType,
-  OwnershipTransferStatus,
-  SubscriptionPayerType,
-} from "./agePolicy";
+// Typy silnika mikrosymulacji Football IQ.
+// Silnik jest sterowany danymi — scenariusze to czyste obiekty, bez logiki UI.
 
-export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
-export type Level = "beginner" | "intermediate" | "advanced" | "elite";
+export type SimStage = "observation" | "reaction" | "decision" | "replay";
 
-/** Okres sezonu — steruje intensywnością i kompletnością tygodnia. */
-export type SeasonPhase =
-  | "offseason" // poza sezonem
-  | "preseason" // przedsezon
-  | "inseason" // w sezonie
-  | "transition" // okres przejściowy / roztrenowanie
-  | "return_injury"; // powrót po kontuzji
+export type SimCriterion =
+  | "timing"
+  | "body"
+  | "progression"
+  | "advantage"
+  | "risk";
 
-/** Etap w sezonie — pokazywany tylko, gdy ma znaczenie. */
-export type SeasonStage =
-  | "season_start"
-  | "season_mid"
-  | "season_end"
-  | "winter_break"
-  | "between_rounds"
-  | "no_match_week"
-  | "match_week";
+export type SimFoot = "left" | "right";
 
-/** Poziom rozgrywkowy — wyższy poziom = bardziej zorganizowany i intensywny plan. */
-export type CompetitionLevel =
-  | "academy" // akademia / junior
-  | "b_klasa"
-  | "a_klasa"
-  | "okregowka"
-  | "iv_liga"
-  | "iii_liga"
-  | "ii_liga_plus" // II liga lub wyżej
-  | "semi_pro" // półprofesjonalny
-  | "pro"; // profesjonalny
+export type SimActorKind = "self" | "mate" | "opponent" | "ball";
 
-export type Goal =
-  | "speed"
-  | "strength"
-  | "endurance"
-  | "power"
-  | "agility"
-  | "general"
-  | "mobility"
-  | "return"
-  | "matchready";
-
-/** Co najbardziej ogranicza zawodnika — dodatkowe wsparcie, nie zastępuje celu głównego. */
-export type SecondaryLimiter =
-  "speed" | "strength" | "endurance" | "cod" | "power" | "ball" | "fatigue" | "return";
-
-export type DoubleSessions = "no" | "light_only" | "yes_if_safe";
-
-export type UsualMatchDay = number | "no_fixed_day" | null; // 1=Mon ... 7=Sun
-
-/** Subiektywny punkt startu zawodnika (warstwa motywacyjna, nie wejście planu). */
-export type CurrentPitchFeeling =
-  | "lacking_confidence"
-  | "stagnating"
-  | "lacking_speed"
-  | "lacking_duel_strength"
-  | "fading_late_in_match"
-  | "returning_after_break"
-  | "training_without_direction";
-
-/** Docelowe odczucie na boisku (warstwa motywacyjna, nie wejście planu). */
-export type DesiredPitchFeeling =
-  | "confident_in_decisions"
-  | "fast_and_light"
-  | "strong_in_duels"
-  | "calm_under_pressure"
-  | "ready_full_match"
-  | "prepared_for_higher_level";
-
-export interface Profile {
-  name: string;
-  age: number;
-  /** Dokładna data jest potrzebna wyłącznie do prawidłowego stosowania progów 13/16/18. */
-  birthDate?: string | null;
-  accountOwnerType?: AccountOwnerType;
-  subscriptionPayerType?: SubscriptionPayerType;
-  guardianName?: string | null;
-  guardianEmail?: string | null;
-  guardianVerifiedAt?: string | null;
-  guardianConsentAt?: string | null;
-  ownershipTransferStatus?: OwnershipTransferStatus;
-  ownershipTransferEmail?: string | null;
-  ownershipTransferRequestedAt?: string | null;
-  ownershipTransferredAt?: string | null;
-  /** Brak zgody nie blokuje aplikacji — uruchamia plan konserwatywny bez danych wrażliwych. */
-  healthPersonalizationEnabled?: boolean;
-  position: Position;
-  level: Level;
-  goal: Goal;
-  secondaryLimiter: SecondaryLimiter | null;
-  clubTrainingDays: number[]; // 1=Mon ... 7=Sun
-  individualTrainingDays: number[]; // 1=Mon ... 7=Sun — Loadwise own sessions
-  usualMatchDay: UsualMatchDay; // weekday usually played, or no fixed day
-  matchDate: string | null; // yyyy-MM-dd
-  equipment: string[];
-  /** Sprzęt oznaczony przez zawodnika jako niedostępny (stan per użytkownik). */
-  unavailableEquipmentIds?: string[];
-  painInjury: boolean;
-  doubleSessionsAllowed: DoubleSessions;
-  guardianConsent: boolean;
-  onboardingComplete: boolean;
-  onboardingRevision?: string | null;
-  onboardingSchemaVersion?: number;
-  createdAt: string;
-  // --- Kontekst sezonu i rozgrywek (steruje generatorem) ---
-  seasonPhase: SeasonPhase;
-  seasonStage: SeasonStage | null;
-  competitionLevel: CompetitionLevel;
-  weeklyMatches: boolean; // czy mecze są co tydzień
-  /** Świadomy tryb niestandardowego sezonu — wyłącza walidację kalendarzową. */
-  seasonPhaseOverride?: boolean;
-  /** Status walidacji spójności stanu sezonu (ok/invalid/incomplete/override). */
-  seasonValidationStatus?: "ok" | "invalid" | "incomplete" | "override";
-  hasGym: boolean; // dostęp do siłowni
-  hasPitch: boolean; // dostęp do boiska
-  hasSprintSpace: boolean; // miejsce do sprintu
-  /** Dni całkowicie niedostępne (1=Pn ... 7=Nd) — Loadwise nic w nie nie zaplanuje. */
-  unavailableDays?: number[];
-  /** „Twój kierunek”: jak zawodnik czuje się teraz (maks. 2). Nie wpływa na plan. */
-  currentPitchFeelings?: CurrentPitchFeeling[];
-  /** „Twój kierunek”: jak chce się czuć (maks. 2). Nie wpływa na plan. */
-  desiredPitchFeelings?: DesiredPitchFeeling[];
-  // --- Pola opcjonalne przygotowane pod rozszerzenie onboardingu ---
-  /** Doświadczenie na siłowni (jawnie z onboardingu, jeśli kiedyś dodane). */
-  gymExperienceLevel?: "none" | "beginner" | "intermediate" | "advanced";
-  /** Staż treningu siłowego w miesiącach. */
-  strengthTrainingMonths?: number;
-  /** Jakość ruchu / kompetencja ruchowa zgłoszona w onboardingu. */
-  movementCompetence?: "low" | "medium" | "high";
-  /** Poziom nadzoru trenerskiego na treningach siłowych. */
-  supervisionLevel?: "none" | "some" | "full";
-  /** Lokalizacje bólu / kontuzji zgłoszone w onboardingu. */
-  painLocations?: PainLocation[];
-  /** Historia urazów (np. dwugłowy, kostka). */
-  injuryHistory?: PainLocation[];
-  /** Sprzęt domowy dostępny zawodnikowi. */
-  homeEquipment?: string[];
-  /** Terenowe MAS wyliczone z ostatniego testu 5-minutowego GPS. */
-  fieldMasKmh?: number | null;
-  fieldMasTestedAt?: string | null;
-  /** Poziom 0–3 sterujący dawką biegu; tempo bazowe zmienia tylko kolejny test. */
-  runningProgressionLevel?: number;
-  runningProgressionUpdatedAt?: string | null;
+export interface SimKeyframe {
+  /** t = 0..1 w obrębie fazy obserwacji. */
+  t: number;
+  x: number;
+  y: number;
+  /** Opcjonalny kierunek ustawienia ciała (stopnie, 0 = w stronę bramki rywala). */
+  facingAngle?: number;
+  /** Opcjonalna etykieta akcji w tej klatce (np. "receive", "turn", "scan"). */
+  action?: string;
 }
 
-/** Lokalizacja bólu / kontuzji — steruje doborem i blokadą ćwiczeń. */
-export type PainLocation =
-  "knee" | "back" | "ankle" | "hamstring" | "groin" | "hip" | "shoulder" | "other";
-
-export interface Readiness {
-  date: string; // yyyy-MM-dd
-  sleep: number;
-  energy: number;
-  fatigue: number;
-  soreness: number;
-  jointPain: number;
-  painLocation?: PainLocation | null;
-  stress: number;
-  motivation: number;
-  overall: number;
+export interface SimActor {
+  id: string;
+  kind: SimActorKind;
+  label?: string;
+  /** Klatki kluczowe: t = 0..1 w obrębie fazy obserwacji. */
+  path: SimKeyframe[];
 }
-export interface ExerciseInstructionStep {
-  title: string;
+
+
+export interface SimTimingWindow {
+  id: string;
+  /** Milisekundy od startu obserwacji. */
+  fromMs: number;
+  toMs: number;
+  label: string;
+  /** 0..1 — jakość momentu startu ruchu. */
+  quality: number;
+  note: string;
+}
+
+export interface SimZone {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  label: string;
+  quality: number;
+  note: string;
+  /** Reakcja rywala wywołana wejściem w tę strefę. */
+  reaction: string;
+}
+
+export interface SimBodyAngle {
+  id: string;
+  /** Kąt w stopniach, 0 = w stronę bramki rywala (w górę boiska). */
+  centerDeg: number;
+  toleranceDeg: number;
+  label: string;
+  quality: number;
+  note: string;
+}
+
+export interface SimReaction {
+  id: string;
+  label: string;
   description: string;
-  visualId?: string;
+  /** Docelowe pozycje rywali po reakcji. */
+  moves: { actorId: string; x: number; y: number }[];
 }
 
-export type SpeedRole =
-  | "preparation"
-  | "technical"
-  | "primer"
-  | "resisted"
-  | "primary"
-  | "secondary"
-  | "conditioning"
-  | "terminal"
-  | "cooldown";
-
-export interface ExerciseItem {
-  name: string;
-  /** Krótko: po co zawodnik wykonuje to ćwiczenie. */
-  purpose?: string;
-
-  /** Dokładny sposób wykonania, nie tylko pojedyncza wskazówka. */
-  technique?: string;
-
-  /** Najważniejszy błąd, którego zawodnik ma unikać. */
-  commonMistake?: string;
-
-  /** Jednoznaczny klucz dedykowanej ilustracji. */
-  visualId?: string;
-  /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
-  displayPrescription?: string;
-
-  /** Kolejne kroki wykonania ćwiczenia. */
-  instructionSteps?: ExerciseInstructionStep[];
-
-  /** Stałe ID ćwiczenia z centralnej biblioteki. */
-  exerciseId?: string;
-  /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
-  speedRole?: SpeedRole;
-  prescription: string;
-  rest?: string;
-  cue?: string;
-  easier?: string;
-  harder?: string;
-  /** Ćwiczenie zostało zmienione/zregresowane pod profil zawodnika. */
-  wasAdjustedForAthleteProfile?: boolean;
-  /** Powód dostosowania ćwiczenia do profilu zawodnika. */
-  athleteProfileAdjustmentReason?: string;
-  /** Powód zablokowania oryginalnego ćwiczenia. */
-  blockedExerciseReason?: string;
-  /** Nazwa oryginalnego (zablokowanego) ćwiczenia, które zastąpiono. */
-  replacementForBlockedExercise?: string;
+export interface SimActionOutcome {
+  /** 0..1 na kryterium. */
+  progression: number;
+  advantage: number;
+  /** 0..1, gdzie 1 = ryzyko w pełni kontrolowane. */
+  risk: number;
+  /** Krótki opis konsekwencji. */
+  consequence: string;
+  /** Tor zagrania rysowany w replayu. */
+  path?: { x: number; y: number }[];
 }
 
-export type Intensity = "niska" | "umiarkowana" | "wysoka";
-
-// ---------- Strukturalny model treningu (bloki) ----------
-
-export type BlockType =
-  | "single"
-  | "superset"
-  | "contrast"
-  | "complex"
-  | "rfd"
-  | "stiffness"
-  | "deceleration"
-  | "accessory";
-
-export type BlockIntent =
-  "strength" | "power" | "braking" | "stiffness" | "rfd" | "stability" | "mobility";
-
-export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" | "log";
-
-export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
-
-export interface TrainingExercise {
+export interface SimAction {
   id: string;
-  /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
-  exerciseId?: string;
-  /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
-  speedRole?: SpeedRole;
-  label?: string; // A1 | A2 | B1 | B2 ...
-  name: string;
-  /** Krótko: co ćwiczenie rozwija i dlaczego znajduje się w sesji. */
-  purpose?: string;
-  /** Krótkie ustawienie startowe pokazywane w bibliotece ćwiczeń. */
-  setup?: string;
-
-  /** Jednoznaczny klucz dedykowanej ilustracji ćwiczenia. */
-  visualId?: string;
-  /** Krótka dawka pokazywana zawodnikowi na liście treningu. */
-  displayPrescription?: string;
-
-  /** Kolejne kroki wykonania ćwiczenia. */
-  instructionSteps?: ExerciseInstructionStep[];
-  sets?: string;
-  reps?: string;
-  duration?: string;
-  restAfterExercise?: string;
-  restAfterPair?: string;
-  tempo?: string;
-  rpe?: string;
-  rir?: string;
-  loadTarget?: string; // praktyczny cel obciążenia, np. zakres powtórzeń i RIR
-  loadGuidance?: string; // jak dobrać ciężar
-  loadReduceWhen?: string; // kiedy zmniejszyć obciążenie
-  plyoLevel?: number; // 1–4 poziom progresji plyometrycznej
-  groundContacts?: number;
-  equipment?: string;
-  cue?: string;
-  technique?: string;
-  regression?: string;
-  progression?: string;
-  commonMistake?: string;
-  contraindications?: string;
-  ageSafetyLevel?: AgeSafetyLevel;
-  matchDayRestriction?: string;
-  completed?: boolean;
-  /** Ćwiczenie zostało zmienione/zregresowane pod profil zawodnika. */
-  wasAdjustedForAthleteProfile?: boolean;
-  /** Powód dostosowania ćwiczenia do profilu zawodnika. */
-  athleteProfileAdjustmentReason?: string;
-  /** Powód zablokowania oryginalnego ćwiczenia. */
-  blockedExerciseReason?: string;
-  /** Nazwa oryginalnego (zablokowanego) ćwiczenia, które zastąpiono. */
-  replacementForBlockedExercise?: string;
+  label: string;
+  /** Wynik zależny od reakcji rywala. */
+  outcomes: Record<string, SimActionOutcome>;
 }
 
-export interface TrainingBlock {
+export interface SimAlternative {
+  /** Klucz: reactionId. */
+  actionId: string;
+  changed: string;
+}
+
+export interface SimScenarioContext {
+  minute: number;
+  scoreline: string;
+  phase: string;
+  positionLabel: string;
+  /** Wagi kryteriów wynikające z kontekstu meczu. Suma dowolna, normalizowana. */
+  weights: Record<SimCriterion, number>;
+  weightsNote: string;
+}
+
+/** Temat taktyczny scenariusza (biblioteka zaawansowana). */
+export type SimTopic =
+  | "press_manipulation"
+  | "third_man"
+  | "overload_isolate"
+  | "positional_rotation"
+  | "between_lines"
+  | "weak_side_exit"
+  | "press_trap"
+  | "rest_defence"
+  | "counterpress"
+  | "transition";
+
+export interface SimSourceReference {
+  /** Np. "UEFA Coaching Convention" / "FIFA Training Centre". */
+  label: string;
+  url?: string;
+}
+
+export interface SimScenario {
   id: string;
   title: string;
-  blockType: BlockType;
-  intent: BlockIntent;
-  exercises: TrainingExercise[];
-  restAfterBlock?: string;
-  eligibilityLevel?: AgeSafetyLevel;
-  safetyNotes?: string;
-}
-
-export interface TrainingSection {
-  id: string;
-  title: string;
-  type: SectionType;
-  blocks: TrainingBlock[];
-}
-
-export type DayType =
-  | "match" // mecz
-  | "md-1" // dzień przed meczem
-  | "club" // trening klubowy (monitoring)
-  | "training" // własny trening
-  | "recovery" // regeneracja
-  | "rest"; // dzień wolny
-
-export type PlanSessionType =
-  | "strength_power"
-  | "sprint_acceleration"
-  | "endurance_running"
-  | "football_technical"
-  | "cod_agility"
-  | "club_training"
-  | "match"
-  | "activation"
-  | "recovery"
-  | "prehab_mobility"
-  | "rest";
-
-export interface PlanSession {
-  id: string;
-  type: PlanSessionType;
-  title: string;
-  intensity: Intensity;
-  durationMin: number;
-  isClubSession: boolean;
-  isOwnSession: boolean;
-  isRecoveryOrPrehab: boolean;
-  isSupplemental: boolean;
-  exercises: ExerciseItem[];
-  source: SessionDay;
-}
-
-export interface PlanDay {
-  date: string;
-  dayOfWeek: number;
-  mdRelation: string | null;
-  sessions: PlanSession[];
-  outsideActivePlan?: boolean;
-  source: SessionDay;
-}
-
-/** Faza periodyzacji tygodnia w 4-tygodniowym bloku. */
-export type WeekPhase = "adaptation" | "development" | "peak" | "deload";
-
-export interface PlanWeek {
-  weekId: string;
-  weekNumber: number;
-  startDate: string;
-  endDate: string;
-  days: PlanDay[];
-  matchDate: string | null;
-  matchDates: string[];
-  focus: string;
+  brief: string;
+  topic: SimTopic;
+  /** Grupy pozycyjne, dla których scenariusz jest trafny. */
+  positions: ("defender" | "midfielder" | "forward")[];
   /**
-   * Zaplanowane obciążenie tygodnia (bez korekty daily readiness).
-   * To wartość pokazywana na badge tygodnia. Alias: `plannedWeeklyLoad`.
+   * "draft" = materiał roboczy bez źródła i bez akceptacji eksperta.
+   * "sourced" = ma sourceReference do materiału FIFA/UEFA.
    */
-  loadLevel: Intensity;
-  /** Faza periodyzacji tygodnia — osobna wartość, niezależna od readiness. */
-  weekPhase: WeekPhase;
-  /** Jawny alias na zaplanowane obciążenie tygodnia (badge). */
-  plannedWeeklyLoad: Intensity;
-  reasons: string[];
+  status: "draft" | "sourced";
+  sourceReference?: SimSourceReference;
+  context: SimScenarioContext;
+  observationMs: number;
+  decisionMs: number;
+  actors: SimActor[];
+  timingWindows: SimTimingWindow[];
+  timingMissNote: string;
+  zones: SimZone[];
+  zoneMissNote: string;
+  defaultReaction: string;
+  bodyAngles: SimBodyAngle[];
+  bodyMissNote: string;
+  feet: { foot: SimFoot; quality: number; note: string }[];
+  reactions: SimReaction[];
+  actions: SimAction[];
+  /** Lepsza alternatywa per reakcja rywala. */
+  alternatives: Record<string, SimAlternative>;
+  fallbackOutcome: SimActionOutcome;
 }
 
-export interface WeekStats {
-  ownTrainingCount: number;
-  clubTrainingCount: number;
-  recoveryPrehabCount: number;
-  doubleDayCount: number;
-  hasMatch: boolean;
-  matchDateLabel: string;
-  weeklyLoadLabel: Intensity;
+export interface SimChoice {
+  timingMs: number | null;
+  x: number;
+  y: number;
+  angleDeg: number;
+  foot: SimFoot;
+  actionId: string | null;
 }
 
-/**
- * Tagi obciążenia sesji — używane przez scheduler do ochrony następstwa dni
- * (np. brak dwóch ciężkich dolnych dni z rzędu) i do opisu bodźca.
- */
-export type LoadTag =
-  | "neural_high"
-  | "lower_body_high"
-  | "axial_load"
-  | "squat_quad_dominant"
-  | "hinge_posterior_chain"
-  | "hamstring_eccentric"
-  | "calf_achilles_stiffness"
-  | "plyometric_contacts"
-  | "adductor_lateral"
-  | "upper_body"
-  | "core"
-  | "recovery_low"
-  | "technical_low";
+export type SimFeedbackKey = "timing" | "space" | "consequence";
+export type SimVerdict = "good" | "mixed" | "poor";
 
-/**
- * Mezocykl / blok treningowy (4–5 tygodni). Trzyma zablokowane główne
- * ćwiczenia i tematy, tak by w obrębie bloku progresować dawką, a nie losową
- * rotacją ćwiczeń.
- */
-export interface Mesocycle {
-  blockId: string;
-  blockWeekNumber: number; // 1-based numer tygodnia w bloku
-  blockLengthWeeks: number; // 4 lub 5
-  mainGoal: Profile["goal"];
-  lockedMainExercises: Record<string, string>; // np. { main, powerA, hamB1, powerPair, core }
-  lockedTrainingThemes: string[]; // role/tematy slotów gym
-  progressionRules: string; // krótki opis logiki progresji dawką
-  deloadWeek: number; // który tydzień bloku jest deloadem
-  allowedSubstitutions: string[]; // dozwolone zamiany przy bólu/zmęczeniu
+export interface SimFeedbackItem {
+  key: SimFeedbackKey;
+  label: string;
+  verdict: SimVerdict;
+  text: string;
 }
 
-/**
- * Centralna kategoria treningu — jednoznacznie rozpoznawana przez silnik.
- * To jedyne źródło prawdy dla reguł typu "2 siłownie", wydolność, szybkość,
- * klub i mecz.
- */
-export type SessionCategory =
-  | "club"
-  | "gym_strength"
-  | "endurance_conditioning"
-  | "speed_sprint"
-  | "match"
-  | "recovery_prehab"
-  | "mobility"
-  | "rest"
-  | "other";
-
-export type SessionSubcategory =
-  // gym_strength
-  | "lower_strength"
-  | "upper_strength"
-  | "full_body_strength"
-  | "power_maintenance"
-  | "strength_maintenance"
-  | "light_full_body"
-  | "core_strength"
-  // gym_strength — youth / beginner foundation
-  | "movement_foundation"
-  | "bodyweight_strength"
-  | "stability_coordination"
-  | "strength_foundation"
-  | "landing_mechanics"
-  // endurance_conditioning
-  | "easy_run"
-  | "easy_aerobic"
-  | "tempo_aerobic"
-  | "extensive_intervals"
-  | "aerobic_intervals"
-  | "bike_conditioning"
-  | "pool_conditioning"
-  | "low_impact_conditioning"
-  | "repeated_tempo"
-  | "zone2_aerobic"
-  | "recovery_run"
-  | "short_aerobic_block"
-  | "field_mas_test"
-  // speed_sprint
-  | "acceleration"
-  | "acceleration_deceleration"
-  | "deceleration"
-  | "braking"
-  | "first_step"
-  | "max_velocity"
-  | "max_velocity_cod"
-  | "flying_sprints"
-  | "sprint_mechanics"
-  | "speed_microdose"
-  | "speed_primer"
-  | "technical_speed"
-  | "change_of_direction"
-  | "agility_speed"
-  // club
-  | "club_general"
-  | "club_speed_focus"
-  // other
-  | "match"
-  | "recovery"
-  | "prehab"
-  | "mobility"
-  | "rest"
-  | "ball_technical"
-  | "unknown";
-
-export type SessionLoadLevel = "none" | "low" | "moderate" | "high";
-
-/** Skąd pochodzi sesja i dlaczego trafiła w to miejsce planu. */
-export type SessionGeneratedBy =
-  | "engine"
-  | "user_added"
-  | "user_swapped"
-  | "club_external"
-  | "match_external"
-  | "final-week-validator";
-
-/**
- * Znormalizowana, jednoznaczna klasyfikacja sesji. Wyliczana przez
- * normalizeSessionCategory() przed zapisaniem sesji do planu.
- */
-export interface SessionClassification {
-  category: SessionCategory;
-  subcategory: SessionSubcategory;
-  intensity: Intensity;
-  loadLevel: SessionLoadLevel;
-  durationMinutes: number;
-  tags: string[];
-
-  countsAsStrength: boolean;
-  countsAsEndurance: boolean;
-  countsAsSpeed: boolean;
-  countsAsClub: boolean;
-  countsAsMatch: boolean;
-
-  isGym: boolean;
-  isClubSession: boolean;
-  isEndurance: boolean;
-  isSpeed: boolean;
-  isMatch: boolean;
-  isRecovery: boolean;
-  isPrehab: boolean;
-  isMobility: boolean;
-  isHeavyLegs: boolean;
-  isHighImpactRunning: boolean;
-  isMaxVelocity: boolean;
-  isAcceleration: boolean;
-  isDeceleration: boolean;
-  isChangeOfDirection: boolean;
-
-  canBeSecondSession: boolean;
-  generatedBy: SessionGeneratedBy;
-  placementReason: string;
-  sourceRule: string;
-  /** Znacznik naprawy planu (np. "missing-endurance") ustawiany przez finalny walidator. */
-  repairTag?: string;
+export interface SimResult {
+  reaction: SimReaction;
+  /** Trzy deterministyczne wnioski wynikające z danych scenariusza. */
+  feedback: SimFeedbackItem[];
+  action: SimAction | null;
+  outcome: SimActionOutcome;
+  alternative: { action: SimAction; outcome: SimActionOutcome; changed: string } | null;
 }
 
-export interface SessionDay {
-  /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
-  isUnavailable?: boolean;
-  generatorVersion?: string;
-  /** Version of the football-speed generator that produced this session. */
-  speedGeneratorVersion?: string;
-  /** Trwała rodzina bodźca sprintowego — nie odgadujemy jej ponownie z tytułu. */
-  speedFamily?:
-    | "acceleration"
-    | "maximum_velocity"
-    | "curved_sprinting"
-    | "deceleration_cod"
-    | "reactive_agility_reacceleration";
-  /** Kontekst rotacji użyty przy generowaniu — potrzebny do stabilnej regeneracji po check-inie. */
-  speedProgressionWeek?: number;
-  speedRecentPostSkipExerciseIds?: string[];
-  canonicalRevision?: string | null;
-  canonicalSchemaVersion?: number;
-  dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
-  dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
-  readinessAdjustedDate?: string | null;
-  readinessOriginalSession?: SessionDay | null;
-  sessionId?: string;
-  date: string; // yyyy-MM-dd
-  dayOfWeek?: number;
-  mdRelation?: string | null;
-  dayName: string;
-  dayType: DayType;
-  type?: PlanSessionType;
-  title: string;
-  goalLabel: string;
-  intensity: Intensity;
-  durationMin: number;
-  isClubSession?: boolean;
-  isOwnSession?: boolean;
-  isRecoveryOrPrehab?: boolean;
-  isSupplemental?: boolean;
-  exercises?: ExerciseItem[];
-  reason: string;
-  safetyNote: string | null;
-  whyToday: string;
-  sessionType: string;
-  goalOfSession: string;
-  riskManaged: string;
-  avoidToday: string;
-  mdLabel: string | null;
-  slotLabel: string | null;
-  /** Dzień jest zobowiązaniem zewnętrznym (klub/mecz) — nie zamieniamy go na regenerację. */
-  externalCommitment?: boolean;
-  /** Nadpisanie etykiety obciążenia w UI (np. "Ogranicz obciążenie" / "Wstrzymaj trening"). */
-  loadLabelOverride?: string | null;
-  sections: {
-    warmup: ExerciseItem[];
-    main: ExerciseItem[];
-    accessory: ExerciseItem[];
-    footballTransfer: ExerciseItem[];
-    cooldown: ExerciseItem[];
-  };
-  /** Strukturalne sekcje z blokami (siła→moc itd.). Gdy obecne, ekran szczegółów renderuje bloki. */
-  structuredSections?: TrainingSection[];
-  /** Tagi obciążenia sesji (scheduler + opis). */
-  loadTags?: LoadTag[];
-  /** Numer tygodnia w bloku mezocyklu (1-based). */
-  blockWeekNumber?: number;
-  /** Faza tygodnia w bloku (kalibracja/build/overload/deload). */
-  blockPhaseLabel?: string;
-  /** Znormalizowana, jednoznaczna klasyfikacja sesji (źródło prawdy). */
-  classification?: SessionClassification;
-  /** Metadane tygodnia rule-based (temat, obowiązkowe/wspierające/regeneracja, load score, walidacja). */
-  weekMeta?: WeekMeta;
-  secondSession: SessionDay | null;
-}
-
-/**
- * Metadane tygodnia budowane przez rule-based engine (planRules).
- * Dołączane do każdej sesji w danym tygodniu kalendarzowym.
- */
-export interface WeekMeta {
-  weekNumber: number; // 1-based numer tygodnia w wygenerowanym planie
-  blockWeek: number; // 1..4 pozycja w 4-tygodniowym bloku
-  weekTheme: string; // np. "Budowanie obciążenia"
-  mainGoalFocus: string; // obowiązkowy bodziec celu głównego
-  mandatorySessions: number; // liczba sesji realizujących cel główny
-  supportSessions: number; // liczba sesji wspierających
-  recoverySessions: number; // liczba sesji regeneracja/prehab/mobilność
-  weeklyLoadScore: number; // sumaryczny wynik obciążenia tygodnia
-  validationStatus: "valid" | "rebuilt" | "invalid";
-}
-
-export interface SessionCompletion {
-  completed: boolean;
-  status?: "completed" | "missed";
-  rpe: number | null;
-  notes: string;
-  durationMin?: number | null;
-  activityType?: "technical" | "mixed" | "running_endurance" | null;
-}
-
-export type SessionHistoryCategory =
-  "gym" | "speed" | "endurance" | "ball" | "club" | "match" | "recovery";
-
-/** Ukończona jednostka niezależna od aktualnie aktywnego planu. */
-export interface SessionHistoryRecord {
-  key: string;
-  date: string;
-  title: string;
-  category: SessionHistoryCategory;
-  durationMin: number;
-  rpe: number | null;
-  notes: string;
-}
-
-export type ModificationType = "add" | "swap";
-
-export type SessionStatus = "planned" | "added_by_user" | "swapped_by_user" | "blocked_by_engine";
-
-export interface SessionModification {
-  id: string;
-  date: string; // yyyy-MM-dd
-  type: ModificationType;
-  reason: string;
-  safetyStatus: SessionStatus;
-  session: SessionDay; // new / added session
-  originalSession: SessionDay | null; // for swap
-  createdAt: string;
-}
-
-export interface WeeklyTransition {
-  id: string;
-  weekNumber: number; // 1-based index of the week that was just finished
-  nextMatchDate: string | null; // yyyy-MM-dd
-  noMatchNextWeek: boolean;
-  confirmedAt: string;
-}
-
-export interface LoadwiseState {
-  profile: Profile | null;
-  plan: SessionDay[];
-  planGeneratedFor: string | null; // date plan starts
-  readiness: Record<string, Readiness>;
-  completions: Record<string, SessionCompletion>; // keyed by session dbId
-  history: SessionHistoryRecord[];
-  modifications: Record<string, SessionModification[]>; // keyed by date
-  transitions: Record<number, WeeklyTransition>; // keyed by week_number
-  exerciseReplacements: Record<string, ExerciseReplacement[]>;
-  /** Prywatny zapis biegu, kluczowany identyfikatorem sesji treningowej. */
-  runningActivities: Record<string, RunningActivity>;
-  equipmentNotice: string | null;
-}
-
-export interface ExerciseReplacement {
-  id: string;
-  date: string;
-  exerciseId: string;
-  original: TrainingExercise;
-  replacement: TrainingExercise;
-  equipmentIds: string[];
-  createdAt: string;
-}
