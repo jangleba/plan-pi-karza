@@ -35,7 +35,8 @@ export type CanonicalExerciseFamily =
   | "mobility"
   | "recovery"
   | "conditioning"
-  | "trunk";
+  | "trunk"
+  | "football_ball_work";
 
 export type MovementPattern =
   | "squat"
@@ -2569,6 +2570,56 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
       "Opuść biodra pod kontrolą i utrzymuj stałą wysokość oraz rytm po obu stronach.",
     ],
   }),
+  {
+    id: "football_technical_self_selected",
+    name: "Self-selected football technical block",
+    displayNamePl: "Własny blok techniczny z piłką",
+    aliases: ["Własny blok techniczny", "Trener reakcji BallWise", "Swobodne prowadzenie piłki", "Spokojne zakończenie z piłką"],
+    requiresBall: true,
+    allowedSessionCategories: ["football_ball_work"],
+    participantMode: "solo",
+    minParticipants: 1,
+    spaceRequirement: "pitch",
+    category: "prehab",
+    movementPattern: "gait",
+    primaryAdaptation: "technique",
+    difficultyLevel: 1,
+    technicalComplexity: 1,
+    minAge: 8,
+    recommendedDevelopmentStage: "child_foundation",
+    requiredGymExperienceLevel: "none",
+    requiredMovementCompetenceLevel: "low",
+    requiredSupervisionLevel: "none",
+    equipmentRequired: [],
+    contraindications: [],
+    injuryCautions: ["Przerwij przy bólu lub pogorszeniu kontroli ruchu."],
+    loadingType: "none",
+    impactLevel: "low",
+    spinalLoadLevel: "none",
+    kneeLoadLevel: "low",
+    ankleLoadLevel: "low",
+    hamstringLoadLevel: "low",
+    plyometricIntensity: "none",
+    speedIntensity: "none",
+    enduranceIntensity: "low",
+    allowedForYouth: true,
+    allowedForBeginner: true,
+    progressionIds: [],
+    regressionIds: [],
+    safeAlternativeIds: [],
+    coachingCues: ["Jakość kontaktu przed tempem", "Obie nogi", "Kontrola przestrzeni"],
+    commonErrors: ["Tempo większe niż kontrola", "Powtarzanie wyłącznie mocniejszą nogą"],
+    instructionsPl: [
+      "Wybierz jeden element techniczny i przygotuj bezpieczną, wolną przestrzeń.",
+      "Pracuj obiema nogami w tempie, w którym zachowujesz kontrolę nad piłką.",
+      "Zakończ serię, gdy spada dokładność albo pojawia się ból.",
+    ],
+    objective: "Samodzielna, kontrolowana praca nad wybranym elementem techniki piłkarskiej.",
+    footballRelevance: ["Kontakt z piłką, skanowanie i decyzja kierunkowa."],
+    approved: true,
+    draft: false,
+    family: "football_ball_work",
+  },
 ];
 
 const ACCELERATION_CUES = [
@@ -3777,10 +3828,13 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
   recovery: "easy_cycle_recovery",
   conditioning: "easy_aerobic_run",
   trunk: "side_plank",
+  football_ball_work: "football_technical_self_selected",
 };
 
 function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
   const value = normalizeExerciseName(name);
+  const positiveBallWork = value.replace(/bez\s+(?:piłk|pilk)\w*/g, "");
+  if (/piłk|pilk|kontakt|podani|przyjęci|wykończeni|drybling|prowadzeni/.test(positiveBallWork)) return "football_ball_work";
   if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value)) return "speed";
   if (/skok|pogo|bound|lądowani|plyo|zeskok/.test(value)) return "plyometric";
   if (/mobil|rozciąg|oddech|ramp|rozgrzew|ruchomo/.test(value)) return "mobility";
@@ -3806,18 +3860,27 @@ export function canonicalizeGeneratedExercise(
     (isApprovedCanonicalExercise(byId) && byId) ||
     (isApprovedCanonicalExercise(byName) && byName) ||
     getExerciseDefinition(
-      GENERATED_FAMILY_FALLBACKS[family ?? inferGeneratedFamily(exercise.name)],
+      GENERATED_FAMILY_FALLBACKS[
+        family ??
+          inferGeneratedFamily(
+            `${exercise.name} ${exercise.prescription} ${exercise.cue ?? ""}`,
+          )
+      ],
     );
 
   if (!isApprovedCanonicalExercise(canonical)) {
     throw new Error(`No approved canonical mapping found for generated exercise: ${exercise.name}`);
   }
 
-  return hydrateExerciseItemFromDefinition({
+  const hydrated = hydrateExerciseItemFromDefinition({
     ...exercise,
     exerciseId: canonical.id,
     name: canonical.displayNamePl,
   });
+
+  return canonical.id === "football_technical_self_selected"
+    ? { ...hydrated, name: exercise.name }
+    : hydrated;
 }
 
 export interface PersistedExerciseMigrationResult {

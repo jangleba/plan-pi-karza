@@ -53,7 +53,7 @@ const SPEED_ACTION_RE =
   /sprint|zryw|przyspiesz|akceler|flying|prędkość maks|max velocity/i;
 
 const NEGATED_SPEED_RE =
-  /bez\s+(?:maksymaln\w*\s+)?(?:sprint|zryw|przyspiesz)|nie\s+(?:(?:rób|wykonuj|dodawaj)\s+(?:sprint|zryw|przyspiesz)|przyspiesz\w*)/i;
+  /(?:bez|brak|zero)\s+(?:maksymaln\w*\s+)?(?:sprint\w*|zryw\w*|przyspiesz\w*)|nie\s+(?:(?:rób|wykonuj|dodawaj)\s+(?:sprint\w*|zryw\w*|przyspiesz\w*)|przyspiesz\w*)/i;
 
 const RSA_RE =
   /\brsa\b|powtarzaln\w*\s+sprint|repeated sprint/i;

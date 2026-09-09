@@ -119,8 +119,6 @@ const SPEED_GOAL_KEYWORDS = [
   "agility",
   "zwrotno", // zwrotność
   "dynamik", // dynamika
-  "power",
-  "moc",
 ];
 
 const ENDURANCE_GOAL_KEYWORDS = [

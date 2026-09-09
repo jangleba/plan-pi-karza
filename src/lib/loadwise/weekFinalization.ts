@@ -424,7 +424,10 @@ export function addMissingCanonicalSpeedSessions(
         !adjacentHasRealSpeedExposure(weekPlan, index) &&
         Boolean(
           day.secondSession &&
-          (isBallTechnicalSession(day.secondSession) || isRecoverySession(day.secondSession)),
+          (isBallTechnicalSession(day.secondSession) ||
+            isRecoverySession(day.secondSession) ||
+            (isEnduranceSession(day.secondSession) &&
+              day.secondSession.classification?.repairTag === "missing-endurance")),
         ),
     );
     if (replaceSecondIndex >= 0) {
@@ -1048,33 +1051,32 @@ export function addMissingEnduranceSessions(
       // Krok 4: klub + endurance. Domyślnie lekko; kwalifikowany zawodnik 17+
       // może utrzymać pełny bodziec poza bliskością meczu i przy braku bólu.
       // Klub liczy się do obciążenia, ale nie zastępuje własnej sesji biegowej.
-      if (!requiresLightSecondSession(profile)) {
-        const clubHost = weekPlan.find(
-          (d) =>
-            !d.isUnavailable &&
-            isClubSession(d) &&
-            !isMatchSession(d) &&
-            !d.secondSession &&
-            realSessionCount(d) < maxPerDay &&
-            !isDayBeforeMatch(d),
-        );
-        if (clubHost) {
-          const fullClubEndurance =
-            profileAllowsHeavyClubEndurance(profile) &&
-            clubHost.mdLabel !== "MD-2" &&
-            !isDayAfterMatch(clubHost);
-          clubHost.secondSession = buildEnduranceSessionDay(profile, clubHost, {
-            light: !fullClubEndurance,
-            index: idx,
-            slotLabel: fullClubEndurance ? "Sesja 2 (wydolność)" : "Sesja 2 (lekka wydolność)",
-            placementReason: fullClubEndurance
-              ? "Pełna wydolność w dniu klubowym dla zawodnika 17+ o odpowiednim poziomie; klub nie zastępuje minimum BallWise."
-              : "Lekki bieg uzupełniający w dniu klubowym — klub nie zastępuje minimum BallWise.",
-          });
-          clubHost.slotLabel = clubHost.slotLabel ?? "Sesja 1 (klub)";
-          added += 1;
-          continue;
-        }
+      const clubHost = weekPlan.find(
+        (d) =>
+          !d.isUnavailable &&
+          isClubSession(d) &&
+          !isMatchSession(d) &&
+          !d.secondSession &&
+          realSessionCount(d) < maxPerDay &&
+          !isDayBeforeMatch(d),
+      );
+      if (clubHost) {
+        const fullClubEndurance =
+          !requiresLightSecondSession(profile) &&
+          profileAllowsHeavyClubEndurance(profile) &&
+          clubHost.mdLabel !== "MD-2" &&
+          !isDayAfterMatch(clubHost);
+        clubHost.secondSession = buildEnduranceSessionDay(profile, clubHost, {
+          light: !fullClubEndurance,
+          index: idx,
+          slotLabel: fullClubEndurance ? "Sesja 2 (wydolność)" : "Sesja 2 (lekka wydolność)",
+          placementReason: fullClubEndurance
+            ? "Pełna wydolność w dniu klubowym dla zawodnika 17+ o odpowiednim poziomie; klub nie zastępuje minimum BallWise."
+            : "Lekki bieg uzupełniający w dniu klubowym — klub nie zastępuje minimum BallWise i nie tworzy drugiej ciężkiej sesji.",
+        });
+        clubHost.slotLabel = clubHost.slotLabel ?? "Sesja 1 (klub)";
+        added += 1;
+        continue;
       }
     }
 
@@ -1179,8 +1181,9 @@ function buildBallSessionDay(
 
 /**
  * Gwarantuje własną sesję piłkarską bez uznawania klubu lub meczu za zamiennik.
- * Początkujący dostaje ją tylko jako osobny, lekki dzień. Zawodnik
- * intermediate/advanced może dostać ją jako komplementarny drugi slot.
+ * To zawsze lekka sesja techniczna, dlatego może wejść także jako drugi slot
+ * u youth/beginner. Ograniczenie dla tej grupy dotyczy dwóch CIĘŻKICH sesji,
+ * a nie bezpiecznej, niskointensywnej pracy z piłką.
  */
 export function addMissingBallSessions(
   weekPlan: SessionDay[],
@@ -1241,34 +1244,28 @@ export function addMissingBallSessions(
       continue;
     }
 
-    if (!requiresLightSecondSession(profile)) {
-      const secondSlotHost = weekPlan.find(
-        (day) =>
-          !day.isUnavailable &&
-          !isMatchSession(day) &&
-          !day.secondSession &&
-          realSessionCount(day) < 2 &&
-          !isBallTechnicalSession(day) &&
-          !isDayBeforeMatch(day),
-      ) ?? weekPlan.find(
-        (day) =>
-          !day.isUnavailable &&
-          !isMatchSession(day) &&
-          !day.secondSession &&
-          realSessionCount(day) < 2 &&
-          !isBallTechnicalSession(day),
-      );
+    const isSafeBallHost = (day: SessionDay, allowMd1: boolean): boolean =>
+      !day.isUnavailable &&
+      !isMatchSession(day) &&
+      !day.secondSession &&
+      realSessionCount(day) < 2 &&
+      !isBallTechnicalSession(day) &&
+      !eachSession(day).some((session) => hasRealSpeedExposure(session)) &&
+      (allowMd1 || !isDayBeforeMatch(day));
 
-      if (secondSlotHost) {
-        secondSlotHost.secondSession = buildBallSessionDay(secondSlotHost, {
-          slotLabel: "Sesja 2 (własna piłka)",
-          placementReason:
-            "Dodano lekką, komplementarną własną sesję piłkarską w drugim slocie dnia.",
-        });
-        secondSlotHost.slotLabel = secondSlotHost.slotLabel ?? "Sesja 1";
-        added += 1;
-        continue;
-      }
+    const secondSlotHost =
+      weekPlan.find((day) => isSafeBallHost(day, false)) ??
+      weekPlan.find((day) => isSafeBallHost(day, true));
+
+    if (secondSlotHost) {
+      secondSlotHost.secondSession = buildBallSessionDay(secondSlotHost, {
+        slotLabel: "Sesja 2 (własna piłka — lekka)",
+        placementReason:
+          "Dodano lekką, komplementarną własną sesję piłkarską w drugim slocie dnia.",
+      });
+      secondSlotHost.slotLabel = secondSlotHost.slotLabel ?? "Sesja 1";
+      added += 1;
+      continue;
     }
 
     break;

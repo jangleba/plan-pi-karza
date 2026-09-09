@@ -3,7 +3,9 @@ import type { Profile, SessionDay, DayType } from "./types";
 import { normalizeSessionCategory, isEnduranceSession, isClubSession } from "./sessionClassification";
 import {
   countEnduranceSessions,
+  countBallSessions,
   addMissingEnduranceSessions,
+  addMissingBallSessions,
   validateAndRepairWeekPlan,
   assertFinalPlanMeetsMinimums,
   validateNoEnduranceOnClubDays,
@@ -266,6 +268,28 @@ describe("weekFinalization — twarda zasada endurance", () => {
     const res = validateNoEnduranceOnClubDays([club], profile({ age: 16, level: "advanced" }));
     expect(res.removed).toBe(1);
     expect(club.secondSession).toBeNull();
+  });
+
+  it("lekka własna piłka może być drugim slotem u youth/beginner w pełnym grafiku", () => {
+    const p = profile({ age: 14, level: "beginner" });
+    const week = [
+      clubDay(DATES[0]),
+      gymDay(DATES[1]),
+      speedDay(DATES[2]),
+      clubDay(DATES[3]),
+      baseDay("training", { date: DATES[4], title: "Bieg tlenowy", sessionType: "Wytrzymałość", intensity: "niska" }),
+      gymDay(DATES[5]),
+      baseDay("match", { date: DATES[6], title: "Mecz", sessionType: "Mecz", intensity: "wysoka" }),
+    ];
+    const requirements = { ...reqFor(week, p), requiredBallSessions: 1 };
+
+    const result = addMissingBallSessions(week, requirements, p);
+
+    expect(result.unresolvedIssues).toEqual([]);
+    expect(countBallSessions(week)).toBe(1);
+    const ball = week.flatMap((day) => day.secondSession ? [day, day.secondSession] : [day])
+      .find((session) => session.classification?.subcategory === "ball_technical");
+    expect(ball?.intensity).toBe("niska");
   });
 });
 

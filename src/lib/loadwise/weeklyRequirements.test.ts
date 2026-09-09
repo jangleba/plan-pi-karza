@@ -78,11 +78,13 @@ describe("weeklyRequirements — cel szybkościowy", () => {
     expect(shouldAddSecondSpeedSession(ctx(), "przyspieszenie")).toBe(true);
   });
 
-  it("enum speed/agility/power liczą się jako cel szybkościowy", () => {
+  it("speed/agility/COD liczą się jako cel szybkościowy, ale cel mocy pozostaje odrębny", () => {
     expect(getAthleteGoalRules("speed").isSpeedGoal).toBe(true);
     expect(getAthleteGoalRules("agility").isSpeedGoal).toBe(true);
-    expect(getAthleteGoalRules("power").isSpeedGoal).toBe(true);
     expect(getAthleteGoalRules("change of direction").isSpeedGoal).toBe(true);
+    expect(getAthleteGoalRules("power").isSpeedGoal).toBe(false);
+    expect(getAthleteGoalRules("power").requiredSpeedSessions).toBe(1);
+    expect(getAthleteGoalRules("moc").requiredSpeedSessions).toBe(1);
   });
 });
 

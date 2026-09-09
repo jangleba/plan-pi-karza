@@ -191,6 +191,26 @@ describe("assessSpeedLoad", () => {
     expect(result.countsAsSpeedExposure).toBe(false);
   });
 
+  it("instrukcja 'zero zrywów' w lekkim biegu nie tworzy fałszywej ekspozycji", () => {
+    const result = assessSpeedLoad(
+      session({
+        title: "Krótki blok aerobowy (łatwy)",
+        sessionType: "Wytrzymałość — short aerobic block",
+        intensity: "niska",
+        sections: sections([
+          {
+            name: "Łatwy bieg tlenowy",
+            prescription: "15–20 min, easy aerobic",
+            cue: "Tempo konwersacyjne, zero zrywów.",
+          },
+        ]),
+      }),
+    );
+
+    expect(result.exposure).toBe("none");
+    expect(result.countsAsSpeedExposure).toBe(false);
+  });
+
   it("wylicza 6 × 20 m jako 120 m", () => {
     const value = estimateSprintMeters(
       session({
