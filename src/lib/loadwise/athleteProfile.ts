@@ -471,11 +471,21 @@ export function buildAthleteTrainingProfile(
   const gymAccess = p.hasGym ?? false;
   if (p.hasGym == null) warnings.push("Brak informacji o siłowni — nie zakładamy dostępu do sztangi.");
 
-  const readiness = weekContext.readiness ?? 6;
-  const fatigue = weekContext.fatigue ?? 5;
-  const sleepQuality = weekContext.sleepQuality ?? 6;
+  // Brak pola w starszych, czysto wewnętrznych profilach zachowuje dotychczasowe
+  // zachowanie. Profile zapisane po migracji zawsze mają jawne true/false.
+  const healthPersonalizationEnabled = p.healthPersonalizationEnabled !== false;
+  const readiness = healthPersonalizationEnabled ? (weekContext.readiness ?? 6) : 5;
+  const fatigue = healthPersonalizationEnabled ? (weekContext.fatigue ?? 5) : 6;
+  const sleepQuality = healthPersonalizationEnabled ? (weekContext.sleepQuality ?? 6) : 5;
+  if (!healthPersonalizationEnabled) {
+    warnings.push("Personalizacja zdrowotna wyłączona — zastosowano konserwatywną gotowość.");
+  }
 
-  const injuryConstraints = getInjuryConstraints(p);
+  const injuryConstraints = getInjuryConstraints(
+    healthPersonalizationEnabled
+      ? p
+      : { ...p, painInjury: false, painLocations: [], injuryHistory: [] },
+  );
   if (injuryConstraints.contraindications.length)
     warnings.push(...injuryConstraints.contraindications);
 

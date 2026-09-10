@@ -72,7 +72,7 @@ export function WeeklyGateSheet({
         </DialogHeader>
 
         <p className="text-sm text-muted-foreground">
-          Podaj datę kolejnego meczu, żeby Loadwise dobrze ułożył następny
+          Podaj datę kolejnego meczu, żeby BallWise dobrze ułożył następny
           tydzień.
         </p>
 

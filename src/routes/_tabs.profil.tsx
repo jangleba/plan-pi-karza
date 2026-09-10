@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
@@ -20,6 +22,9 @@ import {
 } from "@/lib/loadwise/playerDirection";
 import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
 import {
   CalendarDays,
   ChevronRight,
@@ -30,6 +35,7 @@ import {
   FileDown,
   FileText,
   LogOut,
+  MailCheck,
   Pencil,
   ShieldCheck,
   User,
@@ -59,10 +65,12 @@ function daysLabel(days: number[]): string {
 }
 
 function ProfileScreen() {
-  const { state } = useLoadwise();
-  const { user, signOut } = useAuth();
+  const { state, updateProfile } = useLoadwise();
+  const { user, signOut, requestAccountEmailChange } = useAuth();
   const navigate = useNavigate();
   const profile = state.profile;
+  const [transferEmail, setTransferEmail] = useState("");
+  const [transferBusy, setTransferBusy] = useState(false);
 
   if (!profile) return null;
 
@@ -71,8 +79,42 @@ function ProfileScreen() {
     navigate({ to: "/auth", replace: true });
   }
 
+  async function requestHandover() {
+    const email = transferEmail.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      toast.error("Podaj poprawny e-mail zawodnika.");
+      return;
+    }
+    if (email === user?.email?.toLowerCase()) {
+      toast.error("Nowy e-mail musi różnić się od e-maila opiekuna.");
+      return;
+    }
+    if (!window.confirm("Wysłać przekazanie konta na e-mail zawodnika? Po potwierdzeniu zawodnik ponownie zaakceptuje dokumenty.")) return;
+    setTransferBusy(true);
+    try {
+      await updateProfile({
+        ...profile!,
+        ownershipTransferStatus: "pending",
+        ownershipTransferEmail: email,
+        ownershipTransferRequestedAt: new Date().toISOString(),
+      });
+      const result = await requestAccountEmailChange(email);
+      if (result.error) throw new Error(result.error);
+      toast.success("Wysłaliśmy potwierdzenie. Konto zostanie przekazane dopiero po potwierdzeniu nowego e-maila.");
+      setTransferEmail("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nie udało się rozpocząć przekazania.");
+    } finally {
+      setTransferBusy(false);
+    }
+  }
 
-  const isMinor = profile.age >= 13 && profile.age <= 17;
+
+  const requiresGuardianOwner = profile.age >= 13 && profile.age < 16;
+  const canTransferToAthlete =
+    profile.age >= 16 &&
+    profile.accountOwnerType === "guardian" &&
+    profile.ownershipTransferStatus !== "completed";
   const painLocationLabel = (profile.painLocations ?? [])
     .map(
       (location) =>
@@ -115,6 +157,65 @@ function ProfileScreen() {
             </div>
           </div>
         </section>
+
+        <section className="soft-card p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Właściciel konta
+          </div>
+          <div className="mt-1 divide-y divide-border">
+            <Row
+              label="Status"
+              value={accountRoleLabel(profile.accountOwnerType ?? "athlete", profile.age)}
+            />
+            {profile.birthDate && (
+              <Row label="Data urodzenia" value={profile.birthDate.split("-").reverse().join(".")} />
+            )}
+            {profile.accountOwnerType === "guardian" && profile.guardianName && (
+              <Row label="Opiekun" value={profile.guardianName} />
+            )}
+            <Row
+              label="Personalizacja gotowości"
+              value={profile.healthPersonalizationEnabled ? "Włączona" : "Wyłączona · tryb ostrożny"}
+            />
+          </div>
+        </section>
+
+        {canTransferToAthlete && (
+          <section className="soft-card p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <MailCheck className="h-3.5 w-3.5" aria-hidden="true" /> Przekazanie po 16. roku życia
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Profil i historia zostaną przy tym samym koncie. Zmieni się właściciel i e-mail logowania;
+              zawodnik ponownie zaakceptuje aktualne dokumenty. Płatnikiem do 18 lat pozostaje dorosły.
+            </p>
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="transfer-email">E-mail zawodnika</Label>
+              <Input
+                id="transfer-email"
+                type="email"
+                value={transferEmail}
+                onChange={(event) => setTransferEmail(event.target.value)}
+                placeholder="zawodnik@example.com"
+                autoComplete="email"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={transferBusy}
+                onClick={requestHandover}
+              >
+                {transferBusy ? "Wysyłam…" : "Wyślij przekazanie konta"}
+              </Button>
+              {profile.ownershipTransferStatus === "pending" && profile.ownershipTransferEmail && (
+                <p className="text-xs text-primary">
+                  Oczekuje na potwierdzenie: {profile.ownershipTransferEmail}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="soft-card p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -222,12 +323,16 @@ function ProfileScreen() {
           </div>
           <div className="mt-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
-              {profile.painInjury ? (
+              {!profile.healthPersonalizationEnabled ? (
+                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+              ) : profile.painInjury ? (
                 <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
               ) : (
                 <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
               )}
-              {profile.painInjury
+              {!profile.healthPersonalizationEnabled
+                ? "Dane zdrowotne wyłączone — używany jest ostrożny wariant planu"
+                : profile.painInjury
                 ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
                 : "Brak zgłoszonego bólu lub dyskomfortu"}
             </div>
@@ -237,16 +342,18 @@ function ProfileScreen() {
               </div>
             )}
             <div className="flex items-center gap-2 text-sm">
-              {isMinor && !profile.guardianConsent ? (
+              {requiresGuardianOwner && !profile.guardianConsent ? (
                 <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
               ) : (
                 <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
               )}
-              {isMinor
+              {requiresGuardianOwner
                 ? profile.guardianConsent
-                  ? "Zgoda rodzica lub opiekuna potwierdzona"
-                  : "Brak zgody rodzica lub opiekuna"
-                : "Pełnoletni — zgoda opiekuna niewymagana"}
+                  ? "Konto rodzica lub opiekuna potwierdzone"
+                  : "Brak potwierdzenia rodzica lub opiekuna"
+                : profile.age < 18
+                  ? "Zawodnik może posiadać konto; płatności zatwierdza dorosły"
+                  : "Konto dorosłego zawodnika"}
             </div>
           </div>
         </section>

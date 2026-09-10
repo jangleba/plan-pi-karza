@@ -46,9 +46,9 @@ describe("weeklyRequirements — cel normalny", () => {
     expect(r.requiredBallSessions).toBe(1);
   });
 
-  it("wyjątek bezpieczeństwa dotyczy tylko początkującego z 7 stałymi dniami", () => {
+  it("nawet zatłoczony tydzień zachowuje jedną własną sesję z piłką", () => {
     const crowded = ctx({ clubTrainingCount: 5, matchCount: 2 });
-    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "beginner" })).toBe(0);
+    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "beginner" })).toBe(1);
     expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "advanced" })).toBe(1);
   });
 
@@ -59,7 +59,7 @@ describe("weeklyRequirements — cel normalny", () => {
       "strength",
     );
     expect(r.requiredEnduranceSessions).toBe(1);
-    expect(r.requiredGymSessions).toBe(2);
+    expect(r.requiredGymSessions).toBe(1);
   });
 });
 
@@ -151,7 +151,7 @@ describe("weeklyRequirements — sezon i klub nie kasują kategorii", () => {
     const many = calculateWeeklyMinimumRequirements(ctx({ clubTrainingCount: 4 }), settings, "speed");
     expect(many.requiredSpeedSessions).toBe(few.requiredSpeedSessions);
     expect(many.requiredEnduranceSessions).toBeGreaterThanOrEqual(1);
-    expect(many.requiredGymSessions).toBe(2);
+    expect(many.requiredGymSessions).toBe(1);
   });
 
   it("nie ma globalnej blokady club + endurance — bezpieczeństwo ocenia scheduler par", () => {
@@ -225,19 +225,27 @@ describe("weeklyRequirements — liczniki kontekstu", () => {
     ).toBe(0);
   });
 
-  it("powrót po urazie wraca do dwóch siłowni po potwierdzeniu braku bólu", () => {
+  it("powrót po urazie zachowuje jedną ostrożną siłownię bez bólu", () => {
     expect(
       getRequiredGymSessions(
         ctx({ seasonPhase: "return_injury" }),
         settings,
         { hasActivePain: false },
       ),
-    ).toBe(2);
+    ).toBe(1);
   });
 
   it("powrót po urazie zachowuje jedną ostrożną siłownię bez odpowiedzi", () => {
     expect(
       getRequiredGymSessions(ctx({ seasonPhase: "return_injury" }), settings),
     ).toBe(1);
+  });
+
+  it("zatłoczony tydzień zachowuje po jednej szybkości i wydolności", () => {
+    const crowded = ctx({ isFullWeek: false, clubTrainingCount: 4, matchCount: 1 });
+    expect(getRequiredSpeedSessions(crowded, settings, "speed")).toBe(1);
+    expect(getRequiredEnduranceSessions(crowded, settings, "endurance")).toBe(1);
+    expect(getRequiredGymSessions(crowded, settings)).toBe(1);
+    expect(getRequiredBallSessions(crowded)).toBe(1);
   });
 });

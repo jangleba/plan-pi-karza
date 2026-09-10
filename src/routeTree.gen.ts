@@ -9,54 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ReakcjaRouteImport } from './routes/reakcja'
-import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as DataRightsRouteImport } from './routes/data-rights'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
-import { Route as TabsStartRouteImport } from './routes/_tabs.start'
-import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
-import { Route as TabsPostepRouteImport } from './routes/_tabs.postep'
-import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
-import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
-import { Route as TabsFootballIqRouteImport } from './routes/_tabs.football-iq'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as TabsRouteImport } from './routes/_tabs'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DataRightsRouteImport } from './routes/data-rights'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
+import { Route as ReakcjaRouteImport } from './routes/reakcja'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as TabsFootballIqRouteImport } from './routes/_tabs.football-iq'
+import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
+import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
+import { Route as TabsPostepRouteImport } from './routes/_tabs.postep'
+import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
+import { Route as TabsStartRouteImport } from './routes/_tabs.start'
+import { Route as SesjaDateRouteImport } from './routes/sesja.$date'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReakcjaRoute = ReakcjaRouteImport.update({
-  id: '/reakcja',
-  path: '/reakcja',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
-  id: '/privacy-policy',
-  path: '/privacy-policy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DataRightsRoute = DataRightsRouteImport.update({
-  id: '/data-rights',
-  path: '/data-rights',
+const TabsRoute = TabsRouteImport.update({
+  id: '/_tabs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -64,38 +44,56 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TabsRoute = TabsRouteImport.update({
-  id: '/_tabs',
+const DataRightsRoute = DataRightsRouteImport.update({
+  id: '/data-rights',
+  path: '/data-rights',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SesjaDateRoute = SesjaDateRouteImport.update({
-  id: '/sesja/$date',
-  path: '/sesja/$date',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TabsStartRoute = TabsStartRouteImport.update({
-  id: '/start',
-  path: '/start',
-  getParentRoute: () => TabsRoute,
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const TabsProfilRoute = TabsProfilRouteImport.update({
-  id: '/profil',
-  path: '/profil',
-  getParentRoute: () => TabsRoute,
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const TabsPostepRoute = TabsPostepRouteImport.update({
-  id: '/postep',
-  path: '/postep',
-  getParentRoute: () => TabsRoute,
+const ReakcjaRoute = ReakcjaRouteImport.update({
+  id: '/reakcja',
+  path: '/reakcja',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const TabsPlanRoute = TabsPlanRouteImport.update({
-  id: '/plan',
-  path: '/plan',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const TabsFootballIqRoute = TabsFootballIqRouteImport.update({
+  id: '/football-iq',
+  path: '/football-iq',
   getParentRoute: () => TabsRoute,
 } as any)
 const TabsFuelRoute = TabsFuelRouteImport.update({
@@ -103,23 +101,31 @@ const TabsFuelRoute = TabsFuelRouteImport.update({
   path: '/fuel',
   getParentRoute: () => TabsRoute,
 } as any)
-const TabsFootballIqRoute = TabsFootballIqRouteImport.update({
-  id: '/football-iq',
-  path: '/football-iq',
+const TabsPlanRoute = TabsPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
   getParentRoute: () => TabsRoute,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const TabsPostepRoute = TabsPostepRouteImport.update({
+  id: '/postep',
+  path: '/postep',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsProfilRoute = TabsProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => TabsRoute,
+} as any)
+const TabsStartRoute = TabsStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => TabsRoute,
+} as any)
+const SesjaDateRoute = SesjaDateRouteImport.update({
+  id: '/sesja/$date',
+  path: '/sesja/$date',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
+  '/demo': typeof DemoRoute
   '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
+  '/demo': typeof DemoRoute
   '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/_tabs': typeof TabsRouteWithChildren
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
+  '/demo': typeof DemoRoute
   '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/data-rights'
+    | '/demo'
     | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/data-rights'
+    | '/demo'
     | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/_tabs'
     | '/auth'
     | '/data-rights'
+    | '/demo'
     | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   TabsRoute: typeof TabsRouteWithChildren
   AuthRoute: typeof AuthRoute
   DataRightsRoute: typeof DataRightsRoute
+  DemoRoute: typeof DemoRoute
   McpRoute: typeof McpRoute
   OnboardingRoute: typeof OnboardingRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
@@ -271,53 +284,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reakcja': {
-      id: '/reakcja'
-      path: '/reakcja'
-      fullPath: '/reakcja'
-      preLoaderRoute: typeof ReakcjaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy-policy': {
-      id: '/privacy-policy'
-      path: '/privacy-policy'
-      fullPath: '/privacy-policy'
-      preLoaderRoute: typeof PrivacyPolicyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/data-rights': {
-      id: '/data-rights'
-      path: '/data-rights'
-      fullPath: '/data-rights'
-      preLoaderRoute: typeof DataRightsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_tabs': {
@@ -327,46 +298,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sesja/$date': {
-      id: '/sesja/$date'
-      path: '/sesja/$date'
-      fullPath: '/sesja/$date'
-      preLoaderRoute: typeof SesjaDateRouteImport
+    '/data-rights': {
+      id: '/data-rights'
+      path: '/data-rights'
+      fullPath: '/data-rights'
+      preLoaderRoute: typeof DataRightsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_tabs/start': {
-      id: '/_tabs/start'
-      path: '/start'
-      fullPath: '/start'
-      preLoaderRoute: typeof TabsStartRouteImport
-      parentRoute: typeof TabsRoute
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_tabs/profil': {
-      id: '/_tabs/profil'
-      path: '/profil'
-      fullPath: '/profil'
-      preLoaderRoute: typeof TabsProfilRouteImport
-      parentRoute: typeof TabsRoute
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_tabs/postep': {
-      id: '/_tabs/postep'
-      path: '/postep'
-      fullPath: '/postep'
-      preLoaderRoute: typeof TabsPostepRouteImport
-      parentRoute: typeof TabsRoute
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_tabs/plan': {
-      id: '/_tabs/plan'
-      path: '/plan'
-      fullPath: '/plan'
-      preLoaderRoute: typeof TabsPlanRouteImport
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reakcja': {
+      id: '/reakcja'
+      path: '/reakcja'
+      fullPath: '/reakcja'
+      preLoaderRoute: typeof ReakcjaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_tabs/football-iq': {
+      id: '/_tabs/football-iq'
+      path: '/football-iq'
+      fullPath: '/football-iq'
+      preLoaderRoute: typeof TabsFootballIqRouteImport
       parentRoute: typeof TabsRoute
     }
     '/_tabs/fuel': {
@@ -376,25 +382,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsFuelRouteImport
       parentRoute: typeof TabsRoute
     }
-    '/_tabs/football-iq': {
-      id: '/_tabs/football-iq'
-      path: '/football-iq'
-      fullPath: '/football-iq'
-      preLoaderRoute: typeof TabsFootballIqRouteImport
+    '/_tabs/plan': {
+      id: '/_tabs/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof TabsPlanRouteImport
       parentRoute: typeof TabsRoute
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_tabs/postep': {
+      id: '/_tabs/postep'
+      path: '/postep'
+      fullPath: '/postep'
+      preLoaderRoute: typeof TabsPostepRouteImport
+      parentRoute: typeof TabsRoute
     }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+    '/_tabs/profil': {
+      id: '/_tabs/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof TabsProfilRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/_tabs/start': {
+      id: '/_tabs/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof TabsStartRouteImport
+      parentRoute: typeof TabsRoute
+    }
+    '/sesja/$date': {
+      id: '/sesja/$date'
+      path: '/sesja/$date'
+      fullPath: '/sesja/$date'
+      preLoaderRoute: typeof SesjaDateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -432,6 +452,7 @@ const rootRouteChildren: RootRouteChildren = {
   TabsRoute: TabsRouteWithChildren,
   AuthRoute: AuthRoute,
   DataRightsRoute: DataRightsRoute,
+  DemoRoute: DemoRoute,
   McpRoute: McpRoute,
   OnboardingRoute: OnboardingRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,

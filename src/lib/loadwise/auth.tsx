@@ -1,14 +1,23 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type { AccountOwnerType } from "./agePolicy";
 
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
   recoveryMode: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    accountOwnerType: AccountOwnerType,
+    athleteBirthDate: string,
+  ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  resendSignupConfirmation: (email: string) => Promise<{ error: string | null }>;
+  requestAccountEmailChange: (email: string) => Promise<{ error: string | null }>;
   requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -40,17 +49,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  async function signUp(email: string, password: string, fullName: string) {
+  async function signUp(
+    email: string,
+    password: string,
+    fullName: string,
+    accountOwnerType: AccountOwnerType,
+    athleteBirthDate: string,
+  ) {
     const redirectUrl = typeof window !== "undefined" ? window.location.origin : undefined;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          account_owner_type: accountOwnerType,
+          athlete_birth_date: athleteBirthDate,
+        },
       },
     });
-    return { error: error?.message ?? null };
+    return {
+      error: error?.message ?? null,
+      needsEmailConfirmation: !error && data.session === null,
+    };
   }
 
   async function signIn(email: string, password: string) {
@@ -58,6 +80,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
+    return { error: error?.message ?? null };
+  }
+
+  async function resendSignupConfirmation(email: string) {
+    const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo },
+    });
+    return { error: error?.message ?? null };
+  }
+
+  async function requestAccountEmailChange(email: string) {
+    const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const { error } = await supabase.auth.updateUser(
+      { email },
+      { emailRedirectTo },
+    );
     return { error: error?.message ?? null };
   }
 
@@ -88,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         recoveryMode,
         signUp,
         signIn,
+        resendSignupConfirmation,
+        requestAccountEmailChange,
         requestPasswordReset,
         updatePassword,
         signOut,

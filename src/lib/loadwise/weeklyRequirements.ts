@@ -6,12 +6,12 @@
 // sesji musi mieć dany tydzień, zamiast liczyć to lokalnie.
 //
 // Zasady twarde (pełny tydzień):
-//   - 2 sesje gym_strength (niezależnie od sezonu, klubu, meczu, celu),
+//   - 0–3 treningi klubowe → 2 sesje gym_strength; 4+ klubowe → 1,
 //   - minimum 1 sesja endurance_conditioning,
 //   - minimum 1 sesja speed_sprint,
 //   - minimum 1 własna sesja ball_technical (klub i mecz jej nie zastępują),
 //   - cel szybkościowy → minimum 2 speed_sprint,
-//   - cel wydolnościowy → liczba endurance zależy od liczby klubowych,
+//   - cel wydolnościowy → minimum 2 endurance_conditioning,
 //   - wiek/poziom NIE kasują kategorii — zmieniają tylko treść/objętość/wariant,
 //   - club liczy się do obciążenia, ale nie zastępuje własnego endurance;
 //     komplementarny endurance może być drugim slotem u intermediate/advanced.
@@ -82,7 +82,7 @@ export interface AthleteGoalRules {
   isEnduranceGoal: boolean;
   isSpeedGoal: boolean;
   requiredSpeedSessions: number;
-  /** Bazowa liczba endurance dla celu — dokładna wartość liczy tabela klubowa. */
+  /** Bazowa liczba endurance; pełny tydzień celu wydolnościowego podnosi ją do 2. */
   baseRequiredEnduranceSessions: number;
 }
 
@@ -244,8 +244,8 @@ function resolveSafetyLevel(
 // ---------------------------------------------------------------------------
 
 /**
- * TWARDA ZASADA: pełny tydzień = 2 sesje gym_strength. Działa niezależnie od
- * sezonu, liczby klubowych, meczu i celu. Wiek/poziom nie kasują kategorii —
+ * Pełny tydzień z 0–3 treningami klubowymi = 2 sesje gym_strength, a 4+
+ * treningi klubowe = 1 sesja podtrzymująca. Wiek/poziom nie kasują kategorii —
  * zmieniają tylko wariant (u młodego/początkującego to movement foundation /
  * bodyweight strength / stability). Prehab nie liczy się jako gym_strength.
  */
@@ -257,21 +257,13 @@ export function getRequiredGymSessions(
   const seasonRules = getSeasonPhaseRules(ctx.seasonPhase);
   const painStatus = athlete?.hasActivePain;
 
-  // Uzgodniony wyjątek: dwa mecze w jednym tygodniu zostawiają co najmniej
-  // jedną krótką sesję podtrzymującą zamiast wymuszania dwóch pełnych siłowni.
-  if ((ctx.matchCount ?? 0) >= 2) return 1;
-
-  // Powrót po urazie: 0–2 zależnie od aktualnego ograniczenia. Aktywny ból
-  // wyłącza obowiązkową siłę, brak bólu przywraca normalne minimum, a brak
-  // odpowiedzi zostawia jedną ostrożną ekspozycję.
-  if (ctx.seasonPhase === "return_injury") {
-    if (painStatus === true) return 0;
-    if (painStatus === false) return 2;
-    return 1;
-  }
-
-  if (ctx.isFullWeek === false) return 1;
-  if (seasonRules.isReducedLoadPhase) return 0;
+  if (painStatus === true) return 0;
+  if (
+    getClubTrainingCount(ctx) >= 4 ||
+    (ctx.matchCount ?? 0) >= 2 ||
+    ctx.isFullWeek === false ||
+    seasonRules.isReducedLoadPhase
+  ) return 1;
   return 2;
 }
 
@@ -286,6 +278,7 @@ export function getRequiredEnduranceSessions(
   _athlete?: AthleteRequirementProfile | null,
 ): number {
   const goalRules = getAthleteGoalRules(athleteGoal);
+  if (ctx.isFullWeek === false) return 1;
   if (!goalRules.isEnduranceGoal) return 1;
   void settings;
   return 2;
@@ -309,29 +302,25 @@ export function getAbsoluteMinimumEnduranceSessions(
  * Liczba sesji szybkości. Domyślnie 1, cel szybkościowy → 2.
  */
 export function getRequiredSpeedSessions(
-  _ctx: WeekRequirementContext,
+  ctx: WeekRequirementContext,
   _settings: UserRequirementSettings | null | undefined,
   athleteGoal: string | null | undefined,
   _athlete?: AthleteRequirementProfile | null,
 ): number {
+  if (ctx.isFullWeek === false) return 1;
   return getAthleteGoalRules(athleteGoal).requiredSpeedSessions;
 }
 
 /**
  * Własna sesja piłkarska jest stałym minimum i nie jest zastępowana przez
- * klub ani mecz. Jedyny wyjątek bezpieczeństwa: początkujący/młody zawodnik,
- * którego wszystkie 7 dni zajmują już stałe punkty (mecze + klub).
+ * klub ani mecz. W zatłoczonym tygodniu pozostaje jedną z ekspozycji minimum.
  */
 export function getRequiredBallSessions(
   ctx: WeekRequirementContext,
   athlete?: AthleteRequirementProfile | null,
 ): number {
-  const fixedDays = getClubTrainingCount(ctx) + getMatchCount(ctx);
-  const safety = resolveSafetyLevel(athlete);
-  const beginner =
-    athlete?.gymExperienceLevel === "none" ||
-    athlete?.gymExperienceLevel === "beginner";
-  if (fixedDays >= 7 && (beginner || safety.level === "youth_safe")) return 0;
+  void ctx;
+  void athlete;
   return 1;
 }
 
@@ -428,7 +417,7 @@ export function calculateWeeklyMinimumRequirements(
   reasonParts.push(`${requiredBallSessions}× własna piłka`);
   if (goalRules.isSpeedGoal) reasonParts.push("cel szybkościowy → 2 szybkości");
   if (goalRules.isEnduranceGoal)
-    reasonParts.push(`cel wydolnościowy → endurance wg ${clubTrainingCount} klubowych`);
+    reasonParts.push("cel wydolnościowy → 2 wydolności");
   if (seasonRules.isInSeason) reasonParts.push("w sezonie: możliwa redukcja objętości, kategorie zostają");
   reasonParts.push("club nie zastępuje własnych minimów BallWise; para możliwa tylko gdy komplementarna");
 

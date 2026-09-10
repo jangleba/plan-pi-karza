@@ -30,7 +30,7 @@ function Index() {
     <div className="app-shell flex min-h-screen items-center justify-center">
       <div className="text-center">
         <div className="text-3xl font-semibold tracking-tight text-primary">
-          Loadwise
+          BallWise
         </div>
         <p className="mt-1 text-sm text-muted-foreground">Ładowanie…</p>
       </div>

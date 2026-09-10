@@ -84,14 +84,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
       },
-      { title: "Loadwise — mądrzejsze decyzje treningowe w piłce" },
+      { title: "BallWise — mądrzejsze decyzje treningowe w piłce" },
       {
         name: "description",
         content:
-          "Loadwise podpowiada, co trenować dziś, dlaczego i jak mocno — na podstawie wieku, pozycji, celu i gotowości.",
+          "BallWise podpowiada, co trenować dziś, dlaczego i jak mocno — na podstawie wieku, pozycji, celu i gotowości.",
       },
-      { name: "author", content: "Loadwise" },
-      { property: "og:title", content: "Loadwise" },
+      { name: "author", content: "BallWise" },
+      { property: "og:title", content: "BallWise" },
       {
         property: "og:description",
         content: "Decyzje treningowe w piłce nożnej, dopasowane do Ciebie.",

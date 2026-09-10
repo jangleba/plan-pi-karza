@@ -4,9 +4,10 @@
 // Działa na realnym wyjściu generatora: SessionDay[] (28 dni). Grupuje plan na
 // pełne tygodnie kalendarzowe (poniedziałek–niedziela) i gwarantuje minima:
 //
-//   - minimum 2 gym_strength,
-//   - minimum 1 endurance_conditioning (TWARDA ZASADA, zawsze),
-//   - minimum 1 speed_sprint.
+//   - gym_strength według liczby treningów klubowych i obciążenia tygodnia,
+//   - endurance_conditioning według celu (co najmniej jedna ekspozycja),
+//   - speed_sprint według celu (co najmniej jedna ekspozycja),
+//   - minimum 1 własna sesja ball_technical.
 //
 // Krytyczna zasada: pełny tydzień NIGDY nie może wyjść z 0 endurance_conditioning.
 // Regeneracja/prehab NIE zastępuje wydolności. Jeśli tydzień ma 0 endurance i
@@ -1325,7 +1326,7 @@ function buildGymSessionDay(
   const intensity = opts.light || youth ? "umiarkowana" as const : "wysoka" as const;
   const durationMin = opts.light ? 30 : youth ? 40 : 50;
   const placementReason = opts.placementReason ??
-    "Dodano brakującą sesję siłowni — pełny tydzień wymaga minimum 2 gym_strength.";
+    "Dodano brakującą sesję siłowni, aby spełnić minimum tego tygodnia.";
 
   const raw: SessionDay = {
     date: templateDay.date,
@@ -1460,7 +1461,7 @@ export function addMissingGymSessions(
       const rebuilt = buildGymSessionDay(profile, weekPlan[restIdx], {
         light,
         placementReason:
-          "Wybrano wolny dzień na brakującą siłownię — min. 2 gym_strength w pełnym tygodniu.",
+          `Wybrano wolny dzień na brakującą siłownię — wymagane minimum: ${required}.`,
       });
       rebuilt.secondSession = weekPlan[restIdx].secondSession ?? null;
       weekPlan[restIdx] = rebuilt;

@@ -1,1 +1,0 @@
-ALTER TABLE public.athlete_profiles ADD COLUMN IF NOT EXISTS secondary_limiter text;

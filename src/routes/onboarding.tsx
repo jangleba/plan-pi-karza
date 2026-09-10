@@ -36,6 +36,13 @@ import {
   COMPETITION_LEVEL_LABELS,
 } from "@/lib/loadwise/labels";
 import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
+import {
+  accountSetupIsAllowed,
+  ageOnDate,
+  birthDateForApproximateAge,
+  policyForAge,
+  type AccountOwnerType,
+} from "@/lib/loadwise/agePolicy";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
 import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
@@ -210,7 +217,7 @@ function ChoiceGrid<T extends string>({
 
 function Onboarding() {
   const { state, hydrated, completeOnboarding } = useLoadwise();
-  const { user, loading } = useAuth();
+  const { user, loading, resendSignupConfirmation } = useAuth();
   const navigate = useNavigate();
   const { edit } = Route.useSearch();
   const existing = state.profile;
@@ -230,10 +237,27 @@ function Onboarding() {
     }
   }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate]);
 
-  const [name, setName] = useState(
-    existing?.name ?? (user?.user_metadata?.full_name as string) ?? "",
+  const metadataOwner =
+    user?.user_metadata?.account_owner_type === "guardian" ? "guardian" : "athlete";
+  const [accountOwnerType, setAccountOwnerType] = useState<AccountOwnerType>(
+    existing?.accountOwnerType ?? metadataOwner,
   );
-  const [age, setAge] = useState(existing ? String(existing.age) : "");
+  const ownerName = (user?.user_metadata?.full_name as string | undefined)?.trim() ?? "";
+  const [guardianName, setGuardianName] = useState(
+    existing?.guardianName ?? (metadataOwner === "guardian" ? ownerName : ""),
+  );
+  const [name, setName] = useState(
+    existing?.name ?? (accountOwnerType === "athlete" ? ownerName : ""),
+  );
+  const metadataBirthDate =
+    typeof user?.user_metadata?.athlete_birth_date === "string"
+      ? user.user_metadata.athlete_birth_date
+      : "";
+  const [birthDate, setBirthDate] = useState(
+    existing?.birthDate ||
+      metadataBirthDate ||
+      (existing?.age ? birthDateForApproximateAge(existing.age) : ""),
+  );
   const [position, setPosition] = useState<Position | null>(
     existing?.position ?? null,
   );
@@ -316,10 +340,24 @@ function Onboarding() {
 
 
   // Legal consents (RODO/GDPR).
-  const [consents, setConsents] = useState<Record<string, boolean>>({});
+  const [consents, setConsents] = useState<Record<string, boolean>>({
+    health_data: existing?.healthPersonalizationEnabled === true,
+  });
 
-  const ageNum = parseInt(age, 10);
-  const isMinor = ageNum >= 13 && ageNum <= 17;
+  const ageNum = birthDate ? ageOnDate(birthDate) : null;
+  const agePolicy = ageNum == null ? null : policyForAge(ageNum);
+  const guardianEmailVerified = Boolean(user?.email_confirmed_at);
+  const guardianDeclarationAccepted = accountOwnerType === "guardian" && consent;
+  const ageAccountIsValid =
+    ageNum != null &&
+    accountSetupIsAllowed({
+      age: ageNum,
+      accountOwnerType,
+      guardianEmailVerified,
+      guardianDeclarationAccepted,
+    }) &&
+    (accountOwnerType !== "guardian" || ageNum >= 18 || (guardianEmailVerified && consent));
+  const isGuardianChild = ageNum != null && ageNum >= 13 && ageNum < 16;
 
   const totalSteps = 6;
 
@@ -379,7 +417,14 @@ function Onboarding() {
   function canNext(): boolean {
     if (step === 0) return requiredConsentsOk;
     if (step === 1)
-      return name.trim().length > 0 && ageNum >= 13 && ageNum <= 60;
+      return (
+        name.trim().length > 0 &&
+        ageNum != null &&
+        ageNum >= 13 &&
+        ageNum <= 80 &&
+        (accountOwnerType !== "guardian" || guardianName.trim().length >= 2) &&
+        (!agePolicy?.guardianMustOwnAccount || accountOwnerType === "guardian")
+      );
     if (step === 2)
       return (
         position !== null &&
@@ -398,7 +443,7 @@ function Onboarding() {
 
   async function handleSubmit() {
     if (busy) return;
-    if (!position || !level || !goal || !(ageNum >= 13)) {
+    if (!position || !level || !goal || ageNum == null || ageNum < 13) {
       toast.error("Uzupełnij wymagane pola.");
       return;
     }
@@ -419,8 +464,12 @@ function Onboarding() {
       setStep(2);
       return;
     }
-    if (isMinor && !consent) {
-      toast.error("Potrzebna jest zgoda rodzica/opiekuna.");
+    if (!ageAccountIsValid) {
+      toast.error(
+        isGuardianChild
+          ? "Dla zawodnika 13–15 konto musi należeć do rodzica lub opiekuna z potwierdzonym e-mailem."
+          : "Nie można aktywować tego profilu dla wybranego wieku i właściciela konta.",
+      );
       return;
     }
     if (!requiredConsentsOk) {
@@ -446,13 +495,35 @@ function Onboarding() {
       setStep(5);
       return;
     }
-    // Loadwise sam decyduje o dniach — dostępne są wszystkie dni poza niedostępnymi.
+    // BallWise sam decyduje o dniach — dostępne są wszystkie dni poza niedostępnymi.
     const availableDays = [1, 2, 3, 4, 5, 6, 7].filter(
       (d) => !unavailableDays.includes(d),
     );
     const profile: Profile = {
       name: name.trim(),
       age: ageNum,
+      birthDate,
+      accountOwnerType,
+      subscriptionPayerType: ageNum < 18 ? "guardian" : "self",
+      guardianName:
+        accountOwnerType === "guardian" ? guardianName.trim() : null,
+      guardianEmail: accountOwnerType === "guardian" ? user?.email ?? null : null,
+      guardianVerifiedAt:
+        accountOwnerType === "guardian" && guardianEmailVerified
+          ? existing?.guardianVerifiedAt ?? user?.email_confirmed_at ?? new Date().toISOString()
+          : null,
+      guardianConsentAt:
+        accountOwnerType === "guardian" && consent
+          ? existing?.guardianConsentAt ?? new Date().toISOString()
+          : null,
+      ownershipTransferStatus:
+        accountOwnerType === "guardian" && ageNum >= 16 && ageNum < 18
+          ? existing?.ownershipTransferStatus ?? "not_requested"
+          : existing?.ownershipTransferStatus ?? "not_applicable",
+      ownershipTransferEmail: existing?.ownershipTransferEmail ?? null,
+      ownershipTransferRequestedAt: existing?.ownershipTransferRequestedAt ?? null,
+      ownershipTransferredAt: existing?.ownershipTransferredAt ?? null,
+      healthPersonalizationEnabled: Boolean(consents.health_data),
       position,
       level,
       goal,
@@ -463,10 +534,10 @@ function Onboarding() {
       usualMatchDay: null,
       matchDate: matchDate || null,
       equipment,
-      painInjury,
-      painLocations: painInjury ? painLocations : [],
+      painInjury: Boolean(consents.health_data && painInjury),
+      painLocations: consents.health_data && painInjury ? painLocations : [],
       doubleSessionsAllowed: level === "beginner" ? "light_only" : "yes_if_safe",
-      guardianConsent: isMinor ? consent : true,
+      guardianConsent: isGuardianChild ? consent : accountOwnerType === "guardian" ? consent : true,
       onboardingComplete: true,
       createdAt: new Date().toISOString(),
       seasonPhase,
@@ -530,7 +601,7 @@ function Onboarding() {
                 <ChevronLeft className="h-4 w-4" />
               </button>
             ) : (
-              <div className="text-xl font-semibold text-primary">Loadwise</div>
+              <div className="text-xl font-semibold text-primary">BallWise</div>
             )}
             <div className="ml-auto text-xs text-muted-foreground">
               Krok {step + 1} z {totalSteps}
@@ -553,7 +624,7 @@ function Onboarding() {
             <div>
               <h2 className="text-xl font-semibold">Zaczynamy</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Kilka podstawowych informacji o Tobie.
+                Dane dotyczą zawodnika. Data urodzenia służy wyłącznie do zastosowania progów 13, 16 i 18 lat.
               </p>
             </div>
             <div className="space-y-2">
@@ -566,19 +637,52 @@ function Onboarding() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="age">Wiek</Label>
+              <Label htmlFor="birth-date">Data urodzenia zawodnika</Label>
               <Input
-                id="age"
-                type="number"
-                inputMode="numeric"
-                min={13}
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                placeholder="np. 16"
+                id="birth-date"
+                type="date"
+                min={birthDateForApproximateAge(80)}
+                max={birthDateForApproximateAge(13)}
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
               />
-              {age !== "" && (ageNum < 13 || isNaN(ageNum)) && (
+              {birthDate !== "" && (ageNum == null || ageNum < 13) && (
                 <p className="text-xs text-destructive">
-                  Aplikacja jest dla zawodników od 13 lat.
+                  Spersonalizowane konto jest dostępne od 13 lat. Młodszy zawodnik może użyć tylko publicznego demo bez zapisu danych.
+                </p>
+              )}
+              {agePolicy?.guardianMustOwnAccount && accountOwnerType !== "guardian" && (
+                <div data-error="true" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3">
+                  <p className="text-xs font-medium text-destructive">
+                    Zawodnik 13–15 musi korzystać z konta należącego do rodzica lub opiekuna.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs font-semibold text-primary underline"
+                    onClick={() => setAccountOwnerType("guardian")}
+                  >
+                    Potwierdzam, że ten e-mail i konto należą do opiekuna
+                  </button>
+                </div>
+              )}
+              {accountOwnerType === "guardian" && (
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="guardian-name">Imię rodzica lub opiekuna</Label>
+                  <Input
+                    id="guardian-name"
+                    value={guardianName}
+                    onChange={(event) => setGuardianName(event.target.value)}
+                    placeholder="Imię właściciela konta"
+                    autoComplete="given-name"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    E-mail właściciela konta: {user.email ?? "brak"}
+                  </p>
+                </div>
+              )}
+              {ageNum != null && ageNum >= 16 && (
+                <p className="text-xs text-muted-foreground">
+                  Wiek zawodnika: {ageNum} lat. Może posiadać własne konto.
                 </p>
               )}
             </div>
@@ -854,7 +958,7 @@ function Onboarding() {
                 Twój tydzień treningowy
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Zaznacz stałe elementy tygodnia. Loadwise dopasuje do nich
+                Zaznacz stałe elementy tygodnia. BallWise dopasuje do nich
                 obciążenia, regenerację i dni mocniejsze.
               </p>
             </div>
@@ -938,7 +1042,7 @@ function Onboarding() {
               </div>
 
               <p className="rounded-xl bg-secondary px-4 py-3 text-xs text-muted-foreground">
-                Liczbę sesji dobiera Loadwise z poziomu zawodnika i obciążenia tygodnia.
+                Liczbę sesji dobiera BallWise z poziomu zawodnika i obciążenia tygodnia.
                 Początkujący nie dostanie dwóch mocnych treningów jednego dnia.
               </p>
             </div>
@@ -960,21 +1064,27 @@ function Onboarding() {
                 />
                 <span className="text-sm">Mam dostęp do boiska</span>
               </label>
-              <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
-                <Checkbox
-                  checked={painInjury}
-                  onCheckedChange={(v) => setPainInjury(v === true)}
-                  className="mt-0.5"
-                />
-                <span className="text-sm">
-                  Mam aktualnie ból lub dyskomfort
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Ograniczymy obciążenie treningowe. BallWise nie diagnozuje
-                    urazu, nie prowadzi rehabilitacji i nie wyznacza powrotu do gry.
+              {consents.health_data ? (
+                <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
+                  <Checkbox
+                    checked={painInjury}
+                    onCheckedChange={(v) => setPainInjury(v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">
+                    Mam aktualnie ból lub dyskomfort
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Ograniczymy obciążenie treningowe. BallWise nie diagnozuje
+                      urazu, nie prowadzi rehabilitacji i nie wyznacza powrotu do gry.
+                    </span>
                   </span>
-                </span>
-              </label>
-              {painInjury && (
+                </label>
+              ) : (
+                <p className="rounded-xl border border-border bg-card p-3.5 text-xs text-muted-foreground">
+                  Personalizacja danymi o bólu jest wyłączona. Aplikacja pozostanie dostępna i zastosuje ostrożny wariant planu.
+                </p>
+              )}
+              {consents.health_data && painInjury && (
                 <div className="rounded-xl border border-border bg-card p-3.5">
                   <p className="text-sm font-medium">Gdzie odczuwasz ból lub dyskomfort?</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -1032,7 +1142,7 @@ function Onboarding() {
               </div>
             </div>
 
-            {isMinor && (
+            {accountOwnerType === "guardian" && ageNum != null && ageNum < 18 && (
               <label className="flex items-start gap-3 rounded-xl border border-accent bg-accent/30 p-3.5">
                 <Checkbox
                   checked={consent}
@@ -1040,13 +1150,31 @@ function Onboarding() {
                   className="mt-0.5"
                 />
                 <span className="text-sm">
-                  Zgoda rodzica/opiekuna
+                  Oświadczenie rodzica lub opiekuna
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Mam zgodę rodzica lub opiekuna na korzystanie z aplikacji
-                    (wymagane dla wieku 13–17).
+                    Oświadczam, że jestem rodzicem lub opiekunem zawodnika i mogę utworzyć oraz prowadzić jego profil. Dla wieku 13–15 jest to wymagane.
                   </span>
                 </span>
               </label>
+            )}
+            {isGuardianChild && !guardianEmailVerified && (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3.5">
+                <p className="text-xs font-medium text-destructive">
+                  Najpierw potwierdź e-mail właściciela konta. Bez tego profil zawodnika 13–15 nie zostanie aktywowany.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs font-semibold text-primary underline"
+                  onClick={async () => {
+                    if (!user.email) return;
+                    const result = await resendSignupConfirmation(user.email);
+                    if (result.error) toast.error(result.error);
+                    else toast.success("Wysłaliśmy nową wiadomość. Sprawdź skrzynkę e-mail.");
+                  }}
+                >
+                  Wyślij wiadomość potwierdzającą ponownie
+                </button>
+              </div>
             )}
           </div>
         )}

@@ -1,4 +1,9 @@
 import type { RunningActivity } from "@/lib/running/types";
+import type {
+  AccountOwnerType,
+  OwnershipTransferStatus,
+  SubscriptionPayerType,
+} from "./agePolicy";
 
 export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
 export type Level = "beginner" | "intermediate" | "advanced" | "elite";
@@ -74,6 +79,20 @@ export type DesiredPitchFeeling =
 export interface Profile {
   name: string;
   age: number;
+  /** Dokładna data jest potrzebna wyłącznie do prawidłowego stosowania progów 13/16/18. */
+  birthDate?: string | null;
+  accountOwnerType?: AccountOwnerType;
+  subscriptionPayerType?: SubscriptionPayerType;
+  guardianName?: string | null;
+  guardianEmail?: string | null;
+  guardianVerifiedAt?: string | null;
+  guardianConsentAt?: string | null;
+  ownershipTransferStatus?: OwnershipTransferStatus;
+  ownershipTransferEmail?: string | null;
+  ownershipTransferRequestedAt?: string | null;
+  ownershipTransferredAt?: string | null;
+  /** Brak zgody nie blokuje aplikacji — uruchamia plan konserwatywny bez danych wrażliwych. */
+  healthPersonalizationEnabled?: boolean;
   position: Position;
   level: Level;
   goal: Goal;

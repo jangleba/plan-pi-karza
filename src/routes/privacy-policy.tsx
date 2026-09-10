@@ -19,9 +19,11 @@ function PrivacyPolicy() {
       <h1 className="text-2xl font-semibold tracking-tight">
         Polityka prywatności
       </h1>
-      <div className="mt-3 rounded-xl border border-accent bg-accent/30 p-3 text-xs text-muted-foreground">
-        {PLACEHOLDER_NOTICE}
-      </div>
+      {PLACEHOLDER_NOTICE && (
+        <div className="mt-3 rounded-xl border border-accent bg-accent/30 p-3 text-xs text-muted-foreground">
+          {PLACEHOLDER_NOTICE}
+        </div>
+      )}
       <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
         {PRIVACY_POLICY}
       </pre>

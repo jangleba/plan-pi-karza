@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       athlete_profiles: {
         Row: {
+          account_owner_type: string
           age: number | null
           club_name: string | null
           club_training_days: Json
@@ -26,17 +27,28 @@ export type Database = {
           double_sessions_allowed: string | null
           equipment: Json
           guardian_consent: boolean | null
+          guardian_consent_at: string | null
+          guardian_email: string | null
+          guardian_name: string | null
+          guardian_verified_at: string | null
           gym_access: boolean | null
           has_gym: boolean | null
           has_pitch: boolean | null
           has_sprint_space: boolean | null
           height_optional: number | null
+          health_personalization_enabled: boolean
           id: string
           individual_training_days: number[]
           league_optional: string | null
           level: string | null
           main_goal: string | null
           match_date: string | null
+          field_mas_kmh: number | null
+          field_mas_tested_at: string | null
+          ownership_transfer_email: string | null
+          ownership_transfer_requested_at: string | null
+          ownership_transfer_status: string
+          ownership_transferred_at: string | null
           pain_injury: boolean | null
           position: string | null
           season_phase: string | null
@@ -44,6 +56,9 @@ export type Database = {
           secondary_limiter: string | null
           sex_optional: string | null
           training_experience: string | null
+          running_progression_level: number
+          running_progression_updated_at: string | null
+          subscription_payer_type: string
           unavailable_days: Json
           unavailable_equipment_ids: Json
           updated_at: string
@@ -53,6 +68,7 @@ export type Database = {
           weight_optional: number | null
         }
         Insert: {
+          account_owner_type?: string
           age?: number | null
           club_name?: string | null
           club_training_days?: Json
@@ -63,17 +79,28 @@ export type Database = {
           double_sessions_allowed?: string | null
           equipment?: Json
           guardian_consent?: boolean | null
+          guardian_consent_at?: string | null
+          guardian_email?: string | null
+          guardian_name?: string | null
+          guardian_verified_at?: string | null
           gym_access?: boolean | null
           has_gym?: boolean | null
           has_pitch?: boolean | null
           has_sprint_space?: boolean | null
           height_optional?: number | null
+          health_personalization_enabled?: boolean
           id?: string
           individual_training_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
+          field_mas_kmh?: number | null
+          field_mas_tested_at?: string | null
+          ownership_transfer_email?: string | null
+          ownership_transfer_requested_at?: string | null
+          ownership_transfer_status?: string
+          ownership_transferred_at?: string | null
           pain_injury?: boolean | null
           position?: string | null
           season_phase?: string | null
@@ -81,6 +108,9 @@ export type Database = {
           secondary_limiter?: string | null
           sex_optional?: string | null
           training_experience?: string | null
+          running_progression_level?: number
+          running_progression_updated_at?: string | null
+          subscription_payer_type?: string
           unavailable_days?: Json
           unavailable_equipment_ids?: Json
           updated_at?: string
@@ -90,6 +120,7 @@ export type Database = {
           weight_optional?: number | null
         }
         Update: {
+          account_owner_type?: string
           age?: number | null
           club_name?: string | null
           club_training_days?: Json
@@ -100,17 +131,28 @@ export type Database = {
           double_sessions_allowed?: string | null
           equipment?: Json
           guardian_consent?: boolean | null
+          guardian_consent_at?: string | null
+          guardian_email?: string | null
+          guardian_name?: string | null
+          guardian_verified_at?: string | null
           gym_access?: boolean | null
           has_gym?: boolean | null
           has_pitch?: boolean | null
           has_sprint_space?: boolean | null
           height_optional?: number | null
+          health_personalization_enabled?: boolean
           id?: string
           individual_training_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
+          field_mas_kmh?: number | null
+          field_mas_tested_at?: string | null
+          ownership_transfer_email?: string | null
+          ownership_transfer_requested_at?: string | null
+          ownership_transfer_status?: string
+          ownership_transferred_at?: string | null
           pain_injury?: boolean | null
           position?: string | null
           season_phase?: string | null
@@ -118,6 +160,9 @@ export type Database = {
           secondary_limiter?: string | null
           sex_optional?: string | null
           training_experience?: string | null
+          running_progression_level?: number
+          running_progression_updated_at?: string | null
+          subscription_payer_type?: string
           unavailable_days?: Json
           unavailable_equipment_ids?: Json
           updated_at?: string
@@ -132,29 +177,77 @@ export type Database = {
         Row: {
           accepted: boolean
           accepted_at: string
+          actor_email: string | null
+          actor_type: string
           consent_type: string
           id: string
+          scope: string | null
           text_snapshot: string | null
           user_id: string
           version: string
+          withdrawn_at: string | null
         }
         Insert: {
           accepted: boolean
           accepted_at?: string
+          actor_email?: string | null
+          actor_type?: string
           consent_type: string
           id?: string
+          scope?: string | null
           text_snapshot?: string | null
           user_id: string
           version: string
+          withdrawn_at?: string | null
         }
         Update: {
           accepted?: boolean
           accepted_at?: string
+          actor_email?: string | null
+          actor_type?: string
           consent_type?: string
           id?: string
+          scope?: string | null
           text_snapshot?: string | null
           user_id?: string
           version?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: []
+      }
+      exercise_replacements: {
+        Row: {
+          active: boolean
+          created_at: string
+          date: string
+          equipment_ids: string[]
+          exercise_id: string
+          id: string
+          original_json: Json
+          replacement_json: Json
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          date: string
+          equipment_ids?: string[]
+          exercise_id: string
+          id?: string
+          original_json: Json
+          replacement_json: Json
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          date?: string
+          equipment_ids?: string[]
+          exercise_id?: string
+          id?: string
+          original_json?: Json
+          replacement_json?: Json
+          user_id?: string
         }
         Relationships: []
       }
@@ -376,11 +469,14 @@ export type Database = {
           id: string
           match_today: boolean | null
           motivation: number | null
+          overall: number | null
+          pain_level: number | null
           pain_location: string | null
           pain_status: boolean | null
           sleep: number | null
           soreness: number | null
           stress: number | null
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -393,11 +489,14 @@ export type Database = {
           id?: string
           match_today?: boolean | null
           motivation?: number | null
+          overall?: number | null
+          pain_level?: number | null
           pain_location?: string | null
           pain_status?: boolean | null
           sleep?: number | null
           soreness?: number | null
           stress?: number | null
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -410,11 +509,53 @@ export type Database = {
           id?: string
           match_today?: boolean | null
           motivation?: number | null
+          overall?: number | null
+          pain_level?: number | null
           pain_location?: string | null
           pain_status?: boolean | null
           sleep?: number | null
           soreness?: number | null
           stress?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      running_activities: {
+        Row: {
+          avg_pace_sec_per_km: number | null
+          created_at: string
+          date: string
+          distance_m: number
+          duration_sec: number
+          id: string
+          is_field_mas_test: boolean
+          session_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_pace_sec_per_km?: number | null
+          created_at?: string
+          date: string
+          distance_m: number
+          duration_sec: number
+          id?: string
+          is_field_mas_test?: boolean
+          session_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_pace_sec_per_km?: number | null
+          created_at?: string
+          date?: string
+          distance_m?: number
+          duration_sec?: number
+          id?: string
+          is_field_mas_test?: boolean
+          session_id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -483,30 +624,42 @@ export type Database = {
       }
       session_logs: {
         Row: {
+          activity_type: string | null
           completed: boolean | null
+          completion_status: string
           created_at: string
+          duration_minutes: number | null
           id: string
           notes: string | null
           rpe: number | null
           session_id: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
+          activity_type?: string | null
           completed?: boolean | null
+          completion_status?: string
           created_at?: string
+          duration_minutes?: number | null
           id?: string
           notes?: string | null
           rpe?: number | null
           session_id?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          activity_type?: string | null
           completed?: boolean | null
+          completion_status?: string
           created_at?: string
+          duration_minutes?: number | null
           id?: string
           notes?: string | null
           rpe?: number | null
           session_id?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

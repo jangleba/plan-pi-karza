@@ -121,16 +121,20 @@ function ReadinessDialog({
     existing?.painLocation ?? null,
   );
 
-  function save() {
-    saveReadiness(buildReadiness(todayIso, {
-      sleep: vals.sleep,
-      energy: vals.energy,
-      fatigue: vals.fatigue,
-      jointPain: vals.jointPain,
-      painLocation,
-    }));
-    onOpenChange(false);
-    toast.success("Zapisano check-in gotowości.");
+  async function save() {
+    try {
+      await saveReadiness(buildReadiness(todayIso, {
+        sleep: vals.sleep,
+        energy: vals.energy,
+        fatigue: vals.fatigue,
+        jointPain: vals.jointPain,
+        painLocation,
+      }));
+      onOpenChange(false);
+      toast.success("Zapisano check-in gotowości.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać check-inu.");
+    }
   }
 
   return (
@@ -266,7 +270,11 @@ function StartScreen() {
               Gotowość
             </div>
             <div className="text-sm font-semibold leading-tight">
-              {readiness ? "Uzupełniona" : "Brak"}
+              {!profile.healthPersonalizationEnabled
+                ? "Wyłączona"
+                : readiness
+                  ? "Uzupełniona"
+                  : "Brak"}
             </div>
           </div>
           <div className="soft-card p-3">
@@ -290,6 +298,10 @@ function StartScreen() {
           <Button className="w-full" size="lg" onClick={openSession}>
             Zobacz regenerację
           </Button>
+        ) : !profile.healthPersonalizationEnabled ? (
+          <Button className="w-full" size="lg" onClick={openSession}>
+            Otwórz dzisiejszy trening
+          </Button>
         ) : readiness ? (
           <Button className="w-full" size="lg" onClick={openSession}>
             Otwórz dzisiejszy trening
@@ -304,6 +316,17 @@ function StartScreen() {
               </Button>
             }
           />
+        )}
+
+        {!profile.healthPersonalizationEnabled && (
+          <Link
+            to="/onboarding"
+            search={{ edit: true }}
+            className="block rounded-2xl border border-border bg-card p-3 text-xs leading-relaxed text-muted-foreground"
+          >
+            Check-in zdrowotny jest opcjonalny i wyłączony. Plan działa w trybie ostrożnym. Możesz
+            włączyć personalizację w edycji profilu.
+          </Link>
         )}
 
 

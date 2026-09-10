@@ -22,12 +22,11 @@ import { useAuth } from "./auth";
 import { CONSENTS, LEGAL_VERSION } from "./legal";
 import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "./playerDirection";
-import { sanitizeRoute } from "@/lib/running/metrics";
-import { sanitizeIntervalResults } from "@/lib/running/intervals";
-import type { KilometerSplit, RunningActivity, RunningActivityDraft } from "@/lib/running/types";
-import { deriveRunningEngineState, fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running/engine";
+import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
+import { fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running/engine";
 import { expiredUnfinishedSessions } from "./sessionStatus";
 import { normalizePersistedPainLocations } from "./profilePainPersistence";
+import { ageOnDate } from "./agePolicy";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -43,7 +42,7 @@ const initialState: LoadwiseState = {
   equipmentNotice: null,
 };
 
-const ONBOARDING_SCHEMA_VERSION = 1;
+const ONBOARDING_SCHEMA_VERSION = 2;
 
 /**
  * Sprawdza, czy zapisany plan jest zgodny z aktualnymi dniami treningu klubowego.
@@ -386,9 +385,37 @@ function buildProfile(
     (prof.created_at as string | null) ??
     null;
   const equipment = (ath.equipment as string[]) ?? [];
+  const birthDate = (prof.birth_date as string | null) ?? null;
+  const calculatedAge = birthDate ? ageOnDate(birthDate) : null;
+  const age = calculatedAge ?? (ath.age as number) ?? 0;
+  const requiresGuardianOwner = age >= 13 && age < 16;
+  const guardianOwnershipReady =
+    ath.account_owner_type === "guardian" &&
+    typeof ath.guardian_name === "string" &&
+    typeof ath.guardian_email === "string" &&
+    typeof ath.guardian_verified_at === "string" &&
+    typeof ath.guardian_consent_at === "string";
   return {
     name: (prof.full_name as string) ?? "",
-    age: (ath.age as number) ?? 0,
+    age,
+    birthDate,
+    accountOwnerType: ath.account_owner_type === "guardian" ? "guardian" : "athlete",
+    subscriptionPayerType: ath.subscription_payer_type === "guardian" ? "guardian" : "self",
+    guardianName: (ath.guardian_name as string | null) ?? null,
+    guardianEmail: (ath.guardian_email as string | null) ?? null,
+    guardianVerifiedAt: (ath.guardian_verified_at as string | null) ?? null,
+    guardianConsentAt: (ath.guardian_consent_at as string | null) ?? null,
+    ownershipTransferStatus:
+      ath.ownership_transfer_status === "pending" ||
+      ath.ownership_transfer_status === "completed" ||
+      ath.ownership_transfer_status === "not_requested"
+        ? ath.ownership_transfer_status
+        : "not_applicable",
+    ownershipTransferEmail: (ath.ownership_transfer_email as string | null) ?? null,
+    ownershipTransferRequestedAt:
+      (ath.ownership_transfer_requested_at as string | null) ?? null,
+    ownershipTransferredAt: (ath.ownership_transferred_at as string | null) ?? null,
+    healthPersonalizationEnabled: Boolean(ath.health_personalization_enabled),
     position: ath.position as Profile["position"],
     level: normalizeLevel(ath.level),
     goal: normalizeGoal(ath.main_goal),
@@ -404,7 +431,8 @@ function buildProfile(
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
-    onboardingComplete: Boolean(prof.onboarding_completed),
+    onboardingComplete:
+      Boolean(prof.onboarding_completed) && (!requiresGuardianOwner || guardianOwnershipReady),
     onboardingRevision,
     onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
@@ -426,10 +454,14 @@ function buildProfile(
         : Boolean(ath.has_sprint_space),
     currentPitchFeelings: normalizeCurrentPitchFeelings(ath.current_pitch_feelings),
     desiredPitchFeelings: normalizeDesiredPitchFeelings(ath.desired_pitch_feelings),
-    fieldMasKmh: null,
-    fieldMasTestedAt: null,
-    runningProgressionLevel: 0,
-    runningProgressionUpdatedAt: null,
+    fieldMasKmh:
+      ath.field_mas_kmh === null || ath.field_mas_kmh === undefined
+        ? null
+        : Number(ath.field_mas_kmh),
+    fieldMasTestedAt: (ath.field_mas_tested_at as string | null) ?? null,
+    runningProgressionLevel: Number(ath.running_progression_level ?? 0),
+    runningProgressionUpdatedAt:
+      (ath.running_progression_updated_at as string | null) ?? null,
   };
 }
 
@@ -540,59 +572,31 @@ function rowToRunningActivity(row: AnyRow): RunningActivity | null {
     typeof row.id !== "string" ||
     typeof row.session_id !== "string" ||
     typeof row.date !== "string" ||
-    typeof row.started_at !== "string" ||
-    typeof row.ended_at !== "string" ||
     !Number.isFinite(durationSec) ||
     durationSec <= 0 ||
     !Number.isFinite(distanceM) ||
     distanceM < 0 ||
-    (avgPaceSecPerKm != null && !Number.isFinite(avgPaceSecPerKm)) ||
-    (row.source !== "gps" && row.source !== "gpx")
+    (avgPaceSecPerKm != null && !Number.isFinite(avgPaceSecPerKm))
   ) {
     return null;
   }
-  const splits: KilometerSplit[] = Array.isArray(row.splits)
-    ? row.splits.flatMap((value) => {
-        if (!value || typeof value !== "object") return [];
-        const split = value as Record<string, unknown>;
-        const kilometer = Number(split.kilometer);
-        const splitDistance = Number(split.distanceM);
-        const splitDuration = Number(split.durationSec);
-        const splitPace = Number(split.paceSecPerKm);
-        if (
-          !Number.isFinite(kilometer) ||
-          !Number.isFinite(splitDistance) ||
-          !Number.isFinite(splitDuration) ||
-          !Number.isFinite(splitPace)
-        ) {
-          return [];
-        }
-        return [
-          {
-            kilometer,
-            distanceM: splitDistance,
-            durationSec: splitDuration,
-            paceSecPerKm: splitPace,
-            isPartial: Boolean(split.isPartial),
-          },
-        ];
-      })
-    : [];
+  const timestamp =
+    typeof row.created_at === "string" ? row.created_at : `${row.date as string}T12:00:00.000Z`;
   return {
     id: row.id,
     sessionId: row.session_id,
     date: row.date,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
+    startedAt: timestamp,
+    endedAt: timestamp,
     durationSec,
     distanceM,
     avgPaceSecPerKm,
-    route: sanitizeRoute(row.route_points),
-    splits,
-    intervalResults: sanitizeIntervalResults(row.interval_results),
-    source: row.source,
-    createdAt: typeof row.created_at === "string" ? row.created_at : row.started_at,
-    updatedAt: typeof row.updated_at === "string" ? row.updated_at : row.ended_at,
+    route: [],
+    splits: [],
+    intervalResults: [],
+    source: "gps",
+    createdAt: timestamp,
+    updatedAt: typeof row.updated_at === "string" ? row.updated_at : timestamp,
   };
 }
 
@@ -761,7 +765,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .order("date", { ascending: false }),
             supabase
               .from("readiness_logs")
-              .select("date, sleep, energy, fatigue, soreness, stress, motivation, pain_level, pain_location, overall")
+              .select("date, sleep, energy, fatigue, pain_level, pain_location, overall")
               .eq("user_id", user.id)
               .order("date", { ascending: false })
               .limit(45),
@@ -787,7 +791,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         const local = safeLocal;
         const persistedUnavailableEquipment = (athRes.data as AnyRow | null)
           ?.unavailable_equipment_ids;
-        let profile = rowProfile
+        const profile = rowProfile
           ? {
               ...rowProfile,
               unavailableEquipmentIds: Array.isArray(persistedUnavailableEquipment)
@@ -801,17 +805,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             const activity = rowToRunningActivity(row);
             if (activity) runningActivities[activity.sessionId] = activity;
           }
-        }
-        if (profile) {
-          const rpeBySession: Record<string, number | null> = {};
-          for (const row of (logRes.data as AnyRow[] | null) ?? []) {
-            const sessionId = row.session_id as string | null;
-            if (sessionId) rpeBySession[sessionId] = (row.rpe as number | null) ?? null;
-          }
-          profile = {
-            ...profile,
-            ...deriveRunningEngineState(Object.values(runningActivities), rpeBySession),
-          };
         }
         safeProfile = profile;
         assertNoSupabaseError("training_plans.load", planRes.error);
@@ -949,22 +942,26 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
           };
         }
-        const persistedReadiness: Record<string, Readiness> = { ...local.readiness };
-        for (const row of (readinessRes.data as AnyRow[] | null) ?? []) {
-          const date = row.date as string | null;
-          if (!date) continue;
-          persistedReadiness[date] = {
-            date,
-            sleep: Number(row.sleep ?? 7),
-            energy: Number(row.energy ?? 7),
-            fatigue: Number(row.fatigue ?? 4),
-            soreness: Number(row.soreness ?? row.fatigue ?? 4),
-            jointPain: Number(row.pain_level ?? 0),
-            painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
-            stress: Number(row.stress ?? 3),
-            motivation: Number(row.motivation ?? row.energy ?? 7),
-            overall: Number(row.overall ?? 7),
-          };
+        const persistedReadiness: Record<string, Readiness> = profile?.healthPersonalizationEnabled
+          ? { ...local.readiness }
+          : {};
+        if (profile?.healthPersonalizationEnabled) {
+          for (const row of (readinessRes.data as AnyRow[] | null) ?? []) {
+            const date = row.date as string | null;
+            if (!date) continue;
+            persistedReadiness[date] = {
+              date,
+              sleep: Number(row.sleep ?? 7),
+              energy: Number(row.energy ?? 7),
+              fatigue: Number(row.fatigue ?? 4),
+              soreness: Number(row.fatigue ?? 4),
+              jointPain: Number(row.pain_level ?? 0),
+              painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
+              stress: 3,
+              motivation: Number(row.energy ?? 7),
+              overall: Number(row.overall ?? 7),
+            };
+          }
         }
         const history = await loadSessionHistory(user.id, (logRes.data as AnyRow[] | null) ?? []);
 
@@ -1174,6 +1171,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       {
         user_id: user.id,
         full_name: profile.name,
+        birth_date: profile.birthDate ?? null,
+        role: profile.accountOwnerType === "guardian" ? "guardian" : "athlete",
         onboarding_completed: completed,
         age_group: profile.age <= 17 ? "youth" : "adult",
       },
@@ -1185,6 +1184,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .upsert(
         {
           user_id: user.id,
+          account_owner_type: profile.accountOwnerType ?? "athlete",
+          subscription_payer_type:
+            profile.subscriptionPayerType ?? (profile.age < 18 ? "guardian" : "self"),
+          guardian_name: profile.guardianName ?? null,
+          guardian_email: profile.guardianEmail ?? null,
+          guardian_verified_at: profile.guardianVerifiedAt ?? null,
+          guardian_consent_at: profile.guardianConsentAt ?? null,
+          ownership_transfer_status: profile.ownershipTransferStatus ?? "not_applicable",
+          ownership_transfer_email: profile.ownershipTransferEmail ?? null,
+          ownership_transfer_requested_at: profile.ownershipTransferRequestedAt ?? null,
+          ownership_transferred_at: profile.ownershipTransferredAt ?? null,
+          health_personalization_enabled: Boolean(profile.healthPersonalizationEnabled),
           age: profile.age,
           position: profile.position,
           level: profile.level,
@@ -1209,6 +1220,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           unavailable_equipment_ids: profile.unavailableEquipmentIds ?? [],
           current_pitch_feelings: normalizeCurrentPitchFeelings(profile.currentPitchFeelings),
           desired_pitch_feelings: normalizeDesiredPitchFeelings(profile.desiredPitchFeelings),
+          field_mas_kmh: profile.fieldMasKmh ?? null,
+          field_mas_tested_at: profile.fieldMasTestedAt ?? null,
+          running_progression_level: profile.runningProgressionLevel ?? 0,
+          running_progression_updated_at: profile.runningProgressionUpdatedAt ?? null,
         },
         { onConflict: "user_id" },
       )
@@ -1242,15 +1257,46 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
 
     if (consents) {
+      const actorType = nextProfile.accountOwnerType === "guardian" ? "guardian" : "athlete";
       const rows = CONSENTS.map((c) => ({
         user_id: user.id,
         consent_type: c.type,
         accepted: Boolean(consents[c.type]),
         version: LEGAL_VERSION,
         text_snapshot: c.text,
+        actor_type: actorType,
+        actor_email: user.email ?? null,
+        scope: c.type === "health_data" ? "readiness_personalization" : c.type,
       }));
+      if (nextProfile.accountOwnerType === "guardian") {
+        rows.push({
+          user_id: user.id,
+          consent_type: "guardian_authorization",
+          accepted: Boolean(nextProfile.guardianConsent),
+          version: LEGAL_VERSION,
+          text_snapshot:
+            "Oświadczenie, że właściciel konta jest rodzicem lub opiekunem zawodnika i może prowadzić jego profil.",
+          actor_type: "guardian",
+          actor_email: user.email ?? null,
+          scope: "child_profile",
+        });
+      }
       const consentWrite = await supabase.from("consent_logs").insert(rows);
       assertNoSupabaseError("consent_logs.insert", consentWrite.error);
+    }
+    if (!nextProfile.healthPersonalizationEnabled) {
+      const [readinessDelete, painDelete] = await Promise.all([
+        supabase.from("readiness_logs").delete().eq("user_id", user.id),
+        supabase.from("pain_logs").delete().eq("user_id", user.id),
+      ]);
+      assertNoSupabaseError("readiness_logs.consent_cleanup", readinessDelete.error);
+      assertNoSupabaseError("pain_logs.consent_cleanup", painDelete.error);
+      try {
+        const local = loadLocal(user.id);
+        window.localStorage.setItem(localKey(user.id), JSON.stringify({ ...local, readiness: {} }));
+      } catch {
+        window.localStorage.removeItem(localKey(user.id));
+      }
     }
     await clearFutureOverlaysForUser(user.id, todayIso);
     const profileCompleteWrite = await supabase
@@ -1262,6 +1308,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       profile: nextProfile,
       plan,
       planGeneratedFor: todayIso,
+      readiness: nextProfile.healthPersonalizationEnabled ? s.readiness : {},
       modifications: Object.fromEntries(
         Object.entries(s.modifications).filter(([date]) => date < todayIso),
       ),
@@ -1393,6 +1440,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         };
       }
     }
+    if (updatedProfile && updatedProfile !== state.profile) {
+      const revision = await saveProfileRows(updatedProfile, true);
+      updatedProfile = { ...updatedProfile, onboardingRevision: revision };
+    }
     const refreshedPlan = updatedProfile && updatedProfile !== state.profile
       ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
       : state.plan;
@@ -1427,15 +1478,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           user_id: user.id,
           session_id: draft.sessionId,
           date: draft.date,
-          started_at: draft.startedAt,
-          ended_at: draft.endedAt,
           duration_sec: draft.durationSec,
           distance_m: draft.distanceM,
           avg_pace_sec_per_km: draft.avgPaceSecPerKm,
-          route_points: draft.route as unknown as never,
-          splits: draft.splits as unknown as never,
-          interval_results: draft.intervalResults as unknown as never,
-          source: draft.source,
+          is_field_mas_test:
+            linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test",
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id,session_id" },
@@ -1443,8 +1490,19 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .select("*")
       .single();
     assertNoSupabaseError("running_activities.upsert", write.error);
-    const activity = rowToRunningActivity(write.data as AnyRow);
-    if (!activity) throw new Error("Baza zwróciła nieprawidłowy zapis biegu.");
+    const storedActivity = rowToRunningActivity(write.data as AnyRow);
+    if (!storedActivity) throw new Error("Baza zwróciła nieprawidłowy zapis biegu.");
+    // Trasa i odcinki żyją tylko w pamięci bieżącej sesji. Do bazy trafiają
+    // wyłącznie trzy wyniki widoczne dla użytkownika.
+    const activity: RunningActivity = {
+      ...storedActivity,
+      startedAt: draft.startedAt,
+      endedAt: draft.endedAt,
+      route: draft.route,
+      splits: draft.splits,
+      intervalResults: draft.intervalResults,
+      source: draft.source,
+    };
     const linkedSession = findSessionByDbId(state.plan, activity.sessionId);
     let updatedProfile = state.profile;
     if (linkedSession?.classification?.subcategory === "field_mas_test" && updatedProfile) {
@@ -1458,6 +1516,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         runningProgressionLevel: 0,
         runningProgressionUpdatedAt: testedAt,
       };
+    }
+    if (updatedProfile && updatedProfile !== state.profile) {
+      const revision = await saveProfileRows(updatedProfile, true);
+      updatedProfile = { ...updatedProfile, onboardingRevision: revision };
     }
     const refreshedPlan = updatedProfile && updatedProfile !== state.profile
       ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
@@ -1477,6 +1539,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   async function deleteRunningActivity(activityId: string) {
     if (!user) throw new Error("Musisz być zalogowany, aby usunąć bieg.");
     const activity = Object.values(state.runningActivities).find((item) => item.id === activityId);
+    const linkedSession = activity ? findSessionByDbId(state.plan, activity.sessionId) : null;
     const remove = await supabase
       .from("running_activities")
       .delete()
@@ -1484,10 +1547,30 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .eq("user_id", user.id);
     assertNoSupabaseError("running_activities.delete", remove.error);
     if (!activity) return;
+    let updatedProfile = state.profile;
+    let refreshedPlan = state.plan;
+    if (linkedSession?.classification?.subcategory === "field_mas_test" && updatedProfile) {
+      updatedProfile = {
+        ...updatedProfile,
+        fieldMasKmh: null,
+        fieldMasTestedAt: null,
+        runningProgressionLevel: 0,
+        runningProgressionUpdatedAt: null,
+      };
+      const revision = await saveProfileRows(updatedProfile, true);
+      updatedProfile = { ...updatedProfile, onboardingRevision: revision };
+      refreshedPlan = await savePlanToDb(updatedProfile, revision);
+    }
     setState((current) => {
       const runningActivities = { ...current.runningActivities };
       delete runningActivities[activity.sessionId];
-      return { ...current, runningActivities };
+      return {
+        ...current,
+        profile: updatedProfile,
+        plan: refreshedPlan,
+        planGeneratedFor: refreshedPlan !== current.plan ? todayIso : current.planGeneratedFor,
+        runningActivities,
+      };
     });
   }
 
@@ -1822,6 +1905,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   }
 
   async function saveReadiness(r: Readiness) {
+    if (!state.profile?.healthPersonalizationEnabled) {
+      throw new Error("Check-in jest wyłączony. Włącz opcjonalną personalizację w profilu.");
+    }
     const { applyCheckInToPlanDay } = await import("./dailyCheckin");
     if (user) {
       const write = await supabase.from("readiness_logs").upsert({
@@ -1830,16 +1916,30 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         sleep: r.sleep,
         energy: r.energy,
         fatigue: r.fatigue,
-        soreness: r.soreness,
-        stress: r.stress,
-        motivation: r.motivation,
-        pain_status: r.jointPain > 0,
         pain_level: r.jointPain,
         pain_location: r.painLocation ?? null,
         overall: r.overall,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,date" });
       assertNoSupabaseError("readiness_logs.upsert", write.error);
+
+      const painWrite = r.jointPain > 0
+        ? await supabase.from("pain_logs").upsert(
+            {
+              user_id: user.id,
+              date: r.date,
+              pain_level: r.jointPain,
+              pain_location: r.painLocation ?? null,
+              notes: null,
+            },
+            { onConflict: "user_id,date" },
+          )
+        : await supabase
+            .from("pain_logs")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("date", r.date);
+      assertNoSupabaseError("pain_logs.sync", painWrite.error);
     }
 
     setState((s) => {

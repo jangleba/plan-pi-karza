@@ -1,4 +1,0 @@
-project_id = "bdfatyynxbzspjzkrjgg"
-
-[functions.delete-account]
-verify_jwt = true

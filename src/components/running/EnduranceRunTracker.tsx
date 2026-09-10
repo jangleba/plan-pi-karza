@@ -380,7 +380,7 @@ export function EnduranceRunTracker({
       await onSave(pending);
       setPending(null);
       setPhase("idle");
-      toast.success("Bieg i prywatna trasa zostały zapisane.");
+      toast.success("Zapisano dystans, czas i średnie tempo biegu.");
     } catch {
       toast.error("Nie udało się zapisać biegu. Dane zostały na ekranie — spróbuj ponownie.");
     } finally {
@@ -389,7 +389,7 @@ export function EnduranceRunTracker({
   }
 
   async function removeActivity() {
-    if (!activity || !window.confirm("Usunąć zapis biegu i całą trasę GPS?")) return;
+    if (!activity || !window.confirm("Usunąć zapis wyniku biegu?")) return;
     try {
       await onDelete(activity.id);
       toast.success("Trasa biegu została usunięta.");
@@ -446,15 +446,15 @@ export function EnduranceRunTracker({
         <div className="flex items-center gap-2">
           <LocateFixed className="h-4 w-4 text-primary" aria-hidden="true" />
           <h2 id="run-tracker-title" className="text-sm font-semibold">
-            Bieg z mapą
+            Bieg z GPS
           </h2>
           <span className="ml-auto rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
             prywatny
           </span>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          GPS włącza się dopiero po Twoim kliknięciu. BallWise nie pokazuje trasy innym osobom ani
-          nie wysyła jej do zewnętrznej mapy.
+          GPS włącza się dopiero po Twoim kliknięciu. Trasa służy tylko do obliczenia wyniku w
+          pamięci telefonu. Do bazy trafiają wyłącznie dystans, czas i średnie tempo.
         </p>
       </div>
 
@@ -683,7 +683,7 @@ export function EnduranceRunTracker({
             <button
               type="button"
               onClick={() => void removeActivity()}
-              aria-label="Usuń trasę biegu"
+              aria-label="Usuń wynik biegu"
               className="inline-flex items-center justify-center rounded-full border border-border px-4 py-3 text-muted-foreground"
             >
               <Trash2 className="h-4 w-4" />
@@ -693,7 +693,7 @@ export function EnduranceRunTracker({
       )}
       {!canRecord && !activity && !pending && (
         <p className="text-xs text-muted-foreground">
-          GPS uruchomisz w dniu treningu. Starszą trasę możesz dodać z pliku GPX.
+          GPS uruchomisz w dniu treningu. Starszy wynik możesz obliczyć lokalnie z pliku GPX.
         </p>
       )}
       {canRecord && !isTracking && !activity && !pending && (

@@ -1202,7 +1202,7 @@ function buildSessionDay(
       "Jakość jest ważniejsza od liczby powtórzeń. Ból, utrata kontroli albo wyraźny spadek prędkości kończy serię.",
     whyToday:
       mode === "activation"
-        ? "Krótka ekspozycja techniczna po obniżeniu objętości przez LoadWise."
+        ? "Krótka ekspozycja techniczna po obniżeniu objętości przez BallWise."
         : mode === "reduced"
           ? "Dawka szybkości została obniżona do aktualnej gotowości lub etapu rozwoju."
           : "Pełna jakościowa ekspozycja szybkościowa z długim odpoczynkiem.",

@@ -335,7 +335,6 @@ const NAME_TO_VISUAL: Record<string, string> = (() => {
       const key = normalizeName(name);
       if (map[key] && map[key] !== visual.visualId) {
         // Kolizja: ta sama nazwa przypisana do dwóch grafik — nie zgadujemy.
-        // eslint-disable-next-line no-console
         console.error(
           `[blueprint] Duplicate exercise name mapping: "${name}" -> ${map[key]} & ${visual.visualId}`,
         );
@@ -473,7 +472,6 @@ export function validateVisualLibrary(): VisualValidationReport {
 if (import.meta.env?.DEV) {
   const report = validateVisualLibrary();
   if (!report.ok) {
-    // eslint-disable-next-line no-console
     console.warn("[blueprint] Visual library validation issues:", report);
   }
 }

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import { Button } from "@/components/ui/button";
 import { LEGAL_VERSION, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
+import { useLoadwise } from "@/lib/loadwise/store";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -22,6 +23,12 @@ const USER_TABLES = [
   "training_sessions",
   "session_exercises",
   "session_logs",
+  "exercise_set_logs",
+  "session_modifications",
+  "weekly_transitions",
+  "exercise_replacements",
+  "running_activities",
+  "user_roles",
   "consent_logs",
 ] as const;
 
@@ -29,6 +36,7 @@ function DataRights() {
   const router = useRouter();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { state } = useLoadwise();
   const [busy, setBusy] = useState(false);
 
   async function exportData() {
@@ -40,7 +48,8 @@ function DataRights() {
         exported_at: new Date().toISOString(),
       };
       for (const t of USER_TABLES) {
-        const { data } = await supabase.from(t).select("*").eq("user_id", user.id);
+        const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
+        if (error) throw error;
         bundle[t] = data ?? [];
       }
       const blob = new Blob([JSON.stringify(bundle, null, 2)], {
@@ -49,7 +58,7 @@ function DataRights() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "loadwise-moje-dane.json";
+      a.download = "ballwise-moje-dane.json";
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Eksport danych gotowy.");
@@ -65,18 +74,55 @@ function DataRights() {
     if (
       type === "health_data" &&
       !window.confirm(
-        "Wycofanie zgody na dane o zdrowiu może spowodować, że generowanie planów treningowych przestanie działać. Kontynuować?",
+        "Wycofać zgodę i usunąć zapisane check-iny oraz wpisy bólu? Konto i ostrożny plan nadal będą działać.",
       )
     )
       return;
-    await supabase.from("consent_logs").insert({
+    setBusy(true);
+    const actorType = state.profile?.accountOwnerType === "guardian" ? "guardian" : "athlete";
+    const consentWrite = await supabase.from("consent_logs").insert({
       user_id: user.id,
       consent_type: type,
       accepted: false,
       version: LEGAL_VERSION,
       text_snapshot: "Wycofanie zgody przez użytkownika.",
+      actor_type: actorType,
+      actor_email: user.email ?? null,
+      scope: type === "health_data" ? "readiness_personalization" : "marketing",
+      withdrawn_at: new Date().toISOString(),
     });
-    toast.success("Zgoda została wycofana i odnotowana.");
+    if (consentWrite.error) {
+      setBusy(false);
+      toast.error("Nie udało się wycofać zgody.");
+      return;
+    }
+    if (type === "health_data") {
+      const [profileWrite, readinessDelete, painDelete] = await Promise.all([
+        supabase
+          .from("athlete_profiles")
+          .update({ health_personalization_enabled: false, pain_injury: false })
+          .eq("user_id", user.id),
+        supabase.from("readiness_logs").delete().eq("user_id", user.id),
+        supabase.from("pain_logs").delete().eq("user_id", user.id),
+      ]);
+      if (profileWrite.error || readinessDelete.error || painDelete.error) {
+        setBusy(false);
+        toast.error("Zgoda została odnotowana, ale czyszczenie danych wymaga ponowienia.");
+        return;
+      }
+      try {
+        const key = `loadwise:v3:${user.id}`;
+        const local = JSON.parse(window.localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
+        window.localStorage.setItem(key, JSON.stringify({ ...local, readiness: {} }));
+      } catch {
+        window.localStorage.removeItem(`loadwise:v3:${user.id}`);
+      }
+      toast.success("Usunięto check-iny i wyłączono personalizację zdrowotną.");
+      window.location.assign("/start");
+      return;
+    }
+    setBusy(false);
+    toast.success("Zgoda marketingowa została wycofana.");
   }
 
   async function deleteAccount() {
@@ -89,21 +135,13 @@ function DataRights() {
       return;
     setBusy(true);
     try {
-      await supabase.from("consent_logs").insert({
-        user_id: user.id,
-        consent_type: "account_deletion_request",
-        accepted: true,
-        version: LEGAL_VERSION,
-        text_snapshot: "Użytkownik zażądał usunięcia konta i danych.",
+      const { error } = await supabase.functions.invoke("delete-account", {
+        method: "POST",
       });
-      // Remove all user-owned data (RLS scopes deletes to this user).
-      for (const t of USER_TABLES) {
-        if (t === "consent_logs") continue;
-        await supabase.from(t).delete().eq("user_id", user.id);
-      }
-      await supabase.from("profiles").delete().eq("user_id", user.id);
-      toast.success("Dane usunięte. Zostaniesz wylogowany.");
+      if (error) throw error;
+      window.localStorage.removeItem(`loadwise:v3:${user.id}`);
       await signOut();
+      toast.success("Konto logowania i powiązane dane zostały usunięte.");
       navigate({ to: "/auth", replace: true });
     } catch {
       toast.error("Nie udało się usunąć danych.");
@@ -168,7 +206,7 @@ function DataRights() {
           <div>
             <div className="text-sm font-semibold">Wycofaj zgodę na dane o zdrowiu</div>
             <div className="text-xs text-muted-foreground">
-              Uwaga: generowanie planów treningowych może przestać działać.
+              Usuwa check-iny i przełącza plan w tryb ostrożny. Konto nadal działa.
             </div>
           </div>
         </button>

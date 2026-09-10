@@ -6,7 +6,7 @@ import type { ExerciseItem } from "./types";
  * Test regresji modułu Plan.
  *
  * Zamraża strukturę i nazwy sekcji ekranu jednostki treningowej, aby żadna
- * praca nad innymi modułami (np. Vision Lab) nie zmieniła po cichu wyglądu Planu.
+ * praca nad innymi modułami nie zmieniła po cichu wyglądu Planu.
  */
 
 const mk = (name: string): ExerciseItem => ({

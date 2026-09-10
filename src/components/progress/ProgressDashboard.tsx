@@ -92,7 +92,7 @@ export function ProgressDashboard({
             <div>
               <h2 className="text-sm font-semibold">Bieganie · 7 dni</h2>
               <p className="text-xs text-muted-foreground">
-                {recentRuns.length} {recentRuns.length === 1 ? "zapisana trasa" : "zapisane trasy"}
+                {recentRuns.length} {recentRuns.length === 1 ? "zapisany bieg" : "zapisane biegi"}
               </p>
             </div>
           </div>
@@ -108,7 +108,7 @@ export function ProgressDashboard({
           </div>
           <div className="mt-4 border-t border-border pt-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Ostatnia trasa
+              Ostatni bieg
             </div>
             <RunActivitySummary activity={recentRuns[0]} compact showSplits={false} />
           </div>

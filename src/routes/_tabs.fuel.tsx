@@ -155,7 +155,7 @@ function FuelWiseScreen() {
 
   useEffect(() => {
     if (result) setPulse((p) => p + 1);
-  }, [result?.ruleId, result?.verdict]);
+  }, [result]);
 
   const tone = result ? resultTone(result.verdict, result.ruleId) : null;
   const fixes = availableFixes(meal, portion);

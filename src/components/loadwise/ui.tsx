@@ -39,7 +39,7 @@ export function AppHeader({
               <Waves className="h-4 w-4" strokeWidth={2.4} />
             </span>
             <span className="text-base font-semibold tracking-tight text-foreground">
-              Loadwise
+              BallWise
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -113,7 +113,7 @@ export function Disclaimer() {
     <div className="mx-5 mb-28 mt-4 flex gap-2.5 rounded-2xl bg-muted/60 p-3.5">
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Loadwise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej.
+        BallWise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej.
         Nie diagnozuje, nie leczy, nie prowadzi rehabilitacji ani nie wyznacza
         powrotu do gry. Te decyzje należą do lekarza lub fizjoterapeuty.
       </p>

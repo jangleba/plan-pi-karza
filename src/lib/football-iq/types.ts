@@ -1,5 +1,5 @@
 // Typy modułu Football IQ — nauka decyzji boiskowych.
-// Moduł jest w pełni lokalny i nie zależy od Planu ani Vision Lab.
+// Moduł jest w pełni lokalny i nie zależy od Planu.
 
 export type IQPhase = "attack" | "defense";
 
