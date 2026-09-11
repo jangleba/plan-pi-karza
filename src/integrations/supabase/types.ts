@@ -26,6 +26,8 @@ export type Database = {
           desired_pitch_feelings: string[]
           double_sessions_allowed: string | null
           equipment: Json
+          field_mas_kmh: number | null
+          field_mas_tested_at: string | null
           guardian_consent: boolean | null
           guardian_consent_at: string | null
           guardian_email: string | null
@@ -35,30 +37,28 @@ export type Database = {
           has_gym: boolean | null
           has_pitch: boolean | null
           has_sprint_space: boolean | null
-          height_optional: number | null
           health_personalization_enabled: boolean
+          height_optional: number | null
           id: string
           individual_training_days: number[]
           league_optional: string | null
           level: string | null
           main_goal: string | null
           match_date: string | null
-          field_mas_kmh: number | null
-          field_mas_tested_at: string | null
           ownership_transfer_email: string | null
           ownership_transfer_requested_at: string | null
           ownership_transfer_status: string
           ownership_transferred_at: string | null
           pain_injury: boolean | null
           position: string | null
+          running_progression_level: number
+          running_progression_updated_at: string | null
           season_phase: string | null
           season_stage: string | null
           secondary_limiter: string | null
           sex_optional: string | null
-          training_experience: string | null
-          running_progression_level: number
-          running_progression_updated_at: string | null
           subscription_payer_type: string
+          training_experience: string | null
           unavailable_days: Json
           unavailable_equipment_ids: Json
           updated_at: string
@@ -78,6 +78,8 @@ export type Database = {
           desired_pitch_feelings?: string[]
           double_sessions_allowed?: string | null
           equipment?: Json
+          field_mas_kmh?: number | null
+          field_mas_tested_at?: string | null
           guardian_consent?: boolean | null
           guardian_consent_at?: string | null
           guardian_email?: string | null
@@ -87,30 +89,28 @@ export type Database = {
           has_gym?: boolean | null
           has_pitch?: boolean | null
           has_sprint_space?: boolean | null
-          height_optional?: number | null
           health_personalization_enabled?: boolean
+          height_optional?: number | null
           id?: string
           individual_training_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
-          field_mas_kmh?: number | null
-          field_mas_tested_at?: string | null
           ownership_transfer_email?: string | null
           ownership_transfer_requested_at?: string | null
           ownership_transfer_status?: string
           ownership_transferred_at?: string | null
           pain_injury?: boolean | null
           position?: string | null
+          running_progression_level?: number
+          running_progression_updated_at?: string | null
           season_phase?: string | null
           season_stage?: string | null
           secondary_limiter?: string | null
           sex_optional?: string | null
-          training_experience?: string | null
-          running_progression_level?: number
-          running_progression_updated_at?: string | null
           subscription_payer_type?: string
+          training_experience?: string | null
           unavailable_days?: Json
           unavailable_equipment_ids?: Json
           updated_at?: string
@@ -130,6 +130,8 @@ export type Database = {
           desired_pitch_feelings?: string[]
           double_sessions_allowed?: string | null
           equipment?: Json
+          field_mas_kmh?: number | null
+          field_mas_tested_at?: string | null
           guardian_consent?: boolean | null
           guardian_consent_at?: string | null
           guardian_email?: string | null
@@ -139,30 +141,28 @@ export type Database = {
           has_gym?: boolean | null
           has_pitch?: boolean | null
           has_sprint_space?: boolean | null
-          height_optional?: number | null
           health_personalization_enabled?: boolean
+          height_optional?: number | null
           id?: string
           individual_training_days?: number[]
           league_optional?: string | null
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
-          field_mas_kmh?: number | null
-          field_mas_tested_at?: string | null
           ownership_transfer_email?: string | null
           ownership_transfer_requested_at?: string | null
           ownership_transfer_status?: string
           ownership_transferred_at?: string | null
           pain_injury?: boolean | null
           position?: string | null
+          running_progression_level?: number
+          running_progression_updated_at?: string | null
           season_phase?: string | null
           season_stage?: string | null
           secondary_limiter?: string | null
           sex_optional?: string | null
-          training_experience?: string | null
-          running_progression_level?: number
-          running_progression_updated_at?: string | null
           subscription_payer_type?: string
+          training_experience?: string | null
           unavailable_days?: Json
           unavailable_equipment_ids?: Json
           updated_at?: string
@@ -212,42 +212,6 @@ export type Database = {
           user_id?: string
           version?: string
           withdrawn_at?: string | null
-        }
-        Relationships: []
-      }
-      exercise_replacements: {
-        Row: {
-          active: boolean
-          created_at: string
-          date: string
-          equipment_ids: string[]
-          exercise_id: string
-          id: string
-          original_json: Json
-          replacement_json: Json
-          user_id: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          date: string
-          equipment_ids?: string[]
-          exercise_id: string
-          id?: string
-          original_json: Json
-          replacement_json: Json
-          user_id: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          date?: string
-          equipment_ids?: string[]
-          exercise_id?: string
-          id?: string
-          original_json?: Json
-          replacement_json?: Json
-          user_id?: string
         }
         Relationships: []
       }
@@ -317,6 +281,42 @@ export type Database = {
           position_tags?: Json | null
           subcategory?: string | null
           video_url_optional?: string | null
+        }
+        Relationships: []
+      }
+      exercise_replacements: {
+        Row: {
+          active: boolean
+          created_at: string
+          date: string
+          equipment_ids: string[]
+          exercise_id: string
+          id: string
+          original_json: Json
+          replacement_json: Json
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          date: string
+          equipment_ids?: string[]
+          exercise_id: string
+          id?: string
+          original_json: Json
+          replacement_json: Json
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          date?: string
+          equipment_ids?: string[]
+          exercise_id?: string
+          id?: string
+          original_json?: Json
+          replacement_json?: Json
+          user_id?: string
         }
         Relationships: []
       }
