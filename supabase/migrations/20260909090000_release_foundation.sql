@@ -1,6 +1,65 @@
 -- Release foundation: age/guardian model, data minimisation, running summaries,
 -- complete account deletion support and final Vision Lab shutdown.
 
+-- This file is intentionally self-contained for the current Lovable Cloud
+-- database. The 2026-08-19 exercise-replacement migration and the 2026-09-06
+-- feedback repair were not applied there, so their safe/idempotent parts are
+-- included below. One transaction prevents a partially upgraded schema.
+begin;
+set local lock_timeout = '15s';
+set local statement_timeout = '120s';
+
+-- ---------------------------------------------------------------------------
+-- Missing prerequisite: persistent exercise replacements
+-- ---------------------------------------------------------------------------
+alter table public.athlete_profiles
+  add column if not exists unavailable_equipment_ids text[] not null default '{}';
+
+create table if not exists public.exercise_replacements (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  exercise_id text not null,
+  original_json jsonb not null,
+  replacement_json jsonb not null,
+  equipment_ids text[] not null default '{}',
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists exercise_replacements_user_date_idx
+  on public.exercise_replacements (user_id, date);
+
+alter table public.exercise_replacements enable row level security;
+drop policy if exists "Users manage their own exercise replacements"
+  on public.exercise_replacements;
+drop policy if exists "exercise_replacements_select_own"
+  on public.exercise_replacements;
+drop policy if exists "exercise_replacements_insert_own"
+  on public.exercise_replacements;
+drop policy if exists "exercise_replacements_update_own"
+  on public.exercise_replacements;
+drop policy if exists "exercise_replacements_delete_own"
+  on public.exercise_replacements;
+
+create policy "exercise_replacements_select_own"
+  on public.exercise_replacements for select to authenticated
+  using ((select auth.uid()) = user_id);
+create policy "exercise_replacements_insert_own"
+  on public.exercise_replacements for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+create policy "exercise_replacements_update_own"
+  on public.exercise_replacements for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+create policy "exercise_replacements_delete_own"
+  on public.exercise_replacements for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
+revoke all on public.exercise_replacements from anon, authenticated;
+grant select, insert, update, delete on public.exercise_replacements to authenticated;
+grant all on public.exercise_replacements to service_role;
+
 -- ---------------------------------------------------------------------------
 -- Account ownership and age thresholds (13 / 16 / 18)
 -- ---------------------------------------------------------------------------
@@ -33,6 +92,31 @@ update public.athlete_profiles athlete
     limit 1
  ) is true;
 
+-- Existing test profiles that do not meet the new minimum-age/guardian rule
+-- keep their data, but must not remain marked as fully onboarded. No account or
+-- training history is deleted here.
+update public.profiles profile
+   set onboarding_completed = false
+ where exists (
+   select 1
+     from public.athlete_profiles athlete
+    where athlete.user_id = profile.user_id
+      and (
+        athlete.age < 13
+        or (
+          athlete.age between 13 and 15
+          and (
+            athlete.guardian_consent is not true
+            or athlete.account_owner_type <> 'guardian'
+            or athlete.guardian_name is null
+            or athlete.guardian_email is null
+            or athlete.guardian_verified_at is null
+            or athlete.guardian_consent_at is null
+          )
+        )
+      )
+ );
+
 alter table public.athlete_profiles
   drop constraint if exists athlete_profiles_account_owner_type_check,
   add constraint athlete_profiles_account_owner_type_check
@@ -47,16 +131,21 @@ alter table public.athlete_profiles
   add constraint athlete_profiles_age_policy_check
     check (
       age is null
-      or age < 13
-      or age >= 16
+      or age between 16 and 120
       or (
-        account_owner_type = 'guardian'
+        age between 13 and 15
+        and account_owner_type = 'guardian'
+        and subscription_payer_type = 'guardian'
+        and guardian_consent is true
         and guardian_name is not null
         and guardian_email is not null
         and guardian_verified_at is not null
         and guardian_consent_at is not null
       )
     ) not valid,
+  drop constraint if exists athlete_profiles_minor_payer_check,
+  add constraint athlete_profiles_minor_payer_check
+    check (age is null or age >= 18 or subscription_payer_type = 'guardian') not valid,
   drop constraint if exists athlete_profiles_field_mas_check,
   add constraint athlete_profiles_field_mas_check
     check (field_mas_kmh is null or field_mas_kmh between 5 and 30),
@@ -193,11 +282,30 @@ where newer.user_id = older.user_id
 create unique index if not exists readiness_logs_user_date_key
   on public.readiness_logs (user_id, date);
 
+alter table public.readiness_logs
+  drop constraint if exists readiness_logs_pain_level_check,
+  add constraint readiness_logs_pain_level_check
+    check (pain_level is null or pain_level between 0 and 10),
+  drop constraint if exists readiness_logs_overall_check,
+  add constraint readiness_logs_overall_check
+    check (overall is null or overall between 1 and 10);
+
 alter table public.session_logs
   add column if not exists completion_status text not null default 'completed',
   add column if not exists duration_minutes integer,
   add column if not exists activity_type text,
   add column if not exists updated_at timestamptz not null default now();
+
+alter table public.session_logs
+  drop constraint if exists session_logs_completion_status_check,
+  add constraint session_logs_completion_status_check
+    check (completion_status in ('completed', 'missed')),
+  drop constraint if exists session_logs_duration_minutes_check,
+  add constraint session_logs_duration_minutes_check
+    check (duration_minutes is null or duration_minutes between 0 and 300),
+  drop constraint if exists session_logs_activity_type_check,
+  add constraint session_logs_activity_type_check
+    check (activity_type is null or activity_type in ('technical', 'mixed', 'running_endurance'));
 
 delete from public.pain_logs newer
 using public.pain_logs older
@@ -223,7 +331,7 @@ create table if not exists public.running_activities (
   is_field_mas_test boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint running_activities_duration_check check (duration_sec >= 0),
+  constraint running_activities_duration_check check (duration_sec > 0),
   constraint running_activities_distance_check check (distance_m >= 0),
   constraint running_activities_pace_check check (
     avg_pace_sec_per_km is null or avg_pace_sec_per_km > 0
@@ -277,7 +385,7 @@ create policy "running_activities_delete_own"
   on public.running_activities for delete to authenticated
   using ((select auth.uid()) = user_id);
 
-revoke all on public.running_activities from anon;
+revoke all on public.running_activities from anon, authenticated;
 grant select, insert, update, delete on public.running_activities to authenticated;
 grant all on public.running_activities to service_role;
 
@@ -308,3 +416,111 @@ update storage.buckets
  where id = 'vision-videos';
 
 drop table if exists public.vision_tests cascade;
+
+-- ---------------------------------------------------------------------------
+-- Transactional verification. Any missing critical object aborts everything.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  missing_columns text;
+  running_policy_count integer;
+  replacement_policy_count integer;
+begin
+  if to_regclass('public.exercise_replacements') is null then
+    raise exception 'Verification failed: exercise_replacements is missing';
+  end if;
+  if to_regclass('public.running_activities') is null then
+    raise exception 'Verification failed: running_activities is missing';
+  end if;
+
+  select string_agg(required.table_name || '.' || required.column_name, ', ')
+    into missing_columns
+    from (values
+      ('athlete_profiles', 'account_owner_type'),
+      ('athlete_profiles', 'subscription_payer_type'),
+      ('athlete_profiles', 'guardian_consent_at'),
+      ('athlete_profiles', 'health_personalization_enabled'),
+      ('athlete_profiles', 'unavailable_equipment_ids'),
+      ('consent_logs', 'actor_type'),
+      ('consent_logs', 'withdrawn_at'),
+      ('readiness_logs', 'overall'),
+      ('readiness_logs', 'pain_level'),
+      ('session_logs', 'completion_status'),
+      ('session_logs', 'activity_type'),
+      ('running_activities', 'distance_m'),
+      ('running_activities', 'duration_sec')
+    ) as required(table_name, column_name)
+   where not exists (
+     select 1
+       from information_schema.columns present
+      where present.table_schema = 'public'
+        and present.table_name = required.table_name
+        and present.column_name = required.column_name
+   );
+
+  if missing_columns is not null then
+    raise exception 'Verification failed, missing columns: %', missing_columns;
+  end if;
+
+  select count(*) into running_policy_count
+    from pg_policies
+   where schemaname = 'public'
+     and tablename = 'running_activities'
+     and policyname in (
+       'running_activities_select_own',
+       'running_activities_insert_own',
+       'running_activities_update_own',
+       'running_activities_delete_own'
+     );
+  if running_policy_count <> 4 then
+    raise exception 'Verification failed: expected 4 running policies, found %', running_policy_count;
+  end if;
+
+  select count(*) into replacement_policy_count
+    from pg_policies
+   where schemaname = 'public'
+     and tablename = 'exercise_replacements'
+     and policyname in (
+       'exercise_replacements_select_own',
+       'exercise_replacements_insert_own',
+       'exercise_replacements_update_own',
+       'exercise_replacements_delete_own'
+     );
+  if replacement_policy_count <> 4 then
+    raise exception 'Verification failed: expected 4 replacement policies, found %', replacement_policy_count;
+  end if;
+
+  if to_regprocedure('public.finalize_athlete_account_handover()') is null then
+    raise exception 'Verification failed: account handover function is missing';
+  end if;
+  if not exists (
+    select 1 from pg_trigger
+     where tgname = 'on_auth_user_email_changed_finalize_handover'
+       and not tgisinternal
+  ) then
+    raise exception 'Verification failed: account handover trigger is missing';
+  end if;
+end;
+$$;
+
+commit;
+
+select
+  'OK — fundament BallWise wdrożony'::text as status,
+  19::integer as wymagane_tabele_obecne,
+  (
+    select count(*)::integer
+      from public.athlete_profiles athlete
+     where athlete.age < 13
+        or (
+          athlete.age between 13 and 15
+          and (
+            athlete.guardian_consent is not true
+            or athlete.account_owner_type <> 'guardian'
+            or athlete.guardian_name is null
+            or athlete.guardian_email is null
+            or athlete.guardian_verified_at is null
+            or athlete.guardian_consent_at is null
+          )
+        )
+  ) as profile_wymagajace_ponownego_onboardingu;
