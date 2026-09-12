@@ -32,6 +32,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Ustaw npm zgodny z package-lock
+        run: npm install --global npm@11.9.0
+
       - name: Zainstaluj zależności
         run: npm ci
 
