@@ -13,6 +13,7 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { authErrorMessage } from "@/lib/authMessages";
+import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 
 export const Route = createFileRoute("/auth")({
   component: AuthScreen,
@@ -130,11 +131,7 @@ function AuthScreen() {
   }
 
   if (loading || (user && !hydrated)) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
-    );
+    return <AppLaunchScreen />;
   }
 
   return (

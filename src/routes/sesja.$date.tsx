@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
@@ -1444,11 +1445,7 @@ function SessionDetail() {
   const showSkeleton = useDelayedFlag(stillLoading);
 
   if (authLoading || !user) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
-    );
+    return <AppLaunchScreen />;
   }
 
   if (stillLoading) {

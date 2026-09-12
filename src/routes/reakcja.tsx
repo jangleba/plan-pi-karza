@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ReactiveTrainer } from "@/components/reactive/ReactiveTrainer";
 import { useAuth } from "@/lib/loadwise/auth";
+import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 
 export const Route = createFileRoute("/reakcja")({
   component: ReactiveTrainingRoute,
@@ -16,11 +17,7 @@ function ReactiveTrainingRoute() {
   }, [loading, navigate, user]);
 
   if (loading || !user) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
-    );
+    return <AppLaunchScreen />;
   }
 
   return (

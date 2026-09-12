@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
+import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import type {
   Profile,
   Position,
@@ -579,11 +580,7 @@ function Onboarding() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   if (loading || !hydrated || !user) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
-    );
+    return <AppLaunchScreen />;
   }
 
   return (

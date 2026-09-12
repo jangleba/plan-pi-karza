@@ -27,6 +27,7 @@ import { fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running
 import { expiredUnfinishedSessions } from "./sessionStatus";
 import { normalizePersistedPainLocations } from "./profilePainPersistence";
 import { ageOnDate } from "./agePolicy";
+import { clearBootState, loadBootState, saveBootState } from "./bootCache";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -664,6 +665,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const generatingRef = useRef(false);
   const replacementInFlightRef = useRef(new Set<string>());
   const missedSyncRef = useRef<string | null>(null);
+  const activeUserIdRef = useRef<string | null>(null);
   const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
   useEffect(() => {
@@ -711,13 +713,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!user) {
+      if (activeUserIdRef.current) clearBootState(activeUserIdRef.current);
+      activeUserIdRef.current = null;
       setState(initialState);
       setHydrated(true);
       return;
     }
-    setHydrated(false);
+    activeUserIdRef.current = user.id;
+    const cachedState = loadBootState(user.id);
+    if (cachedState) {
+      setState(cachedState);
+      setHydrated(true);
+    } else {
+      setHydrated(false);
+    }
     (async () => {
-      let safeProfile: Profile | null = null;
+      let safeProfile: Profile | null = cachedState?.profile ?? null;
       const safeLocal: LocalState = loadLocal(user.id);
       try {
         const [profRes, athRes, onboardingRes, planRes, logRes, modRes, transRes, replacementRes, runningRes, readinessRes] =
@@ -978,7 +989,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             };
           }
         }
-        const history = await loadSessionHistory(user.id, (logRes.data as AnyRow[] | null) ?? []);
+        const historyPromise = loadSessionHistory(
+          user.id,
+          (logRes.data as AnyRow[] | null) ?? [],
+        ).catch((error) => {
+          console.warn("[loadwise] session history background load failed", error);
+          return cachedState?.history ?? [];
+        });
 
         const modifications: Record<string, SessionModification[]> = {};
         for (const row of (modRes.data as AnyRow[] | null) ?? []) {
@@ -1027,7 +1044,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           planGeneratedFor,
           readiness: persistedReadiness,
           completions,
-          history,
+          history: cachedState?.history ?? [],
           modifications,
           transitions,
           exerciseReplacements: !replacementRes.error
@@ -1039,17 +1056,21 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             : null,
         });
         setHydrated(true);
+        void historyPromise.then((history) => {
+          if (!cancelled) setState((current) => ({ ...current, history }));
+        });
       } catch (error) {
         console.error("[loadwise] hydration failed; using safe persisted state", error);
         if (!cancelled) {
-          setState({
-            ...initialState,
+          setState((current) => ({
+            ...(cachedState ?? current),
             profile: safeProfile,
-            readiness: safeLocal.readiness,
-            exerciseReplacements: safeLocal.exerciseReplacements,
+            readiness: cachedState?.readiness ?? safeLocal.readiness,
+            exerciseReplacements:
+              cachedState?.exerciseReplacements ?? safeLocal.exerciseReplacements,
             equipmentNotice:
-              "Nie udało się wczytać zapisanej części planu. Twoje dane profilu pozostały bez zmian.",
-          });
+              "Nie udało się odświeżyć zapisanej części planu. Pokazujemy ostatnie dostępne dane.",
+          }));
         }
       } finally {
         if (!cancelled) setHydrated(true);
@@ -1085,6 +1106,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     state.profile?.unavailableEquipmentIds,
     state.exerciseReplacements,
   ]);
+
+  // Keep the last complete screen ready for an instant, stale-while-revalidate launch.
+  // Delay serialization slightly so taps and route transitions always win the frame.
+  useEffect(() => {
+    if (!user || !hydrated || !state.profile?.onboardingComplete) return;
+    const timeout = window.setTimeout(() => saveBootState(user.id, state), 180);
+    return () => window.clearTimeout(timeout);
+  }, [user, hydrated, state]);
 
   // Sesja z poprzedniego dnia nie przenosi się automatycznie. Zapisujemy ją
   // jako pominiętą i przebudowujemy wyłącznie przyszłą część planu.

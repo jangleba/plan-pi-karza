@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { BottomNav } from "@/components/loadwise/BottomNav";
+import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 
 export const Route = createFileRoute("/_tabs")({
   component: TabsLayout,
@@ -37,11 +38,7 @@ function TabsLayout() {
   }, [hydrated]);
 
   if (loading || !user || !hydrated || !state.profile?.onboardingComplete) {
-    return (
-      <div className="app-shell flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground">Ładowanie…</p>
-      </div>
-    );
+    return <AppLaunchScreen />;
   }
 
   return (
