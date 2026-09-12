@@ -633,6 +633,8 @@ export type Database = {
           notes: string | null
           rpe: number | null
           session_id: string | null
+          started_at: string | null
+          ended_at: string | null
           updated_at: string
           user_id: string
         }
@@ -646,6 +648,8 @@ export type Database = {
           notes?: string | null
           rpe?: number | null
           session_id?: string | null
+          started_at?: string | null
+          ended_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -659,6 +663,8 @@ export type Database = {
           notes?: string | null
           rpe?: number | null
           session_id?: string | null
+          started_at?: string | null
+          ended_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -940,6 +946,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      withdraw_health_data_consent: {
+        Args: {
+          p_text_snapshot: string
+          p_version: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

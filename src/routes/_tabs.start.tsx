@@ -292,7 +292,7 @@ function StartScreen() {
         {/* Główne CTA */}
         {isMatch ? (
           <Button className="w-full" size="lg" onClick={openSession}>
-            Zobacz zalecenia meczowe
+            Rozpocznij mecz
           </Button>
         ) : isRestLike ? (
           <Button className="w-full" size="lg" onClick={openSession}>

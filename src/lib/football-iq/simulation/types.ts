@@ -135,7 +135,9 @@ export interface SimScenario {
   brief: string;
   topic: SimTopic;
   /** Grupy pozycyjne, dla których scenariusz jest trafny. */
-  positions: ("defender" | "midfielder" | "forward")[];
+  positions: ("goalkeeper" | "defender" | "midfielder" | "forward")[];
+  /** Poziomy profilu, dla których przeznaczono wariant. Brak = wszystkie poziomy. */
+  levels?: ("beginner" | "intermediate" | "advanced" | "elite")[];
   /**
    * "draft" = materiał roboczy bez źródła i bez akceptacji eksperta.
    * "sourced" = ma sourceReference do materiału FIFA/UEFA.
@@ -188,4 +190,3 @@ export interface SimResult {
   outcome: SimActionOutcome;
   alternative: { action: SimAction; outcome: SimActionOutcome; changed: string } | null;
 }
-

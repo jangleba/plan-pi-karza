@@ -19,34 +19,71 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthScreen() {
-  const { user, loading, signIn, signUp } = useAuth();
+  const {
+    user,
+    loading,
+    recoveryMode,
+    signIn,
+    signUp,
+    requestPasswordReset,
+    updatePassword,
+  } = useAuth();
   const { hydrated, state } = useLoadwise();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<"login" | "register">("register");
+  const [mode, setMode] = useState<"login" | "register" | "forgot" | "recovery">("register");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [accountOwnerType, setAccountOwnerType] = useState<AccountOwnerType>("athlete");
   const [athleteBirthDate, setAthleteBirthDate] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (recoveryMode) setMode("recovery");
+  }, [recoveryMode]);
+
   // Redirect signed-in users onward.
   useEffect(() => {
-    if (loading || !user || !hydrated) return;
+    if (loading || !user || !hydrated || recoveryMode || mode === "recovery") return;
     if (state.profile?.onboardingComplete) {
       navigate({ to: "/start", replace: true });
     } else {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [loading, user, hydrated, state.profile?.onboardingComplete, navigate]);
+  }, [loading, user, hydrated, state.profile?.onboardingComplete, recoveryMode, mode, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
     try {
-      if (mode === "register") {
+      if (mode === "forgot") {
+        const { error } = await requestPasswordReset(email.trim());
+        if (error) {
+          toast.error(authErrorMessage(error, "login"));
+          return;
+        }
+        toast.success("Wysłaliśmy link do ustawienia nowego hasła. Sprawdź pocztę.");
+        setMode("login");
+      } else if (mode === "recovery") {
+        if (password.length < 8) {
+          toast.error("Nowe hasło musi mieć co najmniej 8 znaków.");
+          return;
+        }
+        if (password !== passwordConfirmation) {
+          toast.error("Hasła nie są takie same.");
+          return;
+        }
+        const { error } = await updatePassword(password);
+        if (error) {
+          toast.error(authErrorMessage(error, "login"));
+          return;
+        }
+        toast.success("Hasło zostało zmienione.");
+        navigate({ to: state.profile?.onboardingComplete ? "/start" : "/onboarding", replace: true });
+      } else if (mode === "register") {
         if (name.trim().length < 2) {
           toast.error("Podaj imię.");
           return;
@@ -110,7 +147,11 @@ function AuthScreen() {
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "register"
               ? "Załóż konto, aby zacząć trenować mądrzej."
-              : "Zaloguj się do swojego konta."}
+              : mode === "forgot"
+                ? "Podaj e-mail, a wyślemy link do zmiany hasła."
+                : mode === "recovery"
+                  ? "Ustaw nowe hasło do swojego konta."
+                  : "Zaloguj się do swojego konta."}
           </p>
         </div>
 
@@ -181,7 +222,7 @@ function AuthScreen() {
               </div>
             </>
           )}
-          <div className="space-y-2">
+          {mode !== "recovery" && <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
             <Input
               id="email"
@@ -192,33 +233,62 @@ function AuthScreen() {
               placeholder="ty@example.com"
               autoComplete="email"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Hasło</Label>
+          </div>}
+          {mode !== "forgot" && <div className="space-y-2">
+            <Label htmlFor="password">{mode === "recovery" ? "Nowe hasło" : "Hasło"}</Label>
             <Input
               id="password"
               type="password"
               required
-              minLength={6}
+              minLength={mode === "recovery" ? 8 : 6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="min. 6 znaków"
               autoComplete={
-                mode === "register" ? "new-password" : "current-password"
+                mode === "register" || mode === "recovery" ? "new-password" : "current-password"
               }
             />
-          </div>
+          </div>}
+
+          {mode === "recovery" && (
+            <div className="space-y-2">
+              <Label htmlFor="password-confirmation">Powtórz nowe hasło</Label>
+              <Input
+                id="password-confirmation"
+                type="password"
+                required
+                minLength={8}
+                value={passwordConfirmation}
+                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+          )}
 
           <Button type="submit" className="w-full" size="lg" disabled={busy}>
             {busy
               ? "Chwila…"
               : mode === "register"
                 ? "Utwórz konto"
-                : "Zaloguj się"}
+                : mode === "forgot"
+                  ? "Wyślij link"
+                  : mode === "recovery"
+                    ? "Ustaw nowe hasło"
+                    : "Zaloguj się"}
           </Button>
         </form>
 
-        <button
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={() => setMode("forgot")}
+            className="mt-4 w-full text-center text-sm text-primary"
+          >
+            Nie pamiętam hasła
+          </button>
+        )}
+
+        {mode !== "recovery" && <button
           type="button"
           onClick={() => setMode(mode === "register" ? "login" : "register")}
           className="mt-5 w-full text-center text-sm text-muted-foreground"
@@ -226,7 +296,7 @@ function AuthScreen() {
           {mode === "register"
             ? "Masz już konto? Zaloguj się"
             : "Nie masz konta? Zarejestruj się"}
-        </button>
+        </button>}
 
         <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
           Regulamin i zgody zatwierdzisz osobno podczas konfiguracji profilu. Zobacz{" "}

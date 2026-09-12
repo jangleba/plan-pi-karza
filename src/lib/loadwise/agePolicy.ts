@@ -64,6 +64,7 @@ export function accountSetupIsAllowed(input: {
 }): boolean {
   const policy = policyForAge(input.age);
   if (!policy.personalizedAccountAllowed) return false;
+  if (input.age >= ADULT_AGE) return input.accountOwnerType === "athlete";
   if (!policy.guardianMustOwnAccount) return true;
   return (
     input.accountOwnerType === "guardian" &&

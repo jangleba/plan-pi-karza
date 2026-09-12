@@ -1,4 +1,5 @@
 import { ADVANCED_SCENARIOS } from "./library";
+import { GOALKEEPER_SCENARIOS } from "./goalkeeperLibrary";
 import type { SimScenario } from "./types";
 
 /**
@@ -409,13 +410,16 @@ export const shadowReceiveScenario: SimScenario = {
 export const SIM_SCENARIOS: SimScenario[] = [
   shadowReceiveScenario,
   ...ADVANCED_SCENARIOS,
+  ...GOALKEEPER_SCENARIOS,
 ];
 
 /** Scenariusze trafne dla danej grupy pozycyjnej (fallback: cała biblioteka). */
 export function scenariosForPosition(
-  group: "defender" | "midfielder" | "forward",
+  group: "goalkeeper" | "defender" | "midfielder" | "forward",
+  level?: "beginner" | "intermediate" | "advanced" | "elite",
 ): SimScenario[] {
-  const list = SIM_SCENARIOS.filter((s) => s.positions.includes(group));
+  const list = SIM_SCENARIOS.filter(
+    (s) => s.positions.includes(group) && (!level || !s.levels || s.levels.includes(level)),
+  );
   return list.length > 0 ? list : SIM_SCENARIOS;
 }
-

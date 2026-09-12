@@ -47,6 +47,28 @@ describe("finalizator — reprezentatywna macierz gęstych tygodni", () => {
       profile: profile({ age: 14, level: "beginner", goal: "speed", clubTrainingDays: [1, 2, 4, 5] }),
     },
     {
+      name: "14 lat beginner, cel szybkość, 4 dni klubu i mecz",
+      profile: profile({
+        age: 14,
+        level: "beginner",
+        goal: "speed",
+        clubTrainingDays: [1, 2, 4, 5],
+        matchDate: "2026-09-20",
+        weeklyMatches: true,
+      }),
+    },
+    {
+      name: "dorosły intermediate, cel szybkość, 4 dni klubu i mecz",
+      profile: profile({
+        age: 22,
+        level: "intermediate",
+        goal: "speed",
+        clubTrainingDays: [1, 2, 4, 5],
+        matchDate: "2026-09-20",
+        weeklyMatches: true,
+      }),
+    },
+    {
       name: "14 lat intermediate, cel wydolność, 4 dni klubu",
       profile: profile({ age: 14, level: "intermediate", goal: "endurance", clubTrainingDays: [1, 2, 4, 5] }),
     },
@@ -104,5 +126,27 @@ describe("finalizator — reprezentatywna macierz gęstych tygodni", () => {
       .filter(isBallTechnicalSession)
       .flatMap((session) => Object.values(session.sections).flat().filter((exercise) => /przysiad/i.test(exercise.name)).map((exercise) => ({ session: session.title, name: exercise.name, id: exercise.exerciseId, prescription: exercise.prescription })));
     expect(wrong).toEqual([]);
+  });
+
+  it("tydzień 5: gęsty kalendarz szybkości przechodzi pełną finalizację", () => {
+    console.debug = () => undefined;
+    const fifthWeekProfile = profile({
+      age: 14,
+      level: "beginner",
+      goal: "speed",
+      clubTrainingDays: [1, 2, 4, 5],
+      matchDate: "2026-09-20",
+      weeklyMatches: true,
+    });
+    const week = generatePlan(fifthWeekProfile, START, 7, 4);
+    const report = assertFinalPlanMeetsMinimums(
+      week,
+      requirementsFor(week, fifthWeekProfile),
+      fifthWeekProfile,
+    );
+
+    expect(week).toHaveLength(7);
+    expect(report.unresolvedIssues).toEqual([]);
+    expect(report.finalStatus).toBe("valid");
   });
 });

@@ -269,6 +269,9 @@ function Onboarding() {
     existing?.clubTrainingDays ?? [],
   );
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
+  const [noMatch, setNoMatch] = useState(
+    !existing?.matchDate && existing?.weeklyMatches === false,
+  );
   const equipment: string[] = existing?.equipment ?? [];
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
   const [painLocations, setPainLocations] = useState<PainLocation[]>(
@@ -330,8 +333,8 @@ function Onboarding() {
   const seasonValidation = validateSeason({
     seasonPhase,
     seasonStage,
-    nextMatchDate: matchDate || null,
-    weeklyMatches,
+    nextMatchDate: noMatch ? null : matchDate || null,
+    weeklyMatches: noMatch ? false : weeklyMatches,
     seasonPhaseOverride,
   });
   const seasonBlocksContinue =
@@ -356,7 +359,7 @@ function Onboarding() {
       guardianEmailVerified,
       guardianDeclarationAccepted,
     }) &&
-    (accountOwnerType !== "guardian" || ageNum >= 18 || (guardianEmailVerified && consent));
+    (accountOwnerType !== "guardian" || (guardianEmailVerified && consent));
   const isGuardianChild = ageNum != null && ageNum >= 13 && ageNum < 16;
 
   const totalSteps = 6;
@@ -435,7 +438,7 @@ function Onboarding() {
       );
     if (step === 3) return goal !== null && secondaryLimiter !== null;
     if (step === 4)
-      return matchDate.trim().length > 0 && (!painInjury || painLocations.length > 0);
+      return (noMatch || matchDate.trim().length > 0) && (!painInjury || painLocations.length > 0);
     if (step === 5)
       return currentFeelings.length > 0 && desiredFeelings.length > 0;
     return true;
@@ -476,7 +479,7 @@ function Onboarding() {
       toast.error("Zaakceptuj wymagane zgody, aby kontynuować.");
       return;
     }
-    if (!matchDate) {
+    if (!noMatch && !matchDate) {
       toast.error(
         "Podaj datę najbliższego meczu, żeby dobrze ustawić obciążenia.",
       );
@@ -532,7 +535,7 @@ function Onboarding() {
       individualTrainingDays: availableDays,
       unavailableDays,
       usualMatchDay: null,
-      matchDate: matchDate || null,
+      matchDate: noMatch ? null : matchDate || null,
       equipment,
       painInjury: Boolean(consents.health_data && painInjury),
       painLocations: consents.health_data && painInjury ? painLocations : [],
@@ -543,7 +546,7 @@ function Onboarding() {
       seasonPhase,
       seasonStage: seasonStage,
       competitionLevel,
-      weeklyMatches,
+      weeklyMatches: noMatch ? false : weeklyMatches,
       seasonPhaseOverride,
       seasonValidationStatus: seasonPhaseOverride
         ? "override"
@@ -995,7 +998,7 @@ function Onboarding() {
                       type="button"
                       onClick={() => setMatchDateTouched(true)}
                       className={`flex w-full items-center gap-3 rounded-xl border bg-background px-4 py-3 text-left text-sm transition-colors ${
-                        (triedNext || matchDateTouched) && !matchDate
+                        (triedNext || matchDateTouched) && !matchDate && !noMatch
                           ? "border-destructive"
                           : "border-border"
                       }`}
@@ -1003,10 +1006,10 @@ function Onboarding() {
                       <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <span
                         className={
-                          matchDate ? "text-foreground" : "text-muted-foreground"
+                          matchDate && !noMatch ? "text-foreground" : "text-muted-foreground"
                         }
                       >
-                        {matchDate
+                        {matchDate && !noMatch
                           ? format(new Date(`${matchDate}T00:00:00`), "d MMMM yyyy", {
                               locale: pl,
                             })
@@ -1023,7 +1026,10 @@ function Onboarding() {
                       }
                       onSelect={(d) => {
                         setMatchDateTouched(true);
-                        if (d) setMatchDate(format(d, "yyyy-MM-dd"));
+                        if (d) {
+                          setMatchDate(format(d, "yyyy-MM-dd"));
+                          setNoMatch(false);
+                        }
                       }}
                       disabled={(d) =>
                         d < new Date(`${todayStr}T00:00:00`)
@@ -1033,7 +1039,32 @@ function Onboarding() {
                     />
                   </PopoverContent>
                 </Popover>
-                {(triedNext || matchDateTouched) && !matchDate && (
+                <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5">
+                  <Checkbox
+                    checked={noMatch}
+                    onCheckedChange={(checked) => {
+                      const next = checked === true;
+                      setNoMatch(next);
+                      if (next) {
+                        setMatchDate("");
+                        setWeeklyMatches(false);
+                      }
+                    }}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">Nie mam teraz zaplanowanego meczu</span>
+                </label>
+                {!noMatch && matchDate && (
+                  <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5">
+                    <Checkbox
+                      checked={weeklyMatches}
+                      onCheckedChange={(checked) => setWeeklyMatches(checked === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm">W tym okresie zwykle gram mecz co tydzień</span>
+                  </label>
+                )}
+                {(triedNext || matchDateTouched) && !matchDate && !noMatch && (
                   <p className="text-xs font-medium text-destructive">
                     Podaj datę najbliższego meczu, żeby dobrze ustawić
                     obciążenia.

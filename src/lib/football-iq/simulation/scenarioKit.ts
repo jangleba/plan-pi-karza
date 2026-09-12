@@ -89,6 +89,7 @@ export interface ScenarioInput {
   brief: string;
   topic: SimTopic;
   positions: SimScenario["positions"];
+  levels?: SimScenario["levels"];
   status: SimScenario["status"];
   sourceReference?: SimSourceReference;
   context: Omit<SimScenarioContext, "weights"> & {
@@ -156,6 +157,7 @@ export function defineScenario(input: ScenarioInput): SimScenario {
     brief: input.brief,
     topic: input.topic,
     positions: input.positions,
+    levels: input.levels,
     status: input.status,
     sourceReference: input.sourceReference,
     context: {

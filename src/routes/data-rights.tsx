@@ -80,34 +80,14 @@ function DataRights() {
       return;
     setBusy(true);
     const actorType = state.profile?.accountOwnerType === "guardian" ? "guardian" : "athlete";
-    const consentWrite = await supabase.from("consent_logs").insert({
-      user_id: user.id,
-      consent_type: type,
-      accepted: false,
-      version: LEGAL_VERSION,
-      text_snapshot: "Wycofanie zgody przez użytkownika.",
-      actor_type: actorType,
-      actor_email: user.email ?? null,
-      scope: type === "health_data" ? "readiness_personalization" : "marketing",
-      withdrawn_at: new Date().toISOString(),
-    });
-    if (consentWrite.error) {
-      setBusy(false);
-      toast.error("Nie udało się wycofać zgody.");
-      return;
-    }
     if (type === "health_data") {
-      const [profileWrite, readinessDelete, painDelete] = await Promise.all([
-        supabase
-          .from("athlete_profiles")
-          .update({ health_personalization_enabled: false, pain_injury: false })
-          .eq("user_id", user.id),
-        supabase.from("readiness_logs").delete().eq("user_id", user.id),
-        supabase.from("pain_logs").delete().eq("user_id", user.id),
-      ]);
-      if (profileWrite.error || readinessDelete.error || painDelete.error) {
+      const { error } = await supabase.rpc("withdraw_health_data_consent", {
+        p_text_snapshot: "Wycofanie zgody przez użytkownika.",
+        p_version: LEGAL_VERSION,
+      });
+      if (error) {
         setBusy(false);
-        toast.error("Zgoda została odnotowana, ale czyszczenie danych wymaga ponowienia.");
+        toast.error("Nie udało się wycofać zgody i usunąć danych.");
         return;
       }
       try {
@@ -117,8 +97,24 @@ function DataRights() {
       } catch {
         window.localStorage.removeItem(`loadwise:v3:${user.id}`);
       }
-      toast.success("Usunięto check-iny i wyłączono personalizację zdrowotną.");
+      toast.success("Usunięto dane zdrowotne i wyłączono ich personalizację.");
       window.location.assign("/start");
+      return;
+    }
+    const consentWrite = await supabase.from("consent_logs").insert({
+      user_id: user.id,
+      consent_type: type,
+      accepted: false,
+      version: LEGAL_VERSION,
+      text_snapshot: "Wycofanie zgody przez użytkownika.",
+      actor_type: actorType,
+      actor_email: user.email ?? null,
+      scope: "marketing",
+      withdrawn_at: new Date().toISOString(),
+    });
+    if (consentWrite.error) {
+      setBusy(false);
+      toast.error("Nie udało się wycofać zgody.");
       return;
     }
     setBusy(false);

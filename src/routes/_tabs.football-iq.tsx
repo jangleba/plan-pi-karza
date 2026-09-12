@@ -23,6 +23,7 @@ import type {
   SimVerdict,
 } from "@/lib/football-iq/simulation/types";
 import type { IQPositionGroup } from "@/lib/football-iq/types";
+import type { Level } from "@/lib/loadwise/types";
 
 export const Route = createFileRoute("/_tabs/football-iq")({
   component: FootballIQScreen,
@@ -32,7 +33,7 @@ function FootballIQScreen() {
   const { state } = useLoadwise();
   const group = toIQPositionGroup(state.profile?.position);
   if (!group) return <NoPositionScreen />;
-  return <Simulation group={group} />;
+  return <Simulation group={group} level={state.profile?.level} />;
 }
 
 function NoPositionScreen() {
@@ -92,8 +93,8 @@ const VERDICT_LABEL: Record<SimVerdict, string> = {
 
 const REPLAY_STEPS = ["Twój moment", "Kluczowy ruch rywala", "Konsekwencja"];
 
-function Simulation({ group }: { group: IQPositionGroup }) {
-  const pool = useMemo(() => scenariosForPosition(group), [group]);
+function Simulation({ group, level }: { group: IQPositionGroup; level?: Level }) {
+  const pool = useMemo(() => scenariosForPosition(group, level), [group, level]);
   const [scenarioId, setScenarioId] = useState(pool[0].id);
   const scenario: SimScenario = useMemo(
     () => pool.find((s) => s.id === scenarioId) ?? pool[0],

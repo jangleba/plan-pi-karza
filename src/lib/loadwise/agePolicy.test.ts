@@ -48,4 +48,19 @@ describe("age policy", () => {
       transferMayBeOffered: false,
     });
   });
+
+  it("od 18 lat konto musi należeć do zawodnika", () => {
+    expect(accountSetupIsAllowed({
+      age: 18,
+      accountOwnerType: "guardian",
+      guardianEmailVerified: true,
+      guardianDeclarationAccepted: true,
+    })).toBe(false);
+    expect(accountSetupIsAllowed({
+      age: 18,
+      accountOwnerType: "athlete",
+      guardianEmailVerified: false,
+      guardianDeclarationAccepted: false,
+    })).toBe(true);
+  });
 });

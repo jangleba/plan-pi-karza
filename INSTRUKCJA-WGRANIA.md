@@ -47,18 +47,22 @@ VITE_LEGAL_ADMIN_NAME
 VITE_LEGAL_BUSINESS_ADDRESS
 VITE_LEGAL_CONTACT_EMAIL
 VITE_LEGAL_RETENTION_PERIOD
+VITE_RELEASE_MODE
 ```
 
-Bez tych czterech wartości Regulamin i Polityka prywatności celowo pokazują
-oznaczenie wersji testowej.
+Na testach ustaw `VITE_RELEASE_MODE=test`. Przy prawdziwej publikacji ustaw
+`VITE_RELEASE_MODE=production`; wtedy brak którejkolwiek z czterech wartości
+prawnych blokuje uruchomienie aplikacji zamiast pokazać dokument z placeholderem.
 
 ## 3. Supabase — kolejność wdrożenia
 
 Projekt: `bdfatyynxbzspjzkrjgg`.
 
 1. Zrób kopię bazy albo użyj najpierw środowiska testowego.
-2. Zastosuj migrację
-   `supabase/migrations/20260909090000_release_foundation.sql`.
+2. Zastosuj migracje w kolejności nazw plików, w tym:
+   - `supabase/migrations/20260909090000_release_foundation.sql`,
+   - `supabase/migrations/20260911213000_harden_consent_and_health_data.sql`,
+   - `supabase/migrations/20260911220000_match_and_guardian_hardening.sql`.
 3. Wdróż funkcję usuwania konta:
 
    ```sh
@@ -68,8 +72,17 @@ Projekt: `bdfatyynxbzspjzkrjgg`.
 4. Sprawdź w Supabase Auth, że potwierdzanie adresu e-mail jest włączone. Jest
    potrzebne także do bezpiecznego przekazania konta zawodnikowi po 16. roku
    życia.
-5. Po wykonaniu kopii bezpieczeństwa usuń pliki Vision Lab zgodnie z
+5. W **Authentication → URL Configuration** ustaw produkcyjny `Site URL` i
+   dodaj dokładny adres `https://TWOJA-DOMENA/auth` do dozwolonych redirect URL.
+6. W **Authentication → SMTP Settings** skonfiguruj własny SMTP. Domyślny
+   serwer Supabase jest wyłącznie testowy i bez tego reset hasła nie zadziała
+   niezawodnie dla zwykłych użytkowników.
+7. Po wykonaniu kopii bezpieczeństwa usuń pliki Vision Lab zgodnie z
    `docs/VISION-LAB-CLEANUP.md`. Ten krok jest celowo osobny i nieodwracalny.
+8. Na końcu uruchom w SQL Editor wyłącznie odczytowy plik
+   `supabase/verification/20260911_release_blockers.sql`. Każdy wiersz poza
+   `POLITYKI BIEGANIA` ma zwrócić `OK` (lub komunikat o włączonym RLS), a polityki
+   biegania mają zwrócić `4/4`.
 
 Migracja tworzy model kont opiekunów dla zawodników 13–15, osobne zgody,
 podsumowania biegów bez trasy GPS, polityki RLS, mechanizm przekazania konta po
@@ -96,6 +109,9 @@ Ręcznie sprawdź co najmniej:
 - rejestrację opiekuna dla zawodnika 13–15 i potwierdzenie e-maila;
 - blokadę konta dla osoby poniżej 13 lat oraz publiczny tryb demo;
 - działanie bez zgody zdrowotnej i po jej wycofaniu;
+- odzyskanie hasła z wiadomości e-mail aż do ustawienia nowego hasła;
+- rozpoczęcie dzisiejszego meczu, odświeżenie strony i zakończenie meczu;
+- odrzucenie profilu 13–15, gdy e-mail konta opiekuna nie jest potwierdzony;
 - zapis biegu — w bazie tylko dystans, czas i średnie tempo;
 - usunięcie konta w Profil → Prywatność i dane;
 - maksymalnie dwie sesje dziennie i minima tygodniowe dla celu szybkościowego

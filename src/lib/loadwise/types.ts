@@ -644,11 +644,13 @@ export interface WeekMeta {
 
 export interface SessionCompletion {
   completed: boolean;
-  status?: "completed" | "missed";
+  status?: "started" | "completed" | "missed";
   rpe: number | null;
   notes: string;
   durationMin?: number | null;
   activityType?: "technical" | "mixed" | "running_endurance" | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
 }
 
 export type SessionHistoryCategory =

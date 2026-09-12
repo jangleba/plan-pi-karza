@@ -343,12 +343,14 @@ function adjacentHasRealSpeedExposure(weekPlan: SessionDay[], index: number): bo
 function buildCanonicalSpeedRepair(
   profile: Profile,
   templateDay: SessionDay,
+  activation = false,
 ): SessionDay | null {
   const generated = generateFootballSpeedSession({
     profile,
     date: templateDay.date,
     family: "acceleration",
-    readiness: isYouthOrBeginner(profile) ? 5 : 7,
+    readiness: activation || isYouthOrBeginner(profile) ? 5 : 7,
+    recentHighSpeedExposure: activation,
     progressionWeek:
       templateDay.speedProgressionWeek ??
       templateDay.blockWeekNumber ??
@@ -423,6 +425,7 @@ export function addMissingCanonicalSpeedSessions(
         !isDayBeforeMatch(day) &&
         !isDayAfterMatch(day) &&
         !adjacentHasRealSpeedExposure(weekPlan, index) &&
+        !eachSession(day).some((session) => hasRealSpeedExposure(session)) &&
         Boolean(
           day.secondSession &&
           (isBallTechnicalSession(day.secondSession) ||
@@ -450,7 +453,8 @@ export function addMissingCanonicalSpeedSessions(
         !day.secondSession &&
         !isDayBeforeMatch(day) &&
         !isDayAfterMatch(day) &&
-        !adjacentHasRealSpeedExposure(weekPlan, index),
+        !adjacentHasRealSpeedExposure(weekPlan, index) &&
+        !eachSession(day).some((session) => hasRealSpeedExposure(session)),
     );
     if (secondSlotIndex >= 0) {
       const host = weekPlan[secondSlotIndex];
@@ -459,6 +463,34 @@ export function addMissingCanonicalSpeedSessions(
       rebuilt.secondSession = { ...host, secondSession: null, slotLabel: "Sesja 2" };
       rebuilt.slotLabel = "Sesja 1 (szybkość)";
       weekPlan[secondSlotIndex] = rebuilt;
+      added += 1;
+      continue;
+    }
+
+    // Gęsty tydzień (np. 4 treningi klubowe + mecz) może nie mieć drugiego
+    // wolnego dnia. Wtedy dokładamy krótki mikrobodziec szybkościowy jako
+    // drugi slot dnia klubowego. Nie zastępuje klubu, nie tworzy 3. sesji,
+    // nie wpada przy meczu ani dzień obok innej ekspozycji szybkościowej.
+    const clubMicrodoseIndex = weekPlan.findIndex(
+      (day, index) =>
+        !day.isUnavailable &&
+        isClubSession(day) &&
+        !isMatchSession(day) &&
+        realSessionCount(day) <= 2 &&
+        !isDayBeforeMatch(day) &&
+        !isDayAfterMatch(day) &&
+        !adjacentHasRealSpeedExposure(weekPlan, index) &&
+        !eachSession(day).some((session) => hasRealSpeedExposure(session)),
+    );
+    if (clubMicrodoseIndex >= 0) {
+      const host = weekPlan[clubMicrodoseIndex];
+      const speed = buildCanonicalSpeedRepair(profile, host, true);
+      if (!speed) break;
+      speed.slotLabel = "Sesja 2 (mikrobodziec szybkości)";
+      speed.reason =
+        "Krótki mikrobodziec szybkościowy w gęstym tygodniu — mała objętość, pełny odpoczynek, bez zmęczenia.";
+      host.secondSession = speed;
+      host.slotLabel = host.slotLabel ?? "Sesja 1 (klub)";
       added += 1;
       continue;
     }
@@ -1821,6 +1853,9 @@ export function validateAndRepairWeekPlan(
   // Najpierw siłownia i szybkość, ponieważ ich naprawy mogą przebudować cały dzień.
   addMissingGymSessions(weekPlan, requirements, profile);
   addMissingCanonicalSpeedSessions(weekPlan, requirements, profile);
+  // Speed ma pierwszeństwo w gęstym kalendarzu i może zastąpić wcześniejszy
+  // drugi slot. Ponownie domykamy siłę, zanim przejdziemy do endurance/piłki.
+  addMissingGymSessions(weekPlan, requirements, profile);
   repairDuplicateSpeedSameDay(weekPlan, profile);
   repairBackToBackSpeedSessions(weekPlan, profile);
   // Endurance dodajemy jako ostatnie: późniejsza naprawa innej kategorii nie może

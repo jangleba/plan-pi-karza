@@ -18,6 +18,8 @@ export const LEGAL_CONFIG = {
 };
 
 export const LEGAL_CONFIGURATION_COMPLETE = Object.values(LEGAL_CONFIG).every(Boolean);
+export const LEGAL_RELEASE_BLOCKED =
+  publicEnv("VITE_RELEASE_MODE") === "production" && !LEGAL_CONFIGURATION_COMPLETE;
 
 const administrator = LEGAL_CONFIG.administratorName || "[NAZWA ADMINISTRATORA]";
 const address = LEGAL_CONFIG.businessAddress || "[ADRES ADMINISTRATORA]";

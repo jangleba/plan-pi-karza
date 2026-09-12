@@ -11,7 +11,7 @@ const SESSIONS: Record<string, { title: string; summary: string }[]> = {
     { title: "POWER_PLYO_SUPPORT", summary: "Zaawansowani, zdrowi. Niska objętość skoków/rzutów." },
   ],
   speed: [
-    { title: "ACCELERATION", summary: "6×10 m / 4×15 m / 3×20 m, transfer z piłką. Limit 240 m." },
+    { title: "ACCELERATION", summary: "6×10 m / 4×15 m / 3×20 m bez piłki. Limit 240 m." },
     { title: "MAX_VELOCITY", summary: "Flying 20s, pełny odpoczynek. Tylko gdy świeży." },
     { title: "SPEED_MICRODOSE", summary: "15–25 min. W sezonie / MD-2. Ekspozycja bez zmęczenia." },
     { title: "REPEATED_SPRINT_SUPPORT", summary: "Starsi/zaawansowani, z dala od meczu." },
@@ -20,7 +20,7 @@ const SESSIONS: Record<string, { title: string; summary: string }[]> = {
     { title: "EASY_AEROBIC", summary: "20–40 min, niska intensywność, regeneracja/baza." },
     { title: "TEMPO_EXTENSIVE", summary: "6–10×100 m tempo lub 2–4×4 min kontrolowane." },
     { title: "INTERVAL_HIIT", summary: "Starsi/zaawansowani. Z dala od meczu." },
-    { title: "FOOTBALL_CONDITIONING", summary: "Wahadłowce, obwody z piłką." },
+    { title: "FOOTBALL_CONDITIONING", summary: "Interwały biegowe i wahadłowce bez piłki." },
     { title: "RECOVERY_RUN", summary: "10–25 min bardzo niska, opcjonalnie MD+1." },
   ],
   ball: [

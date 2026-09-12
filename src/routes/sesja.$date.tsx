@@ -101,6 +101,13 @@ export function canShowPostSessionForm(session: SessionDay): boolean {
   return true;
 }
 
+export function matchCanBeCompleted(
+  session: SessionDay,
+  status: "started" | "completed" | "missed" | undefined,
+): boolean {
+  return session.dayType !== "match" || status === "started" || status === "completed";
+}
+
 function parseCompletionNotes(raw: string): { pain: number; legFatigue: number; notes: string } {
   const header = raw.match(/^\[Monitoring\]\s*pain=(\d+);\s*legFatigue=(\d+)\n?/i);
   if (!header) return { pain: 0, legFatigue: 0, notes: raw };
@@ -1143,8 +1150,68 @@ function LogField({
   );
 }
 
+function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: boolean }) {
+  const { state, startSession } = useLoadwise();
+  const existing = session.dbId ? state.completions[session.dbId] : undefined;
+  const [starting, setStarting] = useState(false);
+
+  if (!session.dbId || session.dayType !== "match" || existing?.completed) return null;
+
+  if (!isToday && existing?.status !== "started") {
+    return (
+      <div className="soft-card p-4">
+        <h3 className="text-sm font-semibold">Zaplanowany mecz</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Przycisk rozpoczęcia będzie dostępny w dniu meczu.
+        </p>
+      </div>
+    );
+  }
+
+  if (existing?.status === "started") {
+    return (
+      <div className="soft-card border-primary/30 p-4">
+        <div className="flex items-center gap-2">
+          <Flag className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Mecz rozpoczęty</h3>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Po ostatnim gwizdku uzupełnij wynik obciążenia poniżej.
+        </p>
+      </div>
+    );
+  }
+
+  async function start() {
+    setStarting(true);
+    try {
+      await startSession(session);
+      toast.success("Mecz rozpoczęty. Powodzenia!");
+    } catch {
+      toast.error("Nie udało się rozpocząć meczu. Sprawdź połączenie i spróbuj ponownie.");
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  return (
+    <div className="soft-card p-4">
+      <h3 className="text-sm font-semibold">Gotowy do meczu?</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Start zapisze godzinę rozpoczęcia. Dane po meczu uzupełnisz po zakończeniu.
+      </p>
+      <Button className="mt-3 w-full" size="lg" disabled={starting} onClick={() => void start()}>
+        <Flag className="mr-2 h-4 w-4" />
+        {starting ? "Rozpoczynanie…" : "Rozpocznij mecz"}
+      </Button>
+    </div>
+  );
+}
+
 function CompletionPanel({ session }: { session: SessionDay }) {
   const { state, completeSession } = useLoadwise();
+  const healthPersonalizationEnabled =
+    state.profile?.healthPersonalizationEnabled === true;
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
   const parsed = parseCompletionNotes(existing?.notes ?? "");
   const [rpe, setRpe] = useState(existing?.rpe ?? 6);
@@ -1177,7 +1244,9 @@ function CompletionPanel({ session }: { session: SessionDay }) {
       await completeSession(
         session,
         rpe,
-        composeCompletionNotes(notes, pain, legFatigue),
+        healthPersonalizationEnabled
+          ? composeCompletionNotes(notes, pain, legFatigue)
+          : notes.trim(),
         externalSession ? { durationMin, activityType } : { durationMin: session.durationMin },
       );
       toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
@@ -1234,17 +1303,23 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         </div>
       )}
 
-      <div className="mt-3 space-y-2">
-        <LogField label="Ból 0–10" value={pain} onChange={setPain} />
-        <LogField label="Zmęczenie nóg 0–10" value={legFatigue} onChange={setLegFatigue} />
-      </div>
+      {healthPersonalizationEnabled && (
+        <div className="mt-3 space-y-2">
+          <LogField label="Ból 0–10" value={pain} onChange={setPain} />
+          <LogField label="Zmęczenie nóg 0–10" value={legFatigue} onChange={setLegFatigue} />
+        </div>
+      )}
 
       <div className="mt-3 space-y-2">
         <span className="text-sm text-muted-foreground">Notatki po sesji</span>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Jak poszło? Sen, ból, dodatkowe uwagi…"
+          placeholder={
+            healthPersonalizationEnabled
+              ? "Jak poszło? Sen, ból, dodatkowe uwagi…"
+              : "Jak poszło? Dodatkowe uwagi…"
+          }
           rows={2}
         />
       </div>
@@ -1661,7 +1736,11 @@ function SessionDetail() {
           </div>
         )}
 
-        {canShowPostSessionForm(session) && (!sprintRunner || showSprintCompletion) && (
+        {session.dayType === "match" && <MatchStartPanel session={session} isToday={isToday} />}
+
+        {canShowPostSessionForm(session) &&
+          matchCanBeCompleted(session, session.dbId ? state.completions[session.dbId]?.status : undefined) &&
+          (!sprintRunner || showSprintCompletion) && (
           <CompletionPanel session={session} />
         )}
 

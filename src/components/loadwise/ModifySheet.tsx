@@ -74,7 +74,7 @@ export function ModifySheet({
   }
 
   function continueFromDetails() {
-    if (!readiness) {
+    if (profile?.healthPersonalizationEnabled && !readiness) {
       setStep("readiness");
     } else {
       setStep("proposals");
@@ -224,7 +224,9 @@ export function ModifySheet({
             </div>
 
             <Button className="w-full" size="lg" onClick={continueFromDetails}>
-              {readiness ? "Pokaż propozycje" : "Dalej — check-in"}
+              {readiness || !profile.healthPersonalizationEnabled
+                ? "Pokaż propozycje"
+                : "Dalej — check-in"}
             </Button>
           </div>
         )}

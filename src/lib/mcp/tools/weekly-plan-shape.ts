@@ -31,11 +31,10 @@ export default defineTool({
       req.prehab = 3;
     }
 
-    // Ciężki tydzień klubowy: klub jest głównym obciążeniem.
+    // Dużo klubu zmniejsza tylko minimum siły. Klub nie zastępuje
+    // własnej szybkości ani wydolności wymaganej przez wybrany cel.
     if (club >= 4) {
       req.strength = Math.min(req.strength, 1);
-      req.endurance = 1; // twarda zasada: zawsze min. 1 wydolności
-      req.speed = Math.min(req.speed, 1);
     } else if (club >= 3) {
       req.strength = Math.min(req.strength, goal === "strength" ? 2 : 1);
     }

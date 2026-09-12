@@ -91,18 +91,25 @@ function ProfileScreen() {
     }
     if (!window.confirm("Wysłać przekazanie konta na e-mail zawodnika? Po potwierdzeniu zawodnik ponownie zaakceptuje dokumenty.")) return;
     setTransferBusy(true);
+    const pendingProfile = {
+      ...profile!,
+      ownershipTransferStatus: "pending" as const,
+      ownershipTransferEmail: email,
+      ownershipTransferRequestedAt: new Date().toISOString(),
+    };
     try {
-      await updateProfile({
-        ...profile!,
-        ownershipTransferStatus: "pending",
-        ownershipTransferEmail: email,
-        ownershipTransferRequestedAt: new Date().toISOString(),
-      });
+      await updateProfile(pendingProfile);
       const result = await requestAccountEmailChange(email);
       if (result.error) throw new Error(result.error);
       toast.success("Wysłaliśmy potwierdzenie. Konto zostanie przekazane dopiero po potwierdzeniu nowego e-maila.");
       setTransferEmail("");
     } catch (error) {
+      try {
+        await updateProfile(profile!);
+      } catch {
+        // The pending transfer remains visible and can be retried; do not hide
+        // the original Auth error behind a best-effort rollback error.
+      }
       toast.error(error instanceof Error ? error.message : "Nie udało się rozpocząć przekazania.");
     } finally {
       setTransferBusy(false);

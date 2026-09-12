@@ -5,6 +5,7 @@ import type { ExerciseItem, SessionDay, TrainingSection } from "@/lib/loadwise/t
 import {
   buildSprintRunnerBlocks,
   canShowPostSessionForm,
+  matchCanBeCompleted,
   formatSprintPrescription,
   isSprintRunnerSession,
   resolveSprintExerciseDetails,
@@ -56,6 +57,14 @@ describe("sesja details view-model", () => {
   it("renderuje dokładnie jeden kanoniczny formularz completion/monitoring", () => {
     const session = baseSession({ dbId: "session-1" });
     expect(canShowPostSessionForm(session)).toBe(true);
+  });
+
+  it("nie pozwala zakończyć meczu, zanim zostanie rozpoczęty", () => {
+    const match = baseSession({ dbId: "match-1", dayType: "match" });
+    expect(matchCanBeCompleted(match, undefined)).toBe(false);
+    expect(matchCanBeCompleted(match, "started")).toBe(true);
+    expect(matchCanBeCompleted(match, "completed")).toBe(true);
+    expect(matchCanBeCompleted(match, "missed")).toBe(false);
   });
 });
 

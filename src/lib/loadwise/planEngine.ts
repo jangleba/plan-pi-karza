@@ -4664,6 +4664,16 @@ export function generatePlan(
   // na dokładnie tej wersji sesji, którą otrzyma zawodnik.
   repairSpeedAcrossWeekBoundaries(finalPlan, profile);
 
+  // Rebuild treści lub naprawa granicy tygodnia może usunąć sesję, która
+  // wcześniej spełniała minimum. To jest faktycznie ostatni hard gate przed
+  // metadanymi i zwróceniem planu do UI.
+  const postRebuildFinalized = finalizeWeekPlan(finalPlan, profile).plan;
+  for (let i = 0; i < finalPlan.length; i++) {
+    finalPlan[i] = normalizeSessionCategory(
+      canonicalizeGeneratedSessionExercises(postRebuildFinalized[i]),
+    );
+  }
+
   // Ostatni walidator może dodać albo zamienić sesję. Dlatego progresję bloku
   // domykamy dopiero teraz, na faktycznie zwracanym planie.
   const metadataRanges = weekRanges(startDate, finalPlan.length);

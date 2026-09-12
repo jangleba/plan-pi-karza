@@ -4,7 +4,7 @@
 export type IQPhase = "attack" | "defense";
 
 /** Grupa pozycyjna używana przez scenariusze IQ. */
-export type IQPositionGroup = "defender" | "midfielder" | "forward";
+export type IQPositionGroup = "goalkeeper" | "defender" | "midfielder" | "forward";
 
 export type IQRating = "optimal" | "safe" | "risky" | "wrong";
 

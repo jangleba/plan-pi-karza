@@ -622,6 +622,7 @@ interface LoadwiseContextValue {
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   refreshPlanIfNeeded: () => void;
+  startSession: (session: SessionDay) => Promise<void>;
   completeSession: (
     session: SessionDay,
     rpe: number | null,
@@ -740,7 +741,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .maybeSingle(),
             supabase
               .from("session_logs")
-              .select("session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type")
+              .select("session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at")
               .eq("user_id", user.id),
             supabase
               .from("session_modifications" as never)
@@ -841,11 +842,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             if (!sid) continue;
             persistedCompletions[sid] = {
               completed: Boolean(row.completed),
-              status: row.completion_status === "missed" ? "missed" : "completed",
+              status:
+                row.completion_status === "missed"
+                  ? "missed"
+                  : row.completion_status === "started"
+                    ? "started"
+                    : "completed",
               rpe: (row.rpe as number) ?? null,
               notes: (row.notes as string) ?? "",
               durationMin: (row.duration_minutes as number) ?? null,
               activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
+              startedAt: (row.started_at as string | null) ?? null,
+              endedAt: (row.ended_at as string | null) ?? null,
             };
           }
           const persistedModifications: Record<string, SessionModification[]> = {};
@@ -935,11 +943,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           if (!sid) continue;
           completions[sid] = {
             completed: Boolean(row.completed),
-            status: row.completion_status === "missed" ? "missed" : "completed",
+            status:
+              row.completion_status === "missed"
+                ? "missed"
+                : row.completion_status === "started"
+                  ? "started"
+                  : "completed",
             rpe: (row.rpe as number) ?? null,
             notes: (row.notes as string) ?? "",
             durationMin: (row.duration_minutes as number) ?? null,
             activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
+            startedAt: (row.started_at as string | null) ?? null,
+            endedAt: (row.ended_at as string | null) ?? null,
           };
         }
         const persistedReadiness: Record<string, Readiness> = profile?.healthPersonalizationEnabled
@@ -1239,6 +1254,36 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
     if (!user) return;
+    // Consent is persisted before enabling optional health processing. The DB
+    // trigger then refuses health mode unless the latest audit row is accepted.
+    if (consents) {
+      const actorType = profile.accountOwnerType === "guardian" ? "guardian" : "athlete";
+      const rows = CONSENTS.map((c) => ({
+        user_id: user.id,
+        consent_type: c.type,
+        accepted: Boolean(consents[c.type]),
+        version: LEGAL_VERSION,
+        text_snapshot: c.text,
+        actor_type: actorType,
+        actor_email: user.email ?? null,
+        scope: c.type === "health_data" ? "readiness_personalization" : c.type,
+      }));
+      if (profile.accountOwnerType === "guardian") {
+        rows.push({
+          user_id: user.id,
+          consent_type: "guardian_authorization",
+          accepted: Boolean(profile.guardianConsent),
+          version: LEGAL_VERSION,
+          text_snapshot:
+            "Oświadczenie, że właściciel konta jest rodzicem lub opiekunem zawodnika i może prowadzić jego profil.",
+          actor_type: "guardian",
+          actor_email: user.email ?? null,
+          scope: "child_profile",
+        });
+      }
+      const consentWrite = await supabase.from("consent_logs").insert(rows);
+      assertNoSupabaseError("consent_logs.insert", consentWrite.error);
+    }
     const revision = await saveProfileRows(profile, false);
     const nextProfile: Profile = {
       ...profile,
@@ -1255,35 +1300,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       completed_at: new Date().toISOString(),
     });
     assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
-
-    if (consents) {
-      const actorType = nextProfile.accountOwnerType === "guardian" ? "guardian" : "athlete";
-      const rows = CONSENTS.map((c) => ({
-        user_id: user.id,
-        consent_type: c.type,
-        accepted: Boolean(consents[c.type]),
-        version: LEGAL_VERSION,
-        text_snapshot: c.text,
-        actor_type: actorType,
-        actor_email: user.email ?? null,
-        scope: c.type === "health_data" ? "readiness_personalization" : c.type,
-      }));
-      if (nextProfile.accountOwnerType === "guardian") {
-        rows.push({
-          user_id: user.id,
-          consent_type: "guardian_authorization",
-          accepted: Boolean(nextProfile.guardianConsent),
-          version: LEGAL_VERSION,
-          text_snapshot:
-            "Oświadczenie, że właściciel konta jest rodzicem lub opiekunem zawodnika i może prowadzić jego profil.",
-          actor_type: "guardian",
-          actor_email: user.email ?? null,
-          scope: "child_profile",
-        });
-      }
-      const consentWrite = await supabase.from("consent_logs").insert(rows);
-      assertNoSupabaseError("consent_logs.insert", consentWrite.error);
-    }
     if (!nextProfile.healthPersonalizationEnabled) {
       const [readinessDelete, painDelete] = await Promise.all([
         supabase.from("readiness_logs").delete().eq("user_id", user.id),
@@ -1375,6 +1391,48 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     })();
   }
 
+  async function startSession(session: SessionDay) {
+    const sid = session.dbId;
+    if (!user || !sid) throw new Error("Nie można rozpocząć tej sesji.");
+    const existing = state.completions[sid];
+    if (existing?.completed || existing?.status === "started") return;
+
+    const startedAt = new Date().toISOString();
+    const result = await supabase.from("session_logs").upsert(
+      {
+        user_id: user.id,
+        session_id: sid,
+        completed: false,
+        completion_status: "started",
+        rpe: null,
+        notes: null,
+        duration_minutes: null,
+        activity_type: session.dayType === "match" ? "mixed" : null,
+        started_at: startedAt,
+        ended_at: null,
+        updated_at: startedAt,
+      },
+      { onConflict: "user_id,session_id" },
+    );
+    assertNoSupabaseError("session_logs.start", result.error);
+    setState((current) => ({
+      ...current,
+      completions: {
+        ...current.completions,
+        [sid]: {
+          completed: false,
+          status: "started",
+          rpe: null,
+          notes: "",
+          durationMin: null,
+          activityType: session.dayType === "match" ? "mixed" : null,
+          startedAt,
+          endedAt: null,
+        },
+      },
+    }));
+  }
+
   async function completeSession(
     session: SessionDay,
     rpe: number | null,
@@ -1390,6 +1448,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       notes,
       durationMin: details.durationMin ?? session.durationMin ?? null,
       activityType: details.activityType ?? null,
+      startedAt: state.completions[sid]?.startedAt ?? null,
+      endedAt: new Date().toISOString(),
     };
     const category = historyCategoryOf(session.sessionType, session.dayType);
     const record: SessionHistoryRecord | null = category
@@ -1413,6 +1473,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         notes,
         duration_minutes: completion.durationMin,
         activity_type: completion.activityType,
+        started_at: completion.startedAt ?? completion.endedAt,
+        ended_at: completion.endedAt,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,session_id" },
@@ -1963,6 +2025,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completeOnboarding,
         updateProfile,
         refreshPlanIfNeeded,
+        startSession,
         completeSession,
         applyModification,
         undoModification,

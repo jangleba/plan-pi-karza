@@ -5,7 +5,7 @@ import type { Position } from "@/lib/loadwise/types";
 import type { IQPositionGroup } from "./types";
 
 const MAP: Record<Position, IQPositionGroup | null> = {
-  goalkeeper: null, // brak scenariuszy bramkarskich w MVP
+  goalkeeper: "goalkeeper",
   defender: "defender",
   midfielder: "midfielder",
   forward: "forward",
@@ -19,6 +19,7 @@ export function toIQPositionGroup(
 }
 
 export const IQ_GROUP_LABELS: Record<IQPositionGroup, string> = {
+  goalkeeper: "Bramkarz",
   defender: "Obrońca",
   midfielder: "Pomocnik",
   forward: "Napastnik",
