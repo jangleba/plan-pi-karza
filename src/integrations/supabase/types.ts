@@ -629,12 +629,12 @@ export type Database = {
           completion_status: string
           created_at: string
           duration_minutes: number | null
+          ended_at: string | null
           id: string
           notes: string | null
           rpe: number | null
           session_id: string | null
           started_at: string | null
-          ended_at: string | null
           updated_at: string
           user_id: string
         }
@@ -644,12 +644,12 @@ export type Database = {
           completion_status?: string
           created_at?: string
           duration_minutes?: number | null
+          ended_at?: string | null
           id?: string
           notes?: string | null
           rpe?: number | null
           session_id?: string | null
           started_at?: string | null
-          ended_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -659,12 +659,12 @@ export type Database = {
           completion_status?: string
           created_at?: string
           duration_minutes?: number | null
+          ended_at?: string | null
           id?: string
           notes?: string | null
           rpe?: number | null
           session_id?: string | null
           started_at?: string | null
-          ended_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -948,10 +948,7 @@ export type Database = {
         Returns: boolean
       }
       withdraw_health_data_consent: {
-        Args: {
-          p_text_snapshot: string
-          p_version: string
-        }
+        Args: { p_text_snapshot: string; p_version: string }
         Returns: undefined
       }
     }
