@@ -74,6 +74,39 @@ describe("aktywny Plan korzysta z jednego silnika biegowego", () => {
     for (const session of sessions) {
       expect(exerciseText(session)).not.toMatch(/piłk|podani|przyjęci|dryblin/i);
     }
+    const fieldTest = sessions.find(
+      (session) => classifySession(session).subcategory === "field_mas_test",
+    );
+    expect(fieldTest).toBeDefined();
+    expect(fieldTest?.durationMin).toBe(25);
+    expect(fieldTest?.intensity).toBe("wysoka");
+    expect(fieldTest?.sections.main[0]).toEqual(
+      expect.objectContaining({
+        exerciseId: "field_mas_5_min_test",
+        name: "Test biegowy 5 min",
+      }),
+    );
+  });
+
+  it("nie łączy testu 5-minutowego z ciężką pracą nóg", () => {
+    const plan = generatePlan(
+      profile({ goal: "strength", hasGym: true }),
+      new Date("2026-07-13T00:00:00"),
+      28,
+    );
+    const testDays = plan.filter((day) =>
+      [day, day.secondSession]
+        .filter(Boolean)
+        .some((session) => classifySession(session as SessionDay).subcategory === "field_mas_test"),
+    );
+    expect(testDays.length).toBeGreaterThan(0);
+    for (const day of testDays) {
+      const text = [day, day.secondSession]
+        .filter(Boolean)
+        .map((session) => exerciseText(session as SessionDay))
+        .join(" ");
+      expect(text).not.toMatch(/trap.?bar|martwy|deadlift|rdl|przysiad|squat|wykrok|lunge/i);
+    }
   });
 
   it("po aktualnym teście używa indywidualnego tempa min/km zamiast starej losowej puli", () => {

@@ -152,6 +152,8 @@ function pick<T>(arr: T[], idx: number): T {
 interface BuiltContent {
   title: string;
   sessionType: string;
+  durationMin?: number;
+  intensity?: SessionDay["intensity"];
   goalOfSession: string;
   riskManaged: string;
   avoidToday: string;
@@ -911,6 +913,8 @@ export function buildRunningConditioning(
   return {
     title: prescription.title,
     sessionType: prescription.sessionType,
+    durationMin: prescription.durationMin,
+    intensity: prescription.intensity,
     goalOfSession: prescription.goal,
     riskManaged:
       "Metoda, tempo i dawka pochodzą z jednego silnika biegowego. Praca bez piłki; progresja zmienia jedną główną zmienną naraz.",
@@ -1126,6 +1130,8 @@ export function enforceSessionCategory(
   if (built) {
     session.title = built.title;
     session.sessionType = built.sessionType;
+    if (built.durationMin != null) session.durationMin = built.durationMin;
+    if (built.intensity != null) session.intensity = built.intensity;
     session.goalOfSession = built.goalOfSession;
     session.riskManaged = built.riskManaged;
     session.avoidToday = built.avoidToday;

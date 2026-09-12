@@ -1737,6 +1737,8 @@ function SessionDetail() {
 
         {canShowPostSessionForm(session) &&
           matchCanBeCompleted(session, session.dbId ? state.completions[session.dbId]?.status : undefined) &&
+          (session.classification?.subcategory !== "field_mas_test" ||
+            Boolean(session.dbId && state.runningActivities[session.dbId])) &&
           (!sprintRunner || showSprintCompletion) && (
           <CompletionPanel session={session} />
         )}

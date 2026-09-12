@@ -1199,6 +1199,47 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     ],
   }),
   supportExercise(
+    "field_mas_5_min_test",
+    "5-minute field MAS test",
+    "conditioning",
+    "field MAS assessment",
+    {
+      displayNamePl: "Test biegowy 5 min",
+      aliases: [
+        "5-minute field MAS test",
+        "Test 5-minutowy — równy maksymalny wysiłek",
+        "Test 5-minutowy",
+        "Test terenowego MAS",
+      ],
+      difficultyLevel: 3,
+      technicalComplexity: 1,
+      minAge: 13,
+      recommendedDevelopmentStage: "early_youth",
+      requiredMovementCompetenceLevel: "medium",
+      impactLevel: "moderate",
+      kneeLoadLevel: "moderate",
+      ankleLoadLevel: "moderate",
+      hamstringLoadLevel: "moderate",
+      enduranceIntensity: "high",
+      contraindications: ["knee", "ankle", "hamstring", "groin", "hip"],
+      injuryCautions: [
+        "Nie wykonuj przy ostrym bólu, zawrotach głowy, bólu w klatce piersiowej ani podczas choroby.",
+        "Przerwij test natychmiast, jeśli pojawi się niepokojący objaw.",
+      ],
+      coachingCues: [
+        "Po pełnej rozgrzewce biegnij możliwie równo przez dokładnie 5 minut",
+        "Zacznij kontrolowanie; nie sprintuj pierwszej minuty",
+        "Przerwij przy bólu lub niepokojącym objawie",
+      ],
+      commonErrors: [
+        "Zbyt szybki początek i duży spadek tempa",
+        "Wliczenie rozgrzewki do pięciominutowego odcinka testowego",
+      ],
+      safeAlternativeIds: ["easy_aerobic_run"],
+      regressionIds: ["easy_aerobic_run"],
+    },
+  ),
+  supportExercise(
     "tempo_conditioning_block",
     "Tempo conditioning block",
     "conditioning",
@@ -1217,8 +1258,12 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     },
   ),
   supportExercise("pallof_press", "Pallof press", "trunk", "anti-rotation trunk stability"),
-  supportExercise("side_plank", "Side plank", "trunk", "lateral trunk stability"),
-  supportExercise("copenhagen_plank", "Copenhagen plank", "trunk", "adductor and trunk stability"),
+  supportExercise("side_plank", "Side plank", "trunk", "lateral trunk stability", {
+    displayNamePl: "Deska bokiem",
+  }),
+  supportExercise("copenhagen_plank", "Copenhagen plank", "trunk", "adductor and trunk stability", {
+    displayNamePl: "Deska kopenhaska",
+  }),
   supportExercise("face_pull_band", "Face pull (guma / wyciąg)", "trunk", "scapular stability"),
   supportExercise("bodyweight_row", "Bodyweight row", "strength", "upper-body pulling strength", {
     movementPattern: "pull",

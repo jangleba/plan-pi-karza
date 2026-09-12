@@ -85,6 +85,8 @@ export function EnduranceRunTracker({
   onDelete: (activityId: string) => Promise<void>;
 }) {
   const intervalProtocol = useMemo(() => deriveRunningIntervalProtocol(session), [session]);
+  const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
+  const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const [phase, setPhase] = useState<TrackerPhase>("idle");
   const [route, setRoute] = useState<RoutePoint[]>([]);
   const [pending, setPending] = useState<RunningActivityDraft | null>(null);
@@ -241,6 +243,10 @@ export function EnduranceRunTracker({
 
   async function startRecording() {
     setGpsError(null);
+    if (isFieldMasTest && !safetyAcknowledged) {
+      setGpsError("Przed startem potwierdź, że przeczytałeś zasady bezpieczeństwa testu.");
+      return;
+    }
     if (!navigator.geolocation) {
       setGpsError("Ta przeglądarka nie obsługuje lokalizacji GPS.");
       return;
@@ -381,8 +387,12 @@ export function EnduranceRunTracker({
       setPending(null);
       setPhase("idle");
       toast.success("Zapisano dystans, czas i średnie tempo biegu.");
-    } catch {
-      toast.error("Nie udało się zapisać biegu. Dane zostały na ekranie — spróbuj ponownie.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nie udało się zapisać biegu. Dane zostały na ekranie — spróbuj ponownie.",
+      );
     } finally {
       setSaving(false);
     }
@@ -446,7 +456,7 @@ export function EnduranceRunTracker({
         <div className="flex items-center gap-2">
           <LocateFixed className="h-4 w-4 text-primary" aria-hidden="true" />
           <h2 id="run-tracker-title" className="text-sm font-semibold">
-            Bieg z GPS
+            {isFieldMasTest ? "Pomiar testu 5-minutowego" : "Bieg z GPS"}
           </h2>
           <span className="ml-auto rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
             prywatny
@@ -457,6 +467,26 @@ export function EnduranceRunTracker({
           pamięci telefonu. Do bazy trafiają wyłącznie dystans, czas i średnie tempo.
         </p>
       </div>
+
+      {isFieldMasTest && !activity && !pending && !isTracking && (
+        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
+          <h3 className="text-sm font-semibold">Najpierw bezpieczeństwo</h3>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
+            <li>Wykonaj 10–12 minut spokojnej rozgrzewki na płaskiej, bezpiecznej trasie.</li>
+            <li>Po kliknięciu „Start testu” uruchom odcinek i biegnij równo przez pełne 5 minut.</li>
+            <li>Przerwij przy ostrym bólu, zawrotach głowy, bólu w klatce lub innym niepokojącym objawie.</li>
+          </ol>
+          <label className="mt-3 flex items-start gap-2 text-xs font-medium">
+            <input
+              type="checkbox"
+              checked={safetyAcknowledged}
+              onChange={(event) => setSafetyAcknowledged(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <span>Przeczytałem zasady i wiem, że BallWise nie ocenia mojego stanu zdrowia.</span>
+          </label>
+        </div>
+      )}
 
       {intervalProtocol && !isTracking && !pending && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
@@ -637,9 +667,10 @@ export function EnduranceRunTracker({
             <button
               type="button"
               onClick={() => void startRecording()}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95"
+              disabled={isFieldMasTest && !safetyAcknowledged}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <LocateFixed className="h-4 w-4" /> {activity ? "Nagraj ponownie" : "Start GPS"}
+              <LocateFixed className="h-4 w-4" /> {activity ? "Nagraj ponownie" : isFieldMasTest ? "Start testu 5 min" : "Start GPS"}
             </button>
           )}
           {!pending && (

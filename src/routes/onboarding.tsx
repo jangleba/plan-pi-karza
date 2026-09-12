@@ -1344,11 +1344,11 @@ function Onboarding() {
               {MEDICAL_DISCLAIMER}
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {CONSENTS.map((c) => (
                 <label
                   key={c.type}
-                  className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5"
+                  className="flex items-start gap-3 rounded-xl border border-border bg-card p-3"
                 >
                   <Checkbox
                     checked={!!consents[c.type]}
@@ -1357,12 +1357,22 @@ function Onboarding() {
                     }
                     className="mt-0.5"
                   />
-                  <span className="text-sm">
-                    {c.title}
+                  <span className="text-sm leading-snug">
+                    {c.type === "terms" ? (
+                      <Link to="/terms" onClick={(event) => event.stopPropagation()} className="font-medium underline underline-offset-2">
+                        {c.title}
+                      </Link>
+                    ) : c.type === "privacy" ? (
+                      <Link to="/privacy-policy" onClick={(event) => event.stopPropagation()} className="font-medium underline underline-offset-2">
+                        {c.title}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{c.title}</span>
+                    )}
                     {c.required && (
                       <span className="text-destructive"> *</span>
                     )}
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                       {c.text}
                     </span>
                   </span>

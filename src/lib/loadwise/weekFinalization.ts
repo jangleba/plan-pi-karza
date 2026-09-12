@@ -205,6 +205,7 @@ interface EnduranceBuild {
   main: ExerciseItem[];
   intensity?: "niska" | "umiarkowana" | "wysoka";
   loadLevel?: "low" | "moderate" | "high";
+  durationMin: number;
 }
 
 function normalEnduranceBuild(profile: Profile, date: string, index: number): EnduranceBuild {
@@ -221,6 +222,7 @@ function normalEnduranceBuild(profile: Profile, date: string, index: number): En
     goalOfSession: built.goal,
     intensity: built.intensity,
     loadLevel: built.loadLevel,
+    durationMin: built.durationMin,
     main: built.main.map((exercise) =>
       canonicalizeGeneratedExercise(
         {
@@ -242,6 +244,7 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
       main: [
         { name: "Rower / basen — łatwy tlenowy", prescription: "20–30 min, niska intensywność", cue: "Bez bólu, spokojny oddech." },
       ],
+      durationMin: 25,
     };
   }
   if (isYouthOrBeginner(profile)) {
@@ -252,6 +255,7 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
       main: [
         { name: "Łatwy bieg / marszobieg", prescription: "15–20 min, easy aerobic", cue: "Tempo konwersacyjne, zero zrywów." },
       ],
+      durationMin: 20,
     };
   }
   return {
@@ -261,6 +265,7 @@ function lightEnduranceBuild(profile: Profile): EnduranceBuild {
     main: [
       { name: "Łatwy bieg tlenowy / rower", prescription: "15–25 min bardzo lekko", cue: "Bardzo lekko, tylko rozruszanie." },
     ],
+    durationMin: 25,
   };
 }
 
@@ -285,7 +290,7 @@ function buildEnduranceSessionDay(
     title: build.title,
     goalLabel: "Wydolność",
     intensity: opts.light ? "niska" : (build.intensity ?? "umiarkowana"),
-    durationMin: opts.light ? 25 : 45,
+    durationMin: build.durationMin,
     reason: placementReason,
     safetyNote: opts.light
       ? "Wydolność w wersji lekkiej — powód: niski readiness / przeciążenie / MD+1 / młody zawodnik / ból."
@@ -329,6 +334,18 @@ function profileAllowsHeavyClubEndurance(profile?: Profile): boolean {
     return false;
   }
   return !profile.painInjury && (profile.painLocations?.length ?? 0) === 0;
+}
+
+function isFieldMasTestSession(session: SessionDay | null | undefined): boolean {
+  if (!session) return false;
+  return (
+    session.classification?.subcategory === "field_mas_test" ||
+    /test.{0,20}(?:5|minut).{0,20}mas|terenow.{0,8}mas/i.test(
+      `${session.title} ${session.sessionType ?? ""} ${session.sections.main
+        .map((exercise) => `${exercise.exerciseId ?? ""} ${exercise.name}`)
+        .join(" ")}`,
+    )
+  );
 }
 
 function adjacentHasRealSpeedExposure(weekPlan: SessionDay[], index: number): boolean {
@@ -1035,6 +1052,7 @@ export function addMissingEnduranceSessions(
           !d.secondSession &&
           realSessionCount(d) < maxPerDay &&
           (isMainGymSession(d) || (isSpeedSession(d) && !isDayBeforeMatch(d))) &&
+          !isFieldMasTestSession(d) &&
           !isEnduranceSession(d),
       );
       if (host) {
@@ -1212,6 +1230,37 @@ function buildBallSessionDay(
   return normalized;
 }
 
+/** Test terenowy nie może dzielić dnia z ciężką pracą nóg. */
+function repairFieldMasGymPairings(weekPlan: SessionDay[], profile: Profile): void {
+  for (let index = 0; index < weekPlan.length; index += 1) {
+    const day = weekPlan[index];
+    if (isFieldMasTestSession(day) && day.secondSession && isMainGymSession(day.secondSession)) {
+      day.secondSession = buildGymSessionDay(profile, day, {
+        light: true,
+        upperBodyOnly: true,
+        slotLabel: "Sesja 2 (lekka góra ciała)",
+        placementReason:
+          "Dzień testu 5-minutowego: usunięto obciążenie nóg; zostawiono tylko lekki tułów i górę ciała.",
+      });
+    } else if (
+      day.secondSession &&
+      isFieldMasTestSession(day.secondSession) &&
+      isMainGymSession(day)
+    ) {
+      const test = day.secondSession;
+      const safeGym = buildGymSessionDay(profile, day, {
+        light: true,
+        upperBodyOnly: true,
+        slotLabel: day.slotLabel ?? "Sesja 1 (lekka góra ciała)",
+        placementReason:
+          "Dzień testu 5-minutowego: usunięto obciążenie nóg; zostawiono tylko lekki tułów i górę ciała.",
+      });
+      safeGym.secondSession = test;
+      weekPlan[index] = safeGym;
+    }
+  }
+}
+
 /**
  * Gwarantuje własną sesję piłkarską bez uznawania klubu lub meczu za zamiennik.
  * To zawsze lekka sesja techniczna, dlatego może wejść także jako drugi slot
@@ -1341,16 +1390,25 @@ export interface AddMissingGymResult {
 function buildGymSessionDay(
   profile: Profile,
   templateDay: SessionDay,
-  opts: { light: boolean; slotLabel?: string | null; placementReason?: string },
+  opts: {
+    light: boolean;
+    upperBodyOnly?: boolean;
+    slotLabel?: string | null;
+    placementReason?: string;
+  },
 ): SessionDay {
   const youth = isYouthOrBeginner(profile);
-  const title = youth
+  const title = opts.upperBodyOnly
+    ? "Lekki tułów i góra ciała"
+    : youth
     ? "Siła bazowa (masa ciała)"
     : opts.light
       ? "Primer siłowy (utrzymanie)"
       : "Siła ogólna";
   const sessionType = youth ? "Siła — masa ciała" : "Siła / moc";
-  const goalOfSession = youth
+  const goalOfSession = opts.upperBodyOnly
+    ? "Krótka praca góry ciała i tułowia bez dokładania obciążenia biegowego nogom."
+    : youth
     ? "Nauka wzorców ruchowych i siła bazowa z masą ciała."
     : opts.light
       ? "Utrzymanie siły i aktywacja nerwowo-mięśniowa bez dużego zmęczenia."
@@ -1386,7 +1444,18 @@ function buildGymSessionDay(
           "mobility",
         ),
       ],
-      main: youth
+      main: opts.upperBodyOnly
+        ? [
+            canonicalizeGeneratedExercise(
+              { exerciseId: "bodyweight_row", name: "Wiosłowanie z masą ciała", prescription: "2 × 8", rest: "60 s", cue: "Zostaw duży zapas." },
+              "strength",
+            ),
+            canonicalizeGeneratedExercise(
+              { exerciseId: "push_up", name: "Pompka", prescription: "2 × 8", rest: "60 s", cue: "Spokojnie, bez serii do upadku." },
+              "strength",
+            ),
+          ]
+        : youth
         ? [
             canonicalizeGeneratedExercise(
               { exerciseId: "bodyweight_squat", name: "Przysiad z masą ciała", prescription: "3 × 10", cue: "Kolana w linii stóp." },
@@ -1459,7 +1528,10 @@ export function addMissingGymSessions(
     };
   }
 
-  const required = weeklyRequirements.requiredGymSessions;
+  const required =
+    profile.goal === "strength"
+      ? Math.max(2, weeklyRequirements.requiredGymSessions)
+      : weeklyRequirements.requiredGymSessions;
   const maxPerDay = getMaxSessionsPerDay({ maxSessionsPerDay: 2 });
 
   let added = 0;
@@ -1543,12 +1615,17 @@ export function addMissingGymSessions(
       );
       if (hostIdx >= 0) {
         const host = weekPlan[hostIdx];
-        const light = requiresLightSecondSession(profile);
+        const fieldMasHost = eachSession(host).some((session) => isFieldMasTestSession(session));
+        const light =
+          fieldMasHost || isClubSession(host) || requiresLightSecondSession(profile);
         const second = buildGymSessionDay(profile, host, {
           light,
+          upperBodyOnly: fieldMasHost,
           slotLabel: light ? "Sesja 2 (siłownia lekka)" : "Sesja 2 (siłownia)",
           placementReason:
-            light
+            fieldMasHost
+              ? "Dzień testu 5-minutowego: wyłącznie lekka góra ciała i tułów, bez obciążania nóg."
+              : light
               ? "Dodano siłownię jako drugą lekką sesję dnia — zgodnie z profilem zawodnika."
               : "Dodano pełną siłownię jako drugą, komplementarną sesję dnia.",
         });
@@ -1871,6 +1948,7 @@ export function validateAndRepairWeekPlan(
   // Własna piłka jest dodawana na końcu, żeby wcześniejsze naprawy siły i
   // wydolności nie mogły jej skasować. Klub i mecz nie spełniają tego minimum.
   addMissingBallSessions(weekPlan, requirements, profile);
+  repairFieldMasGymPairings(weekPlan, profile);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements, profile);
 
