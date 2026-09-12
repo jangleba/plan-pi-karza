@@ -30,6 +30,13 @@ describe("BallWise IQ — integralność biblioteki mikrosymulacji", () => {
       }
 
       for (const reaction of scenario.reactions) {
+        const keyActor = scenario.actors.find(
+          (actor) => actor.id === reaction.moves[0]?.actorId,
+        );
+        expect(
+          keyActor?.kind,
+          `${scenario.id}: pierwsza reakcja musi wskazywać rywala do odczytu`,
+        ).toBe("opponent");
         const action = scenario.actions.find(
           (candidate) => candidate.outcomes[reaction.id],
         );

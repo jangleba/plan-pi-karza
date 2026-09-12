@@ -3,10 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Play, RotateCcw, Shuffle, UserRound } from "lucide-react";
 
 import { AppHeader } from "@/components/loadwise/ui";
-import {
-  SimPitch,
-  type SimPitchActor,
-  type SimPitchPath,
+import type {
+  SimPitchActor,
+  SimPitchPath,
 } from "@/components/football-iq/SimPitch";
 import { SimPitch25D } from "@/components/football-iq/SimPitch25D";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -67,6 +66,7 @@ function NoPositionScreen() {
 
 const STAGE_TITLE: Record<SimStage, string> = {
   observation: "Obserwacja",
+  reading: "Twoje czytanie",
   reaction: "Reakcja rywala",
   decision: "Decyzja",
   replay: "Replay",
@@ -74,6 +74,7 @@ const STAGE_TITLE: Record<SimStage, string> = {
 
 const STAGE_HINT: Record<SimStage, string> = {
   observation: "Dotknij boiska w momencie, w którym zaczynasz ruch.",
+  reading: "Zaznacz zawodnika, którego ruch najbardziej zmienia tę akcję.",
   reaction: "Rywal reaguje na Twój moment startu.",
   decision: "Wybierz działanie, zanim piłka dojdzie.",
   replay: "Twoja decyzja i jedna lepsza alternatywa.",
@@ -91,7 +92,7 @@ const VERDICT_LABEL: Record<SimVerdict, string> = {
   poor: "Błąd",
 };
 
-const REPLAY_STEPS = ["Twój moment", "Kluczowy ruch rywala", "Konsekwencja"];
+const REPLAY_STEPS = ["Twój odczyt", "Ruch rywala", "Konsekwencja"];
 
 function Simulation({ group, level }: { group: IQPositionGroup; level?: Level }) {
   const pool = useMemo(() => scenariosForPosition(group, level), [group, level]);
@@ -117,6 +118,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   const [selfPoint, setSelfPoint] = useState({ x: 58, y: 97 });
   const [reactionT, setReactionT] = useState(0);
   const [reactionDone, setReactionDone] = useState(false);
+  const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [decisionLeft, setDecisionLeft] = useState(scenario.decisionMs);
   const [result, setResult] = useState<SimResult | null>(null);
   const [replayStep, setReplayStep] = useState(0);
@@ -133,6 +135,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
       setObservationDone(false);
       setReactionT(0);
       setReactionDone(false);
+      setSelectedActorId(null);
       setReplayStep(0);
       setSelfPoint(start);
       setDecisionLeft(scenario.decisionMs);
@@ -212,7 +215,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
     setSelfPoint(actorAt(self.path, p));
     setReactionT(0);
     setReactionDone(false);
-    setStage("reaction");
+    setStage("reading");
   }
 
   const choiceBase = {
@@ -235,6 +238,21 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   // Kluczowy rywal = ten, który reaguje na nasz moment startu.
   const reactionForView = result?.reaction ?? currentReaction();
   const keyOpponentId = reactionForView.moves[0]?.actorId;
+
+  const actorName = (actorId: string | null | undefined) => {
+    const actor = simActors.find((candidate) => candidate.id === actorId);
+    if (!actor) return "zawodnik";
+    return actor.label ?? (actor.kind === "opponent" ? "rywal" : "partner");
+  };
+
+  const readingFeedback = selectedActorId
+    ? selectedActorId === keyOpponentId
+      ? `Trafnie: ${actorName(keyOpponentId)} był zawodnikiem, którego reakcja zmieniała sytuację.`
+      : `Twój wybór: ${actorName(selectedActorId)}. Kluczowa informacja: ${actorName(keyOpponentId)}.`
+    : "Nie zaznaczyłeś kluczowego zawodnika.";
+  const readingSelection = selectedActorId
+    ? `Zaznaczyłeś: ${actorName(selectedActorId)}.`
+    : "Nie zaznaczyłeś żadnego zawodnika.";
 
   const ball = simActors.find((a) => a.kind === "ball");
   const carrierId = useMemo(() => {
@@ -292,6 +310,28 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   }, [stage, t, reactionT, selfPoint, result, simActors, replayStep, carrierId, keyOpponentId]);
 
   const paths: SimPitchPath[] = [];
+  const showReactionPath =
+    stage === "reaction" || (stage === "replay" && replayStep === 1);
+  const reactionPathProgress = stage === "reaction" ? reactionT : 1;
+  if (showReactionPath && keyOpponentId && reactionPathProgress > 0.08) {
+    const keyActor = simActors.find((actor) => actor.id === keyOpponentId);
+    const keyMove = reactionForView.moves.find(
+      (move) => move.actorId === keyOpponentId,
+    );
+    if (keyActor && keyMove) {
+      const start = actorAt(keyActor.path, 1);
+      paths.push({
+        points: [
+          start,
+          {
+            x: start.x + (keyMove.x - start.x) * reactionPathProgress,
+            y: start.y + (keyMove.y - start.y) * reactionPathProgress,
+          },
+        ],
+        variant: "reaction",
+      });
+    }
+  }
   if (stage === "replay" && result && replayStep >= 2) {
     if (result.outcome.path) {
       paths.push({ points: result.outcome.path, variant: "user" });
@@ -302,10 +342,6 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   }
 
   const ctx = scenario.context;
-  /** 2.5D wdrożone na razie tylko dla scenariusza wzorcowego; reszta na starym rendererze. */
-  const use25D = scenario.id === "shadow-receive-6";
-
-
   if (!started) {
     return (
       <BriefingScreen
@@ -325,9 +361,14 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   }
 
   return (
-    <div className="flex h-[calc(100dvh-6.5rem)] flex-col overflow-hidden">
+    <div
+      className="flex min-h-0 flex-col overflow-hidden"
+      style={{
+        height: "calc(100dvh - 5.75rem - env(safe-area-inset-bottom))",
+      }}
+    >
       {/* Pasek kontekstu */}
-      <div className="flex items-center justify-between px-4 pb-2 pt-3">
+      <div className="flex shrink-0 items-center justify-between px-4 pb-2 pt-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           {ctx.minute}' · {ctx.scoreline} · {ctx.positionLabel}
         </span>
@@ -337,7 +378,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
       </div>
 
       {/* Karta instrukcji */}
-      <div className="px-4">
+      <div className="shrink-0 px-4">
         <div className="soft-card px-3 py-2.5">
           <p className="text-[13px] font-semibold leading-tight text-foreground">
             {scenario.title}
@@ -354,33 +395,46 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
 
       {/* Boisko — replay na pełnej szerokości */}
       <div
-        className={`min-h-0 flex-1 py-2 ${stage === "replay" ? "px-0" : "px-4"}`}
+        className={`min-h-[15rem] flex-1 py-2 ${stage === "replay" ? "px-0" : "px-3"}`}
         onPointerDown={stage === "observation" ? startMove : undefined}
       >
         <div
-          className={`h-full overflow-hidden ${
-            stage === "replay" ? "px-0" : "soft-card p-1.5"
+          className={`relative h-full overflow-hidden ${
+            stage === "replay" ? "px-0" : "soft-card p-0.5"
           }`}
         >
-          {use25D ? (
-            <SimPitch25D
-              actors={actors}
-              paths={paths}
-              pulse={stage === "observation" && !observationDone && seenOnce}
-            />
-          ) : (
-            <SimPitch
-              actors={actors}
-              paths={paths}
-              pulse={stage === "observation" && !observationDone && seenOnce}
-            />
-          )}
-
+          <SimPitch25D
+            actors={actors}
+            paths={paths}
+            pulse={stage === "observation" && !observationDone && seenOnce}
+            selectedActorId={selectedActorId ?? undefined}
+            highlightedActorId={
+              stage === "reaction" || (stage === "replay" && replayStep === 1)
+                ? keyOpponentId
+                : undefined
+            }
+            onActorSelect={
+              stage === "reading"
+                ? (actorId) => setSelectedActorId(actorId)
+                : undefined
+            }
+          />
+          <div className="pointer-events-none absolute left-2 top-2 flex items-center gap-2 rounded-full border border-border/60 bg-card/85 px-2.5 py-1 text-[9px] font-semibold text-muted-foreground shadow-sm backdrop-blur-md">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-primary" /> Ty
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-graphite" /> Zespół
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-destructive/80" /> Rywal
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Jedna aktualna akcja */}
-      <div className="px-4 pb-2">
+      <div className="shrink-0 px-4 pb-3">
         {stage === "observation" && (
           <div className="soft-card p-3">
             <div className="h-1 w-full overflow-hidden rounded-full bg-border">
@@ -400,13 +454,11 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
                 <button
                   onClick={() => {
                     setTimingMs(null);
-                    setReactionT(0);
-                    setReactionDone(false);
-                    setStage("reaction");
+                    setStage("reading");
                   }}
                   className="flex-1 rounded-xl bg-primary py-2.5 text-[13px] font-bold uppercase tracking-wide text-primary-foreground active:scale-[0.99]"
                 >
-                  Przejdź do decyzji
+                  Przeanalizuj sytuację
                 </button>
               </div>
             ) : (
@@ -428,11 +480,48 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
           </div>
         )}
 
+        {stage === "reading" && (
+          <div className="soft-card p-3">
+            <p className="text-[12px] font-bold text-foreground">
+              Co zauważyłeś?
+            </p>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              Dotknij na boisku zawodnika, którego zachowanie najbardziej
+              wpływa na Twoją decyzję.
+            </p>
+            <button
+              disabled={!selectedActorId}
+              onClick={() => {
+                setReactionT(0);
+                setReactionDone(false);
+                setStage("reaction");
+              }}
+              className="mt-2 w-full rounded-xl bg-primary p-3 text-[13px] font-bold uppercase tracking-wide text-primary-foreground disabled:opacity-40 active:scale-[0.99]"
+            >
+              {selectedActorId ? (
+                <>Zatwierdź: {actorName(selectedActorId)}</>
+              ) : (
+                "Najpierw zaznacz zawodnika"
+              )}
+            </button>
+          </div>
+        )}
+
         {stage === "reaction" && (
           <div className="soft-card p-3">
-            <p className="text-center text-[12px] font-semibold text-muted-foreground">
-              {reactionDone ? reactionForView.description : "Rywal reaguje…"}
+            <p className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {reactionDone ? "Korekta odczytu" : "Rywal reaguje…"}
             </p>
+            {reactionDone && (
+              <>
+                <p className="mt-1 text-center text-[12px] font-semibold text-foreground">
+                  {readingFeedback}
+                </p>
+                <p className="mt-1 text-center text-[11px] leading-snug text-muted-foreground">
+                  {reactionForView.description}
+                </p>
+              </>
+            )}
             <button
               disabled={!reactionDone}
               onClick={() => setStage("decision")}
@@ -470,6 +559,8 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
         {stage === "replay" && result && (
           <ReplayPanel
             result={result}
+            readingSelection={readingSelection}
+            readingFeedback={readingFeedback}
             step={replayStep}
             onStep={setReplayStep}
             onRestart={() => resetRun(1)}
@@ -560,12 +651,16 @@ function BriefingScreen({
 
 function ReplayPanel({
   result,
+  readingSelection,
+  readingFeedback,
   step,
   onStep,
   onRestart,
   onNext,
 }: {
   result: SimResult;
+  readingSelection: string;
+  readingFeedback: string;
   step: number;
   onStep: (s: number) => void;
   onRestart: () => void;
@@ -573,9 +668,9 @@ function ReplayPanel({
 }) {
   const stepText =
     step === 0
-      ? `${result.action ? result.action.label : "Brak decyzji"} — moment startu i Twoje ustawienie.`
+      ? readingSelection
       : step === 1
-        ? result.reaction.description
+        ? `${readingFeedback} ${result.reaction.description}`
         : result.outcome.consequence;
 
   return (

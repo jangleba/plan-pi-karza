@@ -10,17 +10,19 @@ import type { SimPitchActor, SimPitchPath } from "./SimPitch";
 const PW = 100;
 const PH = 140;
 
-// Układ ekranowy (viewBox)
-const VW = 100;
-const VH = 108;
-const TOP = 7;
-const BOT = 99;
+// Szeroki kadr taktyczny lepiej wykorzystuje ekran telefonu niż pionowy plan 1:1.
+// Współrzędne scenariusza nadal opisują pełne boisko 100 × 140.
+export const IQ_PITCH_VIEWBOX = { width: 126, height: 100 } as const;
+const VW = IQ_PITCH_VIEWBOX.width;
+const VH = IQ_PITCH_VIEWBOX.height;
+const TOP = 5;
+const BOT = 95;
 
 /** Rzut punktu boiskowego na ekran. y = 0 to daleki koniec (kierunek ataku). */
-function proj(x: number, y: number) {
+export function projectPitchPoint(x: number, y: number) {
   const d = Math.min(1, Math.max(0, y / PH)); // 0 = daleko, 1 = blisko
   const depth = Math.pow(d, 1.22);
-  const k = 0.56 + 0.44 * depth; // zwężenie perspektywiczne
+  const k = 0.6 + 0.56 * depth; // zwężenie perspektywiczne
   return {
     x: VW / 2 + (x - PW / 2) * k,
     y: TOP + (BOT - TOP) * depth,
@@ -31,7 +33,7 @@ function proj(x: number, y: number) {
 
 function poly(points: [number, number][]) {
   return points.map(([x, y]) => {
-    const p = proj(x, y);
+    const p = projectPitchPoint(x, y);
     return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
   }).join(" ");
 }
@@ -55,11 +57,21 @@ type Props = {
   actors: SimPitchActor[];
   paths?: SimPitchPath[];
   pulse?: boolean;
+  selectedActorId?: string;
+  highlightedActorId?: string;
+  onActorSelect?: (actorId: string) => void;
 };
 
 type FacingState = { x: number; y: number; deg: number };
 
-export function SimPitch25D({ actors, paths, pulse }: Props) {
+export function SimPitch25D({
+  actors,
+  paths,
+  pulse,
+  selectedActorId,
+  highlightedActorId,
+  onActorSelect,
+}: Props) {
   const facingRef = useRef<Map<string, FacingState>>(new Map());
 
   /** Kierunek sylwetki: z keyframe (facingDeg) lub z trajektorii, obrót najkrótszą drogą. */
@@ -86,18 +98,35 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
     <svg
       viewBox={`0 0 ${VW} ${VH}`}
       preserveAspectRatio="xMidYMid meet"
-      className="h-full w-full touch-none select-none"
+      className="h-full w-full touch-none select-none rounded-[inherit]"
+      role={onActorSelect ? "group" : "img"}
+      aria-label={
+        onActorSelect
+          ? "Wybierz zawodnika na animowanym boisku taktycznym"
+          : "Animowane boisko taktyczne: Ty, Twój zespół, rywale i piłka"
+      }
     >
       <defs>
+        <linearGradient id="sim25-surface" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="var(--pitch-grass-alt)" />
+          <stop offset="1" stopColor="var(--pitch-grass)" />
+        </linearGradient>
+        <radialGradient id="sim25-focus" cx="50%" cy="54%" r="58%">
+          <stop offset="0" stopColor="var(--color-primary)" stopOpacity="0.06" />
+          <stop offset="1" stopColor="var(--color-primary)" stopOpacity="0" />
+        </radialGradient>
         <marker id="sim25-arrow" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 Z" className="fill-foreground" />
         </marker>
         <marker id="sim25-arrow-alt" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 Z" className="fill-primary" />
         </marker>
+        <marker id="sim25-arrow-reaction" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
+          <path d="M0,0 L4,2 L0,4 Z" className="fill-destructive" />
+        </marker>
       </defs>
 
-      <rect x="0" y="0" width={VW} height={VH} className="fill-background" />
+      <rect x="0" y="0" width={VW} height={VH} fill="url(#sim25-surface)" />
 
       {/* Murawa */}
       <polygon
@@ -107,7 +136,7 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
           [PW, PH],
           [0, PH],
         ])}
-        style={{ fill: "var(--pitch-grass)" }}
+        fill="url(#sim25-surface)"
       />
       {stripes.map((i) =>
         i % 2 === 0 ? null : (
@@ -123,6 +152,7 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
           />
         ),
       )}
+      <rect x="0" y="0" width={VW} height={VH} fill="url(#sim25-focus)" />
 
       {/* Linie */}
       <g fill="none" style={{ stroke: "var(--pitch-line)" }} strokeWidth="0.7">
@@ -135,8 +165,8 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
 
       <g>
         <text
-          x={proj(8, PH / 2 - 18).x}
-          y={proj(8, PH / 2 - 18).y}
+          x={projectPitchPoint(8, PH / 2 - 18).x}
+          y={projectPitchPoint(8, PH / 2 - 18).y}
           fontSize="3.2"
           className="fill-foreground/40"
           style={{ letterSpacing: "0.12em" }}
@@ -150,21 +180,33 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
         <polyline
           key={i}
           points={p.points.map((pt) => {
-            const q = proj(pt.x, pt.y);
+            const q = projectPitchPoint(pt.x, pt.y);
             return `${q.x},${q.y}`;
           }).join(" ")}
           fill="none"
-          className={p.variant === "alt" ? "stroke-primary" : "stroke-foreground"}
-          strokeWidth={p.variant === "alt" ? 0.9 : 1.1}
+          className={
+            p.variant === "alt"
+              ? "stroke-primary"
+              : p.variant === "reaction"
+                ? "stroke-destructive"
+                : "stroke-foreground"
+          }
+          strokeWidth={p.variant === "reaction" ? 1 : p.variant === "alt" ? 0.9 : 1.1}
           strokeLinecap="round"
           strokeDasharray={p.variant === "alt" ? "2.2 1.8" : undefined}
-          markerEnd={`url(#${p.variant === "alt" ? "sim25-arrow-alt" : "sim25-arrow"})`}
+          markerEnd={`url(#${
+            p.variant === "alt"
+              ? "sim25-arrow-alt"
+              : p.variant === "reaction"
+                ? "sim25-arrow-reaction"
+                : "sim25-arrow"
+          })`}
         />
       ))}
 
       {/* Zawodnicy i piłka — kolejność wg głębi (dalsi najpierw) */}
       {sorted.map((a) => {
-        const p = proj(a.x, a.y);
+        const p = projectPitchPoint(a.x, a.y);
         if (a.kind === "ball") {
           const r = 1.7 * p.s;
           return (
@@ -203,9 +245,57 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
         const hipY = p.y - 5.1 * s;
         const shoY = p.y - 8.1 * s;
         const headY = p.y - 9.6 * s;
+        const label = a.showLabel ? a.label : undefined;
+        const labelWidth = label
+          ? Math.min(28 * s, Math.max(10 * s, (label.length * 1.45 + 4) * s))
+          : 0;
+        const labelHeight = 4.8 * s;
+        const labelY =
+          a.kind === "opponent" ? headY - 6.2 * s : p.y + 2.3 * s;
+        const selectable = Boolean(
+          onActorSelect && a.kind !== "self",
+        );
+        const selected = a.id === selectedActorId;
+        const highlighted = a.id === highlightedActorId;
 
         return (
-          <g key={a.id}>
+          <g
+            key={a.id}
+            role={selectable ? "button" : undefined}
+            tabIndex={selectable ? 0 : undefined}
+            aria-label={
+              selectable
+                ? `Zaznacz: ${a.label ?? (a.kind === "opponent" ? "rywal" : "partner")}`
+                : undefined
+            }
+            className={selectable ? "cursor-pointer outline-none" : undefined}
+            onPointerDown={
+              selectable
+                ? (event) => {
+                    event.stopPropagation();
+                    onActorSelect?.(a.id);
+                  }
+                : undefined
+            }
+            onKeyDown={
+              selectable
+                ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onActorSelect?.(a.id);
+                    }
+                  }
+                : undefined
+            }
+          >
+            {selectable && (
+              <circle
+                cx={p.x}
+                cy={p.y - 4.8 * s}
+                r={7.5 * s}
+                className="fill-transparent"
+              />
+            )}
             {/* Cień kontaktowy */}
             <ellipse
               cx={p.x}
@@ -226,6 +316,27 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
                 fill="none"
                 className="stroke-primary"
                 strokeWidth={0.35 * s}
+              />
+            )}
+            {selected && !highlighted && (
+              <ellipse
+                cx={p.x}
+                cy={p.y - 4.8 * s}
+                rx={5.2 * s}
+                ry={7.2 * s}
+                className="fill-primary/10 stroke-primary"
+                strokeWidth={0.75 * s}
+                strokeDasharray={`${1.8 * s} ${1.2 * s}`}
+              />
+            )}
+            {highlighted && (
+              <ellipse
+                cx={p.x}
+                cy={p.y - 4.8 * s}
+                rx={5.5 * s}
+                ry={7.5 * s}
+                className="fill-destructive/10 stroke-destructive"
+                strokeWidth={0.85 * s}
               />
             )}
             {/* Nogi */}
@@ -264,17 +375,28 @@ export function SimPitch25D({ actors, paths, pulse }: Props) {
               strokeLinecap="round"
               opacity={0.6}
             />
-            {a.showLabel && a.label && (
-              <text
-                x={p.x}
-                y={p.y + 3.6 * s}
-                fontSize={2.5 * s}
-                textAnchor="middle"
-                className="fill-foreground/70"
-                style={{ fontWeight: 600 }}
-              >
-                {a.label}
-              </text>
+            {label && (
+              <g>
+                <rect
+                  x={p.x - labelWidth / 2}
+                  y={labelY}
+                  width={labelWidth}
+                  height={labelHeight}
+                  rx={labelHeight / 2}
+                  className="fill-background/90 stroke-border"
+                  strokeWidth={0.35 * s}
+                />
+                <text
+                  x={p.x}
+                  y={labelY + 3.25 * s}
+                  fontSize={2.35 * s}
+                  textAnchor="middle"
+                  className="fill-foreground/75"
+                  style={{ fontWeight: 700 }}
+                >
+                  {label}
+                </text>
+              </g>
             )}
           </g>
         );

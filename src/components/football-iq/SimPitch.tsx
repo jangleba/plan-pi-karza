@@ -18,7 +18,7 @@ export type SimPitchActor = {
 
 export type SimPitchPath = {
   points: { x: number; y: number }[];
-  variant: "user" | "alt";
+  variant: "user" | "alt" | "reaction";
 };
 
 type Props = {
@@ -83,6 +83,16 @@ export function SimPitch({ actors, paths, pulse }: Props) {
         >
           <path d="M0,0 L4,2 L0,4 Z" className="fill-primary" />
         </marker>
+        <marker
+          id="sim-arrow-reaction"
+          markerWidth="4"
+          markerHeight="4"
+          refX="2.4"
+          refY="2"
+          orient="auto"
+        >
+          <path d="M0,0 L4,2 L0,4 Z" className="fill-destructive" />
+        </marker>
       </defs>
 
       {paths?.map((p, i) => (
@@ -90,11 +100,23 @@ export function SimPitch({ actors, paths, pulse }: Props) {
           key={i}
           points={p.points.map((pt) => `${pt.x},${pt.y}`).join(" ")}
           fill="none"
-          className={p.variant === "alt" ? "stroke-primary" : "stroke-foreground"}
-          strokeWidth={p.variant === "alt" ? 1.1 : 1.4}
+          className={
+            p.variant === "alt"
+              ? "stroke-primary"
+              : p.variant === "reaction"
+                ? "stroke-destructive"
+                : "stroke-foreground"
+          }
+          strokeWidth={p.variant === "reaction" ? 1 : p.variant === "alt" ? 1.1 : 1.4}
           strokeLinecap="round"
           strokeDasharray={p.variant === "alt" ? "2.5 2" : undefined}
-          markerEnd={`url(#${p.variant === "alt" ? "sim-arrow-alt" : "sim-arrow"})`}
+          markerEnd={`url(#${
+            p.variant === "alt"
+              ? "sim-arrow-alt"
+              : p.variant === "reaction"
+                ? "sim-arrow-reaction"
+                : "sim-arrow"
+          })`}
         />
       ))}
 
