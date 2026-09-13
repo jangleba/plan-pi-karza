@@ -2,7 +2,7 @@ import type { LoadwiseState } from "./types";
 import type { RunningActivity } from "@/lib/running/types";
 import { PLAN_ENGINE_VERSION } from "./planVersion";
 
-const BOOT_CACHE_VERSION = 1;
+const BOOT_CACHE_VERSION = 2;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface BootCacheEnvelope {
@@ -18,6 +18,40 @@ function cacheKey(userId: string) {
 
 function compactRunningActivity(activity: RunningActivity): RunningActivity {
   return { ...activity, route: [], splits: [], intervalResults: [] };
+}
+
+/** Usuwa bezpośrednie dane zdrowotne i swobodne notatki przed zapisem na urządzeniu. */
+export function redactStateForBootCache(state: LoadwiseState): LoadwiseState {
+  const runningActivities = Object.fromEntries(
+    Object.entries(state.runningActivities).map(([id, activity]) => [
+      id,
+      compactRunningActivity(activity),
+    ]),
+  );
+  return {
+    ...state,
+    profile: state.profile
+      ? {
+          ...state.profile,
+          fuelAllergyStatus: "unconfirmed",
+          foodAllergies: [],
+          foodIntolerances: [],
+          painInjury: false,
+          painLocations: [],
+          injuryHistory: [],
+        }
+      : null,
+    readiness: {},
+    completions: Object.fromEntries(
+      Object.entries(state.completions).map(([id, completion]) => [
+        id,
+        { ...completion, notes: "" },
+      ]),
+    ),
+    history: state.history.slice(0, 120).map((item) => ({ ...item, notes: "" })),
+    runningActivities,
+    equipmentNotice: null,
+  };
 }
 
 export function loadBootState(userId: string): LoadwiseState | null {
@@ -47,22 +81,11 @@ export function loadBootState(userId: string): LoadwiseState | null {
 export function saveBootState(userId: string, state: LoadwiseState): void {
   if (typeof window === "undefined" || !state.profile?.onboardingComplete) return;
   try {
-    const runningActivities = Object.fromEntries(
-      Object.entries(state.runningActivities).map(([id, activity]) => [
-        id,
-        compactRunningActivity(activity),
-      ]),
-    );
     const envelope: BootCacheEnvelope = {
       version: BOOT_CACHE_VERSION,
       engineVersion: PLAN_ENGINE_VERSION,
       savedAt: Date.now(),
-      state: {
-        ...state,
-        history: state.history.slice(0, 120),
-        runningActivities,
-        equipmentNotice: null,
-      },
+      state: redactStateForBootCache(state),
     };
     window.localStorage.setItem(cacheKey(userId), JSON.stringify(envelope));
   } catch {

@@ -66,7 +66,6 @@ function localKey(userId: string) {
 }
 
 interface LocalState {
-  readiness: Record<string, Readiness>;
   unavailableEquipmentIds: string[];
   exerciseReplacements: Record<string, ExerciseReplacement[]>;
 }
@@ -74,7 +73,6 @@ interface LocalState {
 function loadLocal(userId: string): LocalState {
   if (typeof window === "undefined")
     return {
-      readiness: {},
       unavailableEquipmentIds: [],
       exerciseReplacements: {},
     };
@@ -82,13 +80,11 @@ function loadLocal(userId: string): LocalState {
     const raw = window.localStorage.getItem(localKey(userId));
     if (!raw)
       return {
-        readiness: {},
         unavailableEquipmentIds: [],
         exerciseReplacements: {},
       };
     const parsed = JSON.parse(raw) as Partial<LocalState>;
     return {
-      readiness: parsed.readiness ?? {},
       unavailableEquipmentIds: Array.isArray(parsed.unavailableEquipmentIds)
         ? parsed.unavailableEquipmentIds
         : [],
@@ -96,7 +92,6 @@ function loadLocal(userId: string): LocalState {
     };
   } catch {
     return {
-      readiness: {},
       unavailableEquipmentIds: [],
       exerciseReplacements: {},
     };
@@ -1027,9 +1022,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             endedAt: (row.ended_at as string | null) ?? null,
           };
         }
-        const persistedReadiness: Record<string, Readiness> = profile?.healthPersonalizationEnabled
-          ? { ...local.readiness }
-          : {};
+        const persistedReadiness: Record<string, Readiness> = {};
         if (profile?.healthPersonalizationEnabled) {
           for (const row of (readinessRes.data as AnyRow[] | null) ?? []) {
             const date = row.date as string | null;
@@ -1127,7 +1120,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           setState((current) => ({
             ...(cachedState ?? current),
             profile: safeProfile,
-            readiness: cachedState?.readiness ?? safeLocal.readiness,
+            readiness: {},
             exerciseReplacements:
               cachedState?.exerciseReplacements ?? safeLocal.exerciseReplacements,
             equipmentNotice:
@@ -1147,7 +1140,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   function persistLocal(next: LoadwiseState) {
     if (user) {
       saveLocal(user.id, {
-        readiness: next.readiness,
         unavailableEquipmentIds: next.profile?.unavailableEquipmentIds ?? [],
         exerciseReplacements: next.exerciseReplacements,
       });
@@ -1157,14 +1149,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || !hydrated) return;
     saveLocal(user.id, {
-      readiness: state.readiness,
       unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? [],
       exerciseReplacements: state.exerciseReplacements,
     });
   }, [
     user,
     hydrated,
-    state.readiness,
     state.profile?.unavailableEquipmentIds,
     state.exerciseReplacements,
   ]);
