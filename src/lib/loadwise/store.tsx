@@ -638,6 +638,8 @@ interface LoadwiseContextValue {
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   refreshPlanIfNeeded: () => void;
+  /** Trwa generowanie/zapisywanie planu — ekrany pokazują wtedy stan ładowania. */
+  planGenerating: boolean;
   startSession: (session: SessionDay) => Promise<void>;
   completeSession: (
     session: SessionDay,
@@ -678,6 +680,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LoadwiseState>(initialState);
   const [hydrated, setHydrated] = useState(false);
   const generatingRef = useRef(false);
+  const [planGenerating, setPlanGenerating] = useState(false);
   const replacementInFlightRef = useRef(new Set<string>());
   const missedSyncRef = useRef<string | null>(null);
   const offlineSyncInFlightRef = useRef(false);
@@ -1460,6 +1463,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
     if (generatingRef.current) return;
     generatingRef.current = true;
+    setPlanGenerating(true);
     (async () => {
       try {
         if (await shouldReusePersistedPlan(state.plan, profile)) return;
@@ -1482,6 +1486,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         console.error("[loadwise] plan refresh failed", error);
       } finally {
         generatingRef.current = false;
+        setPlanGenerating(false);
       }
     })();
   }
@@ -2198,6 +2203,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         completeOnboarding,
         updateProfile,
         refreshPlanIfNeeded,
+        planGenerating,
         startSession,
         completeSession,
         applyModification,
