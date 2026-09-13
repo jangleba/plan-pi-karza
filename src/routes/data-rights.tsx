@@ -7,8 +7,6 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { Button } from "@/components/ui/button";
 import { LEGAL_VERSION, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { clearPendingTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
-import { clearBootState } from "@/lib/loadwise/bootCache";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -99,7 +97,6 @@ function DataRights() {
       } catch {
         window.localStorage.removeItem(`loadwise:v3:${user.id}`);
       }
-      clearBootState(user.id);
       toast.success("Usunięto dane zdrowotne i wyłączono ich personalizację.");
       window.location.assign("/start");
       return;
@@ -139,8 +136,6 @@ function DataRights() {
       });
       if (error) throw error;
       window.localStorage.removeItem(`loadwise:v3:${user.id}`);
-      clearBootState(user.id);
-      clearPendingTrainingWrites(user.id);
       await signOut();
       toast.success("Konto logowania i powiązane dane zostały usunięte.");
       navigate({ to: "/auth", replace: true });
@@ -152,7 +147,7 @@ function DataRights() {
   }
 
   return (
-    <div className="app-shell min-h-screen px-5 pb-16 pt-6">
+    <div className="app-shell premium-flow min-h-screen px-5 pb-16 pt-6">
       <button
         onClick={() => router.history.back()}
         className="mb-4 inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-foreground"

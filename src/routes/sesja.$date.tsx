@@ -8,7 +8,7 @@ import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
-import { formatDateFull } from "@/lib/loadwise/labels";
+import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
@@ -980,11 +980,12 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
 });
 
 const SECTION_TAB_LABELS: Record<string, string> = {
-  warmup: "Rozgrzewka",
-  prep: "Przygotowanie",
-  main: "Główna",
-  accessory: "Dobór",
-  cooldown: "Schłódzenie",
+  warmup: "Przygotowanie ruchowe",
+  prep: "Przygotowanie ruchowe",
+  main: "Część główna",
+  accessory: "Ćwiczenia uzupełniające",
+  footballTransfer: "Transfer piłkarski",
+  cooldown: "Część końcowa",
 };
 
 const StructuredSections = memo(function StructuredSections({
@@ -1005,71 +1006,85 @@ const StructuredSections = memo(function StructuredSections({
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-1 border-b border-border">
-        {sections.map((sec) => (
-          <button
-            key={sec.id}
-            type="button"
-            onClick={() => setActiveSectionId(sec.id)}
-            className={`relative px-2.5 py-2 text-[13px] font-medium transition-colors ${
-              activeSectionId === sec.id ? "text-foreground" : "text-muted-foreground"
-            }`}
-          >
-            {SECTION_TAB_LABELS[sec.type] ?? sec.title}
-            {activeSectionId === sec.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-primary" />
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="relative pl-11">
+      <span className="absolute bottom-5 left-[1.18rem] top-5 w-px bg-border" />
+      {sections.map((section, sectionIndex) => {
+        const isActive = activeSection?.id === section.id;
+        const exerciseCount = section.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
+        return (
+          <section key={section.id} className="relative border-b border-border/75 last:border-b-0">
+            <span className={`absolute -left-11 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium ${
+              isActive
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-muted-foreground"
+            }`}>
+              {sectionIndex + 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveSectionId(section.id)}
+              className="flex w-full items-center gap-3 py-4 text-left"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-medium text-foreground">
+                  {SECTION_TAB_LABELS[section.type] ?? section.title}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {exerciseCount} {exerciseCount === 1 ? "ćwiczenie" : exerciseCount >= 2 && exerciseCount <= 4 ? "ćwiczenia" : "ćwiczeń"}
+                </span>
+              </span>
+              <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isActive ? "rotate-90" : ""}`} />
+            </button>
 
-      {activeSection && (
-        <div className="soft-card p-4">
-          {activeSection.blocks.map((b, blockIndex) => {
-            const blockTitle = b.title || b.exercises[0]?.name || "Blok";
-            const blockRest = b.restAfterBlock ? formatRestValue(b.restAfterBlock) : null;
-            return (
-              <div key={b.id} className={blockIndex > 0 ? "pt-4" : ""}>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <h4 className="truncate text-[13px] font-bold text-foreground">{blockTitle}</h4>
-                  {b.exercises[0] && (
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {compactPrescription(b.exercises[0])}
-                    </span>
-                  )}
-                </div>
-                <div className="divide-y divide-border/40">
-                  {b.exercises.map((e, exerciseIndex) => {
-                    const equipmentIds = specialistEquipmentForExercise(
-                      getExerciseDefinition(e.exerciseId ?? e.name),
-                    );
-                    return (
-                      <ExerciseRow
-                        key={e.id}
-                        e={e}
-                        index={exerciseIndex}
-                        done={!!done[e.id]}
-                        onToggle={() => toggle(e.id)}
-                        onUnavailable={() => {
-                          if (equipmentIds.length) markEquipmentUnavailable(date, e, equipmentIds);
-                        }}
-                        equipmentIds={equipmentIds}
-                        sessionId={sessionId}
-                      />
-                    );
-                  })}
-                </div>
-                {blockRest && (
-                  <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
-                    Po bloku — {blockRest}
-                  </div>
-                )}
+            {isActive && (
+              <div className="pb-5">
+                {section.blocks.map((block, blockIndex) => {
+                  const blockTitle = block.title || block.exercises[0]?.name || "Blok ćwiczeń";
+                  const blockRest = block.restAfterBlock ? formatRestValue(block.restAfterBlock) : null;
+                  return (
+                    <div key={block.id} className={blockIndex > 0 ? "border-t border-border/60 pt-4" : ""}>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <h4 className="truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                          {blockTitle}
+                        </h4>
+                        {block.exercises[0] && (
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            {compactPrescription(block.exercises[0])}
+                          </span>
+                        )}
+                      </div>
+                      <div className="divide-y divide-border/50">
+                        {block.exercises.map((exercise, exerciseIndex) => {
+                          const equipmentIds = specialistEquipmentForExercise(
+                            getExerciseDefinition(exercise.exerciseId ?? exercise.name),
+                          );
+                          return (
+                            <ExerciseRow
+                              key={exercise.id}
+                              e={exercise}
+                              index={exerciseIndex}
+                              done={!!done[exercise.id]}
+                              onToggle={() => toggle(exercise.id)}
+                              onUnavailable={() => {
+                                if (equipmentIds.length) markEquipmentUnavailable(date, exercise, equipmentIds);
+                              }}
+                              equipmentIds={equipmentIds}
+                              sessionId={sessionId}
+                            />
+                          );
+                        })}
+                      </div>
+                      {blockRest && (
+                        <p className="mt-3 text-[11px] text-muted-foreground">Przerwa po bloku: {blockRest}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 });
@@ -1078,7 +1093,7 @@ const StructuredSections = memo(function StructuredSections({
 
 function SessionScreenShell({ onBack, children }: { onBack: () => void; children: ReactNode }) {
   return (
-    <div className="app-shell min-h-screen pb-[140px]">
+    <div className="app-shell premium-flow min-h-screen pb-[140px]">
       <div className="px-5 pt-6">
         <button
           onClick={onBack}
@@ -1374,7 +1389,7 @@ export function shortDecisionNote(session: SessionDay): string | null {
       "Niska gotowość — zgłoś ją trenerowi przed treningiem i ogranicz obciążenie zgodnie z jego decyzją. Przerwij wysiłek, jeśli pojawi się lub nasili ból."
     );
   }
-  if (session.dayType === "club") return "Klub = główne obciążenie.";
+  if (session.dayType === "club") return "Trening klubowy stanowi główne obciążenie dnia.";
   if (session.dayType === "match") return "Dziś mecz — bez dodatkowego treningu.";
   if (session.mdLabel === "MD-1") return "MD-1 = tylko aktywacja, bez ciężkich nóg.";
   if (session.dayType === "recovery") return "Regeneracja — bez intensywności.";
@@ -1505,7 +1520,7 @@ function SessionDetail() {
           <p className="mt-2 text-sm text-muted-foreground">
             Ten drugi slot nie występuje już w aktualnym planie. Nie oznacza to automatycznie, że
             trening jest za blisko meczu — plan mógł zostać przebudowany po zmianie kalendarza albo
-            check-inie.
+            ocenie gotowości.
           </p>
           <Button
             className="mt-4"
@@ -1594,7 +1609,9 @@ function SessionDetail() {
           </div>
         )}
 
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">{session.title}</h1>
+        <h1 className="mt-1.5 text-[24px] font-medium leading-tight tracking-[-0.03em]">
+          {professionalSessionTitle(session.title)}
+        </h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <DayTypeTag type={session.dayType} />
@@ -1624,7 +1641,7 @@ function SessionDetail() {
                 slot === 1 ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
             >
-              1. {primary.title}
+              1. {professionalSessionTitle(primary.title)}
             </button>
             <button
               onClick={() =>
@@ -1638,7 +1655,7 @@ function SessionDetail() {
                 slot === 2 ? "bg-primary text-primary-foreground" : "text-muted-foreground"
               }`}
             >
-              2. {primary.secondSession.title}
+              2. {professionalSessionTitle(primary.secondSession.title)}
             </button>
           </div>
         )}
@@ -1767,7 +1784,7 @@ function SessionDetail() {
                   <div className="text-xs font-medium uppercase tracking-wide text-primary">
                     Dodana sesja
                   </div>
-                  <div className="mt-0.5 text-sm font-semibold">{m.session.title}</div>
+                  <div className="mt-0.5 text-sm font-semibold">{professionalSessionTitle(m.session.title)}</div>
                   <div className="text-xs text-muted-foreground">
                     {m.session.durationMin} min · {m.session.intensity}
                   </div>

@@ -38,7 +38,7 @@ function FootballIQScreen() {
 function NoPositionScreen() {
   const navigate = useNavigate();
   return (
-    <div>
+    <div className="premium-flow iq-premium">
       <AppHeader
         title="BallWise IQ"
         subtitle="Mikrosymulacje decyzji boiskowych."
@@ -362,7 +362,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
 
   return (
     <div
-      className="flex min-h-0 flex-col overflow-hidden"
+      className="premium-flow iq-premium flex min-h-0 flex-col overflow-hidden"
       style={{
         height: "calc(100dvh - 5.75rem - env(safe-area-inset-bottom))",
       }}
@@ -608,7 +608,7 @@ function BriefingScreen({
 }) {
   const ctx = scenario.context;
   return (
-    <div>
+    <div className="premium-flow iq-premium">
       <AppHeader
         title="BallWise IQ"
         subtitle="Mikrosymulacje decyzji boiskowych."

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isoDate, localToday, warsawToday } from "./labels";
+import { isoDate, localToday, professionalSessionTitle, warsawToday } from "./labels";
 
 describe("local day resolution", () => {
   it("normalizes any timestamp to local YYYY-MM-DD midnight", () => {
@@ -13,5 +13,18 @@ describe("local day resolution", () => {
   it("keeps dedicated Europe/Warsaw helper for backwards compatibility", () => {
     const atUtcLateEvening = new Date("2026-08-17T22:30:00.000Z");
     expect(isoDate(warsawToday(atUtcLateEvening))).toBe("2026-08-18");
+  });
+});
+
+describe("professional session titles", () => {
+  it("replaces shorthand strength labels with professional Polish names", () => {
+    expect(professionalSessionTitle("Siła nóg")).toBe("Trening siłowy kończyn dolnych");
+    expect(professionalSessionTitle("Siła górnej części ciała")).toBe(
+      "Trening siłowy górnej części ciała",
+    );
+  });
+
+  it("keeps an already specific title unchanged", () => {
+    expect(professionalSessionTitle("Przyspieszenie 10–20 m")).toBe("Przyspieszenie 10–20 m");
   });
 });

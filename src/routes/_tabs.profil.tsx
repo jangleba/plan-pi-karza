@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
-import { profileMatchDates } from "@/lib/loadwise/matchSchedule";
 import {
   CalendarDays,
   ChevronRight,
@@ -145,13 +144,13 @@ function ProfileScreen() {
   ];
 
   return (
-    <div>
+    <div className="premium-flow profile-premium">
       <AppHeader title="Profil" subtitle="Dane, które sterują Twoim planem." />
 
       <div className="space-y-3 px-5">
         <section className="soft-card p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-primary/[0.07] text-base font-medium text-primary">
               {profile.name.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -257,10 +256,8 @@ function ProfileScreen() {
             <Row label="Treningi klubowe" value={daysLabel(profile.clubTrainingDays)} />
             <Row label="Stały dzień meczu" value={usualMatchDay} />
             <Row
-              label="Najbliższe mecze"
-              value={profileMatchDates(profile).length
-                ? profileMatchDates(profile).map(formatDate).join(" i ")
-                : "Brak daty"}
+              label="Najbliższy mecz"
+              value={profile.matchDate ? formatDate(profile.matchDate) : "Brak daty"}
             />
             <Row
               label="Dni niedostępne"

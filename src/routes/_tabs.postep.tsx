@@ -76,11 +76,11 @@ function ProgressScreen() {
   const timeline = useMemo(() => buildTimeline(history), [history]);
 
   return (
-    <div>
+    <div className="premium-flow progress-premium">
       <AppHeader title="Postęp" subtitle="Tylko realne dane z wykonanych treningów." />
 
       <div className="sticky top-0 z-10 mb-4 bg-background/85 px-5 py-2 backdrop-blur">
-        <div className="flex gap-1 rounded-full bg-muted p-1" role="tablist">
+        <div className="flex border-b border-border" role="tablist">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -90,9 +90,9 @@ function ProgressScreen() {
               aria-controls="progress-panel"
               aria-selected={tab === item.id}
               onClick={() => setTab(item.id)}
-              className={`flex-1 rounded-full px-2 py-1.5 text-[10px] font-semibold tracking-wide transition-all duration-200 ${
+              className={`relative flex-1 px-2 py-2.5 text-[11px] font-medium tracking-[0.08em] transition-colors duration-200 ${
                 tab === item.id
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "text-foreground after:absolute after:inset-x-5 after:-bottom-px after:h-0.5 after:bg-primary"
                   : "text-muted-foreground"
               }`}
             >

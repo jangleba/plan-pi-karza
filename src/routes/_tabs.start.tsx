@@ -1,198 +1,115 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Activity, BarChart3, CalendarDays, Check, ChevronRight, Info } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { resolveEffectiveDay, nextMatchDate } from "@/lib/loadwise/dailyCheckin";
-import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
-import { AppHeader } from "@/components/loadwise/ui";
+import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  CalendarClock,
-  Activity,
-  Gauge,
-  ChevronRight,
-  Plus,
-  Repeat,
-  Undo2,
-  Apple,
-} from "lucide-react";
-import { ModifySheet } from "@/components/loadwise/ModifySheet";
-import { applyExerciseReplacements } from "@/lib/loadwise/store";
-import type { PainLocation, SessionDay, Intensity } from "@/lib/loadwise/types";
-import { buildReadiness, hasMedicalRedFlag, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
+import { ProfileAvatar } from "@/components/loadwise/ui";
+import type { PainLocation } from "@/lib/loadwise/types";
+import { buildReadiness, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 
-export const Route = createFileRoute("/_tabs/start")({
-  component: StartScreen,
-});
+export const Route = createFileRoute("/_tabs/start")({ component: StartScreen });
 
 const readinessFields: {
-  key: "sleep" | "fatigue" | "soreness" | "stress";
+  key: "sleep" | "energy" | "fatigue" | "jointPain";
   label: string;
 }[] = [
-  { key: "sleep", label: "Sen" },
-  { key: "fatigue", label: "Zmęczenie" },
-  { key: "soreness", label: "Bolesność mięśni" },
-  { key: "stress", label: "Stres" },
+  { key: "sleep", label: "Jakość snu" },
+  { key: "energy", label: "Poziom energii" },
+  { key: "fatigue", label: "Zmęczenie kończyn dolnych" },
+  { key: "jointPain", label: "Dolegliwości bólowe" },
 ];
 
-const RED_FLAGS = [
-  ["chest_pain", "Ból w klatce podczas wysiłku"],
-  ["fainting", "Omdlenie lub zasłabnięcie"],
-  ["breathlessness", "Nietypowa duszność"],
-  ["head_injury", "Podejrzenie urazu głowy"],
-  ["deformity_or_no_weight", "Deformacja albo brak możliwości obciążenia kończyny"],
-] as const;
-
-const LOAD_LABEL: Record<Intensity, string> = {
-  niska: "Niskie",
-  umiarkowana: "Umiarkowane",
-  wysoka: "Wysokie",
-};
-
-/** Duży tytuł decyzji dnia. */
-function dayHeadline(day: SessionDay): string {
-  switch (day.dayType) {
-    case "match":
-      return "Dziś: mecz";
-    case "md-1":
-      return "Dziś: aktywacja przedmeczowa";
-    case "club":
-      return "Dziś: trening klubowy";
-    case "recovery":
-      return "Dziś: regeneracja";
-    case "rest":
-      return "Dziś: dzień wolny";
-    default: {
-      if (day.title.toLowerCase().startsWith("regeneracja")) {
-        return "Dziś: regeneracja";
-      }
-      const t = day.sessionType.toLowerCase();
-      if (t.includes("szybk")) return "Dziś: szybkość";
-      if (t.includes("sił")) return "Dziś: siła";
-      if (t.includes("wytrzym")) return "Dziś: wytrzymałość";
-      if (t.includes("piłk") || t.includes("techn")) return "Dziś: trening z piłką";
-      return "Dziś: trening";
-    }
-  }
+function DecisionSignal() {
+  return (
+    <div className="decision-signal" aria-hidden="true">
+      <div className="decision-signal__sources">
+        <span><CalendarDays /></span>
+        <span><Activity /></span>
+        <span><BarChart3 /></span>
+      </div>
+      <svg viewBox="0 0 260 196" role="presentation" preserveAspectRatio="none">
+        <path className="decision-signal__path decision-signal__path--one" d="M4 30 C88 30 96 98 214 98" />
+        <path className="decision-signal__path decision-signal__path--two" d="M4 98 C88 98 122 98 214 98" />
+        <path className="decision-signal__path decision-signal__path--three" d="M4 166 C88 166 98 98 214 98" />
+        <circle className="decision-signal__dot decision-signal__dot--one" cx="38" cy="30" r="2.5" />
+        <circle className="decision-signal__dot decision-signal__dot--two" cx="78" cy="98" r="2.5" />
+        <circle className="decision-signal__dot decision-signal__dot--three" cx="46" cy="166" r="2.5" />
+      </svg>
+      <div className="decision-signal__result"><span className="decision-signal__core" /></div>
+    </div>
+  );
 }
 
-/** Jedno krótkie zdanie pod tytułem. */
-function dayOneLiner(day: SessionDay): string {
-  switch (day.dayType) {
-    case "match":
-      return "Dzień meczowy. Bez dodatkowego treningu.";
-    case "md-1":
-      return "Tylko aktywacja. Po treningu oceń RPE.";
-    case "club":
-      if (day.loadLabelOverride === "Wstrzymaj trening") {
-        return "Wstrzymaj trening i skonsultuj się z lekarzem lub fizjoterapeutą.";
-      }
-      return day.loadLabelOverride
-        ? "Trening klubowy zostaje — ogranicz obciążenie i zgłoś gotowość trenerowi."
-        : "To główne obciążenie dnia. Po treningu oceń RPE.";
-    case "recovery":
-      return "Lekka regeneracja. Bez intensywności.";
-    case "rest":
-      return "Odpoczynek — wróć jutro do planu.";
-    default:
-      return "To główne obciążenie dnia. Po treningu oceń RPE.";
-  }
-}
-
-function ReadinessDialog({
-  open,
-  onOpenChange,
-  trigger,
-}: {
+function ReadinessDialog({ open, onOpenChange, trigger }: {
   open: boolean;
-  onOpenChange: (v: boolean) => void;
+  onOpenChange: (value: boolean) => void;
   trigger?: React.ReactNode;
 }) {
   const { todayIso, saveReadiness, state } = useLoadwise();
   const existing = state.readiness[todayIso];
-  const [vals, setVals] = useState<Record<string, number>>(() => ({
+  const [values, setValues] = useState<Record<string, number>>(() => ({
     sleep: existing?.sleep ?? 7,
+    energy: existing?.energy ?? 7,
     fatigue: existing?.fatigue ?? 4,
-    soreness: existing?.soreness ?? 3,
-    stress: existing?.stress ?? 3,
     jointPain: existing?.jointPain ?? 0,
   }));
-  const [painLocation, setPainLocation] = useState<PainLocation | null>(
-    existing?.painLocation ?? null,
-  );
-  const [painOnset, setPainOnset] = useState<"today" | "1_7_days" | "over_7_days" | null>(existing?.painOnset ?? null);
-  const [altersMovement, setAltersMovement] = useState(Boolean(existing?.altersMovement));
-  const [redFlags, setRedFlags] = useState<string[]>(existing?.redFlags ?? []);
+  const [painLocation, setPainLocation] = useState<PainLocation | null>(existing?.painLocation ?? null);
 
   async function save() {
     try {
-      const input = {
-        sleep: vals.sleep,
-        fatigue: vals.fatigue,
-        soreness: vals.soreness,
-        stress: vals.stress,
-        jointPain: hasMedicalRedFlag({ redFlags }) ? 10 : vals.jointPain,
+      await saveReadiness(buildReadiness(todayIso, {
+        sleep: values.sleep,
+        energy: values.energy,
+        fatigue: values.fatigue,
+        jointPain: values.jointPain,
         painLocation,
-        painOnset,
-        altersMovement,
-        redFlags,
-      };
-      await saveReadiness(buildReadiness(todayIso, input));
+      }));
       onOpenChange(false);
-      if (hasMedicalRedFlag(input)) {
-        toast.error("Trening wstrzymany. Skontaktuj się z odpowiednią pomocą medyczną.");
-      } else {
-        toast.success("Zapisano check-in gotowości.");
-      }
+      toast.success("Zapisano ocenę gotowości.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać check-inu.");
+      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać oceny gotowości.");
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[88vh] overflow-y-auto border-border/70 bg-popover">
         <DialogHeader>
-          <DialogTitle>Jak się dziś czujesz?</DialogTitle>
+          <DialogTitle>Ocena gotowości do treningu</DialogTitle>
+          <DialogDescription>
+            Odpowiedz zgodnie z aktualnym samopoczuciem. Zajmie to około 20 sekund.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-5 pt-2">
-          {readinessFields.map((f) => (
-            <div key={f.key}>
+          {readinessFields.map((field) => (
+            <div key={field.key}>
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-medium">{f.label}</span>
-                <span className="text-muted-foreground">{vals[f.key]}/10</span>
+                <span className="font-medium">{field.label}</span>
+                <span className="tabular-nums text-muted-foreground">{values[field.key]}/10</span>
               </div>
               <Slider
-                min={1}
+                min={field.key === "jointPain" ? 0 : 1}
                 max={10}
                 step={1}
-                value={[vals[f.key]]}
-                onValueChange={(v) => setVals((p) => ({ ...p, [f.key]: v[0] }))}
+                value={[values[field.key]]}
+                onValueChange={(next) => setValues((current) => ({ ...current, [field.key]: next[0] }))}
               />
             </div>
           ))}
-          <div>
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="font-medium">Czy odczuwasz dziś ból lub nowy uraz?</span>
-              <span className="text-muted-foreground">{vals.jointPain > 0 ? "Tak" : "Nie"}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant={vals.jointPain === 0 ? "default" : "outline"} onClick={() => setVals((p) => ({ ...p, jointPain: 0 }))}>Nie</Button>
-              <Button type="button" variant={vals.jointPain > 0 ? "destructive" : "outline"} onClick={() => setVals((p) => ({ ...p, jointPain: Math.max(1, p.jointPain) }))}>Tak</Button>
-            </div>
-          </div>
-          {vals.jointPain > 0 && (
+          {values.jointPain > 0 && (
             <div className="space-y-2">
               <span className="text-sm font-medium">Którego obszaru dotyczy dyskomfort?</span>
               <Select value={painLocation ?? "other"} onValueChange={(value) => setPainLocation(value as PainLocation)}>
@@ -203,335 +120,113 @@ function ReadinessDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <div className="pt-2">
-                <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-medium">Nasilenie</span>
-                  <span className="text-muted-foreground">{vals.jointPain}/10</span>
-                </div>
-                <Slider min={1} max={10} step={1} value={[vals.jointPain]} onValueChange={(v) => setVals((p) => ({ ...p, jointPain: v[0] }))} />
-              </div>
-              <Select value={painOnset ?? undefined} onValueChange={(value) => setPainOnset(value as typeof painOnset)}>
-                <SelectTrigger><SelectValue placeholder="Kiedy zaczęło się odczucie?" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Dzisiaj</SelectItem>
-                  <SelectItem value="1_7_days">1–7 dni temu</SelectItem>
-                  <SelectItem value="over_7_days">Ponad 7 dni temu</SelectItem>
-                </SelectContent>
-              </Select>
-              <label className="flex items-start gap-3 rounded-xl border border-border p-3 text-sm">
-                <Checkbox checked={altersMovement} onCheckedChange={(value) => setAltersMovement(value === true)} />
-                Zmienia mój chód lub zwykły sposób poruszania się
-              </label>
-              <div className="pt-2 text-sm font-medium">Sygnały alarmowe</div>
-              {RED_FLAGS.map(([id, label]) => (
-                <label key={id} className="flex items-start gap-3 rounded-xl border border-border p-3 text-sm">
-                  <Checkbox checked={redFlags.includes(id)} onCheckedChange={(value) => setRedFlags((current) => value === true ? [...new Set([...current, id])] : current.filter((item) => item !== id))} />
-                  {label}
-                </label>
-              ))}
-              {redFlags.length > 0 && (
-                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                  Nie rozpoczynaj treningu. W nagłym zagrożeniu dzwoń pod 112; w pozostałych przypadkach skontaktuj się z lekarzem lub fizjoterapeutą.
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">Ta informacja służy wyłącznie do dobrania bezpieczniejszego wariantu obciążenia danego obszaru.</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Informacja służy wyłącznie do dobrania bezpieczniejszego wariantu obciążenia danego obszaru.
+              </p>
             </div>
           )}
-          <Button className="w-full" size="lg" onClick={save}>
-            Zapisz check-in
-          </Button>
+          <Button className="w-full" size="lg" onClick={save}>Zapisz ocenę</Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
+function decisionCopy(readinessCompleted: boolean, override?: string | null) {
+  if (!readinessCompleted) {
+    return { eyebrow: "Plan przygotowany", title: "Oceń gotowość", description: "Potwierdź samopoczucie przed treningiem." };
+  }
+  if (override === "Wstrzymaj trening") {
+    return { eyebrow: "Wymagana decyzja", title: "Wstrzymaj jednostkę", description: "Najpierw skonsultuj zgłoszone dolegliwości." };
+  }
+  if (override === "Ogranicz obciążenie") {
+    return { eyebrow: "Plan zaktualizowany", title: "Obciążenie ograniczone", description: "Jednostka została dopasowana do aktualnej gotowości." };
+  }
+  return { eyebrow: "Decyzja BallWise", title: "Plan bez zmian", description: "Możesz przejść do zaplanowanej jednostki." };
+}
+
 function StartScreen() {
-  const lw = useLoadwise();
-  const { state, todaySession, todayIso, undoModification } = lw;
+  const { state, todaySession, todayIso } = useLoadwise();
   const profile = state.profile;
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [modifyOpen, setModifyOpen] = useState(false);
-
+  const [explanationOpen, setExplanationOpen] = useState(false);
 
   if (!todaySession || !profile) {
-    return (
-      <div className="px-5 pt-10 text-sm text-muted-foreground">
-        Brak planu. Przejdź do zakładki Plan.
-      </div>
-    );
+    return <div className="px-6 pt-12 text-sm text-muted-foreground">Plan nie jest jeszcze dostępny. Otwórz zakładkę Plan.</div>;
   }
-
-  const todayMods = state.modifications[todayIso] ?? [];
-  const swapMod = todayMods.find((m) => m.type === "swap");
-  const addMods = todayMods.filter((m) => m.type === "add");
 
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const adjustedToday = applyExerciseReplacements(
-    resolveEffectiveDay(session, readiness, profile, todayMods),
-    state.exerciseReplacements[todayIso] ?? [],
-  );
-
-  const matchDate = nextMatchDate(state.plan, todayIso, profile.matchDate);
-  const isMatch = session.dayType === "match";
-  const isRestLike =
-    session.dayType === "rest" || session.dayType === "recovery";
-
+  const adjusted = resolveEffectiveDay(session, readiness, profile, state.modifications[todayIso] ?? []);
+  const healthEnabled = profile.healthPersonalizationEnabled;
+  const copy = decisionCopy(Boolean(readiness) || !healthEnabled, adjusted.loadLabelOverride);
 
   function openSession() {
-    navigate({
-      to: "/sesja/$date",
-      params: { date: session.date },
-      search: { slot: 1 },
-    });
+    navigate({ to: "/sesja/$date", params: { date: session.date }, search: { slot: 1 } });
   }
 
   return (
-    <div>
-      <AppHeader title={`Cześć, ${profile.name}`} subtitle={formatDateFull(todayIso)} />
+    <main className="start-decision-screen px-6 pb-32 pt-6">
+      <header className="flex items-center justify-between">
+        <span className="text-[17px] font-medium tracking-[-0.025em]">BallWise</span>
+        <ProfileAvatar />
+      </header>
 
-      <div className="space-y-4 px-5">
-        {/* Główna decyzja dnia — ciemna karta */}
-        <button
-          type="button"
-          onClick={openSession}
-          className="hero-card flex w-full items-center gap-4 p-5 text-left transition-transform active:scale-[0.99]"
-        >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand/20">
-            <Activity className="h-7 w-7 text-[oklch(0.78_0.13_256)]" strokeWidth={2.2} />
+      <section className="mx-auto flex min-h-[calc(100vh-11rem)] max-w-sm flex-col justify-center py-8">
+        <div className="mb-7 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[oklch(0.78_0.04_151)] text-white">
+            <Check className="h-3 w-3" strokeWidth={2.4} />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
-              Decyzja na dziś
-            </div>
-            <h2 className="mt-1 text-xl font-bold leading-tight">
-              {dayHeadline(adjustedToday)}
-            </h2>
-            <p className="mt-1 truncate text-sm text-graphite-muted">
-              {dayOneLiner(adjustedToday)}
-            </p>
-          </div>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground">
-            <ChevronRight className="h-4 w-4" strokeWidth={2.4} />
-          </span>
-        </button>
+          {copy.eyebrow}
+        </div>
+        <DecisionSignal />
 
-        {/* 3 kluczowe informacje */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="soft-card p-3">
-            <CalendarClock className="h-4 w-4 text-primary" />
-            <div className="mt-1.5 text-[11px] text-muted-foreground">Mecz</div>
-            <div className="text-sm font-semibold leading-tight">
-              {matchDate ? formatDate(matchDate) : "Brak"}
-            </div>
+        <div className="mt-10 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Decyzja BallWise</p>
+            <Dialog open={explanationOpen} onOpenChange={setExplanationOpen}>
+              <DialogTrigger asChild>
+                <button type="button" aria-label="Wyjaśnienie decyzji" className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="border-border/70 bg-popover">
+                <DialogHeader>
+                  <DialogTitle>Dlaczego taka decyzja?</DialogTitle>
+                  <DialogDescription className="leading-relaxed">
+                    {adjusted.whyToday ?? adjusted.safetyNote ?? copy.description}
+                  </DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
           </div>
-          <div className="soft-card p-3">
-            <Activity className="h-4 w-4 text-primary" />
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              Gotowość
-            </div>
-            <div className="text-sm font-semibold leading-tight">
-              {!profile.healthPersonalizationEnabled
-                ? "Wyłączona"
-                : readiness
-                  ? "Uzupełniona"
-                  : "Brak"}
-            </div>
-          </div>
-          <div className="soft-card p-3">
-            <Gauge className="h-4 w-4 text-primary" />
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              Obciążenie
-            </div>
-            <div className="text-sm font-semibold leading-tight">
-              {adjustedToday.loadLabelOverride ??
-                LOAD_LABEL[adjustedToday.intensity]}
-            </div>
-          </div>
+          <h1 className="mt-3 text-[28px] font-medium leading-tight tracking-[-0.035em]">{copy.title}</h1>
+          <p className="mx-auto mt-2 max-w-[18rem] text-[15px] leading-relaxed text-muted-foreground">{copy.description}</p>
         </div>
 
-        {/* Główne CTA */}
-        {isMatch ? (
-          <Button className="w-full" size="lg" onClick={openSession}>
-            Rozpocznij mecz
-          </Button>
-        ) : isRestLike ? (
-          <Button className="w-full" size="lg" onClick={openSession}>
-            Zobacz regenerację
-          </Button>
-        ) : !profile.healthPersonalizationEnabled ? (
-          <Button className="w-full" size="lg" onClick={openSession}>
-            Otwórz dzisiejszy trening
-          </Button>
-        ) : readiness ? (
-          <Button className="w-full" size="lg" onClick={openSession}>
-            Otwórz dzisiejszy trening
-          </Button>
-        ) : (
-          <ReadinessDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            trigger={
-              <Button className="w-full" size="lg">
-                Wypełnij check-in
-              </Button>
-            }
-          />
-        )}
+        <div className="mt-9 space-y-3">
+          {healthEnabled && !readiness ? (
+            <ReadinessDialog open={dialogOpen} onOpenChange={setDialogOpen} trigger={<Button className="h-12 w-full rounded-xl text-[15px]">Oceń gotowość</Button>} />
+          ) : (
+            <Button className="h-12 w-full rounded-xl text-[15px]" onClick={openSession}>
+              Przejdź do jednostki <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
 
-        {!profile.healthPersonalizationEnabled && (
-          <Link
-            to="/onboarding"
-            search={{ edit: true }}
-            className="block rounded-2xl border border-border bg-card p-3 text-xs leading-relaxed text-muted-foreground"
-          >
-            Check-in zdrowotny jest opcjonalny i wyłączony. Plan działa w trybie ostrożnym. Możesz
-            włączyć personalizację w edycji profilu.
-          </Link>
-        )}
-
-
-        {/* Fuel Check — analiza żywienia */}
-        <Link
-          to="/fuel"
-          className="soft-card flex w-full items-center gap-3 p-4 transition-transform active:scale-[0.99]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-brand">
-            <Apple className="h-6 w-6" strokeWidth={2.1} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium uppercase tracking-wide text-primary">
-              Fuel Check
-            </div>
-            <div className="mt-0.5 truncate text-sm font-semibold">
-              Sprawdź, czy posiłek pasuje do treningu
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </Link>
-
-
-
-        {/* Druga sesja dziś */}
-        {adjustedToday.secondSession && (
-          <button
-            type="button"
-            onClick={() =>
-              navigate({
-                to: "/sesja/$date",
-                params: { date: session.date },
-                search: { slot: 2 },
-              })
-            }
-            className="soft-card flex w-full items-center justify-between p-4 text-left"
-          >
-            <div className="min-w-0">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                2. sesja dziś (lekka)
-              </div>
-              <div className="mt-0.5 truncate text-sm font-semibold">
-                {adjustedToday.secondSession.title}
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
-        )}
-
-        {/* Sesje dodane przez zawodnika */}
-        {addMods.map((m) => (
-          <div key={m.id} className="soft-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  navigate({
-                    to: "/sesja/$date",
-                    params: { date: m.date },
-                    search: { slot: 1 },
-                  })
-                }
-                className="min-w-0 text-left"
-              >
-                <div className="text-xs font-medium uppercase tracking-wide text-primary">
-                  Dodana sesja
-                </div>
-                <div className="mt-0.5 truncate text-sm font-semibold">
-                  {m.session.title}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {m.session.durationMin} min · {m.session.intensity}
-                </div>
+          {healthEnabled && readiness ? (
+            <ReadinessDialog open={dialogOpen} onOpenChange={setDialogOpen} trigger={
+              <button className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Zaktualizuj gotowość <ChevronRight className="h-3.5 w-3.5" />
               </button>
-              <button
-                type="button"
-                onClick={() => undoModification(m.date, m.id)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-              >
-                <Undo2 className="h-3.5 w-3.5" /> Cofnij
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {/* Informacja o zamianie + cofnij */}
-        {swapMod && (
-          <div className="soft-card flex items-center justify-between p-3 text-xs">
-            <span className="text-muted-foreground">
-              Sesja zamieniona przez Ciebie.
-            </span>
-            <button
-              type="button"
-              onClick={() => undoModification(swapMod.date, swapMod.id)}
-              className="inline-flex items-center gap-1 font-medium text-primary"
-            >
-              <Undo2 className="h-3.5 w-3.5" /> Cofnij zmianę
+            } />
+          ) : healthEnabled ? (
+            <button type="button" onClick={openSession} className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              Przejdź do jednostki <ChevronRight className="h-3.5 w-3.5" />
             </button>
-          </div>
-        )}
-
-        {/* Dodaj / zamień sesję */}
-        {!isMatch && (
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setModifyOpen(true)}
-            >
-              <Plus className="mr-1 h-4 w-4" /> Dodaj trening
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setModifyOpen(true)}
-            >
-              <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
-            </Button>
-          </div>
-        )}
-
-        {/* Drugorzędne CTA: aktualizacja gotowości, gdy już uzupełniona */}
-        {readiness && !isMatch && !isRestLike && (
-          <ReadinessDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            trigger={
-              <Button variant="outline" className="w-full" size="lg">
-                Zaktualizuj gotowość
-              </Button>
-            }
-          />
-        )}
-      </div>
-
-      <ModifySheet
-        open={modifyOpen}
-        onOpenChange={setModifyOpen}
-        date={todayIso}
-      />
-
-      <div className="h-[140px]" />
-    </div>
+          ) : null}
+        </div>
+      </section>
+    </main>
   );
 }

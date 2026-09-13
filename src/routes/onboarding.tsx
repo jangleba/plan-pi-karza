@@ -46,7 +46,6 @@ import {
 } from "@/lib/loadwise/agePolicy";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
 import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
-import { normalizeMatchDates } from "@/lib/loadwise/matchSchedule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -206,7 +205,7 @@ function ChoiceGrid<T extends string>({
           onClick={() => onChange(o)}
           className={`flex min-h-[56px] items-center justify-center rounded-2xl border px-3 py-3 text-center text-sm font-medium transition-all ${
             value === o
-              ? "border-primary bg-primary text-primary-foreground shadow-md"
+              ? "border-primary bg-primary/[0.08] text-primary"
               : "border-border bg-card text-foreground"
           }`}
         >
@@ -271,9 +270,6 @@ function Onboarding() {
     existing?.clubTrainingDays ?? [],
   );
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
-  const [secondMatchDate, setSecondMatchDate] = useState(
-    existing?.matchDates?.find((date) => date !== existing.matchDate) ?? "",
-  );
   const [noMatch, setNoMatch] = useState(
     !existing?.matchDate && existing?.weeklyMatches === false,
   );
@@ -541,7 +537,6 @@ function Onboarding() {
       unavailableDays,
       usualMatchDay: null,
       matchDate: noMatch ? null : matchDate || null,
-      matchDates: noMatch ? [] : normalizeMatchDates([matchDate, secondMatchDate]),
       equipment,
       painInjury: Boolean(consents.health_data && painInjury),
       painLocations: consents.health_data && painInjury ? painLocations : [],
@@ -589,7 +584,7 @@ function Onboarding() {
   }
 
   return (
-    <div className="app-shell flex h-[100dvh] flex-col">
+    <div className="app-shell onboarding-premium flex h-[100dvh] flex-col">
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto overscroll-contain"
@@ -600,23 +595,23 @@ function Onboarding() {
             {step > 0 ? (
               <button
                 onClick={() => setStep((s) => s - 1)}
-                className="rounded-full border border-border p-1.5 text-foreground"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground"
                 aria-label="Wstecz"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
             ) : (
-              <div className="text-xl font-semibold text-primary">BallWise</div>
+              <div className="text-[17px] font-medium tracking-[-0.025em] text-foreground">BallWise</div>
             )}
             <div className="ml-auto text-xs text-muted-foreground">
               Krok {step + 1} z {totalSteps}
             </div>
           </div>
-          <div className="mt-3 flex gap-1.5">
+          <div className="mt-4 flex gap-1.5">
             {Array.from({ length: totalSteps }).map((_, i) => (
               <div
                 key={i}
-                className={`h-1.5 flex-1 rounded-full ${
+                className={`h-px flex-1 ${
                   i <= step ? "bg-primary" : "bg-muted"
                 }`}
               />
@@ -737,7 +732,7 @@ function Onboarding() {
                     onClick={() => setLevel(lv)}
                     className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
                       level === lv
-                        ? "border-primary bg-primary text-primary-foreground shadow-md"
+                        ? "border-primary bg-primary/[0.08] text-primary"
                         : "border-border bg-card text-foreground"
                     }`}
                   >
@@ -981,7 +976,7 @@ function Onboarding() {
                       onClick={() => toggleClubDay(d.value)}
                       className={`rounded-full border py-2 text-xs font-medium transition-colors ${
                         clubDays.includes(d.value)
-                          ? "border-primary bg-primary text-primary-foreground"
+                          ? "border-primary bg-primary/[0.08] text-primary"
                           : "border-border bg-background text-foreground"
                       }`}
                     >
@@ -1041,49 +1036,6 @@ function Onboarding() {
                     />
                   </PopoverContent>
                 </Popover>
-                {!noMatch && (
-                  <div className="space-y-2">
-                    <Label>Drugi mecz w najbliższym okresie (opcjonalnie)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm"
-                        >
-                          <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className={secondMatchDate ? "text-foreground" : "text-muted-foreground"}>
-                            {secondMatchDate
-                              ? format(new Date(`${secondMatchDate}T00:00:00`), "d MMMM yyyy", { locale: pl })
-                              : "Dodaj drugą datę, jeśli grasz dwa mecze"}
-                          </span>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          locale={pl}
-                          selected={secondMatchDate ? new Date(`${secondMatchDate}T00:00:00`) : undefined}
-                          onSelect={(d) => setSecondMatchDate(d ? format(d, "yyyy-MM-dd") : "")}
-                          disabled={(d) =>
-                            d < new Date(`${todayStr}T00:00:00`) ||
-                            (matchDate !== "" && format(d, "yyyy-MM-dd") <= matchDate)
-                          }
-                          initialFocus
-                          className="pointer-events-auto p-3"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {secondMatchDate && (
-                      <button
-                        type="button"
-                        className="text-xs font-medium text-muted-foreground"
-                        onClick={() => setSecondMatchDate("")}
-                      >
-                        Usuń drugą datę
-                      </button>
-                    )}
-                  </div>
-                )}
                 <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5">
                   <Checkbox
                     checked={noMatch}
@@ -1092,7 +1044,6 @@ function Onboarding() {
                       setNoMatch(next);
                       if (next) {
                         setMatchDate("");
-                        setSecondMatchDate("");
                         setWeeklyMatches(false);
                       }
                     }}
@@ -1177,7 +1128,7 @@ function Onboarding() {
                           onClick={() => togglePainLocation(option.value)}
                           className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
                             selected
-                              ? "border-primary bg-primary text-primary-foreground"
+                              ? "border-primary bg-primary/[0.08] text-primary"
                               : "border-border bg-background text-foreground"
                           }`}
                         >
@@ -1287,7 +1238,7 @@ function Onboarding() {
                       aria-pressed={active}
                       className={`rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition-colors ${
                         active
-                          ? "border-primary bg-primary text-primary-foreground"
+                          ? "border-primary bg-primary/[0.08] text-primary"
                           : "border-border bg-card text-foreground"
                       }`}
                     >
@@ -1319,7 +1270,7 @@ function Onboarding() {
                       aria-pressed={active}
                       className={`rounded-xl border px-3.5 py-3 text-left text-sm font-medium transition-colors ${
                         active
-                          ? "border-primary bg-primary text-primary-foreground"
+                          ? "border-primary bg-primary/[0.08] text-primary"
                           : "border-border bg-card text-foreground"
                       }`}
                     >

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
-import { formatDate, shortDayName, parseIso } from "@/lib/loadwise/labels";
+import { formatDate, shortDayName, parseIso, professionalSessionTitle } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import {
   buildPlanWeeks,
@@ -33,9 +33,7 @@ import {
   Zap,
   Target,
   Activity,
-  Gauge,
   CalendarDays,
-  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,18 +47,6 @@ const LOAD_LABEL: Record<Intensity, string> = {
   niska: "niskie",
   umiarkowana: "umiarkowane",
   wysoka: "wysokie",
-};
-
-const LOAD_SHORT: Record<Intensity, string> = {
-  niska: "Niskie",
-  umiarkowana: "Średnie",
-  wysoka: "Wysokie",
-};
-
-const INTENSITY_SHORT: Record<Intensity, string> = {
-  niska: "Niska",
-  umiarkowana: "Średnia",
-  wysoka: "Wysoka",
 };
 
 /** Ikona w bańce dla typu dnia. */
@@ -97,6 +83,14 @@ function shortTag(day: SessionDay): string {
       return "Trening";
     }
   }
+}
+
+function loadBarHeight(day: SessionDay): number {
+  if (day.dayType === "rest") return 8;
+  if (day.dayType === "recovery" || day.dayType === "md-1") return 14;
+  if (day.intensity === "wysoka" || day.dayType === "match") return 34;
+  if (day.intensity === "umiarkowana" || day.dayType === "club") return 25;
+  return 18;
 }
 
 function pluralWeeks(n: number): string {
@@ -314,7 +308,7 @@ function PlanScreen() {
 
   // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
   const weekHasMatchDate = (i: number) =>
-    (transitions[i]?.nextMatchDates?.length ?? (transitions[i]?.nextMatchDate ? 1 : 0)) > 0 ||
+    !!transitions[i]?.nextMatchDate ||
     (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
 
   // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
@@ -425,9 +419,9 @@ function PlanScreen() {
         </p>
       )}
 
-      {/* Przełącznik tygodni */}
+      {/* Przełącznik tygodni — lekki, bez konkurujących kart */}
       {weeks.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto px-5 pb-1 pr-8 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-6 overflow-x-auto px-5 pb-2 pr-8 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {weeks.map((week, i) => {
             const locked = !canAccess(i);
             return (
@@ -435,12 +429,12 @@ function PlanScreen() {
                 key={i}
                 type="button"
                 onClick={() => goToWeek(i)}
-                className={`flex shrink-0 flex-col items-start gap-0.5 rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`relative flex shrink-0 flex-col items-start gap-0.5 pb-2 text-sm font-medium transition-colors ${
                   i === activeWeek
-                    ? "bg-primary text-primary-foreground"
+                    ? "text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
                     : locked
-                      ? "bg-secondary/60 text-muted-foreground"
-                      : "bg-secondary text-secondary-foreground"
+                      ? "text-muted-foreground/60"
+                      : "text-muted-foreground"
                 }`}
               >
                 {locked && <Lock className="h-3.5 w-3.5" />}
@@ -480,77 +474,58 @@ function PlanScreen() {
         </div>
       )}
 
-      <div className="px-5 pt-3">
-        <Link
-          to="/reakcja"
-          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 transition-colors active:bg-secondary"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <ScanLine className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-foreground">Trener reakcji</p>
-            <p className="truncate text-xs text-muted-foreground">
-              Kierunki, kolory i decyzje do własnej pracy z piłką
-            </p>
-          </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </Link>
-      </div>
-
-
-      {todaySession &&
-        (() => {
-          const hero = todayAdjusted ?? todaySession;
-          const HeroIcon = sessionIcon(hero);
-          return (
-            <div className="px-5 pt-3">
-              <Link
-                to="/sesja/$date"
-                params={{ date: todaySession.date }}
-                search={{ slot: 1 }}
-                className="hero-card flex items-center gap-4 p-5 active:scale-[0.99] transition-transform"
-              >
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand/20 text-brand-foreground">
-                  <HeroIcon className="h-7 w-7 text-[oklch(0.78_0.13_256)]" strokeWidth={2.2} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.78_0.13_256)]">
-                    Decyzja dnia
-                  </div>
-                  <h2 className="mt-1 truncate text-xl font-bold leading-tight">
-                    {hero.title}
-                  </h2>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {INTENSITY_SHORT[hero.intensity]}
+      {visibleDays.length > 0 && (
+        <div className="px-5 pt-4">
+          <div className="border-y border-border/75 py-4">
+            <div className="grid grid-cols-7 gap-1">
+              {visibleDays.map(({ source }) => {
+                const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+                const date = parseIso(day.date);
+                const isToday = day.date === todayIso;
+                const isMatch = day.dayType === "match";
+                return (
+                  <Link
+                    key={day.date}
+                    to="/sesja/$date"
+                    params={{ date: day.date }}
+                    search={{ slot: 1 }}
+                    className={`flex min-w-0 flex-col items-center gap-2 py-1 text-center transition-opacity active:opacity-60 ${
+                      isToday ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    <span className="text-[10px] font-medium uppercase tracking-wide">
+                      {shortDayName(date)}
                     </span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {hero.loadLabelOverride ?? LOAD_SHORT[hero.intensity]}
+                    <span className="relative flex h-9 items-end">
+                      <span
+                        className={`w-1.5 rounded-full ${
+                          isMatch ? "bg-[oklch(0.58_0.055_55)]" : isToday ? "bg-primary" : "bg-[oklch(0.62_0.035_151)]"
+                        }`}
+                        style={{ height: loadBarHeight(day) }}
+                      />
                     </span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-graphite-foreground">
-                      {hero.durationMin} min
+                    <span className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}>
+                      {date.getDate()}
                     </span>
-                  </div>
-                </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-primary-foreground">
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
-                </span>
-              </Link>
+                    {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
+                  </Link>
+                );
+              })}
             </div>
-          );
-        })()}
+            <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>Rytm obciążenia mikrocyklu</span>
+              <span>{summary ? LOAD_LABEL[summary.load] : null}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Fokus tygodnia — jeden wiersz */}
+      {/* Kierunek mikrocyklu — jeden spokojny wiersz */}
       {summary && (
         <div className="px-5 pt-3">
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 px-4 py-2.5">
-            <span className="truncate text-sm font-medium text-secondary-foreground">
-              {summary.goal}
-            </span>
-            <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-              Obciążenie: {LOAD_LABEL[summary.load]}
-            </span>
+          <div className="border-b border-border/75 px-1 pb-3">
+            <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kierunek mikrocyklu</span>
+            <span className="mt-1 block truncate text-sm font-medium text-foreground">{summary.goal}</span>
           </div>
         </div>
       )}
@@ -558,7 +533,7 @@ function PlanScreen() {
 
       {/* Dni tygodnia */}
       <div
-        className="space-y-3 px-5 pt-4"
+        className="divide-y divide-border/75 px-5 pt-4"
         style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom))" }}
       >
         {hasHiddenBefore && planStartDate && (
@@ -587,24 +562,22 @@ function PlanScreen() {
           return (
             <div
               key={day.date}
-              className={`soft-card relative overflow-hidden ${
-                isToday ? "ring-1 ring-primary/40" : ""
-              }`}
+              className="relative overflow-hidden"
             >
               {isToday && (
-                <span className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-primary" />
+                <span className="absolute inset-y-4 left-0 w-0.5 rounded-r-full bg-primary" />
               )}
               <Link
                 to="/sesja/$date"
                 params={{ date: day.date }}
                 search={{ slot: 1 }}
-                className="flex items-center gap-3.5 p-3.5 active:bg-secondary/40"
+                className="flex items-center gap-3.5 px-2 py-4 active:bg-secondary/35"
               >
                 <div className="w-11 shrink-0 text-center">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {shortDayName(d)}
                   </div>
-                  <div className="text-xl font-bold leading-none text-foreground">
+                  <div className="text-lg font-medium leading-none text-foreground">
                     {dayNum}
                   </div>
                   <div className="text-[10px] font-medium uppercase text-muted-foreground">
@@ -613,7 +586,7 @@ function PlanScreen() {
                 </div>
 
                 <span
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
                     isRest
                       ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]"
                       : "icon-bubble"
@@ -624,11 +597,11 @@ function PlanScreen() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="truncate text-[15px] font-semibold text-foreground">
-                      {day.title}
+                    <h3 className="truncate text-[15px] font-medium text-foreground">
+                      {professionalSessionTitle(day.title)}
                     </h3>
                     {isToday && (
-                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
+                      <span className="text-[9px] font-medium uppercase tracking-wide text-primary">
                         Dziś
                       </span>
                     )}
@@ -660,7 +633,7 @@ function PlanScreen() {
                   className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
                 >
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-foreground/60" />
-                  <span className="truncate">2. sesja: {day.secondSession.title}</span>
+                  <span className="truncate">Druga jednostka: {professionalSessionTitle(day.secondSession.title)}</span>
                   <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
                 </Link>
               )}
@@ -679,7 +652,7 @@ function PlanScreen() {
                   >
                     <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
                     <span className="truncate">
-                      Dodana: {modification.session.title}
+                      Dodana jednostka: {professionalSessionTitle(modification.session.title)}
                     </span>
                     {addedDone && (
                       <CheckCircle2 className="ml-auto h-3.5 w-3.5 shrink-0 text-primary" />
@@ -701,10 +674,8 @@ function PlanScreen() {
           <div className="soft-card p-4">
             <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {(nextTransition?.nextMatchDates?.length ?? 0) > 0
-                ? `Kolejne mecze: ${nextTransition!.nextMatchDates!.map(formatDate).join(" i ")}.`
-                : nextTransition?.nextMatchDate
-                  ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
+              {nextTransition?.nextMatchDate
+                ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
                 : offseasonAllowed && nextTransition?.noMatchNextWeek
                   ? "Kolejny tydzień bez meczu (poza sezonem)."
                   : "Kolejny mecz: nie ustawiono."}

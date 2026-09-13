@@ -128,6 +128,30 @@ export function formatDateFull(s: string): string {
   return `${PL_DAYS[d.getDay()]}, ${d.getDate()} ${PL_MONTHS[d.getMonth()]}`;
 }
 
+/** Spójna, profesjonalna nazwa jednostki w warstwie interfejsu. */
+export function professionalSessionTitle(title: string): string {
+  const normalized = title.trim().toLocaleLowerCase("pl-PL");
+  if (
+    normalized === "siła dolnych partii" ||
+    normalized === "siła nóg" ||
+    normalized === "siła dolnej części ciała"
+  ) {
+    return "Trening siłowy kończyn dolnych";
+  }
+  if (
+    normalized === "siła górnych partii" ||
+    normalized === "siła góry" ||
+    normalized === "siła górnej części ciała"
+  ) {
+    return "Trening siłowy górnej części ciała";
+  }
+  if (normalized === "wytrzymałość") return "Trening wytrzymałościowy";
+  if (normalized === "szybkość") return "Trening szybkości";
+  if (normalized === "wolne" || normalized === "odpoczynek") return "Dzień wolny";
+  if (normalized === "klub") return "Trening klubowy";
+  return title;
+}
+
 export const GOAL_LABELS: Record<Goal, string> = {
   speed: "Szybkość i przyspieszenie",
   strength: "Siła i stabilność",

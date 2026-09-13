@@ -12,7 +12,7 @@ export function ProfileAvatar() {
     <Link
       to="/profil"
       aria-label="Profil, konto i ustawienia"
-      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card text-sm font-medium text-foreground transition-transform active:scale-95"
     >
       {initial || <User className="h-4 w-4" />}
     </Link>
@@ -38,7 +38,7 @@ export function AppHeader({
             <span className="icon-bubble h-8 w-8">
               <Waves className="h-4 w-4" strokeWidth={2.4} />
             </span>
-            <span className="text-base font-semibold tracking-tight text-foreground">
+            <span className="text-[15px] font-medium tracking-[-0.025em] text-foreground">
               BallWise
             </span>
           </div>
@@ -50,7 +50,7 @@ export function AppHeader({
       )}
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-[28px] font-bold leading-none tracking-tight text-foreground">
+          <h1 className="text-[24px] font-medium leading-tight tracking-[-0.03em] text-foreground">
             {title}
           </h1>
           {subtitle && (
@@ -93,11 +93,11 @@ export function IntensityBadge({
 
 const dayTypeLabels: Record<DayType, string> = {
   match: "Mecz",
-  "md-1": "Przedmeczowy",
-  club: "Klub",
-  training: "Trening",
+  "md-1": "Aktywacja przedmeczowa",
+  club: "Trening klubowy",
+  training: "Jednostka treningowa",
   recovery: "Regeneracja",
-  rest: "Wolne",
+  rest: "Dzień wolny",
 };
 
 export function DayTypeTag({ type }: { type: DayType }) {

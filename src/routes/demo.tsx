@@ -14,7 +14,7 @@ const DEMO_WEEK = [
 
 function PublicDemo() {
   return (
-    <main className="app-shell min-h-screen px-5 pb-12 pt-8">
+    <main className="app-shell premium-flow min-h-screen px-5 pb-12 pt-8">
       <div className="mx-auto max-w-md">
         <div className="flex items-center justify-between gap-3">
           <div>

@@ -3,9 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { AppHeader } from "@/components/loadwise/ui";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import {
   ChevronLeft,
   CalendarClock,
@@ -16,7 +13,6 @@ import {
   Timer,
   X,
   Sparkles,
-  ShieldAlert,
 } from "lucide-react";
 import { evaluateMeal, TIME_BUCKET_MINUTES } from "@/lib/fuel/engine";
 import {
@@ -96,7 +92,7 @@ const TONE_BADGE: Record<ResultTone, string> = {
 };
 
 function FuelWiseScreen() {
-  const { state, todayIso, updateProfile } = useLoadwise();
+  const { state, todayIso } = useLoadwise();
 
   const session = useMemo(
     () => sessionFromPlan(findNextSession(state.plan, todayIso), todayIso),
@@ -114,42 +110,6 @@ function FuelWiseScreen() {
   const [open, setOpen] = useState(false);
   const [openWhy, setOpenWhy] = useState<Indicator["key"] | null>(null);
   const [pulse, setPulse] = useState(0);
-  const [allergyMode, setAllergyMode] = useState<"confirmed_none" | "has_allergies" | null>(
-    state.profile?.fuelAllergyStatus === "confirmed_none" || state.profile?.fuelAllergyStatus === "has_allergies"
-      ? state.profile.fuelAllergyStatus
-      : null,
-  );
-  const [allergyText, setAllergyText] = useState((state.profile?.foodAllergies ?? []).join(", "));
-  const [intoleranceText, setIntoleranceText] = useState((state.profile?.foodIntolerances ?? []).join(", "));
-  const [exclusionText, setExclusionText] = useState((state.profile?.foodExclusions ?? []).join(", "));
-  const [savingSafety, setSavingSafety] = useState(false);
-
-  const fuelReady = athlete.allergyStatus !== "unconfirmed";
-
-  async function saveFuelSafety() {
-    if (!state.profile || !allergyMode) return;
-    const split = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
-    const allergies = allergyMode === "has_allergies" ? split(allergyText) : [];
-    if (allergyMode === "has_allergies" && allergies.length === 0) {
-      toast.error("Wpisz alergeny oddzielone przecinkami.");
-      return;
-    }
-    setSavingSafety(true);
-    try {
-      await updateProfile({
-        ...state.profile,
-        fuelAllergyStatus: allergyMode,
-        foodAllergies: allergies,
-        foodIntolerances: split(intoleranceText),
-        foodExclusions: split(exclusionText),
-      });
-      toast.success("Zapisano ustawienia bezpieczeństwa FuelWise.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać ustawień.");
-    } finally {
-      setSavingSafety(false);
-    }
-  }
 
   const countdown = useCountdown(session.minutesToStart);
   const minutes = countdown ?? (bucket ? TIME_BUCKET_MINUTES[bucket] : null);
@@ -217,9 +177,9 @@ function FuelWiseScreen() {
   }
 
   return (
-    <div className="pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
+    <div className="premium-flow fuel-premium pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
       <AppHeader
-        title="FuelWise"
+        title="Fuel"
         subtitle="Dopasuj posiłek do najbliższej jednostki"
         right={
           <Link
@@ -233,29 +193,6 @@ function FuelWiseScreen() {
       />
 
       <div className="space-y-3 px-5">
-        <div className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <ShieldAlert className="h-3.5 w-3.5" /> Bezpieczeństwo żywienia
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Przed pierwszą oceną potwierdź alergie. Nie pytamy o diagnozy, leki ani powód wykluczeń.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button type="button" variant={allergyMode === "confirmed_none" ? "default" : "outline"} onClick={() => setAllergyMode("confirmed_none")}>Brak alergii</Button>
-            <Button type="button" variant={allergyMode === "has_allergies" ? "default" : "outline"} onClick={() => setAllergyMode("has_allergies")}>Mam alergie</Button>
-          </div>
-          {allergyMode === "has_allergies" && (
-            <Input className="mt-2" value={allergyText} onChange={(event) => setAllergyText(event.target.value)} placeholder="Alergeny, np. orzechy, mleko" />
-          )}
-          {allergyMode && (
-            <div className="mt-2 space-y-2">
-              <Input value={intoleranceText} onChange={(event) => setIntoleranceText(event.target.value)} placeholder="Nietolerancje (opcjonalnie)" />
-              <Input value={exclusionText} onChange={(event) => setExclusionText(event.target.value)} placeholder="Produkty wykluczone (opcjonalnie)" />
-              <Button type="button" className="w-full" disabled={savingSafety} onClick={saveFuelSafety}>{savingSafety ? "Zapisuję…" : "Zapisz bezpieczeństwo"}</Button>
-            </div>
-          )}
-          {fuelReady && <p className="mt-2 text-xs text-primary">Ustawienia potwierdzone.</p>}
-        </div>
         {session.kind === "none" ? (
           <div className="soft-card p-4">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -295,7 +232,7 @@ function FuelWiseScreen() {
                         onClick={() => setBucket(w.id)}
                         className={`rounded-full border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                           bucket === w.id
-                            ? "border-primary bg-primary text-primary-foreground"
+                            ? "border-primary bg-primary/[0.08] text-primary"
                             : "border-border bg-card text-muted-foreground"
                         }`}
                       >
@@ -418,7 +355,7 @@ function FuelWiseScreen() {
                               }}
                               className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200 active:scale-95 ${
                                 on
-                                  ? "border-primary bg-primary text-primary-foreground"
+                                  ? "border-primary bg-primary/[0.08] text-primary"
                                   : "border-border bg-card text-muted-foreground"
                               }`}
                             >
@@ -453,7 +390,7 @@ function FuelWiseScreen() {
                     onClick={() => setPortion(p.id)}
                     className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                       portion === p.id
-                        ? "border-primary bg-primary text-primary-foreground"
+                        ? "border-primary bg-primary/[0.08] text-primary"
                         : "border-border bg-card text-muted-foreground"
                     }`}
                   >
@@ -464,11 +401,11 @@ function FuelWiseScreen() {
 
               <button
                 type="button"
-                disabled={!fuelReady || !hasMeal || minutes == null}
+                disabled={!hasMeal || minutes == null}
                 onClick={() => setOpen(true)}
                 className="mt-3 w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-95 disabled:opacity-50"
               >
-                {!fuelReady ? "Najpierw potwierdź alergie" : minutes == null ? "Wybierz czas do treningu" : "Sprawdź posiłek"}
+                {minutes == null ? "Wybierz czas do treningu" : "Sprawdź posiłek"}
               </button>
             </div>
 

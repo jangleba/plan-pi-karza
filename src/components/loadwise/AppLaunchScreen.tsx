@@ -16,15 +16,17 @@ export function AppLaunchScreen() {
           <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
         </div>
 
-        <div className="mt-8 h-36 animate-pulse rounded-[1.75rem] border border-border/70 bg-card shadow-sm" />
+        <div className="mt-10 flex h-36 items-center justify-center">
+          <div className="h-12 w-12 animate-pulse rounded-full bg-primary/15 ring-[14px] ring-primary/[0.04]" />
+        </div>
 
         <div className="mt-7 flex items-center justify-between">
           <div className="h-5 w-32 animate-pulse rounded-full bg-muted" />
           <div className="h-4 w-14 animate-pulse rounded-full bg-muted" />
         </div>
         <div className="mt-4 space-y-3">
-          <div className="h-24 animate-pulse rounded-[1.5rem] border border-border/70 bg-card" />
-          <div className="h-24 animate-pulse rounded-[1.5rem] border border-border/70 bg-card" />
+          <div className="h-20 animate-pulse border-b border-border/70 bg-card/40" />
+          <div className="h-20 animate-pulse border-b border-border/70 bg-card/40" />
         </div>
       </div>
 
