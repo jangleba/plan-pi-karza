@@ -144,47 +144,18 @@ export async function persistMonthlyPlan(
     }
   }
 
-  // Kolejność: plan -> dni -> sesje -> ćwiczenia (klucze obce).
-  const planInsert = await supabase.from("training_plans").insert({
-    id: planId,
-    user_id: userId,
-    goal: profile.goal,
-    month,
-    plan_json: plan as unknown as never,
-    status: "archived",
-    active: false,
-  });
-  assertNoSupabaseError("training_plans.insert", planInsert.error);
-  try {
-    if (dayRows.length) {
-      const dayInsert = await supabase.from("training_days").insert(dayRows as never);
-      assertNoSupabaseError("training_days.insert", dayInsert.error);
-    }
-    if (sessionRows.length) {
-      const sessionInsert = await supabase.from("training_sessions").insert(sessionRows as never);
-      assertNoSupabaseError("training_sessions.insert", sessionInsert.error);
-    }
-    if (exerciseRows.length) {
-      const exerciseInsert = await supabase.from("session_exercises").insert(exerciseRows as never);
-      assertNoSupabaseError("session_exercises.insert", exerciseInsert.error);
-    }
-    const activatePlan = await supabase
-      .from("training_plans")
-      .update({ status: "active", active: true })
-      .eq("id", planId)
-      .eq("user_id", userId);
-    assertNoSupabaseError("training_plans.activate", activatePlan.error);
-    const archivePrevious = await supabase
-      .from("training_plans")
-      .update({ status: "archived", active: false })
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .neq("id", planId);
-    assertNoSupabaseError("training_plans.archive_previous", archivePrevious.error);
-  } catch (error) {
-    await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
-    throw error;
-  }
+  // Jeden RPC = jedna transakcja Postgresa. Przerwany internet nie może już
+  // pozostawić połowy planu ani wyłączyć poprzedniego aktywnego planu.
+  const atomicWrite = await supabase.rpc("persist_training_plan_atomic" as never, {
+    p_plan_id: planId,
+    p_goal: profile.goal,
+    p_month: month,
+    p_plan_json: plan,
+    p_days: dayRows,
+    p_sessions: sessionRows,
+    p_exercises: exerciseRows,
+  } as never);
+  assertNoSupabaseError("persist_training_plan_atomic", atomicWrite.error);
 }
 
 /**

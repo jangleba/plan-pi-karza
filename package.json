@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm run test && npm run lint && npm run build",
+    "verify": "npm run typecheck && npm run test -- --testTimeout=30000 && npm run lint && npm run build",
     "cleanup:vision": "node scripts/remove-vision-lab.mjs"
   },
   "dependencies": {

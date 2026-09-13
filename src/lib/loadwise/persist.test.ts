@@ -53,6 +53,10 @@ function builder(table: string, method: string, payload?: unknown) {
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc(name: string, payload: unknown) {
+      operations.push({ table: name, method: "rpc", payload, filters: [] });
+      return Promise.resolve(nextResult(name, "rpc"));
+    },
     from(table: string) {
       return {
         insert(payload: unknown) {
@@ -101,53 +105,31 @@ describe("persistMonthlyPlan", () => {
     state.forcedError = null;
   });
 
-  it("activates new plan before archiving previous active plan", async () => {
+  it("persists the complete plan through one atomic RPC", async () => {
     await persistMonthlyPlan("user-1", profile, [makeDay("2026-08-20")]);
 
-    const trainingPlanInserts = operations.filter(
-      (op) => op.table === "training_plans" && op.method === "insert",
-    );
-    expect(trainingPlanInserts).toHaveLength(1);
-    expect(trainingPlanInserts[0]?.payload).toMatchObject({ status: "archived" });
-
-    const activateIndex = operations.findIndex(
-      (op) =>
-        op.table === "training_plans" &&
-        op.method === "update" &&
-        op.filters.some((f) => f.op === "eq" && f.column === "id"),
-    );
-    const archivePreviousIndex = operations.findIndex(
-      (op) =>
-        op.table === "training_plans" &&
-        op.method === "update" &&
-        op.filters.some((f) => f.op === "neq" && f.column === "id"),
-    );
-    expect(activateIndex).toBeGreaterThan(-1);
-    expect(archivePreviousIndex).toBeGreaterThan(-1);
-    expect(activateIndex).toBeLessThan(archivePreviousIndex);
+    expect(operations).toHaveLength(1);
+    expect(operations[0]?.table).toBe("persist_training_plan_atomic");
+    expect(operations[0]?.payload).toMatchObject({
+      p_goal: "speed",
+      p_days: expect.any(Array),
+      p_sessions: expect.any(Array),
+      p_exercises: expect.any(Array),
+    });
   });
 
-  it("keeps previous active plan untouched when new persistence fails", async () => {
+  it("surfaces an atomic persistence failure without client-side cleanup", async () => {
     state.forcedError = {
-      table: "training_sessions",
-      method: "insert",
-      error: { message: "insert failed", code: "23503" },
+      table: "persist_training_plan_atomic",
+      method: "rpc",
+      error: { message: "transaction failed", code: "23503" },
     };
 
     await expect(persistMonthlyPlan("user-1", profile, [makeDay("2026-08-20")])).rejects.toThrow(
-      "[training_sessions.insert] insert failed | code: 23503",
+      "[persist_training_plan_atomic] transaction failed | code: 23503",
     );
 
-    const archivePrevious = operations.find(
-      (op) =>
-        op.table === "training_plans" &&
-        op.method === "update" &&
-        op.filters.some((f) => f.op === "neq" && f.column === "id"),
-    );
-    expect(archivePrevious).toBeUndefined();
-    expect(
-      operations.some((op) => op.table === "training_plans" && op.method === "delete"),
-    ).toBe(true);
+    expect(operations).toHaveLength(1);
   });
 
   it("rejects persistence when executable session misses athlete-visible instructions", async () => {

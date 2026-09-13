@@ -226,16 +226,18 @@ export function buildRunningSessionPrescription(input: {
 
 export function fieldMasFromActivity(activity: Pick<RunningActivity, "distanceM" | "durationSec" | "intervalResults">): number | null {
   const test = activity.intervalResults.find(
-    (result) => result.kind === "work" && result.completed && result.durationSec >= 285 && result.durationSec <= 330,
+    (result) => result.kind === "work" && result.completed && result.durationSec >= 298 && result.durationSec <= 302,
   );
   return test
     ? calculateFieldMasKmh(test.distanceM, test.durationSec)
-    : calculateFieldMasKmh(activity.distanceM, activity.durationSec);
+    : activity.intervalResults.length === 0 && activity.durationSec >= 298 && activity.durationSec <= 302
+      ? calculateFieldMasKmh(activity.distanceM, activity.durationSec)
+      : null;
 }
 
 function isFieldMasTestActivity(activity: Pick<RunningActivity, "intervalResults">): boolean {
   const work = activity.intervalResults.filter((result) => result.kind === "work" && result.completed);
-  return work.length === 1 && work[0].durationSec >= 285 && work[0].durationSec <= 330;
+  return work.length === 1 && work[0].durationSec >= 298 && work[0].durationSec <= 302;
 }
 
 /**

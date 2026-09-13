@@ -70,6 +70,11 @@ describe("silnik biegowy", () => {
     expect(fieldMasFromActivity({ distanceM: 3_000, durationSec: 1_200, intervalResults: [{ ...result(240), durationSec: 300, distanceM: 1_250 }] })).toBe(15);
   });
 
+  it("odrzuca odcinek, który nie jest kontrolowanym testem pięciominutowym", () => {
+    expect(fieldMasFromActivity({ distanceM: 1_230, durationSec: 295, intervalResults: [{ ...result(240), durationSec: 295, distanceM: 1_230 }] })).toBeNull();
+    expect(fieldMasFromActivity({ distanceM: 1_270, durationSec: 305, intervalResults: [{ ...result(240), durationSec: 305, distanceM: 1_270 }] })).toBeNull();
+  });
+
   it("zmienia poziom progresji tylko po dobrym lub wyraźnie słabym wykonaniu", () => {
     expect(nextRunningProgressionLevel({ currentLevel: 1, rpe: 7, results: [result(250), result(252), result(255), result(253)] })).toBe(2);
     expect(nextRunningProgressionLevel({ currentLevel: 2, rpe: 9, results: [result(250), result(320)] })).toBe(1);
