@@ -92,6 +92,35 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
   const minutes = minutesToStartOf(req);
   if (minutes == null || req.session.kind === "none") return null;
 
+  if (req.athlete.allergyStatus === "unconfirmed") {
+    return safetyBlock(
+      minutes,
+      "ALLERGY_STATUS_REQUIRED_V1",
+      "Najpierw potwierdź alergie. Bez tej informacji FuelWise nie powinien oceniać ani proponować jedzenia.",
+      "Uzupełnij krótkie ustawienie bezpieczeństwa na górze ekranu.",
+    );
+  }
+
+  const raw = normalizeFoodText(req.meal.raw);
+  const matchedAllergy = (req.athlete.allergies ?? []).find((item) => raw.includes(normalizeFoodText(item)));
+  if (matchedAllergy) {
+    return safetyBlock(
+      minutes,
+      "DECLARED_ALLERGEN_PRESENT_V1",
+      `W posiłku wykryto składnik zgodny ze zgłoszoną alergią: ${matchedAllergy}. FuelWise nie ocenia bezpiecznej zamiany alergenu.`,
+      "Nie jedz tego składnika. Wybierz produkt wcześniej potwierdzony jako bezpieczny dla Ciebie.",
+    );
+  }
+
+  if ((req.athlete.age ?? 99) < 18 && req.meal.caffeine.length > 0) {
+    return safetyBlock(
+      minutes,
+      "MINOR_CAFFEINE_BLOCK_V1",
+      "FuelWise nie rekomenduje osobom niepełnoletnim kofeiny ani napojów energetycznych przed wysiłkiem.",
+      "Usuń kofeinę lub energetyk. Wybierz wodę, zwykły posiłek albo napój sportowy bez kofeiny.",
+    );
+  }
+
   const { meal, portion, session } = req;
   const need = Math.round(requiredLeadMinutes(meal, portion) * sessionSensitivity(session));
   const carbsNeeded = needsCarbs(session);
@@ -134,7 +163,7 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
     verdict = "POPRAW";
     ruleId = "CARBS_TOO_SLOW_V1";
     why = `Na ${minutes} min przed startem węglowodany złożone nie zdążą się uwolnić. Potrzebujesz szybszego źródła.`;
-    change = `Zamień część (${meal.carbSlow[0].label}) na banan, żel lub izotonik.`;
+    change = `Zamień część (${meal.carbSlow[0].label}) na banan lub napój sportowy bez kofeiny.`;
   } else if (meal.caffeine.length && minutes < 30) {
     verdict = "POPRAW";
     ruleId = "CAFFEINE_LATE_V1";
@@ -168,6 +197,26 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
     onlyThis: req.onlyThis ? buildOnlyThis(req, minutes, need) : null,
     minutesToStart: minutes,
     requiredLeadMinutes: need,
+  };
+}
+
+function normalizeFoodText(value: string): string {
+  return value.trim().toLocaleLowerCase("pl");
+}
+
+function safetyBlock(minutes: number, ruleId: string, why: string, change: string): FuelResult {
+  return {
+    verdict: "POPRAW",
+    ruleId,
+    why,
+    keep: [],
+    change,
+    bestVersion: "FuelWise nie tworzy zamiennika medycznego. Użyj wyłącznie produktów, które są dla Ciebie bezpieczne.",
+    alternative: null,
+    onlyThis: null,
+    minutesToStart: minutes,
+    requiredLeadMinutes: 0,
+    safetyBlocked: true,
   };
 }
 
@@ -207,7 +256,7 @@ function buildAlternative(
   verdict: Verdict,
 ): string | null {
   if (verdict === "PASUJE") return null;
-  if (minutes < 30) return "Alternatywa: izotonik lub żel + woda — nic stałego.";
+  if (minutes < 30) return "Alternatywa: napój sportowy bez kofeiny albo mała porcja banana + woda.";
   if (minutes < 60) return "Alternatywa: banan + 300 ml izotoniku.";
   if (minutes < 120) return "Alternatywa: kanapka z dżemem + woda.";
   return "Alternatywa: ryż lub makaron z chudym mięsem i małą ilością warzyw.";
@@ -261,7 +310,7 @@ export function preSessionPlan(session: FuelSessionInput, minutes: number | null
     window === null
       ? "Zaplanuj ostatni większy posiłek 2–3 h przed startem."
       : window === "lt30"
-        ? "Teraz tylko płyny, żel lub banan."
+        ? "Teraz tylko woda, napój sportowy bez kofeiny lub mała porcja banana."
         : window === "30_60"
           ? "Mały, płynny lub owocowy posiłek, bez tłuszczu i błonnika."
           : window === "60_120"

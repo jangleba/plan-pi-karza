@@ -38,6 +38,10 @@ export type Database = {
           has_pitch: boolean | null
           has_sprint_space: boolean | null
           health_personalization_enabled: boolean
+          fuel_allergy_status: string
+          food_allergies: string[]
+          food_intolerances: string[]
+          food_exclusions: string[]
           height_optional: number | null
           id: string
           individual_training_days: number[]
@@ -90,6 +94,10 @@ export type Database = {
           has_pitch?: boolean | null
           has_sprint_space?: boolean | null
           health_personalization_enabled?: boolean
+          fuel_allergy_status?: string
+          food_allergies?: string[]
+          food_intolerances?: string[]
+          food_exclusions?: string[]
           height_optional?: number | null
           id?: string
           individual_training_days?: number[]
@@ -142,6 +150,10 @@ export type Database = {
           has_pitch?: boolean | null
           has_sprint_space?: boolean | null
           health_personalization_enabled?: boolean
+          fuel_allergy_status?: string
+          food_allergies?: string[]
+          food_intolerances?: string[]
+          food_exclusions?: string[]
           height_optional?: number | null
           id?: string
           individual_training_days?: number[]
@@ -400,6 +412,9 @@ export type Database = {
           notes: string | null
           pain_level: number | null
           pain_location: string | null
+          pain_onset: string | null
+          alters_movement: boolean
+          red_flags: string[]
           user_id: string
         }
         Insert: {
@@ -409,6 +424,9 @@ export type Database = {
           notes?: string | null
           pain_level?: number | null
           pain_location?: string | null
+          pain_onset?: string | null
+          alters_movement?: boolean
+          red_flags?: string[]
           user_id: string
         }
         Update: {
@@ -418,6 +436,9 @@ export type Database = {
           notes?: string | null
           pain_level?: number | null
           pain_location?: string | null
+          pain_onset?: string | null
+          alters_movement?: boolean
+          red_flags?: string[]
           user_id?: string
         }
         Relationships: []
@@ -460,6 +481,7 @@ export type Database = {
       }
       readiness_logs: {
         Row: {
+          alters_movement: boolean
           available_time: number | null
           club_training_today: boolean | null
           created_at: string
@@ -472,6 +494,8 @@ export type Database = {
           overall: number | null
           pain_level: number | null
           pain_location: string | null
+          pain_onset: string | null
+          red_flags: string[]
           pain_status: boolean | null
           sleep: number | null
           soreness: number | null
@@ -480,6 +504,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alters_movement?: boolean
           available_time?: number | null
           club_training_today?: boolean | null
           created_at?: string
@@ -492,6 +517,8 @@ export type Database = {
           overall?: number | null
           pain_level?: number | null
           pain_location?: string | null
+          pain_onset?: string | null
+          red_flags?: string[]
           pain_status?: boolean | null
           sleep?: number | null
           soreness?: number | null
@@ -500,6 +527,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alters_movement?: boolean
           available_time?: number | null
           club_training_today?: boolean | null
           created_at?: string
@@ -512,6 +540,8 @@ export type Database = {
           overall?: number | null
           pain_level?: number | null
           pain_location?: string | null
+          pain_onset?: string | null
+          red_flags?: string[]
           pain_status?: boolean | null
           sleep?: number | null
           soreness?: number | null

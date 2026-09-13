@@ -88,6 +88,14 @@ export function athleteFromProfile(profile: Profile | null): FuelAthleteContext 
     position: profile?.position ?? null,
     level: profile?.level ?? null,
     goal: profile?.goal ?? null,
-    restrictions: [],
+    restrictions: [
+      ...(profile?.foodAllergies ?? []),
+      ...(profile?.foodIntolerances ?? []),
+      ...(profile?.foodExclusions ?? []),
+    ],
+    allergyStatus: profile?.fuelAllergyStatus ?? "unconfirmed",
+    allergies: profile?.foodAllergies ?? [],
+    intolerances: profile?.foodIntolerances ?? [],
+    exclusions: profile?.foodExclusions ?? [],
   };
 }

@@ -93,6 +93,11 @@ export interface Profile {
   ownershipTransferredAt?: string | null;
   /** Brak zgody nie blokuje aplikacji — uruchamia plan konserwatywny bez danych wrażliwych. */
   healthPersonalizationEnabled?: boolean;
+  /** FuelWise działa dopiero po jawnym potwierdzeniu alergii. */
+  fuelAllergyStatus?: "unconfirmed" | "confirmed_none" | "has_allergies";
+  foodAllergies?: string[];
+  foodIntolerances?: string[];
+  foodExclusions?: string[];
   position: Position;
   level: Level;
   goal: Goal;
@@ -167,6 +172,9 @@ export interface Readiness {
   stress: number;
   motivation: number;
   overall: number;
+  painOnset?: "today" | "1_7_days" | "over_7_days" | null;
+  altersMovement?: boolean;
+  redFlags?: string[];
 }
 export interface ExerciseInstructionStep {
   title: string;

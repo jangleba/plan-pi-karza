@@ -7,6 +7,7 @@ import { formatDateFull, formatDate } from "@/lib/loadwise/labels";
 import { AppHeader } from "@/components/loadwise/ui";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -28,21 +29,29 @@ import {
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { applyExerciseReplacements } from "@/lib/loadwise/store";
 import type { PainLocation, SessionDay, Intensity } from "@/lib/loadwise/types";
-import { buildReadiness, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
+import { buildReadiness, hasMedicalRedFlag, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
 });
 
 const readinessFields: {
-  key: "sleep" | "energy" | "fatigue" | "jointPain";
+  key: "sleep" | "fatigue" | "soreness" | "stress";
   label: string;
 }[] = [
   { key: "sleep", label: "Sen" },
-  { key: "energy", label: "Energia" },
-  { key: "fatigue", label: "Zmęczenie nóg" },
-  { key: "jointPain", label: "Ból lub dyskomfort" },
+  { key: "fatigue", label: "Zmęczenie" },
+  { key: "soreness", label: "Bolesność mięśni" },
+  { key: "stress", label: "Stres" },
 ];
+
+const RED_FLAGS = [
+  ["chest_pain", "Ból w klatce podczas wysiłku"],
+  ["fainting", "Omdlenie lub zasłabnięcie"],
+  ["breathlessness", "Nietypowa duszność"],
+  ["head_injury", "Podejrzenie urazu głowy"],
+  ["deformity_or_no_weight", "Deformacja albo brak możliwości obciążenia kończyny"],
+] as const;
 
 const LOAD_LABEL: Record<Intensity, string> = {
   niska: "Niskie",
@@ -113,25 +122,38 @@ function ReadinessDialog({
   const existing = state.readiness[todayIso];
   const [vals, setVals] = useState<Record<string, number>>(() => ({
     sleep: existing?.sleep ?? 7,
-    energy: existing?.energy ?? 7,
     fatigue: existing?.fatigue ?? 4,
+    soreness: existing?.soreness ?? 3,
+    stress: existing?.stress ?? 3,
     jointPain: existing?.jointPain ?? 0,
   }));
   const [painLocation, setPainLocation] = useState<PainLocation | null>(
     existing?.painLocation ?? null,
   );
+  const [painOnset, setPainOnset] = useState<"today" | "1_7_days" | "over_7_days" | null>(existing?.painOnset ?? null);
+  const [altersMovement, setAltersMovement] = useState(Boolean(existing?.altersMovement));
+  const [redFlags, setRedFlags] = useState<string[]>(existing?.redFlags ?? []);
 
   async function save() {
     try {
-      await saveReadiness(buildReadiness(todayIso, {
+      const input = {
         sleep: vals.sleep,
-        energy: vals.energy,
         fatigue: vals.fatigue,
-        jointPain: vals.jointPain,
+        soreness: vals.soreness,
+        stress: vals.stress,
+        jointPain: hasMedicalRedFlag({ redFlags }) ? 10 : vals.jointPain,
         painLocation,
-      }));
+        painOnset,
+        altersMovement,
+        redFlags,
+      };
+      await saveReadiness(buildReadiness(todayIso, input));
       onOpenChange(false);
-      toast.success("Zapisano check-in gotowości.");
+      if (hasMedicalRedFlag(input)) {
+        toast.error("Trening wstrzymany. Skontaktuj się z odpowiednią pomocą medyczną.");
+      } else {
+        toast.success("Zapisano check-in gotowości.");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Nie udało się zapisać check-inu.");
     }
@@ -152,7 +174,7 @@ function ReadinessDialog({
                 <span className="text-muted-foreground">{vals[f.key]}/10</span>
               </div>
               <Slider
-                min={f.key === "jointPain" ? 0 : 1}
+                min={1}
                 max={10}
                 step={1}
                 value={[vals[f.key]]}
@@ -160,6 +182,16 @@ function ReadinessDialog({
               />
             </div>
           ))}
+          <div>
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium">Czy odczuwasz dziś ból lub nowy uraz?</span>
+              <span className="text-muted-foreground">{vals.jointPain > 0 ? "Tak" : "Nie"}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={vals.jointPain === 0 ? "default" : "outline"} onClick={() => setVals((p) => ({ ...p, jointPain: 0 }))}>Nie</Button>
+              <Button type="button" variant={vals.jointPain > 0 ? "destructive" : "outline"} onClick={() => setVals((p) => ({ ...p, jointPain: Math.max(1, p.jointPain) }))}>Tak</Button>
+            </div>
+          </div>
           {vals.jointPain > 0 && (
             <div className="space-y-2">
               <span className="text-sm font-medium">Którego obszaru dotyczy dyskomfort?</span>
@@ -171,6 +203,37 @@ function ReadinessDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <div className="pt-2">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="font-medium">Nasilenie</span>
+                  <span className="text-muted-foreground">{vals.jointPain}/10</span>
+                </div>
+                <Slider min={1} max={10} step={1} value={[vals.jointPain]} onValueChange={(v) => setVals((p) => ({ ...p, jointPain: v[0] }))} />
+              </div>
+              <Select value={painOnset ?? undefined} onValueChange={(value) => setPainOnset(value as typeof painOnset)}>
+                <SelectTrigger><SelectValue placeholder="Kiedy zaczęło się odczucie?" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Dzisiaj</SelectItem>
+                  <SelectItem value="1_7_days">1–7 dni temu</SelectItem>
+                  <SelectItem value="over_7_days">Ponad 7 dni temu</SelectItem>
+                </SelectContent>
+              </Select>
+              <label className="flex items-start gap-3 rounded-xl border border-border p-3 text-sm">
+                <Checkbox checked={altersMovement} onCheckedChange={(value) => setAltersMovement(value === true)} />
+                Zmienia mój chód lub zwykły sposób poruszania się
+              </label>
+              <div className="pt-2 text-sm font-medium">Sygnały alarmowe</div>
+              {RED_FLAGS.map(([id, label]) => (
+                <label key={id} className="flex items-start gap-3 rounded-xl border border-border p-3 text-sm">
+                  <Checkbox checked={redFlags.includes(id)} onCheckedChange={(value) => setRedFlags((current) => value === true ? [...new Set([...current, id])] : current.filter((item) => item !== id))} />
+                  {label}
+                </label>
+              ))}
+              {redFlags.length > 0 && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  Nie rozpoczynaj treningu. W nagłym zagrożeniu dzwoń pod 112; w pozostałych przypadkach skontaktuj się z lekarzem lub fizjoterapeutą.
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">Ta informacja służy wyłącznie do dobrania bezpieczniejszego wariantu obciążenia danego obszaru.</p>
             </div>
           )}

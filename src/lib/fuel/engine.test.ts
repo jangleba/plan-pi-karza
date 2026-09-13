@@ -122,6 +122,35 @@ describe("evaluateMeal — reguły składu", () => {
   });
 });
 
+describe("evaluateMeal — blokady bezpieczeństwa", () => {
+  it("nie ocenia posiłku bez potwierdzenia alergii", () => {
+    const base = req("banan i woda", "30_60", "mala");
+    const r = evaluateMeal({ ...base, athlete: { ...base.athlete, allergyStatus: "unconfirmed" } });
+    expect(r?.safetyBlocked).toBe(true);
+    expect(r?.ruleId).toBe("ALLERGY_STATUS_REQUIRED_V1");
+  });
+
+  it("blokuje zadeklarowany alergen", () => {
+    const base = req("jogurt i banan", "60_120", "mala");
+    const r = evaluateMeal({
+      ...base,
+      athlete: { ...base.athlete, allergyStatus: "has_allergies", allergies: ["jogurt"] },
+    });
+    expect(r?.safetyBlocked).toBe(true);
+    expect(r?.ruleId).toBe("DECLARED_ALLERGEN_PRESENT_V1");
+  });
+
+  it("nie rekomenduje kofeiny osobie niepełnoletniej", () => {
+    const base = req("banan i energetyk", "60_120", "mala");
+    const r = evaluateMeal({
+      ...base,
+      athlete: { ...base.athlete, age: 16, allergyStatus: "confirmed_none" },
+    });
+    expect(r?.safetyBlocked).toBe(true);
+    expect(r?.ruleId).toBe("MINOR_CAFFEINE_BLOCK_V1");
+  });
+});
+
 describe("tryb „Mam tylko to”", () => {
   it("optymalizuje wpisany zestaw zamiast proponować inny", () => {
     const r = evaluateMeal(req("burger z frytkami i banan", "30_60", "duza", sprint, true));

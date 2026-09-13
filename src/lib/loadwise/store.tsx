@@ -417,6 +417,13 @@ function buildProfile(
       (ath.ownership_transfer_requested_at as string | null) ?? null,
     ownershipTransferredAt: (ath.ownership_transferred_at as string | null) ?? null,
     healthPersonalizationEnabled: Boolean(ath.health_personalization_enabled),
+    fuelAllergyStatus:
+      ath.fuel_allergy_status === "confirmed_none" || ath.fuel_allergy_status === "has_allergies"
+        ? ath.fuel_allergy_status
+        : "unconfirmed",
+    foodAllergies: (ath.food_allergies as string[]) ?? [],
+    foodIntolerances: (ath.food_intolerances as string[]) ?? [],
+    foodExclusions: (ath.food_exclusions as string[]) ?? [],
     position: ath.position as Profile["position"],
     level: normalizeLevel(ath.level),
     goal: normalizeGoal(ath.main_goal),
@@ -980,12 +987,15 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               sleep: Number(row.sleep ?? 7),
               energy: Number(row.energy ?? 7),
               fatigue: Number(row.fatigue ?? 4),
-              soreness: Number(row.fatigue ?? 4),
+              soreness: Number(row.soreness ?? row.fatigue ?? 4),
               jointPain: Number(row.pain_level ?? 0),
               painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
-              stress: 3,
+              stress: Number(row.stress ?? 3),
               motivation: Number(row.energy ?? 7),
               overall: Number(row.overall ?? 7),
+              painOnset: (row.pain_onset as Readiness["painOnset"]) ?? null,
+              altersMovement: Boolean(row.alters_movement),
+              redFlags: Array.isArray(row.red_flags) ? row.red_flags as string[] : [],
             };
           }
         }
@@ -1240,6 +1250,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           ownership_transfer_requested_at: profile.ownershipTransferRequestedAt ?? null,
           ownership_transferred_at: profile.ownershipTransferredAt ?? null,
           health_personalization_enabled: Boolean(profile.healthPersonalizationEnabled),
+          fuel_allergy_status: profile.fuelAllergyStatus ?? "unconfirmed",
+          food_allergies: profile.foodAllergies ?? [],
+          food_intolerances: profile.foodIntolerances ?? [],
+          food_exclusions: profile.foodExclusions ?? [],
           age: profile.age,
           position: profile.position,
           level: profile.level,
@@ -2007,8 +2021,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         sleep: r.sleep,
         energy: r.energy,
         fatigue: r.fatigue,
+        soreness: r.soreness,
+        stress: r.stress,
         pain_level: r.jointPain,
         pain_location: r.painLocation ?? null,
+        pain_onset: r.painOnset ?? null,
+        alters_movement: r.altersMovement ?? false,
+        red_flags: r.redFlags ?? [],
         overall: r.overall,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,date" });
