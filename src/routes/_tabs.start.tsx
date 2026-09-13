@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Activity, BarChart3, CalendarDays, Check, ChevronRight, Info } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -145,15 +145,79 @@ function decisionCopy(readinessCompleted: boolean, override?: string | null) {
   return { eyebrow: "Decyzja BallWise", title: "Plan bez zmian", description: "Możesz przejść do zaplanowanej jednostki." };
 }
 
+function PlanLoadingState() {
+  return (
+    <main className="px-6 pb-32 pt-6" aria-busy="true">
+      <header className="flex items-center justify-between">
+        <span className="text-[17px] font-medium tracking-[-0.025em]">BallWise</span>
+        <ProfileAvatar />
+      </header>
+      <section className="mx-auto mt-16 max-w-sm space-y-4">
+        <div className="h-4 w-28 animate-pulse rounded-full bg-secondary" />
+        <div className="h-40 w-full animate-pulse rounded-2xl bg-secondary" />
+        <div className="h-4 w-44 animate-pulse rounded-full bg-secondary" />
+        <div className="h-12 w-full animate-pulse rounded-xl bg-secondary" />
+        <p className="pt-2 text-center text-sm text-muted-foreground">Przygotowujemy Twój tydzień…</p>
+      </section>
+    </main>
+  );
+}
+
 function StartScreen() {
-  const { state, todaySession, todayIso } = useLoadwise();
+  const { state, todaySession, todayIso, hydrated, planGenerating, refreshPlanIfNeeded } =
+    useLoadwise();
   const profile = state.profile;
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [explanationOpen, setExplanationOpen] = useState(false);
+  const autoGenerateRef = useRef(false);
+  const [autoGenerateTried, setAutoGenerateTried] = useState(false);
+
+  const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
+
+  // Brak planu po ukończonym onboardingu = jednorazowa, bezpieczna regeneracja.
+  // Ref blokuje powtórzenie przy każdym renderze i wyścig z hydratacją.
+  useEffect(() => {
+    if (!planMissing || planGenerating || autoGenerateRef.current) return;
+    autoGenerateRef.current = true;
+    setAutoGenerateTried(true);
+    refreshPlanIfNeeded();
+  }, [planMissing, planGenerating, refreshPlanIfNeeded]);
+
+  useEffect(() => {
+    if (todaySession) {
+      autoGenerateRef.current = false;
+      setAutoGenerateTried(false);
+    }
+  }, [todaySession]);
+
+  if (!hydrated || planGenerating) return <PlanLoadingState />;
+
+  if (!profile?.onboardingComplete) {
+    return (
+      <div className="px-6 pt-12 text-sm text-muted-foreground">
+        Dokończ konfigurację profilu, aby otrzymać plan tygodnia.
+      </div>
+    );
+  }
 
   if (!todaySession || !profile) {
-    return <div className="px-6 pt-12 text-sm text-muted-foreground">Plan nie jest jeszcze dostępny. Otwórz zakładkę Plan.</div>;
+    if (!autoGenerateTried) return <PlanLoadingState />;
+    return (
+      <div className="space-y-4 px-6 pt-12">
+        <p className="text-sm text-muted-foreground">
+          Nie udało się przygotować dzisiejszej jednostki. Spróbuj ponownie.
+        </p>
+        <Button
+          onClick={() => {
+            autoGenerateRef.current = false;
+            setAutoGenerateTried(false);
+          }}
+        >
+          Spróbuj ponownie
+        </Button>
+      </div>
+    );
   }
 
   const session = todaySession;
