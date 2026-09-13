@@ -171,27 +171,53 @@ function StartScreen() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [explanationOpen, setExplanationOpen] = useState(false);
   const autoGenerateRef = useRef(false);
+  const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
   const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
 
   // Brak planu po ukończonym onboardingu = jednorazowa, bezpieczna regeneracja.
-  // Ref blokuje ponowne uruchomienie przy każdym renderze.
+  // Ref blokuje powtórzenie przy każdym renderze i wyścig z hydratacją.
   useEffect(() => {
     if (!planMissing || planGenerating || autoGenerateRef.current) return;
     autoGenerateRef.current = true;
+    setAutoGenerateTried(true);
     refreshPlanIfNeeded();
   }, [planMissing, planGenerating, refreshPlanIfNeeded]);
 
   useEffect(() => {
-    if (todaySession) autoGenerateRef.current = false;
+    if (todaySession) {
+      autoGenerateRef.current = false;
+      setAutoGenerateTried(false);
+    }
   }, [todaySession]);
 
-  if (!hydrated || planGenerating || (planMissing && autoGenerateRef.current)) {
-    return <PlanLoadingState />;
+  if (!hydrated || planGenerating) return <PlanLoadingState />;
+
+  if (!profile?.onboardingComplete) {
+    return (
+      <div className="px-6 pt-12 text-sm text-muted-foreground">
+        Dokończ konfigurację profilu, aby otrzymać plan tygodnia.
+      </div>
+    );
   }
 
   if (!todaySession || !profile) {
-    return <PlanLoadingState />;
+    if (!autoGenerateTried) return <PlanLoadingState />;
+    return (
+      <div className="space-y-4 px-6 pt-12">
+        <p className="text-sm text-muted-foreground">
+          Nie udało się przygotować dzisiejszej jednostki. Spróbuj ponownie.
+        </p>
+        <Button
+          onClick={() => {
+            autoGenerateRef.current = false;
+            setAutoGenerateTried(false);
+          }}
+        >
+          Spróbuj ponownie
+        </Button>
+      </div>
+    );
   }
 
   const session = todaySession;
