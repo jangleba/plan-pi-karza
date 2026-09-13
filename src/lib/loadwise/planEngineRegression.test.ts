@@ -320,3 +320,17 @@ describe("regression — MD-1/MD-2 safety", () => {
     }
   });
 });
+
+describe("regression — zobowiązania zewnętrzne", () => {
+  it("trening klubowy nie znika, gdy ten sam dzień jest zaznaczony jako niedostępny", () => {
+    const profile = baseProfile({
+      clubTrainingDays: [1],
+      unavailableDays: [1],
+      matchDate: null,
+      weeklyMatches: false,
+    });
+    const plan = generatePlan(profile, new Date("2026-09-14T00:00:00"), 7);
+    expect(plan[0].dayType).toBe("club");
+    expect(plan[0].isUnavailable).not.toBe(true);
+  });
+});

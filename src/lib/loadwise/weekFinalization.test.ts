@@ -189,7 +189,7 @@ describe("weekFinalization — twarda zasada endurance", () => {
     expect(end!.intensity).not.toBe("niska");
   });
 
-  it("5) niski readiness/ból → brakująca endurance może być low-impact (lekka)", () => {
+  it("5) aktywny ból → walidator nie dokłada nawet lekkiej wydolności", () => {
     const p = profile({ painInjury: true, painLocations: ["knee"] });
     const week = [
       gymDay(DATES[0]),
@@ -202,9 +202,7 @@ describe("weekFinalization — twarda zasada endurance", () => {
     ];
     validateAndRepairWeekPlan(week, p);
     const end = week.find((d) => isEnduranceSession(d));
-    expect(end).toBeTruthy();
-    expect(end!.intensity).toBe("niska");
-    expect(end!.sessionType.toLowerCase()).toContain("low-impact");
+    expect(end).toBeUndefined();
   });
 
   it("6) plan z 0 endurance nie może mieć finalStatus = valid", () => {

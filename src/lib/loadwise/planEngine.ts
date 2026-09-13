@@ -2473,9 +2473,12 @@ type BaseDayType = "match" | "unavailable" | "md-1" | "club" | "md+1" | "availab
 
 function baseDayType(date: Date, profile: Profile): BaseDayType {
   if (isMatchDay(date, profile)) return "match";
+  // Klub jest zewnętrznym zobowiązaniem i nie może zniknąć tylko dlatego, że
+  // ten sam dzień omyłkowo zaznaczono jako niedostępny. UI pokaże klub, a
+  // check-in może ograniczyć lub wstrzymać obciążenie.
+  if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
   if ((profile.unavailableDays ?? []).includes(isoDayOfWeek(date))) return "unavailable";
   if (daysToMatch(date, profile) === 1) return "md-1";
-  if (profile.clubTrainingDays.includes(isoDayOfWeek(date))) return "club";
   if (daysSinceMatch(date, profile) === 1) return "md+1";
   return "available";
 }
@@ -4672,6 +4675,47 @@ export function generatePlan(
     finalPlan[i] = normalizeSessionCategory(
       canonicalizeGeneratedSessionExercises(postRebuildFinalized[i]),
     );
+  }
+
+  // Ostatnie słowo zawsze należy do bezpieczeństwa zdrowotnego. BallWise nie
+  // układa rehabilitacji i nie zgaduje, jaka aktywność jest bezpieczna przy
+  // aktywnym bólu ani w trybie powrotu po urazie. Zobowiązania klub/mecz są
+  // widoczne, ale własne jednostki zmieniają się w neutralny dzień regeneracji.
+  if (profile.painInjury || profile.seasonPhase === "return_injury") {
+    for (let i = 0; i < finalPlan.length; i++) {
+      const day = finalPlan[i];
+      if (day.dayType === "club" || day.dayType === "match" || day.externalCommitment) {
+        finalPlan[i] = normalizeSessionCategory({
+          ...day,
+          secondSession: null,
+          slotLabel: null,
+          loadLabelOverride: day.loadLabelOverride ?? "Ogranicz obciążenie",
+          safetyNote: "Zgłoszono ból lub powrót po urazie. Ustal udział z lekarzem, fizjoterapeutą i trenerem.",
+        });
+        continue;
+      }
+      finalPlan[i] = normalizeSessionCategory({
+        ...day,
+        dayType: "recovery",
+        type: "recovery",
+        title: "Regeneracja — tryb ostrożny",
+        goalLabel: "Bezpieczeństwo",
+        intensity: "niska",
+        durationMin: 0,
+        sessionType: "Regeneracja",
+        goalOfSession: "Odpoczynek do czasu indywidualnej oceny specjalisty.",
+        reason: "Aktywny ból lub powrót po urazie ma pierwszeństwo przed celem treningowym.",
+        whyToday: "BallWise nie diagnozuje i nie prowadzi rehabilitacji.",
+        riskManaged: "Nie dokładamy sprintu, siły, biegania ani pracy z piłką.",
+        avoidToday: "Nie testuj bólu treningiem.",
+        safetyNote: "Jeśli ból się utrzymuje lub nasila, skontaktuj się z lekarzem lub fizjoterapeutą.",
+        structuredSections: undefined,
+        sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+        secondSession: null,
+        slotLabel: null,
+        classification: undefined,
+      });
+    }
   }
 
   // Ostatni walidator może dodać albo zamienić sesję. Dlatego progresję bloku

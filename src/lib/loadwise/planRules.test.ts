@@ -139,20 +139,14 @@ describe("rule-based week layer — cel główny i walidacja", () => {
 });
 
 describe("rule-based week layer — profil zawodnika", () => {
-  it("ból kolana → low-impact endurance zamiast ciężkiego biegania", () => {
+  it("ból kolana → brak automatycznie dołożonej wydolności", () => {
     const plan = generatePlan(
       baseProfile({ goal: "endurance", painInjury: true, painLocations: ["knee"] }),
       START,
       28,
     );
     const endurance = plan.filter((d) => d.classification?.category === "endurance_conditioning");
-    expect(endurance.length).toBeGreaterThan(0);
-    const lowImpact = endurance.filter((d) =>
-      ["bike_conditioning", "pool_conditioning", "low_impact_conditioning", "easy_aerobic"].includes(
-        d.classification?.subcategory ?? "",
-      ),
-    );
-    expect(lowImpact.length).toBeGreaterThan(0);
+    expect(endurance.length).toBe(0);
   });
 
   it("14-latek beginner nie dostaje agresywnego HIIT jako domyślnej wydolności", () => {

@@ -75,6 +75,26 @@ export interface WeeklyRequirements {
   athleteDevelopmentStage: DevelopmentStage | null;
   athleteSafetyLevel: "youth_safe" | "developmental" | "performance";
   requiresYouthSafeContent: boolean;
+  /** Gęstość zobowiązań zewnętrznych; minima są celem, nie przymusem. */
+  congestionLevel: "normal" | "dense" | "very_dense";
+}
+
+function getCongestionLevel(
+  ctx: WeekRequirementContext,
+): "normal" | "dense" | "very_dense" {
+  const externalExposures = getClubTrainingCount(ctx) + getMatchCount(ctx);
+  if (getMatchCount(ctx) >= 2 || externalExposures >= 5 || ctx.isFullWeek === false) {
+    return "very_dense";
+  }
+  if (externalExposures >= 4) return "dense";
+  return "normal";
+}
+
+function isHealthOverride(
+  ctx: WeekRequirementContext,
+  athlete?: AthleteRequirementProfile | null,
+): boolean {
+  return athlete?.hasActivePain === true || getSeasonPhaseRules(ctx.seasonPhase).isReducedLoadPhase;
 }
 
 export interface AthleteGoalRules {
@@ -254,16 +274,10 @@ export function getRequiredGymSessions(
   _settings?: UserRequirementSettings | null,
   athlete?: AthleteRequirementProfile | null,
 ): number {
-  const seasonRules = getSeasonPhaseRules(ctx.seasonPhase);
-  const painStatus = athlete?.hasActivePain;
-
-  if (painStatus === true) return 0;
-  if (
-    getClubTrainingCount(ctx) >= 4 ||
-    (ctx.matchCount ?? 0) >= 2 ||
-    ctx.isFullWeek === false ||
-    seasonRules.isReducedLoadPhase
-  ) return 1;
+  if (isHealthOverride(ctx, athlete)) return 0;
+  const congestion = getCongestionLevel(ctx);
+  if (congestion === "very_dense" && getMatchCount(ctx) >= 2) return 0;
+  if (congestion !== "normal" || getClubTrainingCount(ctx) >= 4) return 1;
   return 2;
 }
 
@@ -275,10 +289,13 @@ export function getRequiredEnduranceSessions(
   ctx: WeekRequirementContext,
   settings: UserRequirementSettings | null | undefined,
   athleteGoal: string | null | undefined,
-  _athlete?: AthleteRequirementProfile | null,
+  athlete?: AthleteRequirementProfile | null,
 ): number {
+  if (isHealthOverride(ctx, athlete)) return 0;
+  const congestion = getCongestionLevel(ctx);
+  if (congestion === "very_dense") return 0;
+  if (congestion === "dense") return 0;
   const goalRules = getAthleteGoalRules(athleteGoal);
-  if (ctx.isFullWeek === false) return 1;
   if (!goalRules.isEnduranceGoal) return 1;
   void settings;
   return 2;
@@ -305,9 +322,12 @@ export function getRequiredSpeedSessions(
   ctx: WeekRequirementContext,
   _settings: UserRequirementSettings | null | undefined,
   athleteGoal: string | null | undefined,
-  _athlete?: AthleteRequirementProfile | null,
+  athlete?: AthleteRequirementProfile | null,
 ): number {
-  if (ctx.isFullWeek === false) return 1;
+  if (isHealthOverride(ctx, athlete)) return 0;
+  const congestion = getCongestionLevel(ctx);
+  if (congestion === "very_dense") return 0;
+  if (congestion === "dense") return 1;
   return getAthleteGoalRules(athleteGoal).requiredSpeedSessions;
 }
 
@@ -319,8 +339,8 @@ export function getRequiredBallSessions(
   ctx: WeekRequirementContext,
   athlete?: AthleteRequirementProfile | null,
 ): number {
-  void ctx;
-  void athlete;
+  if (isHealthOverride(ctx, athlete)) return 0;
+  if (getCongestionLevel(ctx) !== "normal") return 0;
   return 1;
 }
 
@@ -381,6 +401,7 @@ export function calculateWeeklyMinimumRequirements(
   const clubTrainingCount = getClubTrainingCount(weekContext, userSettings);
   const matchCount = getMatchCount(weekContext);
   const safety = resolveSafetyLevel(athleteTrainingProfile);
+  const congestionLevel = getCongestionLevel(weekContext);
 
   const requiredGymSessions = getRequiredGymSessions(
     weekContext,
@@ -419,7 +440,13 @@ export function calculateWeeklyMinimumRequirements(
   if (goalRules.isEnduranceGoal)
     reasonParts.push("cel wydolnościowy → 2 wydolności");
   if (seasonRules.isInSeason) reasonParts.push("w sezonie: możliwa redukcja objętości, kategorie zostają");
-  reasonParts.push("club nie zastępuje własnych minimów BallWise; para możliwa tylko gdy komplementarna");
+  if (isHealthOverride(weekContext, athleteTrainingProfile)) {
+    reasonParts.push("ból/powrót po urazie: walidator nie dokłada obowiązkowych sesji");
+  } else if (congestionLevel !== "normal") {
+    reasonParts.push("gęsty kalendarz: minima BallWise są redukowane, zobowiązania zewnętrzne liczą się do obciążenia");
+  } else {
+    reasonParts.push("standardowy tydzień: własne minima BallWise pozostają celem");
+  }
 
   return {
     requiredGymSessions,
@@ -440,5 +467,6 @@ export function calculateWeeklyMinimumRequirements(
     athleteDevelopmentStage: athleteTrainingProfile?.developmentStage ?? null,
     athleteSafetyLevel: safety.level,
     requiresYouthSafeContent: safety.youth || safety.level === "youth_safe",
+    congestionLevel,
   };
 }

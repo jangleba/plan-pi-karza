@@ -90,8 +90,8 @@ describe("wymagana liczba endurance", () => {
     matchCount: 0,
   });
 
-  it("normalny cel + 4 klubowe → minimum 1 endurance", () => {
-    expect(getRequiredEnduranceSessions(ctxOf(4), null, "general", adult)).toBe(1);
+  it("normalny cel + 4 klubowe → bez obowiązkowej dodatkowej wydolności", () => {
+    expect(getRequiredEnduranceSessions(ctxOf(4), null, "general", adult)).toBe(0);
   });
 
   it("cel wydolność + 2 klubowe → 2 endurance", () => {
@@ -102,10 +102,10 @@ describe("wymagana liczba endurance", () => {
     expect(getRequiredEnduranceSessions(ctxOf(3), null, "endurance", adult)).toBe(2);
   });
 
-  it("cel wydolność + 4 klubowe → 2 endurance bez zastępowania przez klub", () => {
+  it("cel wydolność + 4 klubowe → cel nie przebija bezpieczeństwa gęstego tygodnia", () => {
     const r = reqFor(4, "endurance", adult);
-    expect(r.requiredEnduranceSessions).toBe(2);
-    expect(r.absoluteMinimumEnduranceSessions).toBe(2);
+    expect(r.requiredEnduranceSessions).toBe(0);
+    expect(r.absoluteMinimumEnduranceSessions).toBe(0);
   });
 });
 
@@ -277,7 +277,7 @@ describe("addMissingEnduranceSessions", () => {
     matchCount,
   });
 
-  it("normalny cel + 4 klubowe → minimum 1 endurance i żadne w dzień klubowy", () => {
+  it("normalny cel + 4 klubowe → bez dodatkowej wydolności", () => {
     const w = week([0, 1, 2, 3]);
     const req = reqFor(4, "general", adult);
     const res = addMissingEnduranceSessions(
@@ -287,7 +287,7 @@ describe("addMissingEnduranceSessions", () => {
       req,
       adult,
     );
-    expect(res.count).toBeGreaterThanOrEqual(1);
+    expect(res.count).toBe(0);
     // Endurance nie trafia w dni klubowe
     [0, 1, 2, 3].forEach((i) =>
       expect(w[i].sessions.some((x) => x.category === "endurance_conditioning")).toBe(false),
@@ -323,7 +323,7 @@ describe("addMissingEnduranceSessions", () => {
     expect(res.count).toBe(2);
   });
 
-  it("cel wydolność + 4 klubowe → minimum 2, brak endurance w dni klubowe", () => {
+  it("cel wydolność + 4 klubowe → finalizator niczego nie dopycha", () => {
     const w = week([0, 1, 2, 3]);
     const req = reqFor(4, "endurance", adult);
     const res = addMissingEnduranceSessions(
@@ -333,14 +333,14 @@ describe("addMissingEnduranceSessions", () => {
       req,
       adult,
     );
-    expect(res.absoluteMinimumEnduranceSessions).toBe(2);
-    expect(res.count).toBeGreaterThanOrEqual(2);
+    expect(res.absoluteMinimumEnduranceSessions).toBe(0);
+    expect(res.added).toBe(0);
     [0, 1, 2, 3].forEach((i) =>
       expect(w[i].sessions.some((x) => x.category === "endurance_conditioning")).toBe(false),
     );
   });
 
-  it("gdy brak dnia bez klubu → count minimum, unresolvedIssue dla brakującej", () => {
+  it("6 klubowych + mecz → brak wymuszonej wydolności i brak fałszywego błędu", () => {
     // 6 dni klubowych + mecz w niedzielę: brak wolnego dnia, ale maxSessionsPerDay=1
     const w = week([0, 1, 2, 3, 4, 5], { matchDay: 6 });
     const req = reqFor(4, "endurance", adult);
@@ -351,7 +351,8 @@ describe("addMissingEnduranceSessions", () => {
       req,
       adult,
     );
-    expect(res.unresolvedIssues.length).toBeGreaterThan(0);
+    expect(res.requiredEnduranceSessions).toBe(0);
+    expect(res.unresolvedIssues).toHaveLength(0);
     // nic w dni klubowe
     [0, 1, 2, 3, 4, 5].forEach((i) =>
       expect(w[i].sessions.some((x) => x.category === "endurance_conditioning")).toBe(false),

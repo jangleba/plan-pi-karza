@@ -37,28 +37,29 @@ describe("weeklyRequirements — cel normalny", () => {
     expect(r.requiredBallSessions).toBe(1);
   });
 
-  it("klub i mecz nie zastępują własnej sesji piłkarskiej", () => {
+  it("gęsty tydzień nie wymusza dodatkowej własnej piłki", () => {
     const r = calculateWeeklyMinimumRequirements(
       ctx({ clubTrainingCount: 4, matchCount: 1 }),
       settings,
       "general",
     );
-    expect(r.requiredBallSessions).toBe(1);
+    expect(r.requiredBallSessions).toBe(0);
+    expect(r.congestionLevel).toBe("very_dense");
   });
 
-  it("nawet zatłoczony tydzień zachowuje jedną własną sesję z piłką", () => {
+  it("bardzo zatłoczony tydzień nie dokłada piłki niezależnie od poziomu", () => {
     const crowded = ctx({ clubTrainingCount: 5, matchCount: 2 });
-    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "beginner" })).toBe(1);
-    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "advanced" })).toBe(1);
+    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "beginner" })).toBe(0);
+    expect(getRequiredBallSessions(crowded, { gymExperienceLevel: "advanced" })).toBe(0);
   });
 
-  it("brak celu wydolnościowego i 4 klubowe zwraca requiredEnduranceSessions = 1", () => {
+  it("4 klubowe nie wymuszają dodatkowej wydolności", () => {
     const r = calculateWeeklyMinimumRequirements(
       ctx({ clubTrainingCount: 4 }),
       settings,
       "strength",
     );
-    expect(r.requiredEnduranceSessions).toBe(1);
+    expect(r.requiredEnduranceSessions).toBe(0);
     expect(r.requiredGymSessions).toBe(1);
   });
 });
@@ -108,14 +109,14 @@ describe("weeklyRequirements — cel wydolnościowy", () => {
     expect(r.requiredEnduranceSessions).toBe(2);
   });
 
-  it("klub nie obniża minimum celu wydolnościowego", () => {
+  it("gęsty tydzień obniża minimum celu wydolnościowego", () => {
     const r = calculateWeeklyMinimumRequirements(
       ctx({ clubTrainingCount: 4 }),
       settings,
       "endurance",
     );
-    expect(r.requiredEnduranceSessions).toBe(2);
-    expect(r.absoluteMinimumEnduranceSessions).toBe(2);
+    expect(r.requiredEnduranceSessions).toBe(0);
+    expect(r.absoluteMinimumEnduranceSessions).toBe(0);
   });
 
   it("absoluteMinimum celu wydolnościowego wynosi 2", () => {
@@ -134,7 +135,7 @@ describe("weeklyRequirements — cel wydolnościowy", () => {
 });
 
 describe("weeklyRequirements — sezon i klub nie kasują kategorii", () => {
-  it("in-season nadal wymaga 2 gym, minimum 1 endurance i 1 speed", () => {
+  it("in-season z trzema ekspozycjami zewnętrznymi zachowuje standardowe cele", () => {
     const r = calculateWeeklyMinimumRequirements(
       ctx({ seasonPhase: "inseason", matchCount: 1 }),
       settings,
@@ -146,11 +147,11 @@ describe("weeklyRequirements — sezon i klub nie kasują kategorii", () => {
     expect(getSeasonPhaseRules("inseason").isInSeason).toBe(true);
   });
 
-  it("trening klubowy nie zmniejsza required endurance ani speed", () => {
+  it("duża liczba treningów klubowych redukuje dodatkowe minima", () => {
     const few = calculateWeeklyMinimumRequirements(ctx({ clubTrainingCount: 1 }), settings, "speed");
     const many = calculateWeeklyMinimumRequirements(ctx({ clubTrainingCount: 4 }), settings, "speed");
-    expect(many.requiredSpeedSessions).toBe(few.requiredSpeedSessions);
-    expect(many.requiredEnduranceSessions).toBeGreaterThanOrEqual(1);
+    expect(many.requiredSpeedSessions).toBeLessThan(few.requiredSpeedSessions);
+    expect(many.requiredEnduranceSessions).toBe(0);
     expect(many.requiredGymSessions).toBe(1);
   });
 
@@ -211,8 +212,8 @@ describe("weeklyRequirements — liczniki kontekstu", () => {
     expect(getRequiredSpeedSessions(c, settings, "szybkość")).toBe(2);
   });
 
-  it("dwa mecze obniżają minimum siłowni do jednej", () => {
-    expect(getRequiredGymSessions(ctx({ matchCount: 2 }), settings)).toBe(1);
+  it("dwa mecze nie wymuszają dodatkowej siłowni", () => {
+    expect(getRequiredGymSessions(ctx({ matchCount: 2 }), settings)).toBe(0);
   });
 
   it("powrót po urazie nie wymaga siłowni przy aktywnym bólu", () => {
@@ -225,27 +226,47 @@ describe("weeklyRequirements — liczniki kontekstu", () => {
     ).toBe(0);
   });
 
-  it("powrót po urazie zachowuje jedną ostrożną siłownię bez bólu", () => {
+  it("powrót po urazie nie jest automatyczną zgodą na siłownię", () => {
     expect(
       getRequiredGymSessions(
         ctx({ seasonPhase: "return_injury" }),
         settings,
         { hasActivePain: false },
       ),
-    ).toBe(1);
+    ).toBe(0);
   });
 
-  it("powrót po urazie zachowuje jedną ostrożną siłownię bez odpowiedzi", () => {
+  it("powrót po urazie bez odpowiedzi o bólu także nie wymusza siłowni", () => {
     expect(
       getRequiredGymSessions(ctx({ seasonPhase: "return_injury" }), settings),
-    ).toBe(1);
+    ).toBe(0);
   });
 
-  it("zatłoczony tydzień zachowuje po jednej szybkości i wydolności", () => {
+  it("zatłoczony niepełny tydzień nie wymusza dodatkowych kategorii", () => {
     const crowded = ctx({ isFullWeek: false, clubTrainingCount: 4, matchCount: 1 });
-    expect(getRequiredSpeedSessions(crowded, settings, "speed")).toBe(1);
-    expect(getRequiredEnduranceSessions(crowded, settings, "endurance")).toBe(1);
+    expect(getRequiredSpeedSessions(crowded, settings, "speed")).toBe(0);
+    expect(getRequiredEnduranceSessions(crowded, settings, "endurance")).toBe(0);
     expect(getRequiredGymSessions(crowded, settings)).toBe(1);
-    expect(getRequiredBallSessions(crowded)).toBe(1);
+    expect(getRequiredBallSessions(crowded)).toBe(0);
+  });
+
+  it("return_injury nie pozwala walidatorowi dołożyć sprintu ani wydolności", () => {
+    const returning = ctx({ seasonPhase: "return_injury", clubTrainingCount: 1 });
+    const athlete = { hasActivePain: false } satisfies AthleteRequirementProfile;
+    const r = calculateWeeklyMinimumRequirements(returning, settings, "speed", athlete);
+    expect(r.requiredGymSessions).toBe(0);
+    expect(r.requiredSpeedSessions).toBe(0);
+    expect(r.requiredEnduranceSessions).toBe(0);
+    expect(r.requiredBallSessions).toBe(0);
+  });
+
+  it("aktywny ból ma pierwszeństwo przed celem sportowym", () => {
+    const r = calculateWeeklyMinimumRequirements(
+      ctx(),
+      settings,
+      "speed",
+      { hasActivePain: true },
+    );
+    expect(r.requiredGymSessions + r.requiredSpeedSessions + r.requiredEnduranceSessions + r.requiredBallSessions).toBe(0);
   });
 });

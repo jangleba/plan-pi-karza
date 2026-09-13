@@ -405,7 +405,7 @@ export function addMissingCanonicalSpeedSessions(
   weeklyRequirements: WeeklyRequirements,
   profile: Profile,
 ): AddMissingSpeedResult {
-  const required = Math.max(1, weeklyRequirements.requiredSpeedSessions);
+  const required = Math.max(0, weeklyRequirements.requiredSpeedSessions);
   const unresolvedIssues: string[] = [];
   let added = 0;
   let converted = 0;
@@ -945,8 +945,8 @@ export function addMissingEnduranceSessions(
 
   validateNoEnduranceOnClubDays(weekPlan, profile);
 
-  const required = Math.max(1, weeklyRequirements.requiredEnduranceSessions);
-  const absoluteMinimum = Math.max(1, weeklyRequirements.absoluteMinimumEnduranceSessions);
+  const required = Math.max(0, weeklyRequirements.requiredEnduranceSessions);
+  const absoluteMinimum = Math.max(0, weeklyRequirements.absoluteMinimumEnduranceSessions);
   // Slot 2 jest dostępny technicznie dla każdego profilu; jego intensywność
   // ograniczają poziom, wiek, ból i reguły bezpiecznego łączenia bodźców.
   const maxPerDay = getMaxSessionsPerDay({ maxSessionsPerDay: 2 });
@@ -1811,7 +1811,7 @@ export function assertFinalPlanMeetsMinimums(
   const requiredGymSessions = weeklyRequirements.requiredGymSessions;
   const requiredEnduranceSessions = weeklyRequirements.requiredEnduranceSessions;
   const absoluteMinimumEnduranceSessions = Math.max(
-    1,
+    0,
     weeklyRequirements.absoluteMinimumEnduranceSessions,
   );
   const requiredSpeedSessions = weeklyRequirements.requiredSpeedSessions;

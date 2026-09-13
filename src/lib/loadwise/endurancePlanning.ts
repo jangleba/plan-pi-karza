@@ -496,8 +496,8 @@ export function addMissingEnduranceSessions(
   const cleanup = blockEnduranceOnClubDays(weekPlan, weeklyRequirements);
   unresolvedIssues.push(...cleanup.unresolvedIssues);
 
-  const required = Math.max(1, weeklyRequirements.requiredEnduranceSessions);
-  const absoluteMinimum = Math.max(1, weeklyRequirements.absoluteMinimumEnduranceSessions);
+  const required = Math.max(0, weeklyRequirements.requiredEnduranceSessions);
+  const absoluteMinimum = Math.max(0, weeklyRequirements.absoluteMinimumEnduranceSessions);
 
   let added = 0;
   let guard = 0;
@@ -573,8 +573,8 @@ export function validateWeeklyEnduranceMinimum(
   const warnings: string[] = [];
 
   const count = countEnduranceSessions(weekPlan);
-  const required = Math.max(1, weeklyRequirements.requiredEnduranceSessions);
-  const absoluteMinimum = Math.max(1, weeklyRequirements.absoluteMinimumEnduranceSessions);
+  const required = Math.max(0, weeklyRequirements.requiredEnduranceSessions);
+  const absoluteMinimum = Math.max(0, weeklyRequirements.absoluteMinimumEnduranceSessions);
 
   // Endurance w dzień klubowy?
   let onClubDay = 0;
