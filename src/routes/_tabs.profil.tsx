@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
+import { profileMatchDates } from "@/lib/loadwise/matchSchedule";
 import {
   CalendarDays,
   ChevronRight,
@@ -256,8 +257,10 @@ function ProfileScreen() {
             <Row label="Treningi klubowe" value={daysLabel(profile.clubTrainingDays)} />
             <Row label="Stały dzień meczu" value={usualMatchDay} />
             <Row
-              label="Najbliższy mecz"
-              value={profile.matchDate ? formatDate(profile.matchDate) : "Brak daty"}
+              label="Najbliższe mecze"
+              value={profileMatchDates(profile).length
+                ? profileMatchDates(profile).map(formatDate).join(" i ")
+                : "Brak daty"}
             />
             <Row
               label="Dni niedostępne"

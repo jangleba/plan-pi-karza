@@ -333,4 +333,23 @@ describe("regression — zobowiązania zewnętrzne", () => {
     expect(plan[0].dayType).toBe("club");
     expect(plan[0].isUnavailable).not.toBe(true);
   });
+
+  it("chroni dwa mecze podane jako konkretne daty w jednym tygodniu", () => {
+    const profile = baseProfile({
+      seasonPhase: "inseason",
+      matchDate: "2026-09-16",
+      matchDates: ["2026-09-16", "2026-09-20"],
+      weeklyMatches: true,
+    });
+    const plan = generatePlan(profile, new Date("2026-09-14T00:00:00"), 7);
+    expect(plan.filter((day) => day.dayType === "match").map((day) => day.date)).toEqual([
+      "2026-09-16",
+      "2026-09-20",
+    ]);
+    for (const protectedDate of ["2026-09-15", "2026-09-16", "2026-09-19", "2026-09-20"]) {
+      const day = plan.find((item) => item.date === protectedDate);
+      expect(day?.classification?.countsAsSpeed).not.toBe(true);
+      expect(day?.secondSession?.classification?.countsAsSpeed).not.toBe(true);
+    }
+  });
 });

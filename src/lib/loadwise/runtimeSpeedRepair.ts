@@ -10,6 +10,7 @@ import {
 import { getExerciseDefinition } from "./exerciseLibrary";
 import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import { classifySession, normalizeSessionCategory } from "./sessionClassification";
+import { isProfileMatchDate } from "./matchSchedule";
 
 const REQUIRED_SPEED_ROLE_COUNTS = {
   preparation: 1,
@@ -86,7 +87,7 @@ function externalExposures(
   for (let offset = -1; offset <= 1; offset += 1) {
     const candidate = addDays(current, offset);
     const candidateDate = isoDate(candidate);
-    if (profile.matchDate === candidateDate) {
+    if (isProfileMatchDate(profile, candidateDate)) {
       exposures.push({ date: candidateDate, kind: "match", hard: true });
     }
     if (profile.clubTrainingDays.includes(isoDayOfWeek(candidate))) {

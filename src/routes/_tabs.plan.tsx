@@ -314,7 +314,7 @@ function PlanScreen() {
 
   // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
   const weekHasMatchDate = (i: number) =>
-    !!transitions[i]?.nextMatchDate ||
+    (transitions[i]?.nextMatchDates?.length ?? (transitions[i]?.nextMatchDate ? 1 : 0)) > 0 ||
     (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
 
   // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
@@ -701,8 +701,10 @@ function PlanScreen() {
           <div className="soft-card p-4">
             <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {nextTransition?.nextMatchDate
-                ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
+              {(nextTransition?.nextMatchDates?.length ?? 0) > 0
+                ? `Kolejne mecze: ${nextTransition!.nextMatchDates!.map(formatDate).join(" i ")}.`
+                : nextTransition?.nextMatchDate
+                  ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
                 : offseasonAllowed && nextTransition?.noMatchNextWeek
                   ? "Kolejny tydzień bez meczu (poza sezonem)."
                   : "Kolejny mecz: nie ustawiono."}

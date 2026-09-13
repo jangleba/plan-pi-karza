@@ -13,6 +13,7 @@ import type {
   TrainingSection,
 } from "./types";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
+import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
 
 export type FootballSpeedFamily =
   | "acceleration"
@@ -995,13 +996,13 @@ function hasHardConflict(input: FootballSpeedEngineInput): boolean {
 }
 
 function isMatchDay(input: FootballSpeedEngineInput): boolean {
-  return input.profile.matchDate === input.date;
+  return isProfileMatchDate(input.profile, input.date);
 }
 
 function isMatchPlusOne(input: FootballSpeedEngineInput): boolean {
   const value = new Date(`${input.date}T12:00:00Z`);
   value.setUTCDate(value.getUTCDate() - 1);
-  return input.profile.matchDate === value.toISOString().slice(0, 10);
+  return isProfileMatchDate(input.profile, value.toISOString().slice(0, 10));
 }
 
 function buildRow(
@@ -1266,7 +1267,10 @@ export function generateFootballSpeedSession(
   // replacement and must not be emitted by this engine.
   if (
     isMatchDay(input) ||
-    validateFootballSpeedDate(input.date, { matchDate: input.profile.matchDate }).issues.includes(
+    validateFootballSpeedDate(input.date, {
+      matchDate: input.profile.matchDate,
+      matchDates: profileMatchDates(input.profile),
+    }).issues.includes(
       "match_minus_one",
     ) ||
     isMatchPlusOne(input) ||

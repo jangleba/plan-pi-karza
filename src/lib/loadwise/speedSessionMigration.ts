@@ -11,6 +11,7 @@ import {
   nearestFutureValidFootballSpeedDate,
   validateFootballSpeedDate,
 } from "./footballSpeedScheduling";
+import { profileMatchDates } from "./matchSchedule";
 
 function familyFor(session: SessionDay): FootballSpeedFamily {
   const persisted = persistedFootballSpeedFamily(session);
@@ -86,6 +87,7 @@ function relocateInvalidGeneratedSpeedSessions(
 
     const validation = validateFootballSpeedDate(day.date, {
       matchDate: profile.matchDate,
+      matchDates: profileMatchDates(profile),
       speedDates: acceptedSpeedDates,
     });
     occupiedSpeedDates.delete(day.date);
@@ -109,6 +111,7 @@ function relocateInvalidGeneratedSpeedSessions(
       }),
       {
         matchDate: profile.matchDate,
+        matchDates: profileMatchDates(profile),
         speedDates: new Set([...acceptedSpeedDates, ...occupiedSpeedDates]),
       },
     );

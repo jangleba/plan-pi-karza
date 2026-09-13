@@ -44,6 +44,7 @@ import {
 } from "./footballSpeedSessionEngine";
 import { hasRealSpeedExposure } from "./speedLoad";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
+import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
 import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import {
   assertFinalPlanMeetsMinimums,
@@ -783,8 +784,7 @@ function youthSafety(built: Built, profile: Profile, note: string | null) {
 
 /** Czy dany dzień jest dniem meczu. Jedynym źródłem prawdy jest konkretna data meczu. */
 function isMatchDay(date: Date, profile: Profile): boolean {
-  if (profile.matchDate && isoDate(date) === profile.matchDate) return true;
-  return false;
+  return isProfileMatchDate(profile, isoDate(date));
 }
 
 /** Liczba dni do najbliższego meczu (0=dziś, 1..7), null jeśli brak w oknie. */
@@ -4086,7 +4086,7 @@ export function generatePlan(
     for (let offset = -1; offset <= 1; offset++) {
       const candidate = addDays(current, offset);
       const candidateIso = isoDate(candidate);
-      if (profile.matchDate === candidateIso) {
+      if (isProfileMatchDate(profile, candidateIso)) {
         exposures.push({ date: candidateIso, kind: "match", hard: true });
       }
       if (profile.clubTrainingDays.includes(isoDayOfWeek(candidate))) {
@@ -4103,6 +4103,7 @@ export function generatePlan(
     if (
       !validateFootballSpeedDate(target.date, {
         matchDate: profile.matchDate,
+        matchDates: profileMatchDates(profile),
         speedDates: priorSpeedDates,
       }).valid
     ) {
@@ -4637,7 +4638,7 @@ export function generatePlan(
       seasonPhase: profile.seasonPhase,
       competitionLevel: profile.competitionLevel,
       clubSchedule: profile.clubTrainingDays,
-      matchSchedule: profile.usualMatchDay,
+      matchSchedule: profileMatchDates(profile),
       weeklyLoadScore: ruleReport.weeklyLoadScores,
       weekSimilarityScores: ruleReport.weekSimilarityScores,
       validationErrors: ruleReport.validationErrors,

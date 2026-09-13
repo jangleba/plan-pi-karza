@@ -19,6 +19,7 @@ import {
   isSpeedSession,
 } from "./sessionClassification";
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
+import { profileMatchDates } from "./matchSchedule";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
@@ -169,17 +170,18 @@ export function validatePersistedPlan(
   }
 
   const planDates = plan.map((day) => day.date).sort();
-  if (
-    profile.matchDate &&
-    profile.matchDate >= planDates[0] &&
-    profile.matchDate <= planDates[planDates.length - 1] &&
-    !plan.some((day) => day.date === profile.matchDate && isMatchSession(day))
-  ) {
-    issues.push({
-      code: "match-date-mismatch",
-      date: profile.matchDate,
-      message: "Stały termin meczu nie występuje w aktywnym planie.",
-    });
+  for (const matchDate of profileMatchDates(profile)) {
+    if (
+      matchDate >= planDates[0] &&
+      matchDate <= planDates[planDates.length - 1] &&
+      !plan.some((day) => day.date === matchDate && isMatchSession(day))
+    ) {
+      issues.push({
+        code: "match-date-mismatch",
+        date: matchDate,
+        message: "Termin meczu nie występuje w aktywnym planie.",
+      });
+    }
   }
 
   const calendarWeeks = new Map<string, SessionDay[]>();

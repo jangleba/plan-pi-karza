@@ -36,6 +36,7 @@ import {
   type PendingTrainingWrite,
 } from "./offlineTrainingQueue";
 import { toast } from "sonner";
+import { normalizeMatchDates } from "./matchSchedule";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -436,6 +437,10 @@ function buildProfile(
     unavailableDays: (ath.unavailable_days as number[]) ?? [],
     usualMatchDay: parseUsualMatchDay(ath.usual_match_day),
     matchDate: (ath.match_date as string) ?? null,
+    matchDates: normalizeMatchDates([
+      ath.match_date as string | null,
+      ...(Array.isArray(ath.match_dates) ? ath.match_dates as string[] : []),
+    ]),
     equipment,
     painInjury: Boolean(ath.pain_injury),
     painLocations: normalizePersistedPainLocations(onboardingAnswers?.painLocations),
@@ -658,7 +663,7 @@ interface LoadwiseContextValue {
   deleteRunningActivity: (activityId: string) => Promise<void>;
   confirmWeeklyTransition: (
     weekNumber: number,
-    nextMatchDate: string | null,
+    nextMatchDates: string[],
     noMatchNextWeek: boolean,
   ) => Promise<void>;
   saveReadiness: (r: Readiness) => Promise<void>;
@@ -1068,6 +1073,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             id: row.id as string,
             weekNumber: wn,
             nextMatchDate: (row.next_match_date as string) ?? null,
+            nextMatchDates: normalizeMatchDates([
+              row.next_match_date as string | null,
+              ...(Array.isArray(row.next_match_dates) ? row.next_match_dates as string[] : []),
+            ]),
             noMatchNextWeek: Boolean(row.no_match_next_week),
             confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
           };
@@ -1307,6 +1316,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           unavailable_days: profile.unavailableDays as unknown as Json,
           usual_match_day: profile.usualMatchDay === null ? null : String(profile.usualMatchDay),
           match_date: profile.matchDate,
+          match_dates: normalizeMatchDates([profile.matchDate, ...(profile.matchDates ?? [])]),
           pain_injury: profile.painInjury,
           double_sessions_allowed: profile.doubleSessionsAllowed,
           guardian_consent: profile.guardianConsent,
@@ -2054,7 +2064,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   // Weekly gate: zapisuje datę kolejnego meczu i przebudowuje kolejny tydzień planu.
   async function confirmWeeklyTransition(
     weekNumber: number,
-    nextMatchDate: string | null,
+    nextMatchDates: string[],
     noMatchNextWeek: boolean,
   ) {
     if (!user) return;
@@ -2068,6 +2078,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
     // Wyznaczamy jego przedział w planie wg granic poniedziałek–niedziela.
     const current = state.plan;
+    const normalizedMatchDates = noMatchNextWeek ? [] : normalizeMatchDates(nextMatchDates);
     let newPlan = current;
     const planStart = current[0] ? parseIso(current[0].date) : null;
     const ranges = planStart ? weekRanges(planStart, current.length) : [];
@@ -2080,7 +2091,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       const tempProfile: Profile = {
         ...profile,
         usualMatchDay: "no_fixed_day",
-        matchDate: noMatchNextWeek ? null : nextMatchDate,
+        matchDate: normalizedMatchDates[0] ?? null,
+        matchDates: normalizedMatchDates,
       };
       const regenDays = range.end - range.start;
       const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
@@ -2093,7 +2105,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const transition: WeeklyTransition = {
       id,
       weekNumber,
-      nextMatchDate: noMatchNextWeek ? null : nextMatchDate,
+      nextMatchDate: normalizedMatchDates[0] ?? null,
+      nextMatchDates: normalizedMatchDates,
       noMatchNextWeek,
       confirmedAt: new Date().toISOString(),
     };
@@ -2104,6 +2117,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         user_id: user.id,
         week_number: weekNumber,
         next_match_date: transition.nextMatchDate,
+        next_match_dates: transition.nextMatchDates ?? [],
         no_match_next_week: noMatchNextWeek,
         confirmed_at: transition.confirmedAt,
       },

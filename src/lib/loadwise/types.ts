@@ -106,6 +106,8 @@ export interface Profile {
   individualTrainingDays: number[]; // 1=Mon ... 7=Sun — Loadwise own sessions
   usualMatchDay: UsualMatchDay; // weekday usually played, or no fixed day
   matchDate: string | null; // yyyy-MM-dd
+  /** Maksymalnie dwa najbliższe mecze podane jako konkretne daty. */
+  matchDates?: string[];
   equipment: string[];
   /** Sprzęt oznaczony przez zawodnika jako niedostępny (stan per użytkownik). */
   unavailableEquipmentIds?: string[];
@@ -694,6 +696,7 @@ export interface WeeklyTransition {
   id: string;
   weekNumber: number; // 1-based index of the week that was just finished
   nextMatchDate: string | null; // yyyy-MM-dd
+  nextMatchDates?: string[];
   noMatchNextWeek: boolean;
   confirmedAt: string;
 }

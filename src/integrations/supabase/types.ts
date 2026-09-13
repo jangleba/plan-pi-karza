@@ -49,6 +49,7 @@ export type Database = {
           level: string | null
           main_goal: string | null
           match_date: string | null
+          match_dates: string[]
           ownership_transfer_email: string | null
           ownership_transfer_requested_at: string | null
           ownership_transfer_status: string
@@ -105,6 +106,7 @@ export type Database = {
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
+          match_dates?: string[]
           ownership_transfer_email?: string | null
           ownership_transfer_requested_at?: string | null
           ownership_transfer_status?: string
@@ -161,6 +163,7 @@ export type Database = {
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
+          match_dates?: string[]
           ownership_transfer_email?: string | null
           ownership_transfer_requested_at?: string | null
           ownership_transfer_status?: string
@@ -938,6 +941,7 @@ export type Database = {
           created_at: string
           id: string
           next_match_date: string | null
+          next_match_dates: string[]
           no_match_next_week: boolean
           updated_at: string
           user_id: string
@@ -948,6 +952,7 @@ export type Database = {
           created_at?: string
           id?: string
           next_match_date?: string | null
+          next_match_dates?: string[]
           no_match_next_week?: boolean
           updated_at?: string
           user_id: string
@@ -958,6 +963,7 @@ export type Database = {
           created_at?: string
           id?: string
           next_match_date?: string | null
+          next_match_dates?: string[]
           no_match_next_week?: boolean
           updated_at?: string
           user_id?: string

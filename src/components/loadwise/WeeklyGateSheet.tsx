@@ -34,24 +34,33 @@ export function WeeklyGateSheet({
   const existing = state.transitions[weekNumber];
 
   const [matchDate, setMatchDate] = useState<string>("");
+  const [secondMatchDate, setSecondMatchDate] = useState<string>("");
   const [noMatch, setNoMatch] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMatchDate(existing?.nextMatchDate ?? "");
+      setSecondMatchDate(existing?.nextMatchDates?.find((date) => date !== existing.nextMatchDate) ?? "");
       setNoMatch(allowNoMatch && Boolean(existing?.noMatchNextWeek));
       setSaving(false);
     }
   }, [open, existing, allowNoMatch]);
 
-  const canSave = noMatch || matchDate !== "";
+  const canSave = noMatch || (
+    matchDate !== "" &&
+    (secondMatchDate === "" || secondMatchDate > matchDate)
+  );
 
   async function handleSave() {
     if (!canSave || saving) return;
     setSaving(true);
     try {
-      await confirmWeeklyTransition(weekNumber, noMatch ? null : matchDate, noMatch);
+      await confirmWeeklyTransition(
+        weekNumber,
+        noMatch ? [] : [matchDate, secondMatchDate].filter(Boolean),
+        noMatch,
+      );
       toast.success(
         noMatch
           ? "Zapisano tydzień bez meczu."
@@ -91,12 +100,35 @@ export function WeeklyGateSheet({
               type="date"
               value={matchDate}
               min={nextWeekStart}
+              max={nextWeekEnd}
               disabled={noMatch}
               onChange={(e) => setMatchDate(e.target.value)}
               className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
           </div>
         </div>
+
+        {!noMatch && (
+          <div className="mt-2">
+            <label className="mb-1.5 block text-sm font-medium">
+              Drugi mecz (opcjonalnie)
+            </label>
+            <div className="relative">
+              <CalendarClock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="date"
+                value={secondMatchDate}
+                min={matchDate || nextWeekStart}
+                max={nextWeekEnd}
+                onChange={(e) => setSecondMatchDate(e.target.value)}
+                className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            {secondMatchDate !== "" && secondMatchDate <= matchDate && (
+              <p className="mt-1 text-xs font-medium text-destructive">Drugi mecz musi być później niż pierwszy.</p>
+            )}
+          </div>
+        )}
 
         {/* Tryb bez meczu — tylko poza sezonem / przejściowy */}
         {allowNoMatch && (

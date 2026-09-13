@@ -10,6 +10,7 @@
 // ============================================================================
 
 import type { Profile, ExerciseItem, TrainingExercise, PainLocation } from "./types";
+import { profileMatchDates } from "./matchSchedule";
 
 // ---------------------------------------------------------------------------
 // Typy profilu
@@ -535,7 +536,7 @@ export function buildAthleteTrainingProfile(
     position: p.position ?? "midfielder",
     seasonPhase: p.seasonPhase ?? "inseason",
     clubTrainingCount: p.clubTrainingDays?.length ?? 0,
-    matchCount: p.matchDate ? 1 : 0,
+    matchCount: profileMatchDates(p).length,
     // Każdy profil może mieć technicznie dwa sloty. Poziom i reguły kombinacji
     // decydują, czy druga sesja może być pełna, czy wyłącznie lekka.
     maxSessionsPerDay: 2,

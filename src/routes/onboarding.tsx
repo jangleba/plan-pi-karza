@@ -46,6 +46,7 @@ import {
 } from "@/lib/loadwise/agePolicy";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
 import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
+import { normalizeMatchDates } from "@/lib/loadwise/matchSchedule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -270,6 +271,9 @@ function Onboarding() {
     existing?.clubTrainingDays ?? [],
   );
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
+  const [secondMatchDate, setSecondMatchDate] = useState(
+    existing?.matchDates?.find((date) => date !== existing.matchDate) ?? "",
+  );
   const [noMatch, setNoMatch] = useState(
     !existing?.matchDate && existing?.weeklyMatches === false,
   );
@@ -537,6 +541,7 @@ function Onboarding() {
       unavailableDays,
       usualMatchDay: null,
       matchDate: noMatch ? null : matchDate || null,
+      matchDates: noMatch ? [] : normalizeMatchDates([matchDate, secondMatchDate]),
       equipment,
       painInjury: Boolean(consents.health_data && painInjury),
       painLocations: consents.health_data && painInjury ? painLocations : [],
@@ -1036,6 +1041,49 @@ function Onboarding() {
                     />
                   </PopoverContent>
                 </Popover>
+                {!noMatch && (
+                  <div className="space-y-2">
+                    <Label>Drugi mecz w najbliższym okresie (opcjonalnie)</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm"
+                        >
+                          <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className={secondMatchDate ? "text-foreground" : "text-muted-foreground"}>
+                            {secondMatchDate
+                              ? format(new Date(`${secondMatchDate}T00:00:00`), "d MMMM yyyy", { locale: pl })
+                              : "Dodaj drugą datę, jeśli grasz dwa mecze"}
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          locale={pl}
+                          selected={secondMatchDate ? new Date(`${secondMatchDate}T00:00:00`) : undefined}
+                          onSelect={(d) => setSecondMatchDate(d ? format(d, "yyyy-MM-dd") : "")}
+                          disabled={(d) =>
+                            d < new Date(`${todayStr}T00:00:00`) ||
+                            (matchDate !== "" && format(d, "yyyy-MM-dd") <= matchDate)
+                          }
+                          initialFocus
+                          className="pointer-events-auto p-3"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {secondMatchDate && (
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-muted-foreground"
+                        onClick={() => setSecondMatchDate("")}
+                      >
+                        Usuń drugą datę
+                      </button>
+                    )}
+                  </div>
+                )}
                 <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5">
                   <Checkbox
                     checked={noMatch}
@@ -1044,6 +1092,7 @@ function Onboarding() {
                       setNoMatch(next);
                       if (next) {
                         setMatchDate("");
+                        setSecondMatchDate("");
                         setWeeklyMatches(false);
                       }
                     }}

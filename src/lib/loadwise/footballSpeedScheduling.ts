@@ -20,13 +20,17 @@ export function validateFootballSpeedDate(
   date: string,
   options: {
     matchDate?: string | null;
+    matchDates?: string[];
     speedDates?: Iterable<string>;
   } = {},
 ): FootballSpeedDateValidation {
   const speedDates = new Set(options.speedDates ?? []);
+  const matchDates = new Set(
+    [options.matchDate, ...(options.matchDates ?? [])].filter((value): value is string => Boolean(value)),
+  );
   const issues: FootballSpeedDateIssue[] = [];
-  if (options.matchDate === date) issues.push("match_day");
-  if (options.matchDate === addDays(date, 1)) issues.push("match_minus_one");
+  if (matchDates.has(date)) issues.push("match_day");
+  if (matchDates.has(addDays(date, 1))) issues.push("match_minus_one");
   if (speedDates.has(date)) issues.push("duplicate_date");
   if (speedDates.has(addDays(date, -1)) || speedDates.has(addDays(date, 1))) {
     issues.push("consecutive_date");
@@ -39,6 +43,7 @@ export function nearestFutureValidFootballSpeedDate(
   horizon: Iterable<string>,
   options: {
     matchDate?: string | null;
+    matchDates?: string[];
     speedDates?: Iterable<string>;
   } = {},
 ): string | null {
@@ -50,6 +55,7 @@ export function nearestFutureValidFootballSpeedDate(
       (date) =>
         validateFootballSpeedDate(date, {
           matchDate: options.matchDate,
+          matchDates: options.matchDates,
           speedDates,
         }).valid,
     ) ?? null;
