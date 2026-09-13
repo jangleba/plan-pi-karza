@@ -29,6 +29,13 @@ import { normalizePersistedPainLocations } from "./profilePainPersistence";
 import { ageOnDate } from "./agePolicy";
 import { clearBootState, loadBootState, saveBootState } from "./bootCache";
 import type { Json } from "@/integrations/supabase/types";
+import {
+  enqueueTrainingWrite,
+  flushPendingTrainingWrites,
+  isRetryableWriteError,
+  type PendingTrainingWrite,
+} from "./offlineTrainingQueue";
+import { toast } from "sonner";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -673,6 +680,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const generatingRef = useRef(false);
   const replacementInFlightRef = useRef(new Set<string>());
   const missedSyncRef = useRef<string | null>(null);
+  const offlineSyncInFlightRef = useRef(false);
   const activeUserIdRef = useRef<string | null>(null);
   const [todayIso, setTodayIso] = useState(() => isoDate(localToday()));
 
@@ -711,6 +719,49 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    const sync = async () => {
+      if (offlineSyncInFlightRef.current || navigator.onLine === false) return;
+      offlineSyncInFlightRef.current = true;
+      try {
+        const result = await flushPendingTrainingWrites(user.id, async (write: PendingTrainingWrite) => {
+          if (write.kind === "session_log") {
+            const saved = await supabase
+              .from("session_logs")
+              .upsert(write.payload, { onConflict: "user_id,session_id" });
+            return !saved.error;
+          }
+          if (write.kind === "exercise_set_log") {
+            const saved = await supabase
+              .from("exercise_set_logs")
+              .upsert(write.payload, {
+                onConflict: "user_id,session_id,exercise_key,set_number",
+              });
+            return !saved.error;
+          }
+          if (write.kind === "running_activity") {
+            const saved = await supabase
+              .from("running_activities")
+              .upsert(write.payload, { onConflict: "user_id,session_id" });
+            return !saved.error;
+          }
+          const saved = await supabase
+            .from("athlete_profiles")
+            .update(write.payload)
+            .eq("user_id", user.id);
+          return !saved.error;
+        });
+        if (result.synced > 0) toast.success("Zapis treningu zsynchronizowany.");
+      } finally {
+        offlineSyncInFlightRef.current = false;
+      }
+    };
+    void sync();
+    window.addEventListener("online", sync);
+    return () => window.removeEventListener("online", sync);
+  }, [user]);
 
   // Load everything for the current user.
   useEffect(() => {
@@ -1442,8 +1493,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (existing?.completed || existing?.status === "started") return;
 
     const startedAt = new Date().toISOString();
-    const result = await supabase.from("session_logs").upsert(
-      {
+    const payload = {
         user_id: user.id,
         session_id: sid,
         completed: false,
@@ -1455,10 +1505,20 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         started_at: startedAt,
         ended_at: null,
         updated_at: startedAt,
-      },
+      };
+    const result = await supabase.from("session_logs").upsert(
+      payload,
       { onConflict: "user_id,session_id" },
     );
-    assertNoSupabaseError("session_logs.start", result.error);
+    if (result.error) {
+      const queued = isRetryableWriteError(result.error) && enqueueTrainingWrite(user.id, {
+        kind: "session_log",
+        dedupeKey: `session:${sid}`,
+        payload,
+      });
+      if (!queued) assertNoSupabaseError("session_logs.start", result.error);
+      toast.info("Brak internetu — początek treningu zapisano na tym telefonie.");
+    }
     setState((current) => ({
       ...current,
       completions: {
@@ -1507,8 +1567,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           notes,
         }
       : null;
-    const result = await supabase.from("session_logs").upsert(
-      {
+    const payload = {
         user_id: user.id,
         session_id: sid,
         completed: true,
@@ -1520,10 +1579,21 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         started_at: completion.startedAt ?? completion.endedAt,
         ended_at: completion.endedAt,
         updated_at: new Date().toISOString(),
-      },
+      };
+    const result = await supabase.from("session_logs").upsert(
+      payload,
       { onConflict: "user_id,session_id" },
     );
-    assertNoSupabaseError("session_logs.upsert", result.error);
+    let completionQueued = false;
+    if (result.error) {
+      completionQueued = isRetryableWriteError(result.error) && enqueueTrainingWrite(user.id, {
+        kind: "session_log",
+        dedupeKey: `session:${sid}`,
+        payload,
+      });
+      if (!completionQueued) assertNoSupabaseError("session_logs.upsert", result.error);
+      toast.info("Brak internetu — ukończenie zapisano i zsynchronizuje się później.");
+    }
     let updatedProfile = state.profile;
     const runningActivity = state.runningActivities[sid];
     if (
@@ -1547,10 +1617,21 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       }
     }
     if (updatedProfile && updatedProfile !== state.profile) {
-      const revision = await saveProfileRows(updatedProfile, true);
-      updatedProfile = { ...updatedProfile, onboardingRevision: revision };
+      if (completionQueued) {
+        enqueueTrainingWrite(user.id, {
+          kind: "running_progression",
+          dedupeKey: "running-progression",
+          payload: {
+            running_progression_level: updatedProfile.runningProgressionLevel ?? 0,
+            running_progression_updated_at: updatedProfile.runningProgressionUpdatedAt ?? null,
+          },
+        });
+      } else {
+        const revision = await saveProfileRows(updatedProfile, true);
+        updatedProfile = { ...updatedProfile, onboardingRevision: revision };
+      }
     }
-    const refreshedPlan = updatedProfile && updatedProfile !== state.profile
+    const refreshedPlan = !completionQueued && updatedProfile && updatedProfile !== state.profile
       ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
       : state.plan;
     setState((s) => ({
@@ -1577,26 +1658,62 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" && !pendingFieldMas) {
       throw new Error("Test 5-minutowy nie ma pełnego, wiarygodnego odcinka GPS. Powtórz test na otwartej przestrzeni.");
     }
+    if (
+      linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" &&
+      typeof navigator !== "undefined" &&
+      navigator.onLine === false
+    ) {
+      throw new Error("Test 5-minutowy wymaga internetu do bezpiecznego zapisania i przeliczenia planu.");
+    }
+    const activityId = crypto.randomUUID();
+    const updatedAt = new Date().toISOString();
+    const payload = {
+      id: activityId,
+      user_id: user.id,
+      session_id: draft.sessionId,
+      date: draft.date,
+      duration_sec: draft.durationSec,
+      distance_m: draft.distanceM,
+      avg_pace_sec_per_km: draft.avgPaceSecPerKm,
+      is_field_mas_test:
+        linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test",
+      updated_at: updatedAt,
+    };
     const write = await supabase
       .from("running_activities")
       .upsert(
-        {
-          user_id: user.id,
-          session_id: draft.sessionId,
-          date: draft.date,
-          duration_sec: draft.durationSec,
-          distance_m: draft.distanceM,
-          avg_pace_sec_per_km: draft.avgPaceSecPerKm,
-          is_field_mas_test:
-            linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test",
-          updated_at: new Date().toISOString(),
-        },
+        payload,
         { onConflict: "user_id,session_id" },
       )
       .select("*")
       .single();
-    assertNoSupabaseError("running_activities.upsert", write.error);
-    const storedActivity = rowToRunningActivity(write.data as AnyRow);
+    let storedActivity = write.error ? null : rowToRunningActivity(write.data as AnyRow);
+    if (write.error) {
+      const isMas = linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test";
+      const queued = !isMas && isRetryableWriteError(write.error) && enqueueTrainingWrite(user.id, {
+        kind: "running_activity",
+        dedupeKey: `running:${draft.sessionId}`,
+        payload,
+      });
+      if (!queued) assertNoSupabaseError("running_activities.upsert", write.error);
+      storedActivity = {
+        id: activityId,
+        sessionId: draft.sessionId,
+        date: draft.date,
+        startedAt: draft.startedAt,
+        endedAt: draft.endedAt,
+        durationSec: draft.durationSec,
+        distanceM: draft.distanceM,
+        avgPaceSecPerKm: draft.avgPaceSecPerKm,
+        route: [],
+        splits: [],
+        intervalResults: [],
+        source: draft.source,
+        createdAt: updatedAt,
+        updatedAt,
+      };
+      toast.info("Brak internetu — wynik biegu zapisano na tym telefonie.");
+    }
     if (!storedActivity) throw new Error("Baza zwróciła nieprawidłowy zapis biegu.");
     // Trasa i odcinki żyją tylko w pamięci bieżącej sesji. Do bazy trafiają
     // wyłącznie trzy wyniki widoczne dla użytkownika.
@@ -2013,6 +2130,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   async function saveReadiness(r: Readiness) {
     if (!state.profile?.healthPersonalizationEnabled) {
       throw new Error("Check-in jest wyłączony. Włącz opcjonalną personalizację w profilu.");
+    }
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      throw new Error("Check-in zdrowotny wymaga połączenia z internetem.");
     }
     const { applyCheckInToPlanDay } = await import("./dailyCheckin");
     if (user) {

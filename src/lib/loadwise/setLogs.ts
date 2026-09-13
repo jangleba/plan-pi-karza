@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { TrainingExercise } from "@/lib/loadwise/types";
+import { enqueueTrainingWrite, isRetryableWriteError } from "@/lib/loadwise/offlineTrainingQueue";
 
 /** Jeden zapisany zestaw (seria) ćwiczenia. */
 export interface SetLog {
@@ -146,7 +147,25 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
           ? updateQuery.eq("session_id", sessionId)
           : updateQuery.is("session_id", null);
         const { error: updateError } = await updateQuery;
-        if (updateError) return false;
+        if (updateError) {
+          const queued = isRetryableWriteError(updateError) && enqueueTrainingWrite(userId, {
+            kind: "exercise_set_log",
+            dedupeKey: `set:${sessionId ?? "none"}:${key}:${log.setNumber}`,
+            payload: {
+              user_id: userId,
+              session_id: sessionId ?? null,
+              exercise_key: key,
+              set_number: log.setNumber,
+              weight_kg: log.weightKg,
+              reps: log.reps,
+              rir: log.rir,
+              metric_kind: log.metricKind ?? null,
+              metric_value: log.metricValue ?? null,
+              performed_at: new Date().toISOString(),
+            },
+          });
+          if (!queued) return false;
+        }
       }
       setCurrent((state) => ({ ...state, [log.setNumber]: log }));
       return true;

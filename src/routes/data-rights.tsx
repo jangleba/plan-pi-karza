@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { Button } from "@/components/ui/button";
 import { LEGAL_VERSION, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { clearPendingTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -136,6 +137,7 @@ function DataRights() {
       });
       if (error) throw error;
       window.localStorage.removeItem(`loadwise:v3:${user.id}`);
+      clearPendingTrainingWrites(user.id);
       await signOut();
       toast.success("Konto logowania i powiązane dane zostały usunięte.");
       navigate({ to: "/auth", replace: true });
