@@ -28,6 +28,10 @@ export type Database = {
           equipment: Json
           field_mas_kmh: number | null
           field_mas_tested_at: string | null
+          food_allergies: Json
+          food_exclusions: Json
+          food_intolerances: Json
+          fuel_allergy_status: string
           guardian_consent: boolean | null
           guardian_consent_at: string | null
           guardian_email: string | null
@@ -45,6 +49,7 @@ export type Database = {
           level: string | null
           main_goal: string | null
           match_date: string | null
+          match_dates: Json
           ownership_transfer_email: string | null
           ownership_transfer_requested_at: string | null
           ownership_transfer_status: string
@@ -80,6 +85,10 @@ export type Database = {
           equipment?: Json
           field_mas_kmh?: number | null
           field_mas_tested_at?: string | null
+          food_allergies?: Json
+          food_exclusions?: Json
+          food_intolerances?: Json
+          fuel_allergy_status?: string
           guardian_consent?: boolean | null
           guardian_consent_at?: string | null
           guardian_email?: string | null
@@ -97,6 +106,7 @@ export type Database = {
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
+          match_dates?: Json
           ownership_transfer_email?: string | null
           ownership_transfer_requested_at?: string | null
           ownership_transfer_status?: string
@@ -132,6 +142,10 @@ export type Database = {
           equipment?: Json
           field_mas_kmh?: number | null
           field_mas_tested_at?: string | null
+          food_allergies?: Json
+          food_exclusions?: Json
+          food_intolerances?: Json
+          fuel_allergy_status?: string
           guardian_consent?: boolean | null
           guardian_consent_at?: string | null
           guardian_email?: string | null
@@ -149,6 +163,7 @@ export type Database = {
           level?: string | null
           main_goal?: string | null
           match_date?: string | null
+          match_dates?: Json
           ownership_transfer_email?: string | null
           ownership_transfer_requested_at?: string | null
           ownership_transfer_status?: string
@@ -460,6 +475,7 @@ export type Database = {
       }
       readiness_logs: {
         Row: {
+          alters_movement: boolean
           available_time: number | null
           club_training_today: boolean | null
           created_at: string
@@ -472,7 +488,9 @@ export type Database = {
           overall: number | null
           pain_level: number | null
           pain_location: string | null
+          pain_onset: string | null
           pain_status: boolean | null
+          red_flags: Json
           sleep: number | null
           soreness: number | null
           stress: number | null
@@ -480,6 +498,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alters_movement?: boolean
           available_time?: number | null
           club_training_today?: boolean | null
           created_at?: string
@@ -492,7 +511,9 @@ export type Database = {
           overall?: number | null
           pain_level?: number | null
           pain_location?: string | null
+          pain_onset?: string | null
           pain_status?: boolean | null
+          red_flags?: Json
           sleep?: number | null
           soreness?: number | null
           stress?: number | null
@@ -500,6 +521,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alters_movement?: boolean
           available_time?: number | null
           club_training_today?: boolean | null
           created_at?: string
@@ -512,7 +534,9 @@ export type Database = {
           overall?: number | null
           pain_level?: number | null
           pain_location?: string | null
+          pain_onset?: string | null
           pain_status?: boolean | null
+          red_flags?: Json
           sleep?: number | null
           soreness?: number | null
           stress?: number | null
@@ -908,6 +932,7 @@ export type Database = {
           created_at: string
           id: string
           next_match_date: string | null
+          next_match_dates: Json
           no_match_next_week: boolean
           updated_at: string
           user_id: string
@@ -918,6 +943,7 @@ export type Database = {
           created_at?: string
           id?: string
           next_match_date?: string | null
+          next_match_dates?: Json
           no_match_next_week?: boolean
           updated_at?: string
           user_id: string
@@ -928,6 +954,7 @@ export type Database = {
           created_at?: string
           id?: string
           next_match_date?: string | null
+          next_match_dates?: Json
           no_match_next_week?: boolean
           updated_at?: string
           user_id?: string
@@ -946,6 +973,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      persist_training_plan_atomic: {
+        Args: {
+          p_days: Json
+          p_exercises: Json
+          p_goal: string
+          p_month: string
+          p_plan_id: string
+          p_plan_json: Json
+          p_sessions: Json
+        }
+        Returns: undefined
       }
       withdraw_health_data_consent: {
         Args: { p_text_snapshot: string; p_version: string }
