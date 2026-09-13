@@ -50,7 +50,7 @@ function toLog(row: SetLogRow): SetLog {
   };
 }
 
-const table = () => supabase.from("exercise_set_logs" as never);
+const table = () => supabase.from("exercise_set_logs");
 
 /** Zwraca serie tylko z jednej, ostatniej poprzedniej sesji. */
 export function previousSessionLogs(
@@ -125,8 +125,8 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
           metric_kind: log.metricKind ?? null,
           metric_value: log.metricValue ?? null,
           performed_at: new Date().toISOString(),
-        } as never,
-        { onConflict: "user_id,session_id,exercise_key,set_number" } as never,
+        },
+        { onConflict: "user_id,session_id,exercise_key,set_number" },
       );
       if (error) {
         // Brak zapisu z session_id (np. konflikt indeksu częściowego) — spróbuj update.
@@ -138,7 +138,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
             metric_kind: log.metricKind ?? null,
             metric_value: log.metricValue ?? null,
             performed_at: new Date().toISOString(),
-          } as never)
+          })
           .eq("user_id", userId)
           .eq("exercise_key", key)
           .eq("set_number", log.setNumber);

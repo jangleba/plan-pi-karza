@@ -7,6 +7,7 @@
 import { requiredLeadMinutes } from "./engine";
 import { parseMeal } from "./mealParser";
 import type {
+  FoodRole,
   FuelSessionInput,
   ParsedFoodItem,
   ParsedMeal,
@@ -296,7 +297,7 @@ export function withExtras(meal: ParsedMeal, extras: string[]): ParsedMeal {
 }
 
 function rebuild(raw: string, items: ParsedFoodItem[], unrecognized: string[]): ParsedMeal {
-  const by = (role: string) => items.filter((i) => i.roles.includes(role as never));
+  const by = (role: FoodRole) => items.filter((i) => i.roles.includes(role));
   const carbFast = by("carb_fast");
   const carbSlow = by("carb_slow");
   return {

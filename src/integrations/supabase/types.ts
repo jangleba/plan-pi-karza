@@ -977,6 +977,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      persist_training_plan_atomic: {
+        Args: {
+          p_days: Json
+          p_exercises: Json
+          p_goal: string
+          p_month: string
+          p_plan_id: string
+          p_plan_json: Json
+          p_sessions: Json
+        }
+        Returns: undefined
+      }
       withdraw_health_data_consent: {
         Args: { p_text_snapshot: string; p_version: string }
         Returns: undefined

@@ -28,6 +28,7 @@ import { expiredUnfinishedSessions } from "./sessionStatus";
 import { normalizePersistedPainLocations } from "./profilePainPersistence";
 import { ageOnDate } from "./agePolicy";
 import { clearBootState, loadBootState, saveBootState } from "./bootCache";
+import type { Json } from "@/integrations/supabase/types";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -169,13 +170,13 @@ function assertNoSupabaseError(context: string, error: unknown): void {
 async function clearFutureOverlaysForUser(userId: string, fromDate: string): Promise<void> {
   const [modifications, transitions] = await Promise.all([
     supabase
-      .from("session_modifications" as never)
-      .update({ active: false } as never)
+      .from("session_modifications")
+      .update({ active: false })
       .eq("user_id", userId)
       .eq("active", true)
       .gte("date", fromDate),
     supabase
-      .from("weekly_transitions" as never)
+      .from("weekly_transitions")
       .delete()
       .eq("user_id", userId),
   ]);
@@ -762,17 +763,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .select("session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at")
               .eq("user_id", user.id),
             supabase
-              .from("session_modifications" as never)
+              .from("session_modifications")
               .select("*")
               .eq("user_id", user.id)
               .eq("active", true)
               .order("created_at", { ascending: true }),
             supabase
-              .from("weekly_transitions" as never)
+              .from("weekly_transitions")
               .select("*")
               .eq("user_id", user.id),
             supabase
-              .from("exercise_replacements" as never)
+              .from("exercise_replacements")
               .select("*")
               .eq("user_id", user.id)
               .eq("active", true)
@@ -784,7 +785,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               .order("date", { ascending: false }),
             supabase
               .from("readiness_logs")
-              .select("date, sleep, energy, fatigue, pain_level, pain_location, overall")
+              .select("date, sleep, energy, fatigue, soreness, stress, pain_level, pain_location, pain_onset, alters_movement, red_flags, overall")
               .eq("user_id", user.id)
               .order("date", { ascending: false })
               .limit(45),
@@ -945,7 +946,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             if (planId) {
               const migrationWrite = await supabase
                 .from("training_plans")
-                .update({ plan_json: plan as unknown as never })
+                .update({ plan_json: plan as unknown as Json })
                 .eq("id", planId)
                 .eq("user_id", user.id)
                 .eq("active", true);
@@ -1259,10 +1260,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           level: profile.level,
           main_goal: profile.goal,
           secondary_limiter: profile.secondaryLimiter,
-          equipment: profile.equipment as unknown as never,
-          club_training_days: profile.clubTrainingDays as unknown as never,
-          individual_training_days: profile.individualTrainingDays as unknown as never,
-          unavailable_days: profile.unavailableDays as unknown as never,
+          equipment: profile.equipment as unknown as Json,
+          club_training_days: profile.clubTrainingDays as unknown as Json,
+          individual_training_days: profile.individualTrainingDays,
+          unavailable_days: profile.unavailableDays as unknown as Json,
           usual_match_day: profile.usualMatchDay === null ? null : String(profile.usualMatchDay),
           match_date: profile.matchDate,
           pain_injury: profile.painInjury,
@@ -1339,7 +1340,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
     const onboardingAnswersWrite = await supabase.from("onboarding_answers").insert({
       user_id: user.id,
-      answers_json: nextProfile as unknown as never,
+      answers_json: nextProfile as unknown as Json,
       completed_at: new Date().toISOString(),
     });
     assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
@@ -1724,16 +1725,16 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         equipmentIds,
         createdAt: new Date().toISOString(),
       };
-      const insert = await supabase.from("exercise_replacements" as never).insert({
+      const insert = await supabase.from("exercise_replacements").insert({
         id: item.id,
         user_id: user.id,
         date,
         exercise_id: item.exerciseId,
-        original_json: item.original,
-        replacement_json: item.replacement,
+        original_json: item.original as unknown as Json,
+        replacement_json: item.replacement as unknown as Json,
         equipment_ids: item.equipmentIds,
         active: true,
-      } as never);
+      });
       assertNoSupabaseError("exercise_replacements.insert", insert.error);
       const profileUpdate = await supabase
         .from("athlete_profiles")
@@ -1741,7 +1742,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         .eq("user_id", user.id);
       if (profileUpdate.error) {
         await supabase
-          .from("exercise_replacements" as never)
+          .from("exercise_replacements")
           .delete()
           .eq("id", item.id)
           .eq("user_id", user.id);
@@ -1784,8 +1785,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           (id) => !removed.equipmentIds.includes(id),
         );
     const deactivate = await supabase
-      .from("exercise_replacements" as never)
-      .update({ active: false } as never)
+      .from("exercise_replacements")
+      .update({ active: false })
       .eq("id", replacementId)
       .eq("user_id", user.id);
     assertNoSupabaseError("exercise_replacements.undo", deactivate.error);
@@ -1795,8 +1796,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .eq("user_id", user.id);
     if (profileUpdate.error) {
       await supabase
-        .from("exercise_replacements" as never)
-        .update({ active: true } as never)
+        .from("exercise_replacements")
+        .update({ active: true })
         .eq("id", replacementId)
         .eq("user_id", user.id);
       assertNoSupabaseError("athlete_profiles.equipment_undo", profileUpdate.error);
@@ -1841,7 +1842,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       originalSession,
       createdAt: new Date().toISOString(),
     };
-    const modificationWrite = await supabase.from("session_modifications" as never).insert({
+    const modificationWrite = await supabase.from("session_modifications").insert({
       id,
       user_id: user.id,
       date,
@@ -1850,10 +1851,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       safety_status: safetyStatus,
       original_session_id: originalSession?.dbId ?? null,
       new_session_id: persistedSession.dbId ?? null,
-      original_session_json: originalSession,
-      new_session_json: persistedSession,
+      original_session_json: originalSession as unknown as Json,
+      new_session_json: persistedSession as unknown as Json,
       active: true,
-    } as never);
+    });
     if (modificationWrite.error) {
       await supabase
         .from("training_sessions")
@@ -1864,15 +1865,15 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     if (type === "swap") {
       const deactivate = await supabase
-        .from("session_modifications" as never)
-        .update({ active: false } as never)
+        .from("session_modifications")
+        .update({ active: false })
         .eq("user_id", user.id)
         .eq("date", date)
         .eq("type", "swap")
         .neq("id", id);
       if (deactivate.error) {
         await supabase
-          .from("session_modifications" as never)
+          .from("session_modifications")
           .delete()
           .eq("id", id)
           .eq("user_id", user.id);
@@ -1901,8 +1902,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const modification = (state.modifications[date] ?? []).find((item) => item.id === id);
     const deactivate = await supabase
-      .from("session_modifications" as never)
-      .update({ active: false } as never)
+      .from("session_modifications")
+      .update({ active: false })
       .eq("user_id", user.id)
       .eq("id", id);
     assertNoSupabaseError("session_modifications.undo", deactivate.error);
@@ -1990,7 +1991,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       confirmedAt: new Date().toISOString(),
     };
 
-    const transitionWrite = await supabase.from("weekly_transitions" as never).upsert(
+    const transitionWrite = await supabase.from("weekly_transitions").upsert(
       {
         id,
         user_id: user.id,
@@ -1998,8 +1999,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         next_match_date: transition.nextMatchDate,
         no_match_next_week: noMatchNextWeek,
         confirmed_at: transition.confirmedAt,
-      } as never,
-      { onConflict: "user_id,week_number" } as never,
+      },
+      { onConflict: "user_id,week_number" },
     );
     assertNoSupabaseError("weekly_transitions.upsert", transitionWrite.error);
     setState((s) => ({

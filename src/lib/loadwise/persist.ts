@@ -2,6 +2,7 @@ import type { Profile, SessionDay, ExerciseItem } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { isoDate, localToday } from "./labels";
 import { assertPlanExerciseContract } from "./planExerciseContract";
+import type { Json } from "@/integrations/supabase/types";
 
 function supabaseErrorMessage(error: unknown): string {
   if (error && typeof error === "object") {
@@ -146,15 +147,15 @@ export async function persistMonthlyPlan(
 
   // Jeden RPC = jedna transakcja Postgresa. Przerwany internet nie może już
   // pozostawić połowy planu ani wyłączyć poprzedniego aktywnego planu.
-  const atomicWrite = await supabase.rpc("persist_training_plan_atomic" as never, {
+  const atomicWrite = await supabase.rpc("persist_training_plan_atomic", {
     p_plan_id: planId,
     p_goal: profile.goal,
     p_month: month,
-    p_plan_json: plan,
-    p_days: dayRows,
-    p_sessions: sessionRows,
-    p_exercises: exerciseRows,
-  } as never);
+    p_plan_json: plan as unknown as Json,
+    p_days: dayRows as unknown as Json,
+    p_sessions: sessionRows as unknown as Json,
+    p_exercises: exerciseRows as unknown as Json,
+  });
   assertNoSupabaseError("persist_training_plan_atomic", atomicWrite.error);
 }
 
@@ -182,13 +183,13 @@ export async function persistModifiedSession(
     goal: session.goalOfSession,
     duration_min: session.durationMin,
     intensity: session.intensity,
-    warmup_json: session.sections.warmup as unknown as never,
+    warmup_json: session.sections.warmup as unknown as Json,
     main_work_json: [
       ...session.sections.main,
       ...session.sections.accessory,
       ...session.sections.footballTransfer,
-    ] as unknown as never,
-    cooldown_json: session.sections.cooldown as unknown as never,
+    ] as unknown as Json,
+    cooldown_json: session.sections.cooldown as unknown as Json,
     safety_notes: session.safetyNote,
   });
   assertNoSupabaseError("training_sessions.insert_modified", sessionInsert.error);
@@ -207,7 +208,7 @@ export async function persistModifiedSession(
   push("cooldown", session.sections.cooldown);
 
   if (rows.length > 0) {
-    const exerciseInsert = await supabase.from("session_exercises").insert(rows as never);
+    const exerciseInsert = await supabase.from("session_exercises").insert(rows);
     if (exerciseInsert.error) {
       await supabase.from("training_sessions").delete().eq("id", sessionId).eq("user_id", userId);
       assertNoSupabaseError("session_exercises.insert_modified", exerciseInsert.error);
