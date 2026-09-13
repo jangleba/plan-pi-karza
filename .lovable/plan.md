@@ -1,77 +1,72 @@
-# Audyt BallWise / LoadWise — stan na dziś
+# Audyt BallWise — commit `b7a3c043` („Zdefiniowano rejestr ćwiczeń”)
 
-Uwaga: podany commit `3791fc1b…` nie jest bieżącym HEAD. Audyt wykonano na HEAD `3586cfc6300d60d7b7ad2037100433dd0b72fc1a`.
+Tryb: tylko odczyt. Nie zmieniono żadnego pliku aplikacji, nie budowano wydania, nie wdrażano.
 
-## F. Wyniki testów, typów i builda (zmierzone)
+## 0. Pomiary (uruchomione teraz, nie z dokumentów)
 
-- Testy: `bunx vitest run` → **54 pliki (49 zielonych, 5 czerwonych), 625 testów (618 zielonych, 7 czerwonych)**, czas 57,8 s.
-  Wszystkie 7 porażek to `Test timed out in 5000ms` (planEngine jest wolny, ~0,4–1,9 s na jeden `generatePlan`). Po ponownym uruchomieniu tych samych plików z `--testTimeout=120000`: **48/48 zielonych**. To niestabilność wydajnościowa, nie błąd logiki.
-  Pliki dotknięte: `globalPlanRules.test.ts`, `planEngineRegression.test.ts`, `planExerciseContract.test.ts`, `planRules.test.ts`, `weekFinalizationMatrix.test.ts`, `sprintEngineRouting.regression.test.ts`.
-- Typecheck: `tsgo --noEmit` → **36 linii błędów, wszystkie w `src/lib/loadwise/store.tsx`** (linie 758, 760, 1097–1102, 1364–1369, 1424–1439, 1481–1484, 1837–1840).
-- Build: `vite build` → **sukces w 20,79 s** (typy nie blokują builda, więc błąd trafia na produkcję).
+- Typy (`tsc/tsgo --noEmit`): **0 błędów**. Poprzednie 36 błędów w `store.tsx` już nie występuje.
+- Testy (`vitest run --testTimeout=30000`): **58 plików, 640 testów — wszystkie zielone**, 25 s.
+- Lint (`eslint .`): **bez uwag**.
+- Build (`vite build`): **sukces**, 10,9 s.
+- Cały `npm run verify` z domyślnymi ustawieniami jest jednak ryzykowny — patrz P1-1.
 
-## B. Potwierdzone błędy (dowód w kodzie i w bazie)
+## 1. Działa i ma dowód
 
-### P0-1 Baza produkcyjna nie ma tabel i kolumn, których używa kod
-Zapytanie do `information_schema` pokazuje w `public`: brak `running_activities` i brak `exercise_replacements`.
-`readiness_logs` nie ma kolumn `pain_level`, `overall`, `updated_at` ani unikalnego indeksu `(user_id, date)`.
-`session_logs` nie ma `completion_status`, `duration_minutes`, `activity_type`, `updated_at`.
-Czyli migracje `20260819190400_add_exercise_replacement_persistence.sql` i `20260906131544_repair_plan_engine_feedback.sql` nie są odzwierciedlone w bazie.
+- **Minimum tygodniowe** — `src/lib/loadwise/weeklyRequirements.ts` (`calculateWeeklyMinimumRequirements`): 2 siłownie (1 przy 4+ klubowych), ≥1 wydolność, ≥1 szybkość, ≥1 własna piłka; klub nie zastępuje minimum. Potwierdzone testami `planRules.test.ts` (m.in. „każdy pełny tydzień ma minimum 1 wydolność”).
+- **Generator i gate'y tygodnia** — `planEngine.ts`, `globalPlanRules.ts`, `weekFinalization*.ts`, `dayPlacementScoring.ts`: pełna macierz testów (`weekFinalizationMatrix`, `allProfilesSmokeMatrix`, `planEngineRegression`) przechodzi.
+- **Readiness i ból zmieniają tylko dziś** — `applyReadiness` w `planEngine.ts`, pokryte `readinessPainAdaptation.test.ts` dla sprintu, wydolności, siły i piłki (progi 8–10 / 6–7 / 4–5 / 1–3 oraz blokada przy bólu).
+- **Druga sesja dnia** — `runtimeSpeedRepair.ts` + `planExerciseContract.ts` obsługują `secondSession` i cofają ją przy złej gotowości (`runtimeSpeedRepair.test.ts`).
+- **Trwałość danych** — wszystkie tabele używane przez `store.tsx` istnieją w bazie: `running_activities`, `exercise_replacements`, `pain_logs`, `readiness_logs`, `session_logs`, `exercise_set_logs`. Poprzedni rozjazd schematu (P0 z poprzedniego audytu) jest zamknięty.
+- **Ból jako trwały log** — `store.tsx:2018` realnie zapisuje/usuwa `pain_logs`, a wycofanie zgody zdrowotnej czyści je (`store.tsx:1335`).
+- **RLS** — każda tabela użytkownika ma RLS włączone i politykę `auth.uid() = user_id`; `exercise_library` i `session_templates` tylko do odczytu dla zalogowanych.
+- **Zgody małoletnich** — trigger `enforce_trusted_athlete_profile_fields` wymusza serwerowo: wiek ≥13, konto opiekuna i potwierdzony e-mail dla 13–15, blokadę personalizacji zdrowotnej bez aktywnej zgody; `consent_logs` ma zakaz UPDATE/DELETE. Klient (`onboarding.tsx`, `agePolicy.ts`) jest z tym zgodny.
+- **Usunięcie konta** — `supabase/functions/delete-account/index.ts`: wymaga tokenu, waliduje go przez `auth.getUser`, kasuje użytkownika kluczem serwisowym; `verify_jwt = true`. Funkcja wdrożona.
+- **Eksport danych** — `data-rights.tsx` eksportuje 17 tabel użytkownika do JSON.
 
-Skutki dla użytkownika (wszystkie ścieżki mają `assertNoSupabaseError`, więc twardo rzucają):
-- `store.tsx:1827` — zapis check-inu (`readiness_logs.upsert` z `pain_level/overall/updated_at`, `onConflict: user_id,date`) kończy się błędem → gotowość i ból nie zapisują się na koncie.
-- `store.tsx:1359` i `1092` — zapis ukończenia oraz oznaczanie pominiętych sesji (`completion_status`, `duration_minutes`, `activity_type`) → błąd → brak sprzężenia zwrotnego do kolejnego planu.
-- `store.tsx:1424/1481` — zapis i usuwanie biegu → błąd „tabela nie istnieje”.
-- `store.tsx:752/1539/1599` — podmiany ćwiczeń nie utrwalają się między sesjami.
-Minimalny test reprodukujący: zalogowany użytkownik → check-in → zapis; oraz `select 1 from public.running_activities limit 1` (błąd relacji).
+## 2. Działa częściowo
 
-### P0-2 36 błędów typów w `store.tsx`
-Bezpośrednia konsekwencja P0-1: `Database` nie zna tych tabel/kolumn, więc PostgREST zawęża typ do `never`. Część zapytań obchodzi to przez `as never` (`session_modifications`, `weekly_transitions`, `exercise_replacements`), co wyłącza kontrolę typów i ukrywa realne rozjazdy ze schematem.
+- **Sprzężenie zwrotne wykonanie → kolejny plan**: logi (`session_logs`, `exercise_set_logs`, RPE, minuty) są zapisywane i pokazywane w Postępie, ale nie ma testu dowodzącego, że wpływają na dobór kolejnego mikrocyklu. Progresja opiera się głównie na `progressionWeek`, nie na realnym wykonaniu.
+- **Regeneracja**: istnieje jako warianty `recovery_prehab` / `recovery_run` i jako zejście z obciążenia (`sessionVariants.ts`, `dailyScheduling.ts`). To nadal reguła awaryjna, nie moduł dobierający regenerację do zawodnika.
+- **Football IQ**: `football-iq/evaluate.ts` ocenia optimal / safe / risky / wrong wobec jednego celu; brak zależności oceny od kontekstu fazy, mimo że decyzja produktowa tego wymaga. Sprzeczność reguł.
+- **Offline**: `bootCache.ts` pozwala wystartować z ostatniego planu (7 dni), ale nie ma kolejki zapisów. Check-in, ukończenie sesji i logi serii wykonane bez sieci są tracone.
+- **Rejestr mediów ćwiczeń**: `src/lib/loadwise/exerciseMediaRegistry.ts` istnieje, ale **nie jest importowany nigdzie** — martwy kod; ekran sesji nadal korzysta ze starego mapowania.
 
-### P1-1 Test suite czerwony na czystym repo
-Brak `testTimeout` w konfiguracji Vitest przy generatorze planu kosztującym ~1 s na wywołanie. Każde CI będzie losowo czerwone; audyt regresji planu przestaje być wiarygodny.
+## 3. Błędy i ryzyka
 
-### P1-2 Kopia `WGRYWAJ-DO-GITHUBA/` w drzewie źródeł
-16 plików, m.in. druga wersja `src/lib/loadwise/store.tsx`, `weekFinalization.ts`, `onboarding.tsx`, `_tabs.*`. Nie są to pliki budowane, ale są indeksowane przez wyszukiwanie i lint, i zawierają rozbieżne kopie logiki (np. własne `onboardingValidation.ts`). To źródło sprzecznych „prawd” przy każdej kolejnej zmianie.
+### P1-1 — `npm run verify` jest niestabilny
+`vite.config.ts` nie ustawia `test.testTimeout`, więc obowiązuje domyślne 5 s. Zmierzone czasy: `allProfilesSmokeMatrix` 19,5 s, `planRules` 9,0 s, pojedyncze przypadki 1,3–2,1 s. Przy 30 s wszystko jest zielone, przy domyślnych ustawieniach ten sam kod potrafi być czerwony. Skutek: bramka wydania nie odróżnia regresji od wolnego generatora.
+Naprawa: ustawić globalny `testTimeout` (np. 30 000) w konfiguracji Vitest.
 
-## A. Co jest realnie zrobione dobrze (potwierdzone kodem i zielonymi testami)
+### P1-2 — 29 rzutowań `as never` w `store.tsx`
+`rg -c "as never" src/lib/loadwise/store.tsx` → 29 (m.in. `session_modifications`, `weekly_transitions`, `exercise_replacements`). Typy tych tabel **są** obecne w `src/integrations/supabase/types.ts` (linie 287, 673, 905), więc rzutowania są zbędne i wyłączają kontrolę zgodności ze schematem. Zielony typecheck nie jest tu dowodem poprawności.
+Naprawa: usunąć `as never` i naprawić realne różnice, jeśli wyjdą.
 
-- `weeklyRequirements.ts` jest jedynym źródłem minimum tygodniowego i implementuje przyjętą decyzję produktową: 2 siłownie, ≥1 wydolność, ≥1 sprint, klub nie zastępuje minimum, wiek/poziom zmieniają treść, nie kategorię.
-- Warstwa reguł tygodnia (`planRules.ts`, `globalPlanRules.ts`, `weekFinalization*.ts`) ma bogaty zestaw testów macierzowych (m.in. 14-latek beginner + 4 dni klubu) i po podniesieniu limitu czasu przechodzi w całości.
-- Klasyfikacja obciążeń szybkościowych (`speedLoad.ts`) traktuje RSA jako pełny load szybkościowy — zgodnie z decyzją produktową o blokowaniu dublowania twardego sprintu.
-- Walidacja utrwalonego planu (`persistedPlanValidation.ts`) faktycznie sprawdza: dzień klubowy, dwie sesje o tym samym bodźcu, sprinty dzień po dniu, minimum tygodniowe, zgodność daty meczu.
-- Build produkcyjny przechodzi; Vision/Performance Lab są usunięte i nie wracają w importach.
+### P1-3 — twarde `throw` przy każdym błędzie zapisu
+`assertNoSupabaseError` (`store.tsx:164`) rzuca wyjątek dla dowolnego błędu Supabase. Przy chwilowym braku sieci lub błędzie 5xx kończy się to przerwanym check-inem lub nieukończoną sesją, zamiast lokalnym zapisem i ponowieniem. To najpoważniejsze ryzyko dla użytkownika mobilnego.
+Naprawa: rozdzielić błędy krytyczne od przejściowych i dodać ponowienie zapisu.
 
-## C. Elementy częściowe lub pozorne
+### P2-1 — zbędne uprawnienia `anon`
+Uprawnienie SELECT dla roli `anon` obowiązuje m.in. na `profiles`, `athlete_profiles`, `readiness_logs`, `pain_logs`, `session_logs`, `user_roles`. Danych to dziś nie ujawnia, bo polityki wymagają `auth.uid() = user_id`, a `anon` ma `uid` puste. Mimo to część polityk ma rolę `{public}` zamiast `{authenticated}` — pojedyncza pomyłka w przyszłej polityce wystarczy, by odsłonić dane.
+Naprawa: cofnąć GRANT dla `anon` na tabelach użytkownika i zawęzić polityki do `authenticated`.
 
-- **Sprzężenie zwrotne wykonania → kolejny plan**: kod jest napisany, ale zapisuje do nieistniejących kolumn (P0-1), więc w praktyce nie działa.
-- **Ból / dyskomfort**: istnieje osobna tabela `pain_logs`, ale aplikacja jej nie używa (jedyne odwołanie to lista czyszczenia danych w `data-rights.tsx`). Ból żyje wyłącznie w profilu i w check-inie, którego zapis obecnie pada.
-- **Regeneracja**: `recovery_prehab` / `recovery_run` istnieją jako warianty sesji i jako zejście z obciążenia, ale nie ma modułu dobierającego regenerację do zawodnika — to nadal fallback, nie dział.
-- **Football IQ**: `evaluate.ts` ma cztery oceny (optimal / safe / risky / wrong), czyli częściowo realizuje „odpowiedź preferowana + akceptowalne alternatywy”, ale nie ma zależności od kontekstu fazy — ocena wynika wyłącznie z trafionego celu.
-- **Bieganie**: `running_activities` to funkcja bez tabeli — cała ścieżka istnieje w UI i w store, ale nie ma warstwy danych.
+### P2-2 — `user_roles` bez realnego zastosowania
+Tabela i funkcja `has_role` istnieją, ale żadna polityka ani kod aplikacji z nich nie korzysta. Martwa warstwa uprawnień, myląca przy kolejnych zmianach.
 
-## D. Najmniejsze sensowne rozwinięcia
+### P2-3 — martwy rejestr mediów
+`exerciseMediaRegistry.ts` (45 identyfikatorów) nie ma żadnego konsumenta. Albo należy go podłączyć, albo usunąć — inaczej powstaną dwa źródła prawdy o grafikach ćwiczeń.
 
-- Doprowadzić schemat bazy do zgodności z kodem zamiast dopisywać `as never`.
-- Przenieść ból z check-inu do `pain_logs` (tabela już jest) i użyć jej jako wejścia adaptacji dnia.
-- Regenerację oprzeć na już istniejących sygnałach (RPE, minuty, ból, gęstość klubu) — bez nowego modułu.
-- Dołożyć w Football IQ jedno pole kontekstu fazy do oceny alternatyw.
+## 4. Sprzeczności między regułami
 
-## E. Kolejność paczek naprawczych (każda zamknięta, bez mieszania warstw)
+1. **Football IQ** — wiedza produktowa wymaga zależności oceny od kontekstu fazy; `evaluate.ts` ocenia wyłącznie trafienie w cel.
+2. **Regeneracja** — reguła „nie wypełniaj pustych dni regeneracją, jeśli nie jest potrzebna” jest egzekwowana testem, ale brak jest doboru regeneracji do zawodnika, co opisuje wiedza produktowa.
+3. **Trwałość vs. niezawodność** — wymóg „bez fikcyjnych danych” jest spełniony, ale brak kolejki offline oznacza, że realne dane bywają po cichu tracone; to ta sama wartość widziana z drugiej strony.
 
-1. Migracja: `running_activities` (tabela + GRANT + RLS) — odblokowanie zapisu biegów.
-2. Migracja: uzupełnienie `readiness_logs` (pain_level, overall, updated_at, unikalny indeks user+date).
-3. Migracja: uzupełnienie `session_logs` (completion_status, duration_minutes, activity_type, updated_at).
-4. Migracja: `exercise_replacements` — utrwalenie podmian ćwiczeń.
-5. Regeneracja typów bazy i usunięcie wszystkich `as never` w `store.tsx`; typecheck do zera.
-6. Test end-to-end zapisu: check-in → ukończenie → bieg, na realnym schemacie.
-7. Stabilizacja testów: globalny `testTimeout` + memoizacja/przyspieszenie `generatePlan` w testach.
-8. Usunięcie katalogu `WGRYWAJ-DO-GITHUBA` i wyrównanie różnic, jeśli któraś kopia zawiera nowszą logikę.
-9. Podpięcie `pain_logs` jako trwałego źródła bólu i wejścia dla adaptacji dzisiejszego dnia.
-10. Sprzężenie zwrotne: RPE i status ukończenia realnie wpływające na kolejny mikrocykl (jedna zmienna naraz).
-11. Moduł regeneracji dobieranej do zawodnika, oparty na danych z pkt 9–10.
-12. Football IQ: kontekst fazy w ocenie alternatyw, bez nowych scenariuszy.
+## 5. Konieczne poprawki przed wydaniem (bez nowych funkcji)
 
-## Rozgraniczenie
+1. `testTimeout` w konfiguracji Vitest — wiarygodna bramka `verify`.
+2. Usunięcie `as never` w `store.tsx` i weryfikacja zgodności ze schematem.
+3. Odporne zapisy: brak twardego `throw` dla błędów przejściowych, ponowienie check-inu i ukończenia sesji.
+4. Cofnięcie GRANT `anon` i zawężenie polityk do `authenticated`.
+5. Decyzja o `exerciseMediaRegistry.ts`: podłączyć albo usunąć.
 
-Błędy wykonania: P0-1, P0-2, P1-1, P1-2. Braki funkcji: regeneracja dobierana do zawodnika, ból jako trwały log, kontekst w IQ. Decyzje produktowe (nie błędy): RSA w wydolności, bieganie bez piłki, brak Vision Lab.
+Poza tą listą nie proponuję żadnych nowych funkcji.
