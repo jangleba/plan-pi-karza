@@ -18,7 +18,9 @@ export type SimPitchActor = {
 
 export type SimPitchPath = {
   points: { x: number; y: number }[];
-  variant: "user" | "alt" | "reaction";
+  variant: "user" | "alt" | "reaction" | "intent" | "prediction";
+  /** Krótka etykieta widoczna bezpośrednio na boisku. */
+  label?: string;
 };
 
 type Props = {

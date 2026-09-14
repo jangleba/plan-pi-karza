@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { SIM_SCENARIOS } from "@/lib/football-iq/simulation/scenarios";
-import { IQ_PITCH_VIEWBOX, projectPitchPoint } from "./SimPitch25D";
+import { IQ_PITCH_VIEWBOX, projectPitchPoint, unprojectPitchPoint } from "./SimPitch25D";
 
 describe("BallWise IQ — mobilny kadr boiska 2.5D", () => {
   it("ma szeroki format, który wykorzystuje kartę na telefonie", () => {
-    expect(IQ_PITCH_VIEWBOX.width / IQ_PITCH_VIEWBOX.height).toBeGreaterThanOrEqual(
-      1.2,
-    );
+    expect(IQ_PITCH_VIEWBOX.width / IQ_PITCH_VIEWBOX.height).toBeGreaterThanOrEqual(1.2);
   });
 
   it("utrzymuje wszystkie klatki zawodników i reakcje w widocznym kadrze", () => {
@@ -20,14 +18,23 @@ describe("BallWise IQ — mobilny kadr boiska 2.5D", () => {
       for (const point of points) {
         const projected = projectPitchPoint(point.x, point.y);
         expect(projected.x, `${scenario.id}: x`).toBeGreaterThanOrEqual(0);
-        expect(projected.x, `${scenario.id}: x`).toBeLessThanOrEqual(
-          IQ_PITCH_VIEWBOX.width,
-        );
+        expect(projected.x, `${scenario.id}: x`).toBeLessThanOrEqual(IQ_PITCH_VIEWBOX.width);
         expect(projected.y, `${scenario.id}: y`).toBeGreaterThanOrEqual(0);
-        expect(projected.y, `${scenario.id}: y`).toBeLessThanOrEqual(
-          IQ_PITCH_VIEWBOX.height,
-        );
+        expect(projected.y, `${scenario.id}: y`).toBeLessThanOrEqual(IQ_PITCH_VIEWBOX.height);
       }
+    }
+  });
+
+  it("odwraca rzut ekranu do współrzędnych boiska dla gestów", () => {
+    for (const source of [
+      { x: 12, y: 24 },
+      { x: 50, y: 70 },
+      { x: 88, y: 122 },
+    ]) {
+      const projected = projectPitchPoint(source.x, source.y);
+      const restored = unprojectPitchPoint(projected.x, projected.y);
+      expect(restored.x).toBeCloseTo(source.x, 4);
+      expect(restored.y).toBeCloseTo(source.y, 4);
     }
   });
 });

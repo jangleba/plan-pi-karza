@@ -31,10 +31,9 @@ export const shadowReceiveScenario: SimScenario = {
       advantage: 1,
       risk: 1.4,
     },
-    weightsNote:
-      "63. minuta przy 1:1 — progresja i kontrola ryzyka ważą więcej niż efektowność.",
+    weightsNote: "63. minuta przy 1:1 — progresja i kontrola ryzyka ważą więcej niż efektowność.",
   },
-  observationMs: 8000,
+  observationMs: 6500,
   decisionMs: 2000,
 
   actors: [
@@ -121,23 +120,23 @@ export const shadowReceiveScenario: SimScenario = {
     {
       id: "early",
       fromMs: 0,
-      toMs: 3200,
+      toMs: 2600,
       label: "Za wcześnie",
       quality: 0.45,
       note: "Ruszyłeś, zanim stoper wziął piłkę pod kontrolę — szóstka zdążyła skorygować pozycję.",
     },
     {
       id: "prime",
-      fromMs: 3201,
-      toMs: 6000,
+      fromMs: 2601,
+      toMs: 4875,
       label: "Właściwy moment",
       quality: 0.95,
       note: "Ruszyłeś w chwili, gdy szóstka obracała biodra do piłki — straciła Cię z pola widzenia.",
     },
     {
       id: "late",
-      fromMs: 6001,
-      toMs: 8000,
+      fromMs: 4876,
+      toMs: 6500,
       label: "Późno",
       quality: 0.6,
       note: "Ruch był czytelny — rywal zdążył ustawić się między Tobą a piłką.",
@@ -178,8 +177,7 @@ export const shadowReceiveScenario: SimScenario = {
       reaction: "jumps",
     },
   ],
-  zoneMissNote:
-    "Zostałeś w cieniu podania — stoper nie miał do Ciebie linii podania.",
+  zoneMissNote: "Zostałeś w cieniu podania — stoper nie miał do Ciebie linii podania.",
   defaultReaction: "stays",
   bodyAngles: [
     {
@@ -320,15 +318,13 @@ export const shadowReceiveScenario: SimScenario = {
           progression: 0.75,
           advantage: 0.7,
           risk: 0.6,
-          consequence:
-            "Obrót udaje się, ale rywal trzyma dystans i możesz iść tylko w bok.",
+          consequence: "Obrót udaje się, ale rywal trzyma dystans i możesz iść tylko w bok.",
         },
         closes_center: {
           progression: 0.4,
           advantage: 0.35,
           risk: 0.3,
-          consequence:
-            "Obrót w domknięty środek to strata w najgorszej strefie boiska.",
+          consequence: "Obrót w domknięty środek to strata w najgorszej strefie boiska.",
         },
         jumps: {
           progression: 0.9,
@@ -402,8 +398,7 @@ export const shadowReceiveScenario: SimScenario = {
     progression: 0.1,
     advantage: 0.1,
     risk: 0.45,
-    consequence:
-      "Brak decyzji w oknie czasowym — piłka doszła, gdy rywal był już przy Tobie.",
+    consequence: "Brak decyzji w oknie czasowym — piłka doszła, gdy rywal był już przy Tobie.",
   },
 };
 

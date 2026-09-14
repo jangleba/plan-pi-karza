@@ -19,8 +19,8 @@ import type { SimActor, SimScenario } from "./types";
 /** Klatki kluczowe animacji obserwacji (t = 0..1). */
 export const CHOREO_KEYFRAMES = [0, 0.18, 0.38, 0.6, 0.82, 1] as const;
 
-/** Pełna długość fazy obserwacji — 8 s dla każdego scenariusza. */
-export const OBSERVATION_MS = 8000;
+/** Domyślna długość obserwacji. Scenariusz może podać własny, krótszy czas. */
+export const OBSERVATION_MS = 6500;
 
 type Pt = { x: number; y: number };
 
@@ -86,7 +86,9 @@ export function choreograph(scenario: SimScenario): SimActor[] {
   const support = selfStart
     ? [...scenario.actors]
         .filter((a) => a.kind === "mate" && a.id !== carrier?.id)
-        .sort((p, q) => dist(actorAt(p.path, 0), selfStart) - dist(actorAt(q.path, 0), selfStart))[0]
+        .sort(
+          (p, q) => dist(actorAt(p.path, 0), selfStart) - dist(actorAt(q.path, 0), selfStart),
+        )[0]
     : undefined;
 
   return scenario.actors.map((actor) => {

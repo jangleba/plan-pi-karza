@@ -105,13 +105,12 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
-  /* Boisko 2.5D — jasna, pastelowa murawa */
-  --pitch-grass: oklch(0.955 0.045 145);
-  --pitch-grass-alt: oklch(0.932 0.058 145);
-  --pitch-line: oklch(0.99 0.01 145);
-  --pitch-shadow: oklch(0.62 0.04 150);
+  /* Boisko IQ — spokojne, analityczne i mniej pastelowe. */
+  --pitch-grass: oklch(0.875 0.024 145);
+  --pitch-grass-alt: oklch(0.855 0.028 145);
+  --pitch-line: oklch(0.965 0.008 145);
+  --pitch-shadow: oklch(0.54 0.026 150);
 }
-
 
 .dark {
   --background: oklch(0.18 0.018 155);
@@ -161,9 +160,7 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui,
-      sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -185,11 +182,7 @@
 
 /* Dark graphite hero card — premium focal surface */
 @utility hero-card {
-  background: linear-gradient(
-    160deg,
-    oklch(0.29 0.025 264),
-    oklch(0.22 0.02 264)
-  );
+  background: linear-gradient(160deg, oklch(0.29 0.025 264), oklch(0.22 0.02 264));
   color: var(--color-graphite-foreground);
   border-radius: var(--radius-3xl);
   box-shadow:
@@ -263,8 +256,12 @@
   animation: decision-flow 5.5s linear infinite;
 }
 
-.decision-signal__path--two { animation-delay: -1.7s; }
-.decision-signal__path--three { animation-delay: -3.3s; }
+.decision-signal__path--two {
+  animation-delay: -1.7s;
+}
+.decision-signal__path--three {
+  animation-delay: -3.3s;
+}
 
 .decision-signal__dot {
   fill: oklch(0.58 0.028 77);
@@ -272,8 +269,12 @@
   animation: decision-dot 3.6s ease-in-out infinite;
 }
 
-.decision-signal__dot--two { animation-delay: -1.2s; }
-.decision-signal__dot--three { animation-delay: -2.4s; }
+.decision-signal__dot--two {
+  animation-delay: -1.2s;
+}
+.decision-signal__dot--three {
+  animation-delay: -2.4s;
+}
 
 .decision-signal__result {
   position: absolute;
@@ -299,17 +300,33 @@
 }
 
 @keyframes decision-flow {
-  to { stroke-dashoffset: -30; }
+  to {
+    stroke-dashoffset: -30;
+  }
 }
 
 @keyframes decision-dot {
-  0%, 100% { opacity: 0.25; transform: scale(0.8); }
-  50% { opacity: 0.72; transform: scale(1); }
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
 }
 
 @keyframes decision-breathe {
-  0%, 100% { transform: scale(0.92); box-shadow: 0 0 0 0.45rem oklch(0.31 0.055 158 / 0.06); }
-  50% { transform: scale(1); box-shadow: 0 0 0 0.68rem oklch(0.31 0.055 158 / 0.11); }
+  0%,
+  100% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0.45rem oklch(0.31 0.055 158 / 0.06);
+  }
+  50% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0.68rem oklch(0.31 0.055 158 / 0.11);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

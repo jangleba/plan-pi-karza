@@ -111,8 +111,8 @@ export interface ScenarioInput {
 }
 
 export function defineScenario(input: ScenarioInput): SimScenario {
-  // Każda animacja trwa 8 s — pięć faz choreografii wspólnego silnika.
-  const observationMs = OBSERVATION_MS;
+  // Zachowaj tempo autora scenariusza; fallback pozostaje wspólny dla biblioteki.
+  const observationMs = input.observationMs ?? OBSERVATION_MS;
   const decisionMs = input.decisionMs ?? 2000;
 
   const timingWindows = [
@@ -142,14 +142,14 @@ export function defineScenario(input: ScenarioInput): SimScenario {
     },
   ];
 
-  const reactions: SimReaction[] = DEFAULT_REACTION_IDS.filter(
-    (id) => input.reactions[id],
-  ).map((id) => ({
-    id,
-    label: REACTION_META[id].label,
-    description: REACTION_META[id].description,
-    moves: input.reactions[id]!,
-  }));
+  const reactions: SimReaction[] = DEFAULT_REACTION_IDS.filter((id) => input.reactions[id]).map(
+    (id) => ({
+      id,
+      label: REACTION_META[id].label,
+      description: REACTION_META[id].description,
+      moves: input.reactions[id]!,
+    }),
+  );
 
   return {
     id: input.id,
@@ -169,8 +169,7 @@ export function defineScenario(input: ScenarioInput): SimScenario {
     actors: input.actors,
     timingWindows,
     timingMissNote:
-      input.timingMissNote ??
-      "Nie ruszyłeś w oknie podania — akcja przeszła obok Ciebie.",
+      input.timingMissNote ?? "Nie ruszyłeś w oknie podania — akcja przeszła obok Ciebie.",
     zones: input.zones,
     zoneMissNote:
       input.zoneMissNote ??
