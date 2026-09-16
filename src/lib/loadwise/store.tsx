@@ -27,7 +27,13 @@ import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { localToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
-import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "./legal";
+import { CONSENTS } from "./legal";
+import {
+  recordConsentDecision,
+  recordConsentDecisions,
+  type CanonicalConsentType,
+  type ConsentDecision,
+} from "./consent";
 import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "./playerDirection";
 import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
@@ -1373,32 +1379,20 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     // Consent is persisted before enabling optional health processing. The DB
     // trigger then refuses health mode unless the latest audit row is accepted.
     if (consents) {
-      const actorType = profile.accountOwnerType === "guardian" ? "guardian" : "athlete";
-      const rows = CONSENTS.map((c) => ({
-        user_id: user.id,
-        consent_type: c.type,
-        accepted: Boolean(consents[c.type]),
-        version: LEGAL_VERSION,
-        text_snapshot: c.text,
-        actor_type: actorType,
-        actor_email: user.email ?? null,
-        scope: c.type === "health_data" ? "readiness_personalization" : c.type,
-      }));
+      const decisions: ConsentDecision[] = [];
       if (profile.accountOwnerType === "guardian") {
-        rows.push({
-          user_id: user.id,
-          consent_type: "guardian_authorization",
+        decisions.push({
+          type: "guardian_authorization",
           accepted: Boolean(profile.guardianConsent),
-          version: LEGAL_VERSION,
-          text_snapshot:
-            "Oświadczenie, że właściciel konta jest rodzicem lub opiekunem zawodnika i może prowadzić jego profil.",
-          actor_type: "guardian",
-          actor_email: user.email ?? null,
-          scope: "child_profile",
         });
       }
-      const consentWrite = await supabase.from("consent_logs").insert(rows);
-      assertNoSupabaseError("consent_logs.insert", consentWrite.error);
+      decisions.push(
+        ...CONSENTS.map((consent) => ({
+          type: consent.type as CanonicalConsentType,
+          accepted: Boolean(consents[consent.type]),
+        })),
+      );
+      await recordConsentDecisions(decisions);
     }
     const revision = await saveProfileRows(profile, false);
     const nextProfile: Profile = {
@@ -1479,17 +1473,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       throw new Error("Podaj masę od 25 do 250 kg.");
     }
 
-    const consentWrite = await supabase.from("consent_logs").insert({
-      user_id: user.id,
-      consent_type: "fuel_precision",
-      accepted: enabled,
-      version: LEGAL_VERSION,
-      text_snapshot: FUEL_PRECISION_CONSENT,
-      actor_type: state.profile.accountOwnerType === "guardian" ? "guardian" : "athlete",
-      actor_email: user.email ?? null,
-      scope: "fuel_personalization",
-    });
-    assertNoSupabaseError("consent_logs.fuel_precision", consentWrite.error);
+    await recordConsentDecision({ type: "fuel_precision", accepted: enabled });
 
     const profileWrite = await supabase
       .from("athlete_profiles")
