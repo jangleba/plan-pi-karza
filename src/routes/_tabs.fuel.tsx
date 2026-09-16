@@ -564,7 +564,9 @@ function FuelScreen() {
                 <span className="flex items-center gap-1">
                   <AudioLines className="h-3 w-3" /> tekst · głos · skan AI
                 </span>
-                <span>opis nie jest zapisywany</span>
+                <span className="max-w-[13.5rem] text-right">
+                  opis i nagranie nie są zapisywane; głos może przetwarzać usługa urządzenia
+                </span>
               </div>
             </section>
 
@@ -817,3 +819,4 @@ function formatLead(minutes: number): string {
   const rest = minutes % 60;
   return hours > 0 ? `${hours} h ${rest ? `${rest} min` : ""}`.trim() : `${rest} min`;
 }
+

@@ -1,21 +1,22 @@
-# Dane prawne wymagane przed publikacją
+# Konfiguracja prawna wydania
 
-Kod nie może sam ustalić, kto formalnie świadczy usługę. Przed wysłaniem
-aplikacji do recenzji uzupełnij w środowisku produkcyjnym:
+W produkcji ustaw wszystkie zmienne z `.env.legal.example`. Kod celowo blokuje wydanie produkcyjne, jeśli którejkolwiek brakuje.
 
-```text
-VITE_LEGAL_ADMIN_NAME=pełna nazwa osoby lub firmy
-VITE_LEGAL_BUSINESS_ADDRESS=pełny adres
-VITE_LEGAL_CONTACT_EMAIL=adres do spraw konta i prywatności
-VITE_LEGAL_RETENTION_PERIOD=konkretny okres, np. „czas trwania konta i 30 dni kopii bezpieczeństwa”
-VITE_RELEASE_MODE=production
-```
+Nie commituj danych tajnych. Dane administratora i treści informacyjne nie są sekretami, ale powinny być utrzymywane jako kontrolowana konfiguracja wydania.
 
-Są to dane publiczne wyświetlane w Regulaminie i Polityce prywatności — nie są
-sekretami. W trybie testowym brak danych pokazuje oznaczenie „wersja testowa”.
-W trybie produkcyjnym aplikacja nie uruchomi się, dopóki wszystkie pola nie będą
-uzupełnione.
+## Decyzje wymagane przed uzupełnieniem
 
-Dokumenty w repozytorium są praktycznym szkieletem produktu, nie indywidualną
-opinią prawną. Przed płatnym, szerokim wydaniem warto sprawdzić m.in. dane firmy,
-podatki, płatności, listę podmiotów przetwarzających i rzeczywisty region bazy.
+- kto jest administratorem i sprzedawcą usługi;
+- adres oraz dane CEIDG/KRS/NIP;
+- e-mail do praw osób i reklamacji;
+- konkretny harmonogram retencji per kategoria;
+- region projektu Supabase;
+- pełna lista podmiotów przetwarzających i podstawa transferu poza EOG;
+- cena i warunki trzydniowego trialu;
+- czy skaner OpenAI działa na standardowej retencji do 30 dni, czy projekt uzyskał ZDR/MAM;
+- czy raportowanie błędów Lovable jest aktywne w produkcji.
+
+## Zasada
+
+Nie wpisuj ogólnych zdań typu „tak długo, jak potrzebne”, jeśli można podać kryterium lub termin. Polityka, App Privacy w App Store Connect i rzeczywisty kod muszą opisywać ten sam stan.
+
