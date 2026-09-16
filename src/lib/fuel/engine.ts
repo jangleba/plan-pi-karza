@@ -225,6 +225,21 @@ function normalizeFoodText(value: string): string {
   return value.trim().toLocaleLowerCase("pl");
 }
 
+/**
+ * Nieznany wiek jest traktowany jak wiek niepełnoletni — ochrona przed kofeiną
+ * nie może zależeć od brakującego pola w profilu.
+ */
+function isMinorOrUnknownAge(age: number | null | undefined): boolean {
+  return age == null || age < 18;
+}
+
+/** Pierwszy zgłoszony składnik, który występuje w tekście posiłku. */
+function matchRestriction(rawNormalized: string, list: string[] | undefined): string | undefined {
+  return (list ?? [])
+    .filter((item) => item.trim().length > 0)
+    .find((item) => rawNormalized.includes(normalizeFoodText(item)));
+}
+
 function safetyBlock(minutes: number, ruleId: string, why: string, change: string): FuelResult {
   return {
     verdict: "POPRAW",
