@@ -1,15 +1,69 @@
-import { corsHeaders } from "npm:@supabase/supabase-js@2.112.3/cors";
+import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
 type JsonRecord = Record<string, unknown>;
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 6 * 1024 * 1024;
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_SESSION_KINDS = new Set([
+  "match",
+  "strength",
+  "speed",
+  "endurance",
+  "football",
+  "recovery",
+  "none",
+]);
+const ALLOWED_INTENSITIES = new Set(["niska", "umiarkowana", "wysoka"]);
 
-function json(status: number, body: JsonRecord) {
+function allowedOrigins(): Set<string> {
+  return new Set(
+    (Deno.env.get("FUEL_ALLOWED_ORIGINS") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function responseHeaders(request: Request): HeadersInit {
+  const origin = request.headers.get("Origin");
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json",
+    Vary: "Origin",
+  };
+  if (origin && allowedOrigins().has(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+
+function json(request: Request, status: number, body: JsonRecord) {
   return Response.json(body, {
     status,
-    headers: { ...corsHeaders, "Cache-Control": "no-store" },
+    headers: responseHeaders(request),
   });
+}
+
+function safeSession(raw: unknown): JsonRecord {
+  if (!raw || typeof raw !== "object") return {};
+  const candidate = raw as JsonRecord;
+  const kind = typeof candidate.kind === "string" && ALLOWED_SESSION_KINDS.has(candidate.kind)
+    ? candidate.kind
+    : "none";
+  const intensity =
+    typeof candidate.intensity === "string" && ALLOWED_INTENSITIES.has(candidate.intensity)
+      ? candidate.intensity
+      : null;
+  const duration = typeof candidate.durationMin === "number" ? candidate.durationMin : null;
+  return {
+    kind,
+    intensity,
+    durationMin:
+      duration == null || !Number.isFinite(duration)
+        ? null
+        : Math.max(0, Math.min(300, Math.round(duration))),
+  };
 }
 
 function imageBytes(dataUrl: string): number {
@@ -99,31 +153,84 @@ const resultSchema = {
 } as const;
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "POST") return json(405, { error: "method_not_allowed" });
-  if (!request.headers.get("Authorization")) return json(401, { error: "missing_authorization" });
+  const origin = request.headers.get("Origin");
+  if (origin && !allowedOrigins().has(origin)) {
+    return json(request, 403, { error: "origin_not_allowed" });
+  }
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: responseHeaders(request) });
+  }
+  if (request.method !== "POST") return json(request, 405, { error: "method_not_allowed" });
+  if (!request.headers.get("Content-Type")?.toLowerCase().includes("application/json")) {
+    return json(request, 415, { error: "content_type_not_supported" });
+  }
+
+  const declaredLength = Number(request.headers.get("Content-Length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+    return json(request, 413, { error: "request_too_large" });
+  }
+
+  const authHeader = request.headers.get("Authorization")?.trim() ?? "";
+  if (!/^Bearer\s+\S+$/i.test(authHeader)) {
+    return json(request, 401, { error: "missing_authorization" });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    return json(request, 503, { error: "backend_not_configured" });
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  const { data: authData, error: authError } = await userClient.auth.getUser(token);
+  if (authError || !authData.user) {
+    return json(request, 401, { error: "invalid_authorization" });
+  }
+
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: quotaData, error: quotaError } = await serviceClient
+    .rpc("consume_fuel_photo_quota", { p_user_id: authData.user.id })
+    .maybeSingle();
+  if (quotaError || !quotaData) {
+    console.error("Fuel photo quota check failed", { code: quotaError?.code ?? "missing_result" });
+    return json(request, 503, { error: "quota_check_unavailable" });
+  }
+  if (quotaData.allowed !== true) {
+    return json(request, 429, {
+      error: "rate_limit_exceeded",
+      message: "Wykorzystano limit skanów. Spróbuj ponownie za kilka minut.",
+      retryAfterSeconds: quotaData.retry_after_seconds,
+    });
+  }
 
   const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) return json(503, { error: "ai_not_configured" });
+  if (!apiKey) return json(request, 503, { error: "ai_not_configured" });
 
   let body: JsonRecord;
   try {
     body = (await request.json()) as JsonRecord;
   } catch {
-    return json(400, { error: "invalid_json" });
+    return json(request, 400, { error: "invalid_json" });
   }
 
   const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
   const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,/i);
   const mime = match?.[1]?.toLowerCase();
   if (!mime || !ALLOWED_MIME.has(mime)) {
-    return json(400, { error: "unsupported_image", message: "Użyj zdjęcia JPG, PNG lub WebP." });
+    return json(request, 400, { error: "unsupported_image", message: "Użyj zdjęcia JPG, PNG lub WebP." });
   }
   if (imageBytes(imageDataUrl) > MAX_IMAGE_BYTES) {
-    return json(413, { error: "image_too_large", message: "Zdjęcie po przygotowaniu jest za duże." });
+    return json(request, 413, { error: "image_too_large", message: "Zdjęcie po przygotowaniu jest za duże." });
   }
 
-  const session = body.session && typeof body.session === "object" ? body.session : {};
+  const session = safeSession(body.session);
   const model = Deno.env.get("OPENAI_FUEL_MODEL") || "gpt-4.1-mini";
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -173,7 +280,7 @@ Deno.serve(async (request) => {
       status: apiResponse.status,
       requestId: apiResponse.headers.get("x-request-id"),
     });
-    return json(502, {
+    return json(request, 502, {
       error: "analysis_provider_error",
       message: "Analiza zdjęcia jest chwilowo niedostępna. Opisz posiłek jednym zdaniem.",
     });
@@ -181,12 +288,12 @@ Deno.serve(async (request) => {
 
   const payload = (await apiResponse.json()) as JsonRecord;
   const outputText = extractOutputText(payload);
-  if (!outputText) return json(502, { error: "empty_analysis" });
+  if (!outputText) return json(request, 502, { error: "empty_analysis" });
 
   try {
     const parsed = JSON.parse(outputText) as JsonRecord;
-    return json(200, parsed);
+    return json(request, 200, parsed);
   } catch {
-    return json(502, { error: "invalid_analysis" });
+    return json(request, 502, { error: "invalid_analysis" });
   }
 });
