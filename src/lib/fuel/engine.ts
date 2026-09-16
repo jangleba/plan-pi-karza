@@ -102,7 +102,7 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
   }
 
   const raw = normalizeFoodText(req.meal.raw);
-  const matchedAllergy = (req.athlete.allergies ?? []).find((item) => raw.includes(normalizeFoodText(item)));
+  const matchedAllergy = matchRestriction(raw, req.athlete.allergies);
   if (matchedAllergy) {
     return safetyBlock(
       minutes,
@@ -112,7 +112,27 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
     );
   }
 
-  if ((req.athlete.age ?? 99) < 18 && req.meal.caffeine.length > 0) {
+  const matchedIntolerance = matchRestriction(raw, req.athlete.intolerances);
+  if (matchedIntolerance) {
+    return safetyBlock(
+      minutes,
+      "DECLARED_INTOLERANCE_PRESENT_V1",
+      `W posiłku jest składnik zgłoszony jako nietolerowany: ${matchedIntolerance}. Przed jednostką grozi to dolegliwościami żołądkowymi.`,
+      "Usuń ten składnik z posiłku przed treningiem i wybierz produkt, który tolerujesz.",
+    );
+  }
+
+  const matchedExclusion = matchRestriction(raw, req.athlete.exclusions);
+  if (matchedExclusion) {
+    return safetyBlock(
+      minutes,
+      "DECLARED_EXCLUSION_PRESENT_V1",
+      `W posiłku jest składnik z Twojej listy wykluczeń: ${matchedExclusion}. FuelWise nie proponuje jedzenia wbrew tej deklaracji.`,
+      "Zamień ten składnik na produkt spoza listy wykluczeń.",
+    );
+  }
+
+  if (isMinorOrUnknownAge(req.athlete.age) && req.meal.caffeine.length > 0) {
     return safetyBlock(
       minutes,
       "MINOR_CAFFEINE_BLOCK_V1",
@@ -120,6 +140,7 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
       "Usuń kofeinę lub energetyk. Wybierz wodę, zwykły posiłek albo napój sportowy bez kofeiny.",
     );
   }
+
 
   const { meal, portion, session } = req;
   const need = Math.round(requiredLeadMinutes(meal, portion) * sessionSensitivity(session));
@@ -202,6 +223,21 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
 
 function normalizeFoodText(value: string): string {
   return value.trim().toLocaleLowerCase("pl");
+}
+
+/**
+ * Nieznany wiek jest traktowany jak wiek niepełnoletni — ochrona przed kofeiną
+ * nie może zależeć od brakującego pola w profilu.
+ */
+function isMinorOrUnknownAge(age: number | null | undefined): boolean {
+  return age == null || age < 18;
+}
+
+/** Pierwszy zgłoszony składnik, który występuje w tekście posiłku. */
+function matchRestriction(rawNormalized: string, list: string[] | undefined): string | undefined {
+  return (list ?? [])
+    .filter((item) => item.trim().length > 0)
+    .find((item) => rawNormalized.includes(normalizeFoodText(item)));
 }
 
 function safetyBlock(minutes: number, ruleId: string, why: string, change: string): FuelResult {
