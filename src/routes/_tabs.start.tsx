@@ -6,7 +6,13 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -35,24 +41,60 @@ function DecisionSignal() {
   return (
     <div className="decision-signal" aria-hidden="true">
       <div className="decision-signal__sources">
-        <span><CalendarDays /></span>
-        <span><Activity /></span>
-        <span><BarChart3 /></span>
+        <span>
+          <CalendarDays />
+        </span>
+        <span>
+          <Activity />
+        </span>
+        <span>
+          <BarChart3 />
+        </span>
       </div>
       <svg viewBox="0 0 260 196" role="presentation" preserveAspectRatio="none">
-        <path className="decision-signal__path decision-signal__path--one" d="M4 30 C88 30 96 98 214 98" />
-        <path className="decision-signal__path decision-signal__path--two" d="M4 98 C88 98 122 98 214 98" />
-        <path className="decision-signal__path decision-signal__path--three" d="M4 166 C88 166 98 98 214 98" />
-        <circle className="decision-signal__dot decision-signal__dot--one" cx="38" cy="30" r="2.5" />
-        <circle className="decision-signal__dot decision-signal__dot--two" cx="78" cy="98" r="2.5" />
-        <circle className="decision-signal__dot decision-signal__dot--three" cx="46" cy="166" r="2.5" />
+        <path
+          className="decision-signal__path decision-signal__path--one"
+          d="M4 30 C88 30 96 98 214 98"
+        />
+        <path
+          className="decision-signal__path decision-signal__path--two"
+          d="M4 98 C88 98 122 98 214 98"
+        />
+        <path
+          className="decision-signal__path decision-signal__path--three"
+          d="M4 166 C88 166 98 98 214 98"
+        />
+        <circle
+          className="decision-signal__dot decision-signal__dot--one"
+          cx="38"
+          cy="30"
+          r="2.5"
+        />
+        <circle
+          className="decision-signal__dot decision-signal__dot--two"
+          cx="78"
+          cy="98"
+          r="2.5"
+        />
+        <circle
+          className="decision-signal__dot decision-signal__dot--three"
+          cx="46"
+          cy="166"
+          r="2.5"
+        />
       </svg>
-      <div className="decision-signal__result"><span className="decision-signal__core" /></div>
+      <div className="decision-signal__result">
+        <span className="decision-signal__core" />
+      </div>
     </div>
   );
 }
 
-function ReadinessDialog({ open, onOpenChange, trigger }: {
+function ReadinessDialog({
+  open,
+  onOpenChange,
+  trigger,
+}: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
   trigger?: React.ReactNode;
@@ -65,21 +107,27 @@ function ReadinessDialog({ open, onOpenChange, trigger }: {
     fatigue: existing?.fatigue ?? 4,
     jointPain: existing?.jointPain ?? 0,
   }));
-  const [painLocation, setPainLocation] = useState<PainLocation | null>(existing?.painLocation ?? null);
+  const [painLocation, setPainLocation] = useState<PainLocation | null>(
+    existing?.painLocation ?? null,
+  );
 
   async function save() {
     try {
-      await saveReadiness(buildReadiness(todayIso, {
-        sleep: values.sleep,
-        energy: values.energy,
-        fatigue: values.fatigue,
-        jointPain: values.jointPain,
-        painLocation,
-      }));
+      await saveReadiness(
+        buildReadiness(todayIso, {
+          sleep: values.sleep,
+          energy: values.energy,
+          fatigue: values.fatigue,
+          jointPain: values.jointPain,
+          painLocation,
+        }),
+      );
       onOpenChange(false);
       toast.success("Zapisano ocenę gotowości.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać oceny gotowości.");
+      toast.error(
+        error instanceof Error ? error.message : "Nie udało się zapisać oceny gotowości.",
+      );
     }
   }
 
@@ -105,27 +153,39 @@ function ReadinessDialog({ open, onOpenChange, trigger }: {
                 max={10}
                 step={1}
                 value={[values[field.key]]}
-                onValueChange={(next) => setValues((current) => ({ ...current, [field.key]: next[0] }))}
+                onValueChange={(next) =>
+                  setValues((current) => ({ ...current, [field.key]: next[0] }))
+                }
               />
             </div>
           ))}
           {values.jointPain > 0 && (
             <div className="space-y-2">
               <span className="text-sm font-medium">Którego obszaru dotyczy dyskomfort?</span>
-              <Select value={painLocation ?? "other"} onValueChange={(value) => setPainLocation(value as PainLocation)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={painLocation ?? "other"}
+                onValueChange={(value) => setPainLocation(value as PainLocation)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {PAIN_LOCATION_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Informacja służy wyłącznie do dobrania bezpieczniejszego wariantu obciążenia danego obszaru.
+                Informacja służy wyłącznie do dobrania bezpieczniejszego wariantu obciążenia danego
+                obszaru.
               </p>
             </div>
           )}
-          <Button className="w-full" size="lg" onClick={save}>Zapisz ocenę</Button>
+          <Button className="w-full" size="lg" onClick={save}>
+            Zapisz ocenę
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -134,15 +194,31 @@ function ReadinessDialog({ open, onOpenChange, trigger }: {
 
 function decisionCopy(readinessCompleted: boolean, override?: string | null) {
   if (!readinessCompleted) {
-    return { eyebrow: "Plan przygotowany", title: "Oceń gotowość", description: "Potwierdź samopoczucie przed treningiem." };
+    return {
+      eyebrow: "Plan przygotowany",
+      title: "Oceń gotowość",
+      description: "Potwierdź samopoczucie przed treningiem.",
+    };
   }
   if (override === "Wstrzymaj trening") {
-    return { eyebrow: "Wymagana decyzja", title: "Wstrzymaj jednostkę", description: "Najpierw skonsultuj zgłoszone dolegliwości." };
+    return {
+      eyebrow: "Wymagana decyzja",
+      title: "Wstrzymaj jednostkę",
+      description: "Najpierw skonsultuj zgłoszone dolegliwości.",
+    };
   }
   if (override === "Ogranicz obciążenie") {
-    return { eyebrow: "Plan zaktualizowany", title: "Obciążenie ograniczone", description: "Jednostka została dopasowana do aktualnej gotowości." };
+    return {
+      eyebrow: "Plan zaktualizowany",
+      title: "Obciążenie ograniczone",
+      description: "Jednostka została dopasowana do aktualnej gotowości.",
+    };
   }
-  return { eyebrow: "Decyzja BallWise", title: "Plan bez zmian", description: "Możesz przejść do zaplanowanej jednostki." };
+  return {
+    eyebrow: "Decyzja BallWise",
+    title: "Plan bez zmian",
+    description: "Możesz przejść do zaplanowanej jednostki.",
+  };
 }
 
 function PlanLoadingState() {
@@ -157,7 +233,9 @@ function PlanLoadingState() {
         <div className="h-40 w-full animate-pulse rounded-2xl bg-secondary" />
         <div className="h-4 w-44 animate-pulse rounded-full bg-secondary" />
         <div className="h-12 w-full animate-pulse rounded-xl bg-secondary" />
-        <p className="pt-2 text-center text-sm text-muted-foreground">Przygotowujemy Twój tydzień…</p>
+        <p className="pt-2 text-center text-sm text-muted-foreground">
+          Przygotowujemy Twój tydzień…
+        </p>
       </section>
     </main>
   );
@@ -171,6 +249,7 @@ function StartScreen() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [explanationOpen, setExplanationOpen] = useState(false);
   const autoGenerateRef = useRef(false);
+  const openingSessionRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
   const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
@@ -191,7 +270,9 @@ function StartScreen() {
     }
   }, [todaySession]);
 
-  if (!hydrated || planGenerating) return <PlanLoadingState />;
+  // Jeżeli mamy już użyteczny ekran, ciche odświeżenie planu nie może go
+  // zastępować skeletonem. Loader jest wyłącznie dla prawdziwego pierwszego startu.
+  if (!hydrated || (planGenerating && !todaySession)) return <PlanLoadingState />;
 
   if (!profile?.onboardingComplete) {
     return (
@@ -222,12 +303,27 @@ function StartScreen() {
 
   const session = todaySession;
   const readiness = state.readiness[todayIso];
-  const adjusted = resolveEffectiveDay(session, readiness, profile, state.modifications[todayIso] ?? []);
+  const adjusted = resolveEffectiveDay(
+    session,
+    readiness,
+    profile,
+    state.modifications[todayIso] ?? [],
+  );
   const healthEnabled = profile.healthPersonalizationEnabled;
   const copy = decisionCopy(Boolean(readiness) || !healthEnabled, adjusted.loadLabelOverride);
 
   function openSession() {
-    navigate({ to: "/sesja/$date", params: { date: session.date }, search: { slot: 1 } });
+    if (openingSessionRef.current) return;
+    openingSessionRef.current = true;
+    void navigate({
+      to: "/sesja/$date",
+      params: { date: session.date },
+      search: { slot: 1 },
+    }).finally(() => {
+      window.setTimeout(() => {
+        openingSessionRef.current = false;
+      }, 220);
+    });
   }
 
   return (
@@ -248,10 +344,16 @@ function StartScreen() {
 
         <div className="mt-10 text-center">
           <div className="flex items-center justify-center gap-2">
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Decyzja BallWise</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Decyzja BallWise
+            </p>
             <Dialog open={explanationOpen} onOpenChange={setExplanationOpen}>
               <DialogTrigger asChild>
-                <button type="button" aria-label="Wyjaśnienie decyzji" className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                <button
+                  type="button"
+                  aria-label="Wyjaśnienie decyzji"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
                   <Info className="h-3.5 w-3.5" />
                 </button>
               </DialogTrigger>
@@ -265,13 +367,23 @@ function StartScreen() {
               </DialogContent>
             </Dialog>
           </div>
-          <h1 className="mt-3 text-[28px] font-medium leading-tight tracking-[-0.035em]">{copy.title}</h1>
-          <p className="mx-auto mt-2 max-w-[18rem] text-[15px] leading-relaxed text-muted-foreground">{copy.description}</p>
+          <h1 className="mt-3 text-[28px] font-medium leading-tight tracking-[-0.035em]">
+            {copy.title}
+          </h1>
+          <p className="mx-auto mt-2 max-w-[18rem] text-[15px] leading-relaxed text-muted-foreground">
+            {copy.description}
+          </p>
         </div>
 
         <div className="mt-9 space-y-3">
           {healthEnabled && !readiness ? (
-            <ReadinessDialog open={dialogOpen} onOpenChange={setDialogOpen} trigger={<Button className="h-12 w-full rounded-xl text-[15px]">Oceń gotowość</Button>} />
+            <ReadinessDialog
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+              trigger={
+                <Button className="h-12 w-full rounded-xl text-[15px]">Oceń gotowość</Button>
+              }
+            />
           ) : (
             <Button className="h-12 w-full rounded-xl text-[15px]" onClick={openSession}>
               Przejdź do jednostki <ChevronRight className="h-4 w-4" />
@@ -279,13 +391,21 @@ function StartScreen() {
           )}
 
           {healthEnabled && readiness ? (
-            <ReadinessDialog open={dialogOpen} onOpenChange={setDialogOpen} trigger={
-              <button className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-                Zaktualizuj gotowość <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            } />
+            <ReadinessDialog
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+              trigger={
+                <button className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  Zaktualizuj gotowość <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
           ) : healthEnabled ? (
-            <button type="button" onClick={openSession} className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <button
+              type="button"
+              onClick={openSession}
+              className="flex h-11 w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
               Przejdź do jednostki <ChevronRight className="h-3.5 w-3.5" />
             </button>
           ) : null}

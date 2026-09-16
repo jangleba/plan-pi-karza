@@ -32,21 +32,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
-    // Register the listener first, then read the existing session.
+    let active = true;
+    let authRevision = 0;
+
+    // Listener rejestrujemy przed odczytem. Numer rewizji chroni przed sytuacją,
+    // w której wolniejszy getSession nadpisuje nowsze zdarzenie logowania.
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      if (!active) return;
+      authRevision += 1;
       setSession(sess);
       setUser(sess?.user ?? null);
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       if (event === "SIGNED_OUT") setRecoveryMode(false);
+      if (event === "INITIAL_SESSION") setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    const revisionAtRequest = authRevision;
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active || authRevision !== revisionAtRequest) return;
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      })
+      .catch(() => {
+        // Auth listener pozostaje źródłem prawdy; brak sesji obsłuży routing.
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   async function signUp(
@@ -95,10 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function requestAccountEmailChange(email: string) {
     const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-    const { error } = await supabase.auth.updateUser(
-      { email },
-      { emailRedirectTo },
-    );
+    const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo });
     return { error: error?.message ?? null };
   }
 

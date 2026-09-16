@@ -11,10 +11,11 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LoadwiseProvider } from "../lib/loadwise/store";
-import { AuthProvider } from "../lib/loadwise/auth";
+import { LoadwiseProvider, useLoadwise } from "../lib/loadwise/store";
+import { AuthProvider, useAuth } from "../lib/loadwise/auth";
 import { Toaster } from "../components/ui/sonner";
 import { LEGAL_RELEASE_BLOCKED } from "../lib/loadwise/legal";
+import { AppRoutePreloader } from "../components/loadwise/AppRoutePreloader";
 
 function NotFoundComponent() {
   return (
@@ -82,8 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content:
-          "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
       },
       { title: "BallWise — mądrzejsze decyzje treningowe w piłce" },
       {
@@ -136,8 +136,8 @@ function RootComponent() {
         <div className="max-w-md rounded-2xl border border-destructive/40 bg-card p-6 text-center">
           <h1 className="text-xl font-semibold">Publikacja BallWise jest zablokowana</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Uzupełnij dane administratora, adres, e-mail kontaktowy i okres przechowywania danych
-            w konfiguracji środowiska produkcyjnego.
+            Uzupełnij dane administratora, adres, e-mail kontaktowy i okres przechowywania danych w
+            konfiguracji środowiska produkcyjnego.
           </p>
         </div>
       </div>
@@ -148,11 +148,24 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <LoadwiseProvider>
+          <AppNavigationRuntime />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <Toaster position="top-center" />
         </LoadwiseProvider>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppNavigationRuntime() {
+  const { user, loading } = useAuth();
+  const { todaySession } = useLoadwise();
+
+  return (
+    <AppRoutePreloader
+      authState={loading ? "loading" : user ? "user" : "guest"}
+      sessionDate={todaySession?.date ?? null}
+    />
   );
 }
