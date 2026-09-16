@@ -19,7 +19,7 @@ import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { localToday, isoDate, parseIso } from "./labels";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
-import { CONSENTS, LEGAL_VERSION } from "./legal";
+import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "./legal";
 import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "./playerDirection";
 import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
@@ -421,6 +421,11 @@ function buildProfile(
       (ath.ownership_transfer_requested_at as string | null) ?? null,
     ownershipTransferredAt: (ath.ownership_transferred_at as string | null) ?? null,
     healthPersonalizationEnabled: Boolean(ath.health_personalization_enabled),
+    fuelPrecisionEnabled: Boolean(ath.fuel_precision_enabled),
+    weightKg:
+      ath.fuel_precision_enabled === true && typeof ath.weight_optional === "number"
+        ? ath.weight_optional
+        : null,
     fuelAllergyStatus:
       ath.fuel_allergy_status === "confirmed_none" || ath.fuel_allergy_status === "has_allergies"
         ? ath.fuel_allergy_status
@@ -637,6 +642,7 @@ interface LoadwiseContextValue {
   hydrated: boolean;
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
+  saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;
   refreshPlanIfNeeded: () => void;
   /** Trwa generowanie/zapisywanie planu — ekrany pokazują wtedy stan ładowania. */
   planGenerating: boolean;
@@ -1304,6 +1310,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           ownership_transfer_requested_at: profile.ownershipTransferRequestedAt ?? null,
           ownership_transferred_at: profile.ownershipTransferredAt ?? null,
           health_personalization_enabled: Boolean(profile.healthPersonalizationEnabled),
+          fuel_precision_enabled: Boolean(profile.fuelPrecisionEnabled),
+          weight_optional: profile.fuelPrecisionEnabled ? profile.weightKg ?? null : null,
           fuel_allergy_status: profile.fuelAllergyStatus ?? "unconfirmed",
           food_allergies: profile.foodAllergies ?? [],
           food_intolerances: profile.foodIntolerances ?? [],
@@ -1452,6 +1460,45 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         Object.entries(s.modifications).filter(([date]) => date < todayIso),
       ),
       transitions: {},
+    }));
+  }
+
+  async function saveFuelPrecision(enabled: boolean, weightKg: number | null) {
+    if (!user || !state.profile) return;
+    if (enabled && (weightKg == null || weightKg < 25 || weightKg > 250)) {
+      throw new Error("Podaj masę od 25 do 250 kg.");
+    }
+
+    const consentWrite = await supabase.from("consent_logs").insert({
+      user_id: user.id,
+      consent_type: "fuel_precision",
+      accepted: enabled,
+      version: LEGAL_VERSION,
+      text_snapshot: FUEL_PRECISION_CONSENT,
+      actor_type: state.profile.accountOwnerType === "guardian" ? "guardian" : "athlete",
+      actor_email: user.email ?? null,
+      scope: "fuel_personalization",
+    });
+    assertNoSupabaseError("consent_logs.fuel_precision", consentWrite.error);
+
+    const profileWrite = await supabase
+      .from("athlete_profiles")
+      .update({
+        fuel_precision_enabled: enabled,
+        weight_optional: enabled ? weightKg : null,
+      })
+      .eq("user_id", user.id);
+    assertNoSupabaseError("athlete_profiles.fuel_precision", profileWrite.error);
+
+    setState((current) => ({
+      ...current,
+      profile: current.profile
+        ? {
+            ...current.profile,
+            fuelPrecisionEnabled: enabled,
+            weightKg: enabled ? weightKg : null,
+          }
+        : null,
     }));
   }
 
@@ -2202,6 +2249,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         hydrated,
         completeOnboarding,
         updateProfile,
+        saveFuelPrecision,
         refreshPlanIfNeeded,
         planGenerating,
         startSession,

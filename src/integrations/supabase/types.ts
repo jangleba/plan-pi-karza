@@ -32,6 +32,7 @@ export type Database = {
           food_exclusions: Json
           food_intolerances: Json
           fuel_allergy_status: string
+          fuel_precision_enabled: boolean
           guardian_consent: boolean | null
           guardian_consent_at: string | null
           guardian_email: string | null
@@ -89,6 +90,7 @@ export type Database = {
           food_exclusions?: Json
           food_intolerances?: Json
           fuel_allergy_status?: string
+          fuel_precision_enabled?: boolean
           guardian_consent?: boolean | null
           guardian_consent_at?: string | null
           guardian_email?: string | null
@@ -146,6 +148,7 @@ export type Database = {
           food_exclusions?: Json
           food_intolerances?: Json
           fuel_allergy_status?: string
+          fuel_precision_enabled?: boolean
           guardian_consent?: boolean | null
           guardian_consent_at?: string | null
           guardian_email?: string | null

@@ -93,6 +93,10 @@ export interface Profile {
   ownershipTransferredAt?: string | null;
   /** Brak zgody nie blokuje aplikacji — uruchamia plan konserwatywny bez danych wrażliwych. */
   healthPersonalizationEnabled?: boolean;
+  /** Osobna, opcjonalna zgoda na zakresy paliwa zależne od wieku i masy ciała. */
+  fuelPrecisionEnabled?: boolean;
+  /** Masa jest zapisywana wyłącznie, gdy Fuel Precision jest aktywny. */
+  weightKg?: number | null;
   /** FuelWise działa dopiero po jawnym potwierdzeniu alergii. */
   fuelAllergyStatus?: "unconfirmed" | "confirmed_none" | "has_allergies";
   foodAllergies?: string[];

@@ -107,8 +107,8 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
     return safetyBlock(
       minutes,
       "DECLARED_ALLERGEN_PRESENT_V1",
-      `W posiłku wykryto składnik zgodny ze zgłoszoną alergią: ${matchedAllergy}. FuelWise nie ocenia bezpiecznej zamiany alergenu.`,
-      "Nie jedz tego składnika. Wybierz produkt wcześniej potwierdzony jako bezpieczny dla Ciebie.",
+      `Ten posiłek może zawierać składnik z Twojej zapisanej listy alergii: ${matchedAllergy}. Fuel nie zgaduje bezpiecznych zamienników.`,
+      "Wybierz wersję bez tego składnika, wcześniej potwierdzoną jako bezpieczna dla Ciebie.",
     );
   }
 
@@ -117,8 +117,8 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
     return safetyBlock(
       minutes,
       "DECLARED_INTOLERANCE_PRESENT_V1",
-      `W posiłku jest składnik zgłoszony jako nietolerowany: ${matchedIntolerance}. Przed jednostką grozi to dolegliwościami żołądkowymi.`,
-      "Usuń ten składnik z posiłku przed treningiem i wybierz produkt, który tolerujesz.",
+      `Posiłek może zawierać składnik z Twojej listy nietolerancji: ${matchedIntolerance}. Wersja bez niego będzie spokojniejszym wyborem przed jednostką.`,
+      "Wybierz znany Ci, dobrze tolerowany zamiennik.",
     );
   }
 
@@ -136,8 +136,8 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
     return safetyBlock(
       minutes,
       "MINOR_CAFFEINE_BLOCK_V1",
-      "FuelWise nie rekomenduje osobom niepełnoletnim kofeiny ani napojów energetycznych przed wysiłkiem.",
-      "Usuń kofeinę lub energetyk. Wybierz wodę, zwykły posiłek albo napój sportowy bez kofeiny.",
+      "Dla osoby niepełnoletniej Fuel wybiera wariant bez kofeiny i napojów energetycznych.",
+      "Wybierz wodę, zwykły posiłek albo napój sportowy bez kofeiny.",
     );
   }
 
@@ -159,21 +159,21 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
   if (need > minutes * 1.8) {
     verdict = "ZOSTAW_NA_POZNIEJ";
     ruleId = "LEAD_FAR_EXCEEDED_V1";
-    why = `Ten zestaw potrzebuje około ${need} min na strawienie, a do jednostki zostało ${minutes} min. Zjedzony teraz obciąży żołądek na ${sessionLabel(session)}.`;
+    why = `To pełny posiłek, który potrzebuje około ${need} min. Na ${minutes} min przed ${sessionLabel(session)} lepiej sprawdzi się jego lżejsza część.`;
     change = heavyItems.length
-      ? `Zostaw na po treningu: ${joinList(heavyItems)}. Teraz tylko ${lightCarbSuggestion(meal)}.`
-      : `Zjedz teraz tylko lekką część, resztę po jednostce.`;
+      ? `Na teraz wybierz ${lightCarbSuggestion(meal)}. ${joinList(heavyItems)} zostaw na spokojny posiłek po jednostce.`
+      : `Na teraz wybierz lekką część, a pełną porcję zaplanuj po jednostce.`;
   } else if (need > minutes) {
     verdict = "POPRAW";
     ruleId = "LEAD_EXCEEDED_V1";
-    why = `Posiłek jest zbyt ciężki na ${minutes} min przed startem (potrzebuje ok. ${need} min). Sam skład jest w porządku, problem jest w tym momencie.`;
+    why = `Skład jest w porządku, ale pełna porcja potrzebuje około ${need} min. Przy ${minutes} min do startu wystarczy ją lekko uprościć.`;
     change = heavyItems.length
-      ? `Ogranicz teraz: ${joinList(heavyItems)} — porcja ${PORTION_LABELS[portion]} jest za duża na to okno.`
-      : `Zmniejsz porcję do lekkiej i postaw na węglowodany.`;
+      ? `Zmniejsz teraz ${joinList(heavyItems)} i zostaw więcej miejsca na lekkie węglowodany.`
+      : `Wybierz mniejszą porcję i postaw na lekkie węglowodany.`;
   } else if (carbsNeeded && !meal.hasCarbs) {
     verdict = "POPRAW";
     ruleId = "CARBS_MISSING_V1";
-    why = `Do ${sessionLabel(session)} brakuje w tym posiłku źródła węglowodanów. Timing jest dobry, skład nie daje paliwa na intensywną pracę.`;
+    why = `Timing jest dobry. Dodanie jednego źródła węglowodanów lepiej przygotuje Cię do ${sessionLabel(session)}.`;
     change = "Dołóż węglowodany: banan, kromka chleba z miodem albo izotonik.";
   } else if (
     carbsNeeded &&
@@ -183,13 +183,13 @@ export function evaluateMeal(req: FuelRequest): FuelResult | null {
   ) {
     verdict = "POPRAW";
     ruleId = "CARBS_TOO_SLOW_V1";
-    why = `Na ${minutes} min przed startem węglowodany złożone nie zdążą się uwolnić. Potrzebujesz szybszego źródła.`;
+    why = `Na ${minutes} min przed startem szybsze źródło węglowodanów będzie praktyczniejsze niż pełna porcja złożonych.`;
     change = `Zamień część (${meal.carbSlow[0].label}) na banan lub napój sportowy bez kofeiny.`;
   } else if (meal.caffeine.length && minutes < 30) {
     verdict = "POPRAW";
     ruleId = "CAFFEINE_LATE_V1";
-    why = `Skład i timing są w porządku, ale ${meal.caffeine[0].label} tak blisko startu częściej daje rozdrażnienie niż efekt.`;
-    change = `Odstaw ${meal.caffeine[0].label} albo przyjmij go 45–60 min przed startem.`;
+    why = `Skład i timing są w porządku. Wariant bez kofeiny będzie spokojniejszy tak blisko startu.`;
+    change = `Wybierz teraz wodę lub napój bez kofeiny; ${meal.caffeine[0].label} ma sens wcześniej, jeśli dobrze ją tolerujesz.`;
   } else {
     verdict = "PASUJE";
     ruleId = "MEAL_FITS_V1";
@@ -235,10 +235,30 @@ function isMinorOrUnknownAge(age: number | null | undefined): boolean {
 
 /** Pierwszy zgłoszony składnik, który występuje w tekście posiłku. */
 function matchRestriction(rawNormalized: string, list: string[] | undefined): string | undefined {
-  return (list ?? [])
-    .filter((item) => item.trim().length > 0)
-    .find((item) => rawNormalized.includes(normalizeFoodText(item)));
+  for (const item of list ?? []) {
+    const normalized = normalizeFoodText(item);
+    if (!normalized) continue;
+    if (rawNormalized.includes(normalized)) return item;
+    const family = RESTRICTION_FAMILIES.find(({ declaration }) => declaration.test(normalized));
+    if (family?.ingredients.test(rawNormalized)) return item;
+  }
+  return undefined;
 }
+
+const RESTRICTION_FAMILIES = [
+  {
+    declaration: /mlek|nabiał|laktoz|białk.*mleka/,
+    ingredients: /mlek|jogurt|skyr|kefir|twar|ser|śmietan|masł/,
+  },
+  {
+    declaration: /gluten|pszen|żyto|jęczmień/,
+    ingredients: /chleb|pieczyw|tost|bułk|bajgl|makaron|płatk|owsiank|tortill|wrap/,
+  },
+  { declaration: /orzech|migdał|arachid/, ingredients: /orzech|migdał|masło orzech|arachid/ },
+  { declaration: /jaj/, ingredients: /jaj|omlet|majonez/ },
+  { declaration: /soj/, ingredients: /soj|tofu/ },
+  { declaration: /ryb|łoso|tuńczyk/, ingredients: /ryb|łoso|tuńczyk/ },
+];
 
 function safetyBlock(minutes: number, ruleId: string, why: string, change: string): FuelResult {
   return {
@@ -282,7 +302,7 @@ function buildBestVersion(req: FuelRequest, minutes: number, verdict: Verdict): 
   if (meal.drinks.length) parts.push("300–400 ml płynów małymi łykami");
   else parts.push("300 ml wody");
   const removed = meal.items.filter((i) => i.heaviness >= 3).map((i) => i.label);
-  const tail = removed.length ? ` Bez: ${joinList(removed)} do końca jednostki.` : "";
+  const tail = removed.length ? ` Cięższe dodatki (${joinList(removed)}) zachowaj na posiłek po jednostce.` : "";
   return `${parts.join(" + ")}.${tail}`;
 }
 

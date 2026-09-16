@@ -1,7 +1,10 @@
 // Centralne teksty prawne i wersjonowane zgody. Dane administratora są
 // konfiguracją wydania — nie wolno ich zgadywać ani ukrywać w kodzie.
 
-export const LEGAL_VERSION = "2.0";
+export const LEGAL_VERSION = "2.1";
+
+export const FUEL_PRECISION_CONSENT =
+  "Wyrażam wyraźną zgodę na używanie wieku i opcjonalnej masy ciała do obliczania orientacyjnych zakresów paliwa przed treningiem. Fuel działa także bez tej zgody; mogę ją wycofać, a masa zostanie usunięta.";
 
 const env = import.meta.env as Record<string, string | boolean | undefined>;
 
@@ -83,10 +86,12 @@ Spersonalizowane konto jest dostępne od 13 lat. Osoba poniżej 13 lat może kor
 - wyniki treningowe: realizacja sesji, czas, RPE i notatki,
 - dla biegu wyłącznie wynik: dystans, czas i średnie tempo; trasa GPS, współrzędne, splity i odcinki nie są wysyłane do bazy,
 - po osobnej zgodzie: odpowiedzi o śnie, energii, zmęczeniu nóg i bólu.
+- po osobnej zgodzie Fuel Precision: wiek i opcjonalna masa ciała do orientacyjnych zakresów paliwa,
+- zdjęcie posiłku wysłane świadomie do jednorazowej analizy AI; BallWise nie zapisuje zdjęcia ani opisu posiłku w profilu.
 Nie sprzedajemy danych i nie używamy danych treningowych ani zdrowotnych do reklam lub profilowania marketingowego.
 
 4. Cele i podstawy
-Dane konta i planu są potrzebne do wykonania umowy i działania aplikacji. Dane o gotowości lub bólu przetwarzamy wyłącznie po wyraźnej, dobrowolnej zgodzie. Zgoda marketingowa jest zawsze oddzielna i domyślnie wyłączona. Rejestrujemy wersję, czas, zakres i osobę składającą zgodę, aby móc ją wykazać.
+Dane konta i planu są potrzebne do wykonania umowy i działania aplikacji. Dane o gotowości lub bólu oraz opcjonalną masę do Fuel Precision przetwarzamy wyłącznie po odrębnej, dobrowolnej zgodzie. Zgoda marketingowa jest zawsze oddzielna i domyślnie wyłączona. Rejestrujemy wersję, czas, zakres i osobę składającą zgodę, aby móc ją wykazać.
 
 5. Brak zgody zdrowotnej
 Odmowa albo wycofanie zgody dotyczącej danych o zdrowiu nie blokuje konta. BallWise nie zapisuje wtedy nowych odpowiedzi gotowości, usuwa dotychczasowe logi gotowości i bólu oraz stosuje konserwatywną decyzję treningową bez tej personalizacji.
@@ -95,7 +100,7 @@ Odmowa albo wycofanie zgody dotyczącej danych o zdrowiu nie blokuje konta. Ball
 Aplikacja analizuje profil, kalendarz i — jeśli wyrażono zgodę — gotowość, aby zaproponować decyzję dnia i plan. Jest to rekomendacja treningowa bez skutków prawnych. Użytkownik może jej nie wykonać, zmienić dane albo usunąć konto.
 
 7. Odbiorcy i infrastruktura
-Dane są przechowywane u dostawcy infrastruktury Supabase działającego jako podmiot przetwarzający. Dostęp mają wyłącznie upoważnione osoby i dostawcy niezbędni do utrzymania usługi. Aktualna lista podmiotów i informacje o transferach danych muszą być udostępnione przy wydaniu produkcyjnym.
+Dane są przechowywane u dostawcy infrastruktury Supabase działającego jako podmiot przetwarzający. Jeśli użytkownik uruchomi skaner, zdjęcie posiłku jest przekazywane do OpenAI wyłącznie w celu jednorazowej analizy z parametrem \`store: false\`. BallWise nie zapisuje obrazu ani wyniku w profilu; dostawca może jednak przechowywać krótkotrwałe logi bezpieczeństwa zgodnie ze swoimi zasadami. Dostęp mają wyłącznie upoważnione osoby i dostawcy niezbędni do utrzymania usługi. Aktualna lista podmiotów i informacje o transferach danych muszą być udostępnione przy wydaniu produkcyjnym.
 
 8. Czas przechowywania
 Dane konta przechowujemy przez ${retention} albo do skutecznego usunięcia konta, z wyjątkiem danych wymaganych dłużej przez prawo. Wycofane zgody pozostają w dzienniku tylko tak długo, jak jest to niezbędne do wykazania zgodności.

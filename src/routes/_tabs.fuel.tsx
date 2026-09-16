@@ -1,623 +1,819 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useLoadwise } from "@/lib/loadwise/store";
-import { AppHeader } from "@/components/loadwise/ui";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
+  ArrowRight,
+  ArrowUp,
+  AudioLines,
+  Camera,
+  Check,
   ChevronLeft,
-  CalendarClock,
-  Utensils,
+  ChevronRight,
+  Clock3,
   Droplets,
-  Zap,
-  Feather,
-  Timer,
-  X,
-  Sparkles,
+  Gauge,
+  LockKeyhole,
+  Mic,
+  ScanLine,
+  Settings2,
+  Square,
+  Utensils,
+  Waves,
 } from "lucide-react";
+import { AdaptiveFuelProtocol } from "@/components/fuel/AdaptiveFuelProtocol";
+import { FuelPrecisionSheet } from "@/components/fuel/FuelPrecisionSheet";
+import { FuelResultSheet } from "@/components/fuel/FuelResultSheet";
+import { MealScannerSheet } from "@/components/fuel/MealScannerSheet";
 import { evaluateMeal, TIME_BUCKET_MINUTES } from "@/lib/fuel/engine";
-import {
-  athleteFromProfile,
-  findNextSession,
-  sessionFromPlan,
-} from "@/lib/fuel/planAdapter";
 import { parseMeal } from "@/lib/fuel/mealParser";
+import { athleteFromProfile, findNextSession, sessionFromPlan } from "@/lib/fuel/planAdapter";
+import {
+  prepareMealPhoto,
+  type MealPhotoAnalysis,
+  type PreparedMealPhoto,
+} from "@/lib/fuel/photoScanner";
+import {
+  adaptFuelProtocolForMessage,
+  buildFuelProtocol,
+  completeFuelProtocolItem,
+  fuelProtocolProgress,
+  fuelProtocolStorageKey,
+  mergeFuelProtocolProgress,
+  parseTrainingLeadMinutes,
+  type FuelProtocol,
+  type FuelProtocolStage,
+} from "@/lib/fuel/protocol";
+import {
+  fuelTargetRange,
+  recommendMeals,
+  type MealRecommendation,
+} from "@/lib/fuel/recommendations";
 import type { Portion, TimeBucket } from "@/lib/fuel/types";
 import {
   availableFixes,
-  BUILD_GROUPS,
-  BUILD_OPTIONS,
   fuelSignal,
-  indicators,
-  plateShares,
-  QUICK_PICKS,
-  resultTone,
   smallerPortion,
-  TONE_LABEL,
   withExtras,
   withoutHeavy,
-  type Demand,
   type FixId,
-  type Indicator,
-  type ResultTone,
 } from "@/lib/fuel/uiModel";
+import { useLoadwise } from "@/lib/loadwise/store";
 
 export const Route = createFileRoute("/_tabs/fuel")({
-  component: FuelWiseScreen,
+  component: FuelScreen,
   head: () => ({
     meta: [
-      { title: "FuelWise – posiłek dopasowany do treningu | BallWise" },
+      { title: "Fuel – paliwo dopasowane do treningu | BallWise" },
       {
         name: "description",
         content:
-          "Zbuduj lub opisz posiłek, a FuelWise pokaże sygnał paliwa, talerz i jedną korektę przed najbliższą jednostką.",
+          "Prosty, adaptacyjny plan paliwa przed treningiem z opisem głosowym i prywatnym skanerem posiłku.",
       },
-      { property: "og:title", content: "FuelWise – posiłek dopasowany do treningu" },
-      {
-        property: "og:description",
-        content:
-          "Interaktywne dopasowanie posiłku do najbliższej jednostki treningowej w BallWise.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
     ],
   }),
 });
 
-const PORTIONS: { id: Portion; label: string }[] = [
-  { id: "mala", label: "Mała" },
-  { id: "normalna", label: "Normalna" },
-  { id: "duza", label: "Duża" },
-];
-
 const WINDOWS: { id: TimeBucket; label: string }[] = [
-  { id: "30_60", label: "do 60 min" },
+  { id: "lt30", label: "< 30 min" },
+  { id: "30_60", label: "30–60 min" },
   { id: "60_120", label: "1–2 h" },
   { id: "120_240", label: "2–4 h" },
-  { id: "gt240", label: "później" },
+  { id: "gt240", label: "> 4 h" },
 ];
 
-const QUICK_GROUPS = ["najszybciej", "normalny", "bez gotowania"] as const;
-
-const DEMAND_TONE: Record<Demand, string> = {
-  lekkie: "bg-muted text-foreground",
-  umiarkowane: "bg-primary/15 text-primary",
-  wysokie: "bg-primary text-primary-foreground",
+type SpeechResultEvent = { results: ArrayLike<{ 0: { transcript: string } }> };
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: SpeechResultEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
 };
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
-const TONE_BADGE: Record<ResultTone, string> = {
-  fit: "bg-primary text-primary-foreground",
-  tweak: "bg-primary/15 text-primary",
-  heavy: "bg-muted text-foreground",
-  empty: "bg-accent text-accent-foreground",
-};
-
-function FuelWiseScreen() {
-  const { state, todayIso } = useLoadwise();
-
+function FuelScreen() {
+  const { state, todayIso, saveFuelPrecision } = useLoadwise();
+  const profile = state.profile;
   const session = useMemo(
     () => sessionFromPlan(findNextSession(state.plan, todayIso), todayIso),
     [state.plan, todayIso],
   );
-  const athlete = useMemo(() => athleteFromProfile(state.profile), [state.profile]);
+  const athlete = useMemo(() => athleteFromProfile(profile), [profile]);
 
-  const [mode, setMode] = useState<"describe" | "build">("build");
-  const [text, setText] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
-  const [portion, setPortion] = useState<Portion>("normalna");
   const [bucket, setBucket] = useState<TimeBucket | null>(null);
+  const [manualMinutes, setManualMinutes] = useState<number | null>(null);
+  const [text, setText] = useState("");
+  const [chosenMealId, setChosenMealId] = useState<string | null>(null);
+  const [portion, setPortion] = useState<Portion>("normalna");
   const [extras, setExtras] = useState<string[]>([]);
   const [dropHeavy, setDropHeavy] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [openWhy, setOpenWhy] = useState<Indicator["key"] | null>(null);
-  const [pulse, setPulse] = useState(0);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [precisionOpen, setPrecisionOpen] = useState(false);
+  const [precisionSaving, setPrecisionSaving] = useState(false);
+  const [photo, setPhoto] = useState<PreparedMealPhoto | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanAnalysis, setScanAnalysis] = useState<MealPhotoAnalysis | null>(null);
+  const [listening, setListening] = useState(false);
+  const [protocol, setProtocol] = useState<FuelProtocol | null>(null);
+  const [protocolOpen, setProtocolOpen] = useState(false);
+  const [safetyConfirmed, setSafetyConfirmed] = useState(athlete.allergyStatus !== "unconfirmed");
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const countdown = useCountdown(session.minutesToStart);
-  const minutes = countdown ?? (bucket ? TIME_BUCKET_MINUTES[bucket] : null);
-
-  const chips = useMemo(
-    () =>
-      mode === "build"
-        ? picked.map((id) => BUILD_OPTIONS[id]?.label ?? id)
-        : [],
-    [mode, picked],
+  const minutes = countdown ?? manualMinutes ?? (bucket ? TIME_BUCKET_MINUTES[bucket] : null);
+  const signal = useMemo(() => fuelSignal(session, minutes), [session, minutes]);
+  const target = useMemo(
+    () => fuelTargetRange({ session, minutes, profile }),
+    [session, minutes, profile],
   );
-
-  const baseText =
-    mode === "build"
-      ? picked.map((id) => BUILD_OPTIONS[id]?.text ?? "").join(", ")
-      : text;
+  const recommendations = useMemo(
+    () => recommendMeals({ session, minutes, profile, limit: 4 }),
+    [session, minutes, profile],
+  );
+  const activeRecommendation =
+    recommendations.find((recommendation) => recommendation.id === chosenMealId) ??
+    recommendations[0] ??
+    null;
 
   const meal = useMemo(() => {
-    let m = parseMeal(baseText);
-    if (dropHeavy) m = withoutHeavy(m);
-    return withExtras(m, extras);
-  }, [baseText, dropHeavy, extras]);
-
-  const hasMeal = meal.items.length > 0 || baseText.trim().length > 2;
-  const signal = useMemo(() => fuelSignal(session, minutes), [session, minutes]);
-  const marks = useMemo(
-    () => indicators(meal, portion, session, minutes, signal.demand),
-    [meal, portion, session, minutes, signal.demand],
+    let parsed = parseMeal(text);
+    if (dropHeavy) parsed = withoutHeavy(parsed);
+    return withExtras(parsed, extras);
+  }, [text, dropHeavy, extras]);
+  const hasMeal = meal.items.length > 0 || text.trim().length > 2;
+  const evaluationAthlete = useMemo(
+    () =>
+      athlete.allergyStatus === "unconfirmed" && safetyConfirmed
+        ? { ...athlete, allergyStatus: "session_confirmed" as const }
+        : athlete,
+    [athlete, safetyConfirmed],
   );
-  const plate = useMemo(() => plateShares(minutes, signal.demand), [minutes, signal.demand]);
-
   const result = useMemo(() => {
     if (!hasMeal || minutes == null || session.kind === "none") return null;
     return evaluateMeal({
       session,
-      athlete,
+      athlete: evaluationAthlete,
       meal,
       portion,
       timeBucket: bucket,
       onlyThis: false,
     });
-  }, [hasMeal, minutes, session, athlete, meal, portion, bucket]);
+  }, [hasMeal, minutes, session, evaluationAthlete, meal, portion, bucket]);
+  const fixes = availableFixes(meal, portion);
+  const protocolProgress = protocol ? fuelProtocolProgress(protocol) : { done: 0, total: 4 };
 
   useEffect(() => {
-    if (result) setPulse((p) => p + 1);
-  }, [result]);
+    setSafetyConfirmed(athlete.allergyStatus !== "unconfirmed");
+  }, [athlete.allergyStatus]);
 
-  const tone = result ? resultTone(result.verdict, result.ruleId) : null;
-  const fixes = availableFixes(meal, portion);
+  useEffect(
+    () => () => {
+      recognitionRef.current?.stop();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!activeRecommendation || minutes == null || session.kind === "none") {
+      setProtocol(null);
+      return;
+    }
+    const fresh = buildFuelProtocol({
+      session,
+      minutes,
+      recommendation: activeRecommendation,
+      target,
+    });
+    let persisted: FuelProtocol | null = null;
+    try {
+      const raw = window.localStorage.getItem(fuelProtocolStorageKey(session));
+      if (raw) persisted = JSON.parse(raw) as FuelProtocol;
+    } catch {
+      persisted = null;
+    }
+    setProtocol((current) => mergeFuelProtocolProgress(fresh, current ?? persisted));
+  }, [activeRecommendation, minutes, session, target]);
+
+  useEffect(() => {
+    if (!protocol) return;
+    try {
+      window.localStorage.setItem(fuelProtocolStorageKey(session), JSON.stringify(protocol));
+    } catch {
+      // Brak miejsca lub tryb prywatny: protokół nadal działa do zamknięcia karty.
+    }
+  }, [protocol, session]);
+
+  function selectWindow(next: TimeBucket) {
+    setManualMinutes(null);
+    setBucket(next);
+  }
+
+  function evaluateCurrent() {
+    if (minutes == null) {
+      toast.info("Najpierw wybierz czas do treningu.");
+      return;
+    }
+    if (!hasMeal) {
+      toast.info("Opisz posiłek albo wybierz propozycję.");
+      return;
+    }
+    if (athlete.allergyStatus === "unconfirmed" && !safetyConfirmed) {
+      toast.info("Potwierdź, że składniki są dla Ciebie bezpieczne.");
+      return;
+    }
+    setResultOpen(true);
+  }
+
+  function selectRecommendation(recommendation: MealRecommendation, openResult = true) {
+    setChosenMealId(recommendation.id);
+    setText(recommendation.text);
+    setPortion(recommendation.portion);
+    setExtras([]);
+    setDropHeavy(false);
+    setScanAnalysis(null);
+    if (!openResult) return;
+    if (minutes == null) toast.info("Propozycja wybrana. Ustaw jeszcze czas do treningu.");
+    else if (athlete.allergyStatus === "unconfirmed" && !safetyConfirmed)
+      toast.info("Propozycja wybrana. Potwierdź bezpieczeństwo składników.");
+    else setResultOpen(true);
+  }
+
+  function openProtocol() {
+    if (minutes == null) {
+      toast.info("Wybierz czas do treningu, aby uruchomić protokół.");
+      return;
+    }
+    if (activeRecommendation && !chosenMealId) selectRecommendation(activeRecommendation, false);
+    setProtocolOpen(true);
+  }
+
+  function completeProtocol(id: FuelProtocolStage) {
+    setProtocol((current) => (current ? completeFuelProtocolItem(current, id) : current));
+  }
+
+  function adaptProtocol(message: string) {
+    const changedLead = parseTrainingLeadMinutes(message);
+    if (changedLead != null) {
+      setProtocol((current) =>
+        current
+          ? {
+              ...current,
+              lastResponse: `Przeliczyłem plan dla startu za ${formatLead(changedLead)}. Ukończone kroki zostają zaznaczone.`,
+            }
+          : current,
+      );
+      setBucket(null);
+      setManualMinutes(changedLead);
+      return;
+    }
+    setProtocol((current) =>
+      current ? adaptFuelProtocolForMessage(current, message, target) : current,
+    );
+  }
+
+  function resetProtocol() {
+    if (!activeRecommendation || minutes == null) return;
+    const fresh = buildFuelProtocol({
+      session,
+      minutes,
+      recommendation: activeRecommendation,
+      target,
+    });
+    setProtocol(fresh);
+    try {
+      window.localStorage.removeItem(fuelProtocolStorageKey(session));
+    } catch {
+      // Nic do usunięcia.
+    }
+  }
 
   function applyFix(id: FixId) {
-    if (id === "add_banana") setExtras((e) => (e.includes("banan") ? e : [...e, "banan"]));
-    if (id === "add_water") setExtras((e) => (e.includes("woda") ? e : [...e, "woda"]));
-    if (id === "smaller_portion") setPortion((p) => smallerPortion(p));
+    if (id === "add_banana")
+      setExtras((items) => (items.includes("banan") ? items : [...items, "banan"]));
+    if (id === "add_water")
+      setExtras((items) => (items.includes("woda") ? items : [...items, "woda"]));
+    if (id === "smaller_portion") setPortion((value) => smallerPortion(value));
     if (id === "drop_heavy") setDropHeavy(true);
   }
 
-  function loadQuick(t: string, p: Portion) {
-    setMode("describe");
-    setText(t);
-    setPortion(p);
-    setExtras([]);
-    setDropHeavy(false);
-    setOpen(true);
+  async function handlePhoto(file: File | undefined) {
+    if (!file) return;
+    try {
+      const prepared = await prepareMealPhoto(file);
+      setPhoto(prepared);
+      setScannerOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nie udało się otworzyć zdjęcia.");
+    } finally {
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+    }
   }
 
+  function closeScanner() {
+    setScannerOpen(false);
+    setPhoto(null);
+  }
+
+  function useScan(scanText: string, scanPortion: Portion, analysis: MealPhotoAnalysis) {
+    setText(scanText);
+    setPortion(scanPortion);
+    setChosenMealId(null);
+    setExtras([]);
+    setDropHeavy(false);
+    setScanAnalysis(analysis);
+    closeScanner();
+    if (minutes == null) toast.info("Skład gotowy. Wybierz czas do treningu.");
+    else if (athlete.allergyStatus === "unconfirmed" && !safetyConfirmed)
+      toast.info("Skład gotowy. Potwierdź bezpieczeństwo składników.");
+    else setResultOpen(true);
+  }
+
+  function toggleVoice() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const browserWindow = window as typeof window & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const Recognition = browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
+    if (!Recognition) {
+      toast.info("Ta przeglądarka nie obsługuje dyktowania. Wpisz posiłek ręcznie.");
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "pl-PL";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (transcript) {
+        setText(transcript);
+        setChosenMealId(null);
+        setExtras([]);
+        setDropHeavy(false);
+        setScanAnalysis(null);
+      }
+    };
+    recognition.onerror = () => toast.error("Nie udało się rozpoznać mowy. Spróbuj ponownie.");
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    setListening(true);
+    recognition.start();
+  }
+
+  async function savePrecision(enabled: boolean, weightKg: number | null) {
+    setPrecisionSaving(true);
+    try {
+      await saveFuelPrecision(enabled, weightKg);
+      toast.success(
+        enabled
+          ? "Dokładniejszy zakres jest aktywny."
+          : "Tryb dokładniejszy wyłączony. Masa została usunięta.",
+      );
+      setPrecisionOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać ustawienia.");
+    } finally {
+      setPrecisionSaving(false);
+    }
+  }
+
+  if (!profile) return null;
+
   return (
-    <div className="premium-flow fuel-premium pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
-      <AppHeader
-        title="Fuel"
-        subtitle="Dopasuj posiłek do najbliższej jednostki"
-        right={
+    <div className="premium-flow fuel-premium pb-[calc(env(safe-area-inset-bottom)+7rem)]">
+      <header className="flex items-center justify-between px-5 pb-5 pt-[calc(env(safe-area-inset-top)+1rem)]">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" /> BallWise
+          </div>
+          <h1 className="mt-1 text-[30px] font-medium leading-none tracking-[-0.05em]">Fuel</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPrecisionOpen(true)}
+            className="grid h-10 w-10 place-items-center rounded-full border border-border/80 bg-card/60 text-muted-foreground active:scale-95"
+            aria-label="Ustawienia dokładności Fuel"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
           <Link
             to="/start"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-card text-muted-foreground transition-transform active:scale-95"
+            className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background active:scale-95"
             aria-label="Wróć"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
           </Link>
-        }
-      />
+        </div>
+      </header>
 
-      <div className="space-y-3 px-5">
+      <main className="space-y-4 px-5">
         {session.kind === "none" ? (
-          <div className="soft-card p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <CalendarClock className="h-3.5 w-3.5" /> Najbliższa jednostka
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Nie znaleźliśmy zaplanowanej jednostki. Dodaj trening do planu, aby otrzymać
-              dopasowaną rekomendację.
-            </p>
-            <Link
-              to="/plan"
-              className="mt-3 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Przejdź do planu
-            </Link>
-          </div>
+          <NoSession />
         ) : (
           <>
-            {/* OŚ CZASU */}
-            <div className="soft-card p-4">
-              <Timeline minutes={minutes} />
-              {countdown != null ? (
-                <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-primary">
-                  <Timer className="h-4 w-4" />
-                  Do startu: {formatCountdown(countdown)}
-                </div>
-              ) : (
-                <div className="mt-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Ile zostało do treningu?
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {WINDOWS.map((w) => (
-                      <button
-                        key={w.id}
-                        type="button"
-                        onClick={() => setBucket(w.id)}
-                        className={`rounded-full border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
-                          bucket === w.id
-                            ? "border-primary bg-primary/[0.08] text-primary"
-                            : "border-border bg-card text-muted-foreground"
-                        }`}
-                      >
-                        {w.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* SYGNAŁ PALIWA */}
-            <div className="soft-card p-4">
+            <section className="fuel-intelligence relative overflow-hidden rounded-[2rem] border border-border/55 bg-card/60 px-5 pb-5 pt-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold">Sygnał paliwa</div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors duration-300 ${DEMAND_TONE[signal.demand]}`}
-                >
-                  {signal.label}
+                <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                  <span className="fuel-live-dot h-1.5 w-1.5 rounded-full bg-primary" />
+                  {session.dayLabel ?? "Najbliższa jednostka"} · {sessionLabel(session.kind)}
+                </div>
+                <span className="rounded-full border border-border/80 bg-background/65 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                  {minutes == null ? "ustaw czas" : formatLead(minutes)}
                 </span>
               </div>
-              <div className="mt-1.5 text-sm text-muted-foreground">
-                {[session.title, signal.sessionLine].filter(Boolean).join(" · ")}
-              </div>
-              <p className="mt-2 text-sm">{signal.advice}</p>
 
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {marks.map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setOpenWhy(openWhy === m.key ? null : m.key)}
-                    className={`rounded-2xl border p-2.5 text-left transition-all duration-200 active:scale-95 ${
-                      m.state === "ok"
-                        ? "border-primary/30 bg-primary/10"
-                        : m.state === "high"
-                          ? "border-border bg-muted/60"
-                          : "border-accent/40 bg-accent/20"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                      {m.key === "energia" ? (
-                        <Zap className="h-3.5 w-3.5" />
-                      ) : m.key === "trawienie" ? (
-                        <Feather className="h-3.5 w-3.5" />
-                      ) : (
-                        <Droplets className="h-3.5 w-3.5" />
-                      )}
-                      {m.label}
-                    </div>
-                    <div className="mt-1 text-[13px] font-semibold leading-tight">{m.value}</div>
-                  </button>
-                ))}
+              <div className="mt-5 grid grid-cols-[6.25rem_1fr] items-center gap-4">
+                <div className="fuel-orbit relative grid h-[6.25rem] w-[6.25rem] place-items-center rounded-full border border-primary/10">
+                  <span className="absolute inset-[0.55rem] rounded-full border border-primary/15" />
+                  <span className="absolute inset-[1.15rem] rounded-full border border-primary/20" />
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_10px_30px_-15px_oklch(0.31_0.07_158/0.8)]">
+                    <Waves className="h-5 w-5" strokeWidth={1.8} />
+                  </span>
+                </div>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                    {signal.label}
+                  </div>
+                  <h2 className="mt-1.5 text-[20px] font-medium leading-tight tracking-[-0.04em]">
+                    {minutes == null
+                      ? "Najpierw ustaw moment"
+                      : guidanceTitle(minutes, signal.demand)}
+                  </h2>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                    {minutes == null
+                      ? "Jedno wskazanie czasu wystarczy, aby dopasować posiłek i kolejne kroki."
+                      : `${session.durationMin ?? "—"} min · ${intensityLabel(session.intensity)} · plan aktualizuje się na bieżąco`}
+                  </p>
+                </div>
               </div>
-              {openWhy && (
-                <p className="mt-2 animate-fade-in rounded-2xl bg-muted/60 p-3 text-sm">
-                  <span className="font-semibold">Dlaczego? </span>
-                  {marks.find((m) => m.key === openWhy)?.why}
-                </p>
+
+              <div className="mt-5 grid grid-cols-3 divide-x divide-border/80 border-t border-border/70 pt-4">
+                <Metric
+                  icon={Utensils}
+                  label="Węgle"
+                  value={`${target.carbMinG}–${target.carbMaxG} g`}
+                />
+                <Metric
+                  icon={Droplets}
+                  label="Płyny"
+                  value={`${target.fluidMinMl}–${target.fluidMaxMl} ml`}
+                />
+                <Metric icon={Gauge} label="Komfort" value={comfortLabel(minutes)} />
+              </div>
+            </section>
+
+            <section aria-label="Czas do treningu" className="py-1">
+              <div className="mb-2.5 flex items-center justify-between px-1">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Clock3 className="h-3.5 w-3.5" /> Start za
+                </div>
+                {manualMinutes != null && (
+                  <span className="text-[10px] font-medium text-primary">
+                    zaktualizowano w protokole
+                  </span>
+                )}
+              </div>
+              {countdown == null && (
+                <div className="-mx-5 flex snap-x gap-2 overflow-x-auto px-5 pb-1">
+                  {WINDOWS.map((window) => (
+                    <button
+                      key={window.id}
+                      type="button"
+                      onClick={() => selectWindow(window.id)}
+                      className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition active:scale-95 ${
+                        bucket === window.id && manualMinutes == null
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border/85 bg-card/55 text-muted-foreground"
+                      }`}
+                    >
+                      {window.label}
+                    </button>
+                  ))}
+                </div>
               )}
-            </div>
+            </section>
 
-            {/* TALERZ PALIWA */}
-            <div className="soft-card p-4">
-              <div className="text-sm font-semibold">Talerz paliwa</div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Proporcje zmieniają się z czasem do startu i obciążeniem jednostki.
-              </p>
-              <Plate plate={plate} />
-            </div>
-
-            {/* TRYBY */}
-            <div className="soft-card p-4">
-              <div className="flex rounded-full bg-muted p-1">
-                {(["describe", "build"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={`flex-1 rounded-full px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                      mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-                    }`}
-                  >
-                    {m === "describe" ? "Opisz posiłek" : "Zbuduj posiłek"}
-                  </button>
-                ))}
-              </div>
-
-              {mode === "describe" ? (
-                <Textarea
-                  className="mt-3 min-h-24 rounded-2xl"
-                  placeholder="Np. dwa tosty z serem i szynką, banan i woda"
+            <section className="rounded-[1.45rem] border border-border/80 bg-card/70 p-2.5 shadow-[0_18px_45px_-40px_oklch(0.2_0.02_155/0.8)] backdrop-blur">
+              <div className="flex items-center gap-2">
+                <label htmlFor="fuel-meal" className="sr-only">
+                  Opisz posiłek
+                </label>
+                <input
+                  id="fuel-meal"
                   value={text}
-                  onChange={(e) => {
-                    setText(e.target.value);
+                  onChange={(event) => {
+                    setText(event.target.value);
+                    setChosenMealId(null);
                     setExtras([]);
                     setDropHeavy(false);
+                    setScanAnalysis(null);
                   }}
+                  onKeyDown={(event) => event.key === "Enter" && evaluateCurrent()}
+                  placeholder="Opisz posiłek jednym zdaniem"
+                  className="h-11 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground/65"
                 />
-              ) : (
-                <div className="mt-3 space-y-3">
-                  {BUILD_GROUPS.map((g) => (
-                    <div key={g.id}>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {g.label}
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap gap-2">
-                        {g.options.map((o) => {
-                          const on = picked.includes(o.id);
-                          return (
-                            <button
-                              key={o.id}
-                              type="button"
-                              onClick={() => {
-                                setExtras([]);
-                                setDropHeavy(false);
-                                setPicked((p) =>
-                                  on ? p.filter((x) => x !== o.id) : [...p, o.id],
-                                );
-                              }}
-                              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200 active:scale-95 ${
-                                on
-                                  ? "border-primary bg-primary/[0.08] text-primary"
-                                  : "border-border bg-card text-muted-foreground"
-                              }`}
-                            >
-                              {o.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition active:scale-95 ${listening ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  aria-label={listening ? "Zatrzymaj nagrywanie" : "Opisz głosem"}
+                >
+                  {listening ? (
+                    <Square className="h-3 w-3 fill-current" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground active:scale-95"
+                  aria-label="Zeskanuj posiłek"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={evaluateCurrent}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground active:scale-95"
+                  aria-label="Oceń posiłek"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(event) => handlePhoto(event.target.files?.[0])}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 px-2 pb-1 pt-1 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <AudioLines className="h-3 w-3" /> tekst · głos · skan AI
+                </span>
+                <span>opis nie jest zapisywany</span>
+              </div>
+            </section>
 
-              {(chips.length > 0 || extras.length > 0) && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {chips.concat(extras).map((c, i) => (
-                    <span
-                      key={`${c}-${i}`}
-                      className="animate-scale-in rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              )}
+            {athlete.allergyStatus === "unconfirmed" && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/70 bg-background/40 p-3">
+                <input
+                  type="checkbox"
+                  checked={safetyConfirmed}
+                  onChange={(event) => setSafetyConfirmed(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
+                />
+                <span className="text-[11px] leading-relaxed text-muted-foreground">
+                  Potwierdzam, że wybrane składniki są dla mnie bezpieczne. Fuel nie wykrywa
+                  alergenów.
+                </span>
+              </label>
+            )}
 
-              <div className="mt-3 flex gap-2">
-                {PORTIONS.map((p) => (
+            {activeRecommendation && (
+              <section className="rounded-[1.65rem] bg-foreground px-5 py-5 text-background shadow-[0_22px_48px_-34px_oklch(0.12_0.02_160/0.8)]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.17em] text-background/55">
+                    Najlepszy kierunek
+                  </span>
+                  <span className="rounded-full bg-background/10 px-2.5 py-1 text-[10px] text-background/65">
+                    {activeRecommendation.prepMinutes} min
+                  </span>
+                </div>
+                <h2 className="mt-3 text-[19px] font-medium leading-tight tracking-[-0.035em]">
+                  {activeRecommendation.title}
+                </h2>
+                <p className="mt-1.5 text-xs leading-relaxed text-background/58">
+                  {activeRecommendation.subtitle}. Dopasowane do czasu i obciążenia najbliższej
+                  jednostki.
+                </p>
+                <div className="mt-5 flex items-center justify-between gap-3 border-t border-background/10 pt-4">
+                  <span className="text-[10px] text-background/50">
+                    {target.precise ? "zakres spersonalizowany" : "bez dodatkowych danych"}
+                  </span>
                   <button
-                    key={p.id}
                     type="button"
-                    onClick={() => setPortion(p.id)}
-                    className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
-                      portion === p.id
-                        ? "border-primary bg-primary/[0.08] text-primary"
-                        : "border-border bg-card text-muted-foreground"
-                    }`}
+                    onClick={() => selectRecommendation(activeRecommendation)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-2 text-xs font-semibold text-foreground active:scale-95"
                   >
-                    {p.label}
+                    Sprawdź porcję <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </section>
+            )}
+
+            <button
+              type="button"
+              onClick={openProtocol}
+              className="group flex w-full items-center gap-4 rounded-[1.5rem] border border-primary/18 bg-primary/[0.045] p-4 text-left transition active:scale-[0.99]"
+            >
+              <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-primary/20 text-primary">
+                <span className="fuel-live-dot absolute h-2 w-2 rounded-full bg-primary" />
+                <span className="absolute inset-1.5 rounded-full border border-primary/10" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">
+                  Adaptive Fuel Protocol
+                  {protocolProgress.done > 0 && <Check className="h-3 w-3" />}
+                </span>
+                <span className="mt-1 block text-[15px] font-medium tracking-[-0.02em]">
+                  {protocolProgress.done > 0
+                    ? `${protocolProgress.done}/${protocolProgress.total} kroków wykonanych`
+                    : "Prowadź paliwo aż do regeneracji"}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  Reaguje na niepełny posiłek i zmianę godziny startu.
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-active:translate-x-0.5" />
+            </button>
+
+            <section className="pt-1">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <h2 className="text-sm font-medium tracking-[-0.02em]">Inne dobre opcje</h2>
+                <span className="text-[10px] text-muted-foreground">z Twoich ograniczeń</span>
+              </div>
+              <div className="divide-y divide-border/70 rounded-[1.35rem] border border-border/75 bg-card/45 px-4">
+                {recommendations.slice(1, 4).map((recommendation) => (
+                  <button
+                    key={recommendation.id}
+                    type="button"
+                    onClick={() => selectRecommendation(recommendation)}
+                    className="flex w-full items-center gap-3 py-3.5 text-left active:opacity-65"
+                  >
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/[0.07] text-primary">
+                      <Utensils className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {recommendation.title}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                        {recommendation.highlight} · {recommendation.prepMinutes} min
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </button>
                 ))}
               </div>
+            </section>
 
-              <button
-                type="button"
-                disabled={!hasMeal || minutes == null}
-                onClick={() => setOpen(true)}
-                className="mt-3 w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-95 disabled:opacity-50"
-              >
-                {minutes == null ? "Wybierz czas do treningu" : "Sprawdź posiłek"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setPrecisionOpen(true)}
+              className="flex w-full items-center gap-3 px-1 py-2 text-left"
+            >
+              <LockKeyhole className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-muted-foreground">
+                {profile.fuelPrecisionEnabled
+                  ? "Dokładniejszy zakres aktywny · masę możesz usunąć jednym kliknięciem."
+                  : "Dokładniejszy zakres jest opcjonalny. Fuel działa bez masy i wzrostu."}
+              </span>
+              <span className="text-[11px] font-medium text-primary">Ustaw</span>
+            </button>
 
-            {/* SZYBKI WYBÓR */}
-            <div className="soft-card p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Sparkles className="h-4 w-4 text-primary" /> Szybki wybór
-              </div>
-              {QUICK_GROUPS.map((g) => (
-                <div key={g} className="mt-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {g}
-                  </div>
-                  <div className="-mx-1 mt-1.5 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
-                    {QUICK_PICKS.filter((q) => q.group === g).map((q) => (
-                      <button
-                        key={q.id}
-                        type="button"
-                        onClick={() => loadQuick(q.text, q.portion)}
-                        className="w-40 shrink-0 snap-start rounded-2xl border border-border bg-card p-3 text-left transition-transform duration-200 active:scale-95"
-                      >
-                        <div className="text-sm font-semibold leading-tight">{q.title}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">{q.text}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-              Ocena wynika z Twojego planu i jawnych reguł FuelWise. Opis posiłku nie jest
-              nigdzie zapisywany.
+            <p className="px-1 text-[10px] leading-relaxed text-muted-foreground">
+              Orientacyjne wsparcie żywieniowe, nie diagnoza ani indywidualna porada medyczna.
             </p>
           </>
         )}
-      </div>
+      </main>
 
-      {/* WYNIK — wysuwana karta */}
-      {result && tone && (
-        <>
-          <div
-            className={`fixed inset-0 z-40 bg-foreground/20 transition-opacity duration-200 ${
-              open ? "opacity-100" : "pointer-events-none opacity-0"
-            }`}
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className={`fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-border bg-card p-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] shadow-2xl transition-transform duration-300 ease-out ${
-              open ? "translate-y-0" : "translate-y-full"
-            }`}
-            role="dialog"
-            aria-label="Wynik dopasowania posiłku"
-          >
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
-            <div className="flex items-start justify-between gap-3">
-              <span
-                key={pulse}
-                className={`animate-scale-in rounded-full px-3 py-1 text-sm font-semibold transition-colors duration-300 ${TONE_BADGE[tone]}`}
-              >
-                {TONE_LABEL[tone]}
-              </span>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Zamknij"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground active:scale-95"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="mt-3 text-sm">{result.why}</p>
-
-            {result.keep.length > 0 && (
-              <div className="mt-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Co działa
-                </div>
-                <p className="mt-1 text-sm">{result.keep.join(", ")}</p>
-              </div>
-            )}
-
-            {result.change && (
-              <div className="mt-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Czego brakuje
-                </div>
-                <p className="mt-1 text-sm">{result.change}</p>
-              </div>
-            )}
-
-            <div className="mt-3 rounded-2xl bg-muted/60 p-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Najprostsza poprawka
-              </div>
-              <p className="mt-1 text-sm">{result.bestVersion}</p>
-            </div>
-
-            {fixes.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {fixes.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => applyFix(f.id)}
-                    className="rounded-full border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-transform duration-200 active:scale-95"
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-4 flex items-center gap-2">
-              <Utensils className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                Okno: {result.minutesToStart} min · potrzeba ok. {result.requiredLeadMinutes} min
-              </span>
-            </div>
-          </div>
-        </>
-      )}
+      <FuelPrecisionSheet
+        open={precisionOpen}
+        age={profile.age}
+        enabled={Boolean(profile.fuelPrecisionEnabled)}
+        currentWeightKg={profile.weightKg ?? null}
+        saving={precisionSaving}
+        onClose={() => setPrecisionOpen(false)}
+        onSave={savePrecision}
+      />
+      <MealScannerSheet
+        open={scannerOpen}
+        photo={photo}
+        session={session}
+        onClose={closeScanner}
+        onUse={useScan}
+      />
+      <FuelResultSheet
+        open={resultOpen}
+        result={result}
+        target={target}
+        scan={scanAnalysis}
+        fixes={fixes}
+        onFix={applyFix}
+        onClose={() => setResultOpen(false)}
+      />
+      <AdaptiveFuelProtocol
+        open={protocolOpen}
+        protocol={protocol}
+        onClose={() => setProtocolOpen(false)}
+        onComplete={completeProtocol}
+        onMessage={adaptProtocol}
+        onReset={resetProtocol}
+      />
     </div>
   );
 }
 
-/* ---------- Oś czasu ---------- */
-
-function Timeline({ minutes }: { minutes: number | null }) {
-  const steps = ["Teraz", "Posiłek", "Trening", "Regeneracja"];
-  const active = minutes == null ? 1 : minutes < 60 ? 1 : minutes < 240 ? 1 : 0;
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Droplets;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="flex items-center">
-      {steps.map((s, i) => (
-        <div key={s} className="flex flex-1 items-center last:flex-none">
-          <div className="flex flex-col items-center">
-            <span
-              className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                i <= active ? "bg-primary" : "bg-border"
-              } ${i === active ? "pulse ring-4 ring-primary/20" : ""}`}
-            />
-            <span
-              className={`mt-1.5 text-[11px] font-semibold ${
-                i <= active ? "text-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {s}
-            </span>
-          </div>
-          {i < steps.length - 1 && (
-            <span
-              className={`mx-1 mb-5 h-0.5 flex-1 rounded-full transition-colors duration-300 ${
-                i < active ? "bg-primary" : "bg-border"
-              }`}
-            />
-          )}
-        </div>
-      ))}
+    <div className="px-2 first:pl-0 last:pr-0">
+      <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <Icon className="h-3 w-3" strokeWidth={1.8} /> {label}
+      </div>
+      <div className="mt-1 truncate text-[12px] font-medium tracking-[-0.01em]">{value}</div>
     </div>
   );
 }
 
-/* ---------- Talerz ---------- */
-
-function Plate({ plate }: { plate: { carb: number; protein: number; fat: number; fluid: number } }) {
-  const parts = [
-    { key: "carb", label: "Węglowodany", value: plate.carb, color: "var(--color-primary)" },
-    { key: "protein", label: "Białko", value: plate.protein, color: "color-mix(in oklab, var(--color-primary) 55%, white)" },
-    { key: "fat", label: "Tłuszcz", value: plate.fat, color: "color-mix(in oklab, var(--color-primary) 25%, white)" },
-    { key: "fluid", label: "Płyny", value: plate.fluid, color: "color-mix(in oklab, var(--color-primary) 12%, white)" },
-  ];
+function NoSession() {
   return (
-    <div className="mt-3">
-      <div className="flex h-4 w-full overflow-hidden rounded-full bg-muted">
-        {parts.map((p) => (
-          <span
-            key={p.key}
-            className="h-full transition-all duration-300 ease-out"
-            style={{ width: `${p.value}%`, background: p.color }}
-          />
-        ))}
+    <section className="rounded-[1.5rem] border border-border bg-card/70 p-5">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+        <ScanLine className="h-4 w-4" /> Brak jednostki
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-        {parts.map((p) => (
-          <div key={p.key} className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
-            {p.label}
-          </div>
-        ))}
-      </div>
-    </div>
+      <h2 className="mt-3 text-xl font-medium tracking-[-0.035em]">
+        Fuel potrzebuje najbliższego treningu
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        Dodaj jednostkę do planu, a Fuel dopasuje czas, porcję i kolejne kroki.
+      </p>
+      <Link
+        to="/plan"
+        className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
+      >
+        Przejdź do planu <ArrowRight className="h-4 w-4" />
+      </Link>
+    </section>
   );
 }
 
-/* ---------- Odliczanie ---------- */
+function sessionLabel(kind: string): string {
+  if (kind === "match") return "mecz";
+  if (kind === "speed") return "szybkość";
+  if (kind === "strength") return "siła";
+  if (kind === "endurance") return "wytrzymałość";
+  if (kind === "recovery") return "regeneracja";
+  return "trening piłkarski";
+}
+
+function intensityLabel(intensity: string | null): string {
+  if (intensity === "wysoka") return "wysoka intensywność";
+  if (intensity === "niska") return "niska intensywność";
+  return "umiarkowana intensywność";
+}
+
+function guidanceTitle(minutes: number, demand: string): string {
+  if (minutes < 30) return "Lekko, szybko, bez przeciążenia";
+  if (minutes < 90) return "Proste paliwo i spokojny brzuch";
+  if (demand === "wysokie") return "Pełny posiłek, czysta energia";
+  return "Równa energia na całą jednostkę";
+}
+
+function comfortLabel(minutes: number | null): string {
+  if (minutes == null) return "po czasie";
+  if (minutes < 30) return "bardzo lekko";
+  if (minutes < 90) return "lekko";
+  return "swobodnie";
+}
 
 function useCountdown(startMinutes: number | null): number | null {
   const [left, setLeft] = useState<number | null>(startMinutes);
   useEffect(() => {
     setLeft(startMinutes);
     if (startMinutes == null) return;
-    const id = setInterval(() => {
-      setLeft((v) => (v == null ? v : Math.max(0, v - 1)));
+    const id = window.setInterval(() => {
+      setLeft((value) => (value == null ? value : Math.max(0, value - 1)));
     }, 60_000);
-    return () => clearInterval(id);
+    return () => window.clearInterval(id);
   }, [startMinutes]);
   return left;
 }
 
-function formatCountdown(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h} h ${m} min` : `${m} min`;
+function formatLead(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours > 0 ? `${hours} h ${rest ? `${rest} min` : ""}`.trim() : `${rest} min`;
 }

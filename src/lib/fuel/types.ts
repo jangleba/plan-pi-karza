@@ -43,7 +43,7 @@ export interface FuelAthleteContext {
   level: string | null;
   goal: string | null;
   restrictions: string[];
-  allergyStatus?: "unconfirmed" | "confirmed_none" | "has_allergies";
+  allergyStatus?: "unconfirmed" | "session_confirmed" | "confirmed_none" | "has_allergies";
   allergies?: string[];
   intolerances?: string[];
   exclusions?: string[];

@@ -184,6 +184,14 @@ function ProfileScreen() {
               label="Personalizacja gotowości"
               value={profile.healthPersonalizationEnabled ? "Włączona" : "Wyłączona · tryb ostrożny"}
             />
+            <Row
+              label="Fuel Precision"
+              value={
+                profile.fuelPrecisionEnabled && profile.weightKg
+                  ? `Włączony · ${profile.weightKg} kg`
+                  : "Wyłączony · zakres ogólny"
+              }
+            />
           </div>
         </section>
 
