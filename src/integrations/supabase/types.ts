@@ -970,26 +970,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      consume_fuel_photo_quota: {
-        Args: { p_user_id: string }
-        Returns: {
-          allowed: boolean
-          retry_after_seconds: number
-        }[]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
-        Returns: boolean
-      }
-      latest_consent_is_accepted: {
-        Args: { p_consent_type: string; p_user_id: string }
-        Returns: boolean
-      }
-      latest_consent_is_accepted_for_version: {
-        Args: { p_consent_type: string; p_user_id: string; p_version: string }
         Returns: boolean
       }
       persist_training_plan_atomic: {
@@ -1002,6 +987,10 @@ export type Database = {
           p_plan_json: Json
           p_sessions: Json
         }
+        Returns: undefined
+      }
+      record_consent: {
+        Args: { p_accepted: boolean; p_consent_type: string }
         Returns: undefined
       }
       withdraw_health_data_consent: {
