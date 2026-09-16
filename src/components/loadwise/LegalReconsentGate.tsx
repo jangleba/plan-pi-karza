@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
+import {
+  recordConsentDecision,
+  recordConsentDecisions,
+  type ConsentDecision,
+} from "@/lib/loadwise/consent";
 import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
 
@@ -12,23 +17,6 @@ interface ConsentRow {
   accepted: boolean;
   version: string;
   accepted_at: string;
-}
-
-interface ConsentInsert {
-  user_id: string;
-  consent_type: string;
-  accepted: boolean;
-  version: string;
-  text_snapshot: string;
-  actor_type: "athlete" | "guardian";
-  actor_email: string | null;
-  scope: string;
-}
-
-function definition(type: string) {
-  const item = CONSENTS.find((consent) => consent.type === type);
-  if (!item) throw new Error(`Brak definicji zgody: ${type}`);
-  return item;
 }
 
 export function LegalReconsentGate() {
@@ -129,80 +117,32 @@ export function LegalReconsentGate() {
 
     try {
       if (healthNeedsRenewal && !healthOptIn) {
-        const health = definition("health_data");
-        const { error } = await supabase.rpc("withdraw_health_data_consent", {
-          p_version: LEGAL_VERSION,
-          p_text_snapshot: health.text,
-        });
-        if (error) throw error;
+        await recordConsentDecision({ type: "health_data", accepted: false });
       }
 
       if (fuelNeedsRenewal && !fuelOptIn) {
         await saveFuelPrecision(false, null);
       }
 
-      const actorType = profile.accountOwnerType === "guardian" ? "guardian" : "athlete";
-      const rows: ConsentInsert[] = [];
+      const decisions: ConsentDecision[] = [];
 
       if (termsNeedUpdate) {
-        const terms = definition("terms");
-        rows.push({
-          user_id: user.id,
-          consent_type: terms.type,
-          accepted: true,
-          version: LEGAL_VERSION,
-          text_snapshot: terms.text,
-          actor_type: actorType,
-          actor_email: user.email ?? null,
-          scope: "terms_of_service",
-        });
+        decisions.push({ type: "terms", accepted: true });
       }
 
       if (privacyNeedUpdate) {
-        const privacy = definition("privacy");
-        rows.push({
-          user_id: user.id,
-          consent_type: privacy.type,
-          accepted: true,
-          version: LEGAL_VERSION,
-          text_snapshot: privacy.text,
-          actor_type: actorType,
-          actor_email: user.email ?? null,
-          scope: "privacy_notice",
-        });
+        decisions.push({ type: "privacy", accepted: true });
       }
 
       if (healthNeedsRenewal && healthOptIn) {
-        const health = definition("health_data");
-        rows.push({
-          user_id: user.id,
-          consent_type: health.type,
-          accepted: true,
-          version: LEGAL_VERSION,
-          text_snapshot: health.text,
-          actor_type: actorType,
-          actor_email: user.email ?? null,
-          scope: "readiness_and_fuel_safety",
-        });
+        decisions.push({ type: "health_data", accepted: true });
       }
 
       if (fuelNeedsRenewal && fuelOptIn) {
-        rows.push({
-          user_id: user.id,
-          consent_type: "fuel_precision",
-          accepted: true,
-          version: LEGAL_VERSION,
-          text_snapshot: FUEL_PRECISION_CONSENT,
-          actor_type: actorType,
-          actor_email: user.email ?? null,
-          scope: "fuel_personalization",
-        });
+        decisions.push({ type: "fuel_precision", accepted: true });
       }
 
-      if (rows.length > 0) {
-        const { error } = await supabase.from("consent_logs").insert(rows);
-        if (error) throw error;
-      }
+      await recordConsentDecisions(decisions);
 
       window.location.reload();
     } catch (error) {
