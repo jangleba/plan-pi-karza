@@ -1262,7 +1262,7 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         rpe,
         healthPersonalizationEnabled
           ? composeCompletionNotes(notes, pain, legFatigue)
-          : notes.trim(),
+          : "",
         externalSession ? { durationMin, activityType } : { durationMin: session.durationMin },
       );
       toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
@@ -1326,19 +1326,24 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         </div>
       )}
 
-      <div className="mt-3 space-y-2">
-        <span className="text-sm text-muted-foreground">Notatki po sesji</span>
-        <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={
-            healthPersonalizationEnabled
-              ? "Jak poszło? Sen, ból, dodatkowe uwagi…"
-              : "Jak poszło? Dodatkowe uwagi…"
-          }
-          rows={2}
-        />
-      </div>
+      {healthPersonalizationEnabled ? (
+        <div className="mt-3 space-y-2">
+          <span className="text-sm text-muted-foreground">Notatki po sesji</span>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Jak poszło? Sen, ból, dodatkowe uwagi…"
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">
+            Notatka może zawierać dane o zdrowiu i jest zapisywana tylko przy aktywnej zgodzie zdrowotnej.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Notatki tekstowe są wyłączone bez opcjonalnej zgody zdrowotnej. RPE, czas i rodzaj wysiłku nadal zapisują się normalnie.
+        </p>
+      )}
 
       <button
         onClick={save}
@@ -1352,12 +1357,20 @@ function CompletionPanel({ session }: { session: SessionDay }) {
 }
 
 function ClubMonitoring() {
-  const steps = [
-    "Zrób trening z drużyną",
-    "Po treningu wpisz RPE",
-    "Zaznacz ból lub zmęczenie",
-    "Zapisz krótki komentarz",
-  ];
+  const { state } = useLoadwise();
+  const healthPersonalizationEnabled = state.profile?.healthPersonalizationEnabled === true;
+  const steps = healthPersonalizationEnabled
+    ? [
+        "Zrób trening z drużyną",
+        "Po treningu wpisz RPE",
+        "Opcjonalnie zaznacz ból lub zmęczenie",
+        "Opcjonalnie zapisz krótki komentarz",
+      ]
+    : [
+        "Zrób trening z drużyną",
+        "Po treningu wpisz RPE",
+        "Uzupełnij czas i charakter wysiłku",
+      ];
   return (
     <>
       <div className="soft-card p-4">
