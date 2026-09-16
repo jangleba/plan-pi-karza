@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import { ChevronLeft, FileDown, Trash2, ShieldOff, HeartOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
+import { recordConsentDecision } from "@/lib/loadwise/consent";
 import { Button } from "@/components/ui/button";
-import { LEGAL_VERSION, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
-import { useLoadwise } from "@/lib/loadwise/store";
+import { MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -36,7 +36,6 @@ function DataRights() {
   const router = useRouter();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { state } = useLoadwise();
   const [busy, setBusy] = useState(false);
 
   async function exportData() {
@@ -79,13 +78,10 @@ function DataRights() {
     )
       return;
     setBusy(true);
-    const actorType = state.profile?.accountOwnerType === "guardian" ? "guardian" : "athlete";
     if (type === "health_data") {
-      const { error } = await supabase.rpc("withdraw_health_data_consent", {
-        p_text_snapshot: "Wycofanie zgody przez użytkownika.",
-        p_version: LEGAL_VERSION,
-      });
-      if (error) {
+      try {
+        await recordConsentDecision({ type: "health_data", accepted: false });
+      } catch {
         setBusy(false);
         toast.error("Nie udało się wycofać zgody i usunąć danych.");
         return;
@@ -101,18 +97,9 @@ function DataRights() {
       window.location.assign("/start");
       return;
     }
-    const consentWrite = await supabase.from("consent_logs").insert({
-      user_id: user.id,
-      consent_type: type,
-      accepted: false,
-      version: LEGAL_VERSION,
-      text_snapshot: "Wycofanie zgody przez użytkownika.",
-      actor_type: actorType,
-      actor_email: user.email ?? null,
-      scope: "marketing",
-      withdrawn_at: new Date().toISOString(),
-    });
-    if (consentWrite.error) {
+    try {
+      await recordConsentDecision({ type: "marketing", accepted: false });
+    } catch {
       setBusy(false);
       toast.error("Nie udało się wycofać zgody.");
       return;
