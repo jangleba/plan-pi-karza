@@ -11,6 +11,7 @@ export function ProfileAvatar() {
   return (
     <Link
       to="/profil"
+      preload="render"
       aria-label="Profil, konto i ustawienia"
       className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card text-sm font-medium text-foreground transition-transform active:scale-95"
     >
@@ -53,9 +54,7 @@ export function AppHeader({
           <h1 className="text-[24px] font-medium leading-tight tracking-[-0.03em] text-foreground">
             {title}
           </h1>
-          {subtitle && (
-            <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
-          )}
+          {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         {!brand && right}
       </div>
@@ -113,9 +112,9 @@ export function Disclaimer() {
     <div className="mx-5 mb-28 mt-4 flex gap-2.5 rounded-2xl bg-muted/60 p-3.5">
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <p className="text-xs leading-relaxed text-muted-foreground">
-        BallWise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej.
-        Nie diagnozuje, nie leczy, nie prowadzi rehabilitacji ani nie wyznacza
-        powrotu do gry. Te decyzje należą do lekarza lub fizjoterapeuty.
+        BallWise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej. Nie diagnozuje, nie
+        leczy, nie prowadzi rehabilitacji ani nie wyznacza powrotu do gry. Te decyzje należą do
+        lekarza lub fizjoterapeuty.
       </p>
     </div>
   );

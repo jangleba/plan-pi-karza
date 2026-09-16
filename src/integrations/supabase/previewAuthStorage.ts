@@ -81,8 +81,19 @@ export function brokeredPreviewStorage() {
   return {
     getItem: async (key: string) => {
       const local = localStorage.getItem(key);
+      // Najczęstsza ścieżka startu: zwróć zapisaną sesję natychmiast. Synchronizacja
+      // z ramką edytora odbywa się w tle i nie blokuje pierwszego renderu aplikacji.
+      if (local !== null) {
+        firstGet = false;
+        void request("lovable-preview-auth:get", key).then((background) => {
+          if (!background?.ok || typeof background.value !== "string") return;
+          if (background.value === "") localStorage.removeItem(key);
+          else localStorage.setItem(key, background.value);
+        });
+        return local;
+      }
       let res = await request("lovable-preview-auth:get", key);
-      if (!res && firstGet && local === null) {
+      if (!res && firstGet) {
         await new Promise((r) => setTimeout(r, RETRY_DELAY));
         res = await request("lovable-preview-auth:get", key);
       }
@@ -96,15 +107,17 @@ export function brokeredPreviewStorage() {
         }
         return res.value;
       }
-      return local;
+      return null;
     },
     setItem: (key: string, value: string) => {
       localStorage.setItem(key, value);
-      return request("lovable-preview-auth:set", key, value).then(() => undefined);
+      void request("lovable-preview-auth:set", key, value);
+      return Promise.resolve();
     },
     removeItem: (key: string) => {
       localStorage.removeItem(key);
-      return request("lovable-preview-auth:remove", key).then(() => undefined);
+      void request("lovable-preview-auth:remove", key);
+      return Promise.resolve();
     },
   };
 }

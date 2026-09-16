@@ -46,9 +46,7 @@ function TabsLayout() {
       className="app-shell relative min-h-screen"
       style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
     >
-      <div className="app-route-frame">
-        <Outlet />
-      </div>
+      <Outlet />
       <BottomNav />
     </div>
   );

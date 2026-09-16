@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   LoadwiseState,
   Profile,
@@ -53,6 +61,7 @@ const initialState: LoadwiseState = {
 };
 
 const ONBOARDING_SCHEMA_VERSION = 2;
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /**
  * Sprawdza, czy zapisany plan jest zgodny z aktualnymi dniami treningu klubowego.
@@ -178,10 +187,7 @@ async function clearFutureOverlaysForUser(userId: string, fromDate: string): Pro
       .eq("user_id", userId)
       .eq("active", true)
       .gte("date", fromDate),
-    supabase
-      .from("weekly_transitions")
-      .delete()
-      .eq("user_id", userId),
+    supabase.from("weekly_transitions").delete().eq("user_id", userId),
   ]);
   assertNoSupabaseError("session_modifications.clear_future", modifications.error);
   assertNoSupabaseError("weekly_transitions.clear", transitions.error);
@@ -417,8 +423,7 @@ function buildProfile(
         ? ath.ownership_transfer_status
         : "not_applicable",
     ownershipTransferEmail: (ath.ownership_transfer_email as string | null) ?? null,
-    ownershipTransferRequestedAt:
-      (ath.ownership_transfer_requested_at as string | null) ?? null,
+    ownershipTransferRequestedAt: (ath.ownership_transfer_requested_at as string | null) ?? null,
     ownershipTransferredAt: (ath.ownership_transferred_at as string | null) ?? null,
     healthPersonalizationEnabled: Boolean(ath.health_personalization_enabled),
     fuelPrecisionEnabled: Boolean(ath.fuel_precision_enabled),
@@ -444,7 +449,7 @@ function buildProfile(
     matchDate: (ath.match_date as string) ?? null,
     matchDates: normalizeMatchDates([
       ath.match_date as string | null,
-      ...(Array.isArray(ath.match_dates) ? ath.match_dates as string[] : []),
+      ...(Array.isArray(ath.match_dates) ? (ath.match_dates as string[]) : []),
     ]),
     equipment,
     painInjury: Boolean(ath.pain_injury),
@@ -481,8 +486,7 @@ function buildProfile(
         : Number(ath.field_mas_kmh),
     fieldMasTestedAt: (ath.field_mas_tested_at as string | null) ?? null,
     runningProgressionLevel: Number(ath.running_progression_level ?? 0),
-    runningProgressionUpdatedAt:
-      (ath.running_progression_updated_at as string | null) ?? null,
+    runningProgressionUpdatedAt: (ath.running_progression_updated_at as string | null) ?? null,
   };
 }
 
@@ -735,33 +739,34 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       if (offlineSyncInFlightRef.current || navigator.onLine === false) return;
       offlineSyncInFlightRef.current = true;
       try {
-        const result = await flushPendingTrainingWrites(user.id, async (write: PendingTrainingWrite) => {
-          if (write.kind === "session_log") {
-            const saved = await supabase
-              .from("session_logs")
-              .upsert(write.payload, { onConflict: "user_id,session_id" });
-            return !saved.error;
-          }
-          if (write.kind === "exercise_set_log") {
-            const saved = await supabase
-              .from("exercise_set_logs")
-              .upsert(write.payload, {
+        const result = await flushPendingTrainingWrites(
+          user.id,
+          async (write: PendingTrainingWrite) => {
+            if (write.kind === "session_log") {
+              const saved = await supabase
+                .from("session_logs")
+                .upsert(write.payload, { onConflict: "user_id,session_id" });
+              return !saved.error;
+            }
+            if (write.kind === "exercise_set_log") {
+              const saved = await supabase.from("exercise_set_logs").upsert(write.payload, {
                 onConflict: "user_id,session_id,exercise_key,set_number",
               });
-            return !saved.error;
-          }
-          if (write.kind === "running_activity") {
+              return !saved.error;
+            }
+            if (write.kind === "running_activity") {
+              const saved = await supabase
+                .from("running_activities")
+                .upsert(write.payload, { onConflict: "user_id,session_id" });
+              return !saved.error;
+            }
             const saved = await supabase
-              .from("running_activities")
-              .upsert(write.payload, { onConflict: "user_id,session_id" });
+              .from("athlete_profiles")
+              .update(write.payload)
+              .eq("user_id", user.id);
             return !saved.error;
-          }
-          const saved = await supabase
-            .from("athlete_profiles")
-            .update(write.payload)
-            .eq("user_id", user.id);
-          return !saved.error;
-        });
+          },
+        );
         if (result.synced > 0) toast.success("Zapis treningu zsynchronizowany.");
       } finally {
         offlineSyncInFlightRef.current = false;
@@ -773,7 +778,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // Load everything for the current user.
-  useEffect(() => {
+  useClientLayoutEffect(() => {
     let cancelled = false;
     if (authLoading) return;
     if (recoveryMode) {
@@ -799,57 +804,68 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       let safeProfile: Profile | null = cachedState?.profile ?? null;
       const safeLocal: LocalState = loadLocal(user.id);
       try {
-        const [profRes, athRes, onboardingRes, planRes, logRes, modRes, transRes, replacementRes, runningRes, readinessRes] =
-          await Promise.all([
-            supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-            supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-            supabase
-              .from("onboarding_answers")
-              .select("answers_json")
-              .eq("user_id", user.id)
-              .order("completed_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
-            supabase
-              .from("training_plans")
-              .select("*")
-              .eq("user_id", user.id)
-              .eq("status", "active")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
-            supabase
-              .from("session_logs")
-              .select("session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at")
-              .eq("user_id", user.id),
-            supabase
-              .from("session_modifications")
-              .select("*")
-              .eq("user_id", user.id)
-              .eq("active", true)
-              .order("created_at", { ascending: true }),
-            supabase
-              .from("weekly_transitions")
-              .select("*")
-              .eq("user_id", user.id),
-            supabase
-              .from("exercise_replacements")
-              .select("*")
-              .eq("user_id", user.id)
-              .eq("active", true)
-              .order("created_at", { ascending: true }),
-            supabase
-              .from("running_activities")
-              .select("*")
-              .eq("user_id", user.id)
-              .order("date", { ascending: false }),
-            supabase
-              .from("readiness_logs")
-              .select("date, sleep, energy, fatigue, soreness, stress, pain_level, pain_location, pain_onset, alters_movement, red_flags, overall")
-              .eq("user_id", user.id)
-              .order("date", { ascending: false })
-              .limit(45),
-          ]);
+        const [
+          profRes,
+          athRes,
+          onboardingRes,
+          planRes,
+          logRes,
+          modRes,
+          transRes,
+          replacementRes,
+          runningRes,
+          readinessRes,
+        ] = await Promise.all([
+          supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+          supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+          supabase
+            .from("onboarding_answers")
+            .select("answers_json")
+            .eq("user_id", user.id)
+            .order("completed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("training_plans")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("session_logs")
+            .select(
+              "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at",
+            )
+            .eq("user_id", user.id),
+          supabase
+            .from("session_modifications")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("active", true)
+            .order("created_at", { ascending: true }),
+          supabase.from("weekly_transitions").select("*").eq("user_id", user.id),
+          supabase
+            .from("exercise_replacements")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("active", true)
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("running_activities")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("date", { ascending: false }),
+          supabase
+            .from("readiness_logs")
+            .select(
+              "date, sleep, energy, fatigue, soreness, stress, pain_level, pain_location, pain_onset, alters_movement, red_flags, overall",
+            )
+            .eq("user_id", user.id)
+            .order("date", { ascending: false })
+            .limit(45),
+        ]);
 
         assertNoSupabaseError("profiles.load", profRes.error);
         assertNoSupabaseError("athlete_profiles.load", athRes.error);
@@ -1054,7 +1070,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               overall: Number(row.overall ?? 7),
               painOnset: (row.pain_onset as Readiness["painOnset"]) ?? null,
               altersMovement: Boolean(row.alters_movement),
-              redFlags: Array.isArray(row.red_flags) ? row.red_flags as string[] : [],
+              redFlags: Array.isArray(row.red_flags) ? (row.red_flags as string[]) : [],
             };
           }
         }
@@ -1084,7 +1100,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             nextMatchDate: (row.next_match_date as string) ?? null,
             nextMatchDates: normalizeMatchDates([
               row.next_match_date as string | null,
-              ...(Array.isArray(row.next_match_dates) ? row.next_match_dates as string[] : []),
+              ...(Array.isArray(row.next_match_dates) ? (row.next_match_dates as string[]) : []),
             ]),
             noMatchNextWeek: Boolean(row.no_match_next_week),
             confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
@@ -1152,7 +1168,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authLoading, recoveryMode]);
 
   function persistLocal(next: LoadwiseState) {
@@ -1170,12 +1185,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? [],
       exerciseReplacements: state.exerciseReplacements,
     });
-  }, [
-    user,
-    hydrated,
-    state.profile?.unavailableEquipmentIds,
-    state.exerciseReplacements,
-  ]);
+  }, [user, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
 
   // Keep the last complete screen ready for an instant, stale-while-revalidate launch.
   // Delay serialization slightly so taps and route transitions always win the frame.
@@ -1311,7 +1321,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           ownership_transferred_at: profile.ownershipTransferredAt ?? null,
           health_personalization_enabled: Boolean(profile.healthPersonalizationEnabled),
           fuel_precision_enabled: Boolean(profile.fuelPrecisionEnabled),
-          weight_optional: profile.fuelPrecisionEnabled ? profile.weightKg ?? null : null,
+          weight_optional: profile.fuelPrecisionEnabled ? (profile.weightKg ?? null) : null,
           fuel_allergy_status: profile.fuelAllergyStatus ?? "unconfirmed",
           food_allergies: profile.foodAllergies ?? [],
           food_intolerances: profile.foodIntolerances ?? [],
@@ -1546,28 +1556,29 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
     const startedAt = new Date().toISOString();
     const payload = {
-        user_id: user.id,
-        session_id: sid,
-        completed: false,
-        completion_status: "started",
-        rpe: null,
-        notes: null,
-        duration_minutes: null,
-        activity_type: session.dayType === "match" ? "mixed" : null,
-        started_at: startedAt,
-        ended_at: null,
-        updated_at: startedAt,
-      };
-    const result = await supabase.from("session_logs").upsert(
-      payload,
-      { onConflict: "user_id,session_id" },
-    );
+      user_id: user.id,
+      session_id: sid,
+      completed: false,
+      completion_status: "started",
+      rpe: null,
+      notes: null,
+      duration_minutes: null,
+      activity_type: session.dayType === "match" ? "mixed" : null,
+      started_at: startedAt,
+      ended_at: null,
+      updated_at: startedAt,
+    };
+    const result = await supabase
+      .from("session_logs")
+      .upsert(payload, { onConflict: "user_id,session_id" });
     if (result.error) {
-      const queued = isRetryableWriteError(result.error) && enqueueTrainingWrite(user.id, {
-        kind: "session_log",
-        dedupeKey: `session:${sid}`,
-        payload,
-      });
+      const queued =
+        isRetryableWriteError(result.error) &&
+        enqueueTrainingWrite(user.id, {
+          kind: "session_log",
+          dedupeKey: `session:${sid}`,
+          payload,
+        });
       if (!queued) assertNoSupabaseError("session_logs.start", result.error);
       toast.info("Brak internetu — początek treningu zapisano na tym telefonie.");
     }
@@ -1620,29 +1631,30 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         }
       : null;
     const payload = {
-        user_id: user.id,
-        session_id: sid,
-        completed: true,
-        completion_status: "completed",
-        rpe,
-        notes,
-        duration_minutes: completion.durationMin,
-        activity_type: completion.activityType,
-        started_at: completion.startedAt ?? completion.endedAt,
-        ended_at: completion.endedAt,
-        updated_at: new Date().toISOString(),
-      };
-    const result = await supabase.from("session_logs").upsert(
-      payload,
-      { onConflict: "user_id,session_id" },
-    );
+      user_id: user.id,
+      session_id: sid,
+      completed: true,
+      completion_status: "completed",
+      rpe,
+      notes,
+      duration_minutes: completion.durationMin,
+      activity_type: completion.activityType,
+      started_at: completion.startedAt ?? completion.endedAt,
+      ended_at: completion.endedAt,
+      updated_at: new Date().toISOString(),
+    };
+    const result = await supabase
+      .from("session_logs")
+      .upsert(payload, { onConflict: "user_id,session_id" });
     let completionQueued = false;
     if (result.error) {
-      completionQueued = isRetryableWriteError(result.error) && enqueueTrainingWrite(user.id, {
-        kind: "session_log",
-        dedupeKey: `session:${sid}`,
-        payload,
-      });
+      completionQueued =
+        isRetryableWriteError(result.error) &&
+        enqueueTrainingWrite(user.id, {
+          kind: "session_log",
+          dedupeKey: `session:${sid}`,
+          payload,
+        });
       if (!completionQueued) assertNoSupabaseError("session_logs.upsert", result.error);
       toast.info("Brak internetu — ukończenie zapisano i zsynchronizuje się później.");
     }
@@ -1683,9 +1695,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         updatedProfile = { ...updatedProfile, onboardingRevision: revision };
       }
     }
-    const refreshedPlan = !completionQueued && updatedProfile && updatedProfile !== state.profile
-      ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
-      : state.plan;
+    const refreshedPlan =
+      !completionQueued && updatedProfile && updatedProfile !== state.profile
+        ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
+        : state.plan;
     setState((s) => ({
       ...s,
       profile: updatedProfile,
@@ -1707,15 +1720,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test"
         ? fieldMasFromActivity(draft as RunningActivity)
         : null;
-    if (linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" && !pendingFieldMas) {
-      throw new Error("Test 5-minutowy nie ma pełnego, wiarygodnego odcinka GPS. Powtórz test na otwartej przestrzeni.");
+    if (
+      linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" &&
+      !pendingFieldMas
+    ) {
+      throw new Error(
+        "Test 5-minutowy nie ma pełnego, wiarygodnego odcinka GPS. Powtórz test na otwartej przestrzeni.",
+      );
     }
     if (
       linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" &&
       typeof navigator !== "undefined" &&
       navigator.onLine === false
     ) {
-      throw new Error("Test 5-minutowy wymaga internetu do bezpiecznego zapisania i przeliczenia planu.");
+      throw new Error(
+        "Test 5-minutowy wymaga internetu do bezpiecznego zapisania i przeliczenia planu.",
+      );
     }
     const activityId = crypto.randomUUID();
     const updatedAt = new Date().toISOString();
@@ -1727,26 +1747,25 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       duration_sec: draft.durationSec,
       distance_m: draft.distanceM,
       avg_pace_sec_per_km: draft.avgPaceSecPerKm,
-      is_field_mas_test:
-        linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test",
+      is_field_mas_test: linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test",
       updated_at: updatedAt,
     };
     const write = await supabase
       .from("running_activities")
-      .upsert(
-        payload,
-        { onConflict: "user_id,session_id" },
-      )
+      .upsert(payload, { onConflict: "user_id,session_id" })
       .select("*")
       .single();
     let storedActivity = write.error ? null : rowToRunningActivity(write.data as AnyRow);
     if (write.error) {
       const isMas = linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test";
-      const queued = !isMas && isRetryableWriteError(write.error) && enqueueTrainingWrite(user.id, {
-        kind: "running_activity",
-        dedupeKey: `running:${draft.sessionId}`,
-        payload,
-      });
+      const queued =
+        !isMas &&
+        isRetryableWriteError(write.error) &&
+        enqueueTrainingWrite(user.id, {
+          kind: "running_activity",
+          dedupeKey: `running:${draft.sessionId}`,
+          payload,
+        });
       if (!queued) assertNoSupabaseError("running_activities.upsert", write.error);
       storedActivity = {
         id: activityId,
@@ -1796,9 +1815,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       const revision = await saveProfileRows(updatedProfile, true);
       updatedProfile = { ...updatedProfile, onboardingRevision: revision };
     }
-    const refreshedPlan = updatedProfile && updatedProfile !== state.profile
-      ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
-      : state.plan;
+    const refreshedPlan =
+      updatedProfile && updatedProfile !== state.profile
+        ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
+        : state.plan;
     setState((current) => ({
       ...current,
       profile: updatedProfile,
@@ -2041,11 +2061,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         .eq("type", "swap")
         .neq("id", id);
       if (deactivate.error) {
-        await supabase
-          .from("session_modifications")
-          .delete()
-          .eq("id", id)
-          .eq("user_id", user.id);
+        await supabase.from("session_modifications").delete().eq("id", id).eq("user_id", user.id);
         await supabase
           .from("training_sessions")
           .delete()
@@ -2192,40 +2208,40 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     const { applyCheckInToPlanDay } = await import("./dailyCheckin");
     if (user) {
-      const write = await supabase.from("readiness_logs").upsert({
-        user_id: user.id,
-        date: r.date,
-        sleep: r.sleep,
-        energy: r.energy,
-        fatigue: r.fatigue,
-        soreness: r.soreness,
-        stress: r.stress,
-        pain_level: r.jointPain,
-        pain_location: r.painLocation ?? null,
-        pain_onset: r.painOnset ?? null,
-        alters_movement: r.altersMovement ?? false,
-        red_flags: r.redFlags ?? [],
-        overall: r.overall,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,date" });
+      const write = await supabase.from("readiness_logs").upsert(
+        {
+          user_id: user.id,
+          date: r.date,
+          sleep: r.sleep,
+          energy: r.energy,
+          fatigue: r.fatigue,
+          soreness: r.soreness,
+          stress: r.stress,
+          pain_level: r.jointPain,
+          pain_location: r.painLocation ?? null,
+          pain_onset: r.painOnset ?? null,
+          alters_movement: r.altersMovement ?? false,
+          red_flags: r.redFlags ?? [],
+          overall: r.overall,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,date" },
+      );
       assertNoSupabaseError("readiness_logs.upsert", write.error);
 
-      const painWrite = r.jointPain > 0
-        ? await supabase.from("pain_logs").upsert(
-            {
-              user_id: user.id,
-              date: r.date,
-              pain_level: r.jointPain,
-              pain_location: r.painLocation ?? null,
-              notes: null,
-            },
-            { onConflict: "user_id,date" },
-          )
-        : await supabase
-            .from("pain_logs")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("date", r.date);
+      const painWrite =
+        r.jointPain > 0
+          ? await supabase.from("pain_logs").upsert(
+              {
+                user_id: user.id,
+                date: r.date,
+                pain_level: r.jointPain,
+                pain_location: r.painLocation ?? null,
+                notes: null,
+              },
+              { onConflict: "user_id,date" },
+            )
+          : await supabase.from("pain_logs").delete().eq("user_id", user.id).eq("date", r.date);
       assertNoSupabaseError("pain_logs.sync", painWrite.error);
     }
 
