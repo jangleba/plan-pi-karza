@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { BottomNav } from "@/components/loadwise/BottomNav";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
+import { LegalReconsentGate } from "@/components/loadwise/LegalReconsentGate";
 
 export const Route = createFileRoute("/_tabs")({
   component: TabsLayout,
@@ -42,12 +43,15 @@ function TabsLayout() {
   }
 
   return (
-    <div
-      className="app-shell relative min-h-screen"
-      style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
-    >
-      <Outlet />
-      <BottomNav />
-    </div>
+    <>
+      <LegalReconsentGate />
+      <div
+        className="app-shell relative min-h-screen"
+        style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
+      >
+        <Outlet />
+        <BottomNav />
+      </div>
+    </>
   );
 }
