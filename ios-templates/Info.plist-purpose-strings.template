@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Skopiuj te trzy pary key/string do głównego dict natywnego Info.plist. -->
+  <key>NSCameraUsageDescription</key>
+  <string>BallWise używa aparatu wyłącznie wtedy, gdy robisz zdjęcie posiłku do jednorazowej analizy składu.</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>BallWise pozwala wybrać zdjęcie posiłku do jednorazowej analizy składu. Zdjęcie nie jest zapisywane w profilu.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>BallWise używa mikrofonu, gdy wybierasz opis posiłku głosem. BallWise nie zapisuje nagrania.</string>
+</dict>
+</plist>
