@@ -20,12 +20,20 @@ declare global {
 
 export function reportLovableError(error: unknown, context: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
+  if (import.meta.env.VITE_ENABLE_DIAGNOSTICS !== "true") return;
+
+  // Never forward the original message, stack or caller context. They can
+  // contain free text, health information, e-mail addresses or database values.
+  const safeError = new Error("BallWise client error");
+  safeError.name = error instanceof Error ? error.name.slice(0, 80) : "UnknownError";
+  const component = typeof context.component === "string" ? context.component.slice(0, 80) : undefined;
+
   window.__lovableEvents?.captureException?.(
-    error,
+    safeError,
     {
       source: "react_error_boundary",
       route: window.location.pathname,
-      ...context,
+      ...(component ? { component } : {}),
     },
     {
       mechanism: "react_error_boundary",
