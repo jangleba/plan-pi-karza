@@ -69,8 +69,8 @@ function AuthScreen() {
         toast.success("Wysłaliśmy link do ustawienia nowego hasła. Sprawdź pocztę.");
         setMode("login");
       } else if (mode === "recovery") {
-        if (password.length < 8) {
-          toast.error("Nowe hasło musi mieć co najmniej 8 znaków.");
+        if (password.length < 12) {
+          toast.error("Nowe hasło musi mieć co najmniej 12 znaków.");
           return;
         }
         if (password !== passwordConfirmation) {
@@ -85,6 +85,10 @@ function AuthScreen() {
         toast.success("Hasło zostało zmienione.");
         navigate({ to: state.profile?.onboardingComplete ? "/start" : "/onboarding", replace: true });
       } else if (mode === "register") {
+        if (password.length < 12) {
+          toast.error("Hasło musi mieć co najmniej 12 znaków.");
+          return;
+        }
         if (name.trim().length < 2) {
           toast.error("Podaj imię.");
           return;
@@ -237,10 +241,10 @@ function AuthScreen() {
               id="password"
               type="password"
               required
-              minLength={mode === "recovery" ? 8 : 6}
+              minLength={mode === "login" ? 1 : 12}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="min. 6 znaków"
+              placeholder={mode === "login" ? "Twoje hasło" : "min. 12 znaków"}
               autoComplete={
                 mode === "register" || mode === "recovery" ? "new-password" : "current-password"
               }
@@ -254,7 +258,7 @@ function AuthScreen() {
                 id="password-confirmation"
                 type="password"
                 required
-                minLength={8}
+                minLength={12}
                 value={passwordConfirmation}
                 onChange={(e) => setPasswordConfirmation(e.target.value)}
                 autoComplete="new-password"
