@@ -28,7 +28,7 @@ export function BottomNav() {
               <Link
                 key={item.to}
                 to={item.to}
-                preload="render"
+                preload="intent"
                 aria-current={active ? "page" : undefined}
                 className={`relative flex min-h-[48px] min-w-0 flex-1 select-none flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-medium transition-colors duration-200 active:opacity-60 [touch-action:manipulation] [-webkit-tap-highlight-color:transparent] ${
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"

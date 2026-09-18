@@ -1,38 +1,38 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { ImageOff } from "lucide-react";
 
-import highBarSquat from "@/assets/blueprints/high_bar_squat.png";
-import nordicHamstring from "@/assets/blueprints/nordic_hamstring.png";
-import hamstringSliderCurl from "@/assets/blueprints/hamstring_slider_curl.png";
-import sprintAcceleration from "@/assets/blueprints/sprint_acceleration.png";
-import bounds from "@/assets/blueprints/bounds.png";
-import deceleration from "@/assets/blueprints/deceleration.png";
-import pallofPress from "@/assets/blueprints/pallof_press.png";
-import deadBug from "@/assets/blueprints/dead_bug.png";
-import backSquat from "@/assets/blueprints/back_squat.png";
-import gobletSquat from "@/assets/blueprints/goblet_squat.png";
-import rdl from "@/assets/blueprints/rdl.png";
-import splitSquat from "@/assets/blueprints/split_squat.png";
-import cmj from "@/assets/blueprints/cmj.png";
-import broadJump from "@/assets/blueprints/broad_jump.png";
-import changeOfDirection from "@/assets/blueprints/change_of_direction.png";
-import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.png";
-import calfRaise from "@/assets/blueprints/calf_raise.png";
-import pogoJump from "@/assets/blueprints/pogo_jump.png";
-import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
-import pinIsoAnkle from "@/assets/blueprints/pin_iso_ankle.png";
-import pinIsoFullFoot from "@/assets/blueprints/pin_iso_full_foot.png";
-import facePull from "@/assets/blueprints/face_pull.png";
-import frontSquat from "@/assets/blueprints/front_squat.png";
-import trapBarHighPin from "@/assets/blueprints/trap_bar_high_pin.png";
-import medBallHipThrow from "@/assets/blueprints/med_ball_hip_throw.png";
-import birdDog from "@/assets/blueprints/bird_dog.png";
-import sidePlank from "@/assets/blueprints/side_plank.png";
-import kettlebellSwing from "@/assets/blueprints/kettlebell_swing.png";
-import razorCurl from "@/assets/blueprints/razor_curl.png";
-import longLeverBridgeIso from "@/assets/blueprints/long_lever_bridge_iso.png";
-import bandBroadJump from "@/assets/blueprints/band_broad_jump.png";
-import fallingStart from "@/assets/blueprints/falling_start.png";
+import highBarSquat from "@/assets/blueprints/high_bar_squat.webp";
+import nordicHamstring from "@/assets/blueprints/nordic_hamstring.webp";
+import hamstringSliderCurl from "@/assets/blueprints/hamstring_slider_curl.webp";
+import sprintAcceleration from "@/assets/blueprints/sprint_acceleration.webp";
+import bounds from "@/assets/blueprints/bounds.webp";
+import deceleration from "@/assets/blueprints/deceleration.webp";
+import pallofPress from "@/assets/blueprints/pallof_press.webp";
+import deadBug from "@/assets/blueprints/dead_bug.webp";
+import backSquat from "@/assets/blueprints/back_squat.webp";
+import gobletSquat from "@/assets/blueprints/goblet_squat.webp";
+import rdl from "@/assets/blueprints/rdl.webp";
+import splitSquat from "@/assets/blueprints/split_squat.webp";
+import cmj from "@/assets/blueprints/cmj.webp";
+import broadJump from "@/assets/blueprints/broad_jump.webp";
+import changeOfDirection from "@/assets/blueprints/change_of_direction.webp";
+import copenhagenPlank from "@/assets/blueprints/copenhagen_plank.webp";
+import calfRaise from "@/assets/blueprints/calf_raise.webp";
+import pogoJump from "@/assets/blueprints/pogo_jump.webp";
+import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.webp";
+import pinIsoAnkle from "@/assets/blueprints/pin_iso_ankle.webp";
+import pinIsoFullFoot from "@/assets/blueprints/pin_iso_full_foot.webp";
+import facePull from "@/assets/blueprints/face_pull.webp";
+import frontSquat from "@/assets/blueprints/front_squat.webp";
+import trapBarHighPin from "@/assets/blueprints/trap_bar_high_pin.webp";
+import medBallHipThrow from "@/assets/blueprints/med_ball_hip_throw.webp";
+import birdDog from "@/assets/blueprints/bird_dog.webp";
+import sidePlank from "@/assets/blueprints/side_plank.webp";
+import kettlebellSwing from "@/assets/blueprints/kettlebell_swing.webp";
+import razorCurl from "@/assets/blueprints/razor_curl.webp";
+import longLeverBridgeIso from "@/assets/blueprints/long_lever_bridge_iso.webp";
+import bandBroadJump from "@/assets/blueprints/band_broad_jump.webp";
+import fallingStart from "@/assets/blueprints/falling_start.webp";
 
 /**
  * System grafik ćwiczeń — TWARDE mapowanie 1:1.
@@ -47,15 +47,7 @@ import fallingStart from "@/assets/blueprints/falling_start.png";
  */
 
 export type MovementType =
-  | "squat"
-  | "hinge"
-  | "lunge"
-  | "pull"
-  | "jump"
-  | "sprint"
-  | "core"
-  | "isometric"
-  | "calf";
+  "squat" | "hinge" | "lunge" | "pull" | "jump" | "sprint" | "core" | "isometric" | "calf";
 
 export interface ExerciseVisual {
   /** Jednoznaczny identyfikator grafiki. */
@@ -123,10 +115,7 @@ export const visualLibrary: Record<string, ExerciseVisual> = {
     src: backSquat,
     title: "Przysiad ze sztangą (low bar)",
     movementType: "squat",
-    exerciseNames: [
-      "Przysiad ze sztangą (low bar)",
-      "Safety bar squat (przysiad)",
-    ],
+    exerciseNames: ["Przysiad ze sztangą (low bar)", "Safety bar squat (przysiad)"],
   },
   goblet_squat: {
     visualId: "goblet_squat",
@@ -266,10 +255,7 @@ export const visualLibrary: Record<string, ExerciseVisual> = {
     src: bounds,
     title: "Bounds (skoki zamaszyste)",
     movementType: "jump",
-    exerciseNames: [
-      "Bounds (skoki zamaszyste)",
-      "Bounds (wieloskoki) — niska objętość",
-    ],
+    exerciseNames: ["Bounds (skoki zamaszyste)", "Bounds (wieloskoki) — niska objętość"],
   },
   pogo_jump: {
     visualId: "pogo_jump",
@@ -304,10 +290,7 @@ export const visualLibrary: Record<string, ExerciseVisual> = {
     src: deceleration,
     title: "Sprint + kontrolowane hamowanie",
     movementType: "sprint",
-    exerciseNames: [
-      "Sprint 10 m + kontrolowane hamowanie",
-      "Sprint 15 m + kontrolowane hamowanie",
-    ],
+    exerciseNames: ["Sprint 10 m + kontrolowane hamowanie", "Sprint 15 m + kontrolowane hamowanie"],
   },
   change_of_direction: {
     visualId: "change_of_direction",
@@ -347,23 +330,18 @@ const NAME_TO_VISUAL: Record<string, string> = (() => {
 })();
 
 export type VisualResolution =
-  | { status: "ready"; visual: ExerciseVisual }
-  | { status: "missing"; reason: string };
+  { status: "ready"; visual: ExerciseVisual } | { status: "missing"; reason: string };
 
 /**
  * Rozwiązuje grafikę dla ćwiczenia WYŁĄCZNIE po dokładnej nazwie.
  * Zwraca { status: "missing" } gdy nie ma dedykowanej grafiki — NIGDY cudzej.
  */
-export function resolveExerciseVisual(
-  e: TrainingExercise,
-): VisualResolution {
+export function resolveExerciseVisual(e: TrainingExercise): VisualResolution {
   if (e.visualId) {
     const explicitVisual = visualLibrary[e.visualId];
 
     if (!explicitVisual) {
-      console.error(
-        `[blueprint] visualId "${e.visualId}" not found for "${e.name}"`,
-      );
+      console.error(`[blueprint] visualId "${e.visualId}" not found for "${e.name}"`);
 
       return {
         status: "missing",
@@ -398,9 +376,7 @@ export function resolveExerciseVisual(
   const visual = visualLibrary[visualId];
 
   if (!visual) {
-    console.error(
-      `[blueprint] visualId "${visualId}" not found in library`,
-    );
+    console.error(`[blueprint] visualId "${visualId}" not found in library`);
 
     return {
       status: "missing",
@@ -408,14 +384,10 @@ export function resolveExerciseVisual(
     };
   }
 
-  const enrolled = visual.exerciseNames.some(
-    (name) => normalizeName(name) === key,
-  );
+  const enrolled = visual.exerciseNames.some((name) => normalizeName(name) === key);
 
   if (!enrolled) {
-    console.error(
-      `Exercise visual mismatch: "${e.name}" is not assigned to ${visualId}`,
-    );
+    console.error(`Exercise visual mismatch: "${e.name}" is not assigned to ${visualId}`);
 
     return {
       status: "missing",

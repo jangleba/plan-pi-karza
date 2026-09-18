@@ -65,12 +65,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           >
             Spróbuj ponownie
           </button>
-          <a
-            href="/"
+          <Link
+            to="/"
+            onClick={reset}
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             Wróć na start
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -136,8 +137,8 @@ function RootComponent() {
         <div className="max-w-md rounded-2xl border border-destructive/40 bg-card p-6 text-center">
           <h1 className="text-xl font-semibold">Publikacja BallWise jest zablokowana</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Uzupełnij dane administratora, adres, e-mail kontaktowy i okres przechowywania danych w
-            konfiguracji środowiska produkcyjnego.
+            Uzupełnij dane administratora, dane rejestrowe, kontakt, retencję, region danych i
+            warunki subskrypcji w konfiguracji środowiska produkcyjnego.
           </p>
         </div>
       </div>

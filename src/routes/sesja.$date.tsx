@@ -14,7 +14,13 @@ import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import type { SessionDay, TrainingSection, TrainingExercise } from "@/lib/loadwise/types";
 import {
@@ -626,14 +632,21 @@ function SprintExerciseRow({
         <button
           type="button"
           onClick={onToggle}
-          className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-border"}`}
+          className="-ml-2 flex h-11 w-11 shrink-0 items-start justify-center pt-[11px]"
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
-        />
+          aria-pressed={done}
+        >
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${done ? "bg-primary" : "bg-border"}`}
+            aria-hidden="true"
+          />
+        </button>
         <div className="min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setExpanded((current) => !current)}
-            className="flex w-full items-start gap-2 text-left"
+            className="flex min-h-11 w-full items-start gap-2 py-2 text-left"
+            aria-expanded={expanded}
           >
             <span
               className={`min-w-0 flex-1 text-sm font-semibold leading-5 ${
@@ -677,11 +690,11 @@ function SprintExerciseRow({
             </button>
           )}
           {rest && (
-            <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
               <span>{rest}</span>
               <button
                 type="button"
-                className="font-semibold text-primary"
+                className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-primary"
                 onClick={() => {
                   if (restRunning) {
                     setRestRunning(false);
@@ -697,7 +710,7 @@ function SprintExerciseRow({
               {restRunning && (
                 <button
                   type="button"
-                  className="text-muted-foreground"
+                  className="inline-flex min-h-11 items-center rounded-lg px-2 text-muted-foreground"
                   onClick={() => {
                     setRestRunning(false);
                     setRestSeconds(null);
@@ -706,7 +719,11 @@ function SprintExerciseRow({
                   Reset
                 </button>
               )}
-              {restSeconds !== null && <span className="tabular-nums">{restSeconds} s</span>}
+              {restSeconds !== null && (
+                <span className="tabular-nums" role="timer" aria-live="polite">
+                  {restSeconds} s
+                </span>
+              )}
             </div>
           )}
           {expanded && (
@@ -793,9 +810,10 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
   session: SessionDay;
   onFinish: () => void;
 }) {
+  const { user } = useAuth();
   const { markEquipmentUnavailable } = useLoadwise();
   const blocks = buildSprintRunnerBlocks(sections);
-  const progressKey = `loadwise:sprint-progress:${
+  const progressKey = `loadwise:sprint-progress:${user?.id ?? "guest"}:${
     session.dbId ?? session.sessionId ?? `${date}:${session.title}:${session.slotLabel ?? "1"}`
   }`;
   const skipNextPersist = useRef(true);
@@ -1010,14 +1028,19 @@ const StructuredSections = memo(function StructuredSections({
       <span className="absolute bottom-5 left-[1.18rem] top-5 w-px bg-border" />
       {sections.map((section, sectionIndex) => {
         const isActive = activeSection?.id === section.id;
-        const exerciseCount = section.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
+        const exerciseCount = section.blocks.reduce(
+          (sum, block) => sum + block.exercises.length,
+          0,
+        );
         return (
           <section key={section.id} className="relative border-b border-border/75 last:border-b-0">
-            <span className={`absolute -left-11 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium ${
-              isActive
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-muted-foreground"
-            }`}>
+            <span
+              className={`absolute -left-11 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium ${
+                isActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground"
+              }`}
+            >
               {sectionIndex + 1}
             </span>
             <button
@@ -1030,19 +1053,31 @@ const StructuredSections = memo(function StructuredSections({
                   {SECTION_TAB_LABELS[section.type] ?? section.title}
                 </span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {exerciseCount} {exerciseCount === 1 ? "ćwiczenie" : exerciseCount >= 2 && exerciseCount <= 4 ? "ćwiczenia" : "ćwiczeń"}
+                  {exerciseCount}{" "}
+                  {exerciseCount === 1
+                    ? "ćwiczenie"
+                    : exerciseCount >= 2 && exerciseCount <= 4
+                      ? "ćwiczenia"
+                      : "ćwiczeń"}
                 </span>
               </span>
-              <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isActive ? "rotate-90" : ""}`} />
+              <ChevronRight
+                className={`h-4 w-4 text-muted-foreground transition-transform ${isActive ? "rotate-90" : ""}`}
+              />
             </button>
 
             {isActive && (
               <div className="pb-5">
                 {section.blocks.map((block, blockIndex) => {
                   const blockTitle = block.title || block.exercises[0]?.name || "Blok ćwiczeń";
-                  const blockRest = block.restAfterBlock ? formatRestValue(block.restAfterBlock) : null;
+                  const blockRest = block.restAfterBlock
+                    ? formatRestValue(block.restAfterBlock)
+                    : null;
                   return (
-                    <div key={block.id} className={blockIndex > 0 ? "border-t border-border/60 pt-4" : ""}>
+                    <div
+                      key={block.id}
+                      className={blockIndex > 0 ? "border-t border-border/60 pt-4" : ""}
+                    >
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <h4 className="truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                           {blockTitle}
@@ -1066,7 +1101,8 @@ const StructuredSections = memo(function StructuredSections({
                               done={!!done[exercise.id]}
                               onToggle={() => toggle(exercise.id)}
                               onUnavailable={() => {
-                                if (equipmentIds.length) markEquipmentUnavailable(date, exercise, equipmentIds);
+                                if (equipmentIds.length)
+                                  markEquipmentUnavailable(date, exercise, equipmentIds);
                               }}
                               equipmentIds={equipmentIds}
                               sessionId={sessionId}
@@ -1075,7 +1111,9 @@ const StructuredSections = memo(function StructuredSections({
                         })}
                       </div>
                       {blockRest && (
-                        <p className="mt-3 text-[11px] text-muted-foreground">Przerwa po bloku: {blockRest}</p>
+                        <p className="mt-3 text-[11px] text-muted-foreground">
+                          Przerwa po bloku: {blockRest}
+                        </p>
                       )}
                     </div>
                   );
@@ -1226,8 +1264,7 @@ function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: b
 
 function CompletionPanel({ session }: { session: SessionDay }) {
   const { state, completeSession } = useLoadwise();
-  const healthPersonalizationEnabled =
-    state.profile?.healthPersonalizationEnabled === true;
+  const healthPersonalizationEnabled = state.profile?.healthPersonalizationEnabled === true;
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
   const parsed = parseCompletionNotes(existing?.notes ?? "");
   const [rpe, setRpe] = useState(existing?.rpe ?? 6);
@@ -1235,7 +1272,9 @@ function CompletionPanel({ session }: { session: SessionDay }) {
   const [legFatigue, setLegFatigue] = useState(parsed.legFatigue);
   const [notes, setNotes] = useState(parsed.notes);
   const externalSession = session.dayType === "club" || session.dayType === "match";
-  const [durationMin, setDurationMin] = useState(existing?.durationMin ?? session.durationMin ?? 90);
+  const [durationMin, setDurationMin] = useState(
+    existing?.durationMin ?? session.durationMin ?? 90,
+  );
   const [activityType, setActivityType] = useState(existing?.activityType ?? "mixed");
   const [saving, setSaving] = useState(false);
   const done = existing?.completed ?? false;
@@ -1250,7 +1289,13 @@ function CompletionPanel({ session }: { session: SessionDay }) {
     setNotes(next.notes);
     setDurationMin(existing?.durationMin ?? session.durationMin ?? 90);
     setActivityType(existing?.activityType ?? "mixed");
-  }, [existingRpe, existingNotes, existing?.durationMin, existing?.activityType, session.durationMin]);
+  }, [
+    existingRpe,
+    existingNotes,
+    existing?.durationMin,
+    existing?.activityType,
+    session.durationMin,
+  ]);
 
   if (!session.dbId) return null;
 
@@ -1260,9 +1305,7 @@ function CompletionPanel({ session }: { session: SessionDay }) {
       await completeSession(
         session,
         rpe,
-        healthPersonalizationEnabled
-          ? composeCompletionNotes(notes, pain, legFatigue)
-          : "",
+        healthPersonalizationEnabled ? composeCompletionNotes(notes, pain, legFatigue) : "",
         externalSession ? { durationMin, activityType } : { durationMin: session.durationMin },
       );
       toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
@@ -1299,13 +1342,20 @@ function CompletionPanel({ session }: { session: SessionDay }) {
               min={0}
               max={300}
               value={durationMin}
-              onChange={(event) => setDurationMin(Math.max(0, Math.min(300, Number(event.target.value) || 0)))}
+              onChange={(event) =>
+                setDurationMin(Math.max(0, Math.min(300, Number(event.target.value) || 0)))
+              }
             />
           </label>
           <label className="space-y-1.5 text-sm font-medium">
             Charakter wysiłku
-            <Select value={activityType} onValueChange={(value) => setActivityType(value as typeof activityType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={activityType}
+              onValueChange={(value) => setActivityType(value as typeof activityType)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="technical">Głównie z piłką</SelectItem>
                 <SelectItem value="mixed">Mieszany</SelectItem>
@@ -1314,7 +1364,8 @@ function CompletionPanel({ session }: { session: SessionDay }) {
             </Select>
           </label>
           <p className="text-xs text-muted-foreground sm:col-span-2">
-            Minuty × RPE opisują rzeczywiste obciążenie. Rodzaj wysiłku pomaga nie dokładać podobnego mocnego bodźca.
+            Minuty × RPE opisują rzeczywiste obciążenie. Rodzaj wysiłku pomaga nie dokładać
+            podobnego mocnego bodźca.
           </p>
         </div>
       )}
@@ -1336,12 +1387,14 @@ function CompletionPanel({ session }: { session: SessionDay }) {
             rows={2}
           />
           <p className="text-xs text-muted-foreground">
-            Notatka może zawierać dane o zdrowiu i jest zapisywana tylko przy aktywnej zgodzie zdrowotnej.
+            Notatka może zawierać dane o zdrowiu i jest zapisywana tylko przy aktywnej zgodzie
+            zdrowotnej.
           </p>
         </div>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">
-          Notatki tekstowe są wyłączone bez opcjonalnej zgody zdrowotnej. RPE, czas i rodzaj wysiłku nadal zapisują się normalnie.
+          Notatki tekstowe są wyłączone bez opcjonalnej zgody zdrowotnej. RPE, czas i rodzaj wysiłku
+          nadal zapisują się normalnie.
         </p>
       )}
 
@@ -1366,11 +1419,7 @@ function ClubMonitoring() {
         "Opcjonalnie zaznacz ból lub zmęczenie",
         "Opcjonalnie zapisz krótki komentarz",
       ]
-    : [
-        "Zrób trening z drużyną",
-        "Po treningu wpisz RPE",
-        "Uzupełnij czas i charakter wysiłku",
-      ];
+    : ["Zrób trening z drużyną", "Po treningu wpisz RPE", "Uzupełnij czas i charakter wysiłku"];
   return (
     <>
       <div className="soft-card p-4">
@@ -1766,12 +1815,13 @@ function SessionDetail() {
         {session.dayType === "match" && <MatchStartPanel session={session} isToday={isToday} />}
 
         {canShowPostSessionForm(session) &&
-          matchCanBeCompleted(session, session.dbId ? state.completions[session.dbId]?.status : undefined) &&
+          matchCanBeCompleted(
+            session,
+            session.dbId ? state.completions[session.dbId]?.status : undefined,
+          ) &&
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) &&
-          (!sprintRunner || showSprintCompletion) && (
-          <CompletionPanel session={session} />
-        )}
+          (!sprintRunner || showSprintCompletion) && <CompletionPanel session={session} />}
 
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && !selectedAdd && (
@@ -1797,7 +1847,9 @@ function SessionDetail() {
                   <div className="text-xs font-medium uppercase tracking-wide text-primary">
                     Dodana sesja
                   </div>
-                  <div className="mt-0.5 text-sm font-semibold">{professionalSessionTitle(m.session.title)}</div>
+                  <div className="mt-0.5 text-sm font-semibold">
+                    {professionalSessionTitle(m.session.title)}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {m.session.durationMin} min · {m.session.intensity}
                   </div>

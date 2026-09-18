@@ -36,6 +36,7 @@ import {
   FileText,
   LogOut,
   MailCheck,
+  MessageCircleQuestion,
   Pencil,
   ShieldCheck,
   User,
@@ -49,9 +50,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="max-w-[58%] text-right text-sm font-medium text-foreground">
-        {value}
-      </span>
+      <span className="max-w-[58%] text-right text-sm font-medium text-foreground">{value}</span>
     </div>
   );
 }
@@ -89,7 +88,12 @@ function ProfileScreen() {
       toast.error("Nowy e-mail musi różnić się od e-maila opiekuna.");
       return;
     }
-    if (!window.confirm("Wysłać przekazanie konta na e-mail zawodnika? Po potwierdzeniu zawodnik ponownie zaakceptuje dokumenty.")) return;
+    if (
+      !window.confirm(
+        "Wysłać przekazanie konta na e-mail zawodnika? Po potwierdzeniu zawodnik ponownie zaakceptuje dokumenty.",
+      )
+    )
+      return;
     setTransferBusy(true);
     const pendingProfile = {
       ...profile!,
@@ -101,7 +105,9 @@ function ProfileScreen() {
       await updateProfile(pendingProfile);
       const result = await requestAccountEmailChange(email);
       if (result.error) throw new Error(result.error);
-      toast.success("Wysłaliśmy potwierdzenie. Konto zostanie przekazane dopiero po potwierdzeniu nowego e-maila.");
+      toast.success(
+        "Wysłaliśmy potwierdzenie. Konto zostanie przekazane dopiero po potwierdzeniu nowego e-maila.",
+      );
       setTransferEmail("");
     } catch (error) {
       try {
@@ -116,17 +122,13 @@ function ProfileScreen() {
     }
   }
 
-
   const requiresGuardianOwner = profile.age >= 13 && profile.age < 16;
   const canTransferToAthlete =
     profile.age >= 16 &&
     profile.accountOwnerType === "guardian" &&
     profile.ownershipTransferStatus !== "completed";
   const painLocationLabel = (profile.painLocations ?? [])
-    .map(
-      (location) =>
-        PAIN_LOCATION_OPTIONS.find((option) => option.value === location)?.label,
-    )
+    .map((location) => PAIN_LOCATION_OPTIONS.find((option) => option.value === location)?.label)
     .filter(Boolean)
     .join(", ");
   const currentFeelings = normalizeCurrentPitchFeelings(profile.currentPitchFeelings);
@@ -135,7 +137,7 @@ function ProfileScreen() {
     profile.usualMatchDay === "no_fixed_day"
       ? "Brak stałego dnia"
       : typeof profile.usualMatchDay === "number"
-        ? ISO_DAY_LABELS.find((item) => item.value === profile.usualMatchDay)?.label ?? "Brak"
+        ? (ISO_DAY_LABELS.find((item) => item.value === profile.usualMatchDay)?.label ?? "Brak")
         : "Brak";
   const facilities = [
     { label: "Siłownia", available: profile.hasGym },
@@ -175,14 +177,19 @@ function ProfileScreen() {
               value={accountRoleLabel(profile.accountOwnerType ?? "athlete", profile.age)}
             />
             {profile.birthDate && (
-              <Row label="Data urodzenia" value={profile.birthDate.split("-").reverse().join(".")} />
+              <Row
+                label="Data urodzenia"
+                value={profile.birthDate.split("-").reverse().join(".")}
+              />
             )}
             {profile.accountOwnerType === "guardian" && profile.guardianName && (
               <Row label="Opiekun" value={profile.guardianName} />
             )}
             <Row
               label="Personalizacja gotowości"
-              value={profile.healthPersonalizationEnabled ? "Włączona" : "Wyłączona · tryb ostrożny"}
+              value={
+                profile.healthPersonalizationEnabled ? "Włączona" : "Wyłączona · tryb ostrożny"
+              }
             />
             <Row
               label="Fuel Precision"
@@ -201,8 +208,9 @@ function ProfileScreen() {
               <MailCheck className="h-3.5 w-3.5" aria-hidden="true" /> Przekazanie po 16. roku życia
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Profil i historia zostaną przy tym samym koncie. Zmieni się właściciel i e-mail logowania;
-              zawodnik ponownie zaakceptuje aktualne dokumenty. Płatnikiem do 18 lat pozostaje dorosły.
+              Profil i historia zostaną przy tym samym koncie. Zmieni się właściciel i e-mail
+              logowania; zawodnik ponownie zaakceptuje aktualne dokumenty. Płatnikiem do 18 lat
+              pozostaje dorosły.
             </p>
             <div className="mt-3 space-y-2">
               <Label htmlFor="transfer-email">E-mail zawodnika</Label>
@@ -267,10 +275,7 @@ function ProfileScreen() {
               label="Najbliższy mecz"
               value={profile.matchDate ? formatDate(profile.matchDate) : "Brak daty"}
             />
-            <Row
-              label="Dni niedostępne"
-              value={daysLabel(profile.unavailableDays ?? [])}
-            />
+            <Row label="Dni niedostępne" value={daysLabel(profile.unavailableDays ?? [])} />
           </div>
         </section>
 
@@ -301,9 +306,7 @@ function ProfileScreen() {
               <span
                 key={item.label}
                 className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  item.available
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
+                  item.available ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {item.available ? "✓ " : "— "}
@@ -348,13 +351,11 @@ function ProfileScreen() {
               {!profile.healthPersonalizationEnabled
                 ? "Dane zdrowotne wyłączone — używany jest ostrożny wariant planu"
                 : profile.painInjury
-                ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
-                : "Brak zgłoszonego bólu lub dyskomfortu"}
+                  ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
+                  : "Brak zgłoszonego bólu lub dyskomfortu"}
             </div>
             {profile.painInjury && painLocationLabel && (
-              <div className="pl-6 text-xs text-muted-foreground">
-                Obszar: {painLocationLabel}
-              </div>
+              <div className="pl-6 text-xs text-muted-foreground">Obszar: {painLocationLabel}</div>
             )}
             <div className="flex items-center gap-2 text-sm">
               {requiresGuardianOwner && !profile.guardianConsent ? (
@@ -382,6 +383,11 @@ function ProfileScreen() {
 
         <div className="soft-card divide-y divide-border p-0">
           <SettingsLink
+            icon={MessageCircleQuestion}
+            label="Pomoc i FAQ"
+            onClick={() => navigate({ to: "/faq" })}
+          />
+          <SettingsLink
             icon={FileDown}
             label="Moje dane i prawa (RODO)"
             onClick={() => navigate({ to: "/data-rights" })}
@@ -398,11 +404,7 @@ function ProfileScreen() {
           />
         </div>
 
-        <Button
-          variant="outline"
-          className="w-full gap-2 text-destructive"
-          onClick={handleSignOut}
-        >
+        <Button variant="outline" className="w-full gap-2 text-destructive" onClick={handleSignOut}>
           <LogOut className="h-4 w-4" aria-hidden="true" /> Wyloguj się
         </Button>
       </div>

@@ -213,6 +213,6 @@ export function fuelProtocolProgress(protocol: FuelProtocol): { done: number; to
   };
 }
 
-export function fuelProtocolStorageKey(session: FuelSessionInput): string {
-  return `ballwise:fuel-protocol:${sessionKey(session)}`;
+export function fuelProtocolStorageKey(userId: string, session: FuelSessionInput): string {
+  return `ballwise:fuel-protocol:${userId}:${sessionKey(session)}`;
 }

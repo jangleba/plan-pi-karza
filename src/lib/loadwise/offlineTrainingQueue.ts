@@ -62,8 +62,12 @@ export function isRetryableWriteError(error: unknown): boolean {
   if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
   if (!error || typeof error !== "object") return false;
   const row = error as Record<string, unknown>;
+  const status = Number(row.status ?? row.statusCode ?? row.code);
+  if ([408, 425, 429].includes(status) || status >= 500) return true;
   const message = `${String(row.message ?? "")} ${String(row.details ?? "")}`.toLowerCase();
-  return /failed to fetch|network|timeout|connection|load failed|fetch/.test(message);
+  return /failed to fetch|network|timeout|timed out|connection|load failed|fetch|temporar/.test(
+    message,
+  );
 }
 
 export function readPendingTrainingWrites(

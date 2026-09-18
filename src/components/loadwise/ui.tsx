@@ -11,7 +11,7 @@ export function ProfileAvatar() {
   return (
     <Link
       to="/profil"
-      preload="render"
+      preload="intent"
       aria-label="Profil, konto i ustawienia"
       className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card text-sm font-medium text-foreground transition-transform active:scale-95"
     >

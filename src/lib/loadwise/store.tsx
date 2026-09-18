@@ -741,12 +741,24 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
-    const sync = async () => {
-      if (offlineSyncInFlightRef.current || navigator.onLine === false) return;
+    const userId = user.id;
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryDelayMs = 15_000;
+
+    function scheduleRetry() {
+      if (disposed || navigator.onLine === false) return;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => void sync(), retryDelayMs);
+      retryDelayMs = Math.min(retryDelayMs * 2, 120_000);
+    }
+
+    async function sync() {
+      if (disposed || offlineSyncInFlightRef.current || navigator.onLine === false) return;
       offlineSyncInFlightRef.current = true;
       try {
         const result = await flushPendingTrainingWrites(
-          user.id,
+          userId,
           async (write: PendingTrainingWrite) => {
             if (write.kind === "session_log") {
               const saved = await supabase
@@ -769,18 +781,35 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             const saved = await supabase
               .from("athlete_profiles")
               .update(write.payload)
-              .eq("user_id", user.id);
+              .eq("user_id", userId);
             return !saved.error;
           },
         );
         if (result.synced > 0) toast.success("Zapis treningu zsynchronizowany.");
+        if (result.remaining > 0) scheduleRetry();
+        else retryDelayMs = 15_000;
+      } catch {
+        scheduleRetry();
       } finally {
         offlineSyncInFlightRef.current = false;
       }
+    }
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") void sync();
     };
     void sync();
     window.addEventListener("online", sync);
-    return () => window.removeEventListener("online", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("pageshow", sync);
+    document.addEventListener("visibilitychange", syncWhenVisible);
+    return () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener("online", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("pageshow", sync);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+    };
   }, [user]);
 
   // Load everything for the current user.
@@ -1453,13 +1482,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
+    const plan = await savePlanToDb(
+      nextProfile,
+      revision,
+      nextProfile.healthPersonalizationEnabled ? state.readiness[todayIso] : undefined,
+    );
     await clearFutureOverlaysForUser(user.id, todayIso);
     setState((s) => ({
       ...s,
       profile: nextProfile,
       plan,
       planGeneratedFor: todayIso,
+      readiness: nextProfile.healthPersonalizationEnabled ? s.readiness : {},
       modifications: Object.fromEntries(
         Object.entries(s.modifications).filter(([date]) => date < todayIso),
       ),

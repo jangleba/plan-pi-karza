@@ -476,3 +476,17 @@
     animation: none;
   }
 }
+
+/* Krótkie, natywne przejście między ekranami bez dodatkowego loadera. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 140ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.01ms;
+  }
+}

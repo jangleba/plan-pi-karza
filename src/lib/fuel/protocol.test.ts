@@ -4,6 +4,7 @@ import {
   adaptFuelProtocolForMessage,
   buildFuelProtocol,
   completeFuelProtocolItem,
+  fuelProtocolStorageKey,
   fuelProtocolProgress,
   parseTrainingLeadMinutes,
 } from "./protocol";
@@ -73,5 +74,14 @@ describe("Adaptive Fuel Protocol", () => {
     expect(parseTrainingLeadMinutes("Trening za 2 godziny")).toBe(120);
     expect(parseTrainingLeadMinutes("start za 45 minut")).toBe(45);
     expect(parseTrainingLeadMinutes("jestem głodny")).toBeNull();
+  });
+
+  it("keeps protocol progress isolated per account", () => {
+    expect(fuelProtocolStorageKey("user-a", session)).not.toBe(
+      fuelProtocolStorageKey("user-b", session),
+    );
+    expect(fuelProtocolStorageKey("user-a", session)).toContain(
+      "ballwise:fuel-protocol:user-a:",
+    );
   });
 });

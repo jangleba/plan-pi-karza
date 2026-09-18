@@ -14,6 +14,7 @@ import { Route as TabsRouteImport } from './routes/_tabs'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DataRightsRouteImport } from './routes/data-rights'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
@@ -52,6 +53,11 @@ const DataRightsRoute = DataRightsRouteImport.update({
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
   '/demo': typeof DemoRoute
+  '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
   '/demo': typeof DemoRoute
+  '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/data-rights': typeof DataRightsRoute
   '/demo': typeof DemoRoute
+  '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/data-rights'
     | '/demo'
+    | '/faq'
     | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/data-rights'
     | '/demo'
+    | '/faq'
     | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/data-rights'
     | '/demo'
+    | '/faq'
     | '/mcp'
     | '/onboarding'
     | '/privacy-policy'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DataRightsRoute: typeof DataRightsRoute
   DemoRoute: typeof DemoRoute
+  FaqRoute: typeof FaqRoute
   McpRoute: typeof McpRoute
   OnboardingRoute: typeof OnboardingRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -453,6 +473,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DataRightsRoute: DataRightsRoute,
   DemoRoute: DemoRoute,
+  FaqRoute: FaqRoute,
   McpRoute: McpRoute,
   OnboardingRoute: OnboardingRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,

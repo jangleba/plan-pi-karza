@@ -58,6 +58,7 @@ import {
   type FixId,
 } from "@/lib/fuel/uiModel";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { useAuth } from "@/lib/loadwise/auth";
 
 export const Route = createFileRoute("/_tabs/fuel")({
   component: FuelScreen,
@@ -95,6 +96,7 @@ type SpeechRecognitionLike = {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 function FuelScreen() {
+  const { user } = useAuth();
   const { state, todayIso, saveFuelPrecision } = useLoadwise();
   const profile = state.profile;
   const session = useMemo(
@@ -190,22 +192,25 @@ function FuelScreen() {
     });
     let persisted: FuelProtocol | null = null;
     try {
-      const raw = window.localStorage.getItem(fuelProtocolStorageKey(session));
+      const raw = window.localStorage.getItem(fuelProtocolStorageKey(user?.id ?? "guest", session));
       if (raw) persisted = JSON.parse(raw) as FuelProtocol;
     } catch {
       persisted = null;
     }
     setProtocol((current) => mergeFuelProtocolProgress(fresh, current ?? persisted));
-  }, [activeRecommendation, minutes, session, target]);
+  }, [activeRecommendation, minutes, session, target, user?.id]);
 
   useEffect(() => {
     if (!protocol) return;
     try {
-      window.localStorage.setItem(fuelProtocolStorageKey(session), JSON.stringify(protocol));
+      window.localStorage.setItem(
+        fuelProtocolStorageKey(user?.id ?? "guest", session),
+        JSON.stringify(protocol),
+      );
     } catch {
       // Brak miejsca lub tryb prywatny: protokół nadal działa do zamknięcia karty.
     }
-  }, [protocol, session]);
+  }, [protocol, session, user?.id]);
 
   function selectWindow(next: TimeBucket) {
     setManualMinutes(null);
@@ -285,7 +290,7 @@ function FuelScreen() {
     });
     setProtocol(fresh);
     try {
-      window.localStorage.removeItem(fuelProtocolStorageKey(session));
+      window.localStorage.removeItem(fuelProtocolStorageKey(user?.id ?? "guest", session));
     } catch {
       // Nic do usunięcia.
     }
@@ -819,4 +824,3 @@ function formatLead(minutes: number): string {
   const rest = minutes % 60;
   return hours > 0 ? `${hours} h ${rest ? `${rest} min` : ""}`.trim() : `${rest} min`;
 }
-

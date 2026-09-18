@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   enqueueTrainingWrite,
   flushPendingTrainingWrites,
+  isRetryableWriteError,
   readPendingTrainingWrites,
 } from "./offlineTrainingQueue";
 
@@ -56,5 +57,12 @@ describe("offline training queue", () => {
     enqueueTrainingWrite("u1", sessionWrite(true), storage, 0);
     const eightDays = 8 * 24 * 60 * 60 * 1000;
     expect(readPendingTrainingWrites("u1", storage, eightDays)).toEqual([]);
+  });
+
+  it("retries transient HTTP and network failures but not validation errors", () => {
+    expect(isRetryableWriteError({ status: 503, message: "Service unavailable" })).toBe(true);
+    expect(isRetryableWriteError({ status: 429, message: "Too many requests" })).toBe(true);
+    expect(isRetryableWriteError({ message: "Network connection timed out" })).toBe(true);
+    expect(isRetryableWriteError({ status: 400, message: "Invalid row" })).toBe(false);
   });
 });

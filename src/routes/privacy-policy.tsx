@@ -1,18 +1,20 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { PRIVACY_POLICY, PLACEHOLDER_NOTICE } from "@/lib/loadwise/legal";
+import { useInstantBack } from "@/lib/loadwise/uiHooks";
 
 export const Route = createFileRoute("/privacy-policy")({
   component: PrivacyPolicy,
 });
 
 function PrivacyPolicy() {
-  const router = useRouter();
+  const goBack = useInstantBack("/");
   return (
     <div className="app-shell premium-flow min-h-screen px-5 pb-16 pt-6">
       <button
-        onClick={() => router.history.back()}
-        className="mb-4 inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-foreground"
+        type="button"
+        onClick={goBack}
+        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-sm text-foreground"
       >
         <ChevronLeft className="h-4 w-4" /> Wstecz
       </button>

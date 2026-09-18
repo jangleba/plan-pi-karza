@@ -8,12 +8,12 @@
  * 4. Brak wpisu = neutralny placeholder „Ilustracja w przygotowaniu”.
  */
 
-import sprintAcceleration from "@/assets/blueprints/sprint_acceleration.png";
-import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.png";
-import decelerationImg from "@/assets/blueprints/deceleration.png";
-import boundsImg from "@/assets/blueprints/bounds.png";
-import pogoJump from "@/assets/blueprints/pogo_jump.png";
-import fallingStartImg from "@/assets/blueprints/falling_start.png";
+import sprintAcceleration from "@/assets/blueprints/sprint_acceleration.webp";
+import maxVelocitySprint from "@/assets/blueprints/max_velocity_sprint.webp";
+import decelerationImg from "@/assets/blueprints/deceleration.webp";
+import boundsImg from "@/assets/blueprints/bounds.webp";
+import pogoJump from "@/assets/blueprints/pogo_jump.webp";
+import fallingStartImg from "@/assets/blueprints/falling_start.webp";
 
 /** Pozycja sylwetki — lokalny układ 0–100, stopy na linii y=88. */
 export type PoseKey =
@@ -101,12 +101,7 @@ function scene(
   return { kind: "scene", exerciseId, title, altPl, motif, frames };
 }
 
-function blueprint(
-  exerciseId: string,
-  title: string,
-  altPl: string,
-  src: string,
-): BlueprintMedia {
+function blueprint(exerciseId: string, title: string, altPl: string, src: string): BlueprintMedia {
   return { kind: "blueprint", exerciseId, title, altPl, src };
 }
 
