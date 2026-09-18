@@ -1,14 +1,15 @@
 # BallWise — instrukcja użycia tej paczki
 
-Ta paczka jest pełnym, czystym snapshotem kodu źródłowego. Nie zawiera
-`node_modules`, wyniku kompilacji, historii Git ani pliku `.env`. Nie jest to
-plik IPA i nie można wysłać go bezpośrednio do App Store Connect.
+Zestaw aktualizacyjny wgrywa się do bieżącego repozytorium z zachowaniem
+struktury katalogów i zastąpieniem plików o tych samych nazwach. Nie zawiera
+`node_modules`, wyniku kompilacji, historii Git ani pliku z sekretami. Nie jest
+to plik IPA i nie można wysłać go bezpośrednio do App Store Connect.
 
 ## 1. Wgranie kodu
 
 Najbezpieczniej utworzyć nową gałąź w repozytorium połączonym z Lovable,
-rozpakować paczkę do katalogu repozytorium i zastąpić jego zawartość plikami z
-tej paczki. Następnie:
+rozpakować pliki do katalogu repozytorium i zastąpić ich starsze wersje.
+Następnie:
 
 ```sh
 git rm -r --ignore-unmatch WGRYWAJ-DO-GITHUBA
@@ -43,15 +44,22 @@ Supabase Edge Functions, nigdy w zmiennej zaczynającej się od `VITE_`.
 Przed wydaniem produkcyjnym trzeba też uzupełnić:
 
 ```text
+VITE_RELEASE_MODE
 VITE_LEGAL_ADMIN_NAME
 VITE_LEGAL_BUSINESS_ADDRESS
+VITE_LEGAL_REGISTRY_DETAILS
 VITE_LEGAL_CONTACT_EMAIL
-VITE_LEGAL_RETENTION_PERIOD
-VITE_RELEASE_MODE
+VITE_LEGAL_ACCOUNT_RETENTION
+VITE_LEGAL_CONSENT_RETENTION
+VITE_LEGAL_BACKUP_RETENTION
+VITE_LEGAL_SUPABASE_REGION
+VITE_LEGAL_SUBSCRIPTION_PRICE
+VITE_LEGAL_TRIAL_DESCRIPTION
 ```
 
+Pełny wzór znajduje się w `.env.legal.example`.
 Na testach ustaw `VITE_RELEASE_MODE=test`. Przy prawdziwej publikacji ustaw
-`VITE_RELEASE_MODE=production`; wtedy brak którejkolwiek z czterech wartości
+`VITE_RELEASE_MODE=production`; wtedy brak którejkolwiek z dziesięciu wartości
 prawnych blokuje uruchomienie aplikacji zamiast pokazać dokument z placeholderem.
 
 ## 3. Supabase — kolejność wdrożenia
@@ -62,7 +70,9 @@ Projekt: `bdfatyynxbzspjzkrjgg`.
 2. Zastosuj migracje w kolejności nazw plików, w tym:
    - `supabase/migrations/20260909090000_release_foundation.sql`,
    - `supabase/migrations/20260911213000_harden_consent_and_health_data.sql`,
-   - `supabase/migrations/20260911220000_match_and_guardian_hardening.sql`.
+   - `supabase/migrations/20260911220000_match_and_guardian_hardening.sql`,
+   - wszystkie późniejsze migracje aż do
+     `supabase/migrations/20260918183000_secure_defaults_and_health_cleanup.sql`.
 3. Wdróż funkcję usuwania konta:
 
    ```sh
@@ -80,9 +90,8 @@ Projekt: `bdfatyynxbzspjzkrjgg`.
 7. Po wykonaniu kopii bezpieczeństwa usuń pliki Vision Lab zgodnie z
    `docs/VISION-LAB-CLEANUP.md`. Ten krok jest celowo osobny i nieodwracalny.
 8. Na końcu uruchom w SQL Editor wyłącznie odczytowy plik
-   `supabase/verification/20260911_release_blockers.sql`. Każdy wiersz poza
-   `POLITYKI BIEGANIA` ma zwrócić `OK` (lub komunikat o włączonym RLS), a polityki
-   biegania mają zwrócić `4/4`.
+   `supabase/verification/20260918_secure_defaults_and_health_cleanup.sql`.
+   Każde z czterech zapytań ma zwrócić zero wierszy.
 
 Migracja tworzy model kont opiekunów dla zawodników 13–15, osobne zgody,
 podsumowania biegów bez trasy GPS, polityki RLS, mechanizm przekazania konta po

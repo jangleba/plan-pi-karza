@@ -9,6 +9,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AccountOwnerType } from "./agePolicy";
+import { clearLocalUserData } from "./localPrivacy";
 
 interface AuthContextValue {
   user: User | null;
@@ -141,7 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    const userId = user?.id;
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      if (userId) clearLocalUserData(userId);
+    }
   }
 
   return (

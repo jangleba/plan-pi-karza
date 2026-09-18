@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import {
-  recordConsentDecision,
   recordConsentDecisions,
   type ConsentDecision,
 } from "@/lib/loadwise/consent";
 import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
+import {
+  profileWithoutFuelPrecision,
+  profileWithoutHealthData,
+} from "@/lib/loadwise/localPrivacy";
 
 type GateStatus = "checking" | "required" | "complete" | "error";
 
@@ -26,7 +29,7 @@ const HEALTH_DATA_CONSENT_TEXT =
 export function LegalReconsentGate() {
   const { user, signOut } = useAuth();
   const userId = user?.id;
-  const { state, saveFuelPrecision } = useLoadwise();
+  const { state, updateProfile } = useLoadwise();
   const profile = state.profile;
   const [status, setStatus] = useState<GateStatus>("checking");
   const [retryRevision, setRetryRevision] = useState(0);
@@ -116,20 +119,23 @@ export function LegalReconsentGate() {
   if (!user || !profile?.onboardingComplete || status === "complete") return null;
 
   async function submit() {
-    if (!termsAccepted || !privacyAccepted || saving) return;
+    if (!profile || !termsAccepted || !privacyAccepted || saving) return;
     setSaving(true);
     setErrorMessage("");
 
     try {
+      const decisions: ConsentDecision[] = [];
+      let nextProfile = profile;
+
       if (healthNeedsRenewal && !healthOptIn) {
-        await recordConsentDecision({ type: "health_data", accepted: false });
+        decisions.push({ type: "health_data", accepted: false });
+        nextProfile = profileWithoutHealthData(nextProfile);
       }
 
       if (fuelNeedsRenewal && !fuelOptIn) {
-        await saveFuelPrecision(false, null);
+        decisions.push({ type: "fuel_precision", accepted: false });
+        nextProfile = profileWithoutFuelPrecision(nextProfile);
       }
-
-      const decisions: ConsentDecision[] = [];
 
       if (termsNeedUpdate) {
         decisions.push({ type: "terms", accepted: true });
@@ -148,8 +154,9 @@ export function LegalReconsentGate() {
       }
 
       await recordConsentDecisions(decisions);
-
-      window.location.reload();
+      if (nextProfile !== profile) await updateProfile(nextProfile);
+      setSaving(false);
+      setStatus("complete");
     } catch (error) {
       setErrorMessage(
         error instanceof Error

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, FileDown, Trash2, ShieldOff, HeartOff } from "lucide-react";
@@ -7,6 +7,12 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { recordConsentDecision } from "@/lib/loadwise/consent";
 import { Button } from "@/components/ui/button";
 import { MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
+import { useInstantBack } from "@/lib/loadwise/uiHooks";
+import { useLoadwise } from "@/lib/loadwise/store";
+import {
+  clearLocalUserData,
+  profileWithoutHealthData,
+} from "@/lib/loadwise/localPrivacy";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -33,9 +39,10 @@ const USER_TABLES = [
 ] as const;
 
 function DataRights() {
-  const router = useRouter();
   const navigate = useNavigate();
+  const goBack = useInstantBack("/profil");
   const { user, signOut } = useAuth();
+  const { state, updateProfile } = useLoadwise();
   const [busy, setBusy] = useState(false);
 
   async function exportData() {
@@ -81,20 +88,15 @@ function DataRights() {
     if (type === "health_data") {
       try {
         await recordConsentDecision({ type: "health_data", accepted: false });
+        if (state.profile) await updateProfile(profileWithoutHealthData(state.profile));
       } catch {
         setBusy(false);
         toast.error("Nie udało się wycofać zgody i usunąć danych.");
         return;
       }
-      try {
-        const key = `loadwise:v3:${user.id}`;
-        const local = JSON.parse(window.localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
-        window.localStorage.setItem(key, JSON.stringify({ ...local, readiness: {} }));
-      } catch {
-        window.localStorage.removeItem(`loadwise:v3:${user.id}`);
-      }
+      setBusy(false);
       toast.success("Usunięto dane zdrowotne i wyłączono ich personalizację.");
-      window.location.assign("/start");
+      navigate({ to: "/start", replace: true });
       return;
     }
     try {
@@ -122,7 +124,7 @@ function DataRights() {
         method: "POST",
       });
       if (error) throw error;
-      window.localStorage.removeItem(`loadwise:v3:${user.id}`);
+      clearLocalUserData(user.id);
       await signOut();
       toast.success("Konto logowania i powiązane dane zostały usunięte.");
       navigate({ to: "/auth", replace: true });
@@ -136,8 +138,9 @@ function DataRights() {
   return (
     <div className="app-shell premium-flow min-h-screen px-5 pb-16 pt-6">
       <button
-        onClick={() => router.history.back()}
-        className="mb-4 inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm text-foreground"
+        type="button"
+        onClick={goBack}
+        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-sm text-foreground"
       >
         <ChevronLeft className="h-4 w-4" /> Wstecz
       </button>
