@@ -19,8 +19,13 @@ interface ConsentRow {
   accepted_at: string;
 }
 
+const HEALTH_DATA_CONSENT_TEXT =
+  CONSENTS.find((consent) => consent.type === "health_data")?.text ??
+  "Wyrażam zgodę na opcjonalną personalizację na podstawie danych o zdrowiu.";
+
 export function LegalReconsentGate() {
   const { user, signOut } = useAuth();
+  const userId = user?.id;
   const { state, saveFuelPrecision } = useLoadwise();
   const profile = state.profile;
   const [status, setStatus] = useState<GateStatus>("checking");
@@ -40,7 +45,7 @@ export function LegalReconsentGate() {
     let active = true;
 
     async function checkCurrentLegalVersion() {
-      if (!user || !profile?.onboardingComplete) {
+      if (!userId || !profile?.onboardingComplete) {
         if (active) setStatus("complete");
         return;
       }
@@ -51,7 +56,7 @@ export function LegalReconsentGate() {
       const { data, error } = await supabase
         .from("consent_logs")
         .select("id, consent_type, accepted, version, accepted_at")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .in("consent_type", ["terms", "privacy", "health_data", "fuel_precision"])
         .order("accepted_at", { ascending: false })
         .order("id", { ascending: false });
@@ -101,7 +106,7 @@ export function LegalReconsentGate() {
       active = false;
     };
   }, [
-    user?.id,
+    userId,
     profile?.onboardingComplete,
     profile?.healthPersonalizationEnabled,
     profile?.fuelPrecisionEnabled,
@@ -259,7 +264,7 @@ export function LegalReconsentGate() {
                   />
                   <span className="text-sm leading-relaxed">
                     <span className="font-semibold">Opcjonalnie:</span>{` `}
-                    {definition("health_data").text} Jeśli nie zaznaczysz tej zgody, zapisane
+                    {HEALTH_DATA_CONSENT_TEXT} Jeśli nie zaznaczysz tej zgody, zapisane
                     dane zdrowotne zostaną usunięte.
                   </span>
                 </label>
