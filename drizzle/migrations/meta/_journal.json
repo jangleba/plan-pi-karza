@@ -8,6 +8,13 @@
       "when": 1789329476331,
       "tag": "0000_restore_plan_schema_and_atomic_persist",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789757736882,
+      "tag": "0001_secure_defaults_and_health_cleanup",
+      "breakpoints": true
     }
   ]
 }
