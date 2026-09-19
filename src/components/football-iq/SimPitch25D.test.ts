@@ -25,16 +25,16 @@ describe("BallWise IQ — mobilny kadr boiska 2.5D", () => {
     }
   });
 
-  it("odwraca rzut ekranu do współrzędnych boiska dla gestów", () => {
-    for (const source of [
-      { x: 12, y: 24 },
+  it("zamienia dotyk ekranu z powrotem na dokładny punkt boiska", () => {
+    for (const point of [
+      { x: 8, y: 12 },
       { x: 50, y: 70 },
-      { x: 88, y: 122 },
+      { x: 91, y: 126 },
     ]) {
-      const projected = projectPitchPoint(source.x, source.y);
+      const projected = projectPitchPoint(point.x, point.y);
       const restored = unprojectPitchPoint(projected.x, projected.y);
-      expect(restored.x).toBeCloseTo(source.x, 4);
-      expect(restored.y).toBeCloseTo(source.y, 4);
+      expect(restored.x).toBeCloseTo(point.x, 5);
+      expect(restored.y).toBeCloseTo(point.y, 5);
     }
   });
 });

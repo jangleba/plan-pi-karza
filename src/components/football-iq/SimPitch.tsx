@@ -18,9 +18,24 @@ export type SimPitchActor = {
 
 export type SimPitchPath = {
   points: { x: number; y: number }[];
-  variant: "user" | "alt" | "reaction" | "intent" | "prediction";
-  /** Krótka etykieta widoczna bezpośrednio na boisku. */
+  variant:
+    | "user"
+    | "alt"
+    | "reaction"
+    | "pass"
+    | "lofted"
+    | "cross"
+    | "run"
+    | "overlap"
+    | "press"
+    | "cover"
+    | "offside"
+    | "trap"
+    | "zone";
+  /** Krótka etykieta w planerze. */
   label?: string;
+  /** Kolejność zaplanowanej akcji. */
+  order?: number;
 };
 
 type Props = {
@@ -103,22 +118,37 @@ export function SimPitch({ actors, paths, pulse }: Props) {
           points={p.points.map((pt) => `${pt.x},${pt.y}`).join(" ")}
           fill="none"
           className={
-            p.variant === "alt"
-              ? "stroke-primary"
-              : p.variant === "reaction"
-                ? "stroke-destructive"
-                : "stroke-foreground"
+            p.variant === "reaction"
+              ? "stroke-destructive"
+              : p.variant === "alt" ||
+                  p.variant === "run" ||
+                  p.variant === "overlap" ||
+                  p.variant === "cross"
+                ? "stroke-primary"
+                : p.variant === "press" || p.variant === "cover"
+                  ? "stroke-muted-foreground"
+                  : "stroke-foreground"
           }
-          strokeWidth={p.variant === "reaction" ? 1 : p.variant === "alt" ? 1.1 : 1.4}
+          strokeWidth={p.variant === "reaction" ? 1 : 1.2}
           strokeLinecap="round"
-          strokeDasharray={p.variant === "alt" ? "2.5 2" : undefined}
-          markerEnd={`url(#${
-            p.variant === "alt"
-              ? "sim-arrow-alt"
-              : p.variant === "reaction"
-                ? "sim-arrow-reaction"
-                : "sim-arrow"
-          })`}
+          strokeDasharray={
+            p.variant === "alt" || p.variant === "run" || p.variant === "overlap"
+              ? "2.5 2"
+              : p.variant === "lofted" || p.variant === "zone" || p.variant === "trap"
+                ? "1.2 1.4"
+                : undefined
+          }
+          markerEnd={
+            p.variant === "trap" || p.variant === "zone" || p.variant === "offside"
+              ? undefined
+              : `url(#${
+                  p.variant === "alt"
+                    ? "sim-arrow-alt"
+                    : p.variant === "reaction"
+                      ? "sim-arrow-reaction"
+                      : "sim-arrow"
+                })`
+          }
         />
       ))}
 
