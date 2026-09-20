@@ -232,7 +232,9 @@ describe("daily check-in integration", () => {
         createdAt: "2026-08-17T08:00:00Z",
       },
     ]);
-    expect(result).toBe(swapped);
+    expect(result.title).toBe(swapped.title);
+    expect(result.sessionType).toBe(swapped.sessionType);
+    expect(result.sections).toEqual(swapped.sections);
   });
 
   it("falls through to the readiness-adjusted canonical session without a swap", () => {

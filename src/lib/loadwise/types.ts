@@ -1,9 +1,5 @@
 import type { RunningActivity } from "@/lib/running/types";
-import type {
-  AccountOwnerType,
-  OwnershipTransferStatus,
-  SubscriptionPayerType,
-} from "./agePolicy";
+import type { AccountOwnerType, OwnershipTransferStatus, SubscriptionPayerType } from "./agePolicy";
 
 export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
 export type Level = "beginner" | "intermediate" | "advanced" | "elite";
@@ -638,6 +634,8 @@ export interface SessionDay {
   /** Metadane tygodnia rule-based (temat, obowiązkowe/wspierające/regeneracja, load score, walidacja). */
   weekMeta?: WeekMeta;
   secondSession: SessionDay | null;
+  /** Opcjonalna rzeczywista godzina startu; brak oznacza, że nie wolno jej zgadywać. */
+  scheduledStartTime?: string | null;
 }
 
 /**
@@ -665,6 +663,14 @@ export interface SessionCompletion {
   activityType?: "technical" | "mixed" | "running_endurance" | null;
   startedAt?: string | null;
   endedAt?: string | null;
+}
+
+export interface PlanChangeEvent {
+  id: string;
+  date: string;
+  source: "readiness" | "match_minutes" | "missed_session" | "calendar";
+  title: string;
+  detail: string;
 }
 
 export type SessionHistoryCategory =
@@ -718,6 +724,8 @@ export interface LoadwiseState {
   /** Prywatny zapis biegu, kluczowany identyfikatorem sesji treningowej. */
   runningActivities: Record<string, RunningActivity>;
   equipmentNotice: string | null;
+  /** Wyjaśnienia automatycznych zmian, wyliczane z zapisanych danych. */
+  planChangeEvents?: PlanChangeEvent[];
 }
 
 export interface ExerciseReplacement {
