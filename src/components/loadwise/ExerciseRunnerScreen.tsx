@@ -1,14 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronDown } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
-import { exerciseKey, plannedSets, useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
+import {
+  exerciseKey,
+  plannedSets,
+  useExerciseSetLogs,
+  type SetLog,
+} from "@/lib/loadwise/setLogs";
 import {
   fieldsForMetric,
   metricKindForExercise,
   metricUnit,
   type MetricField,
 } from "@/lib/loadwise/exerciseMetrics";
-import { recommendNextLoad } from "@/lib/loadwise/strengthProgression";
+import {
+  recommendNextLoad,
+  saveStrengthProgressionDecision,
+} from "@/lib/loadwise/strengthProgression";
+import { useLoadwise } from "@/lib/loadwise/store";
+import { useAuth } from "@/lib/loadwise/auth";
+import {
+  effectiveSessions,
+  resolveEffectivePlan,
+} from "@/lib/loadwise/effectivePlan";
 import {
   PoseFigure,
   getIllustration,
@@ -34,11 +48,16 @@ function toValues(log: SetLog | undefined): FieldValues {
   };
 }
 
-function describeLog(log: SetLog | undefined, fields: MetricField[], unit: string): string {
+function describeLog(
+  log: SetLog | undefined,
+  fields: MetricField[],
+  unit: string,
+): string {
   if (!log) return "Pierwszy zapis";
   const parts: string[] = [];
   for (const field of fields) {
-    if (field.id === "weight" && log.weightKg != null) parts.push(`${log.weightKg} kg`);
+    if (field.id === "weight" && log.weightKg != null)
+      parts.push(`${log.weightKg} kg`);
     if (field.id === "reps" && log.reps != null) parts.push(`× ${log.reps}`);
     if (field.id === "rir" && log.rir != null) parts.push(`RIR ${log.rir}`);
     if (field.id === "value" && log.metricValue != null)
@@ -72,7 +91,11 @@ function NumberField({
           onChange={(event) => onChange(event.target.value)}
           className="w-full min-w-0 bg-transparent text-lg font-semibold tabular-nums text-foreground outline-none"
         />
-        {field.suffix && <span className="text-[11px] text-muted-foreground">{field.suffix}</span>}
+        {field.suffix && (
+          <span className="text-[11px] text-muted-foreground">
+            {field.suffix}
+          </span>
+        )}
       </div>
     </label>
   );
@@ -99,10 +122,16 @@ export function ExerciseRunnerScreen({
   const [saving, setSaving] = useState(false);
   const [errorsOpen, setErrorsOpen] = useState(false);
   const [frame, setFrame] = useState(0);
+  const [progressionChoice, setProgressionChoice] = useState<
+    "accepted" | "repeat" | null
+  >(null);
+  const { state } = useLoadwise();
+  const { user } = useAuth();
 
   const total = Math.max(1, plannedSets(exercise));
   const key = exerciseKey(exercise);
-  const { current, previous, loading, saveSet } = useExerciseSetLogs(sessionId, key);
+  const { current, previous, recentSessions, loading, saveSet } =
+    useExerciseSetLogs(sessionId, key);
   const metricKind = useMemo(() => metricKindForExercise(exercise), [exercise]);
   const fields = useMemo(() => fieldsForMetric(metricKind), [metricKind]);
   const unit = metricUnit(metricKind);
@@ -110,12 +139,37 @@ export function ExerciseRunnerScreen({
   const details = resolveExerciseSheetViewModel(exercise);
   const cues = details.cues.slice(0, 3);
   const doneCount = Object.keys(current).length;
+  const sessionContext = useMemo(
+    () =>
+      effectiveSessions(
+        resolveEffectivePlan(state.plan, state.modifications),
+      ).find(
+        (item) => item.dbId === sessionId || item.sessionId === sessionId,
+      ) ?? null,
+    [state.plan, state.modifications, sessionId],
+  );
   const recommendation = useMemo(
     () =>
       metricKind === "load"
-        ? recommendNextLoad(Object.values(previous), exercise.reps, exercise.rir)
+        ? recommendNextLoad(
+            recentSessions.map((item) => item.sets),
+            exercise.reps,
+            exercise.rir,
+            {
+              age: state.profile?.age,
+              level: state.profile?.level,
+              goal: state.profile?.goal,
+              gymExperienceLevel: state.profile?.gymExperienceLevel,
+              strengthTrainingMonths: state.profile?.strengthTrainingMonths,
+              movementCompetence: state.profile?.movementCompetence,
+              supervisionLevel: state.profile?.supervisionLevel,
+              blockPhaseLabel: sessionContext?.blockPhaseLabel,
+              mdLabel: sessionContext?.mdLabel,
+              exercise,
+            },
+          )
         : null,
-    [metricKind, previous, exercise.reps, exercise.rir],
+    [metricKind, recentSessions, exercise, state.profile, sessionContext],
   );
 
   useEffect(() => {
@@ -130,7 +184,10 @@ export function ExerciseRunnerScreen({
   }, [setNumber, loading, open, current]);
 
   useEffect(() => {
-    if (!open) setView("sets");
+    if (!open) {
+      setView("sets");
+      setProgressionChoice(null);
+    }
   }, [open]);
 
   if (!open) return null;
@@ -155,9 +212,13 @@ export function ExerciseRunnerScreen({
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold text-foreground">{exercise.name}</div>
+          <div className="truncate text-[15px] font-semibold text-foreground">
+            {exercise.name}
+          </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {view === "technique" ? "Technika" : exercise.displayPrescription || `${total} serie`}
+            {view === "technique"
+              ? "Technika"
+              : exercise.displayPrescription || `${total} serie`}
           </div>
         </div>
       </header>
@@ -179,7 +240,9 @@ export function ExerciseRunnerScreen({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-foreground">Technika ruchu</div>
+              <div className="text-sm font-semibold text-foreground">
+                Technika ruchu
+              </div>
               <div className="truncate text-[12px] text-muted-foreground">
                 Ilustracja, 3 wskazówki i błędy
               </div>
@@ -194,7 +257,11 @@ export function ExerciseRunnerScreen({
                 type="button"
                 onClick={() => setSetNumber(n)}
                 className={`h-1.5 flex-1 rounded-full ${
-                  current[n] ? "bg-primary" : n === setNumber ? "bg-primary/40" : "bg-border"
+                  current[n]
+                    ? "bg-primary"
+                    : n === setNumber
+                      ? "bg-primary/40"
+                      : "bg-border"
                 }`}
                 aria-label={`Seria ${n}`}
               />
@@ -211,7 +278,9 @@ export function ExerciseRunnerScreen({
           </div>
 
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 text-[12px]">
-            <span className="min-w-0 truncate text-muted-foreground">{hint}</span>
+            <span className="min-w-0 truncate text-muted-foreground">
+              {hint}
+            </span>
             {last && (
               <button
                 type="button"
@@ -225,32 +294,88 @@ export function ExerciseRunnerScreen({
 
           {recommendation && (
             <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[13px] font-semibold text-foreground">
-                    {recommendation.weightKg === null
-                      ? recommendation.title
-                      : `${recommendation.title}: ${formatKg(recommendation.weightKg)} kg`}
-                  </div>
-                  <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                    {recommendation.reason}
-                  </div>
-                </div>
-                {recommendation.weightKg !== null && (
+              <div className="text-[13px] font-semibold text-foreground">
+                {recommendation.weightKg === null
+                  ? recommendation.title
+                  : `${recommendation.title}: ${formatKg(recommendation.weightKg)} kg`}
+              </div>
+              <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                {recommendation.reason}
+              </div>
+
+              {recommendation.mode === "increase" &&
+              recommendation.weightKg !== null &&
+              recommendation.currentWeightKg !== null ? (
+                <div className="mt-3 grid gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      setValues((state) => ({
-                        ...state,
+                    onClick={() => {
+                      setValues((currentValues) => ({
+                        ...currentValues,
                         weight: String(recommendation.weightKg),
-                      }))
-                    }
-                    className="shrink-0 text-[12px] font-semibold text-primary"
+                      }));
+                      setProgressionChoice("accepted");
+                      if (user && sessionId) {
+                        saveStrengthProgressionDecision(user.id, {
+                          sessionId,
+                          exerciseKey: key,
+                          decision: "accepted",
+                          currentWeightKg: recommendation.currentWeightKg!,
+                          proposedWeightKg: recommendation.weightKg!,
+                          decidedAt: new Date().toISOString(),
+                        });
+                      }
+                    }}
+                    className="rounded-lg bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground"
                   >
-                    Ustaw
+                    Akceptuję {formatKg(recommendation.weightKg)} kg
                   </button>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValues((currentValues) => ({
+                        ...currentValues,
+                        weight: String(recommendation.currentWeightKg),
+                      }));
+                      setProgressionChoice("repeat");
+                      if (user && sessionId) {
+                        saveStrengthProgressionDecision(user.id, {
+                          sessionId,
+                          exerciseKey: key,
+                          decision: "repeat",
+                          currentWeightKg: recommendation.currentWeightKg!,
+                          proposedWeightKg: recommendation.weightKg!,
+                          decidedAt: new Date().toISOString(),
+                        });
+                      }
+                    }}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-[12px] font-semibold text-foreground"
+                  >
+                    Jeszcze jedna sesja tym ciężarem
+                  </button>
+                </div>
+              ) : recommendation.weightKg !== null ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setValues((currentValues) => ({
+                      ...currentValues,
+                      weight: String(recommendation.weightKg),
+                    }))
+                  }
+                  className="mt-2 text-[12px] font-semibold text-primary"
+                >
+                  Ustaw {formatKg(recommendation.weightKg)} kg
+                </button>
+              ) : null}
+
+              {progressionChoice && (
+                <div className="mt-2 text-[11px] font-medium text-primary">
+                  {progressionChoice === "accepted"
+                    ? "Propozycja ustawiona."
+                    : "Zostajemy przy obecnym ciężarze i ocenimy kolejną sesję."}
+                </div>
+              )}
             </div>
           )}
 
@@ -260,7 +385,9 @@ export function ExerciseRunnerScreen({
                 key={field.id}
                 field={field}
                 value={values[field.id]}
-                onChange={(next) => setValues((state) => ({ ...state, [field.id]: next }))}
+                onChange={(next) =>
+                  setValues((state) => ({ ...state, [field.id]: next }))
+                }
               />
             ))}
           </div>
@@ -285,7 +412,11 @@ export function ExerciseRunnerScreen({
             }}
             className="mt-5 w-full rounded-xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {saving ? "Zapisuję…" : setNumber < total ? "Zapisz serię" : "Zapisz i zakończ"}
+            {saving
+              ? "Zapisuję…"
+              : setNumber < total
+                ? "Zapisz serię"
+                : "Zapisz i zakończ"}
           </button>
         </div>
       ) : (
@@ -326,7 +457,10 @@ export function ExerciseRunnerScreen({
           {cues.length > 0 && (
             <ul className="mt-5 space-y-2">
               {cues.map((cue, index) => (
-                <li key={index} className="flex gap-2 text-[14px] text-foreground">
+                <li
+                  key={index}
+                  className="flex gap-2 text-[14px] text-foreground"
+                >
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
                   <span>{cue}</span>
                 </li>
