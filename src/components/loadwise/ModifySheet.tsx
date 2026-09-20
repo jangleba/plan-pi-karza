@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import {
@@ -7,60 +7,61 @@ import {
   type Place,
   type Proposal,
 } from "@/lib/loadwise/modifications";
-import type { PainLocation, Readiness, SessionDay } from "@/lib/loadwise/types";
-import { buildReadiness, PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
+import type { SessionDay } from "@/lib/loadwise/types";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShieldAlert, Clock, Gauge } from "lucide-react";
 
-type Step = "choice" | "details" | "readiness" | "proposals";
-type Choice = "add" | "swap";
+type Step = "choice" | "details" | "proposals";
+export type ModificationChoice = "add" | "swap";
 
 const TIME_OPTIONS = [20, 30, 45, 60];
 const PLACE_OPTIONS: Place[] = ["dom", "boisko", "silownia"];
-
-const readinessFields: { key: string; label: string; def: number }[] = [
-  { key: "sleep", label: "Sen", def: 7 },
-  { key: "energy", label: "Energia", def: 7 },
-  { key: "fatigue", label: "Zmęczenie nóg", def: 4 },
-  { key: "jointPain", label: "Ból lub dyskomfort", def: 0 },
-];
 
 export function ModifySheet({
   open,
   onOpenChange,
   date,
+  initialChoice,
+  context = "primary",
+  onSelectProposal,
+  onApplied,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   date: string;
+  initialChoice?: ModificationChoice;
+  context?: "primary" | "second";
+  onSelectProposal?: (
+    proposal: Proposal,
+    choice: ModificationChoice,
+  ) => Promise<void>;
+  onApplied?: (choice: ModificationChoice) => void;
 }) {
-  const { state, saveReadiness, applyModification } = useLoadwise();
+  const { state, applyModification } = useLoadwise();
   const [step, setStep] = useState<Step>("choice");
-  const [choice, setChoice] = useState<Choice>("add");
+  const [choice, setChoice] = useState<ModificationChoice>(
+    initialChoice ?? "add",
+  );
   const [time, setTime] = useState(30);
   const [place, setPlace] = useState<Place>("boisko");
-  const [vals, setVals] = useState<Record<string, number>>(() =>
-    Object.fromEntries(readinessFields.map((f) => [f.key, f.def])),
-  );
-  const [painLocation, setPainLocation] = useState<PainLocation | null>(null);
-  const [draftReadiness, setDraftReadiness] = useState<Readiness | null>(null);
-  const [savingReadiness, setSavingReadiness] = useState(false);
 
   const profile = state.profile;
-  const readiness = state.readiness[date];
+
+  useEffect(() => {
+    if (!open) return;
+    setChoice(initialChoice ?? "add");
+    setStep(initialChoice ? "details" : "choice");
+  }, [initialChoice, open]);
 
   function reset() {
     setStep("choice");
     setChoice("add");
-    setDraftReadiness(null);
   }
 
   function close(v: boolean) {
@@ -68,64 +69,41 @@ export function ModifySheet({
     onOpenChange(v);
   }
 
-  function pickChoice(c: Choice) {
+  function pickChoice(c: ModificationChoice) {
     setChoice(c);
     setStep("details");
   }
 
   function continueFromDetails() {
-    if (profile?.healthPersonalizationEnabled && !readiness) {
-      setStep("readiness");
-    } else {
-      setStep("proposals");
-    }
-  }
-
-  async function saveReadinessStep() {
-    if (savingReadiness) return;
-    const nextReadiness = buildReadiness(date, {
-      sleep: vals.sleep,
-      energy: vals.energy,
-      fatigue: vals.fatigue,
-      jointPain: vals.jointPain,
-      painLocation,
-    });
-    setSavingReadiness(true);
-    try {
-      await saveReadiness(nextReadiness);
-      setDraftReadiness(nextReadiness);
-      setStep("proposals");
-    } catch {
-      toast.error("Nie udało się zapisać check-inu. Spróbuj ponownie.");
-    } finally {
-      setSavingReadiness(false);
-    }
+    setStep("proposals");
   }
 
   async function apply(p: Proposal) {
-    const original =
-      choice === "swap" ? state.plan.find((d) => d.date === date) ?? null : null;
-    await applyModification(date, choice, p.session, original, p.reason);
+    if (onSelectProposal) {
+      await onSelectProposal(p, choice);
+    } else {
+      const original =
+        choice === "swap"
+          ? (state.plan.find((d) => d.date === date) ?? null)
+          : null;
+      await applyModification(date, choice, p.session, original, p.reason);
+    }
     toast.success(
-      choice === "swap" ? "Zamieniono sesję." : "Dodano sesję do dziś.",
+      context === "second"
+        ? "Druga sesja została zaktualizowana."
+        : choice === "swap"
+          ? "Zamieniono sesję."
+          : "Dodano sesję do dziś.",
     );
+    onApplied?.(choice);
     close(false);
   }
 
   if (!profile) return null;
 
-  const effectiveReadiness = readiness ?? draftReadiness;
   const result =
     step === "proposals"
-      ? buildProposals(
-          state.plan,
-          profile,
-          date,
-          effectiveReadiness,
-          choice,
-          place,
-          time,
-        )
+      ? buildProposals(state.plan, profile, date, null, choice, place, time)
       : null;
 
   return (
@@ -135,13 +113,13 @@ export function ModifySheet({
           <DialogTitle>
             {step === "choice"
               ? "Co chcesz zrobić?"
-              : step === "readiness"
-                ? "Jak się dziś czujesz?"
-                : step === "details"
-                  ? choice === "swap"
-                    ? "Zamień dzisiejszą sesję"
-                    : "Dodaj lekką sesję"
-                  : "Bezpieczne opcje na dziś"}
+              : step === "details"
+                ? choice === "swap"
+                  ? context === "second"
+                    ? "Zamień drugą sesję"
+                    : "Zamień dzisiejszą sesję"
+                  : "Dodaj lekką sesję"
+                : "Opcje pasujące do planu"}
           </DialogTitle>
         </DialogHeader>
 
@@ -160,7 +138,9 @@ export function ModifySheet({
               onClick={() => pickChoice("swap")}
               className="soft-card w-full p-4 text-left"
             >
-              <div className="text-sm font-semibold">Zamień dzisiejszą sesję</div>
+              <div className="text-sm font-semibold">
+                Zamień dzisiejszą sesję
+              </div>
               <div className="text-xs text-muted-foreground">
                 Zaplanowana sesja dziś nie pasuje — wybierz inną.
               </div>
@@ -224,52 +204,7 @@ export function ModifySheet({
             </div>
 
             <Button className="w-full" size="lg" onClick={continueFromDetails}>
-              {readiness || !profile.healthPersonalizationEnabled
-                ? "Pokaż propozycje"
-                : "Dalej — check-in"}
-            </Button>
-          </div>
-        )}
-
-        {step === "readiness" && (
-          <div className="space-y-4 pt-1">
-            <p className="text-sm text-muted-foreground">
-              Uzupełnij check-in, zanim dobierzemy bezpieczną sesję.
-            </p>
-            {readinessFields.map((f) => (
-              <div key={f.key}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="font-medium">{f.label}</span>
-                  <span className="text-muted-foreground">
-                    {vals[f.key]}/10
-                  </span>
-                </div>
-                <Slider
-                  min={f.key === "jointPain" ? 0 : 1}
-                  max={10}
-                  step={1}
-                  value={[vals[f.key]]}
-                  onValueChange={(v) =>
-                    setVals((p) => ({ ...p, [f.key]: v[0] }))
-                  }
-                />
-              </div>
-            ))}
-            {vals.jointPain > 0 && (
-              <div className="space-y-2">
-                <span className="text-sm font-medium">Obszar dyskomfortu</span>
-                <Select value={painLocation ?? "other"} onValueChange={(value) => setPainLocation(value as PainLocation)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PAIN_LOCATION_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <Button className="w-full" size="lg" onClick={() => void saveReadinessStep()} disabled={savingReadiness}>
-              {savingReadiness ? "Zapisywanie…" : "Zapisz i pokaż propozycje"}
+              Pokaż propozycje
             </Button>
           </div>
         )}
