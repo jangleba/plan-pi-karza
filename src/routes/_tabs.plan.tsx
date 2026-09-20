@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
-import { formatDate, shortDayName, parseIso, professionalSessionTitle } from "@/lib/loadwise/labels";
+import {
+  formatDate,
+  shortDayName,
+  parseIso,
+  professionalSessionTitle,
+} from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
 import {
   buildPlanWeeks,
@@ -10,9 +15,14 @@ import {
   validatePlanWeeks,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
-import { resolveEffectiveDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
+import {
+  resolveEffectiveDay,
+  resolveTodayPlanRowSource,
+} from "@/lib/loadwise/dailyCheckin";
+import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
+import { WeekSimulatorDialog } from "@/components/loadwise/WeekSimulatorDialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +30,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
+import type {
+  SessionDay,
+  Intensity,
+  Goal,
+  PlanWeek,
+} from "@/lib/loadwise/types";
 import {
   Clock,
   ChevronRight,
@@ -36,8 +51,6 @@ import {
   CalendarDays,
   type LucideIcon,
 } from "lucide-react";
-
-
 
 export const Route = createFileRoute("/_tabs/plan")({
   component: PlanScreen,
@@ -55,8 +68,10 @@ function sessionIcon(day: SessionDay): LucideIcon {
   if (day.dayType === "recovery" || day.dayType === "rest") return Leaf;
   const t = day.sessionType.toLowerCase();
   if (t.includes("szybk") || t.includes("sprint")) return Zap;
-  if (t.includes("piłk") || t.includes("techn") || t.includes("ball")) return Target;
-  if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob")) return Activity;
+  if (t.includes("piłk") || t.includes("techn") || t.includes("ball"))
+    return Target;
+  if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob"))
+    return Activity;
   return Dumbbell;
 }
 
@@ -140,7 +155,11 @@ function whatToDo(day: SessionDay): string {
       const type = day.sessionType.toLowerCase();
       if (type.includes("wytrzymał") || type.includes("rsa"))
         return "Główne okno bodźca wytrzymałościowego.";
-      if (type.includes("agility") || type.includes("cod") || type.includes("zwin"))
+      if (
+        type.includes("agility") ||
+        type.includes("cod") ||
+        type.includes("zwin")
+      )
         return "COD i hamowanie — jakość decyzji i ruchu.";
       if (type.includes("moc"))
         return "Moc jako bodziec główny, bez nadmiaru skoków.";
@@ -181,7 +200,10 @@ const PHASE_FOCUS: Record<WeekPhase, { goal: string; accent: string }> = {
 };
 
 /** Akcent fazy dopasowany do celu zawodnika. */
-function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string } {
+function focusFor(
+  phase: WeekPhase,
+  goal: Goal,
+): { goal: string; accent: string } {
   const base = PHASE_FOCUS[phase];
   const accents: Partial<Record<Goal, Record<WeekPhase, string>>> = {
     endurance: {
@@ -245,10 +267,12 @@ function weekSummary(
   };
 }
 
-
 function PlanScreen() {
   const { state, todayIso, todaySession, updateProfile } = useLoadwise();
-  const plan = state.plan;
+  const plan = useMemo(
+    () => resolveEffectivePlan(state.plan, state.modifications),
+    [state.plan, state.modifications],
+  );
   const completions = state.completions;
   const profile = state.profile;
   const transitions = state.transitions;
@@ -256,6 +280,7 @@ function PlanScreen() {
   const [gateWeek, setGateWeek] = useState<number | null>(null);
   const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
   const [switchingSeason, setSwitchingSeason] = useState(false);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
   const autoWeekKeyRef = useRef<string | null>(null);
 
   const weeks = buildPlanWeeks(plan, profile);
@@ -301,7 +326,8 @@ function PlanScreen() {
   // seasonPhase = offseason/transition. Brak daty meczu NIE oznacza automatycznie
   // okresu poza sezonem.
   const seasonStatus: "in_season" | "off_season" =
-    profile?.seasonPhase === "offseason" || profile?.seasonPhase === "transition"
+    profile?.seasonPhase === "offseason" ||
+    profile?.seasonPhase === "transition"
       ? "off_season"
       : "in_season";
   const offseasonAllowed = seasonStatus === "off_season";
@@ -355,9 +381,13 @@ function PlanScreen() {
     GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? null;
   const summary = current
-    ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
+    ? weekSummary(
+        activeWeek,
+        weeks.length,
+        current,
+        profile?.goal ?? "matchready",
+      )
     : null;
-
 
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
@@ -365,17 +395,20 @@ function PlanScreen() {
   const nextTransition = transitions[nextIndex];
 
   // Kolejny tydzień gotowy: poza sezonem zawsze, w sezonie tylko z datą meczu.
-  const nextReady = seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
+  const nextReady =
+    seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
 
   // Granice tygodnia wymagającego daty meczu (dla bramki i modala).
   const gateNextIndex = gateWeek ?? needMatchWeek;
-  const gateWeekData = gateNextIndex !== null ? weeks[gateNextIndex] ?? null : null;
+  const gateWeekData =
+    gateNextIndex !== null ? (weeks[gateNextIndex] ?? null) : null;
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
   const visibleDays = (current?.days ?? []).filter((d) => !d.outsideActivePlan);
   const planStartDate = visibleDays[0]?.date ?? null;
   const hasHiddenBefore =
-    (current?.days ?? []).some((d) => d.outsideActivePlan) && planStartDate !== null;
+    (current?.days ?? []).some((d) => d.outsideActivePlan) &&
+    planStartDate !== null;
 
   // Po wejściu i przy zmianie tygodnia przewiń ekran na górę.
   useEffect(() => {
@@ -393,9 +426,6 @@ function PlanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWeek, transitions, seasonStatus]);
 
-
-
-
   return (
     <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
       <AppHeader
@@ -406,11 +436,24 @@ function PlanScreen() {
             : monthGoal
         }
         right={
-          <span className="icon-bubble h-9 w-9 border border-border bg-card">
+          <button
+            type="button"
+            onClick={() => setSimulatorOpen(true)}
+            className="icon-bubble h-9 w-9 border border-border bg-card"
+            aria-label="Otwórz symulator tygodnia"
+          >
             <CalendarDays className="h-4 w-4" />
-          </span>
+          </button>
         }
       />
+
+      {profile && (
+        <WeekSimulatorDialog
+          open={simulatorOpen}
+          onOpenChange={setSimulatorOpen}
+          profile={profile}
+        />
+      )}
 
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
@@ -456,7 +499,9 @@ function PlanScreen() {
               <Leaf className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">Okres poza sezonem</p>
+              <p className="text-sm font-semibold text-foreground">
+                Okres poza sezonem
+              </p>
               <p className="text-xs text-muted-foreground">
                 Plan rozwija formę bez powiązania z terminarzem meczowym.
               </p>
@@ -479,7 +524,11 @@ function PlanScreen() {
           <div className="border-y border-border/75 py-4">
             <div className="grid grid-cols-7 gap-1">
               {visibleDays.map(({ source }) => {
-                const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+                const day = resolveTodayPlanRowSource(
+                  source,
+                  todayIso,
+                  todayAdjusted,
+                );
                 const date = parseIso(day.date);
                 const isToday = day.date === todayIso;
                 const isMatch = day.dayType === "match";
@@ -499,15 +548,23 @@ function PlanScreen() {
                     <span className="relative flex h-9 items-end">
                       <span
                         className={`w-1.5 rounded-full ${
-                          isMatch ? "bg-[oklch(0.58_0.055_55)]" : isToday ? "bg-primary" : "bg-[oklch(0.62_0.035_151)]"
+                          isMatch
+                            ? "bg-[oklch(0.58_0.055_55)]"
+                            : isToday
+                              ? "bg-primary"
+                              : "bg-[oklch(0.62_0.035_151)]"
                         }`}
                         style={{ height: loadBarHeight(day) }}
                       />
                     </span>
-                    <span className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}>
+                    <span
+                      className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}
+                    >
                       {date.getDate()}
                     </span>
-                    {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
+                    {isToday && (
+                      <span className="h-0.5 w-5 rounded-full bg-primary" />
+                    )}
                   </Link>
                 );
               })}
@@ -524,12 +581,15 @@ function PlanScreen() {
       {summary && (
         <div className="px-5 pt-3">
           <div className="border-b border-border/75 px-1 pb-3">
-            <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Kierunek mikrocyklu</span>
-            <span className="mt-1 block truncate text-sm font-medium text-foreground">{summary.goal}</span>
+            <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Kierunek mikrocyklu
+            </span>
+            <span className="mt-1 block truncate text-sm font-medium text-foreground">
+              {summary.goal}
+            </span>
           </div>
         </div>
       )}
-
 
       {/* Dni tygodnia */}
       <div
@@ -543,11 +603,14 @@ function PlanScreen() {
           </div>
         )}
         {visibleDays.map(({ source }) => {
-          const baseDay = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+          const baseDay = resolveTodayPlanRowSource(
+            source,
+            todayIso,
+            todayAdjusted,
+          );
           const mods = state.modifications[baseDay.date] ?? [];
           const swappedMod = mods.find((item) => item.type === "swap");
-          const additions = mods.filter((item) => item.type === "add");
-          const day = swappedMod?.session ?? baseDay;
+          const day = baseDay;
           const isToday = day.date === todayIso;
           const hasTwo = !!day.secondSession;
           const done = day.dbId ? completions[day.dbId]?.completed : false;
@@ -560,10 +623,7 @@ function PlanScreen() {
           const RowIcon = sessionIcon(day);
           const isRest = day.dayType === "rest" || day.dayType === "recovery";
           return (
-            <div
-              key={day.date}
-              className="relative overflow-hidden"
-            >
+            <div key={day.date} className="relative overflow-hidden">
               {isToday && (
                 <span className="absolute inset-y-4 left-0 w-0.5 rounded-r-full bg-primary" />
               )}
@@ -617,13 +677,12 @@ function PlanScreen() {
                     />
                     {swapped
                       ? "Zamieniona"
-                      : day.loadLabelOverride ?? shortTag(day)}
+                      : (day.loadLabelOverride ?? shortTag(day))}
                   </p>
                 </div>
 
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </Link>
-
 
               {hasTwo && day.secondSession && (
                 <Link
@@ -633,36 +692,13 @@ function PlanScreen() {
                   className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
                 >
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-foreground/60" />
-                  <span className="truncate">Druga jednostka: {professionalSessionTitle(day.secondSession.title)}</span>
+                  <span className="truncate">
+                    Druga jednostka:{" "}
+                    {professionalSessionTitle(day.secondSession.title)}
+                  </span>
                   <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
                 </Link>
               )}
-
-              {additions.map((modification) => {
-                const addedDone = modification.session.dbId
-                  ? completions[modification.session.dbId]?.completed
-                  : false;
-                return (
-                  <Link
-                    key={modification.id}
-                    to="/sesja/$date"
-                    params={{ date: day.date }}
-                    search={{ slot: 1, mod: modification.id }}
-                    className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
-                  >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-                    <span className="truncate">
-                      Dodana jednostka: {professionalSessionTitle(modification.session.title)}
-                    </span>
-                    {addedDone && (
-                      <CheckCircle2 className="ml-auto h-3.5 w-3.5 shrink-0 text-primary" />
-                    )}
-                    {!addedDone && (
-                      <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
-                    )}
-                  </Link>
-                );
-              })}
             </div>
           );
         })}
@@ -701,10 +737,11 @@ function PlanScreen() {
               onClick={() => setGateWeek(nextIndex)}
               className="mt-2 w-full text-center text-xs font-medium text-primary"
             >
-              {seasonStatus === "off_season" ? "Ustaw datę meczu (opcjonalnie)" : "Zmień datę meczu"}
+              {seasonStatus === "off_season"
+                ? "Ustaw datę meczu (opcjonalnie)"
+                : "Zmień datę meczu"}
             </button>
           </div>
-
         </div>
       )}
 
@@ -744,7 +781,6 @@ function PlanScreen() {
         </DialogContent>
       </Dialog>
 
-
       {gateWeek !== null && gateWeekData && (
         <WeeklyGateSheet
           open={gateWeek !== null}
@@ -765,6 +801,5 @@ function PlanScreen() {
 
       <div className="h-[140px]" />
     </div>
-
   );
 }

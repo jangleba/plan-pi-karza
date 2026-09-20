@@ -1839,25 +1839,11 @@ function SessionDetail() {
   const mods = state.modifications[date] ?? [];
   const swapMod = mods.find((m) => m.type === "swap");
   const addMods = mods.filter((m) => m.type === "add");
-  const dailySecondMod = [...addMods]
-    .reverse()
-    .find((m) => m.reason.startsWith("[daily-checkin:second-"));
   const selectedAdd = addMods.find((item) => item.id === mod) ?? null;
 
   // Sesja główna: zamieniona (jeśli jest) lub zaplanowana.
   let primary: SessionDay = day;
   primary = resolveEffectiveDay(day, undefined, state.profile, mods);
-  if (dailySecondMod) {
-    primary = {
-      ...primary,
-      slotLabel: "Sesja 1",
-      secondSession: {
-        ...dailySecondMod.session,
-        slotLabel: "Sesja 2",
-        secondSession: null,
-      },
-    };
-  }
   // Ostatnia bariera przed runnerem: ekran nie zależy od powodzenia zapisu
   // migracji i nigdy nie dostaje historycznie uciętego slotu sprintowego.
   primary = repairRuntimeSpeedDay(primary, state.profile, {

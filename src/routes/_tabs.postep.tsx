@@ -4,7 +4,10 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 import { ProgressHistory } from "@/components/progress/ProgressHistory";
-import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
+import {
+  buildTrainingHistory,
+  mergeTrainingHistory,
+} from "@/lib/progress/progress";
 import { buildMicrocycle, buildDirection } from "@/lib/progress/center";
 import {
   buildCycleBar,
@@ -12,6 +15,7 @@ import {
   buildEvidence,
   buildTimeline,
 } from "@/lib/progress/dashboard";
+import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 
 export const Route = createFileRoute("/_tabs/postep")({
   component: ProgressScreen,
@@ -44,31 +48,47 @@ type TabId = (typeof TABS)[number]["id"];
 function ProgressScreen() {
   const { state, todayIso } = useLoadwise();
   const [tab, setTab] = useState<TabId>("dashboard");
+  const effectivePlan = useMemo(
+    () => resolveEffectivePlan(state.plan, state.modifications),
+    [state.plan, state.modifications],
+  );
 
   const history = useMemo(
-    () => mergeTrainingHistory(state.history, buildTrainingHistory(state.plan, state.completions)),
-    [state.history, state.plan, state.completions],
+    () =>
+      mergeTrainingHistory(
+        state.history,
+        buildTrainingHistory(effectivePlan, state.completions),
+      ),
+    [state.history, effectivePlan, state.completions],
   );
   const micro = useMemo(
-    () => buildMicrocycle(state.plan, history, todayIso),
-    [state.plan, history, todayIso],
+    () => buildMicrocycle(effectivePlan, history, todayIso),
+    [effectivePlan, history, todayIso],
   );
   const nextSession = useMemo(
     () =>
-      state.plan
-        .filter((day) => day.date >= todayIso && day.dayType !== "rest" && !day.isUnavailable)
+      effectivePlan
+        .filter(
+          (day) =>
+            day.date >= todayIso &&
+            day.dayType !== "rest" &&
+            !day.isUnavailable,
+        )
         .sort((a, b) => (a.date < b.date ? -1 : 1))[0] ?? null,
-    [state.plan, todayIso],
+    [effectivePlan, todayIso],
   );
   const direction = useMemo(
     () => buildDirection(state.profile, micro, nextSession),
     [state.profile, micro, nextSession],
   );
   const cycle = useMemo(
-    () => buildCycleBar(state.profile, state.plan, todayIso),
-    [state.profile, state.plan, todayIso],
+    () => buildCycleBar(state.profile, effectivePlan, todayIso),
+    [state.profile, effectivePlan, todayIso],
   );
-  const load = useMemo(() => buildLoadReport(history, todayIso), [history, todayIso]);
+  const load = useMemo(
+    () => buildLoadReport(history, todayIso),
+    [history, todayIso],
+  );
   const evidence = useMemo(
     () => buildEvidence(micro, history, todayIso),
     [micro, history, todayIso],
@@ -77,7 +97,10 @@ function ProgressScreen() {
 
   return (
     <div className="premium-flow progress-premium">
-      <AppHeader title="Postęp" subtitle="Tylko realne dane z wykonanych treningów." />
+      <AppHeader
+        title="Postęp"
+        subtitle="Tylko realne dane z wykonanych treningów."
+      />
 
       <div className="sticky top-0 z-10 mb-4 bg-background/85 px-5 py-2 backdrop-blur">
         <div className="flex border-b border-border" role="tablist">
@@ -117,10 +140,14 @@ function ProgressScreen() {
             load={load}
             micro={micro}
             runningActivities={state.runningActivities}
+            history={history}
             todayIso={todayIso}
           />
         ) : (
-          <ProgressHistory events={timeline} runningActivities={state.runningActivities} />
+          <ProgressHistory
+            events={timeline}
+            runningActivities={state.runningActivities}
+          />
         )}
       </div>
 

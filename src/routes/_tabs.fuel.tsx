@@ -26,7 +26,15 @@ import { FuelResultSheet } from "@/components/fuel/FuelResultSheet";
 import { MealScannerSheet } from "@/components/fuel/MealScannerSheet";
 import { evaluateMeal, TIME_BUCKET_MINUTES } from "@/lib/fuel/engine";
 import { parseMeal } from "@/lib/fuel/mealParser";
-import { athleteFromProfile, findNextSession, sessionFromPlan } from "@/lib/fuel/planAdapter";
+import { athleteFromProfile } from "@/lib/fuel/planAdapter";
+import {
+  EMPTY_FUEL_SCHEDULE,
+  findNextFuelSession,
+  loadFuelSchedulePreferences,
+  rememberFuelStart,
+  saveFuelSchedulePreferences,
+  type FuelSchedulePreferences,
+} from "@/lib/fuel/schedule";
 import {
   prepareMealPhoto,
   type MealPhotoAnalysis,
@@ -59,6 +67,7 @@ import {
 } from "@/lib/fuel/uiModel";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
+import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 
 export const Route = createFileRoute("/_tabs/fuel")({
   component: FuelScreen,
@@ -99,9 +108,23 @@ function FuelScreen() {
   const { user } = useAuth();
   const { state, todayIso, saveFuelPrecision } = useLoadwise();
   const profile = state.profile;
+  const [schedulePreferences, setSchedulePreferences] =
+    useState<FuelSchedulePreferences>(EMPTY_FUEL_SCHEDULE);
+  const [now, setNow] = useState(() => new Date());
+  const effectivePlan = useMemo(
+    () => resolveEffectivePlan(state.plan, state.modifications),
+    [state.plan, state.modifications],
+  );
   const session = useMemo(
-    () => sessionFromPlan(findNextSession(state.plan, todayIso), todayIso),
-    [state.plan, todayIso],
+    () =>
+      findNextFuelSession({
+        plan: effectivePlan,
+        todayIso,
+        now,
+        preferences: schedulePreferences,
+        completions: state.completions,
+      }),
+    [effectivePlan, state.completions, todayIso, now, schedulePreferences],
   );
   const athlete = useMemo(() => athleteFromProfile(profile), [profile]);
 
@@ -117,17 +140,28 @@ function FuelScreen() {
   const [precisionSaving, setPrecisionSaving] = useState(false);
   const [photo, setPhoto] = useState<PreparedMealPhoto | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [scanAnalysis, setScanAnalysis] = useState<MealPhotoAnalysis | null>(null);
+  const [scanAnalysis, setScanAnalysis] = useState<MealPhotoAnalysis | null>(
+    null,
+  );
   const [listening, setListening] = useState(false);
   const [protocol, setProtocol] = useState<FuelProtocol | null>(null);
   const [protocolOpen, setProtocolOpen] = useState(false);
-  const [safetyConfirmed, setSafetyConfirmed] = useState(athlete.allergyStatus !== "unconfirmed");
+  const [clockDraft, setClockDraft] = useState("");
+  const [rememberClock, setRememberClock] = useState(true);
+  const [timeEditorOpen, setTimeEditorOpen] = useState(false);
+  const [safetyConfirmed, setSafetyConfirmed] = useState(
+    athlete.allergyStatus !== "unconfirmed",
+  );
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const countdown = useCountdown(session.minutesToStart);
-  const minutes = countdown ?? manualMinutes ?? (bucket ? TIME_BUCKET_MINUTES[bucket] : null);
-  const signal = useMemo(() => fuelSignal(session, minutes), [session, minutes]);
+  const minutes =
+    countdown ?? manualMinutes ?? (bucket ? TIME_BUCKET_MINUTES[bucket] : null);
+  const signal = useMemo(
+    () => fuelSignal(session, minutes),
+    [session, minutes],
+  );
   const target = useMemo(
     () => fuelTargetRange({ session, minutes, profile }),
     [session, minutes, profile],
@@ -137,7 +171,9 @@ function FuelScreen() {
     [session, minutes, profile],
   );
   const activeRecommendation =
-    recommendations.find((recommendation) => recommendation.id === chosenMealId) ??
+    recommendations.find(
+      (recommendation) => recommendation.id === chosenMealId,
+    ) ??
     recommendations[0] ??
     null;
 
@@ -166,11 +202,27 @@ function FuelScreen() {
     });
   }, [hasMeal, minutes, session, evaluationAthlete, meal, portion, bucket]);
   const fixes = availableFixes(meal, portion);
-  const protocolProgress = protocol ? fuelProtocolProgress(protocol) : { done: 0, total: 4 };
+  const protocolProgress = protocol
+    ? fuelProtocolProgress(protocol)
+    : { done: 0, total: 4 };
 
   useEffect(() => {
     setSafetyConfirmed(athlete.allergyStatus !== "unconfirmed");
   }, [athlete.allergyStatus]);
+
+  useEffect(() => {
+    setSchedulePreferences(loadFuelSchedulePreferences(user?.id ?? "guest"));
+  }, [user?.id]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    setClockDraft(session.startClock ?? "");
+    setTimeEditorOpen(session.startClock == null);
+  }, [session.scheduleKey, session.startClock]);
 
   useEffect(
     () => () => {
@@ -192,12 +244,16 @@ function FuelScreen() {
     });
     let persisted: FuelProtocol | null = null;
     try {
-      const raw = window.localStorage.getItem(fuelProtocolStorageKey(user?.id ?? "guest", session));
+      const raw = window.localStorage.getItem(
+        fuelProtocolStorageKey(user?.id ?? "guest", session),
+      );
       if (raw) persisted = JSON.parse(raw) as FuelProtocol;
     } catch {
       persisted = null;
     }
-    setProtocol((current) => mergeFuelProtocolProgress(fresh, current ?? persisted));
+    setProtocol((current) =>
+      mergeFuelProtocolProgress(fresh, current ?? persisted),
+    );
   }, [activeRecommendation, minutes, session, target, user?.id]);
 
   useEffect(() => {
@@ -217,6 +273,34 @@ function FuelScreen() {
     setBucket(next);
   }
 
+  function saveStartClock() {
+    try {
+      const next = rememberFuelStart({
+        preferences: schedulePreferences,
+        session,
+        clock: clockDraft,
+        rememberForKind: rememberClock,
+      });
+      setSchedulePreferences(next);
+      saveFuelSchedulePreferences(user?.id ?? "guest", next);
+      setNow(new Date());
+      setTimeEditorOpen(false);
+      setBucket(null);
+      setManualMinutes(null);
+      toast.success(
+        rememberClock
+          ? "Godzina zapamiętana dla takich sesji."
+          : "Godzina ustawiona.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nie udało się zapisać godziny.",
+      );
+    }
+  }
+
   function evaluateCurrent() {
     if (minutes == null) {
       toast.info("Najpierw wybierz czas do treningu.");
@@ -233,7 +317,10 @@ function FuelScreen() {
     setResultOpen(true);
   }
 
-  function selectRecommendation(recommendation: MealRecommendation, openResult = true) {
+  function selectRecommendation(
+    recommendation: MealRecommendation,
+    openResult = true,
+  ) {
     setChosenMealId(recommendation.id);
     setText(recommendation.text);
     setPortion(recommendation.portion);
@@ -241,7 +328,8 @@ function FuelScreen() {
     setDropHeavy(false);
     setScanAnalysis(null);
     if (!openResult) return;
-    if (minutes == null) toast.info("Propozycja wybrana. Ustaw jeszcze czas do treningu.");
+    if (minutes == null)
+      toast.info("Propozycja wybrana. Ustaw jeszcze czas do treningu.");
     else if (athlete.allergyStatus === "unconfirmed" && !safetyConfirmed)
       toast.info("Propozycja wybrana. Potwierdź bezpieczeństwo składników.");
     else setResultOpen(true);
@@ -252,12 +340,15 @@ function FuelScreen() {
       toast.info("Wybierz czas do treningu, aby uruchomić protokół.");
       return;
     }
-    if (activeRecommendation && !chosenMealId) selectRecommendation(activeRecommendation, false);
+    if (activeRecommendation && !chosenMealId)
+      selectRecommendation(activeRecommendation, false);
     setProtocolOpen(true);
   }
 
   function completeProtocol(id: FuelProtocolStage) {
-    setProtocol((current) => (current ? completeFuelProtocolItem(current, id) : current));
+    setProtocol((current) =>
+      current ? completeFuelProtocolItem(current, id) : current,
+    );
   }
 
   function adaptProtocol(message: string) {
@@ -290,7 +381,9 @@ function FuelScreen() {
     });
     setProtocol(fresh);
     try {
-      window.localStorage.removeItem(fuelProtocolStorageKey(user?.id ?? "guest", session));
+      window.localStorage.removeItem(
+        fuelProtocolStorageKey(user?.id ?? "guest", session),
+      );
     } catch {
       // Nic do usunięcia.
     }
@@ -298,9 +391,13 @@ function FuelScreen() {
 
   function applyFix(id: FixId) {
     if (id === "add_banana")
-      setExtras((items) => (items.includes("banan") ? items : [...items, "banan"]));
+      setExtras((items) =>
+        items.includes("banan") ? items : [...items, "banan"],
+      );
     if (id === "add_water")
-      setExtras((items) => (items.includes("woda") ? items : [...items, "woda"]));
+      setExtras((items) =>
+        items.includes("woda") ? items : [...items, "woda"],
+      );
     if (id === "smaller_portion") setPortion((value) => smallerPortion(value));
     if (id === "drop_heavy") setDropHeavy(true);
   }
@@ -312,7 +409,11 @@ function FuelScreen() {
       setPhoto(prepared);
       setScannerOpen(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się otworzyć zdjęcia.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nie udało się otworzyć zdjęcia.",
+      );
     } finally {
       if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
@@ -323,7 +424,11 @@ function FuelScreen() {
     setPhoto(null);
   }
 
-  function useScan(scanText: string, scanPortion: Portion, analysis: MealPhotoAnalysis) {
+  function useScan(
+    scanText: string,
+    scanPortion: Portion,
+    analysis: MealPhotoAnalysis,
+  ) {
     setText(scanText);
     setPortion(scanPortion);
     setChosenMealId(null);
@@ -346,9 +451,12 @@ function FuelScreen() {
       SpeechRecognition?: SpeechRecognitionConstructor;
       webkitSpeechRecognition?: SpeechRecognitionConstructor;
     };
-    const Recognition = browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
+    const Recognition =
+      browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
     if (!Recognition) {
-      toast.info("Ta przeglądarka nie obsługuje dyktowania. Wpisz posiłek ręcznie.");
+      toast.info(
+        "Ta przeglądarka nie obsługuje dyktowania. Wpisz posiłek ręcznie.",
+      );
       return;
     }
     const recognition = new Recognition();
@@ -365,7 +473,8 @@ function FuelScreen() {
         setScanAnalysis(null);
       }
     };
-    recognition.onerror = () => toast.error("Nie udało się rozpoznać mowy. Spróbuj ponownie.");
+    recognition.onerror = () =>
+      toast.error("Nie udało się rozpoznać mowy. Spróbuj ponownie.");
     recognition.onend = () => {
       setListening(false);
       recognitionRef.current = null;
@@ -386,7 +495,11 @@ function FuelScreen() {
       );
       setPrecisionOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się zapisać ustawienia.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nie udało się zapisać ustawienia.",
+      );
     } finally {
       setPrecisionSaving(false);
     }
@@ -401,7 +514,9 @@ function FuelScreen() {
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" /> BallWise
           </div>
-          <h1 className="mt-1 text-[30px] font-medium leading-none tracking-[-0.05em]">Fuel</h1>
+          <h1 className="mt-1 text-[30px] font-medium leading-none tracking-[-0.05em]">
+            Fuel
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -431,7 +546,8 @@ function FuelScreen() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                   <span className="fuel-live-dot h-1.5 w-1.5 rounded-full bg-primary" />
-                  {session.dayLabel ?? "Najbliższa jednostka"} · {sessionLabel(session.kind)}
+                  {session.dayLabel ?? "Najbliższa jednostka"} ·{" "}
+                  {sessionLabel(session.kind)}
                 </div>
                 <span className="rounded-full border border-border/80 bg-background/65 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
                   {minutes == null ? "ustaw czas" : formatLead(minutes)}
@@ -474,7 +590,11 @@ function FuelScreen() {
                   label="Płyny"
                   value={`${target.fluidMinMl}–${target.fluidMaxMl} ml`}
                 />
-                <Metric icon={Gauge} label="Komfort" value={comfortLabel(minutes)} />
+                <Metric
+                  icon={Gauge}
+                  label="Komfort"
+                  value={comfortLabel(minutes)}
+                />
               </div>
             </section>
 
@@ -488,8 +608,50 @@ function FuelScreen() {
                     zaktualizowano w protokole
                   </span>
                 )}
+                {session.startClock && !timeEditorOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setTimeEditorOpen(true)}
+                    className="text-[10px] font-medium text-primary"
+                  >
+                    {session.startClock} · zmień
+                  </button>
+                )}
               </div>
-              {countdown == null && (
+              {timeEditorOpen && (
+                <div className="mb-3 rounded-2xl border border-border/80 bg-card/60 p-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={clockDraft}
+                      onChange={(event) => setClockDraft(event.target.value)}
+                      className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
+                      aria-label="Godzina rozpoczęcia treningu"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveStartClock}
+                      disabled={!clockDraft}
+                      className="h-10 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      Zapisz
+                    </button>
+                  </div>
+                  <label className="mt-2 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={rememberClock}
+                      onChange={(event) =>
+                        setRememberClock(event.target.checked)
+                      }
+                      className="mt-0.5 accent-[var(--color-primary)]"
+                    />
+                    Zapamiętaj jako zwykłą godzinę dla tego typu sesji. Potem
+                    Fuel ustawi czas sam.
+                  </label>
+                </div>
+              )}
+              {countdown == null && !timeEditorOpen && (
                 <div className="-mx-5 flex snap-x gap-2 overflow-x-auto px-5 pb-1">
                   {WINDOWS.map((window) => (
                     <button
@@ -524,7 +686,9 @@ function FuelScreen() {
                     setDropHeavy(false);
                     setScanAnalysis(null);
                   }}
-                  onKeyDown={(event) => event.key === "Enter" && evaluateCurrent()}
+                  onKeyDown={(event) =>
+                    event.key === "Enter" && evaluateCurrent()
+                  }
                   placeholder="Opisz posiłek jednym zdaniem"
                   className="h-11 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground/65"
                 />
@@ -532,7 +696,9 @@ function FuelScreen() {
                   type="button"
                   onClick={toggleVoice}
                   className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition active:scale-95 ${listening ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                  aria-label={listening ? "Zatrzymaj nagrywanie" : "Opisz głosem"}
+                  aria-label={
+                    listening ? "Zatrzymaj nagrywanie" : "Opisz głosem"
+                  }
                 >
                   {listening ? (
                     <Square className="h-3 w-3 fill-current" />
@@ -570,7 +736,8 @@ function FuelScreen() {
                   <AudioLines className="h-3 w-3" /> tekst · głos · skan AI
                 </span>
                 <span className="max-w-[13.5rem] text-right">
-                  opis i nagranie nie są zapisywane; głos może przetwarzać usługa urządzenia
+                  opis i nagranie nie są zapisywane; głos może przetwarzać
+                  usługa urządzenia
                 </span>
               </div>
             </section>
@@ -584,8 +751,8 @@ function FuelScreen() {
                   className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
                 />
                 <span className="text-[11px] leading-relaxed text-muted-foreground">
-                  Potwierdzam, że wybrane składniki są dla mnie bezpieczne. Fuel nie wykrywa
-                  alergenów.
+                  Potwierdzam, że wybrane składniki są dla mnie bezpieczne. Fuel
+                  nie wykrywa alergenów.
                 </span>
               </label>
             )}
@@ -604,12 +771,14 @@ function FuelScreen() {
                   {activeRecommendation.title}
                 </h2>
                 <p className="mt-1.5 text-xs leading-relaxed text-background/58">
-                  {activeRecommendation.subtitle}. Dopasowane do czasu i obciążenia najbliższej
-                  jednostki.
+                  {activeRecommendation.subtitle}. Dopasowane do czasu i
+                  obciążenia najbliższej jednostki.
                 </p>
                 <div className="mt-5 flex items-center justify-between gap-3 border-t border-background/10 pt-4">
                   <span className="text-[10px] text-background/50">
-                    {target.precise ? "zakres spersonalizowany" : "bez dodatkowych danych"}
+                    {target.precise
+                      ? "zakres spersonalizowany"
+                      : "bez dodatkowych danych"}
                   </span>
                   <button
                     type="button"
@@ -650,8 +819,12 @@ function FuelScreen() {
 
             <section className="pt-1">
               <div className="mb-2 flex items-center justify-between px-1">
-                <h2 className="text-sm font-medium tracking-[-0.02em]">Inne dobre opcje</h2>
-                <span className="text-[10px] text-muted-foreground">z Twoich ograniczeń</span>
+                <h2 className="text-sm font-medium tracking-[-0.02em]">
+                  Inne dobre opcje
+                </h2>
+                <span className="text-[10px] text-muted-foreground">
+                  z Twoich ograniczeń
+                </span>
               </div>
               <div className="divide-y divide-border/70 rounded-[1.35rem] border border-border/75 bg-card/45 px-4">
                 {recommendations.slice(1, 4).map((recommendation) => (
@@ -669,7 +842,8 @@ function FuelScreen() {
                         {recommendation.title}
                       </span>
                       <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                        {recommendation.highlight} · {recommendation.prepMinutes} min
+                        {recommendation.highlight} ·{" "}
+                        {recommendation.prepMinutes} min
                       </span>
                     </span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -689,11 +863,14 @@ function FuelScreen() {
                   ? "Dokładniejszy zakres aktywny · masę możesz usunąć jednym kliknięciem."
                   : "Dokładniejszy zakres jest opcjonalny. Fuel działa bez masy i wzrostu."}
               </span>
-              <span className="text-[11px] font-medium text-primary">Ustaw</span>
+              <span className="text-[11px] font-medium text-primary">
+                Ustaw
+              </span>
             </button>
 
             <p className="px-1 text-[10px] leading-relaxed text-muted-foreground">
-              Orientacyjne wsparcie żywieniowe, nie diagnoza ani indywidualna porada medyczna.
+              Orientacyjne wsparcie żywieniowe, nie diagnoza ani indywidualna
+              porada medyczna.
             </p>
           </>
         )}
@@ -750,7 +927,9 @@ function Metric({
       <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         <Icon className="h-3 w-3" strokeWidth={1.8} /> {label}
       </div>
-      <div className="mt-1 truncate text-[12px] font-medium tracking-[-0.01em]">{value}</div>
+      <div className="mt-1 truncate text-[12px] font-medium tracking-[-0.01em]">
+        {value}
+      </div>
     </div>
   );
 }
@@ -822,5 +1001,7 @@ function useCountdown(startMinutes: number | null): number | null {
 function formatLead(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return hours > 0 ? `${hours} h ${rest ? `${rest} min` : ""}`.trim() : `${rest} min`;
+  return hours > 0
+    ? `${hours} h ${rest ? `${rest} min` : ""}`.trim()
+    : `${rest} min`;
 }

@@ -33,6 +33,11 @@ import {
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
+import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import {
+  decideRemovedSession,
+  moveSessionToDay,
+} from "@/lib/loadwise/planDecisionEngine";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -428,6 +433,11 @@ function StartScreen() {
   const [checkin, setCheckin] = useState<DailyPlanCheckin | null>(null);
   const [checkinLoaded, setCheckinLoaded] = useState(false);
   const [savingAction, setSavingAction] = useState(false);
+  const [pendingRescue, setPendingRescue] = useState<{
+    removed: SessionDay;
+    recommended: SessionDay;
+    alternative: SessionDay;
+  } | null>(null);
   const autoGenerateRef = useRef(false);
   const openingSessionRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
@@ -531,6 +541,59 @@ function StartScreen() {
     }
   }
 
+  async function handleRemovedStimulus(removed: SessionDay) {
+    const decision = decideRemovedSession({
+      effectivePlan: resolveEffectivePlan(state.plan, state.modifications),
+      removed,
+      todayIso,
+      profile,
+    });
+    if (decision.action === "already_covered" || decision.action === "drop") {
+      toast.info(decision.reason);
+      return;
+    }
+    if (decision.action === "ask") {
+      setPendingRescue({
+        removed,
+        recommended: decision.recommended,
+        alternative: decision.alternative,
+      });
+      return;
+    }
+    await applyModification(
+      decision.target.date,
+      "swap",
+      moveSessionToDay(removed, decision.target),
+      decision.target,
+      `[engine:auto-move] ${decision.reason}`,
+    );
+    toast.success(`Sesja przeniesiona na ${decision.target.dayName}.`);
+  }
+
+  async function applyRescueTarget(target: SessionDay) {
+    if (!pendingRescue || savingAction) return;
+    setSavingAction(true);
+    try {
+      await applyModification(
+        target.date,
+        "swap",
+        moveSessionToDay(pendingRescue.removed, target),
+        target,
+        "[engine:athlete-choice] Przeniesiono brakujący bodziec po jednej decyzji zawodnika.",
+      );
+      setPendingRescue(null);
+      toast.success(`Sesja przeniesiona na ${target.dayName}.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Nie udało się przenieść sesji.",
+      );
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
   async function handleCheckinAction(action: DailyPlanCheckinAction) {
     if (savingAction) return;
 
@@ -569,6 +632,7 @@ function StartScreen() {
           adjusted,
           "[daily-checkin:unavailable] Dzisiejsza sesja jest niedostępna.",
         );
+        await handleRemovedStimulus(adjusted);
       }
       continueAfterPrimary(action);
       toast.success(
@@ -622,6 +686,7 @@ function StartScreen() {
             ? "[daily-checkin:both-unavailable] Obie sesje zostały usunięte."
             : `[daily-checkin:promote-second-${action}] Pozostaje tylko druga sesja.`,
         );
+        await handleRemovedStimulus(adjusted);
       } else if (action === "remove") {
         await applyModification(
           todayIso,
@@ -630,6 +695,7 @@ function StartScreen() {
           adjusted,
           "[daily-checkin:remove-second] Druga sesja została usunięta.",
         );
+        if (secondSession) await handleRemovedStimulus(secondSession);
       } else if (action === "lighter" && secondSession) {
         await applyModification(
           todayIso,
@@ -864,6 +930,51 @@ function StartScreen() {
           setModifyTarget(null);
         }}
       />
+
+      <Dialog
+        open={Boolean(pendingRescue)}
+        onOpenChange={(open) => {
+          if (!open) setPendingRescue(null);
+        }}
+      >
+        <DialogContent className="border-border/70 bg-popover">
+          <DialogHeader>
+            <DialogTitle>Gdzie przenieść brakujący bodziec?</DialogTitle>
+            <DialogDescription>
+              Dwa terminy są podobnie bezpieczne. Polecamy wcześniejszy.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingRescue && (
+            <div className="grid gap-2">
+              <Button
+                disabled={savingAction}
+                onClick={() =>
+                  void applyRescueTarget(pendingRescue.recommended)
+                }
+              >
+                {pendingRescue.recommended.dayName} — polecane
+              </Button>
+              <Button
+                variant="outline"
+                disabled={savingAction}
+                onClick={() =>
+                  void applyRescueTarget(pendingRescue.alternative)
+                }
+              >
+                {pendingRescue.alternative.dayName}
+              </Button>
+              <button
+                type="button"
+                disabled={savingAction}
+                onClick={() => setPendingRescue(null)}
+                className="px-3 py-2 text-sm font-medium text-muted-foreground"
+              >
+                Nie nadrabiaj
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
