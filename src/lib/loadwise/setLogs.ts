@@ -2,7 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { TrainingExercise } from "@/lib/loadwise/types";
-import { enqueueTrainingWrite, isRetryableWriteError } from "@/lib/loadwise/offlineTrainingQueue";
+import {
+  enqueueTrainingWrite,
+  isRetryableWriteError,
+} from "@/lib/loadwise/offlineTrainingQueue";
+import {
+  previousExerciseSessions,
+  type ExerciseSessionLog,
+} from "./setLogHistory";
+
+export { previousExerciseSessions } from "./setLogHistory";
+export type { ExerciseSessionLog } from "./setLogHistory";
 
 /** Jeden zapisany zestaw (seria) ćwiczenia. */
 export interface SetLog {
@@ -15,7 +25,7 @@ export interface SetLog {
   metricValue?: number | null;
 }
 
-interface SetLogRow {
+export interface SetLogRow {
   session_id: string | null;
   exercise_key: string;
   set_number: number;
@@ -28,14 +38,19 @@ interface SetLogRow {
 }
 
 /** Stabilny klucz ćwiczenia — po ID z biblioteki, w ostateczności po nazwie. */
-export function exerciseKey(e: Pick<TrainingExercise, "exerciseId" | "name">): string {
+export function exerciseKey(
+  e: Pick<TrainingExercise, "exerciseId" | "name">,
+): string {
   return (e.exerciseId?.trim() || e.name.trim().toLowerCase()).slice(0, 120);
 }
 
 /** Liczba planowanych serii ćwiczenia (0 = brak logowania serii). */
 export function plannedSets(e: TrainingExercise): number {
-  if (typeof e.sets === "number" && Number.isFinite(e.sets)) return Math.max(0, Math.round(e.sets));
-  const match = String(e.displayPrescription ?? "").match(/(\d+)\s*(?:serie|serii|seria|×)/i);
+  if (typeof e.sets === "number" && Number.isFinite(e.sets))
+    return Math.max(0, Math.round(e.sets));
+  const match = String(e.displayPrescription ?? "").match(
+    /(\d+)\s*(?:serie|serii|seria|×)/i,
+  );
   return match ? Number(match[1]) : 0;
 }
 
@@ -47,7 +62,9 @@ function toLog(row: SetLogRow): SetLog {
     rir: row.rir,
     metricKind: row.metric_kind ?? null,
     metricValue:
-      row.metric_value === null || row.metric_value === undefined ? null : Number(row.metric_value),
+      row.metric_value === null || row.metric_value === undefined
+        ? null
+        : Number(row.metric_value),
   };
 }
 
@@ -67,18 +84,26 @@ export function previousSessionLogs(
   const selected = previousRows.filter(
     (row) => (row.session_id ?? row.performed_at.slice(0, 10)) === group,
   );
-  return Object.fromEntries(selected.map((row) => [row.set_number, toLog(row)]));
+  return Object.fromEntries(
+    selected.map((row) => [row.set_number, toLog(row)]),
+  );
 }
 
 /**
  * Trwałe rejestrowanie serii: zapisy bieżącej sesji + ostatnie wartości
  * z poprzednich sesji (podpowiedź „Ostatnio”).
  */
-export function useExerciseSetLogs(sessionId: string | null | undefined, key: string) {
+export function useExerciseSetLogs(
+  sessionId: string | null | undefined,
+  key: string,
+) {
   const { user } = useAuth();
   const userId = user?.id;
   const [current, setCurrent] = useState<Record<number, SetLog>>({});
   const [previous, setPrevious] = useState<Record<number, SetLog>>({});
+  const [recentSessions, setRecentSessions] = useState<ExerciseSessionLog[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -104,6 +129,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
     }
     setCurrent(mine);
     setPrevious(previousSessionLogs(rows, sessionId));
+    setRecentSessions(previousExerciseSessions(rows, sessionId));
     setLoading(false);
   }, [userId, key, sessionId]);
 
@@ -148,22 +174,24 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
           : updateQuery.is("session_id", null);
         const { error: updateError } = await updateQuery;
         if (updateError) {
-          const queued = isRetryableWriteError(updateError) && enqueueTrainingWrite(userId, {
-            kind: "exercise_set_log",
-            dedupeKey: `set:${sessionId ?? "none"}:${key}:${log.setNumber}`,
-            payload: {
-              user_id: userId,
-              session_id: sessionId ?? null,
-              exercise_key: key,
-              set_number: log.setNumber,
-              weight_kg: log.weightKg,
-              reps: log.reps,
-              rir: log.rir,
-              metric_kind: log.metricKind ?? null,
-              metric_value: log.metricValue ?? null,
-              performed_at: new Date().toISOString(),
-            },
-          });
+          const queued =
+            isRetryableWriteError(updateError) &&
+            enqueueTrainingWrite(userId, {
+              kind: "exercise_set_log",
+              dedupeKey: `set:${sessionId ?? "none"}:${key}:${log.setNumber}`,
+              payload: {
+                user_id: userId,
+                session_id: sessionId ?? null,
+                exercise_key: key,
+                set_number: log.setNumber,
+                weight_kg: log.weightKg,
+                reps: log.reps,
+                rir: log.rir,
+                metric_kind: log.metricKind ?? null,
+                metric_value: log.metricValue ?? null,
+                performed_at: new Date().toISOString(),
+              },
+            });
           if (!queued) return false;
         }
       }
@@ -173,7 +201,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
     [userId, key, sessionId],
   );
 
-  return { current, previous, loading, saveSet };
+  return { current, previous, recentSessions, loading, saveSet };
 }
 
 /** Subtelny opis poprzedniego wyniku serii. */
