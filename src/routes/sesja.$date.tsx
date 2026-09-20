@@ -1,4 +1,9 @@
-import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -8,7 +13,10 @@ import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
-import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels";
+import {
+  formatDateFull,
+  professionalSessionTitle,
+} from "@/lib/loadwise/labels";
 import { IntensityBadge, DayTypeTag } from "@/components/loadwise/ui";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
@@ -22,7 +30,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import type { SessionDay, TrainingSection, TrainingExercise } from "@/lib/loadwise/types";
+import type {
+  SessionDay,
+  TrainingSection,
+  TrainingExercise,
+} from "@/lib/loadwise/types";
 import {
   getExerciseDefinition,
   getAllEquipmentDefinitions,
@@ -59,10 +71,14 @@ import {
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { isTrackableEnduranceRun } from "@/lib/running/session";
 import { isBallTechnicalSession } from "@/lib/loadwise/sessionClassification";
+import { resolveTrainingDecisionMode } from "@/lib/loadwise/trainingDecisionGate";
+import { readDailyPlanCheckin } from "@/lib/loadwise/dailyPlanCheckin";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
-const searchSchema = (search: Record<string, unknown>): { slot: number; mod?: string } => ({
+const searchSchema = (
+  search: Record<string, unknown>,
+): { slot: number; mod?: string } => ({
   slot: Number(search.slot) === 2 ? 2 : 1,
   mod: typeof search.mod === "string" && search.mod ? search.mod : undefined,
 });
@@ -103,7 +119,8 @@ export function statusBadgeLabel(session: SessionDay): string | null {
 }
 
 export function canShowPostSessionForm(session: SessionDay): boolean {
-  if (!session.dbId || session.isUnavailable || session.dayType === "rest") return false;
+  if (!session.dbId || session.isUnavailable || session.dayType === "rest")
+    return false;
   if (session.loadLabelOverride === "Wstrzymaj trening") return false;
   return true;
 }
@@ -112,11 +129,21 @@ export function matchCanBeCompleted(
   session: SessionDay,
   status: "started" | "completed" | "missed" | undefined,
 ): boolean {
-  return session.dayType !== "match" || status === "started" || status === "completed";
+  return (
+    session.dayType !== "match" ||
+    status === "started" ||
+    status === "completed"
+  );
 }
 
-function parseCompletionNotes(raw: string): { pain: number; legFatigue: number; notes: string } {
-  const header = raw.match(/^\[Monitoring\]\s*pain=(\d+);\s*legFatigue=(\d+)\n?/i);
+function parseCompletionNotes(raw: string): {
+  pain: number;
+  legFatigue: number;
+  notes: string;
+} {
+  const header = raw.match(
+    /^\[Monitoring\]\s*pain=(\d+);\s*legFatigue=(\d+)\n?/i,
+  );
   if (!header) return { pain: 0, legFatigue: 0, notes: raw };
   const pain = Math.max(0, Math.min(10, Number(header[1]) || 0));
   const legFatigue = Math.max(0, Math.min(10, Number(header[2]) || 0));
@@ -127,7 +154,11 @@ function parseCompletionNotes(raw: string): { pain: number; legFatigue: number; 
   };
 }
 
-function composeCompletionNotes(notes: string, pain: number, legFatigue: number): string {
+function composeCompletionNotes(
+  notes: string,
+  pain: number,
+  legFatigue: number,
+): string {
   const safePain = Math.max(0, Math.min(10, Math.round(pain)));
   const safeFatigue = Math.max(0, Math.min(10, Math.round(legFatigue)));
   return `[Monitoring] pain=${safePain};legFatigue=${safeFatigue}\n${notes.trim()}`.trimEnd();
@@ -158,7 +189,10 @@ function formatRestValue(value: string | undefined): string {
     .trim();
 }
 
-function exerciseDataLineParts(e: TrainingExercise): { dose: string; meta: string } {
+function exerciseDataLineParts(e: TrainingExercise): {
+  dose: string;
+  meta: string;
+} {
   const display = compactPrescription(e);
   const parts = display.split(" · ");
   const dose = parts[0] ?? "";
@@ -172,7 +206,9 @@ function restSecondsFromLabel(label: string): number {
   const values = [...label.matchAll(/\d+/g)].map(([value]) => Number(value));
   if (values.length === 0) return 90;
   if (values.length === 1) return values[0];
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  return Math.round(
+    values.reduce((sum, value) => sum + value, 0) / values.length,
+  );
 }
 
 function resolveDefinitionForExercise(e: TrainingExercise) {
@@ -191,9 +227,19 @@ const SPRINT_BLOCK_FLOW = [
   { key: "skip", index: "02", title: "Skipy A → C → B → D", estMin: 8 },
   { key: "technical", index: "03", title: "Drille techniczne", estMin: 8 },
   { key: "plyo", index: "04", title: "Plyometria", estMin: 6 },
-  { key: "resisted", index: "05", title: "Opór / przygotowanie startu", estMin: 5 },
+  {
+    key: "resisted",
+    index: "05",
+    title: "Opór / przygotowanie startu",
+    estMin: 5,
+  },
   { key: "main", index: "06", title: "Sprint główny", estMin: 10 },
-  { key: "terminal", index: "07", title: "Hamowanie / zwrotność / łuk", estMin: 6 },
+  {
+    key: "terminal",
+    index: "07",
+    title: "Hamowanie / zwrotność / łuk",
+    estMin: 6,
+  },
   { key: "cooldown", index: "08", title: "Wyciszenie", estMin: 4 },
 ] as const;
 const SPRINT_SKIP_PRESCRIPTION = "2 × 15–20 m";
@@ -255,7 +301,9 @@ export function formatSprintPrescription(e: TrainingExercise): string {
       .filter(Boolean)
       .filter(
         (part, index, all) =>
-          all.findIndex((candidate) => candidate.toLowerCase() === part.toLowerCase()) === index,
+          all.findIndex(
+            (candidate) => candidate.toLowerCase() === part.toLowerCase(),
+          ) === index,
       )
       .join(" · ");
 
@@ -267,7 +315,9 @@ export function formatSprintPrescription(e: TrainingExercise): string {
 }
 
 function isSprintRunnerTerminalExercise(exercise: TrainingExercise): boolean {
-  const definition = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
+  const definition = exercise.exerciseId
+    ? getExerciseDefinition(exercise.exerciseId)
+    : undefined;
   const qualities = definition?.speedQualities ?? [];
   return qualities.some((quality) =>
     [
@@ -280,7 +330,9 @@ function isSprintRunnerTerminalExercise(exercise: TrainingExercise): boolean {
   );
 }
 
-function sprintRoleForExercise(meta: SprintExerciseMeta): TrainingExercise["speedRole"] | null {
+function sprintRoleForExercise(
+  meta: SprintExerciseMeta,
+): TrainingExercise["speedRole"] | null {
   if (meta.exercise.speedRole) return meta.exercise.speedRole;
   if (meta.sectionType === "cooldown") return "cooldown";
   const definition = meta.exercise.exerciseId
@@ -288,11 +340,14 @@ function sprintRoleForExercise(meta: SprintExerciseMeta): TrainingExercise["spee
     : undefined;
   const role = definition?.sessionRoles?.[0];
   if (!role) return meta.sectionType === "warmup" ? "preparation" : null;
-  if (role === "preparation" && meta.sectionType !== "warmup") return "cooldown";
+  if (role === "preparation" && meta.sectionType !== "warmup")
+    return "cooldown";
   return role;
 }
 
-function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | null {
+function sprintBlockKeyForExercise(
+  meta: SprintExerciseMeta,
+): SprintBlockKey | null {
   const id = meta.exercise.exerciseId ?? "";
   const explicitRole = meta.exercise.speedRole;
 
@@ -304,7 +359,12 @@ function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | n
 
   // Kanoniczne skipy muszą trafić do osobnego bloku,
   // zanim uwzględnimy rolę wywnioskowaną z biblioteki.
-  if (id === "a_skip" || id === "b_skip" || id === "c_skip" || id === "d_skip") {
+  if (
+    id === "a_skip" ||
+    id === "b_skip" ||
+    id === "c_skip" ||
+    id === "d_skip"
+  ) {
     return "skip";
   }
 
@@ -320,35 +380,49 @@ function sprintBlockKeyForExercise(meta: SprintExerciseMeta): SprintBlockKey | n
   return null;
 }
 
-export function resolveSprintExerciseDetails(exercise: TrainingExercise): SprintResolvedDetails {
-  const definition = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
+export function resolveSprintExerciseDetails(
+  exercise: TrainingExercise,
+): SprintResolvedDetails {
+  const definition = exercise.exerciseId
+    ? getExerciseDefinition(exercise.exerciseId)
+    : undefined;
   const cues = (
     definition?.coachingCues ??
     exercise.cue?.split(/[.;]\s*/).filter(Boolean) ??
     []
   ).slice(0, 3);
   const errors = (
-    definition?.commonErrors ?? (exercise.commonMistake ? [exercise.commonMistake] : [])
+    definition?.commonErrors ??
+    (exercise.commonMistake ? [exercise.commonMistake] : [])
   ).slice(0, 2);
   const equipment = specialistEquipmentForExercise(definition)
-    .map((id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id)
+    .map(
+      (id) =>
+        EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
+    )
     .join(", ");
   const noEquipmentReplacementId =
     definition?.replacementIds?.find((candidateId) => {
       const candidate = getExerciseDefinition(candidateId);
-      return candidate && specialistEquipmentForExercise(candidate).length === 0;
+      return (
+        candidate && specialistEquipmentForExercise(candidate).length === 0
+      );
     }) ?? null;
   const noEquipmentReplacement = noEquipmentReplacementId
-    ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ?? noEquipmentReplacementId)
+    ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ??
+      noEquipmentReplacementId)
     : equipment
       ? "Brak zatwierdzonej zamiany bez sprzętu"
       : "Nie dotyczy — ćwiczenie bez sprzętu";
   return {
-    purpose: exercise.purpose ?? definition?.objective ?? definition?.stimulus ?? null,
+    purpose:
+      exercise.purpose ?? definition?.objective ?? definition?.stimulus ?? null,
     howTo:
       definition?.instructionsPl?.join(" ") ??
       exercise.instructionSteps
-        ?.map((step) => [step.title, step.description].filter(Boolean).join(" — "))
+        ?.map((step) =>
+          [step.title, step.description].filter(Boolean).join(" — "),
+        )
         .join(" ") ??
       exercise.technique ??
       null,
@@ -360,7 +434,9 @@ export function resolveSprintExerciseDetails(exercise: TrainingExercise): Sprint
   };
 }
 
-export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBlockView[] {
+export function buildSprintRunnerBlocks(
+  sections: TrainingSection[],
+): SprintBlockView[] {
   const buckets: Record<SprintBlockKey, SprintExerciseMeta[]> = {
     ramp: [],
     skip: [],
@@ -386,7 +462,9 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
 
   const skipById = new Map<string, SprintExerciseMeta>();
   for (const meta of buckets.skip) {
-    const id = resolveDefinitionForExercise(meta.exercise)?.id ?? meta.exercise.exerciseId;
+    const id =
+      resolveDefinitionForExercise(meta.exercise)?.id ??
+      meta.exercise.exerciseId;
     if (id && !skipById.has(id)) skipById.set(id, meta);
   }
 
@@ -403,7 +481,9 @@ export function buildSprintRunnerBlocks(sections: TrainingSection[]): SprintBloc
       // Każdy blok korzysta z tej samej zatwierdzonej polskiej nazwy bibliotecznej.
       canonicalName: canonicalExerciseName(meta.exercise),
       prescription:
-        block.key === "skip" ? SPRINT_SKIP_PRESCRIPTION : formatSprintPrescription(meta.exercise),
+        block.key === "skip"
+          ? SPRINT_SKIP_PRESCRIPTION
+          : formatSprintPrescription(meta.exercise),
       showSkipSetLabels: block.key === "skip",
     }));
     return {
@@ -423,7 +503,8 @@ export function isSprintRunnerSession(session: SessionDay): boolean {
   }
   return Boolean(
     session.classification?.isSpeed &&
-    (session.classification.isAcceleration || session.classification.isMaxVelocity),
+    (session.classification.isAcceleration ||
+      session.classification.isMaxVelocity),
   );
 }
 
@@ -452,7 +533,8 @@ function ExerciseRow({
   const title = canonicalExerciseName(e);
   const details = resolveExerciseSheetViewModel(e);
   const equipmentNames = equipmentIds.map(
-    (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
+    (id) =>
+      EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
   const label = e.label ?? (typeof index === "number" ? String(index + 1) : "");
   return (
@@ -462,7 +544,9 @@ function ExerciseRow({
           type="button"
           onClick={onToggle}
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-            done ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+            done
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/10 text-primary"
           }`}
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
         >
@@ -487,7 +571,9 @@ function ExerciseRow({
           {(dose || meta) && (
             <span className="mt-0.5 block truncate text-[12px] leading-tight text-muted-foreground">
               {dose && (
-                <span className="mr-2 font-semibold tabular-nums text-foreground">{dose}</span>
+                <span className="mr-2 font-semibold tabular-nums text-foreground">
+                  {dose}
+                </span>
               )}
               {meta}
             </span>
@@ -499,17 +585,23 @@ function ExerciseRow({
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/60"
           aria-label="Szczegóły"
         >
-          <ChevronRight className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+          <ChevronRight
+            className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`}
+          />
         </button>
       </div>
       {expanded && (
         <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3 text-xs">
           {details.purpose && (
-            <p className="text-sm leading-relaxed text-foreground">{details.purpose}</p>
+            <p className="text-sm leading-relaxed text-foreground">
+              {details.purpose}
+            </p>
           )}
           {details.steps.length > 0 && (
             <div>
-              <div className="font-semibold text-muted-foreground">Jak wykonać</div>
+              <div className="font-semibold text-muted-foreground">
+                Jak wykonać
+              </div>
               <ol className="mt-1 space-y-1 pl-4 text-sm text-foreground">
                 {details.steps.map((step, i) => (
                   <li key={i} className="list-decimal">
@@ -521,7 +613,9 @@ function ExerciseRow({
           )}
           {details.cues.length > 0 && (
             <div>
-              <div className="font-semibold text-muted-foreground">Wskazówki</div>
+              <div className="font-semibold text-muted-foreground">
+                Wskazówki
+              </div>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 {details.cues.map((cue, i) => (
                   <li key={i}>{cue}</li>
@@ -545,7 +639,9 @@ function ExerciseRow({
               <p className="mt-1">{details.equipment}</p>
             </div>
             <div>
-              <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
+              <div className="font-semibold text-muted-foreground">
+                Zamiana bez sprzętu
+              </div>
               <p className="mt-1">{details.replacement}</p>
             </div>
           </div>
@@ -577,7 +673,11 @@ function ExerciseRow({
           <MovementBlueprint exercise={e} />
         </div>
       )}
-      <ExerciseDetailSheet exercise={e} open={detailSheetOpen} onOpenChange={setDetailSheetOpen} />
+      <ExerciseDetailSheet
+        exercise={e}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+      />
       <ExerciseRunnerScreen
         exercise={e}
         sessionId={sessionId}
@@ -624,7 +724,8 @@ function SprintExerciseRow({
   const rest = restLabel(exercise);
   const details = resolveSprintExerciseDetails(exercise);
   const equipmentNames = equipmentIds.map(
-    (id) => EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
+    (id) =>
+      EQUIPMENT_DEFINITIONS.find((item) => item.id === id)?.displayName ?? id,
   );
   return (
     <div className="py-2">
@@ -731,18 +832,26 @@ function SprintExerciseRow({
               {details.purpose && (
                 <div>
                   <div className="font-semibold text-muted-foreground">Cel</div>
-                  <p className="mt-1 text-sm leading-relaxed text-foreground">{details.purpose}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground">
+                    {details.purpose}
+                  </p>
                 </div>
               )}
               {details.howTo && (
                 <div>
-                  <div className="font-semibold text-muted-foreground">Jak wykonać</div>
-                  <p className="mt-1 leading-relaxed text-foreground">{details.howTo}</p>
+                  <div className="font-semibold text-muted-foreground">
+                    Jak wykonać
+                  </div>
+                  <p className="mt-1 leading-relaxed text-foreground">
+                    {details.howTo}
+                  </p>
                 </div>
               )}
               {details.cues.length > 0 && (
                 <div>
-                  <div className="font-semibold text-muted-foreground">Wskazówki</div>
+                  <div className="font-semibold text-muted-foreground">
+                    Wskazówki
+                  </div>
                   <ul className="mt-1 list-disc space-y-1 pl-4">
                     {details.cues.map((cue, i) => (
                       <li key={i}>{cue}</li>
@@ -752,7 +861,9 @@ function SprintExerciseRow({
               )}
               {details.errors.length > 0 && (
                 <div>
-                  <div className="font-semibold text-muted-foreground">Błędy</div>
+                  <div className="font-semibold text-muted-foreground">
+                    Błędy
+                  </div>
                   <ul className="mt-1 list-disc space-y-1 pl-4">
                     {details.errors.map((error, i) => (
                       <li key={i}>{error}</li>
@@ -762,17 +873,27 @@ function SprintExerciseRow({
               )}
               {details.safety && (
                 <div>
-                  <div className="font-semibold text-muted-foreground">Bezpieczeństwo</div>
-                  <p className="mt-1 leading-relaxed text-foreground">{details.safety}</p>
+                  <div className="font-semibold text-muted-foreground">
+                    Bezpieczeństwo
+                  </div>
+                  <p className="mt-1 leading-relaxed text-foreground">
+                    {details.safety}
+                  </p>
                 </div>
               )}
               <div className="grid gap-2 sm:grid-cols-2">
                 <div>
-                  <div className="font-semibold text-muted-foreground">Sprzęt</div>
-                  <p className="mt-1 leading-relaxed text-foreground">{details.equipment}</p>
+                  <div className="font-semibold text-muted-foreground">
+                    Sprzęt
+                  </div>
+                  <p className="mt-1 leading-relaxed text-foreground">
+                    {details.equipment}
+                  </p>
                 </div>
                 <div>
-                  <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
+                  <div className="font-semibold text-muted-foreground">
+                    Zamiana bez sprzętu
+                  </div>
                   <p className="mt-1 leading-relaxed text-foreground">
                     {details.noEquipmentReplacement}
                   </p>
@@ -814,7 +935,9 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
   const { markEquipmentUnavailable } = useLoadwise();
   const blocks = buildSprintRunnerBlocks(sections);
   const progressKey = `loadwise:sprint-progress:${user?.id ?? "guest"}:${
-    session.dbId ?? session.sessionId ?? `${date}:${session.title}:${session.slotLabel ?? "1"}`
+    session.dbId ??
+    session.sessionId ??
+    `${date}:${session.title}:${session.slotLabel ?? "1"}`
   }`;
   const skipNextPersist = useRef(true);
   const [done, setDone] = useState<Record<string, boolean>>({});
@@ -836,7 +959,9 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
         : null;
       setDone(parsed?.done ?? {});
       setStarted(parsed?.started ?? false);
-      setCurrentBlockIdx(Math.max(0, Math.min(blocks.length - 1, parsed?.currentBlockIdx ?? 0)));
+      setCurrentBlockIdx(
+        Math.max(0, Math.min(blocks.length - 1, parsed?.currentBlockIdx ?? 0)),
+      );
     } catch {
       setDone({});
       setStarted(false);
@@ -851,7 +976,10 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
       skipNextPersist.current = false;
       return;
     }
-    window.localStorage.setItem(progressKey, JSON.stringify({ done, started, currentBlockIdx }));
+    window.localStorage.setItem(
+      progressKey,
+      JSON.stringify({ done, started, currentBlockIdx }),
+    );
   }, [currentBlockIdx, done, progressKey, started]);
 
   const mdRelation = session.mdLabel ?? session.mdRelation ?? "—";
@@ -859,11 +987,15 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
     new Set(
       blocks.flatMap((block) =>
         block.exercises.flatMap((item) =>
-          specialistEquipmentForExercise(resolveDefinitionForExercise(item.exercise)),
+          specialistEquipmentForExercise(
+            resolveDefinitionForExercise(item.exercise),
+          ),
         ),
       ),
     ),
-  ).map((id) => EQUIPMENT_DEFINITIONS.find((eq) => eq.id === id)?.displayName ?? id);
+  ).map(
+    (id) => EQUIPMENT_DEFINITIONS.find((eq) => eq.id === id)?.displayName ?? id,
+  );
 
   const actionLabel = !started
     ? "Rozpocznij blok"
@@ -872,7 +1004,8 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
       : "Następny blok";
   const currentBlock = blocks[currentBlockIdx];
   const currentBlockCompleted = Boolean(
-    currentBlock?.exercises.length && currentBlock.exercises.every((exercise) => done[exercise.id]),
+    currentBlock?.exercises.length &&
+    currentBlock.exercises.every((exercise) => done[exercise.id]),
   );
   const actionDisabled = started && !currentBlockCompleted;
 
@@ -887,7 +1020,8 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
           <div>Czas: {session.durationMin} min</div>
           <div>Intensywność: {session.intensity}</div>
           <div className="col-span-2">
-            Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}
+            Sprzęt:{" "}
+            {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}
           </div>
           <div className="col-span-2">Relacja MD: {mdRelation}</div>
         </div>
@@ -898,14 +1032,22 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
           const isCurrent = index === currentBlockIdx;
           const isExpanded = isCurrent || expanded[block.key];
           const exerciseCount = block.exercises.length;
-          const completedCount = block.exercises.filter((exercise) => done[exercise.id]).length;
+          const completedCount = block.exercises.filter(
+            (exercise) => done[exercise.id],
+          ).length;
           return (
-            <div key={block.key} className="rounded-lg border border-border bg-card px-3 py-2">
+            <div
+              key={block.key}
+              className="rounded-lg border border-border bg-card px-3 py-2"
+            >
               <button
                 type="button"
                 onClick={() => {
                   if (!isCurrent) {
-                    setExpanded((current) => ({ ...current, [block.key]: !isExpanded }));
+                    setExpanded((current) => ({
+                      ...current,
+                      [block.key]: !isExpanded,
+                    }));
                   }
                 }}
                 className="flex w-full items-center gap-2 text-left"
@@ -934,25 +1076,36 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
               </button>
               {isExpanded && block.hasDataError && (
                 <div className="mt-2 text-xs font-medium text-destructive">
-                  Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
+                  Błąd danych sesji: obowiązkowy blok sprintu jest pusty.
+                  Wygeneruj sesję ponownie.
                 </div>
               )}
               {isExpanded && (
                 <div className="mt-2 divide-y divide-border/50">
                   {block.exercises.map((item) => {
-                    const definition = resolveDefinitionForExercise(item.exercise);
-                    const equipmentIds = specialistEquipmentForExercise(definition);
+                    const definition = resolveDefinitionForExercise(
+                      item.exercise,
+                    );
+                    const equipmentIds =
+                      specialistEquipmentForExercise(definition);
                     return (
                       <SprintExerciseRow
                         key={item.id}
                         view={item}
                         done={!!done[item.id]}
                         onToggle={() =>
-                          setDone((current) => ({ ...current, [item.id]: !current[item.id] }))
+                          setDone((current) => ({
+                            ...current,
+                            [item.id]: !current[item.id],
+                          }))
                         }
                         onUnavailable={() => {
                           if (equipmentIds.length)
-                            markEquipmentUnavailable(date, item.exercise, equipmentIds);
+                            markEquipmentUnavailable(
+                              date,
+                              item.exercise,
+                              equipmentIds,
+                            );
                         }}
                         equipmentIds={equipmentIds}
                       />
@@ -1018,10 +1171,14 @@ const StructuredSections = memo(function StructuredSections({
   const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
-  const [activeSectionId, setActiveSectionId] = useState<string>(sections[0]?.id ?? "");
-  const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    sections[0]?.id ?? "",
+  );
+  const toggle = (id: string) =>
+    setDone((current) => ({ ...current, [id]: !current[id] }));
 
-  const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
+  const activeSection =
+    sections.find((s) => s.id === activeSectionId) ?? sections[0];
 
   return (
     <div className="relative pl-11">
@@ -1033,7 +1190,10 @@ const StructuredSections = memo(function StructuredSections({
           0,
         );
         return (
-          <section key={section.id} className="relative border-b border-border/75 last:border-b-0">
+          <section
+            key={section.id}
+            className="relative border-b border-border/75 last:border-b-0"
+          >
             <span
               className={`absolute -left-11 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium ${
                 isActive
@@ -1069,14 +1229,17 @@ const StructuredSections = memo(function StructuredSections({
             {isActive && (
               <div className="pb-5">
                 {section.blocks.map((block, blockIndex) => {
-                  const blockTitle = block.title || block.exercises[0]?.name || "Blok ćwiczeń";
+                  const blockTitle =
+                    block.title || block.exercises[0]?.name || "Blok ćwiczeń";
                   const blockRest = block.restAfterBlock
                     ? formatRestValue(block.restAfterBlock)
                     : null;
                   return (
                     <div
                       key={block.id}
-                      className={blockIndex > 0 ? "border-t border-border/60 pt-4" : ""}
+                      className={
+                        blockIndex > 0 ? "border-t border-border/60 pt-4" : ""
+                      }
                     >
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <h4 className="truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
@@ -1091,7 +1254,9 @@ const StructuredSections = memo(function StructuredSections({
                       <div className="divide-y divide-border/50">
                         {block.exercises.map((exercise, exerciseIndex) => {
                           const equipmentIds = specialistEquipmentForExercise(
-                            getExerciseDefinition(exercise.exerciseId ?? exercise.name),
+                            getExerciseDefinition(
+                              exercise.exerciseId ?? exercise.name,
+                            ),
                           );
                           return (
                             <ExerciseRow
@@ -1102,7 +1267,11 @@ const StructuredSections = memo(function StructuredSections({
                               onToggle={() => toggle(exercise.id)}
                               onUnavailable={() => {
                                 if (equipmentIds.length)
-                                  markEquipmentUnavailable(date, exercise, equipmentIds);
+                                  markEquipmentUnavailable(
+                                    date,
+                                    exercise,
+                                    equipmentIds,
+                                  );
                               }}
                               equipmentIds={equipmentIds}
                               sessionId={sessionId}
@@ -1129,7 +1298,13 @@ const StructuredSections = memo(function StructuredSections({
 
 // ---------- Powłoka ekranu + skeleton (płynne ładowanie) ----------
 
-function SessionScreenShell({ onBack, children }: { onBack: () => void; children: ReactNode }) {
+function SessionScreenShell({
+  onBack,
+  children,
+}: {
+  onBack: () => void;
+  children: ReactNode;
+}) {
   return (
     <div className="app-shell premium-flow min-h-screen pb-[140px]">
       <div className="px-5 pt-6">
@@ -1180,7 +1355,8 @@ function LogField({
   value?: number;
   onChange?: (next: number) => void;
 }) {
-  const controlled = typeof value === "number" && typeof onChange === "function";
+  const controlled =
+    typeof value === "number" && typeof onChange === "function";
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -1194,7 +1370,9 @@ function LogField({
           controlled
             ? (e) => {
                 const next = Number(e.target.value);
-                onChange(Number.isFinite(next) ? Math.max(0, Math.min(10, next)) : 0);
+                onChange(
+                  Number.isFinite(next) ? Math.max(0, Math.min(10, next)) : 0,
+                );
               }
             : undefined
         }
@@ -1204,12 +1382,19 @@ function LogField({
   );
 }
 
-function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: boolean }) {
+function MatchStartPanel({
+  session,
+  isToday,
+}: {
+  session: SessionDay;
+  isToday: boolean;
+}) {
   const { state, startSession } = useLoadwise();
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
   const [starting, setStarting] = useState(false);
 
-  if (!session.dbId || session.dayType !== "match" || existing?.completed) return null;
+  if (!session.dbId || session.dayType !== "match" || existing?.completed)
+    return null;
 
   if (!isToday && existing?.status !== "started") {
     return (
@@ -1242,7 +1427,9 @@ function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: b
       await startSession(session);
       toast.success("Mecz rozpoczęty. Powodzenia!");
     } catch {
-      toast.error("Nie udało się rozpocząć meczu. Sprawdź połączenie i spróbuj ponownie.");
+      toast.error(
+        "Nie udało się rozpocząć meczu. Sprawdź połączenie i spróbuj ponownie.",
+      );
     } finally {
       setStarting(false);
     }
@@ -1252,9 +1439,15 @@ function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: b
     <div className="soft-card p-4">
       <h3 className="text-sm font-semibold">Gotowy do meczu?</h3>
       <p className="mt-1 text-xs text-muted-foreground">
-        Start zapisze godzinę rozpoczęcia. Dane po meczu uzupełnisz po zakończeniu.
+        Start zapisze godzinę rozpoczęcia. Dane po meczu uzupełnisz po
+        zakończeniu.
       </p>
-      <Button className="mt-3 w-full" size="lg" disabled={starting} onClick={() => void start()}>
+      <Button
+        className="mt-3 w-full"
+        size="lg"
+        disabled={starting}
+        onClick={() => void start()}
+      >
         <Flag className="mr-2 h-4 w-4" />
         {starting ? "Rozpoczynanie…" : "Rozpocznij mecz"}
       </Button>
@@ -1264,18 +1457,22 @@ function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: b
 
 function CompletionPanel({ session }: { session: SessionDay }) {
   const { state, completeSession } = useLoadwise();
-  const healthPersonalizationEnabled = state.profile?.healthPersonalizationEnabled === true;
+  const healthPersonalizationEnabled =
+    state.profile?.healthPersonalizationEnabled === true;
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
   const parsed = parseCompletionNotes(existing?.notes ?? "");
   const [rpe, setRpe] = useState(existing?.rpe ?? 6);
   const [pain, setPain] = useState(parsed.pain);
   const [legFatigue, setLegFatigue] = useState(parsed.legFatigue);
   const [notes, setNotes] = useState(parsed.notes);
-  const externalSession = session.dayType === "club" || session.dayType === "match";
+  const externalSession =
+    session.dayType === "club" || session.dayType === "match";
   const [durationMin, setDurationMin] = useState(
     existing?.durationMin ?? session.durationMin ?? 90,
   );
-  const [activityType, setActivityType] = useState(existing?.activityType ?? "mixed");
+  const [activityType, setActivityType] = useState(
+    existing?.activityType ?? "mixed",
+  );
   const [saving, setSaving] = useState(false);
   const done = existing?.completed ?? false;
   const existingRpe = existing?.rpe ?? 6;
@@ -1305,10 +1502,16 @@ function CompletionPanel({ session }: { session: SessionDay }) {
       await completeSession(
         session,
         rpe,
-        healthPersonalizationEnabled ? composeCompletionNotes(notes, pain, legFatigue) : "",
-        externalSession ? { durationMin, activityType } : { durationMin: session.durationMin },
+        healthPersonalizationEnabled
+          ? composeCompletionNotes(notes, pain, legFatigue)
+          : "",
+        externalSession
+          ? { durationMin, activityType }
+          : { durationMin: session.durationMin },
       );
-      toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
+      toast.success(
+        done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.",
+      );
     } catch {
       toast.error("Nie udało się zapisać treningu. Spróbuj ponownie.");
     } finally {
@@ -1319,9 +1522,13 @@ function CompletionPanel({ session }: { session: SessionDay }) {
   return (
     <div className="soft-card p-4">
       <div className="flex items-center gap-2">
-        <CheckCircle2 className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`} />
+        <CheckCircle2
+          className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`}
+        />
         <h3 className="text-sm font-semibold">
-          {done ? "Sesja oznaczona jako wykonana" : "Oznacz sesję jako wykonaną"}
+          {done
+            ? "Sesja oznaczona jako wykonana"
+            : "Oznacz sesję jako wykonaną"}
         </h3>
       </div>
 
@@ -1330,7 +1537,13 @@ function CompletionPanel({ session }: { session: SessionDay }) {
           <span className="font-medium">RPE (ciężkość) 0–10</span>
           <span className="text-muted-foreground">{rpe}/10</span>
         </div>
-        <Slider min={0} max={10} step={1} value={[rpe]} onValueChange={(v) => setRpe(v[0])} />
+        <Slider
+          min={0}
+          max={10}
+          step={1}
+          value={[rpe]}
+          onValueChange={(v) => setRpe(v[0])}
+        />
       </div>
 
       {externalSession && (
@@ -1343,7 +1556,9 @@ function CompletionPanel({ session }: { session: SessionDay }) {
               max={300}
               value={durationMin}
               onChange={(event) =>
-                setDurationMin(Math.max(0, Math.min(300, Number(event.target.value) || 0)))
+                setDurationMin(
+                  Math.max(0, Math.min(300, Number(event.target.value) || 0)),
+                )
               }
             />
           </label>
@@ -1351,7 +1566,9 @@ function CompletionPanel({ session }: { session: SessionDay }) {
             Charakter wysiłku
             <Select
               value={activityType}
-              onValueChange={(value) => setActivityType(value as typeof activityType)}
+              onValueChange={(value) =>
+                setActivityType(value as typeof activityType)
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -1359,13 +1576,15 @@ function CompletionPanel({ session }: { session: SessionDay }) {
               <SelectContent>
                 <SelectItem value="technical">Głównie z piłką</SelectItem>
                 <SelectItem value="mixed">Mieszany</SelectItem>
-                <SelectItem value="running_endurance">Głównie biegowy / wydolnościowy</SelectItem>
+                <SelectItem value="running_endurance">
+                  Głównie biegowy / wydolnościowy
+                </SelectItem>
               </SelectContent>
             </Select>
           </label>
           <p className="text-xs text-muted-foreground sm:col-span-2">
-            Minuty × RPE opisują rzeczywiste obciążenie. Rodzaj wysiłku pomaga nie dokładać
-            podobnego mocnego bodźca.
+            Minuty × RPE opisują rzeczywiste obciążenie. Rodzaj wysiłku pomaga
+            nie dokładać podobnego mocnego bodźca.
           </p>
         </div>
       )}
@@ -1373,13 +1592,19 @@ function CompletionPanel({ session }: { session: SessionDay }) {
       {healthPersonalizationEnabled && (
         <div className="mt-3 space-y-2">
           <LogField label="Ból 0–10" value={pain} onChange={setPain} />
-          <LogField label="Zmęczenie nóg 0–10" value={legFatigue} onChange={setLegFatigue} />
+          <LogField
+            label="Zmęczenie nóg 0–10"
+            value={legFatigue}
+            onChange={setLegFatigue}
+          />
         </div>
       )}
 
       {healthPersonalizationEnabled ? (
         <div className="mt-3 space-y-2">
-          <span className="text-sm text-muted-foreground">Notatki po sesji</span>
+          <span className="text-sm text-muted-foreground">
+            Notatki po sesji
+          </span>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -1387,14 +1612,14 @@ function CompletionPanel({ session }: { session: SessionDay }) {
             rows={2}
           />
           <p className="text-xs text-muted-foreground">
-            Notatka może zawierać dane o zdrowiu i jest zapisywana tylko przy aktywnej zgodzie
-            zdrowotnej.
+            Notatka może zawierać dane o zdrowiu i jest zapisywana tylko przy
+            aktywnej zgodzie zdrowotnej.
           </p>
         </div>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">
-          Notatki tekstowe są wyłączone bez opcjonalnej zgody zdrowotnej. RPE, czas i rodzaj wysiłku
-          nadal zapisują się normalnie.
+          Notatki tekstowe są wyłączone bez opcjonalnej zgody zdrowotnej. RPE,
+          czas i rodzaj wysiłku nadal zapisują się normalnie.
         </p>
       )}
 
@@ -1403,7 +1628,11 @@ function CompletionPanel({ session }: { session: SessionDay }) {
         disabled={saving}
         className="mt-3 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
       >
-        {saving ? "Zapisywanie…" : done ? "Zaktualizuj wpis" : "Oznacz jako wykonane"}
+        {saving
+          ? "Zapisywanie…"
+          : done
+            ? "Zaktualizuj wpis"
+            : "Oznacz jako wykonane"}
       </button>
     </div>
   );
@@ -1411,7 +1640,8 @@ function CompletionPanel({ session }: { session: SessionDay }) {
 
 function ClubMonitoring() {
   const { state } = useLoadwise();
-  const healthPersonalizationEnabled = state.profile?.healthPersonalizationEnabled === true;
+  const healthPersonalizationEnabled =
+    state.profile?.healthPersonalizationEnabled === true;
   const steps = healthPersonalizationEnabled
     ? [
         "Zrób trening z drużyną",
@@ -1419,12 +1649,18 @@ function ClubMonitoring() {
         "Opcjonalnie zaznacz ból lub zmęczenie",
         "Opcjonalnie zapisz krótki komentarz",
       ]
-    : ["Zrób trening z drużyną", "Po treningu wpisz RPE", "Uzupełnij czas i charakter wysiłku"];
+    : [
+        "Zrób trening z drużyną",
+        "Po treningu wpisz RPE",
+        "Uzupełnij czas i charakter wysiłku",
+      ];
   return (
     <>
       <div className="soft-card p-4">
         <h3 className="text-sm font-semibold">Trening klubowy</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">To główne obciążenie dnia.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          To główne obciążenie dnia.
+        </p>
         <ol className="mt-3 space-y-2">
           {steps.map((s, i) => (
             <li key={i} className="flex items-center gap-2.5 text-sm">
@@ -1451,11 +1687,15 @@ export function shortDecisionNote(session: SessionDay): string | null {
       "Niska gotowość — zgłoś ją trenerowi przed treningiem i ogranicz obciążenie zgodnie z jego decyzją. Przerwij wysiłek, jeśli pojawi się lub nasili ból."
     );
   }
-  if (session.dayType === "club") return "Trening klubowy stanowi główne obciążenie dnia.";
-  if (session.dayType === "match") return "Dziś mecz — bez dodatkowego treningu.";
-  if (session.mdLabel === "MD-1") return "MD-1 = tylko aktywacja, bez ciężkich nóg.";
+  if (session.dayType === "club")
+    return "Trening klubowy stanowi główne obciążenie dnia.";
+  if (session.dayType === "match")
+    return "Dziś mecz — bez dodatkowego treningu.";
+  if (session.mdLabel === "MD-1")
+    return "MD-1 = tylko aktywacja, bez ciężkich nóg.";
   if (session.dayType === "recovery") return "Regeneracja — bez intensywności.";
-  if (session.intensity === "wysoka") return "Mocny dzień — rozgrzej się solidnie.";
+  if (session.intensity === "wysoka")
+    return "Mocny dzień — rozgrzej się solidnie.";
   return null;
 }
 
@@ -1480,7 +1720,9 @@ function DecisionLogic({ session }: { session: SessionDay }) {
         <AccordionContent className="space-y-2 pb-3">
           {rows.map((r) => (
             <div key={r.label}>
-              <div className="text-xs font-semibold text-foreground">{r.label}</div>
+              <div className="text-xs font-semibold text-foreground">
+                {r.label}
+              </div>
               <p className="text-xs text-muted-foreground">{r.value}</p>
             </div>
           ))}
@@ -1507,6 +1749,8 @@ function SessionDetail() {
   } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
   const [showSprintCompletion, setShowSprintCompletion] = useState(false);
+  const [dailyCheckinLoaded, setDailyCheckinLoaded] = useState(false);
+  const [hasDailyCheckin, setHasDailyCheckin] = useState(false);
   const goBack = useInstantBack("/plan");
   useEffect(() => {
     setShowSprintCompletion(false);
@@ -1514,11 +1758,23 @@ function SessionDetail() {
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
   }, [authLoading, user, navigate]);
+  useEffect(() => {
+    if (!user) {
+      setHasDailyCheckin(false);
+      setDailyCheckinLoaded(false);
+      return;
+    }
+    setHasDailyCheckin(Boolean(readDailyPlanCheckin(user.id, todayIso)));
+    setDailyCheckinLoaded(true);
+  }, [todayIso, user]);
 
   const day = state.plan.find((p) => p.date === date);
   // Dane jeszcze się ładują (np. po odświeżeniu / deep link) — nie pokazuj
   // pustego białego ekranu. Skeleton w tym samym layoucie, z krótkim delay.
-  const stillLoading = !hydrated || (!day && !state.profile);
+  const stillLoading =
+    !hydrated ||
+    (!day && !state.profile) ||
+    (date === todayIso && Boolean(user) && !dailyCheckinLoaded);
   const showSkeleton = useDelayedFlag(stillLoading);
 
   if (authLoading || !user) {
@@ -1538,7 +1794,9 @@ function SessionDetail() {
     return (
       <SessionScreenShell onBack={goBack}>
         <div className="soft-card p-5 text-center">
-          <p className="text-sm font-medium text-foreground">Nie znaleziono tej sesji.</p>
+          <p className="text-sm font-medium text-foreground">
+            Nie znaleziono tej sesji.
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Mogła zostać zmieniona w planie. Wróć do planu tygodnia.
           </p>
@@ -1551,19 +1809,55 @@ function SessionDetail() {
   }
 
   const isToday = date === todayIso;
+  const decisionMode = resolveTrainingDecisionMode({
+    isToday,
+    hasTodayCheckin: hasDailyCheckin,
+  });
+
+  if (decisionMode === "checkin_required") {
+    return (
+      <SessionScreenShell onBack={goBack}>
+        <div className="soft-card p-5 text-center">
+          <h1 className="text-xl font-semibold text-foreground">
+            Najpierw check-in
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Potwierdź plan albo wybierz jedną zmianę. Nie pytamy o zdrowie ani
+            samopoczucie.
+          </p>
+          <Button
+            className="mt-4 w-full"
+            onClick={() => navigate({ to: "/start" })}
+          >
+            Przejdź do check-inu
+          </Button>
+        </div>
+      </SessionScreenShell>
+    );
+  }
+
   const mods = state.modifications[date] ?? [];
   const swapMod = mods.find((m) => m.type === "swap");
   const addMods = mods.filter((m) => m.type === "add");
+  const dailySecondMod = [...addMods]
+    .reverse()
+    .find((m) => m.reason.startsWith("[daily-checkin:second-"));
   const selectedAdd = addMods.find((item) => item.id === mod) ?? null;
 
-  // Sesja główna: zamieniona (jeśli jest) lub zaplanowana z gotowością.
+  // Sesja główna: zamieniona (jeśli jest) lub zaplanowana.
   let primary: SessionDay = day;
-  primary = resolveEffectiveDay(
-    day,
-    isToday ? state.readiness[todayIso] : undefined,
-    state.profile,
-    mods,
-  );
+  primary = resolveEffectiveDay(day, undefined, state.profile, mods);
+  if (dailySecondMod) {
+    primary = {
+      ...primary,
+      slotLabel: "Sesja 1",
+      secondSession: {
+        ...dailySecondMod.session,
+        slotLabel: "Sesja 2",
+        secondSession: null,
+      },
+    };
+  }
   // Ostatnia bariera przed runnerem: ekran nie zależy od powodzenia zapisu
   // migracji i nigdy nie dostaje historycznie uciętego slotu sprintowego.
   primary = repairRuntimeSpeedDay(primary, state.profile, {
@@ -1578,15 +1872,23 @@ function SessionDetail() {
     if (!primary.secondSession) {
       return (
         <SessionScreenShell onBack={goBack}>
-          <h1 className="text-xl font-semibold text-foreground">Plan dnia został zaktualizowany</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            Plan dnia został zaktualizowany
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Ten drugi slot nie występuje już w aktualnym planie. Nie oznacza to automatycznie, że
-            trening jest za blisko meczu — plan mógł zostać przebudowany po zmianie kalendarza albo
-            ocenie gotowości.
+            Ten drugi slot nie występuje już w aktualnym planie. Nie oznacza to
+            automatycznie, że trening jest za blisko meczu — plan mógł zostać
+            przebudowany po zmianie kalendarza albo ocenie gotowości.
           </p>
           <Button
             className="mt-4"
-            onClick={() => navigate({ to: "/sesja/$date", params: { date }, search: { slot: 1 } })}
+            onClick={() =>
+              navigate({
+                to: "/sesja/$date",
+                params: { date },
+                search: { slot: 1 },
+              })
+            }
           >
             Otwórz aktualną sesję dnia
           </Button>
@@ -1607,7 +1909,9 @@ function SessionDetail() {
       session.sections.cooldown.length >
     0;
 
-  const fallbackExercises = hasFlatSectionContent ? [] : (session.exercises ?? []);
+  const fallbackExercises = hasFlatSectionContent
+    ? []
+    : (session.exercises ?? []);
   const displayedSession = applyExerciseReplacements(
     session,
     state.exerciseReplacements[date] ?? [],
@@ -1615,7 +1919,8 @@ function SessionDetail() {
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
-    displayedSession.structuredSections && displayedSession.structuredSections.length
+    displayedSession.structuredSections &&
+    displayedSession.structuredSections.length
       ? displayedSession.structuredSections
       : hasFlatSectionContent
         ? flatToStructured(displayedSession.sections)
@@ -1629,7 +1934,8 @@ function SessionDetail() {
             })
           : [];
   const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
-  const trackableEndurance = isTrackableEnduranceRun(session) && Boolean(session.dbId);
+  const trackableEndurance =
+    isTrackableEnduranceRun(session) && Boolean(session.dbId);
   const ballTechnicalSession = isBallTechnicalSession(session);
 
   async function undo(dateToUndo: string, id: string) {
@@ -1677,7 +1983,10 @@ function SessionDetail() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <DayTypeTag type={session.dayType} />
-          <IntensityBadge intensity={session.intensity} label={statusBadgeLabel(session)} />
+          <IntensityBadge
+            intensity={session.intensity}
+            label={statusBadgeLabel(session)}
+          />
           <span className="inline-flex items-center gap-1">
             <Target className="h-3.5 w-3.5" /> {session.sessionType}
           </span>
@@ -1700,7 +2009,9 @@ function SessionDetail() {
                 })
               }
               className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
-                slot === 1 ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                slot === 1
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               1. {professionalSessionTitle(primary.title)}
@@ -1714,7 +2025,9 @@ function SessionDetail() {
                 })
               }
               className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
-                slot === 2 ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                slot === 2
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               2. {professionalSessionTitle(primary.secondSession.title)}
@@ -1765,7 +2078,11 @@ function SessionDetail() {
           <>
             <ClubMonitoring />
             {structured.length > 0 && (
-              <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+              <StructuredSections
+                sections={structured}
+                date={date}
+                sessionId={session.dbId}
+              />
             )}
           </>
         ) : sprintRunner ? (
@@ -1780,7 +2097,11 @@ function SessionDetail() {
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+            <StructuredSections
+              sections={structured}
+              date={date}
+              sessionId={session.dbId}
+            />
           </>
         )}
 
@@ -1792,7 +2113,10 @@ function SessionDetail() {
                 : "Ćwiczenia zostały zamienione."}
             </span>
             {(state.exerciseReplacements[date] ?? []).map((replacement) => (
-              <span key={replacement.id} className="inline-flex items-center gap-2">
+              <span
+                key={replacement.id}
+                className="inline-flex items-center gap-2"
+              >
                 <span className="text-muted-foreground">
                   {replacement.original.name} → {replacement.replacement.name}
                 </span>
@@ -1800,8 +2124,12 @@ function SessionDetail() {
                   type="button"
                   onClick={() => {
                     void undoExerciseReplacement(date, replacement.id)
-                      .then(() => toast.success("Przywrócono poprzednie ćwiczenie."))
-                      .catch(() => toast.error("Nie udało się cofnąć zamiennika."));
+                      .then(() =>
+                        toast.success("Przywrócono poprzednie ćwiczenie."),
+                      )
+                      .catch(() =>
+                        toast.error("Nie udało się cofnąć zamiennika."),
+                      );
                   }}
                   className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
                 >
@@ -1812,7 +2140,9 @@ function SessionDetail() {
           </div>
         )}
 
-        {session.dayType === "match" && <MatchStartPanel session={session} isToday={isToday} />}
+        {session.dayType === "match" && (
+          <MatchStartPanel session={session} isToday={isToday} />
+        )}
 
         {canShowPostSessionForm(session) &&
           matchCanBeCompleted(
@@ -1821,12 +2151,16 @@ function SessionDetail() {
           ) &&
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) &&
-          (!sprintRunner || showSprintCompletion) && <CompletionPanel session={session} />}
+          (!sprintRunner || showSprintCompletion) && (
+            <CompletionPanel session={session} />
+          )}
 
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && !selectedAdd && (
           <div className="soft-card flex items-center justify-between p-3 text-xs">
-            <span className="text-muted-foreground">Sesja zamieniona. {swapMod.reason}</span>
+            <span className="text-muted-foreground">
+              Sesja zamieniona. {swapMod.reason}
+            </span>
             <button
               type="button"
               onClick={() => void undo(date, swapMod.id)}
@@ -1862,7 +2196,10 @@ function SessionDetail() {
                   <Undo2 className="h-3.5 w-3.5" /> Cofnij
                 </button>
               </div>
-              <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
+              <StructuredSections
+                sections={flatToStructured(m.session.sections)}
+                date={date}
+              />
             </div>
           ))}
 
