@@ -15,27 +15,13 @@ import {
   validatePlanWeeks,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
-import {
-  resolveEffectiveDay,
-  resolveTodayPlanRowSource,
-} from "@/lib/loadwise/dailyCheckin";
+import { resolveEffectiveDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
-import { WeekSimulatorDialog } from "@/components/loadwise/WeekSimulatorDialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import type {
-  SessionDay,
-  Intensity,
-  Goal,
-  PlanWeek,
-} from "@/lib/loadwise/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
 import {
   Clock,
   ChevronRight,
@@ -68,10 +54,8 @@ function sessionIcon(day: SessionDay): LucideIcon {
   if (day.dayType === "recovery" || day.dayType === "rest") return Leaf;
   const t = day.sessionType.toLowerCase();
   if (t.includes("szybk") || t.includes("sprint")) return Zap;
-  if (t.includes("piłk") || t.includes("techn") || t.includes("ball"))
-    return Target;
-  if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob"))
-    return Activity;
+  if (t.includes("piłk") || t.includes("techn") || t.includes("ball")) return Target;
+  if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob")) return Activity;
   return Dumbbell;
 }
 
@@ -155,24 +139,17 @@ function whatToDo(day: SessionDay): string {
       const type = day.sessionType.toLowerCase();
       if (type.includes("wytrzymał") || type.includes("rsa"))
         return "Główne okno bodźca wytrzymałościowego.";
-      if (
-        type.includes("agility") ||
-        type.includes("cod") ||
-        type.includes("zwin")
-      )
+      if (type.includes("agility") || type.includes("cod") || type.includes("zwin"))
         return "COD i hamowanie — jakość decyzji i ruchu.";
-      if (type.includes("moc"))
-        return "Moc jako bodziec główny, bez nadmiaru skoków.";
-      if (type.includes("siła"))
-        return "Siła jako bodziec główny, bez przeciążania przed meczem.";
+      if (type.includes("moc")) return "Moc jako bodziec główny, bez nadmiaru skoków.";
+      if (type.includes("siła")) return "Siła jako bodziec główny, bez przeciążania przed meczem.";
       if (type.includes("szybko") || type.includes("sprint"))
         return day.mdLabel === "MD-2"
           ? "Krótka jakość piłkarska i szybkościowa, bez dokładania zmęczenia."
           : "Dzień jakości szybkościowej — pełne przerwy i kontrola objętości.";
       if (type.includes("piłk") || type.includes("technik"))
         return "Praca z piłką: technika i decyzje.";
-      if (type.includes("ostro"))
-        return "Ostrość przed meczem — kończysz świeży.";
+      if (type.includes("ostro")) return "Ostrość przed meczem — kończysz świeży.";
       if (type.includes("prehab") || type.includes("mobil"))
         return "Prehab i mobilność — odporność i jakość ruchu.";
       return "Wykonaj zaplanowany bodziec dnia.";
@@ -200,10 +177,7 @@ const PHASE_FOCUS: Record<WeekPhase, { goal: string; accent: string }> = {
 };
 
 /** Akcent fazy dopasowany do celu zawodnika. */
-function focusFor(
-  phase: WeekPhase,
-  goal: Goal,
-): { goal: string; accent: string } {
+function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string } {
   const base = PHASE_FOCUS[phase];
   const accents: Partial<Record<Goal, Record<WeekPhase, string>>> = {
     endurance: {
@@ -247,12 +221,7 @@ function focusFor(
 }
 
 /** Tygodniowe podsumowanie / periodyzacja. */
-function weekSummary(
-  weekIndex: number,
-  totalWeeks: number,
-  week: PlanWeek,
-  goal: Goal,
-) {
+function weekSummary(weekIndex: number, totalWeeks: number, week: PlanWeek, goal: Goal) {
   const phase = week.weekPhase;
   const block = focusFor(phase, goal);
   const stats = computeWeekStats(week);
@@ -280,7 +249,6 @@ function PlanScreen() {
   const [gateWeek, setGateWeek] = useState<number | null>(null);
   const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
   const [switchingSeason, setSwitchingSeason] = useState(false);
-  const [simulatorOpen, setSimulatorOpen] = useState(false);
   const autoWeekKeyRef = useRef<string | null>(null);
 
   const weeks = buildPlanWeeks(plan, profile);
@@ -326,16 +294,14 @@ function PlanScreen() {
   // seasonPhase = offseason/transition. Brak daty meczu NIE oznacza automatycznie
   // okresu poza sezonem.
   const seasonStatus: "in_season" | "off_season" =
-    profile?.seasonPhase === "offseason" ||
-    profile?.seasonPhase === "transition"
+    profile?.seasonPhase === "offseason" || profile?.seasonPhase === "transition"
       ? "off_season"
       : "in_season";
   const offseasonAllowed = seasonStatus === "off_season";
 
   // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
   const weekHasMatchDate = (i: number) =>
-    !!transitions[i]?.nextMatchDate ||
-    (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
+    !!transitions[i]?.nextMatchDate || (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
 
   // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
   // tydzień wymaga zapisanej daty meczu dla każdego wcześniejszego przejścia.
@@ -377,16 +343,10 @@ function PlanScreen() {
     }
   }
 
-  const monthGoal =
-    GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
+  const monthGoal = GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? null;
   const summary = current
-    ? weekSummary(
-        activeWeek,
-        weeks.length,
-        current,
-        profile?.goal ?? "matchready",
-      )
+    ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
     : null;
 
   // Czy istnieje kolejny tydzień po aktywnym?
@@ -395,20 +355,17 @@ function PlanScreen() {
   const nextTransition = transitions[nextIndex];
 
   // Kolejny tydzień gotowy: poza sezonem zawsze, w sezonie tylko z datą meczu.
-  const nextReady =
-    seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
+  const nextReady = seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
 
   // Granice tygodnia wymagającego daty meczu (dla bramki i modala).
   const gateNextIndex = gateWeek ?? needMatchWeek;
-  const gateWeekData =
-    gateNextIndex !== null ? (weeks[gateNextIndex] ?? null) : null;
+  const gateWeekData = gateNextIndex !== null ? (weeks[gateNextIndex] ?? null) : null;
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
   const visibleDays = (current?.days ?? []).filter((d) => !d.outsideActivePlan);
   const planStartDate = visibleDays[0]?.date ?? null;
   const hasHiddenBefore =
-    (current?.days ?? []).some((d) => d.outsideActivePlan) &&
-    planStartDate !== null;
+    (current?.days ?? []).some((d) => d.outsideActivePlan) && planStartDate !== null;
 
   // Po wejściu i przy zmianie tygodnia przewiń ekran na górę.
   useEffect(() => {
@@ -436,29 +393,15 @@ function PlanScreen() {
             : monthGoal
         }
         right={
-          <button
-            type="button"
-            onClick={() => setSimulatorOpen(true)}
-            className="icon-bubble h-9 w-9 border border-border bg-card"
-            aria-label="Otwórz symulator tygodnia"
-          >
+          <span className="icon-bubble h-9 w-9 border border-border bg-card">
             <CalendarDays className="h-4 w-4" />
-          </button>
+          </span>
         }
       />
 
-      {profile && (
-        <WeekSimulatorDialog
-          open={simulatorOpen}
-          onOpenChange={setSimulatorOpen}
-          profile={profile}
-        />
-      )}
-
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
-          Generujemy Twój plan… Jeśli to się utrzymuje, uzupełnij profil w
-          onboardingu.
+          Generujemy Twój plan… Jeśli to się utrzymuje, uzupełnij profil w onboardingu.
         </p>
       )}
 
@@ -499,9 +442,7 @@ function PlanScreen() {
               <Leaf className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground">
-                Okres poza sezonem
-              </p>
+              <p className="text-sm font-semibold text-foreground">Okres poza sezonem</p>
               <p className="text-xs text-muted-foreground">
                 Plan rozwija formę bez powiązania z terminarzem meczowym.
               </p>
@@ -524,11 +465,7 @@ function PlanScreen() {
           <div className="border-y border-border/75 py-4">
             <div className="grid grid-cols-7 gap-1">
               {visibleDays.map(({ source }) => {
-                const day = resolveTodayPlanRowSource(
-                  source,
-                  todayIso,
-                  todayAdjusted,
-                );
+                const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
                 const date = parseIso(day.date);
                 const isToday = day.date === todayIso;
                 const isMatch = day.dayType === "match";
@@ -557,14 +494,10 @@ function PlanScreen() {
                         style={{ height: loadBarHeight(day) }}
                       />
                     </span>
-                    <span
-                      className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}
-                    >
+                    <span className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}>
                       {date.getDate()}
                     </span>
-                    {isToday && (
-                      <span className="h-0.5 w-5 rounded-full bg-primary" />
-                    )}
+                    {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
                   </Link>
                 );
               })}
@@ -598,16 +531,12 @@ function PlanScreen() {
       >
         {hasHiddenBefore && planStartDate && (
           <div className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs text-muted-foreground">
-            Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego
-            tygodnia są poza planem.
+            Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego tygodnia są poza
+            planem.
           </div>
         )}
         {visibleDays.map(({ source }) => {
-          const baseDay = resolveTodayPlanRowSource(
-            source,
-            todayIso,
-            todayAdjusted,
-          );
+          const baseDay = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
           const mods = state.modifications[baseDay.date] ?? [];
           const swappedMod = mods.find((item) => item.type === "swap");
           const day = baseDay;
@@ -617,9 +546,7 @@ function PlanScreen() {
           const swapped = Boolean(swappedMod);
           const d = parseIso(day.date);
           const dayNum = d.getDate();
-          const monthShort = d
-            .toLocaleDateString("pl-PL", { month: "short" })
-            .replace(".", "");
+          const monthShort = d.toLocaleDateString("pl-PL", { month: "short" }).replace(".", "");
           const RowIcon = sessionIcon(day);
           const isRest = day.dayType === "rest" || day.dayType === "recovery";
           return (
@@ -637,9 +564,7 @@ function PlanScreen() {
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {shortDayName(d)}
                   </div>
-                  <div className="text-lg font-medium leading-none text-foreground">
-                    {dayNum}
-                  </div>
+                  <div className="text-lg font-medium leading-none text-foreground">{dayNum}</div>
                   <div className="text-[10px] font-medium uppercase text-muted-foreground">
                     {monthShort}
                   </div>
@@ -647,9 +572,7 @@ function PlanScreen() {
 
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    isRest
-                      ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]"
-                      : "icon-bubble"
+                    isRest ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]" : "icon-bubble"
                   }`}
                 >
                   <RowIcon className="h-6 w-6" strokeWidth={2} />
@@ -665,9 +588,7 @@ function PlanScreen() {
                         Dziś
                       </span>
                     )}
-                    {done && (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                    )}
+                    {done && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
                   </div>
                   <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
                     <span
@@ -675,9 +596,7 @@ function PlanScreen() {
                         isRest ? "bg-[oklch(0.6_0.13_150)]" : "bg-primary"
                       }`}
                     />
-                    {swapped
-                      ? "Zamieniona"
-                      : (day.loadLabelOverride ?? shortTag(day))}
+                    {swapped ? "Zamieniona" : (day.loadLabelOverride ?? shortTag(day))}
                   </p>
                 </div>
 
@@ -693,8 +612,7 @@ function PlanScreen() {
                 >
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-foreground/60" />
                   <span className="truncate">
-                    Druga jednostka:{" "}
-                    {professionalSessionTitle(day.secondSession.title)}
+                    Druga jednostka: {professionalSessionTitle(day.secondSession.title)}
                   </span>
                   <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
                 </Link>
@@ -757,8 +675,8 @@ function PlanScreen() {
             <DialogTitle>Uzupełnij kolejny mecz</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Data następnego meczu jest potrzebna, aby prawidłowo rozłożyć
-            obciążenie, regenerację i dni MD.
+            Data następnego meczu jest potrzebna, aby prawidłowo rozłożyć obciążenie, regenerację i
+            dni MD.
           </p>
           <Button
             className="mt-4 w-full"
@@ -771,11 +689,7 @@ function PlanScreen() {
             <CalendarClock className="mr-1 h-4 w-4" />
             Dodaj datę meczu
           </Button>
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => setNeedMatchWeek(null)}
-          >
+          <Button variant="ghost" className="w-full" onClick={() => setNeedMatchWeek(null)}>
             Wróć do planu
           </Button>
         </DialogContent>

@@ -26,18 +26,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  ModifySheet,
-  type ModificationChoice,
-} from "@/components/loadwise/ModifySheet";
+import { ModifySheet, type ModificationChoice } from "@/components/loadwise/ModifySheet";
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
-import {
-  decideRemovedSession,
-  moveSessionToDay,
-} from "@/lib/loadwise/planDecisionEngine";
+import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -72,9 +66,7 @@ function DailyPlanCheckinDialog({
       <DialogContent className="border-border/70 bg-popover">
         <DialogHeader>
           <DialogTitle>
-            {step === "confirm"
-              ? "Czy dzisiejszy plan jest aktualny?"
-              : "Co chcesz zmienić?"}
+            {step === "confirm" ? "Czy dzisiejszy plan jest aktualny?" : "Co chcesz zmienić?"}
           </DialogTitle>
           <DialogDescription>
             {step === "confirm"
@@ -85,11 +77,7 @@ function DailyPlanCheckinDialog({
 
         {step === "confirm" ? (
           <div className="space-y-2 pt-2">
-            <Button
-              className="h-12 w-full"
-              disabled={saving}
-              onClick={() => onAction("keep")}
-            >
+            <Button className="h-12 w-full" disabled={saving} onClick={() => onAction("keep")}>
               Tak — pokaż decyzję
             </Button>
             <Button
@@ -191,11 +179,7 @@ function SecondSessionCheckinDialog({
 
         {step === "want" ? (
           <div className="space-y-2 pt-2">
-            <Button
-              className="h-12 w-full"
-              disabled={saving}
-              onClick={() => setStep("confirm")}
-            >
+            <Button className="h-12 w-full" disabled={saving} onClick={() => setStep("confirm")}>
               Tak
             </Button>
             <Button
@@ -209,11 +193,7 @@ function SecondSessionCheckinDialog({
           </div>
         ) : step === "confirm" ? (
           <div className="space-y-2 pt-2">
-            <Button
-              className="h-12 w-full"
-              disabled={saving}
-              onClick={() => onAction("keep")}
-            >
+            <Button className="h-12 w-full" disabled={saving} onClick={() => onAction("keep")}>
               Tak — zostaw bez zmian
             </Button>
             <Button
@@ -292,8 +272,7 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
     return {
       eyebrow: "Plan zaktualizowany",
       title: "Dziś bez treningu",
-      description:
-        "Nie nadrabiamy pominiętej jednostki na siłę tego samego dnia.",
+      description: "Nie nadrabiamy pominiętej jednostki na siłę tego samego dnia.",
     };
   }
 
@@ -345,9 +324,7 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
       eyebrow: "Plan zaktualizowany",
       title: "Pierwsza sesja jest lżejsza",
       description:
-        checkin.secondAction === "keep"
-          ? "Druga sesja pozostaje bez zmian."
-          : session.whyToday,
+        checkin.secondAction === "keep" ? "Druga sesja pozostaje bez zmian." : session.whyToday,
     };
   }
   if (checkin.primaryAction === "swap") {
@@ -355,9 +332,7 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
       eyebrow: "Plan zaktualizowany",
       title: "Pierwsza sesja została zamieniona",
       description:
-        checkin.secondAction === "keep"
-          ? "Druga sesja pozostaje bez zmian."
-          : session.whyToday,
+        checkin.secondAction === "keep" ? "Druga sesja pozostaje bez zmian." : session.whyToday,
     };
   }
   if (checkin.primaryAction === "add") {
@@ -388,9 +363,7 @@ function PlanLoadingState() {
   return (
     <main className="px-6 pb-32 pt-6" aria-busy="true">
       <header className="flex items-center justify-between">
-        <span className="text-[17px] font-medium tracking-[-0.025em]">
-          BallWise
-        </span>
+        <span className="text-[17px] font-medium tracking-[-0.025em]">BallWise</span>
         <ProfileAvatar />
       </header>
       <section className="mx-auto mt-16 max-w-sm space-y-4">
@@ -422,14 +395,11 @@ function StartScreen() {
   const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
-  const [modifyTarget, setModifyTarget] = useState<"primary" | "second" | null>(
+  const [modifyTarget, setModifyTarget] = useState<"primary" | "second" | null>(null);
+  const [modifyChoice, setModifyChoice] = useState<ModificationChoice | null>(null);
+  const [pendingPrimaryAction, setPendingPrimaryAction] = useState<DailyPlanCheckinAction | null>(
     null,
   );
-  const [modifyChoice, setModifyChoice] = useState<ModificationChoice | null>(
-    null,
-  );
-  const [pendingPrimaryAction, setPendingPrimaryAction] =
-    useState<DailyPlanCheckinAction | null>(null);
   const [checkin, setCheckin] = useState<DailyPlanCheckin | null>(null);
   const [checkinLoaded, setCheckinLoaded] = useState(false);
   const [savingAction, setSavingAction] = useState(false);
@@ -442,8 +412,7 @@ function StartScreen() {
   const openingSessionRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
-  const planMissing =
-    hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
+  const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
 
   useEffect(() => {
     if (!user) {
@@ -501,6 +470,8 @@ function StartScreen() {
   }
 
   const session = todaySession;
+  const userId = user.id;
+  const activeProfile = profile;
   const adjusted = resolveEffectiveDay(
     session,
     undefined,
@@ -519,12 +490,7 @@ function StartScreen() {
     primaryAction: DailyPlanCheckinAction,
     secondAction: SecondSessionCheckinAction | null,
   ) {
-    const record = saveDailyPlanCheckin(
-      user.id,
-      todayIso,
-      primaryAction,
-      secondAction,
-    );
+    const record = saveDailyPlanCheckin(userId, todayIso, primaryAction, secondAction);
     setCheckin(record);
     setCheckinOpen(false);
     setSecondCheckinOpen(false);
@@ -546,7 +512,7 @@ function StartScreen() {
       effectivePlan: resolveEffectivePlan(state.plan, state.modifications),
       removed,
       todayIso,
-      profile,
+      profile: activeProfile,
     });
     if (decision.action === "already_covered" || decision.action === "drop") {
       toast.info(decision.reason);
@@ -560,6 +526,7 @@ function StartScreen() {
       });
       return;
     }
+    if (decision.action !== "move") return;
     await applyModification(
       decision.target.date,
       "swap",
@@ -584,11 +551,7 @@ function StartScreen() {
       setPendingRescue(null);
       toast.success(`Sesja przeniesiona na ${target.dayName}.`);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Nie udało się przenieść sesji.",
-      );
+      toast.error(error instanceof Error ? error.message : "Nie udało się przenieść sesji.");
     } finally {
       setSavingAction(false);
     }
@@ -643,9 +606,7 @@ function StartScreen() {
             : "Plan został zaktualizowany.",
       );
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Nie udało się zmienić planu.",
-      );
+      toast.error(error instanceof Error ? error.message : "Nie udało się zmienić planu.");
     } finally {
       setSavingAction(false);
     }
@@ -719,23 +680,16 @@ function StartScreen() {
 
       completeCheckin(pendingPrimaryAction, action);
       toast.success(
-        action === "keep"
-          ? "Plan obu sesji potwierdzony."
-          : "Druga sesja została zaktualizowana.",
+        action === "keep" ? "Plan obu sesji potwierdzony." : "Druga sesja została zaktualizowana.",
       );
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Nie udało się zmienić planu.",
-      );
+      toast.error(error instanceof Error ? error.message : "Nie udało się zmienić planu.");
     } finally {
       setSavingAction(false);
     }
   }
 
-  async function applySelectedProposal(
-    proposal: Proposal,
-    choice: ModificationChoice,
-  ) {
+  async function applySelectedProposal(proposal: Proposal, choice: ModificationChoice) {
     if (modifyTarget === "second") {
       const selectedSecond: SessionDay = {
         ...proposal.session,
@@ -825,9 +779,7 @@ function StartScreen() {
     <>
       <main className="start-decision-screen px-6 pb-32 pt-6">
         <header className="flex items-center justify-between">
-          <span className="text-[17px] font-medium tracking-[-0.025em]">
-            BallWise
-          </span>
+          <span className="text-[17px] font-medium tracking-[-0.025em]">BallWise</span>
           <ProfileAvatar />
         </header>
 
@@ -884,10 +836,7 @@ function StartScreen() {
                 Zobacz tydzień <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button
-                className="h-12 w-full rounded-xl text-[15px]"
-                onClick={openSession}
-              >
+              <Button className="h-12 w-full rounded-xl text-[15px]" onClick={openSession}>
                 Start <ChevronRight className="h-4 w-4" />
               </Button>
             )}
@@ -948,18 +897,14 @@ function StartScreen() {
             <div className="grid gap-2">
               <Button
                 disabled={savingAction}
-                onClick={() =>
-                  void applyRescueTarget(pendingRescue.recommended)
-                }
+                onClick={() => void applyRescueTarget(pendingRescue.recommended)}
               >
                 {pendingRescue.recommended.dayName} — polecane
               </Button>
               <Button
                 variant="outline"
                 disabled={savingAction}
-                onClick={() =>
-                  void applyRescueTarget(pendingRescue.alternative)
-                }
+                onClick={() => void applyRescueTarget(pendingRescue.alternative)}
               >
                 {pendingRescue.alternative.dayName}
               </Button>

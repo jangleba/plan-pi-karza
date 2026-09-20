@@ -4,10 +4,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 import { ProgressHistory } from "@/components/progress/ProgressHistory";
-import {
-  buildTrainingHistory,
-  mergeTrainingHistory,
-} from "@/lib/progress/progress";
+import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
 import { buildMicrocycle, buildDirection } from "@/lib/progress/center";
 import {
   buildCycleBar,
@@ -55,10 +52,7 @@ function ProgressScreen() {
 
   const history = useMemo(
     () =>
-      mergeTrainingHistory(
-        state.history,
-        buildTrainingHistory(effectivePlan, state.completions),
-      ),
+      mergeTrainingHistory(state.history, buildTrainingHistory(effectivePlan, state.completions)),
     [state.history, effectivePlan, state.completions],
   );
   const micro = useMemo(
@@ -68,12 +62,7 @@ function ProgressScreen() {
   const nextSession = useMemo(
     () =>
       effectivePlan
-        .filter(
-          (day) =>
-            day.date >= todayIso &&
-            day.dayType !== "rest" &&
-            !day.isUnavailable,
-        )
+        .filter((day) => day.date >= todayIso && day.dayType !== "rest" && !day.isUnavailable)
         .sort((a, b) => (a.date < b.date ? -1 : 1))[0] ?? null,
     [effectivePlan, todayIso],
   );
@@ -85,10 +74,7 @@ function ProgressScreen() {
     () => buildCycleBar(state.profile, effectivePlan, todayIso),
     [state.profile, effectivePlan, todayIso],
   );
-  const load = useMemo(
-    () => buildLoadReport(history, todayIso),
-    [history, todayIso],
-  );
+  const load = useMemo(() => buildLoadReport(history, todayIso), [history, todayIso]);
   const evidence = useMemo(
     () => buildEvidence(micro, history, todayIso),
     [micro, history, todayIso],
@@ -97,10 +83,7 @@ function ProgressScreen() {
 
   return (
     <div className="premium-flow progress-premium">
-      <AppHeader
-        title="Postęp"
-        subtitle="Tylko realne dane z wykonanych treningów."
-      />
+      <AppHeader title="Postęp" subtitle="Tylko realne dane z wykonanych treningów." />
 
       <div className="sticky top-0 z-10 mb-4 bg-background/85 px-5 py-2 backdrop-blur">
         <div className="flex border-b border-border" role="tablist">
@@ -140,14 +123,10 @@ function ProgressScreen() {
             load={load}
             micro={micro}
             runningActivities={state.runningActivities}
-            history={history}
             todayIso={todayIso}
           />
         ) : (
-          <ProgressHistory
-            events={timeline}
-            runningActivities={state.runningActivities}
-          />
+          <ProgressHistory events={timeline} runningActivities={state.runningActivities} />
         )}
       </div>
 
