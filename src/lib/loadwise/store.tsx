@@ -34,10 +34,22 @@ import {
   type CanonicalConsentType,
   type ConsentDecision,
 } from "./consent";
-import { migratePersistedExerciseData, selectEquipmentAwareReplacement } from "./exerciseLibrary";
-import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "./playerDirection";
-import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
-import { fieldMasFromActivity, nextRunningProgressionLevel } from "@/lib/running/engine";
+import {
+  migratePersistedExerciseData,
+  selectEquipmentAwareReplacement,
+} from "./exerciseLibrary";
+import {
+  normalizeCurrentPitchFeelings,
+  normalizeDesiredPitchFeelings,
+} from "./playerDirection";
+import type {
+  RunningActivity,
+  RunningActivityDraft,
+} from "@/lib/running/types";
+import {
+  fieldMasFromActivity,
+  nextRunningProgressionLevel,
+} from "@/lib/running/engine";
 import { expiredUnfinishedSessions } from "./sessionStatus";
 import { normalizePersistedPainLocations } from "./profilePainPersistence";
 import { ageOnDate } from "./agePolicy";
@@ -51,6 +63,12 @@ import {
 } from "./offlineTrainingQueue";
 import { toast } from "sonner";
 import { normalizeMatchDates } from "./matchSchedule";
+import {
+  adaptMdPlusOneFromMatchMinutes,
+  buildMinimumEffectiveWeek,
+} from "./adaptiveWeek";
+import { resolveEffectivePlan } from "./effectivePlan";
+import { clearDailyPlanCheckin } from "./dailyPlanCheckin";
 
 const initialState: LoadwiseState = {
   profile: null,
@@ -64,10 +82,12 @@ const initialState: LoadwiseState = {
   exerciseReplacements: {},
   runningActivities: {},
   equipmentNotice: null,
+  planChangeEvents: [],
 };
 
 const ONBOARDING_SCHEMA_VERSION = 2;
-const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+const useClientLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /**
  * Sprawdza, czy zapisany plan jest zgodny z aktualnymi dniami treningu klubowego.
@@ -157,7 +177,8 @@ export function applyExerciseReplacements(
   replacements: ExerciseReplacement[],
 ): SessionDay {
   return replacements.reduce(
-    (current, item) => replaceExerciseInSession(current, item.exerciseId, item.replacement),
+    (current, item) =>
+      replaceExerciseInSession(current, item.exerciseId, item.replacement),
     session,
   );
 }
@@ -185,7 +206,10 @@ function assertNoSupabaseError(context: string, error: unknown): void {
   throw new Error(`[${context}] ${supabaseErrorMessage(error)}`);
 }
 
-async function clearFutureOverlaysForUser(userId: string, fromDate: string): Promise<void> {
+async function clearFutureOverlaysForUser(
+  userId: string,
+  fromDate: string,
+): Promise<void> {
   const [modifications, transitions] = await Promise.all([
     supabase
       .from("session_modifications")
@@ -195,8 +219,12 @@ async function clearFutureOverlaysForUser(userId: string, fromDate: string): Pro
       .gte("date", fromDate),
     supabase.from("weekly_transitions").delete().eq("user_id", userId),
   ]);
-  assertNoSupabaseError("session_modifications.clear_future", modifications.error);
+  assertNoSupabaseError(
+    "session_modifications.clear_future",
+    modifications.error,
+  );
   assertNoSupabaseError("weekly_transitions.clear", transitions.error);
+  clearDailyPlanCheckin(userId, fromDate);
 }
 
 function historyCategoryOf(
@@ -205,13 +233,22 @@ function historyCategoryOf(
 ): SessionHistoryCategory | null {
   const normalized = (sessionType ?? "").toLowerCase();
   if (normalized === "testing" || /\btest/.test(normalized)) return null;
-  if (dayType === "match" || normalized === "match" || /mecz/.test(normalized)) {
+  if (
+    dayType === "match" ||
+    normalized === "match" ||
+    /mecz/.test(normalized)
+  ) {
     return "match";
   }
-  if (dayType === "club" || normalized === "club_training" || /klub/.test(normalized)) {
+  if (
+    dayType === "club" ||
+    normalized === "club_training" ||
+    /klub/.test(normalized)
+  ) {
     return "club";
   }
-  if (normalized === "strength_power" || /sił|moc|power/.test(normalized)) return "gym";
+  if (normalized === "strength_power" || /sił|moc|power/.test(normalized))
+    return "gym";
   if (
     normalized === "sprint_acceleration" ||
     normalized === "cod_agility" ||
@@ -219,10 +256,14 @@ function historyCategoryOf(
   ) {
     return "speed";
   }
-  if (normalized === "endurance_running" || /wydol|wytrzyma|tlen|rsa/.test(normalized)) {
+  if (
+    normalized === "endurance_running" ||
+    /wydol|wytrzyma|tlen|rsa/.test(normalized)
+  ) {
     return "endurance";
   }
-  if (normalized === "football_technical" || /piłk|technik/.test(normalized)) return "ball";
+  if (normalized === "football_technical" || /piłk|technik/.test(normalized))
+    return "ball";
   if (
     dayType === "recovery" ||
     normalized === "recovery" ||
@@ -242,7 +283,9 @@ async function loadSessionHistory(
   const completedRows = logRows.filter(
     (row) => Boolean(row.completed) && typeof row.session_id === "string",
   );
-  const sessionIds = Array.from(new Set(completedRows.map((row) => row.session_id as string)));
+  const sessionIds = Array.from(
+    new Set(completedRows.map((row) => row.session_id as string)),
+  );
   if (sessionIds.length === 0) return [];
 
   const sessionRows: AnyRow[] = [];
@@ -253,7 +296,10 @@ async function loadSessionHistory(
       .eq("user_id", userId)
       .in("id", sessionIds.slice(i, i + 200));
     if (result.error) {
-      console.warn("[loadwise] session history metadata unavailable", result.error);
+      console.warn(
+        "[loadwise] session history metadata unavailable",
+        result.error,
+      );
       return [];
     }
     sessionRows.push(...((result.data as AnyRow[] | null) ?? []));
@@ -274,13 +320,18 @@ async function loadSessionHistory(
       .eq("user_id", userId)
       .in("id", dayIds.slice(i, i + 200));
     if (result.error) {
-      console.warn("[loadwise] session history dates unavailable", result.error);
+      console.warn(
+        "[loadwise] session history dates unavailable",
+        result.error,
+      );
       return [];
     }
     dayRows.push(...((result.data as AnyRow[] | null) ?? []));
   }
 
-  const sessionsById = new Map(sessionRows.map((row) => [row.id as string, row]));
+  const sessionsById = new Map(
+    sessionRows.map((row) => [row.id as string, row]),
+  );
   const daysById = new Map(dayRows.map((row) => [row.id as string, row]));
   const history: SessionHistoryRecord[] = [];
 
@@ -299,9 +350,13 @@ async function loadSessionHistory(
     history.push({
       key,
       date,
-      title: typeof session.title === "string" && session.title.trim() ? session.title : "Trening",
+      title:
+        typeof session.title === "string" && session.title.trim()
+          ? session.title
+          : "Trening",
       category,
-      durationMin: typeof session.duration_min === "number" ? session.duration_min : 0,
+      durationMin:
+        typeof session.duration_min === "number" ? session.duration_min : 0,
       rpe: typeof log.rpe === "number" ? log.rpe : null,
       notes: typeof log.notes === "string" ? log.notes : "",
     });
@@ -324,7 +379,9 @@ const VALID_GOALS: Profile["goal"][] = [
 
 /** Cel zawsze musi być prawidłowy — nigdy undefined. Fallback: gotowość meczowa. */
 function normalizeGoal(v: unknown): Profile["goal"] {
-  return VALID_GOALS.includes(v as Profile["goal"]) ? (v as Profile["goal"]) : "matchready";
+  return VALID_GOALS.includes(v as Profile["goal"])
+    ? (v as Profile["goal"])
+    : "matchready";
 }
 
 const VALID_LIMITERS: NonNullable<Profile["secondaryLimiter"]>[] = [
@@ -383,10 +440,17 @@ function normalizeCompLevel(v: unknown): Profile["competitionLevel"] {
     : "okregowka";
 }
 
-const VALID_LEVELS: Profile["level"][] = ["beginner", "intermediate", "advanced", "elite"];
+const VALID_LEVELS: Profile["level"][] = [
+  "beginner",
+  "intermediate",
+  "advanced",
+  "elite",
+];
 
 function normalizeLevel(v: unknown): Profile["level"] {
-  return VALID_LEVELS.includes(v as Profile["level"]) ? (v as Profile["level"]) : "intermediate";
+  return VALID_LEVELS.includes(v as Profile["level"])
+    ? (v as Profile["level"])
+    : "intermediate";
 }
 
 function buildProfile(
@@ -416,8 +480,10 @@ function buildProfile(
     name: (prof.full_name as string) ?? "",
     age,
     birthDate,
-    accountOwnerType: ath.account_owner_type === "guardian" ? "guardian" : "athlete",
-    subscriptionPayerType: ath.subscription_payer_type === "guardian" ? "guardian" : "self",
+    accountOwnerType:
+      ath.account_owner_type === "guardian" ? "guardian" : "athlete",
+    subscriptionPayerType:
+      ath.subscription_payer_type === "guardian" ? "guardian" : "self",
     guardianName: (ath.guardian_name as string | null) ?? null,
     guardianEmail: (ath.guardian_email as string | null) ?? null,
     guardianVerifiedAt: (ath.guardian_verified_at as string | null) ?? null,
@@ -428,17 +494,22 @@ function buildProfile(
       ath.ownership_transfer_status === "not_requested"
         ? ath.ownership_transfer_status
         : "not_applicable",
-    ownershipTransferEmail: (ath.ownership_transfer_email as string | null) ?? null,
-    ownershipTransferRequestedAt: (ath.ownership_transfer_requested_at as string | null) ?? null,
-    ownershipTransferredAt: (ath.ownership_transferred_at as string | null) ?? null,
+    ownershipTransferEmail:
+      (ath.ownership_transfer_email as string | null) ?? null,
+    ownershipTransferRequestedAt:
+      (ath.ownership_transfer_requested_at as string | null) ?? null,
+    ownershipTransferredAt:
+      (ath.ownership_transferred_at as string | null) ?? null,
     healthPersonalizationEnabled: Boolean(ath.health_personalization_enabled),
     fuelPrecisionEnabled: Boolean(ath.fuel_precision_enabled),
     weightKg:
-      ath.fuel_precision_enabled === true && typeof ath.weight_optional === "number"
+      ath.fuel_precision_enabled === true &&
+      typeof ath.weight_optional === "number"
         ? ath.weight_optional
         : null,
     fuelAllergyStatus:
-      ath.fuel_allergy_status === "confirmed_none" || ath.fuel_allergy_status === "has_allergies"
+      ath.fuel_allergy_status === "confirmed_none" ||
+      ath.fuel_allergy_status === "has_allergies"
         ? ath.fuel_allergy_status
         : "unconfirmed",
     foodAllergies: (ath.food_allergies as string[]) ?? [],
@@ -459,12 +530,15 @@ function buildProfile(
     ]),
     equipment,
     painInjury: Boolean(ath.pain_injury),
-    painLocations: normalizePersistedPainLocations(onboardingAnswers?.painLocations),
+    painLocations: normalizePersistedPainLocations(
+      onboardingAnswers?.painLocations,
+    ),
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
     onboardingComplete:
-      Boolean(prof.onboarding_completed) && (!requiresGuardianOwner || guardianOwnershipReady),
+      Boolean(prof.onboarding_completed) &&
+      (!requiresGuardianOwner || guardianOwnershipReady),
     onboardingRevision,
     onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
@@ -479,24 +553,35 @@ function buildProfile(
       ath.has_gym === null || ath.has_gym === undefined
         ? equipment.includes("Dostęp do siłowni")
         : Boolean(ath.has_gym),
-    hasPitch: ath.has_pitch === null || ath.has_pitch === undefined ? true : Boolean(ath.has_pitch),
+    hasPitch:
+      ath.has_pitch === null || ath.has_pitch === undefined
+        ? true
+        : Boolean(ath.has_pitch),
     hasSprintSpace:
       ath.has_sprint_space === null || ath.has_sprint_space === undefined
         ? true
         : Boolean(ath.has_sprint_space),
-    currentPitchFeelings: normalizeCurrentPitchFeelings(ath.current_pitch_feelings),
-    desiredPitchFeelings: normalizeDesiredPitchFeelings(ath.desired_pitch_feelings),
+    currentPitchFeelings: normalizeCurrentPitchFeelings(
+      ath.current_pitch_feelings,
+    ),
+    desiredPitchFeelings: normalizeDesiredPitchFeelings(
+      ath.desired_pitch_feelings,
+    ),
     fieldMasKmh:
       ath.field_mas_kmh === null || ath.field_mas_kmh === undefined
         ? null
         : Number(ath.field_mas_kmh),
     fieldMasTestedAt: (ath.field_mas_tested_at as string | null) ?? null,
     runningProgressionLevel: Number(ath.running_progression_level ?? 0),
-    runningProgressionUpdatedAt: (ath.running_progression_updated_at as string | null) ?? null,
+    runningProgressionUpdatedAt:
+      (ath.running_progression_updated_at as string | null) ?? null,
   };
 }
 
-function findSessionByDbId(plan: SessionDay[], sessionId: string): SessionDay | null {
+function findSessionByDbId(
+  plan: SessionDay[],
+  sessionId: string,
+): SessionDay | null {
   for (const day of plan) {
     if (day.dbId === sessionId) return day;
     if (day.secondSession?.dbId === sessionId) return day.secondSession;
@@ -515,7 +600,11 @@ function stampDayRevision(
     canonicalSchemaVersion: schemaVersion,
   };
   if (day.secondSession) {
-    stamped.secondSession = stampDayRevision(day.secondSession, revision, schemaVersion);
+    stamped.secondSession = stampDayRevision(
+      day.secondSession,
+      revision,
+      schemaVersion,
+    );
   }
   return stamped;
 }
@@ -547,8 +636,10 @@ function planRevisionInfo(plan: SessionDay[]): {
   let mixedRevisions = false;
   let mixedSchemas = false;
   for (const day of plan) {
-    if ((day.canonicalRevision ?? null) !== firstRevision) mixedRevisions = true;
-    if ((day.canonicalSchemaVersion ?? null) !== firstSchema) mixedSchemas = true;
+    if ((day.canonicalRevision ?? null) !== firstRevision)
+      mixedRevisions = true;
+    if ((day.canonicalSchemaVersion ?? null) !== firstSchema)
+      mixedSchemas = true;
   }
   return {
     revision: firstRevision,
@@ -565,7 +656,9 @@ function rowToModification(row: AnyRow): SessionModification | null {
         ...rawSession,
         dbId:
           rawSession.dbId ??
-          (typeof row.new_session_id === "string" ? row.new_session_id : undefined),
+          (typeof row.new_session_id === "string"
+            ? row.new_session_id
+            : undefined),
       }
     : null;
   if (!session) return null;
@@ -589,7 +682,9 @@ function rowToExerciseReplacement(row: AnyRow): ExerciseReplacement | null {
     exerciseId: row.exercise_id as string,
     original: row.original_json as TrainingExercise,
     replacement: row.replacement_json as TrainingExercise,
-    equipmentIds: Array.isArray(row.equipment_ids) ? (row.equipment_ids as string[]) : [],
+    equipmentIds: Array.isArray(row.equipment_ids)
+      ? (row.equipment_ids as string[])
+      : [],
     createdAt: (row.created_at as string) ?? new Date().toISOString(),
   };
 }
@@ -612,7 +707,9 @@ function rowToRunningActivity(row: AnyRow): RunningActivity | null {
     return null;
   }
   const timestamp =
-    typeof row.created_at === "string" ? row.created_at : `${row.date as string}T12:00:00.000Z`;
+    typeof row.created_at === "string"
+      ? row.created_at
+      : `${row.date as string}T12:00:00.000Z`;
   return {
     id: row.id,
     sessionId: row.session_id,
@@ -635,24 +732,39 @@ export async function shouldReusePersistedPlan(
   plan: SessionDay[],
   profile: Profile,
 ): Promise<boolean> {
-  const { persistedPlanNeedsRegeneration } = await import("./persistedPlanValidation");
+  const { persistedPlanNeedsRegeneration } =
+    await import("./persistedPlanValidation");
   const hasMonthly = plan.length >= 14;
   const today = isoDate(localToday());
   const coversToday = plan.some((day) => day.date === today);
   const revision = planRevisionInfo(plan);
-  const sameRevision = (profile.onboardingRevision ?? null) === (revision.revision ?? null);
+  const sameRevision =
+    (profile.onboardingRevision ?? null) === (revision.revision ?? null);
   const schemaOk =
-    (revision.schemaVersion ?? ONBOARDING_SCHEMA_VERSION) === ONBOARDING_SCHEMA_VERSION;
-  const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(plan, profile, PLAN_ENGINE_VERSION);
-  return hasMonthly && coversToday && persistedPlanIsSafe && sameRevision && schemaOk;
+    (revision.schemaVersion ?? ONBOARDING_SCHEMA_VERSION) ===
+    ONBOARDING_SCHEMA_VERSION;
+  const persistedPlanIsSafe = !persistedPlanNeedsRegeneration(
+    plan,
+    profile,
+    PLAN_ENGINE_VERSION,
+  );
+  return (
+    hasMonthly && coversToday && persistedPlanIsSafe && sameRevision && schemaOk
+  );
 }
 
 interface LoadwiseContextValue {
   state: LoadwiseState;
   hydrated: boolean;
-  completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
+  completeOnboarding: (
+    profile: Profile,
+    consents?: Record<string, boolean>,
+  ) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
-  saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;
+  saveFuelPrecision: (
+    enabled: boolean,
+    weightKg: number | null,
+  ) => Promise<void>;
   refreshPlanIfNeeded: () => void;
   /** Trwa generowanie/zapisywanie planu — ekrany pokazują wtedy stan ładowania. */
   planGenerating: boolean;
@@ -676,7 +788,10 @@ interface LoadwiseContextValue {
     exercise: TrainingExercise,
     equipmentIds: string[],
   ) => Promise<void>;
-  undoExerciseReplacement: (date: string, replacementId: string) => Promise<void>;
+  undoExerciseReplacement: (
+    date: string,
+    replacementId: string,
+  ) => Promise<void>;
   saveRunningActivity: (draft: RunningActivityDraft) => Promise<void>;
   deleteRunningActivity: (activityId: string) => Promise<void>;
   confirmWeeklyTransition: (
@@ -754,7 +869,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
 
     async function sync() {
-      if (disposed || offlineSyncInFlightRef.current || navigator.onLine === false) return;
+      if (
+        disposed ||
+        offlineSyncInFlightRef.current ||
+        navigator.onLine === false
+      )
+        return;
       offlineSyncInFlightRef.current = true;
       try {
         const result = await flushPendingTrainingWrites(
@@ -767,9 +887,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               return !saved.error;
             }
             if (write.kind === "exercise_set_log") {
-              const saved = await supabase.from("exercise_set_logs").upsert(write.payload, {
-                onConflict: "user_id,session_id,exercise_key,set_number",
-              });
+              const saved = await supabase
+                .from("exercise_set_logs")
+                .upsert(write.payload, {
+                  onConflict: "user_id,session_id,exercise_key,set_number",
+                });
               return !saved.error;
             }
             if (write.kind === "running_activity") {
@@ -785,7 +907,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             return !saved.error;
           },
         );
-        if (result.synced > 0) toast.success("Zapis treningu zsynchronizowany.");
+        if (result.synced > 0)
+          toast.success("Zapis treningu zsynchronizowany.");
         if (result.remaining > 0) scheduleRetry();
         else retryDelayMs = 15_000;
       } catch {
@@ -851,8 +974,16 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           runningRes,
           readinessRes,
         ] = await Promise.all([
-          supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-          supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("*")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("athlete_profiles")
+            .select("*")
+            .eq("user_id", user.id)
+            .maybeSingle(),
           supabase
             .from("onboarding_answers")
             .select("answers_json")
@@ -871,7 +1002,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           supabase
             .from("session_logs")
             .select(
-              "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at",
+              "session_id, completed, completion_status, missed_reason, rpe, notes, duration_minutes, activity_type, started_at, ended_at",
             )
             .eq("user_id", user.id),
           supabase
@@ -880,7 +1011,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             .eq("user_id", user.id)
             .eq("active", true)
             .order("created_at", { ascending: true }),
-          supabase.from("weekly_transitions").select("*").eq("user_id", user.id),
+          supabase
+            .from("weekly_transitions")
+            .select("*")
+            .eq("user_id", user.id),
           supabase
             .from("exercise_replacements")
             .select("*")
@@ -906,7 +1040,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         assertNoSupabaseError("athlete_profiles.load", athRes.error);
 
         assertNoSupabaseError("onboarding_answers.load", onboardingRes.error);
-        const rawOnboardingAnswers = (onboardingRes.data as AnyRow | null)?.answers_json;
+        const rawOnboardingAnswers = (onboardingRes.data as AnyRow | null)
+          ?.answers_json;
         const onboardingAnswers =
           rawOnboardingAnswers &&
           typeof rawOnboardingAnswers === "object" &&
@@ -925,7 +1060,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         const profile = rowProfile
           ? {
               ...rowProfile,
-              unavailableEquipmentIds: Array.isArray(persistedUnavailableEquipment)
+              unavailableEquipmentIds: Array.isArray(
+                persistedUnavailableEquipment,
+              )
                 ? (persistedUnavailableEquipment as string[])
                 : local.unavailableEquipmentIds,
             }
@@ -950,11 +1087,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         let planGeneratedFor: string | null = null;
         let clearFutureOverlays = false;
         const planRow = planRes.data as AnyRow | null;
-        const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
+        const planRowCreatedAt =
+          (planRow?.created_at as string | undefined) ?? null;
         if (planRow && Array.isArray(planRow.plan_json)) {
-          const { normalizeLegacyPersistedPlan } = await import("./dailyCheckin");
+          const { normalizeLegacyPersistedPlan } =
+            await import("./dailyCheckin");
           plan = planRow.plan_json as SessionDay[];
-          planGeneratedFor = (planRow.created_at as string)?.slice(0, 10) ?? null;
+          planGeneratedFor =
+            (planRow.created_at as string)?.slice(0, 10) ?? null;
           const normalized = normalizeLegacyPersistedPlan(plan);
           plan = normalized.plan;
           const exerciseMigration = migratePersistedExerciseData(plan);
@@ -965,7 +1105,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           }
         }
         if (profile && plan.length > 0) {
-          const { migratePersistedSpeedSessions } = await import("./speedSessionMigration");
+          const { migratePersistedSpeedSessions } =
+            await import("./speedSessionMigration");
           const persistedCompletions: Record<string, SessionCompletion> = {};
           for (const row of (logRes.data as AnyRow[] | null) ?? []) {
             const sid = row.session_id as string | null;
@@ -979,14 +1120,20 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
                     ? "started"
                     : "completed",
               rpe: (row.rpe as number) ?? null,
+              missedReason:
+                (row.missed_reason as SessionCompletion["missedReason"]) ??
+                null,
               notes: (row.notes as string) ?? "",
               durationMin: (row.duration_minutes as number) ?? null,
-              activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
+              activityType:
+                (row.activity_type as SessionCompletion["activityType"]) ??
+                null,
               startedAt: (row.started_at as string | null) ?? null,
               endedAt: (row.ended_at as string | null) ?? null,
             };
           }
-          const persistedModifications: Record<string, SessionModification[]> = {};
+          const persistedModifications: Record<string, SessionModification[]> =
+            {};
           for (const row of (modRes.data as AnyRow[] | null) ?? []) {
             const mod = rowToModification(row);
             if (mod) (persistedModifications[mod.date] ??= []).push(mod);
@@ -1009,7 +1156,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           plan = [];
           planGeneratedFor = null;
         } else {
-          const { persistedPlanNeedsRegeneration } = await import("./persistedPlanValidation");
+          const { persistedPlanNeedsRegeneration } =
+            await import("./persistedPlanValidation");
           const revisionInfo = planRevisionInfo(plan);
           const profileRevision = profile.onboardingRevision ?? null;
           const schemaMissingOrMismatched =
@@ -1018,9 +1166,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           const revisionMismatch =
             (profileRevision && revisionInfo.revision !== profileRevision) ||
             (!revisionInfo.revision && !!profileRevision);
-          const mixedRevisionData = revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
+          const mixedRevisionData =
+            revisionInfo.mixedRevisions || revisionInfo.mixedSchemas;
           const planOlderThanProfile =
-            !!profileRevision && !!planRowCreatedAt && planRowCreatedAt < profileRevision;
+            !!profileRevision &&
+            !!planRowCreatedAt &&
+            planRowCreatedAt < profileRevision;
           const missingToday = !plan.some((day) => day.date === todayIso);
           const invalidCanonical =
             plan.length === 0 ||
@@ -1034,10 +1185,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             planOlderThanProfile;
 
           if (shouldRebuildCanonical) {
-            const [{ generatePlan }, { persistMonthlyPlan }] = await Promise.all([
-              import("./planEngine"),
-              import("./persist"),
-            ]);
+            const [{ generatePlan }, { persistMonthlyPlan }] =
+              await Promise.all([import("./planEngine"), import("./persist")]);
             const canonical = stampPlanRevision(
               generatePlan(profile, localToday()),
               profileRevision,
@@ -1047,9 +1196,16 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             await persistMonthlyPlan(user.id, profile, canonical);
             planGeneratedFor = todayIso;
             clearFutureOverlays = true;
-          } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
+          } else if (
+            revisionInfo.revision !== profileRevision ||
+            schemaMissingOrMismatched
+          ) {
             const { persistMonthlyPlan } = await import("./persist");
-            plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
+            plan = stampPlanRevision(
+              plan,
+              profileRevision,
+              ONBOARDING_SCHEMA_VERSION,
+            );
             await persistMonthlyPlan(user.id, profile, plan);
             planGeneratedFor = todayIso;
           } else if (migrationOriginalPlan && migrationChanged) {
@@ -1080,9 +1236,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
                   ? "started"
                   : "completed",
             rpe: (row.rpe as number) ?? null,
+            missedReason:
+              (row.missed_reason as SessionCompletion["missedReason"]) ?? null,
             notes: (row.notes as string) ?? "",
             durationMin: (row.duration_minutes as number) ?? null,
-            activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
+            activityType:
+              (row.activity_type as SessionCompletion["activityType"]) ?? null,
             startedAt: (row.started_at as string | null) ?? null,
             endedAt: (row.ended_at as string | null) ?? null,
           };
@@ -1099,13 +1258,16 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               fatigue: Number(row.fatigue ?? 4),
               soreness: Number(row.soreness ?? row.fatigue ?? 4),
               jointPain: Number(row.pain_level ?? 0),
-              painLocation: (row.pain_location as Readiness["painLocation"]) ?? null,
+              painLocation:
+                (row.pain_location as Readiness["painLocation"]) ?? null,
               stress: Number(row.stress ?? 3),
               motivation: Number(row.energy ?? 7),
               overall: Number(row.overall ?? 7),
               painOnset: (row.pain_onset as Readiness["painOnset"]) ?? null,
               altersMovement: Boolean(row.alters_movement),
-              redFlags: Array.isArray(row.red_flags) ? (row.red_flags as string[]) : [],
+              redFlags: Array.isArray(row.red_flags)
+                ? (row.red_flags as string[])
+                : [],
             };
           }
         }
@@ -1113,7 +1275,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           user.id,
           (logRes.data as AnyRow[] | null) ?? [],
         ).catch((error) => {
-          console.warn("[loadwise] session history background load failed", error);
+          console.warn(
+            "[loadwise] session history background load failed",
+            error,
+          );
           return cachedState?.history ?? [];
         });
 
@@ -1126,7 +1291,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         }
 
         const transitions: Record<number, WeeklyTransition> = {};
-        for (const row of clearFutureOverlays ? [] : ((transRes.data as AnyRow[] | null) ?? [])) {
+        for (const row of clearFutureOverlays
+          ? []
+          : ((transRes.data as AnyRow[] | null) ?? [])) {
           const wn = Number(row.week_number);
           if (!Number.isFinite(wn)) continue;
           transitions[wn] = {
@@ -1135,17 +1302,21 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             nextMatchDate: (row.next_match_date as string) ?? null,
             nextMatchDates: normalizeMatchDates([
               row.next_match_date as string | null,
-              ...(Array.isArray(row.next_match_dates) ? (row.next_match_dates as string[]) : []),
+              ...(Array.isArray(row.next_match_dates)
+                ? (row.next_match_dates as string[])
+                : []),
             ]),
             noMatchNextWeek: Boolean(row.no_match_next_week),
-            confirmedAt: (row.confirmed_at as string) ?? new Date().toISOString(),
+            confirmedAt:
+              (row.confirmed_at as string) ?? new Date().toISOString(),
           };
         }
 
         const persistedReplacements: Record<string, ExerciseReplacement[]> = {};
         for (const row of (replacementRes.data as AnyRow[] | null) ?? []) {
           const replacement = rowToExerciseReplacement(row);
-          if (replacement) (persistedReplacements[replacement.date] ??= []).push(replacement);
+          if (replacement)
+            (persistedReplacements[replacement.date] ??= []).push(replacement);
         }
         const persistedEquipment = Object.values(persistedReplacements)
           .flat()
@@ -1154,13 +1325,22 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         if (clearFutureOverlays) {
           await clearFutureOverlaysForUser(user.id, todayIso);
         }
+        const matchMinuteAdjustment = adaptMdPlusOneFromMatchMinutes(
+          plan,
+          completions,
+          persistedReadiness,
+        );
+        plan = matchMinuteAdjustment.plan;
         if (cancelled) return;
         setState({
           profile: profile
             ? {
                 ...profile,
                 unavailableEquipmentIds: Array.from(
-                  new Set([...(profile.unavailableEquipmentIds ?? []), ...persistedEquipment]),
+                  new Set([
+                    ...(profile.unavailableEquipmentIds ?? []),
+                    ...persistedEquipment,
+                  ]),
                 ),
               }
             : profile,
@@ -1178,20 +1358,25 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           equipmentNotice: replacementRes.error
             ? "Nie udało się wczytać zapisanych zamienników sprzętu."
             : null,
+          planChangeEvents: matchMinuteAdjustment.events,
         });
         setHydrated(true);
         void historyPromise.then((history) => {
           if (!cancelled) setState((current) => ({ ...current, history }));
         });
       } catch (error) {
-        console.error("[loadwise] hydration failed; using safe persisted state", error);
+        console.error(
+          "[loadwise] hydration failed; using safe persisted state",
+          error,
+        );
         if (!cancelled) {
           setState((current) => ({
             ...(cachedState ?? current),
             profile: safeProfile,
             readiness: {},
             exerciseReplacements:
-              cachedState?.exerciseReplacements ?? safeLocal.exerciseReplacements,
+              cachedState?.exerciseReplacements ??
+              safeLocal.exerciseReplacements,
             equipmentNotice:
               "Nie udało się odświeżyć zapisanej części planu. Pokazujemy ostatnie dostępne dane.",
           }));
@@ -1220,7 +1405,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       unavailableEquipmentIds: state.profile?.unavailableEquipmentIds ?? [],
       exerciseReplacements: state.exerciseReplacements,
     });
-  }, [user, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
+  }, [
+    user,
+    hydrated,
+    state.profile?.unavailableEquipmentIds,
+    state.exerciseReplacements,
+  ]);
 
   // Keep the last complete screen ready for an instant, stale-while-revalidate launch.
   // Delay serialization slightly so taps and route transitions always win the frame.
@@ -1236,7 +1426,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!user || !hydrated || !state.profile?.onboardingComplete) return;
     const syncKey = `${user.id}:${todayIso}`;
     if (missedSyncRef.current === syncKey) return;
-    const expired = expiredUnfinishedSessions(state.plan, todayIso, state.completions);
+    const effectivePlan = resolveEffectivePlan(state.plan, state.modifications);
+    const expired = expiredUnfinishedSessions(
+      effectivePlan,
+      todayIso,
+      state.completions,
+    );
     missedSyncRef.current = syncKey;
     if (expired.length === 0) return;
 
@@ -1251,6 +1446,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
                 session_id: session.dbId!,
                 completed: false,
                 completion_status: "missed",
+                missed_reason: "automatic_expiry",
                 rpe: null,
                 notes: "",
                 duration_minutes: 0,
@@ -1265,7 +1461,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         const plan = await savePlanToDb(
           state.profile!,
           state.profile!.onboardingRevision ?? null,
-          state.readiness[todayIso],
+          expired,
         );
         await clearFutureOverlaysForUser(user.id, todayIso);
         setState((current) => ({
@@ -1277,14 +1473,36 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
             ...Object.fromEntries(
               expired.map((session) => [
                 session.dbId!,
-                { completed: false, status: "missed", rpe: null, notes: "", durationMin: 0 },
+                {
+                  completed: false,
+                  status: "missed",
+                  missedReason: "automatic_expiry",
+                  rpe: null,
+                  notes: "",
+                  durationMin: 0,
+                },
               ]),
             ),
           },
           modifications: Object.fromEntries(
-            Object.entries(current.modifications).filter(([date]) => date < todayIso),
+            Object.entries(current.modifications).filter(
+              ([date]) => date < todayIso,
+            ),
           ),
           transitions: {},
+          planChangeEvents: [
+            ...(current.planChangeEvents ?? []).filter(
+              (event) => event.source !== "missed_session",
+            ),
+            ...expired.map((session) => ({
+              id: `missed:${session.dbId ?? session.date}`,
+              date: todayIso,
+              source: "missed_session" as const,
+              title: "Plan przeliczony po pominiętej sesji",
+              detail:
+                "Silnik zachował tylko brakujący bodziec, jeśli znalazł bezpieczne miejsce; reszty nie nadrabia na siłę.",
+            })),
+          ],
         }));
       } catch (error) {
         missedSyncRef.current = null;
@@ -1293,30 +1511,39 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     })();
     // savePlanToDb is provider-local; state inputs above are the intended triggers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, state.plan, state.completions, state.profile, state.readiness, todayIso, user]);
+  }, [
+    hydrated,
+    state.plan,
+    state.modifications,
+    state.completions,
+    state.profile,
+    state.readiness,
+    todayIso,
+    user,
+  ]);
 
   async function savePlanToDb(
     profile: Profile,
     revision: string | null,
-    readinessForToday?: Readiness | null,
+    missedSessions: SessionDay[] = [],
   ): Promise<SessionDay[]> {
-    const [{ generatePlan }, { applyCheckInToPlanDay }, { persistMonthlyPlan }] = await Promise.all(
-      [import("./planEngine"), import("./dailyCheckin"), import("./persist")],
-    );
+    const [{ generatePlan }, { persistMonthlyPlan }] = await Promise.all([
+      import("./planEngine"),
+      import("./persist"),
+    ]);
     const canonical = stampPlanRevision(
       generatePlan(profile, localToday()),
       revision,
       ONBOARDING_SCHEMA_VERSION,
     );
     let plan = canonical;
-    if (readinessForToday) {
-      const adapted = applyCheckInToPlanDay(
-        canonical,
-        readinessForToday.date,
-        readinessForToday,
+    if (missedSessions.length > 0) {
+      plan = buildMinimumEffectiveWeek(
+        plan,
+        missedSessions,
+        todayIso,
         profile,
-      );
-      plan = adapted.plan;
+      ).plan;
     }
     if (user) {
       await persistMonthlyPlan(user.id, profile, plan);
@@ -1324,7 +1551,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     return plan;
   }
 
-  async function saveProfileRows(profile: Profile, completed: boolean): Promise<string | null> {
+  async function saveProfileRows(
+    profile: Profile,
+    completed: boolean,
+  ): Promise<string | null> {
     if (!user) return null;
     const profileWrite = await supabase.from("profiles").upsert(
       {
@@ -1345,18 +1575,25 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           user_id: user.id,
           account_owner_type: profile.accountOwnerType ?? "athlete",
           subscription_payer_type:
-            profile.subscriptionPayerType ?? (profile.age < 18 ? "guardian" : "self"),
+            profile.subscriptionPayerType ??
+            (profile.age < 18 ? "guardian" : "self"),
           guardian_name: profile.guardianName ?? null,
           guardian_email: profile.guardianEmail ?? null,
           guardian_verified_at: profile.guardianVerifiedAt ?? null,
           guardian_consent_at: profile.guardianConsentAt ?? null,
-          ownership_transfer_status: profile.ownershipTransferStatus ?? "not_applicable",
+          ownership_transfer_status:
+            profile.ownershipTransferStatus ?? "not_applicable",
           ownership_transfer_email: profile.ownershipTransferEmail ?? null,
-          ownership_transfer_requested_at: profile.ownershipTransferRequestedAt ?? null,
+          ownership_transfer_requested_at:
+            profile.ownershipTransferRequestedAt ?? null,
           ownership_transferred_at: profile.ownershipTransferredAt ?? null,
-          health_personalization_enabled: Boolean(profile.healthPersonalizationEnabled),
+          health_personalization_enabled: Boolean(
+            profile.healthPersonalizationEnabled,
+          ),
           fuel_precision_enabled: Boolean(profile.fuelPrecisionEnabled),
-          weight_optional: profile.fuelPrecisionEnabled ? (profile.weightKg ?? null) : null,
+          weight_optional: profile.fuelPrecisionEnabled
+            ? (profile.weightKg ?? null)
+            : null,
           fuel_allergy_status: profile.fuelAllergyStatus ?? "unconfirmed",
           food_allergies: profile.foodAllergies ?? [],
           food_intolerances: profile.foodIntolerances ?? [],
@@ -1370,9 +1607,15 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           club_training_days: profile.clubTrainingDays as unknown as Json,
           individual_training_days: profile.individualTrainingDays,
           unavailable_days: profile.unavailableDays as unknown as Json,
-          usual_match_day: profile.usualMatchDay === null ? null : String(profile.usualMatchDay),
+          usual_match_day:
+            profile.usualMatchDay === null
+              ? null
+              : String(profile.usualMatchDay),
           match_date: profile.matchDate,
-          match_dates: normalizeMatchDates([profile.matchDate, ...(profile.matchDates ?? [])]),
+          match_dates: normalizeMatchDates([
+            profile.matchDate,
+            ...(profile.matchDates ?? []),
+          ]),
           pain_injury: profile.painInjury,
           double_sessions_allowed: profile.doubleSessionsAllowed,
           guardian_consent: profile.guardianConsent,
@@ -1384,12 +1627,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           has_pitch: profile.hasPitch,
           has_sprint_space: profile.hasSprintSpace,
           unavailable_equipment_ids: profile.unavailableEquipmentIds ?? [],
-          current_pitch_feelings: normalizeCurrentPitchFeelings(profile.currentPitchFeelings),
-          desired_pitch_feelings: normalizeDesiredPitchFeelings(profile.desiredPitchFeelings),
+          current_pitch_feelings: normalizeCurrentPitchFeelings(
+            profile.currentPitchFeelings,
+          ),
+          desired_pitch_feelings: normalizeDesiredPitchFeelings(
+            profile.desiredPitchFeelings,
+          ),
           field_mas_kmh: profile.fieldMasKmh ?? null,
           field_mas_tested_at: profile.fieldMasTestedAt ?? null,
           running_progression_level: profile.runningProgressionLevel ?? 0,
-          running_progression_updated_at: profile.runningProgressionUpdatedAt ?? null,
+          running_progression_updated_at:
+            profile.runningProgressionUpdatedAt ?? null,
         },
         { onConflict: "user_id" },
       )
@@ -1403,7 +1651,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
+  async function completeOnboarding(
+    profile: Profile,
+    consents?: Record<string, boolean>,
+  ) {
     if (!user) return;
     // Consent is persisted before enabling optional health processing. The DB
     // trigger then refuses health mode unless the latest audit row is accepted.
@@ -1427,28 +1678,48 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const nextProfile: Profile = {
       ...profile,
       unavailableEquipmentIds:
-        state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
+        state.profile?.unavailableEquipmentIds ??
+        profile.unavailableEquipmentIds ??
+        [],
       onboardingComplete: true,
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    const plan = await savePlanToDb(nextProfile, revision, state.readiness[todayIso]);
-    const onboardingAnswersWrite = await supabase.from("onboarding_answers").insert({
-      user_id: user.id,
-      answers_json: nextProfile as unknown as Json,
-      completed_at: new Date().toISOString(),
-    });
-    assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
+    const plan = await savePlanToDb(nextProfile, revision);
+    const onboardingAnswersWrite = await supabase
+      .from("onboarding_answers")
+      .insert({
+        user_id: user.id,
+        // Dane profilu mają własne kolumny w profiles/athlete_profiles. Ten wpis
+        // jest tylko śladem ukończenia wersji formularza, bez kopii zdrowia,
+        // masy, bólu, preferencji żywieniowych i całego planu.
+        answers_json: {
+          schema_version: ONBOARDING_SCHEMA_VERSION,
+          completed: true,
+          account_owner_type: nextProfile.accountOwnerType ?? "athlete",
+        } as unknown as Json,
+        completed_at: new Date().toISOString(),
+      });
+    assertNoSupabaseError(
+      "onboarding_answers.insert",
+      onboardingAnswersWrite.error,
+    );
     if (!nextProfile.healthPersonalizationEnabled) {
       const [readinessDelete, painDelete] = await Promise.all([
         supabase.from("readiness_logs").delete().eq("user_id", user.id),
         supabase.from("pain_logs").delete().eq("user_id", user.id),
       ]);
-      assertNoSupabaseError("readiness_logs.consent_cleanup", readinessDelete.error);
+      assertNoSupabaseError(
+        "readiness_logs.consent_cleanup",
+        readinessDelete.error,
+      );
       assertNoSupabaseError("pain_logs.consent_cleanup", painDelete.error);
       try {
         const local = loadLocal(user.id);
-        window.localStorage.setItem(localKey(user.id), JSON.stringify({ ...local, readiness: {} }));
+        window.localStorage.setItem(
+          localKey(user.id),
+          JSON.stringify({ ...local, readiness: {} }),
+        );
       } catch {
         window.localStorage.removeItem(localKey(user.id));
       }
@@ -1456,8 +1727,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     await clearFutureOverlaysForUser(user.id, todayIso);
     const profileCompleteWrite = await supabase
       .from("profiles")
-      .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
-    assertNoSupabaseError("profiles.mark_onboarding_complete", profileCompleteWrite.error);
+      .upsert(
+        { user_id: user.id, onboarding_completed: true },
+        { onConflict: "user_id" },
+      );
+    assertNoSupabaseError(
+      "profiles.mark_onboarding_complete",
+      profileCompleteWrite.error,
+    );
     setState((s) => ({
       ...s,
       profile: nextProfile,
@@ -1477,16 +1754,14 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     const nextProfile: Profile = {
       ...profile,
       unavailableEquipmentIds:
-        state.profile?.unavailableEquipmentIds ?? profile.unavailableEquipmentIds ?? [],
+        state.profile?.unavailableEquipmentIds ??
+        profile.unavailableEquipmentIds ??
+        [],
       onboardingComplete: true,
       onboardingRevision: revision,
       onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     };
-    const plan = await savePlanToDb(
-      nextProfile,
-      revision,
-      nextProfile.healthPersonalizationEnabled ? state.readiness[todayIso] : undefined,
-    );
+    const plan = await savePlanToDb(nextProfile, revision);
     await clearFutureOverlaysForUser(user.id, todayIso);
     setState((s) => ({
       ...s,
@@ -1516,7 +1791,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         weight_optional: enabled ? weightKg : null,
       })
       .eq("user_id", user.id);
-    assertNoSupabaseError("athlete_profiles.fuel_precision", profileWrite.error);
+    assertNoSupabaseError(
+      "athlete_profiles.fuel_precision",
+      profileWrite.error,
+    );
 
     setState((current) => ({
       ...current,
@@ -1545,7 +1823,6 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         const plan = await savePlanToDb(
           profile,
           profile.onboardingRevision ?? null,
-          state.readiness[todayIso],
         );
         await clearFutureOverlaysForUser(user.id, todayIso);
         setState((s) => ({
@@ -1598,7 +1875,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           payload,
         });
       if (!queued) assertNoSupabaseError("session_logs.start", result.error);
-      toast.info("Brak internetu — początek treningu zapisano na tym telefonie.");
+      toast.info(
+        "Brak internetu — początek treningu zapisano na tym telefonie.",
+      );
     }
     setState((current) => ({
       ...current,
@@ -1673,8 +1952,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           dedupeKey: `session:${sid}`,
           payload,
         });
-      if (!completionQueued) assertNoSupabaseError("session_logs.upsert", result.error);
-      toast.info("Brak internetu — ukończenie zapisano i zsynchronizuje się później.");
+      if (!completionQueued)
+        assertNoSupabaseError("session_logs.upsert", result.error);
+      toast.info(
+        "Brak internetu — ukończenie zapisano i zsynchronizuje się później.",
+      );
     }
     let updatedProfile = state.profile;
     const runningActivity = state.runningActivities[sid];
@@ -1704,8 +1986,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           kind: "running_progression",
           dedupeKey: "running-progression",
           payload: {
-            running_progression_level: updatedProfile.runningProgressionLevel ?? 0,
-            running_progression_updated_at: updatedProfile.runningProgressionUpdatedAt ?? null,
+            running_progression_level:
+              updatedProfile.runningProgressionLevel ?? 0,
+            running_progression_updated_at:
+              updatedProfile.runningProgressionUpdatedAt ?? null,
           },
         });
       } else {
@@ -1715,31 +1999,53 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     const refreshedPlan =
       !completionQueued && updatedProfile && updatedProfile !== state.profile
-        ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
-        : state.plan;
-    setState((s) => ({
-      ...s,
-      profile: updatedProfile,
-      plan: refreshedPlan,
-      planGeneratedFor: updatedProfile !== state.profile ? todayIso : s.planGeneratedFor,
-      completions: { ...s.completions, [sid]: completion },
-      history: record
-        ? [record, ...s.history.filter((item) => item.key !== sid)].sort((a, b) =>
-            a.date < b.date ? 1 : -1,
+        ? await savePlanToDb(
+            updatedProfile,
+            updatedProfile.onboardingRevision ?? null,
           )
-        : s.history,
-    }));
+        : state.plan;
+    setState((s) => {
+      const nextCompletions = { ...s.completions, [sid]: completion };
+      const matchMinuteAdjustment = adaptMdPlusOneFromMatchMinutes(
+        refreshedPlan,
+        nextCompletions,
+        s.readiness,
+      );
+      return {
+        ...s,
+        profile: updatedProfile,
+        plan: matchMinuteAdjustment.plan,
+        planGeneratedFor:
+          updatedProfile !== state.profile ? todayIso : s.planGeneratedFor,
+        completions: nextCompletions,
+        history: record
+          ? [record, ...s.history.filter((item) => item.key !== sid)].sort(
+              (a, b) => (a.date < b.date ? 1 : -1),
+            )
+          : s.history,
+        planChangeEvents: [
+          ...(s.planChangeEvents ?? []).filter(
+            (event) => event.source !== "match_minutes",
+          ),
+          ...matchMinuteAdjustment.events,
+        ],
+      };
+    });
   }
 
   async function saveRunningActivity(draft: RunningActivityDraft) {
     if (!user) throw new Error("Musisz być zalogowany, aby zapisać bieg.");
-    const linkedSessionBeforeSave = findSessionByDbId(state.plan, draft.sessionId);
+    const linkedSessionBeforeSave = findSessionByDbId(
+      state.plan,
+      draft.sessionId,
+    );
     const pendingFieldMas =
       linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test"
         ? fieldMasFromActivity(draft as RunningActivity)
         : null;
     if (
-      linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" &&
+      linkedSessionBeforeSave?.classification?.subcategory ===
+        "field_mas_test" &&
       !pendingFieldMas
     ) {
       throw new Error(
@@ -1747,7 +2053,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       );
     }
     if (
-      linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test" &&
+      linkedSessionBeforeSave?.classification?.subcategory ===
+        "field_mas_test" &&
       typeof navigator !== "undefined" &&
       navigator.onLine === false
     ) {
@@ -1765,7 +2072,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       duration_sec: draft.durationSec,
       distance_m: draft.distanceM,
       avg_pace_sec_per_km: draft.avgPaceSecPerKm,
-      is_field_mas_test: linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test",
+      is_field_mas_test:
+        linkedSessionBeforeSave?.classification?.subcategory ===
+        "field_mas_test",
       updated_at: updatedAt,
     };
     const write = await supabase
@@ -1773,9 +2082,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       .upsert(payload, { onConflict: "user_id,session_id" })
       .select("*")
       .single();
-    let storedActivity = write.error ? null : rowToRunningActivity(write.data as AnyRow);
+    let storedActivity = write.error
+      ? null
+      : rowToRunningActivity(write.data as AnyRow);
     if (write.error) {
-      const isMas = linkedSessionBeforeSave?.classification?.subcategory === "field_mas_test";
+      const isMas =
+        linkedSessionBeforeSave?.classification?.subcategory ===
+        "field_mas_test";
       const queued =
         !isMas &&
         isRetryableWriteError(write.error) &&
@@ -1784,7 +2097,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           dedupeKey: `running:${draft.sessionId}`,
           payload,
         });
-      if (!queued) assertNoSupabaseError("running_activities.upsert", write.error);
+      if (!queued)
+        assertNoSupabaseError("running_activities.upsert", write.error);
       storedActivity = {
         id: activityId,
         sessionId: draft.sessionId,
@@ -1803,7 +2117,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       };
       toast.info("Brak internetu — wynik biegu zapisano na tym telefonie.");
     }
-    if (!storedActivity) throw new Error("Baza zwróciła nieprawidłowy zapis biegu.");
+    if (!storedActivity)
+      throw new Error("Baza zwróciła nieprawidłowy zapis biegu.");
     // Trasa i odcinki żyją tylko w pamięci bieżącej sesji. Do bazy trafiają
     // wyłącznie trzy wyniki widoczne dla użytkownika.
     const activity: RunningActivity = {
@@ -1817,9 +2132,13 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     };
     const linkedSession = findSessionByDbId(state.plan, activity.sessionId);
     let updatedProfile = state.profile;
-    if (linkedSession?.classification?.subcategory === "field_mas_test" && updatedProfile) {
+    if (
+      linkedSession?.classification?.subcategory === "field_mas_test" &&
+      updatedProfile
+    ) {
       const fieldMasKmh = pendingFieldMas;
-      if (!fieldMasKmh) throw new Error("Nie udało się wyliczyć terenowego MAS.");
+      if (!fieldMasKmh)
+        throw new Error("Nie udało się wyliczyć terenowego MAS.");
       const testedAt = activity.date;
       updatedProfile = {
         ...updatedProfile,
@@ -1835,13 +2154,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     }
     const refreshedPlan =
       updatedProfile && updatedProfile !== state.profile
-        ? await savePlanToDb(updatedProfile, updatedProfile.onboardingRevision ?? null)
+        ? await savePlanToDb(
+            updatedProfile,
+            updatedProfile.onboardingRevision ?? null,
+          )
         : state.plan;
     setState((current) => ({
       ...current,
       profile: updatedProfile,
       plan: refreshedPlan,
-      planGeneratedFor: updatedProfile !== state.profile ? todayIso : current.planGeneratedFor,
+      planGeneratedFor:
+        updatedProfile !== state.profile ? todayIso : current.planGeneratedFor,
       runningActivities: {
         ...current.runningActivities,
         [activity.sessionId]: activity,
@@ -1851,8 +2174,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function deleteRunningActivity(activityId: string) {
     if (!user) throw new Error("Musisz być zalogowany, aby usunąć bieg.");
-    const activity = Object.values(state.runningActivities).find((item) => item.id === activityId);
-    const linkedSession = activity ? findSessionByDbId(state.plan, activity.sessionId) : null;
+    const activity = Object.values(state.runningActivities).find(
+      (item) => item.id === activityId,
+    );
+    const linkedSession = activity
+      ? findSessionByDbId(state.plan, activity.sessionId)
+      : null;
     const remove = await supabase
       .from("running_activities")
       .delete()
@@ -1862,7 +2189,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!activity) return;
     let updatedProfile = state.profile;
     let refreshedPlan = state.plan;
-    if (linkedSession?.classification?.subcategory === "field_mas_test" && updatedProfile) {
+    if (
+      linkedSession?.classification?.subcategory === "field_mas_test" &&
+      updatedProfile
+    ) {
       updatedProfile = {
         ...updatedProfile,
         fieldMasKmh: null,
@@ -1881,7 +2211,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         ...current,
         profile: updatedProfile,
         plan: refreshedPlan,
-        planGeneratedFor: refreshedPlan !== current.plan ? todayIso : current.planGeneratedFor,
+        planGeneratedFor:
+          refreshedPlan !== current.plan ? todayIso : current.planGeneratedFor,
         runningActivities,
       };
     });
@@ -1893,7 +2224,12 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     equipmentIds: string[],
   ) {
     if (!user || exercise.completed) return;
-    if ((state.exerciseReplacements[date] ?? []).some((r) => r.exerciseId === exercise.id)) return;
+    if (
+      (state.exerciseReplacements[date] ?? []).some(
+        (r) => r.exerciseId === exercise.id,
+      )
+    )
+      return;
     if (!state.profile) return;
     const replacementKey = `${date}:${exercise.id}`;
     if (replacementInFlightRef.current.has(replacementKey)) return;
@@ -1901,12 +2237,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     try {
       const { buildAthleteTrainingProfile } = await import("./athleteProfile");
       const unavailableEquipmentIds = Array.from(
-        new Set([...(state.profile.unavailableEquipmentIds ?? []), ...equipmentIds]),
+        new Set([
+          ...(state.profile.unavailableEquipmentIds ?? []),
+          ...equipmentIds,
+        ]),
       );
       const athlete = buildAthleteTrainingProfile(state.profile, {
         unavailableEquipmentIds,
       });
-      const result = selectEquipmentAwareReplacement(exercise.exerciseId ?? exercise.name, athlete);
+      const result = selectEquipmentAwareReplacement(
+        exercise.exerciseId ?? exercise.name,
+        athlete,
+      );
       if (!result.exercise || result.blockRebuildRequired) {
         setState((s) => ({
           ...s,
@@ -1953,12 +2295,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
           .delete()
           .eq("id", item.id)
           .eq("user_id", user.id);
-        assertNoSupabaseError("athlete_profiles.equipment", profileUpdate.error);
+        assertNoSupabaseError(
+          "athlete_profiles.equipment",
+          profileUpdate.error,
+        );
       }
       setState((s) => ({
         ...s,
         equipmentNotice: null,
-        profile: s.profile ? { ...s.profile, unavailableEquipmentIds } : s.profile,
+        profile: s.profile
+          ? { ...s.profile, unavailableEquipmentIds }
+          : s.profile,
         exerciseReplacements: {
           ...s.exerciseReplacements,
           [date]: [...(s.exerciseReplacements[date] ?? []), item],
@@ -1967,7 +2314,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     } catch {
       setState((s) => ({
         ...s,
-        equipmentNotice: "Nie udało się zapisać zamiennika. Plan i historia pozostały bez zmian.",
+        equipmentNotice:
+          "Nie udało się zapisać zamiennika. Plan i historia pozostały bez zmian.",
       }));
     } finally {
       replacementInFlightRef.current.delete(replacementKey);
@@ -1977,14 +2325,18 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   async function undoExerciseReplacement(date: string, replacementId: string) {
     if (!user) return;
     const current = state.exerciseReplacements[date] ?? [];
-    const removed = current.find((replacement) => replacement.id === replacementId);
+    const removed = current.find(
+      (replacement) => replacement.id === replacementId,
+    );
     if (!removed) return;
     const stillUsed = Object.values(state.exerciseReplacements)
       .flat()
       .some(
         (replacement) =>
           replacement.id !== replacementId &&
-          replacement.equipmentIds.some((id) => removed.equipmentIds.includes(id)),
+          replacement.equipmentIds.some((id) =>
+            removed.equipmentIds.includes(id),
+          ),
       );
     const unavailableEquipmentIds = stillUsed
       ? (state.profile?.unavailableEquipmentIds ?? [])
@@ -2007,12 +2359,17 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         .update({ active: true })
         .eq("id", replacementId)
         .eq("user_id", user.id);
-      assertNoSupabaseError("athlete_profiles.equipment_undo", profileUpdate.error);
+      assertNoSupabaseError(
+        "athlete_profiles.equipment_undo",
+        profileUpdate.error,
+      );
     }
     setState((s) => ({
       ...s,
       equipmentNotice: null,
-      profile: s.profile ? { ...s.profile, unavailableEquipmentIds } : s.profile,
+      profile: s.profile
+        ? { ...s.profile, unavailableEquipmentIds }
+        : s.profile,
       exerciseReplacements: {
         ...s.exerciseReplacements,
         [date]: (s.exerciseReplacements[date] ?? []).filter(
@@ -2031,14 +2388,20 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   ) {
     if (!user) return;
     const id = crypto.randomUUID();
-    const safetyStatus: SessionStatus = type === "swap" ? "swapped_by_user" : "added_by_user";
+    const safetyStatus: SessionStatus =
+      type === "swap" ? "swapped_by_user" : "added_by_user";
     const trainingDayId =
-      originalSession?.dayDbId ?? state.plan.find((day) => day.date === date)?.dayDbId;
+      originalSession?.dayDbId ??
+      state.plan.find((day) => day.date === date)?.dayDbId;
     if (!trainingDayId) {
       throw new Error("Brak zapisanego dnia treningowego dla tej sesji.");
     }
     const { persistModifiedSession } = await import("./persist");
-    const persistedSession = await persistModifiedSession(user.id, trainingDayId, session);
+    const persistedSession = await persistModifiedSession(
+      user.id,
+      trainingDayId,
+      session,
+    );
     const mod: SessionModification = {
       id,
       date,
@@ -2049,26 +2412,31 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       originalSession,
       createdAt: new Date().toISOString(),
     };
-    const modificationWrite = await supabase.from("session_modifications").insert({
-      id,
-      user_id: user.id,
-      date,
-      type,
-      reason,
-      safety_status: safetyStatus,
-      original_session_id: originalSession?.dbId ?? null,
-      new_session_id: persistedSession.dbId ?? null,
-      original_session_json: originalSession as unknown as Json,
-      new_session_json: persistedSession as unknown as Json,
-      active: true,
-    });
+    const modificationWrite = await supabase
+      .from("session_modifications")
+      .insert({
+        id,
+        user_id: user.id,
+        date,
+        type,
+        reason,
+        safety_status: safetyStatus,
+        original_session_id: originalSession?.dbId ?? null,
+        new_session_id: persistedSession.dbId ?? null,
+        original_session_json: originalSession as unknown as Json,
+        new_session_json: persistedSession as unknown as Json,
+        active: true,
+      });
     if (modificationWrite.error) {
       await supabase
         .from("training_sessions")
         .delete()
         .eq("id", persistedSession.dbId!)
         .eq("user_id", user.id);
-      assertNoSupabaseError("session_modifications.insert", modificationWrite.error);
+      assertNoSupabaseError(
+        "session_modifications.insert",
+        modificationWrite.error,
+      );
     }
     if (type === "swap") {
       const deactivate = await supabase
@@ -2079,18 +2447,28 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         .eq("type", "swap")
         .neq("id", id);
       if (deactivate.error) {
-        await supabase.from("session_modifications").delete().eq("id", id).eq("user_id", user.id);
+        await supabase
+          .from("session_modifications")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id);
         await supabase
           .from("training_sessions")
           .delete()
           .eq("id", persistedSession.dbId!)
           .eq("user_id", user.id);
-        assertNoSupabaseError("session_modifications.deactivate_previous", deactivate.error);
+        assertNoSupabaseError(
+          "session_modifications.deactivate_previous",
+          deactivate.error,
+        );
       }
     }
     setState((current) => {
       const existing = current.modifications[date] ?? [];
-      const filtered = type === "swap" ? existing.filter((item) => item.type !== "swap") : existing;
+      const filtered =
+        type === "swap"
+          ? existing.filter((item) => item.type !== "swap")
+          : existing;
       return {
         ...current,
         modifications: {
@@ -2103,7 +2481,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function undoModification(date: string, id: string) {
     if (!user) return;
-    const modification = (state.modifications[date] ?? []).find((item) => item.id === id);
+    const modification = (state.modifications[date] ?? []).find(
+      (item) => item.id === id,
+    );
     const deactivate = await supabase
       .from("session_modifications")
       .update({ active: false })
@@ -2123,7 +2503,10 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         .delete()
         .eq("user_id", user.id)
         .eq("id", modifiedSessionId);
-      assertNoSupabaseError("training_sessions.delete_modified", sessionDelete.error);
+      assertNoSupabaseError(
+        "training_sessions.delete_modified",
+        sessionDelete.error,
+      );
     }
     setState((current) => {
       const existing = current.modifications[date] ?? [];
@@ -2156,15 +2539,15 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const profile = state.profile;
     if (!profile) return;
-    const [{ generatePlan, weekRanges }, { persistMonthlyPlan }] = await Promise.all([
-      import("./planEngine"),
-      import("./persist"),
-    ]);
+    const [{ generatePlan, weekRanges }, { persistMonthlyPlan }] =
+      await Promise.all([import("./planEngine"), import("./persist")]);
 
     // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
     // Wyznaczamy jego przedział w planie wg granic poniedziałek–niedziela.
     const current = state.plan;
-    const normalizedMatchDates = noMatchNextWeek ? [] : normalizeMatchDates(nextMatchDates);
+    const normalizedMatchDates = noMatchNextWeek
+      ? []
+      : normalizeMatchDates(nextMatchDates);
     let newPlan = current;
     const planStart = current[0] ? parseIso(current[0].date) : null;
     const ranges = planStart ? weekRanges(planStart, current.length) : [];
@@ -2182,7 +2565,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       };
       const regenDays = range.end - range.start;
       const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
-      newPlan = [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)];
+      newPlan = [
+        ...current.slice(0, startIdx),
+        ...fresh,
+        ...current.slice(startIdx + regenDays),
+      ];
       // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
       await persistMonthlyPlan(user.id, profile, newPlan);
     }
@@ -2219,7 +2606,9 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
 
   async function saveReadiness(r: Readiness) {
     if (!state.profile?.healthPersonalizationEnabled) {
-      throw new Error("Check-in jest wyłączony. Włącz opcjonalną personalizację w profilu.");
+      throw new Error(
+        "Check-in jest wyłączony. Włącz opcjonalną personalizację w profilu.",
+      );
     }
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       throw new Error("Check-in zdrowotny wymaga połączenia z internetem.");
@@ -2259,7 +2648,11 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
               },
               { onConflict: "user_id,date" },
             )
-          : await supabase.from("pain_logs").delete().eq("user_id", user.id).eq("date", r.date);
+          : await supabase
+              .from("pain_logs")
+              .delete()
+              .eq("user_id", user.id)
+              .eq("date", r.date);
       assertNoSupabaseError("pain_logs.sync", painWrite.error);
     }
 

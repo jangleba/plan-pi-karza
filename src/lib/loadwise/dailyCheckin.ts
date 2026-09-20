@@ -1,6 +1,12 @@
 import { applyReadiness } from "./planEngine";
-import type { Profile, Readiness, SessionDay, SessionModification } from "./types";
+import type {
+  Profile,
+  Readiness,
+  SessionDay,
+  SessionModification,
+} from "./types";
 import { classifySession } from "./sessionClassification";
+import { resolveModifiedDay } from "./effectivePlan";
 
 const LEGACY_RECOVERY_RE =
   /regener|recovery|marsz|spacer|trucht|easy run|bike|rower|oddech|oddychan|breathing|mobil|stretch|rozciągan/i;
@@ -25,7 +31,12 @@ function canonicalExternalSessionType(kind: "club" | "match"): string {
 
 function stripLegacyRecoveryBlocks(session: SessionDay): SessionDay {
   const filterItems = (items: typeof session.sections.main) =>
-    items.filter((item) => !LEGACY_RECOVERY_RE.test(`${item.name ?? ""} ${item.prescription ?? ""}`));
+    items.filter(
+      (item) =>
+        !LEGACY_RECOVERY_RE.test(
+          `${item.name ?? ""} ${item.prescription ?? ""}`,
+        ),
+    );
 
   const cleanedSections = {
     warmup: session.sections.warmup,
@@ -42,9 +53,10 @@ function stripLegacyRecoveryBlocks(session: SessionDay): SessionDay {
   };
 }
 
-export function normalizeLegacyExternalCommitmentDay(
-  session: SessionDay,
-): { session: SessionDay; changed: boolean } {
+export function normalizeLegacyExternalCommitmentDay(session: SessionDay): {
+  session: SessionDay;
+  changed: boolean;
+} {
   const kind = externalKind(session);
   if (!kind) return { session, changed: false };
 
@@ -60,7 +72,9 @@ export function normalizeLegacyExternalCommitmentDay(
     title,
     sessionType,
     loadLabelOverride:
-      base.loadLabelOverride === "Ogranicz" ? "Ogranicz obciążenie" : base.loadLabelOverride,
+      base.loadLabelOverride === "Ogranicz"
+        ? "Ogranicz obciążenie"
+        : base.loadLabelOverride,
     // Trening klubowy i mecz są stałym pierwszym punktem dnia, ale nie mogą
     // kasować prawidłowo zaplanowanej, uzupełniającej sesji BallWise.
     // O jej redukcji lub usunięciu decyduje dopiero check-in i reguły bólu.
@@ -72,9 +86,10 @@ export function normalizeLegacyExternalCommitmentDay(
   return { session: changed ? normalized : session, changed };
 }
 
-export function normalizeLegacyPersistedPlan(
-  plan: SessionDay[],
-): { plan: SessionDay[]; changed: boolean } {
+export function normalizeLegacyPersistedPlan(plan: SessionDay[]): {
+  plan: SessionDay[];
+  changed: boolean;
+} {
   let changed = false;
   const normalized = plan.map((day) => {
     const main = normalizeLegacyExternalCommitmentDay(day);
@@ -120,11 +135,17 @@ export function applyCheckInToPlanDay(
   const normalizedPlan = normalizedPlanResult.plan;
   const index = normalizedPlan.findIndex((day) => day.date === date);
   if (index === -1) {
-    return { plan: normalizedPlan, changed: normalizedPlanResult.changed, adjusted: null };
+    return {
+      plan: normalizedPlan,
+      changed: normalizedPlanResult.changed,
+      adjusted: null,
+    };
   }
 
   const current = normalizedPlan[index];
-  const baseOriginal = stripReadinessMetadata(current.readinessOriginalSession ?? current);
+  const baseOriginal = stripReadinessMetadata(
+    current.readinessOriginalSession ?? current,
+  );
   const base = normalizeLegacyExternalCommitmentDay(baseOriginal).session;
   const adaptedBase = applyReadiness(base, readiness, profile).session;
   const adapted = normalizeLegacyExternalCommitmentDay(adaptedBase).session;
@@ -156,7 +177,10 @@ export function resolveAdjustedDay(
 ): SessionDay {
   const normalized = normalizeLegacyExternalCommitmentDay(day).session;
   if (!profile) return normalized;
-  if (readiness && hasPersistedReadinessAdjustment(normalized, readiness.date)) {
+  if (
+    readiness &&
+    hasPersistedReadinessAdjustment(normalized, readiness.date)
+  ) {
     return normalized;
   }
   const adjusted = applyReadiness(normalized, readiness, profile).session;
@@ -170,10 +194,10 @@ export function resolveEffectiveDay(
   profile: Profile | null,
   modifications: SessionModification[] = [],
 ): SessionDay {
-  const swapped = modifications.find((mod) => mod.type === "swap");
-  return swapped
-    ? swapped.session
-    : resolveAdjustedDay(day, readiness, profile);
+  return resolveModifiedDay(
+    resolveAdjustedDay(day, readiness, profile),
+    modifications,
+  );
 }
 
 export function resolveTodayPlanRowSource(

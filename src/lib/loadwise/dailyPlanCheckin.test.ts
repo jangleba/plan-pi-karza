@@ -3,6 +3,7 @@ import type { SessionDay } from "./types";
 import {
   buildLighterSession,
   buildUnavailableSession,
+  clearDailyPlanCheckin,
   promoteSecondSession,
   readDailyPlanCheckin,
   saveDailyPlanCheckin,
@@ -65,6 +66,20 @@ describe("daily plan check-in", () => {
       completedAt: now.toISOString(),
     });
     expect(readDailyPlanCheckin("user-1", "2026-09-21", storage)).toBeNull();
+  });
+
+  it("unieważnia check-in po przebudowie planu", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+    saveDailyPlanCheckin("user-1", "2026-09-20", "keep", null, storage);
+
+    clearDailyPlanCheckin("user-1", "2026-09-20", storage);
+
+    expect(readDailyPlanCheckin("user-1", "2026-09-20", storage)).toBeNull();
   });
 
   it("buduje lżejszy wariant i zachowuje drugą sesję do osobnej decyzji", () => {

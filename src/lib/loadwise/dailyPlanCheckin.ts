@@ -90,6 +90,15 @@ export function saveDailyPlanCheckin(
   return record;
 }
 
+/** Unieważnia decyzję dnia, gdy silnik przebudował plan pod nią. */
+export function clearDailyPlanCheckin(
+  userId: string,
+  date: string,
+  storage: Pick<Storage, "removeItem"> | null = browserStorage(),
+): void {
+  storage?.removeItem(dailyPlanCheckinStorageKey(userId, date));
+}
+
 function lowerIntensity(intensity: Intensity): Intensity {
   const index = Math.max(0, INTENSITY_ORDER.indexOf(intensity) - 1);
   return INTENSITY_ORDER[index];
