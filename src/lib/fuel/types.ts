@@ -5,13 +5,7 @@
  */
 
 export type SessionKind =
-  | "match"
-  | "strength"
-  | "speed"
-  | "endurance"
-  | "football"
-  | "recovery"
-  | "none";
+  "match" | "strength" | "speed" | "endurance" | "football" | "recovery" | "none";
 
 export type SessionIntensity = "niska" | "umiarkowana" | "wysoka";
 
@@ -34,6 +28,10 @@ export interface FuelSessionInput {
   /** Godzina startu w formacie HH:MM, jeśli faktycznie istnieje w danych. */
   startClock: string | null;
   dayLabel: string | null;
+  /** Stabilny klucz używany wyłącznie do lokalnego zapamiętania godziny. */
+  scheduleKey?: string | null;
+  slot?: 1 | 2;
+  timeSource?: "session" | "remembered" | null;
 }
 
 /** Kontekst zawodnika — wyłącznie dane, które aplikacja już zna. */
@@ -50,14 +48,7 @@ export interface FuelAthleteContext {
 }
 
 export type FoodRole =
-  | "carb_fast"
-  | "carb_slow"
-  | "protein"
-  | "fat"
-  | "fiber"
-  | "drink"
-  | "caffeine"
-  | "sweets";
+  "carb_fast" | "carb_slow" | "protein" | "fat" | "fiber" | "drink" | "caffeine" | "sweets";
 
 export interface ParsedFoodItem {
   key: string;
