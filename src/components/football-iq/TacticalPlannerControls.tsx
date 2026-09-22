@@ -58,19 +58,41 @@ export function TacticalPlannerControls({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[12px] font-semibold text-foreground">
-            {goalkeeper ? "Twoja decyzja" : selectedActorLabel ? `Wybrany: ${selectedActorLabel}` : "Wybierz zawodnika"}
+            {goalkeeper
+              ? "Twoja decyzja"
+              : selectedActorLabel
+                ? `Wybrany: ${selectedActorLabel}`
+                : "Wybierz zawodnika"}
           </p>
           <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{instruction}</p>
         </div>
         {!goalkeeper && (
           <div className="flex shrink-0 items-center gap-1">
-            <button type="button" onClick={onUndo} disabled={!canUndo} aria-label="Cofnij ostatni ruch" className={iconBtn}>
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={!canUndo}
+              aria-label="Cofnij ostatni ruch"
+              className={iconBtn}
+            >
               <Undo2 className="h-4 w-4" />
             </button>
-            <button type="button" onClick={onRedo} disabled={!canRedo} aria-label="Przywróć cofnięty ruch" className={iconBtn}>
+            <button
+              type="button"
+              onClick={onRedo}
+              disabled={!canRedo}
+              aria-label="Przywróć cofnięty ruch"
+              className={iconBtn}
+            >
               <Redo2 className="h-4 w-4" />
             </button>
-            <button type="button" onClick={onClear} disabled={!planLength} aria-label="Wyczyść plan" className={iconBtn}>
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={!planLength}
+              aria-label="Wyczyść plan"
+              className={iconBtn}
+            >
               <RotateCcw className="h-4 w-4" />
             </button>
           </div>

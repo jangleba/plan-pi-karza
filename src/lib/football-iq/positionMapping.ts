@@ -11,9 +11,7 @@ const MAP: Record<Position, IQPositionGroup | null> = {
   forward: "forward",
 };
 
-export function toIQPositionGroup(
-  position: Position | null | undefined,
-): IQPositionGroup | null {
+export function toIQPositionGroup(position: Position | null | undefined): IQPositionGroup | null {
   if (!position) return null;
   return MAP[position] ?? null;
 }

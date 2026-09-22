@@ -5,9 +5,7 @@ import { scenariosForPosition, SIM_SCENARIOS } from "./scenarios";
 describe("BallWise IQ — integralność biblioteki mikrosymulacji", () => {
   it("każdy scenariusz jest kompletny, osiągalny i deterministyczny", () => {
     expect(SIM_SCENARIOS.length).toBeGreaterThan(0);
-    expect(new Set(SIM_SCENARIOS.map((scenario) => scenario.id)).size).toBe(
-      SIM_SCENARIOS.length,
-    );
+    expect(new Set(SIM_SCENARIOS.map((scenario) => scenario.id)).size).toBe(SIM_SCENARIOS.length);
 
     for (const scenario of SIM_SCENARIOS) {
       expect(scenario.positions.length).toBeGreaterThan(0);
@@ -30,16 +28,12 @@ describe("BallWise IQ — integralność biblioteki mikrosymulacji", () => {
       }
 
       for (const reaction of scenario.reactions) {
-        const keyActor = scenario.actors.find(
-          (actor) => actor.id === reaction.moves[0]?.actorId,
-        );
+        const keyActor = scenario.actors.find((actor) => actor.id === reaction.moves[0]?.actorId);
         expect(
           keyActor?.kind,
           `${scenario.id}: pierwsza reakcja musi wskazywać rywala do odczytu`,
         ).toBe("opponent");
-        const action = scenario.actions.find(
-          (candidate) => candidate.outcomes[reaction.id],
-        );
+        const action = scenario.actions.find((candidate) => candidate.outcomes[reaction.id]);
         expect(action, `${scenario.id}: brak wyniku dla ${reaction.id}`).toBeDefined();
         const alternative = scenario.alternatives[reaction.id];
         expect(alternative, `${scenario.id}: brak alternatywy dla ${reaction.id}`).toBeDefined();
@@ -63,7 +57,9 @@ describe("BallWise IQ — integralność biblioteki mikrosymulacji", () => {
   });
 
   it("ma odrębne scenariusze dla każdej grupy, w tym 36 wariantów bramkarskich", () => {
-    expect(SIM_SCENARIOS.filter((scenario) => scenario.positions.includes("goalkeeper"))).toHaveLength(36);
+    expect(
+      SIM_SCENARIOS.filter((scenario) => scenario.positions.includes("goalkeeper")),
+    ).toHaveLength(36);
     for (const level of ["beginner", "intermediate", "advanced", "elite"] as const) {
       const goalkeeperPool = scenariosForPosition("goalkeeper", level);
       expect(goalkeeperPool).toHaveLength(9);

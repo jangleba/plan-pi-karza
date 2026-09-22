@@ -1,0 +1,143 @@
+import { describe, expect, it } from "vitest";
+
+import type { SimPitchActor } from "@/components/football-iq/SimPitch";
+import { applyPlanToActors } from "./planner";
+import { evaluate } from "./simulation/engine";
+import { ADVANCED_SCENARIOS } from "./simulation/library";
+import {
+  buildChoice,
+  canPlayDecision,
+  freezeTiming,
+  replayView,
+  toolsForScenario,
+  userDecisionPoint,
+} from "./decision";
+
+describe("Football IQ — decyzja użytkownika", () => {
+  it("bierze punkt z ostatniego ruchu self w planie", () => {
+    const p = userDecisionPoint({
+      plan: [
+        { id: "1", tool: "run", actorId: "self", from: { x: 1, y: 1 }, to: { x: 10, y: 20 } },
+        {
+          id: "2",
+          tool: "position",
+          actorId: "self",
+          from: { x: 10, y: 20 },
+          to: { x: 30, y: 40 },
+        },
+        { id: "3", tool: "pass", actorId: "self", from: { x: 0, y: 0 }, to: { x: 90, y: 90 } },
+      ],
+      selfId: "self",
+      goalkeeperPoint: null,
+      freezeSelf: { x: 5, y: 5 },
+    });
+    expect(p).toEqual({ x: 30, y: 40 });
+  });
+
+  it("GK: punkt dotknięcia, inaczej realna klatka zatrzymania", () => {
+    expect(
+      userDecisionPoint({
+        plan: [],
+        selfId: "self",
+        goalkeeperPoint: { x: 7, y: 8 },
+        freezeSelf: { x: 1, y: 1 },
+      }),
+    ).toEqual({ x: 7, y: 8 });
+    expect(
+      userDecisionPoint({
+        plan: [],
+        selfId: "self",
+        goalkeeperPoint: null,
+        freezeSelf: { x: 1, y: 2 },
+      }),
+    ).toEqual({ x: 1, y: 2 });
+  });
+
+  it("zapisuje realny timing zatrzymania", () => {
+    expect(freezeTiming(0.4321, 7000)).toEqual({ t: 0.4321, timingMs: 3025 });
+    expect(freezeTiming(1, 6500).timingMs).toBe(6500);
+  });
+
+  it("przekazuje dokładne actionId bez heurystyki (także nie-pierwszą akcję)", () => {
+    const s = ADVANCED_SCENARIOS[0];
+    const last = s.actions.at(-1)!;
+    const choice = buildChoice({ timingMs: 1000, point: { x: 50, y: 50 }, actionId: last.id });
+    expect(choice.actionId).toBe(last.id);
+    expect(choice).not.toHaveProperty("angleDeg");
+    expect(choice).not.toHaveProperty("foot");
+    expect(evaluate(s, choice).action?.id).toBe(last.id);
+  });
+
+  it("wymaga jawnej akcji i punktu GK", () => {
+    expect(
+      canPlayDecision({
+        group: "midfielder",
+        selectedActionId: null,
+        goalkeeperPoint: null,
+        timingMs: 100,
+      }),
+    ).toBe(false);
+    expect(
+      canPlayDecision({
+        group: "midfielder",
+        selectedActionId: "a",
+        goalkeeperPoint: null,
+        timingMs: 100,
+      }),
+    ).toBe(true);
+    expect(
+      canPlayDecision({
+        group: "goalkeeper",
+        selectedActionId: "a",
+        goalkeeperPoint: null,
+        timingMs: 100,
+      }),
+    ).toBe(false);
+  });
+
+  it("filtruje narzędzia kontekstowo", () => {
+    expect(toolsForScenario("transition", "goalkeeper")).toEqual([]);
+    for (const topic of ["press_trap", "third_man", "rest_defence", "overload_isolate"] as const) {
+      const tools = toolsForScenario(topic, "midfielder");
+      expect(tools.length).toBeGreaterThanOrEqual(6);
+      expect(tools.length).toBeLessThanOrEqual(8);
+      expect(tools).toContain("position");
+    }
+    expect(toolsForScenario("press_trap", "defender")).toContain("offside_line");
+    expect(toolsForScenario("press_trap", "defender")).not.toContain("cross");
+    expect(toolsForScenario("third_man", "midfielder")).toContain("third_man");
+  });
+
+  it("nie przesuwa rywali planem", () => {
+    const actors: SimPitchActor[] = [{ id: "o", kind: "opponent", x: 50, y: 50 }];
+    const moved = applyPlanToActors(
+      actors,
+      [{ id: "x", tool: "press", actorId: "o", from: { x: 50, y: 50 }, to: { x: 0, y: 0 } }],
+      1,
+    );
+    expect(moved[0]).toMatchObject({ x: 50, y: 50 });
+  });
+
+  it("replay alternatywy pokazuje jej tor, zmianę i skutek", () => {
+    const s = ADVANCED_SCENARIOS.find((sc) =>
+      sc.actions.some((a) => {
+        const r = evaluate(sc, buildChoice({ timingMs: 0, point: { x: 0, y: 0 }, actionId: a.id }));
+        return r.alternative;
+      }),
+    )!;
+    const action = s.actions.find(
+      (a) =>
+        evaluate(s, buildChoice({ timingMs: 0, point: { x: 0, y: 0 }, actionId: a.id }))
+          .alternative,
+    )!;
+    const r = evaluate(s, buildChoice({ timingMs: 0, point: { x: 0, y: 0 }, actionId: action.id }));
+    const alt = replayView(r, "alt");
+    expect(alt.variant).toBe("alt");
+    expect(alt.path).toBe(r.alternative!.outcome.path);
+    expect(alt.changed).toBe(r.alternative!.changed);
+    expect(alt.outcome.consequence).toBe(r.alternative!.outcome.consequence);
+    const user = replayView(r, "user");
+    expect(user.outcome).toBe(r.outcome);
+    expect(user.changed).toBeUndefined();
+  });
+});

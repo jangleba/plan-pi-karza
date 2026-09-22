@@ -44,10 +44,42 @@ const LEVELS: Array<{
   scoreline: string;
   pressureShift: number;
 }> = [
-  { id: "beginner", code: "l2", label: "L2", decisionMs: 3000, minute: 18, scoreline: "0:0", pressureShift: 0 },
-  { id: "intermediate", code: "l3", label: "L3", decisionMs: 2400, minute: 39, scoreline: "1:0", pressureShift: 2 },
-  { id: "advanced", code: "l4", label: "L4", decisionMs: 1900, minute: 67, scoreline: "1:1", pressureShift: 4 },
-  { id: "elite", code: "l5", label: "L5", decisionMs: 1400, minute: 86, scoreline: "0:1", pressureShift: 6 },
+  {
+    id: "beginner",
+    code: "l2",
+    label: "L2",
+    decisionMs: 3000,
+    minute: 18,
+    scoreline: "0:0",
+    pressureShift: 0,
+  },
+  {
+    id: "intermediate",
+    code: "l3",
+    label: "L3",
+    decisionMs: 2400,
+    minute: 39,
+    scoreline: "1:0",
+    pressureShift: 2,
+  },
+  {
+    id: "advanced",
+    code: "l4",
+    label: "L4",
+    decisionMs: 1900,
+    minute: 67,
+    scoreline: "1:1",
+    pressureShift: 4,
+  },
+  {
+    id: "elite",
+    code: "l5",
+    label: "L5",
+    decisionMs: 1400,
+    minute: 86,
+    scoreline: "0:1",
+    pressureShift: 6,
+  },
 ];
 
 interface Family {
@@ -67,7 +99,8 @@ const FAMILIES: Family[] = [
   {
     id: "close-shot-angle",
     title: "Kąt przy strzale z bliska",
-    brief: "Napastnik schodzi do środka pola karnego. Ustaw kąt i głębokość, zanim odsłoni piłkę do strzału.",
+    brief:
+      "Napastnik schodzi do środka pola karnego. Ustaw kąt i głębokość, zanim odsłoni piłkę do strzału.",
     phase: "Obrona bramki",
     topic: "rest_defence",
     source: FIFA_GOAL,
@@ -75,7 +108,8 @@ const FAMILIES: Family[] = [
     actions: ["Set i obrona", "Atak piłki", "Kontrola linii"],
     preferred: { stays: "primary", closes_center: "reset", jumps: "secondary" },
     consequences: {
-      primary: "Niska, stabilna pozycja i barki skierowane do piłki zamykają największą część bramki.",
+      primary:
+        "Niska, stabilna pozycja i barki skierowane do piłki zamykają największą część bramki.",
       secondary: "Agresywne wyjście odbiera czas po wyraźnym wypuszczeniu piłki przez napastnika.",
       reset: "Małe kroki pozwalają skorygować pozycję bez utraty równowagi.",
     },
@@ -83,7 +117,8 @@ const FAMILIES: Family[] = [
   {
     id: "cutback",
     title: "Niskie dośrodkowanie i cutback",
-    brief: "Skrzydłowy dociera do linii końcowej. Rozpoznaj piłkę wzdłuż bramki, wycofanie albo blokowany tor podania.",
+    brief:
+      "Skrzydłowy dociera do linii końcowej. Rozpoznaj piłkę wzdłuż bramki, wycofanie albo blokowany tor podania.",
     phase: "Obrona pola karnego",
     topic: "rest_defence",
     source: FIFA_AREA,
@@ -92,14 +127,16 @@ const FAMILIES: Family[] = [
     preferred: { stays: "reset", closes_center: "primary", jumps: "secondary" },
     consequences: {
       primary: "Wczesny krok przecina tor niskiego dośrodkowania przed napastnikiem.",
-      secondary: "Cofnięcie ciężaru ciała utrzymuje reakcję na wycofanie w okolice jedenastego metra.",
+      secondary:
+        "Cofnięcie ciężaru ciała utrzymuje reakcję na wycofanie w okolice jedenastego metra.",
       reset: "Pozycja odniesiona do piłki i bramki nie otwiera bliższego słupka.",
     },
   },
   {
     id: "through-ball",
     title: "Prostopadła piłka: wyjść czy zostać",
-    brief: "Podanie mija linię obrony. Oceń przewagę czasową, pierwszy kontakt napastnika i osłonę stopera.",
+    brief:
+      "Podanie mija linię obrony. Oceń przewagę czasową, pierwszy kontakt napastnika i osłonę stopera.",
     phase: "Obrona przestrzeni",
     topic: "transition",
     source: FIFA_AREA,
@@ -115,7 +152,8 @@ const FAMILIES: Family[] = [
   {
     id: "aerial-cross",
     title: "Dośrodkowanie: chwyt, piąstkowanie czy pozycja",
-    brief: "Piłka leci w tłok. Oceń wysokość, tor lotu, kontakt rywali i bezpieczną strefę lądowania.",
+    brief:
+      "Piłka leci w tłok. Oceń wysokość, tor lotu, kontakt rywali i bezpieczną strefę lądowania.",
     phase: "Obrona pola karnego",
     topic: "rest_defence",
     source: FIFA_AREA,
@@ -124,14 +162,16 @@ const FAMILIES: Family[] = [
     preferred: { stays: "primary", closes_center: "secondary", jumps: "reset" },
     consequences: {
       primary: "Czysty tor i najwyższy punkt pozwalają zakończyć akcję chwytem.",
-      secondary: "Przy kontakcie w tłoku piąstkowanie szeroko usuwa piłkę ze strefy największego zagrożenia.",
+      secondary:
+        "Przy kontakcie w tłoku piąstkowanie szeroko usuwa piłkę ze strefy największego zagrożenia.",
       reset: "Nieosiągalna piłka wymaga pozycji do obrony kolejnego uderzenia.",
     },
   },
   {
     id: "one-v-one-touch",
     title: "1 na 1 i ciężki kontakt napastnika",
-    brief: "Napastnik prowadzi piłkę centralnie. Jego kolejny kontakt może być ciężki, kontrolowany albo skierowany w bok.",
+    brief:
+      "Napastnik prowadzi piłkę centralnie. Jego kolejny kontakt może być ciężki, kontrolowany albo skierowany w bok.",
     phase: "Obrona bramki",
     topic: "transition",
     source: FIFA_AREA,
@@ -147,7 +187,8 @@ const FAMILIES: Family[] = [
   {
     id: "save-or-parry",
     title: "Chwyt czy odbicie poza zagrożenie",
-    brief: "Strzał jest szybki i kozłujący. Wybierz chwyt, bezpieczne zbicie szeroko albo kontrolę drugiej piłki.",
+    brief:
+      "Strzał jest szybki i kozłujący. Wybierz chwyt, bezpieczne zbicie szeroko albo kontrolę drugiej piłki.",
     phase: "Obrona bramki",
     topic: "rest_defence",
     source: FIFA_GOAL,
@@ -171,7 +212,8 @@ const FAMILIES: Family[] = [
     actions: ["Wyrzuć do kontry", "Przenieś ciężar gry", "Zatrzymaj i ustaw zespół"],
     preferred: { stays: "primary", closes_center: "secondary", jumps: "reset" },
     consequences: {
-      primary: "Otwarty odbiorca i przewaga liczebna pozwalają uruchomić kontratak przed odbudową rywala.",
+      primary:
+        "Otwarty odbiorca i przewaga liczebna pozwalają uruchomić kontratak przed odbudową rywala.",
       secondary: "Zamknięty środek otwiera bezpieczne wznowienie na dalszą stronę.",
       reset: "Brak czystego celu oznacza kontrolę piłki i odbudowanie ustawienia zespołu.",
     },
@@ -179,7 +221,8 @@ const FAMILIES: Family[] = [
   {
     id: "build-up",
     title: "Budowanie pod pressingiem",
-    brief: "Masz piłkę przy nodze. Pierwsza linia pressingu zmienia kierunek i liczbę zawodników w doskoku.",
+    brief:
+      "Masz piłkę przy nodze. Pierwsza linia pressingu zmienia kierunek i liczbę zawodników w doskoku.",
     phase: "Budowanie od bramkarza",
     topic: "press_manipulation",
     source: FIFA_GOALKEEPING,
@@ -189,13 +232,15 @@ const FAMILIES: Family[] = [
     consequences: {
       primary: "Doskok uwalnia partnera za pierwszą linią i otwiera bezpieczne podanie krótkie.",
       secondary: "Bierny pressing pozwala znaleźć zawodnika między liniami.",
-      reset: "Przy zamknięciu środka dłuższe zagranie do zabezpieczonej strefy ogranicza ryzyko straty pod bramką.",
+      reset:
+        "Przy zamknięciu środka dłuższe zagranie do zabezpieczonej strefy ogranicza ryzyko straty pod bramką.",
     },
   },
   {
     id: "second-phase",
     title: "Druga faza po stałym fragmencie",
-    brief: "Pierwsza piłka została wybita, lecz akcja trwa. Ustaw linię, skanuj dobitkę i zdecyduj o nowej głębokości.",
+    brief:
+      "Pierwsza piłka została wybita, lecz akcja trwa. Ustaw linię, skanuj dobitkę i zdecyduj o nowej głębokości.",
     phase: "Przejście po obronie pola karnego",
     topic: "transition",
     source: FIFA_TRANSITIONS,
@@ -204,7 +249,8 @@ const FAMILIES: Family[] = [
     preferred: { stays: "primary", closes_center: "secondary", jumps: "reset" },
     consequences: {
       primary: "Szybki powrót w linię piłki przygotowuje obronę dobitki.",
-      secondary: "Gdy piłka wraca na bok, pozycja i komunikacja przygotowują kolejne dośrodkowanie.",
+      secondary:
+        "Gdy piłka wraca na bok, pozycja i komunikacja przygotowują kolejne dośrodkowanie.",
       reset: "Po oddaleniu zagrożenia wyższa pozycja skraca przestrzeń za linią obrony.",
     },
   },
@@ -213,7 +259,10 @@ const FAMILIES: Family[] = [
 const reactionIds: ReactionId[] = ["stays", "closes_center", "jumps"];
 const actionKeys: ActionKey[] = ["primary", "secondary", "reset"];
 
-function quality(preferred: boolean, levelIndex: number): Pick<SimActionOutcome, "progression" | "advantage" | "risk"> {
+function quality(
+  preferred: boolean,
+  levelIndex: number,
+): Pick<SimActionOutcome, "progression" | "advantage" | "risk"> {
   if (preferred) {
     return {
       progression: Math.min(0.96, 0.84 + levelIndex * 0.03),
@@ -279,28 +328,101 @@ function makeScenario(family: Family, levelIndex: number): SimScenario {
       weights: {
         timing: 1.25 + levelIndex * 0.1,
         body: 1.2,
-        progression: family.topic === "transition" || family.topic === "press_manipulation" ? 1.2 : 0.8,
+        progression:
+          family.topic === "transition" || family.topic === "press_manipulation" ? 1.2 : 0.8,
         advantage: 1.1,
         risk: 1.35 + levelIndex * 0.1,
       },
     },
     decisionMs: level.decisionMs,
     actors: [
-      { id: "self", kind: "self", label: "BR", path: [{ t: 0, x: 50, y: 132 }, { t: 1, x: 50, y: 126 - level.pressureShift }] },
-      { id: "ball", kind: "ball", path: [{ t: 0, x: 36 + level.pressureShift, y: 72 }, { t: 1, x: 48, y: 103 + level.pressureShift }] },
-      { id: "attacker", kind: "opponent", label: "Napastnik", path: [{ t: 0, x: 42, y: 68 }, { t: 1, x: 48, y: 96 + level.pressureShift }] },
-      { id: "winger", kind: "opponent", label: "Skrzydłowy", path: [{ t: 0, x: 16, y: 70 }, { t: 1, x: 14 + level.pressureShift, y: 100 }] },
-      { id: "cb", kind: "mate", label: "Stoper", path: [{ t: 0, x: 60, y: 96 }, { t: 1, x: 56, y: 106 }] },
+      {
+        id: "self",
+        kind: "self",
+        label: "BR",
+        path: [
+          { t: 0, x: 50, y: 132 },
+          { t: 1, x: 50, y: 126 - level.pressureShift },
+        ],
+      },
+      {
+        id: "ball",
+        kind: "ball",
+        path: [
+          { t: 0, x: 36 + level.pressureShift, y: 72 },
+          { t: 1, x: 48, y: 103 + level.pressureShift },
+        ],
+      },
+      {
+        id: "attacker",
+        kind: "opponent",
+        label: "Napastnik",
+        path: [
+          { t: 0, x: 42, y: 68 },
+          { t: 1, x: 48, y: 96 + level.pressureShift },
+        ],
+      },
+      {
+        id: "winger",
+        kind: "opponent",
+        label: "Skrzydłowy",
+        path: [
+          { t: 0, x: 16, y: 70 },
+          { t: 1, x: 14 + level.pressureShift, y: 100 },
+        ],
+      },
+      {
+        id: "cb",
+        kind: "mate",
+        label: "Stoper",
+        path: [
+          { t: 0, x: 60, y: 96 },
+          { t: 1, x: 56, y: 106 },
+        ],
+      },
     ],
     zones: [
-      { id: "gk-prime", x: 50, y: 115 - level.pressureShift, radius: 12, label: family.zoneLabels[0], quality: 0.94, note: family.consequences.primary, reaction: "jumps" },
-      { id: "gk-adjust", x: 35 + level.pressureShift, y: 122, radius: 12, label: family.zoneLabels[1], quality: 0.82, note: family.consequences.secondary, reaction: "closes_center" },
-      { id: "gk-hold", x: 62 - level.pressureShift, y: 130, radius: 11, label: family.zoneLabels[2], quality: 0.72, note: family.consequences.reset, reaction: "stays" },
+      {
+        id: "gk-prime",
+        x: 50,
+        y: 115 - level.pressureShift,
+        radius: 12,
+        label: family.zoneLabels[0],
+        quality: 0.94,
+        note: family.consequences.primary,
+        reaction: "jumps",
+      },
+      {
+        id: "gk-adjust",
+        x: 35 + level.pressureShift,
+        y: 122,
+        radius: 12,
+        label: family.zoneLabels[1],
+        quality: 0.82,
+        note: family.consequences.secondary,
+        reaction: "closes_center",
+      },
+      {
+        id: "gk-hold",
+        x: 62 - level.pressureShift,
+        y: 130,
+        radius: 11,
+        label: family.zoneLabels[2],
+        quality: 0.72,
+        note: family.consequences.reset,
+        reaction: "stays",
+      },
     ],
     reactions: {
       stays: [{ actorId: "attacker", x: 48, y: 94 }],
-      closes_center: [{ actorId: "attacker", x: 51, y: 103 }, { actorId: "winger", x: 24, y: 102 }],
-      jumps: [{ actorId: "attacker", x: 49, y: 112 }, { actorId: "ball", x: 49, y: 115 }],
+      closes_center: [
+        { actorId: "attacker", x: 51, y: 103 },
+        { actorId: "winger", x: 24, y: 102 },
+      ],
+      jumps: [
+        { actorId: "attacker", x: 49, y: 112 },
+        { actorId: "ball", x: 49, y: 115 },
+      ],
     },
     actions,
     alternatives: Object.fromEntries(
@@ -313,20 +435,50 @@ function makeScenario(family: Family, levelIndex: number): SimScenario {
       ]),
     ),
     timingMissNote: "Spóźniona decyzja odbiera przewagę do piłki i zmusza do reakcji awaryjnej.",
-    zoneMissNote: "Pozycja nie była odniesiona jednocześnie do piłki, bramki i najgroźniejszego przeciwnika.",
+    zoneMissNote:
+      "Pozycja nie była odniesiona jednocześnie do piłki, bramki i najgroźniejszego przeciwnika.",
     fallbackConsequence: "Brak decyzji w oknie czasowym pozostawia bramkarza pomiędzy pozycjami.",
   });
 
   return {
     ...scenario,
     bodyAngles: [
-      { id: "set", centerDeg: 0, toleranceDeg: 28, label: "Barki do piłki", quality: 0.95, note: "Niska, stabilna pozycja i barki do piłki umożliwiają reakcję w obie strony." },
-      { id: "side-on", centerDeg: 45, toleranceDeg: 30, label: "Półbokiem", quality: 0.75, note: "Półbokiem łatwiej ruszyć do przestrzeni, ale trudniej bronić natychmiastowy strzał." },
-      { id: "turned", centerDeg: 90, toleranceDeg: 30, label: "Bokiem do piłki", quality: 0.4, note: "Odwrócone barki ograniczają widzenie i reakcję na zmianę toru piłki." },
+      {
+        id: "set",
+        centerDeg: 0,
+        toleranceDeg: 28,
+        label: "Barki do piłki",
+        quality: 0.95,
+        note: "Niska, stabilna pozycja i barki do piłki umożliwiają reakcję w obie strony.",
+      },
+      {
+        id: "side-on",
+        centerDeg: 45,
+        toleranceDeg: 30,
+        label: "Półbokiem",
+        quality: 0.75,
+        note: "Półbokiem łatwiej ruszyć do przestrzeni, ale trudniej bronić natychmiastowy strzał.",
+      },
+      {
+        id: "turned",
+        centerDeg: 90,
+        toleranceDeg: 30,
+        label: "Bokiem do piłki",
+        quality: 0.4,
+        note: "Odwrócone barki ograniczają widzenie i reakcję na zmianę toru piłki.",
+      },
     ],
     feet: [
-      { foot: "right", quality: 0.9, note: "Wybierz nogę zgodną z kierunkiem zagrania i utrzymaj ciało za piłką." },
-      { foot: "left", quality: 0.9, note: "Wybierz nogę zgodną z kierunkiem zagrania i utrzymaj ciało za piłką." },
+      {
+        foot: "right",
+        quality: 0.9,
+        note: "Wybierz nogę zgodną z kierunkiem zagrania i utrzymaj ciało za piłką.",
+      },
+      {
+        foot: "left",
+        quality: 0.9,
+        note: "Wybierz nogę zgodną z kierunkiem zagrania i utrzymaj ciało za piłką.",
+      },
     ],
     bodyMissNote: "Bramkarz nie zdążył ustawić barków do piłki przed momentem działania.",
   };

@@ -10,11 +10,24 @@ import type {
   SimTopic,
 } from "./simulation/types";
 import type { IQPositionGroup } from "./types";
-import { toolMovesActor, type IQPlanAction, type IQPlannerPoint, type IQPlannerTool } from "./planner";
+import {
+  toolMovesActor,
+  type IQPlanAction,
+  type IQPlannerPoint,
+  type IQPlannerTool,
+} from "./planner";
 
 /** Narzędzia planera dopasowane do tematu sceny. Bramkarz nie dostaje palety. */
 const TOPIC_TOOLS: Record<SimTopic, IQPlannerTool[]> = {
-  press_manipulation: ["position", "pass", "lofted_pass", "switch_play", "run", "decoy_run", "scan"],
+  press_manipulation: [
+    "position",
+    "pass",
+    "lofted_pass",
+    "switch_play",
+    "run",
+    "decoy_run",
+    "scan",
+  ],
   third_man: ["position", "pass", "one_two", "third_man", "run", "diagonal_run", "scan"],
   overload_isolate: [
     "position",
@@ -108,7 +121,11 @@ function firstSentence(text: string | undefined) {
   return (match ? match[0] : trimmed).trim();
 }
 
-export type DecisionLesson = { key: "signal" | "decision" | "effect" | "field"; label: string; text: string };
+export type DecisionLesson = {
+  key: "signal" | "decision" | "effect" | "field";
+  label: string;
+  text: string;
+};
 
 /** Cztery krótkie wnioski wyłącznie z danych sceny i wyniku. */
 export function decisionLessons(
@@ -122,7 +139,11 @@ export function decisionLessons(
   const zone = findZone(scenario, choice.x, choice.y);
   const actionLabel = result.action?.label ?? "Brak akcji";
   return [
-    { key: "signal", label: "Sygnał", text: firstSentence(window?.note ?? scenario.timingMissNote) },
+    {
+      key: "signal",
+      label: "Sygnał",
+      text: firstSentence(window?.note ?? scenario.timingMissNote),
+    },
     {
       key: "decision",
       label: "Twoja decyzja",
