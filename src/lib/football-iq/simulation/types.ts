@@ -172,8 +172,10 @@ export interface SimChoice {
   timingMs: number | null;
   x: number;
   y: number;
-  angleDeg: number;
-  foot: SimFoot;
+  /** Tylko gdy użytkownik jawnie wybrał ustawienie ciała. */
+  angleDeg?: number;
+  /** Tylko gdy użytkownik jawnie wybrał nogę. */
+  foot?: SimFoot;
   actionId: string | null;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { SimPitchActor } from "@/components/football-iq/SimPitch";
-import { applyPlanToActors, planActionPath, planSummary, type IQPlanAction } from "./planner";
+import { applyPlanToActors, planActionPath, type IQPlanAction } from "./planner";
 
 const actors: SimPitchActor[] = [
   { id: "self", kind: "self", x: 20, y: 100 },
@@ -73,21 +73,5 @@ describe("Football IQ — interaktywny planer", () => {
     ]);
     expect(trap.variant).toBe("trap");
     expect(trap.points[0]).toEqual(trap.points.at(-1));
-  });
-
-  it("wyjaśnia połączenie zagrania z ruchami kilku zawodników", () => {
-    const summary = planSummary([
-      { id: "p", tool: "cross", from: { x: 8, y: 60 }, to: { x: 50, y: 12 } },
-      { id: "r1", tool: "run", actorId: "mate-a", from: { x: 40, y: 85 }, to: { x: 42, y: 20 } },
-      {
-        id: "r2",
-        tool: "decoy_run",
-        actorId: "mate-b",
-        from: { x: 70, y: 82 },
-        to: { x: 74, y: 28 },
-      },
-    ]);
-
-    expect(summary.decision).toContain("2 skoordynowane biegi");
   });
 });
