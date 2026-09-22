@@ -4,13 +4,7 @@
 
 import type { IQMarker, IQScenario, IQTarget } from "./types";
 
-function m(
-  id: string,
-  kind: IQMarker["kind"],
-  x: number,
-  y: number,
-  label?: string,
-): IQMarker {
+function m(id: string, kind: IQMarker["kind"], x: number, y: number, label?: string): IQMarker {
   return { id, kind, x, y, label };
 }
 
@@ -76,8 +70,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Gra przenosi się wysoko, jednak posiadanie jest loteryjne.",
       ),
     ],
-    missExplanation:
-      "Nie wskazałeś partnera — pod pressingiem decyzja musi być natychmiastowa.",
+    missExplanation: "Nie wskazałeś partnera — pod pressingiem decyzja musi być natychmiastowa.",
     missConsequence: "Zwłoka kończy się odbiorem piłki na Twojej połowie.",
   },
   {
@@ -461,8 +454,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Przechwyt oznacza kontratak w Twoją strefę.",
       ),
     ],
-    missExplanation:
-      "W tej strefie nadal jesteś w cieniu podania przeciwnika.",
+    missExplanation: "W tej strefie nadal jesteś w cieniu podania przeciwnika.",
     missConsequence: "Stoper nie ma opcji i gra piłkę w tył.",
   },
   {
@@ -1297,8 +1289,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Ryzyko przenosi się na kolegę, przewaga nie powstaje.",
       ),
     ],
-    missExplanation:
-      "W pułapce pressingowej liczy się kierunek podania, a nie sam fakt zagrania.",
+    missExplanation: "W pułapce pressingowej liczy się kierunek podania, a nie sam fakt zagrania.",
     missConsequence: "Rywal domyka trójkę zawodników i odbiera piłkę.",
   },
 
@@ -1352,8 +1343,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "Decyzja linii obrony zapada w momencie przyjęcia rywala, nie po podaniu.",
+    missExplanation: "Decyzja linii obrony zapada w momencie przyjęcia rywala, nie po podaniu.",
     missConsequence: "Napastnik dostaje piłkę w biegu za linią.",
   },
   {
@@ -1406,8 +1396,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "W przewadze rywala pierwszym zadaniem jest spowolnienie akcji.",
+    missExplanation: "W przewadze rywala pierwszym zadaniem jest spowolnienie akcji.",
     missConsequence: "Kontratak kończy się sytuacją strzelecką.",
   },
 
@@ -1513,8 +1502,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Atak trwa, ale rywal zdąży się ustawić.",
       ),
     ],
-    missExplanation:
-      "Przy presji zza pleców pierwszy kontakt decyduje o całej akcji.",
+    missExplanation: "Przy presji zza pleców pierwszy kontakt decyduje o całej akcji.",
     missConsequence: "Rywal odbiera piłkę w środku pola.",
   },
 
@@ -1568,8 +1556,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         11,
       ),
     ],
-    missExplanation:
-      "Pressing bez kontroli linii podania za plecami nie jest pressingiem.",
+    missExplanation: "Pressing bez kontroli linii podania za plecami nie jest pressingiem.",
     missConsequence: "Rywal wychodzi z rozegrania jednym podaniem.",
   },
   {
@@ -1621,8 +1608,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         13,
       ),
     ],
-    missExplanation:
-      "O obronie kontrataku decyduje ustawienie w trakcie własnego ataku.",
+    missExplanation: "O obronie kontrataku decyduje ustawienie w trakcie własnego ataku.",
     missConsequence: "Strata piłki natychmiast zamienia się w sytuację bramkową.",
   },
 
@@ -1676,8 +1662,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "Wartość startu zależy od tego, gdzie patrzy obrońca, nie od jego długości.",
+    missExplanation: "Wartość startu zależy od tego, gdzie patrzy obrońca, nie od jego długości.",
     missConsequence: "Obrona kontroluje sytuację bez wysiłku.",
   },
   {
@@ -1729,8 +1714,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "W polu karnym decyduje moment startu, a nie samo miejsce ustawienia.",
+    missExplanation: "W polu karnym decyduje moment startu, a nie samo miejsce ustawienia.",
     missConsequence: "Dośrodkowanie przechodzi bez adresata.",
   },
 
@@ -1782,8 +1766,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Rywal wybija piłkę na wolne pole za wasz pressing.",
       ),
     ],
-    missExplanation:
-      "Bez wskazania kierunku pressing zespołowy przestaje być skoordynowany.",
+    missExplanation: "Bez wskazania kierunku pressing zespołowy przestaje być skoordynowany.",
     missConsequence: "Rywal wychodzi z własnej połowy bez straty.",
   },
   {
@@ -1835,8 +1818,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "Praca napastnika w obronie polega na odcinaniu, nie na gonieniu piłki.",
+    missExplanation: "Praca napastnika w obronie polega na odcinaniu, nie na gonieniu piłki.",
     missConsequence: "Rywal kontroluje tempo całego meczu.",
   },
   /* ------------------------------------------- POZIOM ZAAWANSOWANY II */
@@ -1890,8 +1872,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "Bierne trzymanie piłki w miejscu nie zmienia niczego w ustawieniu rywala.",
+    missExplanation: "Bierne trzymanie piłki w miejscu nie zmienia niczego w ustawieniu rywala.",
     missConsequence: "Rywal spokojnie domyka wszystkie linie podania.",
   },
   {
@@ -1943,8 +1924,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         14,
       ),
     ],
-    missExplanation:
-      "Przewaga z tyłu jest bezużyteczna, jeśli nikt jej nie przeniesie wyżej.",
+    missExplanation: "Przewaga z tyłu jest bezużyteczna, jeśli nikt jej nie przeniesie wyżej.",
     missConsequence: "Rywal broni się w komforcie do końca akcji.",
   },
   {
@@ -1997,8 +1977,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         10,
       ),
     ],
-    missExplanation:
-      "Przy dośrodkowaniu decyduje ustawienie ciała względem piłki i rywala.",
+    missExplanation: "Przy dośrodkowaniu decyduje ustawienie ciała względem piłki i rywala.",
     missConsequence: "Rywal wygrywa pierwszą piłkę w polu karnym.",
   },
   {
@@ -2049,8 +2028,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         11,
       ),
     ],
-    missExplanation:
-      "Ostatni obrońca gra o czas, nie o piłkę.",
+    missExplanation: "Ostatni obrońca gra o czas, nie o piłkę.",
     missConsequence: "Sytuacja sam na sam z bramkarzem.",
   },
   {
@@ -2100,8 +2078,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Przecięte podanie i kontra na waszą odsłoniętą stronę.",
       ),
     ],
-    missExplanation:
-      "Przy presji z pleców liczy się liczba kontaktów, nie pomysł.",
+    missExplanation: "Przy presji z pleców liczy się liczba kontaktów, nie pomysł.",
     missConsequence: "Rywal odbiera piłkę w środku pola.",
   },
   {
@@ -2204,8 +2181,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Kontra rywala kończy się sytuacją bramkową.",
       ),
     ],
-    missExplanation:
-      "Po stracie liczy się opóźnienie akcji, nie odzyskanie piłki za wszelką cenę.",
+    missExplanation: "Po stracie liczy się opóźnienie akcji, nie odzyskanie piłki za wszelką cenę.",
     missConsequence: "Rywal biegnie na waszą nieustawioną obronę.",
   },
   {
@@ -2257,8 +2233,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         12,
       ),
     ],
-    missExplanation:
-      "Pomocnik w obronie kontroluje przestrzeń podania, nie samego zawodnika.",
+    missExplanation: "Pomocnik w obronie kontroluje przestrzeń podania, nie samego zawodnika.",
     missConsequence: "Rywal obraca grę w waszej strefie.",
   },
   {
@@ -2310,8 +2285,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         11,
       ),
     ],
-    missExplanation:
-      "Jeden ruch jest odczytywany, dopiero drugi tworzy przewagę.",
+    missExplanation: "Jeden ruch jest odczytywany, dopiero drugi tworzy przewagę.",
     missConsequence: "Obrońca wygrywa pojedynek bez ryzyka.",
   },
   {
@@ -2361,8 +2335,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Strzał z dystansu zablokowany.",
       ),
     ],
-    missExplanation:
-      "W polu karnym najlepsza decyzja to zwykle ta najprostsza i najszybsza.",
+    missExplanation: "W polu karnym najlepsza decyzja to zwykle ta najprostsza i najszybsza.",
     missConsequence: "Okazja bramkowa przepada.",
   },
   {
@@ -2411,8 +2384,7 @@ export const IQ_SCENARIOS: IQScenario[] = [
         "Rywal spokojnie rozgrywa obok Ciebie.",
       ),
     ],
-    missExplanation:
-      "Pressing po stracie działa tylko natychmiast i tylko na zawodnika z piłką.",
+    missExplanation: "Pressing po stracie działa tylko natychmiast i tylko na zawodnika z piłką.",
     missConsequence: "Rywal wyprowadza piłkę i wy wracacie 60 metrów.",
   },
   {
@@ -2470,11 +2442,6 @@ export const IQ_SCENARIOS: IQScenario[] = [
   },
 ];
 
-export function scenariosFor(
-  position: string,
-  phase: string,
-): IQScenario[] {
-  return IQ_SCENARIOS.filter(
-    (s) => s.position === position && s.phase === phase,
-  );
+export function scenariosFor(position: string, phase: string): IQScenario[] {
+  return IQ_SCENARIOS.filter((s) => s.position === position && s.phase === phase);
 }

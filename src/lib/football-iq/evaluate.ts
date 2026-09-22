@@ -16,15 +16,10 @@ function dist(ax: number, ay: number, bx: number, by: number) {
 }
 
 export function bestTarget(scenario: IQScenario): IQTarget {
-  return (
-    scenario.targets.find((t) => t.rating === "optimal") ?? scenario.targets[0]
-  );
+  return scenario.targets.find((t) => t.rating === "optimal") ?? scenario.targets[0];
 }
 
-export function matchTarget(
-  scenario: IQScenario,
-  decision: IQDecision,
-): IQTarget | undefined {
+export function matchTarget(scenario: IQScenario, decision: IQDecision): IQTarget | undefined {
   if (decision.targetId) {
     const byId = scenario.targets.find((t) => t.id === decision.targetId);
     if (byId) return byId;
@@ -41,10 +36,7 @@ export function matchTarget(
   return found;
 }
 
-export function evaluateDecision(
-  scenario: IQScenario,
-  decision: IQDecision,
-): IQEvaluation {
+export function evaluateDecision(scenario: IQScenario, decision: IQDecision): IQEvaluation {
   const best = bestTarget(scenario);
   const matched = matchTarget(scenario, decision);
   if (!matched) {

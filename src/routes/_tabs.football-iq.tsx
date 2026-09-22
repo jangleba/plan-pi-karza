@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Brain, Eye, Pencil, Play, RotateCcw, Shuffle, UserRound } from "lucide-react";
+import { Hand, Pencil, Play, RotateCcw, Shuffle, UserRound } from "lucide-react";
 
 import { AppHeader } from "@/components/loadwise/ui";
 import type { SimPitchActor, SimPitchPath } from "@/components/football-iq/SimPitch";
@@ -14,19 +14,34 @@ import { actorAt, evaluate, facingAt } from "@/lib/football-iq/simulation/engine
 import { choreograph } from "@/lib/football-iq/simulation/choreography";
 import {
   applyPlanToActors,
-  closestScenarioActionId,
   planActionPath,
-  planSummary,
   toolMovesBall,
   toolMovesActor,
   toolNeedsActor,
   type IQPlanAction,
-  type IQPlannerCategory,
   type IQPlannerPoint,
   type IQPlannerTool,
 } from "@/lib/football-iq/planner";
 
-import type { SimResult, SimScenario, SimStage } from "@/lib/football-iq/simulation/types";
+import {
+  buildChoice,
+  canPlayDecision,
+  decisionLessons,
+  freezeTiming,
+  pointAlongPath,
+  replayView,
+  toolsForScenario,
+  userDecisionPoint,
+  type DecisionLesson,
+  type ReplayVariant,
+  type ReplayView,
+} from "@/lib/football-iq/decision";
+import type {
+  SimChoice,
+  SimResult,
+  SimScenario,
+  SimStage,
+} from "@/lib/football-iq/simulation/types";
 import type { IQPositionGroup } from "@/lib/football-iq/types";
 import type { Level } from "@/lib/loadwise/types";
 
@@ -67,7 +82,14 @@ function NoPositionScreen() {
   );
 }
 
-const REPLAY_STEPS = ["Ruch", "Okno", "Podanie"];
+const REPLAY_STEPS = ["Zatrzymanie", "Reakcja", "Zagranie", "Skutek"];
+/** Replay jest wolniejszy (0.75x), obserwacja zawsze 1.0x. */
+const REPLAY_BASE_MS = 2600;
+const REPLAY_RATE = 0.75;
+
+function replayStepOf(progress: number) {
+  return progress < 0.2 ? 0 : progress < 0.5 ? 1 : progress < 0.85 ? 2 : 3;
+}
 
 function Simulation({ group, level }: { group: IQPositionGroup; level?: Level }) {
   const pool = useMemo(() => scenariosForPosition(group, level), [group, level]);
@@ -76,108 +98,104 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
     () => pool.find((s) => s.id === scenarioId) ?? pool[0],
     [pool, scenarioId],
   );
+  const isGoalkeeper = group === "goalkeeper";
+  const tools = useMemo(() => toolsForScenario(scenario.topic, group), [scenario.topic, group]);
 
   /** Tory rozwinięte do 6 klatek kluczowych — wspólna choreografia silnika. */
   const simActors = useMemo(() => choreograph(scenario), [scenario]);
+  const selfSim = simActors.find((a) => a.kind === "self");
 
   const [started, setStarted] = useState(false);
   const [stage, setStage] = useState<SimStage>("observation");
   const [runId, setRunId] = useState(0);
-  /** Pierwsze odtworzenie jest krótkie i czytelne — bez sztucznego spowalniania. */
-  const [rate, setRate] = useState(1.15);
   const [t, setT] = useState(0);
-  const [observationDone, setObservationDone] = useState(false);
+  const [freezeT, setFreezeT] = useState(1);
   const [timingMs, setTimingMs] = useState<number | null>(null);
-  const [selfPoint, setSelfPoint] = useState({ x: 58, y: 97 });
   const [result, setResult] = useState<SimResult | null>(null);
+  const [choice, setChoice] = useState<SimChoice | null>(null);
   const [replayStep, setReplayStep] = useState(0);
-  const [plannerCategory, setPlannerCategory] = useState<IQPlannerCategory>("ball");
-  const [plannerTool, setPlannerTool] = useState<IQPlannerTool>("pass");
+  const [replayProgress, setReplayProgress] = useState(0);
+  const [replayRun, setReplayRun] = useState(0);
+  const [replayVariant, setReplayVariant] = useState<ReplayVariant>("user");
+  const [plannerTool, setPlannerTool] = useState<IQPlannerTool>(tools[0] ?? "position");
   const [plan, setPlan] = useState<IQPlanAction[]>([]);
   const [redoPlan, setRedoPlan] = useState<IQPlanAction[]>([]);
   const [replayPlan, setReplayPlan] = useState<IQPlanAction[]>([]);
   const [selectedActorId, setSelectedActorId] = useState<string>();
-  const [planProgress, setPlanProgress] = useState(0);
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [goalkeeperPoint, setGoalkeeperPoint] = useState<IQPlannerPoint | null>(null);
 
-  const startRef = useRef(0);
+  const tRef = useRef(0);
   const scenarioRef = useRef(scenario.id);
 
-  const resetRun = useCallback(
-    (nextRate: number) => {
-      const self = simActors.find((a) => a.kind === "self");
-      const start = self ? actorAt(self.path, 0) : { x: 58, y: 97 };
-      setResult(null);
-      setTimingMs(null);
-      setT(0);
-      setObservationDone(false);
-      setReplayStep(0);
-      setSelfPoint(start);
-      setRate(nextRate);
-      setStage("observation");
-      setPlan([]);
-      setRedoPlan([]);
-      setReplayPlan([]);
-      setSelectedActorId(undefined);
-      setPlanProgress(0);
-      setRunId((i) => i + 1);
-    },
-    [simActors],
-  );
+  const resetRun = useCallback(() => {
+    setResult(null);
+    setChoice(null);
+    setTimingMs(null);
+    setT(0);
+    tRef.current = 0;
+    setFreezeT(1);
+    setReplayStep(0);
+    setReplayProgress(0);
+    setReplayVariant("user");
+    setStage("observation");
+    setPlan([]);
+    setRedoPlan([]);
+    setReplayPlan([]);
+    setSelectedActorId(undefined);
+    setSelectedActionId(null);
+    setGoalkeeperPoint(null);
+    setRunId((i) => i + 1);
+  }, []);
+
+  useEffect(() => {
+    setPlannerTool(tools[0] ?? "position");
+  }, [tools]);
 
   useEffect(() => {
     if (scenarioRef.current === scenario.id) return;
     scenarioRef.current = scenario.id;
-    if (started) resetRun(1.15);
+    if (started) resetRun();
   }, [scenario.id, started, resetRun]);
 
-  // Krótka obserwacja przechodzi prosto do decyzji. Nie zatrzymujemy gracza na dwóch
-  // dodatkowych ekranach wyboru zawodnika i oglądania reakcji.
+  /** Zatrzymuje akcję dokładnie w bieżącej klatce i przechodzi do decyzji. */
+  const freezeAt = useCallback(
+    (rawT: number) => {
+      const frozen = freezeTiming(rawT, scenario.observationMs);
+      setT(frozen.t);
+      setFreezeT(frozen.t);
+      setTimingMs(frozen.timingMs);
+      setSelectedActorId(isGoalkeeper ? undefined : selfSim?.id);
+      setStage("decision");
+    },
+    [scenario.observationMs, isGoalkeeper, selfSim],
+  );
+
+  // Obserwacja: pełne observationMs w tempie 1.0x.
   useEffect(() => {
-    if (!started || stage !== "observation" || observationDone) return;
+    if (!started || stage !== "observation") return;
     let raf = 0;
-    startRef.current = performance.now();
-    const total = Math.min(3600, scenario.observationMs / Math.max(1, rate));
+    const startedAt = performance.now();
+    const total = Math.max(1, scenario.observationMs);
     const tick = (now: number) => {
-      const p = Math.min(1, (now - startRef.current) / total);
+      const p = Math.min(1, (now - startedAt) / total);
+      tRef.current = p;
       setT(p);
       if (p >= 1) {
-        setObservationDone(true);
-        const bestWindow = [...scenario.timingWindows].sort((a, b) => b.quality - a.quality)[0];
-        const idealMs = bestWindow
-          ? Math.round((bestWindow.fromMs + bestWindow.toMs) / 2)
-          : Math.round(scenario.observationMs * 0.62);
-        const idealT = Math.min(1, idealMs / Math.max(1, scenario.observationMs));
-        const self = simActors.find((actor) => actor.kind === "self");
-        if (self) {
-          setSelfPoint(actorAt(self.path, idealT));
-          setSelectedActorId(self.id);
-        }
-        setTimingMs(idealMs);
-        setStage("decision");
+        freezeAt(1);
         return;
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [started, stage, runId, observationDone, scenario, simActors, rate]);
+  }, [started, stage, runId, scenario.observationMs, freezeAt]);
 
-  const choiceBase = useMemo(
-    () => ({
-      timingMs,
-      x: selfPoint.x,
-      y: selfPoint.y,
-      angleDeg: 0,
-      foot: "right" as const,
-    }),
-    [selfPoint.x, selfPoint.y, timingMs],
-  );
+  const freezeSelf = selfSim ? actorAt(selfSim.path, freezeT) : { x: 50, y: 70 };
 
-  const currentReaction = () => evaluate(scenario, { ...choiceBase, actionId: null }).reaction;
-
-  // Kluczowy rywal = ten, który reaguje na nasz moment startu.
-  const reactionForView = result?.reaction ?? currentReaction();
-  const keyOpponentId = reactionForView.moves[0]?.actorId;
+  const reactionForView = result?.reaction;
+  const keyOpponentId = reactionForView?.moves[0]?.actorId;
+  const view = result ? replayView(result, replayVariant) : null;
 
   const ball = simActors.find((a) => a.kind === "ball");
   const carrierId = useMemo(() => {
@@ -197,23 +215,18 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
     return best;
   }, [simActors, ball]);
 
-  // Pozycje zawodników w bieżącej fazie.
+  // Faza zagrania w replayu (0..1) i faza reakcji rywala (0..1).
+  const reactionP = stage === "replay" ? Math.min(1, Math.max(0, (replayProgress - 0.2) / 0.3)) : 0;
+  const playP = stage === "replay" ? Math.min(1, Math.max(0, (replayProgress - 0.5) / 0.35)) : 0;
+
   const actors: SimPitchActor[] = useMemo(() => {
-    const frozenT = stage === "observation" ? t : 1;
-    const applyReaction = stage === "replay" && replayStep >= 1;
+    const frozenT = stage === "observation" ? t : freezeT;
     const baseActors = simActors.map((a) => {
-      const base = actorAt(a.path, frozenT);
-      let { x, y } = base;
-      const move = applyReaction
-        ? reactionForView.moves.find((m) => m.actorId === a.id)
-        : undefined;
-      if (move) {
-        x = move.x;
-        y = move.y;
-      }
-      if (a.kind === "self" && stage !== "observation") {
-        x = selfPoint.x;
-        y = selfPoint.y;
+      let { x, y } = actorAt(a.path, frozenT);
+      const move = reactionForView?.moves.find((m) => m.actorId === a.id);
+      if (stage === "replay" && move && a.kind === "opponent") {
+        x += (move.x - x) * reactionP;
+        y += (move.y - y) * reactionP;
       }
       return {
         id: a.id,
@@ -225,23 +238,27 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
         facingDeg: facingAt(a.path, frozenT),
       };
     });
-
-    return stage === "replay" && replayPlan.length
-      ? applyPlanToActors(baseActors, replayPlan, planProgress)
-      : baseActors;
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (stage !== "replay") return baseActors;
+    if (replayVariant === "alt") {
+      const ballPoint = view?.path ? pointAlongPath(view.path, playP) : null;
+      return ballPoint
+        ? baseActors.map((a) => (a.kind === "ball" ? { ...a, x: ballPoint.x, y: ballPoint.y } : a))
+        : baseActors;
+    }
+    return replayPlan.length ? applyPlanToActors(baseActors, replayPlan, playP) : baseActors;
   }, [
     stage,
     t,
-    selfPoint,
-    result,
+    freezeT,
     simActors,
-    replayStep,
+    reactionForView,
+    reactionP,
+    playP,
     carrierId,
     keyOpponentId,
     replayPlan,
-    planProgress,
+    replayVariant,
+    view,
   ]);
 
   const selectedActor = actors.find(
@@ -264,6 +281,9 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
 
   const plannerPreview = useCallback(
     (point: IQPlannerPoint) => {
+      if (isGoalkeeper) {
+        return planActionPath({ id: "preview", tool: "position", from: freezeSelf, to: point });
+      }
       if (toolNeedsActor(plannerTool) && !selectedActor) return null;
       const from = originForTool(plannerTool) ?? point;
       return planActionPath({
@@ -274,11 +294,15 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
         to: point,
       });
     },
-    [originForTool, plannerTool, selectedActor],
+    [isGoalkeeper, freezeSelf, originForTool, plannerTool, selectedActor],
   );
 
   const addPlanAction = useCallback(
     (point: IQPlannerPoint) => {
+      if (isGoalkeeper) {
+        setGoalkeeperPoint({ x: point.x, y: point.y });
+        return;
+      }
       if (toolNeedsActor(plannerTool) && !selectedActor) return;
       const from = originForTool(plannerTool) ?? point;
       const action: IQPlanAction = {
@@ -289,9 +313,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
         to: point,
       };
       setPlan((current) => {
-        if (!toolMovesActor(plannerTool) || !selectedActor) {
-          return [...current, action];
-        }
+        if (!toolMovesActor(plannerTool) || !selectedActor) return [...current, action];
         return [
           ...current.filter(
             (item) => !(item.actorId === selectedActor.id && toolMovesActor(item.tool)),
@@ -301,7 +323,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
       });
       setRedoPlan([]);
     },
-    [originForTool, plan.length, plannerTool, selectedActor],
+    [isGoalkeeper, originForTool, plan.length, plannerTool, selectedActor],
   );
 
   const undoPlan = useCallback(() => {
@@ -322,167 +344,191 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
     });
   }, []);
 
+  const canPlay = canPlayDecision({ group, selectedActionId, goalkeeperPoint, timingMs });
+
   const playPlan = useCallback(() => {
-    if (!plan.length) return;
-    const snapshot = plan.map((action) => ({ ...action }));
-    const actionId = closestScenarioActionId(snapshot, scenario.actions);
-    setResult(evaluate(scenario, { ...choiceBase, actionId }));
+    if (!selectedActionId || timingMs == null) return;
+    const point = userDecisionPoint({
+      plan,
+      selfId: selfSim?.id,
+      goalkeeperPoint,
+      freezeSelf,
+    });
+    const nextChoice = buildChoice({ timingMs, point, actionId: selectedActionId });
+    const snapshot: IQPlanAction[] = plan.map((action) => ({ ...action }));
+    if (isGoalkeeper && goalkeeperPoint && selfSim) {
+      snapshot.push({
+        id: "gk-position",
+        tool: "position",
+        actorId: selfSim.id,
+        from: freezeSelf,
+        to: goalkeeperPoint,
+      });
+    }
+    setChoice(nextChoice);
+    setResult(evaluate(scenario, nextChoice));
     setReplayPlan(snapshot);
+    setReplayVariant("user");
     setReplayStep(0);
-    setPlanProgress(0);
+    setReplayProgress(0);
     setStage("replay");
-  }, [choiceBase, plan, scenario]);
+    setReplayRun((i) => i + 1);
+  }, [
+    selectedActionId,
+    timingMs,
+    plan,
+    selfSim,
+    goalkeeperPoint,
+    freezeSelf,
+    isGoalkeeper,
+    scenario,
+  ]);
 
   useEffect(() => {
-    if (stage !== "replay" || !replayPlan.length) return;
+    if (stage !== "replay") return;
     let raf = 0;
     const startedAt = performance.now();
-    const duration = 1550;
+    const duration = REPLAY_BASE_MS / REPLAY_RATE;
     const tick = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setPlanProgress(eased);
-      setReplayStep(progress < 0.42 ? 0 : progress < 0.82 ? 1 : 2);
+      setReplayProgress(progress);
+      setReplayStep(replayStepOf(progress));
       if (progress < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [stage, replayPlan]);
+  }, [stage, replayRun, replayVariant]);
 
   const paths: SimPitchPath[] = [];
-  const visiblePlan = stage === "replay" ? replayPlan : stage === "decision" ? plan : [];
-  paths.push(...visiblePlan.map((action, index) => planActionPath(action, index + 1)));
-  const showReactionPath = stage === "replay" && replayStep === 1;
-  const reactionPathProgress = 1;
-  if (showReactionPath && keyOpponentId && reactionPathProgress > 0.08) {
-    const keyActor = simActors.find((actor) => actor.id === keyOpponentId);
-    const keyMove = reactionForView.moves.find((move) => move.actorId === keyOpponentId);
-    if (keyActor && keyMove) {
-      const start = actorAt(keyActor.path, 1);
-      paths.push({
-        points: [
-          start,
-          {
-            x: start.x + (keyMove.x - start.x) * reactionPathProgress,
-            y: start.y + (keyMove.y - start.y) * reactionPathProgress,
-          },
-        ],
-        variant: "reaction",
-      });
+  if (stage === "decision") {
+    paths.push(...plan.map((action, index) => planActionPath(action, index + 1)));
+    if (isGoalkeeper && goalkeeperPoint) {
+      paths.push(
+        planActionPath({ id: "gk", tool: "position", from: freezeSelf, to: goalkeeperPoint }),
+      );
     }
   }
-  if (stage === "replay" && result && replayStep >= 2 && !replayPlan.length) {
-    if (result.outcome.path) {
-      paths.push({ points: result.outcome.path, variant: "user" });
+  if (stage === "replay" && result) {
+    if (replayStep >= 1 && keyOpponentId) {
+      const keyActor = simActors.find((actor) => actor.id === keyOpponentId);
+      const keyMove = result.reaction.moves.find((move) => move.actorId === keyOpponentId);
+      if (keyActor && keyMove) {
+        paths.push({ points: [actorAt(keyActor.path, freezeT), keyMove], variant: "reaction" });
+      }
     }
-    if (result.alternative?.outcome.path) {
-      paths.push({ points: result.alternative.outcome.path, variant: "alt" });
+    if (replayStep >= 2) {
+      if (replayVariant === "user") {
+        paths.push(...replayPlan.map((action, index) => planActionPath(action, index + 1)));
+        if (view?.path) paths.push({ points: view.path, variant: "user" });
+      } else if (view?.path) {
+        paths.push({ points: view.path, variant: "alt" });
+      }
     }
   }
+
+  const goNext = () => {
+    const index = pool.findIndex((item) => item.id === scenario.id);
+    const next = pool[(index + 1) % pool.length];
+    if (next.id === scenario.id) resetRun();
+    else setScenarioId(next.id);
+  };
 
   if (!started) {
     return (
       <BriefingScreen
         scenario={scenario}
         onReady={() => {
-          resetRun(1.15);
+          resetRun();
           setStarted(true);
         }}
         onShuffle={() => {
           const i = pool.findIndex((s) => s.id === scenario.id);
-          const next = pool[(i + 1) % pool.length];
-          setScenarioId(next.id);
+          setScenarioId(pool[(i + 1) % pool.length].id);
         }}
         poolSize={pool.length}
       />
     );
   }
 
+  const stageLabel = stage === "replay" ? "Zrozum" : stage === "decision" ? "Zdecyduj" : "Zobacz";
+
   return (
     <div
       className="premium-flow iq-premium flex min-h-0 flex-col overflow-hidden"
       style={{ height: "calc(100dvh - 5.75rem - env(safe-area-inset-bottom))" }}
     >
-      <header className="shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+      <header className="shrink-0 px-5 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-[25px] font-medium tracking-[-0.045em] text-foreground">
-              Football IQ
-            </h1>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted-foreground">
               Sytuacja {pool.findIndex((item) => item.id === scenario.id) + 1} / {pool.length}
             </p>
+            <p className="mt-0.5 truncate text-[14px] font-semibold leading-tight text-foreground">
+              {scenario.title}
+            </p>
           </div>
-          <span className="rounded-full bg-secondary px-3 py-1.5 text-[11px] font-semibold text-foreground">
-            {stage === "replay" ? "Zrozum" : stage === "decision" ? "Wybierz" : "Zobacz"}
+          <span className="shrink-0 rounded-full bg-secondary px-3 py-1.5 text-[11px] font-semibold text-foreground">
+            {stageLabel}
           </span>
         </div>
-        <div className="mt-3 border-t border-border/70 pt-3">
-          <p className="text-[13px] font-semibold leading-tight text-foreground">
-            {scenario.title}
-          </p>
+        {stage === "observation" && (
           <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-            {stage === "replay"
-              ? "Zobacz, co otworzyło okno i jaki był skutek decyzji."
-              : scenario.brief}
+            {scenario.brief}
           </p>
-        </div>
+        )}
       </header>
 
-      <div className="min-h-[clamp(12rem,37dvh,17rem)] flex-1 overflow-hidden bg-card">
+      <div className="h-[44dvh] min-h-[15rem] shrink-0 overflow-hidden bg-card">
         <SimPitch25D
           actors={actors}
           paths={paths}
-          pulse={stage === "observation" && !observationDone}
+          pulse={false}
           selectedActorId={stage === "decision" ? selectedActorId : undefined}
-          highlightedActorId={stage === "replay" && replayStep === 1 ? keyOpponentId : undefined}
-          selectableKinds={stage === "decision" ? ["self", "mate"] : undefined}
-          onActorSelect={stage === "decision" ? setSelectedActorId : undefined}
+          highlightedActorId={stage === "replay" && replayStep >= 1 ? keyOpponentId : undefined}
+          selectableKinds={stage === "decision" && !isGoalkeeper ? ["self", "mate"] : undefined}
+          onActorSelect={stage === "decision" && !isGoalkeeper ? setSelectedActorId : undefined}
           onPlanTarget={stage === "decision" ? addPlanAction : undefined}
           makePlannerPreview={stage === "decision" ? plannerPreview : undefined}
         />
       </div>
 
-      <div className="max-h-[44dvh] shrink-0 overflow-y-auto overscroll-contain px-5 pb-3 pt-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-3 pt-3">
         {stage === "observation" && (
           <div className="motion-enter">
             <div className="h-1 overflow-hidden rounded-full bg-border">
-              <div
-                className="h-full rounded-full bg-primary transition-[width] duration-100"
-                style={{ width: t * 100 + "%" }}
-              />
+              <div className="h-full rounded-full bg-primary" style={{ width: t * 100 + "%" }} />
             </div>
-            <p className="mt-3 text-[15px] font-semibold text-foreground">
-              Obserwuj ruch bez podpowiedzi
-            </p>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              Za chwilę wybierzesz zagranie. Szukaj ruchu, który otwiera przestrzeń.
+            <button
+              type="button"
+              onClick={() => freezeAt(tRef.current)}
+              className="motion-press mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary p-4 text-[14px] font-bold uppercase tracking-wide text-primary-foreground"
+            >
+              <Hand className="h-4 w-4" /> Zatrzymaj i zdecyduj
+            </button>
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              Zatrzymaj w chwili, w której chcesz działać.
             </p>
           </div>
         )}
 
         {stage === "decision" && (
           <TacticalPlannerControls
-            category={plannerCategory}
+            goalkeeper={isGoalkeeper}
+            tools={tools}
             tool={plannerTool}
-            plan={plan}
+            planLength={plan.length}
             selectedActorLabel={
               selectedActor?.label ??
               (selectedActor?.kind === "self" ? "Ty" : selectedActor ? "Partner" : undefined)
             }
+            hasGoalkeeperPoint={Boolean(goalkeeperPoint)}
+            actions={scenario.actions.map((a) => ({ id: a.id, label: a.label }))}
+            selectedActionId={selectedActionId}
+            canPlay={canPlay}
             canUndo={Boolean(plan.length)}
             canRedo={Boolean(redoPlan.length)}
-            onCategory={(category) => {
-              setPlannerCategory(category);
-              const firstTool = {
-                ball: "pass",
-                movement: "run",
-                defending: "press",
-                reading: "scan",
-              } satisfies Record<IQPlannerCategory, IQPlannerTool>;
-              setPlannerTool(firstTool[category]);
-            }}
             onTool={setPlannerTool}
+            onAction={setSelectedActionId}
             onUndo={undoPlan}
             onRedo={restorePlan}
             onClear={() => {
@@ -493,45 +539,31 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
           />
         )}
 
-        {stage === "replay" &&
-          result &&
-          (replayPlan.length ? (
-            <PlanReplayPanel
-              plan={replayPlan}
-              result={result}
-              ready={replayStep >= 2}
-              onEdit={() => {
-                setResult(null);
-                setReplayPlan([]);
-                setPlanProgress(0);
-                setReplayStep(0);
-                setStage("decision");
-              }}
-              onNext={() => {
-                const index = pool.findIndex((item) => item.id === scenario.id);
-                setResult(null);
-                setT(0);
-                setObservationDone(false);
-                setStage("observation");
-                setScenarioId(pool[(index + 1) % pool.length].id);
-              }}
-            />
-          ) : (
-            <ReplayPanel
-              result={result}
-              step={replayStep}
-              onStep={setReplayStep}
-              onRestart={() => resetRun(1.15)}
-              onNext={() => {
-                const index = pool.findIndex((item) => item.id === scenario.id);
-                setResult(null);
-                setT(0);
-                setObservationDone(false);
-                setStage("observation");
-                setScenarioId(pool[(index + 1) % pool.length].id);
-              }}
-            />
-          ))}
+        {stage === "replay" && result && choice && view && (
+          <ReplayPanel
+            lessons={decisionLessons(scenario, result, choice)}
+            view={view}
+            hasAlternative={Boolean(result.alternative)}
+            variant={replayVariant}
+            step={replayStep}
+            onVariant={(v) => {
+              setReplayVariant(v);
+              setReplayProgress(0);
+              setReplayStep(0);
+            }}
+            onReplay={() => setReplayRun((i) => i + 1)}
+            onEdit={() => {
+              setResult(null);
+              setChoice(null);
+              setReplayPlan([]);
+              setReplayProgress(0);
+              setReplayStep(0);
+              setReplayVariant("user");
+              setStage("decision");
+            }}
+            onNext={goNext}
+          />
+        )}
       </div>
     </div>
   );
@@ -599,188 +631,123 @@ function BriefingScreen({
   );
 }
 
-function PlanReplayPanel({
-  plan,
-  result,
-  ready,
+function ReplayPanel({
+  lessons,
+  view,
+  hasAlternative,
+  variant,
+  step,
+  onVariant,
+  onReplay,
   onEdit,
   onNext,
 }: {
-  plan: IQPlanAction[];
-  result: SimResult;
-  ready: boolean;
+  lessons: DecisionLesson[];
+  view: ReplayView;
+  hasAlternative: boolean;
+  variant: ReplayVariant;
+  step: number;
+  onVariant: (v: ReplayVariant) => void;
+  onReplay: () => void;
   onEdit: () => void;
   onNext: () => void;
 }) {
-  const summary = planSummary(plan);
-  const lessons = [
-    { label: "Sygnał", text: summary.signal, Icon: Eye },
-    { label: "Decyzja", text: summary.decision, Icon: Brain },
-    { label: "Efekt", text: summary.effect, Icon: BarChart3 },
-  ];
-
+  const done = step >= REPLAY_STEPS.length - 1;
   return (
     <div className="motion-enter">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-        Analiza planu · {plan.length} {plan.length === 1 ? "akcja" : "akcji"}
-      </p>
-      <h2 className="mt-1 text-[19px] font-semibold leading-tight tracking-[-0.03em] text-foreground">
-        {summary.title}
-      </h2>
-
-      <div className="mt-3 grid grid-cols-3 divide-x divide-border/80 border-y border-border/70 py-3">
-        {lessons.map(({ label, text, Icon }) => (
-          <div key={label} className="px-2 text-center first:pl-0 last:pr-0">
-            <span className="mx-auto grid h-8 w-8 place-items-center rounded-full bg-secondary text-primary">
-              <Icon className="h-4 w-4" />
-            </span>
-            <p className="mt-1.5 text-[10px] font-semibold text-foreground">{label}</p>
-            <p className="mt-1 text-[9px] leading-snug text-muted-foreground">{text}</p>
-          </div>
-        ))}
-      </div>
-
-      {ready && (
-        <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
-          <span className="font-semibold text-foreground">Silnik sytuacji: </span>
-          {result.outcome.consequence}
-        </p>
+      {hasAlternative && (
+        <div
+          className="flex gap-1 rounded-xl bg-secondary/70 p-1"
+          role="tablist"
+          aria-label="Wariant replayu"
+        >
+          {(
+            [
+              ["user", "Twój wybór"],
+              ["alt", "Lepsza odpowiedź"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={variant === id}
+              onClick={() => onVariant(id)}
+              className={
+                "min-h-11 flex-1 rounded-lg text-[12px] font-semibold transition-colors " +
+                (variant === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       )}
 
-      <div className="mt-3 grid grid-cols-[0.8fr_1.2fr] gap-2">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="motion-press flex items-center justify-center gap-1.5 rounded-xl bg-secondary p-3 text-[12px] font-semibold text-foreground"
-        >
-          <Pencil className="h-3.5 w-3.5" /> Zmień plan
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!ready}
-          className="motion-press rounded-xl bg-primary p-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-40"
-        >
-          Następna sytuacja
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ReplayPanel({
-  result,
-  step,
-  onStep,
-  onRestart,
-  onNext,
-}: {
-  result: SimResult;
-  step: number;
-  onStep: (s: number) => void;
-  onRestart: () => void;
-  onNext: () => void;
-}) {
-  useEffect(() => {
-    if (step >= REPLAY_STEPS.length - 1) return;
-    const id = window.setTimeout(() => onStep(step + 1), 850);
-    return () => window.clearTimeout(id);
-  }, [step, onStep]);
-
-  const stepText =
-    step === 0
-      ? result.feedback.find((item) => item.key === "timing")?.text
-      : step === 1
-        ? result.reaction.description
-        : result.outcome.consequence;
-  const selectedLabel = result.action?.label ?? "Brak decyzji";
-  const timing = result.feedback.find((item) => item.key === "timing")?.text;
-  const space = result.feedback.find((item) => item.key === "space")?.text;
-  const consequence = result.feedback.find((item) => item.key === "consequence")?.text;
-
-  return (
-    <div className="motion-enter">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-        Twój wybór
-      </p>
-      <h2 className="mt-1 text-[21px] font-medium leading-tight tracking-[-0.035em] text-foreground">
-        {selectedLabel}
+      <h2 className="mt-3 text-[17px] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+        {view.label}
       </h2>
-      <p className="mt-1.5 min-h-10 text-[12px] leading-relaxed text-muted-foreground">
-        {stepText}
-      </p>
-
-      <div className="mt-3 grid grid-cols-3 border-y border-border/70">
+      <p className="mt-1 text-[11px] font-medium text-muted-foreground" aria-live="polite">
         {REPLAY_STEPS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => onStep(i)}
-            className={
-              "relative py-2.5 text-[11px] font-semibold transition-colors " +
-              (i === step ? "text-foreground" : "text-muted-foreground")
-            }
-          >
+          <span key={label} className={i === step ? "text-foreground" : undefined}>
+            {i > 0 && " → "}
             {label}
-            {i === step && (
-              <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary" />
-            )}
-          </button>
+          </span>
         ))}
-      </div>
+      </p>
 
-      {step >= 2 && result.alternative && (
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            Alternatywa: {result.alternative.action.label}.
-          </span>{" "}
-          {result.alternative.changed}
-        </p>
-      )}
-
-      {step >= 2 && (
+      {done && (
         <div className="mt-3 rounded-xl border border-border/80 bg-secondary/55 px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">
-            Zabierz na boisko
-          </p>
-          <dl className="mt-2 space-y-2 text-[11px] leading-snug">
-            {timing && (
-              <div className="grid grid-cols-[4.5rem_1fr] gap-2">
-                <dt className="font-semibold text-foreground">Kiedy</dt>
-                <dd className="text-muted-foreground">{timing}</dd>
-              </div>
-            )}
-            {space && (
-              <div className="grid grid-cols-[4.5rem_1fr] gap-2">
-                <dt className="font-semibold text-foreground">Zauważ</dt>
-                <dd className="text-muted-foreground">{space}</dd>
-              </div>
-            )}
-            {consequence && (
-              <div className="grid grid-cols-[4.5rem_1fr] gap-2">
+          {variant === "alt" ? (
+            <dl className="space-y-2 text-[12px] leading-snug">
+              {view.changed && (
+                <div className="grid grid-cols-[5.5rem_1fr] gap-2">
+                  <dt className="font-semibold text-foreground">Co zmienić</dt>
+                  <dd className="text-muted-foreground">{view.changed}</dd>
+                </div>
+              )}
+              <div className="grid grid-cols-[5.5rem_1fr] gap-2">
                 <dt className="font-semibold text-foreground">Skutek</dt>
-                <dd className="text-muted-foreground">{consequence}</dd>
+                <dd className="text-muted-foreground">{view.outcome.consequence}</dd>
               </div>
-            )}
-          </dl>
+            </dl>
+          ) : (
+            <dl className="space-y-2 text-[12px] leading-snug">
+              {lessons.map((lesson) => (
+                <div key={lesson.key} className="grid grid-cols-[5.5rem_1fr] gap-2">
+                  <dt className="font-semibold text-foreground">{lesson.label}</dt>
+                  <dd className="text-muted-foreground">{lesson.text}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
       )}
 
       <button
         type="button"
         onClick={onNext}
-        disabled={step < 2}
-        className="motion-press mt-3 w-full rounded-xl bg-primary p-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-40"
+        disabled={!done}
+        className="motion-press mt-3 min-h-12 w-full rounded-xl bg-primary p-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-40"
       >
         Następna sytuacja
       </button>
-      <button
-        type="button"
-        onClick={onRestart}
-        className="mt-2 flex w-full items-center justify-center gap-2 py-1 text-[11px] font-medium text-muted-foreground"
-      >
-        <RotateCcw className="h-3.5 w-3.5" /> Obejrzyj jeszcze raz
-      </button>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="motion-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary text-[12px] font-semibold text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Zmień decyzję
+        </button>
+        <button
+          type="button"
+          onClick={onReplay}
+          className="motion-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary text-[12px] font-semibold text-foreground"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Powtórz
+        </button>
+      </div>
     </div>
   );
 }

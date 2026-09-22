@@ -10,6 +10,7 @@ export type IQPlannerTool =
   | "switch_play"
   | "one_two"
   | "cutback"
+  | "position"
   | "run"
   | "diagonal_run"
   | "overlap"
@@ -107,6 +108,13 @@ export const PLANNER_TOOLS: PlannerToolDefinition[] = [
     hint: "Zagraj z końcowej linii do zawodnika wbiegającego z drugiej linii.",
   },
 
+  {
+    id: "position",
+    category: "movement",
+    label: "Ustawienie",
+    shortLabel: "Ustawienie",
+    hint: "Wskaż miejsce, w którym zawodnik ma się ustawić.",
+  },
   {
     id: "run",
     category: "movement",
@@ -241,6 +249,7 @@ const BALL_TOOLS = new Set<IQPlannerTool>([
 ]);
 
 const MOVING_TOOLS = new Set<IQPlannerTool>([
+  "position",
   "run",
   "diagonal_run",
   "overlap",
@@ -414,107 +423,4 @@ export function applyPlanToActors(
             Math.PI,
     };
   });
-}
-
-export function planSummary(actions: IQPlanAction[]) {
-  const ball = actions.find((action) => toolMovesBall(action.tool));
-  const runs = actions.filter((action) => toolMovesActor(action.tool));
-  const hasTrap = actions.some((action) => action.tool === "press_trap");
-  const hasOffside = actions.some((action) => action.tool === "offside_line");
-  const hasReading = actions.some((action) => ZONE_TOOLS.has(action.tool));
-
-  if (hasOffside) {
-    return {
-      title: "Wyjście linią w odpowiednim momencie",
-      signal: "Podający podnosi głowę, a napastnik startuje za wcześnie.",
-      decision: "Cała linia wychodzi razem — nie pojedynczy obrońca.",
-      effect: "Skracasz pole gry i uruchamiasz pułapkę ofsajdową.",
-    };
-  }
-  if (hasTrap) {
-    return {
-      title: "Skieruj rywala do zaplanowanej pułapki",
-      signal: "Rywal przyjmuje piłkę zamkniętą stroną ciała.",
-      decision: "Pierwszy naciska, pozostali zamykają wyjścia.",
-      effect: "Odbiór następuje w wybranym sektorze, a nie przypadkowo.",
-    };
-  }
-  if (ball && runs.length >= 2) {
-    return {
-      title: "Połącz podanie z ruchem kilku zawodników",
-      signal: "Linia rywala skupia się na posiadaczu piłki.",
-      decision: `${toolDefinition(ball.tool).label} oraz ${runs.length} skoordynowane biegi.`,
-      effect: "Jeden ruch otwiera kanał, drugi wykorzystuje powstałą przewagę.",
-    };
-  }
-  if (ball) {
-    return {
-      title: toolDefinition(ball.tool).label,
-      signal: "Okno podania jest krótkie i zależy od ustawienia ciała rywala.",
-      decision: "Zagraj w przestrzeń, zanim obrońca zdąży ją zamknąć.",
-      effect: "Przyspieszasz atak bez dokładania zbędnego kontaktu.",
-    };
-  }
-  if (runs.length) {
-    return {
-      title: "Ruch bez piłki zmienia sytuację",
-      signal: "Obrońcy kontrolują piłkę i tracą kontakt z zawodnikiem za plecami.",
-      decision: `${runs.length} ${runs.length === 1 ? "ruch" : "skoordynowane ruchy"} bez piłki.`,
-      effect: "Tworzysz nowy kąt podania i przesuwasz linię obrony.",
-    };
-  }
-  if (hasReading) {
-    return {
-      title: "Najpierw zauważ, potem zdecyduj",
-      signal: "Wolna przestrzeń pojawia się przed kontaktem z piłką.",
-      decision: "Skanuj zawodnika, najbliższego rywala i dalszy sektor.",
-      effect: "Decyzja jest wcześniejsza, spokojniejsza i trudniejsza do zatrzymania.",
-    };
-  }
-  return {
-    title: "Zbuduj własne rozwiązanie",
-    signal: "Najpierw odczytaj ustawienie przeciwnika.",
-    decision: "Połącz ruch, podanie i właściwy moment.",
-    effect: "Zobaczysz konsekwencję po odtworzeniu akcji.",
-  };
-}
-
-export function closestScenarioActionId(
-  actions: IQPlanAction[],
-  scenarioActions: { id: string; label: string }[],
-) {
-  if (!scenarioActions.length) return null;
-  const planned = actions.find((action) => toolMovesBall(action.tool));
-  if (!planned) return scenarioActions[0].id;
-  const keywords: Record<IQPlannerTool, string[]> = {
-    pass: ["podaj", "podanie", "graj"],
-    through_ball: ["prostop", "za lini", "kanał"],
-    lofted_pass: ["gór", "lob"],
-    cross: ["wrzut", "dośrodk"],
-    switch_play: ["przerzut", "zmień", "druga strona"],
-    one_two: ["klep", "ściana"],
-    cutback: ["wycof", "wstecz"],
-    run: [],
-    diagonal_run: [],
-    overlap: [],
-    underlap: [],
-    decoy_run: [],
-    third_man: [],
-    hold_width: [],
-    press: [],
-    counterpress: [],
-    cover: [],
-    block_lane: [],
-    offside_line: [],
-    press_trap: [],
-    scan: [],
-    focus_zone: [],
-    overload: [],
-    isolate: [],
-  };
-  const match = scenarioActions.find((action) => {
-    const label = action.label.toLocaleLowerCase("pl");
-    return keywords[planned.tool].some((keyword) => label.includes(keyword));
-  });
-  return match?.id ?? scenarioActions[0].id;
 }

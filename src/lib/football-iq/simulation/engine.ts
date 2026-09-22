@@ -10,7 +10,6 @@ import type {
   SimZone,
 } from "./types";
 
-
 export function actorAt(
   path: { t: number; x: number; y: number }[],
   t: number,
@@ -45,7 +44,7 @@ export function facingAt(
     const b = kf[i];
     if (t <= b.t) {
       const k = (t - a.t) / Math.max(1e-6, b.t - a.t);
-      let d = (((b.facingAngle! - a.facingAngle! + 180) % 360) + 360) % 360 - 180;
+      let d = ((((b.facingAngle! - a.facingAngle! + 180) % 360) + 360) % 360) - 180;
       if (d === -180) d = 180;
       return a.facingAngle! + d * k;
     }
@@ -53,15 +52,9 @@ export function facingAt(
   return last.facingAngle;
 }
 
-
-export function findTimingWindow(
-  scenario: SimScenario,
-  ms: number | null,
-): SimTimingWindow | null {
+export function findTimingWindow(scenario: SimScenario, ms: number | null): SimTimingWindow | null {
   if (ms == null) return null;
-  return (
-    scenario.timingWindows.find((w) => ms >= w.fromMs && ms <= w.toMs) ?? null
-  );
+  return scenario.timingWindows.find((w) => ms >= w.fromMs && ms <= w.toMs) ?? null;
 }
 
 export function findZone(scenario: SimScenario, x: number, y: number): SimZone | null {
@@ -78,15 +71,12 @@ export function findZone(scenario: SimScenario, x: number, y: number): SimZone |
 }
 
 function angleDelta(a: number, b: number) {
-  let d = Math.abs(((a - b) % 360 + 540) % 360 - 180);
+  let d = Math.abs(((((a - b) % 360) + 540) % 360) - 180);
   d = 180 - d;
   return d;
 }
 
-export function findAngle(
-  scenario: SimScenario,
-  deg: number,
-): SimBodyAngle | null {
+export function findAngle(scenario: SimScenario, deg: number): SimBodyAngle | null {
   let best: SimBodyAngle | null = null;
   let bestD = Infinity;
   for (const a of scenario.bodyAngles) {
@@ -101,9 +91,7 @@ export function findAngle(
 
 export function reactionFor(scenario: SimScenario, zone: SimZone | null) {
   const id = zone?.reaction ?? scenario.defaultReaction;
-  return (
-    scenario.reactions.find((r) => r.id === id) ?? scenario.reactions[0]
-  );
+  return scenario.reactions.find((r) => r.id === id) ?? scenario.reactions[0];
 }
 
 function outcomeOf(scenario: SimScenario, action: SimAction | null, reactionId: string) {
@@ -126,8 +114,7 @@ export function evaluate(scenario: SimScenario, choice: SimChoice): SimResult {
 
   const timingQ = window?.quality ?? 0.25;
   const spaceQ = zone ? zone.quality : 0.3;
-  const consequenceQ =
-    (outcome.progression + outcome.advantage + outcome.risk) / 3;
+  const consequenceQ = (outcome.progression + outcome.advantage + outcome.risk) / 3;
 
   const feedback: SimFeedbackItem[] = [
     {
@@ -152,7 +139,7 @@ export function evaluate(scenario: SimScenario, choice: SimChoice): SimResult {
 
   const altDef = scenario.alternatives[reaction.id];
   const altAction = altDef
-    ? scenario.actions.find((a) => a.id === altDef.actionId) ?? null
+    ? (scenario.actions.find((a) => a.id === altDef.actionId) ?? null)
     : null;
   const altOutcome = altAction ? outcomeOf(scenario, altAction, reaction.id) : null;
   const altBetter =
@@ -166,4 +153,3 @@ export function evaluate(scenario: SimScenario, choice: SimChoice): SimResult {
 
   return { reaction, feedback, action, outcome, alternative: altBetter };
 }
-

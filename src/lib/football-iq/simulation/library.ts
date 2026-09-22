@@ -9,12 +9,7 @@ import type { SimActor, SimActorKind, SimScenario } from "./types";
 type Pt = [number, number];
 
 /** Skrót definicji zawodnika: statyczny punkt lub tor ruchu. */
-function a(
-  id: string,
-  kind: SimActorKind,
-  label: string | undefined,
-  points: Pt | Pt[],
-): SimActor {
+function a(id: string, kind: SimActorKind, label: string | undefined, points: Pt | Pt[]): SimActor {
   const list: Pt[] = Array.isArray(points[0]) ? (points as Pt[]) : [points as Pt];
   const path = list.map((p, i) => ({
     t: list.length === 1 ? 0 : i / (list.length - 1),
@@ -68,14 +63,41 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 7000,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[40, 116], [47, 106], [52, 100]]),
-      a("self", "self", undefined, [[38, 118], [45, 108], [50, 102]]),
-      a("cb2", "mate", "Stoper", [[70, 116], [72, 112]]),
-      a("dm", "mate", "Szóstka", [[56, 92], [60, 90]]),
-      a("lw", "mate", "Skrzydło", [[10, 82], [9, 70]]),
-      a("oppst", "opponent", "Napastnik", [[52, 88], [50, 96], [50, 99]]),
-      a("opp8", "opponent", "Ósemka", [[64, 80], [62, 86]]),
-      a("opp10", "opponent", undefined, [[34, 82], [36, 88]]),
+      a("ball", "ball", undefined, [
+        [40, 116],
+        [47, 106],
+        [52, 100],
+      ]),
+      a("self", "self", undefined, [
+        [38, 118],
+        [45, 108],
+        [50, 102],
+      ]),
+      a("cb2", "mate", "Stoper", [
+        [70, 116],
+        [72, 112],
+      ]),
+      a("dm", "mate", "Szóstka", [
+        [56, 92],
+        [60, 90],
+      ]),
+      a("lw", "mate", "Skrzydło", [
+        [10, 82],
+        [9, 70],
+      ]),
+      a("oppst", "opponent", "Napastnik", [
+        [52, 88],
+        [50, 96],
+        [50, 99],
+      ]),
+      a("opp8", "opponent", "Ósemka", [
+        [64, 80],
+        [62, 86],
+      ]),
+      a("opp10", "opponent", undefined, [
+        [34, 82],
+        [36, 88],
+      ]),
     ],
     zones: [
       {
@@ -167,8 +189,7 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.9,
             advantage: 0.9,
             risk: 0.85,
-            consequence:
-              "Skoro środek był zamknięty, przerzut otwiera całą wolną stronę boiska.",
+            consequence: "Skoro środek był zamknięty, przerzut otwiera całą wolną stronę boiska.",
             path: [
               [26, 108],
               [72, 112],
@@ -240,7 +261,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
       },
       closes_center: {
         actionId: "switch",
-        changed: "Domknięty środek oznacza, że wolna była strona — przerzut kończył akcję pressingu.",
+        changed:
+          "Domknięty środek oznacza, że wolna była strona — przerzut kończył akcję pressingu.",
       },
       stays: {
         actionId: "carry_more",
@@ -269,14 +291,42 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 6500,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[48, 100], [50, 96], [52, 94]]),
-      a("dm", "mate", "Szóstka", [[46, 102], [49, 98], [51, 96]]),
-      a("st", "mate", "Napastnik", [[54, 52], [56, 62], [57, 68]]),
-      a("rw", "mate", "Skrzydło", [[88, 62], [88, 54]]),
-      a("self", "self", undefined, [[62, 88], [64, 84]]),
-      a("opp6", "opponent", "Szóstka", [[52, 76], [51, 78]]),
-      a("opp5", "opponent", "Stoper", [[58, 46], [57, 54], [56, 58]]),
-      a("opp8", "opponent", undefined, [[70, 78], [68, 80]]),
+      a("ball", "ball", undefined, [
+        [48, 100],
+        [50, 96],
+        [52, 94],
+      ]),
+      a("dm", "mate", "Szóstka", [
+        [46, 102],
+        [49, 98],
+        [51, 96],
+      ]),
+      a("st", "mate", "Napastnik", [
+        [54, 52],
+        [56, 62],
+        [57, 68],
+      ]),
+      a("rw", "mate", "Skrzydło", [
+        [88, 62],
+        [88, 54],
+      ]),
+      a("self", "self", undefined, [
+        [62, 88],
+        [64, 84],
+      ]),
+      a("opp6", "opponent", "Szóstka", [
+        [52, 76],
+        [51, 78],
+      ]),
+      a("opp5", "opponent", "Stoper", [
+        [58, 46],
+        [57, 54],
+        [56, 58],
+      ]),
+      a("opp8", "opponent", undefined, [
+        [70, 78],
+        [68, 80],
+      ]),
     ],
     zones: [
       {
@@ -468,15 +518,43 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 7500,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[74, 84], [80, 76], [82, 72]]),
-      a("rb", "mate", "Boczny", [[86, 90], [88, 80]]),
-      a("cm", "mate", "Pomocnik", [[66, 88], [70, 82]]),
-      a("lw", "mate", "Lewe skrzydło", [[10, 70], [8, 62]]),
-      a("self", "self", undefined, [[56, 50], [58, 54]]),
-      a("opp2", "opponent", undefined, [[80, 62], [82, 66]]),
-      a("opp6", "opponent", "Szóstka", [[60, 62], [68, 62]]),
-      a("opp5", "opponent", "Stoper", [[52, 42], [56, 46]]),
-      a("opp3", "opponent", "Boczny", [[24, 50], [34, 52]]),
+      a("ball", "ball", undefined, [
+        [74, 84],
+        [80, 76],
+        [82, 72],
+      ]),
+      a("rb", "mate", "Boczny", [
+        [86, 90],
+        [88, 80],
+      ]),
+      a("cm", "mate", "Pomocnik", [
+        [66, 88],
+        [70, 82],
+      ]),
+      a("lw", "mate", "Lewe skrzydło", [
+        [10, 70],
+        [8, 62],
+      ]),
+      a("self", "self", undefined, [
+        [56, 50],
+        [58, 54],
+      ]),
+      a("opp2", "opponent", undefined, [
+        [80, 62],
+        [82, 66],
+      ]),
+      a("opp6", "opponent", "Szóstka", [
+        [60, 62],
+        [68, 62],
+      ]),
+      a("opp5", "opponent", "Stoper", [
+        [52, 42],
+        [56, 46],
+      ]),
+      a("opp3", "opponent", "Boczny", [
+        [24, 50],
+        [34, 52],
+      ]),
     ],
     zones: [
       {
@@ -533,8 +611,7 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.92,
             advantage: 0.95,
             risk: 0.7,
-            consequence:
-              "Blok został przy piłce — przerzut zastaje lewe skrzydło w czystym 1v1.",
+            consequence: "Blok został przy piłce — przerzut zastaje lewe skrzydło w czystym 1v1.",
             path: [
               [82, 72],
               [8, 62],
@@ -544,7 +621,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.7,
             advantage: 0.65,
             risk: 0.6,
-            consequence: "Boczny rywala już przesunął się do środka — izolacja jest tylko częściowa.",
+            consequence:
+              "Boczny rywala już przesunął się do środka — izolacja jest tylko częściowa.",
           },
           jumps: {
             progression: 0.6,
@@ -597,7 +675,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.75,
             advantage: 0.7,
             risk: 0.6,
-            consequence: "Zagęszczony środek zostawia plecy — Twój start zmusza do faulu lub cofnięcia.",
+            consequence:
+              "Zagęszczony środek zostawia plecy — Twój start zmusza do faulu lub cofnięcia.",
           },
           jumps: {
             progression: 0.9,
@@ -670,14 +749,40 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 7000,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[30, 104], [34, 98], [36, 96]]),
-      a("cb", "mate", "Stoper", [[28, 106], [33, 100]]),
-      a("fb", "mate", "Boczny", [[12, 92], [26, 86], [34, 82]]),
-      a("lw", "mate", "Skrzydło", [[10, 74], [9, 66]]),
-      a("self", "self", undefined, [[44, 88], [40, 86]]),
-      a("opp7", "opponent", "Skrzydło", [[20, 82], [24, 88]]),
-      a("opp6", "opponent", "Szóstka", [[46, 76], [44, 80]]),
-      a("opp8", "opponent", undefined, [[58, 82], [54, 84]]),
+      a("ball", "ball", undefined, [
+        [30, 104],
+        [34, 98],
+        [36, 96],
+      ]),
+      a("cb", "mate", "Stoper", [
+        [28, 106],
+        [33, 100],
+      ]),
+      a("fb", "mate", "Boczny", [
+        [12, 92],
+        [26, 86],
+        [34, 82],
+      ]),
+      a("lw", "mate", "Skrzydło", [
+        [10, 74],
+        [9, 66],
+      ]),
+      a("self", "self", undefined, [
+        [44, 88],
+        [40, 86],
+      ]),
+      a("opp7", "opponent", "Skrzydło", [
+        [20, 82],
+        [24, 88],
+      ]),
+      a("opp6", "opponent", "Szóstka", [
+        [46, 76],
+        [44, 80],
+      ]),
+      a("opp8", "opponent", undefined, [
+        [58, 82],
+        [54, 84],
+      ]),
     ],
     zones: [
       {
@@ -854,8 +959,7 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
   defineScenario({
     id: "between-lines-10",
     title: "Przyjęcie między liniami pod kontrolą",
-    brief:
-      "Piłka wraca do wolnego stopera, a Ty stoisz w pasie między pomocą a obroną rywala.",
+    brief: "Piłka wraca do wolnego stopera, a Ty stoisz w pasie między pomocą a obroną rywala.",
     topic: "between_lines",
     positions: ["midfielder", "forward"],
     status: "sourced",
@@ -871,14 +975,39 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 6500,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[58, 100], [52, 96], [48, 94]]),
-      a("dm", "mate", "Szóstka", [[60, 102], [52, 98]]),
-      a("st", "mate", "Napastnik", [[50, 40], [46, 44]]),
-      a("rw", "mate", "Skrzydło", [[86, 60], [86, 54]]),
-      a("self", "self", undefined, [[54, 74], [52, 72]]),
-      a("opp6", "opponent", "Szóstka", [[48, 82], [50, 80]]),
-      a("opp5", "opponent", "Stoper", [[46, 52], [48, 56]]),
-      a("opp8", "opponent", undefined, [[64, 84], [60, 84]]),
+      a("ball", "ball", undefined, [
+        [58, 100],
+        [52, 96],
+        [48, 94],
+      ]),
+      a("dm", "mate", "Szóstka", [
+        [60, 102],
+        [52, 98],
+      ]),
+      a("st", "mate", "Napastnik", [
+        [50, 40],
+        [46, 44],
+      ]),
+      a("rw", "mate", "Skrzydło", [
+        [86, 60],
+        [86, 54],
+      ]),
+      a("self", "self", undefined, [
+        [54, 74],
+        [52, 72],
+      ]),
+      a("opp6", "opponent", "Szóstka", [
+        [48, 82],
+        [50, 80],
+      ]),
+      a("opp5", "opponent", "Stoper", [
+        [46, 52],
+        [48, 56],
+      ]),
+      a("opp8", "opponent", undefined, [
+        [64, 84],
+        [60, 84],
+      ]),
     ],
     zones: [
       {
@@ -1005,7 +1134,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.95,
             advantage: 0.94,
             risk: 0.6,
-            consequence: "Stoper wyszedł — pierwsze podanie za linię wypuszcza napastnika sam na sam.",
+            consequence:
+              "Stoper wyszedł — pierwsze podanie za linię wypuszcza napastnika sam na sam.",
             path: [
               [52, 58],
               [46, 40],
@@ -1049,7 +1179,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
       },
       jumps: {
         actionId: "release_striker",
-        changed: "Wyjście stopera zostawiało przestrzeń za linią — podanie za obronę było najsilniejsze.",
+        changed:
+          "Wyjście stopera zostawiało przestrzeń za linią — podanie za obronę było najsilniejsze.",
       },
     },
   }),
@@ -1073,14 +1204,40 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 6500,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[62, 112], [58, 108], [56, 106]]),
-      a("gk2", "mate", "Bramkarz", [[50, 128], [46, 126]]),
-      a("cb2", "mate", "Stoper", [[30, 112], [26, 110]]),
-      a("dm", "mate", "Szóstka", [[52, 96], [48, 94]]),
-      a("self", "self", undefined, [[64, 110], [60, 108]]),
-      a("oppst", "opponent", "Napastnik", [[70, 100], [64, 102], [62, 103]]),
-      a("opp7", "opponent", "Skrzydło", [[86, 106], [80, 104]]),
-      a("opp8", "opponent", undefined, [[52, 88], [50, 92]]),
+      a("ball", "ball", undefined, [
+        [62, 112],
+        [58, 108],
+        [56, 106],
+      ]),
+      a("gk2", "mate", "Bramkarz", [
+        [50, 128],
+        [46, 126],
+      ]),
+      a("cb2", "mate", "Stoper", [
+        [30, 112],
+        [26, 110],
+      ]),
+      a("dm", "mate", "Szóstka", [
+        [52, 96],
+        [48, 94],
+      ]),
+      a("self", "self", undefined, [
+        [64, 110],
+        [60, 108],
+      ]),
+      a("oppst", "opponent", "Napastnik", [
+        [70, 100],
+        [64, 102],
+        [62, 103],
+      ]),
+      a("opp7", "opponent", "Skrzydło", [
+        [86, 106],
+        [80, 104],
+      ]),
+      a("opp8", "opponent", undefined, [
+        [52, 88],
+        [50, 92],
+      ]),
     ],
     zones: [
       {
@@ -1147,7 +1304,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.6,
             advantage: 0.55,
             risk: 0.5,
-            consequence: "Podanie w bok pod doskokiem jest ryzykowne, ale piłka wychodzi ze strefy.",
+            consequence:
+              "Podanie w bok pod doskokiem jest ryzykowne, ale piłka wychodzi ze strefy.",
           },
           closes_center: {
             progression: 0.7,
@@ -1268,20 +1426,46 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
       scoreline: "0:0",
       phase: "Pressing na połowie rywala",
       positionLabel: "Napastnik",
-      weightsNote: "Początek meczu — pressing ma narzucić kierunek, nie odzyskać piłkę za wszelką cenę.",
+      weightsNote:
+        "Początek meczu — pressing ma narzucić kierunek, nie odzyskać piłkę za wszelką cenę.",
       weights: { timing: 1.5, body: 1.3 },
     },
     observationMs: 7000,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[50, 22], [40, 30], [36, 34]]),
-      a("oppgk", "opponent", "Bramkarz", [[50, 18], [48, 20]]),
-      a("oppcb1", "opponent", "Stoper", [[38, 32], [34, 36]]),
-      a("oppcb2", "opponent", "Stoper", [[64, 32], [68, 34]]),
-      a("oppfb", "opponent", "Boczny", [[16, 46], [14, 52]]),
-      a("self", "self", undefined, [[50, 46], [46, 42]]),
-      a("mate7", "mate", "Skrzydło", [[22, 56], [20, 50]]),
-      a("mate8", "mate", "Ósemka", [[42, 62], [40, 56]]),
+      a("ball", "ball", undefined, [
+        [50, 22],
+        [40, 30],
+        [36, 34],
+      ]),
+      a("oppgk", "opponent", "Bramkarz", [
+        [50, 18],
+        [48, 20],
+      ]),
+      a("oppcb1", "opponent", "Stoper", [
+        [38, 32],
+        [34, 36],
+      ]),
+      a("oppcb2", "opponent", "Stoper", [
+        [64, 32],
+        [68, 34],
+      ]),
+      a("oppfb", "opponent", "Boczny", [
+        [16, 46],
+        [14, 52],
+      ]),
+      a("self", "self", undefined, [
+        [50, 46],
+        [46, 42],
+      ]),
+      a("mate7", "mate", "Skrzydło", [
+        [22, 56],
+        [20, 50],
+      ]),
+      a("mate8", "mate", "Ósemka", [
+        [42, 62],
+        [40, 56],
+      ]),
     ],
     zones: [
       {
@@ -1338,7 +1522,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.92,
             advantage: 0.94,
             risk: 0.8,
-            consequence: "Piłka poszła do bocznego przy linii — odbiór wysoko i natychmiastowa okazja.",
+            consequence:
+              "Piłka poszła do bocznego przy linii — odbiór wysoko i natychmiastowa okazja.",
             path: [
               [52, 36],
               [20, 50],
@@ -1475,15 +1660,43 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 7500,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[80, 60], [84, 52], [86, 48]]),
-      a("rb", "mate", "Boczny", [[88, 64], [88, 52]]),
-      a("cm", "mate", "Ósemka", [[70, 62], [72, 54]]),
-      a("cb1", "mate", "Stoper", [[40, 96], [42, 92]]),
-      a("cb2", "mate", "Stoper", [[62, 96], [60, 92]]),
-      a("self", "self", undefined, [[58, 82], [60, 78]]),
-      a("oppst", "opponent", "Napastnik", [[46, 74], [44, 80]]),
-      a("opp7", "opponent", "Skrzydło", [[22, 66], [24, 74]]),
-      a("opp6", "opponent", undefined, [[68, 60], [72, 56]]),
+      a("ball", "ball", undefined, [
+        [80, 60],
+        [84, 52],
+        [86, 48],
+      ]),
+      a("rb", "mate", "Boczny", [
+        [88, 64],
+        [88, 52],
+      ]),
+      a("cm", "mate", "Ósemka", [
+        [70, 62],
+        [72, 54],
+      ]),
+      a("cb1", "mate", "Stoper", [
+        [40, 96],
+        [42, 92],
+      ]),
+      a("cb2", "mate", "Stoper", [
+        [62, 96],
+        [60, 92],
+      ]),
+      a("self", "self", undefined, [
+        [58, 82],
+        [60, 78],
+      ]),
+      a("oppst", "opponent", "Napastnik", [
+        [46, 74],
+        [44, 80],
+      ]),
+      a("opp7", "opponent", "Skrzydło", [
+        [22, 66],
+        [24, 74],
+      ]),
+      a("opp6", "opponent", undefined, [
+        [68, 60],
+        [72, 56],
+      ]),
     ],
     zones: [
       {
@@ -1540,7 +1753,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.85,
             advantage: 0.9,
             risk: 0.95,
-            consequence: "Kontra umiera na pierwszym podaniu — odzyskujesz piłkę wysoko i bez faulu.",
+            consequence:
+              "Kontra umiera na pierwszym podaniu — odzyskujesz piłkę wysoko i bez faulu.",
             path: [
               [52, 84],
               [46, 78],
@@ -1574,7 +1788,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.7,
             advantage: 0.7,
             risk: 0.85,
-            consequence: "Cofanie się z kontrą to minimum, jakie możesz zrobić po dołączeniu do ataku.",
+            consequence:
+              "Cofanie się z kontrą to minimum, jakie możesz zrobić po dołączeniu do ataku.",
             path: [
               [74, 66],
               [56, 92],
@@ -1632,7 +1847,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.65,
             advantage: 0.6,
             risk: 0.85,
-            consequence: "Struktura jest przesunięta, ale kompaktowa — kontra idzie w bok, nie w środek.",
+            consequence:
+              "Struktura jest przesunięta, ale kompaktowa — kontra idzie w bok, nie w środek.",
           },
         },
       },
@@ -1644,11 +1860,13 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
       },
       jumps: {
         actionId: "tactical_foul",
-        changed: "Po dołączeniu do ataku jedynym tanim rozwiązaniem było zatrzymanie kontry faulem.",
+        changed:
+          "Po dołączeniu do ataku jedynym tanim rozwiązaniem było zatrzymanie kontry faulem.",
       },
       closes_center: {
         actionId: "stay_shape",
-        changed: "Przy przesuniętym zabezpieczeniu utrzymanie kompaktowości było ważniejsze niż wyjście.",
+        changed:
+          "Przy przesuniętym zabezpieczeniu utrzymanie kompaktowości było ważniejsze niż wyjście.",
       },
     },
   }),
@@ -1673,14 +1891,40 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 6000,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[58, 58], [56, 66], [54, 70]]),
-      a("oppcarrier", "opponent", "Odbiorca", [[60, 56], [57, 66], [55, 71]]),
-      a("opp6", "opponent", "Szóstka", [[42, 62], [40, 70]]),
-      a("opp7", "opponent", "Skrzydło", [[84, 58], [80, 66]]),
-      a("self", "self", undefined, [[66, 62], [62, 66]]),
-      a("mate9", "mate", "Napastnik", [[50, 50], [52, 58]]),
-      a("mate6", "mate", "Szóstka", [[54, 84], [54, 78]]),
-      a("mate2", "mate", "Boczny", [[86, 70], [84, 74]]),
+      a("ball", "ball", undefined, [
+        [58, 58],
+        [56, 66],
+        [54, 70],
+      ]),
+      a("oppcarrier", "opponent", "Odbiorca", [
+        [60, 56],
+        [57, 66],
+        [55, 71],
+      ]),
+      a("opp6", "opponent", "Szóstka", [
+        [42, 62],
+        [40, 70],
+      ]),
+      a("opp7", "opponent", "Skrzydło", [
+        [84, 58],
+        [80, 66],
+      ]),
+      a("self", "self", undefined, [
+        [66, 62],
+        [62, 66],
+      ]),
+      a("mate9", "mate", "Napastnik", [
+        [50, 50],
+        [52, 58],
+      ]),
+      a("mate6", "mate", "Szóstka", [
+        [54, 84],
+        [54, 78],
+      ]),
+      a("mate2", "mate", "Boczny", [
+        [86, 70],
+        [84, 74],
+      ]),
     ],
     zones: [
       {
@@ -1823,7 +2067,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.45,
             advantage: 0.4,
             risk: 0.88,
-            consequence: "Odbudowa jest bezpieczna, ale przy stracie punktów nie odzyskujesz piłki.",
+            consequence:
+              "Odbudowa jest bezpieczna, ale przy stracie punktów nie odzyskujesz piłki.",
           },
           stays: {
             progression: 0.6,
@@ -1869,14 +2114,40 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
     observationMs: 6500,
     actors: [
       ...backdrop(),
-      a("ball", "ball", undefined, [[50, 90], [52, 82], [54, 78]]),
-      a("cm", "mate", "Pomocnik", [[48, 92], [52, 84], [54, 80]]),
-      a("rw", "mate", "Skrzydło", [[86, 74], [84, 60]]),
-      a("lw", "mate", "Skrzydło", [[14, 76], [16, 62]]),
-      a("self", "self", undefined, [[56, 62], [56, 58]]),
-      a("oppcb1", "opponent", "Stoper", [[44, 48], [46, 54]]),
-      a("oppcb2", "opponent", "Stoper", [[62, 46], [60, 52]]),
-      a("opp6", "opponent", "Szóstka", [[52, 70], [52, 74]]),
+      a("ball", "ball", undefined, [
+        [50, 90],
+        [52, 82],
+        [54, 78],
+      ]),
+      a("cm", "mate", "Pomocnik", [
+        [48, 92],
+        [52, 84],
+        [54, 80],
+      ]),
+      a("rw", "mate", "Skrzydło", [
+        [86, 74],
+        [84, 60],
+      ]),
+      a("lw", "mate", "Skrzydło", [
+        [14, 76],
+        [16, 62],
+      ]),
+      a("self", "self", undefined, [
+        [56, 62],
+        [56, 58],
+      ]),
+      a("oppcb1", "opponent", "Stoper", [
+        [44, 48],
+        [46, 54],
+      ]),
+      a("oppcb2", "opponent", "Stoper", [
+        [62, 46],
+        [60, 52],
+      ]),
+      a("opp6", "opponent", "Szóstka", [
+        [52, 70],
+        [52, 74],
+      ]),
     ],
     zones: [
       {
@@ -1967,7 +2238,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.8,
             advantage: 0.78,
             risk: 0.6,
-            consequence: "Skoro podania nie ma, prowadzenie w środek wciąga szóstkę i otwiera boki.",
+            consequence:
+              "Skoro podania nie ma, prowadzenie w środek wciąga szóstkę i otwiera boki.",
             path: [
               [54, 68],
               [56, 56],
@@ -2001,7 +2273,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
             progression: 0.88,
             advantage: 0.86,
             risk: 0.82,
-            consequence: "Obrona stoi wąsko — podanie na szerokość daje wbiegnięcie w pole karne z boku.",
+            consequence:
+              "Obrona stoi wąsko — podanie na szerokość daje wbiegnięcie w pole karne z boku.",
             path: [
               [78, 62],
               [84, 48],
@@ -2041,7 +2314,8 @@ export const ADVANCED_SCENARIOS: SimScenario[] = [
       },
       closes_center: {
         actionId: "carry_center",
-        changed: "Bez wolnej linii podania prowadzenie w środek wymuszało reakcję i otwierało boki.",
+        changed:
+          "Bez wolnej linii podania prowadzenie w środek wymuszało reakcję i otwierało boki.",
       },
       stays: {
         actionId: "wide_release",
