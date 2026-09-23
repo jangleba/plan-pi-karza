@@ -106,28 +106,26 @@ function verdictOf(q: number): SimVerdict {
 }
 
 export function evaluate(scenario: SimScenario, choice: SimChoice): SimResult {
-  const window = findTimingWindow(scenario, choice.timingMs);
   const zone = findZone(scenario, choice.x, choice.y);
   const reaction = reactionFor(scenario, zone);
   const action = scenario.actions.find((a) => a.id === choice.actionId) ?? null;
   const outcome = outcomeOf(scenario, action, reaction.id);
 
-  const timingQ = window?.quality ?? 0.25;
   const spaceQ = zone ? zone.quality : 0.3;
   const consequenceQ = (outcome.progression + outcome.advantage + outcome.risk) / 3;
 
   const feedback: SimFeedbackItem[] = [
     {
-      key: "timing",
-      label: "Timing",
-      verdict: verdictOf(timingQ),
-      text: window?.note ?? scenario.timingMissNote,
+      key: "structure",
+      label: "Struktura",
+      verdict: verdictOf(spaceQ),
+      text: zone?.note ?? scenario.zoneMissNote,
     },
     {
-      key: "space",
-      label: "Decyzja przestrzenna",
+      key: "reaction",
+      label: "Reakcja rywala",
       verdict: verdictOf(spaceQ),
-      text: `${zone?.note ?? scenario.zoneMissNote} ${reaction.description}`.trim(),
+      text: reaction.description,
     },
     {
       key: "consequence",

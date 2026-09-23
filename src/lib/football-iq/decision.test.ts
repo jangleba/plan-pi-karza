@@ -4,9 +4,14 @@ import type { SimPitchActor } from "@/components/football-iq/SimPitch";
 import { applyPlanToActors } from "./planner";
 import { evaluate } from "./simulation/engine";
 import { ADVANCED_SCENARIOS } from "./simulation/library";
+import { SIM_SCENARIOS } from "./simulation/scenarios";
 import {
+  ADVANCED_SEQUENCE_MS,
+  advancedSequenceFor,
   buildChoice,
   canPlayDecision,
+  decisionAnchorMs,
+  decisionLessons,
   freezeTiming,
   replayView,
   toolsForScenario,
@@ -68,13 +73,14 @@ describe("Football IQ — decyzja użytkownika", () => {
     expect(evaluate(s, choice).action?.id).toBe(last.id);
   });
 
-  it("wymaga jawnej akcji i punktu GK", () => {
+  it("wymaga jawnej akcji oraz zmiany struktury albo punktu GK", () => {
     expect(
       canPlayDecision({
         group: "midfielder",
         selectedActionId: null,
         goalkeeperPoint: null,
         timingMs: 100,
+        planLength: 1,
       }),
     ).toBe(false);
     expect(
@@ -83,6 +89,16 @@ describe("Football IQ — decyzja użytkownika", () => {
         selectedActionId: "a",
         goalkeeperPoint: null,
         timingMs: 100,
+        planLength: 0,
+      }),
+    ).toBe(false);
+    expect(
+      canPlayDecision({
+        group: "midfielder",
+        selectedActionId: "a",
+        goalkeeperPoint: null,
+        timingMs: 100,
+        planLength: 1,
       }),
     ).toBe(true);
     expect(
@@ -99,9 +115,10 @@ describe("Football IQ — decyzja użytkownika", () => {
     expect(toolsForScenario("transition", "goalkeeper")).toEqual([]);
     for (const topic of ["press_trap", "third_man", "rest_defence", "overload_isolate"] as const) {
       const tools = toolsForScenario(topic, "midfielder");
-      expect(tools.length).toBeGreaterThanOrEqual(6);
+      expect(tools.length).toBeGreaterThanOrEqual(5);
       expect(tools.length).toBeLessThanOrEqual(8);
       expect(tools).toContain("position");
+      expect(tools).not.toContain("scan");
     }
     expect(toolsForScenario("press_trap", "defender")).toContain("offside_line");
     expect(toolsForScenario("press_trap", "defender")).not.toContain("cross");
@@ -139,5 +156,34 @@ describe("Football IQ — decyzja użytkownika", () => {
     const user = replayView(r, "user");
     expect(user.outcome).toBe(r.outcome);
     expect(user.changed).toBeUndefined();
+  });
+
+  it("buduje trzy scenariuszowe lekcje bez pustych, generycznych wierszy", () => {
+    const scenario = ADVANCED_SCENARIOS[0];
+    const zone = scenario.zones[0];
+    const timing = scenario.timingWindows[0];
+    const action = scenario.actions[0];
+    const choice = buildChoice({
+      timingMs: timing.fromMs,
+      point: { x: zone.x, y: zone.y },
+      actionId: action.id,
+    });
+    const lessons = decisionLessons(scenario, evaluate(scenario, choice), choice);
+
+    expect(lessons.map((lesson) => lesson.label)).toEqual([
+      "Ustawienie",
+      "Konsekwencja",
+      "Inny wariant",
+    ]);
+    expect(lessons.every((lesson) => lesson.text.trim().length > 0)).toBe(true);
+    expect(lessons.find((lesson) => lesson.key === "consequence")?.text).toContain(action.label);
+  });
+
+  it("każdy temat ma tę samą pięciofazową strukturę zaawansowaną", () => {
+    expect(ADVANCED_SEQUENCE_MS).toBeGreaterThanOrEqual(10_000);
+    for (const scenario of SIM_SCENARIOS) {
+      expect(advancedSequenceFor(scenario.topic).phases).toHaveLength(5);
+      expect(decisionAnchorMs(scenario)).toBeGreaterThan(0);
+    }
   });
 });

@@ -56,14 +56,21 @@ describe("BallWise IQ — integralność biblioteki mikrosymulacji", () => {
     }
   });
 
-  it("ma odrębne scenariusze dla każdej grupy, w tym 36 wariantów bramkarskich", () => {
+  it("ma odrębne scenariusze dla każdej grupy i jeden zaawansowany standard bramkarza", () => {
     expect(
       SIM_SCENARIOS.filter((scenario) => scenario.positions.includes("goalkeeper")),
-    ).toHaveLength(36);
+    ).toHaveLength(9);
     for (const level of ["beginner", "intermediate", "advanced", "elite"] as const) {
       const goalkeeperPool = scenariosForPosition("goalkeeper", level);
       expect(goalkeeperPool).toHaveLength(9);
-      expect(goalkeeperPool.every((scenario) => scenario.levels?.includes(level))).toBe(true);
+      expect(
+        goalkeeperPool.every(
+          (scenario) =>
+            scenario.id.endsWith("-advanced") &&
+            scenario.levels?.includes(level) &&
+            scenario.levels.length === 4,
+        ),
+      ).toBe(true);
     }
     expect(SIM_SCENARIOS.some((scenario) => scenario.positions.includes("defender"))).toBe(true);
     expect(SIM_SCENARIOS.some((scenario) => scenario.positions.includes("midfielder"))).toBe(true);

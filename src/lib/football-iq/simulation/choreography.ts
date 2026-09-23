@@ -7,7 +7,7 @@
 //   1) działanie posiadacza piłki,
 //   2) reakcja pressingu na to działanie,
 //   3) przesunięcie struktury obu zespołów za piłką,
-//   4) ruch użytkownika (skan i korekta pozycji),
+//   4) rotacja użytkownika i wsparcia (kolejna linia podania),
 //   5) konsekwencja przestrzenna — kluczowy rywal zaczyna reagować.
 //
 // Nic tu nie jest dekoracyjne: każdy delta-ruch ma przyczynę w pozycji piłki,
@@ -16,11 +16,11 @@
 import { actorAt } from "./engine";
 import type { SimActor, SimScenario } from "./types";
 
-/** Klatki kluczowe animacji obserwacji (t = 0..1). */
+/** Klatki kluczowe pełnej sekwencji taktycznej (t = 0..1). */
 export const CHOREO_KEYFRAMES = [0, 0.18, 0.38, 0.6, 0.82, 1] as const;
 
-/** Domyślna długość obserwacji. Scenariusz może podać własny, krótszy czas. */
-export const OBSERVATION_MS = 6500;
+/** Domyślna długość pełnej, pięciofazowej sekwencji taktycznej. */
+export const OBSERVATION_MS = 11_000;
 
 type Pt = { x: number; y: number };
 
@@ -82,14 +82,28 @@ export function choreograph(scenario: SimScenario): SimActor[] {
     scenario.reactions[0];
   const keyMove = keyReaction?.moves[0];
 
-  // Kolega najbliższy użytkownikowi oferuje wsparcie w fazie 4.
-  const support = selfStart
+  // Dwie kolejne opcje wsparcia tworzą zależność „podający — wsparcie — trzeci”.
+  const supportOptions = selfStart
     ? [...scenario.actors]
         .filter((a) => a.kind === "mate" && a.id !== carrier?.id)
         .sort(
           (p, q) => dist(actorAt(p.path, 0), selfStart) - dist(actorAt(q.path, 0), selfStart),
-        )[0]
-    : undefined;
+        )
+    : [];
+  const support = supportOptions[0];
+  const thirdPlayer = supportOptions[1];
+  const widthPlayer = [...scenario.actors]
+    .filter(
+      (a) =>
+        a.kind === "mate" &&
+        a.id !== carrier?.id &&
+        a.id !== support?.id &&
+        a.id !== thirdPlayer?.id,
+    )
+    .sort(
+      (a, b) =>
+        Math.abs(actorAt(b.path, 0).x - 50) - Math.abs(actorAt(a.path, 0).x - 50),
+    )[0];
 
   return scenario.actors.map((actor) => {
     const path = CHOREO_KEYFRAMES.map((t) => {
@@ -121,8 +135,8 @@ export function choreograph(scenario: SimScenario): SimActor[] {
         }
       }
 
-      // Faza 4 — ruch użytkownika: skan i korekta pozycji prostopadle do piłki,
-      // plus wsparcie kolegi otwierającego linię podania.
+      // Faza 4 — rotacja: użytkownik koryguje pozycję, najbliższy partner daje
+      // wsparcie, trzeci zawodnik ustawia kolejną linię, a dalszy utrzymuje szerokość.
       if (t >= 0.6) {
         const k = Math.min(1, (t - 0.6) / 0.22);
         const fade = t >= 0.82 ? Math.max(0, 1 - (t - 0.82) / 0.18) : 1;
@@ -136,6 +150,15 @@ export function choreograph(scenario: SimScenario): SimActor[] {
         if (support && actor.id === support.id && bestZone) {
           x += (bestZone.x - base.x) * 0.12 * k;
           y += (bestZone.y - base.y) * 0.12 * k;
+        }
+        if (thirdPlayer && actor.id === thirdPlayer.id && bestZone) {
+          x += (bestZone.x - base.x) * 0.08 * k;
+          y -= 3.4 * k;
+        }
+        if (widthPlayer && actor.id === widthPlayer.id) {
+          const side = base.x < 50 ? -1 : 1;
+          x += side * 3.2 * k;
+          y -= 1.4 * k;
         }
       }
 

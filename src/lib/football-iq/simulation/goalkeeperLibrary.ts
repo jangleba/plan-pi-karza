@@ -240,7 +240,7 @@ const FAMILIES: Family[] = [
     id: "second-phase",
     title: "Druga faza po stałym fragmencie",
     brief:
-      "Pierwsza piłka została wybita, lecz akcja trwa. Ustaw linię, skanuj dobitkę i zdecyduj o nowej głębokości.",
+      "Pierwsza piłka została wybita, lecz akcja trwa. Ustaw linię, kontroluj strefę dobitki i zdecyduj o nowej głębokości.",
     phase: "Przejście po obronie pola karnego",
     topic: "transition",
     source: FIFA_TRANSITIONS,
@@ -484,6 +484,30 @@ function makeScenario(family: Family, levelIndex: number): SimScenario {
   };
 }
 
-export const GOALKEEPER_SCENARIOS: SimScenario[] = FAMILIES.flatMap((family) =>
-  LEVELS.map((_, levelIndex) => makeScenario(family, levelIndex)),
-);
+const ALL_PROFILE_LEVELS: NonNullable<SimScenario["levels"]> = [
+  "beginner",
+  "intermediate",
+  "advanced",
+  "elite",
+];
+
+/**
+ * Bramkarz także zawsze otrzymuje pełny, zaawansowany wariant. Poziom profilu
+ * nie upraszcza problemu taktycznego ani nie skraca sekwencji.
+ */
+export const GOALKEEPER_SCENARIOS: SimScenario[] = FAMILIES.map((family) => {
+  const scenario = makeScenario(family, LEVELS.length - 1);
+  return {
+    ...scenario,
+    id: `gk-${family.id}-advanced`,
+    title: family.title,
+    brief: `${family.brief} Rozwiąż pełną sekwencję: ustawienie, reakcję rywala, drugą decyzję i zabezpieczenie kolejnej fazy.`,
+    levels: ALL_PROFILE_LEVELS,
+    context: {
+      ...scenario.context,
+      positionLabel: "Bramkarz",
+      weightsNote:
+        "Ten sam zaawansowany standard dla każdego profilu: geometria bramki, przewaga do piłki, konsekwencja i kontrola ryzyka.",
+    },
+  };
+});

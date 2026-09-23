@@ -1,4 +1,4 @@
-import { Play, Redo2, RotateCcw, Undo2 } from "lucide-react";
+import { Check, Play, Redo2, RotateCcw, Undo2 } from "lucide-react";
 
 import { toolDefinition, toolNeedsActor, type IQPlannerTool } from "@/lib/football-iq/planner";
 
@@ -23,7 +23,7 @@ type Props = {
 };
 
 const iconBtn =
-  "motion-press grid h-11 w-11 place-items-center rounded-full bg-secondary text-foreground disabled:opacity-30";
+  "motion-press grid h-11 w-11 place-items-center rounded-full border border-border/70 bg-secondary/60 text-foreground transition-[transform,opacity,background-color] duration-200 active:scale-[0.97] disabled:opacity-30 motion-reduce:transition-none";
 
 export function TacticalPlannerControls({
   goalkeeper,
@@ -47,24 +47,26 @@ export function TacticalPlannerControls({
   const needsActor = !goalkeeper && toolNeedsActor(tool);
   const instruction = goalkeeper
     ? hasGoalkeeperPoint
-      ? "Wybierz akcję i dotknij strefy ustawienia"
-      : "Dotknij strefy ustawienia, potem wybierz akcję"
+      ? "Miejsce ustawione. Teraz wybierz reakcję."
+      : "Dotknij na boisku miejsca swojego ustawienia."
     : needsActor && !selectedActorLabel
-      ? "Dotknij granatowego zawodnika. Rywali nie można przesuwać."
-      : toolDefinition(tool).hint;
+      ? "Najpierw dotknij swojego zawodnika na boisku."
+      : planLength === 0
+        ? "Dodaj co najmniej jeden ruch, a potem wybierz rozwiązanie."
+        : "Struktura zmieniona. Wybierz rozwiązanie dla kolejnej fazy.";
 
   return (
-    <div className="motion-enter">
+    <div className="motion-enter pb-1">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[12px] font-semibold text-foreground">
+          <p className="truncate text-[15px] font-semibold text-foreground">
             {goalkeeper
-              ? "Twoja decyzja"
+              ? "Druga decyzja bramkarza"
               : selectedActorLabel
-                ? `Wybrany: ${selectedActorLabel}`
-                : "Wybierz zawodnika"}
+                ? `Druga decyzja · ${selectedActorLabel}`
+                : "Druga decyzja · wybierz zawodnika"}
           </p>
-          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{instruction}</p>
+          <p className="mt-1 text-[13px] leading-snug text-muted-foreground">{instruction}</p>
         </div>
         {!goalkeeper && (
           <div className="flex shrink-0 items-center gap-1">
@@ -100,31 +102,46 @@ export function TacticalPlannerControls({
       </div>
 
       {!goalkeeper && tools.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Narzędzie planu">
-          {tools.map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={id === tool}
-              onClick={() => onTool(id)}
-              className={
-                "motion-press min-h-11 rounded-full border px-3.5 text-[12px] font-semibold transition-colors " +
-                (id === tool
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border/80 bg-card text-foreground")
-              }
-            >
-              {toolDefinition(id).shortLabel}
-            </button>
-          ))}
+        <div className="mt-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[12px] font-semibold text-muted-foreground">1. Zmień strukturę</p>
+            <span className="text-[11px] font-medium text-primary">
+              {planLength ? `${planLength} ${planLength === 1 ? "ruch" : "ruchy"}` : "wymagany ruch"}
+            </span>
+          </div>
+          <div
+            className="iq-tool-strip -mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]"
+            role="radiogroup"
+            aria-label="Narzędzie planu"
+          >
+            {tools.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={id === tool}
+                onClick={() => onTool(id)}
+                className={
+                  "motion-press min-h-11 shrink-0 rounded-full border px-3.5 text-[14px] font-medium transition-[transform,background-color,border-color,color] duration-200 active:scale-[0.98] motion-reduce:transition-none " +
+                  (id === tool
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border/80 bg-card text-foreground")
+                }
+              >
+                {toolDefinition(id).shortLabel}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+            {toolDefinition(tool).hint}
+          </p>
         </div>
       )}
 
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-        Wybierz akcję
+      <p className="mt-3 text-[12px] font-semibold text-muted-foreground">
+        2. Wybierz rozwiązanie
       </p>
-      <div className="mt-1.5 grid gap-1.5" role="radiogroup" aria-label="Akcja">
+      <div className="mt-2 grid gap-2" role="radiogroup" aria-label="Akcja">
         {actions.map((action) => (
           <button
             key={action.id}
@@ -133,25 +150,32 @@ export function TacticalPlannerControls({
             aria-checked={action.id === selectedActionId}
             onClick={() => onAction(action.id)}
             className={
-              "motion-press min-h-11 rounded-xl border px-3 py-2 text-left text-[12px] font-medium leading-snug transition-colors " +
+              "motion-press flex min-h-12 items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left text-[14px] font-medium leading-snug transition-[transform,background-color,border-color] duration-200 active:scale-[0.99] motion-reduce:transition-none " +
               (action.id === selectedActionId
-                ? "border-foreground bg-secondary text-foreground"
+                ? "border-primary bg-primary/10 text-foreground"
                 : "border-border/80 bg-card text-foreground")
             }
           >
-            {action.label}
+            <span>{action.label}</span>
+            {action.id === selectedActionId && (
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={onPlay}
-        disabled={!canPlay}
-        className="motion-press mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary p-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-35"
-      >
-        <Play className="h-4 w-4" /> Odtwórz decyzję
-      </button>
+      <div className="sticky bottom-0 z-10 -mx-1 mt-2 bg-background/95 px-1 pb-1 pt-2 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={onPlay}
+          disabled={!canPlay}
+          className="motion-press flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary p-3.5 text-[14px] font-semibold text-primary-foreground shadow-sm transition-[transform,opacity] duration-200 active:scale-[0.99] disabled:opacity-35 motion-reduce:transition-none"
+        >
+          <Play className="h-4 w-4" /> Zobacz konsekwencję
+        </button>
+      </div>
     </div>
   );
 }

@@ -168,7 +168,7 @@ export interface SimChoice {
   actionId: string | null;
 }
 
-export type SimFeedbackKey = "timing" | "space" | "consequence";
+export type SimFeedbackKey = "structure" | "reaction" | "consequence";
 export type SimVerdict = "good" | "mixed" | "poor";
 
 export interface SimFeedbackItem {

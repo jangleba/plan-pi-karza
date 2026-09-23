@@ -73,6 +73,8 @@ type Props = {
   pulse?: boolean;
   selectedActorId?: string;
   highlightedActorId?: string;
+  /** Krótka, scenariuszowa etykieta widoczna wyłącznie w fazie reakcji rywala. */
+  highlightedActorLabel?: string;
   onActorSelect?: (actorId: string) => void;
   /** Ogranicza wybór np. tylko do własnego zespołu w planerze. */
   selectableKinds?: SimActorKind[];
@@ -84,12 +86,34 @@ type Props = {
 
 type FacingState = { x: number; y: number; deg: number };
 
+function roleToken(actor: SimPitchActor) {
+  if (actor.kind === "self") return "TY";
+  const label = actor.label?.toLocaleLowerCase("pl") ?? "";
+  if (/\b(br|bramkarz)\b/.test(label)) return "BR";
+  if (label.includes("stoper") || label.includes("środkowy obrońca")) return "ŚO";
+  if (label.includes("boczny") || label.includes("wahadł")) return "BO";
+  if (label.includes("szóst")) return "6";
+  if (label.includes("ósem") || label.includes("pomocnik")) return "8";
+  if (label.includes("dzies")) return "10";
+  if (label.includes("skrzyd")) return "SK";
+  if (label.includes("napast")) return "9";
+  if (actor.kind === "opponent") return "R";
+  const initials = actor.label
+    ?.split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase("pl"))
+    .join("");
+  return initials || "Z";
+}
+
 export function SimPitch25D({
   actors,
   paths,
   pulse,
   selectedActorId,
   highlightedActorId,
+  highlightedActorLabel,
   onActorSelect,
   selectableKinds,
   onPlanTarget,
@@ -395,7 +419,7 @@ export function SimPitch25D({
       {sorted.map((a) => {
         const p = projectPitchPoint(a.x, a.y);
         if (a.kind === "ball") {
-          const r = 1.7 * p.s;
+          const r = 2.05 * Math.max(0.85, p.s);
           return (
             <g key={a.id}>
               <ellipse
@@ -410,7 +434,15 @@ export function SimPitch25D({
                 cy={p.y}
                 r={r}
                 className="fill-background stroke-foreground"
-                strokeWidth={0.7 * p.s}
+                strokeWidth={0.65 * Math.max(0.85, p.s)}
+              />
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={r * 1.55}
+                fill="none"
+                className="stroke-background/75"
+                strokeWidth={0.45 * Math.max(0.85, p.s)}
               />
               <circle cx={p.x} cy={p.y} r={r * 0.42} className="fill-foreground" />
             </g>
@@ -418,31 +450,41 @@ export function SimPitch25D({
         }
 
         const f = (facingOf(a) * Math.PI) / 180;
-        const s = p.s;
-        const body =
-          a.kind === "self"
-            ? "fill-primary"
-            : a.kind === "mate"
-              ? "fill-graphite"
-              : "fill-destructive/75";
-        const open = Math.abs(Math.cos(f)); // 1 = barki na wprost, 0 = profil
-        const sw = (1.05 + 0.95 * open) * s; // pół-szerokość barków
-        const legDx = (0.55 + 0.5 * open) * s;
-        const headDx = Math.sin(f) * 0.45 * s;
-        const hipY = p.y - 5.1 * s;
-        const shoY = p.y - 8.1 * s;
-        const headY = p.y - 9.6 * s;
-        const label = a.showLabel ? a.label : undefined;
+        const s = Math.max(0.9, p.s);
+        const tokenY = p.y - 3.6 * s;
+        const tokenR = 4.25 * s;
+        const token = roleToken(a);
+        const highlighted = a.id === highlightedActorId;
+        const reactionLabel = highlighted ? highlightedActorLabel : undefined;
+        const label = a.showLabel && !reactionLabel ? a.label : undefined;
+        const labelScale = Math.max(0.9, s);
         const labelWidth = label
-          ? Math.min(28 * s, Math.max(10 * s, (label.length * 1.45 + 4) * s))
+          ? Math.min(
+              31 * labelScale,
+              Math.max(12 * labelScale, (label.length * 1.65 + 5) * labelScale),
+            )
           : 0;
-        const labelHeight = 4.8 * s;
-        const labelY = a.kind === "opponent" ? headY - 6.2 * s : p.y + 2.3 * s;
+        const labelHeight = 5.8 * labelScale;
+        const labelY =
+          a.kind === "opponent" || p.y > 82
+            ? tokenY - 10.5 * labelScale
+            : tokenY + 6.3 * labelScale;
         const selectable = Boolean(
           onActorSelect && (selectableKinds ? selectableKinds.includes(a.kind) : a.kind !== "self"),
         );
         const selected = a.id === selectedActorId;
-        const highlighted = a.id === highlightedActorId;
+        const reactionLabelScale = Math.max(0.95, s);
+        const reactionLabelWidth = reactionLabel
+          ? Math.min(
+              44 * reactionLabelScale,
+              Math.max(
+                20 * reactionLabelScale,
+                (reactionLabel.length * 1.55 + 7) * reactionLabelScale,
+              ),
+            )
+          : 0;
+        const reactionLabelHeight = 6.4 * reactionLabelScale;
+        const reactionLabelY = Math.max(1.5, tokenY - 11 * reactionLabelScale);
 
         return (
           <g
@@ -476,86 +518,108 @@ export function SimPitch25D({
             }
           >
             {selectable && (
-              <circle cx={p.x} cy={p.y - 4.8 * s} r={7.5 * s} className="fill-transparent" />
+              <circle
+                cx={p.x}
+                cy={tokenY}
+                r={7.5 * s}
+                className="fill-transparent"
+              />
             )}
-            {/* Cień kontaktowy */}
             <ellipse
               cx={p.x}
-              cy={p.y + 0.5 * s}
-              rx={2.5 * s}
-              ry={0.85 * s}
-              style={{ fill: "var(--pitch-shadow)", opacity: 0.16 }}
+              cy={p.y + 0.2 * s}
+              rx={3.9 * s}
+              ry={1.15 * s}
+              style={{ fill: "var(--pitch-shadow)", opacity: 0.2 }}
             />
             {a.kind === "self" && pulse && (
-              <ellipse cx={p.x} cy={p.y} rx={6 * s} ry={2.2 * s} className="fill-primary/12" />
+              <circle cx={p.x} cy={tokenY} r={7 * s} className="fill-primary/12" />
             )}
             {a.kind === "self" && (
-              <ellipse
+              <circle
                 cx={p.x}
-                cy={p.y}
-                rx={4.4 * s}
-                ry={1.6 * s}
+                cy={tokenY}
+                r={6.1 * s}
                 fill="none"
-                className="stroke-primary"
-                strokeWidth={0.35 * s}
+                className="stroke-background/90"
+                strokeWidth={0.8 * s}
               />
             )}
             {selected && !highlighted && (
-              <ellipse
+              <circle
                 cx={p.x}
-                cy={p.y - 4.8 * s}
-                rx={5.2 * s}
-                ry={7.2 * s}
+                cy={tokenY}
+                r={6.6 * s}
                 className="fill-primary/10 stroke-primary"
                 strokeWidth={0.75 * s}
                 strokeDasharray={`${1.8 * s} ${1.2 * s}`}
               />
             )}
             {highlighted && (
-              <ellipse
+              <circle
                 cx={p.x}
-                cy={p.y - 4.8 * s}
-                rx={5.5 * s}
-                ry={7.5 * s}
+                cy={tokenY}
+                r={6.8 * s}
                 className="fill-destructive/10 stroke-destructive"
                 strokeWidth={0.85 * s}
               />
             )}
-            {/* Nogi */}
-            <path
-              d={`M ${p.x} ${hipY} L ${p.x - legDx} ${p.y} M ${p.x} ${hipY} L ${p.x + legDx} ${p.y}`}
-              fill="none"
-              className={body.replace("fill-", "stroke-")}
+            {reactionLabel && (
+              <g className="iq-reaction-label" aria-label={reactionLabel}>
+                <rect
+                  x={p.x - reactionLabelWidth / 2}
+                  y={reactionLabelY}
+                  width={reactionLabelWidth}
+                  height={reactionLabelHeight}
+                  rx={reactionLabelHeight / 2}
+                  className="fill-primary stroke-background/80"
+                  strokeWidth={0.45 * reactionLabelScale}
+                />
+                <text
+                  x={p.x}
+                  y={reactionLabelY + 4.25 * reactionLabelScale}
+                  fontSize={3.05 * reactionLabelScale}
+                  textAnchor="middle"
+                  className="fill-primary-foreground"
+                  style={{ fontWeight: 700 }}
+                >
+                  {reactionLabel}
+                </text>
+              </g>
+            )}
+            <circle
+              cx={p.x}
+              cy={tokenY}
+              r={tokenR}
+              className={
+                a.kind === "self"
+                  ? "fill-primary stroke-background"
+                  : a.kind === "mate"
+                    ? "fill-background/95 stroke-foreground/55"
+                    : "fill-foreground/88 stroke-background/75"
+              }
               strokeWidth={0.75 * s}
-              strokeLinecap="round"
             />
-            {/* Tułów */}
-            <path
-              d={`M ${p.x - sw * 0.55} ${hipY} L ${p.x - sw} ${shoY} L ${p.x + sw} ${shoY} L ${p.x + sw * 0.55} ${hipY} Z`}
-              className={body}
-            />
-            {/* Linia barków */}
+            <text
+              x={p.x}
+              y={tokenY + 1.15 * s}
+              textAnchor="middle"
+              fontSize={token.length > 1 ? 2.75 * s : 3.15 * s}
+              className={a.kind === "self" ? "fill-primary-foreground" : a.kind === "mate" ? "fill-foreground" : "fill-background"}
+              style={{ fontWeight: 800 }}
+            >
+              {token}
+            </text>
+            {/* Krótki znacznik kierunku ustawienia, bez udawania pełnej techniki ruchu. */}
             <line
-              x1={p.x - sw}
-              y1={shoY}
-              x2={p.x + sw}
-              y2={shoY}
-              className={body.replace("fill-", "stroke-")}
-              strokeWidth={0.6 * s}
+              x1={p.x + Math.sin(f) * tokenR * 0.72}
+              y1={tokenY - Math.cos(f) * tokenR * 0.72}
+              x2={p.x + Math.sin(f) * tokenR * 1.18}
+              y2={tokenY - Math.cos(f) * tokenR * 1.18}
+              className={a.kind === "opponent" ? "stroke-background" : "stroke-foreground"}
+              strokeWidth={0.65 * s}
               strokeLinecap="round"
-            />
-            {/* Głowa */}
-            <circle cx={p.x + headDx} cy={headY} r={1.05 * s} className={body} />
-            {/* Kierunek ustawienia */}
-            <line
-              x1={p.x + headDx}
-              y1={shoY - 0.6 * s}
-              x2={p.x + headDx + Math.sin(f) * 1.9 * s}
-              y2={shoY - 0.6 * s + Math.cos(f) * 0.9 * s}
-              className={body.replace("fill-", "stroke-")}
-              strokeWidth={0.45 * s}
-              strokeLinecap="round"
-              opacity={0.6}
+              opacity={0.75}
             />
             {label && (
               <g>
@@ -570,10 +634,10 @@ export function SimPitch25D({
                 />
                 <text
                   x={p.x}
-                  y={labelY + 3.25 * s}
-                  fontSize={2.35 * s}
+                  y={labelY + 3.95 * labelScale}
+                  fontSize={3.15 * labelScale}
                   textAnchor="middle"
-                  className="fill-foreground/75"
+                  className="fill-foreground/85"
                   style={{ fontWeight: 700 }}
                 >
                   {label}
