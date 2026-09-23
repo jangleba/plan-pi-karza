@@ -1,0 +1,12 @@
+order,exercise_id,polish_name,file,motion_arrow
+1,medicine_ball_rotational_scoop_toss,Rotacyjny wyrzut piłki lekarskiej z dołu,small/medicine_ball_rotational_scoop_toss.png,łukiem do przodu
+2,band_assisted_jump,Skok z odciążeniem gumą,small/band_assisted_jump.png,pionowo góra–dół
+3,medicine_ball_slam,Uderzenie piłką lekarską o podłoże,small/medicine_ball_slam.png,w dół
+4,push_press,Wyciskanie sztangi z wybiciem nóg,small/push_press.png,w górę
+5,kettlebell_swing,Wymach kettlebell,small/kettlebell_swing.png,łuk wahadłowy
+6,medicine_ball_overhead_backward_throw,Wyrzut piłki lekarskiej nad głową w tył,small/medicine_ball_overhead_backward_throw.png,łukiem w tył
+7,med_ball_throw,Wyrzut piłki lekarskiej sprzed klatki,small/med_ball_throw.png,do przodu
+8,dumbbell_jump_squat,Wyskoki z hantlami,small/dumbbell_jump_squat.png,pionowo góra–dół
+9,trap_bar_jump,Wyskoki z trap barem,small/trap_bar_jump.png,pionowo góra–dół
+10,barbell_jump_squat,Wyskoki ze sztangą,small/barbell_jump_squat.png,pionowo góra–dół
+11,power_clean,Zarzut siłowy z pozycji zwisu,small/power_clean.png,pionowo w górę

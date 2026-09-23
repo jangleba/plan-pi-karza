@@ -1,0 +1,45 @@
+order,exercise_id,polish_name,file
+1,bodyweight_row,Wiosłowanie z masą ciała,small/bodyweight_row.png
+2,bridge_walkout,Spacer piętami z mostu biodrowego,small/bridge_walkout.png
+3,hamstring_45_back_extension,Prostowanie tułowia 45° na dwugłowe uda,small/hamstring_45_back_extension.png
+4,glute_bridge_march,Marsz w moście biodrowym,small/glute_bridge_march.png
+5,barbell_deadlift,Martwy ciąg ze sztangą,small/barbell_deadlift.png
+6,kickstand_romanian_deadlift,Martwy ciąg rumuński kickstand,small/kickstand_romanian_deadlift.png
+7,single_leg_romanian_deadlift,Martwy ciąg rumuński na jednej nodze,small/single_leg_romanian_deadlift.png
+8,romanian_deadlift_db,Martwy ciąg rumuński z hantlami,small/romanian_deadlift_db.png
+9,barbell_romanian_deadlift,Martwy ciąg rumuński ze sztangą,small/barbell_romanian_deadlift.png
+10,trap_bar_deadlift,Martwy ciąg z trap barem,small/trap_bar_deadlift.png
+11,glute_bridge,Most biodrowy,small/glute_bridge.png
+12,single_leg_glute_bridge,Most biodrowy na jednej nodze,small/single_leg_glute_bridge.png
+13,push_up,Pompka,small/push_up.png
+14,pike_push_up,Pompka w pozycji pike,small/pike_push_up.png
+15,leg_extension,Prostowanie nóg na maszynie,small/leg_extension.png
+16,bulgarian_split_squat,Przysiad bułgarski,small/bulgarian_split_squat.png
+17,goblet_squat,Przysiad goblet,small/goblet_squat.png
+18,front_squat,Przysiad przedni,small/front_squat.png
+19,bodyweight_split_squat,Przysiad wykroczny z masą ciała,small/bodyweight_split_squat.png
+20,bodyweight_squat,Przysiad z masą ciała,small/bodyweight_squat.png
+21,heavy_back_squat,Przysiad tylny ze sztangą,small/heavy_back_squat.png
+22,pull_up,Podciąganie nachwytem,small/pull_up.png
+23,farmer_carry,Spacer farmera,small/farmer_carry.png
+24,suitcase_carry,Spacer walizkowy,small/suitcase_carry.png
+25,overhead_carry,Spacer z ciężarem nad głową,small/overhead_carry.png
+26,front_rack_carry,Spacer z ciężarem w pozycji front rack,small/front_rack_carry.png
+27,single_leg_swiss_ball_leg_curl,Uginanie jednej nogi na piłce,small/single_leg_swiss_ball_leg_curl.png
+28,single_leg_slider_leg_curl,Uginanie jednej nogi na ślizgaczu,small/single_leg_slider_leg_curl.png
+29,lying_leg_curl,Uginanie nóg leżąc na maszynie,small/lying_leg_curl.png
+30,prone_band_leg_curl,Uginanie nóg leżąc z gumą,small/prone_band_leg_curl.png
+31,bilateral_swiss_ball_leg_curl,Uginanie obu nóg na piłce,small/bilateral_swiss_ball_leg_curl.png
+32,bilateral_slider_leg_curl,Uginanie obu nóg na ślizgaczach,small/bilateral_slider_leg_curl.png
+33,seated_leg_curl,Uginanie nóg siedząc na maszynie,small/seated_leg_curl.png
+34,step_up,Wejście na podwyższenie,small/step_up.png
+35,one_arm_dumbbell_row,Wiosłowanie hantlem jednorącz,small/one_arm_dumbbell_row.png
+36,seated_soleus_raise,Wspięcie na palce siedząc,small/seated_soleus_raise.png
+37,standing_calf_raise,Wspięcie na palce stojąc,small/standing_calf_raise.png
+38,dumbbell_bench_press,Wyciskanie hantli na ławce,small/dumbbell_bench_press.png
+39,dumbbell_overhead_press,Wyciskanie hantli nad głowę,small/dumbbell_overhead_press.png
+40,lateral_lunge,Wykrok boczny,small/lateral_lunge.png
+41,reverse_lunge,Wykrok w tył,small/reverse_lunge.png
+42,hip_thrust,Hip thrust ze sztangą,small/hip_thrust.png
+43,leg_press,Wypychanie na suwnicy,small/leg_press.png
+44,lat_pulldown,Ściąganie drążka wyciągu górnego,small/lat_pulldown.png

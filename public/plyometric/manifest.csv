@@ -1,0 +1,17 @@
+order,exercise_id,polish_name,file,motion_arrow
+1,depth_jump,Drop jump,small/depth_jump.png,w dół + pionowo w górę
+2,drop_landing,Lądowanie po zejściu z podestu,small/drop_landing.png,w dół
+3,snap_down,Lądowanie snap-down,small/snap_down.png,w dół
+4,lateral_pogo,Pogo boczne,small/lateral_pogo.png,bocznie
+5,single_leg_pogo,Pogo jednonóż,small/single_leg_pogo.png,pionowo
+6,bilateral_pogo,Pogo obunóż,small/bilateral_pogo.png,pionowo
+7,repeated_broad_jump,Powtarzane skoki w dal,small/repeated_broad_jump.png,do przodu
+8,hurdle_hops,Przeskoki przez płotki,small/hurdle_hops.png,łukiem do przodu
+9,lateral_bound_to_stick,Skok boczny z zatrzymaniem,small/lateral_bound_to_stick.png,bocznie
+10,diagonal_bound_to_stick,Skok diagonalny z zatrzymaniem,small/diagonal_bound_to_stick.png,diagonalnie
+11,single_leg_hop_and_stick,Skok jednonóż z zatrzymaniem,small/single_leg_hop_and_stick.png,do przodu
+12,broad_jump,Skok w dal z miejsca,small/broad_jump.png,łukiem do przodu
+13,countermovement_jump,Skok z zamachem,small/countermovement_jump.png,pionowo góra–dół
+14,box_jump,Wskok na skrzynię,small/box_jump.png,w górę i do przodu
+15,squat_jump,Wyskocz z przysiadu,small/squat_jump.png,pionowo góra–dół
+16,split_squat_jump,Wyskoki z pozycji wykrocznej,small/split_squat_jump.png,pionowo + zamiana nóg
