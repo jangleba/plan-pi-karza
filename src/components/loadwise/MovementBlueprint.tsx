@@ -1,5 +1,6 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { ImageOff } from "lucide-react";
+import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 
 import highBarSquat from "@/assets/blueprints/high_bar_squat.webp";
 import nordicHamstring from "@/assets/blueprints/nordic_hamstring.webp";
@@ -463,6 +464,24 @@ export function ExerciseVisualPlaceholder() {
 }
 
 export function MovementBlueprint({ exercise }: { exercise: TrainingExercise }) {
+  const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
+
+  if (techniqueImage) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#faf9f5] shadow-sm">
+        <img
+          src={techniqueImage.src}
+          alt={techniqueImage.alt}
+          loading="lazy"
+          decoding="async"
+          width={768}
+          height={512}
+          className="block aspect-[3/2] w-full object-contain"
+        />
+      </div>
+    );
+  }
+
   const resolution = resolveExerciseVisual(exercise);
 
   if (resolution.status === "missing") {

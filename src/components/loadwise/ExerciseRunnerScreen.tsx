@@ -29,6 +29,7 @@ import {
   illustrationKeyForExercise,
 } from "@/components/loadwise/exerciseIllustrations";
 import { resolveExerciseSheetViewModel } from "@/components/loadwise/ExerciseDetailSheet";
+import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 
 type FieldValues = Record<MetricField["id"], string>;
 
@@ -136,6 +137,7 @@ export function ExerciseRunnerScreen({
   const fields = useMemo(() => fieldsForMetric(metricKind), [metricKind]);
   const unit = metricUnit(metricKind);
   const illustration = getIllustration(illustrationKeyForExercise(exercise));
+  const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
   const details = resolveExerciseSheetViewModel(exercise);
   const cues = details.cues.slice(0, 3);
   const doneCount = Object.keys(current).length;
@@ -231,7 +233,17 @@ export function ExerciseRunnerScreen({
             className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 text-left"
           >
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-primary/5">
-              {illustration ? (
+              {techniqueImage ? (
+                <img
+                  src={techniqueImage.src}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={768}
+                  height={512}
+                  className="h-full w-full object-contain"
+                />
+              ) : illustration ? (
                 <PoseFigure pose={illustration.frames[0].pose} />
               ) : (
                 <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
@@ -421,7 +433,19 @@ export function ExerciseRunnerScreen({
         </div>
       ) : (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
-          {illustration ? (
+          {techniqueImage ? (
+            <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl border border-border/60 bg-[#faf9f5]">
+              <img
+                src={techniqueImage.src}
+                alt={techniqueImage.alt}
+                loading="eager"
+                decoding="async"
+                width={768}
+                height={512}
+                className="h-full w-full object-contain"
+              />
+            </div>
+          ) : illustration ? (
             <>
               <div className="aspect-square w-full overflow-hidden rounded-2xl bg-primary/5">
                 <PoseFigure pose={illustration.frames[frame].pose} />
