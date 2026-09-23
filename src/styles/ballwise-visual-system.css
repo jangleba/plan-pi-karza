@@ -1,0 +1,478 @@
+/*
+ * BallWise Visual Overlay v1
+ *
+ * Pure presentation layer. No plan, readiness, health, auth, database or
+ * navigation logic lives in this file. Loaded after src/styles.css.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Quiet performance palette: cool off-white, ink navy, ice blue. */
+  --radius: 1rem;
+  --background: oklch(0.976 0.008 247);
+  --foreground: oklch(0.225 0.038 258);
+  --card: oklch(0.998 0.002 247);
+  --card-foreground: oklch(0.225 0.038 258);
+  --popover: oklch(0.998 0.002 247);
+  --popover-foreground: oklch(0.225 0.038 258);
+  --primary: oklch(0.36 0.095 252);
+  --primary-foreground: oklch(0.99 0.002 247);
+  --secondary: oklch(0.944 0.018 244);
+  --secondary-foreground: oklch(0.29 0.064 253);
+  --muted: oklch(0.951 0.012 247);
+  --muted-foreground: oklch(0.51 0.029 253);
+  --accent: oklch(0.914 0.041 239);
+  --accent-foreground: oklch(0.31 0.078 252);
+  --destructive: oklch(0.58 0.205 25);
+  --destructive-foreground: oklch(0.99 0.002 247);
+  --border: oklch(0.884 0.018 247);
+  --input: oklch(0.86 0.022 247);
+  --ring: oklch(0.56 0.115 245);
+  --brand: oklch(0.36 0.095 252);
+  --brand-soft: oklch(0.914 0.041 239);
+  --graphite: oklch(0.245 0.052 259);
+  --graphite-foreground: oklch(0.986 0.004 247);
+  --graphite-muted: oklch(0.72 0.025 247);
+  --chart-1: oklch(0.52 0.12 248);
+  --chart-2: oklch(0.65 0.09 229);
+  --chart-3: oklch(0.61 0.075 202);
+  --chart-4: oklch(0.7 0.065 261);
+  --chart-5: oklch(0.76 0.052 238);
+  --sidebar: oklch(0.99 0.003 247);
+  --sidebar-foreground: oklch(0.225 0.038 258);
+  --sidebar-primary: oklch(0.36 0.095 252);
+  --sidebar-primary-foreground: oklch(0.99 0.002 247);
+  --sidebar-accent: oklch(0.944 0.018 244);
+  --sidebar-accent-foreground: oklch(0.29 0.064 253);
+  --sidebar-border: oklch(0.884 0.018 247);
+  --sidebar-ring: oklch(0.56 0.115 245);
+
+  --bw-ease: cubic-bezier(0.2, 0.72, 0.2, 1);
+  --bw-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  --bw-shadow-card: 0 1px 2px oklch(0.18 0.05 255 / 0.03),
+    0 14px 34px -27px oklch(0.18 0.06 255 / 0.3);
+  --bw-shadow-float: 0 18px 48px -25px oklch(0.16 0.06 255 / 0.35),
+    0 2px 8px oklch(0.16 0.05 255 / 0.06);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.17 0.03 259);
+  --foreground: oklch(0.955 0.009 247);
+  --card: oklch(0.215 0.036 259);
+  --card-foreground: oklch(0.955 0.009 247);
+  --popover: oklch(0.225 0.038 259);
+  --popover-foreground: oklch(0.955 0.009 247);
+  --primary: oklch(0.73 0.095 239);
+  --primary-foreground: oklch(0.17 0.03 259);
+  --secondary: oklch(0.26 0.036 258);
+  --secondary-foreground: oklch(0.925 0.014 244);
+  --muted: oklch(0.245 0.03 258);
+  --muted-foreground: oklch(0.72 0.024 247);
+  --accent: oklch(0.305 0.052 251);
+  --accent-foreground: oklch(0.91 0.03 239);
+  --border: oklch(0.35 0.035 258);
+  --input: oklch(0.38 0.04 258);
+  --ring: oklch(0.73 0.095 239);
+  --brand: oklch(0.73 0.095 239);
+  --brand-soft: oklch(0.305 0.052 251);
+  --graphite: oklch(0.135 0.025 259);
+  --graphite-foreground: oklch(0.955 0.009 247);
+  --graphite-muted: oklch(0.66 0.024 247);
+  --sidebar: oklch(0.205 0.034 259);
+  --sidebar-foreground: oklch(0.955 0.009 247);
+  --sidebar-primary: oklch(0.73 0.095 239);
+  --sidebar-primary-foreground: oklch(0.17 0.03 259);
+  --sidebar-accent: oklch(0.275 0.042 255);
+  --sidebar-accent-foreground: oklch(0.925 0.014 244);
+  --sidebar-border: oklch(0.35 0.035 258);
+  --sidebar-ring: oklch(0.73 0.095 239);
+}
+
+html {
+  background: var(--background);
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter",
+    "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "kern" 1, "ss01" 1, "cv11" 1;
+  letter-spacing: -0.008em;
+}
+
+button,
+a,
+input,
+textarea,
+select,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+::selection {
+  background: oklch(0.78 0.08 239 / 0.38);
+  color: var(--foreground);
+}
+
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  background: var(--background);
+}
+
+@media (min-width: 40rem) {
+  .app-shell {
+    border-inline: 1px solid oklch(0.84 0.025 247 / 0.55);
+    box-shadow: 0 0 80px -55px oklch(0.16 0.06 255 / 0.42);
+  }
+}
+
+/* Shared surfaces. No gradients: hierarchy comes from tone, spacing and depth. */
+.soft-card {
+  border: 1px solid oklch(0.86 0.023 247 / 0.78);
+  border-radius: 1.15rem;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+}
+
+.hero-card {
+  border: 1px solid oklch(0.42 0.075 254 / 0.42);
+  border-radius: 1.55rem;
+  background: var(--graphite);
+  color: var(--graphite-foreground);
+  box-shadow: 0 24px 54px -30px oklch(0.16 0.08 258 / 0.6);
+}
+
+.icon-bubble {
+  border: 1px solid oklch(0.8 0.06 239 / 0.48);
+  background: var(--brand-soft);
+  color: var(--brand);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.45);
+}
+
+.premium-flow .soft-card,
+.progress-premium .soft-card,
+.fuel-premium .soft-card {
+  border-color: oklch(0.86 0.023 247 / 0.78);
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+}
+
+.profile-premium > .space-y-3 > .soft-card {
+  border-color: oklch(0.86 0.023 247 / 0.72);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Page entry: the single default motion cue on calm screens. */
+.premium-flow,
+.auth-premium,
+.onboarding-premium,
+.start-decision-screen {
+  animation: bw-page-enter 240ms var(--bw-ease-emphasized) both;
+}
+
+@keyframes bw-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header and brand mark. */
+.bw-page-header {
+  padding-top: max(1.15rem, env(safe-area-inset-top));
+}
+
+.bw-brand-mark {
+  position: relative;
+  overflow: hidden;
+}
+
+.bw-brand-mark::after {
+  position: absolute;
+  inset: 25%;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  content: "";
+  opacity: 0.22;
+  transform: scale(0.7);
+  transition: opacity 180ms var(--bw-ease), transform 220ms var(--bw-ease);
+}
+
+.bw-brand-mark:hover::after {
+  opacity: 0.4;
+  transform: scale(1);
+}
+
+/* Floating iOS-style bottom navigation. */
+.bw-tab-bar {
+  position: fixed;
+  z-index: 50;
+  right: 0.65rem;
+  bottom: max(0.55rem, env(safe-area-inset-bottom));
+  left: 0.65rem;
+  margin-inline: auto;
+  width: calc(100% - 1.3rem);
+  max-width: 28.7rem;
+  border: 1px solid oklch(0.85 0.025 247 / 0.72);
+  border-radius: 1.45rem;
+  background: oklch(0.992 0.004 247 / 0.84);
+  box-shadow: var(--bw-shadow-float);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: blur(24px) saturate(1.35);
+}
+
+.dark .bw-tab-bar {
+  border-color: oklch(0.4 0.04 258 / 0.72);
+  background: oklch(0.205 0.035 259 / 0.86);
+}
+
+.bw-tab-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.15rem;
+  padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom) * 0.12);
+}
+
+.bw-tab-item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 3.55rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.18rem;
+  border-radius: 1.05rem;
+  color: var(--muted-foreground);
+  font-size: 0.625rem;
+  font-weight: 570;
+  line-height: 1;
+  transition: color 180ms var(--bw-ease), background-color 180ms var(--bw-ease),
+    transform 160ms var(--bw-ease);
+}
+
+.bw-tab-item:active {
+  transform: scale(0.96);
+}
+
+.bw-tab-item.is-active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.bw-tab-icon {
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border-radius: 999px;
+  transition: transform 220ms var(--bw-ease-emphasized);
+}
+
+.bw-tab-item.is-active .bw-tab-icon {
+  transform: translateY(-1px) scale(1.04);
+}
+
+.bw-tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Launch state: brand signal, never a generic spinner. */
+.bw-launch {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  background: var(--background);
+}
+
+.bw-launch__signal {
+  position: relative;
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border: 1px solid oklch(0.78 0.065 241 / 0.52);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 16px 40px -24px oklch(0.2 0.08 255 / 0.48);
+}
+
+.bw-launch__signal::before,
+.bw-launch__signal::after {
+  position: absolute;
+  border-radius: 999px;
+  content: "";
+}
+
+.bw-launch__signal::before {
+  width: 1.15rem;
+  height: 1.15rem;
+  background: var(--primary);
+}
+
+.bw-launch__signal::after {
+  inset: -0.3rem;
+  border: 1px solid oklch(0.56 0.115 245 / 0.22);
+  animation: bw-signal-breathe 1.9s var(--bw-ease) infinite;
+}
+
+@keyframes bw-signal-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.08);
+  }
+}
+
+/* Existing decision visual, recoloured without changing its meaning. */
+.decision-signal__sources span {
+  border-color: oklch(0.84 0.032 247 / 0.72);
+  background: oklch(0.988 0.006 247 / 0.86);
+}
+
+.decision-signal__path {
+  stroke: oklch(0.65 0.075 238);
+}
+
+.decision-signal__dot {
+  fill: oklch(0.55 0.11 247);
+}
+
+.decision-signal__result {
+  border-color: oklch(0.48 0.1 249 / 0.18);
+  box-shadow: 0 0 0 0.75rem oklch(0.54 0.1 245 / 0.045);
+}
+
+.decision-signal__core {
+  background: var(--primary);
+  box-shadow: 0 0 0 0.45rem oklch(0.54 0.1 245 / 0.1);
+}
+
+/* Exercise art stays mapped 1:1; only its frame changes. */
+.bw-blueprint-frame,
+.premium-flow img[alt] {
+  image-rendering: auto;
+}
+
+/* Fuel motion keeps meaning but follows the shared blue palette. */
+.fuel-intelligence::after {
+  background: oklch(0.66 0.08 238 / 0.06);
+}
+
+.fuel-orbit {
+  background: var(--accent);
+  animation-name: bw-orbit-breathe;
+}
+
+.fuel-orbit::before {
+  background: var(--primary);
+  box-shadow: 0 0 0 0.3rem oklch(0.54 0.1 245 / 0.09);
+  animation-name: bw-orbit-travel;
+}
+
+.fuel-live-dot,
+.fuel-protocol-dot {
+  animation-name: bw-live-pulse;
+}
+
+@keyframes bw-orbit-breathe {
+  0%,
+  100% {
+    transform: scale(0.985);
+  }
+  50% {
+    transform: scale(1.015);
+  }
+}
+
+@keyframes bw-orbit-travel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bw-live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.54 0.1 245 / 0.2);
+  }
+  68%,
+  100% {
+    box-shadow: 0 0 0 0.45rem oklch(0.54 0.1 245 / 0);
+  }
+}
+
+/* Calm loading placeholder instead of a spinner. */
+[data-slot="skeleton"],
+.animate-pulse {
+  animation-duration: 1.8s;
+  animation-timing-function: var(--bw-ease);
+}
+
+/* Keyboard and switch-control clarity. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* Keep transitions quick and physical. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: var(--bw-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .soft-card {
+    transition: border-color 180ms var(--bw-ease), box-shadow 180ms var(--bw-ease),
+      transform 180ms var(--bw-ease);
+  }
+
+  a.soft-card:hover,
+  button.soft-card:hover {
+    border-color: oklch(0.78 0.06 241 / 0.62);
+    box-shadow: 0 16px 36px -28px oklch(0.16 0.08 258 / 0.46);
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .premium-flow,
+  .auth-premium,
+  .onboarding-premium,
+  .start-decision-screen {
+    transform: none;
+  }
+}

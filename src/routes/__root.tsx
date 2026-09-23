@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import visualSystemCss from "../styles/ballwise-visual-system.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { LoadwiseProvider, useLoadwise } from "../lib/loadwise/store";
 import { AuthProvider, useAuth } from "../lib/loadwise/auth";
@@ -29,7 +30,7 @@ function NotFoundComponent() {
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 active:scale-[0.98]"
           >
             Wróć na start
           </Link>
@@ -61,14 +62,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 active:scale-[0.98]"
           >
             Spróbuj ponownie
           </button>
           <Link
             to="/"
             onClick={reset}
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center rounded-xl border border-input bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-[transform,background-color] duration-200 active:scale-[0.98]"
           >
             Wróć na start
           </Link>
@@ -93,6 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "BallWise podpowiada, co trenować dziś, dlaczego i jak mocno — na podstawie wieku, pozycji, celu i gotowości.",
       },
       { name: "author", content: "BallWise" },
+      { name: "theme-color", content: "#f6f8fb" },
       { property: "og:title", content: "BallWise" },
       {
         property: "og:description",
@@ -105,6 +107,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "stylesheet",
+        href: visualSystemCss,
       },
     ],
   }),

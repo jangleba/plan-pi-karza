@@ -8,12 +8,13 @@ import { useLoadwise } from "@/lib/loadwise/store";
 export function ProfileAvatar() {
   const { state } = useLoadwise();
   const initial = state.profile?.name?.trim().slice(0, 1).toUpperCase();
+
   return (
     <Link
       to="/profil"
       preload="intent"
       aria-label="Profil, konto i ustawienia"
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card text-sm font-medium text-foreground transition-transform active:scale-95"
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-border/75 bg-card text-sm font-semibold text-foreground shadow-[0_8px_22px_-17px_oklch(0.18_0.06_255/0.45)] transition-[transform,border-color] duration-200 active:scale-[0.96]"
     >
       {initial || <User className="h-4 w-4" />}
     </Link>
@@ -32,14 +33,14 @@ export function AppHeader({
   brand?: boolean;
 }) {
   return (
-    <header className="px-5 pb-3 pt-5">
+    <header className="bw-page-header px-5 pb-3">
       {brand && (
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="icon-bubble h-8 w-8">
-              <Waves className="h-4 w-4" strokeWidth={2.4} />
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="icon-bubble bw-brand-mark h-9 w-9" aria-hidden="true">
+              <Waves className="h-[18px] w-[18px]" strokeWidth={2.25} />
             </span>
-            <span className="text-[15px] font-medium tracking-[-0.025em] text-foreground">
+            <span className="text-[15px] font-semibold tracking-[-0.025em] text-foreground">
               BallWise
             </span>
           </div>
@@ -51,10 +52,14 @@ export function AppHeader({
       )}
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-[24px] font-medium leading-tight tracking-[-0.03em] text-foreground">
+          <h1 className="text-[26px] font-semibold leading-[1.08] tracking-[-0.035em] text-foreground">
             {title}
           </h1>
-          {subtitle && <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>}
+          {subtitle && (
+            <p className="mt-2 max-w-[36ch] text-sm leading-relaxed text-muted-foreground">
+              {subtitle}
+            </p>
+          )}
         </div>
         {!brand && right}
       </div>
@@ -81,9 +86,10 @@ export function IntensityBadge({
       ? "bg-destructive/10 text-destructive"
       : "bg-primary/10 text-primary"
     : intensityStyles[intensity];
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${classes}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${classes}`}
     >
       {label ?? intensity}
     </span>
@@ -101,7 +107,7 @@ const dayTypeLabels: Record<DayType, string> = {
 
 export function DayTypeTag({ type }: { type: DayType }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center rounded-full border border-border/80 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
       {dayTypeLabels[type]}
     </span>
   );
@@ -109,7 +115,7 @@ export function DayTypeTag({ type }: { type: DayType }) {
 
 export function Disclaimer() {
   return (
-    <div className="mx-5 mb-28 mt-4 flex gap-2.5 rounded-2xl bg-muted/60 p-3.5">
+    <div className="mx-5 mb-28 mt-4 flex gap-2.5 rounded-2xl border border-border/60 bg-muted/55 p-3.5">
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <p className="text-xs leading-relaxed text-muted-foreground">
         BallWise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej. Nie diagnozuje, nie

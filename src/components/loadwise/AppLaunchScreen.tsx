@@ -1,9 +1,11 @@
 export function AppLaunchScreen() {
   return (
     <div
-      className="app-shell min-h-screen bg-background"
+      className="app-shell bw-launch"
       aria-busy="true"
       aria-label="Ładowanie aplikacji BallWise"
-    />
+    >
+      <span className="bw-launch__signal" aria-hidden="true" />
+    </div>
   );
 }
