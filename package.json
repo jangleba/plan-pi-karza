@@ -9,16 +9,26 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:mobile": "vite build --config vite.mobile.config.ts",
     "build:dev": "vite build --mode development",
+    "ios:setup": "node scripts/setup-ios.mjs",
+    "ios:sync": "node scripts/setup-ios.mjs --sync-only",
+    "ios:open": "npx cap open ios",
     "preview": "wrangler --cwd .output dev",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run test -- --testTimeout=30000 && npm run lint && npm run build",
+    "verify:release": "npm run verify && npm run build:mobile",
     "cleanup:vision": "node scripts/remove-vision-lab.mjs"
   },
   "dependencies": {
+    "@ballwise/camera": "file:native/ballwise-camera",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.2",
     "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/mcp-js": "^0.20.0",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -75,6 +85,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.2",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.13.1",
     "@types/node": "^22.16.5",

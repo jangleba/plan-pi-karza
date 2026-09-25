@@ -24,6 +24,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as TabsFootballIqRouteImport } from './routes/_tabs.football-iq'
 import { Route as TabsFuelRouteImport } from './routes/_tabs.fuel'
+import { Route as TabsLabRouteImport } from './routes/_tabs.lab'
 import { Route as TabsPlanRouteImport } from './routes/_tabs.plan'
 import { Route as TabsPostepRouteImport } from './routes/_tabs.postep'
 import { Route as TabsProfilRouteImport } from './routes/_tabs.profil'
@@ -107,6 +108,11 @@ const TabsFuelRoute = TabsFuelRouteImport.update({
   path: '/fuel',
   getParentRoute: () => TabsRoute,
 } as any)
+const TabsLabRoute = TabsLabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => TabsRoute,
+} as any)
 const TabsPlanRoute = TabsPlanRouteImport.update({
   id: '/plan',
   path: '/plan',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/football-iq': typeof TabsFootballIqRoute
   '/fuel': typeof TabsFuelRoute
+  '/lab': typeof TabsLabRoute
   '/plan': typeof TabsPlanRoute
   '/postep': typeof TabsPostepRoute
   '/profil': typeof TabsProfilRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/football-iq': typeof TabsFootballIqRoute
   '/fuel': typeof TabsFuelRoute
+  '/lab': typeof TabsLabRoute
   '/plan': typeof TabsPlanRoute
   '/postep': typeof TabsPostepRoute
   '/profil': typeof TabsProfilRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_tabs/football-iq': typeof TabsFootballIqRoute
   '/_tabs/fuel': typeof TabsFuelRoute
+  '/_tabs/lab': typeof TabsLabRoute
   '/_tabs/plan': typeof TabsPlanRoute
   '/_tabs/postep': typeof TabsPostepRoute
   '/_tabs/profil': typeof TabsProfilRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/football-iq'
     | '/fuel'
+    | '/lab'
     | '/plan'
     | '/postep'
     | '/profil'
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/football-iq'
     | '/fuel'
+    | '/lab'
     | '/plan'
     | '/postep'
     | '/profil'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_tabs/football-iq'
     | '/_tabs/fuel'
+    | '/_tabs/lab'
     | '/_tabs/plan'
     | '/_tabs/postep'
     | '/_tabs/profil'
@@ -402,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TabsFuelRouteImport
       parentRoute: typeof TabsRoute
     }
+    '/_tabs/lab': {
+      id: '/_tabs/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof TabsLabRouteImport
+      parentRoute: typeof TabsRoute
+    }
     '/_tabs/plan': {
       id: '/_tabs/plan'
       path: '/plan'
@@ -450,6 +469,7 @@ declare module '@tanstack/react-router' {
 interface TabsRouteChildren {
   TabsFootballIqRoute: typeof TabsFootballIqRoute
   TabsFuelRoute: typeof TabsFuelRoute
+  TabsLabRoute: typeof TabsLabRoute
   TabsPlanRoute: typeof TabsPlanRoute
   TabsPostepRoute: typeof TabsPostepRoute
   TabsProfilRoute: typeof TabsProfilRoute
@@ -459,6 +479,7 @@ interface TabsRouteChildren {
 const TabsRouteChildren: TabsRouteChildren = {
   TabsFootballIqRoute: TabsFootballIqRoute,
   TabsFuelRoute: TabsFuelRoute,
+  TabsLabRoute: TabsLabRoute,
   TabsPlanRoute: TabsPlanRoute,
   TabsPostepRoute: TabsPostepRoute,
   TabsProfilRoute: TabsProfilRoute,

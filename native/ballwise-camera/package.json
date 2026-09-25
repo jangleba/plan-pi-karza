@@ -1,0 +1,20 @@
+{
+  "name": "@ballwise/camera",
+  "version": "1.0.0",
+  "description": "BallWise native iOS 240 FPS capture and exact-frame extraction",
+  "license": "UNLICENSED",
+  "private": true,
+  "files": [
+    "ios",
+    "Package.swift",
+    "BallwiseCamera.podspec"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

@@ -846,9 +846,7 @@ function StartScreen() {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() =>
-                  toast.info("BallWise Lab dodamy w osobnej paczce pomiarowej.")
-                }
+                onClick={() => navigate({ to: "/lab" })}
                 className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
               >
                 <span
