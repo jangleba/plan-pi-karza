@@ -476,3 +476,454 @@ a,
     transform: none;
   }
 }
+
+/* ========================================================================== */
+/* BallWise Basic Visual System v2 — restrained light overrides              */
+/* ========================================================================== */
+
+/* ==========================================================================
+ * BallWise Basic Visual System v2 — 2026-09-25
+ * One restrained light language for Start, Plan, IQ, Fuel, Progress, Profile,
+ * session views, sheets and forms. Pure presentation: no product logic here.
+ * ========================================================================== */
+
+:root,
+.dark {
+  color-scheme: light;
+  --radius: 1rem;
+  --background: oklch(0.982 0.006 247);
+  --foreground: oklch(0.225 0.044 258);
+  --card: oklch(0.998 0.002 247);
+  --card-foreground: oklch(0.225 0.044 258);
+  --popover: oklch(0.998 0.002 247);
+  --popover-foreground: oklch(0.225 0.044 258);
+  --primary: oklch(0.355 0.105 252);
+  --primary-foreground: oklch(0.99 0.002 247);
+  --secondary: oklch(0.952 0.014 244);
+  --secondary-foreground: oklch(0.29 0.064 253);
+  --muted: oklch(0.958 0.01 247);
+  --muted-foreground: oklch(0.52 0.03 253);
+  --accent: oklch(0.925 0.034 239);
+  --accent-foreground: oklch(0.31 0.078 252);
+  --border: oklch(0.89 0.018 247);
+  --input: oklch(0.865 0.022 247);
+  --ring: oklch(0.56 0.115 245);
+  --brand: oklch(0.355 0.105 252);
+  --brand-soft: oklch(0.925 0.034 239);
+  --graphite: oklch(0.355 0.105 252);
+  --graphite-foreground: oklch(0.99 0.002 247);
+  --graphite-muted: oklch(0.72 0.025 247);
+  --chart-1: oklch(0.5 0.125 248);
+  --chart-2: oklch(0.63 0.09 229);
+  --chart-3: oklch(0.66 0.072 202);
+  --chart-4: oklch(0.69 0.06 261);
+  --chart-5: oklch(0.77 0.048 238);
+  --pitch-grass: oklch(0.972 0.01 242);
+  --pitch-grass-alt: oklch(0.952 0.016 240);
+  --pitch-line: oklch(0.66 0.07 248);
+  --pitch-shadow: oklch(0.74 0.035 246);
+  --bw-shadow-card: 0 1px 2px oklch(0.18 0.05 255 / 0.025),
+    0 12px 28px -26px oklch(0.18 0.06 255 / 0.22);
+  --bw-shadow-float: 0 18px 42px -28px oklch(0.16 0.06 255 / 0.28),
+    0 1px 4px oklch(0.16 0.05 255 / 0.045);
+  --bw-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bw-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html,
+body {
+  background: var(--background);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter,
+    "Segoe UI", system-ui, sans-serif;
+  color: var(--foreground);
+  font-feature-settings: "kern" 1, "ss01" 1, "cv11" 1;
+  letter-spacing: -0.008em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.app-shell {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  margin-inline: auto;
+  background:
+    radial-gradient(circle at 50% -10rem, oklch(0.96 0.018 239 / 0.34), transparent 24rem),
+    var(--background);
+}
+
+.bw-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 680;
+  letter-spacing: 0.25em;
+  line-height: 1;
+}
+
+.bw-wordmark-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 0.25rem oklch(0.56 0.115 245 / 0.06);
+}
+
+.bw-page-header {
+  padding-top: max(1.25rem, env(safe-area-inset-top));
+  padding-bottom: 0.85rem;
+}
+
+.bw-page-header h1 {
+  font-size: clamp(1.75rem, 7vw, 2.05rem);
+  font-weight: 650;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+.soft-card,
+.premium-flow .soft-card,
+.progress-premium .soft-card,
+.fuel-premium .soft-card,
+.profile-premium > .space-y-3 > .soft-card {
+  border: 1px solid oklch(0.875 0.021 247 / 0.8);
+  border-radius: 1.15rem;
+  background: oklch(0.998 0.002 247 / 0.94);
+  box-shadow: var(--bw-shadow-card);
+}
+
+.hero-card {
+  border: 1px solid oklch(0.84 0.03 245 / 0.82);
+  border-radius: 1.3rem;
+  background: var(--card);
+  background-image: none;
+  color: var(--foreground);
+  box-shadow: var(--bw-shadow-card);
+}
+
+.icon-bubble {
+  border: 1px solid oklch(0.82 0.052 240 / 0.5);
+  background: var(--brand-soft);
+  color: var(--brand);
+  box-shadow: none;
+}
+
+.app-shell button,
+.app-shell a,
+.app-shell [role="button"] {
+  transition:
+    color 180ms var(--bw-ease),
+    background-color 180ms var(--bw-ease),
+    border-color 180ms var(--bw-ease),
+    opacity 180ms var(--bw-ease),
+    transform 160ms var(--bw-ease);
+}
+
+.app-shell button:active,
+.app-shell a:active,
+.app-shell [role="button"]:active {
+  transform: scale(0.985);
+}
+
+.app-shell input,
+.app-shell textarea,
+.app-shell select {
+  border-color: oklch(0.86 0.024 247 / 0.86);
+  background: oklch(0.996 0.003 247 / 0.88);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.65);
+}
+
+.app-shell input:focus,
+.app-shell textarea:focus,
+.app-shell select:focus {
+  border-color: oklch(0.61 0.09 245 / 0.72);
+  box-shadow: 0 0 0 0.22rem oklch(0.62 0.09 242 / 0.09);
+  outline: none;
+}
+
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"],
+[data-slot="sheet-content"],
+[data-slot="drawer-content"] {
+  border-color: oklch(0.86 0.026 247 / 0.88);
+  background: oklch(0.995 0.004 247 / 0.96);
+  box-shadow: 0 28px 70px -34px oklch(0.14 0.07 258 / 0.38);
+  -webkit-backdrop-filter: blur(24px) saturate(1.18);
+  backdrop-filter: blur(24px) saturate(1.18);
+}
+
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-overlay"],
+[data-slot="drawer-overlay"] {
+  background: oklch(0.12 0.035 258 / 0.34);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+/* Five permanent destinations only. */
+.bw-tab-bar {
+  position: fixed;
+  z-index: 50;
+  right: 0.65rem;
+  bottom: max(0.55rem, env(safe-area-inset-bottom));
+  left: 0.65rem;
+  width: calc(100% - 1.3rem);
+  max-width: 28.7rem;
+  margin-inline: auto;
+  border: 1px solid oklch(0.855 0.024 247 / 0.72);
+  border-radius: 1.45rem;
+  background: oklch(0.994 0.004 247 / 0.88);
+  box-shadow: var(--bw-shadow-float);
+  -webkit-backdrop-filter: blur(26px) saturate(1.3);
+  backdrop-filter: blur(26px) saturate(1.3);
+}
+
+.bw-tab-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.12rem;
+  padding: 0.34rem 0.34rem calc(0.34rem + env(safe-area-inset-bottom) * 0.12);
+}
+
+.bw-tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.55rem;
+  gap: 0.17rem;
+  border-radius: 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.625rem;
+  font-weight: 590;
+  text-decoration: none;
+}
+
+.bw-tab-icon {
+  display: grid;
+  place-items: center;
+}
+
+.bw-tab-item.is-active {
+  background: oklch(0.925 0.034 239 / 0.86);
+  color: var(--primary);
+}
+
+.bw-tab-item.is-active .bw-tab-icon {
+  transform: translateY(-1px);
+}
+
+/* Start stays intentionally sparse. */
+.start-decision-screen {
+  background: transparent;
+}
+
+.start-decision-screen .soft-card {
+  box-shadow: none;
+}
+
+/* Plan: clean schedule hierarchy without heavy blocks. */
+.app-shell [class*="bg-secondary/70"],
+.app-shell [class*="bg-secondary/60"],
+.app-shell [class*="bg-secondary/55"] {
+  border-color: oklch(0.88 0.02 247 / 0.74);
+}
+
+.app-shell .sticky[class*="bg-background"] {
+  background: oklch(0.982 0.006 247 / 0.88);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+/* IQ: schematic pitch rather than a saturated game-like surface. */
+.iq-premium [class*="shadow-sm"] {
+  box-shadow: none;
+}
+
+.iq-premium [class*="bg-card"] {
+  border-color: oklch(0.875 0.02 247 / 0.78);
+}
+
+.iq-premium svg text {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif;
+}
+
+/* Fuel: remove the single large dark promo block while preserving hierarchy. */
+.fuel-premium .bg-foreground {
+  border: 1px solid oklch(0.86 0.024 247 / 0.8) !important;
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  box-shadow: var(--bw-shadow-card) !important;
+}
+
+.fuel-premium .bg-foreground [class*="text-background"] {
+  color: var(--muted-foreground) !important;
+}
+
+.fuel-premium .bg-foreground .bg-background {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.fuel-premium section,
+.fuel-premium [class*="rounded-["] {
+  box-shadow: none;
+}
+
+/* Progress: data first, restrained linework. */
+.progress-premium [class*="shadow"] {
+  box-shadow: none;
+}
+
+.progress-premium svg {
+  overflow: visible;
+}
+
+/* Profile: trustworthy list surfaces, not stacked floating cards. */
+.profile-premium > .space-y-3 {
+  gap: 0.65rem;
+}
+
+.profile-premium > .space-y-3 > .soft-card {
+  background: oklch(0.998 0.002 247 / 0.82);
+}
+
+/* Session screen: clear exercise steps and touch targets. */
+.premium-flow .soft-card img,
+.bw-blueprint-frame img {
+  image-rendering: auto;
+}
+
+.bw-blueprint-frame {
+  border-color: oklch(0.87 0.02 247 / 0.76);
+  background: oklch(0.992 0.004 247);
+}
+
+/* Loading and page motion: one calm cue, never a generic spinner. */
+.premium-flow,
+.auth-premium,
+.onboarding-premium,
+.start-decision-screen {
+  animation: bw-basic-enter 220ms var(--bw-ease-emphasized) both;
+}
+
+@keyframes bw-basic-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::view-transition-old(root) {
+  animation: bw-basic-out 150ms var(--bw-ease) both;
+}
+
+::view-transition-new(root) {
+  animation: bw-basic-enter 190ms var(--bw-ease) both;
+}
+
+@keyframes bw-basic-out {
+  to {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* Press feedback is small and physical. */
+.motion-press:active {
+  transform: scale(0.985);
+}
+
+/* Launch screen uses a quiet brand signal instead of a spinner. */
+.bw-launch {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  background: var(--background);
+}
+
+.bw-launch__signal {
+  position: relative;
+  display: grid;
+  width: 3.1rem;
+  height: 3.1rem;
+  place-items: center;
+  border: 1px solid oklch(0.8 0.055 241 / 0.55);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 14px 36px -26px oklch(0.2 0.08 255 / 0.4);
+}
+
+.bw-launch__signal::before,
+.bw-launch__signal::after {
+  position: absolute;
+  border-radius: 999px;
+  content: "";
+}
+
+.bw-launch__signal::before {
+  width: 1.05rem;
+  height: 1.05rem;
+  background: var(--primary);
+}
+
+.bw-launch__signal::after {
+  inset: -0.28rem;
+  border: 1px solid oklch(0.56 0.115 245 / 0.2);
+  animation: bw-signal-breathe 1.9s var(--bw-ease) infinite;
+}
+
+@keyframes bw-signal-breathe {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.06);
+  }
+}
+
+/* Focus remains obvious without becoming visually loud. */
+:focus-visible {
+  outline: 2px solid oklch(0.56 0.115 245 / 0.72);
+  outline-offset: 3px;
+}
+
+/* Desktop preview keeps the mobile product framed, never stretched. */
+@media (min-width: 40rem) {
+  .app-shell {
+    border-inline: 1px solid oklch(0.86 0.022 247 / 0.58);
+    box-shadow: 0 0 72px -56px oklch(0.16 0.06 255 / 0.34);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .premium-flow,
+  .auth-premium,
+  .onboarding-premium,
+  .start-decision-screen {
+    transform: none;
+  }
+}

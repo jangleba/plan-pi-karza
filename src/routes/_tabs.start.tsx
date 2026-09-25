@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, ChevronRight, Info } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, Move, ScanLine } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
@@ -24,7 +24,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { ModifySheet, type ModificationChoice } from "@/components/loadwise/ModifySheet";
 import { ProfileAvatar } from "@/components/loadwise/ui";
@@ -393,7 +392,6 @@ function StartScreen() {
   const navigate = useNavigate();
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
-  const [explanationOpen, setExplanationOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [modifyTarget, setModifyTarget] = useState<"primary" | "second" | null>(null);
   const [modifyChoice, setModifyChoice] = useState<ModificationChoice | null>(null);
@@ -409,7 +407,6 @@ function StartScreen() {
     alternative: SessionDay;
   } | null>(null);
   const autoGenerateRef = useRef(false);
-  const openingSessionRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
   const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
@@ -760,90 +757,142 @@ function StartScreen() {
     );
   }
 
-  function openSession() {
-    if (decisionMode === "checkin_required" || !hasTraining) return;
-    if (openingSessionRef.current) return;
-    openingSessionRef.current = true;
-    void navigate({
-      to: "/sesja/$date",
-      params: { date: session.date },
-      search: { slot: 1 },
-    }).finally(() => {
-      window.setTimeout(() => {
-        openingSessionRef.current = false;
-      }, 220);
-    });
-  }
+  const firstName = profile.name.trim().split(/\s+/)[0] || "Zawodniku";
+  const checkinComplete = decisionMode !== "checkin_required";
 
   return (
     <>
-      <main className="start-decision-screen px-6 pb-32 pt-6">
-        <header className="flex items-center justify-between">
-          <span className="text-[17px] font-medium tracking-[-0.025em]">BallWise</span>
+      <main className="start-decision-screen px-5 pb-32 pt-5">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
+              <span className="text-[11px] font-semibold tracking-[0.28em] text-primary">
+                BALLWISE
+              </span>
+            </div>
+            <h1 className="mt-4 text-[36px] font-semibold leading-none tracking-[-0.045em] text-foreground">
+              Start
+            </h1>
+            <p className="mt-2 text-[17px] text-muted-foreground">Cześć, {firstName}</p>
+          </div>
           <ProfileAvatar />
         </header>
 
-        <section className="mx-auto flex min-h-[calc(100vh-11rem)] max-w-sm flex-col justify-center py-8">
-          <div className="mb-7 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[oklch(0.78_0.04_151)] text-white">
-              <Check className="h-3 w-3" strokeWidth={2.4} />
-            </span>
-            {copy.eyebrow}
-          </div>
-
-          <div className="text-center">
-            {decisionMode !== "checkin_required" && (
-              <Dialog open={explanationOpen} onOpenChange={setExplanationOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    Dlaczego? <Info className="h-3.5 w-3.5" />
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="border-border/70 bg-popover">
-                  <DialogHeader>
-                    <DialogTitle>Dlaczego taka decyzja?</DialogTitle>
-                    <DialogDescription className="leading-relaxed">
-                      {adjusted.whyToday || copy.description}
-                    </DialogDescription>
-                  </DialogHeader>
-                </DialogContent>
-              </Dialog>
-            )}
-            <h1 className="mt-3 text-[28px] font-medium leading-tight tracking-[-0.035em]">
-              {copy.title}
-            </h1>
-            <p className="mx-auto mt-2 max-w-[18rem] text-[15px] leading-relaxed text-muted-foreground">
-              {copy.description}
-            </p>
-          </div>
-
-          <div className="mt-9">
-            {decisionMode === "checkin_required" ? (
+        <div className="mt-8 space-y-4">
+          <section className="soft-card px-5 py-5" aria-labelledby="start-checkin-title">
+            <div className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">
+              CHECK-IN
+            </div>
+            <div className="mt-5 flex flex-col items-center text-center">
+              <span
+                className="grid h-14 w-14 place-items-center rounded-full border border-primary/35 bg-primary/[0.035] text-primary"
+                aria-hidden="true"
+              >
+                <Check className="h-7 w-7" strokeWidth={1.8} />
+              </span>
+              <h2
+                id="start-checkin-title"
+                className="mt-4 text-[21px] font-semibold tracking-[-0.025em] text-foreground"
+              >
+                {checkinComplete ? "Check-in wykonany" : "Czy dzisiejszy plan jest aktualny?"}
+              </h2>
+              <p className="mt-2 max-w-[18rem] text-sm leading-relaxed text-muted-foreground">
+                {checkinComplete
+                  ? copy.title
+                  : "30 sekund, żeby potwierdzić lub dopasować dzisiejszy plan."}
+              </p>
               <Button
-                className="h-12 w-full rounded-xl text-[15px]"
+                type="button"
+                className="mt-5 h-12 w-full rounded-full text-[15px]"
+                disabled={savingAction}
                 onClick={() => setCheckinOpen(true)}
               >
-                Zrób check-in
+                {checkinComplete ? "Zmień check-in" : "Rozpocznij check-in"}
+                <ChevronRight className="h-4 w-4" />
               </Button>
-            ) : !hasTraining ? (
-              <Button
-                className="h-12 w-full rounded-xl text-[15px]"
-                onClick={() => navigate({ to: "/plan" })}
-              >
-                Zobacz tydzień <ChevronRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button className="h-12 w-full rounded-xl text-[15px]" onClick={openSession}>
-                Start <ChevronRight className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </section>
-      </main>
+            </div>
+          </section>
 
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/plan" })}
+            className="soft-card flex min-h-[5.5rem] w-full items-center gap-4 px-4 py-3.5 text-left active:scale-[0.99]"
+          >
+            <span
+              className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
+              aria-hidden="true"
+            >
+              <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+                Twój plan
+              </span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                Dzisiejszy trening i cały tydzień
+              </span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+          </button>
+
+          <section className="pt-3" aria-labelledby="start-tools-title">
+            <h2
+              id="start-tools-title"
+              className="mb-3 text-[23px] font-semibold tracking-[-0.035em] text-foreground"
+            >
+              Narzędzia
+            </h2>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() =>
+                  toast.info("BallWise Lab dodamy w osobnej paczce pomiarowej.")
+                }
+                className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
+              >
+                <span
+                  className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
+                  aria-hidden="true"
+                >
+                  <ScanLine className="h-5 w-5" strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold text-foreground">
+                    BallWise Lab
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    Testy i pomiary
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/reakcja" })}
+                className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
+              >
+                <span
+                  className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
+                  aria-hidden="true"
+                >
+                  <Move className="h-5 w-5" strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold text-foreground">
+                    Bodźce boiskowe
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    Kierunki i kolory
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
       <DailyPlanCheckinDialog
         open={checkinOpen}
         onOpenChange={setCheckinOpen}

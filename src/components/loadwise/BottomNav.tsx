@@ -6,7 +6,7 @@ const items = [
   { to: "/plan", label: "Plan", icon: CalendarDays },
   { to: "/football-iq", label: "IQ", icon: Brain },
   { to: "/fuel", label: "Fuel", icon: Apple },
-  { to: "/postep", label: "Postęp", icon: TrendingUp },
+  { to: "/postep", label: "Progres", icon: TrendingUp },
 ] as const;
 
 export function BottomNav() {
@@ -40,3 +40,4 @@ export function BottomNav() {
     </nav>
   );
 }
+

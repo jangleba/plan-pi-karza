@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { Intensity, DayType } from "@/lib/loadwise/types";
-import { ShieldAlert, Waves, User } from "lucide-react";
+import { ShieldAlert, User } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
 
 /** Avatar w prawym górnym rogu — wejście do profilu, konta i ustawień. */
 export function ProfileAvatar() {
   const { state } = useLoadwise();
-  const initial = state.profile?.name?.trim().slice(0, 1).toUpperCase();
+  const initials = (state.profile?.name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.slice(0, 1).toUpperCase())
+    .join("");
 
   return (
     <Link
@@ -16,7 +22,7 @@ export function ProfileAvatar() {
       aria-label="Profil, konto i ustawienia"
       className="flex h-10 w-10 items-center justify-center rounded-full border border-border/75 bg-card text-sm font-semibold text-foreground shadow-[0_8px_22px_-17px_oklch(0.18_0.06_255/0.45)] transition-[transform,border-color] duration-200 active:scale-[0.96]"
     >
-      {initial || <User className="h-4 w-4" />}
+      {initials || <User className="h-4 w-4" />}
     </Link>
   );
 }
@@ -36,14 +42,10 @@ export function AppHeader({
     <header className="bw-page-header px-5 pb-3">
       {brand && (
         <div className="mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="icon-bubble bw-brand-mark h-9 w-9" aria-hidden="true">
-              <Waves className="h-[18px] w-[18px]" strokeWidth={2.25} />
-            </span>
-            <span className="text-[15px] font-semibold tracking-[-0.025em] text-foreground">
-              BallWise
-            </span>
-          </div>
+          <span className="bw-wordmark" aria-label="BallWise">
+            <span className="bw-wordmark-dot" aria-hidden="true" />
+            BALLWISE
+          </span>
           <div className="flex items-center gap-2">
             {right}
             <ProfileAvatar />
@@ -125,3 +127,4 @@ export function Disclaimer() {
     </div>
   );
 }
+
