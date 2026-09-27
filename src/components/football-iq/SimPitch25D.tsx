@@ -78,6 +78,8 @@ type Props = {
   onActorSelect?: (actorId: string) => void;
   /** Ogranicza wybór np. tylko do własnego zespołu w planerze. */
   selectableKinds?: SimActorKind[];
+  /** Opcjonalna lista aktorów decyzyjnych; wyklucza neutralne tło formacji. */
+  selectableActorIds?: string[];
   /** Gest na murawie kończy się w tym punkcie boiska. */
   onPlanTarget?: (point: { x: number; y: number }) => void;
   /** Podgląd strzałki pod palcem przed zapisaniem akcji. */
@@ -116,6 +118,7 @@ export function SimPitch25D({
   highlightedActorLabel,
   onActorSelect,
   selectableKinds,
+  selectableActorIds,
   onPlanTarget,
   makePlannerPreview,
 }: Props) {
@@ -470,7 +473,9 @@ export function SimPitch25D({
             ? tokenY - 10.5 * labelScale
             : tokenY + 6.3 * labelScale;
         const selectable = Boolean(
-          onActorSelect && (selectableKinds ? selectableKinds.includes(a.kind) : a.kind !== "self"),
+          onActorSelect &&
+            (selectableKinds ? selectableKinds.includes(a.kind) : a.kind !== "self") &&
+            (!selectableActorIds || selectableActorIds.includes(a.id)),
         );
         const selected = a.id === selectedActorId;
         const reactionLabelScale = Math.max(0.95, s);

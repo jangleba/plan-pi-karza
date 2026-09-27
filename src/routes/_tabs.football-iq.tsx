@@ -1,6 +1,20 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Pencil, Play, RotateCcw, Shuffle, SkipForward, UserRound } from "lucide-react";
+import {
+  ArrowLeft,
+  BrainCircuit,
+  ChevronRight,
+  Clock3,
+  Pause,
+  Pencil,
+  Play,
+  RotateCcw,
+  ShieldCheck,
+  Shuffle,
+  SkipForward,
+  Target,
+  UserRound,
+} from "lucide-react";
 
 import { AppHeader } from "@/components/loadwise/ui";
 import type { SimPitchActor, SimPitchPath } from "@/components/football-iq/SimPitch";
@@ -87,6 +101,10 @@ function NoPositionScreen() {
 
 const FLOW_STEPS = ["Sekwencja", "Druga decyzja", "Konsekwencja"] as const;
 const REPLAY_BASE_MS = 6200;
+const MATCH_DECISIONS = 8;
+const MISTAKES_KEY = "ballwise-iq-mistakes-v1";
+
+type IQMode = "quick" | "match" | "mistakes";
 
 function replayStepOf(progress: number) {
   return sequencePhaseOf(progress);
@@ -189,8 +207,24 @@ function shortPosition(label: string) {
 }
 
 function Simulation({ group, level }: { group: IQPositionGroup; level?: Level }) {
-  const pool = useMemo(() => scenariosForPosition(group, level), [group, level]);
-  const [scenarioId, setScenarioId] = useState(pool[0].id);
+  const allPool = useMemo(() => scenariosForPosition(group, level), [group, level]);
+  const [mode, setMode] = useState<IQMode | null>(null);
+  const [mistakeIds, setMistakeIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(window.localStorage.getItem(MISTAKES_KEY) ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  });
+  const mistakePool = useMemo(
+    () => allPool.filter((item) => mistakeIds.includes(item.id)),
+    [allPool, mistakeIds],
+  );
+  const pool = mode === "mistakes" && mistakePool.length ? mistakePool : allPool;
+  const [scenarioId, setScenarioId] = useState(allPool[0].id);
+  const [matchDecision, setMatchDecision] = useState(1);
+  const [completedDecisions, setCompletedDecisions] = useState(0);
   const scenario: SimScenario = useMemo(
     () => pool.find((s) => s.id === scenarioId) ?? pool[0],
     [pool, scenarioId],
@@ -203,6 +237,13 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   /** Tory rozwinięte do 6 klatek kluczowych — wspólna choreografia silnika. */
   const simActors = useMemo(() => choreograph(scenario), [scenario]);
   const selfSim = simActors.find((a) => a.kind === "self");
+  const decisionActorIds = useMemo(
+    () =>
+      scenario.actors
+        .filter((actor) => actor.kind === "self" || actor.kind === "mate")
+        .map((actor) => actor.id),
+    [scenario],
+  );
 
   const [started, setStarted] = useState(false);
   const [stage, setStage] = useState<SimStage>("observation");
@@ -267,6 +308,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
     setFreezeT(1);
     setTimingMs(decisionAnchorMs(scenario));
     setSelectedActorId(isGoalkeeper ? undefined : selfSim?.id);
+    setSelectedActionId(scenario.actions[0]?.id ?? null);
     setStage("decision");
   }, [scenario, isGoalkeeper, selfSim]);
 
@@ -274,7 +316,7 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   useEffect(() => {
     if (!started || stage !== "observation" || !sequencePlaying) return;
     let raf = 0;
-    const total = Math.max(ADVANCED_SEQUENCE_MS, scenario.observationMs);
+    const total = Math.min(7_000, Math.max(ADVANCED_SEQUENCE_MS, scenario.observationMs));
     const startedAt = performance.now() - tRef.current * total;
     const tick = (now: number) => {
       const p = Math.min(1, (now - startedAt) / total);
@@ -476,8 +518,18 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
         to: goalkeeperPoint,
       });
     }
+    const nextResult = evaluate(scenario, nextChoice);
+    const shouldRepeat = nextResult.feedback.some((item) => item.verdict === "poor");
     setChoice(nextChoice);
-    setResult(evaluate(scenario, nextChoice));
+    setResult(nextResult);
+    setCompletedDecisions((value) => value + 1);
+    if (shouldRepeat && typeof window !== "undefined") {
+      setMistakeIds((current) => {
+        const next = [scenario.id, ...current.filter((id) => id !== scenario.id)].slice(0, 20);
+        window.localStorage.setItem(MISTAKES_KEY, JSON.stringify(next));
+        return next;
+      });
+    }
     setReplayPlan(snapshot);
     setReplayVariant("user");
     setReplayStep(0);
@@ -538,16 +590,44 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   }
 
   const goNext = () => {
+    if (mode === "match" && matchDecision >= MATCH_DECISIONS) {
+      setStarted(false);
+      setMode(null);
+      setMatchDecision(1);
+      return;
+    }
     const index = pool.findIndex((item) => item.id === scenario.id);
     const next = pool[(index + 1) % pool.length];
+    if (mode === "match") setMatchDecision((value) => value + 1);
     if (next.id === scenario.id) resetRun();
     else setScenarioId(next.id);
   };
+
+  if (!mode) {
+    return (
+      <IQHomeScreen
+        mistakeCount={mistakeIds.length}
+        completedDecisions={completedDecisions}
+        onSelect={(nextMode) => {
+          if (nextMode === "mistakes" && mistakePool.length === 0) return;
+          const nextPool = nextMode === "mistakes" ? mistakePool : allPool;
+          setMode(nextMode);
+          setScenarioId(nextPool[0]?.id ?? allPool[0].id);
+          setMatchDecision(1);
+          setCompletedDecisions(0);
+          setStarted(false);
+        }}
+      />
+    );
+  }
 
   if (!started) {
     return (
       <BriefingScreen
         scenario={scenario}
+        mode={mode}
+        matchDecisions={MATCH_DECISIONS}
+        onBack={() => setMode(null)}
         onReady={() => {
           resetRun();
           setStarted(true);
@@ -558,6 +638,305 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
         }}
         poolSize={pool.length}
       />
+    );
+  }
+
+  const compactLessons = result && choice ? decisionLessons(scenario, result, choice) : [];
+  const resultStatus = result?.feedback.some((item) => item.verdict === "poor")
+    ? "Ryzykowne"
+    : result?.feedback.every((item) => item.verdict === "good")
+      ? "Optymalne"
+      : "Możliwe";
+  const visibleTools = tools.slice(0, 3);
+
+  if (started) {
+    return (
+      <div className="fixed inset-0 z-[80] flex h-[100dvh] w-full flex-col overflow-hidden bg-graphite text-graphite-foreground">
+        <section className="relative h-[66.667dvh] min-h-0 shrink-0 overflow-hidden bg-graphite">
+          <div className="absolute inset-0">
+            <SimPitch25D
+              actors={actors}
+              paths={paths}
+              pulse={stage === "observation"}
+              selectedActorId={stage === "decision" ? selectedActorId : undefined}
+              highlightedActorId={stage === "replay" && replayStep === 1 ? keyOpponentId : undefined}
+              highlightedActorLabel={
+                stage === "replay" && replayStep === 1 ? reactionForView?.label : undefined
+              }
+              selectableKinds={
+                stage === "decision" && !isGoalkeeper ? ["self", "mate"] : undefined
+              }
+              selectableActorIds={stage === "decision" ? decisionActorIds : undefined}
+              onActorSelect={
+                stage === "decision" && !isGoalkeeper ? setSelectedActorId : undefined
+              }
+              onPlanTarget={stage === "decision" ? addPlanAction : undefined}
+              makePlannerPreview={stage === "decision" ? plannerPreview : undefined}
+            />
+          </div>
+
+          <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 bg-black/32 px-3 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.55rem)] text-white backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setStarted(false);
+                setMode(null);
+              }}
+              className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/42 backdrop-blur-md"
+              aria-label="Zakończ ćwiczenie"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="min-w-0 flex-1 pt-0.5 text-center drop-shadow-sm">
+              <p className="truncate text-[14px] font-semibold">{scenario.title}</p>
+              <p className="mt-0.5 text-[11px] font-medium text-white/75">
+                {mode === "match"
+                  ? `Mecz IQ · decyzja ${matchDecision}/${MATCH_DECISIONS}`
+                  : mode === "mistakes"
+                    ? "Moje błędy"
+                    : "Szybka sytuacja"}
+              </p>
+            </div>
+            <span className="grid h-11 min-w-11 shrink-0 place-items-center rounded-full bg-black/42 px-2 text-[12px] font-bold backdrop-blur-md">
+              {selfRole}
+            </span>
+          </header>
+
+          {stage === "replay" && (
+            <div className="absolute left-1/2 top-[calc(env(safe-area-inset-top)+4.3rem)] z-20 flex -translate-x-1/2 rounded-full bg-black/55 p-1 text-[11px] font-semibold text-white backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => {
+                  setReplayVariant("user");
+                  setReplayRun((value) => value + 1);
+                }}
+                className={
+                  "min-h-9 rounded-full px-3 " +
+                  (replayVariant === "user" ? "bg-white text-graphite" : "text-white/75")
+                }
+              >
+                Twój ruch
+              </button>
+              <button
+                type="button"
+                disabled={!result?.alternative}
+                onClick={() => {
+                  setReplayVariant("alt");
+                  setReplayRun((value) => value + 1);
+                }}
+                className={
+                  "min-h-9 rounded-full px-3 disabled:opacity-35 " +
+                  (replayVariant === "alt" ? "bg-[#f2d64b] text-[#071b33]" : "text-white/75")
+                }
+              >
+                Lepsza opcja
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="flex h-[33.333dvh] min-h-0 shrink-0 flex-col overflow-hidden bg-[#071b33] px-4 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-3 text-white">
+          {stage === "observation" && (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#f2d64b]">
+                    Obserwuj · moment {sequencePhaseOf(t) + 1}/5
+                  </p>
+                  <h2 className="mt-1 line-clamp-2 text-[18px] font-semibold leading-tight">
+                    {sequence.question}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSequencePlaying((playing) => !playing)}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/20 bg-white/8"
+                  aria-label={sequencePlaying ? "Pauza" : "Kontynuuj"}
+                >
+                  {sequencePlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-5 gap-1.5" aria-label="Postęp akcji">
+                {sequence.phases.map((label, index) => (
+                  <span
+                    key={label}
+                    className={
+                      "h-1.5 rounded-full " +
+                      (index <= sequencePhaseOf(t) ? "bg-[#f2d64b]" : "bg-white/16")
+                    }
+                  />
+                ))}
+              </div>
+              <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-white/68">
+                Śledź ustawienie swojej pozycji, piłkę i ruch najbliższej linii.
+              </p>
+              <button
+                type="button"
+                onClick={finishSequence}
+                className="mt-auto flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#f2d64b] px-4 text-[14px] font-bold text-[#071b33] active:scale-[0.99]"
+              >
+                Podejmij decyzję <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {stage === "decision" && (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#f2d64b]">
+                    Twoja decyzja
+                  </p>
+                  <h2 className="mt-1 line-clamp-1 text-[17px] font-semibold leading-tight">
+                    Wskaż ruch bezpośrednio na boisku
+                  </h2>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    onClick={undoPlan}
+                    disabled={!plan.length}
+                    className="grid h-10 w-10 place-items-center rounded-full border border-white/18 bg-white/7 disabled:opacity-30"
+                    aria-label="Cofnij ruch"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {!isGoalkeeper && (
+                <div className="mt-2 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Tryb decyzji">
+                  {visibleTools.map((toolId) => (
+                    <button
+                      key={toolId}
+                      type="button"
+                      role="radio"
+                      aria-checked={plannerTool === toolId}
+                      onClick={() => setPlannerTool(toolId)}
+                      className={
+                        "min-h-10 truncate rounded-lg border px-2 text-[11px] font-semibold " +
+                        (plannerTool === toolId
+                          ? "border-[#f2d64b] bg-[#f2d64b] text-[#071b33]"
+                          : "border-white/18 bg-white/7 text-white/82")
+                      }
+                    >
+                      {toolId === "position"
+                        ? "Ruch"
+                        : toolId === "press" || toolId === "counterpress"
+                          ? "Pressing"
+                          : toolId === "cover" || toolId === "block_lane"
+                            ? "Asekuracja"
+                            : toolId === "pass" || toolId.includes("pass")
+                              ? "Podanie"
+                              : toolId === "run" || toolId.includes("run")
+                                ? "Bieg"
+                                : toolId.replaceAll("_", " ")}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-2 grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Zachowanie">
+                {scenario.actions.slice(0, 4).map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selectedActionId === action.id}
+                    onClick={() => setSelectedActionId(action.id)}
+                    className={
+                      "min-h-9 truncate rounded-lg border px-2 text-left text-[11px] font-medium " +
+                      (selectedActionId === action.id
+                        ? "border-white/75 bg-white/16 text-white"
+                        : "border-white/12 bg-transparent text-white/64")
+                    }
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={playPlan}
+                disabled={!canPlay}
+                className="mt-auto flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#f2d64b] px-4 text-[14px] font-bold text-[#071b33] active:scale-[0.99] disabled:opacity-35"
+              >
+                Oceń decyzję <Play className="h-4 w-4 fill-current" />
+              </button>
+            </div>
+          )}
+
+          {stage === "replay" && result && choice && view && (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/50">
+                    Analiza · moment {mode === "match" ? matchDecision : pool.findIndex((item) => item.id === scenario.id) + 1}
+                  </p>
+                  <h2 className="mt-1 text-[19px] font-semibold">{resultStatus}</h2>
+                </div>
+                <span
+                  className={
+                    "rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase " +
+                    (resultStatus === "Optymalne"
+                      ? "border-emerald-300/35 bg-emerald-400/12 text-emerald-200"
+                      : resultStatus === "Ryzykowne"
+                        ? "border-red-300/35 bg-red-400/12 text-red-200"
+                        : "border-[#f2d64b]/40 bg-[#f2d64b]/10 text-[#f2d64b]")
+                  }
+                >
+                  {resultStatus}
+                </span>
+              </div>
+
+              <div className="mt-2 space-y-1.5">
+                {compactLessons.slice(0, 2).map((lesson, index) => (
+                  <p key={lesson.key} className="line-clamp-1 text-[12px] leading-snug text-white/78">
+                    <span className={index === 0 ? "text-[#f2d64b]" : "text-emerald-300"}>
+                      {index === 0 ? "• " : "✓ "}
+                    </span>
+                    {lesson.text}
+                  </p>
+                ))}
+                {compactLessons[2] && (
+                  <p className="line-clamp-1 rounded-lg bg-white/8 px-2.5 py-2 text-[11px] text-white/72">
+                    <span className="font-semibold text-white">Sygnał: </span>
+                    {compactLessons[2].text}
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-auto grid grid-cols-[0.9fr_1.4fr] gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResult(null);
+                    setChoice(null);
+                    setReplayPlan([]);
+                    setReplayProgress(0);
+                    setReplayVariant("user");
+                    setStage("decision");
+                  }}
+                  className="min-h-11 rounded-xl border border-white/20 bg-white/8 px-3 text-[12px] font-semibold"
+                >
+                  Zagraj ponownie
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#f2d64b] px-3 text-[12px] font-bold text-[#071b33]"
+                >
+                  {mode === "match" && matchDecision >= MATCH_DECISIONS
+                    ? "Zakończ Mecz IQ"
+                    : "Następna sytuacja"}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
     );
   }
 
@@ -725,6 +1104,91 @@ function Simulation({ group, level }: { group: IQPositionGroup; level?: Level })
   );
 }
 
+function IQHomeScreen({
+  mistakeCount,
+  completedDecisions,
+  onSelect,
+}: {
+  mistakeCount: number;
+  completedDecisions: number;
+  onSelect: (mode: IQMode) => void;
+}) {
+  return (
+    <div className="premium-flow iq-premium min-h-full bg-background pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+      <AppHeader title="Football IQ" subtitle="Trenuj decyzje meczowe na swojej pozycji." />
+      <main className="px-4">
+        <section className="rounded-2xl border border-border/70 bg-card p-2 shadow-sm">
+          <button
+            type="button"
+            onClick={() => onSelect("quick")}
+            className="motion-press flex min-h-[5.25rem] w-full items-center gap-3 rounded-xl px-3 text-left active:scale-[0.99]"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary text-primary">
+              <Clock3 className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-semibold text-foreground">Szybkie sytuacje</span>
+              <span className="mt-0.5 block text-[13px] text-muted-foreground">Jedna akcja · 2–3 min</span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelect("match")}
+            className="motion-press relative flex min-h-[7.75rem] w-full overflow-hidden rounded-xl bg-[#071b33] p-4 text-left text-white active:scale-[0.99]"
+          >
+            <span className="relative z-10 min-w-0 flex-1 pr-20">
+              <span className="inline-flex rounded-full bg-[#f2d64b] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#071b33]">
+                Główny tryb
+              </span>
+              <span className="mt-3 block text-[22px] font-semibold leading-none">Mecz IQ</span>
+              <span className="mt-1.5 block text-[13px] leading-snug text-white/68">
+                Ciągła symulacja decyzji Twojej pozycji
+              </span>
+            </span>
+            <span className="absolute bottom-3 right-3 grid h-16 w-16 place-items-center rounded-2xl border border-[#f2d64b]/35 bg-[#f2d64b]/10 text-[#f2d64b]">
+              <BrainCircuit className="h-8 w-8" />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelect("mistakes")}
+            disabled={!mistakeCount}
+            className="motion-press mt-1 flex min-h-[5.25rem] w-full items-center gap-3 rounded-xl px-3 text-left active:scale-[0.99] disabled:opacity-45"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary text-primary">
+              <Target className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-semibold text-foreground">Moje błędy</span>
+              <span className="mt-0.5 block text-[13px] text-muted-foreground">
+                {mistakeCount ? `${mistakeCount} momentów do powtórzenia` : "Pojawią się po pierwszym treningu"}
+              </span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </section>
+
+        <section className="mt-3 flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-foreground">
+              {completedDecisions ? `${completedDecisions} ukończonych decyzji` : "Trening dopasowany do pozycji"}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+              Bez testu refleksu. Liczy się struktura, ruch i konsekwencja.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 function SourceLink({ scenario }: { scenario: SimScenario }) {
   const ref = scenario.sourceReference;
   if (!ref) return null;
@@ -744,20 +1208,115 @@ function SourceLink({ scenario }: { scenario: SimScenario }) {
 
 function BriefingScreen({
   scenario,
+  mode,
+  matchDecisions,
+  onBack,
   onReady,
   onShuffle,
   poolSize,
 }: {
   scenario: SimScenario;
+  mode: IQMode;
+  matchDecisions: number;
+  onBack: () => void;
   onReady: () => void;
   onShuffle: () => void;
   poolSize: number;
 }) {
   const ctx = scenario.context;
+  if (mode) {
+    return (
+      <div className="premium-flow iq-premium flex h-[calc(100dvh-5.75rem-env(safe-area-inset-bottom))] min-h-0 flex-col overflow-hidden bg-background">
+        <header className="flex shrink-0 items-center gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.65rem)]">
+          <button
+            type="button"
+            onClick={onBack}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-card text-foreground shadow-sm"
+            aria-label="Wróć"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold leading-tight text-foreground">
+              {mode === "match" ? "Mecz IQ" : mode === "mistakes" ? "Moje błędy" : "Szybka sytuacja"}
+            </h1>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {mode === "match" ? `${matchDecisions} kolejnych decyzji` : "Jedna akcja · natychmiastowa analiza"}
+            </p>
+          </div>
+        </header>
+
+        <main className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/45 bg-[var(--pitch-grass)] shadow-sm">
+            <div className="absolute inset-[8%] rounded-[0.7rem] border-2 border-white/65" />
+            <div className="absolute inset-y-[8%] left-1/2 w-px bg-white/65" />
+            <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/65" />
+            <div className="absolute inset-x-0 bottom-0 bg-[#071b33]/88 px-4 py-4 text-white backdrop-blur-sm">
+              <span className="inline-flex rounded-full bg-[#f2d64b] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#071b33]">
+                {TOPIC_LABELS[scenario.topic]}
+              </span>
+              <h2 className="mt-2 line-clamp-2 text-[22px] font-semibold leading-tight">{scenario.title}</h2>
+              <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-white/72">{scenario.brief}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid shrink-0 grid-cols-3 gap-2">
+            <div className="rounded-xl bg-card px-2 py-2.5 text-center">
+              <p className="text-[10px] text-muted-foreground">Pozycja</p>
+              <p className="mt-1 truncate text-[12px] font-semibold text-foreground">{ctx.positionLabel}</p>
+            </div>
+            <div className="rounded-xl bg-card px-2 py-2.5 text-center">
+              <p className="text-[10px] text-muted-foreground">Faza</p>
+              <p className="mt-1 truncate text-[12px] font-semibold text-foreground">{ctx.phase}</p>
+            </div>
+            <div className="rounded-xl bg-card px-2 py-2.5 text-center">
+              <p className="text-[10px] text-muted-foreground">Decyzje</p>
+              <p className="mt-1 text-[12px] font-semibold text-foreground">
+                {mode === "match" ? matchDecisions : 1}
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-3 shrink-0 text-center text-[12px] leading-snug text-muted-foreground">
+            Sterujesz tylko zachowaniem swojej pozycji. Pozostali zawodnicy poruszają się automatycznie.
+          </p>
+
+          <div className="mt-3 grid shrink-0 grid-cols-[1fr_auto] gap-2">
+            <button
+              type="button"
+              onClick={onReady}
+              className="flex min-h-13 items-center justify-center gap-2 rounded-xl bg-[#071b33] px-4 text-[14px] font-semibold text-white"
+            >
+              <Play className="h-4 w-4 fill-current" />
+              {mode === "match" ? "Rozpocznij mecz" : "Rozpocznij akcję"}
+            </button>
+            <button
+              type="button"
+              onClick={onShuffle}
+              className="grid h-13 w-13 place-items-center rounded-xl border border-border/70 bg-card text-foreground"
+              aria-label="Zmień sytuację"
+            >
+              <Shuffle className="h-4 w-4" />
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="premium-flow iq-premium min-h-full bg-background pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-      <AppHeader title="BallWise IQ" subtitle="Rozumiej strukturę, decyzję i jej konsekwencję." />
+      <AppHeader
+        title={mode === "match" ? "Mecz IQ" : mode === "mistakes" ? "Moje błędy" : "Szybka sytuacja"}
+        subtitle={mode === "match" ? `Seria ${matchDecisions} decyzji dla Twojej pozycji.` : "Jedna sytuacja. Jedna konkretna lekcja."}
+      />
       <div className="space-y-3 px-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-[13px] font-semibold text-muted-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Wróć do Football IQ
+        </button>
         <div className="soft-card border border-border/70 bg-card/90 p-5 shadow-sm">
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex rounded-full border border-primary/20 bg-primary/[0.07] px-3 py-1.5 text-[12px] font-semibold text-primary">

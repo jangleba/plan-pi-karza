@@ -31,6 +31,82 @@ function dist(a: Pt, b: Pt) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+const OWN_STRUCTURE: Pt[] = [
+  { x: 50, y: 132 },
+  { x: 14, y: 111 },
+  { x: 36, y: 119 },
+  { x: 64, y: 119 },
+  { x: 86, y: 109 },
+  { x: 35, y: 91 },
+  { x: 63, y: 88 },
+  { x: 18, y: 70 },
+  { x: 50, y: 69 },
+  { x: 82, y: 68 },
+  { x: 50, y: 43 },
+];
+
+const OPPONENT_STRUCTURE: Pt[] = [
+  { x: 50, y: 8 },
+  { x: 14, y: 31 },
+  { x: 36, y: 28 },
+  { x: 64, y: 28 },
+  { x: 86, y: 33 },
+  { x: 35, y: 54 },
+  { x: 63, y: 56 },
+  { x: 18, y: 76 },
+  { x: 50, y: 73 },
+  { x: 82, y: 77 },
+  { x: 50, y: 97 },
+];
+
+/**
+ * Scenariusze przechowują wyłącznie aktorów decyzyjnych. Renderer potrzebuje
+ * jednak pełnego kontekstu meczu. Brakujące miejsca formacji są uzupełniane
+ * neutralnymi zawodnikami struktury. Nie są selekowalni przez silnik i nie
+ * zmieniają stref, reakcji ani wyniku decyzji.
+ */
+function completeMatchStructure(actors: SimActor[], ballDx: number, ballDy: number) {
+  const additions: SimActor[] = [];
+  const occupied = actors
+    .filter((actor) => actor.kind !== "ball")
+    .map((actor) => actorAt(actor.path, 0));
+
+  const addSide = (kind: "mate" | "opponent", anchors: Pt[], target: number) => {
+    const current = actors.filter((actor) =>
+      kind === "mate"
+        ? actor.kind === "mate" || actor.kind === "self"
+        : actor.kind === "opponent",
+    ).length;
+    let missing = Math.max(0, target - current);
+    for (let index = 0; index < anchors.length && missing > 0; index += 1) {
+      const anchor = anchors[index];
+      if (occupied.some((point) => dist(point, anchor) < 7.5)) continue;
+      const path = CHOREO_KEYFRAMES.map((t) => {
+        const phase = Math.min(1, Math.max(0, (t - 0.18) / 0.82));
+        const direction = kind === "mate" ? 1 : 0.72;
+        const lateral = Math.sin((t + index * 0.17) * Math.PI) * 0.7;
+        return {
+          t,
+          x: clampX(anchor.x + ballDx * 0.12 * phase * direction + lateral),
+          y: clampY(anchor.y + ballDy * 0.08 * phase * direction),
+        };
+      });
+      additions.push({
+        id: `structure-${kind}-${index}`,
+        kind,
+        label: kind === "mate" ? "Partner" : "Rywal",
+        path,
+      });
+      occupied.push(anchor);
+      missing -= 1;
+    }
+  };
+
+  addSide("mate", OWN_STRUCTURE, 11);
+  addSide("opponent", OPPONENT_STRUCTURE, 11);
+  return [...actors, ...additions];
+}
+
 /** Zawodnik najbliższy piłce na starcie — posiadacz. */
 function findCarrier(scenario: SimScenario, ballStart: Pt | null) {
   if (!ballStart) return undefined;
@@ -105,7 +181,7 @@ export function choreograph(scenario: SimScenario): SimActor[] {
         Math.abs(actorAt(b.path, 0).x - 50) - Math.abs(actorAt(a.path, 0).x - 50),
     )[0];
 
-  return scenario.actors.map((actor) => {
+  const coreActors = scenario.actors.map((actor) => {
     const path = CHOREO_KEYFRAMES.map((t) => {
       const base = actorAt(actor.path, t);
       let { x, y } = base;
@@ -181,4 +257,6 @@ export function choreograph(scenario: SimScenario): SimActor[] {
 
     return { ...actor, path };
   });
+
+  return completeMatchStructure(coreActors, ballDx, ballDy);
 }

@@ -56,7 +56,8 @@ const TOPIC_TOOLS: Record<SimTopic, IQPlannerTool[]> = {
   ],
 };
 
-export const ADVANCED_SEQUENCE_MS = 11_000;
+/** Krótka, meczowa sekwencja: wystarczająca do skanowania, bez martwego czasu. */
+export const ADVANCED_SEQUENCE_MS = 5_800;
 
 export type AdvancedSequence = {
   phases: readonly [string, string, string, string, string];
