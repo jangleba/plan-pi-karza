@@ -14,6 +14,12 @@ type Props = {
 };
 
 const now = () => performance.now();
+const onboardingKey = "ballwise:football-iq:onboarding-seen";
+
+const shouldShowOnboarding = (enabled: boolean) => {
+  if (!enabled || typeof window === "undefined") return false;
+  return window.localStorage.getItem(onboardingKey) !== "1";
+};
 
 export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially = true, onBack, onComplete }: Props) {
   const [scenarioIndex, setScenarioIndex] = useState(initialScenario % scenarios.length);
@@ -27,7 +33,7 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
   const [hint, setHint] = useState("Obserwuj ustawienie i wolną przestrzeń");
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [paused, setPaused] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(showOnboardingInitially ? 0 : -1);
+  const [onboardingStep, setOnboardingStep] = useState(() => shouldShowOnboarding(showOnboardingInitially) ? 0 : -1);
   const startedAt = useRef(0);
   const pausedAt = useRef(0);
 
@@ -144,6 +150,11 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
     setHint("Obserwuj ustawienie i wolną przestrzeń");
   };
 
+  const closeOnboarding = () => {
+    window.localStorage.setItem(onboardingKey, "1");
+    setOnboardingStep(-1);
+  };
+
   useEffect(() => setSecondsLeft(scenario.decisionSeconds), [scenario]);
 
   const status = useMemo(() => {
@@ -184,7 +195,7 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
       <section className="bwiq-panel" aria-live="polite">
         {phase === "feedback" && evaluation ? (
           <>
-            <div className="bwiq-result-row"><span className="bwiq-score">{evaluation.score}</span><span>/100</span></div>
+            <span className="bwiq-result-label">PODSUMOWANIE DECYZJI</span>
             <h2>{evaluation.title}</h2>
             <p>{evaluation.message}</p>
             <div className="bwiq-tags">{evaluation.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
@@ -217,7 +228,7 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
         <Onboarding
           step={onboardingStep}
           onNext={() => setOnboardingStep((step) => Math.min(2, step + 1))}
-          onClose={() => setOnboardingStep(-1)}
+          onClose={closeOnboarding}
         />
       )}
     </main>

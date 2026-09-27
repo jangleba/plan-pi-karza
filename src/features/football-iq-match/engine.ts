@@ -14,16 +14,17 @@ export const evaluatePlan = (scenario: Scenario, plan: UserPlan): Evaluation => 
   const controlledRun = plan.runs.find((run) => run.playerId === scenario.controlledPlayerId);
   const runDistance = controlledRun ? closestDistance(controlledRun.to, scenario.preferredRunZones) : 100;
   const passDistance = plan.pass ? closestDistance(plan.pass.to, scenario.preferredPassZones) : 100;
-  const runPoints = controlledRun ? Math.max(0, 45 - runDistance * 2.2) : 0;
-  const passPoints = plan.pass && scenario.preferredPassZones.length ? Math.max(0, 45 - passDistance * 2.1) : 0;
+  const runPoints = controlledRun ? 24 + Math.max(0, 36 - runDistance * 1.25) : 0;
+  const passPoints = plan.pass && scenario.preferredPassZones.length ? 10 + Math.max(0, 25 - passDistance * 1.25) : 0;
   const supportPoints = Math.min(10, Math.max(0, plan.runs.length - 1) * 5);
-  const noPassScenarioBoost = scenario.preferredPassZones.length === 0 && controlledRun ? 35 : 0;
+  const noPassScenarioBoost = scenario.preferredPassZones.length === 0 && controlledRun ? 20 : 0;
   const score = Math.round(Math.min(100, runPoints + passPoints + supportPoints + noPassScenarioBoost));
-  const good = score >= 62;
+  const good = score >= 65;
+  const partial = score >= 35;
 
   return {
     score,
-    title: good ? "Dobra intencja" : "Sprawdź wolną przestrzeń",
+    title: good ? "Mocna decyzja" : partial ? "Dobra intencja — popraw detal" : "Sprawdź alternatywę",
     message: good ? scenario.goodFeedback : scenario.improveFeedback,
     tags: [
       controlledRun ? "ruch zapisany" : "brak ruchu TY",

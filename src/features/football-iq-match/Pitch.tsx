@@ -111,8 +111,8 @@ export function Pitch({ players, ball, plan, phase, progress, playbackProgress, 
     const from = player.from ?? player;
     const dx = point.x - from.x;
     const dy = point.y - from.y;
-    if (Math.abs(dx) + Math.abs(dy) < 0.5) return player.team === "home" ? 180 : 0;
-    return Math.atan2(dy, dx) * (180 / Math.PI) - 90;
+    if (Math.abs(dx) + Math.abs(dy) < 0.5) return player.team === "home" ? 0 : 180;
+    return Math.atan2(dy, dx) * (180 / Math.PI) + 90;
   };
 
   return (
