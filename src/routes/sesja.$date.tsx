@@ -5,7 +5,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -33,6 +33,7 @@ import { Slider } from "@/components/ui/slider";
 import type {
   SessionDay,
   TrainingSection,
+  TrainingBlock,
   TrainingExercise,
 } from "@/lib/loadwise/types";
 import {
@@ -70,9 +71,13 @@ import {
 } from "@/components/ui/accordion";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { isTrackableEnduranceRun } from "@/lib/running/session";
-import { isBallTechnicalSession } from "@/lib/loadwise/sessionClassification";
+import {
+  isBallTechnicalSession,
+  isStrengthSession,
+} from "@/lib/loadwise/sessionClassification";
 import { resolveTrainingDecisionMode } from "@/lib/loadwise/trainingDecisionGate";
 import { readDailyPlanCheckin } from "@/lib/loadwise/dailyPlanCheckin";
+import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 
@@ -1150,6 +1155,346 @@ const SprintStructuredSections = memo(function SprintStructuredSections({
   );
 });
 
+
+type StrengthStageKey = "warmup" | "main" | "accessory" | "cooldown";
+
+export type StrengthStageView = {
+  key: StrengthStageKey;
+  label: string;
+  blocks: TrainingBlock[];
+};
+
+const STRENGTH_STAGE_META: Array<{
+  key: StrengthStageKey;
+  label: string;
+  sectionTypes: string[];
+}> = [
+  { key: "warmup", label: "Rozgrzewka", sectionTypes: ["warmup", "prep"] },
+  { key: "main", label: "Siła i moc", sectionTypes: ["main"] },
+  {
+    key: "accessory",
+    label: "Akcesoria",
+    sectionTypes: ["accessory", "footballTransfer"],
+  },
+  { key: "cooldown", label: "Koniec", sectionTypes: ["cooldown"] },
+];
+
+/**
+ * Łączy prezentacyjne etapy sesji siłowej bez zmiany danych silnika.
+ * Akcesoria i transfer zachowują wszystkie bloki oraz ich kolejność.
+ */
+export function buildStrengthStages(
+  sections: TrainingSection[],
+): StrengthStageView[] {
+  return STRENGTH_STAGE_META.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    blocks: sections
+      .filter((section) => stage.sectionTypes.includes(section.type))
+      .flatMap((section) => section.blocks),
+  })).filter((stage) => stage.blocks.length > 0);
+}
+
+/** Zwraca samą wartość przerwy, nawet dla historycznie zdublowanego prefiksu. */
+export function normalizeStrengthBlockRest(
+  value: string | undefined,
+): string | null {
+  if (!value?.trim()) return null;
+  let normalized = value.trim();
+  while (/^przerwa po bloku:\s*/i.test(normalized)) {
+    normalized = normalized.replace(/^przerwa po bloku:\s*/i, "").trim();
+  }
+  return normalized || null;
+}
+
+export function splitStrengthBlockTitle(title: string): {
+  heading: string;
+  detail: string | null;
+} {
+  const clean = title.trim() || "Blok ćwiczeń";
+  const match = clean.match(/^(BLOK\s+[A-Z0-9]+)\s*[—–-]\s*(.+)$/i);
+  return match
+    ? { heading: match[1].toUpperCase(), detail: match[2].trim() }
+    : { heading: clean, detail: null };
+}
+
+const StrengthStructuredSections = memo(function StrengthStructuredSections({
+  sections,
+  date,
+  sessionId,
+  onFinish,
+}: {
+  sections: TrainingSection[];
+  date: string;
+  sessionId?: string | null;
+  onFinish: () => void;
+}) {
+  const { markEquipmentUnavailable } = useLoadwise();
+  const stages = useMemo(() => buildStrengthStages(sections), [sections]);
+  const [activeStageKey, setActiveStageKey] = useState<StrengthStageKey>(
+    stages[0]?.key ?? "warmup",
+  );
+  const [done, setDone] = useState<Record<string, boolean>>({});
+  const [runnerExercise, setRunnerExercise] =
+    useState<TrainingExercise | null>(null);
+
+  useEffect(() => {
+    if (
+      stages.length > 0 &&
+      !stages.some((stage) => stage.key === activeStageKey)
+    ) {
+      setActiveStageKey(stages[0].key);
+    }
+  }, [activeStageKey, stages]);
+
+  if (stages.length === 0) return null;
+
+  const activeStage =
+    stages.find((stage) => stage.key === activeStageKey) ?? stages[0];
+  const stageIndex = stages.findIndex(
+    (stage) => stage.key === activeStage.key,
+  );
+  const exerciseCount = activeStage.blocks.reduce(
+    (sum, block) => sum + block.exercises.length,
+    0,
+  );
+  const pluralBlocks =
+    activeStage.blocks.length === 1
+      ? "1 blok"
+      : activeStage.blocks.length >= 2 && activeStage.blocks.length <= 4
+        ? `${activeStage.blocks.length} bloki`
+        : `${activeStage.blocks.length} bloków`;
+  const pluralExercises =
+    exerciseCount === 1
+      ? "1 ćwiczenie"
+      : exerciseCount >= 2 && exerciseCount <= 4
+        ? `${exerciseCount} ćwiczenia`
+        : `${exerciseCount} ćwiczeń`;
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="grid gap-1 rounded-2xl bg-muted/55 p-1"
+        style={{
+          gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))`,
+        }}
+        aria-label="Etapy treningu siłowego"
+      >
+        {stages.map((stage) => {
+          const active = stage.key === activeStage.key;
+          return (
+            <button
+              key={stage.key}
+              type="button"
+              onClick={() => setActiveStageKey(stage.key)}
+              className={`relative min-h-11 rounded-xl px-1.5 py-2 text-[11px] font-semibold leading-tight transition-colors ${
+                active
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground"
+              }`}
+              aria-pressed={active}
+            >
+              {stage.label}
+              {active && (
+                <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div>
+        <h2 className="text-[22px] font-semibold tracking-[-0.03em] text-foreground">
+          {activeStage.label}
+        </h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          {pluralBlocks} · {pluralExercises}
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {activeStage.blocks.map((block, blockIndex) => {
+          const title = splitStrengthBlockTitle(
+            block.title || block.exercises[0]?.name || "Blok ćwiczeń",
+          );
+          const rest = normalizeStrengthBlockRest(block.restAfterBlock);
+          const firstIncomplete = block.exercises.find(
+            (exercise) => !done[exercise.id],
+          );
+          const blockCode =
+            title.heading.match(/^BLOK\s+([A-Z0-9]+)/i)?.[1] ??
+            String(blockIndex + 1);
+
+          return (
+            <section
+              key={block.id}
+              className="overflow-hidden rounded-2xl border border-border/70 bg-card"
+            >
+              <header className="border-b border-border/55 px-4 py-3">
+                <h3 className="text-[15px] font-bold tracking-[-0.01em] text-foreground">
+                  {title.heading}
+                </h3>
+                {title.detail && (
+                  <p className="mt-0.5 text-[12px] normal-case text-muted-foreground">
+                    {title.detail}
+                  </p>
+                )}
+              </header>
+
+              <div className="divide-y divide-border/55 px-4">
+                {block.exercises.map((exercise, exerciseIndex) => {
+                  const techniqueImage = getExerciseTechniqueImage(
+                    exercise.exerciseId,
+                  );
+                  const { dose, meta } = exerciseDataLineParts(exercise);
+                  const equipmentIds = specialistEquipmentForExercise(
+                    resolveDefinitionForExercise(exercise),
+                  );
+                  const equipmentNames = equipmentIds.map(
+                    (id) =>
+                      EQUIPMENT_DEFINITIONS.find((item) => item.id === id)
+                        ?.displayName ?? id,
+                  );
+                  const completed = Boolean(done[exercise.id]);
+                  const label =
+                    exercise.label || String(exerciseIndex + 1);
+
+                  return (
+                    <div key={exercise.id} className="py-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDone((current) => ({
+                              ...current,
+                              [exercise.id]: !current[exercise.id],
+                            }))
+                          }
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold transition-colors ${
+                            completed
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-accent text-accent-foreground"
+                          }`}
+                          aria-label={
+                            completed
+                              ? "Oznacz jako niewykonane"
+                              : "Oznacz jako wykonane"
+                          }
+                          aria-pressed={completed}
+                        >
+                          {completed ? <Check className="h-4 w-4" /> : label}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setRunnerExercise(exercise)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={`block text-[15px] font-semibold leading-[1.25] ${
+                                completed
+                                  ? "text-muted-foreground line-through"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {canonicalExerciseName(exercise)}
+                            </span>
+                            {(dose || meta) && (
+                              <span className="mt-1 block text-[12px] leading-[1.3] text-muted-foreground">
+                                {dose && (
+                                  <span className="mr-1.5 font-semibold tabular-nums text-foreground">
+                                    {dose}
+                                  </span>
+                                )}
+                                {meta}
+                              </span>
+                            )}
+                          </span>
+
+                          {techniqueImage ? (
+                            <span className="flex h-14 w-[84px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/55">
+                              <img
+                                src={techniqueImage.src}
+                                alt={techniqueImage.alt}
+                                loading="lazy"
+                                decoding="async"
+                                width={168}
+                                height={112}
+                                className="h-full w-full object-contain"
+                              />
+                            </span>
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/65" />
+                          )}
+                        </button>
+                      </div>
+
+                      {!completed && equipmentIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            markEquipmentUnavailable(
+                              date,
+                              exercise,
+                              equipmentIds,
+                            )
+                          }
+                          className="ml-12 mt-1.5 text-[11px] font-medium text-primary"
+                        >
+                          Nie mam {equipmentNames.join(", ")}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {rest && (
+                <div className="flex items-center gap-2 border-t border-border/55 px-4 py-2.5 text-[11px] text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span>Przerwa po bloku: {rest}</span>
+                </div>
+              )}
+
+              {firstIncomplete && (
+                <div className="px-4 pb-4 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRunnerExercise(firstIncomplete)}
+                    className="w-full rounded-xl bg-primary px-4 py-3 text-[14px] font-semibold text-primary-foreground transition-opacity active:opacity-85"
+                  >
+                    Rozpocznij blok {blockCode}
+                  </button>
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      {stageIndex === stages.length - 1 && (
+        <button
+          type="button"
+          onClick={onFinish}
+          className="w-full rounded-xl border border-primary/25 bg-card px-4 py-3 text-[14px] font-semibold text-primary"
+        >
+          Zakończ trening
+        </button>
+      )}
+
+      {runnerExercise && (
+        <ExerciseRunnerScreen
+          exercise={runnerExercise}
+          sessionId={sessionId}
+          open
+          onClose={() => setRunnerExercise(null)}
+        />
+      )}
+    </div>
+  );
+});
+
 const SECTION_TAB_LABELS: Record<string, string> = {
   warmup: "Przygotowanie ruchowe",
   prep: "Przygotowanie ruchowe",
@@ -1749,11 +2094,13 @@ function SessionDetail() {
   } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
   const [showSprintCompletion, setShowSprintCompletion] = useState(false);
+  const [showStrengthCompletion, setShowStrengthCompletion] = useState(false);
   const [dailyCheckinLoaded, setDailyCheckinLoaded] = useState(false);
   const [hasDailyCheckin, setHasDailyCheckin] = useState(false);
   const goBack = useInstantBack("/plan");
   useEffect(() => {
     setShowSprintCompletion(false);
+    setShowStrengthCompletion(false);
   }, [date, slot, mod]);
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
@@ -1920,6 +2267,7 @@ function SessionDetail() {
             })
           : [];
   const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
+  const strengthRunner = isStrengthSession(session) && structured.length > 0;
   const trackableEndurance =
     isTrackableEnduranceRun(session) && Boolean(session.dbId);
   const ballTechnicalSession = isBallTechnicalSession(session);
@@ -1943,43 +2291,72 @@ function SessionDetail() {
           <ChevronLeft className="h-4 w-4" /> Wstecz
         </button>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {formatDateFull(session.date)}
-          {session.mdLabel && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 font-medium">
-              <Flag className="h-3 w-3" /> {session.mdLabel}
-            </span>
-          )}
-          {isToday && (
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-              Dziś
-            </span>
-          )}
-        </div>
+        {strengthRunner ? (
+          <>
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.035em] text-foreground">
+              {professionalSessionTitle(session.title)}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
+              <span>{formatDateFull(session.date)}</span>
+              <span aria-hidden="true">·</span>
+              <span>{session.durationMin} min</span>
+              {session.mdLabel && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{session.mdLabel}</span>
+                </>
+              )}
+            </div>
+            {statusBadgeLabel(session) && (
+              <div className="mt-3">
+                <IntensityBadge
+                  intensity={session.intensity}
+                  label={statusBadgeLabel(session)}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {formatDateFull(session.date)}
+              {session.mdLabel && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 font-medium">
+                  <Flag className="h-3 w-3" /> {session.mdLabel}
+                </span>
+              )}
+              {isToday && (
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  Dziś
+                </span>
+              )}
+            </div>
 
-        {session.slotLabel && (
-          <div className="mt-2 inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-            {session.slotLabel}
-          </div>
+            {session.slotLabel && (
+              <div className="mt-2 inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
+                {session.slotLabel}
+              </div>
+            )}
+
+            <h1 className="mt-1.5 text-[24px] font-medium leading-tight tracking-[-0.03em]">
+              {professionalSessionTitle(session.title)}
+            </h1>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <DayTypeTag type={session.dayType} />
+              <IntensityBadge
+                intensity={session.intensity}
+                label={statusBadgeLabel(session)}
+              />
+              <span className="inline-flex items-center gap-1">
+                <Target className="h-3.5 w-3.5" /> {session.sessionType}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> {session.durationMin} min
+              </span>
+            </div>
+          </>
         )}
-
-        <h1 className="mt-1.5 text-[24px] font-medium leading-tight tracking-[-0.03em]">
-          {professionalSessionTitle(session.title)}
-        </h1>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <DayTypeTag type={session.dayType} />
-          <IntensityBadge
-            intensity={session.intensity}
-            label={statusBadgeLabel(session)}
-          />
-          <span className="inline-flex items-center gap-1">
-            <Target className="h-3.5 w-3.5" /> {session.sessionType}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" /> {session.durationMin} min
-          </span>
-        </div>
       </div>
 
       <div className="mt-5 space-y-3 px-5">
@@ -1994,13 +2371,13 @@ function SessionDetail() {
                   search: { slot: 1 },
                 })
               }
-              className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
+              className={`flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-1.5 text-center text-xs font-semibold leading-tight ${
                 slot === 1
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground"
               }`}
             >
-              1. {professionalSessionTitle(primary.title)}
+              {professionalSessionTitle(primary.title)}
             </button>
             <button
               onClick={() =>
@@ -2010,13 +2387,13 @@ function SessionDetail() {
                   search: { slot: 2 },
                 })
               }
-              className={`flex-1 truncate rounded-full px-3 py-1.5 text-xs font-semibold ${
+              className={`flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 py-1.5 text-center text-xs font-semibold leading-tight ${
                 slot === 2
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground"
               }`}
             >
-              2. {professionalSessionTitle(primary.secondSession.title)}
+              {professionalSessionTitle(primary.secondSession.title)}
             </button>
           </div>
         )}
@@ -2078,6 +2455,13 @@ function SessionDetail() {
             session={session}
             onFinish={() => setShowSprintCompletion(true)}
           />
+        ) : strengthRunner ? (
+          <StrengthStructuredSections
+            sections={structured}
+            date={date}
+            sessionId={session.dbId}
+            onFinish={() => setShowStrengthCompletion(true)}
+          />
         ) : (
           <>
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -2137,7 +2521,8 @@ function SessionDetail() {
           ) &&
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) &&
-          (!sprintRunner || showSprintCompletion) && (
+          (!sprintRunner || showSprintCompletion) &&
+          (!strengthRunner || showStrengthCompletion) && (
             <CompletionPanel session={session} />
           )}
 

@@ -4,6 +4,8 @@ import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import type { ExerciseItem, SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import {
   buildSprintRunnerBlocks,
+  buildStrengthStages,
+  normalizeStrengthBlockRest,
   canShowPostSessionForm,
   matchCanBeCompleted,
   formatSprintPrescription,
@@ -593,3 +595,58 @@ describe("sprint runner layout", () => {
     ]);
   });
 });
+
+describe("strength runner presentation helpers", () => {
+  it("łączy akcesoria i transfer bez utraty bloków", () => {
+    const sections: TrainingSection[] = [
+      {
+        id: "accessory",
+        title: "Akcesoria",
+        type: "accessory",
+        blocks: [
+          {
+            id: "acc-a",
+            title: "BLOK C — CORE",
+            blockType: "accessory",
+            intent: "stability",
+            exercises: [{ id: "c1", name: "Pallof press" }],
+          },
+        ],
+      },
+      {
+        id: "transfer",
+        title: "Transfer",
+        type: "footballTransfer" as TrainingSection["type"],
+        blocks: [
+          {
+            id: "transfer-a",
+            title: "Transfer piłkarski",
+            blockType: "single",
+            intent: "power",
+            exercises: [{ id: "t1", name: "Praca z piłką" }],
+          },
+        ],
+      },
+    ];
+
+    const accessory = buildStrengthStages(sections).find(
+      (stage) => stage.key === "accessory",
+    );
+
+    expect(accessory?.blocks.map((block) => block.id)).toEqual([
+      "acc-a",
+      "transfer-a",
+    ]);
+  });
+
+  it("usuwa każdy powtórzony prefiks przerwy po bloku", () => {
+    expect(
+      normalizeStrengthBlockRest(
+        "Przerwa po bloku: Przerwa po bloku: 90–120 s",
+      ),
+    ).toBe("90–120 s");
+    expect(normalizeStrengthBlockRest("45–60 s")).toBe("45–60 s");
+    expect(normalizeStrengthBlockRest(undefined)).toBeNull();
+  });
+});
+
