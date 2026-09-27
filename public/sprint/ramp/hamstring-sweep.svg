@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 512" role="img" aria-label="Hamstring sweep w trzech fazach">
+  <g fill="none" stroke="#074B7A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path opacity=".18" d="M42 420H726"/>
+    <g transform="translate(28 30)"><circle cx="92" cy="80" r="23"/><path d="M92 104v126M92 145l-48 47M92 145l51 47M92 230l-25 103-2 68M92 230l54 85 67 2"/></g>
+    <g transform="translate(265 30)"><circle cx="92" cy="80" r="23"/><path d="M92 104l-20 118M81 145l-66 58M80 145l75 54M72 222l-12 110 2 68M72 222l89 92 69 3"/></g>
+    <g transform="translate(500 30)"><circle cx="92" cy="80" r="23"/><path d="M92 104v126M92 145l-48 47M92 145l51 47M92 230l-24 103-2 68M92 230l55 85 68 2"/></g>
+    <path stroke="#67B7E8" d="M220 182h38m-12-12 12 12-12 12M455 182h38m-12-12 12 12-12 12"/>
+    <path stroke="#67B7E8" d="M297 198c39-30 77-30 112 0"/>
+  </g>
+</svg>
+

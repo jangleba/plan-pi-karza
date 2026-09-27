@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 512" role="img" aria-label="Mobilizacja stawu skokowego w trzech fazach">
+  <g fill="none" stroke="#074B7A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path opacity=".18" d="M48 416H720"/>
+    <g transform="translate(18 42)"><circle cx="100" cy="82" r="23"/><path d="M98 107l-4 111 61 9M94 146l64 34M94 150l-42 72M94 218l-52 85-6 92M94 218l89 55 70 4M183 273l15 107 66 1"/></g>
+    <g transform="translate(258 42)"><circle cx="100" cy="82" r="23"/><path d="M98 107l-4 111 66 12M94 146l67 37M94 150l-42 72M94 218l-52 85-6 92M94 218l100 58 66 3M194 276l18 104 61 1"/></g>
+    <g transform="translate(498 42)"><circle cx="100" cy="82" r="23"/><path d="M98 107l-4 111 72 15M94 146l72 41M94 150l-42 72M94 218l-52 85-6 92M94 218l112 61 59 2M206 279l20 101 58 1"/></g>
+    <path stroke="#67B7E8" d="M426 275h58m-17-17 17 17-17 17"/>
+    <path stroke="#67B7E8" d="M646 386h70"/>
+  </g>
+</svg>
+

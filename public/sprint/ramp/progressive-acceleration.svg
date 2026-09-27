@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 512" role="img" aria-label="Trzy progresywne przyspieszenia">
+  <g fill="none" stroke="#074B7A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path opacity=".18" d="M42 420H726"/>
+    <g transform="translate(34 46) rotate(-8 100 190)"><circle cx="104" cy="78" r="23"/><path d="M100 103l-22 109M87 142l-65 24M87 142l53 50M78 212l-69 65-17 104M78 212l76 66 67-8"/></g>
+    <g transform="translate(276 46) rotate(-13 100 190)"><circle cx="104" cy="78" r="23"/><path d="M100 103l-22 109M87 142l-65 18M87 142l58 45M78 212l-81 56-25 101M78 212l87 57 68-16"/></g>
+    <g transform="translate(518 46) rotate(-18 100 190)"><circle cx="104" cy="78" r="23"/><path d="M100 103l-22 109M87 142l-67 10M87 142l63 39M78 212l-91 45-31 98M78 212l96 47 67-24"/></g>
+    <path stroke="#67B7E8" d="M230 205h43m-13-13 13 13-13 13M472 205h43m-13-13 13 13-13 13"/>
+  </g>
+</svg>
+

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 512" role="img" aria-label="Trucht progresywny w trzech fazach">
+  <g fill="none" stroke="#074B7A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path opacity=".18" d="M54 410H714"/>
+    <g transform="translate(80 42)"><circle cx="90" cy="85" r="24"/><path d="M88 111l-8 98 50 58M84 144l-49 55M91 143l54 39M80 209l-54 93M80 209l74 55 58-8"/></g>
+    <g transform="translate(270 42)"><circle cx="90" cy="85" r="24"/><path d="M88 111l-5 98 58 47M84 145l-60 30M92 145l46 57M83 209l-71 63M83 209l58 79 71 6"/></g>
+    <g transform="translate(476 42)"><circle cx="90" cy="85" r="24"/><path d="M88 111l12 95 67 27M92 145l-55 2M100 146l57 52M100 206l-43 88-62 9M100 206l80 54 58-19"/></g>
+    <path stroke="#67B7E8" d="M225 198h42m-13-13 13 13-13 13M430 198h42m-13-13 13 13-13 13"/>
+  </g>
+</svg>
+
