@@ -121,6 +121,7 @@ export function ExerciseRunnerScreen({
   const [setNumber, setSetNumber] = useState(1);
   const [values, setValues] = useState<FieldValues>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [baselineError, setBaselineError] = useState<string | null>(null);
   const [errorsOpen, setErrorsOpen] = useState(false);
   const [frame, setFrame] = useState(0);
   const [progressionChoice, setProgressionChoice] = useState<
@@ -141,6 +142,10 @@ export function ExerciseRunnerScreen({
   const details = resolveExerciseSheetViewModel(exercise);
   const cues = details.cues.slice(0, 3);
   const doneCount = Object.keys(current).length;
+  const hasSavedLoad = [...Object.values(previous), ...Object.values(current)].some(
+    (log) => log?.weightKg != null && log.weightKg > 0,
+  );
+  const needsStartingLoad = metricKind === "load" && !hasSavedLoad;
   const sessionContext = useMemo(
     () =>
       effectiveSessions(
@@ -189,6 +194,7 @@ export function ExerciseRunnerScreen({
     if (!open) {
       setView("sets");
       setProgressionChoice(null);
+      setBaselineError(null);
     }
   }, [open]);
 
@@ -391,27 +397,54 @@ export function ExerciseRunnerScreen({
             </div>
           )}
 
+          {needsStartingLoad && (
+            <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3">
+              <div className="text-[13px] font-semibold text-foreground">
+                Ustal ciężar startowy
+              </div>
+              <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                Wpisz ciężar, którym wykonujesz dziś poprawnie zaplanowaną
+                liczbę powtórzeń. Zapiszemy go jako punkt wyjścia.
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 flex items-end gap-3">
             {fields.map((field) => (
               <NumberField
                 key={field.id}
                 field={field}
                 value={values[field.id]}
-                onChange={(next) =>
-                  setValues((state) => ({ ...state, [field.id]: next }))
-                }
+                onChange={(next) => {
+                  setValues((state) => ({ ...state, [field.id]: next }));
+                  if (field.id === "weight") setBaselineError(null);
+                }}
               />
             ))}
           </div>
+
+          {baselineError && (
+            <div className="mt-2 text-[12px] font-medium text-destructive">
+              {baselineError}
+            </div>
+          )}
 
           <button
             type="button"
             disabled={saving}
             onClick={async () => {
+              const weightKg = num(values.weight);
+              if (metricKind === "load" && (!weightKg || weightKg <= 0)) {
+                setBaselineError(
+                  "Wpisz używany ciężar, aby zapisać punkt wyjścia.",
+                );
+                return;
+              }
+              setBaselineError(null);
               setSaving(true);
               const ok = await saveSet({
                 setNumber,
-                weightKg: num(values.weight),
+                weightKg,
                 reps: num(values.reps),
                 rir: num(values.rir),
                 metricKind: metricKind === "load" ? null : metricKind,
