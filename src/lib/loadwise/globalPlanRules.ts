@@ -44,7 +44,6 @@ import {
   MAIN_GOAL_RULES,
   LIMITATION_RULES,
   POSITION_RULES,
-  LEVEL_RULES,
   SEASON_RULES,
   computeSessionLoad,
   computeWeeklyLoadScore,
@@ -769,9 +768,6 @@ export function findWeekConflicts(week: SessionDay[], context: TrainingContext):
 
     // speed dzień po speed
     if (dayHasSpeed(day) && dayHasSpeed(prev)) conflicts.push("speed-after-speed");
-    // speed po ciężkiej siłowni nóg
-    // "speed po ciężkich nogach" jest zarządzane przez scoring/downgrade w
-    // speedPlanning (kara + regresja), nie jako twardy konflikt tygodnia.
     // heavy lower dzień przed meczem
     if (dayHasHeavyLegs(day) && dayHasMatch(next)) conflicts.push("heavy-lower-before-match");
     // hard endurance dzień przed meczem
@@ -884,11 +880,6 @@ export const PLANNING_PRIORITY_ORDER = [
 ] as const;
 
 export type PlanningPriority = (typeof PLANNING_PRIORITY_ORDER)[number];
-
-/** Numer priorytetu (1 = najwyższy) dla logowania decyzji generatora. */
-export function planningPriorityRank(p: PlanningPriority): number {
-  return PLANNING_PRIORITY_ORDER.indexOf(p) + 1;
-}
 
 // re-export dla wygody testów/integracji
 export { blockWeekOf };

@@ -119,6 +119,25 @@ describe("weeklyRequirements — cel wydolnościowy", () => {
     expect(r.absoluteMinimumEnduranceSessions).toBe(0);
   });
 
+  it("dorosły zawodnik w sezonie nie dokłada wydolności do czterech treningów klubowych", () => {
+    const athlete = {
+      age: 22,
+      developmentStage: "adult",
+      gymExperienceLevel: "advanced",
+      trainingLevel: "advanced",
+      preferredTrainingStyle: "performance",
+      readiness: 8,
+    } as const;
+    const r = calculateWeeklyMinimumRequirements(
+      { seasonPhase: "inseason", clubTrainingCount: 4, matchCount: 0 },
+      { clubTrainingDays: [] },
+      "endurance",
+      athlete,
+    );
+    expect(r.requiredEnduranceSessions).toBe(0);
+    expect(r.absoluteMinimumEnduranceSessions).toBe(0);
+  });
+
   it("absoluteMinimum celu wydolnościowego wynosi 2", () => {
     const r = calculateWeeklyMinimumRequirements(
       ctx({ clubTrainingCount: 2 }),

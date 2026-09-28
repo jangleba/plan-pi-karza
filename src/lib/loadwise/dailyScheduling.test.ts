@@ -7,6 +7,8 @@ import {
   hasClubSession,
   hasEnduranceSession,
   hasMatchSession,
+  hasSpeedSession,
+  wouldCreateDuplicateSpeedDay,
   canAddSessionToDay,
   validateDailySessionLimit,
   validateTwoADayCombination,
@@ -59,6 +61,14 @@ describe("limity dzienne", () => {
     const d = day([gym({ loadLevel: "high" })]);
     const res = canAddSessionToDay(d, endurance({ loadLevel: "low" }), twoADay, null, null, adult);
     expect(res.allowed).toBe(true);
+  });
+
+  it("canAddSessionToDay odrzuca drugą szybkość tego samego dnia", () => {
+    const d = day([speed({ loadLevel: "high" })], { dayOfWeek: 3 });
+    const res = canAddSessionToDay(d, speed({ loadLevel: "low" }), twoADay);
+    expect(res.allowed).toBe(false);
+    expect(hasSpeedSession(d)).toBe(true);
+    expect(wouldCreateDuplicateSpeedDay(d, speed())).toBe(true);
   });
 
   it("stary przełącznik nie steruje już limitem gdy brak jawnego", () => {

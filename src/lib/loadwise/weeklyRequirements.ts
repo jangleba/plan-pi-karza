@@ -370,23 +370,6 @@ export function shouldAddSecondSpeedSession(
 }
 
 // ---------------------------------------------------------------------------
-// Rekomendacje dodatkowych sesji
-// ---------------------------------------------------------------------------
-
-export function calculateRecommendedExtraSessions(
-  ctx: WeekRequirementContext,
-  settings: UserRequirementSettings | null | undefined,
-  athleteGoal: string | null | undefined,
-  athlete?: AthleteRequirementProfile | null,
-): { recommendedEnduranceSessions: number; recommendedSpeedSessions: number } {
-  const required = calculateWeeklyMinimumRequirements(ctx, settings, athleteGoal, athlete);
-  return {
-    recommendedEnduranceSessions: required.requiredEnduranceSessions,
-    recommendedSpeedSessions: required.requiredSpeedSessions,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // GŁÓWNA funkcja — jedno źródło prawdy
 // ---------------------------------------------------------------------------
 

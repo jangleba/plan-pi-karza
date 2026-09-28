@@ -88,7 +88,3 @@ export function togglePitchFeeling<T extends string>(
 export function currentPitchFeelingLabels(ids: readonly CurrentPitchFeeling[]): string[] {
   return ids.map((id) => CURRENT_PITCH_FEELING_LABELS[id]);
 }
-
-export function desiredPitchFeelingLabels(ids: readonly DesiredPitchFeeling[]): string[] {
-  return ids.map((id) => DESIRED_PITCH_FEELING_LABELS[id]);
-}

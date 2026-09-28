@@ -11,7 +11,6 @@ import type {
   PlanSessionType,
   WeekStats,
   LoadTag,
-  Mesocycle,
   TrainingSection,
 } from "./types";
 import { assertPlanExerciseContract } from "./planExerciseContract";
@@ -45,7 +44,7 @@ import {
 import { hasRealSpeedExposure } from "./speedLoad";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
-import { getRequiredGymSessions, calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
+import { getRequiredGymSessions } from "./weeklyRequirements";
 import {
   assertFinalPlanMeetsMinimums,
   finalizeWeekPlan,
@@ -61,9 +60,6 @@ import {
   computeWeeklyLoadScore,
   computeSessionLoad,
   countWeekRoles,
-  countLimitationSessions,
-  requiredLimitationSessions,
-  limitationSupportCategory,
   validateGeneratedWeek,
   blockWeekOf,
   weekThemeFor,
@@ -730,15 +726,6 @@ function safeReplacementForCategory(
         prescription: "spokojne podania i prowadzenie",
       };
   }
-}
-
-/** Derives a coarse category from a Built object for pain-safety substitutions. */
-function categoryFromBuilt(built: Built): import("./types").SessionCategory {
-  const t = `${built.title} ${built.sessionType}`.toLowerCase();
-  if (/sprint|szybko|prędko|przyspiesz|akcelerac/i.test(t)) return "speed_sprint";
-  if (/sił|moc\b|power|strength|przysiad|martwy/i.test(t)) return "gym_strength";
-  if (/wytrzym|wydol|tlen|aerob|kondyc/i.test(t)) return "endurance_conditioning";
-  return "other";
 }
 
 function applyPainSafety(
@@ -3106,44 +3093,6 @@ function computeLoadTags(session: SessionDay): LoadTag[] {
     tags.add("core");
   }
   return [...tags];
-}
-
-/** Buduje opis mezocyklu (4–5 tygodni) z zablokowanych tematów i celu. */
-export function buildMesocycle(
-  profile: Profile,
-  blockWeeks: number,
-  weekOffset: number,
-  lockedThemes: Record<string, string>,
-): Mesocycle {
-  const length = Math.min(5, Math.max(4, blockWeeks));
-  return {
-    blockId: `block-${profile.goal}-${weekOffset}`,
-    blockWeekNumber: 1,
-    blockLengthWeeks: length,
-    mainGoal: profile.goal,
-    lockedMainExercises: { ...lockedThemes },
-    lockedTrainingThemes: roleThemesForGoal(profile.goal),
-    progressionRules:
-      "W1 kalibracja (RPE 6–7), W2 budowanie, W3 przeciążenie (najwyższy bodziec), W4 deload. " +
-      "Główne ćwiczenia i tematy stałe; progresja przez serie/powtórzenia/RPE/obciążenie/kontakty/tempo/zakres.",
-    deloadWeek: length >= 5 ? 4 : 4,
-    allowedSubstitutions: [
-      "Ból/uraz → wariant regresywny tej samej rodziny (np. RDL → hip thrust, Nordic → ekscentryk wspomagany).",
-      "Niska gotowość → niższy poziom plyo i mniejsza objętość, ten sam wzorzec.",
-      "Blisko meczu → kontrolowany hamstring i brak ciężkiego dolnego obciążenia.",
-    ],
-  };
-}
-
-function roleThemesForGoal(goal: Profile["goal"]): string[] {
-  switch (goal) {
-    case "speed":
-      return ["tylna taśma + sprint", "siła dolna + moc"];
-    case "power":
-      return ["siła dolna + moc", "praca jednonóż + hamowanie"];
-    default:
-      return ["dzień przysiadu (siła + moc)", "dzień trap bar / hinge total-body"];
-  }
 }
 
 /**

@@ -203,15 +203,3 @@ export function useExerciseSetLogs(
 
   return { current, previous, recentSessions, loading, saveSet };
 }
-
-/** Subtelny opis poprzedniego wyniku serii. */
-export function formatLastSet(log: SetLog | undefined): string {
-  if (!log) return "Pierwszy zapis";
-  const parts: string[] = [];
-  if (log.weightKg !== null) parts.push(`${log.weightKg} kg`);
-  if (log.reps !== null) parts.push(`× ${log.reps}`);
-  const head = parts.join(" ");
-  const rir = log.rir !== null ? `RIR ${log.rir}` : "";
-  if (!head && !rir) return "Pierwszy zapis";
-  return `Ostatnio: ${[head, rir].filter(Boolean).join(" · ")}`;
-}

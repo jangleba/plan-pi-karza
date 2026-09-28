@@ -324,7 +324,7 @@ describe("globalPlanRules — profil zawodnika (twarde zasady)", () => {
     const plan = generatePlan(profile, START, 28);
     const ctx = buildTrainingContext(profile);
     for (const week of fullWeeks(plan)) {
-      const res = validateWeek(week, ctx, { isFullWeek: true });
+      validateWeek(week, ctx, { isFullWeek: true });
       // return dopuszcza dominację recovery, ale bez konfliktów
       expect(findWeekConflicts(week, ctx)).toEqual([]);
     }

@@ -27,10 +27,7 @@ import {
   togglePitchFeeling,
 } from "@/lib/loadwise/playerDirection";
 import {
-  GOAL_LABELS,
-  SECONDARY_LIMITER_LABELS,
   POSITION_LABELS,
-  LEVEL_LABELS,
   ISO_DAY_LABELS,
   SEASON_PHASE_LABELS,
   SEASON_STAGE_LABELS,
@@ -102,17 +99,6 @@ const competitionLevels: CompetitionLevel[] = [
   "ii_liga_plus",
   "semi_pro",
   "pro",
-];
-const goals: Goal[] = [
-  "speed",
-  "strength",
-  "endurance",
-  "power",
-  "agility",
-  "general",
-  "mobility",
-  "return",
-  "matchready",
 ];
 const limiters: SecondaryLimiter[] = [
   "speed",
@@ -299,7 +285,7 @@ function Onboarding() {
     existing?.hasGym ?? false,
   );
   const [hasPitch, setHasPitch] = useState(existing?.hasPitch ?? true);
-  const [hasSprintSpace, setHasSprintSpace] = useState(
+  const [hasSprintSpace] = useState(
     existing?.hasSprintSpace ?? true,
   );
   const [seasonPhaseOverride, setSeasonPhaseOverride] = useState(

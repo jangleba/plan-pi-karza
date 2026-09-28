@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { generatePlan, weekRanges } from "./planEngine";
 import { FOOTBALL_SPEED_GENERATOR_VERSION } from "./footballSpeedSessionEngine";
-import { classifySession, isMainGymSession, isClubSession } from "./sessionClassification";
+import { classifySession, isMainGymSession } from "./sessionClassification";
 import type { Profile, SessionDay } from "./types";
 
 // ---------------------------------------------------------------------------

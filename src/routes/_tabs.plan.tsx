@@ -17,13 +17,12 @@ import {
 } from "@/lib/loadwise/planEngine";
 import { resolveEffectiveDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
-import { AppHeader, IntensityBadge } from "@/components/loadwise/ui";
+import { AppHeader } from "@/components/loadwise/ui";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
 import {
-  Clock,
   ChevronRight,
   CheckCircle2,
   CalendarClock,
@@ -90,71 +89,6 @@ function loadBarHeight(day: SessionDay): number {
   if (day.intensity === "wysoka" || day.dayType === "match") return 34;
   if (day.intensity === "umiarkowana" || day.dayType === "club") return 25;
   return 18;
-}
-
-function pluralWeeks(n: number): string {
-  if (n === 1) return "1 tydzień";
-  const last = n % 10;
-  const lastTwo = n % 100;
-  if (last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) {
-    return `${n} tygodnie`;
-  }
-  return `${n} tygodni`;
-}
-
-/** Krótki status dnia na karcie. */
-function dayStatus(day: SessionDay): string {
-  switch (day.dayType) {
-    case "match":
-      return "Mecz";
-    case "md-1":
-      return "Aktywacja";
-    case "club":
-      return "Klub";
-    case "recovery":
-      return "Regeneracja";
-    case "rest":
-      return "Wolne";
-    default:
-      return "Trening";
-  }
-}
-
-/** Jedna krótka „decyzja dnia". */
-function whatToDo(day: SessionDay): string {
-  switch (day.dayType) {
-    case "match":
-      return "Dzień meczu — wpisz minuty, RPE i krótką ocenę.";
-    case "md-1":
-      return "Krótka aktywacja, świeżość przed meczem, bez zmęczenia.";
-    case "club":
-      return "Monitoring klubu + RPE po treningu.";
-    case "recovery":
-      return day.mdLabel === "MD+1"
-        ? "Regeneracja po meczu, mobilność i obniżenie napięcia."
-        : "Regeneracja, mobilność i obniżenie napięcia.";
-    case "rest":
-      return "Dzień wolny — odpoczynek, ewentualnie lekki ruch.";
-    default: {
-      const type = day.sessionType.toLowerCase();
-      if (type.includes("wytrzymał") || type.includes("rsa"))
-        return "Główne okno bodźca wytrzymałościowego.";
-      if (type.includes("agility") || type.includes("cod") || type.includes("zwin"))
-        return "COD i hamowanie — jakość decyzji i ruchu.";
-      if (type.includes("moc")) return "Moc jako bodziec główny, bez nadmiaru skoków.";
-      if (type.includes("siła")) return "Siła jako bodziec główny, bez przeciążania przed meczem.";
-      if (type.includes("szybko") || type.includes("sprint"))
-        return day.mdLabel === "MD-2"
-          ? "Krótka jakość piłkarska i szybkościowa, bez dokładania zmęczenia."
-          : "Dzień jakości szybkościowej — pełne przerwy i kontrola objętości.";
-      if (type.includes("piłk") || type.includes("technik"))
-        return "Praca z piłką: technika i decyzje.";
-      if (type.includes("ostro")) return "Ostrość przed meczem — kończysz świeży.";
-      if (type.includes("prehab") || type.includes("mobil"))
-        return "Prehab i mobilność — odporność i jakość ruchu.";
-      return "Wykonaj zaplanowany bodziec dnia.";
-    }
-  }
 }
 
 const PHASE_FOCUS: Record<WeekPhase, { goal: string; accent: string }> = {

@@ -19,7 +19,6 @@ import {
 // Helpery — budowa dni typu SessionDay dla pełnego tygodnia (pon–niedz)
 // ---------------------------------------------------------------------------
 
-const MON = "2026-06-29"; // poniedziałek
 const DATES = Array.from({ length: 7 }, (_, i) => {
   const d = new Date(Date.UTC(2026, 5, 29 + i));
   return d.toISOString().slice(0, 10);

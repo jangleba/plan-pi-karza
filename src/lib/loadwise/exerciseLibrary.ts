@@ -4341,20 +4341,6 @@ export function getExerciseRegression(
   return undefined;
 }
 
-/** Zwraca DOZWOLONĄ progresję, jeśli zawodnik jest gotowy na trudniejszy wariant. */
-export function getExerciseProgression(
-  exercise: ExerciseDefinition | string,
-  a: AthleteTrainingProfile,
-): ExerciseDefinition | undefined {
-  const def = typeof exercise === "string" ? getExerciseDefinition(exercise) : exercise;
-  if (!def) return undefined;
-  for (const id of def.progressionIds) {
-    const cand = getExerciseDefinition(id);
-    if (cand && isExerciseAllowedForProfile(cand, a).ok) return cand;
-  }
-  return undefined;
-}
-
 export interface SafeAlternativeResult {
   exercise: ExerciseDefinition | null;
   reason: string;

@@ -146,10 +146,3 @@ export async function flushPendingTrainingWrites(
   writeQueue(userId, remaining, storage);
   return { synced, remaining: remaining.length };
 }
-
-export function clearPendingTrainingWrites(
-  userId: string,
-  storage: StorageLike | null = browserStorage(),
-): void {
-  storage?.removeItem(queueKey(userId));
-}

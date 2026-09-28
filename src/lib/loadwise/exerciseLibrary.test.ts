@@ -767,7 +767,6 @@ describe("library contract 2.0", () => {
   });
 
   it("handles landing, reactive, assisted and medicine-ball replacement rules", () => {
-    const adult = adultAdvanced();
     const noBox = buildAthleteTrainingProfile(
       makeProfile({
         age: 25,

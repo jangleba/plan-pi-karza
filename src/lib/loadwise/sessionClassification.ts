@@ -540,22 +540,6 @@ export function isHeavyRunningSession(session: SessionDay): boolean {
   return classOf(session).isHighImpactRunning;
 }
 
-export function isAccelerationSession(session: SessionDay): boolean {
-  return classOf(session).isAcceleration;
-}
-
-export function isDecelerationSession(session: SessionDay): boolean {
-  return classOf(session).isDeceleration;
-}
-
-export function isMaxVelocitySession(session: SessionDay): boolean {
-  return classOf(session).isMaxVelocity;
-}
-
 export function isChangeOfDirectionSession(session: SessionDay): boolean {
   return classOf(session).isChangeOfDirection;
-}
-
-export function getSessionLoad(session: SessionDay): SessionLoadLevel {
-  return classOf(session).loadLevel;
 }

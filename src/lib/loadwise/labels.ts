@@ -2,7 +2,6 @@ import type {
   Goal,
   Position,
   Level,
-  Intensity,
   DoubleSessions,
   SeasonPhase,
   SeasonStage,
@@ -211,9 +210,3 @@ export const EQUIPMENT_OPTIONS: string[] = [
   "Ściana / odbojnik",
   "Płotki",
 ];
-
-export function intensityColor(i: Intensity): string {
-  if (i === "wysoka") return "text-destructive";
-  if (i === "umiarkowana") return "text-accent-foreground";
-  return "text-primary";
-}

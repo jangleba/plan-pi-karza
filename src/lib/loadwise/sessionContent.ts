@@ -92,9 +92,6 @@ const SPRINT_RE =
   /sprint|przyspiesz|akceler|wall drive|napęd|falling start|start z padania|flying|lotny|lotne|build.?up|narastając|wicket|płotk|ankling|\bskip\b|a-?skip|b-?skip|drive|prędko[śs]ć maks|max velocity|reakcja|hamowani|zmiana kierunku|cod|deceler/i;
 const RUN_RE =
   /\bbieg|trucht|tempo|interwa|aerob|rower|wytrzymał|kondyc|conversational|tlenow|rytmiczn/i;
-const PLYO_RE = /skok|plyo|pogo|bound|wieloskok|lądowani|snap.?down|zeskok|hop/i;
-const STRENGTH_ACC_RE =
-  /core|plank|dead bug|stabiliz|przywodziciel|łydk|prehab|mobil|nordic|copenhagen|pallof/i;
 // Czysty CORE / brzuch — bezwzględnie zakazany w jednostce sprinterskiej.
 const CORE_RE =
   /\bcore\b|plank|deska|dead.?bug|martwy robak|pallof|hollow|hold|brzuch|spięci.* tułow|russian twist|przenoszeni.* nóg/i;
@@ -123,12 +120,6 @@ export function exerciseIsSprintSpecific(e: ExerciseItem): boolean {
 }
 export function exerciseIsRunningBased(e: ExerciseItem): boolean {
   return RUN_RE.test(txt(e));
-}
-export function exerciseIsPlyometric(e: ExerciseItem): boolean {
-  return PLYO_RE.test(txt(e));
-}
-export function exerciseIsStrengthAccessory(e: ExerciseItem): boolean {
-  return STRENGTH_ACC_RE.test(txt(e));
 }
 /** Czysty trening core/brzucha — zakazany w jednostce sprinterskiej. */
 export function exerciseIsCore(e: ExerciseItem): boolean {

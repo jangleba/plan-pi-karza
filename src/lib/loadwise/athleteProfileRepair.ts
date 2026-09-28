@@ -16,8 +16,6 @@ import type {
 import {
   buildAthleteTrainingProfile,
   replaceUnsafeExercise,
-  validateExerciseForAthleteProfile,
-  validateExerciseAgainstInjuries,
   type AthleteTrainingProfile,
   type WeekContext,
 } from "./athleteProfile";
@@ -33,31 +31,6 @@ function lower(i: Intensity): Intensity {
   if (i === "wysoka") return "umiarkowana";
   if (i === "umiarkowana") return "niska";
   return "niska";
-}
-
-/** Czy sesja ma w treści zaawansowane bodźce niezgodne z profilem. */
-function sessionHasUnsafe(session: SessionDay, a: AthleteTrainingProfile): boolean {
-  const names = collectNames(session);
-  return names.some(
-    (n) =>
-      !validateExerciseForAthleteProfile(n, a).ok ||
-      !validateExerciseAgainstInjuries(n, a).ok,
-  );
-}
-
-function collectNames(session: SessionDay): string[] {
-  const out: string[] = [];
-  const s = session.sections;
-  if (s) {
-    for (const key of ["warmup", "main", "accessory", "footballTransfer", "cooldown"] as const) {
-      for (const e of s[key] ?? []) out.push(e.name);
-    }
-  }
-  for (const sec of session.structuredSections ?? []) {
-    for (const b of sec.blocks) for (const e of b.exercises) out.push(e.name);
-  }
-  for (const e of session.exercises ?? []) out.push(e.name);
-  return out;
 }
 
 /**
@@ -138,35 +111,6 @@ export function validateWorkoutForAthleteProfile(
 }
 
 /**
- * validatePlanAgainstAthleteProfile — raport (bez mutacji), wykrywa
- * niezgodności w całym tygodniu/planie.
- */
-export function validatePlanAgainstAthleteProfile(
-  plan: SessionDay[],
-  a: AthleteTrainingProfile,
-): { date: string; names: string[] }[] {
-  const issues: { date: string; names: string[] }[] = [];
-  for (const session of plan) {
-    const bad = collectNames(session).filter(
-      (n) =>
-        !validateExerciseForAthleteProfile(n, a).ok ||
-        !validateExerciseAgainstInjuries(n, a).ok,
-    );
-    if (bad.length) issues.push({ date: session.date, names: [...new Set(bad)] });
-    if (session.secondSession) {
-      const bad2 = collectNames(session.secondSession).filter(
-        (n) =>
-          !validateExerciseForAthleteProfile(n, a).ok ||
-          !validateExerciseAgainstInjuries(n, a).ok,
-      );
-      if (bad2.length)
-        issues.push({ date: session.date + " (sesja 2)", names: [...new Set(bad2)] });
-    }
-  }
-  return issues;
-}
-
-/**
  * repairUnsafeExercisesForAthleteProfile — naprawia cały plan w miejscu reguł:
  * 1) zamień ćwiczenie na regresję, 2) obniż intensywność. Nie usuwa kategorii.
  */
@@ -191,5 +135,3 @@ export function repairUnsafeExercisesForAthleteProfile(
 
   return { plan: repaired, adjustments: allAdjustments };
 }
-
-export { sessionHasUnsafe };

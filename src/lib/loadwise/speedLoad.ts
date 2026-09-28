@@ -309,7 +309,6 @@ export function assessSpeedLoad(
   }
 
   const texts = allRelevantTexts(session);
-  const header = sessionHeaderText(session);
   const positiveSprintTexts = positiveSpeedTexts(session);
 
   const estimatedSprintMeters =
@@ -633,27 +632,9 @@ export function assessDaySpeedLoad(
   };
 }
 
-export function hasFullSpeedLoad(
-  session: SessionDay | null | undefined,
-): boolean {
-  return assessSpeedLoad(session).exposure === "full";
-}
-
 export function hasRealSpeedExposure(
   session: SessionDay | null | undefined,
 ): boolean {
   return assessSpeedLoad(session)
     .countsAsSpeedExposure;
-}
-
-export function dayHasRealSpeedExposure(
-  day: SessionDay,
-): boolean {
-  return assessDaySpeedLoad(day).realExposureCount > 0;
-}
-
-export function dayHasFullSpeedLoad(
-  day: SessionDay,
-): boolean {
-  return assessDaySpeedLoad(day).fullExposureCount > 0;
 }

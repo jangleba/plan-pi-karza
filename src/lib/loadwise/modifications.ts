@@ -20,8 +20,6 @@ export const PLACE_LABELS: Record<Place, string> = {
   silownia: "Siłownia",
 };
 
-const MAX_SPRINT_M = 240;
-
 type Category =
   | "mobility"
   | "ball"

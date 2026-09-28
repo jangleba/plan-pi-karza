@@ -1,6 +1,5 @@
 import type {
   ExerciseInstructionStep,
-  ExerciseItem,
   SessionDay,
   TrainingExercise,
 } from "./types";
