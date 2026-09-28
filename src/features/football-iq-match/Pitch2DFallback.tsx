@@ -359,9 +359,9 @@ export function Pitch2DFallback({
         <defs>
           <clipPath id="bwiq-field-clip"><polygon points={fieldPoints} /></clipPath>
           <linearGradient id="bwiq-stadium" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#071b24" />
-            <stop offset=".16" stopColor="#183c32" />
-            <stop offset="1" stopColor="#0d2f25" />
+            <stop offset="0" stopColor="#e8f0ec" />
+            <stop offset=".16" stopColor="#dbe8e0" />
+            <stop offset="1" stopColor="#cdded4" />
           </linearGradient>
           <linearGradient id="bwiq-light" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#ffffff" stopOpacity=".14" />
@@ -382,13 +382,13 @@ export function Pitch2DFallback({
         </defs>
 
         <rect width="100" height="150" fill="url(#bwiq-stadium)" />
-        <polygon points={fieldPoints} fill="#34784e" />
+        <polygon points={fieldPoints} fill="#4f9851" />
         <g clipPath="url(#bwiq-field-clip)">
           {Array.from({ length: 10 }, (_, index) => {
             const left = index * 10;
             const right = left + 10;
             const stripe = [project({ x: left, y: 0 }), project({ x: right, y: 0 }), project({ x: right, y: 150 }), project({ x: left, y: 150 })];
-            return <polygon key={left} points={stripe.map((point) => `${point.x},${point.y}`).join(" ")} fill={index % 2 ? "#397f53" : "#34764c"} />;
+            return <polygon key={left} points={stripe.map((point) => `${point.x},${point.y}`).join(" ")} fill={index % 2 ? "#59a45a" : "#4f9851"} />;
           })}
           <rect width="100" height="150" fill="url(#bwiq-light)" />
           <rect width="100" height="150" filter="url(#bwiq-grain)" opacity=".16" />

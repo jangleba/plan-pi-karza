@@ -228,18 +228,18 @@ const makePitchTexture = () => {
   if (!context) return null;
   const stripeHeight = canvas.height / 14;
   for (let index = 0; index < 14; index += 1) {
-    context.fillStyle = index % 2 === 0 ? "#67aa62" : "#72b56b";
+    context.fillStyle = index % 2 === 0 ? "#4f9851" : "#59a45a";
     context.fillRect(0, index * stripeHeight, canvas.width, stripeHeight + 1);
   }
   const daylight = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-  daylight.addColorStop(0, "rgba(255,255,238,.18)");
-  daylight.addColorStop(0.5, "rgba(255,255,255,.03)");
-  daylight.addColorStop(1, "rgba(37,101,54,.10)");
+  daylight.addColorStop(0, "rgba(255,255,244,.16)");
+  daylight.addColorStop(0.5, "rgba(255,255,255,.02)");
+  daylight.addColorStop(1, "rgba(23,76,36,.08)");
   context.fillStyle = daylight;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  context.strokeStyle = "rgba(255,255,255,.93)";
-  context.fillStyle = "rgba(255,255,255,.93)";
+  context.strokeStyle = "rgba(255,255,255,.97)";
+  context.fillStyle = "rgba(255,255,255,.97)";
   context.lineWidth = 5;
   context.lineJoin = "round";
   const inset = 18;
@@ -331,14 +331,14 @@ const makeControlledLabel = () => {
   canvas.height = 72;
   const context = canvas.getContext("2d");
   if (!context) return null;
-  context.fillStyle = "rgba(220,242,255,.97)";
+  context.fillStyle = "rgba(250,253,255,.98)";
   context.beginPath();
   context.roundRect(8, 8, 144, 56, 28);
   context.fill();
-  context.strokeStyle = "rgba(65,166,238,.9)";
-  context.lineWidth = 4;
+  context.strokeStyle = "rgba(39,137,224,.74)";
+  context.lineWidth = 3;
   context.stroke();
-  context.fillStyle = "#0a4e86";
+  context.fillStyle = "#0a3b68";
   context.font = "900 34px system-ui, sans-serif";
   context.textAlign = "center";
   context.textBaseline = "middle";
@@ -513,14 +513,14 @@ export function Pitch(props: Props) {
 
     try {
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xe8f1ec);
+      scene.background = new THREE.Color(0xf2f6f4);
       const camera = new THREE.OrthographicCamera(-11, 11, 18, -18, 0.1, 100);
       camera.position.set(0, 35.5, 11.1);
       camera.lookAt(0, 0, 0);
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.04;
+      renderer.toneMappingExposure = 1.08;
       renderer.shadowMap.enabled = false;
       renderer.domElement.className = "bwiq-3d-canvas";
       renderer.domElement.style.touchAction = "none";
@@ -534,7 +534,7 @@ export function Pitch(props: Props) {
 
       const surroundings = new THREE.Mesh(
         new THREE.PlaneGeometry(36, 47),
-        new THREE.MeshBasicMaterial({ color: 0xdce9e2 }),
+        new THREE.MeshBasicMaterial({ color: 0xe9f0ec }),
       );
       surroundings.rotation.x = -Math.PI / 2;
       surroundings.position.y = -0.03;
@@ -543,7 +543,7 @@ export function Pitch(props: Props) {
       if (pitchTexture) pitchTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       const field = new THREE.Mesh(
         new THREE.PlaneGeometry(FIELD_WIDTH, FIELD_LENGTH),
-        new THREE.MeshBasicMaterial({ map: pitchTexture, color: pitchTexture ? 0xffffff : 0x6cad64 }),
+        new THREE.MeshBasicMaterial({ map: pitchTexture, color: pitchTexture ? 0xffffff : 0x56a158 }),
       );
       field.rotation.x = -Math.PI / 2;
       scene.add(field);
@@ -557,7 +557,7 @@ export function Pitch(props: Props) {
         toneMapped: false,
       });
       const shadowGeometry = new THREE.PlaneGeometry(1, 1);
-      const ringGeometry = new THREE.RingGeometry(0.72, 1, 48);
+      const ringGeometry = new THREE.RingGeometry(0.84, 1, 48);
       const hitGeometry = new THREE.CircleGeometry(1, 24);
       const invisibleMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -599,7 +599,7 @@ export function Pitch(props: Props) {
         shadow.renderOrder = 1;
         root.add(shadow);
         const ring = new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({
-          color: player.controlled ? 0x56b9ff : 0x92cef6,
+          color: player.controlled ? 0x2c91e8 : 0x8cc8f5,
           transparent: true,
           opacity: 0,
           depthWrite: false,
@@ -894,15 +894,15 @@ export function Pitch(props: Props) {
           const spriteHeight = runtime!.worldPerPixel * PLAYER_HEIGHT_PX;
           model.userData.sprite.scale.set(spriteHeight * (256 / 360), spriteHeight, 1);
           model.userData.shadow.scale.set(spriteHeight * 0.7, spriteHeight * 0.29, 1);
-          const ringSize = runtime!.worldPerPixel * 18;
+          const ringSize = runtime!.worldPerPixel * 14;
           model.userData.ring.scale.set(ringSize, ringSize, 1);
           const hitRadius = runtime!.worldPerPixel * 24;
           model.userData.hit.scale.set(hitRadius, hitRadius, 1);
           if (model.userData.controlledLabel) {
             model.userData.controlledLabel.position.set(0, spriteHeight * 1.02, 0);
             model.userData.controlledLabel.scale.set(
-              runtime!.worldPerPixel * 31,
-              runtime!.worldPerPixel * 14,
+              runtime!.worldPerPixel * 26,
+              runtime!.worldPerPixel * 12,
               1,
             );
           }
