@@ -45,7 +45,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Uruchom wszystkie testy aktywnego kodu
-        run: npx vitest run --dir src
+        run: npm test
 
       - name: Sprawdź pełny build aplikacji
         run: npm run build

@@ -179,8 +179,8 @@ describe("Football IQ — decyzja użytkownika", () => {
     expect(lessons.find((lesson) => lesson.key === "consequence")?.text).toContain(action.label);
   });
 
-  it("każdy temat ma tę samą pięciofazową strukturę zaawansowaną", () => {
-    expect(ADVANCED_SEQUENCE_MS).toBeGreaterThanOrEqual(10_000);
+  it("zachowuje krótką sekwencję 5,8 s i pięć faz dla każdego tematu", () => {
+    expect(ADVANCED_SEQUENCE_MS).toBe(5_800);
     for (const scenario of SIM_SCENARIOS) {
       expect(advancedSequenceFor(scenario.topic).phases).toHaveLength(5);
       expect(decisionAnchorMs(scenario)).toBeGreaterThan(0);
