@@ -18,6 +18,10 @@ Ta lista ogranicza ryzyko, ale nie daje gwarancji, że nikt nie złoży roszczen
 - [ ] Płatnikiem osoby poniżej 18 lat jest osoba dorosła.
 - [ ] Proces przekazania konta po ukończeniu 16 lat wymaga ponownego potwierdzenia e-maila i dokumentów.
 
+Potwierdzenie e-maila dowodzi kontroli nad adresem, nie faktycznego statusu
+opiekuna. Obecny model opiera ten status na oświadczeniu; potrzebę dodatkowej
+weryfikacji przed szerokim wydaniem należy ocenić z prawnikiem.
+
 ## 3. Dane o zdrowiu i prywatność
 
 - [ ] Zgoda zdrowotna jest oddzielna, wyraźna, dobrowolna i domyślnie wyłączona.

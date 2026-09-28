@@ -56,9 +56,17 @@ npm run preview
 
 ## Wdrożenie
 
-Zacznij od [INSTRUKCJA-WGRANIA.md](INSTRUKCJA-WGRANIA.md). Zawiera kolejność
-wgrania kodu, migracji Supabase, Edge Function usuwającej konto i trwałego
-czyszczenia Vision Lab.
+Zastosuj migracje z `supabase/migrations` w kolejności nazw plików. Instrukcje
+funkcji znajdują się w [delete-account](supabase/functions/delete-account/README.md)
+oraz [analyze-fuel-photo](supabase/functions/analyze-fuel-photo/README.md).
+Osobna instrukcja opisuje [czyszczenie starego Vision Lab](docs/VISION-LAB-CLEANUP.md).
+
+Po wdrożeniu uruchom odczytowe kontrole z `supabase/verification`.
+`20260911_release_blockers.sql` powinien zwrócić `OK` przy kontrolach,
+`4/4` przy politykach biegania i `BRAK — RLS jest włączone` w wierszu RLS.
+Każde z czterech zapytań w `20260918_secure_defaults_and_health_cleanup.sql`
+powinno zwrócić zero wierszy. Do SQL Editora wklejaj zawartość plików `.sql`,
+nie raport wyników ani eksport CSV.
 
 Przed App Store przeczytaj [docs/APP-STORE-I-PRAWO.md](docs/APP-STORE-I-PRAWO.md)
 oraz [docs/LEGAL-CONFIGURATION.md](docs/LEGAL-CONFIGURATION.md). To repozytorium
