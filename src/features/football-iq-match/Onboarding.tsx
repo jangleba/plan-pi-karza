@@ -1,9 +1,9 @@
 type Props = { step: number; onNext: () => void; onClose: () => void };
 
 const steps = [
-  { eyebrow: "KROK 1/3", title: "Zaplanuj ruch", text: "Przeciągnij zawodnika w przestrzeń. Przerywana linia pokaże jego bieg." },
-  { eyebrow: "KROK 2/3", title: "Zagraj piłkę", text: "Przeciągnij piłkę do partnera albo w miejsce, do którego ma pobiec." },
-  { eyebrow: "KROK 3/3", title: "Dodaj wsparcie", text: "Możesz przesunąć jeszcze dwóch partnerów. Pozostali zareagują automatycznie." },
+  { eyebrow: "KROK 1/3", title: "Zaplanuj ruch", text: "Wybierz Ruch i przeciągnij zawodnika w przestrzeń. Numer przy linii zapisze kolejność decyzji." },
+  { eyebrow: "KROK 2/3", title: "Zaplanuj podanie", text: "Wybierz Podanie, a następnie przeciągnij piłkę do partnera albo w wolną przestrzeń." },
+  { eyebrow: "KROK 3/3", title: "Przesuń całą linię", text: "W trybie Grupa przeciągnij jednego zawodnika. Cała obrona, pomoc albo atak przesunie się razem. Potem wybierz cel planu i zobacz reakcję rywala." },
 ];
 
 export function Onboarding({ step, onNext, onClose }: Props) {

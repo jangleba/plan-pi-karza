@@ -75,6 +75,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 3800,
     preferredRunZones: [{ x: 62, y: 55 }, { x: 72, y: 48 }],
     preferredPassZones: [{ x: 16, y: 48 }, { x: 12, y: 42 }],
+    acceptedIntents: ["switch", "progress"],
+    reactionSummary: "Blok rywala przesuwa się jeszcze mocniej do strony piłki, a dalszy skrzydłowy zostaje w pojedynku jeden na jednego.",
+    coachPrinciple: "Najpierw przyciągnij przeciwnika, potem zmień centrum gry zanim zdąży odbudować szerokość.",
     goodFeedback: "Wciągnąłeś blok i szybko uruchomiłeś wolną stronę. To tworzy sytuację 1 na 1.",
     improveFeedback: "Największa przewaga była po przeciwnej stronie. Podnieś głowę przed drugim kontaktem.",
     move(players) {
@@ -99,6 +102,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 3600,
     preferredRunZones: [{ x: 51, y: 60 }, { x: 43, y: 54 }],
     preferredPassZones: [{ x: 50, y: 70 }, { x: 64, y: 57 }],
+    acceptedIntents: ["progress", "retain"],
+    reactionSummary: "Pierwszy obrońca doskakuje do podającego, przez co ruch trzeciego zawodnika może wejść za jego plecy.",
+    coachPrinciple: "Podanie do ściany ma poruszyć obrońcę; przewagę tworzy kolejny ruch, a nie samo pierwsze zagranie.",
     goodFeedback: "Zagrałeś przez trzeciego zawodnika i ominąłeś pierwszą linię pressingu.",
     improveFeedback: "Bezpośrednia droga była zamknięta. Użyj partnera jako ściany i rusz za linię.",
     move(players) {
@@ -122,6 +128,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 3500,
     preferredRunZones: [{ x: 69, y: 34 }, { x: 73, y: 28 }],
     preferredPassZones: [{ x: 69, y: 34 }],
+    acceptedIntents: ["progress"],
+    reactionSummary: "Boczny obrońca rywala zostaje przy szerokim skrzydłowym, a stoper musi zdecydować, czy wyjść do wbiegającego zawodnika.",
+    coachPrinciple: "Utrzymaj szerokość jednym zawodnikiem i zaatakuj półprzestrzeń drugim, startując poza polem widzenia obrońcy.",
     goodFeedback: "Underlap wszedł między bocznego i środkowego obrońcę w odpowiednim momencie.",
     improveFeedback: "Nie dubluj szerokości skrzydłowego. Zaatakuj kanał wewnętrzny.",
     move(players) {
@@ -144,6 +153,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 4200,
     preferredRunZones: [{ x: 24, y: 101 }, { x: 62, y: 103 }],
     preferredPassZones: [{ x: 17, y: 112 }, { x: 24, y: 101 }],
+    acceptedIntents: ["retain", "progress", "switch"],
+    reactionSummary: "Napastnik zamyka podanie centralne, ale zmiana wysokości pomocnika otwiera ukośne wyjście obok pierwszej linii pressingu.",
+    coachPrinciple: "Nie ustawiaj się w jednej linii z krytym partnerem — stwórz inny kąt i trzecią linię podania.",
     goodFeedback: "Zmieniłeś wysokość i stworzyłeś ukośną linię wyjścia spod pressingu.",
     improveFeedback: "Stojąc w tej samej linii pomagasz pressingowi. Otwórz inny kąt podania.",
     move(players) {
@@ -167,6 +179,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 3300,
     preferredRunZones: [{ x: 54, y: 54 }, { x: 63, y: 57 }],
     preferredPassZones: [],
+    acceptedIntents: ["secure", "progress"],
+    reactionSummary: "Posiadacz szuka pierwszego podania do przodu; zamknięcie tej linii kieruje go na zewnątrz i daje partnerom czas na doskok.",
+    coachPrinciple: "Po stracie broń najgroźniejszego wyjścia, a dopiero potem atakuj piłkę.",
     goodFeedback: "Zamknąłeś podanie progresywne i skierowałeś rywala w mniej groźną strefę.",
     improveFeedback: "Sam nacisk na piłkę nie wystarczył. Najpierw zamknij najbliższą linię wyjścia.",
     move(players) {
@@ -189,13 +204,16 @@ export const scenarios: Scenario[] = [
     playbackMs: 3600,
     preferredRunZones: [{ x: 42, y: 36 }, { x: 50, y: 40 }],
     preferredPassZones: [{ x: 42, y: 36 }, { x: 50, y: 40 }],
+    acceptedIntents: ["progress", "retain"],
+    reactionSummary: "Obrońcy cofają się w stronę bramki za napastnikiem, pozostawiając wolną strefę przed sobą.",
+    coachPrinciple: "Nie kopiuj biegu napastnika — przyjdź później w przestrzeń wycofania, z której widać bramkę.",
     goodFeedback: "Zająłeś strefę wycofania zamiast wejść w tłok przy bramce.",
     improveFeedback: "Napastnik już atakował bramkę. Zabezpiecz przestrzeń na wycofanie.",
     move(players) {
       set(players, "h-lw", { x: 12, y: 25 }, { x: 17, y: 55 });
       set(players, "h-st", { x: 47, y: 21 }, { x: 50, y: 42 });
       set(players, "h-lcm", { x: 35, y: 50 }, { x: 34, y: 82 }, true);
-      set(players, "a-rb", { x: 18, y: 30 }, { x: 18, y: 35 });
+      set(players, "a-rb", { x: 18, y: 22 }, { x: 18, y: 35 });
       set(players, "a-rcb", { x: 41, y: 23 }, { x: 40, y: 30 });
       set(players, "a-lcb", { x: 57, y: 23 }, { x: 60, y: 30 });
     },
@@ -213,6 +231,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 3700,
     preferredRunZones: [{ x: 70, y: 109 }, { x: 74, y: 103 }],
     preferredPassZones: [],
+    acceptedIntents: ["secure"],
+    reactionSummary: "Skrzydłowy rywala próbuje zagrać za plecy bocznego obrońcy, a napastnik wiąże najbliższego stopera.",
+    coachPrinciple: "Najpierw zabezpiecz przestrzeń za partnerem, zachowując odległość pozwalającą jednocześnie kontrolować napastnika.",
     goodFeedback: "Przesunąłeś się wcześnie i zabezpieczyłeś kanał za bocznym obrońcą.",
     improveFeedback: "Reakcja była zbyt skupiona na piłce. Najpierw zabezpiecz przestrzeń za partnerem.",
     move(players) {
@@ -235,6 +256,9 @@ export const scenarios: Scenario[] = [
     playbackMs: 3600,
     preferredRunZones: [{ x: 53, y: 68 }, { x: 58, y: 65 }],
     preferredPassZones: [{ x: 82, y: 52 }, { x: 50, y: 44 }, { x: 18, y: 52 }],
+    acceptedIntents: ["progress", "switch"],
+    reactionSummary: "Rywal po stracie jest otwarty i cofa się nierównym tempem; pierwsze podanie może zaatakować przestrzeń zanim odbuduje blok.",
+    coachPrinciple: "Skanuj przed odbiorem i sprawdź najpierw podanie progresywne; bezpieczne utrzymanie pozostaje planem B.",
     goodFeedback: "Pierwsza decyzja była progresywna i wykorzystała niezorganizowanie rywala.",
     improveFeedback: "Okno do ataku było krótkie. Skanuj przed odbiorem i szukaj pierwszego podania do przodu.",
     move(players) {

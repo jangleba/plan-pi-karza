@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FootballIQMatch } from "../features/football-iq-match";
 
 export const Route = createFileRoute("/_tabs/football-iq")({
@@ -6,10 +6,11 @@ export const Route = createFileRoute("/_tabs/football-iq")({
 });
 
 function FootballIQRoute() {
+  const navigate = useNavigate();
   return (
     <FootballIQMatch
       showOnboardingInitially
-      onBack={() => window.history.back()}
+      onBack={() => navigate({ to: "/start" })}
     />
   );
 }
