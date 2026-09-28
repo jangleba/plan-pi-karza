@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { LabResult } from "./types";
+import { labResultSchema } from "./resultSchema";
 
 type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -57,16 +58,25 @@ function key(userId: string) {
 function readLocal(userId: string): LabResult[] {
   if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(key(userId)) ?? "[]") as LabResult[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item.userId === userId) : [];
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(key(userId)) ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.flatMap((item) => {
+          const decoded = labResultSchema.safeParse(item);
+          return decoded.success && decoded.data.userId === userId ? [decoded.data] : [];
+        })
+      : [];
   } catch {
     return [];
   }
 }
 
 function writeLocal(userId: string, results: readonly LabResult[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(key(userId), JSON.stringify(results.slice(0, 300)));
+  if (typeof window === "undefined") throw new Error("Zapis lokalny jest niedostępny.");
+  let syncedCount = 0;
+  const retained = results.filter(
+    (result) => !result.synced || result.testId === "sprint_10m_ball" || ++syncedCount <= 300,
+  );
+  window.localStorage.setItem(key(userId), JSON.stringify(retained));
 }
 
 function toInsert(result: LabResult): LabInsert {
@@ -119,15 +129,42 @@ function fromRow(row: LabRow): LabResult {
   };
 }
 
-function mergeResults(local: readonly LabResult[], cloud: readonly LabResult[]) {
+export function mergeLabResults(local: readonly LabResult[], cloud: readonly LabResult[]) {
   const byId = new Map<string, LabResult>();
-  for (const result of [...local, ...cloud]) byId.set(result.id, result);
+  for (const result of [...local, ...cloud]) {
+    const previous = byId.get(result.id);
+    if (!previous?.synced || result.synced) byId.set(result.id, result);
+  }
   return [...byId.values()].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
 }
 
-async function upload(result: LabResult) {
-  const { error } = await labClient.from("lab_test_results").insert(toInsert(result));
-  if (error && error.code !== "23505") throw error;
+const uploads = new Map<string, Promise<void>>();
+
+function upload(result: LabResult): Promise<void> {
+  const uploadKey = `${result.userId}:${result.id}`;
+  const running = uploads.get(uploadKey);
+  if (running) return running;
+  const promise = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const { error } = await labClient
+        .from("lab_test_results")
+        .insert(toInsert(result))
+        .abortSignal(controller.signal);
+      if (error && error.code !== "23505") throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  })().finally(() => uploads.delete(uploadKey));
+  uploads.set(uploadKey, promise);
+  return promise;
+}
+
+function markSynced(result: LabResult) {
+  const synced = { ...result, synced: true };
+  writeLocal(result.userId, mergeLabResults(readLocal(result.userId), [synced]));
+  return synced;
 }
 
 export function listLocalLabResults(userId: string) {
@@ -135,22 +172,23 @@ export function listLocalLabResults(userId: string) {
 }
 
 export async function saveLabResult(result: LabResult) {
+  labResultSchema.parse(result);
   const local = readLocal(result.userId);
-  const stored = [result, ...local.filter((item) => item.id !== result.id)];
+  const existing = local.find((item) => item.id === result.id);
+  if (existing?.synced) return { result: existing, cloudSaved: true };
+  result = existing ?? result;
+  const stored = mergeLabResults(local, [result]);
   writeLocal(result.userId, stored);
 
   try {
     await upload(result);
-    const synced = stored.map((item) => (item.id === result.id ? { ...item, synced: true } : item));
-    writeLocal(result.userId, synced);
-    return { result: { ...result, synced: true }, cloudSaved: true };
+    return { result: markSynced(result), cloudSaved: true };
   } catch {
     return { result, cloudSaved: false };
   }
 }
 
 export async function loadLabResults(userId: string) {
-  const local = readLocal(userId);
   try {
     const { data, error } = await labClient
       .from("lab_test_results")
@@ -159,31 +197,28 @@ export async function loadLabResults(userId: string) {
       .order("recorded_at", { ascending: false })
       .limit(300);
     if (error) throw error;
-    const merged = mergeResults(local, (data ?? []).map(fromRow));
+    const cloud = (data ?? []).flatMap((row) => {
+      const decoded = labResultSchema.safeParse(fromRow(row));
+      return decoded.success && decoded.data.userId === userId ? [decoded.data] : [];
+    });
+    const merged = mergeLabResults(readLocal(userId), cloud);
     writeLocal(userId, merged);
     return merged;
   } catch {
-    return local.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+    return listLocalLabResults(userId);
   }
 }
 
 export async function syncPendingLabResults(userId: string) {
   const local = readLocal(userId);
-  let changed = false;
-  const next: LabResult[] = [];
   for (const result of local) {
-    if (result.synced) {
-      next.push(result);
-      continue;
-    }
+    if (result.synced) continue;
     try {
       await upload(result);
-      next.push({ ...result, synced: true });
-      changed = true;
+      markSynced(result);
     } catch {
-      next.push(result);
+      // Keep the current local record queued, including results saved during this upload.
     }
   }
-  if (changed) writeLocal(userId, next);
-  return next;
+  return listLocalLabResults(userId);
 }

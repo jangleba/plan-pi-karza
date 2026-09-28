@@ -1,43 +1,27 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, RotateCcw, ShieldCheck, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  bestSideAsymmetry,
-  createLabResult,
-  latestSprint10Baseline,
-  sideLabel,
-  summarizeResults,
-} from "@/lib/lab/engine";
+import { bestSideAsymmetry, createLabResult, sideLabel, summarizeResults } from "@/lib/lab/engine";
 import { getLabTest } from "@/lib/lab/definitions";
 import { deleteLabVideo, recordLabVideo } from "@/lib/lab/nativeCamera";
 import { saveLabResult } from "@/lib/lab/storage";
 import type { LabAttempt, LabMarkers, LabResult, NativeVideoCapture } from "@/lib/lab/types";
+import { validateCaptureTiming } from "@/lib/lab/timing";
+import { newLabId } from "@/lib/lab/id";
+import { displayLabValue, LabMeasurementDetails } from "./LabMeasurement";
 import { FrameAnalyzer } from "./FrameAnalyzer";
 
 type Stage = "setup" | "recording" | "analyze" | "result" | "summary";
 
-function id() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function displayValue(value: number, unit: string) {
-  if (!Number.isFinite(value)) return "—";
-  return unit === "cm" ? `${value.toFixed(1)} cm` : `${value.toFixed(3)} s`;
-}
-
 export function LabFlow({
   userId,
   attempts,
-  existingResults,
   onSaved,
   onClose,
 }: {
   userId: string;
   attempts: LabAttempt[];
-  existingResults: LabResult[];
   onSaved: (result: LabResult) => void;
   onClose: () => void;
 }) {
@@ -46,61 +30,117 @@ export function LabFlow({
   const [capture, setCapture] = useState<NativeVideoCapture | null>(null);
   const [currentResult, setCurrentResult] = useState<LabResult | null>(null);
   const [batchResults, setBatchResults] = useState<LabResult[]>([]);
-  const batchId = useMemo(id, []);
+  const batchId = useMemo(newLabId, []);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const mounted = useRef(true);
+  const captureRef = useRef<NativeVideoCapture | null>(null);
+  const pendingResult = useRef<LabResult | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // Do not delete a recording whose local save has not completed.
+      if (!savingRef.current) void deleteLabVideo(captureRef.current?.path);
+    };
+  }, []);
   const attempt = attempts[index];
   const test = getLabTest(attempt.testId);
   const side = sideLabel(attempt.side);
 
   async function cancelCapture() {
+    if (savingRef.current) return;
     await deleteLabVideo(capture?.path);
+    captureRef.current = null;
+    pendingResult.current = null;
     setCapture(null);
     setCurrentResult(null);
     setStage("setup");
   }
 
+  const recordingRef = useRef(false);
   async function record() {
+    if (recordingRef.current) return;
+    recordingRef.current = true;
     setStage("recording");
     try {
       const recorded = await recordLabVideo(test.maxCaptureSeconds);
-      if (recorded.fps < 239) throw new Error("Nagranie nie ma wymaganego 240 FPS.");
+      if (!mounted.current) {
+        await deleteLabVideo(recorded.path);
+        return;
+      }
+      try {
+        validateCaptureTiming(recorded);
+      } catch (error) {
+        await deleteLabVideo(recorded.path);
+        throw error;
+      }
+      captureRef.current = recorded;
+      pendingResult.current = null;
       setCapture(recorded);
       setStage("analyze");
     } catch (error) {
+      if (!mounted.current) return;
       setStage("setup");
       const message = error instanceof Error ? error.message : "Nie udało się nagrać próby.";
       if (!/cancel|anul/i.test(message)) toast.error(message);
+    } finally {
+      recordingRef.current = false;
     }
   }
 
   async function calculate(markers: LabMarkers) {
-    if (!capture || markers.firstFrame === null || markers.secondFrame === null) return;
+    if (
+      !capture ||
+      markers.firstFrame === null ||
+      markers.secondFrame === null ||
+      savingRef.current
+    )
+      return;
+    savingRef.current = true;
+    setSaving(true);
     try {
-      const baseline = latestSprint10Baseline([...batchResults, ...existingResults]);
-      const result = createLabResult({
-        userId,
-        batchId,
-        attempt,
-        capture,
-        firstFrame: markers.firstFrame,
-        secondFrame: markers.secondFrame,
-        trimStartFrame: markers.trimStartFrame,
-        trimEndFrame: markers.trimEndFrame,
-        firstGuidePosition: markers.firstGuidePosition,
-        secondGuidePosition: markers.secondGuidePosition,
-        sprint10BaselineSeconds: baseline,
-      });
+      const trialNumber =
+        batchResults.filter((row) => row.testId === attempt.testId && row.side === attempt.side)
+          .length + 1;
+      const result =
+        pendingResult.current ??
+        createLabResult({
+          userId,
+          batchId,
+          attempt: { ...attempt, trialNumber },
+          capture,
+          firstFrame: markers.firstFrame,
+          secondFrame: markers.secondFrame,
+          trimStartFrame: markers.trimStartFrame,
+          trimEndFrame: markers.trimEndFrame,
+          firstGuidePosition: markers.firstGuidePosition,
+          secondGuidePosition: markers.secondGuidePosition,
+        });
+      pendingResult.current = result;
       const saved = await saveLabResult(result);
-      const finalResult = saved.result;
-      setCurrentResult(finalResult);
-      setBatchResults((rows) => [...rows, finalResult]);
-      onSaved(finalResult);
+      // A durable local write is required before deleting the recording.
       await deleteLabVideo(capture.path);
+      captureRef.current = null;
+      if (!mounted.current) return;
       setCapture(null);
+      setCurrentResult(saved.result);
+      setBatchResults((rows) => [
+        ...rows.filter((row) => row.id !== saved.result.id),
+        saved.result,
+      ]);
+      onSaved(saved.result);
       setStage("result");
       if (!saved.cloudSaved)
         toast.info("Wynik zapisany w telefonie. Synchronizacja nastąpi później.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nie udało się obliczyć wyniku.");
+      // No durable write happened: allow corrected markers and retain the video.
+      pendingResult.current = null;
+      if (mounted.current)
+        toast.error(error instanceof Error ? error.message : "Nie udało się zapisać wyniku.");
+    } finally {
+      savingRef.current = false;
+      if (mounted.current) setSaving(false);
     }
   }
 
@@ -118,6 +158,7 @@ export function LabFlow({
     return (
       <FrameAnalyzer
         capture={capture}
+        saving={saving}
         test={test}
         onCancel={() => void cancelCapture()}
         onComplete={(markers) => void calculate(markers)}
@@ -160,19 +201,9 @@ export function LabFlow({
               {side ? ` • ${side}` : ""}
             </p>
             <p className="mt-2 text-[52px] font-semibold leading-none tracking-[-0.055em] text-foreground">
-              {displayValue(metrics.primaryValue, metrics.primaryUnit)}
+              {displayLabValue(metrics.primaryValue, metrics.primaryUnit)}
             </p>
-            {metrics.speedKmh !== undefined && (
-              <p className="mt-3 text-lg font-medium text-muted-foreground">
-                {metrics.speedKmh.toFixed(1)} km/h
-              </p>
-            )}
-            {metrics.ballPenaltyPercent !== undefined && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Różnica względem sprintu: {metrics.ballPenaltyPercent >= 0 ? "+" : ""}
-                {metrics.ballPenaltyPercent.toFixed(1)}%
-              </p>
-            )}
+            <LabMeasurementDetails metrics={metrics} />
           </div>
           <div className="soft-card mt-10 space-y-3 p-5">
             <div className="flex items-center justify-between text-sm">
@@ -188,8 +219,8 @@ export function LabFlow({
               <strong>{currentResult.quality.frameResolutionMs.toFixed(2)} ms</strong>
             </div>
             <div className="flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-              <ShieldCheck className="h-4 w-4 text-primary" /> Wynik przeszedł kontrolę zakresu i
-              jakości nagrania.
+              <ShieldCheck className="h-4 w-4 text-primary" /> Sprawdzono oś czasu nagrania i zakres
+              wyniku.
             </div>
           </div>
           <Button className="mt-6 h-12 w-full rounded-full" onClick={next}>
@@ -199,6 +230,16 @@ export function LabFlow({
           <Button
             className="mt-2 h-12 w-full rounded-full"
             variant="outline"
+            disabled={
+              batchResults.filter(
+                (row) => row.testId === attempt.testId && row.side === attempt.side,
+              ).length +
+                attempts
+                  .slice(index + 1)
+                  .filter((row) => row.testId === attempt.testId && row.side === attempt.side)
+                  .length >=
+              10
+            }
             onClick={() => setStage("setup")}
           >
             <RotateCcw className="h-4 w-4" /> Powtórz dodatkową próbę
@@ -209,9 +250,9 @@ export function LabFlow({
   }
 
   if (stage === "summary") {
-    const summary = summarizeResults(batchResults);
-    const jumpAsymmetry = bestSideAsymmetry(batchResults, "single_leg_cmj");
-    const codAsymmetry = bestSideAsymmetry(batchResults, "cod_505");
+    const summary = summarizeResults(batchResults, batchId);
+    const jumpAsymmetry = bestSideAsymmetry(batchResults, "single_leg_cmj", batchId);
+    const codAsymmetry = bestSideAsymmetry(batchResults, "cod_505", batchId);
     return (
       <div className="fixed inset-0 z-[110] overflow-y-auto bg-background px-5 pb-8 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <div className="mx-auto max-w-lg">
@@ -232,7 +273,10 @@ export function LabFlow({
                     {sideLabel(row.side) ?? `${row.attempts} prób`}
                   </p>
                 </div>
-                <strong>{displayValue(row.bestValue, row.unit)}</strong>
+                <div className="text-right">
+                  <strong>{displayLabValue(row.bestValue, row.unit)}</strong>
+                  <LabMeasurementDetails metrics={row.metrics} />
+                </div>
               </div>
             ))}
           </div>
@@ -285,7 +329,9 @@ export function LabFlow({
         <h2 className="mt-1 text-[34px] font-semibold tracking-[-0.045em]">{test.title}</h2>
         <p className="mt-2 text-base text-muted-foreground">
           {test.shortDescription}
-          {side ? ` • ${side}` : ""} • próba {attempt.trialNumber}/{attempt.trialsForSide}
+          {side ? ` • ${side}` : ""} • próba{" "}
+          {batchResults.filter((row) => row.testId === attempt.testId && row.side === attempt.side)
+            .length + 1}
         </p>
 
         <div className="soft-card mt-7 p-5">

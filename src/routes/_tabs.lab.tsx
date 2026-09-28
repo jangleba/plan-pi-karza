@@ -7,17 +7,27 @@ import {
   Gauge,
   History,
   PersonStanding,
-  Play,
   ShieldCheck,
   TimerReset,
 } from "lucide-react";
 import { AppHeader } from "@/components/loadwise/ui";
+import { displayLabValue, LabMeasurementDetails } from "@/components/lab/LabMeasurement";
 import { LabFlow } from "@/components/lab/LabFlow";
 import { useAuth } from "@/lib/loadwise/auth";
 import { LAB_TESTS, getLabTest } from "@/lib/lab/definitions";
-import { createAttemptPlan, FULL_PROFILE_TEST_IDS, sideLabel } from "@/lib/lab/engine";
+import {
+  createAttemptPlan,
+  FULL_PROFILE_TEST_IDS,
+  isVisibleLabResult,
+  sideLabel,
+} from "@/lib/lab/engine";
 import { getCameraCapabilities } from "@/lib/lab/nativeCamera";
-import { loadLabResults, syncPendingLabResults } from "@/lib/lab/storage";
+import {
+  listLocalLabResults,
+  loadLabResults,
+  mergeLabResults,
+  syncPendingLabResults,
+} from "@/lib/lab/storage";
 import type { LabAttempt, LabResult, LabTestDefinition, LabTestId } from "@/lib/lab/types";
 
 export const Route = createFileRoute("/_tabs/lab")({
@@ -39,7 +49,6 @@ const categoryCopy: Record<LabTestDefinition["category"], string> = {
   jump: "SKOCZNOŚĆ",
   speed: "SZYBKOŚĆ",
   change: "ZMIANA KIERUNKU",
-  ball: "Z PIŁKĄ",
 };
 
 function TestIcon({ id }: { id: LabTestId }) {
@@ -47,7 +56,6 @@ function TestIcon({ id }: { id: LabTestId }) {
   if (id === "cmj") return <PersonStanding className={iconClass} />;
   if (id === "single_leg_cmj") return <CircleDot className={iconClass} />;
   if (id === "cod_505") return <ArrowLeftRight className={iconClass} />;
-  if (id === "sprint_10m_ball") return <Play className={iconClass} />;
   if (id === "flying_10m") return <Gauge className={iconClass} />;
   return <TimerReset className={iconClass} />;
 }
@@ -62,11 +70,17 @@ function LabScreen() {
 
   useEffect(() => {
     let active = true;
-    void getCameraCapabilities().then((capability) => {
-      if (!active) return;
-      setCameraReady(capability.supported && capability.fps >= 239);
-      setCameraReason(capability.reason ?? null);
-    });
+    void getCameraCapabilities()
+      .then((capability) => {
+        if (!active) return;
+        setCameraReady(capability.supported && capability.fps >= 239);
+        setCameraReason(capability.reason ?? null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCameraReady(false);
+        setCameraReason("Nie można sprawdzić kamery. Otwórz LAB ponownie.");
+      });
     return () => {
       active = false;
     };
@@ -75,14 +89,31 @@ function LabScreen() {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    void loadLabResults(user.id).then((rows) => {
-      if (active) setResults(rows);
-    });
-    void syncPendingLabResults(user.id).then((rows) => {
-      if (active && rows.length) setResults(rows);
-    });
+    setResults(listLocalLabResults(user.id));
+    const refresh = async () => {
+      const loaded = await loadLabResults(user.id);
+      if (active)
+        setResults((current) =>
+          mergeLabResults(
+            current.filter((row) => row.userId === user.id),
+            loaded,
+          ),
+        );
+      const synced = await syncPendingLabResults(user.id);
+      if (active)
+        setResults((current) =>
+          mergeLabResults(
+            current.filter((row) => row.userId === user.id),
+            synced,
+          ),
+        );
+    };
+    void refresh();
+    window.addEventListener("online", refresh);
+
     return () => {
       active = false;
+      window.removeEventListener("online", refresh);
     };
   }, [user]);
 
@@ -100,6 +131,14 @@ function LabScreen() {
   function addResult(result: LabResult) {
     setResults((rows) => [result, ...rows.filter((item) => item.id !== result.id)]);
   }
+
+  const visibleResults = results
+    .filter(isVisibleLabResult)
+    .filter((row) => row.userId === user?.id);
+  const profileAttempts = LAB_TESTS.reduce(
+    (total, test) => total + test.trialsPerSide * test.sides.length,
+    0,
+  );
 
   if (!user) return null;
 
@@ -154,7 +193,9 @@ function LabScreen() {
                   <h2 className="mt-2 text-[24px] font-semibold tracking-[-0.035em]">
                     Profil boiskowy
                   </h2>
-                  <p className="mt-1 text-sm text-white/65">6 testów • 19 prób • około 25–35 min</p>
+                  <p className="mt-1 text-sm text-white/65">
+                    {FULL_PROFILE_TEST_IDS.length} testów • {profileAttempts} prób • około 25–30 min
+                  </p>
                 </div>
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10">
                   <Gauge className="h-5 w-5 text-[#f4c84a]" />
@@ -228,7 +269,7 @@ function LabScreen() {
           </>
         ) : (
           <section className="mt-5">
-            {results.length === 0 ? (
+            {visibleResults.length === 0 ? (
               <div className="py-16 text-center">
                 <History className="mx-auto h-7 w-7 text-muted-foreground" />
                 <h2 className="mt-4 font-semibold">Brak zapisanych pomiarów</h2>
@@ -238,12 +279,12 @@ function LabScreen() {
               </div>
             ) : (
               <div className="space-y-3">
-                {results.map((result) => {
+                {visibleResults.map((result) => {
                   const test = getLabTest(result.testId);
-                  const value =
-                    result.metrics.primaryUnit === "cm"
-                      ? `${result.metrics.primaryValue.toFixed(1)} cm`
-                      : `${result.metrics.primaryValue.toFixed(3)} s`;
+                  const value = displayLabValue(
+                    result.metrics.primaryValue,
+                    result.metrics.primaryUnit,
+                  );
                   return (
                     <article
                       key={result.id}
@@ -259,6 +300,7 @@ function LabScreen() {
                       </div>
                       <div className="text-right">
                         <strong className="block">{value}</strong>
+                        <LabMeasurementDetails metrics={result.metrics} />
                         <span className="text-[11px] text-muted-foreground">
                           {result.synced ? "zapisano" : "oczekuje na synchronizację"}
                         </span>
@@ -276,7 +318,6 @@ function LabScreen() {
         <LabFlow
           userId={user.id}
           attempts={attempts}
-          existingResults={results}
           onSaved={addResult}
           onClose={() => setAttempts(null)}
         />

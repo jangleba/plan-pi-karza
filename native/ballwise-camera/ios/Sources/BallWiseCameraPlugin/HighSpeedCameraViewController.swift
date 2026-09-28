@@ -4,11 +4,7 @@ import UIKit
 
 struct BallWiseCapture {
     let url: URL
-    let fps: Double
-    let width: Int
-    let height: Int
-    let durationSeconds: Double
-    let frameCount: Int
+    let timeline: VideoTimeline
     let codec: String
 }
 
@@ -43,6 +39,9 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
     private var recordingStartedAt: Date?
     private var cancellationRequested = false
     private var finished = false
+    private var recordingPending = false
+    private var currentVideoURL: URL?
+    private var interruptionMessage: String?
 
     private let closeButton = UIButton(type: .system)
     private let recordButton = UIButton(type: .custom)
@@ -66,6 +65,27 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
         view.backgroundColor = .black
         configureInterface()
         configureSession()
+        NotificationCenter.default.addObserver(self, selector: #selector(sessionInterrupted),
+                                               name: .AVCaptureSessionWasInterrupted, object: session)
+        NotificationCenter.default.addObserver(self, selector: #selector(sessionInterrupted),
+                                               name: .AVCaptureSessionRuntimeError, object: session)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func sessionInterrupted(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.finished else { return }
+            self.interruptionMessage = "Nagrywanie zostało przerwane. Nagraj próbę ponownie."
+            self.recordButton.isEnabled = false
+            if self.output.isRecording {
+                self.output.stopRecording()
+            } else if !self.recordingPending {
+                self.finish(.failure(self.interruptionMessage!))
+            }
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -98,7 +118,7 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
 
         let candidates = device.formats.compactMap { format -> BallWiseFormatSelection? in
             let ranges = format.videoSupportedFrameRateRanges
-            guard ranges.contains(where: { $0.maxFrameRate >= 239 && $0.minFrameRate <= 240 }) else {
+            guard ranges.contains(where: { $0.maxFrameRate >= 240 && $0.minFrameRate <= 240 }) else {
                 return nil
             }
             let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
@@ -156,6 +176,7 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
                 self.session.commitConfiguration()
 
                 DispatchQueue.main.async {
+                    self.recordButton.isEnabled = true
                     self.attachPreview()
                     self.fpsLabel.text = "240 FPS • \(selection.width)×\(selection.height)"
                 }
@@ -192,6 +213,7 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
         closeButton.layer.cornerRadius = 25
         closeButton.addTarget(self, action: #selector(cancelCapture), for: .touchUpInside)
 
+        recordButton.isEnabled = false
         recordButton.translatesAutoresizingMaskIntoConstraints = false
         recordButton.backgroundColor = .systemRed
         recordButton.layer.cornerRadius = 38
@@ -279,17 +301,21 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
 
     @objc private func toggleRecording() {
         if output.isRecording {
+            recordButton.isEnabled = false
             output.stopRecording()
             return
         }
 
-        guard selection != nil else { return }
+        guard selection != nil, !recordingPending, !finished else { return }
         do {
             try FileManager.default.createDirectory(at: Self.labDirectory, withIntermediateDirectories: true)
             let url = Self.labDirectory.appendingPathComponent("\(UUID().uuidString).mov")
             if let connection = output.connection(with: .video) {
                 applyRotation(to: connection)
             }
+            currentVideoURL = url
+            recordingPending = true
+            recordButton.isEnabled = false
             recordingStartedAt = Date()
             recordButton.backgroundColor = .white
             recordButton.layer.borderColor = UIColor.systemRed.cgColor
@@ -302,9 +328,10 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
 
     @objc private func cancelCapture() {
         guard !finished else { return }
-        if output.isRecording {
+        cancellationRequested = true
+        if output.isRecording || recordingPending {
             cancellationRequested = true
-            output.stopRecording()
+            if output.isRecording { output.stopRecording() }
             return
         }
         finish(.cancelled)
@@ -325,58 +352,59 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
         from connections: [AVCaptureConnection],
         error: Error?
     ) {
-        timer?.invalidate()
-        recordButton.backgroundColor = .systemRed
-        recordButton.layer.borderColor = UIColor.white.cgColor
-
-        if cancellationRequested {
-            try? FileManager.default.removeItem(at: outputFileURL)
-            finish(.cancelled)
-            return
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.recordingPending = false
+            self.timer?.invalidate()
+            self.recordButton.isEnabled = false
+            self.recordButton.backgroundColor = .systemRed
+            self.recordButton.layer.borderColor = UIColor.white.cgColor
+            if self.cancellationRequested {
+                try? FileManager.default.removeItem(at: outputFileURL)
+                self.finish(.cancelled)
+                return
+            }
+            if let message = self.interruptionMessage {
+                try? FileManager.default.removeItem(at: outputFileURL)
+                self.finish(.failure(message))
+                return
+            }
+            // Hitting a configured duration limit can return an error with a usable file.
+            let recordingError = error as NSError?
+            if let recordingError,
+               (recordingError.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool) != true {
+                try? FileManager.default.removeItem(at: outputFileURL)
+                self.finish(.failure("Nagranie nie zostało zapisane: \(recordingError.localizedDescription)"))
+                return
+            }
+            self.inspectCapture(at: outputFileURL) { [weak self] outcome in
+                self?.finish(outcome)
+            }
         }
+    }
 
-        if let error {
-            try? FileManager.default.removeItem(at: outputFileURL)
-            finish(.failure("Nagranie nie zostało zapisane: \(error.localizedDescription)"))
-            return
-        }
-
-        inspectCapture(at: outputFileURL) { [weak self] outcome in
-            self?.finish(outcome)
+    func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL,
+                    from connections: [AVCaptureConnection]) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.recordingPending = false
+            if self.cancellationRequested || self.interruptionMessage != nil {
+                self.output.stopRecording()
+            } else {
+                self.recordButton.isEnabled = true
+            }
         }
     }
 
     private func inspectCapture(at url: URL, completion: @escaping (BallWiseCaptureOutcome) -> Void) {
         sessionQueue.async {
-            let asset = AVURLAsset(url: url)
-            guard let track = asset.tracks(withMediaType: .video).first else {
+            do {
+                let timeline = try VideoTimeline.read(url: url)
+                completion(.success(BallWiseCapture(url: url, timeline: timeline, codec: "mov")))
+            } catch {
                 try? FileManager.default.removeItem(at: url)
-                completion(.failure("Nagranie nie zawiera ścieżki wideo."))
-                return
+                completion(.failure(error.localizedDescription))
             }
-
-            let fps = Double(track.nominalFrameRate)
-            let duration = asset.duration.seconds
-            let dimensions = track.naturalSize.applying(track.preferredTransform)
-            let width = Int(abs(dimensions.width).rounded())
-            let height = Int(abs(dimensions.height).rounded())
-            let frameCount = Int((duration * fps).rounded(.down))
-
-            guard fps >= 239, duration > 0, frameCount > 1 else {
-                try? FileManager.default.removeItem(at: url)
-                completion(.failure("Film nie przeszedł kontroli 240 FPS. Wynik nie został utworzony."))
-                return
-            }
-
-            completion(.success(BallWiseCapture(
-                url: url,
-                fps: fps,
-                width: width,
-                height: height,
-                durationSeconds: duration,
-                frameCount: frameCount,
-                codec: "mov"
-            )))
         }
     }
 
@@ -384,6 +412,11 @@ final class HighSpeedCameraViewController: UIViewController, AVCaptureFileOutput
         DispatchQueue.main.async { [weak self] in
             guard let self, !self.finished else { return }
             self.finished = true
+            if case .success = outcome {
+                // The analyzer owns the temporary video after successful capture.
+            } else if let url = self.currentVideoURL {
+                self.sessionQueue.async { try? FileManager.default.removeItem(at: url) }
+            }
             self.timer?.invalidate()
             self.dismiss(animated: true) {
                 self.completion(outcome)

@@ -16,6 +16,8 @@ public final class BallWiseCameraPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let worker = DispatchQueue(label: "app.ballwise.camera.worker", qos: .userInitiated)
 
+    private var timelines: [String: VideoTimeline] = [:]
+
     @objc public func capabilities(_ call: CAPPluginCall) {
         worker.async {
             guard let selection = HighSpeedCameraViewController.best240FPSFormat() else {
@@ -64,15 +66,20 @@ public final class BallWiseCameraPlugin: CAPPlugin, CAPBridgedPlugin {
                 let controller = HighSpeedCameraViewController(maximumDuration: maximumDuration) { outcome in
                     switch outcome {
                     case .success(let capture):
-                        call.resolve([
-                            "path": capture.url.path,
-                            "fps": capture.fps,
-                            "width": capture.width,
-                            "height": capture.height,
-                            "durationSeconds": capture.durationSeconds,
-                            "frameCount": capture.frameCount,
-                            "codec": capture.codec
-                        ])
+                        self.worker.async {
+                            self.timelines[capture.url.path] = capture.timeline
+                            call.resolve([
+                                "path": capture.url.path,
+                                "fps": capture.timeline.observedFps,
+                                "nominalFps": capture.timeline.nominalFps,
+                                "frameTimestampsSeconds": capture.timeline.frameTimes.map { $0.seconds },
+                                "width": capture.timeline.width,
+                                "height": capture.timeline.height,
+                                "durationSeconds": capture.timeline.durationSeconds,
+                                "frameCount": capture.timeline.frameTimes.count,
+                                "codec": capture.codec
+                            ])
+                        }
                     case .cancelled:
                         call.reject("Nagrywanie anulowane.", "CAPTURE_CANCELLED")
                     case .failure(let message):
@@ -92,27 +99,34 @@ public final class BallWiseCameraPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        let frameIndex = max(call.getInt("frameIndex") ?? 0, 0)
+        guard let requestedIndex = call.getDouble("frameIndex"), requestedIndex.isFinite,
+              requestedIndex >= 0, requestedIndex.rounded(.towardZero) == requestedIndex,
+              requestedIndex < Double(Int.max) else {
+            call.reject("Nieprawidłowy numer klatki.", "FRAME_OUT_OF_RANGE")
+            return
+        }
+        let frameIndex = Int(requestedIndex)
         let maxWidth = min(max(call.getInt("maxWidth") ?? 1280, 320), 1920)
 
         worker.async {
             let asset = AVURLAsset(url: url)
-            guard let track = asset.tracks(withMediaType: .video).first else {
-                call.reject("Film nie zawiera ścieżki wideo.", "VIDEO_TRACK_MISSING")
+            let timeline: VideoTimeline
+            do {
+                if let cached = self.timelines[url.path] {
+                    timeline = cached
+                } else {
+                    timeline = try VideoTimeline.read(url: url)
+                    self.timelines[url.path] = timeline
+                }
+            } catch {
+                call.reject(error.localizedDescription, "INVALID_CAPTURE_TIMING")
                 return
             }
-
-            let fps = Double(track.nominalFrameRate)
-            guard fps >= 239 else {
-                call.reject("Film nie ma zweryfikowanych 240 FPS.", "INVALID_CAPTURE_FPS")
-                return
-            }
-
-            let seconds = Double(frameIndex) / fps
-            guard seconds <= asset.duration.seconds + (1.0 / fps) else {
+            guard frameIndex < timeline.frameTimes.count else {
                 call.reject("Wybrana klatka jest poza filmem.", "FRAME_OUT_OF_RANGE")
                 return
             }
+            let requestedTime = timeline.frameTimes[frameIndex]
 
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
@@ -123,16 +137,20 @@ public final class BallWiseCameraPlugin: CAPPlugin, CAPBridgedPlugin {
             var actualTime = CMTime.zero
             do {
                 let image = try generator.copyCGImage(
-                    at: CMTime(seconds: seconds, preferredTimescale: 60_000),
+                    at: requestedTime,
                     actualTime: &actualTime
                 )
+                guard CMTimeCompare(actualTime, requestedTime) == 0 else {
+                    call.reject("Odczytano inną klatkę niż wybrana. Wybierz klatkę ponownie.", "FRAME_TIME_MISMATCH")
+                    return
+                }
                 guard let jpeg = UIImage(cgImage: image).jpegData(compressionQuality: 0.9) else {
                     call.reject("Nie można zakodować klatki.", "FRAME_ENCODING_FAILED")
                     return
                 }
                 call.resolve([
                     "dataUrl": "data:image/jpeg;base64,\(jpeg.base64EncodedString())",
-                    "requestedFrame": frameIndex,
+                    "frameIndex": frameIndex,
                     "actualTimeSeconds": actualTime.seconds
                 ])
             } catch {
@@ -153,6 +171,7 @@ public final class BallWiseCameraPlugin: CAPPlugin, CAPBridgedPlugin {
                 if FileManager.default.fileExists(atPath: url.path) {
                     try FileManager.default.removeItem(at: url)
                 }
+                self.timelines.removeValue(forKey: url.path)
                 call.resolve()
             } catch {
                 call.reject("Nie można usunąć filmu roboczego.", "VIDEO_DELETE_FAILED", error)

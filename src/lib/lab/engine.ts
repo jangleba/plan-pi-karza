@@ -1,4 +1,12 @@
-import { LAB_PROTOCOL_VERSION, MIN_ACCEPTED_CAPTURE_FPS, getLabTest } from "./definitions";
+import {
+  LAB_PROTOCOL_VERSION,
+  MIN_ACCEPTED_CAPTURE_FPS,
+  getLabTest,
+  isActiveLabTestId,
+} from "./definitions";
+import { assertFrameIndex, finite, LabValidationError, validateCaptureTiming } from "./timing";
+import { newLabId } from "./id";
+export { LabValidationError } from "./timing";
 import type {
   LabAttempt,
   LabMetrics,
@@ -12,56 +20,25 @@ import type {
 
 const GRAVITY_M_S2 = 9.80665;
 
-export class LabValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "LabValidationError";
-  }
-}
-
-function finite(value: number, label: string) {
-  if (!Number.isFinite(value)) throw new LabValidationError(`${label}: nieprawidłowa wartość.`);
-}
-
 function assertRange(value: number, min: number, max: number, message: string) {
-  if (value < min || value > max) throw new LabValidationError(message);
-}
-
-function newId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-export function frameDurationSeconds(frameDelta: number, fps: number) {
-  finite(frameDelta, "Liczba klatek");
-  finite(fps, "FPS");
-  if (frameDelta <= 0) throw new LabValidationError("Drugi znacznik musi być po pierwszym.");
-  if (fps < MIN_ACCEPTED_CAPTURE_FPS) {
-    throw new LabValidationError("Nagranie nie ma wymaganego 240 FPS.");
-  }
-  return frameDelta / fps;
+  finite(value, "Pomiar");
+  if (value < min - 1e-9 || value > max + 1e-9) throw new LabValidationError(message);
 }
 
 export function jumpHeightCmFromFlightTime(flightTimeSeconds: number) {
   finite(flightTimeSeconds, "Czas lotu");
   if (flightTimeSeconds <= 0) throw new LabValidationError("Czas lotu musi być dodatni.");
-  return (GRAVITY_M_S2 * flightTimeSeconds * flightTimeSeconds * 100) / 8;
+  const height = (GRAVITY_M_S2 * flightTimeSeconds * flightTimeSeconds * 100) / 8;
+  finite(height, "Wysokość skoku");
+  return height;
 }
 
 export function asymmetryPercent(left: number, right: number) {
   finite(left, "Wynik lewej strony");
   finite(right, "Wynik prawej strony");
+  if (left <= 0 || right <= 0) throw new LabValidationError("Wyniki stron muszą być dodatnie.");
   const denominator = Math.max(Math.abs(left), Math.abs(right));
-  return denominator === 0 ? 0 : (Math.abs(left - right) / denominator) * 100;
-}
-
-export function ballPenaltyPercent(withBallSeconds: number, withoutBallSeconds: number) {
-  finite(withBallSeconds, "Czas z piłką");
-  finite(withoutBallSeconds, "Czas bez piłki");
-  if (withBallSeconds <= 0 || withoutBallSeconds <= 0) {
-    throw new LabValidationError("Czasy sprintu muszą być dodatnie.");
-  }
-  return ((withBallSeconds - withoutBallSeconds) / withoutBallSeconds) * 100;
+  return (Math.abs(left - right) / denominator) * 100;
 }
 
 function validateElapsed(testId: LabTestId, elapsed: number) {
@@ -106,9 +83,6 @@ function validateElapsed(testId: LabTestId, elapsed: number) {
         "Czas 505 jest poza wiarygodnym zakresem. Sprawdź oba przecięcia linii.",
       );
       break;
-    case "sprint_10m_ball":
-      assertRange(elapsed, 1, 6, "Czas sprintu z piłką jest poza wiarygodnym zakresem.");
-      break;
   }
 }
 
@@ -116,18 +90,23 @@ export function calculateLabMetrics(options: {
   testId: LabTestId;
   firstFrame: number;
   secondFrame: number;
-  fps: number;
-  sprint10BaselineSeconds?: number | null;
+  capture: NativeVideoCapture;
 }): { metrics: LabMetrics; quality: LabQuality } {
-  const { testId, firstFrame, secondFrame, fps, sprint10BaselineSeconds } = options;
+  const { testId, firstFrame, secondFrame, capture } = options;
   const test = getLabTest(testId);
-  const elapsedSeconds = frameDurationSeconds(secondFrame - firstFrame, fps);
+  const timing = validateCaptureTiming(capture);
+  assertFrameIndex(firstFrame, capture.frameCount);
+  assertFrameIndex(secondFrame, capture.frameCount);
+  if (secondFrame <= firstFrame)
+    throw new LabValidationError("Drugi znacznik musi być po pierwszym.");
+  const firstTimestampSeconds = capture.frameTimestampsSeconds[firstFrame];
+  const secondTimestampSeconds = capture.frameTimestampsSeconds[secondFrame];
+  const elapsedSeconds = secondTimestampSeconds - firstTimestampSeconds;
   validateElapsed(testId, elapsedSeconds);
 
   let metrics: LabMetrics;
   if (test.category === "jump") {
     const jumpHeightCm = jumpHeightCmFromFlightTime(elapsedSeconds);
-    assertRange(jumpHeightCm, 4.9, 122.6, "Wysokość skoku jest poza wiarygodnym zakresem.");
     metrics = {
       primaryValue: jumpHeightCm,
       primaryUnit: "cm",
@@ -142,14 +121,11 @@ export function calculateLabMetrics(options: {
       elapsedSeconds,
     };
 
-    if (testId === "flying_10m" && test.distanceMeters) {
+    if ((testId === "flying_10m" || testId === "sprint_10m") && test.distanceMeters) {
+      metrics.distanceMeters = test.distanceMeters;
       const averageSpeedMps = test.distanceMeters / elapsedSeconds;
       metrics.averageSpeedMps = averageSpeedMps;
       metrics.speedKmh = averageSpeedMps * 3.6;
-    }
-
-    if (testId === "sprint_10m_ball" && sprint10BaselineSeconds) {
-      metrics.ballPenaltyPercent = ballPenaltyPercent(elapsedSeconds, sprint10BaselineSeconds);
     }
   }
 
@@ -158,9 +134,16 @@ export function calculateLabMetrics(options: {
     quality: {
       valid: true,
       reasons: [],
-      fpsVerified: fps >= MIN_ACCEPTED_CAPTURE_FPS,
-      frameResolutionMs: 1000 / fps,
+      fpsVerified: true,
+      frameResolutionMs: timing.medianFrameDurationSeconds * 1000,
       protocolVersion: LAB_PROTOCOL_VERSION,
+      timing: {
+        source: "sample_pts",
+        firstTimestampSeconds,
+        secondTimestampSeconds,
+        nominalFps: capture.nominalFps,
+        ...timing,
+      },
     },
   };
 }
@@ -172,7 +155,7 @@ export function createAttemptPlan(testIds: readonly LabTestId[]): LabAttempt[] {
     for (const side of test.sides) {
       for (let trialNumber = 1; trialNumber <= test.trialsPerSide; trialNumber += 1) {
         rows.push({
-          id: newId(),
+          id: newLabId(),
           testId,
           side,
           trialNumber,
@@ -189,6 +172,7 @@ export function createAttemptPlan(testIds: readonly LabTestId[]): LabAttempt[] {
 }
 
 export function createLabResult(options: {
+  id?: string;
   userId: string;
   batchId: string;
   attempt: LabAttempt;
@@ -199,7 +183,6 @@ export function createLabResult(options: {
   trimEndFrame: number;
   firstGuidePosition: number;
   secondGuidePosition: number;
-  sprint10BaselineSeconds?: number | null;
 }): LabResult {
   const {
     userId,
@@ -212,9 +195,23 @@ export function createLabResult(options: {
     trimEndFrame,
     firstGuidePosition,
     secondGuidePosition,
-    sprint10BaselineSeconds,
   } = options;
   if (!userId) throw new LabValidationError("Brak zalogowanego zawodnika.");
+  if (!batchId) throw new LabValidationError("Brak identyfikatora profilu.");
+  const test = getLabTest(attempt.testId);
+  if (
+    !test.sides.includes(attempt.side) ||
+    !Number.isSafeInteger(attempt.trialNumber) ||
+    attempt.trialNumber < 1 ||
+    attempt.trialNumber > 10
+  ) {
+    throw new LabValidationError("Nieprawidłowa strona lub numer próby.");
+  }
+  [firstFrame, secondFrame, trimStartFrame, trimEndFrame].forEach((frame) =>
+    assertFrameIndex(frame, capture.frameCount),
+  );
+  finite(firstGuidePosition, "Pozycja pierwszej linii");
+  finite(secondGuidePosition, "Pozycja drugiej linii");
   if (firstFrame < trimStartFrame || secondFrame > trimEndFrame) {
     throw new LabValidationError("Znaczniki muszą znajdować się w wybranym fragmencie filmu.");
   }
@@ -225,19 +222,17 @@ export function createLabResult(options: {
     testId: attempt.testId,
     firstFrame,
     secondFrame,
-    fps: capture.fps,
-    sprint10BaselineSeconds,
+    capture,
   });
-  const test = getLabTest(attempt.testId);
   return {
-    id: newId(),
+    id: options.id ?? newLabId(),
     userId,
     batchId,
     testId: attempt.testId,
     side: attempt.side,
     trialNumber: attempt.trialNumber,
     recordedAt: new Date().toISOString(),
-    fps: capture.fps,
+    fps: Math.max(MIN_ACCEPTED_CAPTURE_FPS, quality.timing!.observedFps),
     frameCount: capture.frameCount,
     firstFrame,
     secondFrame,
@@ -252,9 +247,22 @@ export function createLabResult(options: {
   };
 }
 
-export function summarizeResults(results: readonly LabResult[]): LabSummaryRow[] {
-  const groups = new Map<string, LabResult[]>();
-  for (const result of results.filter((item) => item.quality.valid)) {
+export function isVisibleLabResult(result: LabResult): result is LabResult & { testId: LabTestId } {
+  return (
+    isActiveLabTestId(result.testId) &&
+    result.quality.valid &&
+    Number.isFinite(result.metrics.primaryValue) &&
+    result.metrics.primaryValue > 0 &&
+    Number.isFinite(result.metrics.elapsedSeconds) &&
+    result.metrics.elapsedSeconds > 0
+  );
+}
+
+export function summarizeResults(results: readonly LabResult[], batchId: string): LabSummaryRow[] {
+  const groups = new Map<string, (LabResult & { testId: LabTestId })[]>();
+  for (const result of results
+    .filter(isVisibleLabResult)
+    .filter((item) => item.batchId === batchId)) {
     const key = `${result.testId}:${result.side ?? "both"}`;
     const current = groups.get(key) ?? [];
     current.push(result);
@@ -264,23 +272,37 @@ export function summarizeResults(results: readonly LabResult[]): LabSummaryRow[]
   return [...groups.values()].map((group) => {
     const first = group[0];
     const isTime = first.metrics.primaryUnit === "s";
-    const values = group.map((item) => item.metrics.primaryValue);
+    const best = group.reduce((winner, item) =>
+      (
+        isTime
+          ? item.metrics.primaryValue < winner.metrics.primaryValue
+          : item.metrics.primaryValue > winner.metrics.primaryValue
+      )
+        ? item
+        : winner,
+    );
     return {
       testId: first.testId,
       title: getLabTest(first.testId).title,
       side: first.side,
-      bestValue: isTime ? Math.min(...values) : Math.max(...values),
+      bestValue: best.metrics.primaryValue,
       unit: first.metrics.primaryUnit,
       attempts: group.length,
+      metrics: best.metrics,
     };
   });
 }
 
-export function bestSideAsymmetry(results: readonly LabResult[], testId: LabTestId) {
-  const left = results
+export function bestSideAsymmetry(
+  results: readonly LabResult[],
+  testId: LabTestId,
+  batchId: string,
+) {
+  const current = results.filter(isVisibleLabResult).filter((item) => item.batchId === batchId);
+  const left = current
     .filter((item) => item.testId === testId && item.side === "left" && item.quality.valid)
     .map((item) => item.metrics.primaryValue);
-  const right = results
+  const right = current
     .filter((item) => item.testId === testId && item.side === "right" && item.quality.valid)
     .map((item) => item.metrics.primaryValue);
   if (!left.length || !right.length) return null;
@@ -294,22 +316,12 @@ export function bestSideAsymmetry(results: readonly LabResult[], testId: LabTest
   };
 }
 
-export function latestSprint10Baseline(results: readonly LabResult[]) {
-  const values = results
-    .filter((item) => item.testId === "sprint_10m" && item.quality.valid)
-    .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
-    .slice(0, 2)
-    .map((item) => item.metrics.elapsedSeconds);
-  return values.length ? Math.min(...values) : null;
-}
-
 export const FULL_PROFILE_TEST_IDS: readonly LabTestId[] = [
   "cmj",
   "single_leg_cmj",
   "sprint_10m",
   "flying_10m",
   "cod_505",
-  "sprint_10m_ball",
 ] as const;
 
 export function sideLabel(side: LabSide) {

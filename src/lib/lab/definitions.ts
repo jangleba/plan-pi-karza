@@ -1,6 +1,6 @@
 import type { LabTestDefinition, LabTestId } from "./types";
 
-export const LAB_PROTOCOL_VERSION = "ballwise-lab-1.0";
+export const LAB_PROTOCOL_VERSION = "ballwise-lab-2.0";
 export const REQUIRED_CAPTURE_FPS = 240;
 export const MIN_ACCEPTED_CAPTURE_FPS = 239;
 
@@ -97,7 +97,7 @@ export const LAB_TESTS: readonly LabTestDefinition[] = [
     id: "flying_10m",
     category: "speed",
     title: "Flying 10 m",
-    shortDescription: "Prędkość maksymalna",
+    shortDescription: "Średnia prędkość na 10 m",
     setup: [
       "Wyznacz strefę rozpędzania 20 m oraz odcinek pomiarowy 10 m.",
       "Obie linie odcinka pomiarowego muszą być dobrze widoczne.",
@@ -152,40 +152,14 @@ export const LAB_TESTS: readonly LabTestDefinition[] = [
     sides: ["left", "right"],
     maxCaptureSeconds: 15,
   },
-  {
-    id: "sprint_10m_ball",
-    category: "ball",
-    title: "Sprint 10 m z piłką",
-    shortDescription: "Różnica względem sprintu",
-    setup: [
-      "Użyj dokładnie tego samego odcinka i ustawienia telefonu co w sprincie 10 m.",
-      "Piłka musi rozpocząć za linią startu i przekroczyć metę pod kontrolą zawodnika.",
-      "Nie zmieniaj nawierzchni ani obuwia względem testu bez piłki.",
-      "Wynik porównujemy z ostatnim prawidłowym sprintem 10 m bez piłki.",
-    ],
-    markers: [
-      {
-        key: "start",
-        label: "Start",
-        instruction: "Pierwsza klatka ruchu zawodnika lub piłki — wcześniejszy z tych momentów.",
-      },
-      {
-        key: "finish",
-        label: "Meta",
-        instruction: "Pierwsza klatka przecięcia mety środkiem tułowia z piłką pod kontrolą.",
-      },
-    ],
-    guideAxis: "vertical",
-    guideMode: "separate",
-    trialsPerSide: 2,
-    sides: [null],
-    maxCaptureSeconds: 12,
-    distanceMeters: 10,
-  },
 ] as const;
 
 export function getLabTest(id: LabTestId): LabTestDefinition {
   const test = LAB_TESTS.find((item) => item.id === id);
   if (!test) throw new Error(`Nieznany test BallWise Lab: ${id}`);
   return test;
+}
+
+export function isActiveLabTestId(id: unknown): id is LabTestId {
+  return LAB_TESTS.some((test) => test.id === id);
 }

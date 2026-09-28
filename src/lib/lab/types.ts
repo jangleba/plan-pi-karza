@@ -1,5 +1,7 @@
-export type LabTestId =
-  "cmj" | "single_leg_cmj" | "sprint_10m" | "flying_10m" | "cod_505" | "sprint_10m_ball";
+export type LabTestId = "cmj" | "single_leg_cmj" | "sprint_10m" | "flying_10m" | "cod_505";
+
+// Retained only for reading existing records; never offered as a new test.
+export type StoredLabTestId = LabTestId | "sprint_10m_ball";
 
 export type LabSide = "left" | "right" | null;
 export type LabMarkerKind = "takeoff" | "landing" | "start" | "finish" | "entry" | "exit";
@@ -13,7 +15,7 @@ export interface LabMarkerDefinition {
 
 export interface LabTestDefinition {
   id: LabTestId;
-  category: "jump" | "speed" | "change" | "ball";
+  category: "jump" | "speed" | "change";
   title: string;
   shortDescription: string;
   setup: string[];
@@ -39,6 +41,8 @@ export interface LabAttempt {
 export interface NativeVideoCapture {
   path: string;
   fps: number;
+  nominalFps: number;
+  frameTimestampsSeconds: number[];
   frameCount: number;
   durationSeconds: number;
   width: number;
@@ -63,8 +67,18 @@ export interface LabMetrics {
   flightTimeSeconds?: number;
   averageSpeedMps?: number;
   speedKmh?: number;
+  distanceMeters?: number;
   asymmetryPercent?: number;
-  ballPenaltyPercent?: number;
+}
+
+export interface LabTiming {
+  source: "sample_pts";
+  firstTimestampSeconds: number;
+  secondTimestampSeconds: number;
+  nominalFps: number;
+  observedFps: number;
+  medianFrameDurationSeconds: number;
+  maxFrameGapSeconds: number;
 }
 
 export interface LabQuality {
@@ -73,13 +87,15 @@ export interface LabQuality {
   fpsVerified: boolean;
   frameResolutionMs: number;
   protocolVersion: string;
+  // Optional only for historical results created before protocol 2.0.
+  timing?: LabTiming;
 }
 
 export interface LabResult {
   id: string;
   userId: string;
   batchId: string;
-  testId: LabTestId;
+  testId: StoredLabTestId;
   side: LabSide;
   trialNumber: number;
   recordedAt: string;
@@ -104,4 +120,5 @@ export interface LabSummaryRow {
   bestValue: number;
   unit: "cm" | "s";
   attempts: number;
+  metrics: LabMetrics;
 }

@@ -10,9 +10,9 @@ export interface BallWiseCameraCapabilities {
   reason?: string;
 }
 
-interface FrameResponse {
+export interface FrameResponse {
   dataUrl: string;
-  requestedFrame: number;
+  frameIndex: number;
   actualTimeSeconds: number;
 }
 
@@ -51,7 +51,7 @@ export async function recordLabVideo(maxDurationSeconds: number) {
 }
 
 export async function loadExactFrame(path: string, frameIndex: number, maxWidth = 1280) {
-  if (!isNativeIosLab()) return null;
+  if (!isNativeIosLab()) throw new Error("Analiza klatek wymaga aplikacji iPhone.");
   return NativeCamera.frameAt({ path, frameIndex, maxWidth });
 }
 
