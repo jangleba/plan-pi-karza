@@ -1,5 +1,8 @@
 # BallWise Lab — protokół 2.0, 240 FPS
 
+Aktualny natywny moduł iOS; nie jest wycofanym Vision Lab. Przegląd dokumentu:
+29 września 2026. Wyniki testów fizycznych i wdrożenia są nadal do udokumentowania.
+
 ## Zakres
 
 BallWise Lab mierzy tylko parametry, które można wyznaczyć z dwóch ręcznie wskazanych klatek filmu nagranego z rzeczywistą częstotliwością 240 FPS:
@@ -79,15 +82,19 @@ Bez platformy sił, maty kontaktowej albo dodatkowych czujników aplikacja nie p
 
 ## Instalacja iOS
 
-1. Wgraj zawartość paczki do katalogu głównego repozytorium.
-2. Zastosuj migrację `supabase/migrations/20260925185931_ballwise_lab_240fps_results.sql`.
-3. Na macOS z Xcode uruchom `npm ci`.
-4. Uruchom `BALLWISE_IOS_BUNDLE_ID=pl.twojafirma.ballwise npm run ios:setup`.
-5. Uruchom `npm run ios:open`, ustaw podpisywanie aplikacji i wykonaj build na fizycznym iPhonie.
+1. W wybranym projekcie zastosuj migracje w kolejności, w tym `supabase/migrations/20260925185931_ballwise_lab_240fps_results.sql`.
+2. Na macOS z Xcode, Node.js 22.12+ i npm uruchom `npm ci`.
+3. Uruchom `BALLWISE_IOS_BUNDLE_ID=pl.twojafirma.ballwise npm run ios:setup` z własnym bundle ID.
+4. Uruchom `npm run ios:open`, ustaw podpisywanie aplikacji i wykonaj build na fizycznym iPhonie.
+5. Po zmianach używaj `BALLWISE_IOS_BUNDLE_ID=pl.twojafirma.ballwise npm run ios:sync`; skrypt ponownie buduje mobilne SPA.
 
 Instalator tworzy projekt iOS, synchronizuje lokalny plugin `@ballwise/camera` i dodaje opis uprawnienia kamery. Nagrywanie 240 FPS nie działa w samej przeglądarce ani w PWA — wymaga natywnej aplikacji iOS.
 
 ## Kontrola przed wydaniem
+
+Poniższe próby wymagają osobnych dowodów; nie są deklaracją zaliczenia. Ogólne
+warunki i otwarte kwestie eksportu/czyszczenia lokalnych wyników opisuje
+[lista wydania](RELEASE-CHECKLIST.md).
 
 - Sprawdź na każdym wspieranym modelu iPhone, czy ekran Lab pokazuje `240 FPS • GOTOWE`.
 - Sprawdź ręczne zatrzymanie, automatyczne zakończenie po limicie, odmowę dostępu, przerwanie nagrania i anulowanie analizy.

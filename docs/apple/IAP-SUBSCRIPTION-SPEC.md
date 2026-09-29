@@ -1,5 +1,10 @@
 # Specyfikacja subskrypcji Apple IAP
 
+**PROPOZYCJA — niewdrożona, przegląd 29 września 2026.** Repozytorium nie ma
+StoreKit, paywalla, przywracania zakupów, ekranu zarządzania ani backendu
+entitlementów. Poniższe ID, cena i trial są docelowym projektem, nie aktywną
+ofertą. Konfigurację i zgodność zatwierdź przed rozpoczęciem implementacji.
+
 ## Produkt
 
 - Typ: Auto-Renewable Subscription
@@ -48,3 +53,6 @@ Nie pokazuj trialu osobie, której StoreKit nie kwalifikuje do oferty.
 8. usunięcie konta z aktywną subskrypcją;
 9. ponowne konto i próba nieuprawnionego ponownego trialu.
 
+
+Przed płatnym wydaniem zamknij [listę wydania](../RELEASE-CHECKLIST.md) i sprawdź
+aktualne [wytyczne zakupów Apple](https://developer.apple.com/app-store/review/guidelines/#in-app-purchase).

@@ -1,3 +1,4 @@
+import { addIsoDays } from "@/lib/isoDate";
 import type { Profile, SessionDay } from "@/lib/loadwise/types";
 import type {
   CompletedSessionEntry,
@@ -29,12 +30,6 @@ export interface MicrocycleReport {
 
 const WEEKDAYS = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
-function isoMinus(iso: string, days: number): string {
-  const date = new Date(`${iso}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - days);
-  return date.toISOString().slice(0, 10);
-}
-
 function planSessions(day: SessionDay): SessionDay[] {
   if (day.dayType === "rest" || day.isUnavailable) return [];
   return day.secondSession ? [day, day.secondSession] : [day];
@@ -45,7 +40,7 @@ export function buildMicrocycle(
   history: CompletedSessionEntry[],
   todayIso: string,
 ): MicrocycleReport {
-  const dates = Array.from({ length: 7 }, (_, index) => isoMinus(todayIso, 6 - index));
+  const dates = Array.from({ length: 7 }, (_, index) => addIsoDays(todayIso, index - 6));
   const fromIso = dates[0]!;
   const recentHistory = history.filter(
     (item) => item.date >= fromIso && item.date <= todayIso,

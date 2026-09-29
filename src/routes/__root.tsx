@@ -1,8 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
-  createRootRouteWithContext,
+  createRootRoute,
   useRouter,
   HeadContent,
   Scripts,
@@ -12,11 +11,11 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import visualSystemCss from "../styles/ballwise-visual-system.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LoadwiseProvider, useLoadwise } from "../lib/loadwise/store";
-import { AuthProvider, useAuth } from "../lib/loadwise/auth";
+import { LoadwiseProvider } from "../lib/loadwise/store";
+import { AuthProvider } from "../lib/loadwise/auth";
 import { Toaster } from "../components/ui/sonner";
 import { LEGAL_RELEASE_BLOCKED } from "../lib/loadwise/legal";
-import { AppRoutePreloader } from "../components/loadwise/AppRoutePreloader";
+import { useDuplicateNavigationGuard } from "../lib/useDuplicateNavigationGuard";
 
 function NotFoundComponent() {
   return (
@@ -79,7 +78,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -135,7 +134,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  useDuplicateNavigationGuard();
 
   if (LEGAL_RELEASE_BLOCKED) {
     return (
@@ -152,27 +151,11 @@ function RootComponent() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <LoadwiseProvider>
-          <AppNavigationRuntime />
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          <Toaster position="top-center" />
-        </LoadwiseProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}
-
-function AppNavigationRuntime() {
-  const { user, loading } = useAuth();
-  const { todaySession } = useLoadwise();
-
-  return (
-    <AppRoutePreloader
-      authState={loading ? "loading" : user ? "user" : "guest"}
-      sessionDate={todaySession?.date ?? null}
-    />
+    <AuthProvider>
+      <LoadwiseProvider>
+        <Outlet />
+        <Toaster position="top-center" />
+      </LoadwiseProvider>
+    </AuthProvider>
   );
 }

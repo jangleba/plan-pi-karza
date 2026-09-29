@@ -879,7 +879,5 @@ export const PLANNING_PRIORITY_ORDER = [
   "recovery_mobility_prehab",
 ] as const;
 
-export type PlanningPriority = (typeof PLANNING_PRIORITY_ORDER)[number];
-
 // re-export dla wygody testów/integracji
 export { blockWeekOf };

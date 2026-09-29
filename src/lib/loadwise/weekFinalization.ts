@@ -675,9 +675,6 @@ export function validateNoBackToBackSpeedDays(weekPlan: SessionDay[]): {
   return { ok: tooClosePairs.length === 0, speedDays, tooClosePairs };
 }
 
-/** Alias jawny. */
-export const validateMinimumGapBetweenSpeedSessions = validateNoBackToBackSpeedDays;
-
 function adjacentDayHasSpeed(weekPlan: SessionDay[], dayIndex: number): boolean {
   const prev = dayIndex > 0 ? weekPlan[dayIndex - 1] : null;
   const next = dayIndex < weekPlan.length - 1 ? weekPlan[dayIndex + 1] : null;
@@ -1268,9 +1265,7 @@ function repairFieldMasGymPairings(weekPlan: SessionDay[], profile: Profile): vo
  * a nie bezpiecznej, niskointensywnej pracy z piłką.
  */
 export function addMissingBallSessions(
-  weekPlan: SessionDay[],
-  weeklyRequirements: WeeklyRequirements,
-  profile: Profile,
+  weekPlan: SessionDay[], weeklyRequirements: WeeklyRequirements,
 ): AddMissingBallResult {
   const required = weeklyRequirements.requiredBallSessions;
   const unresolvedIssues: string[] = [];
@@ -1947,7 +1942,7 @@ export function validateAndRepairWeekPlan(
   validateNoEnduranceOnClubDays(weekPlan, profile);
   // Własna piłka jest dodawana na końcu, żeby wcześniejsze naprawy siły i
   // wydolności nie mogły jej skasować. Klub i mecz nie spełniają tego minimum.
-  addMissingBallSessions(weekPlan, requirements, profile);
+  addMissingBallSessions(weekPlan, requirements);
   repairFieldMasGymPairings(weekPlan, profile);
 
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements, profile);

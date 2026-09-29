@@ -155,7 +155,7 @@ function focusFor(phase: WeekPhase, goal: Goal): { goal: string; accent: string 
 }
 
 /** Tygodniowe podsumowanie / periodyzacja. */
-function weekSummary(weekIndex: number, totalWeeks: number, week: PlanWeek, goal: Goal) {
+function weekSummary(week: PlanWeek, goal: Goal) {
   const phase = week.weekPhase;
   const block = focusFor(phase, goal);
   const stats = computeWeekStats(week);
@@ -280,7 +280,7 @@ function PlanScreen() {
   const monthGoal = GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? null;
   const summary = current
-    ? weekSummary(activeWeek, weeks.length, current, profile?.goal ?? "matchready")
+    ? weekSummary(current, profile?.goal ?? "matchready")
     : null;
 
   // Czy istnieje kolejny tydzień po aktywnym?

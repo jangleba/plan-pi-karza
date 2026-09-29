@@ -890,18 +890,3 @@ export function replaceUnsafeExercise<T extends AnyExercise>(
   }
   return adjusted;
 }
-
-// ---------------------------------------------------------------------------
-// Walidacja całego treningu / planu
-// ---------------------------------------------------------------------------
-
-export interface WorkoutAdjustment {
-  original: string;
-  replacement: string;
-  reason: string;
-}
-
-export interface WorkoutValidationResult {
-  adjustments: WorkoutAdjustment[];
-  hadIssues: boolean;
-}

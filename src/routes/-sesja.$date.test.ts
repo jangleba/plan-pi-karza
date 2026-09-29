@@ -4,17 +4,19 @@ import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import type { ExerciseItem, SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import {
   buildSprintRunnerBlocks,
-  buildStrengthStages,
-  normalizeStrengthBlockRest,
-  canShowPostSessionForm,
-  matchCanBeCompleted,
   formatSprintPrescription,
   isSprintRunnerSession,
   resolveSprintExerciseDetails,
   SPRINT_RUNNER_CONTAINER_CLASS,
+} from "@/lib/loadwise/sprintPresentation";
+import {
+  buildStrengthStages,
+  normalizeStrengthBlockRest,
+  canShowPostSessionForm,
+  matchCanBeCompleted,
   shortDecisionNote,
   statusBadgeLabel,
-} from "./sesja.$date";
+} from "@/lib/loadwise/sessionPresentation";
 
 function baseSession(overrides: Partial<SessionDay> = {}): SessionDay {
   return {
@@ -629,24 +631,16 @@ describe("strength runner presentation helpers", () => {
       },
     ];
 
-    const accessory = buildStrengthStages(sections).find(
-      (stage) => stage.key === "accessory",
-    );
+    const accessory = buildStrengthStages(sections).find((stage) => stage.key === "accessory");
 
-    expect(accessory?.blocks.map((block) => block.id)).toEqual([
-      "acc-a",
-      "transfer-a",
-    ]);
+    expect(accessory?.blocks.map((block) => block.id)).toEqual(["acc-a", "transfer-a"]);
   });
 
   it("usuwa każdy powtórzony prefiks przerwy po bloku", () => {
-    expect(
-      normalizeStrengthBlockRest(
-        "Przerwa po bloku: Przerwa po bloku: 90–120 s",
-      ),
-    ).toBe("90–120 s");
+    expect(normalizeStrengthBlockRest("Przerwa po bloku: Przerwa po bloku: 90–120 s")).toBe(
+      "90–120 s",
+    );
     expect(normalizeStrengthBlockRest("45–60 s")).toBe("45–60 s");
     expect(normalizeStrengthBlockRest(undefined)).toBeNull();
   });
 });
-

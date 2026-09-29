@@ -24,7 +24,7 @@ export interface ExerciseSessionLog {
   sets: HistorySetLog[];
 }
 
-function toHistoryLog(row: HistorySetLogRow): HistorySetLog {
+export function toSetLog(row: HistorySetLogRow): HistorySetLog {
   return {
     setNumber: row.set_number,
     weightKg: row.weight_kg === null ? null : Number(row.weight_kg),
@@ -32,9 +32,7 @@ function toHistoryLog(row: HistorySetLogRow): HistorySetLog {
     rir: row.rir,
     metricKind: row.metric_kind ?? null,
     metricValue:
-      row.metric_value === null || row.metric_value === undefined
-        ? null
-        : Number(row.metric_value),
+      row.metric_value === null || row.metric_value === undefined ? null : Number(row.metric_value),
   };
 }
 
@@ -56,10 +54,8 @@ export function previousExerciseSessions(
   return [...groups.entries()]
     .map(([sessionKey, group]) => ({
       sessionKey,
-      performedAt: group
-        .map((row) => row.performed_at)
-        .sort((a, b) => b.localeCompare(a))[0],
-      sets: group.sort((a, b) => a.set_number - b.set_number).map(toHistoryLog),
+      performedAt: group.map((row) => row.performed_at).sort((a, b) => b.localeCompare(a))[0],
+      sets: group.sort((a, b) => a.set_number - b.set_number).map(toSetLog),
     }))
     .sort((a, b) => b.performedAt.localeCompare(a.performedAt))
     .slice(0, Math.max(1, limit));

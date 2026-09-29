@@ -5,7 +5,7 @@ import * as THREE from "./vendor/three.module.min.js";
 import playerAwayUrl from "./assets/player-away.png";
 import playerGoalkeeperUrl from "./assets/player-goalkeeper.png";
 import playerHomeUrl from "./assets/player-home.png";
-import { analyzePassLane } from "./engine";
+import { applyActions, getLine, interpolate, smooth } from "./playback";
 import { Pitch2DFallback } from "./Pitch2DFallback";
 import type {
   ActionMode,
@@ -30,8 +30,6 @@ type Props = {
   onPlanChange: (plan: UserPlan) => void;
   onHint: (message: string) => void;
 };
-
-type FrameBall = Point & { carrierId?: string };
 
 type DragState =
   | { pointerId: number; type: "run"; playerId: string; start: Point; current: Point }
@@ -60,7 +58,7 @@ type Runtime = {
   draftLine: any;
   drag: DragState | null;
   logicalPositions: Map<string, Point>;
-  logicalBall: FrameBall;
+  logicalBall: BallState;
   worldPerPixel: number;
   routeLabels: any[];
   disposed: boolean;
@@ -73,16 +71,6 @@ const MAX_ACTIONS = 8;
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));
-
-const smooth = (value: number) => {
-  const t = clamp(value, 0, 1);
-  return t * t * (3 - 2 * t);
-};
-
-const interpolate = (from: Point, to: Point, t: number): Point => ({
-  x: from.x + (to.x - from.x) * t,
-  y: from.y + (to.y - from.y) * t,
-});
 
 const toWorld = (point: Point) => ({
   x: ((point.x - 50) / 100) * FIELD_WIDTH,
@@ -99,68 +87,8 @@ const elapsedFrom = (startedAt: number) => {
   return Math.max(0, now - startedAt);
 };
 
-const actionWeight = (action: PlannedAction) => {
-  if (action.type === "pass") {
-    return Math.max(0.32, Math.hypot(action.to.x - action.from.x, action.to.y - action.from.y) / 52);
-  }
-  const longestMove = action.moves.reduce(
-    (maximum, move) => Math.max(maximum, Math.hypot(move.to.x - move.from.x, move.to.y - move.from.y)),
-    0,
-  );
-  return Math.max(0.52, longestMove / 22);
-};
-
-const actionActors = (action: PlannedAction) => {
-  const actors = new Set<string>();
-  if (action.type === "pass") {
-    actors.add("ball");
-    if (action.passerId) actors.add(`player:${action.passerId}`);
-    if (action.receiverId) actors.add(`player:${action.receiverId}`);
-  } else {
-    action.moves.forEach((move) => actors.add(`player:${move.playerId}`));
-  }
-  return actors;
-};
-
-const actionSchedule = (actions: PlannedAction[]) => {
-  const weights = actions.map(actionWeight);
-  const actors = actions.map(actionActors);
-  const starts: number[] = [];
-  actions.forEach((_, index) => {
-    if (index === 0) {
-      starts.push(0);
-      return;
-    }
-    let start = starts[index - 1] + weights[index - 1] * 0.78;
-    for (let prior = 0; prior < index; prior += 1) {
-      const dependent = [...actors[index]].some((actor) => actors[prior].has(actor));
-      if (dependent) start = Math.max(start, starts[prior] + weights[prior]);
-    }
-    starts.push(start);
-  });
-  const total = Math.max(0.001, (starts.at(-1) ?? 0) + (weights.at(-1) ?? 0));
-  return { starts, weights, total };
-};
-
-const actionProgress = (globalProgress: number, index: number, actions: PlannedAction[]) => {
-  if (!actions.length || globalProgress <= 0) return 0;
-  if (globalProgress >= 1) return 1;
-  const { starts, weights, total } = actionSchedule(actions);
-  const start = starts[index] / total;
-  const duration = weights[index] / total;
-  return smooth((globalProgress - start) / Math.max(0.001, duration));
-};
-
 const makeActionId = (type: ActionMode) =>
   `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-
-const getLine = (role: string) => {
-  const normalized = role.toUpperCase();
-  if (normalized === "BR") return "goalkeeper";
-  if (["LO", "PO", "ŚO", "SO"].includes(normalized)) return "defence";
-  if (["DP", "ŚP", "SP", "ŚPO", "SPO"].includes(normalized)) return "midfield";
-  return "attack";
-};
 
 const createPositionMap = (players: MatchPlayer[], phase: Phase, observationProgress: number) => {
   const positions = new Map<string, Point>();
@@ -172,52 +100,6 @@ const createPositionMap = (players: MatchPlayer[], phase: Phase, observationProg
     positions.set(player.id, point);
   });
   return positions;
-};
-
-const applyActions = (
-  positions: Map<string, Point>,
-  initialBall: BallState,
-  actions: PlannedAction[],
-  globalProgress: number,
-  players: MatchPlayer[],
-  resolveConsequences: boolean,
-) => {
-  const ball: FrameBall = { x: initialBall.x, y: initialBall.y, carrierId: initialBall.carrierId };
-  const initialCarrier = ball.carrierId ? positions.get(ball.carrierId) : undefined;
-  if (initialCarrier) Object.assign(ball, initialCarrier);
-  const schedule = actionSchedule(actions);
-  let timelineProgress = globalProgress;
-
-  actions.forEach((action, actionIndex) => {
-    const progress = actionProgress(timelineProgress, actionIndex, actions);
-    if (progress <= 0) return;
-    if (action.type === "pass") {
-      const passerId = action.passerId ?? ball.carrierId;
-      const passerTeam = players.find((player) => player.id === passerId)?.team ?? "home";
-      const defenders = players
-        .filter((player) => player.team !== passerTeam)
-        .map((player) => ({ ...player, ...(positions.get(player.id) ?? player) }));
-      const lane = analyzePassLane(action, defenders);
-      const intercepted = resolveConsequences && lane.clearance < 3.4;
-      const target = intercepted ? lane.point : action.to;
-      Object.assign(ball, interpolate(action.from, target, progress));
-      ball.carrierId = progress >= 1 ? (intercepted ? lane.interceptorId : action.receiverId) : undefined;
-      if (intercepted && progress >= 1) {
-        const interceptionEnd = (schedule.starts[actionIndex] + schedule.weights[actionIndex]) / schedule.total;
-        timelineProgress = Math.min(timelineProgress, interceptionEnd);
-      }
-      return;
-    }
-    action.moves.forEach((move) => {
-      const point = interpolate(move.from, move.to, progress);
-      positions.set(move.playerId, point);
-      if (ball.carrierId === move.playerId) Object.assign(ball, point);
-    });
-  });
-
-  const finalCarrier = ball.carrierId ? positions.get(ball.carrierId) : undefined;
-  if (finalCarrier) Object.assign(ball, finalCarrier);
-  return ball;
 };
 
 const makePitchTexture = () => {
@@ -454,7 +336,7 @@ const setDraftLine = (runtime: Runtime, from: Point, to: Point, visible: boolean
 const applySimpleReactions = (
   players: MatchPlayer[],
   positions: Map<string, Point>,
-  ball: FrameBall,
+  ball: BallState,
   plannedPlayerIds: Set<string>,
   strength: number,
   defaultPossession: "home" | "away",

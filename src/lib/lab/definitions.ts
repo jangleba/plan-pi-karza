@@ -1,7 +1,6 @@
 import type { LabTestDefinition, LabTestId } from "./types";
 
 export const LAB_PROTOCOL_VERSION = "ballwise-lab-2.0";
-export const REQUIRED_CAPTURE_FPS = 240;
 export const MIN_ACCEPTED_CAPTURE_FPS = 239;
 
 export const LAB_TESTS: readonly LabTestDefinition[] = [

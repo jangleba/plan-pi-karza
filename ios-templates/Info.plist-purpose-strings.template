@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Skopiuj te trzy pary key/string do głównego dict natywnego Info.plist. -->
+  <!-- Skopiuj parę kamery do głównego dict Info.plist. Instrukcje: README.md. -->
   <key>NSCameraUsageDescription</key>
-  <string>BallWise używa aparatu wyłącznie wtedy, gdy robisz zdjęcie posiłku do jednorazowej analizy składu.</string>
-  <key>NSPhotoLibraryUsageDescription</key>
-  <string>BallWise pozwala wybrać zdjęcie posiłku do jednorazowej analizy składu. Zdjęcie nie jest zapisywane w profilu.</string>
+  <string>BallWise używa kamery do nagrywania prób sportowych 240 FPS w Lab oraz, gdy wybierzesz skanowanie w Fuel, zdjęcia kodu produktu.</string>
+  <!-- Opcjonalnie, tylko jeśli docelowy build udostępnia głos w Fuel:
   <key>NSMicrophoneUsageDescription</key>
-  <string>BallWise używa mikrofonu, gdy wybierasz opis posiłku głosem. BallWise nie zapisuje nagrania.</string>
+  <string>BallWise używa mikrofonu, gdy wybierasz głosowe podanie składników lub nazwy produktu w Fuel.</string>
+  -->
 </dict>
 </plist>

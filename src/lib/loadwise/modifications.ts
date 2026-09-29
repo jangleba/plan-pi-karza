@@ -12,7 +12,6 @@ import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 
 export type Place = "dom" | "boisko" | "silownia";
-export type Choice = "add" | "swap" | "keep";
 
 export const PLACE_LABELS: Record<Place, string> = {
   dom: "Dom",

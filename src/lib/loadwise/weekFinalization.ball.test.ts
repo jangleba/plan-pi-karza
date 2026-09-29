@@ -86,7 +86,7 @@ describe("week finalization — własna piłka", () => {
       p.goal,
       { gymExperienceLevel: "intermediate" },
     );
-    const result = addMissingBallSessions(week, requirements, p);
+    const result = addMissingBallSessions(week, requirements);
     expect(result.count).toBe(1);
     const ball = week.flatMap((entry) => [entry, ...(entry.secondSession ? [entry.secondSession] : [])])
       .find((entry) => entry.classification?.subcategory === "ball_technical");

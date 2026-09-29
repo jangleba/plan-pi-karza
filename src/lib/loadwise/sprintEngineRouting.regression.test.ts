@@ -266,7 +266,7 @@ describe("sprint runner blocks from the real engine", () => {
     "reactive_agility_reacceleration",
   ] as const)("ma osiem niepustych bloków dla %s", async (family) => {
     const { generateFootballSpeedSession } = await import("./footballSpeedSessionEngine");
-    const { buildSprintRunnerBlocks } = await import("../../routes/sesja.$date");
+    const { buildSprintRunnerBlocks } = await import("./sprintPresentation");
     const { flatToStructured } = await import("./strengthBlocks");
 
     const result = generateFootballSpeedSession({

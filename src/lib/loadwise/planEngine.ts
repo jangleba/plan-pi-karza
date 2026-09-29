@@ -478,7 +478,7 @@ function buildByGoal(profile: Profile): Built {
   }
 }
 
-function md1Session(profile: Profile): Built {
+function md1Session(): Built {
   return {
     title: "Aktywacja przedmeczowa (MD-1)",
     sessionType: "Aktywacja (primer)",
@@ -4206,7 +4206,7 @@ export function generatePlan(
       };
       lastWasHard = true;
     } else if (type === "md-1") {
-      let built = md1Session(profile);
+      let built = md1Session();
       const pain = applyPainSafety(built, profile);
       built = pain.built;
       const youth = youthSafety(built, profile, pain.note);

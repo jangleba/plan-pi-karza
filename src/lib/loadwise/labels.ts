@@ -2,7 +2,6 @@ import type {
   Goal,
   Position,
   Level,
-  DoubleSessions,
   SeasonPhase,
   SeasonStage,
   CompetitionLevel,
@@ -37,12 +36,6 @@ export const COMPETITION_LEVEL_LABELS: Record<CompetitionLevel, string> = {
   ii_liga_plus: "II liga lub wyżej",
   semi_pro: "Półprofesjonalny",
   pro: "Profesjonalny",
-};
-
-export const DOUBLE_SESSION_LABELS: Record<DoubleSessions, string> = {
-  no: "Nie",
-  light_only: "Tak, ale tylko lekko",
-  yes_if_safe: "Tak, jeśli plan ma sens",
 };
 
 const PL_DAYS = [
@@ -198,15 +191,3 @@ export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] =
     { value: 6, label: "Sobota", short: "So" },
     { value: 7, label: "Niedziela", short: "Nd" },
   ];
-
-export const EQUIPMENT_OPTIONS: string[] = [
-  "Piłka",
-  "Pachołki",
-  "Drabinka koordynacyjna",
-  "Gumy oporowe",
-  "Hantle",
-  "Dostęp do siłowni",
-  "Bramka",
-  "Ściana / odbojnik",
-  "Płotki",
-];

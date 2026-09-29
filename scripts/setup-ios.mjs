@@ -70,7 +70,7 @@ try {
   await setPlistValue(
     infoPlist,
     "NSCameraUsageDescription",
-    "BallWise używa kamery 240 FPS wyłącznie do pomiaru testów sportowych.",
+    "BallWise używa kamery do nagrywania prób sportowych 240 FPS w Lab oraz, gdy wybierzesz skanowanie w Fuel, zdjęcia kodu produktu.",
   );
 
   console.log(`\nBallWise iOS zsynchronizowany dla ${bundleId}.`);

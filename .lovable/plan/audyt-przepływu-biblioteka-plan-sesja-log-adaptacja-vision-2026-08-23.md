@@ -1,3 +1,5 @@
+> **ARCHIWUM HISTORYCZNE.** Ustalenia i numery linii dotyczą daty/commitu tego audytu. Nie są bieżącą listą błędów ani potwierdzeniem stanu wydania. Oryginalne ustalenia pozostawiono poniżej; aktualna dokumentacja: [indeks](../../docs/README.md), [QA](../../docs/QA-MATRIX.md).
+
 # Audyt przepływu: Biblioteka → Plan → Sesja → Log → Adaptacja → Vision
 
 ## Mapa etapów (pliki produkcyjne)

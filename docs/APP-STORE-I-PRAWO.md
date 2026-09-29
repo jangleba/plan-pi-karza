@@ -1,109 +1,66 @@
 # BallWise — App Store, wiek i prywatność
 
-Stan checklisty: 9 września 2026. To robocza checklista produktu i wdrożenia,
-nie indywidualna porada prawna ani gwarancja akceptacji przez Apple.
+Przegląd kodu: 29 września 2026. Dokument opisuje przyjęty model produktu oraz
+pracę przed wydaniem; nie potwierdza wdrożenia ani indywidualnej oceny prawnej.
+Wszystkie zadania i dowody zbieramy w [liście wydania](RELEASE-CHECKLIST.md).
 
-## Ustalone zasady produktu
+## Model obecnego produktu
 
-- BallWise nie trafia do kategorii Kids i nie jest opisywany jako aplikacja
-  „dla dzieci”. Docelowe oznaczenie wieku: co najmniej 13+.
-- Poniżej 13 lat dostępny jest tylko publiczny tryb demonstracyjny bez konta i
-  bez zapisu danych osobowych.
-- Dla zawodnika 13–15 właścicielem konta, osobą akceptującą dokumenty i
-  płatnikiem jest rodzic lub opiekun. Jest to zgodne z przyjętym modelem dla
-  usług elektronicznych: UODO wskazuje, że w Polsce dla osoby poniżej 16 lat o
-  zgodzie na przetwarzanie danych w takiej usłudze decyduje rodzic lub opiekun:
-  https://uodo.gov.pl/pl/493/2261
-- Od 16 lat zawodnik może mieć własne konto. Do ukończenia 18 lat płatnikiem
-  pozostaje dorosły. Istniejące konto opiekuna można przekazać zawodnikowi przez
-  zmianę i potwierdzenie e-maila bez zmiany identyfikatora ani utraty historii.
-- Data urodzenia służy do progów 13/16/18. Nie żądamy dokumentu tożsamości.
-- Zgoda na cztery dane gotowości — sen, energia, zmęczenie nóg i ból — jest
-  osobna, dobrowolna i możliwa do wycofania. Bez niej aplikacja działa w trybie
-  ostrożnym i nie zapisuje tych odpowiedzi.
-- Dane zdrowotne i treningowe nie są używane do reklam ani marketingowego
-  profilowania. BallWise nie diagnozuje, nie leczy i nie udaje pomiaru medycznego
-  ani czasu reakcji.
-- Przy biegu do bazy trafiają tylko dystans, czas i średnie tempo oraz niezbędne
-  identyfikatory techniczne. Współrzędne i przebieg trasy służą do obliczeń w
-  pamięci urządzenia i nie są zapisywane zdalnie.
+Konto spersonalizowane zaczyna się od 13 lat. Dla zawodnika 13–15 właścicielem
+jest rodzic lub opiekun; aplikacja wymaga jego oświadczenia i potwierdzenia
+e-maila. Potwierdzenie adresu nie weryfikuje tożsamości ani prawnego statusu
+opiekuna. Poniżej 13 lat dostępne jest publiczne demo bez zapisu profilu.
+Od 16 lat możliwe jest konto zawodnika, a przed 18 rokiem płatnikiem ma być
+dorosły. Przekazanie konta obejmuje zmianę/potwierdzenie adresu i ponowne zgody.
+Operator musi zatwierdzić adekwatność tego modelu dla docelowych odbiorców.
 
-Apple rozróżnia wymogi prywatności dotyczące małoletnich od bramki rodzicielskiej
-w kategorii Kids. Apple pozwala też podnieść wyliczoną kategorię wiekową; gdy
-minimalny wiek w warunkach usługi jest wyższy niż wynik kwestionariusza, trzeba
-zastosować wyższe oznaczenie:
-https://developer.apple.com/help/app-store-connect/manage-app-information/set-an-app-age-rating/
+Decyzja dnia dotyczy organizacji planu i nie jest ankietą zdrowotną. Przetwarzanie
+readiness, bólu i danych zdrowotnych pozostaje objęte osobną opcjonalną zgodą;
+bez niej aplikacja stosuje ostrożny wariant. Wyniki biegowe są agregowane:
+backend nie otrzymuje trasy GPS. Aplikacja nie diagnozuje ani nie leczy.
 
-## Co zostało przygotowane w kodzie
+Fuel używa tekstu, lokalnego odczytu zdjęcia kodu oraz zewnętrznego odczytu produktu
+z Open Food Facts. Głos zależy od usługi rozpoznawania mowy przeglądarki. Funkcja
+OpenAI do zdjęć posiłków istnieje na serwerze, lecz bieżący UI jej nie wywołuje.
+Nie należy przedstawiać jej jako działającego skanera posiłków.
 
-- bramka wieku i model właściciel/opiekun/płatnik;
-- audytowane, rozdzielone zgody i ponowna akceptacja po przekazaniu konta;
-- publiczny tryb demo dla osób bez konta;
-- pobranie danych, wycofanie zgody zdrowotnej i widoczne usunięcie całego konta;
-- serwerowa funkcja usuwania Auth usera i kaskadowe usuwanie danych;
-- RLS dla wyników biegowych i minimalizacja danych GPS;
-- pełne usunięcie interfejsu, biblioteki, tabeli i docelowo bucketa Vision Lab;
-- komunikaty bezpieczeństwa bez obietnic medycznych;
-- tygodniowe minima oraz limit maksymalnie dwóch sesji treningowych dziennie.
+Stary Vision Lab jest wycofany. Aktywny **BallWise Lab** nagrywa film na iPhonie
+przez lokalny plugin 240 FPS i zapisuje wyniki/metadata pomiaru w Supabase; plik
+roboczy pozostaje lokalny. Zasady pomiaru i wymagane testy opisuje
+[protokół](BALLWISE-LAB-PROTOCOL.md).
 
-Apple wymaga, aby aplikacja tworząca konta umożliwiała rozpoczęcie usuwania
-całego konta w aplikacji. Sama dezaktywacja nie wystarcza. Przygotowany ekran i
-Edge Function realizują ten kierunek, ale trzeba je sprawdzić na wdrożonym
-środowisku:
-https://developer.apple.com/support/offering-account-deletion-in-your-app/
+## Stan implementacji a odbiór
 
-## Blokery przed prawdziwym wydaniem
+Kod zawiera ekran praw do danych, eksport JSON, wycofanie zgód, usuwanie konta
+przez Edge Function, RLS i mobilny build Capacitor. Nie dostarcza podpisanego
+archiwum iOS ani wdrożonego IAP. Otwarta kompletność eksportu, czyszczenie nowych
+lokalnych magazynów oraz zgodność treści prawnych z dzisiejszym Fuel są zapisane
+w [liście wydania](RELEASE-CHECKLIST.md); nie są naprawione samą dokumentacją.
 
-1. **Dane usługodawcy.** Uzupełnij pełną nazwę administratora, adres, e-mail do
-   spraw prywatności i rzeczywisty okres retencji. Nie wolno zostawić
-   placeholderów.
-2. **Rzeczywista infrastruktura.** Potwierdź region Supabase, listę podmiotów
-   przetwarzających, kopie zapasowe i prawdziwy czas usuwania danych z backupów.
-3. **Natywna aplikacja.** Ten projekt jest obecnie aplikacją webową. Trzeba
-   utworzyć i przetestować projekt iOS, podpisać go w Xcode i zbudować archiwum.
-4. **Lokalizacja.** Dodać jasny opis uprawnienia lokalizacji „podczas używania”.
-   Nie włączać śledzenia w tle bez rzeczywistej potrzeby. Przetestować blokadę
-   ekranu, utratę GPS, telefon i wznowienie biegu na prawdziwym iPhonie.
-5. **App Privacy i manifesty.** Zadeklarować faktycznie zbierane dane, w tym
-   e-mail, identyfikator, datę urodzenia, profil treningowy, dane fitness i — po
-   zgodzie — odpowiedzi związane ze zdrowiem. Lokalizację oznaczyć jako
-   „zbieraną” tylko wtedy, jeśli natywny kod lub którekolwiek SDK rzeczywiście
-   wysyła ją poza urządzenie. Zrobić końcowy audyt wszystkich SDK.
-6. **Karta sklepu.** Potrzebne są ikona, zrzuty z iPhone'a, opis, słowa kluczowe,
-   Support URL, publiczny Privacy Policy URL, kategoria, informacje kontaktowe i
-   komplet odpowiedzi age rating. Ustawić 13+ albo użyć override do 13+, jeśli
-   Apple wyliczy mniej.
-7. **Review.** Backend musi działać. Przygotować stabilne konto recenzenta z
-   pełnym dostępem lub uzgodniony pełny tryb demo oraz dokładne Review Notes.
-8. **Płatności.** Jeżeli funkcje cyfrowe albo subskrypcja będą sprzedawane w
-   aplikacji, osobno zaprojektować zgodny model In-App Purchase. W tej paczce nie
-   ma gotowego systemu płatności.
-9. **Sprzedaż w UE.** Uzupełnić wymagane przez App Store Connect dane statusu
-   przedsiębiorcy/tradera, podatki i umowy konta deweloperskiego zgodnie z
-   faktycznym modelem działalności.
+Apple wymaga możliwości rozpoczęcia usuwania konta w aplikacjach obsługujących
+jego tworzenie. Obecna ścieżka to **Profil → Moje dane i prawa → Usuń konto i dane**;
+trzeba potwierdzić jej działanie w wybranym backendzie.
+[Wymogi Apple](https://developer.apple.com/support/offering-account-deletion-in-your-app/).
 
-Pełne wytyczne Apple obejmują m.in. bezpieczeństwo fizyczne, minimalizację danych,
-zgody, dzieci, lokalizację, dane zdrowotne, płatności i kompletność aplikacji:
-https://developer.apple.com/app-store/review/guidelines/
+## Przygotowanie sklepu
 
-## TestFlight czy od razu App Store
+Uzupełnij [konfigurację prawną](LEGAL-CONFIGURATION.md), publiczne adresy wsparcia
+i prywatności, metadane, zrzuty oraz końcową listę SDK. App Privacy musi opisywać
+rzeczywiste zbieranie danych przez aplikację i partnerów.
+[Instrukcja Apple](https://developer.apple.com/app-store/app-privacy-details/).
 
-Można wysłać ukończoną aplikację bez publicznej bety prosto do App Review.
-Wersji beta nie wolno jednak publikować jako zwykłej aplikacji w App Store — do
-tego służy TestFlight. Dla planowanych 10 osób najlepsza jest zamknięta grupa
-zewnętrzna TestFlight, jeśli testerzy nie są użytkownikami App Store Connect.
-Apple dopuszcza do 10 000 testerów zewnętrznych; build dla nich przechodzi etap
-TestFlight App Review:
-https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/
+Wypełnij kwestionariusz wieku na podstawie aktualnej treści. Jeśli ograniczenie
+wieku usługi jest wyższe od wyniku, Apple przewiduje podniesienie oceny; wartości
+mogą zależeć od regionu. Kids Category nie jest domyślnym wyborem BallWise.
+[Ocena wieku](https://developer.apple.com/help/app-store-connect/manage-app-information/set-an-app-age-rating/).
 
-Praktyczna kolejność:
+Proponowany płatny wariant wymaga osobnego wdrożenia
+[IAP i entitlementów](apple/IAP-SUBSCRIPTION-SPEC.md). Nie ma obecnie ekranu
+zakupu, przywracania ani zarządzania subskrypcją. Nie wpisuj tych ścieżek do
+[Review Notes](apple/APP-REVIEW-NOTES.md) przed ich implementacją i testami.
 
-1. wdrożenie bazy, Edge Function i konfiguracji prawnej na środowisko testowe;
-2. natywny build i test na co najmniej dwóch rzeczywistych iPhone'ach;
-3. zamknięty TestFlight dla 10 osób, w tym konto opiekuna i zawodnika;
-4. poprawienie błędów krytycznych, finalne App Privacy i materiały sklepu;
-5. wysłanie produkcyjnego buildu do App Review.
-
-TestFlight nie zastępuje zgodności prawnej, ale bardzo zmniejsza ryzyko, że
-pierwsi użytkownicy sklepu znajdą błąd w logowaniu, GPS lub usuwaniu konta.
-
+Przed review zapewnij pełny dostęp testowy, działający backend i instrukcję
+funkcji wymagających kamery/sprzętu. [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/).
+Zamknięta beta TestFlight jest etapem do zaplanowania po testach lokalnych i
+urządzeniowych, a jej konfiguracja/review ma własny proces.
+[Testerzy zewnętrzni](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/).

@@ -2,70 +2,34 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import type { TrainingExercise } from "@/lib/loadwise/types";
-import {
-  enqueueTrainingWrite,
-  isRetryableWriteError,
-} from "@/lib/loadwise/offlineTrainingQueue";
+import { enqueueTrainingWrite, isRetryableWriteError } from "@/lib/loadwise/offlineTrainingQueue";
 import {
   previousExerciseSessions,
+  toSetLog,
+  type HistorySetLog,
+  type HistorySetLogRow,
   type ExerciseSessionLog,
 } from "./setLogHistory";
 
 export { previousExerciseSessions } from "./setLogHistory";
 export type { ExerciseSessionLog } from "./setLogHistory";
 
-/** Jeden zapisany zestaw (seria) ćwiczenia. */
-export interface SetLog {
-  setNumber: number;
-  weightKg: number | null;
-  reps: number | null;
-  rir: number | null;
-  /** Rodzaj pomiaru innego niż ciężar/powtórzenia (czas, dystans, kontakty, utrzymanie). */
-  metricKind?: string | null;
-  metricValue?: number | null;
-}
+export type SetLog = HistorySetLog;
 
-export interface SetLogRow {
-  session_id: string | null;
+export interface SetLogRow extends HistorySetLogRow {
   exercise_key: string;
-  set_number: number;
-  weight_kg: number | string | null;
-  reps: number | null;
-  rir: number | null;
-  metric_kind?: string | null;
-  metric_value?: number | string | null;
-  performed_at: string;
 }
 
 /** Stabilny klucz ćwiczenia — po ID z biblioteki, w ostateczności po nazwie. */
-export function exerciseKey(
-  e: Pick<TrainingExercise, "exerciseId" | "name">,
-): string {
+export function exerciseKey(e: Pick<TrainingExercise, "exerciseId" | "name">): string {
   return (e.exerciseId?.trim() || e.name.trim().toLowerCase()).slice(0, 120);
 }
 
 /** Liczba planowanych serii ćwiczenia (0 = brak logowania serii). */
 export function plannedSets(e: TrainingExercise): number {
-  if (typeof e.sets === "number" && Number.isFinite(e.sets))
-    return Math.max(0, Math.round(e.sets));
-  const match = String(e.displayPrescription ?? "").match(
-    /(\d+)\s*(?:serie|serii|seria|×)/i,
-  );
+  if (typeof e.sets === "number" && Number.isFinite(e.sets)) return Math.max(0, Math.round(e.sets));
+  const match = String(e.displayPrescription ?? "").match(/(\d+)\s*(?:serie|serii|seria|×)/i);
   return match ? Number(match[1]) : 0;
-}
-
-function toLog(row: SetLogRow): SetLog {
-  return {
-    setNumber: row.set_number,
-    weightKg: row.weight_kg === null ? null : Number(row.weight_kg),
-    reps: row.reps,
-    rir: row.rir,
-    metricKind: row.metric_kind ?? null,
-    metricValue:
-      row.metric_value === null || row.metric_value === undefined
-        ? null
-        : Number(row.metric_value),
-  };
 }
 
 const table = () => supabase.from("exercise_set_logs");
@@ -84,26 +48,19 @@ export function previousSessionLogs(
   const selected = previousRows.filter(
     (row) => (row.session_id ?? row.performed_at.slice(0, 10)) === group,
   );
-  return Object.fromEntries(
-    selected.map((row) => [row.set_number, toLog(row)]),
-  );
+  return Object.fromEntries(selected.map((row) => [row.set_number, toSetLog(row)]));
 }
 
 /**
  * Trwałe rejestrowanie serii: zapisy bieżącej sesji + ostatnie wartości
  * z poprzednich sesji (podpowiedź „Ostatnio”).
  */
-export function useExerciseSetLogs(
-  sessionId: string | null | undefined,
-  key: string,
-) {
+export function useExerciseSetLogs(sessionId: string | null | undefined, key: string) {
   const { user } = useAuth();
   const userId = user?.id;
   const [current, setCurrent] = useState<Record<number, SetLog>>({});
   const [previous, setPrevious] = useState<Record<number, SetLog>>({});
-  const [recentSessions, setRecentSessions] = useState<ExerciseSessionLog[]>(
-    [],
-  );
+  const [recentSessions, setRecentSessions] = useState<ExerciseSessionLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -124,7 +81,7 @@ export function useExerciseSetLogs(
     const mine: Record<number, SetLog> = {};
     for (const row of rows) {
       if (sessionId && row.session_id === sessionId) {
-        if (!mine[row.set_number]) mine[row.set_number] = toLog(row);
+        if (!mine[row.set_number]) mine[row.set_number] = toSetLog(row);
       }
     }
     setCurrent(mine);

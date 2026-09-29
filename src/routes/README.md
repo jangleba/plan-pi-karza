@@ -1,21 +1,23 @@
 # Routes
 
-TanStack Start uses **file-based routing**. Every `.tsx` file in this directory
-is a route. Do **not** create `src/pages/`, `src/routes/_app/index.tsx`, or
-`app/layout.tsx` — those are Next.js / Remix conventions. The only root layout
-is `src/routes/__root.tsx`.
+TanStack Start uses file-based routing. The root layout is `__root.tsx`; it wraps
+pages and preserves `<Outlet />`. Do not introduce Next.js or Remix layout
+conventions. `src/routeTree.gen.ts` is generated; do not edit it by hand.
 
-## Conventions
-
-| File | URL |
+| File | Meaning |
 | --- | --- |
 | `index.tsx` | `/` |
-| `about.tsx` | `/about` |
-| `users/index.tsx` | `/users` |
-| `users/$id.tsx` | `/users/:id` (dynamic — bare `$`, no curly braces) |
-| `posts/{-$category}.tsx` | `/posts/:category?` (optional segment) |
-| `files/$.tsx` | `/files/*` (splat — read via `_splat` param, never `*`) |
-| `_layout.tsx` | layout route (renders children via `<Outlet />`) |
-| `__root.tsx` | app shell — wraps every page; preserve `<Outlet />` |
+| `_tabs.tsx` | Pathless tab layout |
+| `_tabs.plan.tsx` | `/plan` inside the tab layout |
+| `sesja.$date.tsx` | `/sesja/:date` |
+| `users/$id.tsx` | Dynamic segment (bare `$`, no braces) |
+| `posts/{-$category}.tsx` | Optional segment |
+| `files/$.tsx` | Splat, available as `_splat` |
+| `[.mcp]/list-tools.ts` | Escaped literal dot in the server route path |
+| `-sesja.$date.test.ts` | Ignored by the route generator |
 
-`routeTree.gen.ts` is auto-generated. Don't edit it by hand.
+Route modules may be `.ts` or `.tsx`. Prefix colocated tests and helpers with
+`-`, the generator's ignore prefix; `.test.ts` alone does not exclude a file.
+Prefer shared helpers/components outside this directory. Markdown is documentation,
+not a route. Keep the web and mobile configurations consistent when changing
+routing rules. The router uses `defaultPreload: "intent"` for navigation preloading.

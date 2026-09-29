@@ -1,14 +1,27 @@
 # delete-account
 
-Authenticated Edge Function used by the in-app **Usuń konto i dane** action.
-It validates the caller's JWT server-side and deletes that exact Auth user.
-All user-owned database rows are then removed through `ON DELETE CASCADE`.
+Authenticated Edge Function used by **Profil → Moje dane i prawa → Usuń konto i dane**.
+It validates the caller's JWT with `auth.getUser` and deletes that exact Auth user.
+Related database rows whose foreign keys use `ON DELETE CASCADE` are removed by
+the database; verify this for the complete current schema, including Lab results.
 
-Deploy after applying the release migration:
+Apply repository migrations in order, select the intended project, then deploy:
 
 ```sh
-supabase functions deploy delete-account --project-ref bdfatyynxbzspjzkrjgg
+export BALLWISE_PROJECT_REF='YOUR_PROJECT_REF'
+supabase functions deploy delete-account --project-ref "$BALLWISE_PROJECT_REF"
 ```
 
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided to hosted Supabase
-functions. Never place the service-role key in Vite variables or client code.
+The handler requires server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+Confirm they are available in the hosted runtime. Never put the service-role key
+in Vite variables or client code. The repository uses gateway JWT verification
+and validates the user again inside the handler.
+[Supabase deployment guidance](https://supabase.com/docs/guides/functions/deploy).
+
+Before release, test missing/invalid authorization, deletion of the correct user,
+cascaded rows, old sessions and account switching on the selected backend. This
+function does not delete Storage objects or process backups. Old Vision Lab
+objects have a [separate one-time cleanup](../../../docs/VISION-LAB-CLEANUP.md).
+The application invokes local-data cleanup after success, but newer caches and
+export completeness have [open verification/remediation items](../../../docs/RELEASE-CHECKLIST.md).
+Do not claim that deleting an account cancels a future Apple subscription.

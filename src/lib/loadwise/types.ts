@@ -423,23 +423,6 @@ export type LoadTag =
   | "technical_low";
 
 /**
- * Mezocykl / blok treningowy (4–5 tygodni). Trzyma zablokowane główne
- * ćwiczenia i tematy, tak by w obrębie bloku progresować dawką, a nie losową
- * rotacją ćwiczeń.
- */
-export interface Mesocycle {
-  blockId: string;
-  blockWeekNumber: number; // 1-based numer tygodnia w bloku
-  blockLengthWeeks: number; // 4 lub 5
-  mainGoal: Profile["goal"];
-  lockedMainExercises: Record<string, string>; // np. { main, powerA, hamB1, powerPair, core }
-  lockedTrainingThemes: string[]; // role/tematy slotów gym
-  progressionRules: string; // krótki opis logiki progresji dawką
-  deloadWeek: number; // który tydzień bloku jest deloadem
-  allowedSubstitutions: string[]; // dozwolone zamiany przy bólu/zmęczeniu
-}
-
-/**
  * Centralna kategoria treningu — jednoznacznie rozpoznawana przez silnik.
  * To jedyne źródło prawdy dla reguł typu "2 siłownie", wydolność, szybkość,
  * klub i mecz.

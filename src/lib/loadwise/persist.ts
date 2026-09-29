@@ -1,28 +1,9 @@
-import type { Profile, SessionDay, ExerciseItem } from "./types";
 import { supabase } from "@/integrations/supabase/client";
+import { assertNoSupabaseError } from "@/integrations/supabase/errors";
+import type { Json } from "@/integrations/supabase/types";
 import { isoDate, localToday } from "./labels";
 import { assertPlanExerciseContract } from "./planExerciseContract";
-import type { Json } from "@/integrations/supabase/types";
-
-function supabaseErrorMessage(error: unknown): string {
-  if (error && typeof error === "object") {
-    const row = error as Record<string, unknown>;
-    const parts = [
-      typeof row.message === "string" ? row.message : null,
-      typeof row.details === "string" ? row.details : null,
-      typeof row.hint === "string" ? row.hint : null,
-      typeof row.code === "string" ? `code: ${row.code}` : null,
-    ].filter(Boolean);
-    if (parts.length > 0) return parts.join(" | ");
-  }
-  if (error instanceof Error) return error.message;
-  return "Unknown Supabase error";
-}
-
-function assertNoSupabaseError(context: string, error: unknown): void {
-  if (!error) return;
-  throw new Error(`[${context}] ${supabaseErrorMessage(error)}`);
-}
+import type { ExerciseItem, Profile, SessionDay } from "./types";
 
 /** Wyciąga łączny dystans (w metrach) z opisu ćwiczenia, jeśli dotyczy sprintu. */
 function extractDistance(name: string, prescription: string): string | null {

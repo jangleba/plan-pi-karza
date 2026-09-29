@@ -252,7 +252,3 @@ function labelInInstrumental(item: FuelIngredient): string {
   };
   return forms[item.id] ?? item.label;
 }
-
-export function removeIngredient(items: FuelIngredient[], id: string): FuelIngredient[] {
-  return items.filter((item) => item.id !== id);
-}

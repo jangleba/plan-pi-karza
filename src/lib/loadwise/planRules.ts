@@ -1,26 +1,9 @@
-/**
- * planRules — centralny, rule-based config silnika planowania Loadwise.
- *
- * To jest jedno źródło prawdy dla reguł składania tygodnia. Generator (planEngine)
- * NIE używa gotowych szablonów tygodnia ani copy-paste układów — składa plan z
- * warstw reguł zdefiniowanych tutaj:
- *
- *   clubSchedule → matchSchedule → mainGoalRules → limitationRules →
- *   positionRules → trainingLevelRules → seasonRules → competitionLevelRules →
- *   gymAccessRules → conflictRules → progressionRules → validationRules
- *
- * NAJWAŻNIEJSZA ZASADA:
- *   mainGoal ZAWSZE definiuje obowiązkowy bodziec treningowy tygodnia.
- *   limitation NIE może nadpisać celu głównego — może tylko dodać mały bodziec
- *   wspierający albo zmniejszyć ryzyko.
- */
+/** Reguły celu, ograniczeń, obciążenia i progresji używane przez silnik planowania. */
 
 import type {
   Goal,
   Position,
-  Level,
   SeasonPhase,
-  CompetitionLevel,
   SecondaryLimiter,
   Intensity,
   SessionCategory,
@@ -176,14 +159,6 @@ export const POSITION_RULES: Record<Position, { accent: string }> = {
   forward: { accent: "Pierwszy krok, biegi po łuku, wykończenie po sprincie." },
 };
 
-/** 6. trainingLevelRules — poziom steruje złożonością i intensywnością. */
-export const LEVEL_RULES: Record<Level, { maxHighDays: number; allowsMaxVelocity: boolean; allowsHIIT: boolean }> = {
-  beginner: { maxHighDays: 1, allowsMaxVelocity: false, allowsHIIT: false },
-  intermediate: { maxHighDays: 2, allowsMaxVelocity: true, allowsHIIT: true },
-  advanced: { maxHighDays: 3, allowsMaxVelocity: true, allowsHIIT: true },
-  elite: { maxHighDays: 3, allowsMaxVelocity: true, allowsHIIT: true },
-};
-
 /** 7. seasonRules — okres sezonu steruje kompletnością/intensywnością tygodnia. */
 export const SEASON_RULES: Record<SeasonPhase, { loadFactor: number; note: string }> = {
   offseason: { loadFactor: 1.05, note: "Poza sezonem: pełny rozwój." },
@@ -195,38 +170,6 @@ export const SEASON_RULES: Record<SeasonPhase, { loadFactor: number; note: strin
     note: "Ograniczony trening po przerwie. Powrót po urazie ustala lekarz lub fizjoterapeuta.",
   },
 };
-
-/** 8. competitionLevelRules — wyższy poziom rozgrywkowy = bardziej zorganizowany plan. */
-export const COMPETITION_LEVEL_RULES: Record<CompetitionLevel, { loadFactor: number }> = {
-  academy: { loadFactor: 0.9 },
-  b_klasa: { loadFactor: 0.9 },
-  a_klasa: { loadFactor: 0.95 },
-  okregowka: { loadFactor: 1.0 },
-  iv_liga: { loadFactor: 1.0 },
-  iii_liga: { loadFactor: 1.05 },
-  ii_liga_plus: { loadFactor: 1.1 },
-  semi_pro: { loadFactor: 1.1 },
-  pro: { loadFactor: 1.15 },
-};
-
-/** 9. gymAccessRules — brak siłowni ⇒ wzorce z masą ciała / sprzętem domowym. */
-export const GYM_ACCESS_RULES = {
-  requiresGymForHeavyStrength: true,
-  fallbackWhenNoGym: {
-    subcategory: "bodyweight_strength",
-    label: "Siła z masą ciała / sprzęt domowy",
-  },
-} as const;
-
-/** 10. conflictRules — twarde zakazy kombinacji. */
-export const CONFLICT_RULES = {
-  noSpeedDayAfterSpeedDay: true,
-  minGapDaysBetweenSpeed: 1,
-  noDuplicateSpeedSameDay: true,
-  noEnduranceOnClubDay: true,
-  noHardConditioningMDminus1: true,
-  noHeavyLowerBodyMDminus1: true,
-} as const;
 
 /** 11. progressionRules — 4-tygodniowy blok z rosnącym obciążeniem i deloadem. */
 export const PROGRESSION_RULES = {

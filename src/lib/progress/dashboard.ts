@@ -1,3 +1,4 @@
+import { addIsoDays } from "@/lib/isoDate";
 import type { Profile, SessionDay } from "@/lib/loadwise/types";
 import { GOAL_LABELS, SECONDARY_LIMITER_LABELS } from "@/lib/loadwise/labels";
 import {
@@ -84,14 +85,8 @@ export interface LoadReport {
 
 const WEEKDAYS = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
-function isoMinus(iso: string, days: number): string {
-  const date = new Date(`${iso}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - days);
-  return date.toISOString().slice(0, 10);
-}
-
 export function buildLoadReport(history: CompletedSessionEntry[], todayIso: string): LoadReport {
-  const dates = Array.from({ length: 7 }, (_, index) => isoMinus(todayIso, 6 - index));
+  const dates = Array.from({ length: 7 }, (_, index) => addIsoDays(todayIso, index - 6));
   const byCategory: Record<TrainingCategoryKey, number> = {
     gym: 0,
     speed: 0,
@@ -123,8 +118,8 @@ export function buildLoadReport(history: CompletedSessionEntry[], todayIso: stri
   });
 
   const total = days.reduce((sum, day) => sum + day.load, 0);
-  const previousFrom = isoMinus(todayIso, 13);
-  const previousTo = isoMinus(todayIso, 7);
+  const previousFrom = addIsoDays(todayIso, -13);
+  const previousTo = addIsoDays(todayIso, -7);
   const previousTotal = history
     .filter((item) => item.date >= previousFrom && item.date <= previousTo)
     .reduce((sum, item) => sum + loadOf(item), 0);
@@ -171,7 +166,7 @@ export function buildEvidence(
   todayIso: string,
 ): EvidenceCard[] {
   const cards: EvidenceCard[] = [];
-  const weekAgo = isoMinus(todayIso, 6);
+  const weekAgo = addIsoDays(todayIso, -6);
   const recent = history.filter((item) => item.date >= weekAgo && item.date <= todayIso);
 
   if (recent.length > 0) {

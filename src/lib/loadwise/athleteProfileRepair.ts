@@ -46,65 +46,45 @@ export function validateWorkoutForAthleteProfile(
   // z profilu. Ponowna naprawa po samej nazwie rozrywała kontrakt name/exerciseId.
   if (session.speedGeneratorVersion) return { session, adjustments: [] };
 
-  const fixItems = (items: ExerciseItem[] | undefined): ExerciseItem[] | undefined => {
-    if (!items) return items;
-    return items.map((e) => {
-      const fixed = replaceUnsafeExercise(e, a);
-      if (fixed.wasAdjustedForAthleteProfile && fixed !== e) {
-        adjustments.push({
-          sessionDate: session.date,
-          original: fixed.replacementForBlockedExercise ?? e.name,
-          replacement: fixed.name,
-          reason: fixed.athleteProfileAdjustmentReason ?? "",
-        });
-      }
-      return fixed;
-    });
+  const fixExercise = <T extends ExerciseItem | TrainingExercise>(exercise: T): T => {
+    const fixed = replaceUnsafeExercise(exercise, a);
+    if (fixed.wasAdjustedForAthleteProfile && fixed !== exercise) {
+      adjustments.push({
+        sessionDate: session.date,
+        original: fixed.replacementForBlockedExercise ?? exercise.name,
+        replacement: fixed.name,
+        reason: fixed.athleteProfileAdjustmentReason ?? "",
+      });
+    }
+    return fixed;
   };
-
-  const fixTraining = (items: TrainingExercise[]): TrainingExercise[] =>
-    items.map((e) => {
-      const fixed = replaceUnsafeExercise(e, a);
-      if (fixed.wasAdjustedForAthleteProfile && fixed !== e) {
-        adjustments.push({
-          sessionDate: session.date,
-          original: fixed.replacementForBlockedExercise ?? e.name,
-          replacement: fixed.name,
-          reason: fixed.athleteProfileAdjustmentReason ?? "",
-        });
-      }
-      return fixed;
-    });
 
   const next: SessionDay = { ...session };
 
   if (next.sections) {
     next.sections = {
-      warmup: fixItems(next.sections.warmup) ?? [],
-      main: fixItems(next.sections.main) ?? [],
-      accessory: fixItems(next.sections.accessory) ?? [],
-      footballTransfer: fixItems(next.sections.footballTransfer) ?? [],
-      cooldown: fixItems(next.sections.cooldown) ?? [],
+      warmup: next.sections.warmup?.map(fixExercise) ?? [],
+      main: next.sections.main?.map(fixExercise) ?? [],
+      accessory: next.sections.accessory?.map(fixExercise) ?? [],
+      footballTransfer: next.sections.footballTransfer?.map(fixExercise) ?? [],
+      cooldown: next.sections.cooldown?.map(fixExercise) ?? [],
     };
   }
 
   if (next.structuredSections) {
-    next.structuredSections = next.structuredSections.map(
-      (sec): TrainingSection => ({
-        ...sec,
-        blocks: sec.blocks.map((b) => ({ ...b, exercises: fixTraining(b.exercises) })),
-      }),
-    );
+    next.structuredSections = next.structuredSections.map((sec): TrainingSection => ({
+      ...sec,
+      blocks: sec.blocks.map((b) => ({ ...b, exercises: b.exercises.map(fixExercise) })),
+    }));
   }
 
-  if (next.exercises) next.exercises = fixItems(next.exercises);
+  if (next.exercises) next.exercises = next.exercises.map(fixExercise);
 
   // Jeśli były zmiany pod profil — obniż ewentualnie zbyt wysoką intensywność.
   if (adjustments.length && next.intensity === "wysoka") {
     next.intensity = lower(next.intensity);
     next.safetyNote =
-      next.safetyNote ??
-      "Obciążenie dostosowane do profilu zawodnika (wiek/poziom/ból).";
+      next.safetyNote ?? "Obciążenie dostosowane do profilu zawodnika (wiek/poziom/ból).";
   }
 
   return { session: next, adjustments };

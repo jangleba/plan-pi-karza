@@ -1,3 +1,4 @@
+import { addIsoDays } from "@/lib/isoDate";
 import { automationCategory } from "./adaptiveWeek";
 import type { Profile, SessionDay } from "./types";
 
@@ -11,16 +12,10 @@ export type RemovedSessionDecision =
       reason: string;
     };
 
-function addDays(date: string, days: number): string {
-  const parsed = new Date(`${date}T12:00:00Z`);
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
-}
-
 function endOfIsoWeek(date: string): string {
   const parsed = new Date(`${date}T12:00:00Z`);
   const day = parsed.getUTCDay() || 7;
-  return addDays(date, 7 - day);
+  return addIsoDays(date, 7 - day);
 }
 
 function protectedDay(day: SessionDay): boolean {
@@ -44,8 +39,8 @@ function candidateScore(
   plan: SessionDay[],
   profile: Pick<Profile, "age" | "level">,
 ): number {
-  const previous = plan.find((day) => day.date === addDays(target.date, -1));
-  const next = plan.find((day) => day.date === addDays(target.date, 1));
+  const previous = plan.find((day) => day.date === addIsoDays(target.date, -1));
+  const next = plan.find((day) => day.date === addIsoDays(target.date, 1));
   const adjacentHard = [previous, next].some((day) =>
     Boolean(day && (day.intensity === "wysoka" || protectedDay(day))),
   );

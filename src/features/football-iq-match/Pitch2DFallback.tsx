@@ -1,6 +1,7 @@
+import { applyActions, getLine, interpolate } from "./playback";
 import { useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { analyzePassLane, clampPoint } from "./engine";
+import { clampPoint } from "./engine";
 import { PlayerFigure } from "./PlayerFigure";
 import type { ActionMode, BallState, MatchPlayer, Phase, PlannedAction, PlannedMove, Point, UserPlan } from "./types";
 
@@ -24,67 +25,6 @@ type Props = {
 
 type WithoutIdentity<T> = T extends PlannedAction ? Omit<T, "id" | "order"> : never;
 type DraftAction = WithoutIdentity<PlannedAction>;
-type FrameBall = Point & { carrierId?: string };
-
-const interpolate = (from: Point, to: Point, t: number): Point => ({
-  x: from.x + (to.x - from.x) * t,
-  y: from.y + (to.y - from.y) * t,
-});
-
-const smooth = (value: number) => {
-  const t = Math.max(0, Math.min(1, value));
-  return t * t * (3 - 2 * t);
-};
-
-const actionWeight = (action: PlannedAction) => {
-  if (action.type === "pass") {
-    return Math.max(0.32, Math.hypot(action.to.x - action.from.x, action.to.y - action.from.y) / 52);
-  }
-  const longestMove = action.moves.reduce(
-    (maximum, move) => Math.max(maximum, Math.hypot(move.to.x - move.from.x, move.to.y - move.from.y)),
-    0,
-  );
-  return Math.max(0.52, longestMove / 22);
-};
-
-const actionActors = (action: PlannedAction) => {
-  const actors = new Set<string>();
-  if (action.type === "pass") {
-    actors.add("ball");
-    if (action.passerId) actors.add(`player:${action.passerId}`);
-    if (action.receiverId) actors.add(`player:${action.receiverId}`);
-  } else {
-    action.moves.forEach((move) => actors.add(`player:${move.playerId}`));
-  }
-  return actors;
-};
-
-const actionSchedule = (actions: PlannedAction[]) => {
-  const weights = actions.map(actionWeight);
-  const actors = actions.map(actionActors);
-  const starts: number[] = [];
-  actions.forEach((_, index) => {
-    if (index === 0) {
-      starts.push(0);
-      return;
-    }
-    let start = starts[index - 1] + weights[index - 1] * 0.78;
-    for (let prior = 0; prior < index; prior += 1) {
-      const dependent = [...actors[index]].some((actor) => actors[prior].has(actor));
-      if (dependent) start = Math.max(start, starts[prior] + weights[prior]);
-    }
-    starts.push(start);
-  });
-  const total = Math.max(0.001, (starts.at(-1) ?? 0) + (weights.at(-1) ?? 0));
-  return { starts, weights, total };
-};
-
-const actionProgress = (globalProgress: number, index: number, actions: PlannedAction[]) => {
-  if (!actions.length || globalProgress <= 0) return 0;
-  if (globalProgress >= 1) return 1;
-  const { starts, weights, total } = actionSchedule(actions);
-  return smooth((globalProgress - starts[index] / total) / Math.max(0.001, weights[index] / total));
-};
 
 const project = (point: Point): Point => {
   const t = Math.max(0, Math.min(1, point.y / 150));
@@ -131,13 +71,6 @@ const projectedCircle = (center: Point, radius: number, start = 0, end = Math.PI
 };
 
 const scaleAt = (point: Point) => .72 + Math.max(0, Math.min(1, point.y / 150)) * .42;
-
-const getLine = (role: string) => {
-  const normalized = role.toUpperCase();
-  if (["LO", "PO", "ŚO", "SO"].includes(normalized)) return "defence";
-  if (["DP", "ŚP", "SP", "ŚPO", "SPO"].includes(normalized)) return "midfield";
-  return normalized === "BR" ? "goalkeeper" : "attack";
-};
 
 export function Pitch2DFallback({
   players,
@@ -190,43 +123,13 @@ export function Pitch2DFallback({
         : { x: player.x, y: player.y };
       map.set(player.id, observed);
     });
-    const logicalBall: FrameBall = { x: ball.x, y: ball.y, carrierId: ball.carrierId };
-    const initialCarrier = logicalBall.carrierId ? map.get(logicalBall.carrierId) : undefined;
-    if (initialCarrier) Object.assign(logicalBall, initialCarrier);
-
     const globalProgress = phase === "playback"
       ? playbackProgress
       : ["plan", "intent", "feedback", "compare"].includes(phase) ? 1 : 0;
-    const schedule = actionSchedule(actions);
-    let timelineProgress = globalProgress;
-    actions.forEach((action, actionIndex) => {
-      const localProgress = actionProgress(timelineProgress, actionIndex, actions);
-      if (localProgress <= 0) return;
-      if (action.type === "pass") {
-        const passerId = action.passerId ?? logicalBall.carrierId;
-        const passerTeam = players.find((player) => player.id === passerId)?.team ?? "home";
-        const defenders = players
-          .filter((player) => player.team !== passerTeam)
-          .map((player) => ({ ...player, ...(map.get(player.id) ?? player) }));
-        const lane = analyzePassLane(action, defenders);
-        const intercepted = ["playback", "feedback", "compare"].includes(phase) && lane.clearance < 3.4;
-        const target = intercepted ? lane.point : action.to;
-        Object.assign(logicalBall, interpolate(action.from, target, localProgress));
-        logicalBall.carrierId = localProgress >= 1 ? (intercepted ? lane.interceptorId : action.receiverId) : undefined;
-        if (intercepted && localProgress >= 1) {
-          const interceptionEnd = (schedule.starts[actionIndex] + schedule.weights[actionIndex]) / schedule.total;
-          timelineProgress = Math.min(timelineProgress, interceptionEnd);
-        }
-        return;
-      }
-      action.moves.forEach((move) => {
-        const point = interpolate(move.from, move.to, localProgress);
-        map.set(move.playerId, point);
-        if (logicalBall.carrierId === move.playerId) Object.assign(logicalBall, point);
-      });
-    });
-    const finalCarrier = logicalBall.carrierId ? map.get(logicalBall.carrierId) : undefined;
-    if (finalCarrier) Object.assign(logicalBall, finalCarrier);
+    const logicalBall = applyActions(
+      map, ball, actions, globalProgress, players,
+      ["playback", "feedback", "compare"].includes(phase),
+    );
     return { positions: map, ball: logicalBall };
   }, [actions, ball, phase, playbackProgress, players, progress]);
 

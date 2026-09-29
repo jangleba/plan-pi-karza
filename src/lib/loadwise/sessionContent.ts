@@ -924,7 +924,7 @@ export function buildRunningConditioning(
 // RECOVERY / PREHAB — niskie obciążenie, mobilność, oddech, tkanki
 // ============================================================
 
-export function buildRecoveryPrehab(profile: Profile): BuiltContent {
+export function buildRecoveryPrehab(): BuiltContent {
   return {
     title: "Regeneracja i prehab",
     sessionType: "Regeneracja / prehab",
@@ -1110,7 +1110,7 @@ export function enforceSessionCategory(
       break;
     }
     case "recovery_prehab": {
-      built = buildRecoveryPrehab(profile);
+      built = buildRecoveryPrehab();
       break;
     }
     default:

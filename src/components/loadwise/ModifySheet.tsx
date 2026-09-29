@@ -7,7 +7,6 @@ import {
   type Place,
   type Proposal,
 } from "@/lib/loadwise/modifications";
-import type { SessionDay } from "@/lib/loadwise/types";
 import {
   Dialog,
   DialogContent,
@@ -269,13 +268,4 @@ export function ModifySheet({
       </DialogContent>
     </Dialog>
   );
-}
-
-export function effectiveSession(
-  date: string,
-  planned: SessionDay,
-  mods: { type: "add" | "swap"; session: SessionDay }[] | undefined,
-): { primary: SessionDay; swapped: boolean } {
-  const swap = mods?.find((m) => m.type === "swap");
-  return { primary: swap ? swap.session : planned, swapped: Boolean(swap) };
 }

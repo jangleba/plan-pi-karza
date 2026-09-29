@@ -280,7 +280,7 @@ describe("weekFinalization — twarda zasada endurance", () => {
     ];
     const requirements = { ...reqFor(week, p), requiredBallSessions: 1 };
 
-    const result = addMissingBallSessions(week, requirements, p);
+    const result = addMissingBallSessions(week, requirements);
 
     expect(result.unresolvedIssues).toEqual([]);
     expect(countBallSessions(week)).toBe(1);

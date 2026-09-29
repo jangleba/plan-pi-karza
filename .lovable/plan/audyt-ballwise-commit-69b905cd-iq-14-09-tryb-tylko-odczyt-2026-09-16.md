@@ -1,3 +1,5 @@
+> **ARCHIWUM HISTORYCZNE.** Ustalenia i numery linii dotyczą daty/commitu tego audytu. Nie są bieżącą listą błędów ani potwierdzeniem stanu wydania. Oryginalne ustalenia pozostawiono poniżej; aktualna dokumentacja: [indeks](../../docs/README.md), [QA](../../docs/QA-MATRIX.md).
+
 # Audyt BallWise — commit `69b905cd` („iq 14.09”), tryb tylko odczyt
 
 Nie zmieniono żadnego pliku aplikacji, nie utworzono migracji, nie opublikowano.

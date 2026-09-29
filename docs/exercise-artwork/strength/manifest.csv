@@ -1,0 +1,45 @@
+order,exercise_id,polish_name,file
+1,bodyweight_row,Wiosłowanie z masą ciała,../../../public/strength/small/bodyweight_row.png
+2,bridge_walkout,Spacer piętami z mostu biodrowego,../../../public/strength/small/bridge_walkout.png
+3,hamstring_45_back_extension,Prostowanie tułowia 45° na dwugłowe uda,../../../public/strength/small/hamstring_45_back_extension.png
+4,glute_bridge_march,Marsz w moście biodrowym,../../../public/strength/small/glute_bridge_march.png
+5,barbell_deadlift,Martwy ciąg ze sztangą,../../../public/strength/small/barbell_deadlift.png
+6,kickstand_romanian_deadlift,Martwy ciąg rumuński kickstand,../../../public/strength/small/kickstand_romanian_deadlift.png
+7,single_leg_romanian_deadlift,Martwy ciąg rumuński na jednej nodze,../../../public/strength/small/single_leg_romanian_deadlift.png
+8,romanian_deadlift_db,Martwy ciąg rumuński z hantlami,../../../public/strength/small/romanian_deadlift_db.png
+9,barbell_romanian_deadlift,Martwy ciąg rumuński ze sztangą,../../../public/strength/small/barbell_romanian_deadlift.png
+10,trap_bar_deadlift,Martwy ciąg z trap barem,../../../public/strength/small/trap_bar_deadlift.png
+11,glute_bridge,Most biodrowy,../../../public/strength/small/glute_bridge.png
+12,single_leg_glute_bridge,Most biodrowy na jednej nodze,../../../public/strength/small/single_leg_glute_bridge.png
+13,push_up,Pompka,../../../public/strength/small/push_up.png
+14,pike_push_up,Pompka w pozycji pike,../../../public/strength/small/pike_push_up.png
+15,leg_extension,Prostowanie nóg na maszynie,../../../public/strength/small/leg_extension.png
+16,bulgarian_split_squat,Przysiad bułgarski,../../../public/strength/small/bulgarian_split_squat.png
+17,goblet_squat,Przysiad goblet,../../../public/strength/small/goblet_squat.png
+18,front_squat,Przysiad przedni,../../../public/strength/small/front_squat.png
+19,bodyweight_split_squat,Przysiad wykroczny z masą ciała,../../../public/strength/small/bodyweight_split_squat.png
+20,bodyweight_squat,Przysiad z masą ciała,../../../public/strength/small/bodyweight_squat.png
+21,heavy_back_squat,Przysiad tylny ze sztangą,../../../public/strength/small/heavy_back_squat.png
+22,pull_up,Podciąganie nachwytem,../../../public/strength/small/pull_up.png
+23,farmer_carry,Spacer farmera,../../../public/strength/small/farmer_carry.png
+24,suitcase_carry,Spacer walizkowy,../../../public/strength/small/suitcase_carry.png
+25,overhead_carry,Spacer z ciężarem nad głową,../../../public/strength/small/overhead_carry.png
+26,front_rack_carry,Spacer z ciężarem w pozycji front rack,../../../public/strength/small/front_rack_carry.png
+27,single_leg_swiss_ball_leg_curl,Uginanie jednej nogi na piłce,../../../public/strength/small/single_leg_swiss_ball_leg_curl.png
+28,single_leg_slider_leg_curl,Uginanie jednej nogi na ślizgaczu,../../../public/strength/small/single_leg_slider_leg_curl.png
+29,lying_leg_curl,Uginanie nóg leżąc na maszynie,../../../public/strength/small/lying_leg_curl.png
+30,prone_band_leg_curl,Uginanie nóg leżąc z gumą,../../../public/strength/small/prone_band_leg_curl.png
+31,bilateral_swiss_ball_leg_curl,Uginanie obu nóg na piłce,../../../public/strength/small/bilateral_swiss_ball_leg_curl.png
+32,bilateral_slider_leg_curl,Uginanie obu nóg na ślizgaczach,../../../public/strength/small/bilateral_slider_leg_curl.png
+33,seated_leg_curl,Uginanie nóg siedząc na maszynie,../../../public/strength/small/seated_leg_curl.png
+34,step_up,Wejście na podwyższenie,../../../public/strength/small/step_up.png
+35,one_arm_dumbbell_row,Wiosłowanie hantlem jednorącz,../../../public/strength/small/one_arm_dumbbell_row.png
+36,seated_soleus_raise,Wspięcie na palce siedząc,../../../public/strength/small/seated_soleus_raise.png
+37,standing_calf_raise,Wspięcie na palce stojąc,../../../public/strength/small/standing_calf_raise.png
+38,dumbbell_bench_press,Wyciskanie hantli na ławce,../../../public/strength/small/dumbbell_bench_press.png
+39,dumbbell_overhead_press,Wyciskanie hantli nad głowę,../../../public/strength/small/dumbbell_overhead_press.png
+40,lateral_lunge,Wykrok boczny,../../../public/strength/small/lateral_lunge.png
+41,reverse_lunge,Wykrok w tył,../../../public/strength/small/reverse_lunge.png
+42,hip_thrust,Hip thrust ze sztangą,../../../public/strength/small/hip_thrust.png
+43,leg_press,Wypychanie na suwnicy,../../../public/strength/small/leg_press.png
+44,lat_pulldown,Ściąganie drążka wyciągu górnego,../../../public/strength/small/lat_pulldown.png

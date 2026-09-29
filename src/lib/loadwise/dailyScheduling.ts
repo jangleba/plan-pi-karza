@@ -214,11 +214,6 @@ export function hasSpeedSession(day: SchedDay): boolean {
   return (day.sessions ?? []).some(countsAsSpeed);
 }
 
-/** Ile jednostek speed_sprint jest w danym dniu. */
-export function countSpeedSessionsForDay(day: SchedDay): number {
-  return (day.sessions ?? []).filter(countsAsSpeed).length;
-}
-
 /**
  * Czy dodanie newSession stworzyłoby dzień z dwiema jednostkami szybkościowymi.
  * Zwraca true, jeśli dzień już ma speed_sprint, a nowa sesja też liczy się jako speed.

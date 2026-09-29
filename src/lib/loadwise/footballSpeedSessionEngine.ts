@@ -1,3 +1,4 @@
+import { addIsoDays } from "@/lib/isoDate";
 import {
   getExerciseDefinition,
   getFootballSpeedCatalog,
@@ -973,18 +974,12 @@ function resolveDoseMode(input: FootballSpeedEngineInput): DoseMode {
   return reduced ? "reduced" : "full";
 }
 
-function dateOffset(date: string, days: number): string {
-  const value = new Date(`${date}T12:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
 function hasHardConflict(input: FootballSpeedEngineInput): boolean {
   const canShareClubDay =
     input.profile.age >= 16 &&
     input.profile.level !== "beginner";
   return (input.externalSessions ?? []).some((exposure) => {
-    const adjacent = [dateOffset(input.date, -1), dateOffset(input.date, 1)].includes(
+    const adjacent = [addIsoDays(input.date, -1), addIsoDays(input.date, 1)].includes(
       exposure.date,
     );
     if (exposure.kind === "match") return exposure.date === input.date || adjacent;
@@ -1343,6 +1338,3 @@ export function generateFootballSpeedSession(
       "Pełny odpoczynek między powtórzeniami; zatrzymaj serię przy bólu lub spadku jakości.",
   };
 }
-
-/** Backward-compatible descriptive alias for the engine entry point. */
-export const buildFootballSpeedSession = generateFootballSpeedSession;

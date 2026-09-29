@@ -94,7 +94,7 @@ describe("runtime speed payload repair", () => {
     expect(hasCompleteRuntimeSpeedPayload(repaired)).toBe(true);
     expect(repaired.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(18);
 
-    const { buildSprintRunnerBlocks } = await import("../../routes/sesja.$date");
+    const { buildSprintRunnerBlocks } = await import("./sprintPresentation");
     const runner = buildSprintRunnerBlocks(repaired.structuredSections ?? []);
     expect(runner.map((block) => block.exercises.length)).toEqual([1, 4, 3, 1, 1, 2, 1, 1]);
     expect(runner.every((block) => !block.hasDataError)).toBe(true);

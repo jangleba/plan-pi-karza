@@ -1,15 +1,11 @@
+import { addIsoDays } from "@/lib/isoDate";
 /**
  * Adapter Plan → FuelWise (READ-ONLY).
  * Moduł Plan nie jest modyfikowany — czytamy wyłącznie jego istniejące typy.
  */
 
-import type { Profile, SessionDay } from "@/lib/loadwise/types";
-import type {
-  FuelAthleteContext,
-  FuelSessionInput,
-  SessionIntensity,
-  SessionKind,
-} from "./types";
+import type { SessionDay } from "@/lib/loadwise/types";
+import type { FuelSessionInput, SessionIntensity, SessionKind } from "./types";
 
 export const EMPTY_SESSION: FuelSessionInput = {
   kind: "none",
@@ -37,27 +33,7 @@ export function sessionKindFrom(session: SessionDay | null): SessionKind {
   return "football";
 }
 
-/** Najbliższa rzeczywista jednostka z planu: dziś lub później, bez dni wolnych. */
-export function findNextSession(
-  plan: SessionDay[],
-  todayIso: string,
-): SessionDay | null {
-  const upcoming = plan
-    .filter(
-      (d) =>
-        d.date >= todayIso &&
-        d.dayType !== "rest" &&
-        d.isUnavailable !== true &&
-        (d.durationMin ?? 0) > 0,
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
-  return upcoming[0] ?? null;
-}
-
-export function sessionFromPlan(
-  session: SessionDay | null,
-  todayIso: string,
-): FuelSessionInput {
+export function sessionFromPlan(session: SessionDay | null, todayIso: string): FuelSessionInput {
   if (!session) return EMPTY_SESSION;
   const kind = sessionKindFrom(session);
   if (kind === "none") return EMPTY_SESSION;
@@ -76,26 +52,6 @@ export function sessionFromPlan(
 
 function dayLabelFor(date: string, todayIso: string, dayName: string): string {
   if (date === todayIso) return "Dzisiaj";
-  const t = new Date(`${todayIso}T00:00:00Z`);
-  t.setUTCDate(t.getUTCDate() + 1);
-  if (date === t.toISOString().slice(0, 10)) return "Jutro";
+  if (date === addIsoDays(todayIso, 1)) return "Jutro";
   return dayName;
-}
-
-export function athleteFromProfile(profile: Profile | null): FuelAthleteContext {
-  return {
-    age: profile?.age ?? null,
-    position: profile?.position ?? null,
-    level: profile?.level ?? null,
-    goal: profile?.goal ?? null,
-    restrictions: [
-      ...(profile?.foodAllergies ?? []),
-      ...(profile?.foodIntolerances ?? []),
-      ...(profile?.foodExclusions ?? []),
-    ],
-    allergyStatus: profile?.fuelAllergyStatus ?? "unconfirmed",
-    allergies: profile?.foodAllergies ?? [],
-    intolerances: profile?.foodIntolerances ?? [],
-    exclusions: profile?.foodExclusions ?? [],
-  };
 }

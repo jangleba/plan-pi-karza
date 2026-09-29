@@ -1,14 +1,6 @@
+import { addIsoDays } from "@/lib/isoDate";
 import type { PlanChangeEvent, Profile, Readiness, SessionCompletion, SessionDay } from "./types";
 import { resolveMdPlusOne, type AutomationSessionCategory } from "./automationPolicy";
-
-export type MissedSessionReason =
-  "schedule_conflict" | "fatigue" | "pain" | "travel" | "weather" | "other" | "automatic_expiry";
-
-function addIsoDays(date: string, days: number): string {
-  const parsed = new Date(`${date}T12:00:00Z`);
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
-}
 
 export function automationCategory(session: SessionDay): AutomationSessionCategory {
   const cls = session.classification;
@@ -28,7 +20,7 @@ export function automationCategory(session: SessionDay): AutomationSessionCatego
   return "other";
 }
 
-function recoverySections(session: SessionDay): SessionDay["sections"] {
+function recoverySections(): SessionDay["sections"] {
   return {
     warmup: [],
     main: [
@@ -111,7 +103,7 @@ export function adaptMdPlusOneFromMatchMinutes(
       whyToday: decision.reason,
       goalOfSession: "Spokojne rozruszanie po dużym udziale w meczu.",
       avoidToday: "Bez sprintów maksymalnych, ciężkich nóg i twardych interwałów.",
-      sections: recoverySections(day),
+      sections: recoverySections(),
       structuredSections: undefined,
       exercises: undefined,
       secondSession: null,
