@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { TrainingSection } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -6,8 +6,9 @@ import {
   getExerciseDefinition,
   specialistEquipmentForExercise,
 } from "@/lib/loadwise/exerciseLibrary";
-import { compactPrescription, formatRestValue } from "@/lib/loadwise/sessionPresentation";
+import { formatRestValue } from "@/lib/loadwise/sessionPresentation";
 import { ExerciseRow } from "./ExerciseRow";
+import { useActivityExitGuard } from "../ActivityExitGuard";
 
 const SECTION_TAB_LABELS: Record<string, string> = {
   warmup: "Przygotowanie ruchowe",
@@ -27,44 +28,40 @@ export const StructuredSections = memo(function StructuredSections({
   date: string;
   sessionId?: string | null;
 }) {
-  const { markEquipmentUnavailable } = useLoadwise();
+  const { markEquipmentUnavailable, state } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [activeSectionId, setActiveSectionId] = useState<string>(sections[0]?.id ?? "");
+  useActivityExitGuard({
+    dirty: Object.values(done).some(Boolean) && !state?.completions[sessionId ?? ""]?.completed,
+    description: "Oznaczenia ćwiczeń w tej sesji nie zostały zapisane.",
+  });
+  useEffect(() => setDone({}), [date, sessionId]);
   const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
 
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
 
   return (
-    <div className="relative pl-11">
-      <span className="absolute bottom-5 left-[1.18rem] top-5 w-px bg-border" />
-      {sections.map((section, sectionIndex) => {
+    <div className="bw-stack">
+      {sections.map((section) => {
         const isActive = activeSection?.id === section.id;
         const exerciseCount = section.blocks.reduce(
           (sum, block) => sum + block.exercises.length,
           0,
         );
         return (
-          <section key={section.id} className="relative border-b border-border/75 last:border-b-0">
-            <span
-              className={`absolute -left-11 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium ${
-                isActive
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground"
-              }`}
-            >
-              {sectionIndex + 1}
-            </span>
+          <section key={section.id} className="bw-section">
             <button
               type="button"
               onClick={() => setActiveSectionId(section.id)}
+              aria-expanded={isActive}
               className="flex w-full items-center gap-3 py-4 text-left"
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-medium text-foreground">
+                <span className="bw-section-title block text-foreground">
                   {SECTION_TAB_LABELS[section.type] ?? section.title}
                 </span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
+                <span className="mt-1 block text-sm text-muted-foreground">
                   {exerciseCount}{" "}
                   {exerciseCount === 1
                     ? "ćwiczenie"
@@ -86,21 +83,13 @@ export const StructuredSections = memo(function StructuredSections({
                     ? formatRestValue(block.restAfterBlock)
                     : null;
                   return (
-                    <div
-                      key={block.id}
-                      className={blockIndex > 0 ? "border-t border-border/60 pt-4" : ""}
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <h4 className="truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    <div key={block.id} className={blockIndex > 0 ? "mt-6" : ""}>
+                      {blockTitle !== block.exercises[0]?.name && (
+                        <h4 className="mb-2 text-base font-medium text-muted-foreground">
                           {blockTitle}
                         </h4>
-                        {block.exercises[0] && (
-                          <span className="shrink-0 text-[11px] text-muted-foreground">
-                            {compactPrescription(block.exercises[0])}
-                          </span>
-                        )}
-                      </div>
-                      <div className="divide-y divide-border/50">
+                      )}
+                      <div className="space-y-2">
                         {block.exercises.map((exercise, exerciseIndex) => {
                           const equipmentIds = specialistEquipmentForExercise(
                             getExerciseDefinition(exercise.exerciseId ?? exercise.name),
@@ -123,7 +112,7 @@ export const StructuredSections = memo(function StructuredSections({
                         })}
                       </div>
                       {blockRest && (
-                        <p className="mt-3 text-[11px] text-muted-foreground">
+                        <p className="mt-3 text-sm text-muted-foreground">
                           Przerwa po bloku: {blockRest}
                         </p>
                       )}

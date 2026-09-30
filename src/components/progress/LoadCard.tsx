@@ -22,11 +22,10 @@ export function LoadCard({ report }: { report: LoadReport }) {
 
   if (!report.hasData) {
     return (
-      <section className="soft-card p-4">
-        <h2 className="text-sm font-semibold">Obciążenie treningowe</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Obciążenie liczymy z czasu trwania i RPE zapisanych sesji. Zamknij trening
-          i zapisz RPE, aby zobaczyć wykres.
+      <section className="bw-section space-y-4">
+        <h2 className="bw-section-title">Obciążenie treningowe</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Ukończ trening i zapisz RPE, aby zobaczyć obciążenie.
         </p>
       </section>
     );
@@ -38,10 +37,10 @@ export function LoadCard({ report }: { report: LoadReport }) {
       : null;
 
   return (
-    <section className="soft-card p-4">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold">Obciążenie treningowe</h2>
-        <span className="text-[11px] text-muted-foreground">
+    <section className="bw-section space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="bw-section-title">Obciążenie treningowe</h2>
+        <span className="text-sm text-muted-foreground">
           {report.total} j.
           {diff != null && (
             <span className={diff >= 0 ? " text-primary" : " text-muted-foreground"}>
@@ -75,7 +74,7 @@ export function LoadCard({ report }: { report: LoadReport }) {
                   ))}
                 </div>
               </div>
-              <span className="text-[10px] text-muted-foreground">{d.weekdayLabel}</span>
+              <span className="text-sm text-muted-foreground">{d.weekdayLabel}</span>
             </div>
           );
         })}
@@ -85,21 +84,14 @@ export function LoadCard({ report }: { report: LoadReport }) {
         {(Object.keys(report.byCategory) as TrainingCategoryKey[])
           .filter((k) => report.byCategory[k] > 0)
           .map((k) => (
-            <span
-              key={k}
-              className="flex items-center gap-1 text-[10px] text-muted-foreground"
-            >
+            <span key={k} className="flex items-center gap-1 text-sm text-muted-foreground">
               <i aria-hidden="true" className={`h-2 w-2 rounded-full ${CAT_COLOR[k]}`} />
               {TRAINING_CATEGORY_LABELS[k]}
             </span>
           ))}
       </div>
 
-      {report.insight && (
-        <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
-          {report.insight}
-        </p>
-      )}
+      {report.insight && <p className="mt-3 text-sm text-muted-foreground">{report.insight}</p>}
     </section>
   );
 }

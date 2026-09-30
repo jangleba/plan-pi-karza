@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useActivityExitGuard } from "@/components/loadwise/ActivityExitGuard";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
-import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
+import { AppHeader } from "@/components/loadwise/ui";
 import {
   COMPETITION_LEVEL_LABELS,
   GOAL_LABELS,
@@ -23,24 +24,9 @@ import {
 import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ActionRow, ConfirmDialog, Field, StatusMessage } from "@/components/ui/app-ui";
 import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
-import {
-  CalendarDays,
-  ChevronRight,
-  CircleAlert,
-  CircleCheck,
-  Compass,
-  Dumbbell,
-  FileDown,
-  FileText,
-  LogOut,
-  MailCheck,
-  MessageCircleQuestion,
-  Pencil,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { FileDown, FileText, LogOut, MessageCircleQuestion, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/profil")({
   component: ProfileScreen,
@@ -48,9 +34,9 @@ export const Route = createFileRoute("/_tabs/profil")({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="max-w-[58%] text-right text-sm font-medium text-foreground">{value}</span>
+    <div className="grid gap-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-4">
+      <dt className="text-sm leading-5 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words text-base leading-6 text-foreground">{value}</dd>
     </div>
   );
 }
@@ -70,6 +56,15 @@ function ProfileScreen() {
   const profile = state.profile;
   const [transferEmail, setTransferEmail] = useState("");
   const [transferBusy, setTransferBusy] = useState(false);
+  const [transferConfirmOpen, setTransferConfirmOpen] = useState(false);
+  const [transferError, setTransferError] = useState("");
+
+  const { requestExit } = useActivityExitGuard({
+    dirty: transferEmail.trim().length > 0,
+    busy: transferBusy,
+    description: "Adres przekazania konta nie został wysłany.",
+    dispose: () => setTransferEmail(""),
+  });
 
   if (!profile) return null;
 
@@ -88,12 +83,7 @@ function ProfileScreen() {
       toast.error("Nowy e-mail musi różnić się od e-maila opiekuna.");
       return;
     }
-    if (
-      !window.confirm(
-        "Wysłać przekazanie konta na e-mail zawodnika? Po potwierdzeniu zawodnik ponownie zaakceptuje dokumenty.",
-      )
-    )
-      return;
+    setTransferError("");
     setTransferBusy(true);
     const pendingProfile = {
       ...profile!,
@@ -109,6 +99,7 @@ function ProfileScreen() {
         "Wysłaliśmy potwierdzenie. Konto zostanie przekazane dopiero po potwierdzeniu nowego e-maila.",
       );
       setTransferEmail("");
+      setTransferConfirmOpen(false);
     } catch (error) {
       try {
         await updateProfile(profile!);
@@ -116,7 +107,10 @@ function ProfileScreen() {
         // The pending transfer remains visible and can be retried; do not hide
         // the original Auth error behind a best-effort rollback error.
       }
-      toast.error(error instanceof Error ? error.message : "Nie udało się rozpocząć przekazania.");
+      const message =
+        error instanceof Error ? error.message : "Nie udało się rozpocząć przekazania.";
+      setTransferError(message);
+      toast.error(message);
     } finally {
       setTransferBusy(false);
     }
@@ -146,328 +140,260 @@ function ProfileScreen() {
   ];
 
   return (
-    <div className="premium-flow profile-premium">
-      <AppHeader title="Profil" subtitle="Dane, które sterują Twoim planem." />
-
-      <div className="space-y-3 px-5">
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-primary/[0.07] text-base font-medium text-primary">
-              {profile.name.slice(0, 1).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-base font-semibold">{profile.name}</div>
-              <div className="truncate text-sm text-muted-foreground">
-                {profile.age} lat · {POSITION_LABELS[profile.position]}
-              </div>
-              {user?.email && (
-                <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-              )}
-            </div>
+    <section>
+      <AppHeader title="Profil" brand={false} />
+      <div className="bw-page-content bw-stack">
+        <header className="flex flex-col items-start justify-between gap-5 sm:flex-row">
+          <div className="min-w-0 space-y-1">
+            <h2 className="break-words text-xl font-semibold">{profile.name}</h2>
+            <p className="text-base text-muted-foreground">{profile.age} lat</p>
+            {user?.email && <p className="break-all text-sm text-muted-foreground">{user.email}</p>}
           </div>
-        </section>
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            disabled={transferBusy}
+            onClick={() => navigate({ to: "/onboarding", search: { edit: true } })}
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" /> Edytuj profil i plan
+          </Button>
+        </header>
 
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Właściciel konta
-          </div>
-          <div className="mt-1 divide-y divide-border">
-            <Row
-              label="Status"
-              value={accountRoleLabel(profile.accountOwnerType ?? "athlete", profile.age)}
-            />
-            {profile.birthDate && (
+        <div className="bw-columns">
+          <section className="bw-section">
+            <h2 className="text-xl font-semibold">Profil sportowy</h2>
+            <dl className="mt-5 space-y-4">
+              <Row label="Pozycja" value={POSITION_LABELS[profile.position]} />
+              <Row label="Poziom" value={LEVEL_LABELS[profile.level]} />
+              <Row label="Cel główny" value={GOAL_LABELS[profile.goal]} />
               <Row
-                label="Data urodzenia"
-                value={profile.birthDate.split("-").reverse().join(".")}
+                label="Ogranicznik"
+                value={
+                  profile.secondaryLimiter
+                    ? SECONDARY_LIMITER_LABELS[profile.secondaryLimiter]
+                    : "Nie wskazano"
+                }
               />
-            )}
-            {profile.accountOwnerType === "guardian" && profile.guardianName && (
-              <Row label="Opiekun" value={profile.guardianName} />
-            )}
-            <Row
-              label="Personalizacja gotowości"
-              value={
-                profile.healthPersonalizationEnabled ? "Włączona" : "Wyłączona · tryb ostrożny"
-              }
-            />
-            <Row
-              label="Fuel Precision"
-              value={
-                profile.fuelPrecisionEnabled && profile.weightKg
-                  ? `Włączony · ${profile.weightKg} kg`
-                  : "Wyłączony · zakres ogólny"
-              }
-            />
-          </div>
-        </section>
-
-        {canTransferToAthlete && (
-          <section className="soft-card p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <MailCheck className="h-3.5 w-3.5" aria-hidden="true" /> Przekazanie po 16. roku życia
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Profil i historia zostaną przy tym samym koncie. Zmieni się właściciel i e-mail
-              logowania; zawodnik ponownie zaakceptuje aktualne dokumenty. Płatnikiem do 18 lat
-              pozostaje dorosły.
-            </p>
-            <div className="mt-3 space-y-2">
-              <Label htmlFor="transfer-email">E-mail zawodnika</Label>
-              <Input
-                id="transfer-email"
-                type="email"
-                value={transferEmail}
-                onChange={(event) => setTransferEmail(event.target.value)}
-                placeholder="zawodnik@example.com"
-                autoComplete="email"
+              <Row label="Okres sezonu" value={SEASON_PHASE_LABELS[profile.seasonPhase]} />
+              <Row
+                label="Poziom rozgrywkowy"
+                value={COMPETITION_LEVEL_LABELS[profile.competitionLevel]}
               />
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={transferBusy}
-                onClick={requestHandover}
-              >
-                {transferBusy ? "Wysyłam…" : "Wyślij przekazanie konta"}
-              </Button>
-              {profile.ownershipTransferStatus === "pending" && profile.ownershipTransferEmail && (
-                <p className="text-xs text-primary">
-                  Oczekuje na potwierdzenie: {profile.ownershipTransferEmail}
-                </p>
-              )}
-            </div>
+            </dl>
           </section>
-        )}
 
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <User className="h-3.5 w-3.5" aria-hidden="true" /> Profil sportowy
-          </div>
-          <div className="mt-1 divide-y divide-border">
-            <Row label="Pozycja" value={POSITION_LABELS[profile.position]} />
-            <Row label="Poziom" value={LEVEL_LABELS[profile.level]} />
-            <Row label="Cel główny" value={GOAL_LABELS[profile.goal]} />
-            <Row
-              label="Ogranicznik"
-              value={
-                profile.secondaryLimiter
-                  ? SECONDARY_LIMITER_LABELS[profile.secondaryLimiter]
-                  : "Nie wskazano"
-              }
-            />
-            <Row label="Okres sezonu" value={SEASON_PHASE_LABELS[profile.seasonPhase]} />
-            <Row
-              label="Poziom rozgrywkowy"
-              value={COMPETITION_LEVEL_LABELS[profile.competitionLevel]}
-            />
-          </div>
-        </section>
+          <section className="bw-section">
+            <h2 className="text-xl font-semibold">Tydzień</h2>
+            <dl className="mt-5 space-y-4">
+              <Row label="Treningi klubowe" value={daysLabel(profile.clubTrainingDays)} />
+              <Row label="Stały dzień meczu" value={usualMatchDay} />
+              <Row
+                label="Najbliższy mecz"
+                value={profile.matchDate ? formatDate(profile.matchDate) : "Brak daty"}
+              />
+              <Row label="Dni niedostępne" value={daysLabel(profile.unavailableDays ?? [])} />
+            </dl>
+          </section>
 
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Tydzień
-          </div>
-          <div className="mt-1 divide-y divide-border">
-            <Row label="Treningi klubowe" value={daysLabel(profile.clubTrainingDays)} />
-            <Row label="Stały dzień meczu" value={usualMatchDay} />
-            <Row
-              label="Najbliższy mecz"
-              value={profile.matchDate ? formatDate(profile.matchDate) : "Brak daty"}
-            />
-            <Row label="Dni niedostępne" value={daysLabel(profile.unavailableDays ?? [])} />
-          </div>
-        </section>
+          <section className="bw-section">
+            <h2 className="text-xl font-semibold">Twój kierunek</h2>
+            <dl className="mt-5 space-y-4">
+              <Row
+                label="Teraz"
+                value={
+                  currentFeelings.length
+                    ? currentFeelings.map((id) => CURRENT_PITCH_FEELING_LABELS[id]).join(", ")
+                    : "Nie ustawiono"
+                }
+              />
+              <Row
+                label="Buduję"
+                value={
+                  desiredFeelings.length
+                    ? desiredFeelings.map((id) => DESIRED_PITCH_FEELING_LABELS[id]).join(", ")
+                    : "Nie ustawiono"
+                }
+              />
+            </dl>
+          </section>
 
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Compass className="h-3.5 w-3.5" aria-hidden="true" /> Twój kierunek
-          </div>
-          <div className="mt-3 space-y-3">
-            <DirectionTags
-              label="Teraz"
-              values={currentFeelings.map((id) => CURRENT_PITCH_FEELING_LABELS[id])}
-              tone="secondary"
-            />
-            <DirectionTags
-              label="Buduję"
-              values={desiredFeelings.map((id) => DESIRED_PITCH_FEELING_LABELS[id])}
-              tone="primary"
-            />
-          </div>
-        </section>
+          <section className="bw-section">
+            <h2 className="text-xl font-semibold">Warunki treningowe</h2>
+            <dl className="mt-5 space-y-4">
+              {facilities.map((item) => (
+                <Row key={item.label} label={item.label} value={item.available ? "Tak" : "Nie"} />
+              ))}
+              <Row
+                label="Sprzęt"
+                value={
+                  profile.equipment.length ? profile.equipment.join(", ") : "Nie wybrano sprzętu"
+                }
+              />
+            </dl>
+          </section>
 
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Dumbbell className="h-3.5 w-3.5" aria-hidden="true" /> Warunki treningowe
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {facilities.map((item) => (
-              <span
-                key={item.label}
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  item.available ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {item.available ? "✓ " : "— "}
-                {item.label}
-              </span>
-            ))}
-          </div>
-          <div className="mt-3 border-t border-border pt-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Sprzęt
-            </div>
-            {profile.equipment.length ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {profile.equipment.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">Nie wybrano sprzętu.</p>
-            )}
-          </div>
-        </section>
-
-        <section className="soft-card p-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Bezpieczeństwo
-          </div>
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              {!profile.healthPersonalizationEnabled ? (
-                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-              ) : profile.painInjury ? (
-                <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
-              ) : (
-                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+          <section className="bw-section">
+            <h2 className="text-xl font-semibold">Konto i personalizacja</h2>
+            <dl className="mt-5 space-y-4">
+              <Row
+                label="Właściciel"
+                value={accountRoleLabel(profile.accountOwnerType ?? "athlete", profile.age)}
+              />
+              {profile.birthDate && (
+                <Row
+                  label="Data urodzenia"
+                  value={profile.birthDate.split("-").reverse().join(".")}
+                />
               )}
+              {profile.accountOwnerType === "guardian" && profile.guardianName && (
+                <Row label="Opiekun" value={profile.guardianName} />
+              )}
+              <Row
+                label="Personalizacja gotowości"
+                value={
+                  profile.healthPersonalizationEnabled ? "Włączona" : "Wyłączona · tryb ostrożny"
+                }
+              />
+              <Row
+                label="Fuel Precision"
+                value={
+                  profile.fuelPrecisionEnabled && profile.weightKg
+                    ? `Włączony · ${profile.weightKg} kg`
+                    : "Wyłączony · zakres ogólny"
+                }
+              />
+            </dl>
+            {profile.age < 18 && (
+              <StatusMessage
+                tone={requiresGuardianOwner && !profile.guardianConsent ? "error" : "neutral"}
+                className="mt-4"
+              >
+                {requiresGuardianOwner
+                  ? profile.guardianConsent
+                    ? "Konto rodzica lub opiekuna potwierdzone"
+                    : "Brak potwierdzenia rodzica lub opiekuna"
+                  : "Płatności zatwierdza osoba dorosła"}
+              </StatusMessage>
+            )}
+          </section>
+
+          <section className="bw-section">
+            <h2 className="text-xl font-semibold">Gotowość i bezpieczeństwo</h2>
+            <StatusMessage
+              tone={
+                profile.healthPersonalizationEnabled && profile.painInjury ? "error" : "neutral"
+              }
+              className="mt-5"
+            >
               {!profile.healthPersonalizationEnabled
                 ? "Dane zdrowotne wyłączone — używany jest ostrożny wariant planu"
                 : profile.painInjury
                   ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
                   : "Brak zgłoszonego bólu lub dyskomfortu"}
-            </div>
+            </StatusMessage>
             {profile.painInjury && painLocationLabel && (
-              <div className="pl-6 text-xs text-muted-foreground">Obszar: {painLocationLabel}</div>
+              <p className="mt-3 text-sm text-muted-foreground">Obszar: {painLocationLabel}</p>
             )}
-            <div className="flex items-center gap-2 text-sm">
-              {requiresGuardianOwner && !profile.guardianConsent ? (
-                <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
-              ) : (
-                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+          </section>
+        </div>
+
+        {canTransferToAthlete && (
+          <section className="bw-section max-w-[42rem]">
+            <h2 className="text-xl font-semibold">Przekazanie konta zawodnikowi</h2>
+            <p className="mt-3 text-base leading-6 text-muted-foreground">
+              Profil i historia zostaną przy tym samym koncie. Zmieni się właściciel i e-mail
+              logowania; zawodnik ponownie zaakceptuje aktualne dokumenty. Płatnikiem do 18 lat
+              pozostaje dorosły.
+            </p>
+            <div className="mt-5 space-y-4">
+              <Field label="E-mail zawodnika" htmlFor="transfer-email">
+                <Input
+                  id="transfer-email"
+                  type="email"
+                  value={transferEmail}
+                  onChange={(event) => setTransferEmail(event.target.value)}
+                  autoComplete="email"
+                  disabled={transferBusy}
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={transferBusy}
+                onClick={() => {
+                  const email = transferEmail.trim().toLowerCase();
+                  if (!/^\S+@\S+\.\S+$/.test(email)) {
+                    setTransferError("Podaj poprawny e-mail zawodnika.");
+                    return;
+                  }
+                  if (email === user?.email?.toLowerCase()) {
+                    setTransferError("Nowy e-mail musi różnić się od e-maila opiekuna.");
+                    return;
+                  }
+                  setTransferError("");
+                  setTransferConfirmOpen(true);
+                }}
+              >
+                {transferBusy ? "Wysyłam…" : "Wyślij przekazanie konta"}
+              </Button>
+              {profile.ownershipTransferStatus === "pending" && profile.ownershipTransferEmail && (
+                <p className="break-all text-sm text-primary">
+                  Oczekuje na potwierdzenie: {profile.ownershipTransferEmail}
+                </p>
               )}
-              {requiresGuardianOwner
-                ? profile.guardianConsent
-                  ? "Konto rodzica lub opiekuna potwierdzone"
-                  : "Brak potwierdzenia rodzica lub opiekuna"
-                : profile.age < 18
-                  ? "Zawodnik może posiadać konto; płatności zatwierdza dorosły"
-                  : "Konto dorosłego zawodnika"}
+              {transferError && <StatusMessage tone="error">{transferError}</StatusMessage>}
             </div>
-          </div>
+          </section>
+        )}
+
+        <section className="bw-section space-y-3">
+          <h2 className="text-xl font-semibold">Pomoc i dokumenty</h2>
+          <ActionRow
+            icon={<MessageCircleQuestion className="h-4 w-4" />}
+            title="Pomoc i FAQ"
+            disabled={transferBusy}
+            onClick={() => navigate({ to: "/faq" })}
+          />
+          <ActionRow
+            icon={<FileDown className="h-4 w-4" />}
+            title="Moje dane i prawa (RODO)"
+            disabled={transferBusy}
+            onClick={() => navigate({ to: "/data-rights" })}
+          />
+          <ActionRow
+            icon={<FileText className="h-4 w-4" />}
+            title="Polityka prywatności"
+            disabled={transferBusy}
+            onClick={() => navigate({ to: "/privacy-policy" })}
+          />
+          <ActionRow
+            icon={<FileText className="h-4 w-4" />}
+            title="Regulamin"
+            disabled={transferBusy}
+            onClick={() => navigate({ to: "/terms" })}
+          />
         </section>
 
         <Button
-          className="w-full gap-2"
-          onClick={() => navigate({ to: "/onboarding", search: { edit: true } })}
+          type="button"
+          variant="ghost"
+          className="self-start text-destructive"
+          disabled={transferBusy}
+          onClick={() => requestExit(() => void handleSignOut(), "route")}
         >
-          <Pencil className="h-4 w-4" aria-hidden="true" /> Edytuj profil i plan
-        </Button>
-
-        <div className="soft-card divide-y divide-border p-0">
-          <SettingsLink
-            icon={MessageCircleQuestion}
-            label="Pomoc i FAQ"
-            onClick={() => navigate({ to: "/faq" })}
-          />
-          <SettingsLink
-            icon={FileDown}
-            label="Moje dane i prawa (RODO)"
-            onClick={() => navigate({ to: "/data-rights" })}
-          />
-          <SettingsLink
-            icon={FileText}
-            label="Polityka prywatności"
-            onClick={() => navigate({ to: "/privacy-policy" })}
-          />
-          <SettingsLink
-            icon={FileText}
-            label="Regulamin"
-            onClick={() => navigate({ to: "/terms" })}
-          />
-        </div>
-
-        <Button variant="outline" className="w-full gap-2 text-destructive" onClick={handleSignOut}>
           <LogOut className="h-4 w-4" aria-hidden="true" /> Wyloguj się
         </Button>
       </div>
-
-      <Disclaimer />
-    </div>
-  );
-}
-
-function DirectionTags({
-  label,
-  values,
-  tone,
-}: {
-  label: string;
-  values: string[];
-  tone: "primary" | "secondary";
-}) {
-  return (
-    <div>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {values.length ? (
-          values.map((value) => (
-            <span
-              key={value}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                tone === "primary"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              {value}
-            </span>
-          ))
-        ) : (
-          <span className="text-xs text-muted-foreground">Nie ustawiono</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SettingsLink({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: typeof FileText;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-3 p-4 text-left"
-    >
-      <Icon className="h-4 w-4 text-foreground" aria-hidden="true" />
-      <span className="text-sm font-medium">{label}</span>
-      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
-    </button>
+      <ConfirmDialog
+        open={transferConfirmOpen}
+        onOpenChange={setTransferConfirmOpen}
+        title="Przekazać konto zawodnikowi?"
+        description={`Wysłać przekazanie konta na ${transferEmail.trim()}? Po potwierdzeniu zawodnik ponownie zaakceptuje dokumenty.`}
+        confirmLabel="Wyślij przekazanie"
+        busy={transferBusy}
+        error={transferError}
+        onConfirm={() => void requestHandover()}
+      />
+    </section>
   );
 }

@@ -164,6 +164,25 @@ describe("session runners", () => {
         />,
       ),
     );
+    const firstStageTab = host.querySelector<HTMLButtonElement>(
+      '[role="tab"][aria-selected="true"]',
+    )!;
+    const stagePanel = host.querySelector<HTMLElement>('[role="tabpanel"]')!;
+    expect(firstStageTab.getAttribute("aria-controls")).toBe(stagePanel.id);
+    await act(async () => {
+      firstStageTab.focus();
+      firstStageTab.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    });
+    const lastStageTab = host.querySelector<HTMLButtonElement>(
+      '[role="tab"][aria-selected="true"]',
+    )!;
+    expect(document.activeElement).toBe(lastStageTab);
+    expect(stagePanel.getAttribute("aria-label")).toBe(lastStageTab.textContent);
+    expect(host.textContent).toContain("Zakończ trening");
+    await act(async () =>
+      lastStageTab.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true })),
+    );
+    expect(document.activeElement).toBe(firstStageTab);
     await act(async () =>
       host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.click(),
     );

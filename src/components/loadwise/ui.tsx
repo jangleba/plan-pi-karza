@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { Intensity, DayType } from "@/lib/loadwise/types";
-import { ShieldAlert, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
 
 /** Avatar w prawym górnym rogu — wejście do profilu, konta i ustawień. */
@@ -20,7 +20,7 @@ export function ProfileAvatar() {
       to="/profil"
       preload="intent"
       aria-label="Profil, konto i ustawienia"
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-border/75 bg-card text-sm font-semibold text-foreground shadow-[0_8px_22px_-17px_oklch(0.18_0.06_255/0.45)] transition-[transform,border-color] duration-200 active:scale-[0.96]"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/75 bg-card text-sm font-semibold text-foreground"
     >
       {initials || <User className="h-4 w-4" />}
     </Link>
@@ -39,32 +39,18 @@ export function AppHeader({
   brand?: boolean;
 }) {
   return (
-    <header className="bw-page-header px-5 pb-3">
-      {brand && (
-        <div className="mb-5 flex items-center justify-between">
-          <span className="bw-wordmark" aria-label="BallWise">
-            <span className="bw-wordmark-dot" aria-hidden="true" />
-            BALLWISE
-          </span>
-          <div className="flex items-center gap-2">
-            {right}
-            <ProfileAvatar />
-          </div>
-        </div>
-      )}
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[26px] font-semibold leading-[1.08] tracking-[-0.035em] text-foreground">
+    <header className="bw-page-header">
+        <div className="min-w-0">
+          <h1 className="bw-page-title text-foreground">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-2 max-w-[36ch] text-sm leading-relaxed text-muted-foreground">
+            <p className="bw-page-subtitle">
               {subtitle}
             </p>
           )}
         </div>
-        {!brand && right}
-      </div>
+      <div className="flex shrink-0 items-center gap-2">{right}{brand && <ProfileAvatar />}</div>
     </header>
   );
 }
@@ -91,7 +77,7 @@ export function IntensityBadge({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${classes}`}
+      className={`inline-flex items-center rounded px-2 py-1 text-sm font-medium ${classes}`}
     >
       {label ?? intensity}
     </span>
@@ -109,7 +95,7 @@ const dayTypeLabels: Record<DayType, string> = {
 
 export function DayTypeTag({ type }: { type: DayType }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-border/80 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center rounded bg-card/70 px-2 py-1 text-sm font-medium text-muted-foreground">
       {dayTypeLabels[type]}
     </span>
   );
@@ -117,9 +103,8 @@ export function DayTypeTag({ type }: { type: DayType }) {
 
 export function Disclaimer() {
   return (
-    <div className="mx-5 mb-28 mt-4 flex gap-2.5 rounded-2xl border border-border/60 bg-muted/55 p-3.5">
-      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-      <p className="text-xs leading-relaxed text-muted-foreground">
+    <div className="bw-page-content mt-8 pb-6">
+      <p className="max-w-[68ch] text-sm leading-relaxed text-muted-foreground">
         BallWise pomaga podejmować mądrzejsze decyzje treningowe w piłce nożnej. Nie diagnozuje, nie
         leczy, nie prowadzi rehabilitacji ani nie wyznacza powrotu do gry. Te decyzje należą do
         lekarza lub fizjoterapeuty.
@@ -127,4 +112,3 @@ export function Disclaimer() {
     </div>
   );
 }
-

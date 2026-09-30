@@ -1,15 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeftRight,
-  ChevronRight,
-  CircleDot,
-  Gauge,
-  History,
-  PersonStanding,
-  ShieldCheck,
-  TimerReset,
-} from "lucide-react";
+import { ArrowLeftRight, CircleDot, Gauge, PersonStanding, TimerReset } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ActionRow, Disclosure, StatusMessage, Tabs } from "@/components/ui/app-ui";
 import { AppHeader } from "@/components/loadwise/ui";
 import { displayLabValue, LabMeasurementDetails } from "@/components/lab/LabMeasurement";
 import { LabFlow } from "@/components/lab/LabFlow";
@@ -46,9 +39,9 @@ export const Route = createFileRoute("/_tabs/lab")({
 type Tab = "tests" | "history";
 
 const categoryCopy: Record<LabTestDefinition["category"], string> = {
-  jump: "SKOCZNOŚĆ",
-  speed: "SZYBKOŚĆ",
-  change: "ZMIANA KIERUNKU",
+  jump: "Skoczność",
+  speed: "Szybkość",
+  change: "Zmiana kierunku",
 };
 
 function TestIcon({ id }: { id: LabTestId }) {
@@ -143,177 +136,108 @@ function LabScreen() {
   if (!user) return null;
 
   return (
-    <main className="premium-flow min-h-screen pb-28">
-      <AppHeader
-        title="Lab"
-        subtitle="Mierz tylko to, co telefon potrafi policzyć rzetelnie."
-        right={
-          <span
-            className={`rounded-full px-3 py-2 text-[11px] font-semibold ${cameraReady ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}
-          >
-            {cameraReady === null
-              ? "Sprawdzanie…"
-              : cameraReady
-                ? "240 FPS • GOTOWE"
-                : "WYMAGA iPHONE"}
-          </span>
-        }
-      />
-
-      <div className="px-5">
-        <div className="grid grid-cols-2 rounded-2xl bg-secondary/70 p-1" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "tests"}
-            onClick={() => setTab("tests")}
-            className={`h-10 rounded-xl text-sm font-semibold transition ${tab === "tests" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-          >
-            Testy
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "history"}
-            onClick={() => setTab("history")}
-            className={`h-10 rounded-xl text-sm font-semibold transition ${tab === "history" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-          >
-            Historia
-          </button>
-        </div>
-
-        {tab === "tests" ? (
-          <>
-            <section className="mt-5 overflow-hidden rounded-[1.6rem] bg-[#0b1f3a] p-5 text-white shadow-[0_18px_40px_-30px_rgba(8,25,51,.8)]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">
-                    PEŁNY POMIAR
-                  </p>
-                  <h2 className="mt-2 text-[24px] font-semibold tracking-[-0.035em]">
-                    Profil boiskowy
-                  </h2>
-                  <p className="mt-1 text-sm text-white/65">
-                    {FULL_PROFILE_TEST_IDS.length} testów • {profileAttempts} prób • około 25–30 min
-                  </p>
-                </div>
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10">
-                  <Gauge className="h-5 w-5 text-[#f4c84a]" />
-                </span>
-              </div>
-              <button
-                type="button"
-                disabled={!cameraReady}
-                onClick={() => start(FULL_PROFILE_TEST_IDS)}
-                className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#f4c84a] text-sm font-semibold text-[#071426] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Rozpocznij profil <ChevronRight className="h-4 w-4" />
-              </button>
-            </section>
-
-            {!cameraReady && cameraReady !== null && (
-              <div className="mt-4 rounded-2xl border border-border/70 bg-card p-4 text-sm leading-relaxed text-muted-foreground">
-                <strong className="block text-foreground">
-                  Nagrywanie testów jest zablokowane
-                </strong>
-                {cameraReason ?? "BallWise nie wykrył tylnej kamery obsługującej 240 FPS."}
-              </div>
-            )}
-
-            <div className="mt-7 space-y-7">
-              {grouped.map(([category, tests]) => (
-                <section key={category}>
-                  <h2 className="mb-3 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground">
-                    {categoryCopy[category]}
-                  </h2>
-                  <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-                    {tests.map((test, index) => (
-                      <button
+    <section className="premium-flow">
+      <AppHeader title="Lab" />
+      <div className="bw-page-content bw-stack">
+        <Tabs
+          className="[&_.is-selected]:bg-card [&_.is-selected]:text-foreground"
+          value={tab}
+          options={[
+            { value: "tests", label: "Testy" },
+            { value: "history", label: "Historia" },
+          ]}
+          onChange={setTab}
+          label="Widok pomiarów"
+          panelId="lab-panel"
+        />
+        <div
+          id="lab-panel"
+          role="tabpanel"
+          aria-label={tab === "tests" ? "Testy" : "Historia pomiarów"}
+        >
+          {tab === "tests" ? (
+            <div className="bw-stack">
+              <StatusMessage tone={cameraReady ? "success" : "neutral"}>
+                {cameraReady === null
+                  ? "Sprawdzanie kamery…"
+                  : cameraReady
+                    ? "Kamera 240 FPS gotowa"
+                    : (cameraReason ??
+                      "Nagrywanie wymaga aplikacji BallWise na iPhone z kamerą 240 FPS.")}
+              </StatusMessage>
+              <section className="bw-section space-y-4 rounded-lg bg-[#0b1f3a] p-5 text-white">
+                <h2 className="bw-section-title">Profil boiskowy</h2>
+                <p className="text-sm text-white/65">
+                  {FULL_PROFILE_TEST_IDS.length} testów · {profileAttempts} prób · 25–30 min
+                </p>
+                <Button
+                  disabled={!cameraReady}
+                  onClick={() => start(FULL_PROFILE_TEST_IDS)}
+                  className="w-fit bg-[#f4c84a] text-[#071426] hover:bg-[#f4c84a]/90"
+                >
+                  Rozpocznij profil
+                </Button>
+              </section>
+              <div className="bw-columns">
+                {grouped.map(([category, tests]) => (
+                  <section key={category} className="bw-section space-y-3">
+                    <h2 className="bw-section-title">{categoryCopy[category]}</h2>
+                    {tests.map((test) => (
+                      <ActionRow
                         key={test.id}
-                        type="button"
-                        disabled={!cameraReady}
-                        onClick={() => start([test.id])}
-                        className={`flex min-h-[78px] w-full items-center gap-4 px-4 py-3 text-left disabled:opacity-45 ${index > 0 ? "border-t border-border/65" : ""}`}
-                      >
-                        <span className="icon-bubble grid h-11 w-11 shrink-0 place-items-center">
-                          <TestIcon id={test.id} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[16px] font-semibold text-foreground">
-                            {test.title}
-                          </span>
-                          <span className="mt-0.5 block text-sm text-muted-foreground">
-                            {test.shortDescription}
-                          </span>
-                        </span>
-                        <span className="text-right">
-                          <span className="block text-xs text-muted-foreground">
+                        title={test.title}
+                        description={test.shortDescription}
+                        icon={<TestIcon id={test.id} />}
+                        trailing={
+                          <span className="text-sm text-muted-foreground">
                             {test.sides.length * test.trialsPerSide} prób
                           </span>
-                          <ChevronRight className="ml-auto mt-1 h-4 w-4 text-muted-foreground" />
-                        </span>
-                      </button>
+                        }
+                        onClick={cameraReady ? () => start([test.id]) : undefined}
+                      />
                     ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-
-            <div className="mt-7 flex gap-3 rounded-2xl border border-border/60 bg-secondary/45 p-4">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                BallWise zapisuje wyłącznie wynik i dane kontroli pomiaru. Nagranie robocze nie jest
-                wysyłane do chmury. Wyniki nie stanowią diagnozy medycznej.
+                  </section>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Nagrania pozostają na urządzeniu i są usuwane po zapisaniu pomiaru. Wyniki nie
+                stanowią diagnozy medycznej.
               </p>
             </div>
-          </>
-        ) : (
-          <section className="mt-5">
-            {visibleResults.length === 0 ? (
-              <div className="py-16 text-center">
-                <History className="mx-auto h-7 w-7 text-muted-foreground" />
-                <h2 className="mt-4 font-semibold">Brak zapisanych pomiarów</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Pierwszy poprawny test pojawi się tutaj.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {visibleResults.map((result) => {
+          ) : (
+            <section className="bw-section">
+              {visibleResults.length === 0 ? (
+                <p className="py-6 text-muted-foreground">Brak zapisanych pomiarów.</p>
+              ) : (
+                visibleResults.map((result) => {
                   const test = getLabTest(result.testId);
-                  const value = displayLabValue(
-                    result.metrics.primaryValue,
-                    result.metrics.primaryUnit,
-                  );
                   return (
-                    <article
-                      key={result.id}
-                      className="soft-card flex items-center justify-between gap-4 p-4"
-                    >
-                      <div>
-                        <p className="font-semibold">{test.title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {sideLabel(result.side) ??
-                            new Date(result.recordedAt).toLocaleDateString("pl-PL")}{" "}
-                          • próba {result.trialNumber}
-                        </p>
+                    <article key={result.id} className="bw-section space-y-3 py-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+                        <div>
+                          <h2 className="font-semibold">{test.title}</h2>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(result.recordedAt).toLocaleDateString("pl-PL")}
+                            {sideLabel(result.side) ? ` · ${sideLabel(result.side)}` : ""} · próba{" "}
+                            {result.trialNumber}
+                          </p>
+                        </div>
+                        <strong className="text-2xl font-semibold tabular-nums">
+                          {displayLabValue(result.metrics.primaryValue, result.metrics.primaryUnit)}
+                        </strong>
                       </div>
-                      <div className="text-right">
-                        <strong className="block">{value}</strong>
+                      <Disclosure title="Szczegóły pomiaru">
                         <LabMeasurementDetails metrics={result.metrics} />
-                        <span className="text-[11px] text-muted-foreground">
-                          {result.synced ? "zapisano" : "oczekuje na synchronizację"}
-                        </span>
-                      </div>
+                      </Disclosure>
+                      {!result.synced && <StatusMessage>Oczekuje na synchronizację</StatusMessage>}
                     </article>
                   );
-                })}
-              </div>
-            )}
-          </section>
-        )}
+                })
+              )}
+            </section>
+          )}
+        </div>
       </div>
-
       {attempts && (
         <LabFlow
           userId={user.id}
@@ -322,6 +246,6 @@ function LabScreen() {
           onClose={() => setAttempts(null)}
         />
       )}
-    </main>
+    </section>
   );
 }

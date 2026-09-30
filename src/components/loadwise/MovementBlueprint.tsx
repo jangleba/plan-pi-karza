@@ -452,7 +452,7 @@ if (import.meta.env?.DEV) {
 /** Schludny placeholder — pokazywany zamiast cudzej grafiki. */
 export function ExerciseVisualPlaceholder() {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 bg-muted/30 px-4 py-6 text-center">
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <ImageOff className="h-5 w-5" />
       </span>
@@ -468,7 +468,7 @@ export function MovementBlueprint({ exercise }: { exercise: TrainingExercise }) 
 
   if (techniqueImage) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-[#faf9f5] shadow-sm">
+      <div className="overflow-hidden bg-[#faf9f5]">
         <img
           src={techniqueImage.src}
           alt={techniqueImage.alt}
@@ -490,7 +490,7 @@ export function MovementBlueprint({ exercise }: { exercise: TrainingExercise }) 
 
   const { visual } = resolution;
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm">
+    <div className="overflow-hidden bg-white">
       <img
         src={visual.src}
         alt={visual.title}

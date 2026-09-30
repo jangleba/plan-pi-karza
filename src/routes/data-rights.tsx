@@ -1,17 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useActivityExitGuard } from "@/components/loadwise/ActivityExitGuard";
 import { toast } from "sonner";
 import { ChevronLeft, FileDown, Trash2, ShieldOff, HeartOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
 import { recordConsentDecision } from "@/lib/loadwise/consent";
-import { MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { useInstantBack } from "@/lib/loadwise/uiHooks";
 import { useLoadwise } from "@/lib/loadwise/store";
-import {
-  clearLocalUserData,
-  profileWithoutHealthData,
-} from "@/lib/loadwise/localPrivacy";
+import { clearLocalUserData, profileWithoutHealthData } from "@/lib/loadwise/localPrivacy";
+import { Button } from "@/components/ui/button";
+import { ActionRow, ConfirmDialog, StatusMessage } from "@/components/ui/app-ui";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
@@ -43,10 +42,19 @@ function DataRights() {
   const { user, signOut } = useAuth();
   const { state, updateProfile } = useLoadwise();
   const [busy, setBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState<"health_data" | "delete" | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [destination, setDestination] = useState<"/start" | "/auth" | null>(null);
+  useActivityExitGuard({ dirty: false, busy });
+
+  useEffect(() => {
+    if (destination && !busy) navigate({ to: destination, replace: true });
+  }, [destination, busy, navigate]);
 
   async function exportData() {
     if (!user) return;
     setBusy(true);
+    setErrorMessage("");
     try {
       const bundle: Record<string, unknown> = {
         account: { id: user.id, email: user.email },
@@ -68,6 +76,7 @@ function DataRights() {
       URL.revokeObjectURL(url);
       toast.success("Eksport danych gotowy.");
     } catch {
+      setErrorMessage("Nie udało się wyeksportować danych. Spróbuj ponownie.");
       toast.error("Nie udało się wyeksportować danych.");
     } finally {
       setBusy(false);
@@ -76,32 +85,29 @@ function DataRights() {
 
   async function withdrawConsent(type: "marketing" | "health_data") {
     if (!user) return;
-    if (
-      type === "health_data" &&
-      !window.confirm(
-        "Wycofać zgodę i usunąć zapisane check-iny oraz wpisy bólu? Konto i ostrożny plan nadal będą działać.",
-      )
-    )
-      return;
     setBusy(true);
+    setErrorMessage("");
     if (type === "health_data") {
       try {
         await recordConsentDecision({ type: "health_data", accepted: false });
         if (state.profile) await updateProfile(profileWithoutHealthData(state.profile));
       } catch {
         setBusy(false);
+        setErrorMessage("Nie udało się wycofać zgody i usunąć danych. Spróbuj ponownie.");
         toast.error("Nie udało się wycofać zgody i usunąć danych.");
         return;
       }
       setBusy(false);
+      setConfirmation(null);
       toast.success("Usunięto dane zdrowotne i wyłączono ich personalizację.");
-      navigate({ to: "/start", replace: true });
+      setDestination("/start");
       return;
     }
     try {
       await recordConsentDecision({ type: "marketing", accepted: false });
     } catch {
       setBusy(false);
+      setErrorMessage("Nie udało się wycofać zgody. Spróbuj ponownie.");
       toast.error("Nie udało się wycofać zgody.");
       return;
     }
@@ -111,13 +117,8 @@ function DataRights() {
 
   async function deleteAccount() {
     if (!user) return;
-    if (
-      !window.confirm(
-        "Czy na pewno chcesz usunąć wszystkie swoje dane? Tej operacji nie można cofnąć.",
-      )
-    )
-      return;
     setBusy(true);
+    setErrorMessage("");
     try {
       const { error } = await supabase.functions.invoke("delete-account", {
         method: "POST",
@@ -126,8 +127,9 @@ function DataRights() {
       clearLocalUserData(user.id);
       await signOut();
       toast.success("Konto logowania i powiązane dane zostały usunięte.");
-      navigate({ to: "/auth", replace: true });
+      setDestination("/auth");
     } catch {
+      setErrorMessage("Nie udało się usunąć danych. Spróbuj ponownie.");
       toast.error("Nie udało się usunąć danych.");
     } finally {
       setBusy(false);
@@ -135,85 +137,79 @@ function DataRights() {
   }
 
   return (
-    <div className="app-shell premium-flow min-h-screen px-5 pb-16 pt-6">
-      <button
+    <section className="bw-form-page bw-page-content bw-stack">
+      <Button
         type="button"
+        variant="ghost"
+        disabled={busy}
         onClick={goBack}
-        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-sm text-foreground"
+        className="justify-self-start"
       >
-        <ChevronLeft className="h-4 w-4" /> Wstecz
-      </button>
-      <h1 className="text-2xl font-semibold tracking-tight">Moje dane i prawa</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Zarządzaj swoimi danymi osobowymi i zgodami (RODO).
-      </p>
-
-      <div className="mt-5 space-y-3">
-        <div className="soft-card p-4">
-          <div className="text-sm font-semibold">Konto</div>
-          <p className="mt-1 text-sm text-muted-foreground">{user?.email}</p>
-        </div>
-
-        <button
-          onClick={exportData}
-          disabled={busy}
-          className="soft-card flex w-full items-center gap-3 p-4 text-left"
-        >
-          <FileDown className="h-5 w-5 text-primary" />
-          <div>
-            <div className="text-sm font-semibold">Eksportuj moje dane (JSON)</div>
-            <div className="text-xs text-muted-foreground">
-              Pobierz wszystkie swoje dane w jednym pliku.
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => withdrawConsent("marketing")}
-          disabled={busy}
-          className="soft-card flex w-full items-center gap-3 p-4 text-left"
-        >
-          <ShieldOff className="h-5 w-5 text-foreground" />
-          <div>
-            <div className="text-sm font-semibold">Wycofaj zgodę marketingową</div>
-            <div className="text-xs text-muted-foreground">
-              Przestaniemy wysyłać Ci informacje marketingowe.
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => withdrawConsent("health_data")}
-          disabled={busy}
-          className="soft-card flex w-full items-center gap-3 p-4 text-left"
-        >
-          <HeartOff className="h-5 w-5 text-destructive" />
-          <div>
-            <div className="text-sm font-semibold">Wycofaj zgodę na dane o zdrowiu</div>
-            <div className="text-xs text-muted-foreground">
-              Usuwa check-iny i przełącza plan w tryb ostrożny. Konto nadal działa.
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={deleteAccount}
-          disabled={busy}
-          className="soft-card flex w-full items-center gap-3 p-4 text-left"
-        >
-          <Trash2 className="h-5 w-5 text-destructive" />
-          <div>
-            <div className="text-sm font-semibold text-destructive">Usuń konto i dane</div>
-            <div className="text-xs text-muted-foreground">
-              Trwale usuwa Twoje dane z aplikacji.
-            </div>
-          </div>
-        </button>
-
-        <p className="px-1 pt-2 text-xs leading-relaxed text-muted-foreground">
-          {MEDICAL_DISCLAIMER}
-        </p>
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Wstecz
+      </Button>
+      <div>
+        <h1 className="bw-page-title">Moje dane i prawa</h1>
+        <p className="mt-2 break-all text-base text-muted-foreground">{user?.email}</p>
       </div>
-    </div>
+
+      <section className="bw-section space-y-4">
+        <ActionRow
+          title="Eksportuj moje dane (JSON)"
+          description="Pobierz wszystkie swoje dane w jednym pliku."
+          icon={<FileDown className="h-5 w-5 text-primary" />}
+          onClick={() => void exportData()}
+          disabled={busy}
+        />
+        <ActionRow
+          title="Wycofaj zgodę marketingową"
+          icon={<ShieldOff className="h-5 w-5 text-foreground" />}
+          onClick={() => void withdrawConsent("marketing")}
+          disabled={busy}
+        />
+        <ActionRow
+          title="Wycofaj zgodę na dane o zdrowiu"
+          description="Usuwa check-iny i przełącza plan w tryb ostrożny. Konto nadal działa."
+          icon={<HeartOff className="h-5 w-5 text-destructive" />}
+          onClick={() => {
+            setErrorMessage("");
+            setConfirmation("health_data");
+          }}
+          disabled={busy}
+        />
+      </section>
+      <section className="bw-section">
+        <ActionRow
+          title={<span className="text-destructive">Usuń konto i dane</span>}
+          description="Trwale usuwa Twoje dane z aplikacji."
+          icon={<Trash2 className="h-5 w-5 text-destructive" />}
+          onClick={() => {
+            setErrorMessage("");
+            setConfirmation("delete");
+          }}
+          disabled={busy}
+        />
+      </section>
+      {busy && <StatusMessage>Wykonuję operację…</StatusMessage>}
+      {errorMessage && !confirmation && <StatusMessage tone="error">{errorMessage}</StatusMessage>}
+      <ConfirmDialog
+        open={confirmation !== null}
+        onOpenChange={(open) => {
+          if (!open && !busy) setConfirmation(null);
+        }}
+        title={confirmation === "delete" ? "Usunąć konto i dane?" : "Wycofać zgodę zdrowotną?"}
+        description={
+          confirmation === "delete"
+            ? "Czy na pewno chcesz usunąć wszystkie swoje dane? Tej operacji nie można cofnąć."
+            : "Wycofać zgodę i usunąć zapisane check-iny oraz wpisy bólu? Konto i ostrożny plan nadal będą działać."
+        }
+        confirmLabel={confirmation === "delete" ? "Usuń konto i dane" : "Wycofaj zgodę"}
+        busy={busy}
+        error={errorMessage}
+        destructive
+        onConfirm={() =>
+          confirmation === "delete" ? void deleteAccount() : void withdrawConsent("health_data")
+        }
+      />
+    </section>
   );
 }

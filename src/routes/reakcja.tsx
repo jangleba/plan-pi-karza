@@ -21,11 +21,9 @@ function ReactiveTrainingRoute() {
   }
 
   return (
-    <div className="premium-flow">
-      <ReactiveTrainer
-        storageKey={`ballwise:reactive:v1:${user.id}`}
-        onBack={() => navigate({ to: "/plan" })}
-      />
-    </div>
+    <ReactiveTrainer
+      storageKey={`ballwise:reactive:v1:${user.id}`}
+      onBack={() => navigate({ to: "/plan" })}
+    />
   );
 }

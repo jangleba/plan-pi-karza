@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, CalendarDays, Brain, TrendingUp, Apple } from "lucide-react";
+import { forwardRef } from "react";
 
 const items = [
   { to: "/start", label: "Start", icon: Home },
@@ -9,16 +10,22 @@ const items = [
   { to: "/postep", label: "Progres", icon: TrendingUp },
 ] as const;
 
-export function BottomNav() {
+export const BottomNav = forwardRef<HTMLElement>(function BottomNav(_, ref) {
   const pathname = useRouterState({
     select: (s) => s.location.pathname,
   });
 
   return (
-    <nav className="bw-tab-bar" aria-label="Główna nawigacja">
+    <nav ref={ref} className="bw-tab-bar" aria-label="Główna nawigacja">
       <div className="bw-tab-list">
         {items.map((item) => {
-          const active = pathname === item.to || pathname.startsWith(item.to + "/");
+          const destination =
+            pathname.startsWith("/sesja/") || pathname === "/reakcja"
+              ? "/plan"
+              : pathname === "/lab"
+                ? "/start"
+                : pathname;
+          const active = destination === item.to || destination.startsWith(item.to + "/");
           const Icon = item.icon;
 
           return (
@@ -30,7 +37,7 @@ export function BottomNav() {
               className={`bw-tab-item ${active ? "is-active" : ""}`}
             >
               <span className="bw-tab-icon" aria-hidden="true">
-                <Icon className="h-[19px] w-[19px]" strokeWidth={active ? 2.25 : 1.8} />
+                <Icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
               <span className="bw-tab-label">{item.label}</span>
             </Link>
@@ -39,5 +46,4 @@ export function BottomNav() {
       </div>
     </nav>
   );
-}
-
+});

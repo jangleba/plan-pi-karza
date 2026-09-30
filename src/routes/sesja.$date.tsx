@@ -8,7 +8,7 @@ import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
 import { professionalSessionTitle } from "@/lib/loadwise/labels";
-import { ModifySheet } from "@/components/loadwise/ModifySheet";
+import { ModifySheet, type ModificationChoice } from "@/components/loadwise/ModifySheet";
 import { Button } from "@/components/ui/button";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
@@ -66,6 +66,7 @@ function SessionDetail() {
     deleteRunningActivity,
   } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
+  const [modifyChoice, setModifyChoice] = useState<ModificationChoice>("add");
   const [showSprintCompletion, setShowSprintCompletion] = useState(false);
   const [showStrengthCompletion, setShowStrengthCompletion] = useState(false);
   const [dailyCheckinLoaded, setDailyCheckinLoaded] = useState(false);
@@ -113,7 +114,7 @@ function SessionDetail() {
     // Dane dotarły, ale sesji nie ma — czytelny stan błędu zamiast wiszącego loadera.
     return (
       <SessionScreenShell onBack={goBack}>
-        <div className="soft-card p-5 text-center">
+        <div className="bw-section mt-8">
           <p className="text-sm font-medium text-foreground">Nie znaleziono tej sesji.</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Mogła zostać zmieniona w planie. Wróć do planu tygodnia.
@@ -135,8 +136,8 @@ function SessionDetail() {
   if (decisionMode === "checkin_required") {
     return (
       <SessionScreenShell onBack={goBack}>
-        <div className="soft-card p-5 text-center">
-          <h1 className="text-xl font-semibold text-foreground">Najpierw check-in</h1>
+        <div className="bw-section mt-8">
+          <h1 className="bw-page-title">Najpierw check-in</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Potwierdź plan albo wybierz jedną zmianę. Nie pytamy o zdrowie ani samopoczucie.
           </p>
@@ -169,11 +170,9 @@ function SessionDetail() {
     if (!primary.secondSession) {
       return (
         <SessionScreenShell onBack={goBack}>
-          <h1 className="text-xl font-semibold text-foreground">Plan dnia został zaktualizowany</h1>
+          <h1 className="bw-page-title">Plan dnia został zaktualizowany</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Ten drugi slot nie występuje już w aktualnym planie. Nie oznacza to automatycznie, że
-            trening jest za blisko meczu — plan mógł zostać przebudowany po zmianie kalendarza albo
-            ocenie gotowości.
+            Ten drugi slot nie występuje już w aktualnym planie.
           </p>
           <Button
             className="mt-4"
@@ -240,7 +239,7 @@ function SessionDetail() {
   }
 
   return (
-    <div className="app-shell min-h-screen pb-[140px]">
+    <div className="app-shell bw-page-content pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <SessionHeader
         session={session}
         strengthRunner={strengthRunner}
@@ -248,7 +247,7 @@ function SessionDetail() {
         onBack={goBack}
       />
 
-      <div className="mt-5 space-y-3 px-5">
+      <div className="bw-section bw-stack mt-8">
         {/* Sesje dnia — przełącznik gdy są dwie */}
         <SessionSlotSwitcher
           primary={primary}
@@ -259,34 +258,28 @@ function SessionDetail() {
         />
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
-        {shortNote && (
-          <div className="soft-card bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
-            {shortNote}
-          </div>
-        )}
+        {shortNote && <div className="text-sm font-medium text-foreground">{shortNote}</div>}
         {state.equipmentNotice && (
-          <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
-            {state.equipmentNotice}
-          </div>
+          <div className="text-sm text-muted-foreground">{state.equipmentNotice}</div>
         )}
 
         {ballTechnicalSession && (
-          <Link
-            to="/reakcja"
-            className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
-          >
-            <div>
-              <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
-              <p className="mt-0.5 text-xs text-primary-foreground/75">
-                Włącz bodźce w wybranym fragmencie własnego treningu.
-              </p>
-            </div>
-            <ArrowRight className="h-5 w-5 shrink-0" />
-          </Link>
+          <Button asChild className="h-auto justify-start py-3">
+            <Link to="/reakcja" className="flex min-h-12 items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Uruchom Trenera reakcji</p>
+                <p className="mt-1 text-sm text-primary-foreground/75">
+                  Włącz bodźce w wybranym fragmencie własnego treningu.
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 shrink-0" />
+            </Link>
+          </Button>
         )}
 
         {trackableEndurance && session.dbId && (
           <EnduranceRunTracker
+            key={session.dbId}
             session={session}
             sessionId={session.dbId}
             date={session.date}
@@ -301,11 +294,17 @@ function SessionDetail() {
           <>
             <ClubMonitoring />
             {structured.length > 0 && (
-              <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+              <StructuredSections
+                key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
+                sections={structured}
+                date={date}
+                sessionId={session.dbId}
+              />
             )}
           </>
         ) : sprintRunner ? (
           <SprintStructuredSections
+            key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
             sections={structured}
             date={date}
             session={session}
@@ -313,6 +312,7 @@ function SessionDetail() {
           />
         ) : strengthRunner ? (
           <StrengthStructuredSections
+            key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
             sections={structured}
             date={date}
             sessionId={session.dbId}
@@ -320,15 +320,18 @@ function SessionDetail() {
           />
         ) : (
           <>
-            <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Do wykonania
-            </div>
-            <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+            <div className="text-lg font-semibold">Do wykonania</div>
+            <StructuredSections
+              key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
+              sections={structured}
+              date={date}
+              sessionId={session.dbId}
+            />
           </>
         )}
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
-          <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
+          <div className="bw-section mt-8 flex flex-wrap items-center gap-3 text-sm">
             <span className="text-muted-foreground">
               {(state.exerciseReplacements[date] ?? []).length === 1
                 ? "Ćwiczenie zostało zamienione."
@@ -339,17 +342,17 @@ function SessionDetail() {
                 <span className="text-muted-foreground">
                   {replacement.original.name} → {replacement.replacement.name}
                 </span>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     void undoExerciseReplacement(date, replacement.id)
                       .then(() => toast.success("Przywrócono poprzednie ćwiczenie."))
                       .catch(() => toast.error("Nie udało się cofnąć zamiennika."));
                   }}
-                  className="inline-flex shrink-0 items-center gap-1 font-medium text-primary"
+                  className="shrink-0"
                 >
                   <Undo2 className="h-3.5 w-3.5" /> Cofnij
-                </button>
+                </Button>
               </span>
             ))}
           </div>
@@ -365,58 +368,63 @@ function SessionDetail() {
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) &&
           (!sprintRunner || showSprintCompletion) &&
-          (!strengthRunner || showStrengthCompletion) && <CompletionPanel session={session} />}
+          (!strengthRunner || showStrengthCompletion) && (
+            <CompletionPanel key={session.dbId} session={session} />
+          )}
 
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && !selectedAdd && (
-          <div className="soft-card flex items-center justify-between p-3 text-xs">
+          <div className="bw-section mt-8 flex flex-wrap items-center justify-between gap-3 text-sm">
             <span className="text-muted-foreground">Sesja zamieniona. {swapMod.reason}</span>
-            <button
-              type="button"
-              onClick={() => void undo(date, swapMod.id)}
-              className="inline-flex items-center gap-1 font-medium text-primary"
-            >
+            <Button variant="ghost" onClick={() => void undo(date, swapMod.id)}>
               <Undo2 className="h-3.5 w-3.5" /> Cofnij
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Sesje dodane przez zawodnika */}
         {addMods
           .filter((item) => item.id !== selectedAdd?.id)
-          .map((m) => (
-            <div key={m.id} className="soft-card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-medium uppercase tracking-wide text-primary">
-                    Dodana sesja
-                  </div>
-                  <div className="mt-0.5 text-sm font-semibold">
-                    {professionalSessionTitle(m.session.title)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {m.session.durationMin} min · {m.session.intensity}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void undo(date, m.id)}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-                >
-                  <Undo2 className="h-3.5 w-3.5" /> Cofnij
-                </button>
-              </div>
-              <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
+          .map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <Link
+                to="/sesja/$date"
+                params={{ date }}
+                search={{ slot: 1, mod: item.id }}
+                className="min-w-0 flex-1 py-2"
+              >
+                <span className="block text-base font-semibold">
+                  {professionalSessionTitle(item.session.title)}
+                </span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  Dodana sesja · {item.session.durationMin} min · {item.session.intensity}
+                </span>
+              </Link>
+              <Button variant="ghost" onClick={() => void undo(date, item.id)}>
+                <Undo2 className="h-4 w-4" /> Cofnij
+              </Button>
             </div>
           ))}
 
         {/* Dodaj / zamień sesję */}
         {!isClub && session.dayType !== "match" && (
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => setModifyOpen(true)}>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setModifyChoice("add");
+                setModifyOpen(true);
+              }}
+            >
               <Plus className="mr-1 h-4 w-4" /> Dodaj trening
             </Button>
-            <Button variant="outline" onClick={() => setModifyOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setModifyChoice("swap");
+                setModifyOpen(true);
+              }}
+            >
               <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
             </Button>
           </div>
@@ -426,7 +434,12 @@ function SessionDetail() {
         <DecisionLogic session={session} />
       </div>
 
-      <ModifySheet open={modifyOpen} onOpenChange={setModifyOpen} date={date} />
+      <ModifySheet
+        open={modifyOpen}
+        onOpenChange={setModifyOpen}
+        date={date}
+        initialChoice={modifyChoice}
+      />
     </div>
   );
 }

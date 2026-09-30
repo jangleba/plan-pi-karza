@@ -32,6 +32,21 @@ function saveButton() {
     /Oznacz jako wykonane|Zaktualizuj wpis|Zapisywanie/.test(item.textContent ?? ""),
   )!;
 }
+async function changeField(label: string, value: string) {
+  const fieldLabel = [...host.querySelectorAll("label")].find(
+    (item) => item.textContent?.trim() === label,
+  )!;
+  const control = document.getElementById(fieldLabel.htmlFor) as
+    HTMLInputElement | HTMLTextAreaElement;
+  const valueSetter = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(control),
+    "value",
+  )!.set!;
+  await act(async () => {
+    valueSetter.call(control, value);
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -107,14 +122,32 @@ describe("session completion", () => {
     expect(mocks.complete).toHaveBeenCalledWith(session, 5, "", { durationMin: 45 });
   });
 
-  it("allows retry after a completion save fails", async () => {
+  it("retains the edited draft and persistent error until a failed completion save is retried", async () => {
     mocks.complete.mockRejectedValueOnce(new Error("offline"));
-    await act(async () => root.render(<CompletionPanel session={sessionFixture()} />));
+    const session = sessionFixture({ dayType: "club" });
+    await act(async () => root.render(<CompletionPanel session={session} />));
+    await changeField("Czas (min)", "83");
+    await changeField("Ból 0–10", "2");
+    await changeField("Zmęczenie nóg 0–10", "4");
+    await changeField("Notatki po sesji", "Notatka po treningu");
     await act(async () => saveButton().click());
     expect(mocks.error).toHaveBeenCalledOnce();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      "Nie udało się zapisać treningu. Spróbuj ponownie.",
+    );
+    expect(host.querySelector("textarea")?.value).toBe("Notatka po treningu");
+    expect(mocks.complete).toHaveBeenNthCalledWith(
+      1,
+      session,
+      6,
+      "[Monitoring] pain=2;legFatigue=4\nNotatka po treningu",
+      { durationMin: 83, activityType: "mixed" },
+    );
     expect(saveButton().disabled).toBe(false);
     await act(async () => saveButton().click());
     expect(mocks.complete).toHaveBeenCalledTimes(2);
+    expect(mocks.complete).toHaveBeenNthCalledWith(2, ...mocks.complete.mock.calls[0]);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
     expect(mocks.success).toHaveBeenCalledOnce();
   });
 

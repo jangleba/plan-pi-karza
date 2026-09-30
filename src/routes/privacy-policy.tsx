@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { PRIVACY_POLICY, PLACEHOLDER_NOTICE } from "@/lib/loadwise/legal";
 import { useInstantBack } from "@/lib/loadwise/uiHooks";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/privacy-policy")({
   component: PrivacyPolicy,
@@ -10,25 +11,19 @@ export const Route = createFileRoute("/privacy-policy")({
 function PrivacyPolicy() {
   const goBack = useInstantBack("/");
   return (
-    <div className="app-shell premium-flow min-h-screen px-5 pb-16 pt-6">
-      <button
-        type="button"
-        onClick={goBack}
-        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-sm text-foreground"
-      >
-        <ChevronLeft className="h-4 w-4" /> Wstecz
-      </button>
-      <h1 className="text-[24px] font-medium tracking-[-0.03em]">
-        Polityka prywatności
-      </h1>
+    <section className="bw-reading-page bw-page-content bw-stack">
+      <Button type="button" variant="ghost" onClick={goBack} className="justify-self-start">
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Wstecz
+      </Button>
+      <h1 className="bw-page-title">{PRIVACY_POLICY.split("\n")[0]}</h1>
       {PLACEHOLDER_NOTICE && (
-        <div className="mt-3 rounded-xl border border-accent bg-accent/30 p-3 text-xs text-muted-foreground">
+        <p className="rounded-lg bg-accent/30 p-3 text-sm text-muted-foreground">
           {PLACEHOLDER_NOTICE}
-        </div>
+        </p>
       )}
-      <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-        {PRIVACY_POLICY}
-      </pre>
-    </div>
+      <article className="whitespace-pre-wrap text-base leading-6 text-foreground">
+        {PRIVACY_POLICY.slice(PRIVACY_POLICY.indexOf("\n") + 1).trimStart()}
+      </article>
+    </section>
   );
 }

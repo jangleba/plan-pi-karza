@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ChoiceGroup, Field, StatusMessage } from "@/components/ui/app-ui";
 import { Link } from "@tanstack/react-router";
 import {
   ageOnDate,
@@ -20,15 +20,8 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthScreen() {
-  const {
-    user,
-    loading,
-    recoveryMode,
-    signIn,
-    signUp,
-    requestPasswordReset,
-    updatePassword,
-  } = useAuth();
+  const { user, loading, recoveryMode, signIn, signUp, requestPasswordReset, updatePassword } =
+    useAuth();
   const { hydrated, state } = useLoadwise();
   const navigate = useNavigate();
 
@@ -40,6 +33,12 @@ function AuthScreen() {
   const [accountOwnerType, setAccountOwnerType] = useState<AccountOwnerType>("athlete");
   const [athleteBirthDate, setAthleteBirthDate] = useState("");
   const [busy, setBusy] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function showError(message: string) {
+    setErrorMessage(message);
+    toast.error(message);
+  }
 
   useEffect(() => {
     if (recoveryMode) setMode("recovery");
@@ -58,52 +57,56 @@ function AuthScreen() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    setErrorMessage("");
     setBusy(true);
     try {
       if (mode === "forgot") {
         const { error } = await requestPasswordReset(email.trim());
         if (error) {
-          toast.error(authErrorMessage(error, "login"));
+          showError(authErrorMessage(error, "login"));
           return;
         }
         toast.success("Wysłaliśmy link do ustawienia nowego hasła. Sprawdź pocztę.");
         setMode("login");
       } else if (mode === "recovery") {
         if (password.length < 12) {
-          toast.error("Nowe hasło musi mieć co najmniej 12 znaków.");
+          showError("Nowe hasło musi mieć co najmniej 12 znaków.");
           return;
         }
         if (password !== passwordConfirmation) {
-          toast.error("Hasła nie są takie same.");
+          showError("Hasła nie są takie same.");
           return;
         }
         const { error } = await updatePassword(password);
         if (error) {
-          toast.error(authErrorMessage(error, "login"));
+          showError(authErrorMessage(error, "login"));
           return;
         }
         toast.success("Hasło zostało zmienione.");
-        navigate({ to: state.profile?.onboardingComplete ? "/start" : "/onboarding", replace: true });
+        navigate({
+          to: state.profile?.onboardingComplete ? "/start" : "/onboarding",
+          replace: true,
+        });
       } else if (mode === "register") {
         if (password.length < 12) {
-          toast.error("Hasło musi mieć co najmniej 12 znaków.");
+          showError("Hasło musi mieć co najmniej 12 znaków.");
           return;
         }
         if (name.trim().length < 2) {
-          toast.error("Podaj imię.");
+          showError("Podaj imię.");
           return;
         }
         const athleteAge = athleteBirthDate ? ageOnDate(athleteBirthDate) : null;
         if (athleteAge == null || athleteAge < 13) {
-          toast.error("Spersonalizowane konto jest dostępne dopiero od 13 lat.");
+          showError("Spersonalizowane konto jest dostępne dopiero od 13 lat.");
           return;
         }
         if (accountOwnerType === "athlete" && athleteAge < 16) {
-          toast.error("Dla zawodnika 13–15 konto musi utworzyć rodzic lub opiekun.");
+          showError("Dla zawodnika 13–15 konto musi utworzyć rodzic lub opiekun.");
           return;
         }
         if (accountOwnerType === "guardian" && athleteAge >= 16) {
-          toast.error("Nowe konto zawodnika od 16 lat powinno należeć do zawodnika.");
+          showError("Nowe konto zawodnika od 16 lat powinno należeć do zawodnika.");
           return;
         }
         const { error, needsEmailConfirmation } = await signUp(
@@ -114,7 +117,7 @@ function AuthScreen() {
           athleteBirthDate,
         );
         if (error) {
-          toast.error(authErrorMessage(error, "register"));
+          showError(authErrorMessage(error, "register"));
           return;
         }
         toast.success(
@@ -125,7 +128,7 @@ function AuthScreen() {
       } else {
         const { error } = await signIn(email.trim(), password);
         if (error) {
-          toast.error(authErrorMessage(error, "login"));
+          showError(authErrorMessage(error, "login"));
           return;
         }
       }
@@ -138,186 +141,185 @@ function AuthScreen() {
     return <AppLaunchScreen />;
   }
 
-  return (
-    <div className="app-shell auth-premium flex min-h-screen flex-col justify-center px-6 py-10">
-      <div className="mx-auto w-full max-w-sm">
-        <div className="text-center">
-          <div className="text-[25px] font-medium tracking-[-0.04em] text-foreground">
-            BallWise
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "register"
-              ? "Twój tydzień. Jedna właściwa decyzja."
-              : mode === "forgot"
-                ? "Podaj e-mail, a wyślemy link do zmiany hasła."
-                : mode === "recovery"
-                  ? "Ustaw nowe hasło do swojego konta."
-                  : "Zaloguj się do swojego konta."}
-          </p>
-        </div>
+  const title =
+    mode === "register"
+      ? "Utwórz konto"
+      : mode === "forgot"
+        ? "Zmień hasło"
+        : mode === "recovery"
+          ? "Ustaw nowe hasło"
+          : "Zaloguj się";
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          {mode === "register" && (
-            <>
-              <div className="space-y-2">
-                <Label>Kto będzie właścicielem konta?</Label>
-                <div className="grid gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={accountOwnerType === "athlete"}
-                    onClick={() => setAccountOwnerType("athlete")}
-                    className={`rounded-2xl border p-3 text-left text-sm ${
-                      accountOwnerType === "athlete"
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <span className="font-semibold">Zawodnik — mam co najmniej 16 lat</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      Konto i adres e-mail należą do zawodnika.
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={accountOwnerType === "guardian"}
-                    onClick={() => setAccountOwnerType("guardian")}
-                    className={`rounded-2xl border p-3 text-left text-sm ${
-                      accountOwnerType === "guardian"
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card"
-                    }`}
-                  >
-                    <span className="font-semibold">Rodzic lub opiekun zawodnika 13–15</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      Dorosły posiada konto, potwierdza e-mail i zarządza profilem dziecka.
-                    </span>
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-birth-date">Data urodzenia zawodnika</Label>
-                <Input
-                  id="register-birth-date"
-                  type="date"
-                  required
-                  min={birthDateForApproximateAge(80)}
-                  max={birthDateForApproximateAge(13)}
-                  value={athleteBirthDate}
-                  onChange={(event) => setAthleteBirthDate(event.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Służy do sprawdzenia progów 13, 16 i 18 lat. Osoba poniżej 13 lat może korzystać tylko z demo bez konta.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  {accountOwnerType === "guardian" ? "Imię rodzica lub opiekuna" : "Imię zawodnika"}
-                </Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={accountOwnerType === "guardian" ? "Imię opiekuna" : "Twoje imię"}
-                  autoComplete="given-name"
-                />
-              </div>
-            </>
-          )}
-          {mode !== "recovery" && <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+  function switchMode(nextMode: typeof mode) {
+    if (busy) return;
+    setErrorMessage("");
+    setMode(nextMode);
+  }
+
+  return (
+    <section className="bw-auth-page bw-page-content bw-stack">
+      <header className="space-y-3">
+        <p className="text-base font-semibold text-foreground">BallWise</p>
+        <h1 className="bw-page-title">{title}</h1>
+        {mode === "forgot" && (
+          <p className="text-base text-muted-foreground">
+            Wyślemy link do zmiany hasła na Twój e-mail.
+          </p>
+        )}
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-6" aria-busy={busy}>
+        {mode === "register" && (
+          <>
+            <ChoiceGroup
+              selectedClassName="bg-primary/10 text-foreground"
+              label="Właściciel konta"
+              value={accountOwnerType}
+              onChange={setAccountOwnerType}
+              options={[
+                {
+                  value: "athlete",
+                  label: "Zawodnik od 16 lat",
+                  description: "Konto i e-mail należą do zawodnika.",
+                },
+                {
+                  value: "guardian",
+                  label: "Rodzic lub opiekun zawodnika 13–15",
+                  description: "Dorosły posiada konto i zarządza profilem dziecka.",
+                },
+              ]}
+            />
+            <Field
+              label="Data urodzenia zawodnika"
+              htmlFor="register-birth-date"
+              help="Konto od 13 lat. W wieku 13–15 zakłada je rodzic lub opiekun."
+            >
+              <Input
+                id="register-birth-date"
+                type="date"
+                required
+                min={birthDateForApproximateAge(80)}
+                max={birthDateForApproximateAge(13)}
+                value={athleteBirthDate}
+                onChange={(event) => setAthleteBirthDate(event.target.value)}
+                disabled={busy}
+              />
+            </Field>
+            <Field
+              label={
+                accountOwnerType === "guardian" ? "Imię rodzica lub opiekuna" : "Imię zawodnika"
+              }
+              htmlFor="name"
+            >
+              <Input
+                id="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                autoComplete="given-name"
+                disabled={busy}
+              />
+            </Field>
+          </>
+        )}
+        {mode !== "recovery" && (
+          <Field label="E-mail" htmlFor="email">
             <Input
               id="email"
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ty@example.com"
+              onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
+              disabled={busy}
             />
-          </div>}
-          {mode !== "forgot" && <div className="space-y-2">
-            <Label htmlFor="password">{mode === "recovery" ? "Nowe hasło" : "Hasło"}</Label>
+          </Field>
+        )}
+        {mode !== "forgot" && (
+          <Field
+            label={mode === "recovery" ? "Nowe hasło" : "Hasło"}
+            htmlFor="password"
+            help={mode === "login" ? undefined : "Co najmniej 12 znaków."}
+          >
             <Input
               id="password"
               type="password"
               required
               minLength={mode === "login" ? 1 : 12}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "login" ? "Twoje hasło" : "min. 12 znaków"}
+              onChange={(event) => setPassword(event.target.value)}
               autoComplete={
                 mode === "register" || mode === "recovery" ? "new-password" : "current-password"
               }
+              disabled={busy}
             />
-          </div>}
-
-          {mode === "recovery" && (
-            <div className="space-y-2">
-              <Label htmlFor="password-confirmation">Powtórz nowe hasło</Label>
-              <Input
-                id="password-confirmation"
-                type="password"
-                required
-                minLength={12}
-                value={passwordConfirmation}
-                onChange={(e) => setPasswordConfirmation(e.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-          )}
-
-          <Button type="submit" className="w-full" size="lg" disabled={busy}>
-            {busy
-              ? "Chwila…"
-              : mode === "register"
-                ? "Utwórz konto"
-                : mode === "forgot"
-                  ? "Wyślij link"
-                  : mode === "recovery"
-                    ? "Ustaw nowe hasło"
-                    : "Zaloguj się"}
-          </Button>
-        </form>
-
-        {mode === "login" && (
-          <button
-            type="button"
-            onClick={() => setMode("forgot")}
-            className="mt-4 w-full text-center text-sm text-primary"
-          >
-            Nie pamiętam hasła
-          </button>
+          </Field>
         )}
+        {mode === "recovery" && (
+          <Field label="Powtórz nowe hasło" htmlFor="password-confirmation">
+            <Input
+              id="password-confirmation"
+              type="password"
+              required
+              minLength={12}
+              value={passwordConfirmation}
+              onChange={(event) => setPasswordConfirmation(event.target.value)}
+              autoComplete="new-password"
+              disabled={busy}
+            />
+          </Field>
+        )}
+        {errorMessage && <StatusMessage tone="error">{errorMessage}</StatusMessage>}
+        <Button type="submit" className="w-full" disabled={busy}>
+          {busy
+            ? "Chwila…"
+            : mode === "register"
+              ? "Utwórz konto"
+              : mode === "forgot"
+                ? "Wyślij link"
+                : mode === "recovery"
+                  ? "Ustaw nowe hasło"
+                  : "Zaloguj się"}
+        </Button>
+      </form>
 
-        {mode !== "recovery" && <button
-          type="button"
-          onClick={() => setMode(mode === "register" ? "login" : "register")}
-          className="mt-5 w-full text-center text-sm text-muted-foreground"
-        >
-          {mode === "register"
-            ? "Masz już konto? Zaloguj się"
-            : "Nie masz konta? Zarejestruj się"}
-        </button>}
-
-        <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
-          Regulamin i zgody zatwierdzisz osobno podczas konfiguracji profilu. Zobacz{" "}
-          <Link to="/terms" className="underline">
-            Regulamin
-          </Link>{" "}
-          oraz{" "}
-          <Link to="/privacy-policy" className="underline">
-            Politykę prywatności
-          </Link>
-          .
-        </p>
-        <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-          Masz mniej niż 13 lat? Nie twórz konta. Możesz bezpiecznie zobaczyć{" "}
-          <Link to="/demo" className="font-medium text-primary underline">
-            publiczną wersję demonstracyjną
-          </Link>
-          , która niczego nie zapisuje.
-        </p>
+      <div className="space-y-2">
+        {mode === "login" && (
+          <Button type="button" variant="link" disabled={busy} onClick={() => switchMode("forgot")}>
+            Nie pamiętam hasła
+          </Button>
+        )}
+        {mode !== "recovery" && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-auto w-full justify-start whitespace-normal px-0 text-left font-normal text-muted-foreground"
+            disabled={busy}
+            onClick={() => switchMode(mode === "register" ? "login" : "register")}
+          >
+            {mode === "register"
+              ? "Masz już konto? Zaloguj się"
+              : "Nie masz konta? Zarejestruj się"}
+          </Button>
+        )}
       </div>
-    </div>
+
+      <footer className="space-y-3 text-sm leading-5 text-muted-foreground">
+        {mode === "register" && <p>Regulamin i zgody zatwierdzisz podczas konfiguracji profilu.</p>}
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link to="/terms" className="underline underline-offset-4">
+            Regulamin
+          </Link>
+          <Link to="/privacy-policy" className="underline underline-offset-4">
+            Polityka prywatności
+          </Link>
+        </div>
+        <p>
+          Poniżej 13 lat?{" "}
+          <Link to="/demo" className="font-medium text-primary underline underline-offset-4">
+            Demo bez konta i zapisu danych
+          </Link>
+        </p>
+      </footer>
+    </section>
   );
 }

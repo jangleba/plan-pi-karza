@@ -61,7 +61,10 @@ vi.mock("@/lib/loadwise/runtimeSpeedRepair", () => ({
 vi.mock("@/components/loadwise/AppLaunchScreen", () => ({
   AppLaunchScreen: () => <div>Uruchamianie</div>,
 }));
-vi.mock("@/components/loadwise/ModifySheet", () => ({ ModifySheet: () => null }));
+vi.mock("@/components/loadwise/ModifySheet", () => ({
+  ModifySheet: ({ open, initialChoice }: { open: boolean; initialChoice?: string }) =>
+    open ? <div data-modification={initialChoice} /> : null,
+}));
 vi.mock("@/components/running/EnduranceRunTracker", () => ({ EnduranceRunTracker: () => null }));
 vi.mock("@/components/loadwise/session/GenericRunner", () => ({
   StructuredSections: () => <div data-runner="generic" />,
@@ -148,6 +151,26 @@ describe("session route gates", () => {
         .click(),
     );
     expect(mocks.navigate).toHaveBeenCalledWith({ to: "/start" });
+  });
+
+  it("opens the requested add or swap branch directly", async () => {
+    await render();
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Dodaj trening"))!
+        .click(),
+    );
+    expect(host.querySelector<HTMLElement>("[data-modification]")?.dataset.modification).toBe(
+      "add",
+    );
+    await act(async () =>
+      [...host.querySelectorAll("button")]
+        .find((button) => button.textContent?.includes("Zamień sesję"))!
+        .click(),
+    );
+    expect(host.querySelector<HTMLElement>("[data-modification]")?.dataset.modification).toBe(
+      "swap",
+    );
   });
 
   it("uses the selected sprint slot and resets completion visibility when the slot changes", async () => {

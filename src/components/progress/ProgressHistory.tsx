@@ -8,6 +8,7 @@ import {
   type TimelineKind,
 } from "@/lib/progress/dashboard";
 import type { RunningActivity } from "@/lib/running/types";
+import { ChoiceGroup } from "@/components/ui/app-ui";
 import { RunActivitySummary } from "@/components/running/RunActivitySummary";
 
 const KINDS: (TimelineKind | "all")[] = ["all", "training", "match"];
@@ -64,79 +65,59 @@ export function ProgressHistory({
   const weeks = useMemo(() => groupByWeek(filtered), [filtered]);
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5">
-        {KINDS.map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={kind === item}
-            onClick={() => setKind(item)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
-              kind === item
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {KIND_LABEL[item]}
-          </button>
-        ))}
+    <div className="bw-stack">
+      <div className="flex flex-wrap items-end gap-4">
+        <ChoiceGroup
+          label="Rodzaj treningu"
+          value={kind}
+          options={KINDS.map((item) => ({ value: item, label: KIND_LABEL[item] }))}
+          onChange={setKind}
+        />
+        {months.length > 1 && (
+          <label className="bw-field text-sm">
+            <span className="bw-field-label">Miesiąc</span>
+            <select
+              className="min-h-12 rounded-lg border border-[var(--bw-control-border)] bg-[var(--bw-control-fill)] px-3 text-base focus-visible:border-[var(--bw-control-focus-border)]"
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+            >
+              <option value="all">Cały okres</option>
+              {months.map((item) => (
+                <option key={item} value={item}>
+                  {monthLabel(item)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
-
-      {months.length > 1 && (
-        <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5">
-          <Chip active={month === "all"} onClick={() => setMonth("all")} label="Cały okres" />
-          {months.map((item) => (
-            <Chip
-              key={item}
-              active={month === item}
-              onClick={() => setMonth(item)}
-              label={monthLabel(item)}
-            />
-          ))}
-        </div>
-      )}
-
       {weeks.length === 0 ? (
-        <div className="soft-card px-4 py-8 text-center text-sm text-muted-foreground">
-          Brak ukończonych treningów w tym filtrze.
-        </div>
+        <p className="py-6 text-muted-foreground" role="status">
+          Brak ukończonych treningów w tym okresie.
+        </p>
       ) : (
         weeks.map((week) => (
-          <section key={week.weekStart} className="space-y-2">
-            <h3 className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Tydzień od {formatDate(week.weekStart)}
-            </h3>
-            <div className="soft-card divide-y divide-border">
+          <section key={week.weekStart} className="bw-section">
+            <h2 className="bw-section-title">Tydzień od {formatDate(week.weekStart)}</h2>
+            <div className="bw-stack">
               {week.events.map((event) => {
                 const run = runningActivities[event.sessionKey];
                 return (
-                  <article key={event.id} className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 shrink-0 text-[11px] text-muted-foreground">
-                        {formatDate(event.date)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{event.title}</div>
-                        <div className="truncate text-[11px] text-muted-foreground">
-                          {event.detail}
-                        </div>
+                  <article key={event.id} className="bw-stack py-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+                      <div className="min-w-0">
+                        <h3 className="font-medium">{event.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(event.date)} · {event.detail}
+                        </p>
                       </div>
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          event.kind === "match"
-                            ? "bg-destructive/10 text-destructive"
-                            : "bg-muted text-muted-foreground"
-                        }`}
+                        className={`text-sm ${event.kind === "match" ? "text-destructive" : "text-muted-foreground"}`}
                       >
                         {TIMELINE_LABELS[event.kind]}
                       </span>
                     </div>
-                    {run && (
-                      <div className="mt-3 border-t border-border pt-3">
-                        <RunActivitySummary activity={run} compact showSplits={false} />
-                      </div>
-                    )}
+                    {run && <RunActivitySummary activity={run} compact showSplits={false} />}
                   </article>
                 );
               })}
@@ -145,20 +126,5 @@ export function ProgressHistory({
         ))
       )}
     </div>
-  );
-}
-
-function Chip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
-        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

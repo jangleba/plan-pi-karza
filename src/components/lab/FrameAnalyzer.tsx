@@ -148,224 +148,240 @@ export function FrameAnalyzer({
     secondFrame <= trimEndFrame;
 
   return (
-    <div className="fixed inset-0 z-[120] grid grid-rows-[auto_minmax(0,1fr)_auto] bg-[#071426] text-white landscape:grid-cols-[minmax(0,1fr)_20rem] landscape:grid-rows-[auto_minmax(0,1fr)]">
-      <header className="flex items-center justify-between gap-3 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] landscape:col-span-2">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={onCancel}
-          className="grid h-11 w-11 place-items-center rounded-full bg-white/10"
-          aria-label="Anuluj analizę"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <div className="text-center">
-          <p className="text-[15px] font-semibold">{test.title}</p>
-          <p className="text-xs text-white/60">
-            Klatka {currentFrame + 1} / {capture.frameCount}
-          </p>
-        </div>
-        <span className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold">
-          {capture.fps.toFixed(0)} FPS
-        </span>
-      </header>
-
-      <div
-        ref={viewerRef}
-        className="relative min-h-0 flex-1 touch-none overflow-hidden bg-black"
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
-          updateGuide(event);
-        }}
-        onPointerMove={(event) => {
-          if (event.currentTarget.hasPointerCapture(event.pointerId)) updateGuide(event);
-        }}
-      >
-        {loadedFrame && loadedFrame.frameIndex === currentFrame ? (
-          <img
-            key={`${loadedFrame.frameIndex}-${retry}`}
-            src={loadedFrame.dataUrl}
-            onLoad={() => setPaintedFrame(loadedFrame)}
-            onError={() => setFrameError("Nie można wyświetlić klatki.")}
-            alt="Dokładna klatka nagrania"
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <div className="grid h-full place-items-center text-sm text-white/60">
-            Ładowanie klatki…
+    <div className="bw-workspace bg-[#071426] text-white">
+      <div className="bw-page-content mx-auto grid h-full w-full max-w-[var(--bw-content-width)] grid-rows-[auto_minmax(8rem,1fr)_minmax(0,1fr)_auto] min-[640px]:landscape:grid-cols-[minmax(0,1fr)_17.5rem] min-[640px]:landscape:grid-rows-[auto_minmax(0,1fr)_auto] min-[640px]:landscape:gap-x-[var(--bw-section-gap)] lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-[var(--bw-section-gap)]">
+        <header className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 pb-3 pt-[max(1rem,env(safe-area-inset-top))] min-[640px]:landscape:col-span-2 lg:col-span-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={saving}
+            onClick={onCancel}
+            className="bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            aria-label="Anuluj analizę"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <div className="text-center">
+            <h2 className="bw-section-title">{test.title}</h2>
+            <p className="text-sm text-white/60">
+              Klatka {currentFrame + 1} / {capture.frameCount}
+            </p>
           </div>
-        )}
-        <div className="pointer-events-none absolute overflow-hidden" style={videoRect}>
-          {(test.guideMode === "shared" ? [guidePositions[0]] : guidePositions).map(
-            (position, lineIndex) => (
-              <div
-                key={lineIndex}
-                className={
-                  test.guideAxis === "vertical"
-                    ? `pointer-events-none absolute inset-y-0 w-0.5 shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${lineIndex === 0 ? "bg-[#f4c84a]" : "bg-[#55d8ff]"}`
-                    : `pointer-events-none absolute inset-x-0 h-0.5 shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${lineIndex === 0 ? "bg-[#f4c84a]" : "bg-[#55d8ff]"}`
-                }
-                style={
-                  test.guideAxis === "vertical"
-                    ? { left: `${position * 100}%` }
-                    : { top: `${position * 100}%` }
-                }
-              >
-                {test.guideMode === "separate" && (
-                  <span className="absolute left-1 top-2 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-[10px] font-bold text-white">
-                    {lineIndex + 1}
-                  </span>
-                )}
-              </div>
-            ),
-          )}
-        </div>
-        {loadingFrame && (
-          <div className="absolute right-3 top-3 h-2 w-2 animate-pulse rounded-full bg-[#f4c84a]" />
-        )}
-        {frameError && (
-          <div className="absolute inset-x-4 top-4 rounded-xl bg-red-600/90 px-4 py-3 text-center text-xs">
-            {frameError}
-            <button
-              type="button"
-              className="ml-2 underline"
-              onClick={() => setRetry((value) => value + 1)}
-            >
-              Ponów
-            </button>
-          </div>
-        )}
-        <div className="absolute bottom-3 left-3 rounded-full bg-black/55 px-3 py-1.5 text-[11px] backdrop-blur">
-          {test.guideMode === "shared"
-            ? "Przeciągnij linię na wspólny punkt odniesienia"
-            : `Przeciągasz linię ${activeMarker + 1}: ${test.markers[activeMarker].label}`}
-        </div>
-      </div>
-
-      <fieldset
-        disabled={saving}
-        className="m-0 max-h-[55dvh] min-w-0 space-y-3 overflow-y-auto border-0 bg-[#0b1c32] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 landscape:col-start-2 landscape:row-start-2 landscape:max-h-full"
-      >
-        <p className="text-xs leading-relaxed text-white/80" aria-live="polite">
-          {test.markers[activeMarker].instruction}
-        </p>
-        <input
-          type="range"
-          min={trimStartFrame}
-          max={trimEndFrame}
-          value={currentFrame}
-          onChange={(event) => setCurrentFrame(Number(event.target.value))}
-          className="w-full accent-[#f4c84a]"
-          aria-label="Wybór klatki"
-        />
-
-        <div className="grid grid-cols-4 gap-2">
-          {[-10, -1, 1, 10].map((step) => (
-            <button
-              key={step}
-              type="button"
-              onClick={() => move(step)}
-              className="flex h-11 items-center justify-center rounded-xl bg-white/10 text-sm font-semibold active:bg-white/20"
-            >
-              {step < 0 ? <ChevronLeft className="mr-0.5 h-4 w-4" /> : null}
-              {Math.abs(step)}
-              {step > 0 ? <ChevronRight className="ml-0.5 h-4 w-4" /> : null}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setTrim(Math.min(currentFrame, trimEndFrame - 1), trimEndFrame);
-            }}
-            className="rounded-xl border border-white/15 px-3 py-2.5 text-xs"
-          >
-            <Crop className="mr-1.5 inline h-3.5 w-3.5" /> Początek klipu
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTrim(trimStartFrame, Math.max(currentFrame, trimStartFrame + 1));
-            }}
-            className="rounded-xl border border-white/15 px-3 py-2.5 text-xs"
-          >
-            <Crop className="mr-1.5 inline h-3.5 w-3.5" /> Koniec klipu
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={!frameReady || saving}
-            onFocus={() => setActiveMarker(0)}
-            onClick={() => {
-              if (!frameReady || saving) return;
-              setFirstFrame(currentFrame);
-              setActiveMarker(0);
-            }}
-            className={`rounded-xl border px-3 py-3 text-left disabled:opacity-40 ${
-              firstFrame === currentFrame ? "border-[#f4c84a] bg-[#f4c84a]/15" : "border-white/15"
-            }`}
-          >
-            <span className="block text-[11px] text-white/55">1. Zaznacz</span>
-            <span className="mt-0.5 block text-sm font-semibold">{firstMarker.label}</span>
-            <span className="mt-1 block text-[11px] text-white/60">
-              {firstFrame === null ? "Brak" : `Klatka ${firstFrame + 1}`}
-            </span>
-          </button>
-          <button
-            type="button"
-            disabled={!frameReady || saving}
-            onFocus={() => setActiveMarker(1)}
-            onClick={() => {
-              if (!frameReady || saving) return;
-              setSecondFrame(currentFrame);
-              setActiveMarker(1);
-            }}
-            className={`rounded-xl border px-3 py-3 text-left disabled:opacity-40 ${
-              secondFrame === currentFrame ? "border-[#f4c84a] bg-[#f4c84a]/15" : "border-white/15"
-            }`}
-          >
-            <span className="block text-[11px] text-white/55">2. Zaznacz</span>
-            <span className="mt-0.5 block text-sm font-semibold">{secondMarker.label}</span>
-            <span className="mt-1 block text-[11px] text-white/60">
-              {secondFrame === null ? "Brak" : `Klatka ${secondFrame + 1}`}
-            </span>
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between text-[11px] text-white/55">
-          <span>
-            <Flag className="mr-1 inline h-3.5 w-3.5" /> Zakres {trimStartFrame + 1}–
-            {trimEndFrame + 1}
+          <span className="rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold">
+            {capture.fps.toFixed(0)} FPS
           </span>
-          <span>
-            <Gauge className="mr-1 inline h-3.5 w-3.5" /> {(1000 / capture.fps).toFixed(2)}{" "}
-            ms/klatkę
-          </span>
-        </div>
+        </header>
 
-        <Button
-          type="button"
-          disabled={!ready}
-          onClick={() => {
-            if (!ready || firstFrame === null || secondFrame === null) return;
-            onComplete({
-              firstFrame,
-              secondFrame,
-              trimStartFrame,
-              trimEndFrame,
-              firstGuidePosition: guidePositions[0],
-              secondGuidePosition: guidePositions[1],
-            });
+        <div
+          ref={viewerRef}
+          className="relative min-h-0 flex-1 touch-none overflow-hidden bg-black min-[640px]:landscape:row-start-2 min-[640px]:landscape:row-span-2 lg:row-start-2 lg:row-span-2"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateGuide(event);
           }}
-          className="h-12 w-full rounded-full bg-[#f4c84a] font-semibold text-[#071426] hover:bg-[#f4c84a]/90"
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) updateGuide(event);
+          }}
         >
-          {saving ? "Zapisywanie…" : "Oblicz wynik"}
-        </Button>
-      </fieldset>
+          {loadedFrame && loadedFrame.frameIndex === currentFrame ? (
+            <img
+              key={`${loadedFrame.frameIndex}-${retry}`}
+              src={loadedFrame.dataUrl}
+              onLoad={() => setPaintedFrame(loadedFrame)}
+              onError={() => setFrameError("Nie można wyświetlić klatki.")}
+              alt="Dokładna klatka nagrania"
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <div className="grid h-full place-items-center text-sm text-white/60">
+              Ładowanie klatki…
+            </div>
+          )}
+          <div className="pointer-events-none absolute overflow-hidden" style={videoRect}>
+            {(test.guideMode === "shared" ? [guidePositions[0]] : guidePositions).map(
+              (position, lineIndex) => (
+                <div
+                  key={lineIndex}
+                  className={
+                    test.guideAxis === "vertical"
+                      ? `pointer-events-none absolute inset-y-0 w-0.5 shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${lineIndex === 0 ? "bg-[#f4c84a]" : "bg-[#55d8ff]"}`
+                      : `pointer-events-none absolute inset-x-0 h-0.5 shadow-[0_0_0_1px_rgba(0,0,0,.4)] ${lineIndex === 0 ? "bg-[#f4c84a]" : "bg-[#55d8ff]"}`
+                  }
+                  style={
+                    test.guideAxis === "vertical"
+                      ? { left: `${position * 100}%` }
+                      : { top: `${position * 100}%` }
+                  }
+                >
+                  {test.guideMode === "separate" && (
+                    <span className="absolute left-1 top-2 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-[10px] font-bold text-white">
+                      {lineIndex + 1}
+                    </span>
+                  )}
+                </div>
+              ),
+            )}
+          </div>
+          {loadingFrame && (
+            <div className="absolute right-3 top-3 h-2 w-2 animate-pulse rounded-full bg-[#f4c84a]" />
+          )}
+          {frameError && (
+            <div className="absolute inset-x-4 top-4 rounded-lg bg-red-600/90 px-4 py-3 text-center text-sm">
+              {frameError}
+              <Button
+                type="button"
+                variant="link"
+                className="ml-2 min-h-11 text-white underline"
+                onClick={() => setRetry((value) => value + 1)}
+              >
+                Ponów
+              </Button>
+            </div>
+          )}
+          <div className="absolute bottom-3 left-3 right-3 bg-black/55 px-3 py-2 text-sm">
+            {test.guideMode === "shared"
+              ? "Przeciągnij linię na wspólny punkt odniesienia"
+              : `Przeciągasz linię ${activeMarker + 1}: ${test.markers[activeMarker].label}`}
+          </div>
+        </div>
+
+        <fieldset
+          disabled={saving}
+          className="m-0 min-w-0 space-y-3 overflow-y-auto border-0 bg-[#0b1c32] pb-3 pt-4 min-[640px]:landscape:col-start-2 min-[640px]:landscape:row-start-2 lg:col-start-2 lg:row-start-2"
+        >
+          <p className="text-sm leading-relaxed text-white/80" aria-live="polite">
+            {test.markers[activeMarker].instruction}
+          </p>
+          <input
+            type="range"
+            min={trimStartFrame}
+            max={trimEndFrame}
+            value={currentFrame}
+            onChange={(event) => setCurrentFrame(Number(event.target.value))}
+            className="w-full accent-[#f4c84a]"
+            aria-label="Wybór klatki"
+          />
+
+          <div className="grid grid-cols-4 gap-2">
+            {[-10, -1, 1, 10].map((step) => (
+              <Button
+                key={step}
+                type="button"
+                variant="secondary"
+                aria-label={`${step < 0 ? "Cofnij" : "Przejdź do przodu"} o ${Math.abs(step)} ${Math.abs(step) === 1 ? "klatkę" : "klatek"}`}
+                onClick={() => move(step)}
+                className="h-11 min-h-11 w-full bg-white/10 p-0 text-sm text-white hover:bg-white/20 active:bg-white/20"
+              >
+                {step < 0 ? <ChevronLeft className="mr-0.5 h-4 w-4" /> : null}
+                {Math.abs(step)}
+                {step > 0 ? <ChevronRight className="ml-0.5 h-4 w-4" /> : null}
+              </Button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setTrim(Math.min(currentFrame, trimEndFrame - 1), trimEndFrame);
+              }}
+              className="border-white/15 bg-transparent px-3 text-sm text-white hover:bg-white/10 hover:text-white"
+            >
+              <Crop className="mr-1.5 inline h-3.5 w-3.5" /> Początek klipu
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setTrim(trimStartFrame, Math.max(currentFrame, trimStartFrame + 1));
+              }}
+              className="border-white/15 bg-transparent px-3 text-sm text-white hover:bg-white/10 hover:text-white"
+            >
+              <Crop className="mr-1.5 inline h-3.5 w-3.5" /> Koniec klipu
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!frameReady || saving}
+              onFocus={() => setActiveMarker(0)}
+              onClick={() => {
+                if (!frameReady || saving) return;
+                setFirstFrame(currentFrame);
+                setActiveMarker(0);
+              }}
+              className={`block h-auto px-3 py-3 text-left text-white hover:bg-white/10 hover:text-white disabled:opacity-40 ${
+                firstFrame === currentFrame
+                  ? "border-[#f4c84a] bg-[#f4c84a]/15"
+                  : "border-white/15 bg-transparent"
+              }`}
+            >
+              <span className="block text-sm text-white/55">1. Zaznacz</span>
+              <span className="mt-0.5 block text-sm font-semibold">{firstMarker.label}</span>
+              <span className="mt-1 block text-sm text-white/60">
+                {firstFrame === null ? "Brak" : `Klatka ${firstFrame + 1}`}
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!frameReady || saving}
+              onFocus={() => setActiveMarker(1)}
+              onClick={() => {
+                if (!frameReady || saving) return;
+                setSecondFrame(currentFrame);
+                setActiveMarker(1);
+              }}
+              className={`block h-auto px-3 py-3 text-left text-white hover:bg-white/10 hover:text-white disabled:opacity-40 ${
+                secondFrame === currentFrame
+                  ? "border-[#f4c84a] bg-[#f4c84a]/15"
+                  : "border-white/15 bg-transparent"
+              }`}
+            >
+              <span className="block text-sm text-white/55">2. Zaznacz</span>
+              <span className="mt-0.5 block text-sm font-semibold">{secondMarker.label}</span>
+              <span className="mt-1 block text-sm text-white/60">
+                {secondFrame === null ? "Brak" : `Klatka ${secondFrame + 1}`}
+              </span>
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-white/55">
+            <span>
+              <Flag className="mr-1 inline h-3.5 w-3.5" /> Zakres {trimStartFrame + 1}–
+              {trimEndFrame + 1}
+            </span>
+            <span>
+              <Gauge className="mr-1 inline h-3.5 w-3.5" /> {(1000 / capture.fps).toFixed(2)}{" "}
+              ms/klatkę
+            </span>
+          </div>
+        </fieldset>
+        <footer className="bg-[#0b1c32] pb-3 pt-2 min-[640px]:landscape:col-start-2 min-[640px]:landscape:row-start-3 lg:col-start-2 lg:row-start-3">
+          <Button
+            type="button"
+            disabled={!ready}
+            onClick={() => {
+              if (!ready || firstFrame === null || secondFrame === null) return;
+              onComplete({
+                firstFrame,
+                secondFrame,
+                trimStartFrame,
+                trimEndFrame,
+                firstGuidePosition: guidePositions[0],
+                secondGuidePosition: guidePositions[1],
+              });
+            }}
+            className="h-12 w-full bg-[#f4c84a] font-semibold text-[#071426] hover:bg-[#f4c84a]/90"
+          >
+            {saving ? "Zapisywanie…" : "Oblicz wynik"}
+          </Button>
+        </footer>
+      </div>
     </div>
   );
 }
