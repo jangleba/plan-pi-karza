@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { BottomNav } from "@/components/loadwise/BottomNav";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { LegalReconsentGate } from "@/components/loadwise/LegalReconsentGate";
 
@@ -44,8 +45,12 @@ function TabsLayout() {
   return (
     <>
       <LegalReconsentGate />
-      <div className="app-shell">
+      <div
+        className="app-shell relative min-h-screen"
+        style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
+      >
         <Outlet />
+        <BottomNav />
       </div>
     </>
   );

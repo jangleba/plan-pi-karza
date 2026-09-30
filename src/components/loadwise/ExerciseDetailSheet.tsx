@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import {
   getAllEquipmentDefinitions,
@@ -6,8 +5,19 @@ import {
   resolveExerciseByName,
   specialistEquipmentForExercise,
 } from "@/lib/loadwise/exerciseLibrary";
-import { Disclosure, ResponsiveDialog } from "@/components/ui/app-ui";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { MovementBlueprint } from "./MovementBlueprint";
+import {
+  ListChecks,
+  ListOrdered,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+} from "lucide-react";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 function doseChip(e: TrainingExercise): string | null {
@@ -52,12 +62,7 @@ function techniqueCues(e: TrainingExercise): string[] {
   if (!source) return [];
   return source
     .split(/(?<=[.!?])\s+|;|\n|•/)
-    .map((s) =>
-      s
-        .replace(/^[-–•\s]+/, "")
-        .replace(/[.]+$/, "")
-        .trim(),
-    )
+    .map((s) => s.replace(/^[-–•\s]+/, "").replace(/[.]+$/, "").trim())
     .filter((s) => s.length > 2)
     .slice(0, 3);
 }
@@ -66,16 +71,13 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
   const definition =
     (exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined) ??
     resolveExerciseByName(exercise.name);
-  const suppliedSteps =
+  const steps =
     exercise.instructionSteps?.filter(
       (step) => step.title?.trim().length || step.description?.trim().length,
-    ) ?? [];
-  const steps = suppliedSteps.length
-    ? suppliedSteps
-    : (definition?.instructionsPl ?? (exercise.technique ? [exercise.technique] : [])).map(
-        (description) => ({ title: "", description }),
-      );
-  const cues = definition?.coachingCues?.slice(0, 3) ?? techniqueCues(exercise);
+    ) ??
+    [];
+  const cues =
+    definition?.coachingCues?.slice(0, 3) ?? techniqueCues(exercise);
   const errors =
     definition?.commonErrors?.slice(0, 2) ??
     (exercise.commonMistake ? [exercise.commonMistake] : []);
@@ -87,8 +89,7 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
     return candidate && specialistEquipmentForExercise(candidate).length === 0;
   });
   return {
-    purpose:
-      exercise.purpose?.trim() || definition?.objective?.trim() || definition?.stimulus || null,
+    purpose: exercise.purpose?.trim() || definition?.objective?.trim() || definition?.stimulus || null,
     setup: exercise.setup?.trim() || null,
     steps,
     cues,
@@ -97,96 +98,29 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
     equipment: equipmentNames.length ? equipmentNames.join(", ") : "Masa ciała",
     replacement: noEquipmentReplacementId
       ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ?? noEquipmentReplacementId)
-      : equipmentNames.length
-        ? "Brak zatwierdzonej zamiany bez sprzętu"
-        : "Nie dotyczy",
+      : (equipmentNames.length ? "Brak zatwierdzonej zamiany bez sprzętu" : "Nie dotyczy"),
     regression: exercise.regression?.trim() || null,
     progression: exercise.progression?.trim() || null,
     stopRule: exercise.contraindications?.trim() || definition?.injuryCautions?.[0] || null,
   };
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="bw-section">
-      <h3 className="bw-section-title">{title}</h3>
-      <div className="mt-3">{children}</div>
-    </section>
-  );
-}
-
-export function ExerciseTechniqueContent({
-  exercise,
-  visual,
+function Section({
+  icon,
+  title,
+  children,
 }: {
-  exercise: TrainingExercise;
-  visual?: ReactNode;
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
 }) {
-  const details = resolveExerciseSheetViewModel(exercise);
   return (
-    <div className="bw-stack">
-      {details.purpose && <p className="text-base leading-relaxed">{details.purpose}</p>}
-      <div>{visual ?? <MovementBlueprint exercise={exercise} />}</div>
-      {details.setup && (
-        <Section title="Ustawienie startowe">
-          <p className="text-base leading-relaxed text-muted-foreground">{details.setup}</p>
-        </Section>
-      )}
-      {details.steps.length > 0 && (
-        <Section title="Jak wykonać">
-          <ol className="list-decimal space-y-3 pl-5 text-base leading-relaxed">
-            {details.steps.map((step, index) => (
-              <li key={index}>
-                {step.title && !/^Krok\s+\d+$/i.test(step.title.trim()) && (
-                  <span className="font-semibold">{step.title} </span>
-                )}
-                {step.description}
-              </li>
-            ))}
-          </ol>
-        </Section>
-      )}
-      {details.cues.length > 0 && (
-        <Section title="Technika">
-          <ul className="list-disc space-y-2 pl-5 text-base leading-relaxed">
-            {details.cues.map((cue, index) => (
-              <li key={index}>{cue}</li>
-            ))}
-          </ul>
-        </Section>
-      )}
-      {details.errors.length > 0 && (
-        <Disclosure title="Najczęstsze błędy">
-          <ul className="list-disc space-y-2 pl-5 text-base leading-relaxed text-muted-foreground">
-            {details.errors.map((error, index) => (
-              <li key={index}>{error}</li>
-            ))}
-          </ul>
-        </Disclosure>
-      )}
-      {details.regression && (
-        <Section title="Łatwiejsza wersja">
-          <p className="text-base leading-relaxed text-muted-foreground">{details.regression}</p>
-        </Section>
-      )}
-      {details.progression && (
-        <Section title="Trudniejsza wersja">
-          <p className="text-base leading-relaxed text-muted-foreground">{details.progression}</p>
-        </Section>
-      )}
-      <Section title="Sprzęt i zamiana">
-        <p className="text-sm text-muted-foreground">{details.equipment}</p>
-        {details.replacement !== "Nie dotyczy" && (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Zamiana bez sprzętu: {details.replacement}
-          </p>
-        )}
-      </Section>
-      {details.stopRule && (
-        <Section title="Kiedy przerwać">
-          <p className="text-base leading-relaxed">{details.stopRule}</p>
-        </Section>
-      )}
+    <div className="py-4">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {icon}
+        {title}
+      </div>
+      <div className="mt-2">{children}</div>
     </div>
   );
 }
@@ -198,27 +132,194 @@ export function ExerciseDetailSheet({
 }: {
   exercise: TrainingExercise | null;
   open: boolean;
-  onOpenChange: (value: boolean) => void;
+  onOpenChange: (v: boolean) => void;
 }) {
   if (!exercise) return null;
-  const details = resolveExerciseSheetViewModel(exercise);
-  const prescription = [
-    doseChip(exercise),
-    rpeChip(exercise),
-    intensityChip(exercise),
-    tempoChip(exercise) ? `Tempo ${tempoChip(exercise)}` : null,
-    details.rest ? `Przerwa ${details.rest}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const e = exercise;
+  const dose = doseChip(e);
+  const rpe = rpeChip(e);
+  const intensity = intensityChip(e);
+  const tempo = tempoChip(e);
+  const details = resolveExerciseSheetViewModel(e);
+
   return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={exercise.name}
-      description={prescription || undefined}
-    >
-      <ExerciseTechniqueContent exercise={exercise} />
-    </ResponsiveDialog>
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-h-[92vh] border-border/60 bg-background/95 backdrop-blur-xl">
+        <div className="mx-auto w-full max-w-md overflow-y-auto px-5 pb-8">
+          <div className="pt-1">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+              Szczegóły ćwiczenia
+            </div>
+            <DrawerTitle className="mt-1 flex items-center gap-2 text-xl font-semibold tracking-tight">
+              {e.label && (
+                <span className="inline-flex h-6 min-w-[26px] items-center justify-center rounded-md bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
+                  {e.label}
+                </span>
+              )}
+              {e.name}
+            </DrawerTitle>
+
+            {/* Chipy: dawka / RPE / przerwa */}
+            {(dose || rpe || intensity || tempo || details.rest) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {dose && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-semibold tabular-nums text-foreground shadow-sm">
+                    {dose}
+                  </span>
+                )}
+                {rpe && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-semibold text-foreground shadow-sm">
+                    {rpe}
+                  </span>
+                )}
+                {intensity && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-foreground shadow-sm">
+                    {intensity}
+                  </span>
+                )}
+                {tempo && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                    Tempo {tempo}
+                  </span>
+                )}
+                {details.rest && (
+                  <span className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+                    ⏱ {details.rest}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          {details.purpose && (
+            <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
+                Po co to ćwiczenie
+              </div>
+
+              <p className="mt-1 text-sm leading-relaxed text-foreground">
+                {details.purpose}
+              </p>
+            </div>
+          )}
+          {/* Movement Blueprint */}
+          <div className="mt-5">
+            <MovementBlueprint exercise={e} />
+          </div>
+
+          <div className="mt-2 divide-y divide-border/50">
+            {details.setup && (
+              <Section
+                icon={<ListChecks className="h-3.5 w-3.5" />}
+                title="Ustawienie startowe"
+              >
+                <p className="text-sm leading-relaxed text-muted-foreground">{details.setup}</p>
+              </Section>
+            )}
+            {details.steps.length > 0 && (
+              <Section
+                icon={<ListOrdered className="h-3.5 w-3.5" />}
+                title="Jak wykonać"
+              >
+                <ol className="space-y-3">
+                  {details.steps.map((step, i) => {
+                    const title = step?.title?.trim?.() ?? "";
+                    const description = step?.description?.trim?.() ?? "";
+                    if (!title && !description) return null;
+                    return (
+                      <li
+                        key={`step-${i}`}
+                        className="flex items-start gap-3 text-sm text-foreground"
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {i + 1}
+                        </span>
+                        <span className="pt-0.5 leading-relaxed">
+                          {title && (
+                            <span className="font-semibold">{title}</span>
+                          )}
+                          {title && description && (
+                            <span className="mx-1 text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          {description && (
+                            <span className="text-muted-foreground">
+                              {description}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </Section>
+            )}
+            {details.cues.length > 0 && (
+              <Section
+                icon={<ListChecks className="h-3.5 w-3.5" />}
+                title="Technika"
+              >
+                <ul className="space-y-1.5">
+                  {details.cues.map((c, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-foreground">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+
+            {details.errors.length > 0 && (
+              <Section
+                icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                title="Najczęstsze błędy"
+              >
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  {details.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+
+            {e.regression && (
+              <Section
+                icon={<ArrowDownRight className="h-3.5 w-3.5" />}
+                title="Łatwiejsza wersja"
+              >
+                <p className="text-sm text-muted-foreground">{e.regression}</p>
+              </Section>
+            )}
+
+            {e.progression && (
+              <Section
+                icon={<ArrowUpRight className="h-3.5 w-3.5" />}
+                title="Trudniejsza wersja"
+              >
+                <p className="text-sm text-muted-foreground">{e.progression}</p>
+              </Section>
+            )}
+            <Section
+              icon={<ListChecks className="h-3.5 w-3.5" />}
+              title="Sprzęt i zamiana"
+            >
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Sprzęt: {details.equipment}</p>
+                <p>Zamiana bez sprzętu: {details.replacement}</p>
+              </div>
+            </Section>
+            {details.stopRule && (
+              <Section
+                icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                title="Kiedy przerwać"
+              >
+                <p className="text-sm text-muted-foreground">{details.stopRule}</p>
+              </Section>
+            )}
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

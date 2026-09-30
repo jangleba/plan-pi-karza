@@ -1,34 +1,25 @@
-import { Button } from "@/components/ui/button";
-
 type Props = { step: number; onNext: () => void; onClose: () => void };
+
 const steps = [
-  {
-    title: "Zaplanuj ruch",
-    text: "Wybierz Ruch i przeciągnij zawodnika w przestrzeń. Numer przy linii oznacza kolejność.",
-  },
-  {
-    title: "Zaplanuj podanie",
-    text: "Wybierz Podanie. Przeciągnij piłkę do partnera albo w wolną przestrzeń.",
-  },
-  {
-    title: "Przesuń całą linię",
-    text: "Wybierz Grupa i przeciągnij zawodnika. Cała linia przesunie się razem. Następnie wybierz cel planu.",
-  },
+  { eyebrow: "KROK 1/3", title: "Zaplanuj ruch", text: "Wybierz Ruch i przeciągnij zawodnika w przestrzeń. Numer przy linii zapisze kolejność decyzji." },
+  { eyebrow: "KROK 2/3", title: "Zaplanuj podanie", text: "Wybierz Podanie, a następnie przeciągnij piłkę do partnera albo w wolną przestrzeń." },
+  { eyebrow: "KROK 3/3", title: "Przesuń całą linię", text: "W trybie Grupa przeciągnij jednego zawodnika. Cała obrona, pomoc albo atak przesunie się razem. Potem wybierz cel planu i zobacz reakcję rywala." },
 ];
+
 export function Onboarding({ step, onNext, onClose }: Props) {
   const current = steps[step];
   return (
-    <div className="bwiq-tutorial">
-      <p className="text-sm text-muted-foreground">Instrukcja {step + 1}/3</p>
-      <h2>{current.title}</h2>
-      <p>{current.text}</p>
-      <div className="bwiq-actions">
-        <Button variant="ghost" className="text-muted-foreground" onClick={onClose}>
-          Pomiń
-        </Button>
-        <Button className="bwiq-primary" onClick={step === 2 ? onClose : onNext}>
-          {step === 2 ? "Gotowe" : "Dalej"}
-        </Button>
+    <div className="bwiq-onboarding" role="dialog" aria-modal="true" aria-label="Instrukcja Football IQ">
+      <div className="bwiq-onboarding-card">
+        <button className="bwiq-skip" onClick={onClose}>Pomiń</button>
+        <span className="bwiq-eyebrow">{current.eyebrow}</span>
+        <div className="bwiq-gesture-demo" aria-hidden="true">
+          <span className="bwiq-demo-player">7</span><span className="bwiq-demo-line" /><span className="bwiq-demo-target" />
+        </div>
+        <h2>{current.title}</h2>
+        <p>{current.text}</p>
+        <div className="bwiq-dots">{steps.map((_, index) => <i key={index} className={index === step ? "active" : ""} />)}</div>
+        <button className="bwiq-primary" onClick={step === 2 ? onClose : onNext}>{step === 2 ? "Rozumiem" : "Dalej"}</button>
       </div>
     </div>
   );

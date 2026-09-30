@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AudioLines, ChevronRight, Mic, ShoppingBag, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { useActivityExitGuard } from "@/components/loadwise/ActivityExitGuard";
-import { Tabs } from "@/components/ui/app-ui";
 import { AppHeader } from "@/components/loadwise/ui";
-import { FuelAssistant } from "@/components/fuel/FuelAssistantSheet";
-import { StoreCheck } from "@/components/fuel/StoreCheckSheet";
+import { FuelAssistantSheet } from "@/components/fuel/FuelAssistantSheet";
+import { StoreCheckSheet } from "@/components/fuel/StoreCheckSheet";
 import {
   parseFuelIngredients,
   recommendFuelMeals,
@@ -76,13 +75,14 @@ function FuelScreen() {
   );
   const load = loadBand(session);
 
-  const [tab, setTab] = useState<"meal" | "product">("meal");
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantText, setAssistantText] = useState("");
   const [moment, setMoment] = useState<FuelMoment>(session.kind === "none" ? "ordinary" : "before");
   const [removedIngredientIds, setRemovedIngredientIds] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<FuelMealSuggestion[]>([]);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
 
+  const [storeOpen, setStoreOpen] = useState(false);
   const [storeName, setStoreName] = useState("");
   const [storeBarcode, setStoreBarcode] = useState("");
   const [storeProduct, setStoreProduct] = useState<StoreProduct | null>(null);
@@ -92,11 +92,6 @@ function FuelScreen() {
   const [speechMode, setSpeechMode] = useState<SpeechMode | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const lookupAbortRef = useRef<AbortController | null>(null);
-  useActivityExitGuard({
-    dirty: assistantText.trim().length > 0,
-    description: "Niezapisany wybór posiłku zostanie odrzucony.",
-    pause: () => recognitionRef.current?.stop(),
-  });
 
   const parsed = useMemo(() => parseFuelIngredients(assistantText), [assistantText]);
   const activeIngredients = useMemo(
@@ -160,6 +155,11 @@ function FuelScreen() {
     recognition.start();
   }
 
+  function openVoiceAssistant() {
+    setAssistantOpen(true);
+    window.setTimeout(() => startSpeech("ingredients"), 80);
+  }
+
   function generateSuggestion() {
     const next = recommendFuelMeals({ ingredients: activeIngredients, moment, load });
     if (next.length === 0) {
@@ -181,10 +181,8 @@ function FuelScreen() {
     } catch {
       // Brak pamięci urządzenia nie blokuje decyzji.
     }
-    setSuggestions([]);
-    setAssistantText("");
-    setRemovedIngredientIds([]);
-    toast.success("Zapisano wybór posiłku.");
+    setAssistantOpen(false);
+    toast.success("Gotowe — wybór zapisany bez kalorii i dziennika.");
   }
 
   function resetAssistant() {
@@ -219,8 +217,6 @@ function FuelScreen() {
     const controller = new AbortController();
     lookupAbortRef.current = controller;
     setStoreLoading(true);
-    setStoreProduct(null);
-    setStoreEvaluation(null);
     try {
       const product = await lookupStoreProduct(clean, controller.signal);
       if (!product) {
@@ -267,70 +263,112 @@ function FuelScreen() {
   }
 
   return (
-    <div className="premium-flow">
-      <AppHeader title="Fuel" />
-      <section className="bw-page-content bw-stack">
-        <p className="text-sm text-muted-foreground">{contextLabel(session, load)}</p>
-        <Tabs
-          value={tab}
-          options={[
-            { value: "meal", label: "Posiłek" },
-            { value: "product", label: "Produkt" },
-          ]}
-          onChange={(next) => {
-            recognitionRef.current?.stop();
-            setTab(next);
-          }}
-          label="Rodzaj decyzji żywieniowej"
-          panelId="fuel-panel"
-        />
-        <div role="tabpanel" id="fuel-panel" aria-label={tab === "meal" ? "Posiłek" : "Produkt"}>
-          {tab === "meal" ? (
-            <FuelAssistant
-              text={assistantText}
-              ingredients={activeIngredients}
-              unknown={parsed.unknown}
-              moment={moment}
-              listening={speechMode === "ingredients"}
-              suggestions={suggestions}
-              selectedIndex={suggestionIndex}
-              onTextChange={changeAssistantText}
-              onMomentChange={changeMoment}
-              onToggleVoice={() => startSpeech("ingredients")}
-              onRemoveIngredient={(id) => {
-                setRemovedIngredientIds((current) => [...current, id]);
-                setSuggestions([]);
-              }}
-              onGenerate={generateSuggestion}
-              onAlternative={() => setSuggestionIndex((index) => (index + 1) % suggestions.length)}
-              onAccept={acceptSuggestion}
-              onReset={resetAssistant}
-            />
-          ) : (
-            <StoreCheck
-              productName={storeName}
-              barcode={storeBarcode}
-              product={storeProduct}
-              evaluation={storeEvaluation}
-              moment={moment}
-              listening={speechMode === "store"}
-              loading={storeLoading}
-              onProductNameChange={(value) => {
-                setStoreName(value);
-                setStoreProduct(null);
-                setStoreEvaluation(null);
-              }}
-              onBarcodeChange={setStoreBarcode}
-              onMomentChange={changeMoment}
-              onToggleVoice={() => startSpeech("store")}
-              onImage={scanBarcode}
-              onCheckName={evaluateNamedProduct}
-              onCheckBarcode={() => void checkBarcode()}
-              onReset={resetStore}
-            />
-          )}
-        </div>
-      </section>
+    <div className="premium-flow pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
+      <AppHeader title="Fuel" subtitle="Jedna szybka decyzja pod dzisiejszy plan." />
+      <main className="space-y-3 px-5">
+        <section
+          className="flex min-h-12 items-center gap-2 rounded-full border border-border/75 bg-card/75 px-4 text-xs font-semibold text-muted-foreground shadow-[var(--bw-shadow-card)]"
+          aria-label="Kontekst planu"
+        >
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+          <span className="truncate">{contextLabel(session, load)}</span>
+        </section>
+
+        <section className="overflow-hidden rounded-[1.8rem] border border-border/80 bg-card px-5 pb-6 pt-7 text-center shadow-[var(--bw-shadow-card)]">
+          <h2 className="text-[28px] font-semibold leading-tight tracking-[-0.045em]">
+            Co masz pod ręką?
+          </h2>
+          <p className="mx-auto mt-2 max-w-[30ch] text-sm leading-relaxed text-muted-foreground">
+            Powiedz składniki, a dopasuję prosty posiłek do Planu.
+          </p>
+          <button
+            type="button"
+            onClick={openVoiceAssistant}
+            className="fuel-mic mx-auto mt-7 grid h-28 w-28 place-items-center rounded-full bg-primary text-primary-foreground transition active:scale-[0.97]"
+            aria-label="Powiedz, co masz"
+          >
+            <Mic className="h-9 w-9" />
+          </button>
+          <div className="mt-3 text-sm font-semibold">Mów</div>
+          <button
+            type="button"
+            onClick={() => setAssistantOpen(true)}
+            className="mx-auto mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-5 text-sm font-semibold text-muted-foreground transition active:scale-[0.98]"
+          >
+            <AudioLines className="h-4 w-4" /> Wpisz
+          </button>
+          <p className="mt-6 text-xs text-muted-foreground">Np. ryż, jajka, skyr i banan</p>
+        </section>
+
+        <button
+          type="button"
+          onClick={() => setStoreOpen(true)}
+          className="flex min-h-[5.25rem] w-full items-center gap-3 rounded-[1.35rem] border border-border/80 bg-card px-4 py-3.5 text-left shadow-[var(--bw-shadow-card)] transition active:scale-[0.99]"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/[0.075] text-primary">
+            <ShoppingBag className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold tracking-[-0.015em]">W sklepie?</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Sprawdź produkt przed zakupem
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+
+        <p className="px-2 pt-2 text-center text-[11px] leading-relaxed text-muted-foreground">
+          Bez liczenia kalorii. Bez dziennika. Fuel ocenia dopasowanie do aktywności, nie to, czy
+          produkt jest ogólnie „dobry” lub „zły”.
+        </p>
+      </main>
+
+      <FuelAssistantSheet
+        open={assistantOpen}
+        text={assistantText}
+        ingredients={activeIngredients}
+        unknown={parsed.unknown}
+        moment={moment}
+        listening={speechMode === "ingredients"}
+        suggestions={suggestions}
+        selectedIndex={suggestionIndex}
+        onClose={() => setAssistantOpen(false)}
+        onTextChange={changeAssistantText}
+        onMomentChange={changeMoment}
+        onToggleVoice={() => startSpeech("ingredients")}
+        onRemoveIngredient={(id) => {
+          setRemovedIngredientIds((current) => [...current, id]);
+          setSuggestions([]);
+        }}
+        onGenerate={generateSuggestion}
+        onAlternative={() => setSuggestionIndex((index) => (index + 1) % suggestions.length)}
+        onAccept={acceptSuggestion}
+        onReset={resetAssistant}
+      />
+
+      <StoreCheckSheet
+        open={storeOpen}
+        productName={storeName}
+        barcode={storeBarcode}
+        product={storeProduct}
+        evaluation={storeEvaluation}
+        moment={moment}
+        listening={speechMode === "store"}
+        loading={storeLoading}
+        onClose={() => setStoreOpen(false)}
+        onProductNameChange={(value) => {
+          setStoreName(value);
+          setStoreProduct(null);
+          setStoreEvaluation(null);
+        }}
+        onBarcodeChange={setStoreBarcode}
+        onMomentChange={changeMoment}
+        onToggleVoice={() => startSpeech("store")}
+        onImage={scanBarcode}
+        onCheckName={evaluateNamedProduct}
+        onCheckBarcode={() => void checkBarcode()}
+        onReset={resetStore}
+      />
     </div>
   );
 }

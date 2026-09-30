@@ -11,16 +11,18 @@ export function CycleBar({ cycle }: { cycle: CycleBarData }) {
   }, [cycle.progressPct]);
 
   return (
-    <div className="bw-section">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <div className="soft-card px-4 py-3">
+      <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-lg font-semibold">{cycle.goalLabel}</div>
-          {cycle.focusLabel.trim() !== cycle.goalLabel.trim() && (
-            <div className="text-sm text-muted-foreground">{cycle.focusLabel}</div>
-          )}
+          <div className="truncate text-sm font-semibold">{cycle.goalLabel}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            Obszar rozwoju: {cycle.focusLabel}
+          </div>
         </div>
-        <div className="shrink-0 text-sm font-medium text-primary">
-          {cycle.hasPlan ? `Tydzień ${cycle.weekIndex} z ${cycle.weekCount}` : "Brak planu"}
+        <div className="shrink-0 text-[11px] font-medium text-primary">
+          {cycle.hasPlan
+            ? `Tydzień ${cycle.weekIndex} z ${cycle.weekCount}`
+            : "Brak planu"}
         </div>
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">

@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ResponsiveDialog, StatusMessage } from "@/components/ui/app-ui";
-import { useActivityExitGuard } from "@/components/loadwise/ActivityExitGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
-import { recordConsentDecisions, type ConsentDecision } from "@/lib/loadwise/consent";
+import {
+  recordConsentDecisions,
+  type ConsentDecision,
+} from "@/lib/loadwise/consent";
 import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { profileWithoutFuelPrecision, profileWithoutHealthData } from "@/lib/loadwise/localPrivacy";
+import {
+  profileWithoutFuelPrecision,
+  profileWithoutHealthData,
+} from "@/lib/loadwise/localPrivacy";
 
 type GateStatus = "checking" | "required" | "complete" | "error";
 
@@ -41,7 +43,6 @@ export function LegalReconsentGate() {
   const [fuelNeedsRenewal, setFuelNeedsRenewal] = useState(false);
   const [healthOptIn, setHealthOptIn] = useState(false);
   const [fuelOptIn, setFuelOptIn] = useState(false);
-  useActivityExitGuard({ dirty: false, busy: saving });
 
   useEffect(() => {
     let active = true;
@@ -65,9 +66,7 @@ export function LegalReconsentGate() {
 
       if (!active) return;
       if (error) {
-        setErrorMessage(
-          "Nie udało się sprawdzić aktualności dokumentów. Sprawdź połączenie i spróbuj ponownie.",
-        );
+        setErrorMessage("Nie udało się sprawdzić aktualności dokumentów. Sprawdź połączenie i spróbuj ponownie.");
         setStatus("error");
         return;
       }
@@ -99,7 +98,9 @@ export function LegalReconsentGate() {
       setHealthOptIn(false);
       setFuelOptIn(false);
       setStatus(
-        !termsCurrent || !privacyCurrent || healthRenewal || fuelRenewal ? "required" : "complete",
+        !termsCurrent || !privacyCurrent || healthRenewal || fuelRenewal
+          ? "required"
+          : "complete",
       );
     }
 
@@ -158,142 +159,167 @@ export function LegalReconsentGate() {
       setStatus("complete");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Nie udało się zapisać decyzji. Spróbuj ponownie.",
+        error instanceof Error
+          ? error.message
+          : "Nie udało się zapisać decyzji. Spróbuj ponownie.",
       );
       setSaving(false);
     }
   }
 
-  const title =
-    status === "checking"
-      ? "Sprawdzamy aktualność dokumentów"
-      : status === "error"
-        ? "Nie udało się sprawdzić dokumentów"
-        : "Zaktualizowane dokumenty BallWise";
-
   return (
-    <ResponsiveDialog
-      open
-      onOpenChange={() => {}}
-      dismissible={false}
-      title={title}
-      description={
-        status === "required"
-          ? "Przed dalszym korzystaniem zapoznaj się z aktualnym Regulaminem i Polityką prywatności. Opcjonalne zgody zdrowotne nie są zaznaczone automatycznie."
-          : undefined
-      }
-      footer={
-        status === "error" ? (
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button type="button" onClick={() => setRetryRevision((value) => value + 1)}>
-              Spróbuj ponownie
-            </Button>
-            <Button type="button" variant="outline" onClick={() => void signOut()}>
-              Wyloguj się
-            </Button>
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-background/95 px-4 py-8 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="legal-update-title"
+        className="mx-auto w-full max-w-lg rounded-3xl border border-border bg-card p-5 shadow-2xl"
+      >
+        {status === "checking" ? (
+          <div className="py-12 text-center">
+            <h2 id="legal-update-title" className="text-lg font-semibold">
+              Sprawdzamy aktualność dokumentów
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">To potrwa tylko chwilę.</p>
           </div>
-        ) : status === "required" ? (
-          <div className="flex flex-col gap-3">
-            <Button
+        ) : status === "error" ? (
+          <div className="py-6 text-center">
+            <h2 id="legal-update-title" className="text-lg font-semibold">
+              Nie udało się sprawdzić dokumentów
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">{errorMessage}</p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <button
+                type="button"
+                onClick={() => setRetryRevision((value) => value + 1)}
+                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+              >
+                Spróbuj ponownie
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium"
+              >
+                Wyloguj się
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+              Wersja {LEGAL_VERSION}
+            </p>
+            <h2 id="legal-update-title" className="mt-2 text-2xl font-semibold tracking-tight">
+              Zaktualizowane dokumenty BallWise
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Przed dalszym korzystaniem zapoznaj się z aktualnym Regulaminem i Polityką prywatności.
+              Opcjonalne zgody zdrowotne nie są zaznaczone automatycznie.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              <label className="flex gap-3 rounded-2xl border border-border p-4">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                />
+                <span className="text-sm leading-relaxed">
+                  Akceptuję aktualny{` `}
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-primary underline"
+                  >
+                    Regulamin
+                  </a>
+                  .
+                </span>
+              </label>
+
+              <label className="flex gap-3 rounded-2xl border border-border p-4">
+                <input
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={(event) => setPrivacyAccepted(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                />
+                <span className="text-sm leading-relaxed">
+                  Potwierdzam zapoznanie się z aktualną{` `}
+                  <a
+                    href="/privacy-policy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-primary underline"
+                  >
+                    Polityką prywatności
+                  </a>
+                  .
+                </span>
+              </label>
+
+              {healthNeedsRenewal && (
+                <label className="flex gap-3 rounded-2xl border border-border p-4">
+                  <input
+                    type="checkbox"
+                    checked={healthOptIn}
+                    onChange={(event) => setHealthOptIn(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm leading-relaxed">
+                    <span className="font-semibold">Opcjonalnie:</span>{` `}
+                    {HEALTH_DATA_CONSENT_TEXT} Jeśli nie zaznaczysz tej zgody, zapisane
+                    dane zdrowotne zostaną usunięte.
+                  </span>
+                </label>
+              )}
+
+              {fuelNeedsRenewal && (
+                <label className="flex gap-3 rounded-2xl border border-border p-4">
+                  <input
+                    type="checkbox"
+                    checked={fuelOptIn}
+                    onChange={(event) => setFuelOptIn(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm leading-relaxed">
+                    <span className="font-semibold">Opcjonalnie:</span> {FUEL_PRECISION_CONSENT}
+                  </span>
+                </label>
+              )}
+            </div>
+
+            {errorMessage && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {errorMessage}
+              </p>
+            )}
+
+            <button
               type="button"
               disabled={!termsAccepted || !privacyAccepted || saving}
               onClick={() => void submit()}
+              className="mt-5 w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Zapisujemy decyzję…" : "Zapisz i przejdź dalej"}
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
               disabled={saving}
               onClick={() => void signOut()}
+              className="mt-2 w-full rounded-2xl border border-border px-4 py-3 text-sm font-medium disabled:opacity-50"
             >
               Nie akceptuję — wyloguj mnie
-            </Button>
-          </div>
-        ) : undefined
-      }
-    >
-      {status === "checking" ? (
-        <span className="bw-launch__signal" aria-busy="true" aria-label="Sprawdzanie dokumentów" />
-      ) : status === "error" ? (
-        <StatusMessage tone="error">{errorMessage}</StatusMessage>
-      ) : (
-        <div className="space-y-5" aria-busy={saving}>
-          <p className="text-sm text-primary">Wersja {LEGAL_VERSION}</p>
-          <label className="flex min-h-12 cursor-pointer items-start gap-3 py-2">
-            <Checkbox
-              checked={termsAccepted}
-              onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-              disabled={saving}
-              className="mt-1"
-            />
-            <span className="text-base leading-6">
-              Akceptuję aktualny{` `}
-              <a
-                href="/terms"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-primary underline underline-offset-4"
-              >
-                Regulamin
-              </a>
-              .
-            </span>
-          </label>
-          <label className="flex min-h-12 cursor-pointer items-start gap-3 py-2">
-            <Checkbox
-              checked={privacyAccepted}
-              onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
-              disabled={saving}
-              className="mt-1"
-            />
-            <span className="text-base leading-6">
-              Potwierdzam zapoznanie się z aktualną{` `}
-              <a
-                href="/privacy-policy"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-primary underline underline-offset-4"
-              >
-                Polityką prywatności
-              </a>
-              .
-            </span>
-          </label>
-          {healthNeedsRenewal && (
-            <label className="flex min-h-12 cursor-pointer items-start gap-3 py-2">
-              <Checkbox
-                checked={healthOptIn}
-                onCheckedChange={(checked) => setHealthOptIn(checked === true)}
-                disabled={saving}
-                className="mt-1"
-              />
-              <span className="text-base leading-6">
-                <span className="font-semibold">Opcjonalnie:</span>
-                {` `}
-                {HEALTH_DATA_CONSENT_TEXT} Jeśli nie zaznaczysz tej zgody, zapisane dane zdrowotne
-                zostaną usunięte.
-              </span>
-            </label>
-          )}
-          {fuelNeedsRenewal && (
-            <label className="flex min-h-12 cursor-pointer items-start gap-3 py-2">
-              <Checkbox
-                checked={fuelOptIn}
-                onCheckedChange={(checked) => setFuelOptIn(checked === true)}
-                disabled={saving}
-                className="mt-1"
-              />
-              <span className="text-base leading-6">
-                <span className="font-semibold">Opcjonalnie:</span>
-                {` `}
-                {FUEL_PRECISION_CONSENT}
-              </span>
-            </label>
-          )}
-          {errorMessage && <StatusMessage tone="error">{errorMessage}</StatusMessage>}
-        </div>
-      )}
-    </ResponsiveDialog>
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

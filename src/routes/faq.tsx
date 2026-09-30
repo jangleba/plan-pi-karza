@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronLeft, MessageCircleQuestion } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -27,12 +26,12 @@ const FAQ_ITEMS = [
   {
     question: "Co oznacza check-in przed treningiem?",
     answer:
-      "Potwierdź, że dzisiejszy plan jest aktualny, albo wybierz zmianę. Check-in nie wymaga danych o zdrowiu. Po potwierdzeniu zobaczysz trening dopasowany do planu dnia.",
+      "To krótka ocena snu, energii, zmęczenia i ewentualnego bólu. Na jej podstawie BallWise może zostawić plan, obniżyć jego trudność albo zaproponować bezpieczniejszy wariant.",
   },
   {
     question: "Co zrobić, gdy czuję ból?",
     answer:
-      "Nie wykonuj ruchu, który nasila ból. Jeśli korzystasz z opcjonalnej personalizacji zdrowotnej, możesz zgłosić ból w profilu lub po sesji. BallWise może ograniczyć obciążenie, ale nie diagnozuje urazów. Przy ostrym, narastającym lub utrzymującym się bólu przerwij trening i skontaktuj się ze specjalistą.",
+      "Zaznacz ból w check-inie i nie wykonuj ruchu, który go nasila. BallWise może ograniczyć obciążenie, ale nie diagnozuje urazów. Przy ostrym, narastającym lub utrzymującym się bólu przerwij trening i skontaktuj się ze specjalistą.",
   },
   {
     question: "Nie mam sprzętu do ćwiczenia — co dalej?",
@@ -80,25 +79,44 @@ function FaqScreen() {
   const goBack = useInstantBack("/");
 
   return (
-    <section className="bw-reading-page bw-page-content bw-stack">
-      <Button type="button" variant="ghost" onClick={goBack} className="justify-self-start">
+    <main className="app-shell premium-flow min-h-screen px-5 pb-16 pt-6">
+      <button
+        type="button"
+        onClick={goBack}
+        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-sm text-foreground"
+      >
         <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Wstecz
-      </Button>
+      </button>
 
-      <h1 className="bw-page-title">Pomoc i FAQ</h1>
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <MessageCircleQuestion className="h-5 w-5" aria-hidden="true" />
+        </div>
+        <div>
+          <h1 className="text-[24px] font-medium tracking-[-0.03em]">Pomoc i FAQ</h1>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Najważniejsze odpowiedzi o planie, treningu i Twoich danych.
+          </p>
+        </div>
+      </div>
 
-      <Accordion type="single" collapsible className="space-y-3">
+      <Accordion type="single" collapsible className="mt-6 soft-card px-4">
         {FAQ_ITEMS.map((item, index) => (
           <AccordionItem key={item.question} value={`item-${index}`}>
-            <AccordionTrigger className="min-h-12 py-3 text-left text-base leading-6 hover:no-underline">
+            <AccordionTrigger className="min-h-14 py-3 text-left text-sm leading-snug hover:no-underline">
               {item.question}
             </AccordionTrigger>
-            <AccordionContent className="pb-4 text-base leading-6 text-muted-foreground">
+            <AccordionContent className="pb-4 text-sm leading-relaxed text-muted-foreground">
               {item.answer}
             </AccordionContent>
           </AccordionItem>
         ))}
       </Accordion>
-    </section>
+
+      <p className="mt-4 px-1 text-xs leading-relaxed text-muted-foreground">
+        BallWise wspiera planowanie treningu, ale nie zastępuje trenera, lekarza, fizjoterapeuty ani
+        dietetyka.
+      </p>
+    </main>
   );
 }

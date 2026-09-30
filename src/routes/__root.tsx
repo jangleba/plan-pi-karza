@@ -16,23 +16,23 @@ import { AuthProvider } from "../lib/loadwise/auth";
 import { Toaster } from "../components/ui/sonner";
 import { LEGAL_RELEASE_BLOCKED } from "../lib/loadwise/legal";
 import { useDuplicateNavigationGuard } from "../lib/useDuplicateNavigationGuard";
-import { AppFrame } from "../components/loadwise/AppFrame";
-import { ActivityExitProvider } from "../components/loadwise/ActivityExitGuard";
-import { Button } from "../components/ui/button";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <p className="text-sm text-muted-foreground">404</p>
-        <h1 className="bw-page-title mt-2">Nie znaleziono strony</h1>
+        <h1 className="text-7xl font-bold text-foreground">404</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Nie znaleziono strony</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Ta strona nie istnieje albo została przeniesiona.
         </p>
         <div className="mt-6">
-          <Button asChild>
-            <Link to="/">Wróć na start</Link>
-          </Button>
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 active:scale-[0.98]"
+          >
+            Wróć na start
+          </Link>
         </div>
       </div>
     </div>
@@ -49,24 +49,29 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="bw-page-title text-foreground">Nie udało się wczytać strony</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Nie udało się wczytać strony
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Coś poszło nie tak. Spróbuj ponownie albo wróć na stronę startową.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button
+          <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 active:scale-[0.98]"
           >
             Spróbuj ponownie
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/" onClick={reset}>
-              Wróć na start
-            </Link>
-          </Button>
+          </button>
+          <Link
+            to="/"
+            onClick={reset}
+            className="inline-flex items-center justify-center rounded-xl border border-input bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-[transform,background-color] duration-200 active:scale-[0.98]"
+          >
+            Wróć na start
+          </Link>
         </div>
       </div>
     </div>
@@ -79,7 +84,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
       },
       { title: "BallWise — mądrzejsze decyzje treningowe w piłce" },
       {
@@ -98,13 +103,6 @@ export const Route = createRootRoute({
       { name: "twitter:card", content: "summary" },
     ],
     links: [
-      {
-        rel: "preload",
-        href: "/fonts/source-sans-3-upright.woff2",
-        as: "font",
-        type: "font/woff2",
-        crossOrigin: "anonymous",
-      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -141,8 +139,8 @@ function RootComponent() {
   if (LEGAL_RELEASE_BLOCKED) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="max-w-md p-6 text-center">
-          <h1 className="bw-page-title">Publikacja BallWise jest zablokowana</h1>
+        <div className="max-w-md rounded-2xl border border-destructive/40 bg-card p-6 text-center">
+          <h1 className="text-xl font-semibold">Publikacja BallWise jest zablokowana</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Uzupełnij dane administratora, dane rejestrowe, kontakt, retencję, region danych i
             warunki subskrypcji w konfiguracji środowiska produkcyjnego.
@@ -155,11 +153,7 @@ function RootComponent() {
   return (
     <AuthProvider>
       <LoadwiseProvider>
-        <ActivityExitProvider>
-          <AppFrame>
-            <Outlet />
-          </AppFrame>
-        </ActivityExitProvider>
+        <Outlet />
         <Toaster position="top-center" />
       </LoadwiseProvider>
     </AuthProvider>

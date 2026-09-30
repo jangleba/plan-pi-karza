@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { AppHeader } from "@/components/loadwise/ui";
-import { Tabs } from "@/components/ui/app-ui";
+import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 import { ProgressHistory } from "@/components/progress/ProgressHistory";
 import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
@@ -37,8 +36,8 @@ export const Route = createFileRoute("/_tabs/postep")({
 });
 
 const TABS = [
-  { id: "dashboard", label: "Pulpit" },
-  { id: "history", label: "Historia" },
+  { id: "dashboard", label: "PULPIT" },
+  { id: "history", label: "HISTORIA" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -84,25 +83,37 @@ function ProgressScreen() {
 
   return (
     <div className="premium-flow progress-premium">
-      <AppHeader title="Postęp" />
+      <AppHeader title="Postęp" subtitle="Tylko realne dane z wykonanych treningów." />
 
-      <div className="bw-page-content mb-6">
-        <Tabs
-          className="[&_.is-selected]:bg-transparent [&_.is-selected]:text-foreground [&_.is-selected]:font-semibold"
-          value={tab}
-          options={TABS.map((item) => ({ value: item.id, label: item.label }))}
-          onChange={setTab}
-          label="Widok postępu"
-          panelId="progress-panel"
-        />
+      <div className="sticky top-0 z-10 mb-4 bg-background/85 px-5 py-2 backdrop-blur">
+        <div className="flex border-b border-border" role="tablist">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              id={`progress-tab-${item.id}`}
+              aria-controls="progress-panel"
+              aria-selected={tab === item.id}
+              onClick={() => setTab(item.id)}
+              className={`relative flex-1 px-2 py-2.5 text-[11px] font-medium tracking-[0.08em] transition-colors duration-200 ${
+                tab === item.id
+                  ? "text-foreground after:absolute after:inset-x-5 after:-bottom-px after:h-0.5 after:bg-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div
         key={tab}
         id="progress-panel"
         role="tabpanel"
-        aria-label={tab === "dashboard" ? "Pulpit" : "Historia"}
-        className="bw-page-content"
+        aria-labelledby={`progress-tab-${tab}`}
+        className="px-5 pb-28"
       >
         {tab === "dashboard" ? (
           <ProgressDashboard
@@ -118,6 +129,8 @@ function ProgressScreen() {
           <ProgressHistory events={timeline} runningActivities={state.runningActivities} />
         )}
       </div>
+
+      <Disclaimer />
     </div>
   );
 }

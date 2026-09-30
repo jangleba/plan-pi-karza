@@ -14,17 +14,16 @@ const DOT_TONE: Record<string, string> = {
 export function WeekLine({ days }: { days: MicrocycleDay[] }) {
   return (
     <div className="relative">
-      <div className="absolute left-3 right-3 top-[30px] h-px bg-border" />
+      <div className="absolute left-3 right-3 top-[26px] h-px bg-border" />
       <div className="relative flex justify-between">
-        {days.map((d) => (
+        {days.map((d, i) => (
           <div
             key={d.date}
-            role="img"
-            aria-label={`${d.weekdayLabel}: ${d.completed ? `ukończono, ${d.durationMin} min` : d.planned ? "zaplanowano" : "bez treningu"}${d.category ? `, ${TRAINING_CATEGORY_LABELS[d.category]}` : ""}`}
-            className="flex min-w-0 flex-1 flex-col items-center gap-1"
+            className="flex w-9 flex-col items-center gap-1 animate-fade-in"
+            style={{ animationDelay: `${i * 45}ms`, animationFillMode: "backwards" }}
           >
             <span
-              className={`text-sm ${d.isToday ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+              className={`text-[10px] ${d.isToday ? "font-semibold text-foreground" : "text-muted-foreground"}`}
             >
               {d.weekdayLabel}
             </span>
@@ -38,7 +37,7 @@ export function WeekLine({ days }: { days: MicrocycleDay[] }) {
                     : "border-border bg-background"
               }`}
             />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-[9px] text-muted-foreground">
               {d.completed ? `${d.durationMin || ""}` : d.planned ? "plan" : "—"}
             </span>
           </div>

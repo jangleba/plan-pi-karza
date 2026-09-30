@@ -24,7 +24,6 @@ type Props = {
   plan: UserPlan;
   phase: Phase;
   phaseStartedAt: number;
-  pausedAt?: number | null;
   durationMs: number;
   mode: ActionMode;
   playbackDurationMs: number;
@@ -83,8 +82,8 @@ const toLogical = (x: number, z: number): Point => ({
   y: clamp(75 + (z / FIELD_LENGTH) * 150, 2, 148),
 });
 
-const elapsedFrom = (startedAt: number, pausedAt?: number | null) => {
-  const now = pausedAt ?? (startedAt > 100_000_000_000 ? Date.now() : performance.now());
+const elapsedFrom = (startedAt: number) => {
+  const now = startedAt > 100_000_000_000 ? Date.now() : performance.now();
   return Math.max(0, now - startedAt);
 };
 
@@ -817,9 +816,9 @@ export function Pitch(props: Props) {
         const continuouslyAnimated = latest.phase === "observe" || latest.phase === "playback" || Boolean(runtime.drag);
         if (!continuouslyAnimated && timestamp - previousRender < 140) return;
         previousRender = timestamp;
-        const deltaSeconds = latest.pausedAt != null ? 0 : clamp((timestamp - previousFrame) / 1000, 0, 0.05);
+        const deltaSeconds = clamp((timestamp - previousFrame) / 1000, 0, 0.05);
         previousFrame = timestamp;
-        const elapsed = elapsedFrom(latest.phaseStartedAt, latest.pausedAt);
+        const elapsed = elapsedFrom(latest.phaseStartedAt);
         const observationProgress = latest.phase === "observe"
           ? smooth(elapsed / Math.max(1, latest.durationMs))
           : 1;
@@ -984,10 +983,10 @@ export function Pitch(props: Props) {
         phase={props.phase}
         mode={props.mode}
         progress={props.phase === "observe"
-          ? clamp(elapsedFrom(props.phaseStartedAt, props.pausedAt) / Math.max(1, props.durationMs), 0, 1)
+          ? clamp(elapsedFrom(props.phaseStartedAt) / Math.max(1, props.durationMs), 0, 1)
           : props.phase === "countdown" ? 0 : 1}
         playbackProgress={props.phase === "playback"
-          ? clamp(elapsedFrom(props.phaseStartedAt, props.pausedAt) / Math.max(1, props.playbackDurationMs), 0, 1)
+          ? clamp(elapsedFrom(props.phaseStartedAt) / Math.max(1, props.playbackDurationMs), 0, 1)
           : props.phase === "feedback" || props.phase === "compare" ? 1 : 0}
         onPlanChange={props.onPlanChange}
         onHint={props.onHint}

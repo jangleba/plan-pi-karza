@@ -36,10 +36,6 @@ import type {
 } from "@/lib/running/types";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { RunActivitySummary } from "./RunActivitySummary";
-import { useActivityExitGuard } from "@/components/loadwise/ActivityExitGuard";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ConfirmDialog, Disclosure } from "@/components/ui/app-ui";
 
 type TrackerPhase = "idle" | "recording" | "paused" | "review";
 
@@ -92,6 +88,7 @@ export function EnduranceRunTracker({
   const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const [phase, setPhase] = useState<TrackerPhase>("idle");
+  const [route, setRoute] = useState<RoutePoint[]>([]);
   const [pending, setPending] = useState<RunningActivityDraft | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [distanceM, setDistanceM] = useState(0);
@@ -100,11 +97,6 @@ export function EnduranceRunTracker({
   const [guideComplete, setGuideComplete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const gpxInputRef = useRef<HTMLInputElement | null>(null);
-  const mountedRef = useRef(true);
-  const resumeAfterExitRef = useRef(false);
   const watchIdRef = useRef<number | null>(null);
   const routeRef = useRef<RoutePoint[]>([]);
   const distanceMRef = useRef(0);
@@ -143,12 +135,7 @@ export function EnduranceRunTracker({
       wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinelLike> };
     };
     if (!nav.wakeLock) return;
-    const lock = await nav.wakeLock.request("screen").catch(() => null);
-    if (!mountedRef.current || phaseRef.current !== "recording") {
-      await lock?.release().catch(() => undefined);
-      return;
-    }
-    wakeLockRef.current = lock;
+    wakeLockRef.current = await nav.wakeLock.request("screen").catch(() => null);
   };
 
   const stopWatch = () => {
@@ -157,7 +144,6 @@ export function EnduranceRunTracker({
   };
 
   const pushPosition = (position: GeolocationPosition) => {
-    if (!mountedRef.current || phaseRef.current !== "recording") return;
     const point: RoutePoint = {
       lat: position.coords.latitude,
       lng: position.coords.longitude,
@@ -166,6 +152,7 @@ export function EnduranceRunTracker({
       accuracyM: position.coords.accuracy,
     };
     routeRef.current = [...routeRef.current, point].slice(-5_200);
+    setRoute(routeRef.current);
     const nextDistance = routeDistanceM(sanitizeRoute(routeRef.current));
     distanceMRef.current = nextDistance;
     setDistanceM(nextDistance);
@@ -180,7 +167,6 @@ export function EnduranceRunTracker({
   };
 
   const setPositionError = (error: GeolocationPositionError) => {
-    if (!mountedRef.current) return;
     setGpsError(positionErrorMessage(error));
   };
 
@@ -247,16 +233,13 @@ export function EnduranceRunTracker({
     phase,
   ]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
+  useEffect(
+    () => () => {
       stopWatch();
       void releaseWakeLock();
-      window.speechSynthesis?.cancel();
-      navigator.vibrate?.(0);
-    };
-  }, []);
+    },
+    [],
+  );
 
   async function startRecording() {
     setGpsError(null);
@@ -276,7 +259,6 @@ export function EnduranceRunTracker({
           timeout: 15_000,
         }),
       );
-      if (!mountedRef.current) return;
       const now = Date.now();
       startedAtRef.current = new Date(now).toISOString();
       segmentStartedMsRef.current = now;
@@ -290,6 +272,7 @@ export function EnduranceRunTracker({
       };
       routeRef.current = [firstPoint];
       distanceMRef.current = 0;
+      setRoute([firstPoint]);
       setDistanceM(0);
       setElapsedSec(0);
       setPending(null);
@@ -307,7 +290,6 @@ export function EnduranceRunTracker({
       startWatch();
       void requestWakeLock();
     } catch (error) {
-      if (!mountedRef.current) return;
       if (error && typeof error === "object" && "code" in error) {
         setGpsError(positionErrorMessage(error as GeolocationPositionError));
       } else {
@@ -390,7 +372,6 @@ export function EnduranceRunTracker({
     setGpsError(null);
     try {
       const draft = activityDraftFromGpx({ xml: await file.text(), date, sessionId });
-      if (!mountedRef.current) return;
       setPending(draft);
       setPhase("review");
     } catch (error) {
@@ -418,16 +399,12 @@ export function EnduranceRunTracker({
   }
 
   async function removeActivity() {
-    if (!activity || deleting) return;
-    setDeleting(true);
+    if (!activity || !window.confirm("Usunąć zapis wyniku biegu?")) return;
     try {
       await onDelete(activity.id);
-      toast.success("Wynik biegu został usunięty.");
-      setDeleteOpen(false);
+      toast.success("Trasa biegu została usunięta.");
     } catch {
-      toast.error("Nie udało się usunąć wyniku.");
-    } finally {
-      setDeleting(false);
+      toast.error("Nie udało się usunąć trasy.");
     }
   }
 
@@ -473,62 +450,38 @@ export function EnduranceRunTracker({
     state.lastSignalSec = elapsedSec;
   }, [elapsedSec, paceGuidance, phase]);
 
-  useActivityExitGuard({
-    dirty: phase === "recording" || phase === "paused" || Boolean(pending),
-    busy: saving || deleting,
-    description: "Wynik biegu nie został zapisany.",
-    pause: () => {
-      resumeAfterExitRef.current = phaseRef.current === "recording";
-      if (resumeAfterExitRef.current) pauseRecording();
-      window.speechSynthesis?.cancel();
-    },
-    resume: () => {
-      if (resumeAfterExitRef.current) {
-        resumeAfterExitRef.current = false;
-        resumeRecording();
-      }
-    },
-    dispose: () => {
-      stopWatch();
-      void releaseWakeLock();
-      window.speechSynthesis?.cancel();
-      navigator.vibrate?.(0);
-    },
-  });
-
   return (
-    <section className="bw-section bw-stack" aria-labelledby="run-tracker-title">
+    <section className="soft-card space-y-4 p-4" aria-labelledby="run-tracker-title">
       <div>
         <div className="flex items-center gap-2">
           <LocateFixed className="h-4 w-4 text-primary" aria-hidden="true" />
           <h2 id="run-tracker-title" className="text-sm font-semibold">
             {isFieldMasTest ? "Pomiar testu 5-minutowego" : "Bieg z GPS"}
           </h2>
+          <span className="ml-auto rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+            prywatny
+          </span>
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          GPS uruchamiasz przyciskiem. Trasa pozostaje w pamięci urządzenia; zapisujemy dystans,
-          czas i średnie tempo.
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          GPS włącza się dopiero po Twoim kliknięciu. Trasa służy tylko do obliczenia wyniku w
+          pamięci telefonu. Do bazy trafiają wyłącznie dystans, czas i średnie tempo.
         </p>
       </div>
 
       {isFieldMasTest && !activity && !pending && !isTracking && (
-        <div className="space-y-3">
+        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
           <h3 className="text-sm font-semibold">Najpierw bezpieczeństwo</h3>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-relaxed text-muted-foreground">
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
             <li>Wykonaj 10–12 minut spokojnej rozgrzewki na płaskiej, bezpiecznej trasie.</li>
-            <li>
-              Po kliknięciu „Start testu” uruchom odcinek i biegnij równo przez pełne 5 minut.
-            </li>
-            <li>
-              Przerwij przy ostrym bólu, zawrotach głowy, bólu w klatce lub innym niepokojącym
-              objawie.
-            </li>
+            <li>Po kliknięciu „Start testu” uruchom odcinek i biegnij równo przez pełne 5 minut.</li>
+            <li>Przerwij przy ostrym bólu, zawrotach głowy, bólu w klatce lub innym niepokojącym objawie.</li>
           </ol>
-          <label className="mt-3 flex items-start gap-2 text-sm font-medium">
-            <Checkbox
+          <label className="mt-3 flex items-start gap-2 text-xs font-medium">
+            <input
+              type="checkbox"
               checked={safetyAcknowledged}
-              onCheckedChange={(checked) => setSafetyAcknowledged(checked === true)}
-              className="mt-0.5"
+              onChange={(event) => setSafetyAcknowledged(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
             />
             <span>Przeczytałem zasady i wiem, że BallWise nie ocenia mojego stanu zdrowia.</span>
           </label>
@@ -536,54 +489,61 @@ export function EnduranceRunTracker({
       )}
 
       {intervalProtocol && !isTracking && !pending && (
-        <Disclosure title="Prowadzenie interwałowe">
-          <div className="text-sm font-semibold">{intervalProtocol.summary}</div>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+            <Volume2 className="h-3.5 w-3.5" aria-hidden="true" /> Prowadzenie interwałowe
+          </div>
+          <div className="mt-1.5 text-sm font-semibold">{intervalProtocol.summary}</div>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             BallWise automatycznie zmienia odcinek i przerwę, mówi komendę oraz wibruje. Krótkie
             odcinki poniżej 80 m potwierdzasz ręcznie, bo GPS telefonu nie mierzy ich dość
             dokładnie.
           </p>
           {intervalProtocol.steps.some((step) => step.target.paceTarget) && (
-            <p className="mt-3 text-sm leading-relaxed">
+            <p className="mt-2 rounded-xl bg-background/70 px-3 py-2 text-xs leading-relaxed">
               Tempo widzisz w min/km. <strong>Dwie krótkie wibracje</strong> oznaczają: przyspiesz.
               <strong> Jedna długa</strong>: zwolnij. Sygnał pojawia się dopiero po 8 sekundach poza
               zakresem, żeby pojedynczy błąd GPS nie sterował biegiem.
             </p>
           )}
-        </Disclosure>
+        </div>
       )}
 
       {shownActivity && !isTracking && <RunActivitySummary activity={shownActivity} showSplits />}
 
       {isTracking && (
-        <div className="bg-foreground p-5 text-background">
+        <div className="rounded-2xl bg-foreground p-5 text-background">
           {phase === "paused" ? (
             <>
-              <div className="text-sm font-medium  opacity-70">Pauza</div>
+              <div className="text-xs font-medium uppercase tracking-[0.18em] opacity-70">
+                Pauza
+              </div>
               <div className="mt-2 text-4xl font-semibold tabular-nums">
                 {formatRunDuration(elapsedSec)}
               </div>
             </>
           ) : intervalProtocol && !guideStarted ? (
             <>
-              <div className="text-sm font-semibold  text-primary">GPS rejestruje rozgrzewkę</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                GPS rejestruje rozgrzewkę
+              </div>
               <div className="mt-2 text-2xl font-semibold">Najpierw przygotuj ciało</div>
               <p className="mt-1 text-sm opacity-70">
                 Po rozgrzewce uruchom pierwszy odcinek. Dalej BallWise poprowadzi Cię głosem.
               </p>
-              <Button
+              <button
                 type="button"
                 onClick={startIntervalGuide}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 bg-primary text-primary-foreground"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
               >
                 <Play className="h-4 w-4" /> Start interwałów
-              </Button>
+              </button>
             </>
           ) : currentIntervalStep ? (
             <>
               <div className="flex items-center justify-between gap-3">
                 <div
-                  className={`text-sm font-semibold  ${
+                  className={`text-xs font-semibold uppercase tracking-[0.18em] ${
                     currentIntervalStep.kind === "work" ? "text-primary" : "opacity-70"
                   }`}
                 >
@@ -614,12 +574,10 @@ export function EnduranceRunTracker({
               </div>
               <p className="mt-3 text-sm font-medium">{currentIntervalStep.instruction}</p>
               {currentIntervalStep.target.paceTarget && (
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-background/10 p-3 text-xs">
                   <div>
                     <div className="opacity-60">Cel</div>
-                    <div className="mt-0.5 font-semibold">
-                      {currentIntervalStep.target.paceTarget.label}
-                    </div>
+                    <div className="mt-0.5 font-semibold">{currentIntervalStep.target.paceTarget.label}</div>
                   </div>
                   <div>
                     <div className="opacity-60">Teraz</div>
@@ -636,60 +594,69 @@ export function EnduranceRunTracker({
                   </div>
                 </div>
               )}
-              <Button
+              <button
                 type="button"
                 onClick={() => completeCurrentInterval(true)}
-                className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold opacity-75"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold opacity-75"
               >
                 <SkipForward className="h-3.5 w-3.5" /> Zakończ ten krok teraz
-              </Button>
+              </button>
             </>
           ) : intervalProtocol && guideComplete ? (
             <>
-              <div className="text-sm font-semibold  text-primary">Interwały ukończone</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Interwały ukończone
+              </div>
               <div className="mt-2 text-2xl font-semibold">Teraz spokojne schłodzenie</div>
               <p className="mt-1 text-sm opacity-70">Po schłodzeniu zakończ zapis GPS.</p>
             </>
           ) : (
             <>
-              <div className="text-sm font-medium  opacity-70">Rejestracja GPS</div>
+              <div className="text-xs font-medium uppercase tracking-[0.18em] opacity-70">
+                Rejestracja GPS
+              </div>
               <div className="mt-2 text-4xl font-semibold tabular-nums">
                 {formatRunDuration(elapsedSec)}
               </div>
             </>
           )}
-          <div className="mt-3 text-sm opacity-70">{formatDistance(distanceM)}</div>
+          <div className="mt-3 text-xs opacity-70">
+            {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {route.length} punktów
+          </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {phase === "recording" ? (
-              <Button
+              <button
                 type="button"
                 onClick={pauseRecording}
-                className="inline-flex items-center justify-center gap-2 bg-background/15"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-background/15 px-4 py-3 text-sm font-semibold"
               >
                 <Pause className="h-4 w-4" /> Pauza
-              </Button>
+              </button>
             ) : (
-              <Button
+              <button
                 type="button"
                 onClick={resumeRecording}
-                className="inline-flex items-center justify-center gap-2 bg-background/15"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-background/15 px-4 py-3 text-sm font-semibold"
               >
                 <Play className="h-4 w-4" /> Wznów
-              </Button>
+              </button>
             )}
-            <Button
+            <button
               type="button"
               onClick={finishRecording}
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
             >
               <Square className="h-4 w-4" /> Zakończ
-            </Button>
+            </button>
           </div>
         </div>
       )}
 
       {gpsError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-2xl bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
           {gpsError}
         </p>
       )}
@@ -697,28 +664,19 @@ export function EnduranceRunTracker({
       {!isTracking && (
         <div className="flex flex-wrap gap-2">
           {!pending && canRecord && (
-            <Button
+            <button
               type="button"
               onClick={() => void startRecording()}
               disabled={isFieldMasTest && !safetyAcknowledged}
-              className="inline-flex flex-1 items-center justify-center gap-2 bg-primary text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <LocateFixed className="h-4 w-4" />{" "}
-              {activity ? "Nagraj ponownie" : isFieldMasTest ? "Start testu 5 min" : "Start GPS"}
-            </Button>
+              <LocateFixed className="h-4 w-4" /> {activity ? "Nagraj ponownie" : isFieldMasTest ? "Start testu 5 min" : "Start GPS"}
+            </button>
           )}
           {!pending && (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => gpxInputRef.current?.click()}
-                className="flex-1"
-              >
-                <FileUp className="h-4 w-4" /> Wczytaj GPX
-              </Button>
+            <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border border-border px-4 py-3 text-sm font-semibold active:scale-95">
+              <FileUp className="h-4 w-4" /> Wczytaj GPX
               <input
-                ref={gpxInputRef}
                 type="file"
                 accept=".gpx,application/gpx+xml"
                 className="sr-only"
@@ -727,65 +685,54 @@ export function EnduranceRunTracker({
                   event.currentTarget.value = "";
                 }}
               />
-            </>
+            </label>
           )}
           {pending && (
             <>
-              <Button
+              <button
                 type="button"
                 disabled={saving}
                 onClick={() => void savePending()}
-                className="inline-flex flex-1 items-center justify-center gap-2 bg-primary text-primary-foreground disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 <Save className="h-4 w-4" /> {saving ? "Zapisuję…" : "Zapisz bieg"}
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
                 disabled={saving}
                 onClick={() => {
                   setPending(null);
                   setPhase("idle");
                 }}
-                className=""
+                className="rounded-full border border-border px-4 py-3 text-sm font-semibold"
               >
                 Odrzuć
-              </Button>
+              </button>
             </>
           )}
           {activity && !pending && (
-            <Button
+            <button
               type="button"
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => void removeActivity()}
               aria-label="Usuń wynik biegu"
-              variant="ghost"
-              className="text-muted-foreground"
+              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-3 text-muted-foreground"
             >
               <Trash2 className="h-4 w-4" />
-            </Button>
+            </button>
           )}
         </div>
       )}
       {!canRecord && !activity && !pending && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           GPS uruchomisz w dniu treningu. Starszy wynik możesz obliczyć lokalnie z pliku GPX.
         </p>
       )}
       {canRecord && !isTracking && !activity && !pending && (
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
           Dla pewniejszego zapisu zostaw BallWise otwarte podczas biegu. Po starcie schowaj telefon
           do kieszeni — nie trzeba go trzymać w dłoni.
         </p>
       )}
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Usunąć wynik biegu?"
-        description="Zapis dystansu, czasu i tempa zostanie usunięty."
-        onConfirm={() => void removeActivity()}
-        confirmLabel="Usuń wynik"
-        busy={deleting}
-        destructive
-      />
     </section>
   );
 }

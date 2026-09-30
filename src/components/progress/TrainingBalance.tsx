@@ -1,4 +1,7 @@
-import { TRAINING_CATEGORY_LABELS, type TrainingCategoryKey } from "@/lib/progress/progress";
+import {
+  TRAINING_CATEGORY_LABELS,
+  type TrainingCategoryKey,
+} from "@/lib/progress/progress";
 
 const ORDER: TrainingCategoryKey[] = [
   "gym",
@@ -20,18 +23,20 @@ export function TrainingBalance({
   const max = Math.max(1, ...rows.map((key) => byCategory[key]));
 
   return (
-    <section className="bw-section space-y-4">
-      <h2 className="bw-section-title">Balans · 7 dni</h2>
+    <section className="soft-card p-4">
+      <h2 className="text-sm font-semibold">Balans treningu</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Ukończone jednostki z ostatnich 7 dni.
+      </p>
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">Brak danych do pokazania rozkładu.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Brak danych do pokazania rozkładu.
+        </p>
       ) : (
         <div className="mt-4 space-y-2.5">
           {rows.map((key) => (
-            <div
-              key={key}
-              className="grid grid-cols-[minmax(6.5rem,auto)_1fr_1.5rem] items-center gap-2"
-            >
-              <span className="truncate text-sm text-muted-foreground">
+            <div key={key} className="grid grid-cols-[6.25rem_1fr_1.5rem] items-center gap-2">
+              <span className="truncate text-xs text-muted-foreground">
                 {TRAINING_CATEGORY_LABELS[key]}
               </span>
               <div
@@ -44,7 +49,7 @@ export function TrainingBalance({
                   style={{ width: `${(byCategory[key] / max) * 100}%` }}
                 />
               </div>
-              <span className="text-right text-sm font-semibold">{byCategory[key]}</span>
+              <span className="text-right text-xs font-semibold">{byCategory[key]}</span>
             </div>
           ))}
         </div>

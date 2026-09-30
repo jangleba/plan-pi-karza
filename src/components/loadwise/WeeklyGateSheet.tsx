@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { formatDate } from "@/lib/loadwise/labels";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Field, ResponsiveDialog, StatusMessage } from "@/components/ui/app-ui";
+import { CalendarClock, CheckCircle2 } from "lucide-react";
 
 export function WeeklyGateSheet({
   open,
@@ -33,27 +37,24 @@ export function WeeklyGateSheet({
   const [secondMatchDate, setSecondMatchDate] = useState<string>("");
   const [noMatch, setNoMatch] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setMatchDate(existing?.nextMatchDate ?? "");
-      setSecondMatchDate(
-        existing?.nextMatchDates?.find((date) => date !== existing.nextMatchDate) ?? "",
-      );
+      setSecondMatchDate(existing?.nextMatchDates?.find((date) => date !== existing.nextMatchDate) ?? "");
       setNoMatch(allowNoMatch && Boolean(existing?.noMatchNextWeek));
       setSaving(false);
-      setError(null);
     }
   }, [open, existing, allowNoMatch]);
 
-  const canSave =
-    noMatch || (matchDate !== "" && (secondMatchDate === "" || secondMatchDate > matchDate));
+  const canSave = noMatch || (
+    matchDate !== "" &&
+    (secondMatchDate === "" || secondMatchDate > matchDate)
+  );
 
   async function handleSave() {
     if (!canSave || saving) return;
     setSaving(true);
-    setError(null);
     try {
       await confirmWeeklyTransition(
         weekNumber,
@@ -61,82 +62,108 @@ export function WeeklyGateSheet({
         noMatch,
       );
       toast.success(
-        noMatch ? "Zapisano tydzień bez meczu." : "Mecz zapisany. Dopasowujemy tydzień.",
+        noMatch
+          ? "Zapisano tydzień bez meczu."
+          : "Mecz zapisany. Dopasowujemy tydzień.",
       );
       onOpenChange(false);
       onConfirmed();
-    } catch (failure) {
-      setError(
-        failure instanceof Error
-          ? failure.message
-          : "Nie udało się zapisać meczu. Spróbuj ponownie.",
-      );
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Mecze w kolejnym tygodniu"
-      description={`${formatDate(nextWeekStart)} – ${formatDate(nextWeekEnd)}`}
-      dismissible={!saving}
-      footer={
-        <>
-          <Button disabled={!canSave || saving} onClick={() => void handleSave()}>
-            {saving ? "Układamy…" : "Zapisz i otwórz tydzień"}
-          </Button>
-          <Button variant="ghost" disabled={saving} onClick={() => onOpenChange(false)}>
-            Anuluj
-          </Button>
-        </>
-      }
-    >
-      <div className="bw-stack">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Zanim przejdziesz dalej</DialogTitle>
+        </DialogHeader>
+
         <p className="text-sm text-muted-foreground">
-          Terminy meczów pozwalają dopasować obciążenie i regenerację.
+          Podaj datę kolejnego meczu, żeby BallWise dobrze ułożył następny
+          tydzień.
         </p>
-        <Field label="Data kolejnego meczu" htmlFor="week-match-date">
-          <Input
-            id="week-match-date"
-            type="date"
-            value={matchDate}
-            min={nextWeekStart}
-            max={nextWeekEnd}
-            disabled={noMatch}
-            onChange={(event) => setMatchDate(event.target.value)}
-          />
-        </Field>
-        {!noMatch && (
-          <Field
-            label="Drugi mecz (opcjonalnie)"
-            htmlFor="week-second-match-date"
-            error={
-              secondMatchDate !== "" && secondMatchDate <= matchDate
-                ? "Drugi mecz musi być później niż pierwszy."
-                : undefined
-            }
-          >
-            <Input
-              id="week-second-match-date"
-              type="date"
-              value={secondMatchDate}
-              min={matchDate || nextWeekStart}
-              max={nextWeekEnd}
-              onChange={(event) => setSecondMatchDate(event.target.value)}
-            />
-          </Field>
-        )}
-        {allowNoMatch && (
-          <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
-            <Checkbox checked={noMatch} onCheckedChange={(value) => setNoMatch(value === true)} />{" "}
-            Tydzień bez meczu (poza sezonem)
+
+        <div className="mt-1 rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          Kolejny tydzień: {formatDate(nextWeekStart)} – {formatDate(nextWeekEnd)}
+        </div>
+
+        {/* Data meczu */}
+        <div className="mt-2">
+          <label className="mb-1.5 block text-sm font-medium">
+            Data kolejnego meczu
           </label>
+          <div className="relative">
+            <CalendarClock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="date"
+              value={matchDate}
+              min={nextWeekStart}
+              max={nextWeekEnd}
+              disabled={noMatch}
+              onChange={(e) => setMatchDate(e.target.value)}
+              className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            />
+          </div>
+        </div>
+
+        {!noMatch && (
+          <div className="mt-2">
+            <label className="mb-1.5 block text-sm font-medium">
+              Drugi mecz (opcjonalnie)
+            </label>
+            <div className="relative">
+              <CalendarClock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="date"
+                value={secondMatchDate}
+                min={matchDate || nextWeekStart}
+                max={nextWeekEnd}
+                onChange={(e) => setSecondMatchDate(e.target.value)}
+                className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            {secondMatchDate !== "" && secondMatchDate <= matchDate && (
+              <p className="mt-1 text-xs font-medium text-destructive">Drugi mecz musi być później niż pierwszy.</p>
+            )}
+          </div>
         )}
-        {error && <StatusMessage tone="error">{error}</StatusMessage>}
-      </div>
-    </ResponsiveDialog>
+
+        {/* Tryb bez meczu — tylko poza sezonem / przejściowy */}
+        {allowNoMatch && (
+          <button
+            type="button"
+            onClick={() => setNoMatch((v) => !v)}
+            className={`mt-3 flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+              noMatch
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-input text-muted-foreground"
+            }`}
+          >
+            <CheckCircle2
+              className={`h-4 w-4 ${noMatch ? "opacity-100" : "opacity-30"}`}
+            />
+            Nie mam meczu w kolejnym tygodniu (poza sezonem)
+          </button>
+        )}
+
+        <Button
+          className="mt-3 w-full"
+          disabled={!canSave || saving}
+          onClick={handleSave}
+        >
+          {saving ? "Układamy…" : "Zapisz i ułóż kolejny tydzień"}
+        </Button>
+
+        {!canSave && (
+          <p className="text-center text-xs text-muted-foreground">
+            {allowNoMatch
+              ? "Wybierz datę meczu albo zaznacz tydzień bez meczu."
+              : "Najpierw wybierz datę kolejnego meczu."}
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

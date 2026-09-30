@@ -10,7 +10,7 @@ export function displayLabValue(value: number, unit: "cm" | "s") {
 
 export function LabMeasurementDetails({ metrics }: { metrics: LabMetrics }) {
   return (
-    <div className="space-y-1 text-sm font-normal text-muted-foreground tabular-nums">
+    <div className="mt-2 space-y-1 text-xs font-normal text-muted-foreground tabular-nums">
       {metrics.flightTimeSeconds !== undefined && (
         <p>Czas lotu: {displayLabValue(metrics.flightTimeSeconds, "s")}</p>
       )}

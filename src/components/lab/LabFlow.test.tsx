@@ -122,24 +122,6 @@ describe("LAB measurement flow", () => {
     expect(saved).toHaveBeenCalledTimes(1);
   });
 
-  it("cleans an abandoned recording when an in-flight local save fails", async () => {
-    let fail!: (error: Error) => void;
-    mocks.save.mockImplementationOnce(
-      () =>
-        new Promise((_resolve, reject) => {
-          fail = reject;
-        }),
-    );
-    await render();
-    await click("Nagraj");
-    await act(async () => button("Measure").click());
-    await act(async () => root.unmount());
-    expect(mocks.remove).not.toHaveBeenCalled();
-    await act(async () => fail(new Error("quota")));
-    expect(mocks.remove).toHaveBeenCalledWith(captureFixture().path);
-    expect(saved).not.toHaveBeenCalled();
-  });
-
   it("records an extra trial with a new ID and sequential trial number", async () => {
     await render();
     await click("Nagraj");

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronRight } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, Move, ScanLine } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
@@ -18,7 +18,6 @@ import {
 } from "@/lib/loadwise/dailyPlanCheckin";
 import { resolveTrainingDecisionMode } from "@/lib/loadwise/trainingDecisionGate";
 import { Button } from "@/components/ui/button";
-import { ActionRow } from "@/components/ui/app-ui";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { ModifySheet, type ModificationChoice } from "@/components/loadwise/ModifySheet";
 import { ProfileAvatar } from "@/components/loadwise/ui";
-import { useActivityExitGuard } from "@/components/loadwise/ActivityExitGuard";
 import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
-import { professionalSessionTitle } from "@/lib/loadwise/labels";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 
@@ -56,10 +53,7 @@ function DailyPlanCheckinDialog({
   saving: boolean;
   onAction: (action: DailyPlanCheckinAction) => void;
 }) {
-  const [step, setStep] = useState<CheckinStep>("change");
-  useEffect(() => {
-    if (open) setStep("change");
-  }, [open]);
+  const [step, setStep] = useState<CheckinStep>("confirm");
 
   function changeOpen(nextOpen: boolean) {
     if (nextOpen) setStep("confirm");
@@ -75,8 +69,8 @@ function DailyPlanCheckinDialog({
           </DialogTitle>
           <DialogDescription>
             {step === "confirm"
-              ? "Potwierdź plan lub wybierz zmianę."
-              : "Nie musisz podawać powodu."}
+              ? "Jedno potwierdzenie i pokażemy decyzję na dziś."
+              : "Wybierz jedną zmianę. Nie musisz podawać powodu."}
           </DialogDescription>
         </DialogHeader>
 
@@ -97,28 +91,32 @@ function DailyPlanCheckinDialog({
         ) : (
           <div className="space-y-2 pt-2">
             {hasTraining && (
-              <CheckinOption label="Lżej" disabled={saving} onClick={() => onAction("lighter")} />
+              <CheckinOption
+                label="Dzisiaj chcę trenować lżej"
+                disabled={saving}
+                onClick={() => onAction("lighter")}
+              />
             )}
             <CheckinOption
-              label="Zamień sesję"
+              label="Chcę zamienić dzisiejszą sesję"
               disabled={saving}
               onClick={() => onAction("swap")}
             />
             {canAddSession && (
               <CheckinOption
-                label="Dodaj sesję"
+                label="Chcę dodać sesję"
                 disabled={saving}
                 onClick={() => onAction("add")}
               />
             )}
             <CheckinOption
-              label="Zmień tydzień"
+              label="Zmienił się mój tydzień"
               disabled={saving}
               onClick={() => onAction("week_change")}
             />
             {hasTraining && (
               <CheckinOption
-                label="Pomiń trening"
+                label="Nie mogę wykonać dzisiejszego treningu"
                 disabled={saving}
                 onClick={() => onAction("unavailable")}
               />
@@ -138,7 +136,7 @@ function DailyPlanCheckinDialog({
   );
 }
 
-type SecondCheckinStep = "confirm" | "change";
+type SecondCheckinStep = "want" | "confirm" | "change";
 
 function SecondSessionCheckinDialog({
   open,
@@ -151,10 +149,10 @@ function SecondSessionCheckinDialog({
   saving: boolean;
   onAction: (action: SecondSessionCheckinAction) => void;
 }) {
-  const [step, setStep] = useState<SecondCheckinStep>("confirm");
+  const [step, setStep] = useState<SecondCheckinStep>("want");
 
   function changeOpen(nextOpen: boolean) {
-    if (nextOpen) setStep("confirm");
+    if (nextOpen) setStep("want");
     onOpenChange(nextOpen);
   }
 
@@ -163,15 +161,39 @@ function SecondSessionCheckinDialog({
       <DialogContent className="border-border/70 bg-popover">
         <DialogHeader>
           <DialogTitle>
-            {step === "confirm" ? "Druga sesja" : "Co zmienić w drugiej sesji?"}
+            {step === "want"
+              ? "Czy chcesz dziś wykonać również drugi trening?"
+              : step === "confirm"
+                ? "Czy plan drugiej sesji jest aktualny?"
+                : "Co zmienić w drugiej sesji?"}
           </DialogTitle>
-          <DialogDescription>Druga sesja jest opcjonalna.</DialogDescription>
+          <DialogDescription>
+            {step === "want"
+              ? "Wybierz tylko to, co dotyczy drugiej sesji."
+              : step === "confirm"
+                ? "Możesz ją zostawić albo zmienić niezależnie od pierwszej."
+                : "Jedna zmiana, bez podawania powodu."}
+          </DialogDescription>
         </DialogHeader>
 
-        {step === "confirm" ? (
+        {step === "want" ? (
+          <div className="space-y-2 pt-2">
+            <Button className="h-12 w-full" disabled={saving} onClick={() => setStep("confirm")}>
+              Tak
+            </Button>
+            <Button
+              className="h-12 w-full"
+              variant="outline"
+              disabled={saving}
+              onClick={() => onAction("remove")}
+            >
+              Nie — usuń drugi trening
+            </Button>
+          </div>
+        ) : step === "confirm" ? (
           <div className="space-y-2 pt-2">
             <Button className="h-12 w-full" disabled={saving} onClick={() => onAction("keep")}>
-              Zostaw drugą sesję
+              Tak — zostaw bez zmian
             </Button>
             <Button
               className="h-12 w-full"
@@ -180,14 +202,6 @@ function SecondSessionCheckinDialog({
               onClick={() => setStep("change")}
             >
               Chcę coś zmienić
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full"
-              disabled={saving}
-              onClick={() => onAction("remove")}
-            >
-              Usuń drugi trening
             </Button>
           </div>
         ) : (
@@ -236,7 +250,7 @@ function CheckinOption({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="flex min-h-12 w-full items-center justify-between gap-3 py-3 text-left text-base font-medium disabled:opacity-50"
+      className="soft-card flex min-h-14 w-full items-center justify-between gap-3 p-4 text-left text-sm font-medium disabled:opacity-50"
     >
       {label}
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -346,21 +360,20 @@ function decisionCopy(checkin: DailyPlanCheckin | null, session: SessionDay) {
 
 function PlanLoadingState() {
   return (
-    <section
-      className="bw-page-content pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]"
-      aria-busy="true"
-    >
+    <main className="px-6 pb-32 pt-6" aria-busy="true">
       <header className="flex items-center justify-between">
-        <h1 className="bw-page-title">Start</h1>
+        <span className="text-[17px] font-medium tracking-[-0.025em]">BallWise</span>
         <ProfileAvatar />
       </header>
-      <section className="bw-section mt-8 grid max-w-xl gap-4">
-        <div className="h-5 w-48 animate-pulse rounded-md bg-secondary" />
-        <div className="h-4 w-full animate-pulse rounded-md bg-secondary" />
-        <div className="h-4 w-3/4 animate-pulse rounded-md bg-secondary" />
-        <p className="pt-2 text-sm text-muted-foreground">Przygotowujemy Twój tydzień…</p>
+      <section className="mx-auto mt-16 max-w-sm space-y-4">
+        <div className="h-4 w-28 animate-pulse rounded-full bg-secondary" />
+        <div className="h-40 w-full animate-pulse rounded-2xl bg-secondary" />
+        <div className="h-12 w-full animate-pulse rounded-xl bg-secondary" />
+        <p className="pt-2 text-center text-sm text-muted-foreground">
+          Przygotowujemy Twój tydzień…
+        </p>
       </section>
-    </section>
+    </main>
   );
 }
 
@@ -395,7 +408,6 @@ function StartScreen() {
   } | null>(null);
   const autoGenerateRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
-  useActivityExitGuard({ dirty: false, busy: savingAction });
 
   const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
 
@@ -429,7 +441,7 @@ function StartScreen() {
 
   if (!profile?.onboardingComplete) {
     return (
-      <div className="bw-page-content pb-8 pt-[max(1.5rem,env(safe-area-inset-top))] text-sm text-muted-foreground">
+      <div className="px-6 pt-12 text-sm text-muted-foreground">
         Dokończ konfigurację profilu, aby otrzymać plan tygodnia.
       </div>
     );
@@ -438,7 +450,7 @@ function StartScreen() {
   if (!todaySession || !profile || !user) {
     if (!autoGenerateTried) return <PlanLoadingState />;
     return (
-      <div className="bw-page-content space-y-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <div className="space-y-4 px-6 pt-12">
         <p className="text-sm text-muted-foreground">
           Nie udało się przygotować dzisiejszej jednostki. Spróbuj ponownie.
         </p>
@@ -745,107 +757,140 @@ function StartScreen() {
     );
   }
 
+  const firstName = profile.name.trim().split(/\s+/)[0] || "Zawodniku";
   const checkinComplete = decisionMode !== "checkin_required";
 
   return (
     <>
-      <section className="bw-page-content pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
-        <header className="flex items-center justify-between gap-4">
-          <h1 className="bw-page-title">Start</h1>
+      <main className="start-decision-screen px-5 pb-32 pt-5">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
+              <span className="text-[11px] font-semibold tracking-[0.28em] text-primary">
+                BALLWISE
+              </span>
+            </div>
+            <h1 className="mt-4 text-[36px] font-semibold leading-none tracking-[-0.045em] text-foreground">
+              Start
+            </h1>
+            <p className="mt-2 text-[17px] text-muted-foreground">Cześć, {firstName}</p>
+          </div>
           <ProfileAvatar />
         </header>
 
-        <div className="bw-columns mt-8">
-          <section className="bw-section" aria-labelledby="start-checkin-title">
-            <h2 id="start-checkin-title" className="text-xl font-semibold">
-              {checkinComplete ? copy.title : "Czy dzisiejszy plan jest aktualny?"}
-            </h2>
-            {checkinComplete && (
-              <div className="mt-4 space-y-4">
-                {[adjusted, ...(adjusted.secondSession ? [adjusted.secondSession] : [])].map(
-                  (selected, index) => (
-                    <div key={index}>
-                      <h3 className="text-lg font-semibold">
-                        {professionalSessionTitle(selected.title)}
-                      </h3>
-                      {selected.durationMin > 0 && (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {adjusted.secondSession ? `Sesja ${index + 1} · ` : ""}
-                          {selected.durationMin} min · Intensywność {selected.intensity}
-                        </p>
-                      )}
-                    </div>
-                  ),
-                )}
-                {!hasTraining && (
-                  <p className="text-sm text-muted-foreground">{copy.description}</p>
-                )}
-              </div>
-            )}
-            {!checkinComplete && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Potwierdzenie planu nie wymaga danych o zdrowiu.
+        <div className="mt-8 space-y-4">
+          <section className="soft-card px-5 py-5" aria-labelledby="start-checkin-title">
+            <div className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">
+              CHECK-IN
+            </div>
+            <div className="mt-5 flex flex-col items-center text-center">
+              <span
+                className="grid h-14 w-14 place-items-center rounded-full border border-primary/35 bg-primary/[0.035] text-primary"
+                aria-hidden="true"
+              >
+                <Check className="h-7 w-7" strokeWidth={1.8} />
+              </span>
+              <h2
+                id="start-checkin-title"
+                className="mt-4 text-[21px] font-semibold tracking-[-0.025em] text-foreground"
+              >
+                {checkinComplete ? "Check-in wykonany" : "Czy dzisiejszy plan jest aktualny?"}
+              </h2>
+              <p className="mt-2 max-w-[18rem] text-sm leading-relaxed text-muted-foreground">
+                {checkinComplete
+                  ? copy.title
+                  : "30 sekund, żeby potwierdzić lub dopasować dzisiejszy plan."}
               </p>
-            )}
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              {checkinComplete ? (
-                <>
-                  <Button
-                    onClick={() =>
-                      navigate(
-                        hasTraining
-                          ? { to: "/sesja/$date", params: { date: todayIso }, search: { slot: 1 } }
-                          : { to: "/plan" },
-                      )
-                    }
-                  >
-                    {hasTraining ? "Otwórz trening" : "Zobacz plan"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={savingAction}
-                    onClick={() => setCheckinOpen(true)}
-                  >
-                    Zmień plan
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button disabled={savingAction} onClick={() => void handleCheckinAction("keep")}>
-                    Potwierdź plan
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    disabled={savingAction}
-                    onClick={() => setCheckinOpen(true)}
-                  >
-                    Zmień plan
-                  </Button>
-                </>
-              )}
+              <Button
+                type="button"
+                className="mt-5 h-12 w-full rounded-full text-[15px]"
+                disabled={savingAction}
+                onClick={() => setCheckinOpen(true)}
+              >
+                {checkinComplete ? "Zmień check-in" : "Rozpocznij check-in"}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </section>
 
-          <section className="bw-section" aria-labelledby="start-tools-title">
-            <h2 id="start-tools-title" className="text-lg font-semibold">
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/plan" })}
+            className="soft-card flex min-h-[5.5rem] w-full items-center gap-4 px-4 py-3.5 text-left active:scale-[0.99]"
+          >
+            <span
+              className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
+              aria-hidden="true"
+            >
+              <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+                Twój plan
+              </span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                Dzisiejszy trening i cały tydzień
+              </span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+          </button>
+
+          <section className="pt-3" aria-labelledby="start-tools-title">
+            <h2
+              id="start-tools-title"
+              className="mb-3 text-[23px] font-semibold tracking-[-0.035em] text-foreground"
+            >
               Narzędzia
             </h2>
-            <div className="mt-4 grid gap-2">
-              {[
-                { to: "/plan" as const, label: "Plan tygodnia" },
-                { to: "/lab" as const, label: "Testy i pomiary" },
-                { to: "/reakcja" as const, label: "Trener reakcji" },
-              ].map((item) => (
-                <ActionRow
-                  key={item.to}
-                  title={item.label}
-                  onClick={() => navigate({ to: item.to })}
-                />
-              ))}
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/lab" })}
+                className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
+              >
+                <span
+                  className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
+                  aria-hidden="true"
+                >
+                  <ScanLine className="h-5 w-5" strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold text-foreground">
+                    BallWise Lab
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    Testy i pomiary
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/reakcja" })}
+                className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
+              >
+                <span
+                  className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
+                  aria-hidden="true"
+                >
+                  <Move className="h-5 w-5" strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold text-foreground">
+                    Bodźce boiskowe
+                  </span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">
+                    Kierunki i kolory
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              </button>
             </div>
           </section>
         </div>
-      </section>
+      </main>
       <DailyPlanCheckinDialog
         open={checkinOpen}
         onOpenChange={setCheckinOpen}
@@ -910,15 +955,14 @@ function StartScreen() {
               >
                 {pendingRescue.alternative.dayName}
               </Button>
-              <Button
+              <button
                 type="button"
-                variant="ghost"
                 disabled={savingAction}
                 onClick={() => setPendingRescue(null)}
-                className="text-muted-foreground"
+                className="px-3 py-2 text-sm font-medium text-muted-foreground"
               >
                 Nie nadrabiaj
-              </Button>
+              </button>
             </div>
           )}
         </DialogContent>

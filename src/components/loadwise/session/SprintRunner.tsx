@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -12,11 +12,12 @@ import {
 } from "@/lib/loadwise/sessionPresentation";
 import {
   buildSprintRunnerBlocks,
+  resolveSprintExerciseDetails,
   SPRINT_RUNNER_CONTAINER_CLASS,
   type SprintExerciseView,
 } from "@/lib/loadwise/sprintPresentation";
+import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
-import { Button } from "@/components/ui/button";
 
 function SprintExerciseRow({
   view,
@@ -31,6 +32,7 @@ function SprintExerciseRow({
   onUnavailable: () => void;
   equipmentIds: string[];
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [restRunning, setRestRunning] = useState(false);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
@@ -38,89 +40,113 @@ function SprintExerciseRow({
   restSecondsRef.current = restSeconds;
   useEffect(() => {
     if (!restRunning || restSecondsRef.current === null) return;
-    const timer = window.setInterval(
-      () =>
-        setRestSeconds((current) => {
-          if (current === null || current <= 1) {
-            setRestRunning(false);
-            return null;
-          }
-          return current - 1;
-        }),
-      1000,
-    );
+    const timer = window.setInterval(() => {
+      setRestSeconds((current) => {
+        if (current === null || current <= 1) {
+          setRestRunning(false);
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [restRunning]);
-  const rest = restLabel(view.exercise);
+  const exercise = view.exercise;
+  const rest = restLabel(exercise);
+  const details = resolveSprintExerciseDetails(exercise);
+  const equipmentNames = equipmentNamesFor(equipmentIds);
   return (
-    <div className="py-3">
-      <div className="flex items-start gap-3">
+    <div className="py-2">
+      <div className="flex items-start gap-2.5">
         <button
           type="button"
           onClick={onToggle}
+          className="-ml-2 flex h-11 w-11 shrink-0 items-start justify-center pt-[11px]"
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
           aria-pressed={done}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${done ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}
         >
-          {done ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <span className="h-2.5 w-2.5 rounded-full bg-border" aria-hidden="true" />
-          )}
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${done ? "bg-primary" : "bg-border"}`}
+            aria-hidden="true"
+          />
         </button>
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            onClick={() => setDetailSheetOpen(true)}
-            className="flex min-h-11 w-full items-start gap-3 py-1 text-left"
+            onClick={() => setExpanded((current) => !current)}
+            className="flex min-h-11 w-full items-start gap-2 py-2 text-left"
+            aria-expanded={expanded}
           >
             <span
-              className={`min-w-0 flex-1 text-base font-semibold leading-snug ${done ? "text-muted-foreground line-through" : "text-foreground"}`}
+              className={`min-w-0 flex-1 text-sm font-semibold leading-5 ${
+                done ? "text-muted-foreground line-through" : "text-foreground"
+              }`}
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
             >
               {view.canonicalName}
             </span>
             <ChevronRight
-              className="mt-1 h-4 w-4 shrink-0 text-muted-foreground"
-              aria-hidden="true"
+              className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground ${expanded ? "rotate-90" : ""}`}
             />
           </button>
           {view.prescription && (
-            <p className="mt-1 text-sm font-medium tabular-nums">{view.prescription}</p>
+            <div className="mt-1 text-xs font-medium tabular-nums text-foreground/80">
+              {view.prescription}
+            </div>
           )}
           {view.showSkipSetLabels && (
-            <p className="mt-2 text-sm text-muted-foreground">1 z add-step · 2 bez add-step</p>
+            <div className="mt-1 flex gap-1.5">
+              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                1 Z ADD-STEP
+              </span>
+              <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                2 BEZ ADD-STEP
+              </span>
+            </div>
           )}
           {!done && equipmentIds.length > 0 && (
-            <Button variant="ghost" onClick={onUnavailable}>
-              Nie mam {equipmentNamesFor(equipmentIds).join(", ")}
-            </Button>
+            <button
+              type="button"
+              onClick={onUnavailable}
+              className="mt-1 text-[11px] font-medium text-primary"
+            >
+              Nie mam {equipmentNames.join(", ")}
+            </button>
           )}
           {rest && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
               <span>{rest}</span>
-              <Button
-                variant="ghost"
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-primary"
                 onClick={() => {
                   if (restRunning) {
                     setRestRunning(false);
                     return;
                   }
-                  setRestSeconds((current) => current ?? restSecondsFromLabel(rest));
+                  const seconds = restSecondsFromLabel(rest);
+                  setRestSeconds((current) => current ?? seconds);
                   setRestRunning(true);
                 }}
               >
                 {restRunning ? "Pauza" : "Start"}
-              </Button>
+              </button>
               {restRunning && (
-                <Button
-                  variant="ghost"
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center rounded-lg px-2 text-muted-foreground"
                   onClick={() => {
                     setRestRunning(false);
                     setRestSeconds(null);
                   }}
                 >
                   Reset
-                </Button>
+                </button>
               )}
               {restSeconds !== null && (
                 <span className="tabular-nums" role="timer" aria-live="polite">
@@ -129,10 +155,72 @@ function SprintExerciseRow({
               )}
             </div>
           )}
+          {expanded && (
+            <div className="mt-2 space-y-2 border-l border-border pl-3 text-xs">
+              {details.purpose && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Cel</div>
+                  <p className="mt-1 text-sm leading-relaxed text-foreground">{details.purpose}</p>
+                </div>
+              )}
+              {details.howTo && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Jak wykonać</div>
+                  <p className="mt-1 leading-relaxed text-foreground">{details.howTo}</p>
+                </div>
+              )}
+              {details.cues.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Wskazówki</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {details.cues.map((cue, i) => (
+                      <li key={i}>{cue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {details.errors.length > 0 && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Błędy</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {details.errors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {details.safety && (
+                <div>
+                  <div className="font-semibold text-muted-foreground">Bezpieczeństwo</div>
+                  <p className="mt-1 leading-relaxed text-foreground">{details.safety}</p>
+                </div>
+              )}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <div className="font-semibold text-muted-foreground">Sprzęt</div>
+                  <p className="mt-1 leading-relaxed text-foreground">{details.equipment}</p>
+                </div>
+                <div>
+                  <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
+                  <p className="mt-1 leading-relaxed text-foreground">
+                    {details.noEquipmentReplacement}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailSheetOpen(true)}
+                className="text-[11px] font-semibold text-primary"
+              >
+                Otwórz pełne szczegóły ćwiczenia
+              </button>
+              <MovementBlueprint exercise={exercise} />
+            </div>
+          )}
         </div>
       </div>
       <ExerciseDetailSheet
-        exercise={view.exercise}
+        exercise={exercise}
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
       />
@@ -195,6 +283,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
     window.localStorage.setItem(progressKey, JSON.stringify({ done, started, currentBlockIdx }));
   }, [currentBlockIdx, done, progressKey, started]);
 
+  const mdRelation = session.mdLabel ?? session.mdRelation ?? "—";
   const equipmentPool = equipmentNamesFor(
     Array.from(
       new Set(
@@ -220,9 +309,20 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
 
   return (
     <div className={SPRINT_RUNNER_CONTAINER_CLASS}>
-      <p className="text-sm text-muted-foreground">
-        Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}
-      </p>
+      <div className="rounded-lg border border-border bg-card px-3 py-3">
+        <div className="text-xs text-muted-foreground">Cel</div>
+        <div className="text-sm font-semibold text-foreground">
+          {session.goalOfSession || session.goalLabel}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div>Czas: {session.durationMin} min</div>
+          <div>Intensywność: {session.intensity}</div>
+          <div className="col-span-2">
+            Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}
+          </div>
+          <div className="col-span-2">Relacja MD: {mdRelation}</div>
+        </div>
+      </div>
 
       <div className="space-y-2">
         {blocks.map((block, index) => {
@@ -231,7 +331,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
           const exerciseCount = block.exercises.length;
           const completedCount = block.exercises.filter((exercise) => done[exercise.id]).length;
           return (
-            <div key={block.key} className="bw-section">
+            <div key={block.key} className="rounded-lg border border-border bg-card px-3 py-2">
               <button
                 type="button"
                 onClick={() => {
@@ -242,36 +342,37 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                     }));
                   }
                 }}
-                className="grid min-h-12 w-full grid-cols-[1.75rem_minmax(0,1fr)_auto_1rem] items-center gap-2 py-2 text-left"
-                aria-expanded={Boolean(isExpanded)}
+                className="flex w-full items-center gap-2 text-left"
               >
-                <span className="self-start text-base font-semibold text-foreground">
+                <span className="w-7 shrink-0 text-base font-bold text-foreground">
                   {block.index}
                 </span>
-                <span className="min-w-0">
-                  <span className="bw-section-title block text-foreground">{block.title}</span>
-                  {!isExpanded && (
-                    <span
-                      className={`mt-1 block text-sm ${block.hasDataError ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-                    >
-                      {block.hasDataError ? "Błąd danych sesji" : `~${block.estimatedMin} min`}
-                    </span>
-                  )}
+                <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+                  {block.title}
                 </span>
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                   {completedCount}/{exerciseCount}
                 </span>
+                {!isExpanded && (
+                  <span
+                    className={`text-[11px] ${block.hasDataError ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {block.hasDataError
+                      ? "Błąd danych sesji"
+                      : `${exerciseCount} ćw. · ~${block.estimatedMin} min`}
+                  </span>
+                )}
                 <ChevronRight
                   className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
                 />
               </button>
               {isExpanded && block.hasDataError && (
-                <div className="mt-2 text-sm font-medium text-destructive">
+                <div className="mt-2 text-xs font-medium text-destructive">
                   Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
                 </div>
               )}
               {isExpanded && (
-                <div className="mt-4 space-y-3">
+                <div className="mt-2 divide-y divide-border/50">
                   {block.exercises.map((item) => {
                     const definition = resolveDefinitionForExercise(item.exercise);
                     const equipmentIds = specialistEquipmentForExercise(definition);
@@ -302,8 +403,9 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
       </div>
 
       {!finished && (
-        <div className="sticky bottom-[var(--app-nav-clearance)] z-20 bg-background py-3">
-          <Button
+        <div className="sticky bottom-3 z-20">
+          <button
+            type="button"
             disabled={actionDisabled}
             onClick={() => {
               if (!started) {
@@ -317,12 +419,12 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
               setFinished(true);
               onFinish();
             }}
-            className="w-full"
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-45"
           >
             {actionLabel}
-          </Button>
+          </button>
           {actionDisabled && (
-            <div className="mt-3 text-sm text-muted-foreground">
+            <div className="mt-1.5 rounded-md bg-card/95 px-3 py-1.5 text-center text-[11px] text-muted-foreground shadow-sm">
               Oznacz wszystkie ćwiczenia bieżącego bloku jako wykonane.
             </div>
           )}
