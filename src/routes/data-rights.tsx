@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, FileDown, Trash2, ShieldOff, HeartOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/lib/loadwise/auth";
 import { recordConsentDecision } from "@/lib/loadwise/consent";
 import { MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
