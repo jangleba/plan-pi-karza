@@ -53,7 +53,10 @@ function DataRights() {
         exported_at: new Date().toISOString(),
       };
       for (const t of USER_TABLES) {
-        const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
+        const { data, error } = await supabase
+          .from(t as keyof Database["public"]["Tables"])
+          .select("*")
+          .eq("user_id", user.id);
         if (error) throw error;
         bundle[t] = data ?? [];
       }
