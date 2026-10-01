@@ -53,7 +53,14 @@ function DataRights() {
         exported_at: new Date().toISOString(),
       };
       for (const t of USER_TABLES) {
-        const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
+        // Tabele mają różne kształty wierszy; każda zawiera kolumnę user_id.
+        const { data, error } = await (supabase.from(t) as unknown as {
+          select: (c: string) => {
+            eq: (col: string, v: string) => Promise<{ data: unknown[] | null; error: Error | null }>;
+          };
+        })
+          .select("*")
+          .eq("user_id", user.id);
         if (error) throw error;
         bundle[t] = data ?? [];
       }
