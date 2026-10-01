@@ -52,7 +52,8 @@ function DataRights() {
         account: { id: user.id, email: user.email },
         exported_at: new Date().toISOString(),
       };
-        const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
+        for (const t of USER_TABLES) {
+          const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
         if (error) throw error;
         bundle[t] = data ?? [];
       }
