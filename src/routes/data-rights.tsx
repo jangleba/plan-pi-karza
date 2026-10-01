@@ -52,11 +52,11 @@ function DataRights() {
         account: { id: user.id, email: user.email },
         exported_at: new Date().toISOString(),
       };
-        for (const t of USER_TABLES) {
-          const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
-          if (error) throw error;
-          bundle[t] = data ?? [];
-        }
+      for (const t of USER_TABLES) {
+        const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
+        if (error) throw error;
+        bundle[t] = data ?? [];
+      }
       const blob = new Blob([JSON.stringify(bundle, null, 2)], {
         type: "application/json",
       });
