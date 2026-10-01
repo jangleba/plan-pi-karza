@@ -197,7 +197,7 @@ Deno.serve(async (request) => {
   });
   const { data: quotaData, error: quotaError } = await serviceClient
     .rpc("consume_fuel_photo_quota", { p_user_id: authData.user.id })
-    .maybeSingle<{ allowed: boolean; retry_after_seconds: number | null }>();
+    .maybeSingle();
   if (quotaError || !quotaData) {
     console.error("Fuel photo quota check failed", { code: quotaError?.code ?? "missing_result" });
     return json(request, 503, { error: "quota_check_unavailable" });
