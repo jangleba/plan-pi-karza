@@ -1,13 +1,13 @@
-import { applyActions, getLine, interpolate } from "./playback";
+import { applyActions, interpolate } from "./playback";
 import { useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { clampPoint } from "./engine";
+import { canAppendAction, canAppendPlannedAction, canUseParticipant } from "./planRules";
 import { PlayerFigure } from "./PlayerFigure";
-import type { ActionMode, BallState, MatchPlayer, Phase, PlannedAction, PlannedMove, Point, UserPlan } from "./types";
+import type { BallState, MatchPlayer, Phase, PlannedAction, Point, UserPlan } from "./types";
 
 type DragState =
   | { pointerId: number; type: "player"; id: string; start: Point; current: Point }
-  | { pointerId: number; type: "group"; id: string; start: Point; current: Point; moves: PlannedMove[] }
   | { pointerId: number; type: "ball"; start: Point; current: Point }
   | null;
 
@@ -16,7 +16,6 @@ type Props = {
   ball: BallState;
   plan: UserPlan;
   phase: Phase;
-  mode: ActionMode;
   progress: number;
   playbackProgress: number;
   onPlanChange: (plan: UserPlan) => void;
@@ -77,7 +76,6 @@ export function Pitch2DFallback({
   ball,
   plan: userPlan,
   phase,
-  mode,
   progress,
   playbackProgress,
   onPlanChange: commitPlan,
@@ -94,12 +92,21 @@ export function Pitch2DFallback({
 
   const appendAction = (action: DraftAction) => {
     const order = userPlan.actions.reduce((maximum, item) => Math.max(maximum, item.order), 0) + 1;
+    const candidate = {
+      ...action,
+      id: `fallback-${action.type}-${Date.now().toString(36)}`,
+      order,
+    } as PlannedAction;
+    const controlledPlayerId = players.find((player) => player.controlled)?.id ?? "";
+    const allowance = canAppendPlannedAction(userPlan.actions, candidate, controlledPlayerId);
+    if (!allowance.allowed) {
+      onHint(allowance.message);
+      navigator.vibrate?.(22);
+      return null;
+    }
     commitPlan({
       ...userPlan,
-      actions: [
-        ...userPlan.actions,
-        { ...action, id: `fallback-${action.type}-${Date.now().toString(36)}`, order } as PlannedAction,
-      ],
+      actions: [...userPlan.actions, candidate],
     });
     return order;
   };
@@ -125,7 +132,7 @@ export function Pitch2DFallback({
     });
     const globalProgress = phase === "playback"
       ? playbackProgress
-      : ["plan", "intent", "feedback", "compare"].includes(phase) ? 1 : 0;
+      : ["plan", "feedback", "compare"].includes(phase) ? 1 : 0;
     const logicalBall = applyActions(
       map, ball, actions, globalProgress, players,
       ["playback", "feedback", "compare"].includes(phase),
@@ -137,32 +144,46 @@ export function Pitch2DFallback({
   const ballPosition = drag?.type === "ball" ? drag.current : frame.ball;
 
   const startPlayerDrag = (event: ReactPointerEvent<SVGGElement>, player: MatchPlayer) => {
-    if (!editable || mode === "pass" || player.team !== "home" || userPlan.actions.length >= 8) return;
+    if (!editable || player.team !== "home") return;
+    const allowance = canAppendAction(userPlan.actions, "run");
+    if (!allowance.allowed) {
+      onHint(allowance.message);
+      navigator.vibrate?.(22);
+      return;
+    }
+    const controlledPlayerId = players.find((item) => item.controlled)?.id ?? "";
+    const participantAllowance = canUseParticipant(userPlan.actions, player.id, controlledPlayerId);
+    if (!participantAllowance.allowed) {
+      onHint(participantAllowance.message);
+      navigator.vibrate?.(22);
+      return;
+    }
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const current = positions.get(player.id) ?? player;
-    if (mode === "group") {
-      const line = getLine(player.role);
-      const moves = players
-        .filter((item) => item.team === "home" && !item.goalkeeper && getLine(item.role) === line)
-        .map((item) => {
-          const from = positions.get(item.id) ?? item;
-          return { playerId: item.id, from: { ...from }, to: { ...from } };
-        });
-      setDrag({ pointerId: event.pointerId, type: "group", id: player.id, start: current, current, moves });
-      onHint(`Przesuwasz całą linię: ${line === "defence" ? "obrona" : line === "midfield" ? "pomoc" : "atak"}`);
-    } else {
-      setDrag({ pointerId: event.pointerId, type: "player", id: player.id, start: current, current });
-      onHint(player.controlled ? "Przeciągnij TY w wybraną przestrzeń" : "Dodajesz ruch wspierający");
-    }
+    setDrag({ pointerId: event.pointerId, type: "player", id: player.id, start: current, current });
+    onHint(player.controlled ? "Przeciągnij TY w wybraną przestrzeń" : "Dodajesz ruch wspierający");
     navigator.vibrate?.(8);
   };
 
   const startBallDrag = (event: ReactPointerEvent<SVGCircleElement>) => {
-    if (!editable || mode !== "pass" || userPlan.actions.length >= 8) return;
+    if (!editable) return;
+    const allowance = canAppendAction(userPlan.actions, "pass");
+    if (!allowance.allowed) {
+      onHint(allowance.message);
+      navigator.vibrate?.(22);
+      return;
+    }
     const carrier = players.find((player) => player.id === ball.carrierId);
     if (carrier && carrier.team !== "home") {
       onHint("Rywal ma piłkę — zaplanuj pressing albo zabezpieczenie");
+      return;
+    }
+    const controlledPlayerId = players.find((player) => player.controlled)?.id ?? "";
+    const participantAllowance = canUseParticipant(userPlan.actions, carrier?.id, controlledPlayerId);
+    if (!participantAllowance.allowed) {
+      onHint(participantAllowance.message);
+      navigator.vibrate?.(22);
       return;
     }
     event.preventDefault();
@@ -182,23 +203,8 @@ export function Pitch2DFallback({
       const movedEnough = Math.hypot(drag.current.x - drag.start.x, drag.current.y - drag.start.y) > 3;
       if (movedEnough) {
         const order = appendAction({ type: "run", moves: [{ playerId: drag.id, from: drag.start, to: drag.current }] });
-        onHint(`Ruch zapisany jako krok ${order}`);
+        if (order) onHint(`Ruch zapisany jako krok ${order}`);
       } else onHint("Przeciągnij dalej, aby zapisać ruch");
-    } else if (drag.type === "group") {
-      const dx = drag.current.x - drag.start.x;
-      const dy = drag.current.y - drag.start.y;
-      const movedEnough = Math.hypot(dx, dy) > 3;
-      if (movedEnough) {
-        const order = appendAction({
-          type: "group",
-          moves: drag.moves.map((move) => ({
-            playerId: move.playerId,
-            from: move.from,
-            to: clampPoint({ x: move.from.x + dx, y: move.from.y + dy }),
-          })),
-        });
-        onHint(`Przesunięcie linii zapisane jako krok ${order}`);
-      } else onHint("Przeciągnij dalej, aby przesunąć linię");
     } else {
       const movedEnough = Math.hypot(drag.current.x - drag.start.x, drag.current.y - drag.start.y) > 3;
       if (!movedEnough) {
@@ -206,9 +212,16 @@ export function Pitch2DFallback({
         setDrag(null);
         return;
       }
-      const receiver = players.filter((player) => player.team === "home").find((player) => {
+      let receiver: MatchPlayer | undefined;
+      let receiverDistance = 7;
+      players.forEach((player) => {
+        if (player.team !== "home") return;
         const pos = positions.get(player.id) ?? player;
-        return Math.hypot(pos.x - drag.current.x, pos.y - drag.current.y) < 7;
+        const distanceToPlayer = Math.hypot(pos.x - drag.current.x, pos.y - drag.current.y);
+        if (distanceToPlayer < receiverDistance) {
+          receiver = player;
+          receiverDistance = distanceToPlayer;
+        }
       });
       const target = receiver ? positions.get(receiver.id) ?? receiver : drag.current;
       const order = appendAction({
@@ -218,7 +231,7 @@ export function Pitch2DFallback({
         passerId: ball.carrierId,
         receiverId: receiver?.id,
       });
-      onHint(receiver ? `Podanie do numeru ${receiver.number} zapisane jako krok ${order}` : `Podanie w przestrzeń zapisane jako krok ${order}`);
+      if (order) onHint(receiver ? `Podanie do numeru ${receiver.number} zapisane jako krok ${order}` : `Podanie w przestrzeń zapisane jako krok ${order}`);
     }
     navigator.vibrate?.(18);
     setDrag(null);
@@ -313,7 +326,7 @@ export function Pitch2DFallback({
           const target = project(move.to);
           return (
             <g key={`${action.id}-${move.playerId}`} className="bwiq-route">
-              <path d={sampledLine(move.from, move.to)} fill="none" stroke={action.type === "group" ? "#c4e4f8" : "#e5f5ff"} strokeWidth="1.05" strokeDasharray=".01 2.25" strokeLinecap="round" />
+              <path d={sampledLine(move.from, move.to)} fill="none" stroke="#e5f5ff" strokeWidth="1.05" strokeDasharray=".01 2.25" strokeLinecap="round" />
               <circle cx={target.x} cy={target.y} r="1.45" fill="#8bc9ff" stroke="white" strokeWidth=".35" />
               {moveIndex === 0 && <text x={target.x + 2} y={target.y - 1} fill="white" fontSize="2.4" fontWeight="850">{action.order}</text>}
             </g>
@@ -333,17 +346,10 @@ export function Pitch2DFallback({
 
         <g filter="url(#bwiq-shadow)">
           {renderedPlayers.map((player) => {
-            const groupMove = drag?.type === "group" ? drag.moves.find((move) => move.playerId === player.id) : undefined;
             const logical = drag?.type === "player" && drag.id === player.id
               ? drag.current
-              : drag?.type === "group" && groupMove
-                ? clampPoint({
-                    x: groupMove.from.x + drag.current.x - drag.start.x,
-                    y: groupMove.from.y + drag.current.y - drag.start.y,
-                  })
-                : positions.get(player.id) ?? player;
-            const selected = drag?.type === "player" && drag.id === player.id
-              || drag?.type === "group" && Boolean(groupMove);
+              : positions.get(player.id) ?? player;
+            const selected = drag?.type === "player" && drag.id === player.id;
             const visible = project(logical);
             return (
               <PlayerFigure
@@ -361,9 +367,9 @@ export function Pitch2DFallback({
           })}
         </g>
         <g className="bwiq-ball" transform={`translate(${projectedBall.x} ${projectedBall.y}) scale(${scaleAt(ballPosition)})`}>
-          <circle r="5.5" fill="transparent" onPointerDown={startBallDrag} />
+          <circle r="6.4" fill="transparent" onPointerDown={startBallDrag} />
           <ellipse cx=".4" cy="1.05" rx="1.55" ry=".65" fill="#03120d" opacity=".3" />
-          <circle r="1.28" fill="white" stroke="#10253e" strokeWidth=".35" />
+          <circle r="1.55" fill="white" stroke="#10253e" strokeWidth=".45" />
           <path d="M0-.55 L.55-.15 L.35.5 L-.35.5 L-.55-.15 Z" fill="#10253e" />
         </g>
       </svg>
