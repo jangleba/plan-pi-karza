@@ -1,5 +1,7 @@
 import type {
   Evaluation,
+  EvaluationLevel,
+  EvaluationMetric,
   EvaluationMetrics,
   MatchPlayer,
   PlannedAction,
@@ -36,7 +38,7 @@ const pointToSegment = (point: Point, start: Point, end: Point) => {
 };
 
 const movementActions = (actions: PlannedAction[]) =>
-  actions.filter((action): action is Extract<PlannedAction, { type: "run" | "group" }> => action.type !== "pass");
+  actions.filter((action): action is Extract<PlannedAction, { type: "run" }> => action.type === "run");
 
 const passActions = (actions: PlannedAction[]) =>
   actions.filter((action): action is PlannedPassAction => action.type === "pass");
@@ -141,12 +143,10 @@ const measureTiming = (scenario: Scenario, actions: PlannedAction[], passes: Pla
 };
 
 const measureRisk = (
-  scenario: Scenario,
   moves: PlannedMove[],
   passes: PlannedPassAction[],
   opponents: MatchPlayer[],
   actionCount: number,
-  intent: UserPlan["intent"],
 ) => {
   const laneSafety = passes.length
     ? average(passes.map((pass) => Math.min(100, corridorClearance(pass, opponents) * 10)))
@@ -154,12 +154,11 @@ const measureRisk = (
   const moveSafety = moves.length
     ? average(moves.map((move) => Math.min(100, opponentClearance(move.to, opponents) * 7.5)))
     : 62;
-  const excessiveComplexity = Math.max(0, actionCount - 5) * 7;
-  const secureIntentBonus = intent === "secure" && scenario.acceptedIntents.includes("secure") ? 7 : 0;
-  return score(laneSafety * 0.55 + moveSafety * 0.45 + secureIntentBonus - excessiveComplexity);
+  const excessiveComplexity = Math.max(0, actionCount - 3) * 10;
+  return score(laneSafety * 0.55 + moveSafety * 0.45 - excessiveComplexity);
 };
 
-const measureStructure = (scenario: Scenario, moves: PlannedMove[], actions: PlannedAction[], home: MatchPlayer[]) => {
+const measureStructure = (scenario: Scenario, moves: PlannedMove[], home: MatchPlayer[]) => {
   if (!moves.length) return scenario.preferredRunZones.length ? 14 : 45;
   const distinctMoves = uniqueMoves(moves);
   const endpoints = home.map((player) => endpointFor(player, moves));
@@ -170,25 +169,34 @@ const measureStructure = (scenario: Scenario, moves: PlannedMove[], actions: Pla
       }))
     : 50;
   const support = Math.min(100, 44 + Math.max(0, distinctMoves.length - 1) * 24);
-  const groupAction = actions.some((action) => action.type === "group");
-  const coordination = groupAction ? 96 : distinctMoves.length > 1 ? 78 : 48;
-  const defensiveCoordination = ["counterpress", "defensive-cover"].includes(scenario.id) && groupAction ? 8 : 0;
+  const coordination = distinctMoves.length > 1 ? 82 : 52;
+  const defensiveCoordination = ["counterpress", "defensive-cover"].includes(scenario.id) && distinctMoves.length > 1 ? 6 : 0;
   return score(spacing * 0.34 + support * 0.36 + coordination * 0.3 + defensiveCoordination);
 };
 
-const lowestMetric = (metrics: EvaluationMetrics) =>
-  (Object.entries(metrics) as Array<[keyof EvaluationMetrics, number]>).sort((left, right) => left[1] - right[1])[0][0];
+type SignalKey = keyof EvaluationMetrics;
+type SignalValues = Record<SignalKey, number>;
 
-const recommendationFor = (metric: keyof EvaluationMetrics, scenario: Scenario) => {
-  const recommendations: Record<keyof EvaluationMetrics, string> = {
-    space: "Zanim ustawisz kierunek, znajdź strefę poza cieniem krycia i zakończ ruch w wolnej przestrzeni.",
+const recommendationFor = (metric: SignalKey, scenario: Scenario) => {
+  const recommendations: Record<SignalKey, string> = {
     timing: "Ułóż wyraźną kolejność: ruch otwierający, reakcja rywala, a dopiero potem zagranie.",
-    passing: "Skoryguj cel lub moment podania tak, aby linia nie przechodziła przez zasięg najbliższego rywala.",
-    risk: "Zachowaj rozwiązanie awaryjne i zabezpieczenie za piłką na wypadek przechwytu.",
-    structure: "Dodaj ruch partnera, ale utrzymaj odległości — dwóch zawodników nie powinno atakować tej samej strefy.",
+    spatialDecision: "Najpierw znajdź strefę poza cieniem krycia, a potem otwórz ją ruchem swoim lub partnera.",
+    consequence: "Skoryguj kierunek lub moment ostatniej akcji tak, aby rywal nie mógł zamknąć jej jednym ruchem.",
   };
   return `${recommendations[metric]} Zasada: ${scenario.coachPrinciple}`;
 };
+
+const levelFor = (value: number, strongAt = 72, conditionalAt = 48): EvaluationLevel =>
+  value >= strongAt ? "strong" : value >= conditionalAt ? "conditional" : "risky";
+
+const makeMetric = (level: EvaluationLevel, labels: Record<EvaluationLevel, string>, detail: string): EvaluationMetric => ({
+  level,
+  label: labels[level],
+  detail,
+});
+
+const weakestSignal = (values: SignalValues) =>
+  (Object.entries(values) as Array<[SignalKey, number]>).sort((left, right) => left[1] - right[1])[0][0];
 
 export const evaluatePlan = (scenario: Scenario, plan: UserPlan): Evaluation => {
   const actions = orderedActions(plan.actions);
@@ -198,77 +206,104 @@ export const evaluatePlan = (scenario: Scenario, plan: UserPlan): Evaluation => 
   const home = scenario.players.filter((player) => player.team === "home");
   const opponents = scenario.players.filter((player) => player.team === "away");
   const interceptedPass = passes.some((pass) => analyzePassLane(pass, opponents).clearance < 3.4);
-
-  const metrics: EvaluationMetrics = {
-    space: measureSpace(scenario, moves, passes, opponents),
-    timing: measureTiming(scenario, actions, passes),
-    passing: measurePassing(scenario, passes, opponents),
-    risk: measureRisk(scenario, moves, passes, opponents, actions.length, plan.intent),
-    structure: measureStructure(scenario, moves, actions, home),
-  };
-
-  const intentFit = plan.intent
-    ? scenario.acceptedIntents.includes(plan.intent) ? 100 : 42
-    : 55;
+  const spaceSignal = measureSpace(scenario, moves, passes, opponents);
+  const timingSignal = measureTiming(scenario, actions, passes);
+  const passingSignal = measurePassing(scenario, passes, opponents);
+  const riskSignal = measureRisk(moves, passes, opponents, actions.length);
+  const structureSignal = measureStructure(scenario, moves, home);
   const hasControlledMove = moves.some((move) => move.playerId === scenario.controlledPlayerId);
   const involvement = hasControlledMove || passes.some((pass) => pass.passerId === scenario.controlledPlayerId) ? 100 : 44;
-  const finalScore = score(
-    metrics.space * 0.24 +
-    metrics.timing * 0.19 +
-    metrics.passing * 0.2 +
-    metrics.risk * 0.17 +
-    metrics.structure * 0.14 +
-    intentFit * 0.04 +
-    involvement * 0.02,
-  );
+  const signalValues: SignalValues = {
+    timing: timingSignal,
+    spatialDecision: score(spaceSignal * 0.68 + structureSignal * 0.32),
+    consequence: interceptedPass ? 0 : score(passingSignal * 0.45 + riskSignal * 0.4 + involvement * 0.15),
+  };
+
+  const timingLevel = actions.length ? levelFor(signalValues.timing) : "risky";
+  const spatialLevel = actions.length ? levelFor(signalValues.spatialDecision, 70, 46) : "risky";
+  const consequenceLevel = actions.length && !interceptedPass
+    ? levelFor(signalValues.consequence, 70, 48)
+    : "risky";
+
+  const consequenceLabels: Record<EvaluationLevel, string> = {
+    strong: ["counterpress", "defensive-cover"].includes(scenario.id)
+      ? "ogranicza zagrożenie"
+      : passes.length ? "utrzymuje przewagę" : "zmusza rywala do reakcji",
+    conditional: "rywal ma jeszcze odpowiedź",
+    risky: interceptedPass ? "strata po przechwycie" : "brak przewagi po akcji",
+  };
+
+  const metrics: EvaluationMetrics = {
+    timing: makeMetric(timingLevel, {
+      strong: "dobry moment",
+      conditional: "kolejność do dopracowania",
+      risky: "brak czytelnej sekwencji",
+    }, timingLevel === "strong"
+      ? "Ruch i zagranie pojawiają się w logicznej kolejności."
+      : "Moment kolejnej akcji nie wykorzystuje jeszcze pełnej reakcji rywala."),
+    spatialDecision: makeMetric(spatialLevel, {
+      strong: "tworzy przewagę",
+      conditional: "otwiera część przestrzeni",
+      risky: "rywal kontroluje strefę",
+    }, spatialLevel === "strong"
+      ? "Plan kieruje akcję poza bezpośrednią kontrolę bloku."
+      : "Końcowa strefa pozostaje w zasięgu przesunięcia rywala."),
+    consequence: makeMetric(consequenceLevel, consequenceLabels, interceptedPass
+      ? "Najbliższy rywal przecina tor piłki i przejmuje posiadanie."
+      : consequenceLevel === "strong"
+        ? "Po ostatniej akcji zespół zachowuje inicjatywę."
+        : "Rywal może zamknąć akcję bez utraty ustawienia."),
+  };
+
+  const levels = Object.values(metrics).map((metric) => metric.level);
+  const strongCount = levels.filter((level) => level === "strong").length;
+  const riskyCount = levels.filter((level) => level === "risky").length;
+  const verdict: EvaluationLevel = !actions.length || interceptedPass || riskyCount >= 2
+    ? "risky"
+    : strongCount >= 2 && riskyCount === 0
+      ? "strong"
+      : "conditional";
 
   const strengths: string[] = [];
   const issues: string[] = [];
-  if (metrics.space >= 70) strengths.push("Plan wykorzystuje przestrzeń, której rywal nie kontroluje.");
-  else if (metrics.space < 48) issues.push("Końcowa strefa ruchu pozostaje w zasięgu bloku rywala.");
-  if (metrics.timing >= 72) strengths.push("Kolejność działań tworzy czytelny bodziec i właściwy moment zagrania.");
-  else if (metrics.timing < 48) issues.push("Ruch i podanie nie mają jeszcze logicznej kolejności.");
-  if (metrics.passing >= 72) strengths.push("Linia podania omija bezpośredni zasięg przechwytu.");
-  else if (metrics.passing < 48 && scenario.preferredPassZones.length) issues.push("Linia lub cel podania ułatwia rywalowi zamknięcie akcji.");
+  if (spatialLevel === "strong") strengths.push("Plan wykorzystuje przestrzeń, której rywal nie kontroluje.");
+  else if (spatialLevel === "risky") issues.push("Końcowa strefa ruchu pozostaje w zasięgu bloku rywala.");
+  if (timingLevel === "strong") strengths.push("Kolejność działań tworzy właściwy moment zagrania.");
+  else if (timingLevel === "risky") issues.push("Ruch i podanie nie mają jeszcze logicznej kolejności.");
+  if (passingSignal >= 72 && passes.length) strengths.push("Linia podania omija bezpośredni zasięg przechwytu.");
+  else if (passingSignal < 48 && scenario.preferredPassZones.length) issues.push("Linia lub cel podania ułatwia rywalowi zamknięcie akcji.");
   if (interceptedPass) issues.push("Rywal znajduje się w torze piłki i przechwytuje zaplanowane podanie.");
-  if (metrics.risk >= 70) strengths.push("Po decyzji pozostaje kontrola nad możliwą stratą.");
-  else if (metrics.risk < 48) issues.push("Plan nie daje wystarczającego zabezpieczenia po możliwej stracie.");
-  if (metrics.structure >= 70) strengths.push("Ruchy partnerów zachowują odległości i wspierają posiadacza piłki.");
-  else if (metrics.structure < 48) issues.push("Zespół potrzebuje ruchu wspierającego lub lepszych odległości.");
-  if (plan.intent && !scenario.acceptedIntents.includes(plan.intent)) {
-    issues.push("Wybrana intencja nie odpowiada największej przewadze w tej sytuacji.");
-  }
+  if (riskSignal >= 70) strengths.push("Po decyzji pozostaje kontrola nad możliwą stratą.");
+  else if (riskSignal < 48) issues.push("Plan nie daje wystarczającego zabezpieczenia po możliwej stracie.");
+  if (structureSignal >= 70) strengths.push("Ruchy partnerów zachowują odległości i wspierają posiadacza piłki.");
+  else if (structureSignal < 48) issues.push("Zespół potrzebuje ruchu wspierającego lub lepszych odległości.");
   if (!actions.length) issues.push("Nie zaplanowano jeszcze żadnego działania.");
 
-  const weakest = lowestMetric(metrics);
-  const strong = finalScore >= 76;
-  const promising = finalScore >= 52;
-  const title = strong ? "Decyzja tworzy przewagę" : promising ? "Dobry kierunek — dopracuj moment" : "Zatrzymaj i przeczytaj sytuację ponownie";
-  const summary = strong
+  const weakest = weakestSignal(signalValues);
+  const title = verdict === "strong" ? "Decyzja tworzy przewagę" : verdict === "conditional" ? "Dobry kierunek — dopracuj moment" : "Zatrzymaj i przeczytaj sytuację ponownie";
+  const summary = verdict === "strong"
     ? scenario.goodFeedback
-    : promising
+    : verdict === "conditional"
       ? `Plan ma sens taktyczny, ale rywal nadal może go ograniczyć. ${scenario.improveFeedback}`
       : scenario.improveFeedback;
 
   const reactionDetail = interceptedPass
     ? "Najbliższy rywal przecina tor piłki i kończy akcję przechwytem."
-    : passes.length && metrics.passing < 50
+    : passes.length && passingSignal < 50
       ? "Najbliższy rywal skraca linię podania i może wejść w tor piłki."
-    : moveActions.some((action) => action.type === "group")
-      ? "Blok reaguje na ruch całej grupy, więc po przeciwnej stronie otwiera się kolejne okno."
-      : moves.length > 1
+    : moves.length > 1
         ? "Drugi ruch zmusza obrońcę do wyboru pomiędzy piłką a zabezpieczeniem partnera."
         : "Rywal może skoncentrować się na jednym bodźcu, ponieważ nie musi jeszcze wybierać pomiędzy dwiema opcjami.";
 
   const tags = [
-    plan.intent ? `intencja: ${plan.intent}` : "intencja niewybrana",
     `${moves.length} ${moves.length === 1 ? "ruch" : "ruchy"}`,
     `${passes.length} ${passes.length === 1 ? "podanie" : "podania"}`,
-    moveActions.some((action) => action.type === "group") ? "koordynacja grupy" : "plan indywidualny",
+    hasControlledMove ? "własny ruch" : "ruch partnera",
   ];
 
   return {
-    score: finalScore,
+    verdict,
+    verdictLabel: verdict === "strong" ? "MOCNY WARIANT" : verdict === "conditional" ? "WARUNKOWY WARIANT" : "RYZYKOWNY WARIANT",
     title,
     summary,
     strengths: strengths.slice(0, 3),
@@ -282,7 +317,7 @@ export const evaluatePlan = (scenario: Scenario, plan: UserPlan): Evaluation => 
 
 export const buildReferencePlan = (scenario: Scenario): UserPlan => {
   const controlled = scenario.players.find((player) => player.id === scenario.controlledPlayerId);
-  if (!controlled) return { actions: [], intent: scenario.acceptedIntents[0] };
+  if (!controlled) return { actions: [] };
 
   const runTarget = scenario.preferredRunZones[0];
   const runAction: PlannedAction | undefined = runTarget
@@ -340,7 +375,7 @@ export const buildReferencePlan = (scenario: Scenario): UserPlan => {
     action.order = index + 1;
   });
 
-  return { actions: ordered, intent: scenario.acceptedIntents[0] };
+  return { actions: ordered };
 };
 
 export const emptyPlan = (): UserPlan => ({ actions: [] });
