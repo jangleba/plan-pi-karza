@@ -7,12 +7,13 @@ import playerGoalkeeperUrl from "./assets/player-goalkeeper.png";
 import playerHomeUrl from "./assets/player-home.png";
 import { applyActions, getLine, interpolate, smooth } from "./playback";
 import { Pitch2DFallback } from "./Pitch2DFallback";
-import { canAppendAction, canAppendPlannedAction, canUseParticipant } from "./planRules";
 import type {
+  ActionMode,
   BallState,
   MatchPlayer,
   Phase,
   PlannedAction,
+  PlannedMove,
   Point,
   UserPlan,
 } from "./types";
@@ -24,6 +25,7 @@ type Props = {
   phase: Phase;
   phaseStartedAt: number;
   durationMs: number;
+  mode: ActionMode;
   playbackDurationMs: number;
   onPlanChange: (plan: UserPlan) => void;
   onHint: (message: string) => void;
@@ -31,7 +33,15 @@ type Props = {
 
 type DragState =
   | { pointerId: number; type: "run"; playerId: string; start: Point; current: Point }
-  | { pointerId: number; type: "pass"; passerId?: string; start: Point; current: Point };
+  | { pointerId: number; type: "pass"; passerId?: string; start: Point; current: Point }
+  | {
+      pointerId: number;
+      type: "group";
+      playerId: string;
+      start: Point;
+      current: Point;
+      moves: PlannedMove[];
+    };
 
 type LatestProps = Props & { actions: PlannedAction[]; plannedPlayerIds: Set<string> };
 
@@ -42,7 +52,6 @@ type Runtime = {
   playerObjects: Map<string, any>;
   hitObjects: any[];
   ballMesh: any;
-  ballRing: any;
   ballHit: any;
   ballShadow: any;
   routes: any;
@@ -57,7 +66,8 @@ type Runtime = {
 
 const FIELD_WIDTH = 20.4;
 const FIELD_LENGTH = 31.5;
-const PLAYER_HEIGHT_PX = 30;
+const PLAYER_HEIGHT_PX = 26;
+const MAX_ACTIONS = 8;
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));
@@ -77,7 +87,7 @@ const elapsedFrom = (startedAt: number) => {
   return Math.max(0, now - startedAt);
 };
 
-const makeActionId = (type: PlannedAction["type"]) =>
+const makeActionId = (type: ActionMode) =>
   `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 const createPositionMap = (players: MatchPlayer[], phase: Phase, observationProgress: number) => {
@@ -294,7 +304,7 @@ const rebuildRoutes = (runtime: Runtime, plan: UserPlan) => {
           new THREE.Vector3(to.x, 0.075, to.z),
         ]),
         new THREE.LineDashedMaterial({
-          color: 0x79c3ff,
+          color: action.type === "group" ? 0xb9dcf5 : 0x79c3ff,
           dashSize: 0.28,
           gapSize: 0.15,
           transparent: true,
@@ -305,7 +315,7 @@ const rebuildRoutes = (runtime: Runtime, plan: UserPlan) => {
       line.computeLineDistances();
       line.renderOrder = 6;
       runtime.routes.add(line);
-      addArrowHead(runtime.routes, from, to, 0x79c3ff);
+      addArrowHead(runtime.routes, from, to, action.type === "group" ? 0xb9dcf5 : 0x79c3ff);
       if (moveIndex === 0) addRouteLabel(runtime, runtime.routes, action.order, interpolate(move.from, move.to, 0.17));
     });
   });
@@ -497,8 +507,8 @@ export function Pitch(props: Props) {
         const controlledLabel = player.controlled ? makeControlledLabel() : null;
         if (controlledLabel) root.add(controlledLabel);
         const hit = new THREE.Mesh(hitGeometry, invisibleMaterial);
-        hit.quaternion.copy(camera.quaternion);
-        hit.position.y = 0.72;
+        hit.rotation.x = -Math.PI / 2;
+        hit.position.y = 0.12;
         hit.userData.playerId = player.id;
         root.add(hit);
         hitObjects.push(hit);
@@ -519,13 +529,6 @@ export function Pitch(props: Props) {
       );
       ballMesh.position.y = 0.14;
       scene.add(ballMesh);
-      const ballRing = new THREE.Mesh(
-        new THREE.RingGeometry(0.16, 0.22, 24),
-        new THREE.MeshBasicMaterial({ color: 0x0b2b4f, transparent: true, opacity: 0.82, side: THREE.DoubleSide }),
-      );
-      ballRing.rotation.x = -Math.PI / 2;
-      ballRing.position.y = 0.026;
-      scene.add(ballRing);
       const ballHit = new THREE.Mesh(hitGeometry, invisibleMaterial);
       ballHit.rotation.x = -Math.PI / 2;
       ballHit.position.y = 0.13;
@@ -555,7 +558,6 @@ export function Pitch(props: Props) {
         playerObjects,
         hitObjects,
         ballMesh,
-        ballRing,
         ballHit,
         ballShadow,
         routes,
@@ -593,48 +595,36 @@ export function Pitch(props: Props) {
         const intersections = raycaster.intersectObjects(runtime.hitObjects, false);
         const latest = latestRef.current;
         const preview = getPreviewState(latest);
-        const ballObject = intersections.find((item: any) => item.object.userData.ball)?.object;
-        const playerObject = intersections.find((item: any) => {
-          const id = item.object.userData.playerId;
-          return id && latest.players.find((player) => player.id === id)?.team === "home";
-        })?.object;
-        const actionType: PlannedAction["type"] | null = ballObject ? "pass" : playerObject ? "run" : null;
-        if (!actionType) return;
-
-        const allowance = canAppendAction(latest.plan.actions, actionType);
-        if (!allowance.allowed) {
-          latest.onHint(allowance.message);
-          navigator.vibrate?.(22);
-          return;
-        }
-
-        const controlledPlayerId = latest.players.find((player) => player.controlled)?.id ?? "";
-        const participantId = actionType === "run"
-          ? playerObject.userData.playerId as string
-          : preview.ball.carrierId;
-        const participantAllowance = canUseParticipant(
-          latest.plan.actions,
-          participantId,
-          controlledPlayerId,
-        );
-        if (!participantAllowance.allowed) {
-          latest.onHint(participantAllowance.message);
-          navigator.vibrate?.(22);
-          return;
-        }
-
-        if (actionType === "pass") {
+        let hit: any;
+        if (latest.mode === "pass") {
           const carrier = latest.players.find((player) => player.id === preview.ball.carrierId);
           if (carrier && carrier.team !== "home") {
-            latest.onHint("Rywal ma piłkę — zaplanuj ruch, pressing albo zabezpieczenie");
+            latest.onHint("Rywal ma piłkę — użyj Ruchu albo Grupy, żeby zaplanować pressing i zabezpieczenie");
             navigator.vibrate?.(22);
             return;
           }
+          hit = intersections.find((item: any) =>
+            item.object.userData.ball || item.object.userData.playerId === preview.ball.carrierId,
+          )?.object;
+          if (!hit) {
+            latest.onHint("Złap piłkę albo zawodnika, który ją prowadzi");
+            return;
+          }
+        } else {
+          hit = intersections.find((item: any) => {
+            const id = item.object.userData.playerId;
+            return id && latest.players.find((player) => player.id === id)?.team === "home";
+          })?.object;
+          if (!hit) return;
+        }
+        if (latest.plan.actions.length >= MAX_ACTIONS) {
+          latest.onHint("Plan jest już pełny — cofnij jeden krok albo go odtwórz");
+          return;
         }
 
         event.preventDefault();
         runtime.renderer.domElement.setPointerCapture(event.pointerId);
-        if (actionType === "pass") {
+        if (latest.mode === "pass") {
           const start = { x: preview.ball.x, y: preview.ball.y };
           runtime.drag = {
             pointerId: event.pointerId,
@@ -645,18 +635,38 @@ export function Pitch(props: Props) {
           };
           latest.onHint("Przeciągnij piłkę do partnera albo w wolną przestrzeń");
         } else {
-          const playerId = playerObject.userData.playerId as string;
+          const playerId = hit.userData.playerId as string;
           const player = latest.players.find((item) => item.id === playerId);
           if (!player) return;
           const start = preview.positions.get(playerId) ?? { x: player.x, y: player.y };
-          runtime.drag = {
-            pointerId: event.pointerId,
-            type: "run",
-            playerId,
-            start: { ...start },
-            current: { ...start },
-          };
-          latest.onHint(player.controlled ? "Wyznacz swój bieg" : `Wyznacz ruch zawodnika nr ${player.number}`);
+          if (latest.mode === "group") {
+            const line = getLine(player.role);
+            const linePlayers = latest.players.filter(
+              (item) => item.team === "home" && !item.goalkeeper && getLine(item.role) === line,
+            );
+            const moves = linePlayers.map((item) => {
+              const from = preview.positions.get(item.id) ?? { x: item.x, y: item.y };
+              return { playerId: item.id, from: { ...from }, to: { ...from } };
+            });
+            runtime.drag = {
+              pointerId: event.pointerId,
+              type: "group",
+              playerId,
+              start: { ...start },
+              current: { ...start },
+              moves,
+            };
+            latest.onHint(`Przesuwasz całą linię: ${line === "defence" ? "obrona" : line === "midfield" ? "pomoc" : "atak"}`);
+          } else {
+            runtime.drag = {
+              pointerId: event.pointerId,
+              type: "run",
+              playerId,
+              start: { ...start },
+              current: { ...start },
+            };
+            latest.onHint(player.controlled ? "Wyznacz swój bieg" : `Wyznacz ruch zawodnika nr ${player.number}`);
+          }
         }
         if (runtime.drag) setDraftLine(runtime, runtime.drag.start, runtime.drag.current, true);
         navigator.vibrate?.(8);
@@ -712,6 +722,20 @@ export function Pitch(props: Props) {
           latest.onHint(receiver
             ? `Podanie do zawodnika nr ${receiver.number} zapisane jako krok ${order}`
             : `Podanie w przestrzeń zapisane jako krok ${order}`);
+        } else if (drag.type === "group") {
+          const dx = drag.current.x - drag.start.x;
+          const dy = drag.current.y - drag.start.y;
+          action = {
+            id: makeActionId("group"),
+            type: "group",
+            order,
+            moves: drag.moves.map((move) => ({
+              playerId: move.playerId,
+              from: move.from,
+              to: { x: clamp(move.from.x + dx, 3, 97), y: clamp(move.from.y + dy, 3, 147) },
+            })),
+          };
+          latest.onHint(`Przesunięcie linii zapisane jako krok ${order}`);
         } else {
           action = {
             id: makeActionId("run"),
@@ -720,13 +744,6 @@ export function Pitch(props: Props) {
             moves: [{ playerId: drag.playerId, from: drag.start, to: drag.current }],
           };
           latest.onHint(`Bieg zapisany jako krok ${order}`);
-        }
-        const controlledPlayerId = latest.players.find((player) => player.controlled)?.id ?? "";
-        const allowance = canAppendPlannedAction(latest.plan.actions, action, controlledPlayerId);
-        if (!allowance.allowed) {
-          latest.onHint(allowance.message);
-          navigator.vibrate?.(22);
-          return;
         }
         latest.onPlanChange({ ...latest.plan, actions: [...latest.plan.actions, action] });
         navigator.vibrate?.(16);
@@ -763,8 +780,6 @@ export function Pitch(props: Props) {
           model.userData.ring.scale.set(ringSize, ringSize, 1);
           const hitRadius = runtime!.worldPerPixel * 24;
           model.userData.hit.scale.set(hitRadius, hitRadius, 1);
-          model.userData.hit.position.y = spriteHeight * 0.52;
-          model.userData.hit.quaternion.copy(camera.quaternion);
           if (model.userData.controlledLabel) {
             model.userData.controlledLabel.position.set(0, spriteHeight * 1.02, 0);
             model.userData.controlledLabel.scale.set(
@@ -776,9 +791,8 @@ export function Pitch(props: Props) {
         });
         const ballScale = clamp((runtime.worldPerPixel * 7) / 0.24, 0.78, 1.45);
         runtime.ballMesh.scale.setScalar(ballScale);
-        runtime.ballRing.scale.setScalar(ballScale);
         runtime.ballShadow.scale.set(runtime.worldPerPixel * 8, runtime.worldPerPixel * 4, 1);
-        const ballHitRadius = runtime.worldPerPixel * 22;
+        const ballHitRadius = runtime.worldPerPixel * 23;
         runtime.ballHit.scale.set(ballHitRadius, ballHitRadius, 1);
         runtime.routeLabels.forEach((label) => {
           const size = runtime!.worldPerPixel * 19;
@@ -811,7 +825,7 @@ export function Pitch(props: Props) {
         const positions = createPositionMap(latest.players, latest.phase, observationProgress);
         let playback = 0;
         if (latest.phase === "playback") playback = clamp(elapsed / Math.max(1, latest.playbackDurationMs), 0, 1);
-        else if (["plan", "feedback", "compare"].includes(latest.phase)) playback = 1;
+        else if (["plan", "intent", "feedback", "compare"].includes(latest.phase)) playback = 1;
         const resolveConsequences = ["playback", "feedback", "compare"].includes(latest.phase);
         const logicalBall = applyActions(
           positions,
@@ -828,7 +842,7 @@ export function Pitch(props: Props) {
             positions,
             logicalBall,
             latest.plannedPlayerIds,
-            smooth((playback - 0.34) / 0.34),
+            smooth((playback - 0.08) / 0.78),
             initialPossession,
           );
         }
@@ -836,7 +850,14 @@ export function Pitch(props: Props) {
         const drag = runtime.drag;
         if (latest.phase === "plan" && drag) {
           if (drag.type === "run") positions.set(drag.playerId, drag.current);
-          else {
+          else if (drag.type === "group") {
+            const dx = drag.current.x - drag.start.x;
+            const dy = drag.current.y - drag.start.y;
+            drag.moves.forEach((move) => positions.set(move.playerId, {
+              x: clamp(move.from.x + dx, 3, 97),
+              y: clamp(move.from.y + dy, 3, 147),
+            }));
+          } else {
             logicalBall.x = drag.current.x;
             logicalBall.y = drag.current.y;
             logicalBall.carrierId = undefined;
@@ -845,7 +866,7 @@ export function Pitch(props: Props) {
 
         runtime.logicalPositions = positions;
         runtime.logicalBall = logicalBall;
-        runtime.routes.visible = ["plan", "playback", "feedback", "compare"].includes(latest.phase);
+        runtime.routes.visible = ["plan", "intent", "playback", "feedback", "compare"].includes(latest.phase);
         const damping = reducedMotion ? 1 : 1 - Math.exp(-20 * deltaSeconds);
         latest.players.forEach((player) => {
           const model = runtime!.playerObjects.get(player.id);
@@ -861,7 +882,7 @@ export function Pitch(props: Props) {
             model.userData.sprite.scale.x = movedX < 0 ? -magnitude : magnitude;
           }
           const planned = latest.plannedPlayerIds.has(player.id);
-          const selected = drag?.type === "run" && drag.playerId === player.id;
+          const selected = drag?.type !== "pass" && drag?.playerId === player.id;
           const showRing = Boolean(player.controlled || planned || selected);
           model.userData.ring.visible = showRing;
           model.userData.ring.material.opacity = showRing ? (player.controlled ? 0.94 : 0.72) : 0;
@@ -870,8 +891,6 @@ export function Pitch(props: Props) {
         const ballWorld = toWorld(logicalBall);
         runtime.ballMesh.position.x += (ballWorld.x - runtime.ballMesh.position.x) * damping;
         runtime.ballMesh.position.z += (ballWorld.z - runtime.ballMesh.position.z) * damping;
-        runtime.ballRing.position.x = runtime.ballMesh.position.x;
-        runtime.ballRing.position.z = runtime.ballMesh.position.z;
         runtime.ballMesh.rotation.x += deltaSeconds * 4.2;
         runtime.ballMesh.rotation.z += deltaSeconds * 3.1;
         runtime.ballHit.position.x = runtime.ballMesh.position.x;
@@ -923,8 +942,6 @@ export function Pitch(props: Props) {
         surroundings.material.dispose();
         ballMesh.geometry.dispose();
         ballMesh.material.dispose();
-        ballRing.geometry.dispose();
-        ballRing.material.dispose();
         renderer.dispose();
         renderer.domElement.remove();
         runtimeRef.current = null;
@@ -964,6 +981,7 @@ export function Pitch(props: Props) {
         ball={props.ball}
         plan={props.plan}
         phase={props.phase}
+        mode={props.mode}
         progress={props.phase === "observe"
           ? clamp(elapsedFrom(props.phaseStartedAt) / Math.max(1, props.durationMs), 0, 1)
           : props.phase === "countdown" ? 0 : 1}

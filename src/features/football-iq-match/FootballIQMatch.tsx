@@ -2,19 +2,34 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildReferencePlan, emptyPlan, evaluatePlan } from "./engine";
 import { Onboarding } from "./Onboarding";
 import { Pitch } from "./Pitch";
-import { MAX_PLAN_ACTIONS } from "./planRules";
 import { scenarios } from "./scenarios";
-import type { Evaluation, EvaluationLevel, Phase, UserPlan } from "./types";
+import type { ActionMode, Evaluation, Phase, TacticalIntent, UserPlan } from "./types";
 import "./football-iq.css";
 
 type Props = {
   initialScenario?: number;
   showOnboardingInitially?: boolean;
   onBack?: () => void;
-  onComplete?: (result: { scenarioId: string; verdict: EvaluationLevel }) => void;
+  onComplete?: (result: { scenarioId: string; score: number }) => void;
 };
 
-const onboardingKey = "ballwise:football-iq:onboarding-direct-v3-seen";
+const onboardingKey = "ballwise:football-iq:onboarding-pro-v2-seen";
+
+const intentOptions: Array<{ value: TacticalIntent; label: string }> = [
+  { value: "switch", label: "Zmiana strony" },
+  { value: "progress", label: "Progresja" },
+  { value: "retain", label: "Utrzymanie" },
+  { value: "secure", label: "Zabezpieczenie" },
+];
+
+const modeOptions: Array<{ value: ActionMode; label: string; short: string }> = [
+  { value: "run", label: "Ruch zawodnika", short: "Ruch" },
+  { value: "pass", label: "Podanie", short: "Podanie" },
+  { value: "group", label: "Ruch grupy", short: "Grupa" },
+];
+
+const intentLabel = (intent?: TacticalIntent) =>
+  intentOptions.find((option) => option.value === intent)?.label ?? "Bez wskazanej intencji";
 
 const shouldShowOnboarding = (enabled: boolean) => {
   if (!enabled || typeof window === "undefined") return false;
@@ -27,32 +42,23 @@ const shouldShowOnboarding = (enabled: boolean) => {
 
 const timeNow = () => typeof performance === "undefined" ? Date.now() : performance.now();
 
-const metricRows = (evaluation: Evaluation) => [
-  { name: "Timing", metric: evaluation.metrics.timing },
-  { name: "Decyzja przestrzenna", metric: evaluation.metrics.spatialDecision },
-  { name: "Konsekwencja", metric: evaluation.metrics.consequence },
-] as const;
-
-const verdictSymbol: Record<EvaluationLevel, string> = {
-  strong: "✓",
-  conditional: "~",
-  risky: "!",
-};
-
 export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially = true, onBack, onComplete }: Props) {
   const safeInitialIndex = ((initialScenario % scenarios.length) + scenarios.length) % scenarios.length;
   const [scenarioIndex, setScenarioIndex] = useState(safeInitialIndex);
   const scenario = scenarios[scenarioIndex];
+  const ballCarrier = scenario.players.find((player) => player.id === scenario.ball.carrierId);
+  const canPlanPass = !ballCarrier || ballCarrier.team === "home";
   const [phase, setPhase] = useState<Phase>("intro");
   const [phaseStartedAt, setPhaseStartedAt] = useState(0);
   const [countdown, setCountdown] = useState(3);
   const [secondsLeft, setSecondsLeft] = useState(scenario.decisionSeconds);
   const [plan, setPlan] = useState<UserPlan>(() => emptyPlan());
+  const [mode, setMode] = useState<ActionMode>("run");
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [coachNote, setCoachNote] = useState("Obserwuj ustawienie obu zespołów");
+  const [hintLevel, setHintLevel] = useState(0);
   const [onboardingStep, setOnboardingStep] = useState(-1);
   const [compareView, setCompareView] = useState<"user" | "reference">("reference");
-  const [playbackStep, setPlaybackStep] = useState(0);
   const planRef = useRef(plan);
 
   useEffect(() => {
@@ -83,7 +89,7 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
       return () => window.clearTimeout(timer);
     }
     const timer = window.setTimeout(() => {
-      setCoachNote("Skanuj piłkę, blok rywala i dalszą stronę");
+      setCoachNote("Akcja trwa — skanuj piłkę, blok rywala i dalszą stronę");
       enterPhase("observe");
     }, 620);
     return () => window.clearTimeout(timer);
@@ -94,7 +100,8 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
     const timer = window.setTimeout(() => {
       navigator.vibrate?.([18, 34, 18]);
       setSecondsLeft(scenario.decisionSeconds);
-      setCoachNote("Przeciągnij zawodnika, aby dodać ruch. Przeciągnij piłkę, aby podać.");
+      setMode("run");
+      setCoachNote("Twoja decyzja — wybierz narzędzie i zbuduj plan");
       enterPhase("plan");
     }, scenario.observationMs);
     return () => window.clearTimeout(timer);
@@ -108,29 +115,17 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
 
   useEffect(() => {
     if (phase !== "plan" || secondsLeft !== 0) return;
-    setCoachNote("Czas orientacyjny minął — dokończ wariant. Tempo nie wpływa na analizę.");
+    setCoachNote("Czas orientacyjny minął — spokojnie dokończ plan, tempo nie obniża oceny");
     navigator.vibrate?.(18);
   }, [phase, secondsLeft]);
-
-  useEffect(() => {
-    if (phase !== "playback") return;
-    setPlaybackStep(0);
-    const second = window.setTimeout(() => setPlaybackStep(1), scenario.playbackMs * 0.34);
-    const third = window.setTimeout(() => setPlaybackStep(2), scenario.playbackMs * 0.68);
-    return () => {
-      window.clearTimeout(second);
-      window.clearTimeout(third);
-    };
-  }, [phase, scenario.playbackMs]);
 
   useEffect(() => {
     if (phase !== "playback") return;
     const timer = window.setTimeout(() => {
       const result = evaluatePlan(scenario, planRef.current);
       setEvaluation(result);
-      setPlaybackStep(2);
       enterPhase("feedback");
-      onComplete?.({ scenarioId: scenario.id, verdict: result.verdict });
+      onComplete?.({ scenarioId: scenario.id, score: result.score });
     }, scenario.playbackMs);
     return () => window.clearTimeout(timer);
   }, [phase, scenario, enterPhase, onComplete]);
@@ -139,43 +134,63 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
     setSecondsLeft(scenario.decisionSeconds);
   }, [scenario.decisionSeconds]);
 
-  const resetPlan = useCallback(() => {
+  const start = () => {
     const freshPlan = emptyPlan();
     planRef.current = freshPlan;
     setPlan(freshPlan);
     setEvaluation(null);
-    setPlaybackStep(0);
-    setSecondsLeft(scenario.decisionSeconds);
-    setCompareView("reference");
-  }, [scenario.decisionSeconds]);
-
-  const start = () => {
-    resetPlan();
+    setHintLevel(0);
     setCountdown(3);
+    setSecondsLeft(scenario.decisionSeconds);
+    setMode("run");
+    setCompareView("reference");
     setCoachNote("Za chwilę zobaczysz sytuację meczową");
     enterPhase("countdown");
   };
 
   const undo = () => {
     if (!plan.actions.length) return;
-    setPlan({ ...plan, actions: plan.actions.slice(0, -1) });
-    setCoachNote("Usunięto ostatnią akcję");
+    const nextPlan = { ...plan, actions: plan.actions.slice(0, -1) };
+    setPlan(nextPlan);
+    setCoachNote("Usunięto ostatnią akcję z planu");
     navigator.vibrate?.(12);
   };
 
-  const play = () => {
+  const openIntent = () => {
     if (!plan.actions.length) {
-      setCoachNote("Najpierw przeciągnij zawodnika albo piłkę");
+      setCoachNote("Najpierw zaplanuj przynajmniej jeden ruch albo podanie");
       navigator.vibrate?.(35);
       return;
     }
-    setCoachNote("Patrz, jak rywal reaguje na Twój wariant");
+    setCoachNote("Co chcesz osiągnąć tym planem?");
+    enterPhase("intent");
+  };
+
+  const selectIntent = (intent: TacticalIntent) => {
+    setPlan((current) => ({ ...current, intent }));
+    navigator.vibrate?.(10);
+  };
+
+  const play = () => {
+    if (!plan.intent) {
+      setCoachNote("Wybierz intencję — dzięki temu analiza oceni nie tylko kreski");
+      navigator.vibrate?.(35);
+      return;
+    }
+    setCoachNote("Patrz, jak rywal reaguje na Twój plan");
     enterPhase("playback");
   };
 
   const retry = () => {
-    resetPlan();
-    setCoachNote("Ta sama sytuacja — zbuduj inny wariant");
+    const freshPlan = emptyPlan();
+    planRef.current = freshPlan;
+    setPlan(freshPlan);
+    setEvaluation(null);
+    setHintLevel(0);
+    setSecondsLeft(scenario.decisionSeconds);
+    setMode("run");
+    setCompareView("reference");
+    setCoachNote("Ta sama sytuacja — znajdź lepsze rozwiązanie");
     enterPhase("plan");
   };
 
@@ -186,17 +201,41 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
     setScenarioIndex(nextIndex);
     setPlan(nextPlan);
     setEvaluation(null);
-    setPlaybackStep(0);
+    setHintLevel(0);
     setCountdown(3);
+    setMode("run");
     setCompareView("reference");
     setCoachNote("Najpierw przeczytaj sytuację, potem rozpocznij akcję");
     enterPhase("intro");
   };
 
+  const hints = useMemo(() => {
+    const defensiveScene = scenario.id === "counterpress" || scenario.id === "defensive-cover";
+    const first = defensiveScene
+      ? "Najpierw wskaż przestrzeń, którą rywal może zaatakować bezpośrednio po stracie."
+      : scenario.id === "escape-press"
+        ? "Znajdź partnera albo strefę poza cieniem pressingu pierwszej linii."
+        : "Spójrz tam, gdzie blok rywala ma najdalej do przesunięcia.";
+    return [
+      first,
+      scenario.cue,
+      scenario.preferredPassZones.length
+        ? "Ułóż kolejność: ruch otwierający przestrzeń, wsparcie i podanie we właściwym momencie."
+        : "Nie biegnij wyłącznie do piłki — zabezpiecz najgroźniejszą przestrzeń i odległość od partnera.",
+    ];
+  }, [scenario]);
+
   const referencePlan = useMemo(() => buildReferencePlan(scenario), [scenario]);
 
+  const requestHint = () => {
+    const nextLevel = Math.min(3, hintLevel + 1);
+    setHintLevel(nextLevel);
+    setCoachNote(hints[nextLevel - 1]);
+    navigator.vibrate?.(8);
+  };
+
   const replayObservation = () => {
-    setCoachNote("Powtórka sytuacji — obserwuj zmianę ustawienia przed decyzją");
+    setCoachNote("Powtórka sytuacji — obserwuj zmianę ustawienia przed momentem decyzji");
     enterPhase("observe");
   };
 
@@ -212,30 +251,28 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
   const timerText = useMemo(() => {
     if (phase === "countdown") return String(countdown);
     if (phase === "observe") return "LIVE";
-    if (phase === "plan") return secondsLeft > 0 ? `${secondsLeft}s` : `${plan.actions.length}/3`;
+    if (phase === "plan") return secondsLeft > 0 ? `${secondsLeft}s` : "PLAN";
+    if (phase === "intent") return "CEL";
     if (phase === "playback") return "PLAY";
-    if ((phase === "feedback" || phase === "compare") && evaluation) return verdictSymbol[evaluation.verdict];
+    if (phase === "feedback" || phase === "compare") return evaluation ? String(evaluation.score) : "—";
     return "IQ";
-  }, [phase, countdown, secondsLeft, plan.actions.length, evaluation]);
+  }, [phase, countdown, secondsLeft, evaluation]);
 
   const stagePrompt = phase === "intro"
     ? scenario.focus
     : phase === "observe"
       ? "Obserwuj — decyzja za chwilę"
       : phase === "playback"
-        ? "Twój wariant w realnej akcji"
-        : phase === "feedback"
-          ? "Konsekwencja Twojej decyzji"
-          : phase === "compare"
-            ? compareView === "reference" ? "Lepszy wariant na boisku" : "Twój wariant na boisku"
-            : scenario.prompt;
+        ? "Twój plan w realnej akcji"
+        : phase === "compare"
+          ? compareView === "reference" ? "Lepszy wariant zaznaczony na boisku" : "Twój plan zaznaczony na boisku"
+        : scenario.prompt;
 
   const actionCount = plan.actions.length;
   const isReview = phase === "feedback" || phase === "compare";
-  const showPlaybackSteps = phase === "playback" || isReview;
 
   return (
-    <main className={`bwiq-app${isReview ? " bwiq-app--review" : ""}${onboardingStep >= 0 ? " bwiq-app--onboarding" : ""}`}>
+    <main className={`bwiq-app${isReview ? " bwiq-app--review" : ""}`}>
       <section className="bwiq-stage" aria-label={`Scena: ${scenario.title}`}>
         <Pitch
           players={scenario.players}
@@ -244,6 +281,7 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
           phase={phase}
           phaseStartedAt={phaseStartedAt}
           durationMs={scenario.observationMs}
+          mode={mode}
           playbackDurationMs={scenario.playbackMs}
           onPlanChange={setPlan}
           onHint={setCoachNote}
@@ -252,37 +290,40 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
         <div className="bwiq-topbar">
           <button className="bwiq-back" type="button" onClick={onBack} aria-label="Wróć do modułu IQ">‹</button>
           <div className="bwiq-step">
-            <strong>IQ · DECYZJA {scenarioIndex + 1}/{scenarios.length}</strong>
+            <strong>DECYZJA {scenarioIndex + 1}/{scenarios.length}</strong>
             <span>{scenario.title}</span>
           </div>
           <div className={`bwiq-timer bwiq-timer--${phase}`} aria-label={`Status: ${timerText}`}>{timerText}</div>
         </div>
 
-        <div className={`bwiq-prompt bwiq-prompt--${phase}`}><span>{stagePrompt}</span></div>
-
-        {showPlaybackSteps && (
-          <div className="bwiq-playback-steps" aria-label="Etapy powtórki">
-            {["Twój moment", "Ruch rywala", "Konsekwencja"].map((label, index) => (
-              <div key={label} className={index <= playbackStep ? "is-active" : ""}>
-                <b>{index + 1}</b><span>{label}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className={`bwiq-prompt bwiq-prompt--${phase}`}>
+          <span>{stagePrompt}</span>
+        </div>
 
         {phase === "countdown" && <div key={countdown} className="bwiq-countdown">{countdown}</div>}
 
         {phase === "intro" && (
-          <div className="bwiq-intro-note"><span>MOMENT MECZOWY</span><strong>{scenario.prompt}</strong></div>
+          <div className="bwiq-intro-note">
+            <span>MOMENT MECZOWY</span>
+            <strong>{scenario.prompt}</strong>
+          </div>
         )}
 
-        {phase === "plan" && coachNote && <div className="bwiq-coach-note"><span>{coachNote}</span></div>}
+        {(phase === "plan" || phase === "intent") && coachNote && (
+          <div className="bwiq-coach-note">
+            {hintLevel > 0 && <b>{hintLevel}/3</b>}
+            <span>{coachNote}</span>
+          </div>
+        )}
       </section>
 
       <section className={`bwiq-dock bwiq-dock--${phase}`} aria-live="polite">
         {phase === "intro" && (
           <div className="bwiq-start-row">
-            <div><span>CEL SCENY</span><strong>Przeczytaj ustawienie i podejmij własną decyzję.</strong></div>
+            <div>
+              <span>CEL SCENY</span>
+              <strong>Przeczytaj ustawienie i podejmij własną decyzję.</strong>
+            </div>
             <button className="bwiq-play bwiq-play--wide" type="button" onClick={start}>Rozpocznij <i>›</i></button>
           </div>
         )}
@@ -300,35 +341,107 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
         {phase === "plan" && (
           <>
             <div className="bwiq-dock-meta">
-              <span>Przeciągnij zawodnika lub piłkę</span>
-              <button type="button" onClick={replayObservation}>Powtórka sytuacji</button>
+              <span><b>{actionCount}</b> {actionCount === 1 ? "akcja" : "akcje"} w planie</span>
+              <div>
+                <button type="button" onClick={replayObservation}>Powtórka</button>
+                <button type="button" onClick={requestHint}>Podpowiedź{hintLevel ? ` ${hintLevel}/3` : ""}</button>
+              </div>
             </div>
-            <div className="bwiq-plan-controls bwiq-plan-controls--direct">
-              <div className="bwiq-action-count" aria-label={`${actionCount} z ${MAX_PLAN_ACTIONS} akcji`}><b>{actionCount}/{MAX_PLAN_ACTIONS}</b><span>AKCJE</span></div>
-              <button className="bwiq-undo bwiq-undo--wide" type="button" onClick={undo} disabled={!actionCount}><i>↶</i><span>Cofnij</span></button>
-              <button className="bwiq-play" type="button" onClick={play}><span>Odtwórz</span><i>▶</i></button>
+            <div className="bwiq-plan-controls">
+              <button className="bwiq-undo" type="button" onClick={undo} disabled={!actionCount} aria-label="Cofnij ostatnią akcję">
+                <i>↶</i><span>Cofnij</span>
+              </button>
+              <div className="bwiq-modes" role="group" aria-label="Narzędzie planowania">
+                {modeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={mode === option.value ? "active" : ""}
+                    onClick={() => setMode(option.value)}
+                    disabled={option.value === "pass" && !canPlanPass}
+                    title={option.value === "pass" && !canPlanPass ? "Rywal ma piłkę — zaplanuj pressing lub zabezpieczenie" : option.label}
+                    aria-label={option.label}
+                    aria-pressed={mode === option.value}
+                  >{option.short}</button>
+                ))}
+              </div>
+              <button className="bwiq-play" type="button" onClick={openIntent}><span>Odtwórz</span><i>▶</i></button>
             </div>
           </>
         )}
 
-        {phase === "feedback" && evaluation && (
-          <div className="bwiq-feedback">
-            <div className={`bwiq-verdict bwiq-verdict--${evaluation.verdict}`}>
-              <i aria-hidden="true">{verdictSymbol[evaluation.verdict]}</i>
-              <div><span>ANALIZA DECYZJI</span><h2>{evaluation.verdictLabel}</h2></div>
+        {phase === "intent" && (
+          <div className="bwiq-intent">
+            <div className="bwiq-intent-copy">
+              <span>NAZWIJ SWOJĄ INTENCJĘ</span>
+              <strong>Co ma dać ten plan?</strong>
             </div>
-            <p className="bwiq-summary"><strong>{evaluation.title}.</strong> {evaluation.summary}</p>
-            <div className="bwiq-qualitative" aria-label="Trzy elementy analizy decyzji">
-              {metricRows(evaluation).map(({ name, metric }) => (
-                <article key={name} className={`bwiq-quality--${metric.level}`}>
-                  <span>{name}</span><strong>{metric.label}</strong><p>{metric.detail}</p>
-                </article>
+            <div className="bwiq-intent-chips">
+              {intentOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={plan.intent === option.value ? "active" : ""}
+                  onClick={() => selectIntent(option.value)}
+                  aria-pressed={plan.intent === option.value}
+                >{option.label}</button>
               ))}
             </div>
-            <div className="bwiq-coach-result"><span>NAJLEPSZA POPRAWKA</span><p>{evaluation.recommendation}</p></div>
+            <div className="bwiq-intent-actions">
+              <button type="button" onClick={() => enterPhase("plan")}>Wróć do planu</button>
+              <button className="bwiq-play" type="button" onClick={play}><span>Zagraj</span><i>▶</i></button>
+            </div>
+          </div>
+        )}
+
+        {phase === "feedback" && evaluation && (
+          <div className="bwiq-feedback">
+            <div className="bwiq-feedback-head">
+              <div className="bwiq-score"><strong>{evaluation.score}</strong><span>/100</span></div>
+              <div><span>ANALIZA DECYZJI</span><h2>{evaluation.title}</h2></div>
+            </div>
+            <p className="bwiq-summary">{evaluation.summary}</p>
+            <div className="bwiq-metrics" aria-label="Składowe oceny">
+              {([
+                ["Przestrzeń", evaluation.metrics.space],
+                ["Sekwencja", evaluation.metrics.timing],
+                ["Podanie", evaluation.metrics.passing],
+                ["Ryzyko", evaluation.metrics.risk],
+                ["Struktura", evaluation.metrics.structure],
+              ] as const).map(([label, value]) => (
+                <div key={label} title={`${label}: ${value}/100`}>
+                  <span>{label}</span><i><b style={{ width: `${value}%` }} /></i>
+                </div>
+              ))}
+            </div>
+            <div className="bwiq-feedback-grid">
+              <article>
+                <span>CO ZROBIŁEŚ</span>
+                <p>{actionCount} {actionCount === 1 ? "zaplanowana akcja" : "zaplanowane akcje"} · {intentLabel(plan.intent)}</p>
+              </article>
+              <article>
+                <span>REAKCJA RYWALA</span>
+                <p>{evaluation.reaction}</p>
+              </article>
+              <article className="good">
+                <span>CO BYŁO DOBRE</span>
+                <ul>{evaluation.strengths.length
+                  ? evaluation.strengths.map((item) => <li key={item}>{item}</li>)
+                  : <li>Najpierw popraw kluczowy element wskazany poniżej.</li>}
+                </ul>
+              </article>
+              <article className="issue">
+                <span>CO OGRANICZAŁO PLAN</span>
+                <ul>{evaluation.issues.length
+                  ? evaluation.issues.map((item) => <li key={item}>{item}</li>)
+                  : <li>Plan nie ma wyraźnego błędu krytycznego.</li>}
+                </ul>
+              </article>
+            </div>
+            <div className="bwiq-recommendation"><span>NAJLEPSZA POPRAWKA</span><strong>{evaluation.recommendation}</strong></div>
             <div className="bwiq-review-actions">
               <button type="button" onClick={retry}>Spróbuj ponownie</button>
-              <button type="button" onClick={() => { setCompareView("reference"); enterPhase("compare"); }}>Lepszy wariant</button>
+              <button type="button" onClick={() => { setCompareView("reference"); enterPhase("compare"); }}>Porównaj</button>
               <button className="primary" type="button" onClick={next}>Następna <i>›</i></button>
             </div>
           </div>
@@ -336,19 +449,27 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
 
         {phase === "compare" && evaluation && (
           <div className="bwiq-compare">
-            <div className="bwiq-compare-head"><span>PORÓWNANIE DECYZJI</span><strong>Twój wariant i lepsza odpowiedź</strong></div>
-            <div className="bwiq-compare-toggle" role="group" aria-label="Wariant widoczny na boisku">
-              <button type="button" className={compareView === "user" ? "active" : ""} onClick={() => setCompareView("user")}>Twój wariant</button>
+            <div className="bwiq-compare-head"><span>PORÓWNANIE DECYZJI</span><strong>Twój plan i lepszy wariant</strong></div>
+            <div className="bwiq-compare-toggle" role="group" aria-label="Plan widoczny na boisku">
+              <button type="button" className={compareView === "user" ? "active" : ""} onClick={() => setCompareView("user")}>Twój plan</button>
               <button type="button" className={compareView === "reference" ? "active" : ""} onClick={() => setCompareView("reference")}>Lepszy wariant</button>
             </div>
             <div className="bwiq-compare-grid">
-              <article><span>TWÓJ WARIANT</span><strong>{evaluation.verdictLabel}</strong><p>{evaluation.issues[0] ?? evaluation.summary}</p></article>
-              <article className="better"><span>LEPSZY WARIANT</span><strong>Więcej przewagi, mniej ryzyka</strong><p>{evaluation.recommendation}</p></article>
+              <article>
+                <span>TWÓJ PLAN</span>
+                <strong>{intentLabel(plan.intent)}</strong>
+                <p>{evaluation.issues[0] ?? evaluation.summary}</p>
+              </article>
+              <article className="better">
+                <span>LEPSZY WARIANT</span>
+                <strong>Więcej przewagi, mniej ryzyka</strong>
+                <p>{evaluation.recommendation}</p>
+              </article>
             </div>
-            <p className="bwiq-compare-reaction"><b>Reakcja rywala:</b> {evaluation.reaction}</p>
+            <p className="bwiq-compare-reaction"><b>Dlaczego:</b> {evaluation.reaction}</p>
             <div className="bwiq-review-actions">
               <button type="button" onClick={() => enterPhase("feedback")}>Wróć do analizy</button>
-              <button type="button" onClick={retry}>Popraw wariant</button>
+              <button type="button" onClick={retry}>Popraw plan</button>
               <button className="primary" type="button" onClick={next}>Następna <i>›</i></button>
             </div>
           </div>
@@ -359,7 +480,6 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
         <Onboarding
           step={onboardingStep}
           onNext={() => setOnboardingStep((step) => Math.min(2, step + 1))}
-          onBack={() => setOnboardingStep((step) => Math.max(0, step - 1))}
           onClose={closeOnboarding}
         />
       )}

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, FileDown, Trash2, ShieldOff, HeartOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/lib/loadwise/auth";
 import { recordConsentDecision } from "@/lib/loadwise/consent";
 import { MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
@@ -54,10 +53,7 @@ function DataRights() {
         exported_at: new Date().toISOString(),
       };
       for (const t of USER_TABLES) {
-        const { data, error } = await supabase
-          .from(t as keyof Database["public"]["Tables"])
-          .select("*")
-          .eq("user_id", user.id);
+        const { data, error } = await supabase.from(t).select("*").eq("user_id", user.id);
         if (error) throw error;
         bundle[t] = data ?? [];
       }

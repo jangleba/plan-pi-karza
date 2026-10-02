@@ -4,12 +4,13 @@ export type Phase =
   | "countdown"
   | "observe"
   | "plan"
+  | "intent"
   | "playback"
   | "feedback"
   | "compare";
 
+export type ActionMode = "run" | "pass" | "group";
 export type TacticalIntent = "switch" | "progress" | "retain" | "secure";
-export type EvaluationLevel = "strong" | "conditional" | "risky";
 
 export type Point = { x: number; y: number };
 
@@ -33,7 +34,7 @@ export type PlannedMove = {
 
 export type PlannedMovementAction = {
   id: string;
-  type: "run";
+  type: "run" | "group";
   order: number;
   moves: PlannedMove[];
 };
@@ -52,6 +53,7 @@ export type PlannedAction = PlannedMovementAction | PlannedPassAction;
 
 export type UserPlan = {
   actions: PlannedAction[];
+  intent?: TacticalIntent;
 };
 
 export type Scenario = {
@@ -75,21 +77,16 @@ export type Scenario = {
   improveFeedback: string;
 };
 
-export type EvaluationMetric = {
-  level: EvaluationLevel;
-  label: string;
-  detail: string;
-};
-
 export type EvaluationMetrics = {
-  timing: EvaluationMetric;
-  spatialDecision: EvaluationMetric;
-  consequence: EvaluationMetric;
+  space: number;
+  timing: number;
+  passing: number;
+  risk: number;
+  structure: number;
 };
 
 export type Evaluation = {
-  verdict: EvaluationLevel;
-  verdictLabel: string;
+  score: number;
   title: string;
   summary: string;
   strengths: string[];
