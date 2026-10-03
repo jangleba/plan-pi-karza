@@ -1,0 +1,1 @@
+export { FootballIQMatch } from "./FootballIQMatch";

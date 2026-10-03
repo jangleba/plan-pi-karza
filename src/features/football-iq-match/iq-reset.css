@@ -1,0 +1,67 @@
+.bwiq-reset {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 100dvh;
+  padding: max(18px, env(safe-area-inset-top)) 20px
+    max(18px, env(safe-area-inset-bottom));
+  color: #08365d;
+  background: #f7fafc;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bwiq-reset__back {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 14px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  color: #08365d;
+  background: transparent;
+  font: inherit;
+  font-size: 28px;
+}
+
+.bwiq-reset__back span {
+  margin-left: 3px;
+  font-size: 13px;
+  font-weight: 750;
+  vertical-align: 4px;
+}
+
+.bwiq-reset__message {
+  max-width: 320px;
+  text-align: center;
+}
+
+.bwiq-reset__message > span {
+  color: #3c91ca;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.bwiq-reset__message h1 {
+  margin: 10px 0 7px;
+  font-size: clamp(23px, 7vw, 31px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.bwiq-reset__message p {
+  margin: 0;
+  color: #697789;
+  font-size: 13px;
+}
