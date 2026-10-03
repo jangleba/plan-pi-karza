@@ -25,13 +25,14 @@ const shouldShowOnboarding = (enabled: boolean) => {
   }
 };
 
-const timeNow = () => typeof performance === "undefined" ? Date.now() : performance.now();
+const timeNow = () => (typeof performance === "undefined" ? Date.now() : performance.now());
 
-const metricRows = (evaluation: Evaluation) => [
-  { name: "Timing", metric: evaluation.metrics.timing },
-  { name: "Decyzja przestrzenna", metric: evaluation.metrics.spatialDecision },
-  { name: "Konsekwencja", metric: evaluation.metrics.consequence },
-] as const;
+const metricRows = (evaluation: Evaluation) =>
+  [
+    { name: "Timing", metric: evaluation.metrics.timing },
+    { name: "Decyzja przestrzenna", metric: evaluation.metrics.spatialDecision },
+    { name: "Konsekwencja", metric: evaluation.metrics.consequence },
+  ] as const;
 
 const verdictSymbol: Record<EvaluationLevel, string> = {
   strong: "✓",
@@ -39,8 +40,14 @@ const verdictSymbol: Record<EvaluationLevel, string> = {
   risky: "!",
 };
 
-export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially = true, onBack, onComplete }: Props) {
-  const safeInitialIndex = ((initialScenario % scenarios.length) + scenarios.length) % scenarios.length;
+export function FootballIQMatch({
+  initialScenario = 0,
+  showOnboardingInitially = true,
+  onBack,
+  onComplete,
+}: Props) {
+  const safeInitialIndex =
+    ((initialScenario % scenarios.length) + scenarios.length) % scenarios.length;
   const [scenarioIndex, setScenarioIndex] = useState(safeInitialIndex);
   const scenario = scenarios[scenarioIndex];
   const [phase, setPhase] = useState<Phase>("intro");
@@ -214,28 +221,34 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
     if (phase === "observe") return "LIVE";
     if (phase === "plan") return secondsLeft > 0 ? `${secondsLeft}s` : `${plan.actions.length}/3`;
     if (phase === "playback") return "PLAY";
-    if ((phase === "feedback" || phase === "compare") && evaluation) return verdictSymbol[evaluation.verdict];
+    if ((phase === "feedback" || phase === "compare") && evaluation)
+      return verdictSymbol[evaluation.verdict];
     return "IQ";
   }, [phase, countdown, secondsLeft, plan.actions.length, evaluation]);
 
-  const stagePrompt = phase === "intro"
-    ? scenario.focus
-    : phase === "observe"
-      ? "Obserwuj — decyzja za chwilę"
-      : phase === "playback"
-        ? "Twój wariant w realnej akcji"
-        : phase === "feedback"
-          ? "Konsekwencja Twojej decyzji"
-          : phase === "compare"
-            ? compareView === "reference" ? "Lepszy wariant na boisku" : "Twój wariant na boisku"
-            : scenario.prompt;
+  const stagePrompt =
+    phase === "intro"
+      ? scenario.focus
+      : phase === "observe"
+        ? "Obserwuj — decyzja za chwilę"
+        : phase === "playback"
+          ? "Twój wariant w realnej akcji"
+          : phase === "feedback"
+            ? "Konsekwencja Twojej decyzji"
+            : phase === "compare"
+              ? compareView === "reference"
+                ? "Lepszy wariant na boisku"
+                : "Twój wariant na boisku"
+              : scenario.prompt;
 
   const actionCount = plan.actions.length;
   const isReview = phase === "feedback" || phase === "compare";
   const showPlaybackSteps = phase === "playback" || isReview;
 
   return (
-    <main className={`bwiq-app${isReview ? " bwiq-app--review" : ""}${onboardingStep >= 0 ? " bwiq-app--onboarding" : ""}`}>
+    <main
+      className={`bwiq-app${phase === "intro" ? " bwiq-app--intro" : ""}${isReview ? " bwiq-app--review" : ""}${onboardingStep >= 0 ? " bwiq-app--onboarding" : ""}`}
+    >
       <section className="bwiq-stage" aria-label={`Scena: ${scenario.title}`}>
         <Pitch
           players={scenario.players}
@@ -250,48 +263,124 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
         />
 
         <div className="bwiq-topbar">
-          <button className="bwiq-back" type="button" onClick={onBack} aria-label="Wróć do modułu IQ">‹</button>
+          <button
+            className="bwiq-back"
+            type="button"
+            onClick={onBack}
+            aria-label="Wróć do modułu IQ"
+          >
+            ‹
+          </button>
           <div className="bwiq-step">
-            <strong>IQ · DECYZJA {scenarioIndex + 1}/{scenarios.length}</strong>
+            <strong>
+              {phase === "intro" ? "BALLWISE IQ · SCENA" : "IQ · DECYZJA"} {scenarioIndex + 1}/
+              {scenarios.length}
+            </strong>
             <span>{scenario.title}</span>
           </div>
-          <div className={`bwiq-timer bwiq-timer--${phase}`} aria-label={`Status: ${timerText}`}>{timerText}</div>
+          <div className={`bwiq-timer bwiq-timer--${phase}`} aria-label={`Status: ${timerText}`}>
+            {timerText}
+          </div>
         </div>
 
-        <div className={`bwiq-prompt bwiq-prompt--${phase}`}><span>{stagePrompt}</span></div>
+        <div className={`bwiq-prompt bwiq-prompt--${phase}`}>
+          <span>{stagePrompt}</span>
+        </div>
 
         {showPlaybackSteps && (
           <div className="bwiq-playback-steps" aria-label="Etapy powtórki">
             {["Twój moment", "Ruch rywala", "Konsekwencja"].map((label, index) => (
               <div key={label} className={index <= playbackStep ? "is-active" : ""}>
-                <b>{index + 1}</b><span>{label}</span>
+                <b>{index + 1}</b>
+                <span>{label}</span>
               </div>
             ))}
           </div>
         )}
 
-        {phase === "countdown" && <div key={countdown} className="bwiq-countdown">{countdown}</div>}
-
-        {phase === "intro" && (
-          <div className="bwiq-intro-note"><span>MOMENT MECZOWY</span><strong>{scenario.prompt}</strong></div>
+        {phase === "countdown" && (
+          <div key={countdown} className="bwiq-countdown">
+            {countdown}
+          </div>
         )}
 
-        {phase === "plan" && coachNote && <div className="bwiq-coach-note"><span>{coachNote}</span></div>}
+        {phase === "intro" && (
+          <div className="bwiq-intro-note">
+            <div className="bwiq-intro-kicker">
+              <span>MOMENT MECZOWY</span>
+              <em>{scenario.decisionSeconds} S NA DECYZJĘ</em>
+            </div>
+            <strong>{scenario.prompt}</strong>
+            <p>{scenario.cue}</p>
+            <div className="bwiq-intro-flow" aria-label="Przebieg sceny">
+              <span>
+                <b>1</b> Obserwuj
+              </span>
+              <i aria-hidden="true" />
+              <span>
+                <b>2</b> Zaplanuj
+              </span>
+              <i aria-hidden="true" />
+              <span>
+                <b>3</b> Porównaj
+              </span>
+            </div>
+          </div>
+        )}
+
+        {phase === "plan" && coachNote && (
+          <div className="bwiq-coach-note">
+            <span>{coachNote}</span>
+          </div>
+        )}
       </section>
 
       <section className={`bwiq-dock bwiq-dock--${phase}`} aria-live="polite">
         {phase === "intro" && (
-          <div className="bwiq-start-row">
-            <div><span>CEL SCENY</span><strong>Przeczytaj ustawienie i podejmij własną decyzję.</strong></div>
-            <button className="bwiq-play bwiq-play--wide" type="button" onClick={start}>Rozpocznij <i>›</i></button>
+          <div className="bwiq-start-row bwiq-start-row--premium">
+            <div className="bwiq-start-copy">
+              <span>TRENING DECYZYJNY</span>
+              <strong>Czytaj grę. Zbuduj własny wariant.</strong>
+              <p>Bez wyboru A/B/C — sterujesz zawodnikami i piłką.</p>
+              <div
+                className="bwiq-scenario-progress"
+                aria-label={`Scena ${scenarioIndex + 1} z ${scenarios.length}`}
+              >
+                {scenarios.map((item, index) => (
+                  <i key={item.id} className={index <= scenarioIndex ? "is-active" : ""} />
+                ))}
+              </div>
+            </div>
+            <button
+              className="bwiq-play bwiq-play--wide bwiq-play--intro"
+              type="button"
+              onClick={start}
+              aria-label="Rozpocznij scenę"
+            >
+              <span>Wejdź w akcję</span>
+              <small>START 3–2–1</small>
+              <i>→</i>
+            </button>
           </div>
         )}
 
         {(phase === "countdown" || phase === "observe" || phase === "playback") && (
           <div className="bwiq-watching">
-            <div className="bwiq-activity" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+            <div className="bwiq-activity" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
             <div>
-              <strong>{phase === "playback" ? "Oglądaj konsekwencję" : phase === "observe" ? "Skanuj całe boisko" : "Przygotuj się"}</strong>
+              <strong>
+                {phase === "playback"
+                  ? "Oglądaj konsekwencję"
+                  : phase === "observe"
+                    ? "Skanuj całe boisko"
+                    : "Przygotuj się"}
+              </strong>
               <span>{coachNote}</span>
             </div>
           </div>
@@ -301,12 +390,33 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
           <>
             <div className="bwiq-dock-meta">
               <span>Przeciągnij zawodnika lub piłkę</span>
-              <button type="button" onClick={replayObservation}>Powtórka sytuacji</button>
+              <button type="button" onClick={replayObservation}>
+                Powtórka sytuacji
+              </button>
             </div>
             <div className="bwiq-plan-controls bwiq-plan-controls--direct">
-              <div className="bwiq-action-count" aria-label={`${actionCount} z ${MAX_PLAN_ACTIONS} akcji`}><b>{actionCount}/{MAX_PLAN_ACTIONS}</b><span>AKCJE</span></div>
-              <button className="bwiq-undo bwiq-undo--wide" type="button" onClick={undo} disabled={!actionCount}><i>↶</i><span>Cofnij</span></button>
-              <button className="bwiq-play" type="button" onClick={play}><span>Odtwórz</span><i>▶</i></button>
+              <div
+                className="bwiq-action-count"
+                aria-label={`${actionCount} z ${MAX_PLAN_ACTIONS} akcji`}
+              >
+                <b>
+                  {actionCount}/{MAX_PLAN_ACTIONS}
+                </b>
+                <span>AKCJE</span>
+              </div>
+              <button
+                className="bwiq-undo bwiq-undo--wide"
+                type="button"
+                onClick={undo}
+                disabled={!actionCount}
+              >
+                <i>↶</i>
+                <span>Cofnij</span>
+              </button>
+              <button className="bwiq-play" type="button" onClick={play}>
+                <span>Odtwórz</span>
+                <i>▶</i>
+              </button>
             </div>
           </>
         )}
@@ -315,41 +425,98 @@ export function FootballIQMatch({ initialScenario = 0, showOnboardingInitially =
           <div className="bwiq-feedback">
             <div className={`bwiq-verdict bwiq-verdict--${evaluation.verdict}`}>
               <i aria-hidden="true">{verdictSymbol[evaluation.verdict]}</i>
-              <div><span>ANALIZA DECYZJI</span><h2>{evaluation.verdictLabel}</h2></div>
+              <div>
+                <span>ANALIZA DECYZJI</span>
+                <h2>{evaluation.verdictLabel}</h2>
+              </div>
             </div>
-            <p className="bwiq-summary"><strong>{evaluation.title}.</strong> {evaluation.summary}</p>
+            <p className="bwiq-summary">
+              <strong>{evaluation.title}.</strong> {evaluation.summary}
+            </p>
             <div className="bwiq-qualitative" aria-label="Trzy elementy analizy decyzji">
               {metricRows(evaluation).map(({ name, metric }) => (
                 <article key={name} className={`bwiq-quality--${metric.level}`}>
-                  <span>{name}</span><strong>{metric.label}</strong><p>{metric.detail}</p>
+                  <span>{name}</span>
+                  <strong>{metric.label}</strong>
+                  <p>{metric.detail}</p>
                 </article>
               ))}
             </div>
-            <div className="bwiq-coach-result"><span>NAJLEPSZA POPRAWKA</span><p>{evaluation.recommendation}</p></div>
+            <div className="bwiq-coach-result">
+              <span>NAJLEPSZA POPRAWKA</span>
+              <p>{evaluation.recommendation}</p>
+            </div>
             <div className="bwiq-review-actions">
-              <button type="button" onClick={retry}>Spróbuj ponownie</button>
-              <button type="button" onClick={() => { setCompareView("reference"); enterPhase("compare"); }}>Lepszy wariant</button>
-              <button className="primary" type="button" onClick={next}>Następna <i>›</i></button>
+              <button type="button" onClick={retry}>
+                Spróbuj ponownie
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCompareView("reference");
+                  enterPhase("compare");
+                }}
+              >
+                Lepszy wariant
+              </button>
+              <button className="primary" type="button" onClick={next}>
+                Następna <i>›</i>
+              </button>
             </div>
           </div>
         )}
 
         {phase === "compare" && evaluation && (
           <div className="bwiq-compare">
-            <div className="bwiq-compare-head"><span>PORÓWNANIE DECYZJI</span><strong>Twój wariant i lepsza odpowiedź</strong></div>
-            <div className="bwiq-compare-toggle" role="group" aria-label="Wariant widoczny na boisku">
-              <button type="button" className={compareView === "user" ? "active" : ""} onClick={() => setCompareView("user")}>Twój wariant</button>
-              <button type="button" className={compareView === "reference" ? "active" : ""} onClick={() => setCompareView("reference")}>Lepszy wariant</button>
+            <div className="bwiq-compare-head">
+              <span>PORÓWNANIE DECYZJI</span>
+              <strong>Twój wariant i lepsza odpowiedź</strong>
+            </div>
+            <div
+              className="bwiq-compare-toggle"
+              role="group"
+              aria-label="Wariant widoczny na boisku"
+            >
+              <button
+                type="button"
+                className={compareView === "user" ? "active" : ""}
+                onClick={() => setCompareView("user")}
+              >
+                Twój wariant
+              </button>
+              <button
+                type="button"
+                className={compareView === "reference" ? "active" : ""}
+                onClick={() => setCompareView("reference")}
+              >
+                Lepszy wariant
+              </button>
             </div>
             <div className="bwiq-compare-grid">
-              <article><span>TWÓJ WARIANT</span><strong>{evaluation.verdictLabel}</strong><p>{evaluation.issues[0] ?? evaluation.summary}</p></article>
-              <article className="better"><span>LEPSZY WARIANT</span><strong>Więcej przewagi, mniej ryzyka</strong><p>{evaluation.recommendation}</p></article>
+              <article>
+                <span>TWÓJ WARIANT</span>
+                <strong>{evaluation.verdictLabel}</strong>
+                <p>{evaluation.issues[0] ?? evaluation.summary}</p>
+              </article>
+              <article className="better">
+                <span>LEPSZY WARIANT</span>
+                <strong>Więcej przewagi, mniej ryzyka</strong>
+                <p>{evaluation.recommendation}</p>
+              </article>
             </div>
-            <p className="bwiq-compare-reaction"><b>Reakcja rywala:</b> {evaluation.reaction}</p>
+            <p className="bwiq-compare-reaction">
+              <b>Reakcja rywala:</b> {evaluation.reaction}
+            </p>
             <div className="bwiq-review-actions">
-              <button type="button" onClick={() => enterPhase("feedback")}>Wróć do analizy</button>
-              <button type="button" onClick={retry}>Popraw wariant</button>
-              <button className="primary" type="button" onClick={next}>Następna <i>›</i></button>
+              <button type="button" onClick={() => enterPhase("feedback")}>
+                Wróć do analizy
+              </button>
+              <button type="button" onClick={retry}>
+                Popraw wariant
+              </button>
+              <button className="primary" type="button" onClick={next}>
+                Następna <i>›</i>
+              </button>
             </div>
           </div>
         )}
