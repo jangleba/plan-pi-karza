@@ -1,0 +1,353 @@
+.bw-sprint-session {
+  --background: oklch(0.981 0.005 250);
+  --foreground: oklch(0.24 0.065 266);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.59 0.225 258);
+  --primary-foreground: oklch(1 0 0);
+  --muted: oklch(0.958 0.009 253);
+  --muted-foreground: oklch(0.56 0.027 259);
+  --border: oklch(0.928 0.012 253);
+  --accent: oklch(0.935 0.034 254);
+  color: var(--foreground);
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.dark .bw-sprint-session {
+  --background: oklch(0.18 0.025 259);
+  --foreground: oklch(0.96 0.007 252);
+  --card: oklch(0.22 0.025 259);
+  --primary: oklch(0.72 0.15 253);
+  --primary-foreground: oklch(0.18 0.025 259);
+  --muted: oklch(0.27 0.025 259);
+  --muted-foreground: oklch(0.75 0.02 253);
+  --border: oklch(0.34 0.025 259);
+  --accent: oklch(0.32 0.05 254);
+}
+
+.bw-sprint-goal,
+.bw-sprint-stage,
+.bw-course-setup {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+.bw-sprint-goal {
+  padding: 16px;
+  background: var(--muted);
+}
+.bw-sprint-goal-label {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.bw-sprint-goal-title {
+  margin-top: 5px;
+  font-size: 21px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.bw-sprint-goal-meta {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bw-sprint-session-info {
+  margin-top: 10px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.bw-sprint-session-info summary {
+  cursor: pointer;
+  min-height: 28px;
+}
+.bw-sprint-session-info p {
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.bw-course-setup {
+  padding: 4px 12px;
+}
+.bw-course-setup summary::-webkit-details-marker,
+.bw-quick-guide summary::-webkit-details-marker {
+  display: none;
+}
+.bw-course-badge {
+  border-radius: 10px;
+  padding: 9px 16px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bw-course-setup > div {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.bw-sprint-stage {
+  overflow: hidden;
+  scroll-margin-bottom: 130px;
+}
+.bw-stage-header {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  text-align: left;
+}
+.bw-stage-current > .bw-stage-header {
+  background: var(--accent);
+}
+.bw-stage-index {
+  display: grid;
+  flex-shrink: 0;
+  min-width: 34px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 700;
+}
+.bw-stage-current .bw-stage-index {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 12%, var(--card));
+}
+.bw-stage-title {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.bw-stage-count {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.bw-stage-exercises {
+  padding: 0 12px;
+}
+.bw-sprint-row {
+  padding: 12px 0;
+}
+.bw-sprint-row-main {
+  padding-top: 16px;
+}
+.bw-sprint-row-main .bw-exercise-name {
+  font-size: 20px;
+  line-height: 1.35;
+  letter-spacing: -0.4px;
+}
+.bw-sprint-complete {
+  display: flex;
+  min-height: 46px;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--primary);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 650;
+}
+.bw-sprint-complete[aria-pressed="true"] {
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+.bw-sprint-action {
+  position: sticky;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 20;
+  padding-top: 8px;
+}
+.bw-sprint-action > button {
+  min-height: 52px;
+  border-radius: 13px;
+}
+.bw-sprint-action > button:disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+.bw-quick-guide {
+  margin-top: 10px;
+  border-radius: 14px;
+  background: var(--muted);
+  padding: 12px 14px;
+  color: var(--foreground);
+}
+.bw-quick-guide summary {
+  list-style: none;
+  cursor: pointer;
+}
+.bw-guide-heading {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bw-guide-badge {
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--primary) 13%, var(--card));
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 650;
+  padding: 3px 8px;
+}
+.bw-guide-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--muted-foreground);
+  transition: transform 150ms ease;
+}
+.bw-quick-guide[open] .bw-guide-chevron {
+  transform: rotate(180deg);
+}
+.bw-guide-focus {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 650;
+  letter-spacing: -0.15px;
+}
+.bw-quick-guide dl {
+  margin-top: 12px;
+}
+.bw-quick-guide dl > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.bw-quick-guide dl > div:last-child {
+  padding-bottom: 0;
+}
+.bw-quick-guide dt {
+  font-weight: 650;
+}
+.bw-quick-guide dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.bw-sprint-rest {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--card);
+}
+.bw-rest-label {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bw-rest-time {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+}
+.bw-rest-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.bw-rest-play {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.bw-rest-play svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+.bw-rest-reset {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.bw-rest-reset svg {
+  width: 14px;
+  height: 14px;
+}
+.bw-rest-prescription {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  text-align: center;
+}
+.bw-rest-finished {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bw-sprint-rest-compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  margin-top: 6px;
+}
+.bw-sprint-rest-compact .bw-rest-time {
+  font-size: 16px;
+  letter-spacing: -0.4px;
+}
+.bw-sprint-rest-compact .bw-rest-controls {
+  margin-left: auto;
+  gap: 8px;
+}
+.bw-sprint-rest-compact .bw-rest-play {
+  width: 44px;
+  height: 44px;
+  background: var(--muted);
+  color: var(--primary);
+}
+.bw-sprint-rest-compact .bw-rest-play svg {
+  width: 14px;
+  height: 14px;
+}
+.bw-sprint-rest-compact .bw-rest-prescription {
+  width: 100%;
+  text-align: left;
+}
+.bw-sprint-session button:focus-visible,
+.bw-sprint-session summary:focus-visible,
+.bw-quick-guide summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-guide-chevron {
+    transition: none;
+  }
+}
