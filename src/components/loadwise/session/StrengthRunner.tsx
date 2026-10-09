@@ -15,6 +15,17 @@ import {
   type StrengthStageKey,
 } from "@/lib/loadwise/sessionPresentation";
 import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
+import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
+import { useAuth } from "@/lib/loadwise/auth";
+import {
+  parseExerciseProgress,
+  progressForPrescription,
+  trainingFingerprint,
+  trainingStorageKey,
+} from "@/lib/loadwise/trainingDetails";
+import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
+import { CompletionUndo, NextExercisePreview, SessionPreparation } from "./SessionQuickTools";
+import { SprintRestTimer } from "./SprintRestTimer";
 
 export const StrengthStructuredSections = memo(function StrengthStructuredSections({
   sections,
@@ -28,18 +39,51 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
   onFinish: () => void;
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
+  const { user } = useAuth();
   const stages = useMemo(() => buildStrengthStages(sections), [sections]);
-  const [activeStageKey, setActiveStageKey] = useState<StrengthStageKey>(
-    stages[0]?.key ?? "warmup",
+  const allExercises = useMemo(
+    () => stages.flatMap((stage) => stage.blocks.flatMap((block) => block.exercises)),
+    [stages],
   );
-  const [done, setDone] = useState<Record<string, boolean>>({});
+  const fingerprint = trainingFingerprint(allExercises);
+  const progressKey = trainingStorageKey(
+    "strength-progress",
+    user?.id,
+    sessionId ?? date,
+    sessionId ? "" : allExercises.map((e) => e.id).join("|"),
+  );
+  const local = useTrainingLocalState(
+    progressKey,
+    { done: {}, started: false, currentBlockIdx: 0, fingerprint },
+    parseExerciseProgress,
+  );
+  const progress = progressForPrescription(local.value, fingerprint);
+  const done = progress.done;
+  const activeStageKey =
+    stages[Math.min(progress.currentBlockIdx, Math.max(0, stages.length - 1))]?.key ?? "warmup";
+  const [lastToggle, setLastToggle] = useState<{ id: string; wasDone: boolean } | null>(null);
   const [runnerExercise, setRunnerExercise] = useState<TrainingExercise | null>(null);
-
   useEffect(() => {
-    if (stages.length > 0 && !stages.some((stage) => stage.key === activeStageKey)) {
-      setActiveStageKey(stages[0].key);
-    }
-  }, [activeStageKey, stages]);
+    setLastToggle(null);
+    setRunnerExercise(null);
+  }, [progressKey, fingerprint]);
+  function setActiveStageKey(key: StrengthStageKey) {
+    local.setValue({
+      ...progress,
+      currentBlockIdx: Math.max(
+        0,
+        stages.findIndex((stage) => stage.key === key),
+      ),
+      fingerprint,
+    });
+  }
+  function markDone(id: string, value: boolean) {
+    setLastToggle({ id, wasDone: Boolean(done[id]) });
+    local.setValue((current) => {
+      const latest = progressForPrescription(current, fingerprint);
+      return { ...latest, done: { ...latest.done, [id]: value }, fingerprint };
+    });
+  }
 
   if (stages.length === 0) return null;
 
@@ -61,6 +105,33 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
 
   return (
     <div className="space-y-4">
+      <SessionPreparation
+        equipment={equipmentNamesFor(
+          Array.from(
+            new Set(
+              allExercises.flatMap((exercise) =>
+                specialistEquipmentForExercise(resolveDefinitionForExercise(exercise)),
+              ),
+            ),
+          ),
+        )}
+      />
+      <div className="text-xs text-muted-foreground" role="status">
+        {allExercises.filter((e) => done[e.id]).length}/{allExercises.length} ćwiczeń oznaczonych ·{" "}
+        {local.available ? "postęp zachowany na urządzeniu" : "zapis na urządzeniu niedostępny"}
+      </div>
+      <CompletionUndo
+        label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
+        onUndo={() => {
+          if (!lastToggle) return;
+          local.setValue({
+            ...progress,
+            done: { ...done, [lastToggle.id]: lastToggle.wasDone },
+            fingerprint,
+          });
+          setLastToggle(null);
+        }}
+      />
       <div
         className="grid gap-1 rounded-2xl bg-muted/55 p-1"
         style={{
@@ -140,13 +211,8 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() =>
-                            setDone((current) => ({
-                              ...current,
-                              [exercise.id]: !current[exercise.id],
-                            }))
-                          }
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold transition-colors ${
+                          onClick={() => markDone(exercise.id, !completed)}
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold transition-colors ${
                             completed
                               ? "bg-primary text-primary-foreground"
                               : "bg-accent text-accent-foreground"
@@ -202,6 +268,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                         </button>
                       </div>
 
+                      {!completed && <ExerciseQuickGuide exercise={exercise} className="ml-12" />}
                       {!completed && equipmentIds.length > 0 && (
                         <button
                           type="button"
@@ -217,9 +284,12 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
               </div>
 
               {rest && (
-                <div className="flex items-center gap-2 border-t border-border/55 px-4 py-2.5 text-[11px] text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5 shrink-0" />
-                  <span>Przerwa po bloku: {rest}</span>
+                <div className="border-t border-border/55 px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span>Przerwa po bloku: {rest}</span>
+                  </div>
+                  <SprintRestTimer label={rest} compact />
                 </div>
               )}
 
@@ -238,6 +308,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
           );
         })}
       </div>
+      <NextExercisePreview exercise={allExercises.find((exercise) => !done[exercise.id])} />
 
       {stageIndex === stages.length - 1 && (
         <button
@@ -253,8 +324,15 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
         <ExerciseRunnerScreen
           exercise={runnerExercise}
           sessionId={sessionId}
+          date={date}
           open
           onClose={() => setRunnerExercise(null)}
+          onComplete={() => markDone(runnerExercise.id, true)}
+          nextExercise={
+            allExercises[
+              allExercises.findIndex((exercise) => exercise.id === runnerExercise.id) + 1
+            ]
+          }
         />
       )}
     </div>

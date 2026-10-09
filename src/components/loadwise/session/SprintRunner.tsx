@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -8,7 +8,6 @@ import {
   equipmentNamesFor,
   resolveDefinitionForExercise,
   restLabel,
-  restSecondsFromLabel,
 } from "@/lib/loadwise/sessionPresentation";
 import {
   buildSprintRunnerBlocks,
@@ -18,6 +17,18 @@ import {
 } from "@/lib/loadwise/sprintPresentation";
 import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
+import { CourseSetup } from "./CourseSetup";
+import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
+import { SprintRestTimer } from "./SprintRestTimer";
+import { ExercisePersonalNote } from "./ExercisePersonalNote";
+import { CompletionUndo, NextExercisePreview, SessionPreparation } from "./SessionQuickTools";
+import {
+  parseExerciseProgress,
+  progressForPrescription,
+  trainingFingerprint,
+} from "@/lib/loadwise/trainingDetails";
+import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
+import "./sprint-session.css";
 
 function SprintExerciseRow({
   view,
@@ -25,51 +36,40 @@ function SprintExerciseRow({
   onToggle,
   onUnavailable,
   equipmentIds,
+  isMainSprint,
 }: {
   view: SprintExerciseView;
   done: boolean;
   onToggle: () => void;
   onUnavailable: () => void;
   equipmentIds: string[];
+  isMainSprint: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-  const [restRunning, setRestRunning] = useState(false);
-  const [restSeconds, setRestSeconds] = useState<number | null>(null);
-  const restSecondsRef = useRef(restSeconds);
-  restSecondsRef.current = restSeconds;
-  useEffect(() => {
-    if (!restRunning || restSecondsRef.current === null) return;
-    const timer = window.setInterval(() => {
-      setRestSeconds((current) => {
-        if (current === null || current <= 1) {
-          setRestRunning(false);
-          return null;
-        }
-        return current - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [restRunning]);
   const exercise = view.exercise;
   const rest = restLabel(exercise);
   const details = resolveSprintExerciseDetails(exercise);
   const equipmentNames = equipmentNamesFor(equipmentIds);
   return (
-    <div className="py-2">
+    <div className={`bw-sprint-row ${isMainSprint ? "bw-sprint-row-main" : ""}`}>
       <div className="flex items-start gap-2.5">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="-ml-2 flex h-11 w-11 shrink-0 items-start justify-center pt-[11px]"
-          aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
-          aria-pressed={done}
-        >
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${done ? "bg-primary" : "bg-border"}`}
-            aria-hidden="true"
-          />
-        </button>
+        {!isMainSprint && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="-ml-1 flex h-11 w-11 shrink-0 items-start justify-center pt-[11px]"
+            aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
+            aria-pressed={done}
+          >
+            <span
+              className={`flex h-4 w-4 items-center justify-center rounded-full border ${done ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}
+              aria-hidden="true"
+            >
+              {done && <Check className="h-3 w-3" />}
+            </span>
+          </button>
+        )}
         <div className="min-w-0 flex-1">
           <button
             type="button"
@@ -78,7 +78,7 @@ function SprintExerciseRow({
             aria-expanded={expanded}
           >
             <span
-              className={`min-w-0 flex-1 text-sm font-semibold leading-5 ${
+              className={`bw-exercise-name min-w-0 flex-1 text-sm font-semibold leading-5 ${
                 done ? "text-muted-foreground line-through" : "text-foreground"
               }`}
               style={{
@@ -100,14 +100,21 @@ function SprintExerciseRow({
             </div>
           )}
           {view.showSkipSetLabels && (
-            <div className="mt-1 flex gap-1.5">
+            <div className="mt-1 flex flex-wrap gap-1.5">
               <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                1 Z ADD-STEP
+                1 Z DODATKOWYM ODBICIEM
               </span>
               <span className="rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                2 BEZ ADD-STEP
+                2 BEZ DODATKOWEGO ODBICIA
               </span>
             </div>
+          )}
+          {!done && <ExerciseQuickGuide exercise={exercise} />}
+          {!done && view.showSkipSetLabels && (
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+              Seria 1: dodatkowe odbicie na tej samej nodze podporowej, potem zmiana nóg. Seria 2:
+              płynna wymiana nóg bez dodatkowego odbicia.
+            </p>
           )}
           {!done && equipmentIds.length > 0 && (
             <button
@@ -118,42 +125,19 @@ function SprintExerciseRow({
               Nie mam {equipmentNames.join(", ")}
             </button>
           )}
-          {rest && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span>{rest}</span>
-              <button
-                type="button"
-                className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-primary"
-                onClick={() => {
-                  if (restRunning) {
-                    setRestRunning(false);
-                    return;
-                  }
-                  const seconds = restSecondsFromLabel(rest);
-                  setRestSeconds((current) => current ?? seconds);
-                  setRestRunning(true);
-                }}
-              >
-                {restRunning ? "Pauza" : "Start"}
-              </button>
-              {restRunning && (
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 items-center rounded-lg px-2 text-muted-foreground"
-                  onClick={() => {
-                    setRestRunning(false);
-                    setRestSeconds(null);
-                  }}
-                >
-                  Reset
-                </button>
-              )}
-              {restSeconds !== null && (
-                <span className="tabular-nums" role="timer" aria-live="polite">
-                  {restSeconds} s
-                </span>
-              )}
-            </div>
+          {rest && <SprintRestTimer label={rest} compact={!isMainSprint} />}
+          <ExercisePersonalNote exercise={exercise} />
+          {isMainSprint && (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="bw-sprint-complete"
+              aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
+              aria-pressed={done}
+            >
+              {done && <Check className="h-4 w-4" aria-hidden="true" />}
+              {done ? "Wykonane" : "Oznacz jako wykonane"}
+            </button>
           )}
           {expanded && (
             <div className="mt-2 space-y-2 border-l border-border pl-3 text-xs">
@@ -245,43 +229,50 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   const progressKey = `loadwise:sprint-progress:${user?.id ?? "guest"}:${
     session.dbId ?? session.sessionId ?? `${date}:${session.title}:${session.slotLabel ?? "1"}`
   }`;
-  const skipNextPersist = useRef(true);
-  const [done, setDone] = useState<Record<string, boolean>>({});
-  const [started, setStarted] = useState(false);
-  const [currentBlockIdx, setCurrentBlockIdx] = useState(0);
+  const fingerprint = trainingFingerprint(
+    sections.flatMap((section) => section.blocks.flatMap((block) => block.exercises)),
+  );
+  const local = useTrainingLocalState(
+    progressKey,
+    { done: {}, started: false, currentBlockIdx: 0, fingerprint },
+    parseExerciseProgress,
+  );
+  const progress = progressForPrescription(local.value, fingerprint);
+  const done = progress.done;
+  const started = progress.started;
+  const currentBlockIdx = Math.max(
+    0,
+    Math.min(Math.max(0, blocks.length - 1), progress.currentBlockIdx),
+  );
+  const [lastToggle, setLastToggle] = useState<{ id: string; wasDone: boolean } | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [finished, setFinished] = useState(false);
-
   useEffect(() => {
-    skipNextPersist.current = true;
-    try {
-      const saved = window.localStorage.getItem(progressKey);
-      const parsed = saved
-        ? (JSON.parse(saved) as {
-            done?: Record<string, boolean>;
-            started?: boolean;
-            currentBlockIdx?: number;
-          })
-        : null;
-      setDone(parsed?.done ?? {});
-      setStarted(parsed?.started ?? false);
-      setCurrentBlockIdx(Math.max(0, Math.min(blocks.length - 1, parsed?.currentBlockIdx ?? 0)));
-    } catch {
-      setDone({});
-      setStarted(false);
-      setCurrentBlockIdx(0);
-    }
     setExpanded({});
     setFinished(false);
-  }, [blocks.length, progressKey]);
-
-  useEffect(() => {
-    if (skipNextPersist.current) {
-      skipNextPersist.current = false;
-      return;
-    }
-    window.localStorage.setItem(progressKey, JSON.stringify({ done, started, currentBlockIdx }));
-  }, [currentBlockIdx, done, progressKey, started]);
+    setLastToggle(null);
+  }, [progressKey, fingerprint]);
+  function setStarted(value: boolean) {
+    local.setValue((current) => ({
+      ...progressForPrescription(current, fingerprint),
+      started: value,
+      fingerprint,
+    }));
+  }
+  function setCurrentBlockIdx(update: (current: number) => number) {
+    local.setValue((current) => ({
+      ...progressForPrescription(current, fingerprint),
+      currentBlockIdx: update(current.currentBlockIdx),
+      fingerprint,
+    }));
+  }
+  function markDone(id: string) {
+    setLastToggle({ id, wasDone: Boolean(done[id]) });
+    local.setValue((current) => {
+      const latest = progressForPrescription(current, fingerprint);
+      return { ...latest, done: { ...latest.done, [id]: !latest.done[id] }, fingerprint };
+    });
+  }
 
   const mdRelation = session.mdLabel ?? session.mdRelation ?? "—";
   const equipmentPool = equipmentNamesFor(
@@ -308,71 +299,96 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   const actionDisabled = started && !currentBlockCompleted;
 
   return (
-    <div className={SPRINT_RUNNER_CONTAINER_CLASS}>
-      <div className="rounded-lg border border-border bg-card px-3 py-3">
-        <div className="text-xs text-muted-foreground">Cel</div>
-        <div className="text-sm font-semibold text-foreground">
-          {session.goalOfSession || session.goalLabel}
+    <div className={`bw-sprint-session ${SPRINT_RUNNER_CONTAINER_CLASS}`}>
+      <div className="bw-sprint-goal">
+        <div className="bw-sprint-goal-label">Cel</div>
+        <div className="bw-sprint-goal-title">{session.goalOfSession || session.goalLabel}</div>
+        <div className="bw-sprint-goal-meta">
+          {session.durationMin} min · {session.intensity} intensywność
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-          <div>Czas: {session.durationMin} min</div>
-          <div>Intensywność: {session.intensity}</div>
-          <div className="col-span-2">
-            Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}
-          </div>
-          <div className="col-span-2">Relacja MD: {mdRelation}</div>
-        </div>
+        <details className="bw-sprint-session-info">
+          <summary>Sprzęt i relacja do meczu</summary>
+          <p>Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}</p>
+          <p>Relacja MD: {mdRelation}</p>
+        </details>
       </div>
 
+      <CourseSetup
+        key={progressKey}
+        exercises={sections.flatMap((section) =>
+          section.blocks.flatMap((block) => block.exercises),
+        )}
+      />
+      <SessionPreparation equipment={equipmentPool} />
+      <div className="mt-2 text-xs text-muted-foreground" role="status">
+        {local.available
+          ? "Oznaczenia ćwiczeń zachowane na urządzeniu."
+          : "Zapis na urządzeniu niedostępny — postęp pozostaje w otwartym ekranie."}
+      </div>
+      <CompletionUndo
+        label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
+        onUndo={() => {
+          if (!lastToggle) return;
+          local.setValue((current) => {
+            const latest = progressForPrescription(current, fingerprint);
+            return {
+              ...latest,
+              done: { ...latest.done, [lastToggle.id]: lastToggle.wasDone },
+              fingerprint,
+            };
+          });
+          setLastToggle(null);
+        }}
+      />
+
       <div className="space-y-2">
+        <div className="px-1 text-xs text-muted-foreground">
+          Pełny trening · etap {currentBlockIdx + 1} z {blocks.length}
+        </div>
         {blocks.map((block, index) => {
           const isCurrent = index === currentBlockIdx;
-          const isExpanded = isCurrent || expanded[block.key];
+          const isExpanded = expanded[block.key] ?? isCurrent;
           const exerciseCount = block.exercises.length;
           const completedCount = block.exercises.filter((exercise) => done[exercise.id]).length;
           return (
-            <div key={block.key} className="rounded-lg border border-border bg-card px-3 py-2">
+            <div
+              key={block.key}
+              className={`bw-sprint-stage ${isCurrent ? "bw-stage-current" : ""}`}
+            >
               <button
                 type="button"
                 onClick={() => {
-                  if (!isCurrent) {
-                    setExpanded((current) => ({
-                      ...current,
-                      [block.key]: !isExpanded,
-                    }));
-                  }
+                  setExpanded((current) => ({
+                    ...current,
+                    [block.key]: !isExpanded,
+                  }));
                 }}
-                className="flex w-full items-center gap-2 text-left"
+                className="bw-stage-header"
+                aria-expanded={Boolean(isExpanded)}
               >
-                <span className="w-7 shrink-0 text-base font-bold text-foreground">
-                  {block.index}
-                </span>
-                <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
-                  {block.title}
-                </span>
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                <span className="bw-stage-index">{block.index}</span>
+                <span className="bw-stage-title">{block.title}</span>
+                <span className="bw-stage-count">
                   {completedCount}/{exerciseCount}
                 </span>
-                {!isExpanded && (
+                {!isExpanded && block.hasDataError && (
                   <span
                     className={`text-[11px] ${block.hasDataError ? "font-semibold text-destructive" : "text-muted-foreground"}`}
                   >
-                    {block.hasDataError
-                      ? "Błąd danych sesji"
-                      : `${exerciseCount} ćw. · ~${block.estimatedMin} min`}
+                    Błąd danych sesji
                   </span>
                 )}
-                <ChevronRight
-                  className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
                 />
               </button>
               {isExpanded && block.hasDataError && (
-                <div className="mt-2 text-xs font-medium text-destructive">
+                <div className="px-3 py-2 text-xs font-medium text-destructive">
                   Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
                 </div>
               )}
               {isExpanded && (
-                <div className="mt-2 divide-y divide-border/50">
+                <div className="bw-stage-exercises divide-y divide-border/50">
                   {block.exercises.map((item) => {
                     const definition = resolveDefinitionForExercise(item.exercise);
                     const equipmentIds = specialistEquipmentForExercise(definition);
@@ -381,17 +397,13 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                         key={item.id}
                         view={item}
                         done={!!done[item.id]}
-                        onToggle={() =>
-                          setDone((current) => ({
-                            ...current,
-                            [item.id]: !current[item.id],
-                          }))
-                        }
+                        onToggle={() => markDone(item.id)}
                         onUnavailable={() => {
                           if (equipmentIds.length)
                             markEquipmentUnavailable(date, item.exercise, equipmentIds);
                         }}
                         equipmentIds={equipmentIds}
+                        isMainSprint={block.key === "main"}
                       />
                     );
                   })}
@@ -401,18 +413,28 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
           );
         })}
       </div>
+      <NextExercisePreview
+        exercise={
+          blocks
+            .slice(currentBlockIdx)
+            .flatMap((block) => block.exercises)
+            .find((item) => !done[item.id])?.exercise
+        }
+      />
 
       {!finished && (
-        <div className="sticky bottom-3 z-20">
+        <div className="bw-sprint-action">
           <button
             type="button"
             disabled={actionDisabled}
             onClick={() => {
               if (!started) {
+                if (currentBlock) setExpanded({ [currentBlock.key]: true });
                 setStarted(true);
                 return;
               }
               if (currentBlockIdx < blocks.length - 1) {
+                setExpanded({});
                 setCurrentBlockIdx((value) => value + 1);
                 return;
               }

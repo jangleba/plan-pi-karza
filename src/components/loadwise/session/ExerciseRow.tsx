@@ -10,6 +10,8 @@ import {
 import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
 import { ExerciseDetailSheet, resolveExerciseSheetViewModel } from "../ExerciseDetailSheet";
+import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
+import { ExercisePersonalNote } from "./ExercisePersonalNote";
 
 export function ExerciseRow({
   e,
@@ -19,6 +21,7 @@ export function ExerciseRow({
   onUnavailable,
   equipmentIds,
   sessionId,
+  date,
 }: {
   e: TrainingExercise;
   index?: number;
@@ -27,6 +30,7 @@ export function ExerciseRow({
   onUnavailable: () => void;
   equipmentIds: string[];
   sessionId?: string | null;
+  date?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [logging, setLogging] = useState(false);
@@ -43,10 +47,11 @@ export function ExerciseRow({
         <button
           type="button"
           onClick={onToggle}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors ${
             done ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
           }`}
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
+          aria-pressed={done}
         >
           {done ? (
             <Check className="h-4 w-4" />
@@ -78,12 +83,13 @@ export function ExerciseRow({
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/60"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground/60"
           aria-label="Szczegóły"
         >
           <ChevronRight className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
       </div>
+      {!done && <ExerciseQuickGuide exercise={e} className="ml-11" />}
       {expanded && (
         <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3 text-xs">
           {details.purpose && (
@@ -149,6 +155,7 @@ export function ExerciseRow({
               Zapisz serie
             </button>
           )}
+          <ExercisePersonalNote exercise={e} />
           <button
             type="button"
             onClick={() => setDetailSheetOpen(true)}
@@ -163,8 +170,12 @@ export function ExerciseRow({
       <ExerciseRunnerScreen
         exercise={e}
         sessionId={sessionId}
+        date={date}
         open={logging}
         onClose={() => setLogging(false)}
+        onComplete={() => {
+          if (!done) onToggle();
+        }}
       />
     </div>
   );
