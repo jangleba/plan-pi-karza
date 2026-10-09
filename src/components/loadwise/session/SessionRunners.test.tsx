@@ -132,10 +132,10 @@ describe("session runners", () => {
     await renderSprint();
     await click("Start");
     await act(async () => vi.advanceTimersByTime(1000));
-    expect(host.querySelector('[role="timer"]')?.textContent).toBe("2 s");
+    expect(host.querySelector('[role="timer"]')?.textContent).toBe("00:02");
     await click("Pauza");
     await act(async () => vi.advanceTimersByTime(5000));
-    expect(host.querySelector('[role="timer"]')?.textContent).toBe("2 s");
+    expect(host.querySelector('[role="timer"]')?.textContent).toBe("00:02");
     await click("Start");
     await act(async () => vi.advanceTimersByTime(2000));
     expect(host.querySelector('[role="timer"]')).toBeNull();
