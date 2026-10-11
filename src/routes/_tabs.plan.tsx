@@ -18,6 +18,7 @@ import {
 import { resolveEffectiveDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { AppHeader } from "@/components/loadwise/ui";
+import { LabEntry } from "@/features/browser-lab/LabEntry";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -332,6 +333,8 @@ function PlanScreen() {
           </span>
         }
       />
+
+      <LabEntry />
 
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
