@@ -1,5 +1,5 @@
 .browser-lab {
-  padding: 4px 20px 20px;
+  padding: 4px 20px 110px;
   color: var(--foreground);
   font-size: 14px;
   line-height: 1.55;
@@ -540,4 +540,61 @@
     grid-template-columns: 1fr 1fr;
     gap: 0 14px;
   }
+}
+.bl-compact .bl-card {
+  padding: 16px;
+  margin: 10px 0;
+}
+.bl-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+}
+.bl-step-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.bl-step-tabs button {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  background: var(--secondary);
+}
+.bl-step-tabs button[aria-pressed="true"] {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--card);
+  font-weight: 650;
+}
+.bl-step-tabs button:disabled {
+  opacity: 0.45;
+}
+.browser-lab .bl-step-instruction {
+  margin: 10px 0 12px;
+  font-size: 13px;
+}
+.bl-compact .bl-frame-time {
+  margin: 8px 0 4px;
+  font-size: 11px;
+}
+.bl-compact .bl-details {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.bl-compact .bl-result .bl-big-value {
+  font-size: 44px;
+  line-height: 1.15;
+  margin: 12px 0;
+}
+.bl-compact .bl-frame-card[hidden] {
+  display: none;
+}
+.bl-step-tabs button:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
 }

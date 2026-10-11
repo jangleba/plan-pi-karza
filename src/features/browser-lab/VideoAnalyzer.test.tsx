@@ -96,6 +96,69 @@ async function render(save = vi.fn()) {
 }
 
 describe("browser video measurement flow", () => {
+  it("opens system capture from a user tap and imports the returned recording", async () => {
+    await render();
+    const input = host.querySelector<HTMLInputElement>(
+      'input[capture="environment"]',
+    )!;
+    expect(input.accept).toBe("video/*");
+    const click = vi.spyOn(input, "click");
+    await act(async () => button("Nagraj próbę").click());
+    expect(click).toHaveBeenCalledOnce();
+    const recording = new File(["original recording"], "capture.mov", {
+      type: "video/quicktime",
+    });
+    await act(async () => {
+      Object.defineProperty(input, "files", {
+        configurable: true,
+        value: [recording],
+      });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(mocks.open).toHaveBeenCalledWith(recording, expect.any(AbortSignal));
+    expect(host.querySelector("canvas")).not.toBeNull();
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+  });
+  it("keeps the initial screen when system capture is cancelled", async () => {
+    await render();
+    const input = host.querySelector<HTMLInputElement>(
+      'input[capture="environment"]',
+    )!;
+    await act(async () => {
+      Object.defineProperty(input, "files", { configurable: true, value: [] });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(mocks.open).not.toHaveBeenCalled();
+    expect(host.querySelector("canvas")).toBeNull();
+    expect(button("Nagraj próbę").disabled).toBe(false);
+  });
+  it("guides marking in order, blocks reversed events and switches to the result", async () => {
+    await render();
+    await importFile();
+    expect(
+      host.querySelector<HTMLButtonElement>('[aria-pressed="false"]')?.disabled,
+    ).toBe(true);
+    await go(60);
+    await act(async () => button("Oznacz wybicie").click());
+    expect(button("Oznacz lądowanie").disabled).toBe(true);
+    await go(59);
+    expect(button("Oznacz lądowanie").disabled).toBe(true);
+    await go(164);
+    await act(async () => button("Oznacz lądowanie").click());
+    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(
+      true,
+    );
+    expect(
+      host.querySelector('[aria-label="Wynik próby"]')?.textContent,
+    ).toContain("23,0 cm");
+    expect(button("Zapisz wynik").disabled).toBe(true);
+    await act(async () => button("Popraw oznaczenia").click());
+    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(
+      false,
+    );
+    await act(async () => button("2. Lądowanie").click());
+    expect(button("Oznacz lądowanie").disabled).toBe(false);
+  });
   it("imports a 60 FPS recording, shows the limitation and saves the actual measurement", async () => {
     const lowTimeline = buildJumpTimeline(
       Array.from({ length: 120 }, (_, cts) => ({
@@ -114,19 +177,19 @@ describe("browser video measurement flow", () => {
     const save = await render();
     await importFile();
     expect(host.textContent).toContain("60.0 FPS");
-    expect(host.textContent).toContain("Wynik orientacyjny");
     expect(host.querySelector("canvas")?.width).toBe(1280);
     expect(host.querySelector("canvas")?.height).toBe(720);
     await go(20);
     await act(async () => button("Oznacz wybicie").click());
     await go(44);
     await act(async () => button("Oznacz lądowanie").click());
+    expect(host.textContent).toContain("orientacyjny");
     await act(async () => {
       host
         .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
         .forEach((input) => input.click());
     });
-    await act(async () => button("Zapisz poprawną próbę").click());
+    await act(async () => button("Zapisz wynik").click());
     expect(save).toHaveBeenCalledOnce();
     expect(save.mock.calls[0][0].fps).toBeCloseTo(60, 8);
     expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(19.6133, 6);
@@ -157,22 +220,24 @@ describe("browser video measurement flow", () => {
     await go(164);
     await act(async () => button("Oznacz lądowanie").click());
     expect(host.textContent).toContain("23,0 cm");
-    expect(button("Zapisz poprawną próbę").disabled).toBe(true);
+    expect(button("Zapisz wynik").disabled).toBe(true);
     await act(async () => {
       host
         .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
         .forEach((input) => input.click());
     });
-    await act(async () => button("Zapisz poprawną próbę").click());
+    await act(async () => button("Zapisz wynik").click());
     expect(host.textContent).toContain("Safari nie zapisało historii");
     expect(host.textContent).not.toContain("ZAPISANO LOKALNIE");
     expect(button("Pobierz kopię tej próby")).toBeDefined();
-    await act(async () => button("Zapisz poprawną próbę").click());
+    await act(async () => button("Zapisz wynik").click());
     expect(save).toHaveBeenCalledTimes(2);
     expect(save.mock.calls[0][0].id).toBe(save.mock.calls[1][0].id);
     expect(host.textContent).toContain("ZAPISANO LOKALNIE");
     expect(host.querySelector('input[type="file"]')).toBeNull();
-    expect(button("Oznacz wybicie").disabled).toBe(true);
+    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(
+      true,
+    );
   });
   it("ignores an import that finishes after cancellation and a newer import", async () => {
     let finish!: (v: OpenedVideo) => void;

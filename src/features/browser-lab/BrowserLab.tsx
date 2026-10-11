@@ -3,7 +3,6 @@ import {
   Activity,
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   Clock,
   FlaskConical,
 } from "lucide-react";
@@ -46,8 +45,8 @@ function RestReminder({ until }: { until: number }) {
     <p className="bl-rest">
       <Clock size={17} />
       {seconds > 0
-        ? `Zalecana przerwa przed kolejną próbą: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
-        : "Zalecana przerwa zakończona."}
+        ? `Przerwa: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+        : "Możesz wykonać kolejną próbę."}
     </p>
   );
 }
@@ -146,15 +145,13 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
           />
           {session.saved && (
             <section className="bl-card bl-next">
-              <CheckCircle2 size={26} />
-              <h2>Próba {session.index + 1} zapisana</h2>
               {session.index < session.attempts.length - 1 && (
                 <RestReminder until={session.restUntil} />
               )}
               <LabButton className="bl-wide" onClick={next}>
                 {session.index === session.attempts.length - 1
                   ? "Zakończ i pokaż wyniki"
-                  : "Przejdź do kolejnej próby"}
+                  : "Kolejna próba"}
                 <ArrowRight size={18} />
               </LabButton>
             </section>
@@ -167,12 +164,9 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
               <FlaskConical size={24} />
             </div>
             <div>
-              <p className="bl-kicker">LAB · HD / 4K · OD 30 FPS</p>
+              <p className="bl-kicker">LAB</p>
               <h2>Sprawdź swoją formę</h2>
-              <p>
-                Prawdziwe czasy klatek. Jasne protokoły. Twoje próby do
-                porównania.
-              </p>
+              <p>Skoki, szybkość i zwrotność.</p>
             </div>
           </section>
           <div className="bl-tabs" role="tablist" aria-label="BallWise Lab">
@@ -264,8 +258,8 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                   </section>
                 ))}
               </div>
-              <section className="bl-card">
-                <h2>Jak używać w Safari</h2>
+              <details className="bl-details">
+                <summary>Jak wykonać pomiar?</summary>
                 <ol className="bl-steps">
                   <li>
                     Nagraj jedną próbę w Aparacie: najlepiej HD 60 FPS, około
@@ -287,7 +281,7 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                   wynik jest orientacyjny — sprawdź podany zakres rozdzielczości
                   czasowej. Zmiana tempa filmu uniemożliwia poprawny pomiar.
                 </p>
-              </section>
+              </details>
             </>
           ) : (
             <BrowserHistory

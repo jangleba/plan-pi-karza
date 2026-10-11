@@ -18,7 +18,6 @@ import { decodeJumpFrame, openJumpVideo, type OpenedVideo } from "./video";
 import { createHistoryBackup } from "./storage";
 import { downloadText } from "./download";
 import { LabButton, LabNotice, messageOf } from "./LabUI";
-import { videoPrecision } from "./measurement";
 
 export function VideoAnalyzer({
   attempt,
@@ -49,6 +48,10 @@ export function VideoAnalyzer({
   const [saved, setSaved] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
+  const [marking, setMarking] = useState<"start" | "end">("start");
+  const [editing, setEditing] = useState(false);
+  const galleryInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const load = useRef<AbortController | null>(null);
   const version = useRef(0);
@@ -61,7 +64,7 @@ export function VideoAnalyzer({
     [],
   );
   useEffect(() => {
-    if (!video) return;
+    if (!video || saved) return;
     const controller = new AbortController();
     let active = true;
     setPainted(null);
@@ -117,7 +120,7 @@ export function VideoAnalyzer({
       controller.abort();
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [video, frameIndex, refresh]);
+  }, [video, frameIndex, refresh, saved]);
 
   async function importVideo(file: File) {
     load.current?.abort();
@@ -134,6 +137,8 @@ export function VideoAnalyzer({
     setDraft(null);
     setSaved(false);
     setError("");
+    setMarking("start");
+    setEditing(false);
     setZoom(1);
     setPan([0, 0]);
     try {
@@ -160,15 +165,24 @@ export function VideoAnalyzer({
   }
   function move(index: number) {
     if (!video || saved) return;
+    const next = Math.max(0, Math.min(video.timeline.frames.length - 1, index));
+    if (next === frameIndex) {
+      if (painted !== frameIndex) setRefresh((value) => value + 1);
+      return;
+    }
     setPainted(null);
-    setFrameIndex(
-      Math.max(0, Math.min(video.timeline.frames.length - 1, index)),
-    );
+    setFrameIndex(next);
   }
   function mark(which: "start" | "end") {
     if (!ready || saved || frameIndex < 1) return;
-    if (which === "start") setStart(frameIndex);
-    else setEnd(frameIndex);
+    if (which === "start") {
+      setStart(frameIndex);
+      setMarking("end");
+      setEditing(true);
+    } else {
+      setEnd(frameIndex);
+      setEditing(false);
+    }
     setDraft(null);
     setError("");
   }
@@ -207,441 +221,470 @@ export function VideoAnalyzer({
       setError(messageOf(reason));
     }
   }
+  const stepIndex = marking === "start" ? 0 : 1;
+  const selectedIndex = stepIndex === 0 ? start : end;
+  const shortSetup =
+    protocol.category === "jump"
+      ? "Telefon z boku. Pokaż stopy i podłoże. Ręce na biodrach."
+      : "Odmierz odcinek. Telefon nieruchomo, bokiem. Pokaż obie linie.";
+  const shortInstructions = {
+    cmj: [
+      "Pierwsza klatka z obiema stopami nad podłożem.",
+      "Pierwsza klatka kontaktu stopy z podłożem.",
+    ],
+    single_leg_cmj: [
+      "Pierwsza klatka ze stopą podporową nad podłożem.",
+      "Pierwsza klatka kontaktu tej samej stopy z podłożem.",
+    ],
+    sprint_10m: [
+      "Pierwszy ruch tułowia rozpoczynający bieg.",
+      "Środek tułowia pierwszy raz przecina metę 10 m.",
+    ],
+    flying_10m: [
+      "Środek tułowia pierwszy raz przecina linię wejścia.",
+      "Ten sam punkt tułowia pierwszy raz przecina metę.",
+    ],
+    cod_505: [
+      "Środek tułowia pierwszy raz przecina linię pomiarową.",
+      "Ten sam punkt przecina tę linię w drodze powrotnej.",
+    ],
+  } as const;
+  const precision = video && video.timeline.fps < 119 ? " · orientacyjny" : "";
+  function selectFile(input: HTMLInputElement) {
+    const file = input.files?.[0];
+    input.value = "";
+    if (file) void importVideo(file);
+  }
+  function downloadDraft() {
+    if (!draft) return;
+    downloadText(
+      `BallWise-proba-${draft.id.slice(0, 8)}.json`,
+      JSON.stringify(createHistoryBackup([draft]), null, 2),
+    );
+  }
   return (
-    <div className="bl-analyzer">
-      <section className="bl-card">
-        <p className="bl-kicker">USTAWIENIE PRÓBY</p>
-        <h2>
-          {protocol.title}
-          {attempt.side && ` · ${sideLabel(attempt.side)}`}
-        </h2>
-        <p className="bl-muted">
-          Próba {attempt.trial} z {attempt.trials}
-          {attempt.testId === "cod_505" ? " · noga stawna w nawrocie" : ""}
-        </p>
-        <ol className="bl-steps">
-          {protocol.setup.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ol>
-        <div className="bl-record-tip">
-          <Camera size={19} />
-          <p>
-            Nagraj <strong>jedną próbę</strong>: HD 60 FPS, około 5–10 s.
-            Przyjmujemy też 4K oraz 30, 120 i 240 FPS. Maksymalnie 20 s i 128
-            MB. Zapisz oryginał w Plikach, bez zmiany tempa.
-          </p>
-        </div>
-        <details className="bl-details">
-          <summary>Co oznacza FPS i gdzie znaleźć 120/240?</summary>
-          <p className="bl-muted">
-            FPS to liczba klatek na sekundę. HD i 4K określają szczegółowość
-            obrazu. HD 60 FPS wystarczy do wyniku orientacyjnego. Jeśli Twój
-            iPhone obsługuje 120/240 FPS, znajdziesz je w Aparacie w trybie
-            „Zwolnione tempo”, a nie w zwykłym „Wideo”. Więcej klatek ułatwia
-            oznaczenie wybicia i lądowania; 4K nie zastępuje wyższego FPS.
-          </p>
-        </details>
-        <details className="bl-details">
-          <summary>Jak zapisać oryginał z iPhone’a?</summary>
-          <ol className="bl-steps">
-            <li>W Zdjęciach wybierz nagrany film i otwórz Udostępnij.</li>
-            <li>
-              Wybierz „Eksportuj niezmodyfikowany oryginał” i zapisz w Plikach.
-            </li>
-            <li>
-              Wróć do Labu i wybierz ten MP4 lub MOV. Zachowaj oryginał do
-              sprawdzenia wyniku.
-            </li>
-          </ol>
-        </details>
-        {!saved && (
-          <label className="bl-button bl-upload">
-            <FileVideo size={18} />
-            {reading
-              ? "Czytam oryginał…"
-              : video
-                ? "Wybierz inny film"
-                : "Wybierz film z Plików"}
-            <input
-              type="file"
-              accept="video/mp4,video/quicktime,.mp4,.mov"
-              aria-label="Wybierz oryginalny film"
-              disabled={reading}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file) void importVideo(file);
-              }}
-            />
-          </label>
-        )}
-        {reading && (
-          <LabButton
-            className="bl-secondary"
-            onClick={() => {
-              version.current++;
-              load.current?.abort();
-              setReading(false);
-            }}
-          >
-            Anuluj odczyt
-          </LabButton>
-        )}
-      </section>
-      {error && <LabNotice error>{error}</LabNotice>}
-      {video && (
+    <div className="bl-analyzer bl-compact">
+      {!saved && (
         <>
-          <section className="bl-card bl-frame-card">
-            <div className="bl-frame-heading">
-              <span>
-                {video.timeline.fps.toFixed(1)} FPS ·{" "}
-                {video.timeline.durationSeconds.toFixed(2)} s
-              </span>
-              <span>
-                {video.config.codec.startsWith("avc") ? "H.264" : "HEVC"}
-              </span>
-            </div>
-            {video.timeline.fps < 119 && (
-              <p className="bl-muted">
-                Wynik orientacyjny. Oznacz zdarzenia klatka po klatce i sprawdź
-                zakres przy wyniku.
-              </p>
-            )}
-            <div
-              className="bl-frame"
-              style={{ aspectRatio: aspect, maxWidth: `${65 * aspect}vh` }}
-            >
-              <div
-                className="bl-frame-inner"
-                style={{
-                  transform: `scale(${zoom}) translate(${pan[0]}%, ${pan[1]}%)`,
-                }}
-              >
-                <canvas ref={canvas} aria-label="Dokładna klatka filmu" />
-                {guides
-                  .filter((_, i) => !protocol.sharedGuide || i === 0)
-                  .map((guide, i) => (
-                    <div
-                      key={i}
-                      className={`bl-guide ${protocol.guideAxis === "vertical" ? "bl-guide-vertical" : "bl-guide-horizontal"}`}
-                      style={
-                        protocol.guideAxis === "vertical"
-                          ? { left: `${guide * 100}%` }
-                          : { top: `${guide * 100}%` }
-                      }
-                    >
-                      <span>
-                        {protocol.category === "jump"
-                          ? "Podłoże"
-                          : protocol.sharedGuide
-                            ? "Linia pomiarowa"
-                            : i === 0
-                              ? "Wejście / start"
-                              : "Meta"}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-              {!ready && (
-                <div className="bl-frame-loading">
-                  {error
-                    ? "Klatka niepotwierdzona"
-                    : "Odczyt dokładnej klatki…"}
-                </div>
-              )}
-            </div>
-            <p className="bl-frame-time" aria-live="polite">
-              Klatka {frameIndex + 1} / {video.timeline.frames.length} ·{" "}
-              {video.timeline.frames[frameIndex].seconds.toFixed(6)} s
-              {ready ? " · potwierdzona" : ""}
+          <input
+            ref={galleryInput}
+            className="bl-file-input"
+            type="file"
+            accept="video/mp4,video/quicktime,.mp4,.mov"
+            aria-label="Wybierz oryginalny film"
+            disabled={reading}
+            onChange={(event) => selectFile(event.currentTarget)}
+          />
+          <input
+            ref={cameraInput}
+            className="bl-file-input"
+            type="file"
+            accept="video/*"
+            capture="environment"
+            aria-label="Nagraj próbę"
+            disabled={reading}
+            onChange={(event) => selectFile(event.currentTarget)}
+          />
+        </>
+      )}
+      {!video && (
+        <section className="bl-card bl-source-card">
+          <p className="bl-kicker">
+            PRÓBA {attempt.trial} / {attempt.trials}
+          </p>
+          <h2>
+            {protocol.title}
+            {attempt.side && ` · ${sideLabel(attempt.side)}`}
+          </h2>
+          <p className="bl-muted">{shortSetup}</p>
+          <LabButton
+            className="bl-wide"
+            disabled={reading}
+            onClick={() => cameraInput.current?.click()}
+          >
+            <Camera size={18} /> Nagraj próbę
+          </LabButton>
+          <LabButton
+            className="bl-secondary bl-wide"
+            disabled={reading}
+            onClick={() => galleryInput.current?.click()}
+          >
+            <FileVideo size={18} /> Wybierz film
+          </LabButton>
+          <p className="bl-muted">
+            Jedna próba · 5–10 sekund.
+          </p>
+          <details className="bl-details">
+            <summary>Jak wykonać próbę?</summary>
+            <ol className="bl-steps">
+              {protocol.setup.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ol>
+            <p className="bl-muted">
+              HD lub 4K, od 30 FPS. Maksymalnie 20 s i 128 MB. Film w
+              oryginalnym tempie. Jeśli galeria zmienia tempo, w Zdjęciach
+              wybierz Udostępnij → Eksportuj niezmodyfikowany oryginał → Pliki.
+              120/240 FPS szukaj w Aparacie w trybie „Zwolnione tempo”.
             </p>
-            <input
-              className="bl-range"
-              type="range"
-              aria-label="Pozycja w filmie"
-              min={0}
-              max={video.timeline.frames.length - 1}
-              step={1}
-              value={frameIndex}
-              disabled={saved}
-              onChange={(event) => move(Number(event.target.value))}
-            />
-            <div className="bl-frame-controls">
-              <LabButton
-                aria-label="10 klatek wstecz"
-                className="bl-secondary"
-                disabled={!ready || saved || frameIndex < 1}
-                onClick={() => move(frameIndex - 10)}
-              >
-                −10
-              </LabButton>
-              <LabButton
-                aria-label="Poprzednia klatka"
-                className="bl-secondary"
-                disabled={!ready || saved || frameIndex < 1}
-                onClick={() => move(frameIndex - 1)}
-              >
-                <ChevronLeft size={20} />
-                −1
-              </LabButton>
-              <LabButton
-                aria-label="Następna klatka"
-                className="bl-secondary"
-                disabled={
-                  !ready ||
-                  saved ||
-                  frameIndex >= video.timeline.frames.length - 1
-                }
-                onClick={() => move(frameIndex + 1)}
-              >
-                +1
-                <ChevronRight size={20} />
-              </LabButton>
-              <LabButton
-                aria-label="10 klatek dalej"
-                className="bl-secondary"
-                disabled={
-                  !ready ||
-                  saved ||
-                  frameIndex >= video.timeline.frames.length - 1
-                }
-                onClick={() => move(frameIndex + 10)}
-              >
-                +10
-              </LabButton>
-            </div>
-            <div className="bl-small-controls">
-              <label>
-                <ZoomIn size={16} />
-                Powiększenie{" "}
-                <select
-                  aria-label="Powiększenie"
-                  value={zoom}
-                  onChange={(event) => setZoom(Number(event.target.value))}
-                >
-                  <option value={1}>1×</option>
-                  <option value={1.5}>1,5×</option>
-                  <option value={2}>2×</option>
-                </select>
+            <p className="bl-muted">
+              Przycisk nagrywania korzysta z kamery telefonu. Ustawienia
+              nagrania wybiera system; Lab sprawdza liczbę klatek w gotowym
+              filmie.
+            </p>
+          </details>
+          {reading && <LabNotice>Czytam film…</LabNotice>}
+          {reading && (
+            <LabButton
+              className="bl-link"
+              onClick={() => {
+                version.current++;
+                load.current?.abort();
+                setReading(false);
+              }}
+            >
+              Anuluj odczyt
+            </LabButton>
+          )}
+        </section>
+      )}
+      {error && <LabNotice error>{error}</LabNotice>}
+      {video && measure && (
+        <section className="bl-card bl-result" aria-label="Wynik próby">
+          <p className="bl-kicker">
+            {saved ? "ZAPISANO LOKALNIE" : "WYNIK PRÓBY"}
+          </p>
+          <div className="bl-big-value">
+            {resultValue(measure.primaryValue, measure.primaryUnit)}
+          </div>
+          <p className="bl-muted">
+            {video.timeline.fps.toFixed(0)} FPS{precision}
+          </p>
+          <p className="bl-muted">
+            Zakres z klatek:{" "}
+            {resultValue(measure.resolutionMin, measure.primaryUnit)}–
+            {resultValue(measure.resolutionMax, measure.primaryUnit)}
+          </p>
+          {measure.averageSpeedMps !== undefined && (
+            <p>
+              Średnia prędkość: {(measure.averageSpeedMps * 3.6).toFixed(1)}{" "}
+              km/h
+            </p>
+          )}
+          {!saved && (
+            <>
+              <label className="bl-check">
+                <input
+                  type="checkbox"
+                  checked={original && confirmed}
+                  onChange={(event) => {
+                    setOriginal(event.target.checked);
+                    setConfirmed(event.target.checked);
+                    setDraft(null);
+                  }}
+                />
+                Film w oryginalnym tempie. Próba zgodna z instrukcją.
               </label>
               <LabButton
-                className="bl-link"
-                disabled={saved}
-                onClick={() => setRefresh((value) => value + 1)}
+                className="bl-wide"
+                disabled={!original || !confirmed}
+                onClick={save}
               >
-                <RotateCcw size={16} />
-                Odczytaj ponownie
+                Zapisz wynik
               </LabButton>
-            </div>
-            {zoom > 1 && (
-              <details className="bl-details">
-                <summary>Przesuń powiększony obraz</summary>
-                {["Poziomo", "Pionowo"].map((label, i) => (
-                  <label key={label}>
-                    {label}
-                    <input
-                      className="bl-range"
-                      type="range"
-                      aria-label={`Przesunięcie ${label.toLowerCase()}`}
-                      min={-25}
-                      max={25}
-                      step={1}
-                      value={pan[i]}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        setPan((old) =>
-                          i === 0 ? [value, old[1]] : [old[0], value],
-                        );
-                      }}
-                    />
-                  </label>
-                ))}
-              </details>
-            )}
-            <details className="bl-details">
-              <summary>Ustaw linie pomocnicze</summary>
-              <p>
-                Linie są wskazówką na obrazie. Odległości wyznacz taśmą w
-                terenie. Przy powiększeniu krawędzie obrazu są przycięte.
+              <LabButton
+                className="bl-link bl-wide"
+                onClick={() => setEditing((value) => !value)}
+              >
+                {editing ? "Zamknij korektę" : "Popraw oznaczenia"}
+              </LabButton>
+            </>
+          )}
+          <details className="bl-details">
+            <summary>Szczegóły pomiaru</summary>
+            <p>
+              {protocol.category === "jump" ? "Czas lotu" : "Czas odcinka"}:{" "}
+              {measure.elapsedSeconds.toFixed(3)} s ·{" "}
+              {video.timeline.fps.toFixed(2)} FPS.
+            </p>
+            <p className="bl-muted">
+              Zakres dotyczy odstępów między klatkami. Nie obejmuje błędu
+              oznaczenia zdarzeń, ustawienia kamery ani techniki. Przy 30/60 FPS
+              wynik jest orientacyjny.
+            </p>
+            {protocol.category === "jump" && (
+              <p className="bl-muted">
+                Wysokość z czasu lotu: h = g · t² / 8. Ustawienie nóg przy
+                wybiciu i pierwszym kontakcie powinno być podobne.
               </p>
+            )}
+            <p className="bl-muted">{protocol.confirmation}</p>
+            {!saved && (
+              <label className="bl-label">
+                Notatka (opcjonalnie)
+                <textarea
+                  aria-label="Notatka do próby"
+                  maxLength={280}
+                  rows={2}
+                  value={notes}
+                  onChange={(event) => {
+                    setNotes(event.target.value);
+                    setDraft(null);
+                  }}
+                  placeholder="Obuwie, nawierzchnia…"
+                />
+              </label>
+            )}
+            {saved && notes && <p>{notes}</p>}
+            {saved && (
+              <p className="bl-muted">
+                Wynik zapisany na tym urządzeniu. Zachowaj film osobno.
+              </p>
+            )}
+            {draft && saved && (
+              <LabButton className="bl-link" onClick={downloadDraft}>
+                Pobierz kopię tej próby
+              </LabButton>
+            )}
+          </details>
+          {draft && !saved && (
+            <LabButton className="bl-secondary bl-wide" onClick={downloadDraft}>
+              Pobierz kopię tej próby
+            </LabButton>
+          )}
+        </section>
+      )}
+      {video && (
+        <section
+          className="bl-card bl-frame-card"
+          hidden={saved || (!!measure && !editing)}
+        >
+          <div className="bl-step-tabs" aria-label="Zdarzenie do oznaczenia">
+            {protocol.markers.map((title, i) => (
+              <button
+                type="button"
+                key={title}
+                aria-pressed={stepIndex === i}
+                disabled={saved || (i === 1 && start === null)}
+                onClick={() => {
+                  setMarking(i === 0 ? "start" : "end");
+                  setEditing(true);
+                  const selected = i === 0 ? start : end;
+                  if (selected !== null) move(selected);
+                }}
+              >
+                {i + 1}. {title}
+                {(i === 0 ? start : end) !== null ? " ✓" : ""}
+              </button>
+            ))}
+          </div>
+          <p className="bl-step-instruction">
+            {shortInstructions[attempt.testId][stepIndex]}
+          </p>
+          <div
+            className="bl-frame"
+            style={{ aspectRatio: aspect, maxWidth: `${38 * aspect}svh` }}
+          >
+            <div
+              className="bl-frame-inner"
+              style={{
+                transform: `scale(${zoom}) translate(${pan[0]}%, ${pan[1]}%)`,
+              }}
+            >
+              <canvas ref={canvas} aria-label="Dokładna klatka filmu" />
               {guides
                 .filter((_, i) => !protocol.sharedGuide || i === 0)
                 .map((guide, i) => (
-                  <label key={i}>
-                    {protocol.sharedGuide
-                      ? "Pozycja linii"
-                      : i === 0
-                        ? "Linia wejścia / startu"
-                        : "Linia mety"}
-                    <input
-                      className="bl-range"
-                      type="range"
-                      aria-label={`Linia ${i + 1}`}
-                      min={0}
-                      max={1}
-                      step={0.005}
-                      value={guide}
-                      disabled={saved}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        setGuides((old) =>
-                          protocol.sharedGuide
-                            ? [value, value]
-                            : i === 0
-                              ? [value, old[1]]
-                              : [old[0], value],
-                        );
-                        setDraft(null);
-                      }}
-                    />
-                  </label>
-                ))}
-            </details>
-          </section>
-          <section className="bl-card">
-            <p className="bl-kicker">DWA ZDARZENIA</p>
-            {protocol.markers.map((title, i) => {
-              const selected = i === 0 ? start : end;
-              return (
-                <div className="bl-marker" key={title}>
-                  <div>
-                    <h3>
-                      {i + 1}. {title}
-                    </h3>
-                    <p>{protocol.instructions[i]}</p>
+                  <div
+                    key={i}
+                    className={`bl-guide ${protocol.guideAxis === "vertical" ? "bl-guide-vertical" : "bl-guide-horizontal"}`}
+                    style={
+                      protocol.guideAxis === "vertical"
+                        ? { left: `${guide * 100}%` }
+                        : { top: `${guide * 100}%` }
+                    }
+                  >
+                    <span>
+                      {protocol.category === "jump"
+                        ? "Podłoże"
+                        : protocol.sharedGuide
+                          ? "Linia pomiarowa"
+                          : i === 0
+                            ? "Wejście"
+                            : "Meta"}
+                    </span>
                   </div>
-                  <LabButton
-                    disabled={!ready || frameIndex < 1 || saved}
-                    className="bl-secondary"
-                    onClick={() => mark(i === 0 ? "start" : "end")}
-                  >
-                    Oznacz {title.toLocaleLowerCase("pl-PL")}
-                  </LabButton>
-                  {selected !== null && (
-                    <button
-                      type="button"
-                      className="bl-selected"
-                      disabled={saved}
-                      onClick={() => move(selected)}
-                    >
-                      Klatka {selected + 1} ·{" "}
-                      {video.timeline.frames[selected].seconds.toFixed(6)} s ·
-                      Pokaż
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            <p className="bl-muted">
-              Zawsze sprawdź klatkę poprzednią. Klatka 1 nie może być
-              początkiem, bo nie pokazuje momentu przed zdarzeniem.
-            </p>
-          </section>
-          {invalid && <LabNotice error>{invalid}</LabNotice>}
-          {measure && (
-            <section className="bl-card bl-result">
-              <p className="bl-kicker">
-                {saved ? "ZAPISANO LOKALNIE" : "PODGLĄD WYNIKU"}
-              </p>
-              <div className="bl-big-value">
-                {resultValue(measure.primaryValue, measure.primaryUnit)}
+                ))}
+            </div>
+            {!ready && (
+              <div className="bl-frame-loading">
+                {error
+                  ? "Nie udało się odczytać klatki"
+                  : "Odczyt dokładnej klatki…"}
               </div>
-              <p className="bl-muted">{videoPrecision(video.timeline.fps)}</p>
-              <p>
-                {protocol.category === "jump" ? "Czas lotu" : "Czas odcinka"}:{" "}
-                {measure.elapsedSeconds.toFixed(6)} s
-              </p>
-              {measure.averageSpeedMps !== undefined && (
-                <p>
-                  Średnia na 10 m: {measure.averageSpeedMps.toFixed(2)} m/s ·{" "}
-                  {(measure.averageSpeedMps * 3.6).toFixed(1)} km/h
-                </p>
-              )}
-              <p className="bl-muted">
-                Przedział wynikający z rozdzielczości klatek:{" "}
-                {resultValue(measure.resolutionMin, measure.primaryUnit)}–
-                {resultValue(measure.resolutionMax, measure.primaryUnit)}. Nie
-                obejmuje błędu ustawienia kamery, oznaczenia zdarzeń ani
-                techniki ruchu.
-              </p>
-              {protocol.category === "jump" && (
-                <p className="bl-muted">
-                  Wysokość z czasu lotu: h = g · t² / 8. Zmiana pozycji nóg przy
-                  lądowaniu zawyża wynik. To oszacowanie, wymagające jednakowych
-                  warunków przy porównaniu.
-                </p>
-              )}
-              {!saved && (
-                <>
-                  <label className="bl-check">
-                    <input
-                      type="checkbox"
-                      checked={original}
-                      onChange={(event) => {
-                        setOriginal(event.target.checked);
-                        setDraft(null);
-                      }}
-                    />
-                    To oryginalny film, bez zmiany tempa ani eksportu slow
-                    motion.
-                  </label>
-                  <label className="bl-check">
-                    <input
-                      type="checkbox"
-                      checked={confirmed}
-                      onChange={(event) => {
-                        setConfirmed(event.target.checked);
-                        setDraft(null);
-                      }}
-                    />
-                    {protocol.confirmation}
-                  </label>
-                  <label className="bl-label">
-                    Notatka do próby{" "}
-                    <textarea
-                      aria-label="Notatka do próby"
-                      maxLength={280}
-                      rows={2}
-                      value={notes}
-                      onChange={(event) => {
-                        setNotes(event.target.value);
-                        setDraft(null);
-                      }}
-                      placeholder="Nawierzchnia, obuwie, warunki…"
-                    />
-                  </label>
-                  <LabButton
-                    className="bl-wide"
-                    disabled={!original || !confirmed}
-                    onClick={save}
-                  >
-                    Zapisz poprawną próbę
-                  </LabButton>
-                </>
-              )}
-              {draft && (
-                <LabButton
-                  className="bl-secondary bl-wide"
-                  onClick={() =>
-                    downloadText(
-                      `BallWise-proba-${draft.id.slice(0, 8)}.json`,
-                      JSON.stringify(createHistoryBackup([draft]), null, 2),
-                    )
-                  }
-                >
-                  Pobierz kopię tej próby
-                </LabButton>
-              )}
-              {saved && (
-                <LabNotice>
-                  Próba jest w historii tego konta na tym urządzeniu. Zachowaj
-                  film osobno; Lab zapisuje czasy i wynik, bez nagrania.
-                </LabNotice>
-              )}
-            </section>
+            )}
+          </div>
+          <p className="bl-frame-time" aria-live="polite">
+            Klatka {frameIndex + 1} / {video.timeline.frames.length} ·{" "}
+            {video.timeline.fps.toFixed(1)} FPS
+          </p>
+          <input
+            className="bl-range"
+            type="range"
+            aria-label="Pozycja w filmie"
+            min={0}
+            max={video.timeline.frames.length - 1}
+            step={1}
+            value={frameIndex}
+            disabled={saved}
+            onChange={(event) => move(Number(event.target.value))}
+          />
+          <div className="bl-frame-controls">
+            <LabButton
+              aria-label="10 klatek wstecz"
+              className="bl-secondary"
+              disabled={!ready || saved || frameIndex < 1}
+              onClick={() => move(frameIndex - 10)}
+            >
+              −10
+            </LabButton>
+            <LabButton
+              aria-label="Poprzednia klatka"
+              className="bl-secondary"
+              disabled={!ready || saved || frameIndex < 1}
+              onClick={() => move(frameIndex - 1)}
+            >
+              <ChevronLeft size={18} />
+              −1
+            </LabButton>
+            <LabButton
+              aria-label="Następna klatka"
+              className="bl-secondary"
+              disabled={
+                !ready ||
+                saved ||
+                frameIndex >= video.timeline.frames.length - 1
+              }
+              onClick={() => move(frameIndex + 1)}
+            >
+              +1
+              <ChevronRight size={18} />
+            </LabButton>
+            <LabButton
+              aria-label="10 klatek dalej"
+              className="bl-secondary"
+              disabled={
+                !ready ||
+                saved ||
+                frameIndex >= video.timeline.frames.length - 1
+              }
+              onClick={() => move(frameIndex + 10)}
+            >
+              +10
+            </LabButton>
+          </div>
+          <LabButton
+            className="bl-wide"
+            disabled={
+              !ready ||
+              saved ||
+              frameIndex < 1 ||
+              (marking === "end" && (start === null || frameIndex <= start))
+            }
+            onClick={() => mark(marking)}
+          >
+            Oznacz {protocol.markers[stepIndex].toLocaleLowerCase("pl-PL")}
+          </LabButton>
+          {selectedIndex !== null && (
+            <p className="bl-muted">Wybrano klatkę {selectedIndex + 1}.</p>
           )}
-        </>
+          {invalid && <LabNotice error>{invalid}</LabNotice>}
+          <details className="bl-details">
+            <summary>Powiększenie i pomoc</summary>
+            <p className="bl-muted">
+              {protocol.instructions[stepIndex]} Sprawdź klatkę poprzednią.
+            </p>
+            <label className="bl-label">
+              <ZoomIn size={16} /> Powiększenie
+              <select
+                aria-label="Powiększenie"
+                value={zoom}
+                onChange={(event) => setZoom(Number(event.target.value))}
+              >
+                <option value={1}>1×</option>
+                <option value={1.5}>1,5×</option>
+                <option value={2}>2×</option>
+              </select>
+            </label>
+            {zoom > 1 &&
+              ["Poziomo", "Pionowo"].map((label, i) => (
+                <label key={label} className="bl-label">
+                  {label}
+                  <input
+                    className="bl-range"
+                    type="range"
+                    aria-label={`Przesunięcie ${label.toLowerCase()}`}
+                    min={-25}
+                    max={25}
+                    step={1}
+                    value={pan[i]}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setPan((old) =>
+                        i === 0 ? [value, old[1]] : [old[0], value],
+                      );
+                    }}
+                  />
+                </label>
+              ))}
+            <p className="bl-muted">
+              Linie pomagają oznaczyć zdarzenie. Nie służą do mierzenia
+              odległości.
+            </p>
+            {guides
+              .filter((_, i) => !protocol.sharedGuide || i === 0)
+              .map((guide, i) => (
+                <label className="bl-label" key={i}>
+                  Linia {i + 1}
+                  <input
+                    className="bl-range"
+                    type="range"
+                    aria-label={`Linia ${i + 1}`}
+                    min={0}
+                    max={1}
+                    step={0.005}
+                    value={guide}
+                    disabled={saved}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setGuides((old) =>
+                        protocol.sharedGuide
+                          ? [value, value]
+                          : i === 0
+                            ? [value, old[1]]
+                            : [old[0], value],
+                      );
+                      setDraft(null);
+                    }}
+                  />
+                </label>
+              ))}
+            <LabButton
+              className="bl-link"
+              disabled={saved}
+              onClick={() => setRefresh((value) => value + 1)}
+            >
+              <RotateCcw size={16} /> Odczytaj ponownie
+            </LabButton>
+            <LabButton
+              className="bl-link"
+              disabled={reading || saved}
+              onClick={() => galleryInput.current?.click()}
+            >
+              Zmień film
+            </LabButton>
+          </details>
+        </section>
       )}
     </div>
   );
