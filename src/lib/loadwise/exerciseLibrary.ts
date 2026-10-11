@@ -11,6 +11,7 @@
 // ============================================================================
 
 import type { PainLocation } from "./types";
+import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,
@@ -3373,44 +3374,28 @@ type SprintGuidance = Pick<
 const SPRINT_GUIDANCE: Record<string, SprintGuidance> = {
   a_skip: {
     objective: "Ustawić rytm biegu, aktywną stopę i stabilną miednicę przed sprintem.",
-    instructionsPl: [
-      "Stań wysoko. Unieś kolano do wysokości biodra, stopę trzymaj zadartą, a przeciwne ramię prowadź do przodu.",
-      "Opuść stopę aktywnie pod biodro i od razu odbij się z drugiej nogi; przemieszczaj się krótkimi, sprężystymi krokami.",
-      "Najpierw znajdź równy rytm, dopiero potem przyspiesz. Biodra przez cały odcinek pozostają na tej samej wysokości.",
-    ],
-    coachingCues: ["Kolano w górę, stopa pod biodro", "Biodra wysoko", "Rytm ramion i nóg"],
-    commonErrors: ["Lądowanie przed ciałem", "Odchylanie tułowia i siadanie biodrami"],
+    instructionsPl: [...SKIP_GUIDES.a_skip.steps, SKIP_LANDING],
+    coachingCues: [SKIP_GUIDES.a_skip.focus, SKIP_LANDING],
+    commonErrors: [...SKIP_GUIDES.a_skip.errors],
   },
   c_skip: {
     objective: "Nauczyć szybkiego odzyskania pięty i cyklicznej pracy nogi bez opadania bioder.",
-    instructionsPl: [
-      "Biegnij wysoko i lekko. Po odbiciu prowadź piętę szybko pod pośladek, a kolano przesuwaj do przodu.",
-      "Nie kop piętą do tyłu. Noga ma zatoczyć krótki cykl pod biodrem, a stopa wrócić pod środek masy.",
-      "Utrzymuj małe przemieszczanie do przodu i równy rytm; zakończ odcinek, jeśli biodra zaczynają opadać.",
-    ],
-    coachingCues: ["Pięta pod pośladek", "Krótki cykl pod biodrem", "Tułów wysoki"],
-    commonErrors: ["Kopanie piętą daleko do tyłu", "Pochylanie się i utrata rytmu"],
+    instructionsPl: [...SKIP_GUIDES.c_skip.steps, SKIP_LANDING],
+    coachingCues: [SKIP_GUIDES.c_skip.focus, SKIP_LANDING],
+    commonErrors: [...SKIP_GUIDES.c_skip.errors],
   },
   b_skip: {
     objective: "Połączyć uniesienie kolana z aktywnym sprowadzeniem stopy pod biodro.",
-    instructionsPl: [
-      "Unieś kolano jak w Skipie A, następnie delikatnie otwórz podudzie bez blokowania kolana.",
-      "Zgarnij stopę w dół i do tyłu tak, aby kontakt nastąpił pod biodrem, nie przed ciałem.",
-      "Zachowaj sprężysty rytm i stabilny tułów; zakres wyprostu jest mniejszy niż jakość aktywnego kontaktu.",
-    ],
-    coachingCues: ["Unieś — otwórz — zgarnij", "Kontakt pod biodrem", "Nie blokuj kolana"],
-    commonErrors: ["Sięganie wyprostowaną nogą przed ciało", "Hamujący kontakt na pięcie"],
+    instructionsPl: [...SKIP_GUIDES.b_skip.steps, SKIP_LANDING],
+    coachingCues: [SKIP_GUIDES.b_skip.focus, SKIP_LANDING],
+    commonErrors: [...SKIP_GUIDES.b_skip.errors],
   },
   d_skip: {
     objective:
       "Przygotować szybką wymianę nóg i sprężysty kontakt potrzebny przy wysokiej prędkości.",
-    instructionsPl: [
-      "Utrzymuj wysoki tułów i wykonuj krótką nożycową wymianę nóg: jedna noga idzie w przód, druga natychmiast wraca pod biodro.",
-      "Kontaktuj podłoże śródstopiem pod ciałem; ruch pochodzi z biodra, a kolano pozostaje lekko miękkie.",
-      "Zwiększaj częstotliwość, nie długość kroku. Przerwij, jeśli zaczynasz sięgać stopą przed siebie.",
-    ],
-    coachingCues: ["Szybka nożyca", "Stopa pod biodrem", "Krótki kontakt"],
-    commonErrors: ["Daleki wykrok przed ciało", "Sztywne kolana i głośne lądowanie"],
+    instructionsPl: [...SKIP_GUIDES.d_skip.steps, SKIP_LANDING],
+    coachingCues: [SKIP_GUIDES.d_skip.focus, SKIP_LANDING],
+    commonErrors: [...SKIP_GUIDES.d_skip.errors],
   },
   a_skip_add_step: {
     objective: "Nauczyć przejścia z kontrolowanej pozycji A do płynnego rytmu biegu.",

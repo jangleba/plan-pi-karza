@@ -19,6 +19,8 @@ import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
 import { CourseSetup } from "./CourseSetup";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
+import { SkipExerciseCard } from "./SkipExerciseCard";
+import { getSkipGuide } from "@/lib/loadwise/skipGuides";
 import { SprintRestTimer } from "./SprintRestTimer";
 import { ExercisePersonalNote } from "./ExercisePersonalNote";
 import { CompletionUndo, NextExercisePreview, SessionPreparation } from "./SessionQuickTools";
@@ -51,6 +53,17 @@ function SprintExerciseRow({
   const rest = restLabel(exercise);
   const details = resolveSprintExerciseDetails(exercise);
   const equipmentNames = equipmentNamesFor(equipmentIds);
+  if (getSkipGuide(exercise.exerciseId)) {
+    return (
+      <SkipExerciseCard
+        exercise={exercise}
+        prescription={view.prescription}
+        rest={rest}
+        done={done}
+        onToggle={onToggle}
+      />
+    );
+  }
   return (
     <div className={`bw-sprint-row ${isMainSprint ? "bw-sprint-row-main" : ""}`}>
       <div className="flex items-start gap-2.5">
@@ -388,7 +401,15 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                 </div>
               )}
               {isExpanded && (
-                <div className="bw-stage-exercises divide-y divide-border/50">
+                <div
+                  className={`bw-stage-exercises divide-y divide-border/50 ${block.key === "skip" ? "bw-skip-stage" : ""}`}
+                >
+                  {block.key === "skip" &&
+                    block.exercises.some((item) => item.showSkipSetLabels) && (
+                      <p className="bw-skip-rhythm">
+                        Seria 1: dodatkowe odbicie na tej samej nodze. Seria 2: płynna zmiana nóg.
+                      </p>
+                    )}
                   {block.exercises.map((item) => {
                     const definition = resolveDefinitionForExercise(item.exercise);
                     const equipmentIds = specialistEquipmentForExercise(definition);

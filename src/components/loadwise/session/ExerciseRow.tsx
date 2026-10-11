@@ -6,11 +6,14 @@ import {
   equipmentNamesFor,
   canonicalExerciseName,
   exerciseDataLineParts,
+  restLabel,
 } from "@/lib/loadwise/sessionPresentation";
+import { getSkipGuide } from "@/lib/loadwise/skipGuides";
 import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
 import { ExerciseDetailSheet, resolveExerciseSheetViewModel } from "../ExerciseDetailSheet";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
+import { SkipExerciseCard } from "./SkipExerciseCard";
 import { ExercisePersonalNote } from "./ExercisePersonalNote";
 
 export function ExerciseRow({
@@ -41,6 +44,17 @@ export function ExerciseRow({
   const details = resolveExerciseSheetViewModel(e);
   const equipmentNames = equipmentNamesFor(equipmentIds);
   const label = e.label ?? (typeof index === "number" ? String(index + 1) : "");
+  if (getSkipGuide(e.exerciseId)) {
+    return (
+      <SkipExerciseCard
+        exercise={e}
+        prescription={dose || e.displayPrescription || ""}
+        rest={restLabel(e)}
+        done={done}
+        onToggle={onToggle}
+      />
+    );
+  }
   return (
     <div className="py-3">
       <div className="flex items-center gap-3">

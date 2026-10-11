@@ -1,3 +1,5 @@
+import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
+
 export interface QuickGuide {
   setup: string | null;
   action: string | null;
@@ -106,6 +108,15 @@ export function resolveQuickGuide(
   exercise: GuideExercise,
   definition?: GuideDefinition,
 ): QuickGuide {
+  const skip = getSkipGuide(exercise.exerciseId);
+  if (skip) {
+    return {
+      setup: skip.setup,
+      action: skip.steps.join(" "),
+      focus: SKIP_LANDING,
+      error: skip.errors.join(". "),
+    };
+  }
   const edited = exercise.exerciseId
     ? SHORT_GUIDES[exercise.exerciseId]
     : undefined;

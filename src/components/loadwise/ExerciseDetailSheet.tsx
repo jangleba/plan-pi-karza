@@ -5,19 +5,11 @@ import {
   resolveExerciseByName,
   specialistEquipmentForExercise,
 } from "@/lib/loadwise/exerciseLibrary";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { MovementBlueprint } from "./MovementBlueprint";
-import {
-  ListChecks,
-  ListOrdered,
-  AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-} from "lucide-react";
+import { ExerciseQuickGuide } from "./session/ExerciseQuickGuide";
+import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
+import { ListChecks, ListOrdered, AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 function doseChip(e: TrainingExercise): string | null {
@@ -62,7 +54,12 @@ function techniqueCues(e: TrainingExercise): string[] {
   if (!source) return [];
   return source
     .split(/(?<=[.!?])\s+|;|\n|•/)
-    .map((s) => s.replace(/^[-–•\s]+/, "").replace(/[.]+$/, "").trim())
+    .map((s) =>
+      s
+        .replace(/^[-–•\s]+/, "")
+        .replace(/[.]+$/, "")
+        .trim(),
+    )
     .filter((s) => s.length > 2)
     .slice(0, 3);
 }
@@ -71,14 +68,19 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
   const definition =
     (exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined) ??
     resolveExerciseByName(exercise.name);
+  const skip = getSkipGuide(definition?.id ?? exercise.exerciseId);
   const steps =
+    skip?.steps.map((description) => ({ title: "", description })) ??
     exercise.instructionSteps?.filter(
       (step) => step.title?.trim().length || step.description?.trim().length,
     ) ??
     [];
   const cues =
-    definition?.coachingCues?.slice(0, 3) ?? techniqueCues(exercise);
+    (skip ? [skip.focus, SKIP_LANDING] : null) ??
+    definition?.coachingCues?.slice(0, 3) ??
+    techniqueCues(exercise);
   const errors =
+    (skip ? [...skip.errors] : null) ??
     definition?.commonErrors?.slice(0, 2) ??
     (exercise.commonMistake ? [exercise.commonMistake] : []);
   const equipmentNames = specialistEquipmentForExercise(definition).map(
@@ -89,8 +91,9 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
     return candidate && specialistEquipmentForExercise(candidate).length === 0;
   });
   return {
-    purpose: exercise.purpose?.trim() || definition?.objective?.trim() || definition?.stimulus || null,
-    setup: exercise.setup?.trim() || null,
+    purpose:
+      exercise.purpose?.trim() || definition?.objective?.trim() || definition?.stimulus || null,
+    setup: skip?.setup ?? (exercise.setup?.trim() || null),
     steps,
     cues,
     errors,
@@ -98,7 +101,9 @@ export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
     equipment: equipmentNames.length ? equipmentNames.join(", ") : "Masa ciała",
     replacement: noEquipmentReplacementId
       ? (getExerciseDefinition(noEquipmentReplacementId)?.displayNamePl ?? noEquipmentReplacementId)
-      : (equipmentNames.length ? "Brak zatwierdzonej zamiany bez sprzętu" : "Nie dotyczy"),
+      : equipmentNames.length
+        ? "Brak zatwierdzonej zamiany bez sprzętu"
+        : "Nie dotyczy",
     regression: exercise.regression?.trim() || null,
     progression: exercise.progression?.trim() || null,
     stopRule: exercise.contraindications?.trim() || definition?.injuryCautions?.[0] || null,
@@ -141,6 +146,7 @@ export function ExerciseDetailSheet({
   const intensity = intensityChip(e);
   const tempo = tempoChip(e);
   const details = resolveExerciseSheetViewModel(e);
+  const skip = getSkipGuide(e.exerciseId);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -190,134 +196,120 @@ export function ExerciseDetailSheet({
               </div>
             )}
           </div>
-          {details.purpose && (
-            <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
-                Po co to ćwiczenie
+          {skip ? (
+            <ExerciseQuickGuide exercise={e} className="mt-5" />
+          ) : (
+            <>
+              {details.purpose && (
+                <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
+                    Po co to ćwiczenie
+                  </div>
+
+                  <p className="mt-1 text-sm leading-relaxed text-foreground">{details.purpose}</p>
+                </div>
+              )}
+              {/* Movement Blueprint */}
+              <div className="mt-5">
+                <MovementBlueprint exercise={e} />
               </div>
 
-              <p className="mt-1 text-sm leading-relaxed text-foreground">
-                {details.purpose}
-              </p>
-            </div>
+              <div className="mt-2 divide-y divide-border/50">
+                {details.setup && (
+                  <Section
+                    icon={<ListChecks className="h-3.5 w-3.5" />}
+                    title="Ustawienie startowe"
+                  >
+                    <p className="text-sm leading-relaxed text-muted-foreground">{details.setup}</p>
+                  </Section>
+                )}
+                {details.steps.length > 0 && (
+                  <Section icon={<ListOrdered className="h-3.5 w-3.5" />} title="Jak wykonać">
+                    <ol className="space-y-3">
+                      {details.steps.map((step, i) => {
+                        const title = step?.title?.trim?.() ?? "";
+                        const description = step?.description?.trim?.() ?? "";
+                        if (!title && !description) return null;
+                        return (
+                          <li
+                            key={`step-${i}`}
+                            className="flex items-start gap-3 text-sm text-foreground"
+                          >
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                              {i + 1}
+                            </span>
+                            <span className="pt-0.5 leading-relaxed">
+                              {title && <span className="font-semibold">{title}</span>}
+                              {title && description && (
+                                <span className="mx-1 text-muted-foreground">—</span>
+                              )}
+                              {description && (
+                                <span className="text-muted-foreground">{description}</span>
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </Section>
+                )}
+                {details.cues.length > 0 && (
+                  <Section icon={<ListChecks className="h-3.5 w-3.5" />} title="Technika">
+                    <ul className="space-y-1.5">
+                      {details.cues.map((c, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-foreground">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Section>
+                )}
+
+                {details.errors.length > 0 && (
+                  <Section
+                    icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                    title="Najczęstsze błędy"
+                  >
+                    <ul className="space-y-1.5 text-sm text-muted-foreground">
+                      {details.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </Section>
+                )}
+
+                {e.regression && (
+                  <Section
+                    icon={<ArrowDownRight className="h-3.5 w-3.5" />}
+                    title="Łatwiejsza wersja"
+                  >
+                    <p className="text-sm text-muted-foreground">{e.regression}</p>
+                  </Section>
+                )}
+
+                {e.progression && (
+                  <Section
+                    icon={<ArrowUpRight className="h-3.5 w-3.5" />}
+                    title="Trudniejsza wersja"
+                  >
+                    <p className="text-sm text-muted-foreground">{e.progression}</p>
+                  </Section>
+                )}
+                <Section icon={<ListChecks className="h-3.5 w-3.5" />} title="Sprzęt i zamiana">
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>Sprzęt: {details.equipment}</p>
+                    <p>Zamiana bez sprzętu: {details.replacement}</p>
+                  </div>
+                </Section>
+                {details.stopRule && (
+                  <Section icon={<AlertTriangle className="h-3.5 w-3.5" />} title="Kiedy przerwać">
+                    <p className="text-sm text-muted-foreground">{details.stopRule}</p>
+                  </Section>
+                )}
+              </div>
+            </>
           )}
-          {/* Movement Blueprint */}
-          <div className="mt-5">
-            <MovementBlueprint exercise={e} />
-          </div>
-
-          <div className="mt-2 divide-y divide-border/50">
-            {details.setup && (
-              <Section
-                icon={<ListChecks className="h-3.5 w-3.5" />}
-                title="Ustawienie startowe"
-              >
-                <p className="text-sm leading-relaxed text-muted-foreground">{details.setup}</p>
-              </Section>
-            )}
-            {details.steps.length > 0 && (
-              <Section
-                icon={<ListOrdered className="h-3.5 w-3.5" />}
-                title="Jak wykonać"
-              >
-                <ol className="space-y-3">
-                  {details.steps.map((step, i) => {
-                    const title = step?.title?.trim?.() ?? "";
-                    const description = step?.description?.trim?.() ?? "";
-                    if (!title && !description) return null;
-                    return (
-                      <li
-                        key={`step-${i}`}
-                        className="flex items-start gap-3 text-sm text-foreground"
-                      >
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                          {i + 1}
-                        </span>
-                        <span className="pt-0.5 leading-relaxed">
-                          {title && (
-                            <span className="font-semibold">{title}</span>
-                          )}
-                          {title && description && (
-                            <span className="mx-1 text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          {description && (
-                            <span className="text-muted-foreground">
-                              {description}
-                            </span>
-                          )}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </Section>
-            )}
-            {details.cues.length > 0 && (
-              <Section
-                icon={<ListChecks className="h-3.5 w-3.5" />}
-                title="Technika"
-              >
-                <ul className="space-y-1.5">
-                  {details.cues.map((c, i) => (
-                    <li key={i} className="flex gap-2 text-sm text-foreground">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                      <span>{c}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {details.errors.length > 0 && (
-              <Section
-                icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                title="Najczęstsze błędy"
-              >
-                <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  {details.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {e.regression && (
-              <Section
-                icon={<ArrowDownRight className="h-3.5 w-3.5" />}
-                title="Łatwiejsza wersja"
-              >
-                <p className="text-sm text-muted-foreground">{e.regression}</p>
-              </Section>
-            )}
-
-            {e.progression && (
-              <Section
-                icon={<ArrowUpRight className="h-3.5 w-3.5" />}
-                title="Trudniejsza wersja"
-              >
-                <p className="text-sm text-muted-foreground">{e.progression}</p>
-              </Section>
-            )}
-            <Section
-              icon={<ListChecks className="h-3.5 w-3.5" />}
-              title="Sprzęt i zamiana"
-            >
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>Sprzęt: {details.equipment}</p>
-                <p>Zamiana bez sprzętu: {details.replacement}</p>
-              </div>
-            </Section>
-            {details.stopRule && (
-              <Section
-                icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                title="Kiedy przerwać"
-              >
-                <p className="text-sm text-muted-foreground">{details.stopRule}</p>
-              </Section>
-            )}
-          </div>
         </div>
       </DrawerContent>
     </Drawer>

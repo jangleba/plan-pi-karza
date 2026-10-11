@@ -1,28 +1,8 @@
+/* Inherit the app palette so tabs, timers and actions use one primary color. */
 .bw-sprint-session {
-  --background: oklch(0.981 0.005 250);
-  --foreground: oklch(0.24 0.065 266);
-  --card: oklch(1 0 0);
-  --primary: oklch(0.59 0.225 258);
-  --primary-foreground: oklch(1 0 0);
-  --muted: oklch(0.958 0.009 253);
-  --muted-foreground: oklch(0.56 0.027 259);
-  --border: oklch(0.928 0.012 253);
-  --accent: oklch(0.935 0.034 254);
   color: var(--foreground);
   overflow-x: clip;
   overflow-y: visible;
-}
-
-.dark .bw-sprint-session {
-  --background: oklch(0.18 0.025 259);
-  --foreground: oklch(0.96 0.007 252);
-  --card: oklch(0.22 0.025 259);
-  --primary: oklch(0.72 0.15 253);
-  --primary-foreground: oklch(0.18 0.025 259);
-  --muted: oklch(0.27 0.025 259);
-  --muted-foreground: oklch(0.75 0.02 253);
-  --border: oklch(0.34 0.025 259);
-  --accent: oklch(0.32 0.05 254);
 }
 
 .bw-sprint-goal,
@@ -350,4 +330,110 @@
   .bw-guide-chevron {
     transition: none;
   }
+}
+
+/* Skip cards: full width, illustration first, three short instructions. */
+.bw-skip-stage {
+  padding: 0 16px;
+}
+.bw-skip-rhythm {
+  padding: 14px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+.bw-skip-card {
+  min-width: 0;
+  padding: 20px 0;
+}
+.bw-skip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.bw-skip-title {
+  font-size: 17px;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+.bw-skip-dose {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.bw-skip-done {
+  display: grid;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--primary-foreground);
+}
+.bw-skip-done > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+}
+.bw-skip-done[aria-pressed="true"] > span {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.bw-skip-done svg {
+  width: 15px;
+  height: 15px;
+}
+.bw-skip-guide {
+  min-width: 0;
+}
+.bw-skip-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  margin: 0 0 16px;
+  border-radius: 14px;
+}
+.bw-skip-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  list-style: decimal;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+.bw-skip-steps li {
+  padding-left: 3px;
+  overflow-wrap: break-word;
+}
+.bw-skip-steps li::marker {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bw-skip-landing {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+.bw-skip-card .bw-sprint-rest-compact {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.bw-skip-card .bw-rest-prescription {
+  display: none;
 }

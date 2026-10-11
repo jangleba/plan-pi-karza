@@ -7,7 +7,9 @@
  * - pliki są serwowane z katalogu `public` i zostały zweryfikowane w teście.
  */
 
-export type ExerciseTechniqueImageCategory = "strength" | "plyometric" | "power";
+import { SKIP_GUIDES } from "./skipGuides";
+
+export type ExerciseTechniqueImageCategory = "strength" | "plyometric" | "power" | "sprint";
 
 export interface ExerciseTechniqueImage {
   exerciseId: string;
@@ -116,6 +118,13 @@ export const EXERCISE_TECHNIQUE_IMAGES: readonly ExerciseTechniqueImage[] = [
   ...buildCategory("strength", STRENGTH_IMAGES),
   ...buildCategory("plyometric", PLYOMETRIC_IMAGES),
   ...buildCategory("power", POWER_IMAGES),
+  ...Object.values(SKIP_GUIDES).map((guide): ExerciseTechniqueImage => ({
+    exerciseId: guide.exerciseId,
+    category: "sprint",
+    title: guide.title,
+    src: `/sprint/small/${guide.exerciseId}.png`,
+    alt: guide.imageAlt,
+  })),
 ];
 
 const IMAGE_BY_EXERCISE_ID = new Map(

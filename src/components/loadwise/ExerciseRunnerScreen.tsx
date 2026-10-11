@@ -22,6 +22,7 @@ import {
 } from "@/components/loadwise/exerciseIllustrations";
 import { resolveExerciseSheetViewModel } from "@/components/loadwise/ExerciseDetailSheet";
 import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
+import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
 import {
   parseTrainingFields,
   parseTrainingNumber,
@@ -163,7 +164,8 @@ export function ExerciseRunnerScreen({
   const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
   const frameIndex = Math.min(frame, Math.max(0, (illustration?.frames.length ?? 1) - 1));
   const details = resolveExerciseSheetViewModel(exercise);
-  const cues = details.cues.slice(0, 3);
+  const skip = getSkipGuide(exercise.exerciseId);
+  const cues = skip ? [...skip.steps, SKIP_LANDING] : details.cues.slice(0, 3);
   const doneCount = Array.from({ length: total }, (_, index) => index + 1).filter(
     (number) => current[number],
   ).length;

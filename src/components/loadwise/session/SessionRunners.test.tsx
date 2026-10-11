@@ -92,6 +92,33 @@ afterEach(async () => {
 });
 
 describe("session runners", () => {
+  it("shows all four skip illustrations and short instructions without opening exercise details", async () => {
+    window.localStorage.setItem(
+      progressKey,
+      JSON.stringify({ done: { ramp: true }, started: true, currentBlockIdx: 1 }),
+    );
+    await renderSprint();
+    const cards = [...host.querySelectorAll<HTMLElement>(".bw-skip-card")];
+    expect(cards).toHaveLength(4);
+    expect(host.querySelectorAll(".bw-skip-rhythm")).toHaveLength(1);
+    expect(host.textContent).not.toContain("1 Z DODATKOWYM ODBICIEM");
+    expect(host.textContent).not.toContain("Brak ilustracji");
+    for (const [index, id] of ["a_skip", "c_skip", "b_skip", "d_skip"].entries()) {
+      const card = cards[index];
+      expect(card.querySelector("img")?.getAttribute("src")).toBe(`/sprint/small/${id}.png`);
+      expect(card.querySelectorAll("li")).toHaveLength(3);
+      expect(card.querySelector("details")).toBeNull();
+      expect(card.textContent).not.toContain("Otwórz pełne szczegóły");
+      expect(card.textContent).not.toContain("Zamiana bez sprzętu");
+    }
+    const completion = cards[0].querySelector<HTMLButtonElement>("[aria-pressed]")!;
+    await act(async () => completion.click());
+    expect(completion.getAttribute("aria-pressed")).toBe("true");
+    expect(cards[0].querySelector("img")).not.toBeNull();
+    expect(cards[0].querySelectorAll("li")).toHaveLength(3);
+    expect(button("Następny blok").disabled).toBe(true);
+  });
+
   it("restores sprint progress and keeps another session's progress separate", async () => {
     const saved = { done: { ramp: true }, started: true, currentBlockIdx: 1 };
     window.localStorage.setItem(progressKey, JSON.stringify(saved));
