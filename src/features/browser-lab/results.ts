@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { GRAVITY, type JumpTimeline } from "./measurement";
+import {
+  GRAVITY,
+  MIN_VIDEO_FPS,
+  MAX_VIDEO_FPS,
+  type JumpTimeline,
+} from "./measurement";
 import {
   BROWSER_LAB_PROTOCOL,
   TEST_IDS,
@@ -24,9 +29,9 @@ const resultSchema = z.object({
     .number()
     .int()
     .positive()
-    .max(64 * 1024 * 1024),
+    .max(128 * 1024 * 1024),
   codec: z.string().min(4).max(80),
-  fps: z.number().finite().min(119).max(300),
+  fps: z.number().finite().min(MIN_VIDEO_FPS).max(MAX_VIDEO_FPS),
   frameCount: z.number().int().min(3).max(6500),
   startFrameIndex: z.number().int().min(1),
   endFrameIndex: z.number().int().min(2),
@@ -68,11 +73,15 @@ export function timedMeasurement(
   const endPreviousSeconds = timeline.frames[end - 1].seconds;
   const elapsedSeconds = endSeconds - startSeconds;
   const protocol = protocolFor(testId);
-  if (elapsedSeconds < protocol.minimumSeconds || elapsedSeconds > protocol.maximumSeconds)
+  if (
+    elapsedSeconds < protocol.minimumSeconds ||
+    elapsedSeconds > protocol.maximumSeconds
+  )
     throw new Error(
       "Czas jest nietypowy dla tego testu. Sprawdź oznaczone zdarzenia oraz oryginalność filmu.",
     );
-  const toValue = (t: number) => (protocol.category === "jump" ? (GRAVITY * t * t * 100) / 8 : t);
+  const toValue = (t: number) =>
+    protocol.category === "jump" ? (GRAVITY * t * t * 100) / 8 : t;
   return {
     startSeconds,
     endSeconds,
@@ -80,21 +89,26 @@ export function timedMeasurement(
     endPreviousSeconds,
     elapsedSeconds,
     primaryValue: toValue(elapsedSeconds),
-    primaryUnit: protocol.category === "jump" ? ("cm" as const) : ("s" as const),
+    primaryUnit:
+      protocol.category === "jump" ? ("cm" as const) : ("s" as const),
     resolutionMin: toValue(Math.max(0, endPreviousSeconds - startSeconds)),
     resolutionMax: toValue(endSeconds - startPreviousSeconds),
-    ...(testId === "flying_10m" ? { averageSpeedMps: 10 / elapsedSeconds } : {}),
+    ...(testId === "flying_10m"
+      ? { averageSpeedMps: 10 / elapsedSeconds }
+      : {}),
   };
 }
 
 const closeTo = (a: number, b: number) => Math.abs(a - b) < 1e-7;
 export function validatedResult(input: unknown): BrowserResult {
   const parsed = resultSchema.safeParse(input);
-  if (!parsed.success) throw new Error("Dane pomiaru są niekompletne albo uszkodzone.");
+  if (!parsed.success)
+    throw new Error("Dane pomiaru są niekompletne albo uszkodzone.");
   const result = parsed.data;
   const protocol = protocolFor(result.testId);
   const elapsed = result.endSeconds - result.startSeconds;
-  const value = (t: number) => (protocol.category === "jump" ? (GRAVITY * t * t * 100) / 8 : t);
+  const value = (t: number) =>
+    protocol.category === "jump" ? (GRAVITY * t * t * 100) / 8 : t;
   if (
     !protocol.sides.includes(result.side) ||
     result.trial > protocol.trials ||
@@ -111,12 +125,18 @@ export function validatedResult(input: unknown): BrowserResult {
       value(Math.max(0, result.endPreviousSeconds - result.startSeconds)),
       result.resolutionMin,
     ) ||
-    !closeTo(value(result.endSeconds - result.startPreviousSeconds), result.resolutionMax) ||
+    !closeTo(
+      value(result.endSeconds - result.startPreviousSeconds),
+      result.resolutionMax,
+    ) ||
     (result.testId === "flying_10m"
-      ? result.averageSpeedMps === undefined || !closeTo(result.averageSpeedMps, 10 / elapsed)
+      ? result.averageSpeedMps === undefined ||
+        !closeTo(result.averageSpeedMps, 10 / elapsed)
       : result.averageSpeedMps !== undefined)
   )
-    throw new Error("Wartości pomiaru nie zgadzają się z czasem klatek lub protokołem.");
+    throw new Error(
+      "Wartości pomiaru nie zgadzają się z czasem klatek lub protokołem.",
+    );
   const startGap = result.startSeconds - result.startPreviousSeconds;
   const endGap = result.endSeconds - result.endPreviousSeconds;
   if (
@@ -162,7 +182,12 @@ export function createBrowserResult(data: {
     guidePositions: data.guidePositions,
     originalConfirmed: true,
     protocolConfirmed: true,
-    ...timedMeasurement(data.attempt.testId, data.timeline, data.start, data.end),
+    ...timedMeasurement(
+      data.attempt.testId,
+      data.timeline,
+      data.start,
+      data.end,
+    ),
   });
 }
 
@@ -205,7 +230,9 @@ export function resultGroups(results: readonly BrowserResult[]) {
         rows,
         best: sorted[0],
         average: rows.reduce((s, r) => s + r.primaryValue, 0) / rows.length,
-        complete: rows.length === expected && new Set(rows.map((r) => r.trial)).size === expected,
+        complete:
+          rows.length === expected &&
+          new Set(rows.map((r) => r.trial)).size === expected,
         expected,
       };
     })
@@ -220,9 +247,11 @@ export function comparison(a: BrowserResult, b: BrowserResult) {
     older,
     newer,
     difference: newer.primaryValue - older.primaryValue,
-    percent: ((newer.primaryValue - older.primaryValue) / older.primaryValue) * 100,
+    percent:
+      ((newer.primaryValue - older.primaryValue) / older.primaryValue) * 100,
     overlaps:
-      newer.resolutionMin <= older.resolutionMax && older.resolutionMin <= newer.resolutionMax,
+      newer.resolutionMin <= older.resolutionMax &&
+      older.resolutionMin <= newer.resolutionMax,
   };
 }
 
@@ -232,7 +261,8 @@ export function sideDifference(
   testId: BrowserTestId,
 ) {
   const groups = resultGroups(results).filter(
-    (g) => g.best.sessionId === sessionId && g.best.testId === testId && g.complete,
+    (g) =>
+      g.best.sessionId === sessionId && g.best.testId === testId && g.complete,
   );
   const left = groups.find((g) => g.best.side === "left");
   const right = groups.find((g) => g.best.side === "right");

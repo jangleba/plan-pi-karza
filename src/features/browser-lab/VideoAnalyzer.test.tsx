@@ -7,9 +7,16 @@ import { buildJumpTimeline } from "./measurement";
 import { attemptPlan } from "./protocols";
 import type { OpenedVideo } from "./video";
 const mocks = vi.hoisted(() => ({ open: vi.fn(), decode: vi.fn() }));
-vi.mock("./video", () => ({ openJumpVideo: mocks.open, decodeJumpFrame: mocks.decode }));
+vi.mock("./video", () => ({
+  openJumpVideo: mocks.open,
+  decodeJumpFrame: mocks.decode,
+}));
 const timeline = buildJumpTimeline(
-  Array.from({ length: 360 }, (_, cts) => ({ cts, timescale: 240, duration: 1 })),
+  Array.from({ length: 360 }, (_, cts) => ({
+    cts,
+    timescale: 240,
+    duration: 1,
+  })),
 );
 const video: OpenedVideo = {
   timeline,
@@ -23,7 +30,9 @@ const video: OpenedVideo = {
 let host: HTMLDivElement;
 let root: Root;
 const button = (text: string) =>
-  [...host.querySelectorAll("button")].find((b) => b.textContent?.includes(text))!;
+  [...host.querySelectorAll("button")].find((b) =>
+    b.textContent?.includes(text),
+  )!;
 async function importFile() {
   await act(async () => {
     const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
@@ -35,12 +44,14 @@ async function importFile() {
   });
 }
 async function go(index: number) {
-  const input = host.querySelector<HTMLInputElement>('input[aria-label="Pozycja w filmie"]')!;
+  const input = host.querySelector<HTMLInputElement>(
+    'input[aria-label="Pozycja w filmie"]',
+  )!;
   await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-      input,
-      String(index),
-    );
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, String(index));
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
@@ -74,22 +85,64 @@ afterEach(async () => {
 async function render(save = vi.fn()) {
   await act(async () =>
     root.render(
-      <VideoAnalyzer attempt={attemptPlan(["cmj"])[0]} sessionId="session-123456" onSave={save} />,
+      <VideoAnalyzer
+        attempt={attemptPlan(["cmj"])[0]}
+        sessionId="session-123456"
+        onSave={save}
+      />,
     ),
   );
   return save;
 }
 
 describe("browser video measurement flow", () => {
+  it("imports a 60 FPS recording, shows the limitation and saves the actual measurement", async () => {
+    const lowTimeline = buildJumpTimeline(
+      Array.from({ length: 120 }, (_, cts) => ({
+        cts,
+        timescale: 60,
+        duration: 1,
+      })),
+    );
+    mocks.open.mockResolvedValue({ ...video, timeline: lowTimeline });
+    mocks.decode.mockImplementation(async (_video, index) => ({
+      timestamp: lowTimeline.frames[index].timestampUs,
+      displayWidth: 3840,
+      displayHeight: 2160,
+      close: vi.fn(),
+    }));
+    const save = await render();
+    await importFile();
+    expect(host.textContent).toContain("60.0 FPS");
+    expect(host.textContent).toContain("Wynik orientacyjny");
+    expect(host.querySelector("canvas")?.width).toBe(1280);
+    expect(host.querySelector("canvas")?.height).toBe(720);
+    await go(20);
+    await act(async () => button("Oznacz wybicie").click());
+    await go(44);
+    await act(async () => button("Oznacz lądowanie").click());
+    await act(async () => {
+      host
+        .querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
+        .forEach((input) => input.click());
+    });
+    await act(async () => button("Zapisz poprawną próbę").click());
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0][0].fps).toBeCloseTo(60, 8);
+    expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(19.6133, 6);
+    expect(host.textContent).toContain("ZAPISANO LOKALNIE");
+  });
   it("blocks marking before the exact frame is painted and after a failed import", async () => {
     await render();
     mocks.decode.mockImplementation(() => new Promise(() => {}));
     await importFile();
     expect(button("Oznacz wybicie").disabled).toBe(true);
     expect(host.textContent).toContain("Odczyt dokładnej klatki");
-    mocks.open.mockRejectedValue(new Error("Film 60 FPS jest zablokowany"));
+    mocks.open.mockRejectedValue(
+      new Error("Nie można odczytać oryginalnego filmu"),
+    );
     await importFile();
-    expect(host.textContent).toContain("60 FPS");
+    expect(host.textContent).toContain("Nie można odczytać oryginalnego filmu");
     expect(host.querySelector("canvas")).toBeNull();
     expect(host.textContent).not.toContain("PODGLĄD WYNIKU");
   });
@@ -135,7 +188,11 @@ describe("browser video measurement flow", () => {
     await importFile();
     expect(host.textContent).toContain("240.0 FPS");
     await act(async () =>
-      finish({ ...video, config: { codec: "hvc1.1.6" }, timeline: { ...timeline, fps: 120 } }),
+      finish({
+        ...video,
+        config: { codec: "hvc1.1.6" },
+        timeline: { ...timeline, fps: 120 },
+      }),
     );
     expect(host.textContent).toContain("240.0 FPS");
     expect(host.textContent).not.toContain("120.0 FPS");

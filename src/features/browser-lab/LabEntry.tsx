@@ -13,7 +13,7 @@ export function LabEntry() {
       <span className="min-w-0 flex-1">
         <strong className="block text-sm">Lab — Testy z filmu</strong>
         <span className="mt-1 block text-xs text-muted-foreground">
-          Skoki, sprint i 505 · Safari 120/240 FPS
+          Skoki, sprint i 505 · HD / 4K · od 30 FPS
         </span>
       </span>
       <ArrowRight className="h-4 w-4 shrink-0 text-primary" />

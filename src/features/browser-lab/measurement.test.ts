@@ -18,10 +18,9 @@ describe("CMJ from actual sample timestamps", () => {
     expect(result.resolutionMaxCm).toBeGreaterThan(result.heightCm);
   });
   it("gives the same height from a 120 FPS original with 52 intervals", () => {
-    expect(measureJump(buildJumpTimeline(samples(120)), 10, 62).heightCm).toBeCloseTo(
-      23.0183868056,
-      8,
-    );
+    expect(
+      measureJump(buildJumpTimeline(samples(120)), 10, 62).heightCm,
+    ).toBeCloseTo(23.0183868056, 8);
   });
   it("sorts B-frame presentation times independently of decode order", () => {
     const input = samples();
@@ -30,13 +29,34 @@ describe("CMJ from actual sample timestamps", () => {
     expect(timeline.frames[1].sampleIndex).toBe(3);
     expect(timeline.frames[1].timestampUs).toBe(4167);
   });
-  it("rejects slow-motion exports instead of assuming 240 FPS", () => {
-    expect(() => buildJumpTimeline(samples(30))).toThrow("120");
-    expect(() => buildJumpTimeline(samples(60))).toThrow("120");
-    expect(() => validateEdits([{ media_rate_integer: 0, media_rate_fraction: 8192 }])).toThrow(
-      "slow motion",
+  it.each([30, 60, 120, 240, 29.97, 59.94])(
+    "uses original timestamps at %s FPS",
+    (fps) => {
+      const timeline = buildJumpTimeline(samples(fps, Math.round(fps * 2)));
+      expect(timeline.fps).toBeCloseTo(fps, 8);
+    },
+  );
+  it("widens the temporal bracket at lower FPS without inventing intermediate frames", () => {
+    const low = measureJump(buildJumpTimeline(samples(30, 60)), 10, 22);
+    const medium = measureJump(buildJumpTimeline(samples(60, 120)), 20, 44);
+    const high = measureJump(buildJumpTimeline(samples(240, 480)), 80, 176);
+    expect(low.heightCm).toBeCloseTo(high.heightCm, 8);
+    expect(medium.heightCm).toBeCloseTo(high.heightCm, 8);
+    expect(low.resolutionMaxCm - low.resolutionMinCm).toBeGreaterThan(
+      medium.resolutionMaxCm - medium.resolutionMinCm,
     );
-    expect(() => validateEdits([{ media_rate_integer: 1, media_rate_fraction: 0 }])).not.toThrow();
+    expect(medium.resolutionMaxCm - medium.resolutionMinCm).toBeGreaterThan(
+      high.resolutionMaxCm - high.resolutionMinCm,
+    );
+  });
+  it("rejects unsupported rates and explicit slow-motion edits without guessing FPS", () => {
+    expect(() => buildJumpTimeline(samples(24, 48))).toThrow("liczbę klatek");
+    expect(() =>
+      validateEdits([{ media_rate_integer: 0, media_rate_fraction: 8192 }]),
+    ).toThrow("slow motion");
+    expect(() =>
+      validateEdits([{ media_rate_integer: 1, media_rate_fraction: 0 }]),
+    ).not.toThrow();
   });
   it("rejects duplicate PTS, missing frames, mixed timescales and invalid durations", () => {
     const duplicate = samples();

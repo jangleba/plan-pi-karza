@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { PROTOCOLS, protocolFor, sideLabel, type BrowserTestId } from "./protocols";
+import {
+  PROTOCOLS,
+  protocolFor,
+  sideLabel,
+  type BrowserTestId,
+} from "./protocols";
 import {
   comparison,
   resultGroups,
@@ -8,17 +13,24 @@ import {
   type BrowserResult,
 } from "./results";
 import { LabButton, LabConfirm, LabNotice } from "./LabUI";
+import { videoPrecision } from "./measurement";
 
 const dateOf = (date: string) =>
-  new Date(date).toLocaleString("pl-PL", { dateStyle: "medium", timeStyle: "short" });
+  new Date(date).toLocaleString("pl-PL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 function ResultDetails({ result }: { result: BrowserResult }) {
   return (
     <dl className="bl-result-details">
+      <dt>Dokładność nagrania</dt>
+      <dd>{videoPrecision(result.fps)}</dd>
       <dt>Film</dt>
       <dd>{result.sourceName}</dd>
       <dt>Klatki / FPS</dt>
       <dd>
-        {result.startFrameIndex + 1} → {result.endFrameIndex + 1} / {result.fps.toFixed(1)}
+        {result.startFrameIndex + 1} → {result.endFrameIndex + 1} /{" "}
+        {result.fps.toFixed(1)}
       </dd>
       <dt>Czasy w filmie</dt>
       <dd>
@@ -81,16 +93,18 @@ export function BrowserHistory({
         <p className="bl-kicker">HISTORIA NA TYM URZĄDZENIU</p>
         <h2>{rows.length} zapisanych prób</h2>
         <p className="bl-muted">
-          Historia dotyczy tego konta w tej przeglądarce. Nie jest jeszcze synchronizowana między
-          urządzeniami. Pobieraj kopię w narzędziach Labu. Usunięcie danych Safari usuwa także
-          lokalną historię.
+          Historia dotyczy tego konta w tej przeglądarce. Nie jest jeszcze
+          synchronizowana między urządzeniami. Pobieraj kopię w narzędziach
+          Labu. Usunięcie danych Safari usuwa także lokalną historię.
         </p>
         <label className="bl-label">
           Test{" "}
           <select
             aria-label="Filtr historii"
             value={filter}
-            onChange={(event) => setFilter(event.target.value as BrowserTestId | "all")}
+            onChange={(event) =>
+              setFilter(event.target.value as BrowserTestId | "all")
+            }
           >
             <option value="all">Wszystkie testy</option>
             {PROTOCOLS.map((p) => (
@@ -103,8 +117,8 @@ export function BrowserHistory({
       </section>
       {!shown.length && (
         <LabNotice>
-          Brak zapisanych prób. Wybierz test, oznacz dwa zdarzenia w oryginalnym filmie i zapisz
-          wynik.
+          Brak zapisanych prób. Wybierz test, oznacz dwa zdarzenia w oryginalnym
+          filmie i zapisz wynik.
         </LabNotice>
       )}
       {groups.map((group) => {
@@ -130,11 +144,15 @@ export function BrowserHistory({
             <div className="bl-history-stats">
               <div>
                 <span>Najlepsza</span>
-                <strong>{resultValue(group.best.primaryValue, group.best.primaryUnit)}</strong>
+                <strong>
+                  {resultValue(group.best.primaryValue, group.best.primaryUnit)}
+                </strong>
               </div>
               <div>
                 <span>Średnia</span>
-                <strong>{resultValue(group.average, group.best.primaryUnit)}</strong>
+                <strong>
+                  {resultValue(group.average, group.best.primaryUnit)}
+                </strong>
               </div>
             </div>
             <p className="bl-muted">
@@ -144,8 +162,9 @@ export function BrowserHistory({
             </p>
             {sides && (
               <LabNotice>
-                Różnica najlepszych prób L/P: {sides.percent.toFixed(1)}% (|L−P| / większa wartość).
-                To opis wyników z tej sesji, bez oceny ryzyka urazu.
+                Różnica najlepszych prób L/P: {sides.percent.toFixed(1)}% (|L−P|
+                / większa wartość). To opis wyników z tej sesji, bez oceny
+                ryzyka urazu.
               </LabNotice>
             )}
             <details className="bl-details">
@@ -155,7 +174,8 @@ export function BrowserHistory({
                 .map((row) => (
                   <article className="bl-trial-row" key={row.id}>
                     <h3>
-                      Próba {row.trial} · {resultValue(row.primaryValue, row.primaryUnit)}
+                      Próba {row.trial} ·{" "}
+                      {resultValue(row.primaryValue, row.primaryUnit)}
                     </h3>
                     <ResultDetails result={row} />
                     <div className="bl-actions">
@@ -166,12 +186,18 @@ export function BrowserHistory({
                           setSecondId("");
                           document
                             .getElementById("bl-compare")
-                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
                         }}
                       >
                         Porównaj próbę
                       </LabButton>
-                      <LabButton className="bl-link" onClick={() => setDeleteId(row.id)}>
+                      <LabButton
+                        className="bl-link"
+                        onClick={() => setDeleteId(row.id)}
+                      >
                         Usuń próbę
                       </LabButton>
                     </div>
@@ -186,8 +212,9 @@ export function BrowserHistory({
           <p className="bl-kicker">PORÓWNANIE DWÓCH PRÓB</p>
           <h2>Ten sam test i warunki</h2>
           <p className="bl-muted">
-            Wybierz tę samą nogę i protokół. Porównuj podobną nawierzchnię, obuwie, rozgrzewkę i
-            ustawienie kamery. Do oceny postępu wybierz najlepsze próby z dwóch pełnych sesji.
+            Wybierz tę samą nogę i protokół. Porównuj podobną nawierzchnię,
+            obuwie, rozgrzewkę i ustawienie kamery. Do oceny postępu wybierz
+            najlepsze próby z dwóch pełnych sesji.
           </p>
           <label className="bl-label">
             Pierwsza próba
@@ -224,7 +251,9 @@ export function BrowserHistory({
             </select>
           </label>
           {first && !candidates.length && (
-            <p className="bl-muted">Potrzebna jest jeszcze jedna próba tego samego testu i nogi.</p>
+            <p className="bl-muted">
+              Potrzebna jest jeszcze jedna próba tego samego testu i nogi.
+            </p>
           )}
           {compared && (
             <div className="bl-comparison">
@@ -232,13 +261,19 @@ export function BrowserHistory({
                 <div>
                   <span>Starsza · {dateOf(compared.older.recordedAt)}</span>
                   <strong>
-                    {resultValue(compared.older.primaryValue, compared.older.primaryUnit)}
+                    {resultValue(
+                      compared.older.primaryValue,
+                      compared.older.primaryUnit,
+                    )}
                   </strong>
                 </div>
                 <div>
                   <span>Nowsza · {dateOf(compared.newer.recordedAt)}</span>
                   <strong>
-                    {resultValue(compared.newer.primaryValue, compared.newer.primaryUnit)}
+                    {resultValue(
+                      compared.newer.primaryValue,
+                      compared.newer.primaryUnit,
+                    )}
                   </strong>
                 </div>
               </div>

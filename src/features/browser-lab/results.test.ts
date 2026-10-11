@@ -20,9 +20,15 @@ import {
 } from "./storage";
 
 const timeline = buildJumpTimeline(
-  Array.from({ length: 1000 }, (_, i) => ({ cts: i, timescale: 240, duration: 1 })),
+  Array.from({ length: 1000 }, (_, i) => ({
+    cts: i,
+    timescale: 240,
+    duration: 1,
+  })),
 );
-export function fixtureResult(overrides: Partial<ReturnType<typeof createBrowserResult>> = {}) {
+export function fixtureResult(
+  overrides: Partial<ReturnType<typeof createBrowserResult>> = {},
+) {
   return {
     ...createBrowserResult({
       attempt: attemptPlan(["cmj"])[0],
@@ -55,29 +61,62 @@ function memoryStore() {
 }
 
 describe("five browser protocols", () => {
+  it.each([30, 60])(
+    "saves, restores and exports original %s FPS measurements",
+    (fps) => {
+      const result = createBrowserResult({
+        attempt: attemptPlan(["cmj"])[0],
+        sessionId: "session-1234",
+        timeline: buildJumpTimeline(
+          Array.from({ length: fps * 2 }, (_, i) => ({
+            cts: i,
+            timescale: fps,
+            duration: 1,
+          })),
+        ),
+        start: fps / 3,
+        end: fps / 3 + fps * 0.4,
+        sourceName: "CMJ.mp4",
+        sourceHash: "a".repeat(64),
+        sourceBytes: 100 * 1024 * 1024,
+        codec: "avc1.640029",
+        guidePositions: [0.5, 0.5],
+        notes: "",
+      });
+      expect(result.primaryValue).toBeCloseTo(19.6133, 6);
+      expect(result.fps).toBeCloseTo(fps, 8);
+      const store = memoryStore();
+      appendBrowserResult("a", result, store);
+      expect(loadBrowserResults("a", store)[0]).toEqual(result);
+      const backup = createHistoryBackup([result]);
+      expect(restoreHistoryBackup("b", backup, store).added).toBe(1);
+      expect(loadBrowserResults("b", store)[0]).toEqual(result);
+    },
+  );
   it("plans exactly 17 trials, alternating legs and respecting each test count", () => {
     const plan = attemptPlan(TEST_IDS);
     expect(plan).toHaveLength(17);
-    expect(plan.filter((p) => p.testId === "single_leg_cmj").map((p) => p.side)).toEqual([
-      "left",
-      "right",
-      "left",
-      "right",
-      "left",
-      "right",
-    ]);
-    expect(plan.filter((p) => p.testId === "cod_505").map((p) => p.trial)).toEqual([1, 1, 2, 2]);
+    expect(
+      plan.filter((p) => p.testId === "single_leg_cmj").map((p) => p.side),
+    ).toEqual(["left", "right", "left", "right", "left", "right"]);
+    expect(
+      plan.filter((p) => p.testId === "cod_505").map((p) => p.trial),
+    ).toEqual([1, 1, 2, 2]);
   });
   it("uses PTS for all tests and publishes average speed only for flying 10m", () => {
-    expect(timedMeasurement("cmj", timeline, 60, 164).primaryValue).toBeCloseTo(23.0183868056, 8);
+    expect(timedMeasurement("cmj", timeline, 60, 164).primaryValue).toBeCloseTo(
+      23.0183868056,
+      8,
+    );
     const sprint = timedMeasurement("sprint_10m", timeline, 60, 660);
     expect(sprint.primaryValue).toBe(2.5);
     expect(sprint).not.toHaveProperty("averageSpeedMps");
-    expect(timedMeasurement("flying_10m", timeline, 60, 300).averageSpeedMps).toBe(10);
-    expect(timedMeasurement("cod_505", timeline, 60, 660).resolutionMin).toBeCloseTo(
-      2.5 - 1 / 240,
-      9,
-    );
+    expect(
+      timedMeasurement("flying_10m", timeline, 60, 300).averageSpeedMps,
+    ).toBe(10);
+    expect(
+      timedMeasurement("cod_505", timeline, 60, 660).resolutionMin,
+    ).toBeCloseTo(2.5 - 1 / 240, 9);
     expect(() => timedMeasurement("cmj", timeline, 0, 164)).toThrow();
     expect(() => timedMeasurement("cmj", timeline, 60, 660)).toThrow();
   });
@@ -108,15 +147,24 @@ describe("five browser protocols", () => {
         }),
       ),
     );
-    expect(sideDifference(rows.slice(0, 5), "session-1234", "single_leg_cmj")).toBeNull();
-    expect(sideDifference(rows, "session-1234", "single_leg_cmj")?.percent).toBe(0);
+    expect(
+      sideDifference(rows.slice(0, 5), "session-1234", "single_leg_cmj"),
+    ).toBeNull();
+    expect(
+      sideDifference(rows, "session-1234", "single_leg_cmj")?.percent,
+    ).toBe(0);
     expect(resultGroups(rows)[0].complete).toBe(true);
     expect(resultGroups([rows[0], rows[0], rows[2]])[0].complete).toBe(false);
   });
   it("compares only the same protocol, test and leg and reports bracket overlap", () => {
     const a = fixtureResult({ recordedAt: "2026-10-01T10:00:00.000Z" });
     const b = fixtureResult({ recordedAt: "2026-10-02T10:00:00.000Z" });
-    expect(comparison(b, a)).toMatchObject({ older: a, newer: b, difference: 0, overlaps: true });
+    expect(comparison(b, a)).toMatchObject({
+      older: a,
+      newer: b,
+      difference: 0,
+      overlaps: true,
+    });
     expect(() => comparison(a, { ...b, testId: "single_leg_cmj" })).toThrow();
     expect(() => comparison(a, { ...b, side: "left" })).toThrow();
   });
@@ -128,23 +176,34 @@ describe("account-scoped local history", () => {
     const a = fixtureResult();
     appendBrowserResult("a", a, store);
     expect(loadBrowserResults("b", store)).toEqual([]);
-    expect(() => appendBrowserResult("a", fixtureResult(), store)).toThrow("już zapisana");
+    expect(() => appendBrowserResult("a", fixtureResult(), store)).toThrow(
+      "już zapisana",
+    );
     const b = fixtureResult({ sourceHash: "b".repeat(64) });
     appendBrowserResult("a", b, store);
-    expect(deleteBrowserResult("a", a.id, store).map((r) => r.id)).toEqual([b.id]);
+    expect(deleteBrowserResult("a", a.id, store).map((r) => r.id)).toEqual([
+      b.id,
+    ]);
   });
   it("validates an entire backup before writing, merges without duplicates and refuses overflow", () => {
     const store = memoryStore();
     const a = fixtureResult();
     appendBrowserResult("a", a, store);
     const b = fixtureResult({ sourceHash: "b".repeat(64) });
-    expect(restoreHistoryBackup("a", createHistoryBackup([a, b]), store).added).toBe(1);
-    expect(restoreHistoryBackup("a", createHistoryBackup([a, b]), store).added).toBe(0);
+    expect(
+      restoreHistoryBackup("a", createHistoryBackup([a, b]), store).added,
+    ).toBe(1);
+    expect(
+      restoreHistoryBackup("a", createHistoryBackup([a, b]), store).added,
+    ).toBe(0);
     const before = [...store.data];
     expect(() =>
       restoreHistoryBackup(
         "a",
-        { schema: "ballwise.browser-lab.backup.v1", results: [a, { ...b, primaryValue: 500 }] },
+        {
+          schema: "ballwise.browser-lab.backup.v1",
+          results: [a, { ...b, primaryValue: 500 }],
+        },
         store,
       ),
     ).toThrow();
@@ -152,7 +211,9 @@ describe("account-scoped local history", () => {
     expect(() =>
       storeBrowserResults(
         "a",
-        Array.from({ length: 301 }, (_, i) => fixtureResult({ id: `result-${i}-12345` })),
+        Array.from({ length: 301 }, (_, i) =>
+          fixtureResult({ id: `result-${i}-12345` }),
+        ),
         store,
       ),
     ).toThrow("300");
@@ -179,7 +240,9 @@ it("only recovers corrupted history from validated data and guards against a cha
   const key = "ballwise.browser-lab.v1:a";
   const backup = createHistoryBackup([fixtureResult()]);
   store.setItem(key, "broken");
-  expect(() => replaceCorruptedHistory("a", backup, "stale", store)).toThrow("zmieniła");
+  expect(() => replaceCorruptedHistory("a", backup, "stale", store)).toThrow(
+    "zmieniła",
+  );
   expect(() =>
     replaceCorruptedHistory(
       "a",
@@ -190,7 +253,7 @@ it("only recovers corrupted history from validated data and guards against a cha
   ).toThrow();
   expect(store.getItem(key)).toBe("broken");
   expect(replaceCorruptedHistory("a", backup, "broken", store)).toHaveLength(1);
-  expect(() => replaceCorruptedHistory("a", backup, store.getItem(key)!, store)).toThrow(
-    "poprawna",
-  );
+  expect(() =>
+    replaceCorruptedHistory("a", backup, store.getItem(key)!, store),
+  ).toThrow("poprawna");
 });

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, ArrowRight, CheckCircle2, Clock, FlaskConical } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  FlaskConical,
+} from "lucide-react";
 import {
   PROTOCOLS,
   TEST_IDS,
@@ -8,7 +15,11 @@ import {
   type BrowserAttempt,
   type BrowserTestId,
 } from "./protocols";
-import { appendBrowserResult, deleteBrowserResult, loadBrowserResults } from "./storage";
+import {
+  appendBrowserResult,
+  deleteBrowserResult,
+  loadBrowserResults,
+} from "./storage";
 import type { BrowserResult } from "./results";
 import { VideoAnalyzer } from "./VideoAnalyzer";
 import { BrowserHistory } from "./BrowserHistory";
@@ -84,7 +95,8 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
             ...current,
             saved: true,
             savedCount: current.savedCount + 1,
-            restUntil: Date.now() + protocolFor(result.testId).restSeconds * 1000,
+            restUntil:
+              Date.now() + protocolFor(result.testId).restSeconds * 1000,
           }
         : current,
     );
@@ -117,9 +129,15 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
             className="bl-session-progress"
             aria-label={`${session.savedCount} z ${session.attempts.length} prób zapisanych`}
           >
-            <span style={{ width: `${(session.savedCount / session.attempts.length) * 100}%` }} />
+            <span
+              style={{
+                width: `${(session.savedCount / session.attempts.length) * 100}%`,
+              }}
+            />
           </div>
-          {!session.saved && session.restUntil > 0 && <RestReminder until={session.restUntil} />}
+          {!session.saved && session.restUntil > 0 && (
+            <RestReminder until={session.restUntil} />
+          )}
           <VideoAnalyzer
             key={`${session.id}:${session.index}`}
             attempt={session.attempts[session.index]}
@@ -149,9 +167,12 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
               <FlaskConical size={24} />
             </div>
             <div>
-              <p className="bl-kicker">LAB · FILM 120 / 240 FPS</p>
+              <p className="bl-kicker">LAB · HD / 4K · OD 30 FPS</p>
               <h2>Sprawdź swoją formę</h2>
-              <p>Prawdziwe czasy klatek. Jasne protokoły. Twoje próby do porównania.</p>
+              <p>
+                Prawdziwe czasy klatek. Jasne protokoły. Twoje próby do
+                porównania.
+              </p>
             </div>
           </section>
           <div className="bl-tabs" role="tablist" aria-label="BallWise Lab">
@@ -174,8 +195,8 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
           </div>
           {finished !== null && (
             <LabNotice>
-              Sesja zakończona. Zapisano {finished} poprawnych prób. Pobierz kopię historii w
-              narzędziach Labu.
+              Sesja zakończona. Zapisano {finished} poprawnych prób. Pobierz
+              kopię historii w narzędziach Labu.
             </LabNotice>
           )}
           {error && <LabNotice error>{error}</LabNotice>}
@@ -193,10 +214,14 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                 <p className="bl-kicker">PEŁNY PROFIL</p>
                 <h2>5 testów · 17 prób</h2>
                 <p>
-                  Skoczność, szybkość i zmiana kierunku. Przed sesją zrób rozgrzewkę, przygotuj
-                  taśmę, pachołki i statyw. Zaplanuj czas na przerwy: 60 s po skoku, 3 min po biegu.
+                  Skoczność, szybkość i zmiana kierunku. Przed sesją zrób
+                  rozgrzewkę, przygotuj taśmę, pachołki i statyw. Zaplanuj czas
+                  na przerwy: 60 s po skoku, 3 min po biegu.
                 </p>
-                <LabButton disabled={capable !== true} onClick={() => begin(TEST_IDS)}>
+                <LabButton
+                  disabled={capable !== true}
+                  onClick={() => begin(TEST_IDS)}
+                >
                   Rozpocznij pełny profil
                   <ArrowRight size={18} />
                 </LabButton>
@@ -218,8 +243,13 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                       <h2>{protocol.title}</h2>
                       <p>{protocol.subtitle}</p>
                       <span className="bl-muted">
-                        {protocol.trials} próby{protocol.sides.length > 1 ? " na każdą nogę" : ""} ·{" "}
-                        {protocol.category === "jump" ? "wynik w cm" : "wynik w sekundach"}
+                        {protocol.trials} próby
+                        {protocol.sides.length > 1
+                          ? " na każdą nogę"
+                          : ""} ·{" "}
+                        {protocol.category === "jump"
+                          ? "wynik w cm"
+                          : "wynik w sekundach"}
                       </span>
                     </div>
                     <LabButton
@@ -238,22 +268,24 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                 <h2>Jak używać w Safari</h2>
                 <ol className="bl-steps">
                   <li>
-                    Nagraj oryginalny film w Aparacie, 1080p i 120/240 FPS. Safari nie nagrywa tutaj
-                    240 FPS.
+                    Nagraj jedną próbę w Aparacie: najlepiej HD 60 FPS, około
+                    5–10 s. Obsługujemy też 4K, 30 FPS i oryginalne nagrania
+                    120/240 FPS.
                   </li>
                   <li>
-                    Wybierz test i zaimportuj oryginalny MP4/MOV z Plików. Sprawdź rzeczywiste FPS
-                    odczytane przez Lab.
+                    Wybierz test i zaimportuj oryginalny MP4/MOV z Plików.
+                    Sprawdź rzeczywiste FPS odczytane przez Lab.
                   </li>
                   <li>
-                    Przesuwaj film o jedną klatkę. Oznacz początek i koniec zgodnie z instrukcją,
-                    potwierdź warunki i zapisz.
+                    Przesuwaj film o jedną klatkę. Oznacz początek i koniec
+                    zgodnie z instrukcją, potwierdź warunki i zapisz.
                   </li>
                 </ol>
                 <p className="bl-muted">
-                  LiDAR nie jest potrzebny. Wysokość skoku obliczamy z czasu lotu, a odcinki biegowe
-                  trzeba zmierzyć taśmą. Film 30/60 FPS, zmienione tempo lub nieobsługiwany kodek
-                  blokują pomiar.
+                  LiDAR nie jest potrzebny. Wysokość skoku obliczamy z czasu
+                  lotu, a odcinki biegowe trzeba zmierzyć taśmą. Przy 30/60 FPS
+                  wynik jest orientacyjny — sprawdź podany zakres rozdzielczości
+                  czasowej. Zmiana tempa filmu uniemożliwia poprawny pomiar.
                 </p>
               </section>
             </>

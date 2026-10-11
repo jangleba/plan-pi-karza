@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, ChevronLeft, ChevronRight, FileVideo, RotateCcw, ZoomIn } from "lucide-react";
-import { createBrowserResult, resultValue, timedMeasurement, type BrowserResult } from "./results";
+import {
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  FileVideo,
+  RotateCcw,
+  ZoomIn,
+} from "lucide-react";
+import {
+  createBrowserResult,
+  resultValue,
+  timedMeasurement,
+  type BrowserResult,
+} from "./results";
 import { protocolFor, sideLabel, type BrowserAttempt } from "./protocols";
 import { decodeJumpFrame, openJumpVideo, type OpenedVideo } from "./video";
 import { createHistoryBackup } from "./storage";
 import { downloadText } from "./download";
 import { LabButton, LabNotice, messageOf } from "./LabUI";
+import { videoPrecision } from "./measurement";
 
 export function VideoAnalyzer({
   attempt,
@@ -66,13 +79,20 @@ export function VideoAnalyzer({
           const swapped = video.rotation === 90 || video.rotation === 270;
           const displayedWidth = swapped ? height : width;
           const displayedHeight = swapped ? width : height;
-          const scale = Math.min(1, 960 / displayedWidth);
+          const scale = Math.min(
+            1,
+            1280 / Math.max(displayedWidth, displayedHeight),
+          );
           canvas.current.width = Math.round(displayedWidth * scale);
           canvas.current.height = Math.round(displayedHeight * scale);
           const context = canvas.current.getContext("2d");
-          if (!context) throw new Error("Nie można wyświetlić klatki. Odśwież Safari.");
+          if (!context)
+            throw new Error("Nie można wyświetlić klatki. Odśwież Safari.");
           context.save();
-          context.translate(canvas.current.width / 2, canvas.current.height / 2);
+          context.translate(
+            canvas.current.width / 2,
+            canvas.current.height / 2,
+          );
           context.rotate((video.rotation * Math.PI) / 180);
           context.drawImage(
             frame,
@@ -122,7 +142,8 @@ export function VideoAnalyzer({
       setVideo(opened);
       setFrameIndex(1);
     } catch (reason) {
-      if (current === version.current && !controller.signal.aborted) setError(messageOf(reason));
+      if (current === version.current && !controller.signal.aborted)
+        setError(messageOf(reason));
     } finally {
       if (current === version.current) setReading(false);
     }
@@ -140,7 +161,9 @@ export function VideoAnalyzer({
   function move(index: number) {
     if (!video || saved) return;
     setPainted(null);
-    setFrameIndex(Math.max(0, Math.min(video.timeline.frames.length - 1, index)));
+    setFrameIndex(
+      Math.max(0, Math.min(video.timeline.frames.length - 1, index)),
+    );
   }
   function mark(which: "start" | "end") {
     if (!ready || saved || frameIndex < 1) return;
@@ -150,7 +173,15 @@ export function VideoAnalyzer({
     setError("");
   }
   function save() {
-    if (!video || !measure || start === null || end === null || !original || !confirmed || saved)
+    if (
+      !video ||
+      !measure ||
+      start === null ||
+      end === null ||
+      !original ||
+      !confirmed ||
+      saved
+    )
       return;
     try {
       const result =
@@ -196,24 +227,42 @@ export function VideoAnalyzer({
         <div className="bl-record-tip">
           <Camera size={19} />
           <p>
-            Nagraj <strong>jedną próbę</strong> w aplikacji Aparat: 1080p, 120 lub 240 FPS. Film do
-            20 s i 64 MB. Zapisz oryginał w Plikach, bez eksportu ze zmienionym tempem.
+            Nagraj <strong>jedną próbę</strong>: HD 60 FPS, około 5–10 s.
+            Przyjmujemy też 4K oraz 30, 120 i 240 FPS. Maksymalnie 20 s i 128
+            MB. Zapisz oryginał w Plikach, bez zmiany tempa.
           </p>
         </div>
+        <details className="bl-details">
+          <summary>Co oznacza FPS i gdzie znaleźć 120/240?</summary>
+          <p className="bl-muted">
+            FPS to liczba klatek na sekundę. HD i 4K określają szczegółowość
+            obrazu. HD 60 FPS wystarczy do wyniku orientacyjnego. Jeśli Twój
+            iPhone obsługuje 120/240 FPS, znajdziesz je w Aparacie w trybie
+            „Zwolnione tempo”, a nie w zwykłym „Wideo”. Więcej klatek ułatwia
+            oznaczenie wybicia i lądowania; 4K nie zastępuje wyższego FPS.
+          </p>
+        </details>
         <details className="bl-details">
           <summary>Jak zapisać oryginał z iPhone’a?</summary>
           <ol className="bl-steps">
             <li>W Zdjęciach wybierz nagrany film i otwórz Udostępnij.</li>
-            <li>Wybierz „Eksportuj niezmodyfikowany oryginał” i zapisz w Plikach.</li>
             <li>
-              Wróć do Labu i wybierz ten MP4 lub MOV. Zachowaj oryginał do sprawdzenia wyniku.
+              Wybierz „Eksportuj niezmodyfikowany oryginał” i zapisz w Plikach.
+            </li>
+            <li>
+              Wróć do Labu i wybierz ten MP4 lub MOV. Zachowaj oryginał do
+              sprawdzenia wyniku.
             </li>
           </ol>
         </details>
         {!saved && (
           <label className="bl-button bl-upload">
             <FileVideo size={18} />
-            {reading ? "Czytam oryginał…" : video ? "Wybierz inny film" : "Wybierz film z Plików"}
+            {reading
+              ? "Czytam oryginał…"
+              : video
+                ? "Wybierz inny film"
+                : "Wybierz film z Plików"}
             <input
               type="file"
               accept="video/mp4,video/quicktime,.mp4,.mov"
@@ -246,14 +295,28 @@ export function VideoAnalyzer({
           <section className="bl-card bl-frame-card">
             <div className="bl-frame-heading">
               <span>
-                {video.timeline.fps.toFixed(1)} FPS · {video.timeline.durationSeconds.toFixed(2)} s
+                {video.timeline.fps.toFixed(1)} FPS ·{" "}
+                {video.timeline.durationSeconds.toFixed(2)} s
               </span>
-              <span>{video.config.codec.startsWith("avc") ? "H.264" : "HEVC"}</span>
+              <span>
+                {video.config.codec.startsWith("avc") ? "H.264" : "HEVC"}
+              </span>
             </div>
-            <div className="bl-frame" style={{ aspectRatio: aspect, maxWidth: `${65 * aspect}vh` }}>
+            {video.timeline.fps < 119 && (
+              <p className="bl-muted">
+                Wynik orientacyjny. Oznacz zdarzenia klatka po klatce i sprawdź
+                zakres przy wyniku.
+              </p>
+            )}
+            <div
+              className="bl-frame"
+              style={{ aspectRatio: aspect, maxWidth: `${65 * aspect}vh` }}
+            >
               <div
                 className="bl-frame-inner"
-                style={{ transform: `scale(${zoom}) translate(${pan[0]}%, ${pan[1]}%)` }}
+                style={{
+                  transform: `scale(${zoom}) translate(${pan[0]}%, ${pan[1]}%)`,
+                }}
               >
                 <canvas ref={canvas} aria-label="Dokładna klatka filmu" />
                 {guides
@@ -282,7 +345,9 @@ export function VideoAnalyzer({
               </div>
               {!ready && (
                 <div className="bl-frame-loading">
-                  {error ? "Klatka niepotwierdzona" : "Odczyt dokładnej klatki…"}
+                  {error
+                    ? "Klatka niepotwierdzona"
+                    : "Odczyt dokładnej klatki…"}
                 </div>
               )}
             </div>
@@ -323,7 +388,11 @@ export function VideoAnalyzer({
               <LabButton
                 aria-label="Następna klatka"
                 className="bl-secondary"
-                disabled={!ready || saved || frameIndex >= video.timeline.frames.length - 1}
+                disabled={
+                  !ready ||
+                  saved ||
+                  frameIndex >= video.timeline.frames.length - 1
+                }
                 onClick={() => move(frameIndex + 1)}
               >
                 +1
@@ -332,7 +401,11 @@ export function VideoAnalyzer({
               <LabButton
                 aria-label="10 klatek dalej"
                 className="bl-secondary"
-                disabled={!ready || saved || frameIndex >= video.timeline.frames.length - 1}
+                disabled={
+                  !ready ||
+                  saved ||
+                  frameIndex >= video.timeline.frames.length - 1
+                }
                 onClick={() => move(frameIndex + 10)}
               >
                 +10
@@ -377,7 +450,9 @@ export function VideoAnalyzer({
                       value={pan[i]}
                       onChange={(event) => {
                         const value = Number(event.target.value);
-                        setPan((old) => (i === 0 ? [value, old[1]] : [old[0], value]));
+                        setPan((old) =>
+                          i === 0 ? [value, old[1]] : [old[0], value],
+                        );
                       }}
                     />
                   </label>
@@ -387,8 +462,8 @@ export function VideoAnalyzer({
             <details className="bl-details">
               <summary>Ustaw linie pomocnicze</summary>
               <p>
-                Linie są wskazówką na obrazie. Odległości wyznacz taśmą w terenie. Przy powiększeniu
-                krawędzie obrazu są przycięte.
+                Linie są wskazówką na obrazie. Odległości wyznacz taśmą w
+                terenie. Przy powiększeniu krawędzie obrazu są przycięte.
               </p>
               {guides
                 .filter((_, i) => !protocol.sharedGuide || i === 0)
@@ -450,25 +525,29 @@ export function VideoAnalyzer({
                       disabled={saved}
                       onClick={() => move(selected)}
                     >
-                      Klatka {selected + 1} · {video.timeline.frames[selected].seconds.toFixed(6)} s
-                      · Pokaż
+                      Klatka {selected + 1} ·{" "}
+                      {video.timeline.frames[selected].seconds.toFixed(6)} s ·
+                      Pokaż
                     </button>
                   )}
                 </div>
               );
             })}
             <p className="bl-muted">
-              Zawsze sprawdź klatkę poprzednią. Klatka 1 nie może być początkiem, bo nie pokazuje
-              momentu przed zdarzeniem.
+              Zawsze sprawdź klatkę poprzednią. Klatka 1 nie może być
+              początkiem, bo nie pokazuje momentu przed zdarzeniem.
             </p>
           </section>
           {invalid && <LabNotice error>{invalid}</LabNotice>}
           {measure && (
             <section className="bl-card bl-result">
-              <p className="bl-kicker">{saved ? "ZAPISANO LOKALNIE" : "PODGLĄD WYNIKU"}</p>
+              <p className="bl-kicker">
+                {saved ? "ZAPISANO LOKALNIE" : "PODGLĄD WYNIKU"}
+              </p>
               <div className="bl-big-value">
                 {resultValue(measure.primaryValue, measure.primaryUnit)}
               </div>
+              <p className="bl-muted">{videoPrecision(video.timeline.fps)}</p>
               <p>
                 {protocol.category === "jump" ? "Czas lotu" : "Czas odcinka"}:{" "}
                 {measure.elapsedSeconds.toFixed(6)} s
@@ -482,13 +561,15 @@ export function VideoAnalyzer({
               <p className="bl-muted">
                 Przedział wynikający z rozdzielczości klatek:{" "}
                 {resultValue(measure.resolutionMin, measure.primaryUnit)}–
-                {resultValue(measure.resolutionMax, measure.primaryUnit)}. Nie obejmuje błędu
-                ustawienia kamery, oznaczenia zdarzeń ani techniki ruchu.
+                {resultValue(measure.resolutionMax, measure.primaryUnit)}. Nie
+                obejmuje błędu ustawienia kamery, oznaczenia zdarzeń ani
+                techniki ruchu.
               </p>
               {protocol.category === "jump" && (
                 <p className="bl-muted">
-                  Wysokość z czasu lotu: h = g · t² / 8. Zmiana pozycji nóg przy lądowaniu zawyża
-                  wynik. To oszacowanie, wymagające jednakowych warunków przy porównaniu.
+                  Wysokość z czasu lotu: h = g · t² / 8. Zmiana pozycji nóg przy
+                  lądowaniu zawyża wynik. To oszacowanie, wymagające jednakowych
+                  warunków przy porównaniu.
                 </p>
               )}
               {!saved && (
@@ -502,7 +583,8 @@ export function VideoAnalyzer({
                         setDraft(null);
                       }}
                     />
-                    To oryginalny film, bez zmiany tempa ani eksportu slow motion.
+                    To oryginalny film, bez zmiany tempa ani eksportu slow
+                    motion.
                   </label>
                   <label className="bl-check">
                     <input
@@ -529,7 +611,11 @@ export function VideoAnalyzer({
                       placeholder="Nawierzchnia, obuwie, warunki…"
                     />
                   </label>
-                  <LabButton className="bl-wide" disabled={!original || !confirmed} onClick={save}>
+                  <LabButton
+                    className="bl-wide"
+                    disabled={!original || !confirmed}
+                    onClick={save}
+                  >
                     Zapisz poprawną próbę
                   </LabButton>
                 </>
@@ -549,8 +635,8 @@ export function VideoAnalyzer({
               )}
               {saved && (
                 <LabNotice>
-                  Próba jest w historii tego konta na tym urządzeniu. Zachowaj film osobno; Lab
-                  zapisuje czasy i wynik, bez nagrania.
+                  Próba jest w historii tego konta na tym urządzeniu. Zachowaj
+                  film osobno; Lab zapisuje czasy i wynik, bez nagrania.
                 </LabNotice>
               )}
             </section>

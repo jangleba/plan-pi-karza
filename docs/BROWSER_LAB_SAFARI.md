@@ -17,13 +17,13 @@ Pełny profil ma 17 prób. Strony są wykonywane naprzemiennie w obrębie testu.
 ## Nagranie i odczyt
 
 1. Telefon na statywie, dobre światło, widoczne zdarzenia i cały odcinek. Rozgrzewka przed testami.
-2. Aparat: 1080p, 120 lub 240 FPS. Jedna próba, klip do 20 s i 64 MiB. Safari służy do importu i pomiaru; moduł nie nagrywa w nim 240 FPS.
+2. Aparat: najlepiej HD 60 FPS i 5–10 s. Przyjmujemy HD i 4K oraz 30, 60, 120 i 240 FPS. Jedna próba, klip do 20 s i 128 MiB. Safari służy do importu i pomiaru; moduł nie nagrywa w nim 240 FPS.
 3. W aktualnych Zdjęciach iOS: wybierz film → Udostępnij → **Eksportuj niezmodyfikowane oryginały / Export Unmodified Originals** → wybierz folder w Plikach → Zapisz. Przy iCloud może być potrzebne pobranie oryginału. Apple opisuje tę ścieżkę: https://support.apple.com/en-us/111762.
 4. Alternatywnie w iCloud.com/photos użyj dodatkowych opcji pobierania i wybierz **Unmodified Originals**, a następnie rozpakuj pobrany ZIP w Plikach. Nie konwertuj klipu na inny kodek ani tempo po nagraniu.
-5. W Labie wybierz film. Odczytane FPS muszą odpowiadać nagraniu. Film 30/60 FPS jest odrzucany; same ustawienia kamery ani nazwa pliku nie wystarczą.
+5. W Labie wybierz film. Odczytane FPS muszą odpowiadać nagraniu. Film 30/60 FPS jest przyjmowany jako wynik orientacyjny. Samo FPS nie rozstrzyga, czy plik był wcześniej spowalniany. Użytkownik musi potwierdzić oryginalność; aplikacja nie zgaduje FPS nagrania ani nie tworzy dodatkowych klatek.
 6. Oznacz dwa zdarzenia zgodnie z instrukcją. Obejrzyj klatkę poprzednią. Potwierdź oryginalność i protokół, zapisz próbę.
 
-H.264 oraz HEVC w zwykłym, niefragmentowanym MP4/MOV. Jeden tor wideo, maksymalnie 1080p, do 6500 próbek. Odrzucane są niespójne PTS, nieobsługiwany kodek, brak pełnych próbek i edycje zmieniające tempo. Oryginalność materiału pozostaje także potwierdzeniem użytkownika: parser nie wykryje każdej możliwej wcześniejszej konwersji.
+H.264 oraz HEVC w zwykłym, niefragmentowanym MP4/MOV. Jeden tor wideo, maksymalnie 4K (4096 px na dłuższej krawędzi i 4096 × 2160 pikseli), do 6500 próbek. Podgląd ma maksymalnie 1280 px na dłuższej krawędzi; czasy pochodzą z oryginalnych próbek. Dekodowanie 4K nadal wymaga obsługi przez konkretny telefon i kodek. Odrzucane są niespójne PTS, nieobsługiwany kodek, brak pełnych próbek i edycje zmieniające tempo. Oryginalność materiału pozostaje także potwierdzeniem użytkownika: parser nie wykryje każdej możliwej wcześniejszej konwersji.
 
 MP4Box odczytuje PTS w kolejności prezentacji. WebCodecs dekoduje GOP, a klatka jest wybierana według PTS, niezależnie od kolejności callbacków i klatek B. Oznaczanie jest zablokowane do chwili narysowania potwierdzonej klatki. Anulowanie, zmiana filmu i opuszczenie ekranu unieważniają poprzednią operację. Dekoder ma limit czasu i kolejki; nieużywane VideoFrame są zamykane. Macierz obrotu filmu jest uwzględniana przy rysowaniu.
 
@@ -33,6 +33,7 @@ Wymagane HTTPS i działający VideoDecoder dla rzeczywistego kodeka pliku. Aktua
 
 - Skok: `h = 9.80665 · t² / 8`. Zakładamy podobne ustawienie nóg przy oderwaniu i pierwszym kontakcie. Podciągnięcie nóg lub inne lądowanie zmienia wynik.
 - Biegi wymagają odcinków zmierzonych taśmą, nieruchomej kamery i ograniczenia paralaksy. Średnia prędkość Flying 10 m nie jest prędkością maksymalną ani chwilową.
+- Przy 30/60 FPS wynik i historia mają oznaczenie „Wynik orientacyjny”. HD/4K nie określa dokładności czasowej: obie rozdzielczości przy 60 FPS mają takie same odstępy między klatkami. 120/240 FPS można wybrać w osobnym trybie Aparat → Zwolnione tempo na obsługiwanych iPhone’ach.
 - Pokazany przedział uwzględnia tylko możliwy moment zdarzenia między sąsiednimi klatkami. Nie jest przedziałem ufności ani całkowitym błędem metody.
 - Porównanie dopuszcza ten sam test, nogę i wersję protokołu. Warunki, technika i wybór zdarzeń wymagają kontroli użytkownika.
 - Nie wyliczamy mocy, siły reakcji podłoża, RSI/DRI, norm wieku, diagnozy ani ryzyka urazu. Nie wykorzystujemy LiDAR ani automatycznej rekonstrukcji pozy z jednego obrazu.
@@ -83,3 +84,11 @@ Pierwsza próba na fizycznym iPhonie jest obowiązkowym krokiem odbioru. Lokalny
 Pomiar jest zablokowany, jeśli przeglądarka nie udostępnia VideoDecoder i EncodedVideoChunk albo strona nie działa przez HTTPS. Historia i kopie pozostają dostępne. Każdy konkretny film przechodzi osobną kontrolę kodeka i czasu. Dekoder ma limit 15 sekund na odczyt klatki oraz jawne zakończenie przy anulowaniu, także gdy platformowe flush nie kończy swojego Promise.
 
 Przy wyborze pliku jest zwijana instrukcja: Zdjęcia → Udostępnij → Eksportuj niezmodyfikowany oryginał → Pliki. Jest ona oparta na aktualnej instrukcji Apple: https://support.apple.com/en-us/111762.
+
+## Poprawka HD/4K i 30/60 FPS — 11.10.2026
+
+Plik `lab-format-fix.yml` jest poprawką do zainstalowanego Lab Safari 1.1. Wgraj go do `.github/workflows` w `jangleba/plan-pi-karza` na `main`. Uruchamia się automatycznie po zapisie. Zmieniane są tylko pliki modułu Lab i ta dokumentacja. Instalator sprawdza rozpoznaną wersję plików, nie nadpisuje nieznanych zmian, a przed commitem uruchamia pełne `verify:release`. Historia zachowuje format i dotychczasowe wyniki.
+
+Lokalnie: 42 testy modułu zaliczone, w tym rzeczywiste pliki HD 30 FPS i 4K 60 FPS, zapis/odczyt 30/60 FPS, zakres czasowy i przepływ oznaczenia/zapisu 60 FPS. Testy interfejsu korzystają z uproszczonego komponentu dialogu w izolowanym środowisku; dekoder platformowy jest mockowany. Typy runtime modułu i formatowanie sprawdzone. Pełny build projektu jest uruchamiany przez instalator na GitHubie. Odczyt własnego filmu 4K i wydajność na fizycznym iPhonie wymagają odbioru po instalacji.
+
+Źródła: Apple — https://support.apple.com/pl-pl/guide/iphone/iphc1827d32f/ios; Pueo i wsp., 2023 — https://pubmed.ncbi.nlm.nih.gov/37077799/. Wyniki walidacji innych aplikacji nie są walidacją BallWise.
