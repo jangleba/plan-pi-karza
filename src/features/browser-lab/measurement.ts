@@ -1,11 +1,11 @@
 export const GRAVITY = 9.80665;
-export const MIN_VIDEO_FPS = 29;
+export const MIN_VIDEO_FPS = 14.9;
 export const MAX_VIDEO_FPS = 300;
+export const MAX_EVENT_FRAME_GAP = 0.125;
 
 /** A recording tier, not a validated total measurement error. */
 export function videoPrecision(fps: number) {
-  if (fps < 59) return "Wynik orientacyjny · około 30 FPS";
-  if (fps < 119) return "Wynik orientacyjny · około 60 FPS";
+  if (fps < 119) return `Wynik orientacyjny · ${fps.toFixed(0)} FPS`;
   return "Więcej klatek · 120/240 FPS";
 }
 
@@ -66,18 +66,16 @@ export function buildJumpTimeline(
     );
   const sortedGaps = [...gaps].sort((a, b) => a - b);
   const intervalSeconds = sortedGaps[Math.floor(sortedGaps.length / 2)];
-  const fps = 1 / intervalSeconds;
+  const fps = (frames.length - 1) / frames.at(-1)!.seconds;
   if (fps < MIN_VIDEO_FPS || fps > MAX_VIDEO_FPS)
     throw new Error(
-      "Film ma nieobsługiwaną liczbę klatek. Wybierz oryginalny film 30, 60, 120 lub 240 FPS, bez zmiany tempa.",
+      fps < MIN_VIDEO_FPS
+        ? `Film ma około ${fps.toFixed(1)} FPS. Potrzeba co najmniej 15 FPS. Nagraj przy lepszym świetle lub wybierz inny film.`
+        : `Film ma około ${fps.toFixed(1)} FPS. Lab obsługuje do 300 FPS. Wybierz inne nagranie.`,
     );
-  if (
-    gaps.some(
-      (gap) => gap > intervalSeconds * 1.6 || gap < intervalSeconds * 0.6,
-    )
-  )
+  if (gaps.some((gap) => gap > 0.25))
     throw new Error(
-      "Czasy klatek mają przerwy lub zmienne tempo. Wybierz inne, oryginalne nagranie.",
+      "W nagraniu jest przerwa ponad 0,25 s. Nagraj ponownie bez przełączania aplikacji.",
     );
   const durationSeconds =
     frames.at(-1)!.seconds +
@@ -117,6 +115,7 @@ export function measureJump(
     timeline.frames[landing - 1].seconds - timeline.frames[takeoff].seconds;
   const maxSeconds =
     timeline.frames[landing].seconds - timeline.frames[takeoff - 1].seconds;
+  validateEventGaps(timeline, takeoff, landing);
   const height = (t: number) => ((GRAVITY * t * t) / 8) * 100;
   return {
     flightSeconds,
@@ -125,6 +124,23 @@ export function measureJump(
     resolutionMinCm: height(Math.max(0, minSeconds)),
     resolutionMaxCm: height(maxSeconds),
   };
+}
+
+/** Varying FPS is valid; long gaps at a marked event need a new recording. */
+export function validateEventGaps(
+  timeline: JumpTimeline,
+  start: number,
+  end: number,
+) {
+  for (const index of [start, end]) {
+    if (
+      timeline.frames[index].seconds - timeline.frames[index - 1].seconds >
+      MAX_EVENT_FRAME_GAP
+    )
+      throw new Error(
+        "Brakuje klatek przy oznaczonym zdarzeniu. Nagraj ponownie przy lepszym świetle.",
+      );
+  }
 }
 
 export function validateEdits(

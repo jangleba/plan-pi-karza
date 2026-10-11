@@ -61,6 +61,37 @@ function memoryStore() {
 }
 
 describe("five browser protocols", () => {
+  it("saves 24 FPS and variable-FPS results with real event times and restores their brackets", () => {
+    for (const variable of [false, true]) {
+      let ticks = 0;
+      const timeline = buildJumpTimeline(
+        Array.from({ length: 60 }, (_, i) => {
+          const duration = variable && i % 2 === 0 ? 1000 : 1250;
+          const sample = { cts: ticks, timescale: 30000, duration };
+          ticks += duration;
+          return sample;
+        }),
+      );
+      const result = createBrowserResult({
+        attempt: attemptPlan(["cmj"])[0],
+        sessionId: "session-1234",
+        timeline,
+        start: 8,
+        end: 20,
+        sourceName: "camera.mp4",
+        sourceHash: "a".repeat(64),
+        sourceBytes: 10000,
+        codec: "avc1.640029",
+        guidePositions: [0.5, 0.5],
+        notes: "",
+      });
+      expect(result.elapsedSeconds).toBeCloseTo(variable ? 0.45 : 0.5, 10);
+      expect(validatedResult(result)).toEqual(result);
+      const store = memoryStore();
+      restoreHistoryBackup("a", createHistoryBackup([result]), store);
+      expect(loadBrowserResults("a", store)[0]).toEqual(result);
+    }
+  });
   it.each([30, 60])(
     "saves, restores and exports original %s FPS measurements",
     (fps) => {
@@ -125,7 +156,7 @@ describe("five browser protocols", () => {
     expect(validatedResult(valid)).toEqual(valid);
     for (const changed of [
       { primaryValue: 99 },
-      { fps: 60 },
+      { fps: 600 },
       { side: "left" },
       { trial: 4 },
       { primaryUnit: "s" },

@@ -6,10 +6,21 @@ import { VideoAnalyzer } from "./VideoAnalyzer";
 import { buildJumpTimeline } from "./measurement";
 import { attemptPlan } from "./protocols";
 import type { OpenedVideo } from "./video";
-const mocks = vi.hoisted(() => ({ open: vi.fn(), decode: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  open: vi.fn(),
+  decode: vi.fn(),
+  camera: vi.fn(),
+  record: vi.fn(),
+  stop: vi.fn(),
+}));
 vi.mock("./video", () => ({
   openJumpVideo: mocks.open,
   decodeJumpFrame: mocks.decode,
+}));
+vi.mock("./camera", () => ({
+  openLabCamera: mocks.camera,
+  recordLabCamera: mocks.record,
+  stopCamera: mocks.stop,
 }));
 const timeline = buildJumpTimeline(
   Array.from({ length: 360 }, (_, cts) => ({
@@ -58,6 +69,15 @@ async function go(index: number) {
 }
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const track = new EventTarget();
+  mocks.camera.mockReset().mockResolvedValue({
+    stream: { getVideoTracks: () => [track] },
+    mimeType: "video/mp4",
+    settings: { width: 1920, height: 1080, frameRate: 60 },
+  });
+  mocks.stop.mockReset();
+  mocks.record.mockReset();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     save: vi.fn(),
     translate: vi.fn(),
@@ -81,6 +101,7 @@ afterEach(async () => {
   host.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 async function render(save = vi.fn()) {
   await act(async () =>
@@ -96,28 +117,80 @@ async function render(save = vi.fn()) {
 }
 
 describe("browser video measurement flow", () => {
-  it("opens system capture from a user tap and imports the returned recording", async () => {
+  it("opens an in-app preview, counts down and imports the original recorded file", async () => {
+    vi.useFakeTimers();
+    let finish!: (file: File) => void;
+    const recording = new File(["original recording"], "camera.mp4", {
+      type: "video/mp4",
+    });
+    const stop = vi.fn(() => finish(recording));
+    mocks.record.mockReturnValue({
+      finished: new Promise<File>((resolve) => {
+        finish = resolve;
+      }),
+      stop,
+    });
     await render();
-    const input = host.querySelector<HTMLInputElement>(
-      'input[capture="environment"]',
-    )!;
-    expect(input.accept).toBe("video/*");
-    const click = vi.spyOn(input, "click");
     await act(async () => button("Nagraj próbę").click());
-    expect(click).toHaveBeenCalledOnce();
-    const recording = new File(["original recording"], "capture.mov", {
-      type: "video/quicktime",
-    });
-    await act(async () => {
-      Object.defineProperty(input, "files", {
-        configurable: true,
-        value: [recording],
-      });
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    expect(mocks.camera).toHaveBeenCalledOnce();
+    expect(host.querySelector("video")?.srcObject).not.toBeNull();
+    expect(host.textContent).toContain("1920 × 1080 · 60 FPS");
+    await act(async () => button("Start").click());
+    expect(mocks.record).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(mocks.record).toHaveBeenCalledOnce();
+    await act(async () => button("Zakończ nagranie").click());
+    expect(stop).toHaveBeenCalledOnce();
     expect(mocks.open).toHaveBeenCalledWith(recording, expect.any(AbortSignal));
     expect(host.querySelector("canvas")).not.toBeNull();
+    expect(host.querySelector("video")).toBeNull();
     expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+  });
+  it("stops the camera when the countdown is cancelled and ignores a late camera", async () => {
+    vi.useFakeTimers();
+    await render();
+    await act(async () => button("Nagraj próbę").click());
+    await act(async () => button("Start").click());
+    await act(async () => button("Anuluj").click());
+    await act(async () => vi.advanceTimersByTimeAsync(4000));
+    expect(mocks.record).not.toHaveBeenCalled();
+    expect(mocks.stop).toHaveBeenCalled();
+    let finish!: (camera: unknown) => void;
+    mocks.camera.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await act(async () => button("Nagraj próbę").click());
+    await act(async () => button("Anuluj").click());
+    const late = { stream: {}, mimeType: "video/mp4", settings: {} };
+    await act(async () => finish(late));
+    expect(mocks.stop).toHaveBeenCalledWith(late);
+    expect(mocks.open).not.toHaveBeenCalled();
+    expect(host.querySelector("video")).toBeNull();
+  });
+  it("retains a recording that fails validation and offers to save its original", async () => {
+    await render();
+    mocks.open.mockRejectedValueOnce(new Error("Niepoprawne czasy filmu"));
+    await importFile();
+    expect(button("Zachowaj nagranie")).toBeDefined();
+    expect(host.textContent).toContain("Niepoprawne czasy filmu");
+    expect(host.querySelector("canvas")).toBeNull();
+  });
+  it("cancels capture on a hidden page and leaves the import path accessible", async () => {
+    await render();
+    await act(async () => button("Nagraj próbę").click());
+    vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    await act(async () =>
+      document.dispatchEvent(new Event("visibilitychange")),
+    );
+    expect(mocks.camera.mock.calls[0][0].aborted).toBe(true);
+    expect(mocks.stop).toHaveBeenCalled();
+    expect(host.textContent).toContain("Nagrywanie przerwane");
+    await act(async () => button("Wróć").click());
+    expect(button("Wybierz film").disabled).toBe(false);
+    expect(mocks.open).not.toHaveBeenCalled();
   });
   it("keeps the initial screen when system capture is cancelled", async () => {
     await render();

@@ -16,6 +16,7 @@ describe("MP4/MOV exact frame reader", () => {
   it.each([
     ["hd-30fps.mp4", 30, 1920, 1080],
     ["4k-60fps.mp4", 60, 3840, 2160],
+    ["camera-fragmented-24fps.mp4", 24, 320, 180],
   ])(
     "accepts a real %s original with its own timestamps",
     (name, fps, width, height) => {
@@ -31,7 +32,12 @@ describe("MP4/MOV exact frame reader", () => {
       expect(video.timeline.fps).toBeCloseTo(fps as number, 8);
       expect(video.config.codedWidth).toBe(width);
       expect(video.config.codedHeight).toBe(height);
-      expect(video.samples).toHaveLength(60);
+      expect(video.samples).toHaveLength(
+        name === "camera-fragmented-24fps.mp4" ? 48 : 60,
+      );
+      expect(video.samples.every((sample) => sample.data.byteLength > 0)).toBe(
+        true,
+      );
     },
   );
   it("reads HEVC samples and decoder description from a real QuickTime MOV", () => {

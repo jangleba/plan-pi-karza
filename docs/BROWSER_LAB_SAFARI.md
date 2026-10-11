@@ -1,5 +1,25 @@
 # BallWise Lab w Safari — wersja do testów
 
+## Kamera w Lab i rzeczywiste czasy — 11.10.2026
+
+Wydanie poprawione 1.1: naprawione dwa błędy ESLint prefer-const w timerach nagrywania oraz ostrzeżenie react-hooks/exhaustive-deps w sprzątaniu podglądu kamery. Wgraj ponownie ten sam lab-camera-auto.yml, zastępując poprzednią wersję. Nieudana wcześniejsza instalacja przed krokiem commitu nie zapisała tych zmian na main. Instalator akceptuje rozpoznaną poprzednią wersję paczki oraz bazę Prosto i kamera. Lokalnie ponownie zaliczono 65 testów modułu, kontrolę typów runtime i formatowania; cały moduł sprawdzono także ESLint 9.39.5 z regułami TypeScript i React Hooks, bez błędów i ostrzeżeń. Pełny verify:release pozostaje częścią workflow na GitHubie.
+
+Aktualna poprawka: `BallWise-Lab-Kamera-Auto-Ustawienia-2026-10-11.zip`, jeden plik `lab-camera-auto.yml`. Wgraj ten plik do `.github/workflows` na main w `jangleba/plan-pi-karza`, po zainstalowanej poprawce Prosto i kamera. Poczekaj na zielony workflow **BallWise Lab - Kamera i auto ustawienia**, następnie Lovable → Publish → Publish changes. Instalator sprawdza wersje wszystkich zmienianych plików przed zapisem, jest idempotentny i uruchamia pełne verify:release przed commitem. Nie zmienia zależności ani formatu historii.
+
+**Nagraj próbę** otwiera podgląd kamery w Lab przez getUserMedia. Żądana jest tylna kamera bez mikrofonu. Moduł sprawdza getCapabilities, próbuje najwyższej dostępnej liczby klatek do 240 FPS, z preferowaną rozdzielczością HD, i odczytuje ustawienia przez getSettings. Próby ograniczeń, a nie nazwa modelu telefonu, określają dostępny tryb. Przeglądarka może udostępniać mniej trybów niż natywna aplikacja Aparat. Stan kamery i deklarowany FPS nie dowodzą FPS gotowego nagrania: parser po nagraniu odczytuje rzeczywiste znaczniki czasu i średni FPS.
+
+Start → 3 sekundy odliczania → 8 sekund filmu → automatyczny powrót do oznaczania zdarzeń. Nagranie można zakończyć wcześniej. Zapis przez MediaRecorder w MP4, z wykrywaniem obsługi kontenera/kodeka; bez skalowania klatek przez canvas i bez obliczania wyniku z zegara interfejsu. Wszystkie fragmenty filmu są łączone w oryginalnej kolejności. Parser obsługuje także fragmentowany MP4. Kamera i timery są zwalniane przy zakończeniu, błędzie, anulowaniu, wyjściu z ekranu i ukryciu strony. Przerwane nagrywanie nie daje wyniku.
+
+Obsługiwane są oryginalne nagrania od około 15 do 300 FPS, w tym 24/25 FPS i zmienny FPS. Wcześniejszy próg 29 FPS został usunięty. Pomiar oraz zakres wynikają z rzeczywistych czasów klatek przy każdym oznaczonym zdarzeniu. Nie interpolujemy klatek i nie uznajemy 24 FPS za 60 FPS. Wyniki poniżej 119 FPS są oznaczone jako orientacyjne. Odrzucane są powtórzone lub nieprawidłowe czasy, przerwa ponad 0,25 s w filmie i odstęp ponad 0,125 s przy oznaczonym zdarzeniu; limity długości, rozdzielczości, rozmiaru i jawnych edycji tempa pozostają. Typowy FPS nie pozwala samodzielnie sprawdzić oryginalności ani całkowitego błędu pomiaru.
+
+Jeśli odczyt nie przejdzie, **Zachowaj nagranie** pobiera otrzymany oryginalny plik. Przy wyniku film można pobrać ze Szczegółów pomiaru. Plik jest dostępny w pamięci bieżącej próby, bez automatycznego trwałego zapisu w galerii ani wysyłki na serwer. Import galerii oraz systemowy aparat jako opcja w zwijanej pomocy pozostają dostępne.
+
+Lokalnie: testy modułu, kontrola typów runtime i formatowania. Testy kamery mockują API platformy; parser jest sprawdzany na rzeczywistym, sztucznie wygenerowanym fragmentowanym MP4 H.264 24 FPS oraz pozostałych klipach AVC/HEVC, HD/4K. To kontrola oprogramowania, nie walidacja pomiaru na zawodnikach. Nie wykonano nagrania na fizycznym iPhonie w tej sesji. Pełny projekt sprawdza workflow. Po instalacji sprawdź na opublikowanej domenie w Safari: zgoda na kamerę, podgląd, odliczanie, zakończenie, oznaczenie zdarzeń, wynik i zapis; sprawdź też anulowanie. Podgląd w ramce Lovable może ograniczać zgodę na kamerę przez Permissions Policy.
+
+Automatyczne rozpoznanie wybicia i lądowania nadal nie jest częścią tej poprawki. Wynik pojawia się po dwóch oznaczeniach użytkownika.
+
+Źródła techniczne: https://www.w3.org/TR/mediacapture-streams/ ; https://www.w3.org/TR/mediastream-recording/ ; https://webkit.org/blog/11353/mediarecorder-api/ .
+
 Protokół wyników: `ballwise-browser-lab-1.0`. Punkt wejścia: **Plan → Lab — Testy z filmu** (`/lab`). Pozostałe pięć zakładek aplikacji zachowuje dotychczasowy układ.
 
 ## Zakres
@@ -17,13 +37,13 @@ Pełny profil ma 17 prób. Strony są wykonywane naprzemiennie w obrębie testu.
 ## Nagranie i odczyt
 
 1. Telefon na statywie, dobre światło, widoczne zdarzenia i cały odcinek. Rozgrzewka przed testami.
-2. Aparat: najlepiej HD 60 FPS i 5–10 s. Przyjmujemy HD i 4K oraz 30, 60, 120 i 240 FPS. Jedna próba, klip do 20 s i 128 MiB. Safari służy do importu i pomiaru; moduł nie nagrywa w nim 240 FPS.
+2. Aparat: najlepiej HD 60 FPS i 5–10 s. Przyjmujemy HD i 4K od około 15 do 300 FPS, także 24/25 FPS. Jedna próba, klip do 20 s i 128 MiB. Lab nagrywa w Safari w trybach udostępnionych przez przeglądarkę; 240 FPS nie jest gwarantowane.
 3. W aktualnych Zdjęciach iOS: wybierz film → Udostępnij → **Eksportuj niezmodyfikowane oryginały / Export Unmodified Originals** → wybierz folder w Plikach → Zapisz. Przy iCloud może być potrzebne pobranie oryginału. Apple opisuje tę ścieżkę: https://support.apple.com/en-us/111762.
 4. Alternatywnie w iCloud.com/photos użyj dodatkowych opcji pobierania i wybierz **Unmodified Originals**, a następnie rozpakuj pobrany ZIP w Plikach. Nie konwertuj klipu na inny kodek ani tempo po nagraniu.
 5. W Labie wybierz film. Odczytane FPS muszą odpowiadać nagraniu. Film 30/60 FPS jest przyjmowany jako wynik orientacyjny. Samo FPS nie rozstrzyga, czy plik był wcześniej spowalniany. Użytkownik musi potwierdzić oryginalność; aplikacja nie zgaduje FPS nagrania ani nie tworzy dodatkowych klatek.
 6. Oznacz dwa zdarzenia zgodnie z instrukcją. Obejrzyj klatkę poprzednią. Potwierdź oryginalność i protokół, zapisz próbę.
 
-H.264 oraz HEVC w zwykłym, niefragmentowanym MP4/MOV. Jeden tor wideo, maksymalnie 4K (4096 px na dłuższej krawędzi i 4096 × 2160 pikseli), do 6500 próbek. Podgląd ma maksymalnie 1280 px na dłuższej krawędzi; czasy pochodzą z oryginalnych próbek. Dekodowanie 4K nadal wymaga obsługi przez konkretny telefon i kodek. Odrzucane są niespójne PTS, nieobsługiwany kodek, brak pełnych próbek i edycje zmieniające tempo. Oryginalność materiału pozostaje także potwierdzeniem użytkownika: parser nie wykryje każdej możliwej wcześniejszej konwersji.
+H.264 oraz HEVC w zwykłym lub fragmentowanym MP4/MOV. Jeden tor wideo, maksymalnie 4K (4096 px na dłuższej krawędzi i 4096 × 2160 pikseli), do 6500 próbek. Podgląd ma maksymalnie 1280 px na dłuższej krawędzi; czasy pochodzą z oryginalnych próbek. Dekodowanie 4K nadal wymaga obsługi przez konkretny telefon i kodek. Odrzucane są niespójne PTS, nieobsługiwany kodek, brak pełnych próbek i edycje zmieniające tempo. Oryginalność materiału pozostaje także potwierdzeniem użytkownika: parser nie wykryje każdej możliwej wcześniejszej konwersji.
 
 MP4Box odczytuje PTS w kolejności prezentacji. WebCodecs dekoduje GOP, a klatka jest wybierana według PTS, niezależnie od kolejności callbacków i klatek B. Oznaczanie jest zablokowane do chwili narysowania potwierdzonej klatki. Anulowanie, zmiana filmu i opuszczenie ekranu unieważniają poprzednią operację. Dekoder ma limit czasu i kolejki; nieużywane VideoFrame są zamykane. Macierz obrotu filmu jest uwzględniana przy rysowaniu.
 
@@ -47,7 +67,7 @@ Historia: do 300 prób. Zapis ma walidację wzorów, pól i protokołu; ta sama 
 
 JSON służy do przywracania, CSV do arkusza. Nazwy i notatki CSV są zabezpieczone przed interpretacją jako formuły. Import sprawdza wszystkie wyniki przed zapisem i zachowuje istniejącą historię. Uszkodzona historia nie jest automatycznie nadpisywana. Odzyskanie wymaga poprawnego JSON, pobrania surowej kopii i osobnego potwierdzenia zastąpienia uszkodzonych danych.
 
-## Instalacja bez Xcode
+## Pierwotna instalacja pełnego Labu — historia
 
 Aktualna paczka **BallWise-Lab-Safari-2026-10-11.zip** zawiera jeden instalator. Rozpakuj ZIP w Plikach na iPhonie. W repozytorium `jangleba/plan-pi-karza`, na `main`, wgraj tylko `lab-safari-install.yml` do `.github/workflows`. Zapisanie tego pliku uruchamia instalację automatycznie. W Actions wybierz **BallWise Lab Safari - instalacja** i poczekaj na zielony wynik. Jeśli potrzeba ponowienia, użyj **Run workflow → main**. Nie musisz instalować wcześniejszych trzech etapów.
 
@@ -93,7 +113,7 @@ Lokalnie: 42 testy modułu zaliczone, w tym rzeczywiste pliki HD 30 FPS i 4K 60 
 
 Źródła: Apple — https://support.apple.com/pl-pl/guide/iphone/iphc1827d32f/ios; Pueo i wsp., 2023 — https://pubmed.ncbi.nlm.nih.gov/37077799/. Wyniki walidacji innych aplikacji nie są walidacją BallWise.
 
-## Uproszczony pomiar i kamera — 11.10.2026
+## Poprzednia poprawka: uproszczony pomiar i kamera — 11.10.2026
 
 Paczka `BallWise-Lab-Prosto-Kamera-2026-10-11.zip` zawiera jeden plik `lab-camera-compact.yml`. Instalacja do `.github/workflows` na main po poprawce HD/4K. Przebieg: Nagraj próbę lub Wybierz film → oznacz pierwszą klatkę zdarzenia początkowego → oznacz pierwszą klatkę zdarzenia końcowego → wynik. Film z kamery przechodzi identyczny parser i dekoder jak import z galerii.
 

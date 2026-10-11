@@ -3,6 +3,8 @@ import {
   GRAVITY,
   MIN_VIDEO_FPS,
   MAX_VIDEO_FPS,
+  MAX_EVENT_FRAME_GAP,
+  validateEventGaps,
   type JumpTimeline,
 } from "./measurement";
 import {
@@ -72,6 +74,7 @@ export function timedMeasurement(
   const startPreviousSeconds = timeline.frames[start - 1].seconds;
   const endPreviousSeconds = timeline.frames[end - 1].seconds;
   const elapsedSeconds = endSeconds - startSeconds;
+  validateEventGaps(timeline, start, end);
   const protocol = protocolFor(testId);
   if (
     elapsedSeconds < protocol.minimumSeconds ||
@@ -139,12 +142,7 @@ export function validatedResult(input: unknown): BrowserResult {
     );
   const startGap = result.startSeconds - result.startPreviousSeconds;
   const endGap = result.endSeconds - result.endPreviousSeconds;
-  if (
-    startGap > 1.6 / result.fps ||
-    endGap > 1.6 / result.fps ||
-    startGap < 0.6 / result.fps ||
-    endGap < 0.6 / result.fps
-  )
+  if (startGap > MAX_EVENT_FRAME_GAP || endGap > MAX_EVENT_FRAME_GAP)
     throw new Error("Odstęp klatek pomiaru jest nieprawidłowy.");
   return result;
 }

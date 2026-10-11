@@ -16,8 +16,9 @@ import {
 import { protocolFor, sideLabel, type BrowserAttempt } from "./protocols";
 import { decodeJumpFrame, openJumpVideo, type OpenedVideo } from "./video";
 import { createHistoryBackup } from "./storage";
-import { downloadText } from "./download";
+import { downloadText, downloadBlob } from "./download";
 import { LabButton, LabNotice, messageOf } from "./LabUI";
+import { CameraRecorder } from "./CameraRecorder";
 
 export function VideoAnalyzer({
   attempt,
@@ -50,6 +51,8 @@ export function VideoAnalyzer({
   const [aspect, setAspect] = useState(16 / 9);
   const [marking, setMarking] = useState<"start" | "end">("start");
   const [editing, setEditing] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [lastFile, setLastFile] = useState<File | null>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -123,6 +126,8 @@ export function VideoAnalyzer({
   }, [video, frameIndex, refresh, saved]);
 
   async function importVideo(file: File) {
+    setCameraOpen(false);
+    setLastFile(file);
     load.current?.abort();
     const controller = new AbortController();
     load.current = controller;
@@ -281,13 +286,22 @@ export function VideoAnalyzer({
             type="file"
             accept="video/*"
             capture="environment"
-            aria-label="Nagraj próbę"
+            aria-label="Nagraj w aparacie systemowym"
             disabled={reading}
             onChange={(event) => selectFile(event.currentTarget)}
           />
         </>
       )}
-      {!video && (
+      {cameraOpen && (
+        <CameraRecorder
+          instruction={shortSetup}
+          onRecording={(file) => {
+            void importVideo(file);
+          }}
+          onCancel={() => setCameraOpen(false)}
+        />
+      )}
+      {!video && !cameraOpen && (
         <section className="bl-card bl-source-card">
           <p className="bl-kicker">
             PRÓBA {attempt.trial} / {attempt.trials}
@@ -300,7 +314,10 @@ export function VideoAnalyzer({
           <LabButton
             className="bl-wide"
             disabled={reading}
-            onClick={() => cameraInput.current?.click()}
+            onClick={() => {
+              setError("");
+              setCameraOpen(true);
+            }}
           >
             <Camera size={18} /> Nagraj próbę
           </LabButton>
@@ -311,9 +328,7 @@ export function VideoAnalyzer({
           >
             <FileVideo size={18} /> Wybierz film
           </LabButton>
-          <p className="bl-muted">
-            Jedna próba · 5–10 sekund.
-          </p>
+          <p className="bl-muted">Jedna próba · 5–10 sekund.</p>
           <details className="bl-details">
             <summary>Jak wykonać próbę?</summary>
             <ol className="bl-steps">
@@ -322,16 +337,23 @@ export function VideoAnalyzer({
               ))}
             </ol>
             <p className="bl-muted">
-              HD lub 4K, od 30 FPS. Maksymalnie 20 s i 128 MB. Film w
+              HD lub 4K, od 15 FPS. Maksymalnie 20 s i 128 MB. Film w
               oryginalnym tempie. Jeśli galeria zmienia tempo, w Zdjęciach
               wybierz Udostępnij → Eksportuj niezmodyfikowany oryginał → Pliki.
               120/240 FPS szukaj w Aparacie w trybie „Zwolnione tempo”.
             </p>
             <p className="bl-muted">
-              Przycisk nagrywania korzysta z kamery telefonu. Ustawienia
-              nagrania wybiera system; Lab sprawdza liczbę klatek w gotowym
-              filmie.
+              Lab dobiera tryb tylnej kamery dostępny w przeglądarce. Liczbę
+              klatek i czasy sprawdza w gotowym filmie. Tryby 120/240 FPS mogą
+              być dostępne tylko w aplikacji Aparat.
             </p>
+            <LabButton
+              className="bl-secondary"
+              disabled={reading}
+              onClick={() => cameraInput.current?.click()}
+            >
+              Otwórz aparat systemowy
+            </LabButton>
           </details>
           {reading && <LabNotice>Czytam film…</LabNotice>}
           {reading && (
@@ -349,6 +371,14 @@ export function VideoAnalyzer({
         </section>
       )}
       {error && <LabNotice error>{error}</LabNotice>}
+      {error && !video && lastFile && !reading && !cameraOpen && (
+        <LabButton
+          className="bl-secondary bl-wide"
+          onClick={() => downloadBlob(lastFile.name, lastFile)}
+        >
+          Zachowaj nagranie
+        </LabButton>
+      )}
       {video && measure && (
         <section className="bl-card bl-result" aria-label="Wynik próby">
           <p className="bl-kicker">
@@ -402,6 +432,14 @@ export function VideoAnalyzer({
           )}
           <details className="bl-details">
             <summary>Szczegóły pomiaru</summary>
+            {lastFile && (
+              <LabButton
+                className="bl-secondary"
+                onClick={() => downloadBlob(lastFile.name, lastFile)}
+              >
+                Pobierz film
+              </LabButton>
+            )}
             <p>
               {protocol.category === "jump" ? "Czas lotu" : "Czas odcinka"}:{" "}
               {measure.elapsedSeconds.toFixed(3)} s ·{" "}

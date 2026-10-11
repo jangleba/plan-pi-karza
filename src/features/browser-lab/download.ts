@@ -1,5 +1,13 @@
-export function downloadText(name: string, text: string, type = "application/json") {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+export function downloadText(
+  name: string,
+  text: string,
+  type = "application/json",
+) {
+  downloadBlob(name, new Blob([text], { type }));
+}
+
+export function downloadBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = name;

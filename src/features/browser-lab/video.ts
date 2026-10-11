@@ -51,7 +51,7 @@ export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
       "Nie można odczytać filmu. Wybierz oryginalny plik MP4 lub MOV.",
     );
   const info = mp4.getInfo();
-  if (info.isFragmented || info.videoTracks.length !== 1)
+  if (info.videoTracks.length !== 1)
     throw new Error(
       "Ten format filmu nie jest obsługiwany. Wybierz zwykły plik MP4 lub MOV z kamery.",
     );
