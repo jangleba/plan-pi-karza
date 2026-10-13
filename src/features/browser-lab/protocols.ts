@@ -1,10 +1,18 @@
 export const BROWSER_LAB_PROTOCOL = "ballwise-browser-lab-1.0";
-export const TEST_IDS = ["cmj", "single_leg_cmj", "sprint_10m", "flying_10m", "cod_505"] as const;
+export const TEST_IDS = [
+  "cmj",
+  "single_leg_cmj",
+  "sprint_10m",
+  "standing_long_jump",
+  "cod_505",
+] as const;
 export type BrowserTestId = (typeof TEST_IDS)[number];
+export type StoredTestId = BrowserTestId | "flying_10m";
+export const CALIBRATED_LAB_PROTOCOL = "ballwise-browser-lab-1.1";
 export type TestSide = "left" | "right" | null;
 
 export interface BrowserProtocol {
-  id: BrowserTestId;
+  id: StoredTestId;
   title: string;
   subtitle: string;
   category: "jump" | "speed" | "change";
@@ -100,30 +108,30 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
     maximumSeconds: 15,
   },
   {
-    id: "flying_10m",
-    title: "Flying 10 m",
-    subtitle: "Czas i średnia prędkość odcinka",
-    category: "speed",
+    id: "standing_long_jump",
+    title: "Skok w dal",
+    subtitle: "Odległość po kalibracji podłoża",
+    category: "jump",
     sides: [null],
     trials: 2,
-    restSeconds: 180,
-    markers: ["Wejście", "Wyjście"],
+    restSeconds: 90,
+    markers: ["Przed odbiciem", "Lądowanie"],
     instructions: [
-      "Pierwsza klatka, gdy środek tułowia przecina linię wejścia. Sprawdź klatkę poprzednią.",
-      "Pierwsza klatka, gdy ten sam punkt tułowia przecina linię końcową. Sprawdź klatkę poprzednią.",
+      "Wybierz klatkę przed odbiciem. Zaznacz dwa punkty linii startowej na podłożu, tuż przed palcami stóp.",
+      "Wybierz klatkę stabilnego lądowania. Zaznacz kontakt z podłożem pięty bliższej linii startowej. Bez cofnięcia stóp.",
     ],
     setup: [
-      "Wyznacz 20 m rozpędzania i dokładnie 10 m odcinka pomiarowego. Odległość zmierz taśmą.",
-      "Telefon nieruchomo, daleko i bokiem do środka odcinka. Obie linie muszą być dobrze widoczne.",
-      "Przebiegnij cały odcinek bez zwalniania. Na obu liniach oznaczaj ten sam punkt tułowia.",
+      "Telefon nieruchomo na statywie, z boku i powyżej podłoża. Pokaż całą strefę skoku, obie pięty oraz wzorzec.",
+      "Połóż płaski prostokątny wzorzec. Zmierz jego dwa zewnętrzne wymiary. Może to być większa mata lub prostokąt z taśmy; nie dowolne dwa stożki.",
+      "Obok strefy skoku oznacz końce osobnego odcinka co najmniej 1 m, zmierzonego taśmą. Posłuży do sprawdzenia skali.",
+      "Odbicie i lądowanie obunóż, zamach ramion dozwolony. Linia odbicia przed palcami. Próba bez podparcia i cofnięcia po lądowaniu.",
     ],
     confirmation:
-      "Odcinek ma zmierzone 10 m, linie są widoczne, kamera nieruchoma. Na obu liniach oznaczam ten sam punkt tułowia.",
-    guideAxis: "vertical",
-    sharedGuide: false,
-    distanceMeters: 10,
-    minimumSeconds: 0.5,
-    maximumSeconds: 10,
+      "Wzorzec i punkty leżą na jednym płaskim podłożu, ich wymiary zmierzono taśmą. Kamera nie poruszyła się. Oznaczono bliższą piętę, bez cofnięcia ani podparcia za nią.",
+    guideAxis: "horizontal",
+    sharedGuide: true,
+    minimumSeconds: 0.1,
+    maximumSeconds: 5,
   },
   {
     id: "cod_505",
@@ -139,12 +147,12 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
       "Drugie przecięcie tej samej linii tym samym punktem tułowia, po wykonaniu nawrotu.",
     ],
     setup: [
-      "Odmierz 5 m między linią pomiarową a linią nawrotu. Przed linią pomiarową zostaw 10 m rozpędzania.",
+      "Odmierz 5 m między linią pomiarową a linią nawrotu oraz 10 m od startu rozbiegu do linii pomiarowej.",
       "Telefon nieruchomo, bokiem do linii pomiarowej. Film musi pokazywać oba przecięcia i kontakt stopy na linii nawrotu.",
       "Wybierz nogę STAWNĄ w nawrocie. Postaw tę stopę na linii nawrotu i wróć przez linię pomiarową.",
     ],
     confirmation:
-      "Linie dzieli zmierzone 5 m. W nawrocie wybrana stopa osiąga linię. Oznaczam dwa przecięcia tej samej linii tym samym punktem tułowia.",
+      "Odmierzono 10 m rozbiegu i 5 m do nawrotu. W nawrocie wybrana stopa osiąga linię. Oznaczam dwa przecięcia tej samej linii tym samym punktem tułowia.",
     guideAxis: "vertical",
     sharedGuide: true,
     minimumSeconds: 1,
@@ -152,7 +160,35 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
   },
 ] as const;
 
-export function protocolFor(id: BrowserTestId) {
+const ARCHIVED_FLYING: BrowserProtocol = {
+  id: "flying_10m",
+  title: "Flying 10 m · archiwum",
+  subtitle: "Czas i średnia prędkość odcinka",
+  category: "speed",
+  sides: [null],
+  trials: 2,
+  restSeconds: 180,
+  markers: ["Wejście", "Wyjście"],
+  instructions: [
+    "Pierwsza klatka, gdy środek tułowia przecina linię wejścia. Sprawdź klatkę poprzednią.",
+    "Pierwsza klatka, gdy ten sam punkt tułowia przecina linię końcową. Sprawdź klatkę poprzednią.",
+  ],
+  setup: [
+    "Wyznacz 20 m rozpędzania i dokładnie 10 m odcinka pomiarowego. Odległość zmierz taśmą.",
+    "Telefon nieruchomo, daleko i bokiem do środka odcinka. Obie linie muszą być dobrze widoczne.",
+    "Przebiegnij cały odcinek bez zwalniania. Na obu liniach oznaczaj ten sam punkt tułowia.",
+  ],
+  confirmation:
+    "Odcinek ma zmierzone 10 m, linie są widoczne, kamera nieruchoma. Na obu liniach oznaczam ten sam punkt tułowia.",
+  guideAxis: "vertical",
+  sharedGuide: false,
+  distanceMeters: 10,
+  minimumSeconds: 0.5,
+  maximumSeconds: 10,
+};
+
+export function protocolFor(id: StoredTestId) {
+  if (id === "flying_10m") return ARCHIVED_FLYING;
   const protocol = PROTOCOLS.find((test) => test.id === id);
   if (!protocol) throw new Error("Nieznany test Lab.");
   return protocol;

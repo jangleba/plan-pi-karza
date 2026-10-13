@@ -24,6 +24,9 @@ export function historyCSV(input: readonly BrowserResult[]) {
     "resolutionMin",
     "resolutionMax",
     "averageSpeedMps",
+    "spatial",
+    "turnFrameIndex",
+    "turnSeconds",
     "version",
     "sourceName",
     "sourceHash",
@@ -33,7 +36,15 @@ export function historyCSV(input: readonly BrowserResult[]) {
     "\uFEFF" +
     [
       columns.map(cell).join(";"),
-      ...input.map(validatedResult).map((row) => columns.map((key) => cell(row[key])).join(";")),
+      ...input
+        .map(validatedResult)
+        .map((row) =>
+          columns
+            .map((key) =>
+              cell(key === "spatial" && row.spatial ? JSON.stringify(row.spatial) : row[key]),
+            )
+            .join(";"),
+        ),
     ].join("\r\n")
   );
 }

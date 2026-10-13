@@ -41,9 +41,7 @@ const video: OpenedVideo = {
 let host: HTMLDivElement;
 let root: Root;
 const button = (text: string) =>
-  [...host.querySelectorAll("button")].find((b) =>
-    b.textContent?.includes(text),
-  )!;
+  [...document.body.querySelectorAll("button")].find((b) => b.textContent?.includes(text))!;
 async function importFile() {
   await act(async () => {
     const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
@@ -55,14 +53,12 @@ async function importFile() {
   });
 }
 async function go(index: number) {
-  const input = host.querySelector<HTMLInputElement>(
-    'input[aria-label="Pozycja w filmie"]',
-  )!;
+  const input = host.querySelector<HTMLInputElement>('input[aria-label="Pozycja w filmie"]')!;
   await act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(input, String(index));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+      input,
+      String(index),
+    );
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
@@ -79,6 +75,11 @@ beforeEach(() => {
   mocks.stop.mockReset();
   mocks.record.mockReset();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
     save: vi.fn(),
     translate: vi.fn(),
     rotate: vi.fn(),
@@ -103,14 +104,10 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
-async function render(save = vi.fn()) {
+async function render(save = vi.fn(), testId: "cmj" | "standing_long_jump" | "cod_505" = "cmj") {
   await act(async () =>
     root.render(
-      <VideoAnalyzer
-        attempt={attemptPlan(["cmj"])[0]}
-        sessionId="session-123456"
-        onSave={save}
-      />,
+      <VideoAnalyzer attempt={attemptPlan([testId])[0]} sessionId="session-123456" onSave={save} />,
     ),
   );
   return save;
@@ -133,8 +130,8 @@ describe("browser video measurement flow", () => {
     await render();
     await act(async () => button("Nagraj próbę").click());
     expect(mocks.camera).toHaveBeenCalledOnce();
-    expect(host.querySelector("video")?.srcObject).not.toBeNull();
-    expect(host.textContent).toContain("1920 × 1080 · 60 FPS");
+    expect(document.body.querySelector("video")?.srcObject).not.toBeNull();
+    expect(document.body.textContent).toContain("1920 × 1080 · 60 FPS");
     await act(async () => button("Start").click());
     expect(mocks.record).not.toHaveBeenCalled();
     await act(async () => vi.advanceTimersByTimeAsync(3000));
@@ -143,7 +140,7 @@ describe("browser video measurement flow", () => {
     expect(stop).toHaveBeenCalledOnce();
     expect(mocks.open).toHaveBeenCalledWith(recording, expect.any(AbortSignal));
     expect(host.querySelector("canvas")).not.toBeNull();
-    expect(host.querySelector("video")).toBeNull();
+    expect(document.body.querySelector("video")).toBeNull();
     expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
   });
   it("stops the camera when the countdown is cancelled and ignores a late camera", async () => {
@@ -168,7 +165,7 @@ describe("browser video measurement flow", () => {
     await act(async () => finish(late));
     expect(mocks.stop).toHaveBeenCalledWith(late);
     expect(mocks.open).not.toHaveBeenCalled();
-    expect(host.querySelector("video")).toBeNull();
+    expect(document.body.querySelector("video")).toBeNull();
   });
   it("retains a recording that fails validation and offers to save its original", async () => {
     await render();
@@ -182,21 +179,17 @@ describe("browser video measurement flow", () => {
     await render();
     await act(async () => button("Nagraj próbę").click());
     vi.spyOn(document, "hidden", "get").mockReturnValue(true);
-    await act(async () =>
-      document.dispatchEvent(new Event("visibilitychange")),
-    );
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
     expect(mocks.camera.mock.calls[0][0].aborted).toBe(true);
     expect(mocks.stop).toHaveBeenCalled();
-    expect(host.textContent).toContain("Nagrywanie przerwane");
+    expect(document.body.textContent).toContain("Nagrywanie przerwane");
     await act(async () => button("Wróć").click());
     expect(button("Wybierz film").disabled).toBe(false);
     expect(mocks.open).not.toHaveBeenCalled();
   });
   it("keeps the initial screen when system capture is cancelled", async () => {
     await render();
-    const input = host.querySelector<HTMLInputElement>(
-      'input[capture="environment"]',
-    )!;
+    const input = host.querySelector<HTMLInputElement>('input[capture="environment"]')!;
     await act(async () => {
       Object.defineProperty(input, "files", { configurable: true, value: [] });
       input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -208,9 +201,7 @@ describe("browser video measurement flow", () => {
   it("guides marking in order, blocks reversed events and switches to the result", async () => {
     await render();
     await importFile();
-    expect(
-      host.querySelector<HTMLButtonElement>('[aria-pressed="false"]')?.disabled,
-    ).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[aria-pressed="false"]')?.disabled).toBe(true);
     await go(60);
     await act(async () => button("Oznacz wybicie").click());
     expect(button("Oznacz lądowanie").disabled).toBe(true);
@@ -218,17 +209,11 @@ describe("browser video measurement flow", () => {
     expect(button("Oznacz lądowanie").disabled).toBe(true);
     await go(164);
     await act(async () => button("Oznacz lądowanie").click());
-    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(
-      true,
-    );
-    expect(
-      host.querySelector('[aria-label="Wynik próby"]')?.textContent,
-    ).toContain("23,0 cm");
+    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(true);
+    expect(host.querySelector('[aria-label="Wynik próby"]')?.textContent).toContain("23,0 cm");
     expect(button("Zapisz wynik").disabled).toBe(true);
     await act(async () => button("Popraw oznaczenia").click());
-    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(
-      false,
-    );
+    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(false);
     await act(async () => button("2. Lądowanie").click());
     expect(button("Oznacz lądowanie").disabled).toBe(false);
   });
@@ -274,9 +259,7 @@ describe("browser video measurement flow", () => {
     await importFile();
     expect(button("Oznacz wybicie").disabled).toBe(true);
     expect(host.textContent).toContain("Odczyt dokładnej klatki");
-    mocks.open.mockRejectedValue(
-      new Error("Nie można odczytać oryginalnego filmu"),
-    );
+    mocks.open.mockRejectedValue(new Error("Nie można odczytać oryginalnego filmu"));
     await importFile();
     expect(host.textContent).toContain("Nie można odczytać oryginalnego filmu");
     expect(host.querySelector("canvas")).toBeNull();
@@ -308,9 +291,7 @@ describe("browser video measurement flow", () => {
     expect(save.mock.calls[0][0].id).toBe(save.mock.calls[1][0].id);
     expect(host.textContent).toContain("ZAPISANO LOKALNIE");
     expect(host.querySelector('input[type="file"]')).toBeNull();
-    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(
-      true,
-    );
+    expect(host.querySelector<HTMLElement>(".bl-frame-card")?.hidden).toBe(true);
   });
   it("ignores an import that finishes after cancellation and a newer import", async () => {
     let finish!: (v: OpenedVideo) => void;
@@ -335,4 +316,111 @@ describe("browser video measurement flow", () => {
     expect(host.textContent).toContain("240.0 FPS");
     expect(host.textContent).not.toContain("120.0 FPS");
   });
+});
+
+async function numberInput(label: string, value: number) {
+  const input = host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+      input,
+      String(value),
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+async function floorPoint(x: number, y: number) {
+  const svg = host.querySelector<SVGSVGElement>(".bl-floor-overlay")!;
+  svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 180 }) as DOMRect;
+  svg.setPointerCapture = vi.fn();
+  await act(async () => {
+    svg.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, clientX: x * 1000, clientY: y * 180 }),
+    );
+    svg.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+  });
+}
+it("requires calibration, start line and heel, saves floor distance and invalidates confirmation after correction", async () => {
+  mocks.decode.mockImplementation(async (_video, index) => ({
+    timestamp: timeline.frames[index].timestampUs,
+    displayWidth: 1920,
+    displayHeight: 1080,
+    close: vi.fn(),
+  }));
+  const save = await render(vi.fn(), "standing_long_jump");
+  await importFile();
+  expect(button("Oznacz przed odbiciem").disabled).toBe(true);
+  await numberInput("Szerokość wzorca w cm", 100);
+  await numberInput("Drugi wymiar wzorca w cm", 50);
+  for (const [x, y] of [
+    [0.1, 0.2],
+    [0.3, 0.2],
+    [0.3, 0.3],
+    [0.1, 0.3],
+  ])
+    await floorPoint(x, y);
+  await act(async () =>
+    host.querySelector<HTMLInputElement>('.bl-floor-editor input[type="checkbox"]')!.click(),
+  );
+  await act(async () => button("Kontrola skali").click());
+  await numberInput("Długość kontrolna w cm", 200);
+  await floorPoint(0.1, 0.6);
+  await floorPoint(0.5, 0.6);
+  await act(async () =>
+    host.querySelector<HTMLInputElement>('.bl-floor-editor input[type="checkbox"]')!.click(),
+  );
+  await act(async () => button("Linia odbicia").click());
+  await go(60);
+  await floorPoint(0.1, 0.3);
+  await floorPoint(0.1, 0.5);
+  await act(async () => button("Oznacz przed odbiciem").click());
+  await go(190);
+  await floorPoint(0.528, 0.38);
+  await act(async () => button("Oznacz lądowanie").click());
+  expect(host.querySelector(".bl-result")?.textContent).toContain("214,0 cm");
+  expect(host.querySelector(".bl-result")?.textContent).not.toContain("Zakres z klatek");
+  expect(button("Zapisz wynik").disabled).toBe(true);
+  await act(async () =>
+    host.querySelector<HTMLInputElement>('.bl-result input[type="checkbox"]')!.click(),
+  );
+  await act(async () => button("Popraw oznaczenia").click());
+  await floorPoint(0.53, 0.38);
+  expect(button("Zapisz wynik").disabled).toBe(true);
+  await act(async () =>
+    host.querySelector<HTMLInputElement>('.bl-result input[type="checkbox"]')!.click(),
+  );
+  await act(async () => button("Zapisz wynik").click());
+  expect(save).toHaveBeenCalledOnce();
+  expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 7);
+  expect(save.mock.calls[0][0].spatial.heel[0]).toBe(0.53);
+});
+
+it("blocks 505 return marking until a turn contact between events is selected", async () => {
+  const longTimeline = buildJumpTimeline(
+    Array.from({ length: 1000 }, (_, cts) => ({ cts, timescale: 240, duration: 1 })),
+  );
+  mocks.open.mockResolvedValue({ ...video, timeline: longTimeline });
+  mocks.decode.mockImplementation(async (_video, index) => ({
+    timestamp: longTimeline.frames[index].timestampUs,
+    displayWidth: 160,
+    displayHeight: 120,
+    close: vi.fn(),
+  }));
+  const save = await render(vi.fn(), "cod_505");
+  await importFile();
+  await go(60);
+  await act(async () => button("Oznacz wejście").click());
+  await go(660);
+  expect(button("Oznacz powrót").disabled).toBe(true);
+  await go(350);
+  await act(async () => button("Oznacz nawrót").click());
+  await go(660);
+  await act(async () => button("Oznacz powrót").click());
+  await act(async () =>
+    host.querySelector<HTMLInputElement>('.bl-result input[type="checkbox"]')!.click(),
+  );
+  await act(async () => button("Zapisz wynik").click());
+  expect(save).toHaveBeenCalledOnce();
+  expect(save.mock.calls[0][0].primaryValue).toBe(2.5);
+  expect(save.mock.calls[0][0].turnFrameIndex).toBe(350);
 });

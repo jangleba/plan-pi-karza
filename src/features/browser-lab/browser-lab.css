@@ -240,6 +240,185 @@
   background: #10191b;
   margin: auto;
 }
+.bl-camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  width: 100%;
+  height: 100dvh;
+  padding: 0;
+  margin: 0;
+  background: #070d16;
+  color: white;
+  overflow: hidden;
+  --primary: #1688ff;
+  --primary-foreground: white;
+  --secondary: #15283eee;
+  --border: #ffffff25;
+  --foreground: white;
+  --muted-foreground: #e1e7ee;
+  --destructive: #ffb5b5;
+}
+.browser-lab.bl-camera-overlay {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.bl-camera-overlay .bl-camera-preview {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  border-radius: 0;
+}
+.bl-camera-overlay .bl-camera-preview video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+.bl-camera-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px
+    max(16px, env(safe-area-inset-left));
+  background: linear-gradient(#0009, transparent);
+}
+.bl-camera-header h2 {
+  margin: 0;
+  font-size: 16px;
+  text-align: center;
+}
+.bl-camera-close {
+  background: #081629cc;
+  border-color: #ffffff50;
+  color: white;
+}
+.bl-camera-status {
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.bl-camera-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  background: linear-gradient(transparent, #000d);
+  text-align: center;
+}
+.bl-camera-overlay p {
+  margin: 5px auto;
+  max-width: 60ch;
+}
+.bl-camera-settings,
+.bl-camera-small {
+  color: #e1e7ee;
+  font-size: 11px;
+}
+.bl-camera-tip {
+  font-size: 13px;
+  text-wrap: balance;
+}
+.bl-camera-shutter {
+  margin-top: 10px;
+  min-width: 82px;
+  height: 66px;
+  border-radius: 33px;
+  background: #fff;
+  color: #081629;
+  border: 4px solid #a4b5c7;
+}
+.bl-camera-stop {
+  margin-top: 10px;
+  background: #e93842;
+  color: white;
+  min-height: 58px;
+  border: 3px solid white;
+  border-radius: 30px;
+}
+.bl-floor-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.bl-floor-loupe {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 84px !important;
+  height: 84px !important;
+  border: 2px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+  background: #111;
+}
+.bl-floor-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+.bl-floor-tabs button {
+  min-height: 44px;
+  border-radius: 11px;
+  padding: 8px;
+  background: var(--secondary);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.bl-floor-tabs button[aria-pressed="true"] {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.bl-floor-tabs span {
+  font-size: 10px;
+  margin-left: 4px;
+}
+.bl-floor-dimensions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.bl-label input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 11px;
+  background: var(--background);
+  font-size: 16px;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .bl-camera-bottom {
+    left: auto;
+    width: min(32%, 250px);
+    padding: 12px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) 10px;
+    background: #071627bb;
+    border-radius: 18px 0 0 0;
+  }
+  .bl-camera-tip {
+    font-size: 11px;
+  }
+  .bl-camera-settings,
+  .bl-camera-small {
+    font-size: 10px;
+  }
+  .bl-camera-header {
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+}
 .bl-frame-inner {
   position: absolute;
   inset: 0;

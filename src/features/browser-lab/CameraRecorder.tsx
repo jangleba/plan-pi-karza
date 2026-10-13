@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  openLabCamera,
-  recordLabCamera,
-  stopCamera,
-  type LabCamera,
-} from "./camera";
+import { createPortal } from "react-dom";
+import { openLabCamera, recordLabCamera, stopCamera, type LabCamera } from "./camera";
 import { LabButton, LabNotice, messageOf } from "./LabUI";
 
 export function CameraRecorder({
   instruction,
+  title = "Nagraj próbę",
   onRecording,
   onCancel,
 }: {
   instruction: string;
+  title?: string;
   onRecording: (file: File) => void;
   onCancel: () => void;
 }) {
+  const dialog = useRef<HTMLElement>(null);
+  const cancel = useRef(onCancel);
+  cancel.current = onCancel;
   const preview = useRef<HTMLVideoElement>(null);
   const [camera, setCamera] = useState<LabCamera | null>(null);
   const [phase, setPhase] = useState<
@@ -33,6 +34,49 @@ export function CameraRecorder({
   complete.current = onRecording;
 
   useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog.current?.focus();
+    const keys = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        cancel.current();
+      }
+      if (event.key !== "Tab") return;
+      const controls = [
+        ...(dialog.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []),
+      ];
+      const first = controls[0],
+        last = controls[controls.length - 1];
+      if (!first) {
+        event.preventDefault();
+        return;
+      }
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === dialog.current)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || document.activeElement === dialog.current)
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", keys, true);
+    return () => {
+      document.body.style.overflow = oldOverflow;
+      document.removeEventListener("keydown", keys, true);
+      previous?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
     const element = preview.current;
     const controller = new AbortController();
     capture.current = controller;
@@ -44,11 +88,7 @@ export function CameraRecorder({
       setPhase("error");
     };
     const ended = () => {
-      if (
-        controller.signal.aborted ||
-        ["finishing", "error"].includes(phaseRef.current)
-      )
-        return;
+      if (controller.signal.aborted || ["finishing", "error"].includes(phaseRef.current)) return;
       controller.abort();
       setError("Kamera została odłączona. Otwórz ją ponownie.");
       setPhase("error");
@@ -67,9 +107,7 @@ export function CameraRecorder({
           return;
         }
         element.srcObject = opened.stream;
-        opened.stream
-          .getVideoTracks()
-          .forEach((track) => track.addEventListener("ended", ended));
+        opened.stream.getVideoTracks().forEach((track) => track.addEventListener("ended", ended));
         await element.play();
         if (!controller.signal.aborted) setPhase("ready");
       })
@@ -105,11 +143,7 @@ export function CameraRecorder({
       clearInterval(timer);
       if (controller.signal.aborted) return;
       try {
-        const recording = recordLabCamera(
-          camera,
-          controller.signal,
-          setSeconds,
-        );
+        const recording = recordLabCamera(camera, controller.signal, setSeconds);
         stop.current = recording.stop;
         setPhase("recording");
         void recording.finished
@@ -131,57 +165,72 @@ export function CameraRecorder({
   }, [phase, camera]);
 
   const settings = camera?.settings;
-  return (
-    <section className="bl-card bl-camera" aria-label="Kamera Lab">
-      <h2>{phase === "opening" ? "Uruchamiam kamerę…" : "Nagraj próbę"}</h2>
+  return createPortal(
+    <section
+      ref={dialog}
+      tabIndex={-1}
+      className="browser-lab bl-camera bl-camera-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Kamera Lab"
+    >
       <div className="bl-camera-preview">
-        <video
-          ref={preview}
-          autoPlay
-          muted
-          playsInline
-          aria-label="Podgląd kamery"
-        />
+        <video ref={preview} autoPlay muted playsInline aria-label="Podgląd kamery" />
         {phase === "countdown" && (
           <strong className="bl-camera-count" aria-live="assertive">
             {count}
           </strong>
         )}
       </div>
-      {settings && (
-        <p className="bl-muted">
-          {settings.width && settings.height
-            ? `${settings.width} × ${settings.height}`
-            : "Kamera gotowa"}
-          {settings.frameRate ? ` · ${settings.frameRate.toFixed(0)} FPS` : ""}
-        </p>
-      )}
-      {phase === "ready" && (
-        <>
-          <p className="bl-muted">{instruction} Start za 3 s, nagranie 8 s.</p>
-          <LabButton
-            className="bl-wide"
-            onClick={() => {
-              setCount(3);
-              setPhase("countdown");
-            }}
-          >
-            Start
-          </LabButton>
-        </>
-      )}
-      {phase === "countdown" && (
-        <p className="bl-muted" aria-live="polite">
-          Przygotuj się do próby.
-        </p>
-      )}
-      {phase === "recording" && (
-        <>
-          <p className="bl-muted" role="status">
-            Nagrywam · {seconds} / 8 s
+      <header className="bl-camera-header">
+        <LabButton className="bl-camera-close" aria-label="Zamknij kamerę" onClick={onCancel}>
+          {phase === "error" ? "Wróć" : "Anuluj"}
+        </LabButton>
+        <h2>{title}</h2>
+        <span className="bl-camera-status" role="status">
+          {phase === "recording"
+            ? `● ${seconds} / 8 s`
+            : phase === "opening"
+              ? "Uruchamiam…"
+              : phase === "finishing"
+                ? "Odczyt…"
+                : settings?.frameRate
+                  ? `${settings.frameRate.toFixed(0)} FPS`
+                  : ""}
+        </span>
+      </header>
+      <div className="bl-camera-bottom">
+        {settings && (
+          <p className="bl-camera-settings">
+            {settings.width && settings.height
+              ? `${settings.width} × ${settings.height}`
+              : "Kamera gotowa"}
+            {settings.frameRate ? ` · ${settings.frameRate.toFixed(0)} FPS` : ""}
           </p>
+        )}
+        {phase === "ready" && (
+          <>
+            <p className="bl-camera-tip">{instruction}</p>
+            <p className="bl-camera-small">Start za 3 s · nagranie 8 s · telefon nieruchomo</p>
+            <LabButton
+              className="bl-camera-shutter"
+              onClick={() => {
+                setCount(3);
+                setPhase("countdown");
+              }}
+            >
+              Start
+            </LabButton>
+          </>
+        )}
+        {phase === "countdown" && (
+          <p className="bl-camera-tip" aria-live="polite">
+            Przygotuj się do próby.
+          </p>
+        )}
+        {phase === "recording" && (
           <LabButton
-            className="bl-wide"
+            className="bl-camera-stop"
             onClick={() => {
               setPhase("finishing");
               stop.current?.();
@@ -189,13 +238,10 @@ export function CameraRecorder({
           >
             Zakończ nagranie
           </LabButton>
-        </>
-      )}
-      {phase === "finishing" && <p role="status">Odczytuję nagranie…</p>}
-      {error && <LabNotice error>{error}</LabNotice>}
-      <LabButton className="bl-secondary bl-wide" onClick={onCancel}>
-        {phase === "error" ? "Wróć" : "Anuluj"}
-      </LabButton>
-    </section>
+        )}
+        {error && <LabNotice error>{error}</LabNotice>}
+      </div>
+    </section>,
+    document.body,
   );
 }

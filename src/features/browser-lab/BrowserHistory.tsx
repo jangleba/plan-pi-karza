@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  PROTOCOLS,
-  protocolFor,
-  sideLabel,
-  type BrowserTestId,
-} from "./protocols";
+import { PROTOCOLS, protocolFor, sideLabel, type StoredTestId } from "./protocols";
 import {
   comparison,
   resultGroups,
@@ -29,18 +24,40 @@ function ResultDetails({ result }: { result: BrowserResult }) {
       <dd>{result.sourceName}</dd>
       <dt>Klatki / FPS</dt>
       <dd>
-        {result.startFrameIndex + 1} → {result.endFrameIndex + 1} /{" "}
-        {result.fps.toFixed(1)}
+        {result.startFrameIndex + 1} → {result.endFrameIndex + 1} / {result.fps.toFixed(1)}
       </dd>
       <dt>Czasy w filmie</dt>
       <dd>
         {result.startSeconds.toFixed(6)} → {result.endSeconds.toFixed(6)} s
       </dd>
-      <dt>Rozdzielczość czasowa</dt>
-      <dd>
-        {resultValue(result.resolutionMin, result.primaryUnit)}–
-        {resultValue(result.resolutionMax, result.primaryUnit)}
-      </dd>
+      {result.spatial ? (
+        <>
+          <dt>Metoda</dt>
+          <dd>Kalibracja płaszczyzny podłoża. Dokładność sportowa niezweryfikowana.</dd>
+          <dt>Wzorzec</dt>
+          <dd>
+            {result.spatial.referenceWidthCm} × {result.spatial.referenceDepthCm} cm
+          </dd>
+          <dt>Odcinek kontrolny</dt>
+          <dd>{result.spatial.controlLengthCm} cm</dd>
+        </>
+      ) : (
+        <>
+          <dt>Rozdzielczość czasowa</dt>
+          <dd>
+            {resultValue(result.resolutionMin!, result.primaryUnit)}–
+            {resultValue(result.resolutionMax!, result.primaryUnit)}
+          </dd>
+        </>
+      )}
+      {result.turnFrameIndex !== undefined && (
+        <>
+          <dt>Nawrót 505</dt>
+          <dd>
+            Klatka {result.turnFrameIndex + 1} · noga {result.side === "left" ? "lewa" : "prawa"}
+          </dd>
+        </>
+      )}
       {result.averageSpeedMps && (
         <>
           <dt>Średnia prędkość</dt>
@@ -67,7 +84,7 @@ export function BrowserHistory({
   rows: BrowserResult[];
   onDelete: (id: string) => boolean;
 }) {
-  const [filter, setFilter] = useState<BrowserTestId | "all">("all");
+  const [filter, setFilter] = useState<StoredTestId | "all">("all");
   const [firstId, setFirstId] = useState("");
   const [secondId, setSecondId] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -93,20 +110,21 @@ export function BrowserHistory({
         <p className="bl-kicker">HISTORIA NA TYM URZĄDZENIU</p>
         <h2>{rows.length} zapisanych prób</h2>
         <p className="bl-muted">
-          Historia dotyczy tego konta w tej przeglądarce. Nie jest jeszcze
-          synchronizowana między urządzeniami. Pobieraj kopię w narzędziach
-          Labu. Usunięcie danych Safari usuwa także lokalną historię.
+          Historia dotyczy tego konta w tej przeglądarce. Nie jest jeszcze synchronizowana między
+          urządzeniami. Pobieraj kopię w narzędziach Labu. Usunięcie danych Safari usuwa także
+          lokalną historię.
         </p>
         <label className="bl-label">
           Test{" "}
           <select
             aria-label="Filtr historii"
             value={filter}
-            onChange={(event) =>
-              setFilter(event.target.value as BrowserTestId | "all")
-            }
+            onChange={(event) => setFilter(event.target.value as StoredTestId | "all")}
           >
             <option value="all">Wszystkie testy</option>
+            {rows.some((row) => row.testId === "flying_10m") && (
+              <option value="flying_10m">Flying 10 m · archiwum</option>
+            )}
             {PROTOCOLS.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
@@ -117,8 +135,8 @@ export function BrowserHistory({
       </section>
       {!shown.length && (
         <LabNotice>
-          Brak zapisanych prób. Wybierz test, oznacz dwa zdarzenia w oryginalnym
-          filmie i zapisz wynik.
+          Brak zapisanych prób. Wybierz test, oznacz dwa zdarzenia w oryginalnym filmie i zapisz
+          wynik.
         </LabNotice>
       )}
       {groups.map((group) => {
@@ -144,15 +162,11 @@ export function BrowserHistory({
             <div className="bl-history-stats">
               <div>
                 <span>Najlepsza</span>
-                <strong>
-                  {resultValue(group.best.primaryValue, group.best.primaryUnit)}
-                </strong>
+                <strong>{resultValue(group.best.primaryValue, group.best.primaryUnit)}</strong>
               </div>
               <div>
                 <span>Średnia</span>
-                <strong>
-                  {resultValue(group.average, group.best.primaryUnit)}
-                </strong>
+                <strong>{resultValue(group.average, group.best.primaryUnit)}</strong>
               </div>
             </div>
             <p className="bl-muted">
@@ -162,9 +176,8 @@ export function BrowserHistory({
             </p>
             {sides && (
               <LabNotice>
-                Różnica najlepszych prób L/P: {sides.percent.toFixed(1)}% (|L−P|
-                / większa wartość). To opis wyników z tej sesji, bez oceny
-                ryzyka urazu.
+                Różnica najlepszych prób L/P: {sides.percent.toFixed(1)}% (|L−P| / większa wartość).
+                To opis wyników z tej sesji, bez oceny ryzyka urazu.
               </LabNotice>
             )}
             <details className="bl-details">
@@ -174,8 +187,7 @@ export function BrowserHistory({
                 .map((row) => (
                   <article className="bl-trial-row" key={row.id}>
                     <h3>
-                      Próba {row.trial} ·{" "}
-                      {resultValue(row.primaryValue, row.primaryUnit)}
+                      Próba {row.trial} · {resultValue(row.primaryValue, row.primaryUnit)}
                     </h3>
                     <ResultDetails result={row} />
                     <div className="bl-actions">
@@ -184,20 +196,15 @@ export function BrowserHistory({
                         onClick={() => {
                           setFirstId(row.id);
                           setSecondId("");
-                          document
-                            .getElementById("bl-compare")
-                            ?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
+                          document.getElementById("bl-compare")?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          });
                         }}
                       >
                         Porównaj próbę
                       </LabButton>
-                      <LabButton
-                        className="bl-link"
-                        onClick={() => setDeleteId(row.id)}
-                      >
+                      <LabButton className="bl-link" onClick={() => setDeleteId(row.id)}>
                         Usuń próbę
                       </LabButton>
                     </div>
@@ -212,9 +219,8 @@ export function BrowserHistory({
           <p className="bl-kicker">PORÓWNANIE DWÓCH PRÓB</p>
           <h2>Ten sam test i warunki</h2>
           <p className="bl-muted">
-            Wybierz tę samą nogę i protokół. Porównuj podobną nawierzchnię,
-            obuwie, rozgrzewkę i ustawienie kamery. Do oceny postępu wybierz
-            najlepsze próby z dwóch pełnych sesji.
+            Wybierz tę samą nogę i protokół. Porównuj podobną nawierzchnię, obuwie, rozgrzewkę i
+            ustawienie kamery. Do oceny postępu wybierz najlepsze próby z dwóch pełnych sesji.
           </p>
           <label className="bl-label">
             Pierwsza próba
@@ -251,9 +257,7 @@ export function BrowserHistory({
             </select>
           </label>
           {first && !candidates.length && (
-            <p className="bl-muted">
-              Potrzebna jest jeszcze jedna próba tego samego testu i nogi.
-            </p>
+            <p className="bl-muted">Potrzebna jest jeszcze jedna próba tego samego testu i nogi.</p>
           )}
           {compared && (
             <div className="bl-comparison">
@@ -261,19 +265,13 @@ export function BrowserHistory({
                 <div>
                   <span>Starsza · {dateOf(compared.older.recordedAt)}</span>
                   <strong>
-                    {resultValue(
-                      compared.older.primaryValue,
-                      compared.older.primaryUnit,
-                    )}
+                    {resultValue(compared.older.primaryValue, compared.older.primaryUnit)}
                   </strong>
                 </div>
                 <div>
                   <span>Nowsza · {dateOf(compared.newer.recordedAt)}</span>
                   <strong>
-                    {resultValue(
-                      compared.newer.primaryValue,
-                      compared.newer.primaryUnit,
-                    )}
+                    {resultValue(compared.newer.primaryValue, compared.newer.primaryUnit)}
                   </strong>
                 </div>
               </div>
@@ -283,13 +281,17 @@ export function BrowserHistory({
                 {compared.percent > 0 ? "+" : ""}
                 {compared.percent.toFixed(1)}%).{" "}
                 {protocolFor(first!.testId).category === "jump"
-                  ? "Wyższy wynik oznacza wyższy skok."
+                  ? first!.testId === "standing_long_jump"
+                    ? "Większy wynik oznacza dalszy skok."
+                    : "Wyższy wynik oznacza wyższy skok."
                   : "Krótszy czas oznacza szybszą próbę."}
               </p>
               <LabNotice>
-                {compared.overlaps
-                  ? "Przedziały rozdzielczości klatek nakładają się. Ten pomiar nie pozwala pewnie rozróżnić tak małej zmiany."
-                  : "Przedziały rozdzielczości klatek są rozłączne. Nadal uwzględnij warunki i błąd oznaczenia zdarzeń."}
+                {compared.overlaps === null
+                  ? "Dokładność pomiaru odległości wymaga sprawdzenia taśmą. Małych zmian nie traktuj jako potwierdzonego postępu."
+                  : compared.overlaps
+                    ? "Przedziały rozdzielczości klatek nakładają się. Ten pomiar nie pozwala pewnie rozróżnić tak małej zmiany."
+                    : "Przedziały rozdzielczości klatek są rozłączne. Nadal uwzględnij warunki i błąd oznaczenia zdarzeń."}
               </LabNotice>
             </div>
           )}
