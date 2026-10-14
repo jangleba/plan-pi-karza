@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
-import { makeActor, prepareAdditionalClip, prepareRunningModel } from "./mixamo";
+import { makeActor, prepareAdditionalClip, prepareRunningModel, PLAYER_HEIGHT } from "./mixamo";
 import { AnimationClip, Group, QuaternionKeyframeTrack, Vector3 } from "three";
 import type { RunningModel } from "./mixamo";
 import {
@@ -296,7 +296,10 @@ describe("actual Mixamo asset", () => {
             .getWorldPosition(new Vector3());
           first ??= toe.clone();
           expect(Math.abs(toe.y)).toBeLessThan(0.025);
-          expect(Math.hypot(toe.x - first.x, toe.z - first.z)).toBeLessThan(0.1);
+          // Same relative planting tolerance at the larger display scale.
+          expect(Math.hypot(toe.x - first.x, toe.z - first.z) / PLAYER_HEIGHT).toBeLessThan(
+            0.1 / 6.8,
+          );
         }
       }
     }

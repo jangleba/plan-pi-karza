@@ -20,7 +20,7 @@ import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "./playback";
 import type { PlayerMotion } from "./playback";
 import type { MatchPlayer } from "./types";
 
-export const PLAYER_HEIGHT = 6.8;
+export const PLAYER_HEIGHT = 8.4;
 export type AdditionalAnimation = "idle" | "walking" | "soccer-pass" | "receive";
 type AdditionalClips = Partial<Record<AdditionalAnimation, AnimationClip>>;
 const additionalUrls = import.meta.glob<string>("./assets/{idle,walking,soccer-pass,receive}.fbx", {
@@ -59,7 +59,7 @@ function restingClip(model: Group) {
   return new AnimationClip("neutral-stance", 1, tracks);
 }
 
-export async function loadRunningModel() {
+async function loadAsset() {
   const loader = new FBXLoader();
   const asset = prepareRunningModel(await loader.loadAsync(runningUrl));
   try {
@@ -153,6 +153,14 @@ export function prepareRunningModel(model: Group) {
   return { model, running, idle, scale, floor, clips: {} as AdditionalClips };
 }
 
+let cachedAsset: Promise<Awaited<ReturnType<typeof loadAsset>>> | null = null;
+export function loadRunningModel() {
+  cachedAsset ??= loadAsset().catch((error) => {
+    cachedAsset = null;
+    throw error;
+  });
+  return cachedAsset;
+}
 export type RunningModel = Awaited<ReturnType<typeof loadRunningModel>>;
 
 export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOffset = 0) {
@@ -171,9 +179,9 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
         : player.team === "home"
           ? joints
             ? "#102d49"
-            : "#176399"
+            : "#44a6d8"
           : joints
-            ? "#8c969c"
+            ? "#9fada9"
             : "#ecebe2",
       roughness: 0.88,
       metalness: 0,

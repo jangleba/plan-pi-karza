@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPlayback, samplePlayback } from "./playback";
+import type { TeachingMarker } from "./teaching";
 import type { PitchScene } from "./pitchScene";
 import type { ActionMode, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
 
@@ -12,10 +13,15 @@ type Props = {
   interactive: boolean;
   playbackProgress?: number;
   playing?: boolean;
-  onModeChange: (mode: ActionMode) => void;
+  focusOnActions?: boolean;
   onPlayerSelect: (player: MatchPlayer) => void;
   onPitchSelect: (point: Point) => void;
   onReadyChange?: (ready: boolean) => void;
+  highlights?: Point[];
+  highlightGood?: boolean;
+  teachingMarkers?: TeachingMarker[];
+  activeTeachingId?: string;
+  onTeachingSelect?: (id: string) => void;
 };
 export function TacticalPitch({
   scenario,
@@ -25,13 +31,21 @@ export function TacticalPitch({
   interactive,
   playbackProgress = 0,
   playing = false,
-  onModeChange,
+  focusOnActions = false,
   onPlayerSelect,
   onPitchSelect,
   onReadyChange,
+  highlights,
+  highlightGood,
+  teachingMarkers = [],
+  activeTeachingId,
+  onTeachingSelect,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
+  const ballLabel = useRef<HTMLDivElement>(null);
+  const teachingLabels = useRef(new Map<string, HTMLButtonElement>());
+  const highlightLabels = useRef(new Map<number, HTMLDivElement>());
   const playerLabels = useRef(new Map<string, HTMLButtonElement>());
   const routeLabels = useRef(new Map<string, HTMLSpanElement>());
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -41,8 +55,28 @@ export function TacticalPitch({
     () => samplePlayback(playback, interactive ? 1 : playbackProgress),
     [playback, interactive, playbackProgress],
   );
-  const latest = useRef({ frame, actions, selectedPlayerId, interactive, playing, onReadyChange });
-  latest.current = { frame, actions, selectedPlayerId, interactive, playing, onReadyChange };
+  const latest = useRef({
+    frame,
+    actions,
+    selectedPlayerId,
+    interactive,
+    playing,
+    focusOnActions,
+    onReadyChange,
+    highlights,
+    teachingMarkers,
+  });
+  latest.current = {
+    frame,
+    actions,
+    selectedPlayerId,
+    interactive,
+    playing,
+    focusOnActions,
+    onReadyChange,
+    highlights,
+    teachingMarkers,
+  };
 
   function sync() {
     const api = scene.current;
@@ -53,13 +87,36 @@ export function TacticalPitch({
       state.actions,
       state.interactive ? state.selectedPlayerId : null,
       state.playing,
+      state.focusOnActions,
     );
     playerLabels.current.forEach((element, id) => {
       const point = state.frame.positions.get(id);
       if (!point) return;
-      const p = api.project(point);
+      const p = api.project(point, 9.1);
       element.style.left = `${p.x}px`;
       element.style.top = `${p.y}px`;
+    });
+    if (ballLabel.current) {
+      const p = api.project(state.frame.ballVisual, state.frame.ballHeight);
+      ballLabel.current.style.left = `${p.x}px`;
+      ballLabel.current.style.top = `${p.y}px`;
+    }
+    state.teachingMarkers.forEach((marker) => {
+      const element = teachingLabels.current.get(marker.id);
+      if (!element) return;
+      const p = api.project(marker.point, 0.2);
+      const offset = marker.point.x > 75 ? -24 : 24;
+      element.style.left = `${p.x + offset}px`;
+      element.style.top = `${p.y + 18}px`;
+      element.style.setProperty("--cue-offset-x", `${offset}px`);
+    });
+    state.highlights?.forEach((point, i) => {
+      const element = highlightLabels.current.get(i);
+      if (element) {
+        const p = api.project(point, 0.2);
+        element.style.left = p.x + "px";
+        element.style.top = p.y + "px";
+      }
     });
     state.actions.forEach((action) => {
       const element = routeLabels.current.get(action.id);
@@ -110,48 +167,125 @@ export function TacticalPitch({
   }, [scenario.players, attempt]);
   useEffect(() => {
     sync();
-  }, [frame, actions, selectedPlayerId, interactive, playing]);
-  const selectPoint = (event: MouseEvent<HTMLDivElement>) => {
+  }, [
+    frame,
+    actions,
+    selectedPlayerId,
+    interactive,
+    playing,
+    focusOnActions,
+    highlights,
+    mode,
+    teachingMarkers,
+    status,
+  ]);
+  const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
     if (!interactive || status !== "ready") return;
-    const point = scene.current?.pick(event.clientX, event.clientY);
+    const api = scene.current;
+    if (!api || !host.current) return;
+    const bounds = host.current.getBoundingClientRect();
+    const x = event.clientX - bounds.left,
+      y = event.clientY - bounds.top;
+    const nearest = scenario.players
+      .map((player) => {
+        const point = frame.positions.get(player.id)!;
+        const p = api.project(point, 9.1);
+        return { player, distance: Math.hypot(p.x - x, p.y - y) };
+      })
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (
+      ["pass", "through", "cross", "hold", "press", "mark"].includes(mode) &&
+      nearest &&
+      nearest.distance <= 23
+    ) {
+      onPlayerSelect(nearest.player);
+      return;
+    }
+    const point = api.pick(event.clientX, event.clientY);
     if (point) onPitchSelect(point);
   };
   return (
     <div className="bwiq-pitch-wrap bwiq-pitch-wrap--3d" onClick={selectPoint}>
       <div className="bwiq-pitch-canvas" ref={host} />
+      <div className="bwiq-pitch-legend">
+        <span>{scenario.defensive ? "↓ Twoja bramka" : "↑ Atakujesz"}</span>
+        <span>
+          <i /> Piłka
+        </span>
+      </div>
+      {highlights?.map((point, i) => {
+        const p = scene.current?.project(point, 0.2);
+        return p ? (
+          <div
+            key={i}
+            className={highlightGood ? "bwiq-highlight bwiq-highlight--good" : "bwiq-highlight"}
+            ref={(element) => {
+              if (element) highlightLabels.current.set(i, element);
+              else highlightLabels.current.delete(i);
+            }}
+            style={{ left: p.x, top: p.y }}
+            aria-label={highlightGood ? "Miejsce stworzenia przewagi" : "Miejsce do poprawy"}
+          />
+        ) : null;
+      })}
+      {status === "ready" &&
+        teachingMarkers.map((marker, i) => (
+          <button
+            key={marker.id}
+            ref={(element) => {
+              if (element) teachingLabels.current.set(marker.id, element);
+              else teachingLabels.current.delete(marker.id);
+            }}
+            className={`bwiq-teaching-marker${marker.id === activeTeachingId ? " is-active" : ""}`}
+            aria-label={`Wskazówka ${String.fromCharCode(65 + i)}: ${marker.label}`}
+            aria-pressed={marker.id === activeTeachingId}
+            onClick={(event) => {
+              event.stopPropagation();
+              onTeachingSelect?.(marker.id);
+            }}
+          >
+            <span>{String.fromCharCode(65 + i)}</span>
+          </button>
+        ))}
       <div className={`bwiq-pitch-labels${status !== "ready" ? " is-loading" : ""}`}>
         {scenario.players.map((player) => (
           <button
             key={player.id}
             type="button"
-            className={`bwiq-player-hit bwiq-player-hit--${player.team}${interactive && selectedPlayerId === player.id ? " is-selected" : ""}`}
+            className={`bwiq-player-hit bwiq-player-hit--${player.team}${interactive && selectedPlayerId === player.id ? " is-selected" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
             ref={(element) => {
               if (element) playerLabels.current.set(player.id, element);
               else playerLabels.current.delete(player.id);
             }}
             disabled={!interactive || status !== "ready"}
-            aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}`}
+            aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
             onClick={(event) => {
               event.stopPropagation();
-              onPlayerSelect(player);
+              if (interactive && mode === "carry" && event.detail > 0) selectPoint(event);
+              else onPlayerSelect(player);
             }}
           >
             {player.controlled && <small>TY</small>}
             <span>{player.number}</span>
           </button>
         ))}
-        {actions.map((action, index) => (
-          <span
-            key={action.id}
-            className="bwiq-action-order"
-            ref={(element) => {
-              if (element) routeLabels.current.set(action.id, element);
-              else routeLabels.current.delete(action.id);
-            }}
-          >
-            {index + 1}
-          </span>
-        ))}
+        <div ref={ballLabel} className="bwiq-ball-marker" aria-label="Piłka">
+          <span />
+        </div>
+        {actions.map((action, index) =>
+          action.type === "shot" ? null : (
+            <span
+              key={action.id}
+              className="bwiq-action-order"
+              ref={(element) => {
+                if (element) routeLabels.current.set(action.id, element);
+                else routeLabels.current.delete(action.id);
+              }}
+            >
+              {index + 1}
+            </span>
+          ),
+        )}
       </div>
       {status !== "ready" && (
         <div className="bwiq-model-status" role="status">
@@ -171,39 +305,6 @@ export function TacticalPitch({
               </button>
             </>
           )}
-        </div>
-      )}
-      {interactive && status === "ready" && (
-        <div
-          className="bwiq-action-menu"
-          role="group"
-          aria-label="Rodzaj działania"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <button
-            className={mode === "run" ? "active" : ""}
-            type="button"
-            onClick={() => onModeChange("run")}
-          >
-            <i>↗</i>
-            <span>Bieg</span>
-          </button>
-          <button
-            className={mode === "pass" ? "active" : ""}
-            type="button"
-            onClick={() => onModeChange("pass")}
-          >
-            <i>●</i>
-            <span>Podanie</span>
-          </button>
-          <button
-            className={mode === "shift" ? "active" : ""}
-            type="button"
-            onClick={() => onModeChange("shift")}
-          >
-            <i>↔</i>
-            <span>Przesuń</span>
-          </button>
         </div>
       )}
     </div>

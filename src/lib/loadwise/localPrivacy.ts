@@ -34,6 +34,7 @@ export function clearLocalUserData(
     `loadwise:boot:v2:${userId}`,
     `loadwise:training-queue:v1:${userId}`,
     `ballwise:reactive:v1:${userId}`,
+    `ballwise:iq:v2:${userId}`,
   ]);
   const scopedPrefixes = [
     `ballwise:fuel-protocol:${userId}:`,

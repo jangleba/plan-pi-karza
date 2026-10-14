@@ -23,7 +23,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import { disposeModel, loadRunningModel, makeActor } from "./mixamo";
+import { loadRunningModel, makeActor } from "./mixamo";
 import type { PlaybackFrame } from "./playback";
 import { BALL_RADIUS } from "./playback";
 import type { MatchPlayer, PlannedAction, Point } from "./types";
@@ -45,10 +45,22 @@ export async function createPitchScene(
   renderer.domElement.setAttribute("aria-hidden", "true");
   host.append(renderer.domElement);
   const scene = new Scene();
-  scene.background = new Color("#347b43");
+  scene.background = new Color("#87ac91");
   const camera = new OrthographicCamera(-50, 50, 70, -70, 0.1, 600);
-  camera.position.set(0, 170, 120);
-  camera.lookAt(0, 0, 0);
+  const relevant = players.filter((p) => !p.goalkeeper);
+  const showGoal = (players.find((p) => p.controlled)?.y ?? Infinity) < 60;
+  const defaultBounds = {
+    xMin: Math.max(0, Math.min(...relevant.map((p) => p.x)) - 16),
+    xMax: Math.min(100, Math.max(...relevant.map((p) => p.x)) + 16),
+    yMin: showGoal ? 0 : Math.max(0, Math.min(...relevant.map((p) => p.y)) - 16),
+    yMax: Math.min(140, Math.max(...relevant.map((p) => p.y)) + 16),
+  };
+  const initialCenter = world({
+    x: (defaultBounds.xMin + defaultBounds.xMax) / 2,
+    y: (defaultBounds.yMin + defaultBounds.yMax) / 2,
+  });
+  camera.position.copy(initialCenter).add(new Vector3(0, 170, 120));
+  camera.lookAt(initialCenter);
   camera.updateMatrixWorld();
   scene.add(new HemisphereLight("#eef6ff", "#536044", 2.5));
   const sun = new DirectionalLight("#fff4df", 2.0);
@@ -68,8 +80,8 @@ export async function createPitchScene(
     mesh.position.copy(world({ x, y }, 0));
     ground.add(mesh);
   }
-  for (let i = 0; i < 10; i++) plane(5 + i * 10, 70, 10, 140, i % 2 ? "#3b8049" : "#357843");
-  const paint = new LineBasicMaterial({ color: "#edf5df", transparent: true, opacity: 0.8 });
+  for (let i = 0; i < 10; i++) plane(50, 7 + i * 14, 100, 14, i % 2 ? "#8eb599" : "#86ad91");
+  const paint = new LineBasicMaterial({ color: "#edf5df", transparent: true, opacity: 0.85 });
   ownedMaterials.add(paint);
   function line(points: Point[], height = 0.04) {
     const geometry = new BufferGeometry().setFromPoints(points.map((p) => world(p, height)));
@@ -133,6 +145,18 @@ export async function createPitchScene(
   const ring = new Mesh(ringGeometry, ringMaterial);
   ring.rotation.x = -Math.PI / 2;
   scene.add(ring);
+  const carrierGeometry = new RingGeometry(1.6, 2.1, 32);
+  const carrierMaterial = new MeshBasicMaterial({
+    color: "#ffdf75",
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+  });
+  ownedGeometries.add(carrierGeometry);
+  ownedMaterials.add(carrierMaterial);
+  const carrierRing = new Mesh(carrierGeometry, carrierMaterial);
+  carrierRing.rotation.x = -Math.PI / 2;
+  scene.add(carrierRing);
   const ballGeometry = new SphereGeometry(BALL_RADIUS, 12, 8);
   const ballMaterial = new MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 });
   ownedGeometries.add(ballGeometry);
@@ -156,15 +180,16 @@ export async function createPitchScene(
   };
   renderer.domElement.addEventListener("webglcontextlost", lost);
 
+  let viewBounds = defaultBounds;
   const resize = () => {
     const width = Math.max(1, host.clientWidth);
     const height = Math.max(1, host.clientHeight);
     const aspect = width / height;
     let maxX = 0;
     let maxY = 0;
-    for (const x of [0, 100])
-      for (const y of [0, 140])
-        for (const h of [0, 9]) {
+    for (const x of [viewBounds.xMin, viewBounds.xMax])
+      for (const y of [viewBounds.yMin, viewBounds.yMax])
+        for (const h of [0, 14]) {
           const view = world({ x, y }, h).applyMatrix4(camera.matrixWorldInverse);
           maxX = Math.max(maxX, Math.abs(view.x));
           maxY = Math.max(maxY, Math.abs(view.y));
@@ -235,6 +260,9 @@ export async function createPitchScene(
       actor.pose(frame.motions.get(id)!, clock);
     });
     ball.position.copy(world(frame.ballVisual, frame.ballHeight));
+    carrierRing.visible = !frame.ballInFlight;
+    const carrierPoint = frame.positions.get(frame.ballCarrierId);
+    if (carrierPoint) carrierRing.position.copy(world(carrierPoint, 0.11));
     renderer.render(scene, camera);
   };
   const tickIdle = (time: number) => {
@@ -259,26 +287,65 @@ export async function createPitchScene(
   };
   document.addEventListener("visibilitychange", refreshIdle);
   reducedMotion.addEventListener("change", refreshIdle);
+  let focused = false;
+  let focusActions: PlannedAction[] | null = null;
   const update = (
     frame: PlaybackFrame,
     actions: PlannedAction[],
     selectedId: string | null,
     isPlaying = false,
+    focusOnActions = false,
   ) => {
     if (disposed || contextLost) return;
+    if (focused !== focusOnActions || (focusOnActions && focusActions !== actions)) {
+      focused = focusOnActions;
+      focusActions = actions;
+      if (focused && actions.length) {
+        const points = actions.flatMap((action) =>
+          action.type === "shot" ? [action.from] : [action.from, action.to],
+        );
+        const minX = Math.min(...points.map((p) => p.x)),
+          maxX = Math.max(...points.map((p) => p.x));
+        const minY = Math.min(...points.map((p) => p.y)),
+          maxY = Math.max(...points.map((p) => p.y));
+        const cx = Math.max(35, Math.min(65, (minX + maxX) / 2));
+        const cy = Math.max(31, Math.min(109, (minY + maxY) / 2));
+        const hx = Math.max(35, (maxX - minX) / 2 + 10);
+        const hy = Math.max(31, (maxY - minY) / 2 + 10);
+        viewBounds = {
+          xMin: Math.max(0, cx - hx),
+          xMax: Math.min(100, cx + hx),
+          yMin: Math.max(0, cy - hy),
+          yMax: Math.min(140, cy + hy),
+        };
+      } else viewBounds = defaultBounds;
+      const center = world({
+        x: (viewBounds.xMin + viewBounds.xMax) / 2,
+        y: (viewBounds.yMin + viewBounds.yMax) / 2,
+      });
+      camera.position.copy(center).add(new Vector3(0, 170, 120));
+      camera.lookAt(center);
+      camera.updateMatrixWorld();
+      resize();
+    }
     currentFrame = frame;
     playing = isPlaying;
     if (playing) stopIdle();
     if (previousRoutes !== actions) {
       clearRoutes();
       actions.forEach((action) => {
+        if (action.type === "shot") return;
         const delta = world(action.to).sub(world(action.from));
         if (delta.length() < 0.1) return;
         const arrow = new ArrowHelper(
           delta.clone().normalize(),
           world(action.from, 0.12),
           delta.length(),
-          action.type === "pass" ? "#ffffff" : action.type === "shift" ? "#9fdaff" : "#47b5ff",
+          action.type === "pass"
+            ? "#fff8cf"
+            : ["cover", "mark", "press"].includes(action.type)
+              ? "#a9e7c2"
+              : "#83caff",
           2.5,
           1.25,
         );
@@ -318,7 +385,7 @@ export async function createPitchScene(
     reducedMotion.removeEventListener("change", refreshIdle);
     renderer.domElement.removeEventListener("webglcontextlost", lost);
     actors.forEach((actor) => actor.dispose());
-    disposeModel(asset.model);
+    // The bounded shared asset stays cached for the next scenario.
     clearRoutes();
     ownedGeometries.forEach((g) => g.dispose());
     ownedMaterials.forEach((m) => m.dispose());

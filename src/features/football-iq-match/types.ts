@@ -1,7 +1,18 @@
 export type Point = { x: number; y: number };
 export type Team = "home" | "away";
-export type ActionMode = "run" | "pass" | "shift";
-export type Phase = "intro" | "countdown" | "plan" | "playback" | "feedback";
+export type ActionMode =
+  | "pass"
+  | "through"
+  | "cross"
+  | "shot"
+  | "carry"
+  | "run"
+  | "shift"
+  | "hold"
+  | "press"
+  | "cover"
+  | "mark";
+export type Phase = "intro" | "plan" | "playback" | "feedback";
 
 export type MatchPlayer = Point & {
   id: string;
@@ -14,10 +25,11 @@ export type MatchPlayer = Point & {
 
 export type MovementAction = {
   id: string;
-  type: "run" | "shift";
+  type: "run" | "shift" | "carry" | "hold" | "press" | "cover" | "mark";
   playerId: string;
   from: Point;
   to: Point;
+  opponentId?: string;
 };
 
 export type PassAction = {
@@ -25,11 +37,32 @@ export type PassAction = {
   type: "pass";
   playerId: string;
   targetId: string;
+  delivery?: "ground" | "through" | "cross";
   from: Point;
   to: Point;
 };
 
-export type PlannedAction = MovementAction | PassAction;
+export type ShotAction = { id: string; type: "shot"; playerId: string; from: Point; to: Point };
+export type PlannedAction = MovementAction | PassAction | ShotAction;
+export type DecisionGoal = {
+  id: string;
+  type: PlannedAction["type"];
+  playerIds?: string[];
+  targetIds?: string[];
+  zone?: { xMin: number; xMax: number; yMin: number; yMax: number };
+  requiresBall?: boolean;
+  afterGoalId?: string;
+  description: string;
+};
+export type ScenarioCoaching = {
+  success: string;
+  partial: string;
+  risk: string;
+  timing: string;
+  space: string;
+  consequence: string;
+  recommendation: string;
+};
 
 export type Scenario = {
   id: string;
@@ -41,6 +74,11 @@ export type Scenario = {
   ballCarrierId: string;
   players: MatchPlayer[];
   referenceActions: PlannedAction[];
+  category?: string;
+  goals?: DecisionGoal[];
+  coaching?: ScenarioCoaching;
+  simulation?: { reaction: number; defenderSpeed: number };
+  defensive?: boolean;
 };
 
 export type EvaluationLevel = "strong" | "conditional" | "risky";
@@ -53,4 +91,7 @@ export type Evaluation = {
   space: string;
   consequence: string;
   recommendation: string;
+  highlights?: Point[];
+  events?: { text: string; time: number; actionIndex: number }[];
+  decisionSeconds?: number;
 };
