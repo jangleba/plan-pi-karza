@@ -871,3 +871,303 @@
 .bwiq-guide footer {
   bottom: 0;
 }
+
+/* Short cues keep the pitch visible; the full explanation is opt-in. */
+.bwiq-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border) !important;
+  border-radius: 11px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px !important;
+}
+.bwiq-intro-tools {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0 9px;
+}
+.bwiq-intro-tools > .bwiq-secondary {
+  flex: 1;
+}
+.bwiq-intro-tools > .bwiq-learn-link {
+  width: auto;
+  gap: 6px;
+}
+.bwiq-cue-picker {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.bwiq-cue-picker:empty {
+  display: none;
+}
+.bwiq-cue-picker button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 40px;
+  padding: 6px 8px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+}
+.bwiq-cue-picker button.is-active {
+  color: var(--foreground);
+  background: var(--secondary);
+  border-color: var(--ring);
+}
+.bwiq-cue-picker i {
+  font-style: normal;
+  font-size: 10px;
+}
+.bwiq-quick-cue {
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--foreground) !important;
+}
+.bwiq-coach-card {
+  padding: 5px 10px 9px;
+  margin-bottom: 8px;
+}
+.bwiq-coach-heading > span {
+  flex: 1;
+  font-size: 12px;
+}
+.bwiq-coach-heading button {
+  min-height: 36px;
+  min-width: 36px;
+  font-size: 11px;
+}
+.bwiq-coach-card p {
+  font-size: 12px;
+  margin-top: 0;
+  color: var(--foreground);
+}
+.bwiq-teaching-marker em {
+  position: absolute;
+  top: 37px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 140px;
+  width: max-content;
+  padding: 5px 7px;
+  border-radius: 8px;
+  color: #234a3b;
+  background: rgb(248 255 250 / 95%);
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgb(20 55 35 / 8%);
+}
+.bwiq-teaching-marker.is-active span {
+  animation: bwiq-cue-pulse 2.2s ease-in-out infinite;
+}
+.bwiq-teaching-marker span {
+  width: 25px;
+  height: 25px;
+  font-size: 11px;
+}
+.bwiq-guide-body details {
+  border-bottom: 1px solid var(--border);
+}
+.bwiq-guide-body summary {
+  min-height: 44px;
+  padding: 13px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bwiq-guide-body details p {
+  margin: 0 0 12px;
+  color: var(--muted-foreground);
+}
+.bwiq-guide-body details a {
+  display: inline-block;
+  margin-bottom: 12px;
+}
+.bwiq-guide footer {
+  display: flex;
+  gap: 7px;
+}
+.bwiq-guide-observe {
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bwiq-transport {
+  flex: none;
+  padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+.bwiq-live-cue {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 38px;
+}
+.bwiq-live-cue small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.bwiq-live-cue > span {
+  font-size: 13px;
+  font-weight: 500;
+}
+.bwiq-scrubber {
+  display: block;
+  width: 100%;
+  margin: 4px 0;
+  min-height: 32px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.bwiq-transport-buttons {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.bwiq-transport-buttons > button {
+  min-width: 40px;
+  min-height: 44px;
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.bwiq-transport-buttons > button.is-active {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+.bwiq-transport-buttons > .bwiq-primary {
+  margin-left: auto;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 10px;
+}
+.bwiq-compare-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--muted);
+  border-radius: 11px;
+}
+.bwiq-compare-toggle button {
+  flex: 1;
+  min-height: 38px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 8px;
+}
+.bwiq-compare-toggle .is-active {
+  background: var(--card);
+  color: var(--foreground);
+}
+.bwiq-feedback-actions {
+  grid-template-columns: 1fr 1fr;
+}
+.bwiq-feedback > p {
+  color: var(--foreground);
+}
+.bwiq-action-menu button {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+.bwiq-player-hit.is-selected > span {
+  outline-offset: 3px;
+}
+@keyframes bwiq-cue-pulse {
+  50% {
+    outline-width: 8px;
+    outline-color: rgb(244 255 237 / 12%);
+  }
+}
+@keyframes bwiq-cue-appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.bwiq-coach-card,
+.bwiq-live-cue {
+  animation: bwiq-cue-appear 160ms ease-out;
+}
+@media (max-height: 500px) and (min-width: 600px) {
+  .bwiq-transport {
+    grid-row: 2;
+    grid-column: 2;
+    overflow-y: auto;
+    padding: 10px;
+    border-left: 1px solid var(--border);
+  }
+  .bwiq-transport-buttons {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bwiq-teaching-marker.is-active span,
+  .bwiq-coach-card,
+  .bwiq-live-cue {
+    animation: none;
+  }
+  .bwiq-action-menu button {
+    transition: none;
+  }
+}
+
+.bwiq-scenario-settings {
+  font-size: 11px;
+}
+.bwiq-scenario-settings > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
+.bwiq-scenario-settings[open] > summary svg {
+  transform: rotate(90deg);
+}
+.bwiq-start-row,
+.bwiq-controls,
+.bwiq-feedback-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--card);
+  padding-top: 6px;
+  z-index: 1;
+}
+
+.bwiq-intro,
+.bwiq-dock,
+.bwiq-feedback {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.bwiq-feedback {
+  max-height: 60dvh;
+}
+@media (max-height: 500px) and (min-width: 600px) {
+  .bwiq-feedback {
+    max-height: none;
+  }
+}

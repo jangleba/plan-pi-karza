@@ -14,6 +14,8 @@ type Props = {
   playbackProgress?: number;
   playing?: boolean;
   focusOnActions?: boolean;
+  cameraActions?: PlannedAction[];
+  activeActionId?: string;
   onPlayerSelect: (player: MatchPlayer) => void;
   onPitchSelect: (point: Point) => void;
   onReadyChange?: (ready: boolean) => void;
@@ -32,6 +34,8 @@ export function TacticalPitch({
   playbackProgress = 0,
   playing = false,
   focusOnActions = false,
+  cameraActions,
+  activeActionId,
   onPlayerSelect,
   onPitchSelect,
   onReadyChange,
@@ -65,6 +69,9 @@ export function TacticalPitch({
     onReadyChange,
     highlights,
     teachingMarkers,
+    cameraActions,
+    activeActionId,
+    activeTeachingId,
   });
   latest.current = {
     frame,
@@ -76,6 +83,9 @@ export function TacticalPitch({
     onReadyChange,
     highlights,
     teachingMarkers,
+    cameraActions,
+    activeActionId,
+    activeTeachingId,
   };
 
   function sync() {
@@ -88,6 +98,9 @@ export function TacticalPitch({
       state.interactive ? state.selectedPlayerId : null,
       state.playing,
       state.focusOnActions,
+      state.cameraActions,
+      state.activeActionId,
+      state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point,
     );
     playerLabels.current.forEach((element, id) => {
       const point = state.frame.positions.get(id);
@@ -178,6 +191,9 @@ export function TacticalPitch({
     mode,
     teachingMarkers,
     status,
+    cameraActions,
+    activeActionId,
+    activeTeachingId,
   ]);
   const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
     if (!interactive || status !== "ready") return;
@@ -229,7 +245,7 @@ export function TacticalPitch({
         ) : null;
       })}
       {status === "ready" &&
-        teachingMarkers.map((marker, i) => (
+        teachingMarkers.map((marker) => (
           <button
             key={marker.id}
             ref={(element) => {
@@ -237,14 +253,15 @@ export function TacticalPitch({
               else teachingLabels.current.delete(marker.id);
             }}
             className={`bwiq-teaching-marker${marker.id === activeTeachingId ? " is-active" : ""}`}
-            aria-label={`Wskazówka ${String.fromCharCode(65 + i)}: ${marker.label}`}
+            aria-label={`Wskazówka ${marker.letter}: ${marker.label}`}
             aria-pressed={marker.id === activeTeachingId}
             onClick={(event) => {
               event.stopPropagation();
               onTeachingSelect?.(marker.id);
             }}
           >
-            <span>{String.fromCharCode(65 + i)}</span>
+            <span>{marker.letter}</span>
+            <em>{marker.label}</em>
           </button>
         ))}
       <div className={`bwiq-pitch-labels${status !== "ready" ? " is-loading" : ""}`}>

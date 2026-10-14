@@ -157,6 +157,33 @@ export async function createPitchScene(
   const carrierRing = new Mesh(carrierGeometry, carrierMaterial);
   carrierRing.rotation.x = -Math.PI / 2;
   scene.add(carrierRing);
+  const cue = new Group();
+  const cueGeometry = new CircleGeometry(7, 40);
+  const cueMaterial = new MeshBasicMaterial({
+    color: "#d9f9e9",
+    opacity: 0.23,
+    transparent: true,
+    depthWrite: false,
+  });
+  const cueRingGeometry = new RingGeometry(6.6, 7.0, 48);
+  const cueRingMaterial = new MeshBasicMaterial({
+    color: "#f1fff7",
+    opacity: 0.9,
+    transparent: true,
+    depthWrite: false,
+  });
+  for (const [geometry, material] of [
+    [cueGeometry, cueMaterial],
+    [cueRingGeometry, cueRingMaterial],
+  ] as const) {
+    ownedGeometries.add(geometry);
+    ownedMaterials.add(material);
+    const mesh = new Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    cue.add(mesh);
+  }
+  cue.visible = false;
+  scene.add(cue);
   const ballGeometry = new SphereGeometry(BALL_RADIUS, 12, 8);
   const ballMaterial = new MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 });
   ownedGeometries.add(ballGeometry);
@@ -263,6 +290,8 @@ export async function createPitchScene(
     carrierRing.visible = !frame.ballInFlight;
     const carrierPoint = frame.positions.get(frame.ballCarrierId);
     if (carrierPoint) carrierRing.position.copy(world(carrierPoint, 0.11));
+    if (cue.visible)
+      cue.scale.setScalar(reducedMotion.matches ? 1 : 1 + Math.sin(clock * 2.2) * 0.045);
     renderer.render(scene, camera);
   };
   const tickIdle = (time: number) => {
@@ -295,13 +324,16 @@ export async function createPitchScene(
     selectedId: string | null,
     isPlaying = false,
     focusOnActions = false,
+    cameraActions: PlannedAction[] = actions,
+    activeActionId?: string,
+    teachingPoint?: Point,
   ) => {
     if (disposed || contextLost) return;
-    if (focused !== focusOnActions || (focusOnActions && focusActions !== actions)) {
+    if (focused !== focusOnActions || (focusOnActions && focusActions !== cameraActions)) {
       focused = focusOnActions;
-      focusActions = actions;
-      if (focused && actions.length) {
-        const points = actions.flatMap((action) =>
+      focusActions = cameraActions;
+      if (focused && cameraActions.length) {
+        const points = cameraActions.flatMap((action) =>
           action.type === "shot" ? [action.from] : [action.from, action.to],
         );
         const minX = Math.min(...points.map((p) => p.x)),
@@ -342,18 +374,32 @@ export async function createPitchScene(
           world(action.from, 0.12),
           delta.length(),
           action.type === "pass"
-            ? "#fff8cf"
+            ? "#2c5369"
             : ["cover", "mark", "press"].includes(action.type)
-              ? "#a9e7c2"
-              : "#83caff",
+              ? "#376951"
+              : "#347eb4",
           2.5,
           1.25,
         );
+        arrow.userData.actionId = action.id;
         routes.add(arrow);
         routeObjects.push(arrow);
       });
       previousRoutes = actions;
     }
+    routeObjects.forEach((arrow) => {
+      const opacity = activeActionId
+        ? arrow.userData.actionId === activeActionId
+          ? 1
+          : 0.24
+        : 0.85;
+      for (const material of [arrow.line.material, arrow.cone.material].flat()) {
+        material.transparent = true;
+        material.opacity = opacity;
+      }
+    });
+    cue.visible = !!teachingPoint;
+    if (teachingPoint) cue.position.copy(world(teachingPoint, 0.08));
     ring.visible = selectedId !== null;
     if (selectedId && frame.positions.has(selectedId))
       ring.position.copy(world(frame.positions.get(selectedId)!, 0.1));

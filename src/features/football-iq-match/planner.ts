@@ -21,17 +21,17 @@ export const modeLabels: Record<ActionMode, string> = {
   mark: "Krycie",
 };
 export const modeHints: Record<ActionMode, string> = {
-  pass: "Dotknij partnera. Podaje zawodnik z piłką.",
-  through: "Dotknij partnera. Zagra piłkę przed niego, a on ruszy w przestrzeń.",
-  cross: "Dotknij partnera. Piłka poleci górą do jego strefy.",
-  carry: "Wskaż miejsce, do którego poprowadzisz piłkę.",
-  shot: "Opcjonalne zakończenie planu strzałem. Bez wskazywania bramki.",
-  hold: "Dotknij posiadacza, aby zatrzymać piłkę na moment.",
-  run: "Wybierz zawodnika bez piłki i miejsce wybiegnięcia.",
-  shift: "Wybierz zawodnika i miejsce wsparcia.",
-  press: "Wybierz swojego zawodnika, następnie rywala z piłką.",
-  cover: "Wybierz swojego zawodnika i miejsce asekuracji.",
-  mark: "Wybierz swojego zawodnika, następnie rywala do krycia.",
+  pass: "Dotknij partnera.",
+  through: "Dotknij odbiorcy podania w biegu.",
+  cross: "Dotknij odbiorcy dośrodkowania.",
+  carry: "Dotknij miejsca prowadzenia.",
+  shot: "Opcjonalne zakończenie planu.",
+  hold: "Dotknij posiadacza piłki.",
+  run: "Zawodnik → miejsce biegu.",
+  shift: "Zawodnik → miejsce wsparcia.",
+  press: "Zawodnik → rywal z piłką.",
+  cover: "Zawodnik → miejsce asekuracji.",
+  mark: "Zawodnik → kryty rywal.",
 };
 export function plannedState(s: Scenario, actions: PlannedAction[]) {
   if (s.simulation) return simulate(s, actions).final;

@@ -16,6 +16,7 @@ import {
   Repeat2,
   HelpCircle,
   Flag,
+  RotateCcw,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { evaluateDecision } from "./engine";
@@ -41,7 +42,8 @@ import type {
   PlannedAction,
   Point,
 } from "./types";
-import { lessons, teachingMarkers } from "./teaching";
+import { quickObservations, teachingMarkers } from "./teaching";
+import { clampProgress, currentPlaybackStep } from "./transport";
 import { LearningGuide } from "./LearningGuide";
 import "./football-iq.css";
 
@@ -91,7 +93,10 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   const [showHelp, setShowHelp] = useState(false);
   const [coachIndex, setCoachIndex] = useState(0);
   const markers = useMemo(() => teachingMarkers(scenario), [scenario]);
-  const lesson = lessons[scenario.id];
+  const [transportRevision, setTransportRevision] = useState(0);
+  const [comparisonProgress, setComparisonProgress] = useState(1);
+  const playhead = useRef(0);
+  const demoReturn = useRef<"intro" | "plan">("intro");
   const activeMarker = markers[Math.min(coachIndex, markers.length - 1)];
   const guideWasPaused = useRef(false);
   const openGuide = () => {
@@ -109,12 +114,22 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   const recordResult = useRef(false);
   const playingRef = useRef({ paused: false, speed: 1 });
   playingRef.current = { paused, speed };
-  const activeActions = reference ? scenario.referenceActions : actions;
+  const activeActions = reference || phase === "demo" ? scenario.referenceActions : actions;
+  const comparisonActions = useMemo(
+    () => [...actions, ...scenario.referenceActions],
+    [actions, scenario],
+  );
   const playback = useMemo(
     () => createPlayback(scenario, activeActions),
     [scenario, activeActions],
   );
   const state = useMemo(() => plannedState(scenario, actions), [scenario, actions]);
+  const step = currentPlaybackStep(playback, progress, activeActions.length);
+  const shownMarker =
+    phase === "demo" || (phase === "playback" && reference)
+      ? markers[Math.min(step, markers.length - 1)]
+      : activeMarker;
+
   useEffect(() => {
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -141,6 +156,11 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   }, [phase, ready, showHelp]);
   const finishRef = useRef<() => void>(() => {});
   finishRef.current = () => {
+    if (phase === "demo") {
+      setPaused(true);
+      return;
+    }
+    setComparisonProgress(1);
     if (reference) {
       setPhase("feedback");
       return;
@@ -171,27 +191,27 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     }
   };
   useEffect(() => {
-    if (phase !== "playback" || !ready) return;
+    if (!["playback", "demo"].includes(phase) || !ready) return;
     let raf = 0,
-      last = performance.now(),
-      playTime = 0;
+      last = performance.now();
     const animate = (time: number) => {
       if (!document.hidden && !playingRef.current.paused)
-        playTime += (Math.max(0, time - last) / 1000) * playingRef.current.speed;
+        playhead.current += (Math.max(0, time - last) / 1000) * playingRef.current.speed;
       last = time;
-      const p = Math.min(1, playTime / Math.max(0.1, playback.duration));
+      const p = Math.min(1, playhead.current / Math.max(0.1, playback.duration));
       setProgress(p);
-      if (p < 1) raf = requestAnimationFrame(animate);
+      if (p < 1 || playingRef.current.paused) raf = requestAnimationFrame(animate);
       else finishRef.current();
     };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [phase, playback, ready]);
+  }, [phase, playback, ready, transportRevision]);
   const begin = () => {
     attemptId.current = id();
     setActions([]);
     setEvaluation(null);
     setReference(false);
+    playhead.current = 0;
     setProgress(0);
     setPaused(false);
     setCoachIndex(0);
@@ -209,6 +229,7 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     submittedSeconds.current = elapsed.current;
     recordResult.current = true;
     setReference(false);
+    playhead.current = 0;
     setProgress(0);
     setPaused(false);
     setPhase("playback");
@@ -257,14 +278,14 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     setCoachIndex(Math.min(actions.length + 1, Math.max(0, markers.length - 1)));
     setHint(
       a.type === "shot"
-        ? "Zakończenie dodane. Odtwórz, aby przeanalizować wcześniejsze decyzje."
+        ? "Zakończenie dodane. Sprawdź plan."
         : "Dodano: " +
             (a.type === "pass"
               ? modeLabels[
                   a.delivery === "through" ? "through" : a.delivery === "cross" ? "cross" : "pass"
                 ]
               : modeLabels[a.type]) +
-            ". Możesz kontynuować.",
+            ".",
     );
     if (a.type === "pass") setSelected(a.targetId);
   };
@@ -345,15 +366,48 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     setActions([]);
     setEvaluation(null);
     setReference(false);
+    playhead.current = 0;
     setProgress(0);
     setPaused(false);
   };
   const replay = (showReference: boolean) => {
     recordResult.current = false;
     setReference(showReference);
+    playhead.current = 0;
     setProgress(0);
     setPaused(false);
     setPhase("playback");
+  };
+  const showDemo = () => {
+    if (phase !== "intro" && phase !== "plan") return;
+    demoReturn.current = phase;
+    recordResult.current = false;
+    playhead.current = 0;
+    setProgress(0);
+    setPaused(false);
+    setPhase("demo");
+  };
+  const closeDemo = () => {
+    setPhase(demoReturn.current);
+    setPaused(false);
+    setProgress(0);
+    playhead.current = 0;
+  };
+  const seek = (value: number) => {
+    const p = clampProgress(value);
+    playhead.current = p * playback.duration;
+    setProgress(p);
+    setPaused(true);
+    setTransportRevision((v) => v + 1);
+    if (phase === "playback" && p === 1) finishRef.current();
+  };
+  const togglePlay = () => {
+    if (progress >= 1) {
+      playhead.current = 0;
+      setProgress(0);
+      setPaused(false);
+    } else setPaused((v) => !v);
+    setTransportRevision((v) => v + 1);
   };
   const modes = actionGroups.find((g) => g.id === group)!.modes;
   const noBall = scenario.players.find((p) => p.id === state.ballCarrierId)?.team !== "home";
@@ -375,7 +429,11 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   return (
     <main className={"bwiq-app bwiq-app--" + phase}>
       <header className="bwiq-header">
-        <button className="bwiq-icon-button" onClick={onBack} aria-label="Wróć">
+        <button
+          className="bwiq-icon-button"
+          onClick={phase === "demo" ? closeDemo : onBack}
+          aria-label="Wróć"
+        >
           <ArrowLeft size={21} />
         </button>
         <div>
@@ -389,7 +447,13 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
         </button>
       </header>
       {showHelp && (
-        <LearningGuide scenario={scenario} mode={mode} marker={activeMarker} onClose={closeGuide} />
+        <LearningGuide
+          scenario={scenario}
+          mode={mode}
+          marker={shownMarker}
+          onClose={closeGuide}
+          onDemo={phase === "intro" || phase === "plan" ? showDemo : undefined}
+        />
       )}
       <section className="bwiq-stage">
         <TacticalPitch
@@ -398,19 +462,34 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
           selectedPlayerId={selected}
           mode={mode}
           interactive={phase === "plan"}
-          playbackProgress={phase === "playback" ? progress : phase === "intro" ? 0 : 1}
-          playing={phase === "playback" && !paused}
+          playbackProgress={
+            phase === "playback" || phase === "demo"
+              ? progress
+              : phase === "feedback"
+                ? comparisonProgress
+                : phase === "intro"
+                  ? 0
+                  : 1
+          }
+          playing={(phase === "playback" || phase === "demo") && !paused}
           focusOnActions={phase === "feedback"}
+          cameraActions={comparisonActions}
+          activeActionId={
+            phase === "playback" || phase === "demo" ? activeActions[step]?.id : undefined
+          }
           onPlayerSelect={playerSelect}
           onPitchSelect={pointSelect}
           onReadyChange={setReady}
           highlights={phase === "feedback" && !reference ? evaluation?.highlights : undefined}
           highlightGood={evaluation?.level === "strong"}
-          teachingMarkers={training === "learn" && phase !== "playback" ? markers : []}
-          activeTeachingId={activeMarker?.id}
+          teachingMarkers={
+            shownMarker && ((training === "learn" && phase !== "playback") || phase === "demo")
+              ? [shownMarker]
+              : []
+          }
+          activeTeachingId={shownMarker?.id}
           onTeachingSelect={(markerId) => {
             setCoachIndex(markers.findIndex((m) => m.id === markerId));
-            if (phase === "intro") openGuide();
           }}
         />
         {phase === "plan" && (
@@ -419,61 +498,47 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
             {training === "learn" ? "Nauka · wskazówki" : "Samodzielnie"}
           </div>
         )}
-        {phase === "playback" && (
-          <div className="bwiq-replay-controls">
-            <button onClick={() => setPaused((v) => !v)} aria-label={paused ? "Wznów" : "Pauza"}>
-              {paused ? <Play size={16} /> : <Pause size={16} />}
-            </button>
-            <span>{reference ? "Przykład" : "Twój plan"}</span>
-            {[0.5, 1, 1.5].map((v) => (
-              <button
-                key={v}
-                className={speed === v ? "is-active" : ""}
-                onClick={() => setSpeed(v)}
-              >
-                {v}×
-              </button>
-            ))}
-          </div>
-        )}
         {phase === "plan" && training === "learn" && lastFailure && (
-          <div className="bwiq-plan-warning">
-            {lastFailure.text} Cofnij lub odtwórz, aby sprawdzić.
-          </div>
+          <div className="bwiq-plan-warning">{lastFailure.text}</div>
         )}
       </section>
       {phase === "intro" && (
         <section className="bwiq-intro">
-          <div className="bwiq-choice-row">
-            <label>
-              Sytuacja
-              <select
-                aria-label="Sytuacja"
-                value={index}
-                onChange={(e) => choose(Number(e.target.value))}
-              >
-                {scenarios.map((s, i) => (
-                  <option key={s.id} value={i}>
-                    {i + 1}. {s.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Wariant
-              <select
-                aria-label="Wariant"
-                value={variant}
-                onChange={(e) => choose(index, Number(e.target.value))}
-              >
-                {variantLabels.map((v, i) => (
-                  <option key={v} value={i}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <details className="bwiq-scenario-settings">
+            <summary>
+              Zmień sytuację <ChevronRight size={14} />
+            </summary>
+            <div className="bwiq-choice-row">
+              <label>
+                Sytuacja
+                <select
+                  aria-label="Sytuacja"
+                  value={index}
+                  onChange={(e) => choose(Number(e.target.value))}
+                >
+                  {scenarios.map((s, i) => (
+                    <option key={s.id} value={i}>
+                      {i + 1}. {s.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Wariant
+                <select
+                  aria-label="Wariant"
+                  value={variant}
+                  onChange={(e) => choose(index, Number(e.target.value))}
+                >
+                  {variantLabels.map((v, i) => (
+                    <option key={v} value={i}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </details>
           <div className="bwiq-training-toggle">
             {(["learn", "challenge"] as const).map((t) => (
               <button
@@ -485,14 +550,34 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
               </button>
             ))}
           </div>
-          <p>
+          <div className="bwiq-cue-picker" role="group" aria-label="Wskazówki na boisku">
+            {training === "learn" &&
+              markers.map((m, i) => (
+                <button
+                  key={m.id}
+                  className={coachIndex === i ? "is-active" : ""}
+                  aria-pressed={coachIndex === i}
+                  onClick={() => setCoachIndex(i)}
+                >
+                  <i>{m.letter}</i>
+                  {m.label}
+                </button>
+              ))}
+          </div>
+          <p className="bwiq-quick-cue">
             {training === "learn"
-              ? (lesson?.observe ?? scenario.focus)
-              : "Obserwuj ustawienie. Wybierz działanie, które da Twojej drużynie przewagę."}
+              ? (activeMarker?.instruction ?? quickObservations[scenario.id])
+              : "Znajdź przestrzeń i zaplanuj ruch."}
           </p>
-          <button className="bwiq-learn-link" onClick={openGuide}>
-            Kiedy i dlaczego? · Wskazówki na boisko <ChevronRight size={15} />
-          </button>
+          <div className="bwiq-intro-tools">
+            <button className="bwiq-secondary" disabled={!ready} onClick={showDemo}>
+              <Play size={15} />
+              Zobacz ruch
+            </button>
+            <button className="bwiq-learn-link" onClick={openGuide}>
+              Dlaczego? <ChevronRight size={15} />
+            </button>
+          </div>
           <div className="bwiq-start-row">
             <span>
               {history.length
@@ -515,11 +600,14 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
             <div className="bwiq-coach-card">
               <div className="bwiq-coach-heading">
                 <span>
-                  <i>{String.fromCharCode(65 + coachIndex)}</i>
+                  <i>{activeMarker.letter}</i>
                   {activeMarker.label}
                 </span>
-                <button aria-label={`Kiedy i dlaczego: ${modeLabels[mode]}`} onClick={openGuide}>
-                  Kiedy i dlaczego? <ChevronRight size={13} />
+                <button onClick={openGuide} aria-label="Dlaczego ten ruch?">
+                  Dlaczego? <ChevronRight size={13} />
+                </button>
+                <button aria-label="Zobacz ruch z planu" disabled={!ready} onClick={showDemo}>
+                  <Play size={15} />
                 </button>
               </div>
               <p>{activeMarker.instruction}</p>
@@ -572,6 +660,65 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
           </div>
         </section>
       )}
+      {(phase === "playback" || phase === "demo") && (
+        <section className="bwiq-transport">
+          <div className="bwiq-live-cue">
+            <small>
+              {phase === "demo" ? "Pokaz" : reference ? "Przykład" : "Twój plan"} · {step + 1}/
+              {activeActions.length}
+            </small>
+            <span>
+              {phase === "demo" || reference
+                ? shownMarker?.instruction
+                : modeLabels[activeActions[step]?.type ?? "pass"]}
+            </span>
+          </div>
+          <input
+            className="bwiq-scrubber"
+            type="range"
+            min="0"
+            max="1000"
+            aria-label="Przebieg akcji"
+            aria-valuetext={`${Math.round(progress * 100)}%`}
+            value={Math.round(progress * 1000)}
+            onChange={(e) => seek(Number(e.currentTarget.value) / 1000)}
+          />
+          <div className="bwiq-transport-buttons">
+            <button
+              className="bwiq-icon-button"
+              onClick={togglePlay}
+              aria-label={progress >= 1 ? "Odtwórz pokaz ponownie" : paused ? "Wznów" : "Pauza"}
+            >
+              {progress >= 1 ? (
+                <RotateCcw size={19} />
+              ) : paused ? (
+                <Play size={19} />
+              ) : (
+                <Pause size={19} />
+              )}
+            </button>
+            {[0.5, 1, 1.5].map((v) => (
+              <button
+                key={v}
+                className={speed === v ? "is-active" : ""}
+                aria-pressed={speed === v}
+                onClick={() => setSpeed(v)}
+              >
+                {v}×
+              </button>
+            ))}
+            {phase === "demo" && (
+              <button
+                className="bwiq-primary"
+                onClick={demoReturn.current === "intro" ? begin : closeDemo}
+              >
+                {demoReturn.current === "intro" ? "Spróbuj" : "Wróć do planu"}
+                <ArrowRight size={15} />
+              </button>
+            )}
+          </div>
+        </section>
+      )}
       {phase === "feedback" && evaluation && (
         <section className="bwiq-feedback">
           <div className={"bwiq-verdict bwiq-verdict--" + feedback?.level}>
@@ -590,25 +737,40 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
               <Play size={18} />
             </button>
           </div>
-          <p>
-            {reference
-              ? "Przykładowy plan z tej samej sytuacji. Możesz porównać go ze swoim."
-              : evaluation.summary}
-          </p>
-          {!reference && (
-            <div className="bwiq-correction">
-              <span>{evaluation.level === "strong" ? "Co dalej" : "Jedna poprawka"}</span>
-              <p>{evaluation.recommendation}</p>
-            </div>
-          )}
-          <button className="bwiq-learn-link" onClick={openGuide}>
-            Jak wykorzystać to w meczu? <ChevronRight size={15} />
-          </button>
+          <p>{feedback?.summary}</p>
+          <div className="bwiq-compare-toggle" role="group" aria-label="Porównanie decyzji">
+            <button
+              aria-pressed={!reference}
+              className={!reference ? "is-active" : ""}
+              onClick={() => setReference(false)}
+            >
+              Twój plan
+            </button>
+            <button
+              aria-pressed={reference}
+              className={reference ? "is-active" : ""}
+              onClick={() => setReference(true)}
+            >
+              Przykład
+            </button>
+          </div>
+          <input
+            className="bwiq-scrubber"
+            type="range"
+            min="0"
+            max="1000"
+            aria-label="Etap porównania"
+            value={Math.round(comparisonProgress * 1000)}
+            onChange={(e) =>
+              setComparisonProgress(clampProgress(Number(e.currentTarget.value) / 1000))
+            }
+          />
           <details>
             <summary>
-              Szczegóły akcji
+              Dlaczego ten wariant?
               <ChevronRight size={15} />
             </summary>
+            <p>{feedback?.recommendation}</p>
             <p>{feedback?.timing}</p>
             <p>{feedback?.space}</p>
             <p>{feedback?.consequence}</p>
@@ -621,9 +783,7 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
           </details>
           <div className="bwiq-feedback-actions">
             <button onClick={begin}>Powtórz</button>
-            <button onClick={() => replay(!reference)}>
-              {reference ? "Twój plan" : "Pokaż wariant"}
-            </button>
+
             <button className="bwiq-primary" onClick={() => choose(index + 1)}>
               Dalej
               <ArrowRight size={15} />

@@ -12,7 +12,7 @@ export type ActionMode =
   | "press"
   | "cover"
   | "mark";
-export type Phase = "intro" | "plan" | "playback" | "feedback";
+export type Phase = "intro" | "plan" | "demo" | "playback" | "feedback";
 
 export type MatchPlayer = Point & {
   id: string;

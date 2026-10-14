@@ -7,7 +7,13 @@ export type TacticalLesson = {
   transfer: string;
   cues: string[];
 };
-export type TeachingMarker = { id: string; label: string; instruction: string; point: Point };
+export type TeachingMarker = {
+  letter: string;
+  id: string;
+  label: string;
+  instruction: string;
+  point: Point;
+};
 
 // Authored explanations for these simplified situations, not universal match prescriptions.
 export const lessons: Record<string, TacticalLesson> = {
@@ -213,11 +219,33 @@ export function teachingMarkers(s: Scenario): TeachingMarker[] {
     .slice(0, 3)
     .map((a, i) => ({
       id: `${s.id}-teach-${i}`,
+      letter: String.fromCharCode(65 + i),
       label: lesson.cues[i] ?? "Kolejny ruch",
       instruction:
         a.type === "pass"
-          ? `Sprawdź linię do zawodnika ${s.players.find((p) => p.id === a.targetId)?.number}. ${a.delivery === "through" ? "Zagraj przed niego, gdy może ruszyć." : a.delivery === "cross" ? "Wybierz podanie górą do dostępnego odbiorcy." : "Podaj, gdy odbiorca i tor piłki są dostępni."}`
-          : `Zawodnik ${s.players.find((p) => p.id === a.playerId)?.number}: ${a.type === "carry" ? "wykorzystaj miejsce z piłką" : a.type === "cover" ? "zabezpiecz miejsce za partnerem" : a.type === "press" ? "ogranicz czas rywala z piłką" : a.type === "mark" ? "kontroluj wskazanego odbiorcę" : a.type === "shift" ? "pokaż się pod nowym kątem" : "stwórz opcję ruchem bez piłki"}. Zwróć uwagę na zaznaczoną strefę.`,
+          ? `${a.delivery === "through" ? "Zagraj przed" : a.delivery === "cross" ? "Dośrodkuj do" : "Podaj do"} ${s.players.find((p) => p.id === a.targetId)?.number}${a.delivery === "through" ? " w biegu." : "."}`
+          : `${s.players.find((p) => p.id === a.playerId)?.number}: ${a.type === "carry" ? "poprowadź piłkę w wolne miejsce." : a.type === "cover" ? "zabezpiecz przestrzeń za partnerem." : a.type === "press" ? "doskocz do rywala z piłką." : a.type === "mark" ? "kontroluj wskazanego odbiorcę." : a.type === "shift" ? "pokaż się pod innym kątem." : "rusz bez piłki w zaznaczoną przestrzeń."}`,
       point: { ...a.to },
     }));
 }
+
+export const quickObservations: Record<string, string> = {
+  "overload-switch-01": "Znajdź miejsce po dalszej stronie.",
+  "wall-pass-02": "Podaj i rusz za obrońcę.",
+  "third-player-03": "Otwórz drogę przez pośrednika.",
+  "counter-04": "Przyciągnij rywala i uwolnij partnera.",
+  "press-escape-05": "Wyjdź przez wsparcie spod nacisku.",
+  "overlap-06": "Stwórz opcję po zewnętrznej stronie.",
+  "underlap-07": "Znajdź korytarz po wewnętrznej stronie.",
+  "support-angle-08": "Wyjdź z cienia krycia.",
+  "between-lines-09": "Znajdź partnera między liniami.",
+  "switch-left-10": "Przenieś piłkę poza zagęszczenie.",
+  "recycle-11": "Zachowaj piłkę i zmień kierunek.",
+  "cutback-12": "Znajdź odbiorcę podania wstecz.",
+  "through-13": "Zagraj przed partnera w biegu.",
+  "cross-14": "Sprawdź odbiorcę przed dośrodkowaniem.",
+  "shot-15": "Najpierw znajdź wolne miejsce.",
+  "press-16": "Sprawdź doskok i wsparcie za sobą.",
+  "cover-17": "Zabezpiecz przestrzeń za partnerem.",
+  "mark-18": "Kontroluj odbiorcę i linię podania.",
+};
