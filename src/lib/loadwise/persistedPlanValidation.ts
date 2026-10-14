@@ -20,6 +20,7 @@ import {
 } from "./sessionClassification";
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import { profileMatchDates } from "./matchSchedule";
+import { gymSpacingIssues } from "./strengthScheduling";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
@@ -27,6 +28,8 @@ export type PersistedPlanIssueCode =
   | "club-day-mismatch"
   | "duplicate-speed-same-day"
   | "adjacent-speed-days"
+  | "duplicate-gym-same-day"
+  | "adjacent-gym-days"
   | "duplicate-dominant-stimulus"
   | "invalid-beginner-double"
   | "missing-weekly-minimum"
@@ -167,6 +170,12 @@ export function validatePersistedPlan(
           "Realne ekspozycje szybkościowe występują dzień po dniu.",
       });
     }
+  }
+
+  for (const issue of gymSpacingIssues(plan)) {
+    issues.push({ ...issue, message: issue.code === "adjacent-gym-days"
+      ? "Siłownie występują dzień po dniu — wymagany co najmniej jeden dzień przerwy."
+      : "Dzień zawiera dwie sesje siłowni." });
   }
 
   const planDates = plan.map((day) => day.date).sort();

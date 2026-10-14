@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
+import { gymChangeBlockReason } from "./strengthScheduling";
 
 export type Place = "dom" | "boisko" | "silownia";
 
@@ -20,13 +21,7 @@ export const PLACE_LABELS: Record<Place, string> = {
 };
 
 type Category =
-  | "mobility"
-  | "ball"
-  | "recovery"
-  | "activation"
-  | "endurance"
-  | "sprint"
-  | "strength";
+  "mobility" | "ball" | "recovery" | "activation" | "endurance" | "sprint" | "strength";
 
 const PLAN_TYPE_BY_CATEGORY: Record<Category, PlanSessionType> = {
   mobility: "prehab_mobility",
@@ -116,21 +111,16 @@ function buildContext(
   // bieżący tydzień ISO (pon–niedz)
   const dow = isoDayOfWeek(parseIso(date));
   const weekStart = addDays(parseIso(date), -(dow - 1));
-  const weekDates = new Set(
-    Array.from({ length: 7 }, (_, i) => isoDate(addDays(weekStart, i))),
-  );
+  const weekDates = new Set(Array.from({ length: 7 }, (_, i) => isoDate(addDays(weekStart, i))));
   const week = plan.filter((p) => weekDates.has(p.date));
   const ballRe = /piłk|techn/i;
-  const weekBall = week.filter(
-    (d) => ballRe.test(d.sessionType) || ballRe.test(d.title),
-  ).length;
+  const weekBall = week.filter((d) => ballRe.test(d.sessionType) || ballRe.test(d.title)).length;
   const highCount = week.filter((d) => d.intensity === "wysoka").length;
   const clubCount = week.filter((d) => d.dayType === "club").length;
   const heavyWeek = highCount + clubCount >= 4;
 
   const painLevel = readiness?.jointPain ?? (profile.painInjury ? 4 : 0);
-  const painLocation =
-    readiness?.painLocation ?? profile.painLocations?.[0] ?? null;
+  const painLocation = readiness?.painLocation ?? profile.painLocations?.[0] ?? null;
 
   return {
     date,
@@ -180,9 +170,7 @@ function warmupLight(): ExerciseItem[] {
 }
 
 function cooldownLight(): ExerciseItem[] {
-  return [
-    { name: "Wyciszenie i oddech", prescription: "3 min, długi wydech" },
-  ];
+  return [{ name: "Wyciszenie i oddech", prescription: "3 min, długi wydech" }];
 }
 
 const CANDIDATES: Candidate[] = [
@@ -400,12 +388,7 @@ const CANDIDATES: Candidate[] = [
   },
 ];
 
-function makeSession(
-  c: Candidate,
-  ctx: DayContext,
-  place: Place,
-  timeMin: number,
-): SessionDay {
+function makeSession(c: Candidate, ctx: DayContext, place: Place, timeMin: number): SessionDay {
   const sections = c.build(place, timeMin);
   const canonicalize = (items: ExerciseItem[]) =>
     items.map((exercise) => canonicalizeGeneratedExercise(exercise));
@@ -503,8 +486,7 @@ function gating(ctx: DayContext): {
       allowed = allowed.filter((c) =>
         ["recovery", "mobility", "ball", "activation", "endurance"].includes(c),
       );
-      if (message === "Bezpieczne dziś.")
-        message = "Gotowość średnia — tylko lekka sesja.";
+      if (message === "Bezpieczne dziś.") message = "Gotowość średnia — tylko lekka sesja.";
     }
   }
 
@@ -539,8 +521,7 @@ function rank(ctx: DayContext, c: Candidate): number {
     (ctx.daysToMatch === null || ctx.daysToMatch >= 3)
   )
     score += 5;
-  if (ctx.heavyWeek && (c.category === "recovery" || c.category === "mobility"))
-    score += 4;
+  if (ctx.heavyWeek && (c.category === "recovery" || c.category === "mobility")) score += 4;
   return score;
 }
 
@@ -564,6 +545,7 @@ export function buildProposals(
   choice: ModificationType,
   place: Place,
   timeMin: number,
+  slot: "primary" | "second" = "primary",
 ): ProposalResult {
   const ctx = buildContext(plan, profile, date, readiness);
   const { canModify, allowed, message } = gating(ctx);
@@ -573,19 +555,15 @@ export function buildProposals(
       canModify: false,
       message,
       safe: [],
-      blocked: [
-        { title: "Dodatkowa sesja", reason: blockReason(ctx) },
-      ],
+      blocked: [{ title: "Dodatkowa sesja", reason: blockReason(ctx) }],
     };
   }
 
   const safeCandidates = CANDIDATES.filter((c) => allowed.includes(c.category));
-  const blockedCandidates = CANDIDATES.filter(
-    (c) => !allowed.includes(c.category),
-  );
+  const blockedCandidates = CANDIDATES.filter((c) => !allowed.includes(c.category));
 
   const sorted = [...safeCandidates].sort((a, b) => rank(ctx, b) - rank(ctx, a));
-  const safe: Proposal[] = sorted.slice(0, 3).map((c) => ({
+  const proposals: Proposal[] = sorted.map((c) => ({
     id: c.category,
     category: c.category,
     reason: c.reason,
@@ -593,10 +571,27 @@ export function buildProposals(
     session: makeSession(c, ctx, place, timeMin),
   }));
 
+  const spacingBlocks: BlockedProposal[] = [];
+  const safe = proposals
+    .filter((proposal) => {
+      if (proposal.category !== "strength") return true;
+      const today = dayTypeOf(plan, date);
+      if (!today) return true;
+      const changedDay =
+        choice === "add" || slot === "second"
+          ? { ...today, secondSession: proposal.session }
+          : { ...proposal.session, secondSession: today.secondSession };
+      const reason = gymChangeBlockReason(plan, date, changedDay);
+      if (!reason) return true;
+      spacingBlocks.push({ title: proposal.session.title, reason });
+      return false;
+    })
+    .slice(0, 3);
+
   const reason = blockReason(ctx);
   const blocked: BlockedProposal[] = blockedCandidates
     .filter((c) => c.category === "sprint" || c.category === "strength")
     .map((c) => ({ title: c.title, reason: `Nie dziś — ${reason}` }));
 
-  return { canModify: true, message, safe, blocked };
+  return { canModify: true, message, safe, blocked: [...blocked, ...spacingBlocks] };
 }

@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import {
   buildProposals,
   PLACE_LABELS,
   type Place,
   type Proposal,
 } from "@/lib/loadwise/modifications";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Clock, Gauge } from "lucide-react";
 
@@ -36,19 +32,15 @@ export function ModifySheet({
   date: string;
   initialChoice?: ModificationChoice;
   context?: "primary" | "second";
-  onSelectProposal?: (
-    proposal: Proposal,
-    choice: ModificationChoice,
-  ) => Promise<void>;
+  onSelectProposal?: (proposal: Proposal, choice: ModificationChoice) => Promise<void>;
   onApplied?: (choice: ModificationChoice) => void;
 }) {
   const { state, applyModification } = useLoadwise();
   const [step, setStep] = useState<Step>("choice");
-  const [choice, setChoice] = useState<ModificationChoice>(
-    initialChoice ?? "add",
-  );
+  const [choice, setChoice] = useState<ModificationChoice>(initialChoice ?? "add");
   const [time, setTime] = useState(30);
   const [place, setPlace] = useState<Place>("boisko");
+  const [applying, setApplying] = useState(false);
 
   const profile = state.profile;
 
@@ -78,31 +70,46 @@ export function ModifySheet({
   }
 
   async function apply(p: Proposal) {
-    if (onSelectProposal) {
-      await onSelectProposal(p, choice);
-    } else {
-      const original =
-        choice === "swap"
-          ? (state.plan.find((d) => d.date === date) ?? null)
-          : null;
-      await applyModification(date, choice, p.session, original, p.reason);
+    if (applying) return;
+    setApplying(true);
+    try {
+      if (onSelectProposal) {
+        await onSelectProposal(p, choice);
+      } else {
+        const original =
+          choice === "swap" ? (state.plan.find((d) => d.date === date) ?? null) : null;
+        await applyModification(date, choice, p.session, original, p.reason);
+      }
+      toast.success(
+        context === "second"
+          ? "Druga sesja została zaktualizowana."
+          : choice === "swap"
+            ? "Zamieniono sesję."
+            : "Dodano sesję do dziś.",
+      );
+      onApplied?.(choice);
+      close(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nie udało się zmienić sesji.");
+    } finally {
+      setApplying(false);
     }
-    toast.success(
-      context === "second"
-        ? "Druga sesja została zaktualizowana."
-        : choice === "swap"
-          ? "Zamieniono sesję."
-          : "Dodano sesję do dziś.",
-    );
-    onApplied?.(choice);
-    close(false);
   }
 
   if (!profile) return null;
 
   const result =
     step === "proposals"
-      ? buildProposals(state.plan, profile, date, null, choice, place, time)
+      ? buildProposals(
+          resolveEffectivePlan(state.plan, state.modifications),
+          profile,
+          date,
+          null,
+          choice,
+          place,
+          time,
+          context ?? "primary",
+        )
       : null;
 
   return (
@@ -124,34 +131,21 @@ export function ModifySheet({
 
         {step === "choice" && (
           <div className="space-y-2.5 pt-1">
-            <button
-              onClick={() => pickChoice("add")}
-              className="soft-card w-full p-4 text-left"
-            >
+            <button onClick={() => pickChoice("add")} className="soft-card w-full p-4 text-left">
               <div className="text-sm font-semibold">Dodaj lekką sesję</div>
               <div className="text-xs text-muted-foreground">
                 Masz więcej czasu i chcesz dołożyć bezpieczny trening.
               </div>
             </button>
-            <button
-              onClick={() => pickChoice("swap")}
-              className="soft-card w-full p-4 text-left"
-            >
-              <div className="text-sm font-semibold">
-                Zamień dzisiejszą sesję
-              </div>
+            <button onClick={() => pickChoice("swap")} className="soft-card w-full p-4 text-left">
+              <div className="text-sm font-semibold">Zamień dzisiejszą sesję</div>
               <div className="text-xs text-muted-foreground">
                 Zaplanowana sesja dziś nie pasuje — wybierz inną.
               </div>
             </button>
-            <button
-              onClick={() => close(false)}
-              className="soft-card w-full p-4 text-left"
-            >
+            <button onClick={() => close(false)} className="soft-card w-full p-4 text-left">
               <div className="text-sm font-semibold">Zostaw plan bez zmian</div>
-              <div className="text-xs text-muted-foreground">
-                Trzymamy się Twojego planu.
-              </div>
+              <div className="text-xs text-muted-foreground">Trzymamy się Twojego planu.</div>
             </button>
           </div>
         )}
@@ -160,8 +154,7 @@ export function ModifySheet({
           <div className="space-y-5 pt-1">
             <div>
               <div className="mb-2 flex items-center gap-1.5 text-sm font-medium">
-                <Clock className="h-4 w-4 text-muted-foreground" /> Ile masz
-                czasu?
+                <Clock className="h-4 w-4 text-muted-foreground" /> Ile masz czasu?
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {TIME_OPTIONS.map((t) => (
@@ -182,8 +175,7 @@ export function ModifySheet({
 
             <div>
               <div className="mb-2 flex items-center gap-1.5 text-sm font-medium">
-                <Gauge className="h-4 w-4 text-muted-foreground" /> Gdzie możesz
-                trenować?
+                <Gauge className="h-4 w-4 text-muted-foreground" /> Gdzie możesz trenować?
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {PLACE_OPTIONS.map((p) => (
@@ -218,17 +210,13 @@ export function ModifySheet({
               <div key={p.id} className="soft-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">
-                      {p.session.title}
-                    </div>
+                    <div className="text-sm font-semibold">{p.session.title}</div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
                       {p.session.durationMin} min · {p.session.intensity}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {p.reason}
-                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{p.reason}</p>
                   </div>
-                  <Button size="sm" onClick={() => apply(p)}>
+                  <Button size="sm" disabled={applying} onClick={() => apply(p)}>
                     {choice === "swap" ? "Zamień" : "Dodaj"}
                   </Button>
                 </div>
@@ -252,12 +240,8 @@ export function ModifySheet({
                       key={i}
                       className="rounded-xl border border-dashed border-border px-3 py-2.5"
                     >
-                      <div className="text-sm font-medium text-muted-foreground">
-                        {b.title}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {b.reason}
-                      </div>
+                      <div className="text-sm font-medium text-muted-foreground">{b.title}</div>
+                      <div className="text-xs text-muted-foreground">{b.reason}</div>
                     </div>
                   ))}
                 </div>

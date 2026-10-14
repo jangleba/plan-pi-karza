@@ -13,6 +13,11 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: "automatic",
   },
+  plugins: {
+    LocalNotifications: {
+      presentationOptions: ["banner", "list", "sound"],
+    },
+  },
 };
 
 export default config;

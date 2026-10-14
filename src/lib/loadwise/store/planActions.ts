@@ -5,6 +5,8 @@ import type { RefObject } from "react";
 import { selectEquipmentAwareReplacement } from "../exerciseLibrary";
 import { parseIso } from "../labels";
 import { normalizeMatchDates } from "../matchSchedule";
+import { resolveEffectivePlan, resolveModifiedDay } from "../effectivePlan";
+import { gymChangeBlockReason } from "../strengthScheduling";
 import type {
   ExerciseReplacement,
   ModificationType,
@@ -176,6 +178,29 @@ export function createPlanActions(
     if (!user) return;
     const id = crypto.randomUUID();
     const safetyStatus: SessionStatus = type === "swap" ? "swapped_by_user" : "added_by_user";
+    const sourceDay = state.plan.find((day) => day.date === date);
+    if (sourceDay) {
+      const proposed: SessionModification = {
+        id,
+        date,
+        type,
+        reason,
+        safetyStatus,
+        session,
+        originalSession,
+        createdAt: new Date().toISOString(),
+      };
+      const changedDay = resolveModifiedDay(sourceDay, [
+        ...(state.modifications[date] ?? []),
+        proposed,
+      ]);
+      const blockReason = gymChangeBlockReason(
+        resolveEffectivePlan(state.plan, state.modifications),
+        date,
+        changedDay,
+      );
+      if (blockReason) throw new Error(blockReason);
+    }
     const trainingDayId =
       originalSession?.dayDbId ?? state.plan.find((day) => day.date === date)?.dayDbId;
     if (!trainingDayId) {

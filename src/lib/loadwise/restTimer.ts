@@ -1,6 +1,7 @@
 /** Parse only explicit durations; manual rest cues must not become invented times. */
 export function parseRestDuration(label: string): number | null {
-  const normalized = label.toLowerCase().replace(/,/g, ".");
+  // A1/A2 refer to exercises, not seconds in a rest prescription.
+  const normalized = label.toLowerCase().replace(/,/g, ".").replace(/\b[a-z]\d+\b/g, "");
   const minutes = /min|minute/.test(normalized);
   const seconds = /(?:\bs\b|sek|sec)/.test(normalized);
   if (!minutes && !seconds) return null;

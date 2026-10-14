@@ -14,13 +14,14 @@ import {
   type BrowserAttempt,
   type StoredTestId,
   CALIBRATED_LAB_PROTOCOL,
+  AUTOMATED_LAB_PROTOCOL,
 } from "./protocols";
 
 import { longJumpSchema, longJumpMeasurement, type LongJumpCalibration } from "./longJump";
 
 const time = z.number().finite().min(0).max(21);
 const resultSchema = z.object({
-  version: z.enum([BROWSER_LAB_PROTOCOL, CALIBRATED_LAB_PROTOCOL]),
+  version: z.enum([BROWSER_LAB_PROTOCOL, CALIBRATED_LAB_PROTOCOL, AUTOMATED_LAB_PROTOCOL]),
   id: z.string().min(8).max(100),
   sessionId: z.string().min(8).max(100),
   testId: z.enum([...TEST_IDS, "flying_10m"]),
@@ -140,7 +141,7 @@ export function validatedResult(input: unknown): BrowserResult {
     throw new Error("Wartości pomiaru nie zgadzają się z czasem klatek lub protokołem.");
   if (result.testId === "standing_long_jump") {
     if (
-      result.version !== CALIBRATED_LAB_PROTOCOL ||
+      ![CALIBRATED_LAB_PROTOCOL, AUTOMATED_LAB_PROTOCOL].includes(result.version) ||
       !result.spatial ||
       result.resolutionMin !== undefined ||
       result.resolutionMax !== undefined ||
@@ -150,6 +151,13 @@ export function validatedResult(input: unknown): BrowserResult {
       !closeTo(longJumpMeasurement(result.spatial).primaryValue, result.primaryValue)
     )
       throw new Error("Odległość nie zgadza się z kalibracją i punktami podłoża.");
+    if (
+      (result.spatial.method === "floor-homography-v1" &&
+        result.version !== CALIBRATED_LAB_PROTOCOL) ||
+      (result.spatial.method === "ballwise-marker-pose-v2" &&
+        result.version !== AUTOMATED_LAB_PROTOCOL)
+    )
+      throw new Error("Metoda skoku w dal nie zgadza się z wersją protokołu.");
   } else if (result.spatial !== undefined)
     throw new Error("Kalibracja podłoża należy wyłącznie do skoku w dal.");
   if (result.testId === "cod_505" && result.version === CALIBRATED_LAB_PROTOCOL) {
@@ -190,9 +198,13 @@ export function createBrowserResult(data: {
 }): BrowserResult {
   return validatedResult({
     version:
-      data.attempt.testId === "standing_long_jump" || data.attempt.testId === "cod_505"
-        ? CALIBRATED_LAB_PROTOCOL
-        : BROWSER_LAB_PROTOCOL,
+      data.attempt.testId === "standing_long_jump"
+        ? data.spatial?.method === "floor-homography-v1"
+          ? CALIBRATED_LAB_PROTOCOL
+          : AUTOMATED_LAB_PROTOCOL
+        : data.attempt.testId === "cod_505"
+          ? CALIBRATED_LAB_PROTOCOL
+          : BROWSER_LAB_PROTOCOL,
     id: crypto.randomUUID(),
     sessionId: data.sessionId,
     testId: data.attempt.testId,

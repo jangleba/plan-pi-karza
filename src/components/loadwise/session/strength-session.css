@@ -1,0 +1,46 @@
+.bw-strength-progress {
+  padding: 4px 2px;
+}
+.bw-strength-block-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+.bw-strength .bw-strength-guide {
+  margin-top: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.bw-strength .bw-strength-guide > summary {
+  min-height: 44px;
+  padding: 0;
+}
+.bw-strength .bw-strength-guide .bw-guide-badge {
+  padding: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.bw-strength .bw-strength-guide dl {
+  padding: 0 0 10px;
+}
+.bw-strength .bw-strength-rest > summary {
+  list-style: none;
+}
+.bw-strength .bw-strength-rest > summary::-webkit-details-marker {
+  display: none;
+}
+.bw-strength button:focus-visible,
+.bw-strength summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}

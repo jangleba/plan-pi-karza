@@ -1,0 +1,588 @@
+.fuel-workspace {
+  --fuel-soft: color-mix(in srgb, var(--primary) 7%, var(--card));
+}
+.fuel-workspace h3,
+.fuel-sheet h3 {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.fuel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.fuel-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.fuel-icon-button {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--primary);
+}
+.fuel-context-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 25px;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+}
+.fuel-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.fuel-input,
+.fuel-context-select {
+  margin-top: 5px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 450;
+}
+.fuel-context-select {
+  font-size: 16px;
+  font-weight: 650;
+  padding-right: 24px;
+}
+.fuel-input:focus,
+.fuel-context-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline-offset: 2px;
+}
+textarea.fuel-input {
+  min-height: 90px;
+  resize: vertical;
+}
+.fuel-manual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.fuel-manual-grid > .fuel-label:first-child:nth-last-child(3) {
+  grid-column: 1/-1;
+}
+.fuel-time-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+  color: var(--primary);
+}
+.fuel-time-heading span {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+.fuel-time-heading small {
+  display: block;
+  font-size: 10px;
+  margin-top: 3px;
+  color: var(--muted-foreground);
+}
+.fuel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.fuel-time-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.fuel-time-presets .fuel-chip-button {
+  min-height: 44px;
+  padding-inline: 4px;
+  font-size: 12px;
+}
+.fuel-extra-controls {
+  margin-top: 6px;
+}
+.fuel-extra-controls > summary {
+  cursor: pointer;
+  padding-block: 12px;
+  min-height: 44px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.fuel-chip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fuel-chip-button.is-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+.fuel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 650;
+  padding: 6px 9px;
+  border-radius: 9px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.fuel-note {
+  display: block;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.fuel-note:has(svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fuel-text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--primary);
+  cursor: pointer;
+}
+.fuel-text-button.muted {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.fuel-time-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 5px;
+}
+.fuel-phase-actions,
+.fuel-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.fuel-primary,
+.fuel-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 650;
+  width: 100%;
+  line-height: 1.45;
+}
+.fuel-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+}
+.fuel-secondary {
+  background: var(--card);
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+.fuel-primary:disabled,
+.fuel-secondary:disabled,
+.fuel-icon-button:disabled,
+.fuel-photo-pick:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.fuel-workspace button:active:not(:disabled),
+.fuel-sheet button:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.fuel-clock-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 9px;
+  margin: 6px 0 12px;
+}
+.fuel-clock-form > .fuel-secondary {
+  width: auto;
+  min-height: 44px;
+}
+.fuel-reminder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.fuel-workspace input[type="checkbox"],
+.fuel-sheet input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.fuel-guidance {
+  padding: 19px 20px;
+  border-radius: 24px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.fuel-guidance .fuel-eyebrow {
+  color: inherit;
+  opacity: 0.6;
+  font-size: 9px;
+}
+.fuel-guidance h2 {
+  margin: 7px 0;
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
+}
+.fuel-guidance p {
+  font-size: 12px;
+  line-height: 1.65;
+  opacity: 0.8;
+}
+.fuel-safety {
+  padding: 0 2px;
+}
+.fuel-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 13px 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+.fuel-consent > input {
+  margin-top: 2px;
+}
+.fuel-tab-list {
+  display: flex;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--card);
+}
+.fuel-tab-list button {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 11px 3px;
+  border-radius: 11px;
+  white-space: nowrap;
+  min-height: 42px;
+  color: var(--muted-foreground);
+}
+.fuel-tab-list button.is-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.fuel-panel {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 20px;
+  padding: 16px;
+}
+/* Compact cards keep the portion action visible without decorative panels. */
+.fuel-recipe-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  padding: 9px 14px 6px;
+  box-shadow: var(--bw-shadow-card);
+}
+.fuel-recipe-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.fuel-recipe-heading .fuel-icon-button {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+.fuel-recipe-content {
+  min-width: 0;
+}
+.fuel-recipe-content h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.fuel-recipe-content .fuel-note {
+  font-size: 11px;
+}
+.fuel-recipe-content > .fuel-row {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.fuel-recipe-actions {
+  margin-top: 3px;
+}
+.fuel-recipe-actions .fuel-text-button {
+  min-height: 44px;
+  font-size: 12px;
+}
+.fuel-empty {
+  padding: 20px;
+  border: 1px dashed var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted-foreground);
+}
+.fuel-history-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  gap: 15px;
+  width: 100%;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--primary);
+}
+.fuel-history-link strong {
+  display: block;
+  font-size: 13px;
+}
+.fuel-history-link small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+.fuel-footer {
+  padding: 4px 8px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted-foreground);
+}
+.fuel-sheet {
+  z-index: 73;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  max-width: 480px;
+  max-height: 93dvh;
+  width: 100%;
+  overflow-y: auto;
+  border-radius: 28px 28px 0 0;
+  padding: 25px 20px max(22px, env(safe-area-inset-bottom));
+  background: var(--background);
+  overscroll-behavior: contain;
+}
+.fuel-sheet > h2 {
+  margin-top: 8px;
+  font-size: 25px;
+  letter-spacing: -0.045em;
+  padding-right: 25px;
+  line-height: 1.2;
+}
+.fuel-sheet > .fuel-eyebrow {
+  margin-bottom: 5px;
+}
+.fuel-sheet > p[id] {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.fuel-sheet .fuel-note {
+  font-size: 11px;
+}
+.fuel-preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 17px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.fuel-ingredient-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.fuel-ingredient-row:last-child {
+  border-bottom: none;
+}
+.fuel-ingredient-row strong {
+  font-size: 13px;
+}
+.fuel-ingredient-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.fuel-ingredient-actions .fuel-text-button {
+  min-height: 30px;
+  font-size: 10px;
+}
+.fuel-grams {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.fuel-grams input {
+  width: 62px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 3px 7px 7px;
+  font-size: 13px;
+  color: var(--foreground);
+}
+.fuel-swap-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.fuel-swap-list > .fuel-note,
+.fuel-swap-list > .fuel-label {
+  width: 100%;
+}
+.fuel-macros {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+.fuel-macros > div {
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+.fuel-macros strong {
+  display: block;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+}
+.fuel-macros span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted-foreground);
+  margin-top: 3px;
+}
+.fuel-steps {
+  list-style: decimal;
+  padding: 10px 0 0 18px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.fuel-steps li {
+  padding-left: 3px;
+  margin-bottom: 7px;
+}
+.fuel-photo-pick {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  width: 100%;
+  min-height: 140px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 30%, transparent);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border-radius: 20px;
+  padding: 20px;
+  margin-top: 20px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fuel-photo-pick small {
+  font-size: 10px;
+  font-weight: 450;
+  color: var(--muted-foreground);
+}
+.fuel-photo-preview {
+  max-height: 220px;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 18px;
+  margin-top: 14px;
+}
+@media (max-width: 360px) {
+  .fuel-recipe-card {
+    padding-inline: 12px;
+  }
+  .fuel-action-grid {
+    grid-template-columns: 1fr;
+  }
+  .fuel-phase-actions .fuel-secondary {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fuel-workspace button:active,
+  .fuel-sheet button:active {
+    transform: none;
+  }
+}

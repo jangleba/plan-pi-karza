@@ -27,6 +27,7 @@ import {
   actionGroups,
   modeHints,
   modeLabels,
+  plannedActionMode,
   plannedState,
   planPass,
   planMovement,
@@ -124,9 +125,17 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     [scenario, activeActions],
   );
   const state = useMemo(() => plannedState(scenario, actions), [scenario, actions]);
-  const step = currentPlaybackStep(playback, progress, activeActions.length);
+  const step = currentPlaybackStep(
+    playback,
+    phase === "feedback" ? comparisonProgress : progress,
+    activeActions.length,
+  );
+  const guideMode =
+    phase === "playback" || phase === "demo" || phase === "feedback"
+      ? plannedActionMode(activeActions[step])
+      : mode;
   const shownMarker =
-    phase === "demo" || (phase === "playback" && reference)
+    phase === "demo" || ((phase === "playback" || phase === "feedback") && reference)
       ? markers[Math.min(step, markers.length - 1)]
       : activeMarker;
 
@@ -279,13 +288,7 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     setHint(
       a.type === "shot"
         ? "Zakończenie dodane. Sprawdź plan."
-        : "Dodano: " +
-            (a.type === "pass"
-              ? modeLabels[
-                  a.delivery === "through" ? "through" : a.delivery === "cross" ? "cross" : "pass"
-                ]
-              : modeLabels[a.type]) +
-            ".",
+        : "Dodano: " + modeLabels[plannedActionMode(a)] + ".",
     );
     if (a.type === "pass") setSelected(a.targetId);
   };
@@ -449,7 +452,7 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
       {showHelp && (
         <LearningGuide
           scenario={scenario}
-          mode={mode}
+          mode={guideMode}
           marker={shownMarker}
           onClose={closeGuide}
           onDemo={phase === "intro" || phase === "plan" ? showDemo : undefined}
@@ -585,7 +588,9 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
                   " prób · " +
                   history.filter((x) => x.verdict === "strong").length +
                   " udanych"
-                : "Dotknij liter na boisku"}
+                : training === "learn"
+                  ? "Dotknij liter na boisku"
+                  : "Zaplanuj własne rozwiązanie."}
             </span>
             <button className="bwiq-primary" disabled={!ready} onClick={begin}>
               {ready ? "Rozpocznij" : "Wczytywanie…"}
@@ -670,7 +675,7 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
             <span>
               {phase === "demo" || reference
                 ? shownMarker?.instruction
-                : modeLabels[activeActions[step]?.type ?? "pass"]}
+                : modeLabels[plannedActionMode(activeActions[step])]}
             </span>
           </div>
           <input

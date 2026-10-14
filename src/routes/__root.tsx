@@ -17,6 +17,7 @@ import { AuthProvider } from "../lib/loadwise/auth";
 import { Toaster } from "../components/ui/sonner";
 import { LEGAL_RELEASE_BLOCKED } from "../lib/loadwise/legal";
 import { useDuplicateNavigationGuard } from "../lib/useDuplicateNavigationGuard";
+import { FuelReminderBridge } from "../components/fuel/FuelReminderBridge";
 
 function NotFoundComponent() {
   return (
@@ -154,6 +155,7 @@ function RootComponent() {
   return (
     <AuthProvider>
       <LoadwiseProvider>
+        <FuelReminderBridge />
         <Outlet />
         <Toaster position="top-center" />
       </LoadwiseProvider>

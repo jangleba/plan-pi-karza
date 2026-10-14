@@ -34,13 +34,12 @@ export function useInstantBack(fallbackTo: string = "/plan") {
     if (navigating.current) return;
     navigating.current = true;
 
-    const canGoBack =
-      typeof window !== "undefined" && window.history.length > 1;
+    const canGoBack = typeof window !== "undefined" && router.history.canGoBack();
 
     if (canGoBack) {
       router.history.back();
     } else {
-      router.navigate({ to: fallbackTo });
+      void router.navigate({ to: fallbackTo, replace: true });
     }
 
     // Odblokuj po krótkiej chwili — jeden gest = jedno cofnięcie.

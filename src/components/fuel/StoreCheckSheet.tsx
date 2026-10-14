@@ -1,16 +1,5 @@
-import {
-  Barcode,
-  Camera,
-  Check,
-  ChevronRight,
-  Info,
-  LoaderCircle,
-  Mic,
-  RefreshCw,
-  Square,
-  X,
-} from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Barcode, Camera, LoaderCircle, Mic, Square } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import type { FuelMoment } from "@/lib/fuel/assistant";
 import type { StoreEvaluation, StoreProduct } from "@/lib/fuel/storeCheck";
@@ -34,6 +23,11 @@ export function StoreCheckSheet({
   onCheckName,
   onCheckBarcode,
   onReset,
+  onLabelProduct,
+  onLog,
+  initialPortion,
+  initialUnit,
+  onPortionChange,
 }: {
   open: boolean;
   productName: string;
@@ -52,250 +46,396 @@ export function StoreCheckSheet({
   onCheckName: () => void;
   onCheckBarcode: () => void;
   onReset: () => void;
+  onLabelProduct?: (value: StoreProduct) => void;
+  onLog?: (value: StoreProduct, portion: number, unit: "g" | "ml", eaten: boolean) => void;
+  initialPortion?: number;
+  initialUnit?: "g" | "ml";
+  onPortionChange?: (portion: number | null, unit: "g" | "ml") => void;
 }) {
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const [labelOpen, setLabelOpen] = useState(false);
+  const [portionInput, setPortionInput] = useState("100");
+  const portion = Number(portionInput);
+  const validPortion =
+    portionInput.trim() !== "" && Number.isFinite(portion) && portion >= 1 && portion <= 2000;
+  const [unit, setUnit] = useState<"g" | "ml">("g");
+  useEffect(() => {
+    onPortionChange?.(validPortion ? portion : null, unit);
+  }, [validPortion, portion, unit, onPortionChange]);
+  const [labelUnit, setLabelUnit] = useState<"g" | "ml">("g");
+  const [portionConfirmed, setPortionConfirmed] = useState(false);
+  const [carbs, setCarbs] = useState("");
+  const [protein, setProtein] = useState("");
+  const [fat, setFat] = useState("");
+  const [energy, setEnergy] = useState("");
+  const [ingredients, setIngredients] = useState("");
+  const [formError, setFormError] = useState("");
+  useEffect(() => {
+    setPortionInput(String(initialPortion ?? 100));
+    setUnit(product?.nutritionUnit ?? initialUnit ?? "g");
+    setPortionConfirmed(false);
+    if (product) setLabelOpen(false);
+    setFormError("");
+  }, [product, initialPortion, initialUnit]);
+  useEffect(() => {
+    if (!open) {
+      setCarbs("");
+      setProtein("");
+      setFat("");
+      setEnergy("");
+      setIngredients("");
+      setFormError("");
+      setPortionConfirmed(false);
+    }
+  }, [open]);
+  const nutrients = product?.nutriments;
+  function fromLabel(event: React.FormEvent) {
+    event.preventDefault();
+    const parse = (raw: string) => (raw.trim() === "" ? null : Number(raw.replace(",", ".")));
+    const c = parse(carbs),
+      p = parse(protein),
+      f = parse(fat),
+      k = parse(energy);
+    if (
+      !productName.trim() ||
+      [c, p, f].some((n) => n === null || !Number.isFinite(n) || n < 0 || n > 100) ||
+      c! + p! + f! > 101 ||
+      (k !== null && (!Number.isFinite(k) || k < 0 || k > 1000))
+    ) {
+      setFormError(
+        "Podaj nazwę i poprawne wartości z etykiety na 100 g lub 100 ml. Puste pole nie oznacza zera.",
+      );
+      return;
+    }
+    onLabelProduct?.({
+      name: productName.trim(),
+      source: "label",
+      nutritionUnit: labelUnit,
+      ingredientsText: ingredients.trim() || null,
+      nutriments: { carbohydrates100g: c, protein100g: p, fat100g: f, energyKcal100g: k },
+    });
+    setLabelOpen(false);
+  }
   return (
-    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent
-        side="bottom"
-        className="z-[73] mx-auto max-h-[94dvh] w-full max-w-[30rem] overflow-y-auto rounded-t-[2rem] bg-background px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-3"
-      >
-        <div className="mx-auto h-1 w-10 rounded-full bg-border" />
+    <Sheet open={open} onOpenChange={(value) => !value && onClose()}>
+      <SheetContent side="bottom" className="fuel-sheet">
+        <p className="fuel-eyebrow">W sklepie</p>
+        <SheetTitle>Sprawdź produkt</SheetTitle>
+        <SheetDescription>
+          Kod wyszukuje produkt w bazie. Nazwa daje tylko ocenę rodzaju produktu.
+        </SheetDescription>
         {!evaluation ? (
-          <div className="fuel-enter pb-2">
-            <div className="mt-5 flex items-start justify-between gap-4">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.17em] text-primary">
-                  W sklepie
-                </div>
-                <SheetTitle className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.045em]">
-                  Co chcesz kupić?
-                </SheetTitle>
-                <SheetDescription className="mt-1.5 text-sm leading-relaxed">
-                  Zeskanuj kod albo powiedz nazwę produktu.
-                </SheetDescription>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border bg-card"
-                aria-label="Zamknij"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
+          <>
             <button
-              type="button"
-              onClick={() => cameraRef.current?.click()}
-              className="fuel-scan-frame relative mt-6 flex min-h-[10rem] w-full flex-col items-center justify-center overflow-hidden rounded-[1.65rem] border border-primary/20 bg-primary/[0.045] text-primary"
+              className="fuel-photo-pick"
+              disabled={loading}
+              onClick={() => camera.current?.click()}
             >
-              <Camera className="h-8 w-8" />
-              <span className="mt-3 text-sm font-semibold">Zeskanuj kod ze zdjęcia</span>
-              <span className="mt-1 text-[11px] text-muted-foreground">EAN-8, EAN-13, UPC</span>
-              <span
-                className="fuel-scan-line absolute left-6 right-6 h-px bg-sky-400/80"
-                aria-hidden="true"
-              />
+              <Camera size={24} />
+              <span>Odczytaj kod ze zdjęcia</span>
+              <small>Jeśli aparat nie odczyta kodu, wpisz cyfry.</small>
             </button>
             <input
-              ref={cameraRef}
+              ref={camera}
               type="file"
               accept="image/*"
               capture="environment"
-              className="hidden"
-              onChange={(event) => {
-                onImage(event.target.files?.[0]);
-                event.currentTarget.value = "";
+              className="sr-only"
+              onChange={(e) => {
+                onImage(e.target.files?.[0]);
+                e.currentTarget.value = "";
               }}
             />
-
-            <div className="mt-4 rounded-[1.4rem] border border-border/80 bg-card p-3 shadow-[var(--bw-shadow-card)]">
-              <label
-                htmlFor="store-product-name"
-                className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground"
-              >
-                Nazwa produktu
-              </label>
-              <div className="mt-1 flex items-center gap-2">
+            <label className="fuel-label mt-4">
+              Nazwa produktu
+              <div className="fuel-row">
                 <input
-                  id="store-product-name"
+                  className="fuel-input"
                   value={productName}
-                  onChange={(event) => onProductNameChange(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && onCheckName()}
-                  placeholder="Np. wrap z kurczakiem"
-                  className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                  placeholder="Np. skyr naturalny"
+                  onChange={(e) => onProductNameChange(e.target.value)}
                 />
                 <button
-                  type="button"
+                  className="fuel-icon-button"
+                  aria-label={listening ? "Zatrzymaj mikrofon" : "Powiedz nazwę produktu"}
                   onClick={onToggleVoice}
-                  className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${listening ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                  aria-label={listening ? "Zatrzymaj nagrywanie" : "Powiedz nazwę"}
                 >
-                  {listening ? (
-                    <Square className="h-3.5 w-3.5 fill-current" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
-                  )}
+                  {listening ? <Square size={15} /> : <Mic size={18} />}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={onCheckName}
-                disabled={productName.trim().length < 3 || loading}
-                className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary text-xs font-semibold text-primary-foreground disabled:opacity-35"
-              >
-                Sprawdź nazwę
-              </button>
-            </div>
-
-            <details className="mt-3 rounded-2xl border border-border/80 bg-card px-4 py-3">
-              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
-                Mam numer kodu
-              </summary>
-              <div className="mt-3 flex gap-2">
+            </label>
+            <button
+              className="fuel-secondary mt-2"
+              disabled={productName.trim().length < 3 || loading}
+              onClick={onCheckName}
+            >
+              Sprawdź rodzaj produktu
+            </button>
+            <label className="fuel-label mt-4">
+              Kod EAN / UPC
+              <div className="fuel-row">
                 <input
+                  className="fuel-input"
                   inputMode="numeric"
                   value={barcode}
-                  onChange={(event) =>
-                    onBarcodeChange(event.target.value.replace(/\D/g, "").slice(0, 14))
-                  }
-                  placeholder="Wpisz EAN"
-                  className="h-11 min-w-0 flex-1 rounded-xl bg-muted/65 px-3 text-sm outline-none"
+                  onChange={(e) => onBarcodeChange(e.target.value.replace(/\D/g, "").slice(0, 14))}
+                  placeholder="8, 12, 13 lub 14 cyfr"
                 />
                 <button
-                  type="button"
+                  className="fuel-icon-button"
+                  disabled={loading || barcode.length < 8}
                   onClick={onCheckBarcode}
-                  disabled={barcode.length < 8 || loading}
-                  className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-35"
-                  aria-label="Sprawdź kod"
+                  aria-label="Sprawdź kod produktu"
                 >
-                  <Barcode className="h-4 w-4" />
+                  <Barcode size={19} />
                 </button>
               </div>
-            </details>
-
-            <div className="mt-4">
-              <div className="mb-2 text-xs font-semibold">Dopasuj do momentu:</div>
-              <FuelMomentPicker value={moment} onChange={onMomentChange} />
-            </div>
-            {loading && (
-              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <LoaderCircle className="h-4 w-4 animate-spin" /> Sprawdzam produkt…
-              </div>
-            )}
-            <p className="mt-4 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Dane kodów pochodzą z otwartej bazy
-              Open Food Facts i mogą być niepełne. Zawsze sprawdź etykietę i alergeny.
-            </p>
-          </div>
+            </label>
+          </>
         ) : (
-          <StoreResult
-            product={product}
-            evaluation={evaluation}
-            onReset={onReset}
-            onClose={onClose}
-          />
+          <div className="fuel-panel mt-4">
+            <span className="fuel-tag">
+              {product?.source === "name" ? "Ocena orientacyjna po nazwie" : evaluation.label}
+            </span>
+            <h3 className="mt-3">{product?.name}</h3>
+            {product?.brand && <p className="fuel-note">{product.brand}</p>}
+            <p className="fuel-note">{evaluation.reason}</p>
+            {evaluation.addition && (
+              <p className="fuel-note">
+                Możliwy dodatek: {evaluation.addition}. Wybierz zgodnie ze swoimi ograniczeniami.
+              </p>
+            )}
+            {evaluation.replacement && (
+              <p className="fuel-note">
+                Możliwa alternatywa: {evaluation.replacement}. Sprawdź skład i alergeny.
+              </p>
+            )}
+            {product?.source === "name" && (
+              <p className="fuel-note">
+                Nazwa nie potwierdza składu, ilości ani wartości odżywczych. Dodaj etykietę poniżej,
+                żeby przeliczyć porcję.
+              </p>
+            )}
+            {product && (
+              <>
+                <label className="fuel-label mt-4">
+                  Ilość, którą chcesz zjeść
+                  <div className="fuel-row">
+                    <input
+                      className="fuel-input"
+                      type="number"
+                      min="1"
+                      max="2000"
+                      step="any"
+                      inputMode="decimal"
+                      value={portionInput}
+                      aria-invalid={!validPortion}
+                      onChange={(e) => {
+                        setPortionInput(e.target.value);
+                        setPortionConfirmed(false);
+                      }}
+                    />
+                    <select
+                      className="fuel-input"
+                      value={unit}
+                      disabled={Boolean(product.nutritionUnit)}
+                      onChange={(e) => {
+                        setUnit(e.target.value as "g" | "ml");
+                        setPortionConfirmed(false);
+                      }}
+                    >
+                      <option value="g">g</option>
+                      <option value="ml">ml</option>
+                    </select>
+                  </div>
+                </label>
+                <p className="fuel-note">
+                  Wybierz jednostkę zgodną z podstawą danych na etykiecie: 100 g lub 100 ml. Wpisz
+                  ilość porcji, nie masę całego opakowania, jeśli jesz tylko część.
+                </p>
+                {!validPortion && (
+                  <p className="fuel-note" role="alert">
+                    Podaj ilość od 1 do 2000 {unit}, żeby przeliczyć porcję.
+                  </p>
+                )}
+                {validPortion && (
+                  <div className="fuel-macros">
+                    {[
+                      ["Węglowodany", nutrients?.carbohydrates100g, "g"],
+                      ["Białko", nutrients?.protein100g, "g"],
+                      ["Tłuszcz", nutrients?.fat100g, "g"],
+                      ["Energia", nutrients?.energyKcal100g, "kcal"],
+                    ].map(([label, value, suffix]) => (
+                      <div key={String(label)}>
+                        <strong>
+                          {typeof value === "number"
+                            ? `${Math.round((value * portion) / 100)} ${suffix}`
+                            : "Brak danych"}
+                        </strong>
+                        <span>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <details className="mt-3">
+                  <summary className="fuel-text-button">
+                    Wartości na 100 g / ml z bazy lub etykiety
+                  </summary>
+                  <p className="fuel-note">
+                    Węglowodany: {nutrients?.carbohydrates100g ?? "brak"} · białko:{" "}
+                    {nutrients?.protein100g ?? "brak"} · tłuszcz: {nutrients?.fat100g ?? "brak"}.
+                  </p>
+                </details>
+              </>
+            )}
+            {product?.ingredientsText && (
+              <p className="fuel-note">Skład: {product.ingredientsText}</p>
+            )}
+            {(product?.allergens?.length ?? 0) > 0 && (
+              <p className="fuel-note">
+                Alergeny z bazy: {product?.allergens?.join(", ")}. Etykieta na opakowaniu jest
+                rozstrzygająca.
+              </p>
+            )}
+            <p className="fuel-note">
+              Źródło:{" "}
+              {product?.source === "label"
+                ? "wartości przepisane przez Ciebie z etykiety"
+                : product?.source === "openfoodfacts"
+                  ? "Open Food Facts — dane społecznościowe, mogą być niepełne lub nieaktualne"
+                  : "nazwa podana przez Ciebie"}
+              . Nie potwierdzamy ceny ani dostępności.
+            </p>
+            <button className="fuel-secondary mt-4" onClick={onReset}>
+              Sprawdź inny produkt
+            </button>
+            {onLog && product && (
+              <>
+                <label className="fuel-consent">
+                  <input
+                    type="checkbox"
+                    checked={portionConfirmed}
+                    onChange={(e) => setPortionConfirmed(e.target.checked)}
+                  />
+                  <span>
+                    Sprawdziłem skład, alergeny oraz ilość porcji. Jednostka odpowiada etykiecie.
+                    Brak wartości pozostanie oznaczony jako brak danych.
+                  </span>
+                </label>
+                <div className="fuel-action-grid mt-3">
+                  <button
+                    className="fuel-secondary"
+                    disabled={!portionConfirmed || !validPortion}
+                    onClick={() => onLog(product, portion, unit, false)}
+                  >
+                    Wybieram na później
+                  </button>
+                  <button
+                    className="fuel-primary"
+                    disabled={!portionConfirmed || !validPortion}
+                    onClick={() => onLog(product, portion, unit, true)}
+                  >
+                    Zjedzone
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         )}
+        <div className="mt-4">
+          <p className="fuel-label mb-2">Moment posiłku</p>
+          <FuelMomentPicker value={moment} onChange={onMomentChange} />
+        </div>
+        {loading && (
+          <p role="status" className="fuel-note flex items-center gap-2">
+            <LoaderCircle size={16} className="animate-spin" />
+            Sprawdzam produkt…
+          </p>
+        )}
+        {onLabelProduct && (
+          <details
+            open={labelOpen}
+            onToggle={(e) => {
+              setLabelOpen(e.currentTarget.open);
+              if (e.currentTarget.open && product?.nutriments) {
+                setCarbs(String(product.nutriments.carbohydrates100g ?? ""));
+                setProtein(String(product.nutriments.protein100g ?? ""));
+                setFat(String(product.nutriments.fat100g ?? ""));
+                setEnergy(String(product.nutriments.energyKcal100g ?? ""));
+                setIngredients(product.ingredientsText ?? "");
+                setLabelUnit(product.nutritionUnit ?? unit);
+              }
+            }}
+            className="fuel-panel mt-4"
+          >
+            <summary className="fuel-text-button">Wpisz / popraw wartości z etykiety</summary>
+            <form onSubmit={fromLabel} className="mt-3">
+              <p className="fuel-note">
+                Przepisz wartości na 100 g lub 100 ml. Skan zdjęcia etykiety nie jest wymagany.
+              </p>
+              <label className="fuel-label">
+                Podstawa wartości na etykiecie
+                <select
+                  className="fuel-input"
+                  value={labelUnit}
+                  onChange={(e) => setLabelUnit(e.target.value as "g" | "ml")}
+                >
+                  <option value="g">Na 100 g</option>
+                  <option value="ml">Na 100 ml</option>
+                </select>
+              </label>
+              <label className="fuel-label mt-3">
+                Nazwa
+                <input
+                  className="fuel-input"
+                  value={productName}
+                  onChange={(e) => onProductNameChange(e.target.value)}
+                  required
+                />
+              </label>
+              <div className="fuel-manual-grid mt-3">
+                {[
+                  ["Węglowodany (g)", carbs, setCarbs],
+                  ["Białko (g)", protein, setProtein],
+                  ["Tłuszcz (g)", fat, setFat],
+                  ["Energia (kcal, opcjonalnie)", energy, setEnergy],
+                ].map(([label, value, setter]) => (
+                  <label className="fuel-label" key={String(label)}>
+                    {String(label)}
+                    <input
+                      className="fuel-input"
+                      inputMode="decimal"
+                      value={String(value)}
+                      onChange={(e) => (setter as (s: string) => void)(e.target.value)}
+                      required={label !== "Energia (kcal, opcjonalnie)"}
+                    />
+                  </label>
+                ))}
+              </div>
+              <label className="fuel-label mt-3">
+                Skład i alergeny z etykiety (opcjonalnie)
+                <textarea
+                  className="fuel-input"
+                  value={ingredients}
+                  onChange={(e) => setIngredients(e.target.value)}
+                />
+              </label>
+              {formError && (
+                <p className="fuel-note" role="alert">
+                  {formError}
+                </p>
+              )}
+              <button className="fuel-primary mt-3" type="submit">
+                Użyj danych z etykiety
+              </button>
+            </form>
+          </details>
+        )}
+        <p className="fuel-note">
+          Fuel ocenia dopasowanie do aktywności. Zawsze sprawdź skład, alergeny i ilość na
+          opakowaniu.
+        </p>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function StoreResult({
-  product,
-  evaluation,
-  onReset,
-  onClose,
-}: {
-  product: StoreProduct | null;
-  evaluation: StoreEvaluation;
-  onReset: () => void;
-  onClose: () => void;
-}) {
-  const style =
-    evaluation.verdict === "add"
-      ? "bg-amber-100 text-amber-900"
-      : evaluation.verdict === "swap"
-        ? "bg-muted text-foreground"
-        : evaluation.verdict === "good"
-          ? "bg-primary/[0.1] text-primary"
-          : "bg-muted text-muted-foreground";
-  return (
-    <div className="fuel-enter pb-2">
-      <div className="mt-5 flex items-start justify-between gap-4">
-        <div>
-          <div
-            className={`inline-flex rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] ${style}`}
-          >
-            {evaluation.label}
-          </div>
-          <SheetTitle className="mt-3 text-[25px] font-semibold leading-tight tracking-[-0.04em]">
-            {product?.name ?? "Ocena produktu"}
-          </SheetTitle>
-          {product?.brand && (
-            <div className="mt-1 text-xs text-muted-foreground">{product.brand}</div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border bg-card"
-          aria-label="Zamknij"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      {product?.imageUrl && (
-        <img
-          src={product.imageUrl}
-          alt=""
-          className="mx-auto mt-5 h-36 w-36 rounded-3xl object-contain"
-          referrerPolicy="no-referrer"
-        />
-      )}
-      <div className="mt-5 rounded-[1.65rem] border border-border/80 bg-card p-5 shadow-[var(--bw-shadow-card)]">
-        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-          Dlaczego?
-        </div>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{evaluation.reason}</p>
-        {evaluation.addition && <ActionRow label="Dodaj" value={evaluation.addition} />}
-        {evaluation.replacement && <ActionRow label="Zamiennik" value={evaluation.replacement} />}
-      </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="mt-5 inline-flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
-      >
-        <Check className="h-4 w-4" /> Rozumiem
-      </button>
-      <button
-        type="button"
-        onClick={onReset}
-        className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 text-xs font-semibold text-muted-foreground"
-      >
-        <RefreshCw className="h-4 w-4" /> Sprawdź inny produkt
-      </button>
-      <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-muted-foreground">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> To ocena dopasowania do dzisiejszej
-        aktywności, nie ogólna ocena „zdrowości” produktu.
-      </p>
-    </div>
-  );
-}
-
-function ActionRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mt-4 flex items-center gap-3 rounded-2xl bg-primary/[0.065] px-4 py-3.5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-card text-primary">
-        <ChevronRight className="h-4 w-4" />
-      </span>
-      <span>
-        <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <span className="mt-0.5 block text-sm font-semibold">{value}</span>
-      </span>
-    </div>
   );
 }

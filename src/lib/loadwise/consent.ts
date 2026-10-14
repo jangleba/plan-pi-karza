@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { clearConsentStatusCache } from "./legalStatus";
 
 export type CanonicalConsentType =
   | "terms"
@@ -18,6 +19,7 @@ export async function recordConsentDecision(decision: ConsentDecision): Promise<
     p_consent_type: decision.type,
     p_accepted: decision.accepted,
   });
+  clearConsentStatusCache();
   if (error) throw new Error(`Nie udało się zapisać decyzji „${decision.type}”: ${error.message}`);
 }
 

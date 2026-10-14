@@ -5,13 +5,18 @@ import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
 import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 import { ChevronDown } from "lucide-react";
 import "./sprint-session.css";
+import type { ReactNode } from "react";
 
 export function ExerciseQuickGuide({
   exercise,
   className = "",
+  compact = false,
+  children,
 }: {
   exercise: TrainingExercise;
   className?: string;
+  compact?: boolean;
+  children?: ReactNode;
 }) {
   const skip = getSkipGuide(exercise.exerciseId);
   if (skip) {
@@ -39,15 +44,15 @@ export function ExerciseQuickGuide({
     );
   }
   const guide = resolveQuickGuide(exercise, resolveDefinitionForExercise(exercise));
-  if (!guide.setup && !guide.action && !guide.focus && !guide.error) return null;
+  if (!guide.setup && !guide.action && !guide.focus && !guide.error && !children) return null;
   return (
-    <details className={`bw-quick-guide ${className}`}>
+    <details className={`bw-quick-guide ${compact ? "bw-strength-guide" : ""} ${className}`}>
       <summary>
         <span className="bw-guide-heading">
-          <span className="bw-guide-badge">Technika</span>
+          <span className="bw-guide-badge">{children ? "Technika i sprzęt" : "Technika"}</span>
           <ChevronDown className="bw-guide-chevron" aria-hidden="true" />
         </span>
-        <span className="bw-guide-focus">{guide.focus ?? "Krótka instrukcja"}</span>
+        {!compact && <span className="bw-guide-focus">{guide.focus ?? "Krótka instrukcja"}</span>}
       </summary>
       <dl>
         {guide.setup && (
@@ -69,6 +74,7 @@ export function ExerciseQuickGuide({
           </div>
         )}
       </dl>
+      {children}
     </details>
   );
 }

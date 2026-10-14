@@ -6,10 +6,7 @@ export interface PrivacyStorage {
   removeItem(key: string): void;
 }
 
-const LEGACY_UNSCOPED_PREFIXES = [
-  "ballwise:fuel-protocol:",
-  "loadwise:sprint-progress:",
-] as const;
+const LEGACY_UNSCOPED_PREFIXES = ["ballwise:fuel-protocol:", "loadwise:sprint-progress:"] as const;
 
 const UUID_PREFIX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}:/i;
 
@@ -24,8 +21,7 @@ function isUserScopedProgressKey(key: string, prefix: string): boolean {
  */
 export function clearLocalUserData(
   userId: string,
-  storage: PrivacyStorage | null =
-    typeof window === "undefined" ? null : window.localStorage,
+  storage: PrivacyStorage | null = typeof window === "undefined" ? null : window.localStorage,
 ): void {
   if (!storage || !userId) return;
 
@@ -35,6 +31,8 @@ export function clearLocalUserData(
     `loadwise:training-queue:v1:${userId}`,
     `ballwise:reactive:v1:${userId}`,
     `ballwise:iq:v2:${userId}`,
+    `ballwise:fuel:v3:${userId}`,
+    `ballwise:fuel-reminders:v1:${userId}`,
   ]);
   const scopedPrefixes = [
     `ballwise:fuel-protocol:${userId}:`,
@@ -49,8 +47,8 @@ export function clearLocalUserData(
       if (
         exactKeys.has(key) ||
         scopedPrefixes.some((prefix) => key.startsWith(prefix)) ||
-        LEGACY_UNSCOPED_PREFIXES.some((prefix) =>
-          key.startsWith(prefix) && !isUserScopedProgressKey(key, prefix),
+        LEGACY_UNSCOPED_PREFIXES.some(
+          (prefix) => key.startsWith(prefix) && !isUserScopedProgressKey(key, prefix),
         )
       ) {
         storage.removeItem(key);
@@ -58,6 +56,9 @@ export function clearLocalUserData(
     }
   } catch {
     // Niedostępny localStorage nie może zablokować wylogowania ani usunięcia konta.
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("ballwise:clear-user-data", { detail: { userId } }));
   }
 }
 

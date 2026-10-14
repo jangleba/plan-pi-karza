@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
+import { AppDataError } from "@/components/loadwise/AppDataError";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { user, loading } = useAuth();
-  const { hydrated, state } = useLoadwise();
+  const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,13 +20,14 @@ function Index() {
       navigate({ to: "/auth", replace: true });
       return;
     }
-    if (!hydrated) return;
+    if (!hydrated || hydrationError) return;
     if (state.profile?.onboardingComplete) {
       navigate({ to: "/start", replace: true });
     } else {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [loading, user, hydrated, state.profile?.onboardingComplete, navigate]);
+  }, [loading, user, hydrated, state.profile?.onboardingComplete, hydrationError, navigate]);
 
+  if (hydrationError && user && !state.profile?.onboardingComplete) return <AppDataError />;
   return <AppLaunchScreen />;
 }

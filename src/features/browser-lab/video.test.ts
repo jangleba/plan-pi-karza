@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { parseJumpVideo, decodeJumpFrame, openJumpVideo } from "./video";
+import { parseJumpVideo, decodeJumpFrame, displayRotation, openJumpVideo } from "./video";
 
 const bytes = () => {
   const file = readFileSync(
@@ -13,6 +13,11 @@ const bytes = () => {
 };
 
 describe("MP4/MOV exact frame reader", () => {
+  it("reads iPhone/QuickTime display rotation without reversing portrait clips", () => {
+    expect(displayRotation([0, -65536, 0, 65536, 0, 0, 0, 0, 1073741824])).toBe(90);
+    expect(displayRotation([0, 65536, 0, -65536, 0, 0, 0, 0, 1073741824])).toBe(270);
+    expect(displayRotation([65536, 0, 0, 0, 65536, 0, 0, 0, 1073741824])).toBe(0);
+  });
   it.each([
     ["hd-30fps.mp4", 30, 1920, 1080],
     ["4k-60fps.mp4", 60, 3840, 2160],

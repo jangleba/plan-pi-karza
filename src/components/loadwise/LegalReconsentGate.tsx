@@ -1,37 +1,29 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { cachedConsentRows, consentNeeds, loadConsentRows } from "@/lib/loadwise/legalStatus";
+import { AppLaunchScreen } from "./AppLaunchScreen";
 import { useAuth } from "@/lib/loadwise/auth";
-import {
-  recordConsentDecisions,
-  type ConsentDecision,
-} from "@/lib/loadwise/consent";
+import { recordConsentDecisions, type ConsentDecision } from "@/lib/loadwise/consent";
 import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
-import {
-  profileWithoutFuelPrecision,
-  profileWithoutHealthData,
-} from "@/lib/loadwise/localPrivacy";
+import { profileWithoutFuelPrecision, profileWithoutHealthData } from "@/lib/loadwise/localPrivacy";
 
 type GateStatus = "checking" | "required" | "complete" | "error";
 
-interface ConsentRow {
-  id: string;
-  consent_type: string;
-  accepted: boolean;
-  version: string;
-  accepted_at: string;
-}
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const HEALTH_DATA_CONSENT_TEXT =
   CONSENTS.find((consent) => consent.type === "health_data")?.text ??
   "Wyrażam zgodę na opcjonalną personalizację na podstawie danych o zdrowiu.";
 
-export function LegalReconsentGate() {
+export function LegalReconsentGate({ children }: { children?: ReactNode }) {
   const { user, signOut } = useAuth();
   const userId = user?.id;
   const { state, updateProfile } = useLoadwise();
   const profile = state.profile;
-  const [status, setStatus] = useState<GateStatus>("checking");
+  const [status, setStatus] = useState<GateStatus>(() => {
+    const rows = userId ? cachedConsentRows(userId) : null;
+    return rows && profile && !consentNeeds(rows, profile).required ? "complete" : "checking";
+  });
   const [retryRevision, setRetryRevision] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -44,7 +36,7 @@ export function LegalReconsentGate() {
   const [healthOptIn, setHealthOptIn] = useState(false);
   const [fuelOptIn, setFuelOptIn] = useState(false);
 
-  useEffect(() => {
+  useClientLayoutEffect(() => {
     let active = true;
 
     async function checkCurrentLegalVersion() {
@@ -53,40 +45,22 @@ export function LegalReconsentGate() {
         return;
       }
 
-      setStatus("checking");
+      if (!cachedConsentRows(userId)) setStatus("checking");
       setErrorMessage("");
-
-      const { data, error } = await supabase
-        .from("consent_logs")
-        .select("id, consent_type, accepted, version, accepted_at")
-        .eq("user_id", userId)
-        .in("consent_type", ["terms", "privacy", "health_data", "fuel_precision"])
-        .order("accepted_at", { ascending: false })
-        .order("id", { ascending: false });
-
-      if (!active) return;
-      if (error) {
-        setErrorMessage("Nie udało się sprawdzić aktualności dokumentów. Sprawdź połączenie i spróbuj ponownie.");
+      let rows;
+      try {
+        rows = await loadConsentRows(userId);
+      } catch (error) {
+        if (!active) return;
+        setErrorMessage(error instanceof Error ? error.message : "Spróbuj ponownie.");
         setStatus("error");
         return;
       }
-
-      const latest = new Map<string, ConsentRow>();
-      for (const row of (data ?? []) as ConsentRow[]) {
-        if (!latest.has(row.consent_type)) latest.set(row.consent_type, row);
-      }
-
-      const isCurrentAccepted = (type: string) => {
-        const row = latest.get(type);
-        return row?.accepted === true && row.version === LEGAL_VERSION;
-      };
-
-      const termsCurrent = isCurrentAccepted("terms");
-      const privacyCurrent = isCurrentAccepted("privacy");
-      const healthRenewal =
-        profile.healthPersonalizationEnabled === true && !isCurrentAccepted("health_data");
-      const fuelRenewal =
-        profile.fuelPrecisionEnabled === true && !isCurrentAccepted("fuel_precision");
+      if (!active) return;
+      const { termsCurrent, privacyCurrent, healthRenewal, fuelRenewal } = consentNeeds(
+        rows,
+        profile,
+      );
 
       setTermsAccepted(termsCurrent);
       setPrivacyAccepted(privacyCurrent);
@@ -98,9 +72,7 @@ export function LegalReconsentGate() {
       setHealthOptIn(false);
       setFuelOptIn(false);
       setStatus(
-        !termsCurrent || !privacyCurrent || healthRenewal || fuelRenewal
-          ? "required"
-          : "complete",
+        !termsCurrent || !privacyCurrent || healthRenewal || fuelRenewal ? "required" : "complete",
       );
     }
 
@@ -116,7 +88,8 @@ export function LegalReconsentGate() {
     retryRevision,
   ]);
 
-  if (!user || !profile?.onboardingComplete || status === "complete") return null;
+  if (!user || !profile?.onboardingComplete || status === "complete") return <>{children}</>;
+  if (status === "checking") return <AppLaunchScreen />;
 
   async function submit() {
     if (!profile || !termsAccepted || !privacyAccepted || saving) return;
@@ -155,13 +128,12 @@ export function LegalReconsentGate() {
 
       await recordConsentDecisions(decisions);
       if (nextProfile !== profile) await updateProfile(nextProfile);
+      await loadConsentRows(user!.id);
       setSaving(false);
       setStatus("complete");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Nie udało się zapisać decyzji. Spróbuj ponownie.",
+        error instanceof Error ? error.message : "Nie udało się zapisać decyzji. Spróbuj ponownie.",
       );
       setSaving(false);
     }
@@ -175,14 +147,7 @@ export function LegalReconsentGate() {
         aria-labelledby="legal-update-title"
         className="mx-auto w-full max-w-lg rounded-3xl border border-border bg-card p-5 shadow-2xl"
       >
-        {status === "checking" ? (
-          <div className="py-12 text-center">
-            <h2 id="legal-update-title" className="text-lg font-semibold">
-              Sprawdzamy aktualność dokumentów
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">To potrwa tylko chwilę.</p>
-          </div>
-        ) : status === "error" ? (
+        {status === "error" ? (
           <div className="py-6 text-center">
             <h2 id="legal-update-title" className="text-lg font-semibold">
               Nie udało się sprawdzić dokumentów
@@ -214,8 +179,8 @@ export function LegalReconsentGate() {
               Zaktualizowane dokumenty BallWise
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Przed dalszym korzystaniem zapoznaj się z aktualnym Regulaminem i Polityką prywatności.
-              Opcjonalne zgody zdrowotne nie są zaznaczone automatycznie.
+              Przed dalszym korzystaniem zapoznaj się z aktualnym Regulaminem i Polityką
+              prywatności. Opcjonalne zgody zdrowotne nie są zaznaczone automatycznie.
             </p>
 
             <div className="mt-5 space-y-3">
@@ -270,9 +235,10 @@ export function LegalReconsentGate() {
                     className="mt-0.5 h-4 w-4 accent-primary"
                   />
                   <span className="text-sm leading-relaxed">
-                    <span className="font-semibold">Opcjonalnie:</span>{` `}
-                    {HEALTH_DATA_CONSENT_TEXT} Jeśli nie zaznaczysz tej zgody, zapisane
-                    dane zdrowotne zostaną usunięte.
+                    <span className="font-semibold">Opcjonalnie:</span>
+                    {` `}
+                    {HEALTH_DATA_CONSENT_TEXT} Jeśli nie zaznaczysz tej zgody, zapisane dane
+                    zdrowotne zostaną usunięte.
                   </span>
                 </label>
               )}

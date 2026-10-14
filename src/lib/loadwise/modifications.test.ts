@@ -59,6 +59,44 @@ function day(overrides: Partial<SessionDay> = {}): SessionDay {
 }
 
 describe("buildProposals — pełny sygnał bólu z check-inu", () => {
+  it("blocks a gym proposal next to an existing second-slot gym", () => {
+    const previous = day({
+      date: "2026-09-13",
+      secondSession: day({
+        date: "2026-09-13",
+        title: "Siła nóg",
+        sessionType: "Siła / moc",
+        intensity: "wysoka",
+      }),
+    });
+    const result = buildProposals(
+      [previous, day()],
+      profile({ goal: "strength" }),
+      DATE,
+      readiness(),
+      "swap",
+      "silownia",
+      40,
+    );
+    expect(result.safe.some((proposal) => proposal.category === "strength")).toBe(false);
+    expect(result.blocked.some((proposal) => /dzień.*siłowni/.test(proposal.reason))).toBe(true);
+  });
+  it("allows replacement of an existing second-slot gym without counting it twice", () => {
+    const today = day({
+      secondSession: day({ title: "Siła nóg", sessionType: "Siła / moc", intensity: "wysoka" }),
+    });
+    const result = buildProposals(
+      [today],
+      profile({ goal: "strength" }),
+      DATE,
+      readiness(),
+      "swap",
+      "silownia",
+      40,
+      "second",
+    );
+    expect(result.safe.some((proposal) => proposal.category === "strength")).toBe(true);
+  });
   it("nie proponuje dodawania ani zamiany przy bólu 7–10/10", () => {
     const result = buildProposals(
       [day()],
@@ -88,20 +126,16 @@ describe("buildProposals — pełny sygnał bólu z check-inu", () => {
 
     expect(result.canModify).toBe(true);
     expect(result.safe.length).toBeGreaterThan(0);
-    expect(result.safe.every((item) => ["recovery", "mobility"].includes(item.category))).toBe(true);
-    expect(result.safe.some((item) => item.category === "sprint" || item.category === "strength")).toBe(false);
+    expect(result.safe.every((item) => ["recovery", "mobility"].includes(item.category))).toBe(
+      true,
+    );
+    expect(
+      result.safe.some((item) => item.category === "sprint" || item.category === "strength"),
+    ).toBe(false);
   });
 
   it("bez bólu nie tworzy fałszywej blokady celu szybkościowego", () => {
-    const result = buildProposals(
-      [day()],
-      profile(),
-      DATE,
-      readiness(),
-      "add",
-      "boisko",
-      30,
-    );
+    const result = buildProposals([day()], profile(), DATE, readiness(), "add", "boisko", 30);
 
     expect(result.canModify).toBe(true);
     expect(result.safe.some((item) => item.category === "sprint")).toBe(true);
@@ -118,6 +152,8 @@ describe("buildProposals — pełny sygnał bólu z check-inu", () => {
       45,
     );
 
-    expect(result.safe.every((item) => ["recovery", "mobility"].includes(item.category))).toBe(true);
+    expect(result.safe.every((item) => ["recovery", "mobility"].includes(item.category))).toBe(
+      true,
+    );
   });
 });

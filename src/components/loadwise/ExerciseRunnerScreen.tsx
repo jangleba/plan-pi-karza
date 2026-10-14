@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronDown } from "lucide-react";
+import { Check, ChevronLeft, ChevronDown } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { exerciseKey, plannedSets, useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
 import {
@@ -33,6 +33,8 @@ import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { ExercisePersonalNote } from "./session/ExercisePersonalNote";
 import { SprintRestTimer } from "./session/SprintRestTimer";
 import { NextExercisePreview } from "./session/SessionQuickTools";
+import { canonicalExerciseName } from "@/lib/loadwise/sessionPresentation";
+import { exerciseDisplayName } from "./session/exerciseDisplayNames";
 
 type FieldValues = Record<MetricField["id"], string>;
 
@@ -110,6 +112,7 @@ export function ExerciseRunnerScreen({
   onComplete,
   nextExercise,
   date,
+  showVisuals = true,
 }: {
   exercise: TrainingExercise;
   sessionId?: string | null;
@@ -118,6 +121,7 @@ export function ExerciseRunnerScreen({
   onComplete?: () => void;
   nextExercise?: TrainingExercise;
   date?: string;
+  showVisuals?: boolean;
 }) {
   const [view, setView] = useState<"sets" | "technique">("sets");
   const [setNumber, setSetNumber] = useState(1);
@@ -138,10 +142,14 @@ export function ExerciseRunnerScreen({
   const key = exerciseKey(exercise);
   const logs = useExerciseSetLogs(sessionId, key);
   const { current, previous, loading, saveSet } = logs;
-  const recentSessions =
-    "recentSessions" in logs && Array.isArray(logs.recentSessions)
-      ? (logs.recentSessions as { sets: SetLog[] }[])
-      : [{ sets: Object.values(previous) }];
+  const recentHistory = "recentSessions" in logs ? logs.recentSessions : undefined;
+  const recentSessions = useMemo(
+    () =>
+      Array.isArray(recentHistory)
+        ? (recentHistory as { sets: SetLog[] }[])
+        : [{ sets: Object.values(previous) }],
+    [recentHistory, previous],
+  );
   const context = trainingStorageKey("screen", user?.id, sessionId ?? date ?? "unattached", key);
   activeContext.current = context;
   const draft = useTrainingLocalState(
@@ -164,6 +172,7 @@ export function ExerciseRunnerScreen({
   const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
   const frameIndex = Math.min(frame, Math.max(0, (illustration?.frames.length ?? 1) - 1));
   const details = resolveExerciseSheetViewModel(exercise);
+  const displayName = exerciseDisplayName(canonicalExerciseName(exercise));
   const skip = getSkipGuide(exercise.exerciseId);
   const cues = skip ? [...skip.steps, SKIP_LANDING] : details.cues.slice(0, 3);
   const doneCount = Array.from({ length: total }, (_, index) => index + 1).filter(
@@ -254,9 +263,18 @@ export function ExerciseRunnerScreen({
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold text-foreground">{exercise.name}</div>
+          <div className="text-[15px] font-semibold leading-snug text-foreground">
+            {showVisuals ? canonicalExerciseName(exercise) : displayName.title}
+          </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {view === "technique" ? "Technika" : exercise.displayPrescription || `${total} serie`}
+            {view === "technique"
+              ? "Technika"
+              : [
+                  !showVisuals && displayName.variant,
+                  exercise.displayPrescription || `${total} serie`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
           </div>
         </div>
       </header>
@@ -268,29 +286,31 @@ export function ExerciseRunnerScreen({
             onClick={() => setView("technique")}
             className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 text-left"
           >
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-primary/5">
-              {techniqueImage ? (
-                <img
-                  src={techniqueImage.src}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  width={768}
-                  height={512}
-                  className="h-full w-full object-contain"
-                />
-              ) : illustration ? (
-                <PoseFigure pose={illustration.frames[0].pose} />
-              ) : (
-                <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
-                  Technika
-                </div>
-              )}
-            </div>
+            {showVisuals && (
+              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-primary/5">
+                {techniqueImage ? (
+                  <img
+                    src={techniqueImage.src}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width={768}
+                    height={512}
+                    className="h-full w-full object-contain"
+                  />
+                ) : illustration ? (
+                  <PoseFigure pose={illustration.frames[0].pose} />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
+                    Technika
+                  </div>
+                )}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-foreground">Technika ruchu</div>
               <div className="truncate text-[12px] text-muted-foreground">
-                Ilustracja, 3 wskazówki i błędy
+                {showVisuals ? "Ilustracja, wskazówki i błędy" : "Krótka instrukcja i błędy"}
               </div>
             </div>
             <ChevronLeft className="h-4 w-4 rotate-180 text-muted-foreground/60" />
@@ -302,17 +322,18 @@ export function ExerciseRunnerScreen({
                 key={n}
                 type="button"
                 onClick={() => setSetNumber(n)}
-                className={`min-h-11 flex-1 rounded-xl text-xs font-semibold ${
+                className={`flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl border text-xs font-semibold ${
                   current[n]
-                    ? "bg-primary text-primary-foreground"
+                    ? "border-primary/20 bg-primary/10 text-primary"
                     : n === setNumber
-                      ? "bg-primary/40"
-                      : "bg-border"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground"
                 }`}
                 aria-label={`Seria ${n}`}
                 aria-pressed={n === setNumber}
                 disabled={saving || loading}
               >
+                {current[n] && <Check className="h-3 w-3" aria-hidden="true" />}
                 {n}
               </button>
             ))}
@@ -427,7 +448,7 @@ export function ExerciseRunnerScreen({
             </div>
           )}
 
-          {needsStartingLoad && (
+          {needsStartingLoad && !recommendation && (
             <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 py-3">
               <div className="text-[13px] font-semibold text-foreground">Ustal ciężar startowy</div>
               <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
@@ -547,7 +568,9 @@ export function ExerciseRunnerScreen({
         </div>
       ) : (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
-          {techniqueImage ? (
+          {!showVisuals ? (
+            <div className="text-lg font-semibold text-foreground">Technika ruchu</div>
+          ) : techniqueImage ? (
             <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl border border-border/60 bg-[#faf9f5]">
               <img
                 src={techniqueImage.src}

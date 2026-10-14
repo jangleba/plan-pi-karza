@@ -25,7 +25,10 @@ export function BottomNav() {
             <Link
               key={item.to}
               to={item.to}
-              preload="intent"
+              preload="viewport"
+              onClick={(event) => {
+                if (active) event.preventDefault();
+              }}
               aria-current={active ? "page" : undefined}
               className={`bw-tab-item ${active ? "is-active" : ""}`}
             >
@@ -40,4 +43,3 @@ export function BottomNav() {
     </nav>
   );
 }
-

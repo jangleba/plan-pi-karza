@@ -1,5 +1,4 @@
-export type TrainingDecisionMode =
-  "checkin_required" | "confirmed" | "other_day";
+export type TrainingDecisionMode = "planned" | "confirmed" | "other_day";
 
 interface TrainingDecisionGateInput {
   isToday: boolean;
@@ -8,16 +7,16 @@ interface TrainingDecisionGateInput {
 
 /**
  * Jedna reguła wejścia do dzisiejszej sesji dla ekranu Start i deep linku.
- * Check-in dotyczy wyłącznie operacji na planie, nie danych zdrowotnych.
+ * Check-in dotyczy operacji na planie i jest opcjonalny; nie blokuje treningu.
  */
 export function resolveTrainingDecisionMode({
   isToday,
   hasTodayCheckin,
 }: TrainingDecisionGateInput): TrainingDecisionMode {
   if (!isToday) return "other_day";
-  return hasTodayCheckin ? "confirmed" : "checkin_required";
+  return hasTodayCheckin ? "confirmed" : "planned";
 }
 
 export function canOpenTrainingSession(mode: TrainingDecisionMode): boolean {
-  return mode !== "checkin_required";
+  return mode === "planned" || mode === "confirmed" || mode === "other_day";
 }

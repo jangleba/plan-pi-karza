@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
-import {
-  canOpenTrainingSession,
-  resolveTrainingDecisionMode,
-} from "./trainingDecisionGate";
+import { canOpenTrainingSession, resolveTrainingDecisionMode } from "./trainingDecisionGate";
 
 describe("training decision gate", () => {
-  it("wymaga codziennego check-inu przed dzisiejszą sesją", () => {
+  it("otwiera dzisiejszą sesję bez obowiązkowego check-inu", () => {
     const mode = resolveTrainingDecisionMode({
       isToday: true,
       hasTodayCheckin: false,
     });
 
-    expect(mode).toBe("checkin_required");
-    expect(canOpenTrainingSession(mode)).toBe(false);
+    expect(mode).toBe("planned");
+    expect(canOpenTrainingSession(mode)).toBe(true);
   });
 
   it("otwiera sesję po potwierdzeniu dzisiejszego planu", () => {

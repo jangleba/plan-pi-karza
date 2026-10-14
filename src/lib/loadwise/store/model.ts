@@ -437,6 +437,8 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
 export interface LoadwiseContextValue {
   state: LoadwiseState;
   hydrated: boolean;
+  syncing: boolean;
+  hydrationError: string | null;
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
   saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;

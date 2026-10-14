@@ -199,7 +199,7 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                 <p>
                   Skoczność, szybkość i zmiana kierunku. Przed sesją zrób rozgrzewkę, przygotuj
                   taśmę, pachołki i statyw. Zaplanuj czas na przerwy: 60–90 s po skoku, 3 min po
-                  biegu. Skok w dal wymaga wzorca oraz taśmy.
+                  biegu. Skok w dal wymaga dwóch wzorców AUTO oraz taśmy.
                 </p>
                 <LabButton disabled={capable !== true} onClick={() => begin(TEST_IDS)}>
                   Rozpocznij pełny profil
@@ -252,14 +252,15 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                     odczytane przez Lab.
                   </li>
                   <li>
-                    Przesuwaj film o jedną klatkę. Oznacz początek i koniec zgodnie z instrukcją,
-                    potwierdź warunki i zapisz.
+                    Skok w dal analizuje się automatycznie — sprawdzasz tylko punkt pięty. W
+                    pozostałych testach oznacz zdarzenia klatka po klatce i zapisz wynik.
                   </li>
                 </ol>
                 <p className="bl-muted">
-                  LiDAR nie jest potrzebny. Wysokość skoku obliczamy z czasu lotu, a odcinki biegowe
-                  trzeba zmierzyć taśmą. Przy 30/60 FPS wynik jest orientacyjny — sprawdź podany
-                  zakres rozdzielczości czasowej. Zmiana tempa filmu uniemożliwia poprawny pomiar.
+                  LiDAR nie jest potrzebny. Skok w dal używa dwóch wydrukowanych wzorców na
+                  podłożu; wysokość pozostałych skoków obliczamy z czasu lotu, a odcinki biegowe
+                  trzeba zmierzyć taśmą. Przy 30/60 FPS wyniki czasowe są orientacyjne — sprawdź
+                  podany zakres rozdzielczości. Zmiana tempa filmu uniemożliwia poprawny pomiar.
                 </p>
               </details>
             </>

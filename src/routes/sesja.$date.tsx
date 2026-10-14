@@ -16,8 +16,6 @@ import { ArrowRight, Plus, Repeat, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
 import { isTrackableEnduranceRun } from "@/lib/running/session";
 import { isBallTechnicalSession, isStrengthSession } from "@/lib/loadwise/sessionClassification";
-import { resolveTrainingDecisionMode } from "@/lib/loadwise/trainingDecisionGate";
-import { readDailyPlanCheckin } from "@/lib/loadwise/dailyPlanCheckin";
 import {
   canShowPostSessionForm,
   matchCanBeCompleted,
@@ -68,8 +66,6 @@ function SessionDetail() {
   const [modifyOpen, setModifyOpen] = useState(false);
   const [showSprintCompletion, setShowSprintCompletion] = useState(false);
   const [showStrengthCompletion, setShowStrengthCompletion] = useState(false);
-  const [dailyCheckinLoaded, setDailyCheckinLoaded] = useState(false);
-  const [hasDailyCheckin, setHasDailyCheckin] = useState(false);
   const goBack = useInstantBack("/plan");
   useEffect(() => {
     setShowSprintCompletion(false);
@@ -78,23 +74,11 @@ function SessionDetail() {
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
   }, [authLoading, user, navigate]);
-  useEffect(() => {
-    if (!user) {
-      setHasDailyCheckin(false);
-      setDailyCheckinLoaded(false);
-      return;
-    }
-    setHasDailyCheckin(Boolean(readDailyPlanCheckin(user.id, todayIso)));
-    setDailyCheckinLoaded(true);
-  }, [todayIso, user]);
 
   const day = state.plan.find((p) => p.date === date);
   // Dane jeszcze się ładują (np. po odświeżeniu / deep link) — nie pokazuj
   // pustego białego ekranu. Skeleton w tym samym layoucie, z krótkim delay.
-  const stillLoading =
-    !hydrated ||
-    (!day && !state.profile) ||
-    (date === todayIso && Boolean(user) && !dailyCheckinLoaded);
+  const stillLoading = !hydrated;
   const showSkeleton = useDelayedFlag(stillLoading);
 
   if (authLoading || !user) {
@@ -127,27 +111,6 @@ function SessionDetail() {
   }
 
   const isToday = date === todayIso;
-  const decisionMode = resolveTrainingDecisionMode({
-    isToday,
-    hasTodayCheckin: hasDailyCheckin,
-  });
-
-  if (decisionMode === "checkin_required") {
-    return (
-      <SessionScreenShell onBack={goBack}>
-        <div className="soft-card p-5 text-center">
-          <h1 className="text-xl font-semibold text-foreground">Najpierw check-in</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Potwierdź plan albo wybierz jedną zmianę. Nie pytamy o zdrowie ani samopoczucie.
-          </p>
-          <Button className="mt-4 w-full" onClick={() => navigate({ to: "/start" })}>
-            Przejdź do check-inu
-          </Button>
-        </div>
-      </SessionScreenShell>
-    );
-  }
-
   const mods = state.modifications[date] ?? [];
   const swapMod = mods.find((m) => m.type === "swap");
   const addMods = mods.filter((m) => m.type === "add");

@@ -44,6 +44,9 @@ describe("local privacy", () => {
     storage.setItem("loadwise:boot:v2:u1", "private");
     storage.setItem("loadwise:training-queue:v1:u1", "private");
     storage.setItem("ballwise:reactive:v1:u1", "private");
+    storage.setItem("ballwise:fuel:v3:u1", "private");
+    storage.setItem("ballwise:fuel-reminders:v1:u1", "private");
+    storage.setItem("ballwise:fuel:v3:u2", "keep");
     storage.setItem("ballwise:fuel-protocol:u1:session", "private");
     storage.setItem("loadwise:sprint-progress:u1:session", "private");
     storage.setItem("ballwise:fuel-protocol:legacy-session", "legacy");
@@ -60,6 +63,9 @@ describe("local privacy", () => {
     expect(storage.getItem("loadwise:boot:v2:u1")).toBeNull();
     expect(storage.getItem("loadwise:training-queue:v1:u1")).toBeNull();
     expect(storage.getItem("ballwise:reactive:v1:u1")).toBeNull();
+    expect(storage.getItem("ballwise:fuel:v3:u1")).toBeNull();
+    expect(storage.getItem("ballwise:fuel-reminders:v1:u1")).toBeNull();
+    expect(storage.getItem("ballwise:fuel:v3:u2")).toBe("keep");
     expect(storage.getItem("ballwise:fuel-protocol:u1:session")).toBeNull();
     expect(storage.getItem("loadwise:sprint-progress:u1:session")).toBeNull();
     expect(storage.getItem("ballwise:fuel-protocol:legacy-session")).toBeNull();

@@ -26,12 +26,23 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const [planGenerating, setPlanGenerating] = useState(false);
   const replacementInFlightRef = useRef(new Set<string>());
   const todayIso = useTodayIso();
+  const [syncing, setSyncing] = useState(true);
+  const [hydrationError, setHydrationError] = useState<string | null>(null);
   useOfflineTrainingSync(user);
-  const hydrated = useHydration({ user, authLoading, recoveryMode, todayIso, setState });
+  const hydrated = useHydration({
+    user,
+    authLoading,
+    recoveryMode,
+    todayIso,
+    setState,
+    state,
+    setSyncing,
+    setHydrationError,
+  });
   const persistence = createPlanPersistence(user, todayIso);
   const context = { user, state, setState, todayIso, ...persistence };
-  usePersistedState(user, hydrated, state);
-  useMissedSessionSync({ ...context, hydrated });
+  usePersistedState(user, hydrated && !syncing, state);
+  useMissedSessionSync({ ...context, hydrated: hydrated && !syncing && !hydrationError });
   const profileActions = createProfileActions({ ...context, generatingRef, setPlanGenerating });
   const sessionActions = createSessionActions(context);
   const planActions = createPlanActions({ ...context, replacementInFlightRef });
@@ -42,6 +53,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
       value={{
         state,
         hydrated,
+        syncing,
+        hydrationError,
         todayIso,
         todaySession,
         planGenerating,

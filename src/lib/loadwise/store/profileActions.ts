@@ -166,10 +166,10 @@ export function createProfileActions(
     // generatora (stare fallbacki/statyczne tygodnie nie mogą zostać aktywne).
     if (generatingRef.current) return;
     generatingRef.current = true;
-    setPlanGenerating(true);
     (async () => {
       try {
         if (await shouldReusePersistedPlan(state.plan, profile)) return;
+        setPlanGenerating(true);
         const plan = await savePlanToDb(profile, profile.onboardingRevision ?? null);
         await clearFutureOverlaysForUser(user.id, todayIso);
         setState((s) => ({

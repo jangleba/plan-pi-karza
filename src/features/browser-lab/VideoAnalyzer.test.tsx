@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   camera: vi.fn(),
   record: vi.fn(),
   stop: vi.fn(),
+  auto: vi.fn(),
 }));
 vi.mock("./video", () => ({
   openJumpVideo: mocks.open,
@@ -21,6 +22,9 @@ vi.mock("./camera", () => ({
   openLabCamera: mocks.camera,
   recordLabCamera: mocks.record,
   stopCamera: mocks.stop,
+}));
+vi.mock("./longJumpAuto", () => ({
+  analyzeLongJump: mocks.auto,
 }));
 const timeline = buildJumpTimeline(
   Array.from({ length: 360 }, (_, cts) => ({
@@ -37,6 +41,39 @@ const video: OpenedVideo = {
   config: { codec: "avc1.640029" },
   rotation: 0,
   samples: [],
+};
+const groundPoint = (x: number, y: number): [number, number] => [0.1 + 0.004 * x, 0.1 + 0.0025 * y];
+const startMarker = [
+  groundPoint(0, -24),
+  groundPoint(20, -24),
+  groundPoint(20, 0),
+  groundPoint(0, 0),
+] as const;
+const rangeMarker = [
+  groundPoint(0, 288),
+  groundPoint(20, 288),
+  groundPoint(20, 312),
+  groundPoint(0, 312),
+] as const;
+const automaticSpatial = {
+  method: "ballwise-marker-pose-v2" as const,
+  referenceCorners: startMarker,
+  rangeCorners: rangeMarker,
+  landingReferenceCorners: startMarker,
+  landingRangeCorners: rangeMarker,
+  referenceWidthCm: 20 as const,
+  referenceDepthCm: 24 as const,
+  baselineCm: 300 as const,
+  imageWidth: 1920,
+  imageHeight: 1080,
+  calibrationFrameIndex: 60,
+  lineFrameIndex: 60,
+  heelFrameIndex: 190,
+  takeoffLine: [startMarker[2], startMarker[3]] as const,
+  heel: groundPoint(7, 214),
+  poseConfidence: 0.92,
+  markerQuality: 0.95,
+  heelSource: "pose" as const,
 };
 let host: HTMLDivElement;
 let root: Root;
@@ -74,6 +111,7 @@ beforeEach(() => {
   });
   mocks.stop.mockReset();
   mocks.record.mockReset();
+  mocks.auto.mockReset().mockResolvedValue(automaticSpatial);
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     clearRect: vi.fn(),
     beginPath: vi.fn(),
@@ -318,21 +356,12 @@ describe("browser video measurement flow", () => {
   });
 });
 
-async function numberInput(label: string, value: number) {
-  const input = host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-      input,
-      String(value),
-    );
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-}
 async function floorPoint(x: number, y: number) {
   const svg = host.querySelector<SVGSVGElement>(".bl-floor-overlay")!;
   svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 180 }) as DOMRect;
   svg.setPointerCapture = vi.fn();
+  svg.hasPointerCapture = vi.fn(() => true);
+  svg.releasePointerCapture = vi.fn();
   await act(async () => {
     svg.dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, clientX: x * 1000, clientY: y * 180 }),
@@ -340,7 +369,7 @@ async function floorPoint(x: number, y: number) {
     svg.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
   });
 }
-it("requires calibration, start line and heel, saves floor distance and invalidates confirmation after correction", async () => {
+it("analyzes long jump automatically, exposes one heel correction and saves the verified result", async () => {
   mocks.decode.mockImplementation(async (_video, index) => ({
     timestamp: timeline.frames[index].timestampUs,
     displayWidth: 1920,
@@ -349,50 +378,19 @@ it("requires calibration, start line and heel, saves floor distance and invalida
   }));
   const save = await render(vi.fn(), "standing_long_jump");
   await importFile();
-  expect(button("Oznacz przed odbiciem").disabled).toBe(true);
-  await numberInput("Szerokość wzorca w cm", 100);
-  await numberInput("Drugi wymiar wzorca w cm", 50);
-  for (const [x, y] of [
-    [0.1, 0.2],
-    [0.3, 0.2],
-    [0.3, 0.3],
-    [0.1, 0.3],
-  ])
-    await floorPoint(x, y);
-  await act(async () =>
-    host.querySelector<HTMLInputElement>('.bl-floor-editor input[type="checkbox"]')!.click(),
-  );
-  await act(async () => button("Kontrola skali").click());
-  await numberInput("Długość kontrolna w cm", 200);
-  await floorPoint(0.1, 0.6);
-  await floorPoint(0.5, 0.6);
-  await act(async () =>
-    host.querySelector<HTMLInputElement>('.bl-floor-editor input[type="checkbox"]')!.click(),
-  );
-  await act(async () => button("Linia odbicia").click());
-  await go(60);
-  await floorPoint(0.1, 0.3);
-  await floorPoint(0.1, 0.5);
-  await act(async () => button("Oznacz przed odbiciem").click());
-  await go(190);
-  await floorPoint(0.528, 0.38);
-  await act(async () => button("Oznacz lądowanie").click());
+  expect(mocks.auto).toHaveBeenCalledOnce();
   expect(host.querySelector(".bl-result")?.textContent).toContain("214,0 cm");
+  expect(host.querySelector(".bl-result")?.textContent).toContain("Oba wzorce rozpoznane");
   expect(host.querySelector(".bl-result")?.textContent).not.toContain("Zakres z klatek");
-  expect(button("Zapisz wynik").disabled).toBe(true);
-  await act(async () =>
-    host.querySelector<HTMLInputElement>('.bl-result input[type="checkbox"]')!.click(),
-  );
-  await act(async () => button("Popraw oznaczenia").click());
-  await floorPoint(0.53, 0.38);
-  expect(button("Zapisz wynik").disabled).toBe(true);
-  await act(async () =>
-    host.querySelector<HTMLInputElement>('.bl-result input[type="checkbox"]')!.click(),
-  );
+  expect(button("Zapisz wynik").disabled).toBe(false);
+  await act(async () => button("Popraw punkt pięty").click());
+  await floorPoint(...groundPoint(7, 215));
+  await act(async () => button("Zatwierdź punkt pięty").click());
+  expect(host.querySelector(".bl-result")?.textContent).toContain("215,0 cm");
   await act(async () => button("Zapisz wynik").click());
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 7);
-  expect(save.mock.calls[0][0].spatial.heel[0]).toBe(0.53);
+  expect(save.mock.calls[0][0].spatial.heelSource).toBe("manual");
 });
 
 it("blocks 505 return marking until a turn contact between events is selected", async () => {

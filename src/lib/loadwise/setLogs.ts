@@ -28,6 +28,8 @@ export function exerciseKey(e: Pick<TrainingExercise, "exerciseId" | "name">): s
 /** Liczba planowanych serii ćwiczenia (0 = brak logowania serii). */
 export function plannedSets(e: TrainingExercise): number {
   if (typeof e.sets === "number" && Number.isFinite(e.sets)) return Math.max(0, Math.round(e.sets));
+  const explicit = String(e.sets ?? "").trim().match(/^(\d+)(?:\s*[–-]\s*\d+)?$/);
+  if (explicit) return Number(explicit[1]);
   const match = String(e.displayPrescription ?? "").match(/(\d+)\s*(?:serie|serii|seria|×)/i);
   return match ? Number(match[1]) : 0;
 }

@@ -10,6 +10,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AccountOwnerType } from "./agePolicy";
 import { clearLocalUserData } from "./localPrivacy";
+import { clearConsentStatusCache } from "./legalStatus";
 
 interface AuthContextValue {
   user: User | null;
@@ -50,10 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       authRevision += 1;
       setSession(sess);
-      setUser(sess?.user ?? null);
+      setUser((current) => {
+        const next = sess?.user ?? null;
+        return current?.id === next?.id && event !== "USER_UPDATED" ? current : next;
+      });
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
-      if (event === "SIGNED_OUT") setRecoveryMode(false);
-      if (event === "INITIAL_SESSION") setLoading(false);
+      if (event === "SIGNED_OUT") {
+        clearConsentStatusCache();
+        setRecoveryMode(false);
+      }
+      // A completed sign-in is enough even when the earlier getSession is slow.
+      setLoading(false);
     });
 
     const revisionAtRequest = authRevision;
@@ -146,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase.auth.signOut();
     } finally {
+      clearConsentStatusCache();
       if (userId) clearLocalUserData(userId);
     }
   }

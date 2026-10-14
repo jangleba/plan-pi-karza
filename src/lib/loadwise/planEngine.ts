@@ -49,6 +49,8 @@ import {
   assertFinalPlanMeetsMinimums,
   finalizeWeekPlan,
   repairSpeedAcrossWeekBoundaries,
+  repairBackToBackSpeedSessions,
+  repairDuplicateSpeedSameDay,
   requirementsFor,
   validateAndRepairWeekPlan,
 } from "./weekFinalization";
@@ -70,6 +72,7 @@ import { buildTrainingContext, validatePlan as validateGlobalPlan } from "./glob
 import type { WeekMeta } from "./types";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 import { PLAN_ENGINE_VERSION } from "./planVersion";
+import { repairGymSpacing } from "./strengthScheduling";
 
 export { PLAN_ENGINE_VERSION } from "./planVersion";
 const MAX_SPRINT_M = 240; // maksymalna objętość sprintów wysokiej intensywności na sesję
@@ -3140,49 +3143,9 @@ function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile):
   }
 }
 
-/** Czy sesja jest treningiem siłowni (siła/moc na siłowni), niezależnie od intensywności. */
-function isGymSession(session: SessionDay): boolean {
-  const cat = session.classification?.category;
-  if (cat === "gym_strength") return true;
-  const t = `${session.sessionType} ${session.title}`.toLowerCase();
-  return /si[łl]a|si[łl]own|strength|\bmoc\b|power|gym/i.test(t);
-}
-
-/**
- * TWARDA reguła: nigdy dwa dni siłowni z rzędu. Jeśli poprzedni dzień był
- * treningiem siłowni, dzisiejszy trening siłowni jest degradowany do lekkiej,
- * niesiłowej alternatywy (mobilność / lekka technika / góra-core). Bez wyjątków
- * dla poziomu — mecz i klub to stałe punkty kalendarza i ich nie ruszamy.
- */
+/** Both slots and calendar dates use the same final scheduling rule. */
 function enforceNoConsecutiveGymDays(out: SessionDay[], profile: Profile): void {
-  for (let i = 1; i < out.length; i++) {
-    const prev = out[i - 1];
-    const cur = out[i];
-    if (!isGymSession(prev) || !isGymSession(cur)) continue;
-    // Zamieniamy tylko własne treningi — meczu/klubu nie modyfikujemy.
-    if (cur.dayType !== "training") continue;
-    const light = buildLightAlternative(profile);
-    cur.title = light.title;
-    cur.sessionType = light.sessionType;
-    cur.goalOfSession = light.goalOfSession;
-    cur.intensity = "umiarkowana";
-    cur.durationMin = light.durationMin;
-    cur.structuredSections = undefined;
-    cur.sections = {
-      warmup: warmup(),
-      main: light.main,
-      accessory: light.accessory,
-      footballTransfer: light.footballTransfer,
-      cooldown: cooldown(),
-    };
-    cur.reason =
-      "Nigdy nie planujemy dwóch dni siłowni z rzędu — dziś lżejsza, niesiłowa praca chroni adaptację i regenerację.";
-    cur.safetyNote =
-      cur.safetyNote ??
-      "Dwie siłownie z rzędu zwiększają ryzyko przeciążenia — zachowujemy odstęp.";
-    cur.loadTags = computeLoadTags(cur);
-    cur.classification = undefined;
-  }
+  repairGymSpacing(out, profile);
 }
 
 /**
@@ -4627,6 +4590,19 @@ export function generatePlan(
     );
   }
 
+  // Check the final prescription in partial weeks too. A repair can reveal
+  // real sprint work in a ball session after the previous speed check.
+  for (const range of weekRanges(startDate, finalPlan.length)) {
+    const week = finalPlan.slice(range.start, range.end);
+    repairDuplicateSpeedSameDay(week, profile);
+    repairBackToBackSpeedSessions(week, profile);
+    week.forEach((day, index) => { finalPlan[range.start + index] = normalizeSessionCategory(day); });
+  }
+  repairSpeedAcrossWeekBoundaries(finalPlan, profile);
+
+  // Canonical rebuilds and weekly repairs must not reintroduce adjacent gym days.
+  repairGymSpacing(finalPlan, profile);
+
   // Ostatnie słowo zawsze należy do bezpieczeństwa zdrowotnego. BallWise nie
   // układa rehabilitacji i nie zgaduje, jaka aktywność jest bezpieczna przy
   // aktywnym bólu ani w trybie powrotu po urazie. Zobowiązania klub/mecz są
@@ -4726,6 +4702,14 @@ export function generatePlan(
       }
     }
   });
+  // Final repairs can create new sessions. Stamp the actual returned slots so
+  // hydration does not mistake the corrected plan for an older generator.
+  for (const day of finalPlan) {
+    for (const session of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
+      session.generatorVersion = PLAN_ENGINE_VERSION;
+      session.loadTags = computeLoadTags(session);
+    }
+  }
   assertPlanExerciseContract(finalPlan);
   return finalPlan;
 }

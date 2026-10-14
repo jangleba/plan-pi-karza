@@ -112,7 +112,7 @@ export function SessionHeader({
 
       {strengthRunner ? (
         <>
-          <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.035em] text-foreground">
+          <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.025em] text-foreground">
             {professionalSessionTitle(session.title)}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">

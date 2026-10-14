@@ -33,13 +33,30 @@ function ResultDetails({ result }: { result: BrowserResult }) {
       {result.spatial ? (
         <>
           <dt>Metoda</dt>
-          <dd>Kalibracja płaszczyzny podłoża. Dokładność sportowa niezweryfikowana.</dd>
+          <dd>
+            {result.spatial.method === "ballwise-marker-pose-v2"
+              ? "Wzorzec AUTO + propozycja sylwetki + kontrola ruchu kamery."
+              : "Ręczna kalibracja płaszczyzny podłoża (wersja archiwalna)."}
+          </dd>
           <dt>Wzorzec</dt>
           <dd>
             {result.spatial.referenceWidthCm} × {result.spatial.referenceDepthCm} cm
           </dd>
-          <dt>Odcinek kontrolny</dt>
-          <dd>{result.spatial.controlLengthCm} cm</dd>
+          {result.spatial.method === "floor-homography-v1" ? (
+            <>
+              <dt>Odcinek kontrolny</dt>
+              <dd>{result.spatial.controlLengthCm} cm</dd>
+            </>
+          ) : (
+            <>
+              <dt>Baza kalibracji</dt>
+              <dd>{result.spatial.baselineCm} cm</dd>
+              <dt>Punkt pięty</dt>
+              <dd>
+                {result.spatial.heelSource === "manual" ? "sprawdzony ręcznie" : "automatyczny"}
+              </dd>
+            </>
+          )}
         </>
       ) : (
         <>

@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { BottomNav } from "@/components/loadwise/BottomNav";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
+import { AppDataError } from "@/components/loadwise/AppDataError";
 import { LegalReconsentGate } from "@/components/loadwise/LegalReconsentGate";
 
 export const Route = createFileRoute("/_tabs")({
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/_tabs")({
 
 function TabsLayout() {
   const { user, loading } = useAuth();
-  const { hydrated, state, refreshPlanIfNeeded } = useLoadwise();
+  const { hydrated, syncing, hydrationError, todayIso, state, refreshPlanIfNeeded } = useLoadwise();
   const navigate = useNavigate();
 
   // Protect: must be signed in.
@@ -25,26 +26,27 @@ function TabsLayout() {
 
   // Redirect to onboarding if profile is incomplete.
   useEffect(() => {
-    if (loading || !user || !hydrated) return;
+    if (loading || !user || !hydrated || hydrationError) return;
     if (!state.profile?.onboardingComplete) {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [loading, user, hydrated, state.profile?.onboardingComplete, navigate]);
+  }, [loading, user, hydrated, state.profile?.onboardingComplete, hydrationError, navigate]);
 
   useEffect(() => {
-    if (hydrated && state.profile?.onboardingComplete) {
+    if (hydrated && !syncing && !hydrationError && state.profile?.onboardingComplete) {
       refreshPlanIfNeeded();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated]);
+  }, [hydrated, syncing, hydrationError, todayIso]);
+
+  if (hydrationError && !state.profile?.onboardingComplete) return <AppDataError />;
 
   if (loading || !user || !hydrated || !state.profile?.onboardingComplete) {
     return <AppLaunchScreen />;
   }
 
   return (
-    <>
-      <LegalReconsentGate />
+    <LegalReconsentGate>
       <div
         className="app-shell relative min-h-screen"
         style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
@@ -52,6 +54,6 @@ function TabsLayout() {
         <Outlet />
         <BottomNav />
       </div>
-    </>
+    </LegalReconsentGate>
   );
 }

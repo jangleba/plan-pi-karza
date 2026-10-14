@@ -1,6 +1,7 @@
 import { addIsoDays } from "@/lib/isoDate";
 import { automationCategory } from "./adaptiveWeek";
 import type { Profile, SessionDay } from "./types";
+import { gymChangeBlockReason } from "./strengthScheduling";
 
 export type RemovedSessionDecision =
   | { action: "already_covered" | "drop"; reason: string }
@@ -29,9 +30,7 @@ function protectedDay(day: SessionDay): boolean {
 }
 
 function slots(plan: SessionDay[]): SessionDay[] {
-  return plan.flatMap(
-    (day) => [day, day.secondSession].filter(Boolean) as SessionDay[],
-  );
+  return plan.flatMap((day) => [day, day.secondSession].filter(Boolean) as SessionDay[]);
 }
 
 function candidateScore(
@@ -45,10 +44,7 @@ function candidateScore(
     Boolean(day && (day.intensity === "wysoka" || protectedDay(day))),
   );
   const cautious = profile.age < 16 || profile.level === "beginner";
-  return (
-    (target.dayType === "rest" ? 5 : 3) -
-    (adjacentHard ? (cautious ? 8 : 3) : 0)
-  );
+  return (target.dayType === "rest" ? 5 : 3) - (adjacentHard ? (cautious ? 8 : 3) : 0);
 }
 
 /**
@@ -73,9 +69,7 @@ export function decideRemovedSession(input: {
   const future = input.effectivePlan.filter(
     (day) => day.date > input.todayIso && day.date <= weekEnd,
   );
-  if (
-    slots(future).some((session) => automationCategory(session) === category)
-  ) {
+  if (slots(future).some((session) => automationCategory(session) === category)) {
     return {
       action: "already_covered",
       reason: "Ten sam bodziec jest już później w tym tygodniu.",
@@ -86,10 +80,14 @@ export function decideRemovedSession(input: {
     .filter(
       (day) =>
         !protectedDay(day) &&
+        (category !== "gym" ||
+          !gymChangeBlockReason(
+            input.effectivePlan,
+            day.date,
+            moveSessionToDay(input.removed, day),
+          )) &&
         day.secondSession == null &&
-        (day.dayType === "rest" ||
-          day.dayType === "recovery" ||
-          day.intensity === "niska"),
+        (day.dayType === "rest" || day.dayType === "recovery" || day.intensity === "niska"),
     )
     .map((day) => ({
       day,
@@ -115,15 +113,11 @@ export function decideRemovedSession(input: {
     action: "ask",
     recommended: ranked[0].day,
     alternative: ranked[1].day,
-    reason:
-      "Dwa terminy są podobnie bezpieczne; potrzebna jest jedna decyzja zawodnika.",
+    reason: "Dwa terminy są podobnie bezpieczne; potrzebna jest jedna decyzja zawodnika.",
   };
 }
 
-export function moveSessionToDay(
-  source: SessionDay,
-  target: SessionDay,
-): SessionDay {
+export function moveSessionToDay(source: SessionDay, target: SessionDay): SessionDay {
   return {
     ...source,
     dbId: undefined,

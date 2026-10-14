@@ -5,6 +5,9 @@ import type { RunningActivity } from "@/lib/running/types";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { adaptMdPlusOneFromMatchMinutes } from "../adaptiveWeek";
 import { clearBootState, loadBootState } from "../bootCache";
+import { primeConsentRows } from "../legalStatus";
+import { hasLocalPlanChanges, mergeHydratedHistory, mergeHydratedState } from "./hydrationMerge";
+import type { LoadwiseState } from "../types";
 import { migratePersistedExerciseData } from "../exerciseLibrary";
 import { localToday } from "../labels";
 import { normalizeMatchDates } from "../matchSchedule";
@@ -41,6 +44,9 @@ interface HydrationOptions {
   recoveryMode: boolean;
   todayIso: string;
   setState: StateSetter;
+  state: LoadwiseState;
+  setSyncing?: (value: boolean) => void;
+  setHydrationError?: (value: string | null) => void;
 }
 export function useHydration({
   user,
@@ -48,13 +54,20 @@ export function useHydration({
   recoveryMode,
   todayIso,
   setState,
+  state,
+  setSyncing,
+  setHydrationError,
 }: HydrationOptions) {
   const [hydrated, setHydrated] = useState(false);
   const activeUserIdRef = useRef<string | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   useClientLayoutEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     if (authLoading) return;
     if (recoveryMode) {
+      setSyncing?.(false);
       setHydrated(false);
       return;
     }
@@ -62,15 +75,24 @@ export function useHydration({
       if (activeUserIdRef.current) clearBootState(activeUserIdRef.current);
       activeUserIdRef.current = null;
       setState(initialState);
+      setSyncing?.(false);
+      setHydrationError?.(null);
       setHydrated(true);
       return;
     }
     activeUserIdRef.current = user.id;
+    setSyncing?.(true);
+    setHydrationError?.(null);
+    primeConsentRows(user.id);
     const cachedState = loadBootState(user.id);
+    const baselineState = cachedState ?? initialState;
+    const canWritePlan = () => !cancelled && !hasLocalPlanChanges(stateRef.current, baselineState);
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     if (cachedState) {
       setState(cachedState);
       setHydrated(true);
     } else {
+      setState(initialState);
       setHydrated(false);
     }
     (async () => {
@@ -89,18 +111,32 @@ export function useHydration({
           runningRes,
           readinessRes,
         ] = await Promise.all([
-          supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-          supabase.from("athlete_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("*")
+            .abortSignal(controller.signal)
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("athlete_profiles")
+            .select("*")
+            .abortSignal(controller.signal)
+            .eq("user_id", user.id)
+            .maybeSingle(),
           supabase
             .from("onboarding_answers")
+
             .select("answers_json")
+            .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .order("completed_at", { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
             .from("training_plans")
+
             .select("*")
+            .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .eq("status", "active")
             .order("created_at", { ascending: false })
@@ -108,38 +144,54 @@ export function useHydration({
             .maybeSingle(),
           supabase
             .from("session_logs")
+
             .select(
               "session_id, completed, completion_status, rpe, notes, duration_minutes, activity_type, started_at, ended_at",
             )
+            .abortSignal(controller.signal)
             .eq("user_id", user.id),
           supabase
             .from("session_modifications")
+
             .select("*")
+            .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .eq("active", true)
             .order("created_at", { ascending: true }),
-          supabase.from("weekly_transitions").select("*").eq("user_id", user.id),
+          supabase
+            .from("weekly_transitions")
+            .select("*")
+            .abortSignal(controller.signal)
+            .eq("user_id", user.id),
           supabase
             .from("exercise_replacements")
+
             .select("*")
+            .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .eq("active", true)
             .order("created_at", { ascending: true }),
           supabase
             .from("running_activities")
+
             .select("*")
+            .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .order("date", { ascending: false }),
           supabase
             .from("readiness_logs")
+
             .select(
               "date, sleep, energy, fatigue, soreness, stress, pain_level, pain_location, pain_onset, alters_movement, red_flags, overall",
             )
+            .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .order("date", { ascending: false })
             .limit(45),
         ]);
 
+        clearTimeout(timeout);
+        if (cancelled) return;
         assertNoSupabaseError("profiles.load", profRes.error);
         assertNoSupabaseError("athlete_profiles.load", athRes.error);
 
@@ -263,17 +315,20 @@ export function useHydration({
               ONBOARDING_SCHEMA_VERSION,
             );
             plan = canonical;
-            await persistMonthlyPlan(user.id, profile, canonical);
+            if (cancelled) return;
+            if (canWritePlan()) await persistMonthlyPlan(user.id, profile, canonical);
             planGeneratedFor = todayIso;
             clearFutureOverlays = true;
           } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
             const { persistMonthlyPlan } = await import("../persist");
             plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
-            await persistMonthlyPlan(user.id, profile, plan);
+            if (cancelled) return;
+            if (canWritePlan()) await persistMonthlyPlan(user.id, profile, plan);
             planGeneratedFor = todayIso;
           } else if (migrationOriginalPlan && migrationChanged) {
             const planId = planRow?.id as string | undefined;
-            if (planId) {
+            if (cancelled) return;
+            if (planId && canWritePlan()) {
               const migrationWrite = await supabase
                 .from("training_plans")
                 .update({ plan_json: plan as unknown as Json })
@@ -350,7 +405,8 @@ export function useHydration({
           .flat()
           .flatMap((replacement) => replacement.equipmentIds);
 
-        if (clearFutureOverlays) {
+        if (cancelled) return;
+        if (clearFutureOverlays && canWritePlan()) {
           await clearFutureOverlaysForUser(user.id, todayIso);
         }
         const matchMinuteAdjustment = adaptMdPlusOneFromMatchMinutes(
@@ -360,7 +416,7 @@ export function useHydration({
         );
         plan = matchMinuteAdjustment.plan;
         if (cancelled) return;
-        setState({
+        const remoteState: LoadwiseState = {
           profile: profile
             ? {
                 ...profile,
@@ -384,31 +440,44 @@ export function useHydration({
             ? "Nie udało się wczytać zapisanych zamienników sprzętu."
             : null,
           planChangeEvents: matchMinuteAdjustment.events,
-        });
+        };
+        setState((current) => mergeHydratedState(current, baselineState, remoteState));
         setHydrated(true);
         void historyPromise.then((history) => {
-          if (!cancelled) setState((current) => ({ ...current, history }));
+          if (!cancelled)
+            setState((current) => ({
+              ...current,
+              history: mergeHydratedHistory(current.history, baselineState.history, history),
+            }));
         });
       } catch (error) {
         console.error("[loadwise] hydration failed; using safe persisted state", error);
         if (!cancelled) {
+          setHydrationError?.("Nie udało się wczytać konta.");
           setState((current) => ({
-            ...(cachedState ?? current),
-            profile: safeProfile,
-            readiness: {},
+            ...current,
+            profile: current.profile === baselineState.profile ? safeProfile : current.profile,
             exerciseReplacements:
-              cachedState?.exerciseReplacements ?? safeLocal.exerciseReplacements,
+              current.exerciseReplacements === baselineState.exerciseReplacements
+                ? (cachedState?.exerciseReplacements ?? safeLocal.exerciseReplacements)
+                : current.exerciseReplacements,
             equipmentNotice:
               "Nie udało się odświeżyć zapisanej części planu. Pokazujemy ostatnie dostępne dane.",
           }));
         }
       } finally {
-        if (!cancelled) setHydrated(true);
+        clearTimeout(timeout);
+        if (!cancelled) {
+          setSyncing?.(false);
+          setHydrated(true);
+        }
       }
     })();
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, [user?.id, authLoading, recoveryMode]);
-  return hydrated;
+  return hydrated && (authLoading || !user || activeUserIdRef.current === user.id);
 }

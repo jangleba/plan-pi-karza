@@ -9,6 +9,7 @@ export const TEST_IDS = [
 export type BrowserTestId = (typeof TEST_IDS)[number];
 export type StoredTestId = BrowserTestId | "flying_10m";
 export const CALIBRATED_LAB_PROTOCOL = "ballwise-browser-lab-1.1";
+export const AUTOMATED_LAB_PROTOCOL = "ballwise-browser-lab-1.2";
 export type TestSide = "left" | "right" | null;
 
 export interface BrowserProtocol {
@@ -110,24 +111,24 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
   {
     id: "standing_long_jump",
     title: "Skok w dal",
-    subtitle: "Odległość po kalibracji podłoża",
+    subtitle: "Automatyczny pomiar z kontrolą jakości",
     category: "jump",
     sides: [null],
     trials: 2,
     restSeconds: 90,
     markers: ["Przed odbiciem", "Lądowanie"],
     instructions: [
-      "Wybierz klatkę przed odbiciem. Zaznacz dwa punkty linii startowej na podłożu, tuż przed palcami stóp.",
-      "Wybierz klatkę stabilnego lądowania. Zaznacz kontakt z podłożem pięty bliższej linii startowej. Bez cofnięcia stóp.",
+      "Automatyka wybiera pozycję przed odbiciem i długą krawędź wzorca ustawioną przy palcach.",
+      "Automatyka wybiera stabilne lądowanie i bliższą piętę. Punkt możesz poprawić jednym dotknięciem.",
     ],
     setup: [
-      "Telefon nieruchomo na statywie, z boku i powyżej podłoża. Pokaż całą strefę skoku, obie pięty oraz wzorzec.",
-      "Połóż płaski prostokątny wzorzec. Zmierz jego dwa zewnętrzne wymiary. Może to być większa mata lub prostokąt z taśmy; nie dowolne dwa stożki.",
-      "Obok strefy skoku oznacz końce osobnego odcinka co najmniej 1 m, zmierzonego taśmą. Posłuży do sprawdzenia skali.",
-      "Odbicie i lądowanie obunóż, zamach ramion dozwolony. Linia odbicia przed palcami. Próba bez podparcia i cofnięcia po lądowaniu.",
+      "Wydrukuj dwa wzorce w skali 100%: niebieski START i pomarańczowy 3 METRY. Sprawdź, czy długa krawędź każdego ma 20,0 cm.",
+      "START połóż za linią odbicia, długą krawędzią równo z palcami. Krzyżyk drugiego arkusza ustaw taśmą dokładnie 3,00 m od tej linii.",
+      "Telefon ustaw nieruchomo z boku. Oba wzorce, całe ciało i lądowanie muszą pozostać widoczne. Nie dotykaj telefonu podczas próby.",
+      "Skocz obunóż i zatrzymaj lądowanie na chwilę, bez cofnięcia stóp ani podparcia ręką za piętą.",
     ],
     confirmation:
-      "Wzorzec i punkty leżą na jednym płaskim podłożu, ich wymiary zmierzono taśmą. Kamera nie poruszyła się. Oznaczono bliższą piętę, bez cofnięcia ani podparcia za nią.",
+      "Odległość od linii START do krzyżyka wynosi 3,00 m, oba wzorce i pięta leżą na jednym płaskim podłożu, kamera jest nieruchoma, a punkt oznacza bliższą piętę.",
     guideAxis: "horizontal",
     sharedGuide: true,
     minimumSeconds: 0.1,

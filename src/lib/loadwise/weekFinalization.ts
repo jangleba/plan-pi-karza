@@ -48,6 +48,8 @@ import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 import { buildRunningSessionPrescription } from "@/lib/running/engine";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
+import { gymSpacingIssues, repairGymSpacing } from "./strengthScheduling";
+
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
 // ---------------------------------------------------------------------------
@@ -96,6 +98,8 @@ export interface WeekValidationReport {
   requiredBallSessions: number;
   noEnduranceOnClubDays: boolean;
   noMoreThanMaxSessionsPerDay: boolean;
+  noDuplicateGymSameDay: boolean;
+  noBackToBackGymDays: boolean;
   noDuplicateSpeedSameDay: boolean;
   noBackToBackSpeedDays: boolean;
   speedSessionsHaveMinimumOneDayGap: boolean;
@@ -1825,6 +1829,9 @@ export function assertFinalPlanMeetsMinimums(
       ),
   );
   const noMoreThanMaxSessionsPerDay = !weekPlan.some((d) => realSessionCount(d) > 2);
+  const gymIssues = gymSpacingIssues(weekPlan);
+  const noDuplicateGymSameDay = !gymIssues.some((issue) => issue.code === "duplicate-gym-same-day");
+  const noBackToBackGymDays = !gymIssues.some((issue) => issue.code === "adjacent-gym-days");
   const noDuplicateSpeedSameDay = !weekPlan.some(
     (d) => eachSession(d).filter((s) => isSpeedSession(s)).length > 1,
   );
@@ -1844,6 +1851,8 @@ export function assertFinalPlanMeetsMinimums(
     unresolvedIssues.push(`Za mało własnej piłki: ${ballSessionsCount}/${requiredBallSessions}.`);
   if (!noEnduranceOnClubDays) unresolvedIssues.push("Zbyt ciężki endurance w dzień klubowy.");
   if (!noMoreThanMaxSessionsPerDay) unresolvedIssues.push("Dzień z 3 sesjami.");
+  if (!noDuplicateGymSameDay) unresolvedIssues.push("Dwie siłownie tego samego dnia.");
+  if (!noBackToBackGymDays) unresolvedIssues.push("Siłownia dzień po dniu (brak dnia przerwy).");
   if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
   if (!noBackToBackSpeedDays) unresolvedIssues.push("Szybkość dzień po dniu (brak min. 1 dnia przerwy).");
 
@@ -1865,6 +1874,8 @@ export function assertFinalPlanMeetsMinimums(
     requiredBallSessions,
     noEnduranceOnClubDays,
     noMoreThanMaxSessionsPerDay,
+    noDuplicateGymSameDay,
+    noBackToBackGymDays,
     noDuplicateSpeedSameDay,
     noBackToBackSpeedDays,
     speedSessionsHaveMinimumOneDayGap,
@@ -1916,6 +1927,8 @@ export function validateAndRepairWeekPlan(
   const requirements = weeklyRequirements ?? requirementsFor(weekPlan, profile);
   const ctx = weekContextFor(weekPlan, profile);
 
+  repairGymSpacing(weekPlan, profile);
+
   // TWARDA ZASADA: nigdy dwie jednostki speed_sprint jednego dnia — naprawa przed assertem.
   repairDuplicateSpeedSameDay(weekPlan, profile);
   // TWARDA ZASADA: nigdy speed dzień po dniu — min. 1 dzień przerwy.
@@ -1945,6 +1958,7 @@ export function validateAndRepairWeekPlan(
   addMissingBallSessions(weekPlan, requirements);
   repairFieldMasGymPairings(weekPlan, profile);
 
+  repairGymSpacing(weekPlan, profile);
   const report = assertFinalPlanMeetsMinimums(weekPlan, requirements, profile);
 
   const inheritedWeekMeta =
@@ -2051,6 +2065,8 @@ export function finalizeWeekPlan(
   // w poniedziałek, tuż po niedzielnym RSA z poprzedniego tygodnia.
   // Granica tygodni musi więc być ostatnim etapem mutującym plan.
   repairSpeedAcrossWeekBoundaries(finalPlan, profile);
+
+  repairGymSpacing(finalPlan, profile);
 
   // Raportuj stan faktycznie zwracany po naprawie granic, bez ponownego
   // dodawania sesji, które odtworzyłoby właśnie usunięty konflikt.

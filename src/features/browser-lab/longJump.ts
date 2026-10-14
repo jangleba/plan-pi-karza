@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const pointSchema = z.tuple([z.number().finite().min(0).max(1), z.number().finite().min(0).max(1)]);
 export type FloorPoint = z.infer<typeof pointSchema>;
-export const longJumpSchema = z.object({
+const legacyLongJumpSchema = z.object({
   method: z.literal("floor-homography-v1"),
   referenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
   referenceWidthCm: z.number().finite().min(10).max(1000),
@@ -19,7 +19,34 @@ export const longJumpSchema = z.object({
   referenceConfirmed: z.literal(true),
   stationaryConfirmed: z.literal(true),
 });
+export const automaticLongJumpSchema = z.object({
+  method: z.literal("ballwise-marker-pose-v2"),
+  referenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
+  rangeCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
+  landingReferenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
+  landingRangeCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
+  referenceWidthCm: z.literal(20),
+  referenceDepthCm: z.literal(24),
+  baselineCm: z.literal(300),
+  imageWidth: z.number().int().min(100).max(4096),
+  imageHeight: z.number().int().min(100).max(4096),
+  lineFrameIndex: z.number().int().min(1),
+  heelFrameIndex: z.number().int().min(2),
+  calibrationFrameIndex: z.number().int().min(1),
+  takeoffLine: z.tuple([pointSchema, pointSchema]),
+  heel: pointSchema,
+  poseConfidence: z.number().finite().min(0).max(1),
+  markerQuality: z.number().finite().min(0).max(1),
+  heelSource: z.enum(["pose", "manual"]),
+});
+export const longJumpSchema = z.discriminatedUnion("method", [
+  legacyLongJumpSchema,
+  automaticLongJumpSchema,
+]);
 export type LongJumpCalibration = z.infer<typeof longJumpSchema>;
+export type AutomaticLongJumpCalibration = z.infer<typeof automaticLongJumpSchema>;
+
+export const MAX_LONG_JUMP_UNCERTAINTY_CM = 5;
 
 const cross = (a: FloorPoint, b: FloorPoint, c: FloorPoint) =>
   (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
@@ -44,13 +71,29 @@ export function floorTransform(
     [width, depth],
     [0, depth],
   ];
-  const matrix = corners.flatMap(([x, y], i) => {
+  return projectiveTransform(corners, destination as FloorPoint[]);
+}
+
+function projectiveTransform(image: readonly FloorPoint[], destination: readonly FloorPoint[]) {
+  if (image.length !== destination.length || image.length < 4)
+    throw new Error("Kalibracja podłoża ma za mało punktów.");
+  const rows = image.flatMap(([x, y], i) => {
     const [u, v] = destination[i];
     return [
       [x, y, 1, 0, 0, 0, -u * x, -u * y, u],
       [0, 0, 0, x, y, 1, -v * x, -v * y, v],
     ];
   });
+  // Four points solve the 8 unknowns directly. Additional calibration points
+  // are fitted by least squares so the 3 m marker controls extrapolation.
+  const matrix = Array.from({ length: 8 }, (_, row) =>
+    Array.from({ length: 9 }, (_, col) =>
+      rows.reduce(
+        (sum, equation) => sum + equation[row] * (col === 8 ? equation[8] : equation[col]),
+        0,
+      ),
+    ),
+  );
   for (let col = 0; col < 8; col++) {
     let pivot = col;
     for (let row = col + 1; row < 8; row++)
@@ -68,7 +111,7 @@ export function floorTransform(
   }
   const h = matrix.map((row) => row[8]);
   const denominator = ([x, y]: FloorPoint) => h[6] * x + h[7] * y + 1;
-  const sign = Math.sign(denominator(corners[0]));
+  const sign = Math.sign(denominator(image[0]));
   return (point: FloorPoint): FloorPoint => {
     const [x, y] = point;
     const d = denominator(point);
@@ -81,10 +124,34 @@ export function floorTransform(
   };
 }
 
+function automaticFloorTransform(data: AutomaticLongJumpCalibration) {
+  const topLine = distance(data.takeoffLine[0], data.referenceCorners[0]) < 1e-6;
+  const startWorld: FloorPoint[] = topLine
+    ? [
+        [0, 0],
+        [20, 0],
+        [20, -24],
+        [0, -24],
+      ]
+    : [
+        [0, -24],
+        [20, -24],
+        [20, 0],
+        [0, 0],
+      ];
+  const endCentre = data.rangeCorners.reduce<FloorPoint>(
+    (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
+    [0, 0],
+  );
+  return projectiveTransform(
+    [...data.referenceCorners, endCentre],
+    [...startWorld, [10, data.baselineCm]],
+  );
+}
+
 export function longJumpMeasurement(input: unknown) {
   const parsed = longJumpSchema.safeParse(input);
-  if (!parsed.success)
-    throw new Error("Uzupełnij wzorzec, odcinek kontrolny, linię odbicia i punkt pięty.");
+  if (!parsed.success) throw new Error("Brakuje danych potrzebnych do pomiaru skoku w dal.");
   const data = parsed.data;
   for (let i = 0; i < 4; i++) {
     const a = data.referenceCorners[i],
@@ -103,13 +170,57 @@ export function longJumpMeasurement(input: unknown) {
     ) / 2;
   if (area < 0.003)
     throw new Error("Wzorzec zajmuje za mało kadru. Powiększ go i nagraj ponownie.");
-  const map = floorTransform(data.referenceCorners, data.referenceWidthCm, data.referenceDepthCm);
-  const measuredControlCm = distance(map(data.controlPoints[0]), map(data.controlPoints[1]));
-  const controlErrorCm = Math.abs(measuredControlCm - data.controlLengthCm);
-  if (controlErrorCm > 2 + 1e-8)
-    throw new Error(
-      `Kontrola skali różni się o ${controlErrorCm.toFixed(1)} cm. Popraw narożniki, wymiary i punkty kontrolne (dopuszczalne 2 cm).`,
+  const map =
+    data.method === "ballwise-marker-pose-v2"
+      ? automaticFloorTransform(data)
+      : floorTransform(data.referenceCorners, data.referenceWidthCm, data.referenceDepthCm);
+  let measuredControlCm: number | undefined;
+  let controlErrorCm: number | undefined;
+  let cameraShiftPx: number | undefined;
+  if (data.method === "floor-homography-v1") {
+    measuredControlCm = distance(map(data.controlPoints[0]), map(data.controlPoints[1]));
+    controlErrorCm = Math.abs(measuredControlCm - data.controlLengthCm);
+    if (controlErrorCm > 2 + 1e-8)
+      throw new Error(
+        `Kontrola skali różni się o ${controlErrorCm.toFixed(1)} cm. Popraw narożniki, wymiary i punkty kontrolne (dopuszczalne 2 cm).`,
+      );
+  } else {
+    if (data.poseConfidence < 0.58)
+      throw new Error("Automatyczne wykrycie sylwetki jest zbyt niepewne. Nagraj próbę ponownie.");
+    if (data.markerQuality < 0.72)
+      throw new Error("Wzorzec BallWise jest niewyraźny. Popraw światło i nagraj ponownie.");
+    const startShift = data.referenceCorners.map(
+      (point, index) => [point, data.landingReferenceCorners[index]] as const,
     );
+    const rangeShift = data.rangeCorners.map(
+      (point, index) => [point, data.landingRangeCorners[index]] as const,
+    );
+    cameraShiftPx =
+      [...startShift, ...rangeShift].reduce((sum, [point, other]) => {
+        return (
+          sum +
+          Math.hypot(
+            (point[0] - other[0]) * data.imageWidth,
+            (point[1] - other[1]) * data.imageHeight,
+          )
+        );
+      }, 0) / 8;
+    if (cameraShiftPx > 5)
+      throw new Error("Telefon poruszył się podczas próby. Ustaw go stabilnie i nagraj ponownie.");
+    const longEdges: [FloorPoint, FloorPoint][] = [
+      [data.referenceCorners[0], data.referenceCorners[1]],
+      [data.referenceCorners[2], data.referenceCorners[3]],
+    ];
+    const samePoint = (a: FloorPoint, b: FloorPoint) => distance(a, b) < 1e-6;
+    if (
+      !longEdges.some(
+        ([a, b]) =>
+          (samePoint(a, data.takeoffLine[0]) && samePoint(b, data.takeoffLine[1])) ||
+          (samePoint(a, data.takeoffLine[1]) && samePoint(b, data.takeoffLine[0])),
+      )
+    )
+      throw new Error("Niebieska krawędź wzorca nie wyznacza linii odbicia.");
+  }
   const [a, b] = data.takeoffLine.map(map);
   const heel = map(data.heel);
   const lineLength = distance(a, b);
@@ -118,15 +229,88 @@ export function longJumpMeasurement(input: unknown) {
   const primaryValue = Math.abs(cross(a, b, heel)) / lineLength;
   if (primaryValue < 10 || primaryValue > 500)
     throw new Error("Odległość jest nietypowa. Sprawdź linię, piętę i wymiary wzorca.");
-  return { primaryValue, primaryUnit: "cm" as const, measuredControlCm, controlErrorCm };
+  const uncertaintyCm =
+    data.method === "ballwise-marker-pose-v2" ? spatialUncertainty(data) : undefined;
+  if (uncertaintyCm !== undefined && uncertaintyCm > MAX_LONG_JUMP_UNCERTAINTY_CM)
+    throw new Error(
+      `Kadr nie pozwala na dokładny wynik (niepewność około ±${uncertaintyCm.toFixed(1)} cm). Ustaw telefon bliżej i wzorzec bardziej centralnie.`,
+    );
+  return {
+    primaryValue,
+    primaryUnit: "cm" as const,
+    ...(measuredControlCm === undefined ? {} : { measuredControlCm }),
+    ...(controlErrorCm === undefined ? {} : { controlErrorCm }),
+    ...(cameraShiftPx === undefined ? {} : { cameraShiftPx }),
+    ...(uncertaintyCm === undefined ? {} : { uncertaintyCm }),
+  };
+}
+
+function spatialUncertainty(data: AutomaticLongJumpCalibration) {
+  const lineIndices =
+    distance(data.takeoffLine[0], data.referenceCorners[0]) < 1e-6
+      ? ([0, 1] as const)
+      : ([2, 3] as const);
+  const value = (
+    corners: AutomaticLongJumpCalibration["referenceCorners"],
+    rangeCorners: AutomaticLongJumpCalibration["rangeCorners"],
+    heel: FloorPoint,
+  ) => {
+    const adjusted = { ...data, referenceCorners: corners, rangeCorners };
+    const transform = automaticFloorTransform(adjusted);
+    const a = transform(corners[lineIndices[0]]);
+    const b = transform(corners[lineIndices[1]]);
+    const h = transform(heel);
+    return Math.abs(cross(a, b, h)) / distance(a, b);
+  };
+  const sensitivities: number[] = [];
+  const cornerPx = 1.5;
+  for (let point = 0; point < 4; point++)
+    for (let axis = 0; axis < 2; axis++) {
+      const delta = cornerPx / (axis === 0 ? data.imageWidth : data.imageHeight);
+      const values = [-delta, delta].map((change) => {
+        const corners = data.referenceCorners.map(
+          (corner) => [...corner] as FloorPoint,
+        ) as AutomaticLongJumpCalibration["referenceCorners"];
+        corners[point][axis] = Math.max(0, Math.min(1, corners[point][axis] + change));
+        return value(corners, data.rangeCorners, data.heel);
+      });
+      sensitivities.push(Math.abs(values[1] - values[0]) / 2);
+    }
+  for (let point = 0; point < 4; point++)
+    for (let axis = 0; axis < 2; axis++) {
+      const delta = cornerPx / (axis === 0 ? data.imageWidth : data.imageHeight);
+      const values = [-delta, delta].map((change) => {
+        const corners = data.rangeCorners.map((corner) => [
+          ...corner,
+        ]) as AutomaticLongJumpCalibration["rangeCorners"];
+        corners[point][axis] = Math.max(0, Math.min(1, corners[point][axis] + change));
+        return value(data.referenceCorners, corners, data.heel);
+      });
+      sensitivities.push(Math.abs(values[1] - values[0]) / 2);
+    }
+  const heelPx = data.heelSource === "manual" ? 1.5 : 4;
+  for (let axis = 0; axis < 2; axis++) {
+    const delta = heelPx / (axis === 0 ? data.imageWidth : data.imageHeight);
+    const values = [-delta, delta].map((change) => {
+      const heel = [...data.heel] as FloorPoint;
+      heel[axis] = Math.max(0, Math.min(1, heel[axis] + change));
+      return value(data.referenceCorners, data.rangeCorners, heel);
+    });
+    sensitivities.push(Math.abs(values[1] - values[0]) / 2);
+  }
+  // Includes 5 mm placement tolerance for the centre of the 3 m marker.
+  const placement = 0.5;
+  return Math.sqrt(sensitivities.reduce((sum, n) => sum + n * n, 0) + placement * placement);
 }
 
 /** Conservative proposal for a black rectangular frame on a white target.
  * No body/heel detection or metric calibration is inferred from arbitrary cones.
  * The user must review its four corners and enter measured external dimensions. */
-export function findReferenceRectangle(
+type RectangleCorners = AutomaticLongJumpCalibration["referenceCorners"];
+
+function referenceRectangles(
   image: Pick<ImageData, "data" | "width" | "height">,
-): LongJumpCalibration["referenceCorners"] | null {
+): { score: number; points: RectangleCorners }[] {
   const { data, width, height } = image;
   const step = Math.max(1, Math.ceil(Math.max(width, height) / 640));
   const w = Math.floor(width / step),
@@ -138,7 +322,7 @@ export function findReferenceRectangle(
       const offset = (y * step * width + x * step) * 4;
       grey[y * w + x] = data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114;
     }
-  let best: { score: number; points: LongJumpCalibration["referenceCorners"] } | null = null;
+  const candidates: { score: number; points: RectangleCorners }[] = [];
   const queue = new Int32Array(w * h);
   for (let seed = 0; seed < grey.length; seed++) {
     if (seen[seed] || grey[seed] > 85) continue;
@@ -187,7 +371,7 @@ export function findReferenceRectangle(
       maxY > h - 3 ||
       maxX - minX < 24 / step ||
       maxY - minY < 24 / step ||
-      boxArea < w * h * 0.003 ||
+      boxArea < w * h * 0.0006 ||
       boxArea > w * h * 0.35 ||
       count / boxArea < 0.08 ||
       count / boxArea > 0.8
@@ -195,7 +379,7 @@ export function findReferenceRectangle(
       continue;
     const points = extremes.map(
       ([x, y]) => [(x * step) / width, (y * step) / height] as FloorPoint,
-    ) as LongJumpCalibration["referenceCorners"];
+    ) as RectangleCorners;
     try {
       floorTransform(points, 20, 14);
     } catch {
@@ -208,14 +392,125 @@ export function findReferenceRectangle(
       [0.12, 0],
       [0, -0.12],
       [0, 0.12],
-    ].every(([dx, dy]) => {
+    ].every(([dx, dy], index) => {
       const x = Math.round(centre[0] + dx * (maxX - minX)),
         y = Math.round(centre[1] + dy * (maxY - minY));
-      return grey[y * w + x] >= 175;
+      return grey[y * w + x] >= (index === 0 ? 120 : 175);
     });
     if (!white) continue;
     const score = boxArea;
-    if (!best || score > best.score) best = { score, points };
+    candidates.push({ score, points });
   }
-  return best?.points ?? null;
+  return candidates.sort((a, b) => b.score - a.score);
+}
+
+export function findReferenceRectangle(
+  image: Pick<ImageData, "data" | "width" | "height">,
+): RectangleCorners | null {
+  return referenceRectangles(image)[0]?.points ?? null;
+}
+
+export interface BallWiseMarkerDetection {
+  corners: AutomaticLongJumpCalibration["referenceCorners"];
+  quality: number;
+}
+
+export interface BallWiseCalibrationMarkers {
+  start: BallWiseMarkerDetection;
+  range: BallWiseMarkerDetection;
+}
+
+/** Detects the BallWise target, not an arbitrary dark rectangle. Four blue
+ * fiducials inside the black frame are required before metric automation is allowed. */
+export function findBallWiseMarker(
+  image: Pick<ImageData, "data" | "width" | "height">,
+): BallWiseMarkerDetection | null {
+  const { data, width, height } = image;
+  const qualityFor = (corners: RectangleCorners, colour: "blue" | "orange") => {
+    const sample = (u: number, v: number) => {
+      const [a, b, c, d] = corners;
+      const x = (1 - u) * (1 - v) * a[0] + u * (1 - v) * b[0] + u * v * c[0] + (1 - u) * v * d[0];
+      const y = (1 - u) * (1 - v) * a[1] + u * (1 - v) * b[1] + u * v * c[1] + (1 - u) * v * d[1];
+      const markerSpan = Math.min(
+        Math.hypot((a[0] - b[0]) * width, (a[1] - b[1]) * height),
+        Math.hypot((b[0] - c[0]) * width, (b[1] - c[1]) * height),
+      );
+      const radius = Math.max(2, Math.round(markerSpan * 0.075));
+      let matched = 0,
+        total = 0;
+      const cx = Math.round(x * width),
+        cy = Math.round(y * height);
+      for (let py = Math.max(0, cy - radius); py <= Math.min(height - 1, cy + radius); py++)
+        for (let px = Math.max(0, cx - radius); px <= Math.min(width - 1, cx + radius); px++) {
+          const offset = (py * width + px) * 4;
+          const red = data[offset],
+            green = data[offset + 1],
+            value = data[offset + 2];
+          const blue = value > 100 && value - red > 45 && value > green * 1.08;
+          const orange = red > 135 && green > 55 && red - value > 65 && red > green * 1.12;
+          if (colour === "blue" ? blue : orange) matched++;
+          total++;
+        }
+      return matched / Math.max(1, total);
+    };
+    const scores = [sample(0.18, 0.2), sample(0.82, 0.2), sample(0.82, 0.8), sample(0.18, 0.8)];
+    const quality =
+      scores.reduce((sum, score) => sum + Math.min(1, score / 0.35), 0) / scores.length;
+    return scores.every((score) => score >= 0.12) ? quality : 0;
+  };
+  const detected = referenceRectangles(image)
+    .map(({ points }) => ({ corners: points, quality: qualityFor(points, "blue") }))
+    .filter(({ quality }) => quality > 0)
+    .sort((a, b) => b.quality - a.quality);
+  return detected[0] ?? null;
+}
+
+/** START uses blue fiducials and the marker centred exactly 3 m away uses
+ * orange fiducials. Both must be present, which prevents a random rectangle
+ * in the scene from becoming a distance scale. */
+export function findBallWiseCalibrationMarkers(
+  image: Pick<ImageData, "data" | "width" | "height">,
+): BallWiseCalibrationMarkers | null {
+  const { data, width, height } = image;
+  const candidates = referenceRectangles(image);
+  const score = (corners: RectangleCorners, colour: "blue" | "orange") => {
+    const [a, b, c, d] = corners;
+    const markerSpan = Math.min(
+      Math.hypot((a[0] - b[0]) * width, (a[1] - b[1]) * height),
+      Math.hypot((b[0] - c[0]) * width, (b[1] - c[1]) * height),
+    );
+    const radius = Math.max(2, Math.round(markerSpan * 0.075));
+    const sample = (u: number, v: number) => {
+      const x = (1 - u) * (1 - v) * a[0] + u * (1 - v) * b[0] + u * v * c[0] + (1 - u) * v * d[0];
+      const y = (1 - u) * (1 - v) * a[1] + u * (1 - v) * b[1] + u * v * c[1] + (1 - u) * v * d[1];
+      const cx = Math.round(x * width),
+        cy = Math.round(y * height);
+      let matched = 0,
+        total = 0;
+      for (let py = Math.max(0, cy - radius); py <= Math.min(height - 1, cy + radius); py++)
+        for (let px = Math.max(0, cx - radius); px <= Math.min(width - 1, cx + radius); px++) {
+          const offset = (py * width + px) * 4;
+          const red = data[offset],
+            green = data[offset + 1],
+            blueValue = data[offset + 2];
+          const blue = blueValue > 100 && blueValue - red > 45 && blueValue > green * 1.08;
+          const orange = red > 135 && green > 55 && red - blueValue > 65 && red > green * 1.12;
+          if (colour === "blue" ? blue : orange) matched++;
+          total++;
+        }
+      return matched / Math.max(1, total);
+    };
+    const values = [sample(0.18, 0.2), sample(0.82, 0.2), sample(0.82, 0.8), sample(0.18, 0.8)];
+    return values.every((value) => value >= 0.12)
+      ? values.reduce((sum, value) => sum + Math.min(1, value / 0.35), 0) / values.length
+      : 0;
+  };
+  const pick = (colour: "blue" | "orange") =>
+    candidates
+      .map(({ points }) => ({ corners: points, quality: score(points, colour) }))
+      .filter(({ quality }) => quality > 0)
+      .sort((a, b) => b.quality - a.quality)[0];
+  const start = pick("blue"),
+    range = pick("orange");
+  return start && range ? { start, range } : null;
 }

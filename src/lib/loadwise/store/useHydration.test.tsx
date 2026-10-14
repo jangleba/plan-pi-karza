@@ -21,6 +21,7 @@ vi.mock("@/integrations/supabase/client", () => ({
       let userId = "";
       const chain = {
         select: () => chain,
+        abortSignal: () => chain,
         order: () => chain,
         limit: () => chain,
         maybeSingle: () => chain,
@@ -41,6 +42,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
   },
 }));
+vi.mock("../legalStatus", () => ({ primeConsentRows: vi.fn() }));
 vi.mock("../bootCache", () => ({
   loadBootState: (userId: string) => mocks.cached.get(userId) ?? null,
   clearBootState: mocks.clearBootState,
@@ -78,15 +80,18 @@ let root: Root;
 let host: HTMLDivElement;
 let snapshot: { state: LoadwiseState; hydrated: boolean };
 let mounted: boolean;
+let changeState: (update: (current: LoadwiseState) => LoadwiseState) => void;
 const onRender = vi.fn();
 function Harness({ user, recoveryMode = false }: { user: StoreUser; recoveryMode?: boolean }) {
   const [state, setState] = useState(initialState);
+  changeState = setState;
   const hydrated = useHydration({
     user,
     authLoading: false,
     recoveryMode,
     todayIso: "2026-09-29",
     setState,
+    state,
   });
   snapshot = { state, hydrated };
   onRender(snapshot);
@@ -158,6 +163,53 @@ describe("store hydration", () => {
     await act(async () => first.resolve(remoteRows("Athlete A")));
     expect(snapshot.state.profile?.name).toBe("Athlete B");
     expect(snapshot.hydrated).toBe(true);
+  });
+
+  it("does not show the previous account while the next account has no cache", async () => {
+    const first = deferred<RemoteRows>();
+    const second = deferred<RemoteRows>();
+    mocks.requests.set("a", first.promise);
+    mocks.requests.set("b", second.promise);
+    mocks.cached.set("a", cachedState("Athlete A"));
+    await render({ id: "a" });
+    expect(snapshot.state.profile?.name).toBe("Athlete A");
+    await render({ id: "b" });
+    expect(snapshot.state.profile).toBeNull();
+    expect(snapshot.hydrated).toBe(false);
+  });
+
+  it("preserves a new workout completion during slow background hydration", async () => {
+    const remote = deferred<RemoteRows>();
+    mocks.requests.set("a", remote.promise);
+    mocks.cached.set("a", cachedState("Athlete A"));
+    await render({ id: "a" });
+    await act(async () =>
+      changeState((current) => ({
+        ...current,
+        completions: { ...current.completions, new: { completed: true, rpe: 7, notes: "new" } },
+      })),
+    );
+    await act(async () => remote.resolve(remoteRows("Updated athlete")));
+    expect(snapshot.state.completions.new).toEqual({ completed: true, rpe: 7, notes: "new" });
+    expect(snapshot.state.profile?.name).toBe("Updated athlete");
+  });
+
+  it("preserves a profile and plan edit if background refresh fails", async () => {
+    const remote = deferred<RemoteRows>();
+    mocks.requests.set("a", remote.promise);
+    mocks.cached.set("a", cachedState("Athlete A"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await render({ id: "a" });
+    await act(async () =>
+      changeState((current) => ({
+        ...current,
+        profile: { ...current.profile!, name: "New name" },
+        modifications: { today: [] },
+      })),
+    );
+    await act(async () => remote.reject(new Error("Offline")));
+    expect(snapshot.state.profile?.name).toBe("New name");
+    expect(snapshot.state.modifications).toEqual({ today: [] });
   });
 
   it("cannot restore old history after logout", async () => {

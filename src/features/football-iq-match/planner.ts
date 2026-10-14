@@ -33,6 +33,16 @@ export const modeHints: Record<ActionMode, string> = {
   cover: "Zawodnik → miejsce asekuracji.",
   mark: "Zawodnik → kryty rywal.",
 };
+export function plannedActionMode(action: PlannedAction | undefined): ActionMode {
+  if (!action) return "pass";
+  return action.type === "pass"
+    ? action.delivery === "through"
+      ? "through"
+      : action.delivery === "cross"
+        ? "cross"
+        : "pass"
+    : action.type;
+}
 export function plannedState(s: Scenario, actions: PlannedAction[]) {
   if (s.simulation) return simulate(s, actions).final;
   return {

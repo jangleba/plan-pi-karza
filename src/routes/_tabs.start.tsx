@@ -384,6 +384,7 @@ function StartScreen() {
     todaySession,
     todayIso,
     hydrated,
+    syncing,
     planGenerating,
     refreshPlanIfNeeded,
     applyModification,
@@ -398,8 +399,10 @@ function StartScreen() {
   const [pendingPrimaryAction, setPendingPrimaryAction] = useState<DailyPlanCheckinAction | null>(
     null,
   );
-  const [checkin, setCheckin] = useState<DailyPlanCheckin | null>(null);
-  const [checkinLoaded, setCheckinLoaded] = useState(false);
+  const [checkin, setCheckin] = useState<DailyPlanCheckin | null>(() =>
+    user ? readDailyPlanCheckin(user.id, todayIso) : null,
+  );
+  const [checkinLoaded, setCheckinLoaded] = useState(Boolean(user));
   const [savingAction, setSavingAction] = useState(false);
   const [pendingRescue, setPendingRescue] = useState<{
     removed: SessionDay;
@@ -409,7 +412,7 @@ function StartScreen() {
   const autoGenerateRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
-  const planMissing = hydrated && Boolean(profile?.onboardingComplete) && !todaySession;
+  const planMissing = hydrated && !syncing && Boolean(profile?.onboardingComplete) && !todaySession;
 
   useEffect(() => {
     if (!user) {
@@ -426,7 +429,7 @@ function StartScreen() {
     autoGenerateRef.current = true;
     setAutoGenerateTried(true);
     refreshPlanIfNeeded();
-  }, [planMissing, planGenerating, refreshPlanIfNeeded]);
+  }, [planMissing, planGenerating, autoGenerateTried, refreshPlanIfNeeded]);
 
   useEffect(() => {
     if (todaySession) {
@@ -758,7 +761,7 @@ function StartScreen() {
   }
 
   const firstName = profile.name.trim().split(/\s+/)[0] || "Zawodniku";
-  const checkinComplete = decisionMode !== "checkin_required";
+  const checkinComplete = decisionMode === "confirmed";
 
   return (
     <>
@@ -800,7 +803,7 @@ function StartScreen() {
               <p className="mt-2 max-w-[18rem] text-sm leading-relaxed text-muted-foreground">
                 {checkinComplete
                   ? copy.title
-                  : "30 sekund, żeby potwierdzić lub dopasować dzisiejszy plan."}
+                  : "Możesz otworzyć trening od razu. Check-in służy do zmiany planu."}
               </p>
               <Button
                 type="button"

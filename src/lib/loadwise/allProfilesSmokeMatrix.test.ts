@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { generatePlan } from "./planEngine";
 import type { Goal, Level, Position, Profile } from "./types";
 
@@ -48,29 +48,29 @@ function profile(position: Position, level: Level, goal: Goal, index: number): P
 }
 
 describe("LoadWise — wszystkie pozycje, poziomy i cele", () => {
-  it("generuje poprawną strukturę tygodnia startowego i piątego", () => {
-    console.debug = () => undefined;
-    let index = 0;
-    for (const position of positions) {
-      for (const level of levels) {
-        for (const goal of goals) {
-          const athlete = profile(position, level, goal, index++);
-          for (const weekOffset of [0, 4]) {
-            const plan = generatePlan(
-              athlete,
-              new Date("2026-09-14T00:00:00"),
-              7,
-              weekOffset,
-            );
-            expect(plan).toHaveLength(7);
-            expect(new Set(plan.map((day) => day.date)).size).toBe(7);
-            expect(plan.every((day) => day.title.trim().length > 0)).toBe(true);
-            expect(plan.every((day) => day.sessionType.trim().length > 0)).toBe(true);
-            expect(plan.every((day) => Number.isFinite(day.durationMin))).toBe(true);
-            expect(plan.every((day) => day.durationMin >= 0)).toBe(true);
-          }
-        }
+  beforeAll(() => vi.spyOn(console, "debug").mockImplementation(() => undefined));
+  afterAll(() => vi.restoreAllMocks());
+  const combinations = positions
+    .flatMap((position) =>
+      levels.flatMap((level) => goals.map((goal) => ({ position, level, goal }))),
+    )
+    .map((item, index) => ({ ...item, index }));
+
+  // Keep all 144 profiles and both weeks; a slow combined matrix must not
+  // hide which profile failed or exhaust one test's shared timeout.
+  it.each(combinations)(
+    "$position / $level / $goal: tydzień startowy i piąty",
+    ({ position, level, goal, index }) => {
+      const athlete = profile(position, level, goal, index);
+      for (const weekOffset of [0, 4]) {
+        const plan = generatePlan(athlete, new Date("2026-09-14T00:00:00"), 7, weekOffset);
+        expect(plan).toHaveLength(7);
+        expect(new Set(plan.map((day) => day.date)).size).toBe(7);
+        expect(plan.every((day) => day.title.trim().length > 0)).toBe(true);
+        expect(plan.every((day) => day.sessionType.trim().length > 0)).toBe(true);
+        expect(plan.every((day) => Number.isFinite(day.durationMin))).toBe(true);
+        expect(plan.every((day) => day.durationMin >= 0)).toBe(true);
       }
-    }
-  }, 30_000);
+    },
+  );
 });

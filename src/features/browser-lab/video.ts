@@ -6,13 +6,16 @@ import {
   type Sample,
   type Box,
 } from "mp4box";
-import {
-  buildJumpTimeline,
-  validateEdits,
-  type JumpTimeline,
-} from "./measurement";
+import { buildJumpTimeline, validateEdits, type JumpTimeline } from "./measurement";
 
 export const MAX_VIDEO_BYTES = 128 * 1024 * 1024;
+
+/** MP4 tkhd stores the vertical image axis in matrix[3]. Using matrix[1]
+ * reverses portrait iPhone recordings (90° becomes 270°). */
+export function displayRotation(matrix?: ArrayLike<number>) {
+  if (!matrix) return 0;
+  return (Math.round((Math.atan2(matrix[3] || 0, matrix[0] || 0) * 2) / Math.PI) * 90 + 360) % 360;
+}
 
 export interface JumpVideo {
   timeline: JumpTimeline;
@@ -28,9 +31,7 @@ export interface JumpVideo {
 
 export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
   if (buffer.byteLength === 0 || buffer.byteLength > MAX_VIDEO_BYTES)
-    throw new Error(
-      "Wybierz oryginalny film do 128 MB i 20 sekund, z jedną próbą.",
-    );
+    throw new Error("Wybierz oryginalny film do 128 MB i 20 sekund, z jedną próbą.");
   const mp4 = createFile(true);
   let parseError: string | null = null;
   mp4.onError = (_module, message) => {
@@ -47,9 +48,7 @@ export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
     );
   }
   if (parseError || !mp4.moov)
-    throw new Error(
-      "Nie można odczytać filmu. Wybierz oryginalny plik MP4 lub MOV.",
-    );
+    throw new Error("Nie można odczytać filmu. Wybierz oryginalny plik MP4 lub MOV.");
   const info = mp4.getInfo();
   if (info.videoTracks.length !== 1)
     throw new Error(
@@ -58,9 +57,7 @@ export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
   const track = info.videoTracks[0];
   validateEdits(track.edits);
   if (!track.video || track.video.width <= 0 || track.video.height <= 0)
-    throw new Error(
-      "Nie można odczytać rozdzielczości filmu. Wybierz oryginalny MP4 lub MOV.",
-    );
+    throw new Error("Nie można odczytać rozdzielczości filmu. Wybierz oryginalny MP4 lub MOV.");
   if (
     Math.max(track.video.width, track.video.height) > 4096 ||
     track.video.width * track.video.height > 4096 * 2160
@@ -74,16 +71,13 @@ export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
     !metadata[0].is_sync ||
     metadata.some((s) => s.description_index !== metadata[0].description_index)
   )
-    throw new Error(
-      "Film nie ma stałego formatu klatek. Wybierz oryginalny plik z kamery.",
-    );
+    throw new Error("Film nie ma stałego formatu klatek. Wybierz oryginalny plik z kamery.");
   const entry = metadata[0].description as Sample["description"] & {
     avcC?: Box;
     hvcC?: Box;
   };
   const descriptionBox = entry.avcC ?? entry.hvcC;
-  if (!descriptionBox)
-    throw new Error("Brakuje danych potrzebnych do odczytania klatek filmu.");
+  if (!descriptionBox) throw new Error("Brakuje danych potrzebnych do odczytania klatek filmu.");
   const stream = new DataStream(undefined, 0, Endianness.BIG_ENDIAN);
   descriptionBox.write(stream);
   const config: VideoDecoderConfig = {
@@ -98,9 +92,7 @@ export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
   const samples = metadata.map((sample, index) => {
     const full = mp4.getTrackSample(track.id, index);
     if (!full?.data || full.data.byteLength !== sample.size)
-      throw new Error(
-        "Film jest niekompletny. Pobierz oryginał z telefonu i spróbuj ponownie.",
-      );
+      throw new Error("Film jest niekompletny. Pobierz oryginał z telefonu i spróbuj ponownie.");
     return {
       data: full.data,
       isSync: sample.is_sync,
@@ -108,13 +100,7 @@ export function parseJumpVideo(buffer: ArrayBuffer): JumpVideo {
       durationUs: Math.round((sample.duration * 1_000_000) / sample.timescale),
     };
   });
-  const matrix = track.matrix;
-  const rotation = matrix
-    ? (Math.round((Math.atan2(matrix[1] | 0, matrix[0] | 0) * 2) / Math.PI) *
-        90 +
-        360) %
-      360
-    : 0;
+  const rotation = displayRotation(track.matrix);
   return { timeline, config, samples, rotation };
 }
 
@@ -139,9 +125,7 @@ function readOriginal(file: File, signal: AbortSignal): Promise<ArrayBuffer> {
     reader.onerror = () => {
       clean();
       reject(
-        new Error(
-          "Nie udało się pobrać filmu. Zapisz oryginał w Plikach i wybierz go ponownie.",
-        ),
+        new Error("Nie udało się pobrać filmu. Zapisz oryginał w Plikach i wybierz go ponownie."),
       );
     };
     reader.onabort = clean;
@@ -150,10 +134,7 @@ function readOriginal(file: File, signal: AbortSignal): Promise<ArrayBuffer> {
   });
 }
 
-export async function openJumpVideo(
-  file: File,
-  signal: AbortSignal,
-): Promise<OpenedVideo> {
+export async function openJumpVideo(file: File, signal: AbortSignal): Promise<OpenedVideo> {
   signal.throwIfAborted();
   if (
     !globalThis.isSecureContext ||
@@ -164,9 +145,7 @@ export async function openJumpVideo(
       "Ta przeglądarka nie obsługuje dokładnego odczytu klatek. Otwórz BallWise w aktualnym Safari na iPhonie albo w Chrome na komputerze, przez HTTPS.",
     );
   if (file.size > MAX_VIDEO_BYTES)
-    throw new Error(
-      "Film przekracza 128 MB. Nagraj krótszy klip (5–10 s) lub wybierz HD 60 FPS.",
-    );
+    throw new Error("Film przekracza 128 MB. Nagraj krótszy klip (5–10 s) lub wybierz HD 60 FPS.");
   const buffer = await readOriginal(file, signal);
   signal.throwIfAborted();
   const video = parseJumpVideo(buffer);
@@ -182,9 +161,7 @@ export async function openJumpVideo(
     ...video,
     sourceName: file.name || "nagranie",
     sourceBytes: file.size,
-    sourceHash: [...new Uint8Array(digest)]
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join(""),
+    sourceHash: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join(""),
   };
 }
 
@@ -205,8 +182,7 @@ export async function decodeJumpFrame(
   let decoderError: Error | null = null;
   const decoder = new VideoDecoder({
     output: (decoded) => {
-      if (!signal.aborted && decoded.timestamp === target.timestampUs && !frame)
-        frame = decoded;
+      if (!signal.aborted && decoded.timestamp === target.timestampUs && !frame) frame = decoded;
       else decoded.close();
     },
     error: (error) => {
@@ -226,26 +202,20 @@ export async function decodeJumpFrame(
     close();
     rejectStopped(reason);
   };
-  const cancel = () =>
-    stop(signal.reason ?? new DOMException("Anulowano", "AbortError"));
+  const cancel = () => stop(signal.reason ?? new DOMException("Anulowano", "AbortError"));
   const decoderClosed = () => decoder.state === "closed";
   signal.addEventListener("abort", cancel, { once: true });
   // Bound a stalled platform decoder as well as user cancellation.
   const timeout = setTimeout(
     () =>
-      stop(
-        new Error(
-          "Odczyt klatki trwa za długo. Spróbuj ponownie albo wybierz krótszy film.",
-        ),
-      ),
+      stop(new Error("Odczyt klatki trwa za długo. Spróbuj ponownie albo wybierz krótszy film.")),
     15_000,
   );
   try {
     decoder.configure(video.config);
     for (let i = start; i < end && !frame; i++) {
       signal.throwIfAborted();
-      if (decoderError || decoderClosed())
-        throw new Error("Nie udało się odczytać klatki filmu.");
+      if (decoderError || decoderClosed()) throw new Error("Nie udało się odczytać klatki filmu.");
       const sample = video.samples[i];
       decoder.decode(
         new EncodedVideoChunk({
@@ -257,10 +227,7 @@ export async function decodeJumpFrame(
       );
       // Bound queued compressed frames and yield to UI input during long GOPs.
       const maxQueue =
-        (video.config.codedWidth ?? 0) * (video.config.codedHeight ?? 0) >
-        1920 * 1080
-          ? 2
-          : 8;
+        (video.config.codedWidth ?? 0) * (video.config.codedHeight ?? 0) > 1920 * 1080 ? 2 : 8;
       while (decoder.decodeQueueSize > maxQueue && !frame) {
         await new Promise<void>((resolve) => setTimeout(resolve, 2));
         signal.throwIfAborted();

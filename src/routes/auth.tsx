@@ -14,22 +14,16 @@ import {
 } from "@/lib/loadwise/agePolicy";
 import { authErrorMessage } from "@/lib/authMessages";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
+import { AppDataError } from "@/components/loadwise/AppDataError";
 
 export const Route = createFileRoute("/auth")({
   component: AuthScreen,
 });
 
 function AuthScreen() {
-  const {
-    user,
-    loading,
-    recoveryMode,
-    signIn,
-    signUp,
-    requestPasswordReset,
-    updatePassword,
-  } = useAuth();
-  const { hydrated, state } = useLoadwise();
+  const { user, loading, recoveryMode, signIn, signUp, requestPasswordReset, updatePassword } =
+    useAuth();
+  const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<"login" | "register" | "forgot" | "recovery">("register");
@@ -47,13 +41,23 @@ function AuthScreen() {
 
   // Redirect signed-in users onward.
   useEffect(() => {
-    if (loading || !user || !hydrated || recoveryMode || mode === "recovery") return;
+    if (loading || !user || !hydrated || hydrationError || recoveryMode || mode === "recovery")
+      return;
     if (state.profile?.onboardingComplete) {
       navigate({ to: "/start", replace: true });
     } else {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [loading, user, hydrated, state.profile?.onboardingComplete, recoveryMode, mode, navigate]);
+  }, [
+    loading,
+    user,
+    hydrated,
+    state.profile?.onboardingComplete,
+    recoveryMode,
+    mode,
+    hydrationError,
+    navigate,
+  ]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,7 +87,10 @@ function AuthScreen() {
           return;
         }
         toast.success("Hasło zostało zmienione.");
-        navigate({ to: state.profile?.onboardingComplete ? "/start" : "/onboarding", replace: true });
+        navigate({
+          to: state.profile?.onboardingComplete ? "/start" : "/onboarding",
+          replace: true,
+        });
       } else if (mode === "register") {
         if (password.length < 12) {
           toast.error("Hasło musi mieć co najmniej 12 znaków.");
@@ -134,7 +141,10 @@ function AuthScreen() {
     }
   }
 
-  if (loading || (user && !hydrated)) {
+  if (hydrationError && user && !recoveryMode && !state.profile?.onboardingComplete)
+    return <AppDataError />;
+
+  if (loading || (user && !hydrated && !recoveryMode)) {
     return <AppLaunchScreen />;
   }
 
@@ -142,9 +152,7 @@ function AuthScreen() {
     <div className="app-shell auth-premium flex min-h-screen flex-col justify-center px-6 py-10">
       <div className="mx-auto w-full max-w-sm">
         <div className="text-center">
-          <div className="text-[25px] font-medium tracking-[-0.04em] text-foreground">
-            BallWise
-          </div>
+          <div className="text-[25px] font-medium tracking-[-0.04em] text-foreground">BallWise</div>
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "register"
               ? "Twój tydzień. Jedna właściwa decyzja."
@@ -206,7 +214,8 @@ function AuthScreen() {
                   onChange={(event) => setAthleteBirthDate(event.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Służy do sprawdzenia progów 13, 16 i 18 lat. Osoba poniżej 13 lat może korzystać tylko z demo bez konta.
+                  Służy do sprawdzenia progów 13, 16 i 18 lat. Osoba poniżej 13 lat może korzystać
+                  tylko z demo bez konta.
                 </p>
               </div>
               <div className="space-y-2">
@@ -223,33 +232,37 @@ function AuthScreen() {
               </div>
             </>
           )}
-          {mode !== "recovery" && <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ty@example.com"
-              autoComplete="email"
-            />
-          </div>}
-          {mode !== "forgot" && <div className="space-y-2">
-            <Label htmlFor="password">{mode === "recovery" ? "Nowe hasło" : "Hasło"}</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={mode === "login" ? 1 : 12}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "login" ? "Twoje hasło" : "min. 12 znaków"}
-              autoComplete={
-                mode === "register" || mode === "recovery" ? "new-password" : "current-password"
-              }
-            />
-          </div>}
+          {mode !== "recovery" && (
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ty@example.com"
+                autoComplete="email"
+              />
+            </div>
+          )}
+          {mode !== "forgot" && (
+            <div className="space-y-2">
+              <Label htmlFor="password">{mode === "recovery" ? "Nowe hasło" : "Hasło"}</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                minLength={mode === "login" ? 1 : 12}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={mode === "login" ? "Twoje hasło" : "min. 12 znaków"}
+                autoComplete={
+                  mode === "register" || mode === "recovery" ? "new-password" : "current-password"
+                }
+              />
+            </div>
+          )}
 
           {mode === "recovery" && (
             <div className="space-y-2">
@@ -289,15 +302,17 @@ function AuthScreen() {
           </button>
         )}
 
-        {mode !== "recovery" && <button
-          type="button"
-          onClick={() => setMode(mode === "register" ? "login" : "register")}
-          className="mt-5 w-full text-center text-sm text-muted-foreground"
-        >
-          {mode === "register"
-            ? "Masz już konto? Zaloguj się"
-            : "Nie masz konta? Zarejestruj się"}
-        </button>}
+        {mode !== "recovery" && (
+          <button
+            type="button"
+            onClick={() => setMode(mode === "register" ? "login" : "register")}
+            className="mt-5 w-full text-center text-sm text-muted-foreground"
+          >
+            {mode === "register"
+              ? "Masz już konto? Zaloguj się"
+              : "Nie masz konta? Zarejestruj się"}
+          </button>
+        )}
 
         <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
           Regulamin i zgody zatwierdzisz osobno podczas konfiguracji profilu. Zobacz{" "}

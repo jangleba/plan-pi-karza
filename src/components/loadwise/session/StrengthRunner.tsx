@@ -3,11 +3,11 @@ import { Check, ChevronRight, Clock } from "lucide-react";
 import type { TrainingSection, TrainingExercise } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { specialistEquipmentForExercise } from "@/lib/loadwise/exerciseLibrary";
-import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 import {
   equipmentNamesFor,
   canonicalExerciseName,
-  exerciseDataLineParts,
+  compactPrescription,
+  formatRestValue,
   resolveDefinitionForExercise,
   buildStrengthStages,
   normalizeStrengthBlockRest,
@@ -26,6 +26,8 @@ import {
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { CompletionUndo, NextExercisePreview, SessionPreparation } from "./SessionQuickTools";
 import { SprintRestTimer } from "./SprintRestTimer";
+import "./strength-session.css";
+import { exerciseDisplayName } from "./exerciseDisplayNames";
 
 export const StrengthStructuredSections = memo(function StrengthStructuredSections({
   sections,
@@ -89,22 +91,10 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
 
   const activeStage = stages.find((stage) => stage.key === activeStageKey) ?? stages[0];
   const stageIndex = stages.findIndex((stage) => stage.key === activeStage.key);
-  const exerciseCount = activeStage.blocks.reduce((sum, block) => sum + block.exercises.length, 0);
-  const pluralBlocks =
-    activeStage.blocks.length === 1
-      ? "1 blok"
-      : activeStage.blocks.length >= 2 && activeStage.blocks.length <= 4
-        ? `${activeStage.blocks.length} bloki`
-        : `${activeStage.blocks.length} bloków`;
-  const pluralExercises =
-    exerciseCount === 1
-      ? "1 ćwiczenie"
-      : exerciseCount >= 2 && exerciseCount <= 4
-        ? `${exerciseCount} ćwiczenia`
-        : `${exerciseCount} ćwiczeń`;
+  const completedCount = allExercises.filter((exercise) => done[exercise.id]).length;
 
   return (
-    <div className="space-y-4">
+    <div className="bw-strength space-y-3">
       <SessionPreparation
         equipment={equipmentNamesFor(
           Array.from(
@@ -116,9 +106,21 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
           ),
         )}
       />
-      <div className="text-xs text-muted-foreground" role="status">
-        {allExercises.filter((e) => done[e.id]).length}/{allExercises.length} ćwiczeń oznaczonych ·{" "}
-        {local.available ? "postęp zachowany na urządzeniu" : "zapis na urządzeniu niedostępny"}
+      <div className="bw-strength-progress">
+        <div className="flex items-center justify-between gap-3 text-xs" role="status">
+          <span className="font-semibold text-foreground">
+            {completedCount}/{allExercises.length} ukończone
+          </span>
+          <span className="text-muted-foreground">
+            {local.available ? "Postęp zapisany" : "Zapis niedostępny"}
+          </span>
+        </div>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: `${(completedCount / Math.max(1, allExercises.length)) * 100}%` }}
+          />
+        </div>
       </div>
       <CompletionUndo
         label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
@@ -133,7 +135,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
         }}
       />
       <div
-        className="grid gap-1 rounded-2xl bg-muted/55 p-1"
+        className="grid gap-1 rounded-xl bg-muted/55 p-1"
         style={{
           gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))`,
         }}
@@ -146,8 +148,8 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
               key={stage.key}
               type="button"
               onClick={() => setActiveStageKey(stage.key)}
-              className={`relative min-h-11 rounded-xl px-1.5 py-2 text-[11px] font-semibold leading-tight transition-colors ${
-                active ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+              className={`relative min-h-11 rounded-lg px-1.5 py-2 text-[12px] font-semibold leading-tight transition-colors ${
+                active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               }`}
               aria-pressed={active}
             >
@@ -161,11 +163,11 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
       </div>
 
       <div>
-        <h2 className="text-[22px] font-semibold tracking-[-0.03em] text-foreground">
+        <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-foreground">
           {activeStage.label}
         </h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          {pluralBlocks} · {pluralExercises}
+          Etap {stageIndex + 1} z {stages.length}
         </p>
       </div>
 
@@ -182,23 +184,24 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
           return (
             <section
               key={block.id}
-              className="overflow-hidden rounded-2xl border border-border/70 bg-card"
+              className="bw-strength-block overflow-hidden rounded-2xl border border-border/60 bg-card"
             >
-              <header className="border-b border-border/55 px-4 py-3">
-                <h3 className="text-[15px] font-bold tracking-[-0.01em] text-foreground">
-                  {title.heading}
+              <header className="flex items-center gap-2.5 border-b border-border/55 px-3.5 py-2.5">
+                <span className="bw-strength-block-code">{blockCode}</span>
+                <h3 className="text-[13px] font-semibold leading-snug text-foreground">
+                  {title.detail || title.heading}
                 </h3>
-                {title.detail && (
-                  <p className="mt-0.5 text-[12px] normal-case text-muted-foreground">
-                    {title.detail}
-                  </p>
-                )}
               </header>
 
-              <div className="divide-y divide-border/55 px-4">
+              <div className="divide-y divide-border/55 px-3.5">
                 {block.exercises.map((exercise, exerciseIndex) => {
-                  const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
-                  const { dose, meta } = exerciseDataLineParts(exercise);
+                  const dose = compactPrescription(exercise)
+                    .replace(/\s*@?\s*RPE\s*\d+(?:[.,]\d+)?(?:[–-]\d+(?:[.,]\d+)?)?/gi, "")
+                    .trim();
+                  const display = exerciseDisplayName(canonicalExerciseName(exercise));
+                  const restValue = formatRestValue(
+                    exercise.restAfterPair ?? exercise.restAfterExercise,
+                  ).replace(/\s+po parze$/i, "");
                   const equipmentIds = specialistEquipmentForExercise(
                     resolveDefinitionForExercise(exercise),
                   );
@@ -207,19 +210,17 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                   const label = exercise.label || String(exerciseIndex + 1);
 
                   return (
-                    <div key={exercise.id} className="py-3">
-                      <div className="flex items-center gap-3">
+                    <div key={exercise.id} className="bw-strength-row py-2.5">
+                      <div className="flex items-center gap-2.5">
                         <button
                           type="button"
                           onClick={() => markDone(exercise.id, !completed)}
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold transition-colors ${
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
                             completed
                               ? "bg-primary text-primary-foreground"
-                              : "bg-accent text-accent-foreground"
+                              : "border border-border/80 bg-background text-muted-foreground"
                           }`}
-                          aria-label={
-                            completed ? "Oznacz jako niewykonane" : "Oznacz jako wykonane"
-                          }
+                          aria-label={`${completed ? "Oznacz jako niewykonane" : "Oznacz jako wykonane"}: ${canonicalExerciseName(exercise)}`}
                           aria-pressed={completed}
                         >
                           {completed ? <Check className="h-4 w-4" /> : label}
@@ -228,7 +229,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                         <button
                           type="button"
                           onClick={() => setRunnerExercise(exercise)}
-                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
                         >
                           <span className="min-w-0 flex-1">
                             <span
@@ -236,47 +237,41 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                                 completed ? "text-muted-foreground line-through" : "text-foreground"
                               }`}
                             >
-                              {canonicalExerciseName(exercise)}
+                              {display.title}
                             </span>
-                            {(dose || meta) && (
-                              <span className="mt-1 block text-[12px] leading-[1.3] text-muted-foreground">
-                                {dose && (
-                                  <span className="mr-1.5 font-semibold tabular-nums text-foreground">
-                                    {dose}
-                                  </span>
-                                )}
-                                {meta}
+                            {display.variant && (
+                              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                                {display.variant}
+                              </span>
+                            )}
+                            {dose && (
+                              <span className="mt-1 block text-[13px] font-semibold tabular-nums text-foreground">
+                                {dose}
+                              </span>
+                            )}
+                            {restValue && (
+                              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                                Przerwa{exercise.restAfterPair ? " po parze" : ""}: {restValue}
                               </span>
                             )}
                           </span>
 
-                          {techniqueImage ? (
-                            <span className="flex h-14 w-[84px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/55">
-                              <img
-                                src={techniqueImage.src}
-                                alt={techniqueImage.alt}
-                                loading="lazy"
-                                decoding="async"
-                                width={168}
-                                height={112}
-                                className="h-full w-full object-contain"
-                              />
-                            </span>
-                          ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/65" />
-                          )}
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/55" />
                         </button>
                       </div>
 
-                      {!completed && <ExerciseQuickGuide exercise={exercise} className="ml-12" />}
-                      {!completed && equipmentIds.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => markEquipmentUnavailable(date, exercise, equipmentIds)}
-                          className="ml-12 mt-1.5 text-[11px] font-medium text-primary"
-                        >
-                          Nie mam {equipmentNames.join(", ")}
-                        </button>
+                      {!completed && (
+                        <ExerciseQuickGuide exercise={exercise} compact className="ml-[54px]">
+                          {equipmentIds.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => markEquipmentUnavailable(date, exercise, equipmentIds)}
+                              className="min-h-11 pb-2 text-[12px] font-medium text-primary"
+                            >
+                              Brak sprzętu: {equipmentNames.join(", ")}
+                            </button>
+                          )}
+                        </ExerciseQuickGuide>
                       )}
                     </div>
                   );
@@ -284,23 +279,31 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
               </div>
 
               {rest && (
-                <div className="border-t border-border/55 px-4 py-2.5">
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <details className="bw-strength-rest border-t border-border/55 px-3.5">
+                  <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-[12px] text-muted-foreground">
                     <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <span>Przerwa po bloku: {rest}</span>
+                    <span>
+                      Przerwa po bloku:{" "}
+                      <strong className="font-semibold text-foreground">{rest}</strong>
+                    </span>
+                  </summary>
+                  <div className="pb-3">
+                    <SprintRestTimer label={rest} compact />
                   </div>
-                  <SprintRestTimer label={rest} compact />
-                </div>
+                </details>
               )}
 
               {firstIncomplete && (
-                <div className="px-4 pb-4 pt-2">
+                <div className="px-3.5 pb-3 pt-1">
                   <button
                     type="button"
                     onClick={() => setRunnerExercise(firstIncomplete)}
-                    className="w-full rounded-xl bg-primary px-4 py-3 text-[14px] font-semibold text-primary-foreground transition-opacity active:opacity-85"
+                    className="w-full min-h-11 rounded-xl bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-opacity active:opacity-85"
                   >
-                    Rozpocznij blok {blockCode}
+                    {block.exercises.some((exercise) => done[exercise.id])
+                      ? "Kontynuuj"
+                      : "Rozpocznij"}{" "}
+                    blok {blockCode}
                   </button>
                 </div>
               )}
@@ -323,6 +326,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
       {runnerExercise && (
         <ExerciseRunnerScreen
           exercise={runnerExercise}
+          showVisuals={false}
           sessionId={sessionId}
           date={date}
           open

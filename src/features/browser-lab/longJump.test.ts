@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  findBallWiseCalibrationMarkers,
   findReferenceRectangle,
   longJumpMeasurement,
+  type AutomaticLongJumpCalibration,
   type FloorPoint,
   type LongJumpCalibration,
 } from "./longJump";
@@ -38,6 +40,41 @@ export const calibratedFloor = (): LongJumpCalibration => ({
   referenceConfirmed: true,
   stationaryConfirmed: true,
 });
+const automaticPoint = (x: number, y: number): FloorPoint => [0.1 + 0.004 * x, 0.1 + 0.0025 * y];
+export const automaticFloor = (): AutomaticLongJumpCalibration => {
+  const referenceCorners = [
+    automaticPoint(0, -24),
+    automaticPoint(20, -24),
+    automaticPoint(20, 0),
+    automaticPoint(0, 0),
+  ] as AutomaticLongJumpCalibration["referenceCorners"];
+  const rangeCorners = [
+    automaticPoint(0, 288),
+    automaticPoint(20, 288),
+    automaticPoint(20, 312),
+    automaticPoint(0, 312),
+  ] as AutomaticLongJumpCalibration["rangeCorners"];
+  return {
+    method: "ballwise-marker-pose-v2",
+    referenceCorners,
+    rangeCorners,
+    landingReferenceCorners: referenceCorners,
+    landingRangeCorners: rangeCorners,
+    referenceWidthCm: 20,
+    referenceDepthCm: 24,
+    baselineCm: 300,
+    imageWidth: 1920,
+    imageHeight: 1080,
+    calibrationFrameIndex: 60,
+    lineFrameIndex: 60,
+    heelFrameIndex: 190,
+    takeoffLine: [referenceCorners[2], referenceCorners[3]],
+    heel: automaticPoint(7, 214),
+    poseConfidence: 0.92,
+    markerQuality: 0.95,
+    heelSource: "pose",
+  };
+};
 const timeline = buildJumpTimeline(
   Array.from({ length: 1000 }, (_, cts) => ({ cts, timescale: 240, duration: 1 })),
 );
@@ -102,6 +139,59 @@ describe("calibrated floor measurement", () => {
     ]);
     rect(true);
     expect(findReferenceRectangle({ data, width, height })).toBeNull();
+  });
+  it("uses two automatic ground markers spanning the landing area and reports bounded uncertainty", () => {
+    const measured = longJumpMeasurement(automaticFloor());
+    expect(measured.primaryValue).toBeCloseTo(214, 7);
+    expect(measured.uncertaintyCm).toBeLessThan(3);
+    expect(measured.cameraShiftPx).toBe(0);
+    expect(() =>
+      longJumpMeasurement({
+        ...automaticFloor(),
+        landingRangeCorners: automaticFloor().landingRangeCorners.map(([x, y]) => [x + 0.01, y]),
+      }),
+    ).toThrow("poruszył");
+  });
+  it("recognizes blue START and orange 3 m targets and rejects ordinary rectangles", () => {
+    const width = 640,
+      height = 360,
+      data = new Uint8ClampedArray(width * height * 4).fill(255);
+    const pixel = (x: number, y: number, colour: [number, number, number]) => {
+      const offset = (y * width + x) * 4;
+      data[offset] = colour[0];
+      data[offset + 1] = colour[1];
+      data[offset + 2] = colour[2];
+      data[offset + 3] = 255;
+    };
+    const marker = (left: number, top: number, colour: [number, number, number]) => {
+      const markerWidth = 120,
+        markerHeight = 150;
+      for (let y = top; y <= top + markerHeight; y++)
+        for (let x = left; x <= left + markerWidth; x++) {
+          const border =
+            x < left + 8 || x > left + markerWidth - 8 || y < top + 8 || y > top + markerHeight - 8;
+          pixel(x, y, border ? [0, 0, 0] : [255, 255, 255]);
+        }
+      for (const [u, v] of [
+        [0.18, 0.2],
+        [0.82, 0.2],
+        [0.82, 0.8],
+        [0.18, 0.8],
+      ]) {
+        const cx = Math.round(left + markerWidth * u),
+          cy = Math.round(top + markerHeight * v);
+        for (let y = cy - 8; y <= cy + 8; y++)
+          for (let x = cx - 8; x <= cx + 8; x++) pixel(x, y, colour);
+      }
+    };
+    marker(50, 80, [22, 136, 255]);
+    marker(430, 80, [249, 115, 22]);
+    const found = findBallWiseCalibrationMarkers({ data, width, height });
+    expect(found?.start.quality).toBeGreaterThan(0.7);
+    expect(found?.range.quality).toBeGreaterThan(0.7);
+    marker(50, 80, [255, 255, 255]);
+    marker(430, 80, [255, 255, 255]);
+    expect(findBallWiseCalibrationMarkers({ data, width, height })).toBeNull();
   });
 });
 

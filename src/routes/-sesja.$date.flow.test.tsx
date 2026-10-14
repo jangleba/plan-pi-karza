@@ -133,21 +133,16 @@ afterEach(async () => {
 });
 
 describe("session route gates", () => {
-  it("waits for authentication and requires today's daily check-in before showing a runner", async () => {
+  it("waits for authentication and opens today's runner without forcing a check-in", async () => {
     mocks.auth.loading = true;
     mocks.checkin.mockReturnValue(null);
     await render();
     expect(host.textContent).toBe("Uruchamianie");
     mocks.auth.loading = false;
     await render();
-    expect(host.textContent).toContain("Najpierw check-in");
-    expect(host.querySelector("[data-runner]")).toBeNull();
-    await act(async () =>
-      [...host.querySelectorAll("button")]
-        .find((item) => item.textContent === "Przejdź do check-inu")!
-        .click(),
-    );
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: "/start" });
+    expect(host.textContent).not.toContain("Najpierw check-in");
+    expect(host.querySelector("h1")?.textContent).toBe(mocks.state.plan[0].title);
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
   it("uses the selected sprint slot and resets completion visibility when the slot changes", async () => {
