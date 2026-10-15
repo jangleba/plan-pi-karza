@@ -8,6 +8,10 @@
     {
       "stage": 2,
       "sha256": "43b9992c676519c8799bbb15b227a325c7eeb43ec12c4a6068e637990bcdf765"
+    },
+    {
+      "stage": 3,
+      "sha256": "5d5bd309c5e3ccdd0d067c3b03cc83b760f71ccdd21adf75505dda69b55a2282"
     }
   ],
   "files": {
@@ -59,6 +63,7 @@
     "src/components/loadwise/session/StrengthInline.test.tsx": "d9741f7e7cbb8589875f8eb40ae2763aa315cfec835b93e8f797759a262837c8",
     "src/components/loadwise/session/StrengthRunner.tsx": "fa6df9646ea7f7fe6b54d8f476980542fb31a64107c953be29394868e3330cd2",
     "src/components/loadwise/session/strength-session.css": "e6fe0634193489a2d59e1aff90384b1da4583ddf6ef4f673fd88e9b83d7435f3",
-    "src/routes/sesja.$date.tsx": "9eb41f5571c4895024b070b5fdbfe24d4b41e23f3a9c615c7d23dad55e0258b9"
+    "src/routes/sesja.$date.tsx": "9eb41f5571c4895024b070b5fdbfe24d4b41e23f3a9c615c7d23dad55e0258b9",
+    "src/styles/fuel-v4.css": "a7a754aa19040fcc10db824b98671302dca5c923ddad6ab8766d96ee3d3f5d0c"
   }
 }

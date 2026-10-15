@@ -1,10 +1,10 @@
 .fuel-v4,
 .fuel-v4-panel {
-  --fuel-green: #176348;
-  --fuel-soft: #edf5f0;
-  --fuel-text: #142019;
-  --fuel-muted: #66736c;
-  --fuel-border: #e5eae6;
+  --fuel-accent: var(--primary);
+  --fuel-soft: var(--secondary);
+  --fuel-text: var(--foreground);
+  --fuel-muted: var(--muted-foreground);
+  --fuel-border: var(--border);
 }
 .fuel-v4 {
   max-width: 540px;
@@ -32,7 +32,7 @@
   max-width: 290px;
 }
 .fuel-v4 .fuel-icon-button {
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
   border-color: var(--fuel-border);
 }
 .fuel-v4-main {
@@ -53,7 +53,7 @@
   align-items: center;
 }
 .fuel-v4-time-value > svg {
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
 }
 .fuel-v4-time-value span {
   display: block;
@@ -69,7 +69,7 @@
 }
 .fuel-v4 .fuel-text-button,
 .fuel-v4-panel .fuel-text-button {
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
   font-size: 12px;
 }
 .fuel-v4-presets {
@@ -90,14 +90,14 @@
     transform 0.18s;
 }
 .fuel-v4-presets button[aria-pressed="true"] {
-  background: var(--fuel-green);
+  background: var(--fuel-accent);
   color: #fff;
 }
 .fuel-v4-clock-link {
   display: block;
   min-height: 32px;
   margin: 6px auto -6px;
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
   font-size: 12px;
 }
 .fuel-v4-section-title {
@@ -127,7 +127,7 @@
   flex: 0 0 auto;
 }
 .fuel-v4-heart[aria-pressed="true"] {
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
   background: var(--fuel-soft);
 }
 .fuel-v4-meta {
@@ -165,7 +165,7 @@
 .fuel-v4-food-dot {
   width: 7px;
   height: 7px;
-  background: var(--fuel-green);
+  background: var(--fuel-accent);
   border-radius: 50%;
   opacity: 0.4;
   flex: 0 0 auto;
@@ -185,17 +185,17 @@
 .fuel-v4 .fuel-primary,
 .fuel-v4-panel .fuel-primary,
 .fuel-sheet .fuel-primary {
-  background: var(--fuel-green, #176348);
+  background: var(--fuel-accent, var(--primary));
   color: #fff;
-  border: 1px solid var(--fuel-green, #176348);
+  border: 1px solid var(--fuel-accent, var(--primary));
   border-radius: 14px;
   min-height: 46px;
 }
 .fuel-v4 .fuel-secondary,
 .fuel-v4-panel .fuel-secondary,
 .fuel-sheet .fuel-secondary {
-  color: var(--fuel-green, #176348);
-  border: 1px solid color-mix(in srgb, var(--fuel-green, #176348) 50%, var(--border));
+  color: var(--fuel-accent, var(--primary));
+  border: 1px solid color-mix(in srgb, var(--fuel-accent, var(--primary)) 50%, var(--border));
   border-radius: 14px;
   min-height: 46px;
 }
@@ -260,7 +260,7 @@
   box-shadow: 0 1px 4px #0002;
 }
 .fuel-v4-switch.is-on {
-  background: var(--fuel-green);
+  background: var(--fuel-accent);
 }
 .fuel-v4-switch.is-on span {
   transform: translateX(19px);
@@ -371,7 +371,7 @@
 .fuel-v4-pack-list input {
   width: 20px;
   height: 20px;
-  accent-color: var(--fuel-green);
+  accent-color: var(--fuel-accent);
   flex: 0 0 auto;
 }
 .fuel-v4-food-preferences {
@@ -381,9 +381,9 @@
   margin-top: 12px;
 }
 .fuel-v4-food-preferences button[aria-pressed="true"] {
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
   background: var(--fuel-soft);
-  border-color: var(--fuel-green);
+  border-color: var(--fuel-accent);
 }
 .fuel-v4-list-item {
   display: flex;
@@ -398,7 +398,7 @@
   padding: 7px 10px;
   border-radius: 10px;
   background: var(--fuel-soft);
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
 }
 .fuel-v4-addition {
   margin-top: 15px;
@@ -454,7 +454,7 @@
 .fuel-v4-expired button {
   padding: 8px;
   background: var(--fuel-soft);
-  color: var(--fuel-green);
+  color: var(--fuel-accent);
   border-radius: 12px;
   font-size: 12px;
 }
@@ -478,7 +478,7 @@
 }
 .fuel-v4 button:focus-visible,
 .fuel-v4-panel button:focus-visible {
-  outline: 2px solid var(--fuel-green);
+  outline: 2px solid var(--fuel-accent);
   outline-offset: 3px;
 }
 @keyframes fuel-choice-in {
@@ -517,7 +517,7 @@
 }
 .dark .fuel-v4,
 .dark .fuel-v4-panel {
-  --fuel-green: #60bc92;
+  --fuel-accent: #60bc92;
   --fuel-soft: #173429;
   --fuel-text: #e3f0e8;
   --fuel-muted: #a7b9ad;
