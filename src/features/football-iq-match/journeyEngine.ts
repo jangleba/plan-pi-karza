@@ -1,6 +1,15 @@
-import { BALL_RADIUS, PASS_WINDUP_SECONDS, PASS_RECOVERY_SECONDS } from "./animation";
+import {
+  BALL_RADIUS,
+  BALL_REST_HEIGHT,
+  PASS_BALL_FORWARD,
+  PASS_BALL_LATERAL,
+  PASS_WINDUP_SECONDS,
+  PASS_RECOVERY_SECONDS,
+} from "./animation";
 import type { PlaybackFrame, PlayerMotion } from "./animation";
 import type { MatchPlayer, Point, EvaluationLevel, Scenario } from "./types";
+import { flightHeight, flightProfile, deliveryLabels } from "./ballFlight";
+import type { BallDelivery } from "./ballFlight";
 import type {
   IQRole,
   JourneyBeat,
@@ -68,6 +77,23 @@ export function createJourney(definition: JourneyDefinition): JourneySession {
     homePositions.wide = point(78, 102);
     homePositions.forward = point(48, 88);
   }
+  if (definition.revision === 2) {
+    const dir = you.x <= 50 ? 1 : -1;
+    if (definition.pattern === "wide-cross") {
+      Object.assign(you, point(dir === 1 ? 20 : 80, 48));
+      homePositions.support = point(50, 49);
+      homePositions.wide = point(dir === 1 ? 68 : 32, 25);
+      homePositions.forward = point(dir === 1 ? 43 : 57, 19);
+    } else if (definition.pattern === "wide-return") {
+      homePositions.support = point(you.x + dir * 18, you.y + 10);
+      homePositions.wide = point(you.x + dir * 37, you.y - 10);
+      homePositions.forward = point(you.x + dir * 20, you.y - 28);
+    } else {
+      homePositions.support = point(you.x - dir * 22, you.y + 12);
+      homePositions.wide = point(you.x + dir * 36, you.y - 15);
+      homePositions.forward = point(you.x + dir * 6, you.y - 28);
+    }
+  }
   const open = definition.context === 1 ? "wide" : "support";
   const homeNumbers = [4, 2, 6, 8, 10, 7, 9].filter((n) => n !== numbers[definition.role]);
   const players: MatchPlayer[] = Object.entries(homePositions).map(([id, p], i) => ({
@@ -107,6 +133,20 @@ export function createJourney(definition: JourneyDefinition): JourneySession {
       r2: point(homePositions.forward.x + side * 1.5, homePositions.forward.y + 2),
       r3: point(you.x + side * 24, you.y - 32),
     };
+  }
+  if (definition.revision === 2 && !defending) {
+    const dir = you.x <= 50 ? 1 : -1;
+    const target = homePositions.wide;
+    opponents.r0 =
+      definition.context === 0
+        ? point(you.x + dir * 5, you.y - 4)
+        : point((you.x + target.x) / 2, (you.y + target.y) / 2);
+    opponents.r1 =
+      definition.context === 1
+        ? point(target.x + dir * 2, target.y + 1)
+        : point(homePositions.forward.x - dir * 8, homePositions.forward.y + 4);
+    opponents.r2 = point(homePositions.forward.x + dir * 12, homePositions.forward.y - 5);
+    opponents.r3 = point(you.x - dir * 20, you.y - 32);
   }
   Object.entries(opponents).forEach(([id, p], i) =>
     players.push({ ...p, id, team: "away", number: [9, 6, 4, 3][i], role: "Rywal" }),
@@ -188,6 +228,44 @@ export function journeyOffside(session: JourneySession, receiver: Point, ball: P
       .sort((a, b) => a - b)[1] ?? 0;
   return receiver.y < 70 && receiver.y < ball.y - 0.4 && receiver.y < line - 0.4;
 }
+function receivePoint(session: JourneySession, id: string, delivery: BallDelivery) {
+  const p = session.world.positions[id];
+  if (delivery === "ground") return p;
+  const dir = p.x <= 50 ? 1 : -1;
+  const attack = session.players.find((player) => player.id === id)?.team === "away" ? 1 : -1;
+  return point(
+    p.x + dir * (delivery === "cross" ? 3 : 4),
+    p.y + attack * (delivery === "chip" ? 7 : 4),
+  );
+}
+export function journeyDeliveryLane(
+  session: JourneySession,
+  from: Point,
+  to: Point,
+  delivery: BallDelivery,
+) {
+  if (delivery === "ground") return journeyLane(session, from, to);
+  const length = distance(from, to);
+  const rows = session.players
+    .filter((p) => p.team === "away" && !p.goalkeeper)
+    .map((p) => {
+      const projection = segmentProjection(session.world.positions[p.id], from, to);
+      const height = flightHeight(delivery, length, projection.t, 2);
+      // This stage models a foot/thigh interception. Heading duels need separate
+      // animations and are not silently treated as ground interceptions.
+      const reach = height < 1.8 ? 2.6 : height < 3.2 ? 1.7 : 0;
+      return {
+        id: p.id,
+        ...projection,
+        distance: reach
+          ? (distance(session.world.positions[p.id], projection.point) * 2.6) / reach
+          : 100,
+      };
+    })
+    .filter((p) => p.t > 0.1 && p.t < 0.97)
+    .sort((a, b) => a.distance - b.distance);
+  return rows[0] ?? { id: "r0", point: to, t: 1, distance: 100 };
+}
 function passChoices(session: JourneySession): JourneyChoice[] {
   const from = session.world.positions.you;
   const choices = session.players
@@ -220,7 +298,40 @@ function passChoices(session: JourneySession): JourneyChoice[] {
     });
   // A safe sideways/backward pass remains valid; we do not reject it merely
   // because it differs from an authored preferred route.
-  return choices;
+  if (session.definition.revision !== 2) return choices;
+  const deliveries: BallDelivery[] = ["ground", session.definition.delivery ?? "lofted"];
+  return choices.flatMap((c) =>
+    deliveries.map((delivery) => {
+      const target = receivePoint(session, c.targetId!, delivery);
+      const lane = journeyDeliveryLane(session, from, target, delivery);
+      const pressure = nearestOpponent(session, target).distance;
+      const offside = journeyOffside(session, session.world.positions[c.targetId!], from);
+      const quality =
+        offside || lane.distance < 2.6 || pressure < 2.8
+          ? "error"
+          : pressure < 6 || lane.distance < 5
+            ? "possible"
+            : "good";
+      return {
+        ...c,
+        id: delivery === "ground" ? c.id : `${delivery}:${c.targetId}`,
+        delivery,
+        quality,
+        label: `${deliveryLabels[delivery]} do ${session.players.find((p) => p.id === c.targetId)!.number}`,
+        why: offside
+          ? "Odbiorca jest na spalonym w momencie zagrania."
+          : lane.distance < 2.6
+            ? "Rywal dosięga piłki na wybranym torze zagrania."
+            : pressure < 2.8
+              ? "W miejscu opadania piłki rywal ma możliwość przejęcia."
+              : pressure < 6
+                ? "Odbiorca dostanie piłkę pod presją. Przygotuj kolejne wsparcie."
+                : delivery === "ground"
+                  ? "Otwarta linia pozwala zagrać po ziemi i utrzymać tempo."
+                  : "Tor lotu omija doskok, a odbiorca ma miejsce do opanowania piłki.",
+      } satisfies JourneyChoice;
+    }),
+  );
 }
 function movementChoices(session: JourneySession, carry: boolean): JourneyChoice[] {
   const w = session.world,
@@ -235,6 +346,19 @@ function movementChoices(session: JourneySession, carry: boolean): JourneyChoice
     [24, 8],
     [0, -23],
   ].map(([x, y]) => point(you.x + x, you.y + y));
+  if (session.definition.revision === 2 && !carry) {
+    const line =
+      session.players
+        .filter((p) => p.team === "away")
+        .map((p) => w.positions[p.id].y)
+        .sort((a, b) => a - b)[1] ?? 0;
+    const safeY = Math.max(you.y + 12, line + 8);
+    candidates.push(
+      point(you.x - 20, safeY),
+      point(you.x + 20, safeY),
+      point(holder.x - 18, holder.y + 6),
+    );
+  }
   const ranked = candidates
     .map((p) => {
       const lane = journeyLane(session, carry ? you : holder, p).distance;
@@ -280,6 +404,37 @@ function movementChoices(session: JourneySession, carry: boolean): JourneyChoice
 }
 export function journeyStep(session: JourneySession): JourneyStep {
   if (session.outcome) throw new Error("Akcja została już zakończona.");
+  if (session.transition === "choose") {
+    const you = session.world.positions.you,
+      ball = session.world.positions[session.world.carrierId];
+    const close = distance(you, ball) <= 12;
+    return {
+      kind: "transition",
+      prompt: "Strata. Doskok czy powrót?",
+      instruction: "Wybierz swoją reakcję.",
+      cue: close
+        ? "Jesteś blisko piłki. Sprawdź możliwość doskoku."
+        : "Rywal ma przewagę odległości. Osłoń drogę do bramki.",
+      choices: [
+        {
+          id: "transition:press",
+          point: point(ball.x, ball.y + 1.5),
+          label: "Doskok",
+          quality: close ? "good" : "error",
+          why: close
+            ? "Bliski doskok pozwolił odebrać piłkę przed rozwinięciem kontry."
+            : "Zbyt daleki doskok otworzył rywalowi drogę do przodu.",
+        },
+        {
+          id: "transition:recover",
+          point: point((you.x + ball.x) / 2, Math.max(you.y, ball.y) + 13),
+          label: "Powrót",
+          quality: close ? "possible" : "good",
+          why: "Powrót osłonił drogę do bramki i zatrzymał prostą kontrę.",
+        },
+      ],
+    };
+  }
   const kind = session.definition.steps[session.step];
   const w = session.world,
     you = w.positions.you;
@@ -386,6 +541,126 @@ function worldMoved(world: JourneyWorld, id: string, to: Point): void {
   world.distances[id] += distance(from, to);
   world.positions[id] = { ...to };
 }
+// Independent-mode destinations are actual coordinates, not a nearest authored
+// answer. Canonical IDs keep drafts, replays and analysis deterministic.
+export function journeyPointChoice(session: JourneySession, location: Point): JourneyChoice {
+  const kind = journeyStep(session).kind;
+  if (
+    ["pass", "finish"].includes(kind) ||
+    !Number.isFinite(location.x) ||
+    !Number.isFinite(location.y) ||
+    location.x < 3 ||
+    location.x > 97 ||
+    location.y < 4 ||
+    location.y > 136
+  )
+    throw new Error("Wskaż dostępne miejsce na boisku.");
+  const p = { x: Math.round(location.x * 100) / 100, y: Math.round(location.y * 100) / 100 };
+  const id = `free:${kind}:${p.x.toFixed(2)}:${p.y.toFixed(2)}`;
+  const you = session.world.positions.you;
+  const ball = session.world.positions[session.world.carrierId];
+  let quality: JourneyChoice["quality"] = "possible",
+    why = "Ten ruch jest możliwy, ale nie poprawił wyraźnie ustawienia.";
+  if (distance(you, p) < 1) {
+    quality = "error";
+    why = "Pozostałeś w tym samym miejscu, bez zmiany ustawienia.";
+  } else if (kind === "carry" || kind === "move") {
+    const carrying = kind === "carry";
+    const lane = journeyLane(session, carrying ? you : ball, p);
+    const clearance = nearestOpponent(session, p).distance;
+    const offside = !carrying && journeyOffside(session, p, ball);
+    quality =
+      offside || clearance < 3 || lane.distance < 2.6
+        ? "error"
+        : clearance < 6 || lane.distance < 5 || (!carrying && distance(ball, p) > 48)
+          ? "possible"
+          : "good";
+    why = offside
+      ? "Wyszedłeś na pozycję spaloną przed podaniem."
+      : lane.distance < 2.6
+        ? carrying
+          ? "Wybrana droga prowadzenia przechodzi przez zasięg rywala."
+          : "Rywal zamyka linię podania do wybranego miejsca."
+        : clearance < 3
+          ? "Wybrałeś miejsce w bezpośrednim zasięgu rywala."
+          : quality === "possible"
+            ? "Ruch pozostawia presję lub utrudnia następne podanie."
+            : carrying
+              ? "Wybrałeś wolną drogę prowadzenia i miejsce poza zasięgiem rywala."
+              : "Otworzyłeś linię podania i znalazłeś miejsce poza presją.";
+  } else if (kind === "transition") {
+    const pressing = distance(p, ball) <= 6;
+    const cover = segmentProjection(p, ball, { x: 50, y: 136 });
+    const coverDistance = distance(p, cover.point);
+    quality = pressing
+      ? distance(you, ball) <= 12 && distance(p, ball) <= 5
+        ? "good"
+        : "error"
+      : p.y > ball.y + 3 && cover.t > 0.05 && coverDistance <= 10
+        ? "good"
+        : p.y > ball.y && coverDistance <= 15
+          ? "possible"
+          : "error";
+    why = pressing
+      ? quality === "good"
+        ? "Krótki doskok pozwolił zareagować przy piłce."
+        : "Zbyt daleki lub niedokładny doskok pozostawił rywalowi drogę do przodu."
+      : quality === "error"
+        ? "Wybrane ustawienie nie osłoniło drogi do Twojej bramki."
+        : "Powrót ograniczył korytarz prowadzący do Twojej bramki.";
+  } else {
+    const receiver = session.players
+      .filter((p) => p.team === "away" && !p.goalkeeper && p.id !== session.world.carrierId)
+      .sort((a, b) => session.world.positions[b.id].y - session.world.positions[a.id].y)[0];
+    const receiverPoint = session.world.positions[receiver.id];
+    const lane = segmentProjection(p, ball, receiverPoint);
+    const laneGap = distance(p, lane.point);
+    const goalSide = p.y >= (kind === "mark" ? receiverPoint.y : ball.y);
+    quality =
+      kind === "press"
+        ? distance(p, ball) <= 7 && goalSide
+          ? "good"
+          : distance(p, ball) <= 13
+            ? "possible"
+            : "error"
+        : kind === "mark"
+          ? distance(p, receiverPoint) <= 7 && goalSide
+            ? "good"
+            : distance(p, receiverPoint) <= 13
+              ? "possible"
+              : "error"
+          : laneGap <= 7 && p.y >= Math.min(ball.y, receiverPoint.y)
+            ? "good"
+            : laneGap <= 13
+              ? "possible"
+              : "error";
+    why =
+      quality === "good"
+        ? "Wybrane miejsce ograniczyło rywalowi możliwość gry do przodu."
+        : quality === "possible"
+          ? "Zbliżyłeś się do akcji, ale rywal nadal ma przestrzeń do zagrania."
+          : "Wybrane miejsce pozostawiło rywalowi otwarty korytarz.";
+  }
+  return {
+    id,
+    point: p,
+    label: kind === "carry" ? "Prowadzenie w wybrane miejsce" : "Ruch w wybrane miejsce",
+    quality,
+    why,
+  };
+}
+export function journeyChoice(session: JourneySession, id: string): JourneyChoice | undefined {
+  const authored = journeyStep(session).choices.find((c) => c.id === id);
+  if (authored || !id.startsWith("free:")) return authored;
+  const match = /^free:([a-z]+):(\d{1,2}\.\d{2}):(\d{1,3}\.\d{2})$/.exec(id);
+  if (!match || match[1] !== journeyStep(session).kind) return undefined;
+  try {
+    const choice = journeyPointChoice(session, { x: Number(match[2]), y: Number(match[3]) });
+    return choice.id === id ? choice : undefined;
+  } catch {
+    return undefined;
+  }
+}
 export function chooseJourney(
   previous: JourneySession,
   choiceId: string,
@@ -394,7 +669,7 @@ export function chooseJourney(
 ): JourneySession {
   if (previous.outcome) throw new Error("Nie można dopisać decyzji po końcu akcji.");
   const step = journeyStep(previous),
-    choice = step.choices.find((c) => c.id === choiceId);
+    choice = journeyChoice(previous, choiceId);
   if (!choice) throw new Error("Ten wybór nie jest dostępny w bieżącej decyzji.");
   const session: JourneySession = {
     ...previous,
@@ -415,12 +690,23 @@ export function chooseJourney(
     text: string,
     mutate: () => void,
     shot = false,
+    air?: Pick<
+      JourneyBeat,
+      | "delivery"
+      | "flightSeconds"
+      | "controlSeconds"
+      | "flightEnd"
+      | "landingHeight"
+      | "flightDistance"
+      | "receiveAt"
+    >,
   ) {
     const start = clone(session.world);
     mutate();
     const movement = distance(from, to);
-    const duration =
-      kind === "pass"
+    const duration = air
+      ? PASS_WINDUP_SECONDS + air.flightSeconds! + air.controlSeconds!
+      : kind === "pass"
         ? Math.max(PASS_WINDUP_SECONDS + (movement * 0.68) / 15 + 0.22, PASS_RECOVERY_SECONDS)
         : kind === "hold"
           ? 0.6
@@ -440,6 +726,8 @@ export function chooseJourney(
       duration,
       text,
       shot,
+      ...air,
+      ...(session.definition.revision === 2 ? { revision: 2 as const } : {}),
     });
   }
   function reactions(target: Point, exclude?: string) {
@@ -462,18 +750,35 @@ export function chooseJourney(
     text: string,
     allowIntercept: boolean,
     shot = false,
+    delivery: BallDelivery = "ground",
   ) {
+    const enhanced = session.definition.revision === 2 && !shot;
     const from = clone(session.world.positions[fromId]),
-      to = clone(session.world.positions[targetId]);
-    const lane = journeyLane(session, from, to);
-    const intercepted = allowIntercept && lane.distance < 2.6;
+      receiverStart = clone(session.world.positions[targetId]),
+      to = enhanced ? receivePoint(session, targetId, delivery) : receiverStart;
+    const lane = enhanced
+      ? journeyDeliveryLane(session, from, to, delivery)
+      : journeyLane(session, from, to);
+    const crowded = enhanced && nearestOpponent(session, to).distance < 2.8;
+    const intercepted = allowIntercept && (lane.distance < 2.6 || crowded);
     const offside =
       allowIntercept &&
       session.players.find((p) => p.id === fromId)?.team === "home" &&
       session.players.find((p) => p.id === targetId)?.team === "home" &&
-      journeyOffside(session, to, from);
-    const receiver = intercepted ? lane.id : targetId;
-    const end = intercepted ? lane.point : to;
+      journeyOffside(session, receiverStart, from);
+    const receiver = intercepted
+      ? crowded && lane.distance >= 2.6
+        ? nearestOpponent(session, to).id
+        : lane.id
+      : targetId;
+    const end = intercepted && lane.distance < 2.6 ? lane.point : to;
+    const endT = intercepted && lane.distance < 2.6 ? lane.t : 1;
+    const profile = flightProfile(delivery, distance(from, to));
+    const attack =
+      session.players.find((player) => player.id === receiver)?.team === "away" ? 1 : -1;
+    const controlTo = enhanced
+      ? point(end.x + (end.x < 50 ? 1.2 : -1.2), end.y + attack * 1.4)
+      : end;
     beat(
       "pass",
       fromId,
@@ -483,26 +788,108 @@ export function chooseJourney(
       intercepted ? "Rywal przejmuje podanie." : text,
       () => {
         session.world.headings[fromId] = heading(from, end, session.world.headings[fromId]);
-        if (intercepted) worldMoved(session.world, receiver, end);
+        if (intercepted || enhanced) worldMoved(session.world, receiver, controlTo);
         session.world.carrierId = receiver;
         session.world.headings[receiver] = heading(end, from, session.world.headings[receiver]);
+        if (enhanced) {
+          for (const rival of session.players.filter(
+            (p) => p.team === "away" && !p.goalkeeper && p.id !== receiver,
+          )) {
+            const p = session.world.positions[rival.id];
+            const gap = distance(p, end);
+            // Far defenders can shift with the flight. Those near the lane or
+            // landing zone keep the exact positions used by the interception check.
+            if (gap > 18 && distance(p, segmentProjection(p, from, end).point) > 9) {
+              const follow = Math.min(0.08, 2 / gap);
+              worldMoved(
+                session.world,
+                rival.id,
+                point(p.x + (end.x - p.x) * follow, p.y + (end.y - p.y) * follow),
+              );
+            }
+          }
+        }
         // During the kick/flight the receivers hold their lane; other opponents
         // react in the following movement beat so they cannot cross the ball unseen.
       },
       shot,
+      enhanced
+        ? {
+            delivery,
+            flightSeconds: profile.flight * endT,
+            controlSeconds: profile.control,
+            flightEnd: endT,
+            landingHeight: flightHeight(
+              delivery,
+              distance(from, to),
+              endT,
+              delivery === "ground" ? BALL_REST_HEIGHT : 2,
+            ),
+            flightDistance: distance(from, to),
+            receiveAt: end,
+          }
+        : undefined,
     );
     if (intercepted) session.outcome = "loss";
     else if (offside) session.outcome = "blocked";
     return !intercepted && !offside;
   }
-  if (step.kind === "pass" || step.kind === "finish") {
+  if (step.kind === "transition") {
+    const pressing =
+      choiceId === "transition:press" ||
+      (choiceId.startsWith("free:") &&
+        distance(choice.point, session.world.positions[session.world.carrierId]) <= 6);
+    const recovering =
+      choiceId === "transition:recover" ||
+      (choiceId.startsWith("free:") && !pressing && quality !== "error");
+    session.transition = "done";
+    const holder = session.world.carrierId,
+      ball = clone(session.world.positions[holder]);
+    beat(
+      "move",
+      "you",
+      undefined,
+      session.world.positions.you,
+      choice.point,
+      pressing ? "Reagujesz doskokiem po stracie." : "Wracasz do osłony kontry.",
+      () => worldMoved(session.world, "you", choice.point),
+    );
+    if (pressing && quality === "good") {
+      beat("hold", holder, undefined, ball, ball, "Odbierasz piłkę w bliskim doskoku.", () => {
+        worldMoved(session.world, "you", ball);
+        session.world.carrierId = "you";
+      });
+      session.outcome = "recovered";
+    } else if (recovering) {
+      const to = point(ball.x, Math.min(choice.point.y - 5, ball.y + 8));
+      beat("move", holder, undefined, ball, to, "Rywal zatrzymuje kontrę przed Twoją osłoną.", () =>
+        worldMoved(session.world, holder, to),
+      );
+      session.outcome = "contained";
+    } else {
+      const to = point(ball.x + (ball.x < 50 ? 12 : -12), ball.y + 16);
+      beat("move", holder, undefined, ball, to, "Rywal omija spóźniony doskok.", () =>
+        worldMoved(session.world, holder, to),
+      );
+      session.outcome = "loss";
+    }
+  } else if (step.kind === "pass" || step.kind === "finish") {
     if (session.world.carrierId !== "you")
       throw new Error("Zawodnik nie posiada piłki do podania.");
     if (choiceId === "shot") {
       pass("you", "keeper", "Próba zakończenia akcji.", false, true);
       session.outcome = "chance";
     } else {
-      pass("you", choice.targetId!, "Partner przyjmuje piłkę.", true);
+      pass(
+        "you",
+        choice.targetId!,
+        choice.delivery && choice.delivery !== "ground"
+          ? "Partner dobiega i opanowuje piłkę górną."
+          : "Partner przyjmuje piłkę.",
+        true,
+        false,
+        choice.delivery,
+      );
       if (session.outcome === "loss") {
         quality = "error";
         why = "Rywal przeciął tor podania. Ten sam moment jest widoczny w powtórce.";
@@ -539,35 +926,46 @@ export function chooseJourney(
             distance(session.world.positions[b.id], session.world.positions.you) -
             distance(session.world.positions[a.id], session.world.positions.you),
         );
-      pass(ballId, receivers[0].id, "Rywal zmienia kierunek rozegrania.", false);
+      pass(
+        ballId,
+        receivers[0].id,
+        "Rywal zmienia kierunek rozegrania.",
+        false,
+        false,
+        session.definition.pattern === "defend-air" ? "lofted" : "ground",
+      );
     }
   } else {
     const hadBall = session.world.carrierId === "you";
     if (step.kind === "carry" && !hadBall) throw new Error("Prowadzenie wymaga posiadania piłki.");
     const from = clone(session.world.positions.you);
+    const freeLane =
+      hadBall && choiceId.startsWith("free:") ? journeyLane(session, from, choice.point) : null;
+    const stoppedBy = freeLane && freeLane.distance < 2.6 ? freeLane : null;
+    const destination = stoppedBy?.point ?? choice.point;
     beat(
       "move",
       "you",
       undefined,
       from,
-      choice.point,
+      destination,
       hadBall ? "Prowadzisz piłkę." : "Ruch bez piłki.",
       () => {
-        worldMoved(session.world, "you", choice.point);
-        reactions(choice.point);
+        worldMoved(session.world, "you", destination);
+        reactions(destination);
       },
     );
-    if (hadBall && nearestOpponent(session, choice.point).distance < 3) {
-      const rival = nearestOpponent(session, choice.point).id;
+    if (hadBall && (stoppedBy || nearestOpponent(session, choice.point).distance < 3)) {
+      const rival = stoppedBy?.id ?? nearestOpponent(session, choice.point).id;
       beat(
         "hold",
         rival,
         undefined,
         session.world.positions[rival],
-        choice.point,
+        destination,
         "Rywal odbiera piłkę.",
         () => {
-          worldMoved(session.world, rival, choice.point);
+          worldMoved(session.world, rival, destination);
           session.world.carrierId = rival;
         },
       );
@@ -576,10 +974,17 @@ export function chooseJourney(
       session.outcome = "loss";
     } else if (!hadBall) {
       const holder = session.world.carrierId;
-      const lane = journeyLane(
+      const returnDelivery =
+        session.definition.pattern === "air-control" || session.definition.pattern === "third-air"
+          ? (session.definition.delivery ?? "ground")
+          : "ground";
+      const lane = journeyDeliveryLane(
         session,
         session.world.positions[holder],
-        session.world.positions.you,
+        session.definition.revision === 2
+          ? receivePoint(session, "you", returnDelivery)
+          : session.world.positions.you,
+        returnDelivery,
       );
       if (lane.distance < 2.6) {
         beat(
@@ -595,7 +1000,16 @@ export function chooseJourney(
         why = "Twój ruch nie otworzył bezpiecznej linii podania. Piłka została przy partnerze.";
         session.outcome = "blocked";
       } else {
-        pass(holder, "you", "Otrzymujesz podanie zwrotne.", true);
+        pass(
+          holder,
+          "you",
+          session.definition.revision === 2
+            ? "Wychodzisz do piłki i przygotowujesz kontynuację."
+            : "Otrzymujesz podanie zwrotne.",
+          true,
+          false,
+          returnDelivery,
+        );
         if (session.outcome === "blocked") {
           quality = "error";
           why = "W momencie podania znajdowałeś się na spalonym. Wybierz ruch z innej wysokości.";
@@ -635,7 +1049,15 @@ export function chooseJourney(
   };
   session.decisions.push(decision);
   session.step++;
-  if (!session.outcome && session.step === session.definition.steps.length) {
+  if (session.definition.revision === 2 && session.outcome === "loss" && !session.transition) {
+    session.outcome = null;
+    session.transition = "choose";
+  }
+  if (
+    !session.outcome &&
+    session.transition !== "choose" &&
+    session.step === session.definition.steps.length
+  ) {
     const gain = session.initial.positions.you.y - session.world.positions.you.y;
     session.outcome = isJourneyDefensive(session.definition)
       ? "recovered"
@@ -658,7 +1080,7 @@ export function journeyVerdict(session: JourneySession): EvaluationLevel {
 export function journeyDuration(session: JourneySession) {
   return session.beats.reduce((n, b) => n + b.duration, 0);
 }
-export function journeyCameraPoints(session: JourneySession): Point[] {
+export function journeyCameraPoints(session: JourneySession, includeChoices = true): Point[] {
   const visibleIds = session.players.filter((p) => !p.goalkeeper || p.controlled).map((p) => p.id);
   const worlds = [
     session.initial,
@@ -668,7 +1090,7 @@ export function journeyCameraPoints(session: JourneySession): Point[] {
   return [
     ...worlds.flatMap((world) => visibleIds.map((id) => world.positions[id])),
     ...session.beats.flatMap((beat) => [beat.from, beat.to]),
-    ...(!session.outcome ? journeyStep(session).choices.map((c) => c.point) : []),
+    ...(includeChoices && !session.outcome ? journeyStep(session).choices.map((c) => c.point) : []),
   ];
 }
 export function journeyFrame(
@@ -727,13 +1149,96 @@ export function sampleJourneyBeat(
         elapsed,
         duration: beat.duration,
         state: t < 1 ? "move" : "idle",
-        gait: "run",
+        gait: beat.revision === 2 && (d * 0.68) / beat.duration < 3.1 ? "walk" : "run",
         weight: 1,
         clock: clock + elapsed,
       });
     }
   }
-  if (beat.kind === "pass") {
+  if (beat.kind === "pass" && beat.delivery) {
+    const travel = beat.flightSeconds!,
+      control = beat.controlSeconds!;
+    const flight = clamp((elapsed - PASS_WINDUP_SECONDS) / travel, 0, 1);
+    const touch = clamp((elapsed - PASS_WINDUP_SECONDS - travel) / control, 0, 1);
+    const angle = heading(beat.from, beat.to);
+    const atFoot = (p: Point, facing: number, lateral = 0, forward = 1.8) => ({
+      x: p.x + Math.sin(facing) * forward + Math.cos(facing) * lateral,
+      y: p.y + Math.cos(facing) * forward - Math.sin(facing) * lateral,
+    });
+    const contact = atFoot(beat.from, angle, PASS_BALL_LATERAL, PASS_BALL_FORWARD);
+    const windup = clamp(elapsed / 0.2, 0, 1);
+    const receiveId = beat.receiverId!;
+    const receiveAt = beat.receiveAt!;
+    const facing = beat.after.headings[receiveId];
+    const controlEnd = atFoot(beat.after.positions[receiveId], facing);
+    const landing = atFoot(receiveAt, facing);
+    frame.ballVisual =
+      elapsed < PASS_WINDUP_SECONDS
+        ? mix(
+            atFoot(beat.from, beat.before.headings[beat.actorId]),
+            contact,
+            windup * windup * (3 - 2 * windup),
+          )
+        : flight < 1
+          ? mix(contact, landing, flight)
+          : mix(landing, controlEnd, touch);
+    frame.ball = mix(beat.from, receiveAt, flight);
+    frame.ballHeight =
+      elapsed < PASS_WINDUP_SECONDS
+        ? BALL_REST_HEIGHT
+        : flight < 1
+          ? flightHeight(
+              beat.delivery,
+              beat.flightDistance!,
+              flight * (beat.flightEnd ?? 1),
+              beat.delivery === "ground" ? BALL_REST_HEIGHT : 2,
+            )
+          : beat.landingHeight! + (BALL_REST_HEIGHT - beat.landingHeight!) * touch;
+    frame.ballInFlight = elapsed > PASS_WINDUP_SECONDS && flight < 1;
+    frame.ballCarrierId = flight < 1 ? beat.before.carrierId : beat.after.carrierId;
+    const kickEnd = PASS_WINDUP_SECONDS + PASS_RECOVERY_SECONDS;
+    const weight = Math.min(clamp(elapsed / 0.1, 0, 1), clamp((kickEnd - elapsed) / 0.1, 0, 1));
+    const turn = clamp(elapsed / 0.2, 0, 1);
+    const facingDelta = Math.atan2(
+      Math.sin(angle - beat.before.headings[beat.actorId]),
+      Math.cos(angle - beat.before.headings[beat.actorId]),
+    );
+    frame.motions.set(beat.actorId, {
+      ...frame.motions.get(beat.actorId)!,
+      heading: beat.before.headings[beat.actorId] + facingDelta * turn,
+      moving: false,
+      state: weight > 0 ? "pass" : "idle",
+      phase: clamp(elapsed / kickEnd, 0, 1),
+      elapsed,
+      duration: kickEnd,
+      weight,
+      delivery: beat.delivery,
+    });
+    const run = clamp((elapsed - PASS_WINDUP_SECONDS) / Math.max(0.15, travel - 0.2), 0, 1);
+    const receiverStart = beat.before.positions[receiveId],
+      receiverEnd = beat.after.positions[receiveId];
+    const position =
+      flight < 1 ? mix(receiverStart, receiveAt, run) : mix(receiveAt, receiverEnd, touch);
+    frame.positions.set(receiveId, position);
+    const moving = run > 0 && run < 1 && distance(receiverStart, receiveAt) > 0.1;
+    const receiving = !moving && elapsed >= PASS_WINDUP_SECONDS + travel - 0.2;
+    frame.motions.set(receiveId, {
+      ...frame.motions.get(receiveId)!,
+      moving,
+      state: moving ? "move" : receiving ? "receive" : "idle",
+      heading: moving ? heading(receiverStart, receiveAt) : facing,
+      distance: beat.before.distances[receiveId] + distance(receiverStart, position),
+      elapsed: Math.max(0, elapsed - PASS_WINDUP_SECONDS),
+      duration: travel,
+      gait: "run",
+      weight: 1,
+      phase:
+        flight < 1
+          ? clamp((elapsed - (PASS_WINDUP_SECONDS + travel - 0.2)) / 0.4, 0, 0.5)
+          : 0.5 + touch * 0.5,
+      control: beat.delivery === "ground" ? undefined : "aerial",
+    });
+  } else if (beat.kind === "pass") {
     const flightDuration = Math.max(0.15, beat.duration - PASS_WINDUP_SECONDS - 0.22);
     const flight = clamp((elapsed - PASS_WINDUP_SECONDS) / flightDuration, 0, 1);
     const actor = frame.motions.get(beat.actorId)!;
@@ -772,6 +1277,11 @@ export function sampleJourneyBeat(
     frame.ballCarrierId = owner;
     frame.ball = { ...p };
     frame.ballVisual = { x: p.x + Math.sin(angle) * 1.8, y: p.y + Math.cos(angle) * 1.8 };
+    if (beat.revision === 2) {
+      const previous = journeyFrame(beat.before, players).ballVisual;
+      const blend = clamp(elapsed / Math.min(0.2, beat.duration), 0, 1);
+      frame.ballVisual = mix(previous, frame.ballVisual, blend * blend * (3 - 2 * blend));
+    }
   }
   // The exact final frame is shared by live play, review and the next decision.
   return t >= 1 ? journeyFrame(beat.after, players, clock + elapsed) : frame;

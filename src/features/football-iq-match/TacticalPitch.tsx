@@ -5,6 +5,7 @@ import type { TeachingMarker } from "./teaching";
 import type { PitchScene } from "./pitchScene";
 import type { ActionMode, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
 import type { PlaybackFrame } from "./animation";
+const NO_ACTIONS: PlannedAction[] = [];
 
 type Props = {
   scenario: Scenario;
@@ -30,6 +31,8 @@ type Props = {
   destinations?: { id: string; point: Point; label: string }[];
   onDestinationSelect?: (id: string) => void;
   showActionOrders?: boolean;
+  showGuidance?: boolean;
+  freeMovement?: boolean;
 };
 export function TacticalPitch({
   scenario,
@@ -55,6 +58,8 @@ export function TacticalPitch({
   destinations = [],
   onDestinationSelect,
   showActionOrders = true,
+  showGuidance = true,
+  freeMovement = false,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -86,6 +91,7 @@ export function TacticalPitch({
     activeActionId,
     activeTeachingId,
     destinations,
+    showGuidance,
   });
   latest.current = {
     frame,
@@ -101,6 +107,7 @@ export function TacticalPitch({
     activeActionId,
     activeTeachingId,
     destinations,
+    showGuidance,
   };
 
   function sync() {
@@ -109,13 +116,16 @@ export function TacticalPitch({
     const state = latest.current;
     api.update(
       state.frame,
-      state.actions,
-      state.interactive ? state.selectedPlayerId : null,
+      state.showGuidance ? state.actions : NO_ACTIONS,
+      state.interactive && state.showGuidance ? state.selectedPlayerId : null,
       state.playing,
       state.focusOnActions,
       state.cameraActions,
       state.activeActionId,
-      state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point,
+      state.showGuidance
+        ? state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point
+        : undefined,
+      state.showGuidance,
     );
     playerLabels.current.forEach((element, id) => {
       const point = state.frame.positions.get(id);
@@ -244,6 +254,7 @@ export function TacticalPitch({
     activeActionId,
     activeTeachingId,
     destinations,
+    showGuidance,
   ]);
   const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
     if (!interactive || status !== "ready") return;
@@ -260,6 +271,7 @@ export function TacticalPitch({
       })
       .sort((a, b) => a.distance - b.distance)[0];
     if (
+      !freeMovement &&
       ["pass", "through", "cross", "hold", "press", "mark"].includes(mode) &&
       nearest &&
       nearest.distance <= 23 &&
@@ -272,7 +284,10 @@ export function TacticalPitch({
     if (point) onPitchSelect(point);
   };
   return (
-    <div className="bwiq-pitch-wrap bwiq-pitch-wrap--3d" onClick={selectPoint}>
+    <div
+      className={`bwiq-pitch-wrap bwiq-pitch-wrap--3d${showGuidance ? "" : " bwiq-pitch-wrap--independent"}`}
+      onClick={selectPoint}
+    >
       <div className="bwiq-pitch-canvas" ref={host} />
       <div className="bwiq-pitch-legend">
         <span>{scenario.defensive ? "↓ Twoja bramka" : "↑ Atakujesz"}</span>
@@ -280,22 +295,24 @@ export function TacticalPitch({
           <i /> Piłka
         </span>
       </div>
-      {highlights?.map((point, i) => {
-        const p = scene.current?.project(point, 0.2);
-        return p ? (
-          <div
-            key={i}
-            className={highlightGood ? "bwiq-highlight bwiq-highlight--good" : "bwiq-highlight"}
-            ref={(element) => {
-              if (element) highlightLabels.current.set(i, element);
-              else highlightLabels.current.delete(i);
-            }}
-            style={{ left: p.x, top: p.y }}
-            aria-label={highlightGood ? "Miejsce stworzenia przewagi" : "Miejsce do poprawy"}
-          />
-        ) : null;
-      })}
-      {status === "ready" &&
+      {showGuidance &&
+        highlights?.map((point, i) => {
+          const p = scene.current?.project(point, 0.2);
+          return p ? (
+            <div
+              key={i}
+              className={highlightGood ? "bwiq-highlight bwiq-highlight--good" : "bwiq-highlight"}
+              ref={(element) => {
+                if (element) highlightLabels.current.set(i, element);
+                else highlightLabels.current.delete(i);
+              }}
+              style={{ left: p.x, top: p.y }}
+              aria-label={highlightGood ? "Miejsce stworzenia przewagi" : "Miejsce do poprawy"}
+            />
+          ) : null;
+        })}
+      {showGuidance &&
+        status === "ready" &&
         teachingMarkers.map((marker) => (
           <button
             key={marker.id}
@@ -321,7 +338,7 @@ export function TacticalPitch({
             key={player.id}
             data-iq-player={player.id}
             type="button"
-            className={`bwiq-player-hit bwiq-player-hit--${player.team}${interactive && selectedPlayerId === player.id ? " is-selected" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
+            className={`bwiq-player-hit bwiq-player-hit--${player.team}${showGuidance && interactive && selectedPlayerId === player.id ? " is-selected" : ""}${showGuidance && frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${showGuidance && interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
             ref={(element) => {
               if (element) playerLabels.current.set(player.id, element);
               else playerLabels.current.delete(player.id);
@@ -329,12 +346,13 @@ export function TacticalPitch({
             disabled={
               !interactive ||
               status !== "ready" ||
-              (!!selectablePlayerIds && !selectablePlayerIds.includes(player.id))
+              (!freeMovement && !!selectablePlayerIds && !selectablePlayerIds.includes(player.id))
             }
             aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
             onClick={(event) => {
               event.stopPropagation();
-              if (interactive && mode === "carry" && event.detail > 0) selectPoint(event);
+              if (interactive && (mode === "carry" || freeMovement) && event.detail > 0)
+                selectPoint(event);
               else onPlayerSelect(player);
             }}
           >
@@ -345,7 +363,8 @@ export function TacticalPitch({
         <div ref={ballLabel} className="bwiq-ball-marker" aria-label="Piłka">
           <span />
         </div>
-        {showActionOrders &&
+        {showGuidance &&
+          showActionOrders &&
           actions.map((action, index) =>
             action.type === "shot" ? null : (
               <span
@@ -361,7 +380,8 @@ export function TacticalPitch({
             ),
           )}
       </div>
-      {status === "ready" &&
+      {showGuidance &&
+        status === "ready" &&
         destinations.map((destination) => (
           <button
             key={destination.id}

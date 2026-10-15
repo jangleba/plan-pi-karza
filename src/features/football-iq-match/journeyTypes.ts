@@ -1,4 +1,5 @@
 import type { MatchPlayer, Point, Scenario, EvaluationLevel } from "./types";
+import type { BallDelivery } from "./ballFlight";
 
 export type IQRole = "gk" | "cb" | "fb" | "six" | "eight" | "ten" | "wing" | "nine";
 export type IQPosition = "goalkeeper" | "defender" | "midfielder" | "forward";
@@ -14,10 +15,19 @@ export type JourneyPattern =
   | "press"
   | "recover"
   | "keeper-build"
-  | "keeper-sweep";
-export type JourneyAction = "pass" | "move" | "carry" | "cover" | "press" | "mark" | "finish";
+  | "keeper-sweep"
+  | "switch-air"
+  | "chip-line"
+  | "wide-cross"
+  | "air-control"
+  | "third-air"
+  | "defend-air"
+  | "wide-return";
+export type JourneyAction =
+  "pass" | "move" | "carry" | "cover" | "press" | "mark" | "finish" | "transition";
 export type JourneyQuality = "good" | "possible" | "error";
-export type JourneyOutcome = "progress" | "retained" | "chance" | "blocked" | "loss" | "recovered";
+export type JourneyOutcome =
+  "progress" | "retained" | "chance" | "blocked" | "loss" | "recovered" | "contained";
 export type JourneyDefinition = {
   id: string;
   topicId: string;
@@ -29,6 +39,8 @@ export type JourneyDefinition = {
   contextLabel: string;
   ordinal: number;
   steps: JourneyAction[];
+  revision?: 2;
+  delivery?: Exclude<BallDelivery, "ground">;
 };
 export type JourneyWorld = {
   positions: Record<string, Point>;
@@ -43,6 +55,7 @@ export type JourneyChoice = {
   targetId?: string;
   quality: JourneyQuality;
   why: string;
+  delivery?: BallDelivery;
 };
 export type JourneyStep = {
   kind: JourneyAction;
@@ -52,6 +65,7 @@ export type JourneyStep = {
   choices: JourneyChoice[];
 };
 export type JourneyBeat = {
+  revision?: 2;
   id: string;
   before: JourneyWorld;
   after: JourneyWorld;
@@ -64,6 +78,13 @@ export type JourneyBeat = {
   text: string;
   loft?: boolean;
   shot?: boolean;
+  delivery?: BallDelivery;
+  flightSeconds?: number;
+  controlSeconds?: number;
+  flightEnd?: number;
+  landingHeight?: number;
+  flightDistance?: number;
+  receiveAt?: Point;
 };
 export type JourneyDecision = {
   index: number;
@@ -89,6 +110,7 @@ export type JourneySession = {
   decisions: JourneyDecision[];
   beats: JourneyBeat[];
   outcome: JourneyOutcome | null;
+  transition?: "choose" | "done";
 };
 export type JourneyAttempt = {
   version: 1;

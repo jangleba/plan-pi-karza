@@ -5,8 +5,14 @@ import type {
   JourneyDefinition,
   JourneyPattern,
 } from "./journeyTypes";
+import { journeyExpansion } from "./journeyExpansion";
 
-export const JOURNEY_BANK_VERSION = "2026-10-15.1";
+export const JOURNEY_BANK_VERSION = "2026-10-15.3";
+export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
+  "2026-10-15.1",
+  "2026-10-15.2",
+  JOURNEY_BANK_VERSION,
+];
 export const roleLabels: Record<IQRole, string> = {
   gk: "Bramkarz",
   cb: "Środkowy obrońca",
@@ -28,7 +34,7 @@ export function rolesForPosition(position?: string): IQRole[] {
     ? [...positionRoles[position as IQPosition]]
     : (Object.keys(roleLabels) as IQRole[]);
 }
-const patterns: Record<JourneyPattern, JourneyAction[]> = {
+const patterns: Partial<Record<JourneyPattern, JourneyAction[]>> = {
   build: ["pass", "move", "pass", "move"],
   third: ["move", "pass", "move", "pass"],
   wide: ["carry", "pass", "move", "finish"],
@@ -275,7 +281,7 @@ const contexts = [
   { label: "Zamknięty korytarz", cue: "Rywal osłania najkrótsze podanie." },
   { label: "Zmiana ustawienia", cue: "Partner i rywal zmieniają swoje pozycje." },
 ] as const;
-export const journeyBank: JourneyDefinition[] = (Object.keys(topics) as IQRole[]).flatMap((role) =>
+const originalBank: JourneyDefinition[] = (Object.keys(topics) as IQRole[]).flatMap((role) =>
   topics[role].flatMap(([title, pattern, focus], ordinal) =>
     contexts.map((context, variant) => ({
       id: `iqj-${role}-${String(ordinal + 1).padStart(2, "0")}-${variant}`,
@@ -287,10 +293,13 @@ export const journeyBank: JourneyDefinition[] = (Object.keys(topics) as IQRole[]
       ordinal,
       context: variant as 0 | 1 | 2,
       contextLabel: context.label,
-      steps: [...patterns[pattern]],
+      steps: [...patterns[pattern]!],
     })),
   ),
 );
+// Existing IDs and routes stay stable so old attempts reproduce exactly.
+export const journeyBank: JourneyDefinition[] = [...originalBank, ...journeyExpansion];
+export const journeyTopicCount = new Set(journeyBank.map((s) => s.topicId)).size;
 export function scenariosForRoles(roles: readonly IQRole[]): JourneyDefinition[] {
   return journeyBank.filter((s) => roles.includes(s.role));
 }

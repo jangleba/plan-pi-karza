@@ -23,11 +23,14 @@ export type PlayerMotion = {
   moving: boolean;
   elapsed: number;
   duration: number;
-  state?: "idle" | "turn" | "move" | "pass" | "receive";
+  state?: "idle" | "turn" | "move" | "pass" | "receive" | "header";
+  clip?: "long-kick" | "header";
   gait?: "run" | "walk";
   phase?: number;
   weight?: number;
   clock?: number;
+  delivery?: "ground" | "chip" | "lofted" | "cross";
+  control?: "aerial";
 };
 
 export type PlaybackFrame = {

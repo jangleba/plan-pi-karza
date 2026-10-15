@@ -1,4 +1,4 @@
-import { JOURNEY_BANK_VERSION, journeyBank } from "./journeyBank";
+import { JOURNEY_BANK_VERSION, SUPPORTED_JOURNEY_BANK_VERSIONS, journeyBank } from "./journeyBank";
 import { chooseJourney, createJourney, journeyVerdict } from "./journeyEngine";
 import type { JourneyAttempt, JourneyMode, JourneySession } from "./journeyTypes";
 
@@ -28,16 +28,22 @@ function validBase(v: unknown): v is JourneyDraft {
   return (
     object(v) &&
     v.version === 1 &&
-    v.bankVersion === JOURNEY_BANK_VERSION &&
+    typeof v.bankVersion === "string" &&
+    SUPPORTED_JOURNEY_BANK_VERSIONS.includes(v.bankVersion) &&
     typeof v.id === "string" &&
     v.id.length > 0 &&
     v.id.length <= 100 &&
     typeof v.scenarioId === "string" &&
     definitionById.has(v.scenarioId) &&
+    (v.bankVersion !== "2026-10-15.1" || definitionById.get(v.scenarioId)?.revision !== 2) &&
     ["learn", "challenge"].includes(String(v.mode)) &&
     Array.isArray(v.choices) &&
     v.choices.length <= 6 &&
-    v.choices.every(validChoice)
+    v.choices.every(validChoice) &&
+    v.choices.every(
+      (c) =>
+        !c.id.startsWith("free:") || (v.bankVersion === "2026-10-15.3" && v.mode === "challenge"),
+    )
   );
 }
 function validAttempt(v: unknown): boolean {
@@ -47,7 +53,7 @@ function validAttempt(v: unknown): boolean {
     typeof row.createdAt === "string" &&
     Number.isFinite(Date.parse(row.createdAt)) &&
     ["strong", "conditional", "risky"].includes(String(row.verdict)) &&
-    ["progress", "retained", "chance", "blocked", "loss", "recovered"].includes(
+    ["progress", "retained", "chance", "blocked", "loss", "recovered", "contained"].includes(
       String(row.outcome),
     ) &&
     row.role === definitionById.get(v.scenarioId)!.role

@@ -1,8 +1,15 @@
 import fs from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
-import { makeActor, prepareAdditionalClip, prepareRunningModel, PLAYER_HEIGHT } from "./mixamo";
-import { AnimationClip, Group, QuaternionKeyframeTrack, Vector3 } from "three";
+import {
+  attachAerialClips,
+  makeActor,
+  prepareAdditionalClip,
+  prepareRunningModel,
+  PLAYER_HEIGHT,
+} from "./mixamo";
+import { AnimationClip, Bone, Group, QuaternionKeyframeTrack, Vector3 } from "three";
+import type { AerialCalibration } from "./aerialClips";
 import type { RunningModel } from "./mixamo";
 import {
   BALL_RADIUS,
@@ -45,6 +52,130 @@ beforeAll(() => {
 });
 
 describe("actual Mixamo asset", () => {
+  it("keeps the installed clips usable when optional files are absent or corrupt", async () => {
+    const local: RunningModel = {
+      ...asset,
+      clips: { ...asset.clips },
+      aerial: {},
+      aerialStatus: { ...asset.aerialStatus },
+    };
+    const calibration: AerialCalibration = {
+      sha256: "a".repeat(64),
+      fps: 30,
+      durationSeconds: 1.6,
+      contactFrame: 24,
+      takeoffFrame: 10,
+      landingFrame: 40,
+      contact: { lateral: 0, forward: 1, height: 8 },
+    };
+    let reads = 0;
+    const broken = async () => {
+      reads++;
+      throw new Error("corrupt FBX");
+    };
+    await attachAerialClips(local, {}, {}, broken);
+    expect(reads).toBe(0);
+    expect(local.aerialStatus.header).toBe("missing");
+    await attachAerialClips(local, { header: "header.fbx" }, {}, broken);
+    expect(reads).toBe(0);
+    expect(local.aerialStatus.header).toBe("uncalibrated");
+    await attachAerialClips(local, { header: "header.fbx" }, { header: calibration }, broken);
+    expect(reads).toBe(1);
+    expect(local.aerialStatus.header).toBe("invalid");
+    expect(local.clips["soccer-pass"]).toBe(asset.clips["soccer-pass"]);
+    expect(local.clips.header).toBeUndefined();
+  });
+  it("plays an optional calibrated jumping clip without losing hip lift or accumulating on seeks", async () => {
+    // A synthetic jump over the real skeleton tests the pipeline, not the motion quality
+    // of a future Mixamo export. No synthetic animation is bundled for users.
+    const source = new Group(),
+      hips = new Bone();
+    hips.name = "mixamorigHips";
+    hips.position.copy(asset.model.getObjectByName("mixamorigHips")!.position);
+    source.add(hips);
+    const jump = asset.clips["soccer-pass"]!.clone();
+    const track = jump.tracks.find((t) => t.name === "mixamorigHips.position")!;
+    for (let i = 0; i < track.times.length; i++) {
+      track.values[i * 3 + 1] =
+        hips.position.y + 45 * Math.max(0, 1 - Math.abs(track.times[i] - 0.8) / 0.45);
+    }
+    // The real pass has the same required Y Bot head/spine tracks.
+    source.animations = [jump];
+    const calibration: AerialCalibration = {
+      sha256: "a".repeat(64),
+      fps: 30,
+      durationSeconds: jump.duration,
+      contactFrame: 24,
+      takeoffFrame: 10,
+      landingFrame: 40,
+      contact: { lateral: 0, forward: 1, height: 8 },
+    };
+    const local: RunningModel = {
+      ...asset,
+      clips: { ...asset.clips },
+      aerial: {},
+      aerialStatus: { ...asset.aerialStatus },
+    };
+    await attachAerialClips(local, { header: "test.fbx" }, { header: calibration }, async () => ({
+      source,
+      sha256: calibration.sha256,
+    }));
+    expect(local.aerialStatus.header).toBe("ready");
+    const actor = makeActor(local, { id: "h", team: "home", number: 9, role: "N", x: 50, y: 25 });
+    const base = { moving: false, heading: 0, distance: 0, elapsed: 0, duration: 1.6 };
+    const hip = actor.root.getObjectByName("mixamorigHips")!;
+    actor.pose(base);
+    const restingY = hip.position.y;
+    actor.pose({ ...base, state: "header", clip: "header", phase: 0.5, weight: 1 });
+    expect(hip.position.y - restingY).toBeGreaterThan(40);
+    const first = hip.position.clone();
+    actor.pose(base);
+    actor.pose({ ...base, state: "header", clip: "header", phase: 0.5, weight: 1 });
+    expect(hip.position.toArray()).toEqual(first.toArray());
+    for (let i = 0; i < 60; i++)
+      actor.pose({ ...base, state: "header", clip: "header", phase: 0.5, weight: 1 });
+    expect(hip.position.toArray()).toEqual(first.toArray());
+    actor.dispose();
+    await attachAerialClips(local, { header: "wrong.fbx" }, { header: calibration }, async () => ({
+      source,
+      sha256: "c".repeat(64),
+    }));
+    expect(local.aerialStatus.header).toBe("invalid");
+    expect(local.aerial.header).toBeUndefined();
+  });
+  it("keeps kick contact intact and adds seek-safe aerial follow-through and control", () => {
+    const actor = makeActor(asset, { id: "a", team: "home", number: 8, role: "SP", x: 0, y: 0 });
+    const base = { heading: 0, distance: 0, moving: false, elapsed: 0, duration: 0 };
+    const toe = actor.root.getObjectByName("mixamorigRightToeBase")!;
+    const leg = actor.root.getObjectByName("mixamorigRightUpLeg")!;
+    const atToe = () => {
+      actor.root.updateMatrixWorld(true);
+      return toe.getWorldPosition(new Vector3());
+    };
+    actor.pose({ ...base, state: "pass", phase: PASS_CONTACT_PHASE, weight: 1 });
+    const contact = atToe();
+    for (const delivery of ["chip", "lofted", "cross"] as const) {
+      actor.pose({ ...base, state: "pass", phase: PASS_CONTACT_PHASE, weight: 1, delivery });
+      expect(atToe().distanceTo(contact)).toBeLessThan(0.000001);
+      actor.pose({ ...base, state: "pass", phase: 0.6, weight: 1 });
+      const ground = leg.quaternion.clone();
+      actor.pose({ ...base, state: "pass", phase: 0.6, weight: 1, delivery });
+      const air = leg.quaternion.clone();
+      expect(air.angleTo(ground)).toBeGreaterThan(0.1);
+      actor.pose(base);
+      actor.pose({ ...base, state: "pass", phase: 0.6, weight: 1, delivery });
+      expect(leg.quaternion.toArray()).toEqual(air.toArray());
+      for (let i = 0; i < 60; i++)
+        actor.pose({ ...base, state: "pass", phase: 0.6, weight: 1, delivery });
+      expect(leg.quaternion.toArray()).toEqual(air.toArray());
+    }
+    actor.pose({ ...base, state: "receive", phase: 0.5, weight: 1, control: "aerial" });
+    const received = atToe();
+    actor.pose(base);
+    actor.pose({ ...base, state: "receive", phase: 0.5, weight: 1, control: "aerial" });
+    expect(atToe().distanceTo(received)).toBeLessThan(0.000001);
+    actor.dispose();
+  });
   it("does not bind helper bones with duplicate names twice", () => {
     const names = asset.idle.tracks.map((track) => track.name);
     expect(new Set(names).size).toBe(names.length);

@@ -14,7 +14,10 @@ import type { JourneySession } from "./journeyTypes";
 
 function completion(session: JourneySession): JourneySession | null {
   if (session.outcome)
-    return session.step === 4 && !["loss", "blocked"].includes(session.outcome) ? session : null;
+    return session.step === session.definition.steps.length &&
+      !["loss", "blocked"].includes(session.outcome)
+      ? session
+      : null;
   const choices = journeyStep(session).choices.sort(
     (a, b) => Number(a.quality !== "good") - Number(b.quality !== "good"),
   );
@@ -25,19 +28,19 @@ function completion(session: JourneySession): JourneySession | null {
   return null;
 }
 describe("IQ individual action bank", () => {
-  it("contains 80 topics and 240 playable contexts across all onboarding positions", () => {
-    expect(journeyBank).toHaveLength(240);
-    expect(new Set(journeyBank.map((s) => s.id)).size).toBe(240);
-    expect(new Set(journeyBank.map((s) => s.topicId)).size).toBe(80);
+  it("contains 160 topics and 480 playable contexts across all onboarding positions", () => {
+    expect(journeyBank).toHaveLength(480);
+    expect(new Set(journeyBank.map((s) => s.id)).size).toBe(480);
+    expect(new Set(journeyBank.map((s) => s.topicId)).size).toBe(160);
     for (const role of ["gk", "cb", "fb", "six", "eight", "ten", "wing", "nine"])
-      expect(journeyBank.filter((s) => s.role === role)).toHaveLength(30);
+      expect(journeyBank.filter((s) => s.role === role)).toHaveLength(60);
     expect(rolesForPosition("goalkeeper")).toEqual(["gk"]);
     expect(rolesForPosition("defender")).toEqual(["cb", "fb"]);
     expect(rolesForPosition("midfielder")).toEqual(["six", "eight", "ten"]);
     expect(rolesForPosition("forward")).toEqual(["wing", "nine"]);
     expect(rolesForPosition("unknown")).toHaveLength(8);
   });
-  it("allows at least one full four-decision completion in every context", () => {
+  it("allows at least one complete decision sequence in every context", () => {
     const missing = journeyBank
       .filter((definition) => !completion(createJourney(definition)))
       .map((s) => ({ id: s.id, title: s.title }));
@@ -117,7 +120,7 @@ describe("IQ individual action bank", () => {
         visit(next);
       }
     }
-    journeyBank.forEach((d) => visit(createJourney(d)));
+    journeyBank.filter((d) => !d.revision).forEach((d) => visit(createJourney(d)));
     expect(branches).toBeGreaterThan(5000);
   });
   it("uses the supplied pass animation windup before launching the ball", () => {

@@ -12,13 +12,18 @@ import {
   X,
 } from "lucide-react";
 import { TacticalPitch } from "./TacticalPitch";
-import { journeyBank, roleLabels, rolesForPosition } from "./journeyBank";
+import { journeyBank, journeyTopicCount, roleLabels, rolesForPosition } from "./journeyBank";
+import { deliveryLabels } from "./ballFlight";
+import type { BallDelivery } from "./ballFlight";
+import { nextPractice, practiceToday } from "./journeyPractice";
 import {
   chooseJourney,
   createJourney,
   journeyDuration,
   journeyCameraPoints,
   journeyFrame,
+  journeyChoice,
+  journeyPointChoice,
   journeyStep,
   journeyVerdict,
   sampleJourney,
@@ -69,6 +74,7 @@ const labels: Record<JourneyAction, string> = {
   press: "Doskok",
   mark: "Krycie",
   finish: "Zakończenie",
+  transition: "Reakcja po stracie",
 };
 const endings = {
   progress: "Otworzyłeś grę do przodu.",
@@ -77,6 +83,7 @@ const endings = {
   blocked: "Akcja została zatrzymana.",
   loss: "Strata piłki.",
   recovered: "Piłka odzyskana.",
+  contained: "Osłoniłeś drogę do bramki.",
 };
 const verdictLabels = {
   strong: "Dobre decyzje",
@@ -92,13 +99,15 @@ function poolFor(position: string | undefined) {
   const roles = rolesForPosition(position);
   return journeyBank.filter((s) => roles.includes(s.role));
 }
-function scenarioForStart(position: string | undefined, index: number) {
+function scenarioForStart(position: string | undefined, index?: number) {
   const pool = poolFor(position);
-  return pool[boundedIndex(index, pool.length)];
+  return index === undefined
+    ? (pool.find((s) => s.revision === 2) ?? pool[0])
+    : pool[boundedIndex(index, pool.length)];
 }
 
 export function FootballIQJourney({
-  initialScenario = 0,
+  initialScenario,
   onBack,
   onComplete,
   historyOwner,
@@ -110,6 +119,7 @@ export function FootballIQJourney({
   );
   const [session, setSession] = useState(() => createJourney(initial));
   const [mode, setMode] = useState<JourneyMode>("learn");
+  const [delivery, setDelivery] = useState<BallDelivery | null>(null);
   const [view, setView] = useState<View>("decision");
   const [booted, setBooted] = useState(false),
     [ready, setReady] = useState(false);
@@ -142,18 +152,32 @@ export function FootballIQJourney({
     pickerTrigger = useRef<HTMLButtonElement>(null);
   const allowedRoles = useMemo(() => rolesForPosition(position), [position]);
   const selectedStep = useMemo(() => (!session.outcome ? journeyStep(session) : null), [session]);
+  const deliveries = useMemo(
+    () => [
+      ...new Set(selectedStep?.choices.flatMap((c) => (c.delivery ? [c.delivery] : [])) ?? []),
+    ],
+    [selectedStep],
+  );
+  const selectedDelivery =
+    delivery && deliveries.includes(delivery)
+      ? delivery
+      : (session.definition.delivery ?? "ground");
+  const visibleChoices = useMemo(
+    () => selectedStep?.choices.filter((c) => !c.delivery || c.delivery === selectedDelivery) ?? [],
+    [selectedStep, selectedDelivery],
+  );
   const decision = session.decisions[reviewIndex];
   const duration = useMemo(() => journeyDuration(session), [session]);
   const cameraActions = useMemo<PlannedAction[]>(
     () =>
-      journeyCameraPoints(session).map((point, index) => ({
+      journeyCameraPoints(session, mode === "learn" || view === "review").map((point, index) => ({
         id: `camera-${index}`,
         type: "run",
         playerId: "you",
         from: point,
         to: point,
       })),
-    [session],
+    [session, mode, view],
   );
   const animationSession = transport?.kind === "alternative" && alternative ? alternative : session;
   const frame = useMemo(() => {
@@ -179,16 +203,19 @@ export function FootballIQJourney({
   const selectable = useMemo(
     () =>
       interactive && selectedStep
-        ? selectedStep.choices.flatMap((c) => (c.targetId ? [c.targetId] : []))
+        ? visibleChoices.flatMap((c) => (c.targetId ? [c.targetId] : []))
         : EMPTY_IDS,
-    [interactive, selectedStep],
+    [interactive, selectedStep, visibleChoices],
   );
   const destinations = useMemo(
     () =>
-      interactive && selectedStep && !["pass", "finish"].includes(selectedStep.kind)
+      mode === "learn" &&
+      interactive &&
+      selectedStep &&
+      !["pass", "finish", "transition"].includes(selectedStep.kind)
         ? selectedStep.choices.map((c) => ({ id: c.id, point: c.point, label: c.label }))
         : [],
-    [interactive, selectedStep],
+    [interactive, selectedStep, mode],
   );
   const currentChoices = useMemo(() => {
     if (!decision || view !== "review") return null;
@@ -202,7 +229,7 @@ export function FootballIQJourney({
     if (view !== "review" || !decision || !currentChoices || transport) return EMPTY_ACTIONS;
     const c = comparing
       ? decision.alternative
-      : currentChoices.step.choices.find((c) => c.id === decision.choiceId);
+      : journeyChoice(currentChoices.base, decision.choiceId);
     if (!c) return EMPTY_ACTIONS;
     const from = decision.before.positions.you;
     if (c.targetId)
@@ -220,13 +247,13 @@ export function FootballIQJourney({
   }, [view, decision, currentChoices, transport, comparing]);
   const highlights = useMemo<Point[] | undefined>(() => {
     if (view === "decision" && mode === "learn" && hinted && selectedStep) {
-      const c = selectedStep.choices.find((c) => c.quality === "good");
+      const c = visibleChoices.find((c) => c.quality === "good");
       return c ? [c.point] : undefined;
     }
     if (view === "review" && comparing && decision?.alternative)
       return [decision.alternative.point];
     return undefined;
-  }, [view, mode, hinted, selectedStep, comparing, decision]);
+  }, [view, mode, hinted, selectedStep, visibleChoices, comparing, decision]);
 
   useEffect(() => {
     attemptId.current = crypto.randomUUID();
@@ -381,6 +408,7 @@ export function FootballIQJourney({
       const next = chooseJourney(session, choiceId, elapsed.current);
       const start = journeyDuration(session);
       setSession(next);
+      setDelivery(null);
       setHinted(false);
       startTransport({ kind: "live", from: start, to: journeyDuration(next), paused: false });
     } catch {
@@ -398,11 +426,13 @@ export function FootballIQJourney({
     setShowAfter(false);
   }
   function newScenario(definition: JourneyDefinition) {
+    setNote("");
     setTransport(null);
     playheadRef.current = 0;
     setPlayhead(0);
     choiceLock.current = false;
     setSession(createJourney(definition));
+    setDelivery(null);
     setView("decision");
     setHinted(false);
     setComparing(false);
@@ -421,11 +451,7 @@ export function FootballIQJourney({
           ? allowedRoles
           : [roleFilter];
     const pool = journeyBank.filter((s) => roles.includes(s.role));
-    const attempts = history.filter((a) => a.mode === mode);
-    const seen = new Set(attempts.map((a) => a.scenarioId));
-    const unseen = pool.find((s) => s.topicId !== session.definition.topicId && !seen.has(s.id));
-    const index = pool.findIndex((s) => s.id === session.definition.id);
-    newScenario(unseen ?? pool[(index + 1 + pool.length) % pool.length]);
+    newScenario(nextPractice(pool, history, mode, session.definition));
   }
   function playAlternative() {
     if (!decision?.alternative || !currentChoices) return;
@@ -463,6 +489,7 @@ export function FootballIQJourney({
       )
     : null;
   const totalDone = history.filter((a) => a.mode === mode).length;
+  const stepCount = session.definition.steps.length;
   const footerTitle =
     view === "summary"
       ? endings[session.outcome!]
@@ -476,7 +503,9 @@ export function FootballIQJourney({
             : transport.kind === "alternative"
               ? "Sprawdź inne rozwiązanie"
               : "Twoja akcja"
-          : selectedStep?.prompt;
+          : mode === "challenge"
+            ? "Twój ruch"
+            : selectedStep?.prompt;
   const footerDetail =
     view === "summary"
       ? "Obejrzyj swoje wybory w całości albo zatrzymaj konkretną decyzję."
@@ -490,7 +519,13 @@ export function FootballIQJourney({
             : "Obserwuj piłkę i ruch zawodników."
           : mode === "learn" && hinted
             ? selectedStep?.cue
-            : selectedStep?.instruction;
+            : mode === "challenge"
+              ? selectedStep?.kind === "pass"
+                ? "Dotknij partnera, żeby podać."
+                : selectedStep?.kind === "finish"
+                  ? "Podaj do partnera albo wybierz strzał."
+                  : "Dotknij miejsca, do którego ruszysz."
+              : selectedStep?.instruction;
   return (
     <section className="bwiq-app iq-journey" aria-label="BallWise IQ — pełne akcje">
       <header className="iqJ-header">
@@ -529,11 +564,19 @@ export function FootballIQJourney({
           </button>
         </div>
         <div className="iqJ-title">
-          <h1>{session.definition.title}</h1>
+          <h1>
+            {mode === "challenge" && !session.outcome
+              ? "Rozegraj sytuację"
+              : session.definition.title}
+          </h1>
           <span>
             {view === "review"
               ? `${reviewIndex + 1}/${session.decisions.length}`
-              : `${Math.min(session.step + 1, 4)}/4`}
+              : session.transition === "choose"
+                ? "Reakcja"
+                : view === "summary"
+                  ? `${session.decisions.length} decyzji`
+                  : `${Math.min(session.step + 1, stepCount)}/${stepCount}`}
           </span>
         </div>
         {session.step === 0 && view === "decision" ? (
@@ -562,16 +605,28 @@ export function FootballIQJourney({
         ) : (
           <div className="iqJ-mode-label">
             {modeLabel}
-            <span>{session.definition.contextLabel}</span>
+            {(mode === "learn" || session.outcome) && (
+              <span>{session.definition.contextLabel}</span>
+            )}
           </div>
         )}
-        <div className="iqJ-progress" aria-label={`Decyzja ${Math.min(session.step + 1, 4)} z 4`}>
+        <div
+          className="iqJ-progress"
+          aria-label={
+            session.transition === "choose"
+              ? "Reakcja po stracie"
+              : `Decyzja ${Math.min(session.step + 1, stepCount)} z ${stepCount}`
+          }
+        >
           {session.definition.steps.map((_, i) => (
             <span
               key={i}
               className={i < session.step ? "is-done" : i === session.step ? "is-current" : ""}
             />
           ))}
+          {session.transition && (
+            <span className={session.transition === "choose" ? "is-current" : "is-done"} />
+          )}
         </div>
       </header>
       <div className="iqJ-stage">
@@ -589,13 +644,34 @@ export function FootballIQJourney({
             onReadyChange={setReady}
             selectablePlayerIds={selectable}
             onPlayerSelect={(player) => {
-              const c = selectedStep?.choices.find((c) => c.targetId === player.id);
+              const c = visibleChoices.find((c) => c.targetId === player.id);
               if (c) choose(c.id);
             }}
-            onPitchSelect={() => {}}
+            onPitchSelect={(point) => {
+              if (
+                mode !== "challenge" ||
+                !interactive ||
+                !selectedStep ||
+                ["pass", "finish"].includes(selectedStep.kind)
+              )
+                return;
+              try {
+                choose(journeyPointChoice(session, point).id);
+              } catch {
+                setNote("Wskaż miejsce wewnątrz boiska.");
+              }
+            }}
             destinations={destinations}
             onDestinationSelect={choose}
             showActionOrders={false}
+            showGuidance={
+              mode === "learn" || view === "review" || transport?.kind === "alternative"
+            }
+            freeMovement={
+              mode === "challenge" &&
+              !!selectedStep &&
+              !["pass", "finish"].includes(selectedStep.kind)
+            }
             highlights={highlights}
             highlightGood
           />
@@ -629,11 +705,46 @@ export function FootballIQJourney({
               : transport
                 ? "Obserwuj reakcję"
                 : selectedStep
-                  ? labels[selectedStep.kind]
+                  ? mode === "challenge"
+                    ? "Twoja decyzja"
+                    : labels[selectedStep.kind]
                   : ""}
         </span>
         <h2>{footerTitle}</h2>
         <p>{footerDetail}</p>
+        {view === "decision" && deliveries.length > 1 && (
+          <div className="iqJ-deliveries" role="group" aria-label="Rodzaj podania">
+            {deliveries.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={selectedDelivery === kind}
+                disabled={!interactive}
+                onClick={() => {
+                  setDelivery(kind);
+                  setHinted(false);
+                }}
+              >
+                {deliveryLabels[kind]}
+              </button>
+            ))}
+          </div>
+        )}
+        {mode === "learn" && view === "decision" && selectedStep?.kind === "transition" && (
+          <div className="iqJ-actions">
+            {selectedStep.choices.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="iqJ-button"
+                disabled={!interactive}
+                onClick={() => choose(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
         {view === "decision" && (
           <div className="iqJ-actions">
             {mode === "learn" && (
@@ -704,6 +815,11 @@ export function FootballIQJourney({
         )}
         {view === "summary" && (
           <>
+            <p className="iqJ-series">
+              {practiceToday(history, mode) < 3
+                ? `Krótka seria · ${practiceToday(history, mode)}/3`
+                : "Dzisiejsza seria ukończona"}
+            </p>
             <div className="iqJ-actions">
               <button
                 type="button"
@@ -808,6 +924,26 @@ export function FootballIQJourney({
               <button
                 type="button"
                 className="iqJ-button"
+                onClick={() => {
+                  if (!currentChoices) return;
+                  setSession(currentChoices.base);
+                  setTransport(null);
+                  setAlternative(null);
+                  setComparing(false);
+                  setHinted(false);
+                  setDelivery(null);
+                  setView("decision");
+                  choiceLock.current = false;
+                  elapsed.current = 0;
+                  attemptId.current = crypto.randomUUID();
+                  setNote("Zagraj ponownie od wybranego momentu.");
+                }}
+              >
+                Zagraj od tego momentu
+              </button>
+              <button
+                type="button"
+                className="iqJ-button"
                 disabled={!ready}
                 onClick={() => {
                   setComparing(false);
@@ -897,19 +1033,21 @@ export function FootballIQJourney({
           />
         </label>
         <p className="iqJ-bank-count">
-          {filteredBank.length} scenariuszy · 80 wątków w całej bazie
+          {filteredBank.length} scenariuszy · {journeyTopicCount} wątków w całej bazie
         </p>
         <div className="iqJ-scenario-list">
-          {filteredBank.map((definition) => (
+          {filteredBank.map((definition, index) => (
             <button
               type="button"
               key={definition.id}
               className="iqJ-scenario"
               onClick={() => newScenario(definition)}
             >
-              <span>{definition.title}</span>
+              <span>{mode === "challenge" ? `Sytuacja ${index + 1}` : definition.title}</span>
               <small>
-                {roleLabels[definition.role]} · {definition.contextLabel}
+                {definition.revision === 2 ? "Nowe · " : ""}
+                {roleLabels[definition.role]}
+                {mode === "learn" ? ` · ${definition.contextLabel}` : ""}
               </small>
             </button>
           ))}
@@ -935,8 +1073,14 @@ export function FootballIQJourney({
           </button>
         </div>
         <p>
-          Dotknij partnera, aby podać. Przy ruchu bez piłki dotknij jednej z zaznaczonych
-          przestrzeni.
+          {mode === "learn"
+            ? "Dotknij partnera, aby podać. Przy ruchu dotknij jednej z zaznaczonych przestrzeni."
+            : "Dotknij partnera, aby podać. Przy ruchu wskaż samodzielnie miejsce na boisku."}
+        </p>
+        <p>
+          {mode === "learn"
+            ? "W nowych akcjach wybierz tor podania, a potem partnera. Po stracie wybierz doskok albo powrót do obrony."
+            : "Rodzaj podania wybierasz przyciskami. Po stracie także sam wskazujesz miejsce reakcji."}
         </p>
         <p>
           Po wyborze zobaczysz reakcję zawodników i kolejne zadanie. Po końcu odtworzysz własną
@@ -947,7 +1091,9 @@ export function FootballIQJourney({
             ? "Wskazówka jest dostępna na żądanie."
             : "Ten tryb nie pokazuje podpowiedzi ani oceny w trakcie akcji."}
         </p>
-        <p className="iqJ-help-focus">Cel: {session.definition.focus}</p>
+        {(mode === "learn" || session.outcome) && (
+          <p className="iqJ-help-focus">Cel: {session.definition.focus}</p>
+        )}
         <button type="button" className="iqJ-button iqJ-primary" onClick={() => setHelp(false)}>
           Rozumiem
         </button>

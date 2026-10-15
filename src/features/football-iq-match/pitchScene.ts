@@ -190,6 +190,18 @@ export async function createPitchScene(
   ownedMaterials.add(ballMaterial);
   const ball = new Mesh(ballGeometry, ballMaterial);
   scene.add(ball);
+  const ballShadowGeometry = new CircleGeometry(0.9, 16);
+  const ballShadowMaterial = new MeshBasicMaterial({
+    color: "#061d18",
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+  });
+  ownedGeometries.add(ballShadowGeometry);
+  ownedMaterials.add(ballShadowMaterial);
+  const ballShadow = new Mesh(ballShadowGeometry, ballShadowMaterial);
+  ballShadow.rotation.x = -Math.PI / 2;
+  scene.add(ballShadow);
   const floor = new Plane(new Vector3(0, 1, 0), 0);
   const raycaster = new Raycaster();
   let disposed = false;
@@ -266,6 +278,7 @@ export async function createPitchScene(
   );
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let currentFrame: PlaybackFrame | null = null;
+  let guidanceVisible = true;
   let playing = false;
   let clock = 0;
   let lastClockTime = performance.now();
@@ -291,7 +304,10 @@ export async function createPitchScene(
       actor.pose(frame.motions.get(id)!, clock);
     });
     ball.position.copy(world(frame.ballVisual, frame.ballHeight));
-    carrierRing.visible = !frame.ballInFlight;
+    ballShadow.position.copy(world(frame.ballVisual, 0.08));
+    ballShadow.scale.setScalar(1 + Math.min(frame.ballHeight, 14) * 0.055);
+    ballShadowMaterial.opacity = Math.max(0.12, 0.36 - frame.ballHeight * 0.016);
+    carrierRing.visible = guidanceVisible && !frame.ballInFlight;
     const carrierPoint = frame.positions.get(frame.ballCarrierId);
     if (carrierPoint) carrierRing.position.copy(world(carrierPoint, 0.11));
     if (cue.visible)
@@ -331,6 +347,7 @@ export async function createPitchScene(
     cameraActions: PlannedAction[] = actions,
     activeActionId?: string,
     teachingPoint?: Point,
+    showGuidance = true,
   ) => {
     if (disposed || contextLost) return;
     if (focused !== focusOnActions || (focusOnActions && focusActions !== cameraActions)) {
@@ -365,6 +382,7 @@ export async function createPitchScene(
       resize();
     }
     currentFrame = frame;
+    guidanceVisible = showGuidance;
     playing = isPlaying;
     if (playing) stopIdle();
     if (previousRoutes !== actions) {

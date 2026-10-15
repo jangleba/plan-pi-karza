@@ -186,6 +186,10 @@
   border-radius: 50%;
   background: white;
 }
+.bwiq-pitch-wrap--independent .bwiq-ball-marker {
+  border-color: white;
+  box-shadow: none;
+}
 .bwiq-action-order {
   position: absolute;
   display: grid;

@@ -32,6 +32,21 @@ function finished() {
   return s;
 }
 describe("IQ journey persistence", () => {
+  it("keeps installed bank v1 history and drafts readable alongside the expanded bank", () => {
+    const storage = store(),
+      session = finished();
+    const attempt = { ...makeJourneyAttempt(session, "learn", "old"), bankVersion: "2026-10-15.1" };
+    storage.data.set("ballwise:iq:journeys:v1:a", JSON.stringify([attempt]));
+    expect(loadJourneyHistory("a", storage)).toEqual([attempt]);
+    expect(restoreJourney(attempt).beats).toEqual(session.beats);
+    saveJourneyAttempt("a", makeJourneyAttempt(session, "learn", "new"), storage);
+    expect(loadJourneyHistory("a", storage)).toHaveLength(2);
+    saveJourneyDraft("a", createJourney(journeyBank[0]), "learn", "draft", storage);
+    const key = "ballwise:iq:journeys:v1:a:draft";
+    const draft = JSON.parse(storage.data.get(key)!);
+    storage.data.set(key, JSON.stringify({ ...draft, bankVersion: "2026-10-15.1" }));
+    expect(loadJourneyDraft("a", storage)?.bankVersion).toBe("2026-10-15.1");
+  });
   it("isolates accounts, preserves mode, and does not double count replay", () => {
     const storage = store(),
       session = finished();

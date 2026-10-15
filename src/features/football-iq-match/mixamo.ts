@@ -19,15 +19,73 @@ import runningUrl from "./assets/running.fbx?url";
 import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "./playback";
 import type { PlayerMotion } from "./playback";
 import type { MatchPlayer } from "./types";
+import { aerialAnimationNames, aerialCalibrations, validateAerialCalibration } from "./aerialClips";
+import type { AerialAnimation, AerialCalibrations } from "./aerialClips";
 
 export const PLAYER_HEIGHT = 6.8;
-export type AdditionalAnimation = "idle" | "walking" | "soccer-pass" | "receive";
+export type AdditionalAnimation = "idle" | "walking" | "soccer-pass" | "receive" | AerialAnimation;
 type AdditionalClips = Partial<Record<AdditionalAnimation, AnimationClip>>;
 const additionalUrls = import.meta.glob<string>("./assets/{idle,walking,soccer-pass,receive}.fbx", {
   eager: true,
   query: "?url",
   import: "default",
 });
+const aerialUrls = import.meta.glob<string>("./assets/{long-kick,header}.fbx", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+export type AerialAssetStatus = "missing" | "uncalibrated" | "ready" | "invalid";
+
+// Optional new clips cannot make the installed running/idle/pass set unusable.
+// The reader is injected so missing/corrupt/changed exports can be tested without WebGL.
+export async function attachAerialClips(
+  asset: ReturnType<typeof prepareRunningModel>,
+  urls: Partial<Record<AerialAnimation, string>>,
+  calibrations: AerialCalibrations,
+  read: (url: string) => Promise<{ source: Group; sha256: string }>,
+) {
+  for (const name of aerialAnimationNames) {
+    delete asset.clips[name];
+    delete asset.aerial[name];
+    const url = urls[name],
+      calibration = calibrations[name];
+    asset.aerialStatus[name] = !url ? "missing" : !calibration ? "uncalibrated" : "invalid";
+    if (!url || !calibration) continue;
+    let source: Group | undefined;
+    try {
+      validateAerialCalibration(name, calibration);
+      const loaded = await read(url);
+      source = loaded.source;
+      const clip = prepareAdditionalClip(source, asset.model, name);
+      validateAerialCalibration(name, calibration, {
+        sha256: loaded.sha256,
+        durationSeconds: clip.duration,
+      });
+      if (name === "header") {
+        const hips = clip.tracks.find((track) => track.name === "mixamorigHips.position")!;
+        const interpolant = hips.InterpolantFactoryMethodLinear();
+        const height = (frame: number) => Number(interpolant.evaluate(frame / calibration.fps)[1]);
+        const floor = Math.max(
+          height(calibration.takeoffFrame!),
+          height(calibration.landingFrame!),
+        );
+        if ((height(calibration.contactFrame) - floor) * asset.scale < 0.2)
+          throw new Error("Klip nie zawiera wyskoku w zaznaczonym momencie główki.");
+      }
+      asset.clips[name] = clip;
+      // Use the parsed duration for phase sampling (FBX times are float32).
+      // The contact remains the exact frame / FPS marker from calibration.
+      asset.aerial[name] = { ...structuredClone(calibration), durationSeconds: clip.duration };
+      asset.aerialStatus[name] = "ready";
+    } catch {
+      // Keep the existing clips. Diagnostics are available to developer tooling.
+      asset.aerialStatus[name] = "invalid";
+    } finally {
+      if (source) disposeModel(source);
+    }
+  }
+}
 
 function restingClip(model: Group) {
   model.updateMatrixWorld(true);
@@ -72,6 +130,22 @@ async function loadAsset() {
         disposeModel(source);
       }
     }
+    const urls = Object.fromEntries(
+      Object.entries(aerialUrls).map(([path, url]) => [
+        path.split("/").at(-1)!.replace(".fbx", ""),
+        url,
+      ]),
+    );
+    await attachAerialClips(asset, urls, aerialCalibrations, async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Nie można pobrać opcjonalnej animacji.");
+      const bytes = await response.arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      const sha256 = Array.from(new Uint8Array(digest), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+      return { source: loader.parse(bytes, ""), sha256 };
+    });
     return asset;
   } catch (error) {
     disposeModel(asset.model);
@@ -88,11 +162,22 @@ export function prepareAdditionalClip(source: Group, target: Group, name: Additi
     if (object instanceof Bone && !bones.has(object.name)) bones.set(object.name, object);
   });
   const required = ["mixamorigHips", "mixamorigLeftUpLeg", "mixamorigRightUpLeg"];
+  if (name === "header") required.push("mixamorigSpine", "mixamorigHead");
   if (
     !clip ||
     !required.every((bone) => clip.tracks.some((track) => track.name === `${bone}.quaternion`))
   )
     throw new Error(`Animacja ${name} musi pochodzić z tego samego Y Bot w Mixamo.`);
+  if (
+    (name === "header" || name === "long-kick") &&
+    (!clip.tracks.some((track) => track.name === "mixamorigHips.position") ||
+      clip.tracks.some(
+        (track) =>
+          !Array.from(track.times).every(Number.isFinite) ||
+          !Array.from(track.values).every(Number.isFinite),
+      ))
+  )
+    throw new Error(`Animacja ${name} zawiera nieprawidłowe ścieżki ruchu.`);
   clip.name = name;
   clip.tracks = clip.tracks.filter((track) => {
     const dot = track.name.lastIndexOf(".");
@@ -107,11 +192,11 @@ export function prepareAdditionalClip(source: Group, target: Group, name: Additi
     const firstZ = track.values[2];
     for (let i = 0; i < track.values.length; i += 3) {
       // Locomotion follows the plan; the kick retains its small local weight transfer.
-      track.values[i] = hips.position.x + (name === "soccer-pass" ? track.values[i] - firstX : 0);
+      const localGesture = ["soccer-pass", "long-kick", "header"].includes(name);
+      track.values[i] = hips.position.x + (localGesture ? track.values[i] - firstX : 0);
       // Use the bind pose, not the first animated frame: Idle bends its knees.
       track.values[i + 1] = hips.position.y + track.values[i + 1] - sourceBindY;
-      track.values[i + 2] =
-        hips.position.z + (name === "soccer-pass" ? track.values[i + 2] - firstZ : 0);
+      track.values[i + 2] = hips.position.z + (localGesture ? track.values[i + 2] - firstZ : 0);
     }
   }
   return clip;
@@ -150,7 +235,19 @@ export function prepareRunningModel(model: Group) {
     }
   });
   const idle = restingClip(model);
-  return { model, running, idle, scale, floor, clips: {} as AdditionalClips };
+  return {
+    model,
+    running,
+    idle,
+    scale,
+    floor,
+    clips: {} as AdditionalClips,
+    aerial: {} as AerialCalibrations,
+    aerialStatus: { "long-kick": "missing", header: "missing" } as Record<
+      AerialAnimation,
+      AerialAssetStatus
+    >,
+  };
 }
 
 let cachedAsset: Promise<Awaited<ReturnType<typeof loadAsset>>> | null = null;
@@ -199,16 +296,39 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
   const receive = asset.clips.receive
     ? mixer.clipAction(asset.clips.receive).setLoop(LoopOnce, 1).play()
     : null;
-  const actions = [idle, run, walk, pass, receive].filter((action) => action !== null);
+  const aerial = Object.fromEntries(
+    aerialAnimationNames.map((name) => [
+      name,
+      asset.aerial[name] && asset.clips[name]
+        ? mixer.clipAction(asset.clips[name]!).setLoop(LoopOnce, 1).play()
+        : null,
+    ]),
+  );
+  const actions = [idle, run, walk, pass, receive, ...Object.values(aerial)].filter(
+    (action) => action !== null,
+  );
   actions.forEach((action) => {
     action.paused = true;
     action.clampWhenFinished = true;
     action.setEffectiveWeight(0);
   });
+  // AnimationMixer can skip writing unchanged tracks while paused. Restore the
+  // unmodified pose first so procedural offsets never accumulate on redraw.
+  const gestureBones = ["RightUpLeg", "RightLeg", "Spine", "LeftArm"].flatMap((name) => {
+    const bone = model.getObjectByName(`mixamorig${name}`);
+    return bone ? [{ bone, base: bone.quaternion.clone() }] : [];
+  });
 
   const pose = (motion: PlayerMotion, idleClock = motion.clock ?? 0) => {
+    gestureBones.forEach(({ bone, base }) => bone.quaternion.copy(base));
     const movement = motion.gait === "walk" && walk ? walk : run;
-    const gesture = motion.state === "pass" ? pass : motion.state === "receive" ? receive : null;
+    const gesture = motion.clip
+      ? aerial[motion.clip]
+      : motion.state === "pass"
+        ? pass
+        : motion.state === "receive"
+          ? receive
+          : null;
     const active = motion.moving ? movement : gesture;
     const blend = active
       ? Math.max(
@@ -236,6 +356,29 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
         : Math.min(duration - 0.000001, (motion.phase ?? 0) * duration);
     }
     mixer.update(0);
+    gestureBones.forEach((entry) => entry.base.copy(entry.bone.quaternion));
+    // Small, seek-safe offsets on top of the supplied kick. The contact frame
+    // remains untouched; the airborne delivery adds a higher follow-through.
+    const phase = motion.phase ?? 0;
+    if (
+      active === pass &&
+      !motion.clip &&
+      motion.state === "pass" &&
+      motion.delivery &&
+      motion.delivery !== "ground"
+    ) {
+      const follow =
+        Math.sin(Math.PI * Math.max(0, Math.min(1, (phase - 14 / 48) / (1 - 14 / 48)))) * blend;
+      model.getObjectByName("mixamorigRightUpLeg")?.rotateX(-0.3 * follow);
+      model.getObjectByName("mixamorigSpine")?.rotateX(-0.11 * follow);
+      model.getObjectByName("mixamorigLeftArm")?.rotateZ(-0.15 * follow);
+    }
+    if (motion.state === "receive" && motion.control === "aerial") {
+      const touch = Math.sin(Math.PI * Math.max(0, Math.min(1, phase))) * (motion.weight ?? 1);
+      model.getObjectByName("mixamorigRightUpLeg")?.rotateX(-0.46 * touch);
+      model.getObjectByName("mixamorigRightLeg")?.rotateX(0.42 * touch);
+      model.getObjectByName("mixamorigSpine")?.rotateX(0.1 * touch);
+    }
     root.rotation.y = motion.heading;
   };
   const dispose = () => {
