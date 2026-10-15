@@ -4,6 +4,10 @@
     {
       "stage": 1,
       "sha256": "185f3f282457e60cb8c541834bfbb79fcbd7ef1ef50d73e348cc57ffd78ce50e"
+    },
+    {
+      "stage": 2,
+      "sha256": "43b9992c676519c8799bbb15b227a325c7eeb43ec12c4a6068e637990bcdf765"
     }
   ],
   "files": {
@@ -48,6 +52,13 @@
     "src/lib/loadwise/store/useHydration.ts": "d3e844f4d5c63204875933a415a8e1c0f50fe58738013a92f79a041337242e98",
     "src/lib/loadwise/strengthBlocks.ts": "9c551734cad438ee3e8866d49ea6b0de2544753435575fd4f7575c45daafc0ba",
     "src/routes/onboarding.tsx": "48073cefea1acc25add73f66930493fa30fd67f9deddc1979736116b1fadf2b1",
-    "vite.mobile.config.ts": "f3ee4c225294955baff78f28ee9cfeecaa5ad2fc9471039fbbc0579e02500965"
+    "vite.mobile.config.ts": "f3ee4c225294955baff78f28ee9cfeecaa5ad2fc9471039fbbc0579e02500965",
+    "src/components/loadwise/ExerciseRunnerScreen.tsx": "fbe902a60e842a32d294a510e20adf542f409fa4f81aefb083cead24d744bc7e",
+    "src/components/loadwise/session/SessionChrome.tsx": "31fdd8e880e48a0b8a0b7bbe5386f8afc99c150858ba252f5b8a3cfefe6b9356",
+    "src/components/loadwise/session/SessionRunners.test.tsx": "f153ba8a5ed76f5e8ce31b8a6fc2945c1273b11b1ee8fd70f714a1b6a52fd849",
+    "src/components/loadwise/session/StrengthInline.test.tsx": "d9741f7e7cbb8589875f8eb40ae2763aa315cfec835b93e8f797759a262837c8",
+    "src/components/loadwise/session/StrengthRunner.tsx": "fa6df9646ea7f7fe6b54d8f476980542fb31a64107c953be29394868e3330cd2",
+    "src/components/loadwise/session/strength-session.css": "e6fe0634193489a2d59e1aff90384b1da4583ddf6ef4f673fd88e9b83d7435f3",
+    "src/routes/sesja.$date.tsx": "9eb41f5571c4895024b070b5fdbfe24d4b41e23f3a9c615c7d23dad55e0258b9"
   }
 }

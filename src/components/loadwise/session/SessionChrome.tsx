@@ -23,7 +23,7 @@ export function SessionScreenShell({
       <div className="px-5 pt-6">
         <button
           onClick={onBack}
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
+          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
         >
           <ChevronLeft className="h-4 w-4" /> Wstecz
         </button>
@@ -105,14 +105,14 @@ export function SessionHeader({
     <div className="px-5 pt-6">
       <button
         onClick={onBack}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
+        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
       >
         <ChevronLeft className="h-4 w-4" /> Wstecz
       </button>
 
       {strengthRunner ? (
         <>
-          <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.025em] text-foreground">
+          <h1 className="text-[20px] font-semibold leading-tight tracking-[-0.025em] text-foreground">
             {professionalSessionTitle(session.title)}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
@@ -185,7 +185,7 @@ export function SessionSlotSwitcher({
 }) {
   if (!primary.secondSession) return null;
   return (
-    <div className="sticky top-2 z-10 flex gap-1 rounded-full border border-border bg-background/90 p-1 backdrop-blur">
+    <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
       {([primary, primary.secondSession] as const).map((session, index) => {
         const sessionSlot = index === 0 ? 1 : 2;
         return (

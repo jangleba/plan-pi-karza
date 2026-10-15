@@ -203,7 +203,9 @@ function SessionDetail() {
   }
 
   return (
-    <div className="app-shell min-h-screen pb-[140px]">
+    <div
+      className={`app-shell min-h-screen pb-[100px] ${strengthRunner ? "bw-training-page" : ""}`}
+    >
       <SessionHeader
         session={session}
         strengthRunner={strengthRunner}
@@ -222,7 +224,7 @@ function SessionDetail() {
         />
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
-        {shortNote && (
+        {shortNote && (!strengthRunner || session.loadLabelOverride || session.safetyNote) && (
           <div className="soft-card bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
             {shortNote}
           </div>
@@ -373,20 +375,23 @@ function SessionDetail() {
             </div>
           ))}
 
-        {/* Dodaj / zamień sesję */}
-        {!isClub && session.dayType !== "match" && (
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => setModifyOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" /> Dodaj trening
-            </Button>
-            <Button variant="outline" onClick={() => setModifyOpen(true)}>
-              <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
-            </Button>
-          </div>
-        )}
+        <details className="bw-training-tools">
+          <summary>Opcje treningu</summary>
+          {/* Dodaj / zamień sesję */}
+          {!isClub && session.dayType !== "match" && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={() => setModifyOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" /> Dodaj trening
+              </Button>
+              <Button variant="outline" onClick={() => setModifyOpen(true)}>
+                <Repeat className="mr-1 h-4 w-4" /> Zamień sesję
+              </Button>
+            </div>
+          )}
 
-        {/* Logika decyzji — schowana, domyślnie zamknięta */}
-        <DecisionLogic session={session} />
+          {/* Logika decyzji — schowana, domyślnie zamknięta */}
+          <DecisionLogic session={session} />
+        </details>
       </div>
 
       <ModifySheet open={modifyOpen} onOpenChange={setModifyOpen} date={date} />

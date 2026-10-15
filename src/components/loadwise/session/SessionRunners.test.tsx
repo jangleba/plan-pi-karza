@@ -192,14 +192,15 @@ describe("session runners", () => {
       ),
     );
     await act(async () =>
-      host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane: Pierwsze"]')!.click(),
+      host
+        .querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane: Pierwsze"]')!
+        .click(),
     );
-    await click("Kontynuuj blok A");
-    expect(button("Zamknij runner").dataset.exerciseId).toBe("second");
+    await act(async () => host.querySelector<HTMLButtonElement>(".bw-exercise-open")!.click());
+    expect(button("Zamknij runner").dataset.exerciseId).toBe("first");
     expect(button("Zamknij runner").dataset.sessionId).toBe("strength-1");
     await click("Zamknij runner");
-    expect(host.textContent).not.toContain("Zakończ trening");
-    await click("Koniec");
+    expect(host.textContent).toContain("Koniec");
     await click("Zakończ trening");
     expect(finish).toHaveBeenCalledTimes(1);
   });

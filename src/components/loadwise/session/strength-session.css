@@ -1,46 +1,344 @@
-.bw-strength-progress {
-  padding: 4px 2px;
+.bw-training-list {
+  display: grid;
+  gap: 24px;
+  color: var(--foreground);
 }
-.bw-strength-block-code {
-  display: inline-flex;
+.bw-training-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.bw-training-progress progress {
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--muted);
+}
+.bw-training-progress progress::-webkit-progress-bar {
+  background: var(--muted);
+  border-radius: 4px;
+}
+.bw-training-progress progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 4px;
+}
+.bw-training-stage h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.bw-training-block {
+  margin-bottom: 12px;
+}
+.bw-pair-label {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 7px;
+  color: var(--muted-foreground);
+}
+.bw-training-exercise {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.bw-training-exercise.is-active {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+.bw-training-exercise-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+}
+.bw-exercise-check {
+  display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 26px;
-  height: 26px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
   background: var(--muted);
   color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
 }
-.bw-strength .bw-strength-guide {
-  margin-top: 0;
+.is-done .bw-exercise-check {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.is-done .bw-exercise-open {
+  opacity: 0.62;
+}
+.bw-exercise-open {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  text-align: left;
+  background: transparent;
   border: 0;
   padding: 0;
-  background: transparent;
+  color: inherit;
 }
-.bw-strength .bw-strength-guide > summary {
-  min-height: 44px;
-  padding: 0;
+.bw-exercise-open > span {
+  min-width: 0;
 }
-.bw-strength .bw-strength-guide .bw-guide-badge {
-  padding: 0;
-  background: transparent;
+.bw-exercise-open strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.bw-exercise-dose {
+  display: block;
+  margin-top: 5px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.bw-exercise-rest {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
   color: var(--muted-foreground);
+}
+.bw-exercise-open svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  transition: transform 0.15s;
+}
+.bw-exercise-open svg.is-open {
+  transform: rotate(180deg);
+}
+.bw-training-inline {
+  padding: 0 14px 14px;
+}
+.bw-set-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.bw-set-heading label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.bw-set-heading select {
+  appearance: auto;
+  font: inherit;
+  color: var(--foreground);
+  background: transparent;
+  border: 0;
+  min-height: 44px;
+  padding: 0 5px;
+}
+.bw-set-heading button,
+.bw-load-advice button {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.bw-last-result {
+  margin: 0 0 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bw-set-fields {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.bw-set-fields label {
+  min-width: 0;
+  gap: 5px;
+}
+.bw-set-fields label > span {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bw-set-fields label > div {
+  padding: 8px 10px;
+  border-radius: 9px;
+  min-height: 46px;
+  background: var(--background);
+}
+.bw-set-fields input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent !important;
+  font-size: 16px !important;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+.bw-save-set,
+.bw-finish-workout {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.bw-save-set:disabled {
+  opacity: 0.55;
+}
+.bw-training-error {
+  font-size: 13px;
+  color: var(--destructive);
+  margin-top: 8px;
+}
+.bw-exercise-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.bw-exercise-options > .bw-quick-guide,
+.bw-exercise-options > .bw-load-advice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  flex-basis: 100%;
+}
+.bw-exercise-options summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
   font-weight: 500;
-}
-.bw-strength .bw-strength-guide dl {
-  padding: 0 0 10px;
-}
-.bw-strength .bw-strength-rest > summary {
   list-style: none;
 }
-.bw-strength .bw-strength-rest > summary::-webkit-details-marker {
+.bw-exercise-options summary::-webkit-details-marker {
   display: none;
 }
-.bw-strength button:focus-visible,
-.bw-strength summary:focus-visible {
+.bw-exercise-options .bw-guide-badge {
+  padding: 0;
+  background: none;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.bw-exercise-options .bw-quick-guide dl {
+  padding: 0 0 8px;
+  font-size: 13px;
+}
+.bw-load-advice p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+.bw-equipment-change {
+  margin: 0 14px 10px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+}
+.bw-training-rest {
+  margin-top: 10px;
+}
+.bw-training-rest .bw-sprint-rest {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  min-height: 44px;
+}
+.bw-training-rest .bw-rest-label {
+  font-size: 13px;
+}
+.bw-training-rest .bw-rest-time {
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  min-width: 65px;
+}
+.bw-training-rest .bw-rest-controls {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.bw-training-rest .bw-rest-play {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 44px;
+  background: transparent;
+  color: var(--primary);
+}
+.bw-training-rest .bw-rest-play svg {
+  width: 18px;
+  height: 18px;
+}
+.bw-training-rest .bw-rest-prescription {
+  display: none;
+}
+.bw-training-rest .bw-rest-finished {
+  font-size: 12px;
+}
+.bw-training-list button:focus-visible,
+.bw-training-list summary:focus-visible {
   outline: 2px solid var(--primary);
-  outline-offset: 3px;
+  outline-offset: 2px;
+}
+.bw-training-page {
+  max-width: 540px;
+  margin: auto;
+}
+.bw-training-page .bw-training-tools {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.bw-training-tools > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-exercise-open svg {
+    transition: none;
+  }
 }

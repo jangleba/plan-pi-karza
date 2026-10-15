@@ -34,6 +34,7 @@ import { ExercisePersonalNote } from "./session/ExercisePersonalNote";
 import { SprintRestTimer } from "./session/SprintRestTimer";
 import { NextExercisePreview } from "./session/SessionQuickTools";
 import { canonicalExerciseName } from "@/lib/loadwise/sessionPresentation";
+import { ExerciseQuickGuide } from "./session/ExerciseQuickGuide";
 import { exerciseDisplayName } from "./session/exerciseDisplayNames";
 
 type FieldValues = Record<MetricField["id"], string>;
@@ -113,6 +114,9 @@ export function ExerciseRunnerScreen({
   nextExercise,
   date,
   showVisuals = true,
+  inline = false,
+  manageRest = true,
+  onSetSaved,
 }: {
   exercise: TrainingExercise;
   sessionId?: string | null;
@@ -122,6 +126,9 @@ export function ExerciseRunnerScreen({
   nextExercise?: TrainingExercise;
   date?: string;
   showVisuals?: boolean;
+  inline?: boolean;
+  manageRest?: boolean;
+  onSetSaved?: (log: SetLog, completed: boolean) => void;
 }) {
   const [view, setView] = useState<"sets" | "technique">("sets");
   const [setNumber, setSetNumber] = useState(1);
@@ -160,7 +167,9 @@ export function ExerciseRunnerScreen({
       key,
       String(setNumber),
     ),
-    toValues(current[setNumber]),
+    toValues(
+      current[setNumber] ?? (inline ? (current[setNumber - 1] ?? previous[setNumber]) : undefined),
+    ),
     parseTrainingFields,
   );
   const values = draft.value;
@@ -249,6 +258,152 @@ export function ExerciseRunnerScreen({
     (number) => number === setNumber || current[number],
   );
   const rest = exercise.restAfterPair || exercise.restAfterExercise;
+
+  async function saveCurrentSet() {
+    const validationError = validateTrainingFields(values, metricKind);
+    if (validationError) {
+      setBaselineError(validationError);
+      return;
+    }
+    const weightKg = num(values.weight);
+    setBaselineError(null);
+    setSaving(true);
+    const savingContext = context;
+    const log: SetLog = {
+      setNumber,
+      weightKg: metricKind === "load" ? weightKg : null,
+      reps: metricKind === "load" ? num(values.reps) : null,
+      rir: metricKind === "load" || metricKind === "contacts" ? num(values.rir) : null,
+      metricKind: metricKind === "load" ? null : metricKind,
+      metricValue: metricKind === "load" ? null : num(values.value),
+    };
+    try {
+      const ok = await saveSet(log);
+      if (activeContext.current !== savingContext || !isOpen.current) return;
+      if (!ok) {
+        setBaselineError("Nie udało się zapisać serii. Wpis zachowaliśmy — spróbuj ponownie.");
+        return;
+      }
+      draft.clear();
+      const saved = { ...current, [setNumber]: log };
+      const next = Array.from({ length: total }, (_, index) => index + 1).find(
+        (number) => !saved[number],
+      );
+      if (next !== undefined) {
+        setSetNumber(next);
+        setRestToken((token) => token + 1);
+      } else {
+        onComplete?.();
+        if (!onSetSaved) onClose();
+      }
+      onSetSaved?.(log, next === undefined);
+    } catch {
+      if (activeContext.current === savingContext && isOpen.current)
+        setBaselineError("Zapis nie powiódł się. Wpis zachowaliśmy — spróbuj ponownie.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (inline)
+    return (
+      <div className="bw-training-inline">
+        <div className="bw-set-heading">
+          <label>
+            Seria{" "}
+            <select
+              aria-label="Wybierz serię"
+              value={setNumber}
+              disabled={saving || loading}
+              onChange={(e) => setSetNumber(Number(e.target.value))}
+            >
+              {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n} z {total}
+                  {current[n] ? " ✓" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          {last && (
+            <button type="button" onClick={() => setValues(toValues(last))}>
+              Użyj ostatnich
+            </button>
+          )}
+        </div>
+        {last && <p className="bw-last-result">{hint}</p>}
+        <div className="bw-set-fields">
+          {fields.map((field) => (
+            <NumberField
+              key={field.id}
+              field={field}
+              value={values[field.id]}
+              disabled={saving || loading}
+              onChange={(next) => {
+                setValues((v) => ({ ...v, [field.id]: next }));
+                setBaselineError(null);
+              }}
+            />
+          ))}
+        </div>
+        {baselineError && (
+          <p className="bw-training-error" role="alert">
+            {baselineError}
+          </p>
+        )}
+        {!draft.available && (
+          <p className="bw-training-error" role="status">
+            Szkic jest dostępny tylko do zamknięcia tego widoku.
+          </p>
+        )}
+        <button
+          type="button"
+          className="bw-save-set"
+          disabled={saving || loading}
+          onClick={() => void saveCurrentSet()}
+        >
+          {saving
+            ? "Zapisuję…"
+            : loading
+              ? "Wczytuję serie…"
+              : current[setNumber]
+                ? "Zapisz zmianę"
+                : "Zapisz serię"}
+        </button>
+        {manageRest && rest && (
+          <div className="bw-training-rest">
+            <SprintRestTimer
+              label={rest}
+              compact
+              startToken={exercise.restAfterPair ? undefined : restToken}
+            />
+          </div>
+        )}
+        <div className="bw-exercise-options">
+          <ExerciseQuickGuide exercise={exercise} compact />
+          {(recommendation || needsStartingLoad) && (
+            <details className="bw-load-advice">
+              <summary>Dobór ciężaru</summary>
+              <p>
+                {recommendation?.reason ??
+                  "Wpisz ciężar, którym wykonasz dzisiejszą dawkę z podanym zapasem powtórzeń. 0 kg oznacza brak dodatkowego obciążenia."}
+              </p>
+              {recommendation?.weightKg != null && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setValues((v) => ({ ...v, weight: String(recommendation.weightKg) }))
+                  }
+                >
+                  Ustaw {formatKg(recommendation.weightKg)} kg
+                </button>
+              )}
+            </details>
+          )}
+          <ExercisePersonalNote exercise={exercise} />
+        </div>
+      </div>
+    );
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background pb-[env(safe-area-inset-bottom)]">
@@ -509,52 +664,7 @@ export function ExerciseRunnerScreen({
           <button
             type="button"
             disabled={saving || loading}
-            onClick={async () => {
-              const validationError = validateTrainingFields(values, metricKind);
-              if (validationError) {
-                setBaselineError(validationError);
-                return;
-              }
-              const weightKg = num(values.weight);
-              setBaselineError(null);
-              setSaving(true);
-              const savingContext = context;
-              const log: SetLog = {
-                setNumber,
-                weightKg: metricKind === "load" ? weightKg : null,
-                reps: metricKind === "load" ? num(values.reps) : null,
-                rir: metricKind === "load" || metricKind === "contacts" ? num(values.rir) : null,
-                metricKind: metricKind === "load" ? null : metricKind,
-                metricValue: metricKind === "load" ? null : num(values.value),
-              };
-              try {
-                const ok = await saveSet(log);
-                if (activeContext.current !== savingContext || !isOpen.current) return;
-                if (!ok) {
-                  setBaselineError(
-                    "Nie udało się zapisać serii. Wpis zachowaliśmy — spróbuj ponownie.",
-                  );
-                  return;
-                }
-                draft.clear();
-                const saved = { ...current, [setNumber]: log };
-                const next = Array.from({ length: total }, (_, index) => index + 1).find(
-                  (number) => !saved[number],
-                );
-                if (next !== undefined) {
-                  setSetNumber(next);
-                  setRestToken((token) => token + 1);
-                } else {
-                  onComplete?.();
-                  onClose();
-                }
-              } catch {
-                if (activeContext.current === savingContext && isOpen.current)
-                  setBaselineError("Zapis nie powiódł się. Wpis zachowaliśmy — spróbuj ponownie.");
-              } finally {
-                setSaving(false);
-              }
-            }}
+            onClick={() => void saveCurrentSet()}
             className="mt-5 w-full rounded-xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving
