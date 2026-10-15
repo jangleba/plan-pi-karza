@@ -1,0 +1,130 @@
+name: "BallWise — naprawy po audycie"
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/napraw-ballwise-po-audycie.yml'
+      - '.github/workflows/ballwise-repair-*.payload.txt'
+permissions:
+  contents: write
+concurrency:
+  group: ballwise-audit-repairs-main
+  cancel-in-progress: false
+jobs:
+  naprawy:
+    if: github.repository == 'jangleba/plan-pi-karza' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: NPM zgodne z lockfile
+        run: npm install --global npm@11.9.0
+      - name: Sprawdz kolejność i zastosuj naprawy
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,hashlib,base64,gzip,tempfile
+          from pathlib import Path
+          ROOT=Path.cwd()
+          ALLOWED={'1': 'c67d138a18c8583a1d4151d1a49d54a05ed3a96a4578e0ae15d27aedba100908', '2': '1d9081b783e0d6c8f6fb142ba1c540d99d4b959617c550f559625a8af4e3f9e2', '3': '92b84f4a5e64d5be2accab19caa965123d77500f0e73f8e930221fcd6c163102', '4': '5ca3ac8ba2dd4502d1887c851d398d20d4dfb19e58befc900265770fc7a59a15', '5': '2876e34c57ddfeadaa014aa733f94dca1642552ebe762c0cc39fce6173fedf09', '6': '8199348faeffd43ad1a72b32b06550453e3991eed589730762431434f58869d5', '7': '84b555972e71d1d10ef9e0f1b74031deefbe6fa8f14ae2f4c3dbbcecb3af1ffb', '8': '18ad11890ef3231f9cf95913e81ed13f281b9babf02f4cf8b109f46794e875f5', '9': '7a254b8db4cb7962cc1a5912d6892956ed021b6781b9077d4ed550336f2bdc7d', '10': '1e6582951b8fcd563f7e49d2f8cad87c622f6c49ea86428d46a24d173c54e9b7', '11': '4ae769e3b8c8302edb76c7bcc634860e993e5e388219234c942ab8b00fa3afde', '12': '4ced32a360824e8b547bc6c95d32a03e3077650003503776da4a7d808025b2ba', '13': 'e0c99085b4ff75f2dbccd8d668e2a2e40597f49be715d518d47898a6836d73f9', '14': '11698a75e79685cbdea0c403439fa00763f0658157550f3f69d8e7ca01c59edc', '15': 'd333218bcdc8aed5650410910758e1f2879e6e19de5115ffbc7201c7a6cea71d', '16': '79dd2ea98900a603ec1791915719e1eb03acb07ab5bd253b962db0452e9dd5c3', '17': '1e8dc68b36cf5ecf32292d472ceff68a8e11a54e5c2270a1964036fafb0531d1', '18': 'a7d658d0e6240b71941b7ec689373cbfb3bddf035167f15f5a58034c6f8bed22', '19': 'a3de1044d1a1f288dc98362cfd2b86ab6bd7d5ece311bbf1f68fe1b3f1687611', '20': '202a427e4a3cd8d104ea03e0581ad6958b9eb40c12da0e6887ec8726d43e2364', '21': '1fa2c51fb620610e7768e94321bf9663f2d2ee7717ac059b26d873f583a18f61', '22': '1a18a5b40b943d159bf3adbdc276143e87831ed9aa990c173b15ba28a336eb6e'}
+          LEDGER="docs/ballwise/audit-repair-ledger-2026-10-15.json"
+          def digest(value):return hashlib.sha256(value).hexdigest()
+          def safe(path):
+           p=Path(path)
+           if p.is_absolute() or ".." in p.parts or not (path.startswith("src/") or path=="vite.mobile.config.ts" or path==LEDGER):raise RuntimeError("Niedozwolona ścieżka: "+path)
+           if any(parent.is_symlink() for parent in [ROOT/p,*list((ROOT/p).parents)[:-1]]):raise RuntimeError("Dowiązanie w ścieżce: "+path)
+           return ROOT/p
+          def unpack(data):return json.loads(gzip.decompress(base64.b64decode(data,validate=True)))
+          ledger_path=safe(LEDGER)
+          ledger=json.loads(ledger_path.read_text()) if ledger_path.exists() else {"schema":1,"applied":[],"files":{}}
+          if ledger.get("schema")!=1 or not isinstance(ledger.get("files"),dict):raise RuntimeError("Nieprawidłowy rejestr napraw")
+          applied=ledger.get("applied",[])
+          if not isinstance(applied,list) or len(applied)>22:raise RuntimeError("Uszkodzony rejestr napraw")
+          for i,item in enumerate(applied,1):
+           if item!={"stage":i,"sha256":ALLOWED[str(i)]}:raise RuntimeError("Uszkodzona kolejność zapisanych napraw")
+          for path,expected in ledger["files"].items():
+           p=safe(path)
+           if not p.is_file() or digest(p.read_bytes())!=expected:raise RuntimeError("Plik zmienił się po naprawie: "+path+". Nie nadpisuję nowszego kodu.")
+          payloads={}
+          folder=ROOT/".github/workflows"
+          aggregate=folder/"ballwise-repair-all.payload.txt"
+          if aggregate.exists():
+           bundle=unpack(aggregate.read_bytes().strip())
+           if bundle.get("schema")!=1 or not isinstance(bundle.get("stages"),dict):raise RuntimeError("Nieprawidłowa paczka zbiorcza")
+           for key,value in bundle["stages"].items():payloads[int(key)]=value.encode()
+          for file in folder.glob("ballwise-repair-[0-9][0-9].payload.txt"):
+           idx=int(file.name.split("-")[2].split(".")[0]);data=file.read_bytes().strip()
+           if idx in payloads and payloads[idx]!=data:raise RuntimeError("Sprzeczne dane paczki")
+           payloads[idx]=data
+          if not payloads:raise RuntimeError("Brak pliku danych. Wgraj YML i plik payload.txt do .github/workflows.")
+          decoded={}
+          for idx,data in payloads.items():
+           if str(idx) not in ALLOWED or digest(data)!=ALLOWED[str(idx)]:raise RuntimeError("Uszkodzony plik danych: "+str(idx))
+           stage=unpack(data)
+           if stage.get("schema")!=1 or stage.get("stage")!=idx:raise RuntimeError("Nieprawidłowa tożsamość paczki")
+           decoded[idx]=stage
+          new=sorted(idx for idx in decoded if idx>len(applied))
+          if new and new!=list(range(len(applied)+1,max(new)+1)):raise RuntimeError("Brak wcześniejszej paczki. Wgrywaj kolejno od 01 lub użyj DO-WGRANIA.")
+          # Verify the entire new prefix in memory before writing any source file.
+          memory={};expected=dict(ledger["files"])
+          for idx in new:
+           for edit in decoded[idx]["edits"]:
+            path=edit["path"];p=safe(path)
+            before=memory[path] if path in memory else p.read_bytes() if p.exists() else None
+            if (digest(before) if before is not None else None)!=edit["before"]:raise RuntimeError("Kod bazowy różni się w "+path+". Nie nadpisuję go.")
+            after=base64.b64decode(edit["data"],validate=True)
+            if digest(after)!=edit["after"]:raise RuntimeError("Nieprawidłowa zawartość "+path)
+            memory[path]=after;expected[path]=edit["after"]
+           applied.append({"stage":idx,"sha256":ALLOWED[str(idx)]})
+          ledger={"schema":1,"applied":applied,"files":expected}
+          for path,data in memory.items():
+           p=safe(path);p.parent.mkdir(parents=True,exist_ok=True)
+           with tempfile.NamedTemporaryFile(dir=p.parent,delete=False) as file:file.write(data);tmp=file.name
+           os.replace(tmp,p)
+          ledger_path.parent.mkdir(parents=True,exist_ok=True)
+          ledger_path.write_text(json.dumps(ledger,ensure_ascii=False,indent=2)+"\n")
+          manifest={"files":{**expected,LEDGER:digest(ledger_path.read_bytes())},"count":len(applied)}
+          (Path(os.environ["RUNNER_TEMP"])/"ballwise-repairs-manifest.json").write_text(json.dumps(manifest))
+          print("Przygotowano naprawy:",new,"; łącznie:",len(applied))
+          PY
+      - name: Zaleznosci
+        run: npm ci
+      - name: Typy
+        run: npm run typecheck
+      - name: Testy
+        run: npm run test -- --maxWorkers=2 --testTimeout=30000
+      - name: Lint
+        run: npm run lint
+      - name: Build web
+        run: npm run build
+      - name: Build mobile
+        run: npm run build:mobile
+      - name: Zapisz tylko sprawdzony kod
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,os,hashlib,subprocess
+          from pathlib import Path
+          m=json.loads((Path(os.environ["RUNNER_TEMP"])/"ballwise-repairs-manifest.json").read_text())
+          for path,expected in m["files"].items():
+           if hashlib.sha256(Path(path).read_bytes()).hexdigest()!=expected:raise RuntimeError("Kod zmienił się podczas kontroli: "+path)
+          paths=sorted(m["files"])
+          subprocess.run(["git","config","user.name","github-actions[bot]"],check=True)
+          subprocess.run(["git","config","user.email","41898282+github-actions[bot]@users.noreply.github.com"],check=True)
+          subprocess.run(["git","add","--",*paths],check=True)
+          staged=subprocess.check_output(["git","diff","--cached","--name-only"]).decode().splitlines()
+          if any(p not in paths for p in staged):raise RuntimeError("W indeksie znajdują się nieoczekiwane pliki")
+          if staged:
+           subprocess.run(["git","commit","-m",f"BallWise: sprawdzone naprawy po audycie 01-{m['count']:02}"],check=True)
+           subprocess.run(["git","push","origin","HEAD:main"],check=True)
+          else:print("Naprawy są już zapisane; brak nowego commita.")
+          if os.environ.get("GITHUB_STEP_SUMMARY"):
+           with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f:f.write(f"Zapisano po testach naprawy 01–{m['count']:02}.\n")
+          PY
