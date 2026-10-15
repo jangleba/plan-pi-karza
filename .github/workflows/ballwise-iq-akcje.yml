@@ -79,6 +79,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Ustaw npm zgodny z package-lock
+        run: npm install --global npm@11.9.0
       - name: Zainstaluj zależności projektu
         run: npm ci --no-audit --no-fund
       - name: Sprawdź typy, testy, lint, web i mobile
