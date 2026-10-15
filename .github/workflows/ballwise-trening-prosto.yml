@@ -1,0 +1,134 @@
+name: "BallWise — cofniecie i prosty trening"
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ballwise-trening-prosto.yml'
+      - '.github/workflows/ballwise-training-reset-*.payload.txt'
+permissions:
+  contents: write
+concurrency:
+  group: ballwise-training-reset-main
+  cancel-in-progress: false
+jobs:
+  trening:
+    if: github.repository == 'jangleba/plan-pi-karza' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: NPM zgodne z lockfile
+        run: npm install --global npm@11.9.0
+      - name: Sprawdz kod i zastosuj etap
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,hashlib,base64,gzip,tempfile
+          from pathlib import Path
+          ROOT=Path.cwd()
+          ALLOWED={'1': '185f3f282457e60cb8c541834bfbb79fcbd7ef1ef50d73e348cc57ffd78ce50e', '2': '43b9992c676519c8799bbb15b227a325c7eeb43ec12c4a6068e637990bcdf765', '3': '5d5bd309c5e3ccdd0d067c3b03cc83b760f71ccdd21adf75505dda69b55a2282'}
+          LEDGER="docs/ballwise/training-reset-ledger-2026-10-15.json"
+          def digest(value):return hashlib.sha256(value).hexdigest()
+          def safe(path):
+           p=Path(path)
+           if p.is_absolute() or ".." in p.parts or not (path.startswith("src/") or path=="vite.mobile.config.ts" or path==LEDGER):raise RuntimeError("Niedozwolona ścieżka: "+path)
+           if any(parent.is_symlink() for parent in [ROOT/p,*list((ROOT/p).parents)[:-1]]):raise RuntimeError("Dowiązanie w ścieżce: "+path)
+           return ROOT/p
+          def unpack(data):return json.loads(gzip.decompress(base64.b64decode(data,validate=True)))
+          ledger_path=safe(LEDGER)
+          ledger=json.loads(ledger_path.read_text()) if ledger_path.exists() else {"schema":1,"applied":[],"files":{}}
+          if ledger.get("schema")!=1 or not isinstance(ledger.get("files"),dict):raise RuntimeError("Nieprawidłowy rejestr napraw")
+          applied=ledger.get("applied",[])
+          if not isinstance(applied,list) or len(applied)>3:raise RuntimeError("Uszkodzony rejestr napraw")
+          for i,item in enumerate(applied,1):
+           if item!={"stage":i,"sha256":ALLOWED[str(i)]}:raise RuntimeError("Uszkodzona kolejność zapisanych napraw")
+          for path,expected in ledger["files"].items():
+           p=safe(path)
+           if (p.read_bytes() if p.is_file() else None) is None and expected is not None or (digest(p.read_bytes()) if p.is_file() else None)!=expected:raise RuntimeError("Plik zmienił się po naprawie: "+path+". Nie nadpisuję nowszego kodu.")
+          payloads={}
+          folder=ROOT/".github/workflows"
+          aggregate=folder/"ballwise-training-reset-all.payload.txt"
+          if aggregate.exists():
+           bundle=unpack(aggregate.read_bytes().strip())
+           if bundle.get("schema")!=1 or not isinstance(bundle.get("stages"),dict):raise RuntimeError("Nieprawidłowa paczka zbiorcza")
+           for key,value in bundle["stages"].items():payloads[int(key)]=value.encode()
+          for file in folder.glob("ballwise-training-reset-[0-9][0-9].payload.txt"):
+           idx=int(file.name.removeprefix("ballwise-training-reset-").split(".")[0]);data=file.read_bytes().strip()
+           if idx in payloads and payloads[idx]!=data:raise RuntimeError("Sprzeczne dane paczki")
+           payloads[idx]=data
+          if not payloads:raise RuntimeError("Brak pliku danych. Wgraj YML i plik payload.txt do .github/workflows.")
+          decoded={}
+          for idx,data in payloads.items():
+           if str(idx) not in ALLOWED or digest(data)!=ALLOWED[str(idx)]:raise RuntimeError("Uszkodzony plik danych: "+str(idx))
+           stage=unpack(data)
+           if stage.get("schema")!=1 or stage.get("stage")!=idx:raise RuntimeError("Nieprawidłowa tożsamość paczki")
+           decoded[idx]=stage
+          new=sorted(idx for idx in decoded if idx>len(applied))
+          if new and new!=list(range(len(applied)+1,max(new)+1)):raise RuntimeError("Brak wcześniejszej paczki. Wgraj najpierw paczkę 01, potem 02 i 03.")
+          # Verify the entire new prefix in memory before writing any source file.
+          memory={};expected=dict(ledger["files"])
+          for idx in new:
+           for edit in decoded[idx]["edits"]:
+            path=edit["path"];p=safe(path)
+            before=memory[path] if path in memory else p.read_bytes() if p.exists() else None
+            if (digest(before) if before is not None else None)!=edit["before"]:raise RuntimeError("Kod bazowy różni się w "+path+". Nie nadpisuję go.")
+            after=base64.b64decode(edit["data"],validate=True) if edit["data"] is not None else None
+            if (digest(after) if after is not None else None)!=edit["after"]:raise RuntimeError("Nieprawidłowa zawartość "+path)
+            memory[path]=after;expected[path]=edit["after"]
+           applied.append({"stage":idx,"sha256":ALLOWED[str(idx)]})
+          ledger={"schema":1,"applied":applied,"files":expected}
+          for path,data in memory.items():
+           p=safe(path)
+           if data is None:
+            p.unlink(missing_ok=True);continue
+           p.parent.mkdir(parents=True,exist_ok=True)
+           with tempfile.NamedTemporaryFile(dir=p.parent,delete=False) as file:file.write(data);tmp=file.name
+           os.replace(tmp,p)
+          ledger_path.parent.mkdir(parents=True,exist_ok=True)
+          ledger_path.write_text(json.dumps(ledger,ensure_ascii=False,indent=2)+"\n")
+          manifest={"files":{**expected,LEDGER:digest(ledger_path.read_bytes())},"count":len(applied)}
+          (Path(os.environ["RUNNER_TEMP"])/"ballwise-training-reset-manifest.json").write_text(json.dumps(manifest))
+          print("Przygotowano naprawy:",new,"; łącznie:",len(applied))
+          PY
+      - name: Zaleznosci
+        run: npm ci
+      - name: Typy
+        run: npm run typecheck
+      - name: Testy
+        run: npm run test -- --maxWorkers=2 --testTimeout=30000
+      - name: Lint
+        run: npm run lint
+      - name: Build web
+        run: npm run build
+      - name: Build mobile
+        run: npm run build:mobile
+      - name: Zapisz sprawdzony kod
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,os,hashlib,subprocess
+          from pathlib import Path
+          m=json.loads((Path(os.environ["RUNNER_TEMP"])/"ballwise-training-reset-manifest.json").read_text())
+          for path,expected in m["files"].items():
+           if (hashlib.sha256(Path(path).read_bytes()).hexdigest() if Path(path).is_file() else None)!=expected:raise RuntimeError("Kod zmienił się podczas kontroli: "+path)
+          paths=sorted(m["files"])
+          subprocess.run(["git","config","user.name","github-actions[bot]"],check=True)
+          subprocess.run(["git","config","user.email","41898282+github-actions[bot]@users.noreply.github.com"],check=True)
+          stageable=[p for p in paths if Path(p).exists() or subprocess.run(["git","ls-files","--error-unmatch","--",p],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0]
+          subprocess.run(["git","add","-A","--",*stageable],check=True)
+          staged=subprocess.check_output(["git","diff","--cached","--name-only"]).decode().splitlines()
+          if any(p not in paths for p in staged):raise RuntimeError("W indeksie znajdują się nieoczekiwane pliki")
+          if staged:
+           subprocess.run(["git","commit","-m",f"BallWise: cofnięcie audytu i prosty trening, etapy 01-{m['count']:02}"],check=True)
+           subprocess.run(["git","push","origin","HEAD:main"],check=True)
+          else:print("Naprawy są już zapisane; brak nowego commita.")
+          if os.environ.get("GITHUB_STEP_SUMMARY"):
+           with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f:f.write(f"Zapisano po testach naprawy 01–{m['count']:02}.\n")
+          PY
