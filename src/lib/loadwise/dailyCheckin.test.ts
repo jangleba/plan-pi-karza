@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile, Readiness, SessionDay } from "./types";
+import { applyReadiness } from "./planEngine";
 import { applyCheckInToPlanDay, nextMatchDate, resolveEffectiveDay } from "./dailyCheckin";
 
 const PROFILE: Profile = {
@@ -143,14 +144,14 @@ describe("daily check-in integration", () => {
     expect(result.adjusted?.safetyNote).toMatch(/ból nasila|fizjoterapeut/i);
   });
 
-  it("dla gotowości 3/10 zmniejsza objętość o 25%, ale nie zamienia sesji na regenerację", () => {
+  it("dla gotowości 3/10 zmniejsza objętość o 60%, ale nie zamienia sesji na regenerację", () => {
     const result = applyCheckInToPlanDay(
       [makeSession()],
       "2026-08-17",
       readiness({ overall: 3 }),
       PROFILE,
     );
-    expect(result.adjusted?.durationMin).toBe(68);
+    expect(result.adjusted?.durationMin).toBe(36);
     expect(result.adjusted?.title).toBe("Szybkość");
     expect(result.adjusted?.secondSession).toBeNull();
   });
@@ -234,7 +235,7 @@ describe("daily check-in integration", () => {
     ]);
     expect(result.title).toBe(swapped.title);
     expect(result.sessionType).toBe(swapped.sessionType);
-    expect(result.sections).toEqual(swapped.sections);
+    expect(result.sections).toEqual(applyReadiness(swapped, readiness({}), PROFILE).session.sections);
   });
 
   it("falls through to the readiness-adjusted canonical session without a swap", () => {

@@ -8,6 +8,7 @@ import {
   type CanonicalConsentType,
   type ConsentDecision,
 } from "../consent";
+import { normalizePersistedPainLocations } from "../profilePainPersistence";
 import { CONSENTS } from "../legal";
 import type { Profile, SessionDay } from "../types";
 import { loadLocal, localKey } from "./localState";
@@ -95,6 +96,9 @@ export function createProfileActions(
         schema_version: ONBOARDING_SCHEMA_VERSION,
         completed: true,
         account_owner_type: nextProfile.accountOwnerType ?? "athlete",
+        seasonPhaseOverride: Boolean(nextProfile.seasonPhaseOverride),
+        painLocations: nextProfile.healthPersonalizationEnabled && nextProfile.painInjury
+          ? normalizePersistedPainLocations(nextProfile.painLocations) : [],
       } as unknown as Json,
       completed_at: new Date().toISOString(),
     });
@@ -126,6 +130,14 @@ export function createProfileActions(
     const revision = await saveProfileRows(profile, true);
     const nextProfile = completedProfile(profile, revision);
     const plan = await savePlanToDb(nextProfile, revision);
+    const preferencesWrite = await supabase.from("onboarding_answers").insert({
+      user_id:user.id, completed_at:new Date().toISOString(),
+      answers_json: {schema_version:ONBOARDING_SCHEMA_VERSION, completed:true,
+        seasonPhaseOverride: Boolean(profile.seasonPhaseOverride),
+        painLocations: profile.healthPersonalizationEnabled && profile.painInjury
+          ? normalizePersistedPainLocations(profile.painLocations):[]} as unknown as Json,
+    });
+    assertNoSupabaseError("onboarding_answers.preferences", preferencesWrite.error);
     await clearFutureOverlaysForUser(user.id, todayIso);
     commitProfilePlan(nextProfile, plan);
   }

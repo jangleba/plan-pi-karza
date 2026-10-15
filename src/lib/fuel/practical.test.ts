@@ -29,7 +29,8 @@ describe("Fuel practical decisions", () => {
   it("does not mark a session completed just because the clock passed", () => {
     const timing = relativeFuelTiming(30, now)!;
     expect(minutesToFuelStart(timing, now + 31 * 60_000)).toBe(0);
-    expect(resolveFuelTiming(context, timing).phase).toBe("before");
+    expect(resolveFuelTiming(context, timing, now + 31 * 60_000).phase).toBe("unconfirmed");
+    expect(context.completed).not.toBe(true);
     expect(resolveFuelTiming({ ...context, completed: true, endedAt: now }, timing).phase).toBe(
       "after",
     );

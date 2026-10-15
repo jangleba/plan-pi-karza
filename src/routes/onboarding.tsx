@@ -285,7 +285,7 @@ function Onboarding() {
     existing?.hasGym ?? false,
   );
   const [hasPitch, setHasPitch] = useState(existing?.hasPitch ?? true);
-  const [hasSprintSpace] = useState(
+  const [hasSprintSpace, setHasSprintSpace] = useState(
     existing?.hasSprintSpace ?? true,
   );
   const [seasonPhaseOverride, setSeasonPhaseOverride] = useState(
@@ -520,6 +520,10 @@ function Onboarding() {
       foodAllergies: existing?.foodAllergies ?? [],
       foodIntolerances: existing?.foodIntolerances ?? [],
       foodExclusions: existing?.foodExclusions ?? [],
+      fieldMasKmh: existing?.fieldMasKmh ?? null,
+      fieldMasTestedAt: existing?.fieldMasTestedAt ?? null,
+      runningProgressionLevel: existing?.runningProgressionLevel ?? 0,
+      runningProgressionUpdatedAt: existing?.runningProgressionUpdatedAt ?? null,
       position,
       level,
       goal,
@@ -529,6 +533,10 @@ function Onboarding() {
       unavailableDays,
       usualMatchDay: null,
       matchDate: noMatch ? null : matchDate || null,
+      matchDates: noMatch ? [] : Array.from(new Set([
+        ...(existing?.matchDates ?? []).filter(d => d !== existing?.matchDate),
+        ...(matchDate ? [matchDate] : []),
+      ])).sort(),
       equipment,
       painInjury: Boolean(consents.health_data && painInjury),
       painLocations: consents.health_data && painInjury ? painLocations : [],
@@ -1083,6 +1091,10 @@ function Onboarding() {
                   onCheckedChange={(c) => setHasPitch(c === true)}
                 />
                 <span className="text-sm">Mam dostęp do boiska</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+                <Checkbox checked={hasSprintSpace} onCheckedChange={c=>setHasSprintSpace(c===true)} />
+                <span className="text-sm">Mam bezpieczny prosty odcinek do sprintu i wyhamowania</span>
               </label>
               {consents.health_data ? (
                 <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">

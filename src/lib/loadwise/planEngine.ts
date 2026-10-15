@@ -34,6 +34,9 @@ import {
 import { enforceSessionCategory, newContentCounters, type ContentCounters } from "./sessionContent";
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
+import { reduceSessionDose } from "./sessionDose";
+import { enforceFinalDayConstraints } from "./finalDayConstraints";
+import { gateProfileExercises } from "./profileExerciseGate";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import {
   generateFootballSpeedSession,
@@ -4710,6 +4713,9 @@ export function generatePlan(
       session.loadTags = computeLoadTags(session);
     }
   }
+  for (let i = 0; i < finalPlan.length; i++) finalPlan[i] = gateProfileExercises(finalPlan[i], profile);
+  const constrained = enforceFinalDayConstraints(finalPlan, profile);
+  finalPlan.splice(0, finalPlan.length, ...constrained);
   assertPlanExerciseContract(finalPlan);
   return finalPlan;
 }
@@ -4855,11 +4861,11 @@ export function applyReadiness(
   let recoveryOnly = false;
   let wellnessSafetyHold = false;
 
-  if (r >= 8) {
+  if (r >= 8 && !severeSignals) {
     // 8–10: pełny plan.
     factor = 1;
     adjustment = null;
-  } else if (r >= 6) {
+  } else if (r >= 6 && !severeSignals) {
     // 6–7: zachowaj bodziec, zmniejsz TYLKO objętość o 10–20% (bez spadku intensywności).
     factor = 0.85;
     keepIntensity = true;
@@ -4871,10 +4877,10 @@ export function applyReadiness(
     adjustment =
       "Gotowość 4–5: redukcja objętości o ok. 40% i usunięcie ciężkiej siły, maksymalnych sprintów oraz pracy o wysokiej intensywności.";
   } else if (r === 3 && !severeSignals) {
-    factor = 0.75;
+    factor = 0.4;
     removeHard = true;
     adjustment =
-      "Gotowość 3/10: zmniejszamy objętość o 25% i usuwamy maksymalne sprinty oraz ciężką pracę.";
+      "Gotowość 3/10: zmniejszamy objętość o 60% i usuwamy maksymalne sprinty oraz ciężką pracę.";
   } else {
     // 1–2 lub bardzo zły sen/zmęczenie/ból: zamiana jednostki na regenerację.
     recoveryOnly = true;
@@ -5094,24 +5100,24 @@ export function applyReadiness(
     };
   }
 
+  if (factor < 1 && !externalCommitment && !recoveryOnly && !wellnessSafetyHold &&
+      !(session.speedGeneratorVersion && cls.isSpeed && !painOverride && r >= 4 && r < 8)) {
+    adjusted = reduceSessionDose(adjusted, factor);
+  }
+
   // Druga sesja: twardo usuwana tylko przy istotnym bólu. Sama niższa
   // gotowość zmniejsza obciążenie, ale nie tworzy fałszywej blokady.
   if (
     adjusted.secondSession &&
-    (readiness.overall <= 3 || !secondSessionAllowedToday(readiness, profile))
+    (severeSignals || recoveryOnly || readiness.overall <= 3 || !secondSessionAllowedToday(readiness, profile))
   ) {
     adjusted = { ...adjusted, secondSession: null, slotLabel: null };
-  } else if (adjusted.secondSession && readiness.overall >= 4 && readiness.overall < 7) {
-    adjusted = {
-      ...adjusted,
-      secondSession: {
-        ...adjusted.secondSession,
-        durationMin: Math.max(20, Math.round(adjusted.secondSession.durationMin * 0.8)),
-        intensity: lowerIntensity(adjusted.secondSession.intensity, 1),
-        reason: `${adjusted.secondSession.reason} Obciążenie drugiej sesji zmniejszono po check-inie.`,
-        safetyNote: "Niższa gotowość: zmniejszono objętość drugiej sesji; przerwij przy nasileniu bólu.",
-      },
-    };
+  } else if (adjusted.secondSession) {
+    adjusted = {...adjusted, secondSession: applyReadiness(
+      {...adjusted.secondSession, secondSession:null}, readiness, profile,
+    ).session};
+    if (r < 8 && adjusted.secondSession) adjusted.secondSession = {...adjusted.secondSession,
+      safetyNote: adjusted.secondSession.safetyNote ?? "Niższa gotowość: dawka drugiej sesji została dostosowana."};
   }
 
   if (painOverride && !externalCommitment) {
@@ -5166,7 +5172,7 @@ export function applyReadiness(
             : externalKind === "match"
               ? "Dziś mecz"
               : "Dziś trening klubowy"
-        : `Gotowość ${r}/10 — ${
+        : severeSignals ? "Bardzo słabe samopoczucie — tylko regeneracja" : `Gotowość ${r}/10 — ${
             r >= 8
               ? "działamy normalnie"
               : r >= 6
@@ -5178,7 +5184,7 @@ export function applyReadiness(
                     : "tylko regeneracja"
           }`,
       detail:
-        r >= 8
+        severeSignals ? "Dzisiejsze silne sygnały samopoczucia wymagają ograniczenia wysiłku niezależnie od średniej gotowości." : r >= 8
           ? "Czujesz się dobrze — możesz zrealizować zaplanowaną sesję lub lekko progresować."
           : "Dopasowaliśmy dzisiejszą sesję do Twojego samopoczucia.",
       adjustment,

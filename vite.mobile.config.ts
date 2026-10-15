@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
@@ -7,6 +8,8 @@ import tsConfigPaths from "vite-tsconfig-paths";
 // Capacitor needs static files. This config intentionally stays separate from the regular
 // Lovable/Nitro SSR build and emits a TanStack SPA shell to dist/client/index.html.
 export default defineConfig({
+  resolve: {alias: {"@":fileURLToPath(new URL("./src",import.meta.url))}},
+  worker: {format:"es"},
   preview: { host: "127.0.0.1" },
   plugins: [
     tsConfigPaths(),

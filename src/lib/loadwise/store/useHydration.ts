@@ -1,3 +1,5 @@
+import { gateProfileExercises } from "../profileExerciseGate";
+import { enforceFinalDayConstraints } from "../finalDayConstraints";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
@@ -9,7 +11,8 @@ import { primeConsentRows } from "../legalStatus";
 import { hasLocalPlanChanges, mergeHydratedHistory, mergeHydratedState } from "./hydrationMerge";
 import type { LoadwiseState } from "../types";
 import { migratePersistedExerciseData } from "../exerciseLibrary";
-import { localToday } from "../labels";
+import { retainCompletedSessions, profileForPolicyRebuild } from "../retainCompletedSessions";
+import { parseIso, localToday } from "../labels";
 import { normalizeMatchDates } from "../matchSchedule";
 import { PLAN_ENGINE_VERSION } from "../planVersion";
 import type {
@@ -305,20 +308,23 @@ export function useHydration({
             planOlderThanProfile;
 
           if (shouldRebuildCanonical) {
-            const [{ generatePlan }, { persistMonthlyPlan }] = await Promise.all([
-              import("../planEngine"),
+            const policyOnly = plan.length >= 14 && !missingToday && !mixedRevisionData &&
+              !schemaMissingOrMismatched && !revisionMismatch && !planOlderThanProfile;
+            const [{ generatePlanAsync }, { persistMonthlyPlan }] = await Promise.all([
+              import("../asyncPlan"),
               import("../persist"),
             ]);
-            const canonical = stampPlanRevision(
-              generatePlan(profile, localToday()),
+            const canonical = retainCompletedSessions(stampPlanRevision(
+              await generatePlanAsync(policyOnly ? profileForPolicyRebuild(profile, plan):profile,
+                policyOnly ? parseIso(plan[0].date):localToday(),policyOnly ? plan.length:28),
               profileRevision,
               ONBOARDING_SCHEMA_VERSION,
-            );
+            ), plan, completions, todayIso);
             plan = canonical;
             if (cancelled) return;
             if (canWritePlan()) await persistMonthlyPlan(user.id, profile, canonical);
             planGeneratedFor = todayIso;
-            clearFutureOverlays = true;
+            clearFutureOverlays = !policyOnly;
           } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
             const { persistMonthlyPlan } = await import("../persist");
             plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
@@ -376,6 +382,14 @@ export function useHydration({
           const mod = rowToModification(row);
           if (!mod) continue;
           if (clearFutureOverlays && mod.date >= todayIso) continue;
+          if (profile && mod.session?.generatorVersion && mod.date >= todayIso &&
+              !(mod.session.dbId && completions[mod.session.dbId]?.completed)) {
+            const filtered = gateProfileExercises(mod.session, profile);
+            const constrained = enforceFinalDayConstraints([filtered], profile)[0];
+            // Preserve a deliberate swap only while it still meets current profile constraints.
+            if (JSON.stringify(constrained.sections) !== JSON.stringify(mod.session.sections) ||
+                constrained.dayType !== mod.session.dayType) continue;
+          }
           (modifications[mod.date] ??= []).push(mod);
         }
 

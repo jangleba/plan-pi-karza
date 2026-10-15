@@ -120,7 +120,7 @@ export function FuelWorkspace({
       data.selection?.manualDurationMin ?? null,
       data.selection?.manualLoad ?? "moderate",
     );
-  const timing = resolveFuelTiming(context, data.timings[context.key]);
+  const timing = resolveFuelTiming(context, data.timings[context.key], now);
   const minutes = minutesToFuelStart(timing, now);
   const parsed = useMemo(() => parsePantry(text), [text]);
   const recipes = practicalRecipes({ context, timing, now, data, pantry, quick });
@@ -494,7 +494,7 @@ export function FuelWorkspace({
       ? "Po treningu"
       : timing.phase === "training"
         ? "Trening trwa"
-        : timing.phase === "ordinary"
+        : timing.phase === "unconfirmed" ? "Potwierdź moment treningu" : timing.phase === "ordinary"
           ? "Zwykły posiłek"
           : minutes === null
             ? "Za ile zaczynasz?"
@@ -556,7 +556,7 @@ export function FuelWorkspace({
               </button>
             </>
           )}
-          {timing.phase === "before" && minutes === 0 && (
+          {(timing.phase === "unconfirmed" || (timing.phase === "before" && minutes === 0)) && (
             <div className="fuel-v4-expired">
               <button onClick={() => setTiming({ ...timing, phase: "training" })}>Zaczynam</button>
               <button onClick={() => setTiming({ ...timing, phase: "after", endedAt: Date.now() })}>

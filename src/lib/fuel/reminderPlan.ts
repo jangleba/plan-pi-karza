@@ -111,7 +111,7 @@ export function planFuelReminders(input: {
     });
   };
   for (const c of contexts) {
-    const timing = resolveFuelTiming(c, data.timings[c.key]);
+    const timing = resolveFuelTiming(c, data.timings[c.key], now);
     const chosen = data.entries.find((e) => e.contextKey === c.key && e.status === "selected");
     const title = chosen?.title;
     if (

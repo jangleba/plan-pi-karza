@@ -40,16 +40,21 @@ export function selectLongJumpWindow(input: readonly PoseFrame[]) {
   );
   if (!before.length) throw new Error("Nie widzę spokojnej pozycji przed odbiciem.");
   const start = before[before.length - 1];
+  const ground = median(frames.slice(0, edge).flatMap(f=>f.toes.map(p=>p[1])));
+  const airborne = frames.filter(f=>f.frameIndex > start.frameIndex && progress(f)>0.12 && progress(f)<0.95 &&
+    Math.max(...f.toes.map(p=>p[1])) < ground-bodyHeight*0.06 && f.hip[1] < start.hip[1]-bodyHeight*0.03);
+  if (!airborne.length) throw new Error("Nie widzę fazy lotu. Zaznacz zdarzenia ręcznie.");
+  const lastAirborne = airborne[airborne.length-1].frameIndex;
   let end: PoseFrame | undefined;
   for (let index = 0; index < frames.length; index++) {
     const frame = frames[index];
-    if (frame.frameIndex <= start.frameIndex || progress(frame) < 0.82) continue;
+    if (frame.frameIndex <= lastAirborne || progress(frame) < 0.82) continue;
     const following = frames.slice(index, index + 3);
     if (following.length < 2) continue;
     const spread =
       Math.max(...following.map((item) => item.hip[0])) -
       Math.min(...following.map((item) => item.hip[0]));
-    if (spread <= bodyHeight * 0.09) {
+    if (spread <= bodyHeight * 0.09 && Math.abs(Math.max(...frame.heels.map(p=>p[1]))-ground) <= bodyHeight*0.12) {
       end = frame;
       break;
     }
