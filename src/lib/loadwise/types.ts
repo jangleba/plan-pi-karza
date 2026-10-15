@@ -196,6 +196,8 @@ export type SpeedRole =
   | "cooldown";
 
 export interface ExerciseItem {
+  /** No approved regression is available; keep visible but do not allow execution. */
+  executionBlockedReason?: string;
   name: string;
   /** Krótko: po co zawodnik wykonuje to ćwiczenie. */
   purpose?: string;
@@ -255,6 +257,7 @@ export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
+  executionBlockedReason?: string;
   id: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
   exerciseId?: string;

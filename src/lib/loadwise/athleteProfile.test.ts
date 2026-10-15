@@ -71,7 +71,7 @@ describe("development stage & experience", () => {
   });
 
   it("youth advanced footballer is not advanced in the gym", () => {
-    expect(getStrengthExperienceLevel({ age: 14, level: "advanced" })).toBe("beginner");
+    expect(getStrengthExperienceLevel({ age: 14, level: "advanced" })).toBe("none");
     expect(getStrengthExperienceLevel({ age: 14, level: "beginner" })).toBe("none");
   });
 
@@ -101,7 +101,8 @@ describe("exercise classification & blocking", () => {
 
   it("allows advanced exercises for an adult advanced athlete with gym", () => {
     const a = buildAthleteTrainingProfile(
-      makeProfile({ age: 24, level: "advanced", hasGym: true }),
+      makeProfile({ age: 24, level: "advanced", hasGym: true,
+        gymExperienceLevel: "advanced", strengthTrainingMonths: 36, movementCompetence: "high" }),
     );
     expect(a.exerciseSafetyProfile.allowHeavyCompounds).toBe(true);
     expect(validateExerciseForAthleteProfile("Back squat", a).ok).toBe(true);

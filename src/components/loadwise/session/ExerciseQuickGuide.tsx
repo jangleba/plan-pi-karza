@@ -3,7 +3,11 @@ import { resolveDefinitionForExercise } from "@/lib/loadwise/sessionPresentation
 import { resolveQuickGuide } from "@/lib/courseMeasure/quickGuide";
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
 import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
-import { ChevronDown } from "lucide-react";
+import { Lightbulb } from "lucide-react";
+import { useId, useState } from "react";
+import { techniqueHint } from "@/lib/trainingCoach/coach";
+import { ExerciseCoach } from "./ExerciseCoach";
+import "./training-coach.css";
 import "./sprint-session.css";
 import type { ReactNode } from "react";
 
@@ -18,6 +22,9 @@ export function ExerciseQuickGuide({
   compact?: boolean;
   children?: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const hint = techniqueHint(exercise);
   const skip = getSkipGuide(exercise.exerciseId);
   if (skip) {
     const image = getExerciseTechniqueImage(skip.exerciseId);
@@ -40,41 +47,30 @@ export function ExerciseQuickGuide({
           ))}
         </ol>
         <p className="bw-skip-landing">{SKIP_LANDING}</p>
+        <button type="button" className="bw-technique-trigger" aria-expanded={open} aria-controls={panelId}
+          onClick={() => setOpen(!open)}><Lightbulb aria-hidden="true" /> Wskazówki</button>
+        {open && <div id={panelId}><p>{hint.intent}</p><ExerciseCoach key={exercise.id} exercise={exercise} /></div>}
       </section>
     );
   }
   const guide = resolveQuickGuide(exercise, resolveDefinitionForExercise(exercise));
   if (!guide.setup && !guide.action && !guide.focus && !guide.error && !children) return null;
   return (
-    <details className={`bw-quick-guide ${compact ? "bw-strength-guide" : ""} ${className}`}>
-      <summary>
-        <span className="bw-guide-heading">
-          <span className="bw-guide-badge">{children ? "Technika i sprzęt" : "Technika"}</span>
-          <ChevronDown className="bw-guide-chevron" aria-hidden="true" />
-        </span>
-        {!compact && <span className="bw-guide-focus">{guide.focus ?? "Krótka instrukcja"}</span>}
+    <details className={`bw-quick-guide bw-technique-help ${compact ? "bw-strength-guide" : ""} ${className}`}
+      onToggle={event => setOpen(event.currentTarget.open)}>
+      <summary aria-label={`Wskazówki: ${exercise.name}`}>
+        <Lightbulb aria-hidden="true" /> Wskazówki
       </summary>
-      <dl>
-        {guide.setup && (
-          <div>
-            <dt>Ustaw</dt>
-            <dd>{guide.setup}</dd>
-          </div>
-        )}
-        {guide.action && (
-          <div>
-            <dt>Zrób</dt>
-            <dd>{guide.action}</dd>
-          </div>
-        )}
-        {guide.error && (
-          <div>
-            <dt>Unikaj</dt>
-            <dd>{guide.error}</dd>
-          </div>
-        )}
+      <dl className="bw-technique-hints">
+        {guide.setup && <div><dt>Ustawienie</dt><dd>{guide.setup}</dd></div>}
+        <div><dt>Intencja</dt><dd>{hint.intent}</dd></div>
+        <div><dt>Wykonanie</dt><dd>{hint.action}</dd></div>
+        <div><dt>Unikaj</dt><dd>{hint.avoid}</dd></div>
+        {guide.action && guide.action !== hint.action && <div><dt>Instrukcja sesji</dt><dd>{guide.action}</dd></div>}
+        {guide.error && guide.error !== hint.avoid && <div><dt>Błąd do kontroli</dt><dd>{guide.error}</dd></div>}
       </dl>
       {children}
+      {open && <ExerciseCoach key={exercise.id} exercise={exercise} />}
     </details>
   );
 }

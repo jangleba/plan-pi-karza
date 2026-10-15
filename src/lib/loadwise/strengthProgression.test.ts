@@ -19,6 +19,8 @@ describe("strength progression", () => {
         age: 22,
         level: "intermediate",
         gymExperienceLevel: "intermediate",
+        strengthTrainingMonths: 24,
+        movementCompetence: "high",
         smallestIncrementKg: 2.5,
         exercise: { name: "Przysiad ze sztangą" },
       },

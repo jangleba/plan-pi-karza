@@ -114,7 +114,10 @@ describe("rule-based week layer — cel główny i walidacja", () => {
     for (const goal of goals) {
       const plan = generatePlan(baseProfile({ goal }), START, 28);
       for (const week of fullWeeks(plan)) {
-        expect(week[0].weekMeta!.validationStatus).not.toBe("invalid");
+        expect(week[0].weekMeta!.validationStatus, JSON.stringify({
+          goal, days: week.map(d => ({ date: d.date, title: d.title, type: d.sessionType, classification: d.classification })),
+          validation: validateGeneratedWeek(week, { goal, isFullWeek: true, hasMatch: false, blockWeek: 1 }),
+        })).not.toBe("invalid");
       }
     }
   });

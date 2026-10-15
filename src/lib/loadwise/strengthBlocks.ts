@@ -300,7 +300,7 @@ export function isAdvancedEligible(profile: Profile): boolean {
   if (isYoung(profile.age)) return false;
   if (isDevelopingYouth(profile.age)) return false;
   if (profile.level === "beginner") return false;
-  return true;
+  return buildAthleteTrainingProfile(profile).exerciseSafetyProfile.allowHeavyCompounds;
 }
 
 /**
@@ -985,6 +985,8 @@ function lockedHamPower(ctx: StrengthBlockContext, avoidNames: string[]): HamPow
  * poza sezonem wysokoobciążeniowym i w niskiej objętości.
  */
 function computeMaxPlyoLevel(profile: Profile, ctx: StrengthBlockContext): number {
+  const profileLimit = buildAthleteTrainingProfile(profile, {}, { readiness: ctx.readiness })
+    .exerciseSafetyProfile.maxPlyoLevel;
   if (profile.painInjury || profile.seasonPhase === "return_injury") return 1;
   const young = isYoung(profile.age);
   const beginner = profile.level === "beginner";
@@ -998,7 +1000,7 @@ function computeMaxPlyoLevel(profile: Profile, ctx: StrengthBlockContext): numbe
     profile.seasonPhase !== "inseason" &&
     (ctx.weekPhase === "development" || ctx.weekPhase === "peak") &&
     structuredStrengthAllowed(ctx.mdLabel);
-  return depthEligible ? 4 : 3;
+  return Math.min(profileLimit, depthEligible ? 4 : 3);
 }
 
 function pickJumps(ctx: StrengthBlockContext, kinds: PlyoKind[], avoid: string[]): JumpVariant {

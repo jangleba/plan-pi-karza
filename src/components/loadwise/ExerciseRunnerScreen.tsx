@@ -250,6 +250,11 @@ export function ExerciseRunnerScreen({
   }, [context]);
 
   if (!open) return null;
+  if (exercise.executionBlockedReason) return <div className="bw-training-inline" role="status">
+    <p>{exercise.executionBlockedReason}</p>
+    <ExerciseQuickGuide exercise={exercise} compact />
+    <button type="button" onClick={onClose}>Zamknij ćwiczenie</button>
+  </div>;
 
   const last = previous[setNumber];
   const hint = loading ? "Wczytuję historię…" : describeLog(last, fields, unit);

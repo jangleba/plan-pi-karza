@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { encodeStrengthExperience, normalizeStrengthExperience, type StrengthExperience } from "../strengthExperience";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
 import type { Dispatch, RefObject, SetStateAction } from "react";
@@ -25,7 +26,7 @@ export function createProfileActions(
   },
 ): Pick<
   LoadwiseContextValue,
-  "completeOnboarding" | "updateProfile" | "saveFuelPrecision" | "refreshPlanIfNeeded"
+  "completeOnboarding" | "updateProfile" | "saveStrengthExperience" | "saveFuelPrecision" | "refreshPlanIfNeeded"
 > {
   const {
     user,
@@ -159,6 +160,21 @@ export function createProfileActions(
     }));
   }
 
+  async function saveStrengthExperience(value: StrengthExperience) {
+    if (!user || !state.profile) throw new Error("Zaloguj się ponownie.");
+    const clean = normalizeStrengthExperience(value);
+    const result = await supabase.from("athlete_profiles")
+      .update({ training_experience: encodeStrengthExperience(clean) }).eq("user_id", user.id)
+      .select("user_id").maybeSingle();
+    assertNoSupabaseError("athlete_profiles.strength_experience", result.error);
+    if (!result.data) throw new Error("Nie zapisano doświadczenia. Spróbuj ponownie.");
+    // No history, set log, calendar or current workout progress is reset here.
+    setState(current => ({ ...current, profile: current.profile
+      ? { ...current.profile, gymExperienceLevel: clean.gymExperienceLevel,
+        strengthTrainingMonths: clean.strengthTrainingMonths, movementCompetence: clean.movementCompetence,
+        supervisionLevel: clean.supervisionLevel } : null }));
+  }
+
   function refreshPlanIfNeeded() {
     const profile = state.profile;
     if (!user || !profile?.onboardingComplete) return;
@@ -189,5 +205,5 @@ export function createProfileActions(
       }
     })();
   }
-  return { completeOnboarding, updateProfile, saveFuelPrecision, refreshPlanIfNeeded };
+  return { completeOnboarding, updateProfile, saveStrengthExperience, saveFuelPrecision, refreshPlanIfNeeded };
 }

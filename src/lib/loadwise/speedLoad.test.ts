@@ -48,6 +48,19 @@ function session(
 }
 
 describe("assessSpeedLoad", () => {
+  it("nie liczy wzmianki o transferze do sprintu w izometrii jako biegu", () => {
+    const result = assessSpeedLoad(session({
+      title: "Siła i hamowanie", sessionType: "Siłownia",
+      sections: sections([{ exerciseId: "soleus_iso_hold", name: "Izometria łydki", prescription: "2 × 15 s",
+        cue: "Kontrola pozycji, wsparcie kostki i sprintu — bez maks. intencji." }]),
+    }));
+    expect(result.countsAsSpeedExposure).toBe(false);
+    const real = assessSpeedLoad(session({ sections: sections([
+      { exerciseId: "soleus_iso_hold", name: "Izometria łydki", prescription: "2 × 15 s" },
+      { name: "Sprint", prescription: "4 × 20 m" },
+    ]) }));
+    expect(real.countsAsSpeedExposure).toBe(true);
+  });
   it("same skipy są techniką, a nie realnym sprintem", () => {
     const result = assessSpeedLoad(
       session({

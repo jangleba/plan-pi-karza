@@ -35,6 +35,7 @@ import { enforceSessionCategory, newContentCounters, type ContentCounters } from
 import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
+import { enforceStrengthEligibility } from "./strengthEligibility";
 import {
   generateFootballSpeedSession,
   persistedFootballSpeedFamily,
@@ -4573,7 +4574,7 @@ export function generatePlan(
   // metadanych i mogły sprawić, że opis tygodnia różnił się od realnego planu.
   rebuildFinalSpeedContext(finalPlan, profile);
   for (let i = 0; i < finalPlan.length; i++) {
-    finalPlan[i] = canonicalizeGeneratedSessionExercises(finalPlan[i]);
+    finalPlan[i] = enforceStrengthEligibility(canonicalizeGeneratedSessionExercises(finalPlan[i]), profile);
   }
   // Odbudowa kanonicznej treści może dopiero tutaj ujawnić pełny bodziec
   // (np. RSA albo sprint). Sprawdź więc ponownie granice niedziela–poniedziałek
@@ -4586,7 +4587,7 @@ export function generatePlan(
   const postRebuildFinalized = finalizeWeekPlan(finalPlan, profile).plan;
   for (let i = 0; i < finalPlan.length; i++) {
     finalPlan[i] = normalizeSessionCategory(
-      canonicalizeGeneratedSessionExercises(postRebuildFinalized[i]),
+      enforceStrengthEligibility(canonicalizeGeneratedSessionExercises(postRebuildFinalized[i]), profile),
     );
   }
 
@@ -4602,6 +4603,11 @@ export function generatePlan(
 
   // Canonical rebuilds and weekly repairs must not reintroduce adjacent gym days.
   repairGymSpacing(finalPlan, profile);
+
+  // Rebuilt content must not restore a blocked loaded variant.
+  for (let i = 0; i < finalPlan.length; i++) {
+    finalPlan[i] = enforceStrengthEligibility(finalPlan[i], profile);
+  }
 
   // Ostatnie słowo zawsze należy do bezpieczeństwa zdrowotnego. BallWise nie
   // układa rehabilitacji i nie zgaduje, jaka aktywność jest bezpieczna przy

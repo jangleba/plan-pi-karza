@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.analyze-fuel-photo]
 verify_jwt = true
+
+[functions.training-coach]
+verify_jwt = true

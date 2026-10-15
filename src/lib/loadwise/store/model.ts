@@ -1,6 +1,7 @@
 import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
 import type { Dispatch, SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
+import { decodeStrengthExperience, type StrengthExperience } from "../strengthExperience";
 import { normalizeMatchDates } from "../matchSchedule";
 import { normalizeCurrentPitchFeelings, normalizeDesiredPitchFeelings } from "../playerDirection";
 import { normalizePersistedPainLocations } from "../profilePainPersistence";
@@ -249,6 +250,7 @@ export function buildProfile(
     foodExclusions: (ath.food_exclusions as string[]) ?? [],
     position: ath.position as Profile["position"],
     level: normalizeLevel(ath.level),
+    ...decodeStrengthExperience(ath.training_experience),
     goal: normalizeGoal(ath.main_goal),
     secondaryLimiter: normalizeLimiter(ath.secondary_limiter),
     clubTrainingDays: (ath.club_training_days as number[]) ?? [],
@@ -441,6 +443,7 @@ export interface LoadwiseContextValue {
   hydrationError: string | null;
   completeOnboarding: (profile: Profile, consents?: Record<string, boolean>) => Promise<void>;
   updateProfile: (profile: Profile) => Promise<void>;
+  saveStrengthExperience: (value: StrengthExperience) => Promise<void>;
   saveFuelPrecision: (enabled: boolean, weightKg: number | null) => Promise<void>;
   refreshPlanIfNeeded: () => void;
   /** Trwa generowanie/zapisywanie planu — ekrany pokazują wtedy stan ładowania. */

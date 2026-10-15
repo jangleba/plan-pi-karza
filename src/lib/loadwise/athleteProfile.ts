@@ -87,8 +87,8 @@ export interface AthleteTrainingProfile {
   age: number | null;
   trainingLevel: Profile["level"];
   developmentStage: DevelopmentStage;
-  trainingAge: number; // lata ogólnego treningu sportowego
-  strengthTrainingAge: number; // miesiące doświadczenia siłowego
+  trainingAge: number | null; // brak deklaracji stażu sportowego = nieznany
+  strengthTrainingAge: number | null; // rzeczywiste miesiące, brak danych = null
   gymExperienceLevel: GymExperienceLevel;
   sportExperienceLevel: GymExperienceLevel;
   movementCompetenceLevel: CompetenceLevel;
@@ -145,58 +145,22 @@ export function getDevelopmentStage(age: number | null | undefined): Development
   return "adult";
 }
 
-/** Lata ogólnego treningu — wyliczane z poziomu zawodnika. */
-export function getTrainingAge(p: Partial<Profile>): number {
-  switch (p.level) {
-    case "elite":
-      return 8;
-    case "advanced":
-      return 5;
-    case "intermediate":
-      return 2;
-    case "beginner":
-    default:
-      return 0;
-  }
+/** Poziom piłkarski nie jest historią treningu. Profil nie zbiera jeszcze tych lat. */
+export function getTrainingAge(_p: Partial<Profile>): number | null {
+  return null;
 }
 
 /** Doświadczenie siłowe (none/beginner/intermediate/advanced). */
 export function getStrengthExperienceLevel(p: Partial<Profile>): GymExperienceLevel {
   // Jeśli onboarding poda to jawnie — użyj tego.
   if (p.gymExperienceLevel) return p.gymExperienceLevel;
-  // Brak dostępu do siłowni → najwyżej beginner.
-  const stage = getDevelopmentStage(p.age);
-  // Mapowanie z ogólnego poziomu + wieku, zawsze bezpieczniej w dół.
-  if (stage === "child_foundation" || stage === "early_youth") {
-    // Młodzi: nawet "advanced" w piłce nie znaczy advanced na siłowni.
-    if (p.level === "elite" || p.level === "advanced") return "beginner";
-    return "none";
-  }
-  if (stage === "late_youth") {
-    if (p.level === "elite") return "intermediate";
-    if (p.level === "advanced") return "beginner";
-    return "beginner";
-  }
-  // Dorosły
-  switch (p.level) {
-    case "elite":
-      return "advanced";
-    case "advanced":
-      return "intermediate";
-    case "intermediate":
-      return "beginner";
-    case "beginner":
-    default:
-      return "beginner";
-  }
+  // To konserwatywny poziom roboczy, a nie zgadywanie stażu z ligi lub wieku.
+  return p.hasGym ? "beginner" : "none";
 }
 
 export function getMovementCompetenceLevel(p: Partial<Profile>): CompetenceLevel {
   if (p.movementCompetence) return p.movementCompetence;
-  const stage = getDevelopmentStage(p.age);
-  if (stage === "child_foundation") return "low";
-  if (p.level === "elite" || p.level === "advanced") return "high";
-  if (p.level === "intermediate") return "medium";
+  // Ogólna sprawność piłkarska nie potwierdza kontroli ćwiczeń siłowych.
   return "low";
 }
 
@@ -207,20 +171,10 @@ export function getCoordinationLevel(p: Partial<Profile>): CompetenceLevel {
   return mc;
 }
 
-function strengthTrainingMonths(p: Partial<Profile>): number {
-  if (typeof p.strengthTrainingMonths === "number") return p.strengthTrainingMonths;
-  const lvl = getStrengthExperienceLevel(p);
-  switch (lvl) {
-    case "advanced":
-      return 36;
-    case "intermediate":
-      return 18;
-    case "beginner":
-      return 3;
-    case "none":
-    default:
-      return 0;
-  }
+function strengthTrainingMonths(p: Partial<Profile>): number | null {
+  const months = p.strengthTrainingMonths;
+  return typeof months === "number" && Number.isFinite(months) && months >= 0 && months <= 720
+    ? Math.floor(months) : p.gymExperienceLevel === "none" ? 0 : null;
 }
 
 function supervisionOf(p: Partial<Profile>): SupervisionLevel {
@@ -258,7 +212,7 @@ export function getExerciseSafetyProfile(
   const lowExp =
     a.gymExperienceLevel === "none" ||
     a.gymExperienceLevel === "beginner" ||
-    a.strengthTrainingAge < 6 ||
+    (a.strengthTrainingAge ?? 0) < 6 ||
     a.movementCompetenceLevel === "low" ||
     // Brak nadzoru ogranicza tylko zawodników niedorosłych (dorosły z
     // doświadczeniem może trenować bez trenera).
@@ -461,7 +415,7 @@ export function buildAthleteTrainingProfile(
 
   const developmentStage = getDevelopmentStage(age);
   const gymExperienceLevel = getStrengthExperienceLevel(p);
-  if (!p.gymExperienceLevel && !p.level)
+  if (!p.gymExperienceLevel)
     warnings.push("Brak doświadczenia siłowego — przyjęto poziom początkujący.");
 
   const movementCompetenceLevel = getMovementCompetenceLevel(p);
@@ -527,7 +481,8 @@ export function buildAthleteTrainingProfile(
     trainingAge: getTrainingAge(p),
     strengthTrainingAge,
     gymExperienceLevel,
-    sportExperienceLevel: gymExperienceLevel,
+    sportExperienceLevel: p.level === "elite" || p.level === "advanced"
+      ? "advanced" : p.level === "intermediate" ? "intermediate" : "beginner",
     movementCompetenceLevel,
     coordinationLevel,
     currentFitnessLevel,

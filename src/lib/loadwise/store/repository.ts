@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { encodeStrengthExperience } from "../strengthExperience";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
 import { buildMinimumEffectiveWeek } from "../adaptiveWeek";
@@ -187,6 +188,8 @@ export function createPlanPersistence(user: StoreUser, todayIso: string) {
           age: profile.age,
           position: profile.position,
           level: profile.level,
+          ...(encodeStrengthExperience(profile) != null
+            ? { training_experience: encodeStrengthExperience(profile) } : {}),
           main_goal: profile.goal,
           secondary_limiter: profile.secondaryLimiter,
           equipment: profile.equipment as unknown as Json,

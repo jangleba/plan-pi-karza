@@ -153,17 +153,18 @@ export function recommendNextLoad(
   const kind = exerciseKind(context.exercise);
   const target = targetRange(reps);
   const plannedRir = targetRir(rir);
-  const young = (context.age ?? 99) < 16;
+  const young = context.age == null || context.age < 18;
   const novice =
+    context.gymExperienceLevel == null ||
     context.gymExperienceLevel === "none" ||
     context.gymExperienceLevel === "beginner" ||
-    (context.strengthTrainingMonths ?? 99) < 12 ||
+    (context.strengthTrainingMonths ?? 0) < 12 ||
     context.level === "beginner";
 
   if (
-    young &&
-    ((context.age ?? 99) < 13 || context.movementCompetence === "low") &&
-    context.supervisionLevel !== "full"
+    (context.age == null || young && context.supervisionLevel !== "some" && context.supervisionLevel !== "full") ||
+    context.movementCompetence == null || context.movementCompetence === "low" ||
+    context.gymExperienceLevel == null || context.strengthTrainingMonths == null
   ) {
     return repeat(
       current,

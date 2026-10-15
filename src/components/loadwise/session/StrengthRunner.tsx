@@ -186,6 +186,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                             className="bw-exercise-check"
                             aria-label={`${completed ? "Oznacz jako niewykonane" : "Oznacz jako wykonane"}: ${canonicalExerciseName(exercise)}`}
                             aria-pressed={completed}
+                            disabled={Boolean(exercise.executionBlockedReason)}
                             onClick={() => markDone(exercise.id, !completed)}
                           >
                             {completed ? <Check size={16} /> : exercise.label || "○"}
@@ -215,6 +216,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                             <ChevronDown size={17} className={active ? "is-open" : ""} />
                           </button>
                         </div>
+                        {exercise.executionBlockedReason && <p role="status" className="bw-coach-notice">{exercise.executionBlockedReason}</p>}
                         {activeBlock && sets > 0 && (
                           <ExerciseRunnerScreen
                             exercise={exercise}
@@ -235,6 +237,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                             <button
                               type="button"
                               className="bw-save-set"
+                              disabled={Boolean(exercise.executionBlockedReason)}
                               onClick={() => {
                                 markDone(exercise.id, true);
                                 setActiveId(

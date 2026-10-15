@@ -1,4 +1,5 @@
 import type { ExerciseItem, SessionDay } from "./types";
+import { getExerciseDefinition } from "./exerciseLibrary";
 
 /**
  * Jedno źródło prawdy dla rzeczywistego obciążenia szybkościowego.
@@ -132,11 +133,15 @@ function sessionExercises(session: SessionDay): ExerciseItem[] {
 }
 
 function exerciseText(exercise: ExerciseItem): string {
+  const definition = getExerciseDefinition(exercise.exerciseId ?? "");
+  // A stationary strength cue can mention its transfer to sprinting. That is
+  // not a prescribed sprint; keep explicit actions in name/dose detectable.
+  const stationary = definition && ["strength", "core", "prehab", "power", "plyometric"].includes(definition.category);
   return normalizeText(
     [
       exercise.name,
       exercise.prescription,
-      exercise.cue ?? "",
+      stationary && !SPEED_ACTION_RE.test(`${exercise.name} ${exercise.prescription}`) ? "" : exercise.cue ?? "",
     ].join(" "),
   );
 }
