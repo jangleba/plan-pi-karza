@@ -8,6 +8,10 @@
 
 import type { ExerciseItem, Position, Profile, SessionDay } from "./types";
 import { buildRunningSessionPrescription } from "@/lib/running/engine";
+import {
+  buildWarmupProtocol,
+  protocolExerciseItems,
+} from "./preparation/protocols";
 
 // ---------- Taksonomia kategorii ----------
 
@@ -157,17 +161,12 @@ interface BuiltContent {
   };
 }
 
-function sprintWarmup(
-  young: boolean,
-  level: Profile["level"],
-): CatExercise[] {
+function sprintWarmup(young: boolean, level: Profile["level"]): CatExercise[] {
   const distance = young ? 10 : 15;
 
-  const useAnkleTransition =
-    !young && level !== "beginner";
+  const useAnkleTransition = !young && level !== "beginner";
 
-  const continuous =
-    "bez przejścia — skip za skipem, płynnie na zmianę";
+  const continuous = "bez przejścia — skip za skipem, płynnie na zmianę";
 
   const gather =
     "z dostawieniem — po ściągnięciu obie stopy pod sobą, jeden niski kontakt i druga noga";
@@ -175,37 +174,28 @@ function sprintWarmup(
   const ankleTransition =
     "z przejściem — po ściągnięciu jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i zmiana nogi";
 
-  const mainDrillDose =
-    `2 warianty × ${distance} m: 1) ${
-      useAnkleTransition
-        ? ankleTransition
-        : gather
-    }, 2) ${continuous}`;
+  const mainDrillDose = `2 warianty × ${distance} m: 1) ${
+    useAnkleTransition ? ankleTransition : gather
+  }, 2) ${continuous}`;
 
-  const cDrillDose =
-    `2 warianty × ${distance} m: 1) ${gather}, 2) ${continuous}`;;
+  const cDrillDose = `2 warianty × ${distance} m: 1) ${gather}, 2) ${continuous}`;
 
   return [
     mk(
       {
         name: "Dynamiczna rozgrzewka biegowa",
-        prescription:
-          "8 min: mobilizacja kostek i bioder, wymachy, krążenia, lekki trucht",
-        purpose:
-          "Przygotowanie stawów, tkanek i temperatury ciała do pracy szybkościowej.",
+        prescription: "8 min: mobilizacja kostek i bioder, wymachy, krążenia, lekki trucht",
+        purpose: "Przygotowanie stawów, tkanek i temperatury ciała do pracy szybkościowej.",
         technique:
           "Zacznij spokojnie i stopniowo zwiększaj zakres oraz tempo ruchu. Bez gwałtownego rozciągania.",
         commonMistake:
           "Przechodzenie od razu do szybkich drillów bez rozgrzania kostek, bioder i tylnej taśmy.",
-        cue:
-          "Pełny zakres ruchu, stopniowo podnoś tętno.",
+        cue: "Pełny zakres ruchu, stopniowo podnoś tętno.",
       },
       {
         isRunningBased: true,
         primaryQuality: "rozgrzewka",
-        allowedSessionTypes: [
-          "sport_performance",
-        ],
+        allowedSessionTypes: ["sport_performance"],
       },
     ),
 
@@ -213,58 +203,44 @@ function sprintWarmup(
       {
         name: "Sprint A-Skip",
         visualId: "sprint_a_skip",
-       prescription: mainDrillDose,
-        displayPrescription:
-  `2 × ${distance} m · ${
-    useAnkleTransition
-      ? "z przejściem + ciągły"
-      : "z dostawieniem + ciągły"
-  }`,
+        prescription: mainDrillDose,
+        displayPrescription: `2 × ${distance} m · ${
+          useAnkleTransition ? "z przejściem + ciągły" : "z dostawieniem + ciągły"
+        }`,
 
-instructionSteps: [
-  {
-    title: "Rama 90/90",
-    description:
-      "Kolano mniej więcej na wysokości biodra, pięta pod kolanem, palce do góry.",
-    visualId: "sprint_a_skip_1",
-  },
-  {
-    title: "Mocno pod siebie",
-    description:
-      "Ściągnij stopę szybko w dół pod biodro. Nie stawiaj jej przed sobą.",
-    visualId: "sprint_a_skip_2",
-  },
-  {
-    title: "Zmień nogę",
-    description: useAnkleTransition
-      ? "Krótki kontakt na nodze podporowej i druga noga od razu wchodzi w 90/90."
-      : "Dostaw stopy i druga noga od razu wchodzi w 90/90.",
-    visualId: "sprint_a_skip_3",
-  },
-],
-purpose:
-  "Uczy prawidłowej pozycji nogi i aktywnego kontaktu stopy pod sobą.",
-technique:
-  "Ustaw nogę w ramie 90/90: kolano mniej więcej na wysokości biodra, podudzie około 90° do uda i palce zadarte do góry. Ściągnij stopę mocno pod siebie. Bez przejścia od razu druga noga idzie do tej samej pozycji. Z przejściem po ściągnięciu zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i dopiero zmień nogę. Z dostawieniem po ściągnięciu dostaw obie stopy pod siebie, zrób jeden niski kontakt i druga noga idzie do ramy 90/90.",
-commonMistake:
-  "Za nisko kolano, brak ramy 90/90, luźna stopa albo wysokie podskakiwanie.",
-cue:
-  "90/90. Palce w górę. Mocno pod siebie.",
-        rest:
-          "30–45 s między wariantami",
+        instructionSteps: [
+          {
+            title: "Rama 90/90",
+            description:
+              "Kolano mniej więcej na wysokości biodra, pięta pod kolanem, palce do góry.",
+            visualId: "sprint_a_skip_1",
+          },
+          {
+            title: "Mocno pod siebie",
+            description: "Ściągnij stopę szybko w dół pod biodro. Nie stawiaj jej przed sobą.",
+            visualId: "sprint_a_skip_2",
+          },
+          {
+            title: "Zmień nogę",
+            description: useAnkleTransition
+              ? "Krótki kontakt na nodze podporowej i druga noga od razu wchodzi w 90/90."
+              : "Dostaw stopy i druga noga od razu wchodzi w 90/90.",
+            visualId: "sprint_a_skip_3",
+          },
+        ],
+        purpose: "Uczy prawidłowej pozycji nogi i aktywnego kontaktu stopy pod sobą.",
+        technique:
+          "Ustaw nogę w ramie 90/90: kolano mniej więcej na wysokości biodra, podudzie około 90° do uda i palce zadarte do góry. Ściągnij stopę mocno pod siebie. Bez przejścia od razu druga noga idzie do tej samej pozycji. Z przejściem po ściągnięciu zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i dopiero zmień nogę. Z dostawieniem po ściągnięciu dostaw obie stopy pod siebie, zrób jeden niski kontakt i druga noga idzie do ramy 90/90.",
+        commonMistake: "Za nisko kolano, brak ramy 90/90, luźna stopa albo wysokie podskakiwanie.",
+        cue: "90/90. Palce w górę. Mocno pod siebie.",
+        rest: "30–45 s między wariantami",
       },
       {
         isSprintSpecific: true,
         isRunningBased: true,
-        primaryQuality:
-          "front-side mechanics i rytm sprintowy",
-        allowedSessionTypes: [
-          "sport_performance",
-        ],
-        tissueLoadTags: [
-          "biodro",
-          "łydka",
-        ],
+        primaryQuality: "front-side mechanics i rytm sprintowy",
+        allowedSessionTypes: ["sport_performance"],
+        tissueLoadTags: ["biodro", "łydka"],
       },
     ),
 
@@ -273,46 +249,34 @@ cue:
         name: "Sprint C-Skip",
         visualId: "sprint_c_skip",
         prescription: cDrillDose,
-        displayPrescription:
-  `2 × ${distance} m · z dostawieniem + ciągły`,
+        displayPrescription: `2 × ${distance} m · z dostawieniem + ciągły`,
 
-instructionSteps: [
-  {
-    title: "Pięta do pośladka",
-    description:
-      "Pięta idzie szybko do pośladka, ale nie wychodzi za jego linię. Kolano zostaje lekko z przodu.",
-    visualId: "sprint_c_skip_1",
-  },
-  {
-    title: "Szybko w dół",
-    description:
-      "Ściągnij stopę szybko w dół pod biodro i płynnie przejdź na drugą nogę.",
-    visualId: "sprint_c_skip_2",
-  },
-],
-purpose:
-  "Uczy szybkiego powrotu nogi i prawidłowej pracy pięty pod pośladkiem.",
-technique:
-  "Przyciągnij piętę do pośladka, a kolano prowadź lekko przed sobą. Pięta nie wychodzi za linię pośladka. Bez przejścia nogi pracują płynnie na zmianę. Z dostawieniem po każdym ruchu obie stopy wracają pod siebie, robisz jeden niski kontakt i dopiero pracuje druga noga.",
-commonMistake:
-  "Kopanie piętą za siebie, cofanie kolana albo wysokie podskakiwanie.",
-cue:
-  "Pięta do pośladka. Kolano z przodu. Szybko pod siebie.",
-        rest:
-          "30–45 s między wariantami",
+        instructionSteps: [
+          {
+            title: "Pięta do pośladka",
+            description:
+              "Pięta idzie szybko do pośladka, ale nie wychodzi za jego linię. Kolano zostaje lekko z przodu.",
+            visualId: "sprint_c_skip_1",
+          },
+          {
+            title: "Szybko w dół",
+            description: "Ściągnij stopę szybko w dół pod biodro i płynnie przejdź na drugą nogę.",
+            visualId: "sprint_c_skip_2",
+          },
+        ],
+        purpose: "Uczy szybkiego powrotu nogi i prawidłowej pracy pięty pod pośladkiem.",
+        technique:
+          "Przyciągnij piętę do pośladka, a kolano prowadź lekko przed sobą. Pięta nie wychodzi za linię pośladka. Bez przejścia nogi pracują płynnie na zmianę. Z dostawieniem po każdym ruchu obie stopy wracają pod siebie, robisz jeden niski kontakt i dopiero pracuje druga noga.",
+        commonMistake: "Kopanie piętą za siebie, cofanie kolana albo wysokie podskakiwanie.",
+        cue: "Pięta do pośladka. Kolano z przodu. Szybko pod siebie.",
+        rest: "30–45 s między wariantami",
       },
       {
         isSprintSpecific: true,
         isRunningBased: true,
-        primaryQuality:
-          "odzyskanie nogi i rytm cykliczny",
-        allowedSessionTypes: [
-          "sport_performance",
-        ],
-        tissueLoadTags: [
-          "tylne uda",
-          "biodro",
-        ],
+        primaryQuality: "odzyskanie nogi i rytm cykliczny",
+        allowedSessionTypes: ["sport_performance"],
+        tissueLoadTags: ["tylne uda", "biodro"],
       },
     ),
 
@@ -320,64 +284,50 @@ cue:
       {
         name: "Sprint B-Skip",
         visualId: "sprint_b_skip",
-       prescription: mainDrillDose,
-        displayPrescription:
-  `2 × ${distance} m · ${
-    useAnkleTransition
-      ? "z przejściem + ciągły"
-      : "z dostawieniem + ciągły"
-  }`,
+        prescription: mainDrillDose,
+        displayPrescription: `2 × ${distance} m · ${
+          useAnkleTransition ? "z przejściem + ciągły" : "z dostawieniem + ciągły"
+        }`,
 
-instructionSteps: [
-  {
-    title: "Rama 90/90",
-    description:
-      "Kolano mniej więcej na wysokości biodra, pięta pod kolanem, palce do góry.",
-    visualId: "sprint_b_skip_1",
-  },
-  {
-    title: "Piszczel lekko w przód",
-    description:
-      "Wysuń samo podudzie lekko do przodu. Nie kop całej nogi przed siebie.",
-    visualId: "sprint_b_skip_2",
-  },
-  {
-    title: "Reaktywnie pod siebie",
-    description:
-      "Szybko ściągnij stopę w dół i pod biodro.",
-    visualId: "sprint_b_skip_3",
-  },
-  {
-    title: "Zmień nogę",
-    description: useAnkleTransition
-      ? "Po krótkim kontakcie na nodze podporowej druga noga wraca do ramy 90/90."
-      : "Po dostawieniu druga noga wraca do ramy 90/90.",
-    visualId: "sprint_b_skip_4",
-  },
-],
-purpose:
-  "Uczy reaktywnego ściągnięcia nogi pod siebie po ustawieniu pozycji 90/90.",
-technique:
-  "Zacznij od ramy 90/90 jak w A-skipie, z palcami zadartymi do góry. Wysuń samo podudzie lekko do przodu i od razu reaktywnie ściągnij całą nogę w dół pod siebie. Bez przejścia od razu druga noga wchodzi w 90/90. Z przejściem po ściągnięciu zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i dopiero zmień nogę. Z dostawieniem po ściągnięciu obie stopy spotykają się pod sobą, robisz jeden niski kontakt i druga noga idzie do 90/90.",
-commonMistake:
-  "Kopanie całej nogi daleko przed siebie, luźna stopa albo stawianie nogi przed sobą.",
-cue:
-  "90/90. Piszczel lekko w przód. Reaktywnie pod siebie.",
-        rest:
-          "30–45 s między wariantami",
+        instructionSteps: [
+          {
+            title: "Rama 90/90",
+            description:
+              "Kolano mniej więcej na wysokości biodra, pięta pod kolanem, palce do góry.",
+            visualId: "sprint_b_skip_1",
+          },
+          {
+            title: "Piszczel lekko w przód",
+            description: "Wysuń samo podudzie lekko do przodu. Nie kop całej nogi przed siebie.",
+            visualId: "sprint_b_skip_2",
+          },
+          {
+            title: "Reaktywnie pod siebie",
+            description: "Szybko ściągnij stopę w dół i pod biodro.",
+            visualId: "sprint_b_skip_3",
+          },
+          {
+            title: "Zmień nogę",
+            description: useAnkleTransition
+              ? "Po krótkim kontakcie na nodze podporowej druga noga wraca do ramy 90/90."
+              : "Po dostawieniu druga noga wraca do ramy 90/90.",
+            visualId: "sprint_b_skip_4",
+          },
+        ],
+        purpose: "Uczy reaktywnego ściągnięcia nogi pod siebie po ustawieniu pozycji 90/90.",
+        technique:
+          "Zacznij od ramy 90/90 jak w A-skipie, z palcami zadartymi do góry. Wysuń samo podudzie lekko do przodu i od razu reaktywnie ściągnij całą nogę w dół pod siebie. Bez przejścia od razu druga noga wchodzi w 90/90. Z przejściem po ściągnięciu zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej i dopiero zmień nogę. Z dostawieniem po ściągnięciu obie stopy spotykają się pod sobą, robisz jeden niski kontakt i druga noga idzie do 90/90.",
+        commonMistake:
+          "Kopanie całej nogi daleko przed siebie, luźna stopa albo stawianie nogi przed sobą.",
+        cue: "90/90. Piszczel lekko w przód. Reaktywnie pod siebie.",
+        rest: "30–45 s między wariantami",
       },
       {
         isSprintSpecific: true,
         isRunningBased: true,
-        primaryQuality:
-          "paw-back i aktywny kontakt",
-        allowedSessionTypes: [
-          "sport_performance",
-        ],
-        tissueLoadTags: [
-          "tylne uda",
-          "łydka",
-        ],
+        primaryQuality: "paw-back i aktywny kontakt",
+        allowedSessionTypes: ["sport_performance"],
+        tissueLoadTags: ["tylne uda", "łydka"],
       },
     ),
 
@@ -385,79 +335,60 @@ cue:
       {
         name: "Sprint D-Skip",
         visualId: "sprint_d_skip",
-       prescription: mainDrillDose,
-        displayPrescription:
-  `2 × ${distance} m · ${
-    useAnkleTransition
-      ? "z przejściem + ciągły"
-      : "z dostawieniem + ciągły"
-  }`,
+        prescription: mainDrillDose,
+        displayPrescription: `2 × ${distance} m · ${
+          useAnkleTransition ? "z przejściem + ciągły" : "z dostawieniem + ciągły"
+        }`,
 
-instructionSteps: [
-  {
-    title: "Nożyce",
-    description:
-      "Pracuj prawie prostymi nogami. Palce trzymaj do góry, ruch zaczynaj z biodra.",
-    visualId: "sprint_d_skip_1",
-  },
-  {
-    title: "Zmień nogę",
-    description:
-      "Szybko zmień nogi jak nożyce. Kontakt stopy krótko pod sobą, bez odchylania się do tyłu.",
-    visualId: "sprint_d_skip_2",
-  },
-],
-purpose:
-  "Uczy szybkiej pracy prawie prostych nóg i krótkiego kontaktu stopy pod sobą.",
-technique:
-  "Pracuj prawie prostymi nogami jak nożycami. Palce trzymaj zadarte do góry. Bez przejścia nogi zmieniają się płynnie, a stopa szybko wraca pod siebie. Z przejściem między zmianami zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej. Z dostawieniem po ruchu obie stopy spotykają się pod sobą, robisz jeden niski kontakt i dopiero pracuje druga noga.",
-commonMistake:
-  "Odchylanie się do tyłu, kopanie nóg wysoko przed siebie albo przechodzenie w zwykły bieg.",
-cue:
-  "Prawie proste nogi. Palce w górę. Krótko pod siebie.",
-        rest:
-          "30–45 s między wariantami",
+        instructionSteps: [
+          {
+            title: "Nożyce",
+            description:
+              "Pracuj prawie prostymi nogami. Palce trzymaj do góry, ruch zaczynaj z biodra.",
+            visualId: "sprint_d_skip_1",
+          },
+          {
+            title: "Zmień nogę",
+            description:
+              "Szybko zmień nogi jak nożyce. Kontakt stopy krótko pod sobą, bez odchylania się do tyłu.",
+            visualId: "sprint_d_skip_2",
+          },
+        ],
+        purpose: "Uczy szybkiej pracy prawie prostych nóg i krótkiego kontaktu stopy pod sobą.",
+        technique:
+          "Pracuj prawie prostymi nogami jak nożycami. Palce trzymaj zadarte do góry. Bez przejścia nogi zmieniają się płynnie, a stopa szybko wraca pod siebie. Z przejściem między zmianami zrób jeden niski, sztywny kontakt na stawie skokowym nogi podporowej. Z dostawieniem po ruchu obie stopy spotykają się pod sobą, robisz jeden niski kontakt i dopiero pracuje druga noga.",
+        commonMistake:
+          "Odchylanie się do tyłu, kopanie nóg wysoko przed siebie albo przechodzenie w zwykły bieg.",
+        cue: "Prawie proste nogi. Palce w górę. Krótko pod siebie.",
+        rest: "30–45 s między wariantami",
       },
       {
         isSprintSpecific: true,
         isRunningBased: true,
-        primaryQuality:
-          "stiffness i praca biodra",
-        allowedSessionTypes: [
-          "sport_performance",
-        ],
-        tissueLoadTags: [
-          "łydka",
-          "tylne uda",
-        ],
+        primaryQuality: "stiffness i praca biodra",
+        allowedSessionTypes: ["sport_performance"],
+        tissueLoadTags: ["łydka", "tylne uda"],
       },
     ),
 
     mk(
       {
-        name:
-          "Narastające przebieżki (build-up)",
-        prescription:
-          "3 × 30 m progresywnie do około 80%",
+        name: "Narastające przebieżki (build-up)",
+        prescription: "3 × 30 m progresywnie do około 80%",
         purpose:
           "Łączy drille techniczne z właściwym sprintem bez gwałtownego wejścia na wysoką prędkość.",
         technique:
           "Przyspieszaj płynnie przez cały odcinek. Zachowaj luźne barki, wysokie biodra i rytm wypracowany w skipach.",
-        commonMistake:
-          "Natychmiastowy sprint na maksimum albo spinanie barków i twarzy.",
+        commonMistake: "Natychmiastowy sprint na maksimum albo spinanie barków i twarzy.",
         visualId: "max_velocity_sprint",
         rest: "trucht powrotny",
-        cue:
-          "Płynne narastanie prędkości, bez spinania.",
+        cue: "Płynne narastanie prędkości, bez spinania.",
       },
       {
         isSprintSpecific: true,
         isRunningBased: true,
-        primaryQuality:
-          "przygotowanie do sprintu",
-        allowedSessionTypes: [
-          "sport_performance",
-        ],
+        primaryQuality: "przygotowanie do sprintu",
+        allowedSessionTypes: ["sport_performance"],
       },
     ),
   ];
@@ -470,7 +401,10 @@ function sprintCooldown(): CatExercise[] {
       { isRunningBased: true, primaryQuality: "wyciszenie" },
     ),
     mk(
-      { name: "Rozciąganie i mobilność tylnej taśmy", prescription: "6 min: tylne uda, łydki, biodra" },
+      {
+        name: "Rozciąganie i mobilność tylnej taśmy",
+        prescription: "6 min: tylne uda, łydki, biodra",
+      },
       { primaryQuality: "mobilność", tissueLoadTags: ["tylne uda", "łydka"] },
     ),
   ];
@@ -490,11 +424,9 @@ function sprintDrills(seed: number): CatExercise[] {
       mk(
         {
           name: "Ankling + niskie dribbles",
-          prescription:
-            "2 × 15 m ankling + 2 × 15 m niskie dribbles",
+          prescription: "2 × 15 m ankling + 2 × 15 m niskie dribbles",
           rest: "30–45 s",
-          cue:
-            "Krótki kontakt pod biodrem, aktywna stopa, wysokie biodra.",
+          cue: "Krótki kontakt pod biodrem, aktywna stopa, wysokie biodra.",
         },
         {
           isSprintSpecific: true,
@@ -508,11 +440,9 @@ function sprintDrills(seed: number): CatExercise[] {
       mk(
         {
           name: "Wall drill — single switch",
-          prescription:
-            "3 × 5 zmian na nogę, pełna kontrola pozycji",
+          prescription: "3 × 5 zmian na nogę, pełna kontrola pozycji",
           rest: "45 s",
-          cue:
-            "Biodra wysoko, sztywna linia tułowia, stopa wraca aktywnie pod biodro.",
+          cue: "Biodra wysoko, sztywna linia tułowia, stopa wraca aktywnie pod biodro.",
         },
         {
           isSprintSpecific: true,
@@ -532,28 +462,74 @@ function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] 
   if (young || light) {
     return [
       mk(
-        { name: "Niskie pogo jumps", prescription: "3 × 6 kontaktów", rest: "60 s", cue: "Sztywna kostka, krótki, cichy kontakt z podłożem." },
-        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "stiffness", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka", "ścięgno Achillesa"] },
+        {
+          name: "Niskie pogo jumps",
+          prescription: "3 × 6 kontaktów",
+          rest: "60 s",
+          cue: "Sztywna kostka, krótki, cichy kontakt z podłożem.",
+        },
+        {
+          isPlyometric: true,
+          isSprintSpecific: true,
+          primaryQuality: "stiffness",
+          allowedSessionTypes: ["sport_performance"],
+          tissueLoadTags: ["łydka", "ścięgno Achillesa"],
+        },
       ),
     ];
   }
   const variants: CatExercise[][] = [
     [
       mk(
-        { name: "Pogo jumps + snap down", prescription: "3 × 6 pogo + 3 snap down", rest: "60 s", cue: "Krótki kontakt, sztywna kostka, jakość ponad ilość." },
-        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "stiffness", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka", "ścięgno Achillesa"] },
+        {
+          name: "Pogo jumps + snap down",
+          prescription: "3 × 6 pogo + 3 snap down",
+          rest: "60 s",
+          cue: "Krótki kontakt, sztywna kostka, jakość ponad ilość.",
+        },
+        {
+          isPlyometric: true,
+          isSprintSpecific: true,
+          primaryQuality: "stiffness",
+          allowedSessionTypes: ["sport_performance"],
+          tissueLoadTags: ["łydka", "ścięgno Achillesa"],
+        },
       ),
     ],
     [
       mk(
-        { name: "Bounds (wieloskoki) — niska objętość", prescription: "3 × 4 wieloskoki", rest: "75 s", cue: "Daleki, sprężysty krok, lądowanie pod biodrem." },
-        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "moc reaktywna", ageSafety: "advanced_only", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["łydka"] },
+        {
+          name: "Bounds (wieloskoki) — niska objętość",
+          prescription: "3 × 4 wieloskoki",
+          rest: "75 s",
+          cue: "Daleki, sprężysty krok, lądowanie pod biodrem.",
+        },
+        {
+          isPlyometric: true,
+          isSprintSpecific: true,
+          primaryQuality: "moc reaktywna",
+          ageSafety: "advanced_only",
+          allowedSessionTypes: ["sport_performance"],
+          tissueLoadTags: ["łydka"],
+        },
       ),
     ],
     [
       mk(
-        { name: "Single-leg hops + broad jump", prescription: "3 × 4 podskoki na nogę + 3 skoki w dal", rest: "75 s", cue: "Stabilne lądowanie, miękkie kolano, kontrola." },
-        { isPlyometric: true, isSprintSpecific: true, primaryQuality: "moc / stabilność lądowania", ageSafety: "advanced_only", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano", "łydka"] },
+        {
+          name: "Single-leg hops + broad jump",
+          prescription: "3 × 4 podskoki na nogę + 3 skoki w dal",
+          rest: "75 s",
+          cue: "Stabilne lądowanie, miękkie kolano, kontrola.",
+        },
+        {
+          isPlyometric: true,
+          isSprintSpecific: true,
+          primaryQuality: "moc / stabilność lądowania",
+          ageSafety: "advanced_only",
+          allowedSessionTypes: ["sport_performance"],
+          tissueLoadTags: ["kolano", "łydka"],
+        },
       ),
     ],
   ];
@@ -573,12 +549,20 @@ export function buildSportPerformance(
   const startMechanics: CatExercise[] = [
     mk(
       {
-        name: theme === "cod_decel" ? "Falling start + split stance start" : "Falling start (start z padania)",
-        prescription: theme === "cod_decel" ? "4 × 10 m (różne pozycje startowe)" : "4 × 10 m z padania",
+        name:
+          theme === "cod_decel"
+            ? "Falling start + split stance start"
+            : "Falling start (start z padania)",
+        prescription:
+          theme === "cod_decel" ? "4 × 10 m (różne pozycje startowe)" : "4 × 10 m z padania",
         rest: "60 s",
         cue: "Pozwól ciału opaść, eksploduj w pierwszym kroku, niski tułów.",
       },
-      { isSprintSpecific: true, primaryQuality: "mechanika startu", allowedSessionTypes: ["sport_performance"] },
+      {
+        isSprintSpecific: true,
+        primaryQuality: "mechanika startu",
+        allowedSessionTypes: ["sport_performance"],
+      },
     ),
   ];
 
@@ -601,13 +585,29 @@ export function buildSportPerformance(
             cue: "Płynne narastanie, na docelowym odcinku wysoka częstość i luz.",
             easier: "Skróć odcinek do 15 m.",
           },
-          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "prędkość", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
+          {
+            isSprintSpecific: true,
+            isRunningBased: true,
+            primaryQuality: "prędkość",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["tylne uda"],
+          },
         ),
       ];
       decel = [
         mk(
-          { name: "Sprint 15 m + kontrolowane hamowanie", prescription: `${young ? 3 : 4} × 15 m + stabilny stop`, rest: "90 s", cue: "Po sprincie obniż biodra, krótkie kroki, cichy kontrolowany stop." },
-          { isSprintSpecific: true, primaryQuality: "hamowanie", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+          {
+            name: "Sprint 15 m + kontrolowane hamowanie",
+            prescription: `${young ? 3 : 4} × 15 m + stabilny stop`,
+            rest: "90 s",
+            cue: "Po sprincie obniż biodra, krótkie kroki, cichy kontrolowany stop.",
+          },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "hamowanie",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["kolano"],
+          },
         ),
       ];
       break;
@@ -622,17 +622,41 @@ export function buildSportPerformance(
             rest: "60–90 s",
             cue: "Reaguj natychmiast, mocny pierwszy krok.",
           },
-          { isSprintSpecific: true, primaryQuality: "reakcja / akceleracja", allowedSessionTypes: ["sport_performance"] },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "reakcja / akceleracja",
+            allowedSessionTypes: ["sport_performance"],
+          },
         ),
       ];
       decel = [
         mk(
-          { name: "Lateral cut / drop step 45°–90°", prescription: `${young ? 5 : 6} powtórzeń na stronę`, rest: "75–90 s", cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku." },
-          { isSprintSpecific: true, primaryQuality: "zmiana kierunku", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+          {
+            name: "Lateral cut / drop step 45°–90°",
+            prescription: `${young ? 5 : 6} powtórzeń na stronę`,
+            rest: "75–90 s",
+            cue: "Najpierw wyhamuj, potem przyspiesz — nie ślizgaj kroku.",
+          },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "zmiana kierunku",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["kolano"],
+          },
         ),
         mk(
-          { name: "5-0-5 entry (wejście w zwrot)", prescription: "4 × na stronę, kontrolowane wejście", rest: "90 s", cue: "Niskie biodra przy zwrocie, mocne odepchnięcie w nowym kierunku." },
-          { isSprintSpecific: true, primaryQuality: "zwrot", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+          {
+            name: "5-0-5 entry (wejście w zwrot)",
+            prescription: "4 × na stronę, kontrolowane wejście",
+            rest: "90 s",
+            cue: "Niskie biodra przy zwrocie, mocne odepchnięcie w nowym kierunku.",
+          },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "zwrot",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["kolano"],
+          },
         ),
       ];
       break;
@@ -647,13 +671,28 @@ export function buildSportPerformance(
             rest: "90–120 s",
             cue: "Mechanika ponad maksymalny wysiłek, czysty pierwszy krok.",
           },
-          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "technika sprintu", allowedSessionTypes: ["sport_performance"] },
+          {
+            isSprintSpecific: true,
+            isRunningBased: true,
+            primaryQuality: "technika sprintu",
+            allowedSessionTypes: ["sport_performance"],
+          },
         ),
       ];
       decel = [
         mk(
-          { name: "Curved run + kontrolowany stop", prescription: `${young ? 4 : 5} × łuk 15 m`, rest: "90 s", cue: "Pochyl się do środka łuku, kontroluj postawę i wyhamowanie." },
-          { isSprintSpecific: true, primaryQuality: "bieg po łuku / hamowanie", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+          {
+            name: "Curved run + kontrolowany stop",
+            prescription: `${young ? 4 : 5} × łuk 15 m`,
+            rest: "90 s",
+            cue: "Pochyl się do środka łuku, kontroluj postawę i wyhamowanie.",
+          },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "bieg po łuku / hamowanie",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["kolano"],
+          },
         ),
       ];
       break;
@@ -670,7 +709,13 @@ export function buildSportPerformance(
             cue: "Niski tułów na starcie, mocny pierwszy krok, stopniowy wzrost.",
             easier: "Skróć do 10–15 m lub zmniejsz liczbę powtórzeń.",
           },
-          { isSprintSpecific: true, isRunningBased: true, primaryQuality: "akceleracja", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["tylne uda"] },
+          {
+            isSprintSpecific: true,
+            isRunningBased: true,
+            primaryQuality: "akceleracja",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["tylne uda"],
+          },
         ),
         mk(
           {
@@ -679,13 +724,27 @@ export function buildSportPerformance(
             rest: "90 s",
             cue: "Eksplozja od pierwszego kontaktu, różne wzorce startu.",
           },
-          { isSprintSpecific: true, primaryQuality: "pierwszy krok", allowedSessionTypes: ["sport_performance"] },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "pierwszy krok",
+            allowedSessionTypes: ["sport_performance"],
+          },
         ),
       ];
       decel = [
         mk(
-          { name: "Sprint 10 m + kontrolowane hamowanie", prescription: `${young ? 4 : 5} × 10 m + stabilny stop`, rest: "90 s", cue: "Po przyspieszeniu obniż biodra i wyhamuj cicho, bez wyślizgu." },
-          { isSprintSpecific: true, primaryQuality: "hamowanie", allowedSessionTypes: ["sport_performance"], tissueLoadTags: ["kolano"] },
+          {
+            name: "Sprint 10 m + kontrolowane hamowanie",
+            prescription: `${young ? 4 : 5} × 10 m + stabilny stop`,
+            rest: "90 s",
+            cue: "Po przyspieszeniu obniż biodra i wyhamuj cicho, bez wyślizgu.",
+          },
+          {
+            isSprintSpecific: true,
+            primaryQuality: "hamowanie",
+            allowedSessionTypes: ["sport_performance"],
+            tissueLoadTags: ["kolano"],
+          },
         ),
       ];
       break;
@@ -703,10 +762,7 @@ export function buildSportPerformance(
       "Bez ćwiczeń z piłką, bez siły/core/prehabu siłowego i bez długiego kondycyjnego biegania. Przerwij przy spadku jakości biegu.",
     sections: {
       // Blok A: rozgrzewka, Blok B: technika/skipy + mechanika startu.
-      warmup: [
-  ...sprintWarmup(young, profile.level),
-  ...sprintDrills(opts.seed),
-].map(toItem),
+      warmup: [...sprintWarmup(young, profile.level), ...sprintDrills(opts.seed)].map(toItem),
       // Blok C: plyo, Blok D: sprinty jakościowe, Blok E: hamowanie/COD.
       main: [...startMechanics, ...plyo, ...main, ...decel].map(toItem),
       accessory: [],
@@ -716,7 +772,6 @@ export function buildSportPerformance(
     },
   };
 }
-
 
 // ============================================================
 // FOOTBALL / PIŁKARSKI — tylko z piłką, solo-compatible, wg pozycji
@@ -744,7 +799,13 @@ function ballWarmup(): CatExercise[] {
         prescription: "6 min: prowadzenie, sole rolls, lekkie podania o ścianę",
         cue: "Miękkie kontakty obiema nogami, głowa do góry.",
       },
-      { requiresBall: true, isFootballSpecific: true, equipmentRequired: ["piłka"], primaryQuality: "rozgrzewka z piłką", allowedSessionTypes: ["football"] },
+      {
+        requiresBall: true,
+        isFootballSpecific: true,
+        equipmentRequired: ["piłka"],
+        primaryQuality: "rozgrzewka z piłką",
+        allowedSessionTypes: ["football"],
+      },
     ),
     mk(
       {
@@ -752,7 +813,13 @@ function ballWarmup(): CatExercise[] {
         prescription: "4 min, obie nogi + udo",
         cue: "Spokojny rytm, kontrola, słabsza noga co drugie powtórzenie.",
       },
-      { requiresBall: true, isFootballSpecific: true, equipmentRequired: ["piłka"], primaryQuality: "czucie piłki", allowedSessionTypes: ["football"] },
+      {
+        requiresBall: true,
+        isFootballSpecific: true,
+        equipmentRequired: ["piłka"],
+        primaryQuality: "czucie piłki",
+        allowedSessionTypes: ["football"],
+      },
     ),
   ];
 }
@@ -761,7 +828,12 @@ function ballCooldown(): CatExercise[] {
   return [
     mk(
       { name: "Lekkie podania o ścianę", prescription: "5 min, spokojnie, obie nogi" },
-      { requiresBall: true, isFootballSpecific: true, primaryQuality: "wyciszenie z piłką", allowedSessionTypes: ["football"] },
+      {
+        requiresBall: true,
+        isFootballSpecific: true,
+        primaryQuality: "wyciszenie z piłką",
+        allowedSessionTypes: ["football"],
+      },
     ),
     mk(
       { name: "Rozciąganie i oddech", prescription: "4 min: biodra, uda, łydki + spokojny oddech" },
@@ -771,61 +843,182 @@ function ballCooldown(): CatExercise[] {
 }
 
 /** Solo-compatible, pozycyjne bloki techniczne z transferem meczowym. */
-function footballThemes(position: Position, seed: number): {
+function footballThemes(
+  position: Position,
+  seed: number,
+): {
   technical: CatExercise;
   matchAction: CatExercise;
   finishing: CatExercise;
   title: string;
 } {
   const tag = posTag(position);
-  const ball = { requiresBall: true, isFootballSpecific: true, equipmentRequired: ["piłka", "ściana/odbojnik"], allowedSessionTypes: ["football"] as SessionContentCategory[], positionTags: [tag] as PositionTag[] };
+  const ball = {
+    requiresBall: true,
+    isFootballSpecific: true,
+    equipmentRequired: ["piłka", "ściana/odbojnik"],
+    allowedSessionTypes: ["football"] as SessionContentCategory[],
+    positionTags: [tag] as PositionTag[],
+  };
 
   if (tag === "GK") {
     const technicals: CatExercise[] = [
-      mk({ name: "Przyjęcie cofniętej piłki pod presją", prescription: "12 min: przyjęcie kierunkowe + podanie o ścianę", cue: "Otwarta sylwetka, pierwszy kontakt od presji. Transfer: jak przy back-passie w meczu." }, { ...ball, primaryQuality: "gra nogami" }),
-      mk({ name: "Praca nóg z piłką", prescription: "10 min: kontakty w różne strefy + podanie", cue: "Szybka praca stóp, stabilna pozycja. Transfer: dystrybucja po obronie." }, { ...ball, primaryQuality: "footwork z piłką" }),
+      mk(
+        {
+          name: "Przyjęcie cofniętej piłki pod presją",
+          prescription: "12 min: przyjęcie kierunkowe + podanie o ścianę",
+          cue: "Otwarta sylwetka, pierwszy kontakt od presji. Transfer: jak przy back-passie w meczu.",
+        },
+        { ...ball, primaryQuality: "gra nogami" },
+      ),
+      mk(
+        {
+          name: "Praca nóg z piłką",
+          prescription: "10 min: kontakty w różne strefy + podanie",
+          cue: "Szybka praca stóp, stabilna pozycja. Transfer: dystrybucja po obronie.",
+        },
+        { ...ball, primaryQuality: "footwork z piłką" },
+      ),
     ];
     return {
       title: "Trening bramkarski z piłką (gra nogami)",
       technical: pick(technicals, seed),
-      matchAction: mk({ name: "Reakcja i ustawienie + wznowienie", prescription: "8 min: sygnał, krok w bok, przyjęcie i wznowienie gry", cue: "Reaguj wzrokowo, kontroluj pierwszy kontakt. Transfer: szybkie wznowienie po interwencji." }, { ...ball, primaryQuality: "reakcja / dystrybucja" }),
-      finishing: mk({ name: "Zasięg podania / wybicie z ręki i nogi", prescription: "10 min na różne dystanse", cue: "Celność przed siłą, obie nogi. Transfer: otwieranie gry długim podaniem." }, { ...ball, primaryQuality: "zasięg podania" }),
+      matchAction: mk(
+        {
+          name: "Reakcja i ustawienie + wznowienie",
+          prescription: "8 min: sygnał, krok w bok, przyjęcie i wznowienie gry",
+          cue: "Reaguj wzrokowo, kontroluj pierwszy kontakt. Transfer: szybkie wznowienie po interwencji.",
+        },
+        { ...ball, primaryQuality: "reakcja / dystrybucja" },
+      ),
+      finishing: mk(
+        {
+          name: "Zasięg podania / wybicie z ręki i nogi",
+          prescription: "10 min na różne dystanse",
+          cue: "Celność przed siłą, obie nogi. Transfer: otwieranie gry długim podaniem.",
+        },
+        { ...ball, primaryQuality: "zasięg podania" },
+      ),
     };
   }
   if (tag === "DEF") {
     const technicals: CatExercise[] = [
-      mk({ name: "Przyjęcie od presji + podanie diagonalne", prescription: "12 min o ścianę, przyjęcie w otwartą sylwetkę", cue: "Sylwetka przed przyjęciem, pierwszy kontakt od presji. Transfer: wyprowadzenie spod pressingu." }, { ...ball, primaryQuality: "wyprowadzenie piłki" }),
-      mk({ name: "Długie podanie i celność", prescription: "12 min: zmiana strony / podanie za linię", cue: "Stabilna noga postawna, czysty kontakt. Transfer: zmiana strony gry." }, { ...ball, primaryQuality: "długie podanie" }),
+      mk(
+        {
+          name: "Przyjęcie od presji + podanie diagonalne",
+          prescription: "12 min o ścianę, przyjęcie w otwartą sylwetkę",
+          cue: "Sylwetka przed przyjęciem, pierwszy kontakt od presji. Transfer: wyprowadzenie spod pressingu.",
+        },
+        { ...ball, primaryQuality: "wyprowadzenie piłki" },
+      ),
+      mk(
+        {
+          name: "Długie podanie i celność",
+          prescription: "12 min: zmiana strony / podanie za linię",
+          cue: "Stabilna noga postawna, czysty kontakt. Transfer: zmiana strony gry.",
+        },
+        { ...ball, primaryQuality: "długie podanie" },
+      ),
     ];
     return {
       title: "Trening obrońcy z piłką (wyprowadzenie)",
       technical: pick(technicals, seed),
-      matchAction: mk({ name: "Wall pass + prowadzenie w wolną przestrzeń", prescription: "10 min: podanie o ścianę, przyjęcie, prowadzenie 5 m", cue: "Decyzja przed kontaktem, prowadzenie w przestrzeń. Transfer: wyjście z piłką po odbiorze." }, { ...ball, primaryQuality: "prowadzenie w przestrzeń" }),
-      finishing: mk({ name: "Sylwetka ciała przed przyjęciem", prescription: "8 min: skan, otwarcie bioder, przyjęcie", cue: "Skanuj przed przyjęciem, otwórz się na grę. Transfer: orientacja w defensywie." }, { ...ball, primaryQuality: "skanowanie / sylwetka" }),
+      matchAction: mk(
+        {
+          name: "Wall pass + prowadzenie w wolną przestrzeń",
+          prescription: "10 min: podanie o ścianę, przyjęcie, prowadzenie 5 m",
+          cue: "Decyzja przed kontaktem, prowadzenie w przestrzeń. Transfer: wyjście z piłką po odbiorze.",
+        },
+        { ...ball, primaryQuality: "prowadzenie w przestrzeń" },
+      ),
+      finishing: mk(
+        {
+          name: "Sylwetka ciała przed przyjęciem",
+          prescription: "8 min: skan, otwarcie bioder, przyjęcie",
+          cue: "Skanuj przed przyjęciem, otwórz się na grę. Transfer: orientacja w defensywie.",
+        },
+        { ...ball, primaryQuality: "skanowanie / sylwetka" },
+      ),
     };
   }
   if (tag === "MID") {
     const technicals: CatExercise[] = [
-      mk({ name: "Przyjęcie na półobrocie", prescription: "12 min: skan, przyjęcie kierunkowe na pół-obrocie o ścianę", cue: "Skan przed przyjęciem, pierwszy kontakt w kierunku gry. Transfer: gra przez linie." }, { ...ball, primaryQuality: "przyjęcie kierunkowe" }),
-      mk({ name: "Kombinacje wall pass", prescription: "12 min: podanie o ścianę, dwa kontakty, zmiana tempa", cue: "Szybka decyzja, zmiana tempa po przyjęciu. Transfer: jednokontaktowa gra w środku pola." }, { ...ball, primaryQuality: "kombinacje" }),
+      mk(
+        {
+          name: "Przyjęcie na półobrocie",
+          prescription: "12 min: skan, przyjęcie kierunkowe na pół-obrocie o ścianę",
+          cue: "Skan przed przyjęciem, pierwszy kontakt w kierunku gry. Transfer: gra przez linie.",
+        },
+        { ...ball, primaryQuality: "przyjęcie kierunkowe" },
+      ),
+      mk(
+        {
+          name: "Kombinacje wall pass",
+          prescription: "12 min: podanie o ścianę, dwa kontakty, zmiana tempa",
+          cue: "Szybka decyzja, zmiana tempa po przyjęciu. Transfer: jednokontaktowa gra w środku pola.",
+        },
+        { ...ball, primaryQuality: "kombinacje" },
+      ),
     ];
     return {
       title: "Trening pomocnika z piłką (gra w środku)",
       technical: pick(technicals, seed),
-      matchAction: mk({ name: "Skanowanie + gra przez linie", prescription: "10 min: symulacja podania pod presją, zmiana kierunku gry", cue: "Głowa do góry przed przyjęciem, otwórz się na podanie do przodu. Transfer: rozegranie przez linie." }, { ...ball, primaryQuality: "rozegranie przez linie" }),
-      finishing: mk({ name: "Zmiana tempa po przyjęciu", prescription: "8 min: przyjęcie i przyspieszenie z piłką", cue: "Pierwszy kontakt w przestrzeń, przyspiesz po przyjęciu. Transfer: progresja gry po przyjęciu." }, { ...ball, primaryQuality: "zmiana tempa z piłką" }),
+      matchAction: mk(
+        {
+          name: "Skanowanie + gra przez linie",
+          prescription: "10 min: symulacja podania pod presją, zmiana kierunku gry",
+          cue: "Głowa do góry przed przyjęciem, otwórz się na podanie do przodu. Transfer: rozegranie przez linie.",
+        },
+        { ...ball, primaryQuality: "rozegranie przez linie" },
+      ),
+      finishing: mk(
+        {
+          name: "Zmiana tempa po przyjęciu",
+          prescription: "8 min: przyjęcie i przyspieszenie z piłką",
+          cue: "Pierwszy kontakt w przestrzeń, przyspiesz po przyjęciu. Transfer: progresja gry po przyjęciu.",
+        },
+        { ...ball, primaryQuality: "zmiana tempa z piłką" },
+      ),
     };
   }
   // FWD (oraz skrzydłowy)
   const technicals: CatExercise[] = [
-    mk({ name: "Przyjęcie tyłem do bramki + obrót", prescription: "12 min: przyjęcie, obrót, kontakt do strzału", cue: "Osłona piłki, szybki obrót w przestrzeń. Transfer: gra tyłem do bramki." }, { ...ball, primaryQuality: "obrót i przyjęcie" }),
-    mk({ name: "Ruch przed przyjęciem + pierwszy kontakt", prescription: "12 min: zwód, oderwanie, przyjęcie w bieg", cue: "Oderwij się przed podaniem, pierwszy kontakt w przestrzeń. Transfer: timing wejścia." }, { ...ball, primaryQuality: "ruch bez piłki + przyjęcie" }),
+    mk(
+      {
+        name: "Przyjęcie tyłem do bramki + obrót",
+        prescription: "12 min: przyjęcie, obrót, kontakt do strzału",
+        cue: "Osłona piłki, szybki obrót w przestrzeń. Transfer: gra tyłem do bramki.",
+      },
+      { ...ball, primaryQuality: "obrót i przyjęcie" },
+    ),
+    mk(
+      {
+        name: "Ruch przed przyjęciem + pierwszy kontakt",
+        prescription: "12 min: zwód, oderwanie, przyjęcie w bieg",
+        cue: "Oderwij się przed podaniem, pierwszy kontakt w przestrzeń. Transfer: timing wejścia.",
+      },
+      { ...ball, primaryQuality: "ruch bez piłki + przyjęcie" },
+    ),
   ];
   return {
     title: "Trening napastnika z piłką (wykończenie)",
     technical: pick(technicals, seed),
-    matchAction: mk({ name: "Wall pass + strzał", prescription: "10 min: podanie o ścianę, przyjęcie, wykończenie", cue: "Szybkie wejście po odbiciu, kontrola przed strzałem. Transfer: gra w jeden-dwa i finalizacja." }, { ...ball, primaryQuality: "kombinacja + strzał" }),
-    finishing: mk({ name: "Wykończenia: pierwszy kontakt / obrót i strzał", prescription: "10 min: bliski/daleki słupek, jeden kontakt, obie nogi", cue: "Spokój przy wykończeniu, celność. Transfer: różne wzorce strzału w polu karnym." }, { ...ball, primaryQuality: "wykończenie" }),
+    matchAction: mk(
+      {
+        name: "Wall pass + strzał",
+        prescription: "10 min: podanie o ścianę, przyjęcie, wykończenie",
+        cue: "Szybkie wejście po odbiciu, kontrola przed strzałem. Transfer: gra w jeden-dwa i finalizacja.",
+      },
+      { ...ball, primaryQuality: "kombinacja + strzał" },
+    ),
+    finishing: mk(
+      {
+        name: "Wykończenia: pierwszy kontakt / obrót i strzał",
+        prescription: "10 min: bliski/daleki słupek, jeden kontakt, obie nogi",
+        cue: "Spokój przy wykończeniu, celność. Transfer: różne wzorce strzału w polu karnym.",
+      },
+      { ...ball, primaryQuality: "wykończenie" },
+    ),
   };
 }
 
@@ -879,26 +1072,23 @@ export function buildRunningConditioning(
     forceLight: opts.light,
   });
 
-  const warmup: CatExercise[] = [
-    mk(
-      { name: "Trucht rozgrzewkowy + mobilność", prescription: "6 min trucht + krążenia, wymachy", cue: "Spokojnie podnoś tętno, pełen zakres ruchu." },
-      { isRunningBased: true, primaryQuality: "rozgrzewka", allowedSessionTypes: ["running_conditioning"] },
-    ),
-    mk(
-      { name: "Przebieżki aktywujące", prescription: "4 × 60 m narastająco", rest: "trucht powrót", cue: "Płynne narastanie, rozluźnione barki." },
-      { isRunningBased: true, primaryQuality: "aktywacja biegowa", allowedSessionTypes: ["running_conditioning"] },
-    ),
-  ];
+  const warmupProtocol = buildWarmupProtocol(
+    prescription.method === "easy_aerobic" ? "easy" : "intervals",
+  );
+  const warmup = protocolExerciseItems(warmupProtocol).map((item) =>
+    mk(item, {
+      isRunningBased: true,
+      primaryQuality: "rozgrzewka",
+      allowedSessionTypes: ["running_conditioning"],
+    }),
+  );
 
   const main = prescription.main.map((exercise) =>
-    mk(
-      exercise,
-      {
-        isRunningBased: true,
-        primaryQuality: prescription.method,
-        allowedSessionTypes: ["running_conditioning"],
-      },
-    ),
+    mk(exercise, {
+      isRunningBased: true,
+      primaryQuality: prescription.method,
+      allowedSessionTypes: ["running_conditioning"],
+    }),
   );
 
   return {
@@ -967,7 +1157,8 @@ export function classifyContentCategory(session: SessionDay): SessionContentCate
   // a "\bsił" unika fałszywych trafień typu "wysiłek".
   if (/prehab|mobiln|regener|stabiliz|kompensac/.test(header)) return "recovery_prehab";
   if (/\bsił|siłow|\bmoc|power|\bgym\b/.test(header)) return "gym";
-  if (/sprint|szybko|przyspiesz|akceler|prędko|motory|\bcod\b|zmiana kierunku|hamowan/.test(header)) return "sport_performance";
+  if (/sprint|szybko|przyspiesz|akceler|prędko|motory|\bcod\b|zmiana kierunku|hamowan/.test(header))
+    return "sport_performance";
   if (/wydol|tlen|tempo|interwa|\brsa\b|kondyc|\bbieg/.test(header)) return "running_conditioning";
   if (/piłk|technik|gotowo|ostrość/.test(header)) return "football";
 
@@ -1002,19 +1193,21 @@ export function validateGeneratedSession(
   const category = forcedCategory ?? classifyContentCategory(session);
   const violations: string[] = [];
   const main = [...session.sections.main, ...session.sections.footballTransfer];
-  const all = [
-    ...session.sections.warmup,
-    ...main,
-    ...session.sections.accessory,
-  ];
+  const all = [...session.sections.warmup, ...main, ...session.sections.accessory];
 
   switch (category) {
     case "sport_performance": {
       for (const e of all) {
-        if (exerciseRequiresBall(e)) violations.push(`Sport-performance nie może zawierać ćwiczenia z piłką: "${e.name}".`);
-        if (exerciseIsGymStrength(e)) violations.push(`Sport-performance nie może zawierać wzmacniania siłowego: "${e.name}".`);
-        if (exerciseIsCore(e)) violations.push(`Jednostka sprinterska nie może zawierać core/brzucha: "${e.name}".`);
-        if (exerciseIsLongConditioning(e)) violations.push(`Jednostka sprinterska nie może zawierać długiego kondycyjnego biegania: "${e.name}".`);
+        if (exerciseRequiresBall(e))
+          violations.push(`Sport-performance nie może zawierać ćwiczenia z piłką: "${e.name}".`);
+        if (exerciseIsGymStrength(e))
+          violations.push(`Sport-performance nie może zawierać wzmacniania siłowego: "${e.name}".`);
+        if (exerciseIsCore(e))
+          violations.push(`Jednostka sprinterska nie może zawierać core/brzucha: "${e.name}".`);
+        if (exerciseIsLongConditioning(e))
+          violations.push(
+            `Jednostka sprinterska nie może zawierać długiego kondycyjnego biegania: "${e.name}".`,
+          );
       }
       const hasSprint = all.some(exerciseIsSprintSpecific) || all.some(exerciseIsRunningBased);
       if (!hasSprint) violations.push("Sport-performance musi zawierać pracę sprint/bieg.");
@@ -1022,28 +1215,36 @@ export function validateGeneratedSession(
     }
     case "football": {
       for (const e of all) {
-        if (exerciseIsGymStrength(e)) violations.push(`Sesja piłkarska nie może zawierać bloku siłowni: "${e.name}".`);
+        if (exerciseIsGymStrength(e))
+          violations.push(`Sesja piłkarska nie może zawierać bloku siłowni: "${e.name}".`);
       }
       for (const e of main) {
-        if (!exerciseRequiresBall(e)) violations.push(`Główne ćwiczenie piłkarskie musi wymagać piłki: "${e.name}".`);
+        if (!exerciseRequiresBall(e))
+          violations.push(`Główne ćwiczenie piłkarskie musi wymagać piłki: "${e.name}".`);
       }
       if (main.length === 0) violations.push("Sesja piłkarska musi mieć główne akcje z piłką.");
       break;
     }
     case "gym": {
       for (const e of main) {
-        if (exerciseRequiresBall(e)) violations.push(`Sesja siłowni nie może zawierać dryblingu/piłki: "${e.name}".`);
+        if (exerciseRequiresBall(e))
+          violations.push(`Sesja siłowni nie może zawierać dryblingu/piłki: "${e.name}".`);
       }
       break;
     }
     case "running_conditioning": {
       for (const e of all) {
-        if (exerciseRequiresBall(e)) violations.push(`Sesja biegowa nie może zawierać piłki: "${e.name}".`);
-        if (exerciseIsGymStrength(e)) violations.push(`Sesja biegowa nie może zawierać siły z siłowni: "${e.name}".`);
+        if (exerciseRequiresBall(e))
+          violations.push(`Sesja biegowa nie może zawierać piłki: "${e.name}".`);
+        if (exerciseIsGymStrength(e))
+          violations.push(`Sesja biegowa nie może zawierać siły z siłowni: "${e.name}".`);
       }
-      if (!all.some(exerciseIsRunningBased)) violations.push("Sesja biegowa musi zawierać pracę biegową.");
-      if (session.sections.warmup.length === 0) violations.push("Sesja biegowa musi mieć rozgrzewkę.");
-      if (session.sections.cooldown.length === 0) violations.push("Sesja biegowa musi mieć wyciszenie.");
+      if (!all.some(exerciseIsRunningBased))
+        violations.push("Sesja biegowa musi zawierać pracę biegową.");
+      if (session.sections.warmup.length === 0)
+        violations.push("Sesja biegowa musi mieć rozgrzewkę.");
+      if (session.sections.cooldown.length === 0)
+        violations.push("Sesja biegowa musi mieć wyciszenie.");
       break;
     }
     default:
@@ -1087,7 +1288,11 @@ export function enforceSessionCategory(
   switch (category) {
     case "sport_performance": {
       const seed = ctx.counters.sport + ctx.weekIndex;
-      built = buildSportPerformance(profile, { seed, light: ctx.light, durationMin: session.durationMin });
+      built = buildSportPerformance(profile, {
+        seed,
+        light: ctx.light,
+        durationMin: session.durationMin,
+      });
       ctx.counters.sport++;
       break;
     }
@@ -1147,7 +1352,8 @@ function repairInPlace(session: SessionDay, category: SessionContentCategory): v
       if (category === "sport_performance") {
         // Jednostka sprinterska: bez piłki, siły, core i długiego kondycyjnego.
         // Schłodzenie (trucht/rozciąganie) zostaje nietknięte.
-        if (isCooldown) return !exerciseRequiresBall(e) && !exerciseIsGymStrength(e) && !exerciseIsCore(e);
+        if (isCooldown)
+          return !exerciseRequiresBall(e) && !exerciseIsGymStrength(e) && !exerciseIsCore(e);
         return (
           !exerciseRequiresBall(e) &&
           !exerciseIsGymStrength(e) &&

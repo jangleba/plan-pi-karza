@@ -22,6 +22,11 @@ import {
   shortDecisionNote,
 } from "@/lib/loadwise/sessionPresentation";
 import { isSprintRunnerSession } from "@/lib/loadwise/sprintPresentation";
+import { RecoveryCoach, WarmupCoach } from "@/components/loadwise/preparation/PreparationGuide";
+import {
+  canGuideRecoverySession,
+  recoveryContextForSession,
+} from "@/lib/loadwise/preparation/protocols";
 import { StructuredSections } from "@/components/loadwise/session/GenericRunner";
 import { SprintStructuredSections } from "@/components/loadwise/session/SprintRunner";
 import { StrengthStructuredSections } from "@/components/loadwise/session/StrengthRunner";
@@ -66,10 +71,14 @@ function SessionDetail() {
   const [modifyOpen, setModifyOpen] = useState(false);
   const [showSprintCompletion, setShowSprintCompletion] = useState(false);
   const [showStrengthCompletion, setShowStrengthCompletion] = useState(false);
+  const [showRecoveryCompletion, setShowRecoveryCompletion] = useState(false);
+  const [recoveryDuration, setRecoveryDuration] = useState<number | null>(null);
   const goBack = useInstantBack("/plan");
   useEffect(() => {
     setShowSprintCompletion(false);
     setShowStrengthCompletion(false);
+    setShowRecoveryCompletion(false);
+    setRecoveryDuration(null);
   }, [date, slot, mod]);
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
@@ -190,8 +199,25 @@ function SessionDetail() {
           : [];
   const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
   const strengthRunner = isStrengthSession(session) && structured.length > 0;
-  const trackableEndurance = isTrackableEnduranceRun(session) && Boolean(session.dbId);
+  const enduranceSession = isTrackableEnduranceRun(session);
+  const trackableEndurance = enduranceSession && Boolean(session.dbId);
+  const enduranceWarmup = structured
+    .filter((s) => s.type === "warmup" || s.type === "prep")
+    .flatMap((s) => s.blocks.flatMap((b) => b.exercises));
   const ballTechnicalSession = isBallTechnicalSession(session);
+  const recoveryRunner =
+    !isClub && !sprintRunner && !strengthRunner && canGuideRecoverySession(session);
+  const recoveryContext = recoveryContextForSession(
+    session,
+    state.plan,
+    state.completions,
+    state.readiness?.[date]?.fatigue,
+  );
+
+  const presentedSession =
+    recoveryRunner && recoveryDuration != null
+      ? { ...session, durationMin: recoveryDuration }
+      : session;
 
   async function undo(dateToUndo: string, id: string) {
     try {
@@ -207,7 +233,7 @@ function SessionDetail() {
       className={`app-shell min-h-screen pb-[100px] ${strengthRunner ? "bw-training-page" : ""}`}
     >
       <SessionHeader
-        session={session}
+        session={presentedSession}
         strengthRunner={strengthRunner}
         isToday={isToday}
         onBack={goBack}
@@ -250,6 +276,18 @@ function SessionDetail() {
           </Link>
         )}
 
+        {enduranceSession && enduranceWarmup.length > 0 && (
+          <WarmupCoach
+            key={`${session.dbId ?? date}:warmup`}
+            exercises={enduranceWarmup}
+            kind={
+              /spokojny|easy aerobic|baza tlenowa/i.test(`${session.title} ${session.sessionType}`)
+                ? "easy"
+                : "intervals"
+            }
+            storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+          />
+        )}
         {trackableEndurance && session.dbId && (
           <EnduranceRunTracker
             session={session}
@@ -269,6 +307,15 @@ function SessionDetail() {
               <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
             )}
           </>
+        ) : recoveryRunner ? (
+          <RecoveryCoach
+            key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
+            storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+            context={recoveryContext}
+            blocked={session.loadLabelOverride === "Wstrzymaj trening"}
+            onDurationChange={setRecoveryDuration}
+            onFinish={() => setShowRecoveryCompletion(true)}
+          />
         ) : sprintRunner ? (
           <SprintStructuredSections
             sections={structured}
@@ -288,7 +335,15 @@ function SessionDetail() {
             <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Do wykonania
             </div>
-            <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+            <StructuredSections
+              sections={
+                enduranceSession
+                  ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
+                  : structured
+              }
+              date={date}
+              sessionId={session.dbId}
+            />
           </>
         )}
 
@@ -330,7 +385,10 @@ function SessionDetail() {
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) &&
           (!sprintRunner || showSprintCompletion) &&
-          (!strengthRunner || showStrengthCompletion) && <CompletionPanel session={session} />}
+          (!strengthRunner || showStrengthCompletion) &&
+          (!recoveryRunner || showRecoveryCompletion) && (
+            <CompletionPanel session={presentedSession} />
+          )}
 
         {/* Status zmiany + cofnij */}
         {swapMod && slot === 1 && !selectedAdd && (

@@ -15,6 +15,7 @@ import {
   SPRINT_RUNNER_CONTAINER_CLASS,
   type SprintExerciseView,
 } from "@/lib/loadwise/sprintPresentation";
+import { WarmupCoach } from "../preparation/PreparationGuide";
 import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
 import { CourseSetup } from "./CourseSetup";
@@ -409,6 +410,33 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                       <p className="bw-skip-rhythm">
                         Seria 1: dodatkowe odbicie na tej samej nodze. Seria 2: płynna zmiana nóg.
                       </p>
+                    )}
+                  {block.key === "ramp" &&
+                    block.exercises.some((item) =>
+                      /przygotowanie RAMP|dynamiczna rozgrzewka/i.test(item.exercise.name),
+                    ) && (
+                      <WarmupCoach
+                        exercises={block.exercises.map((item) => item.exercise)}
+                        kind="sprint"
+                        storageKey={`${progressKey}:guided`}
+                        onFinish={(all) => {
+                          if (!all) return;
+                          local.setValue((current) => {
+                            const latest = progressForPrescription(current, fingerprint);
+                            return {
+                              ...latest,
+                              started: true,
+                              done: {
+                                ...latest.done,
+                                ...Object.fromEntries(
+                                  block.exercises.map((item) => [item.id, true]),
+                                ),
+                              },
+                              fingerprint,
+                            };
+                          });
+                        }}
+                      />
                     )}
                   {block.exercises.map((item) => {
                     const definition = resolveDefinitionForExercise(item.exercise);

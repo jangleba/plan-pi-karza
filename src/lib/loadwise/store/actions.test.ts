@@ -236,11 +236,24 @@ describe("store action contracts", () => {
     const endurance = session({
       classification: {
         isEndurance: true,
-        subcategory: "easy_aerobic",
+        subcategory: "extensive_intervals",
       } as SessionDay["classification"],
     });
     state.runningActivities = {
-      session: { ...runDraft(), id: "run", createdAt: "now", updatedAt: "now" } as RunningActivity,
+      session: {
+        ...runDraft(),
+        durationSec: 720,
+        distanceM: 2400,
+        intervalResults: [1, 2, 3, 4].map((i) => ({
+          ...work,
+          stepId: `work-${i}`,
+          repeatIndex: i,
+          repeatTotal: 4,
+        })),
+        id: "run",
+        createdAt: "now",
+        updatedAt: "now",
+      } as RunningActivity,
     };
     await createSessionActions(context()).completeSession(endurance, 6, "");
     expect(mocks.events).toEqual(["session_logs.upsert", "profile:true", "plan", "state"]);

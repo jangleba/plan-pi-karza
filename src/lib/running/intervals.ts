@@ -117,7 +117,9 @@ export function deriveRunningIntervalProtocol(session: SessionDay): RunningInter
 
   for (const exercise of uniqueMainExercises(session)) {
     const text = `${exercise.name} ${exercise.prescription} ${exercise.rest ?? ""}`;
-    if (!INTERVAL_WORDS.test(text) || BALL_BLOCK.test(exercise.name)) continue;
+    // „bez piłki” zawiera ciąg „z piłki”, lecz nie jest blokiem z piłką.
+    const nameWithoutNegation = exercise.name.replace(/bez\s+piłk[a-ząćęłńóśźż]*/gi, "");
+    if (!INTERVAL_WORDS.test(text) || BALL_BLOCK.test(nameWithoutNegation)) continue;
     const match = exercise.prescription.match(REP_PATTERN);
     if (!match || match.index == null) continue;
 
@@ -228,8 +230,10 @@ export function sanitizeIntervalResults(input: unknown): RunningIntervalResult[]
     const durationSec = Math.max(0, Math.min(86_400, Number(row.durationSec)));
     const distanceM = Math.max(0, Math.min(500_000, Number(row.distanceM)));
     const pace = row.paceSecPerKm == null ? null : Number(row.paceSecPerKm);
-    const targetFast = row.targetPaceFastestSecPerKm == null ? null : Number(row.targetPaceFastestSecPerKm);
-    const targetSlow = row.targetPaceSlowestSecPerKm == null ? null : Number(row.targetPaceSlowestSecPerKm);
+    const targetFast =
+      row.targetPaceFastestSecPerKm == null ? null : Number(row.targetPaceFastestSecPerKm);
+    const targetSlow =
+      row.targetPaceSlowestSecPerKm == null ? null : Number(row.targetPaceSlowestSecPerKm);
     return [
       {
         stepId: row.stepId.slice(0, 100),

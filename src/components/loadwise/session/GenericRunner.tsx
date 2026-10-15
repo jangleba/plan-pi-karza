@@ -7,6 +7,7 @@ import {
   specialistEquipmentForExercise,
 } from "@/lib/loadwise/exerciseLibrary";
 import { compactPrescription, formatRestValue } from "@/lib/loadwise/sessionPresentation";
+import { WarmupCoach } from "../preparation/PreparationGuide";
 import { ExerciseRow } from "./ExerciseRow";
 
 const SECTION_TAB_LABELS: Record<string, string> = {
@@ -44,6 +45,28 @@ export const StructuredSections = memo(function StructuredSections({
           (sum, block) => sum + block.exercises.length,
           0,
         );
+        const preparationExercises = section.blocks.flatMap((block) => block.exercises);
+        if (
+          (section.type === "warmup" || section.type === "prep") &&
+          preparationExercises.length &&
+          preparationExercises.every((e) => e.visualId?.startsWith("bwprep:"))
+        ) {
+          return (
+            <WarmupCoach
+              key={section.id}
+              exercises={preparationExercises}
+              kind={preparationExercises.length === 1 ? "easy" : "intervals"}
+              storageKey={`ballwise:warmup:${sessionId ?? date}:${section.id}`}
+              onFinish={(all) => {
+                if (all)
+                  setDone((current) => ({
+                    ...current,
+                    ...Object.fromEntries(preparationExercises.map((e) => [e.id, true])),
+                  }));
+              }}
+            />
+          );
+        }
         return (
           <section key={section.id} className="relative border-b border-border/75 last:border-b-0">
             <span

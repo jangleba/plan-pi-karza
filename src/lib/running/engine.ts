@@ -12,11 +12,7 @@ export interface PaceRange {
 }
 
 export type RunningSessionMethod =
-  | "field_mas_test"
-  | "easy_aerobic"
-  | "extensive_intervals"
-  | "tempo_intervals"
-  | "short_hiit";
+  "field_mas_test" | "easy_aerobic" | "extensive_intervals" | "tempo_intervals" | "short_hiit";
 
 export interface RunningSessionPrescription {
   method: RunningSessionMethod;
@@ -33,8 +29,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function calculateFieldMasKmh(distanceM: number, durationSec = FIELD_MAS_TEST_DURATION_SEC): number | null {
-  if (!Number.isFinite(distanceM) || !Number.isFinite(durationSec) || distanceM < 600 || durationSec < 240) {
+export function calculateFieldMasKmh(
+  distanceM: number,
+  durationSec = FIELD_MAS_TEST_DURATION_SEC,
+): number | null {
+  if (
+    !Number.isFinite(distanceM) ||
+    !Number.isFinite(durationSec) ||
+    distanceM < 600 ||
+    durationSec < 240
+  ) {
     return null;
   }
   const kmh = (distanceM / durationSec) * 3.6;
@@ -92,8 +96,7 @@ export function buildRunningSessionPrescription(input: {
   forceLight?: boolean;
 }): RunningSessionPrescription {
   const hasCurrentMas =
-    typeof input.fieldMasKmh === "number" &&
-    isFieldMasCurrent(input.fieldMasTestedAt, input.date);
+    typeof input.fieldMasKmh === "number" && isFieldMasCurrent(input.fieldMasTestedAt, input.date);
 
   if (input.forceLight) {
     const range = hasCurrentMas ? paceRangeFromMas(input.fieldMasKmh!, 65, 75) : null;
@@ -108,7 +111,7 @@ export function buildRunningSessionPrescription(input: {
       main: [
         {
           name: "Bieg ciągły bez piłki",
-          prescription: `20–30 min, ${paceText(range)}`,
+          prescription: `1 × 20 min bieg, ${paceText(range)}`,
           cue: "Równe tempo, swobodny oddech i pełne zdania bez zadyszki.",
         },
       ],
@@ -147,7 +150,7 @@ export function buildRunningSessionPrescription(input: {
       main: [
         {
           name: "Bieg ciągły bez piłki",
-          prescription: "20–30 min, tempo konwersacyjne (RPE 3–4/10)",
+          prescription: "1 × 20 min bieg, tempo konwersacyjne (RPE 3–4/10)",
           cue: "Pełne zdania bez zadyszki. Nie przyspieszaj przed wykonaniem testu 5-minutowego.",
         },
       ],
@@ -203,8 +206,9 @@ export function buildRunningSessionPrescription(input: {
   }
 
   const range = paceRangeFromMas(mas, 90, 95);
-  const workMin = level >= 3 ? 4 : 3;
-  const reps = level === 0 ? 4 : level === 1 ? 5 : 4;
+  // Stała liczba powtórzeń; zwiększamy wyłącznie czas pracy.
+  const workMin = [3, 3.5, 4, 4.5][level];
+  const reps = 4;
   return {
     method: "extensive_intervals",
     title: "Interwały tlenowe",
@@ -224,19 +228,29 @@ export function buildRunningSessionPrescription(input: {
   };
 }
 
-export function fieldMasFromActivity(activity: Pick<RunningActivity, "distanceM" | "durationSec" | "intervalResults">): number | null {
+export function fieldMasFromActivity(
+  activity: Pick<RunningActivity, "distanceM" | "durationSec" | "intervalResults">,
+): number | null {
   const test = activity.intervalResults.find(
-    (result) => result.kind === "work" && result.completed && result.durationSec >= 298 && result.durationSec <= 302,
+    (result) =>
+      result.kind === "work" &&
+      result.completed &&
+      result.durationSec >= 298 &&
+      result.durationSec <= 302,
   );
   return test
     ? calculateFieldMasKmh(test.distanceM, test.durationSec)
-    : activity.intervalResults.length === 0 && activity.durationSec >= 298 && activity.durationSec <= 302
+    : activity.intervalResults.length === 0 &&
+        activity.durationSec >= 298 &&
+        activity.durationSec <= 302
       ? calculateFieldMasKmh(activity.distanceM, activity.durationSec)
       : null;
 }
 
 function isFieldMasTestActivity(activity: Pick<RunningActivity, "intervalResults">): boolean {
-  const work = activity.intervalResults.filter((result) => result.kind === "work" && result.completed);
+  const work = activity.intervalResults.filter(
+    (result) => result.kind === "work" && result.completed,
+  );
   return work.length === 1 && work[0].durationSec >= 298 && work[0].durationSec <= 302;
 }
 
@@ -303,12 +317,49 @@ export function nextRunningProgressionLevel(input: {
   results: RunningIntervalResult[];
 }): number {
   const current = clamp(Math.round(input.currentLevel), 0, 3);
-  const work = completedWork(input.results);
-  if (work.length === 0) return current;
-  const completionRate = work.length / Math.max(1, input.results.filter((r) => r.kind === "work").length);
-  const paces = work.map((r) => r.paceSecPerKm).filter((p): p is number => typeof p === "number" && p > 0);
-  const consistency = paces.length < 2 ? 1 : Math.min(...paces) / Math.max(...paces);
-  if ((input.rpe ?? 7) >= 9 || completionRate < 0.75 || consistency < 0.88) return Math.max(0, current - 1);
-  if ((input.rpe ?? 7) <= 7 && completionRate >= 0.95 && consistency >= 0.94) return Math.min(3, current + 1);
+  const observed = input.results.filter((result) => result.kind === "work");
+  const work = completedWork(input.results).filter((result) => {
+    if (result.targetMode === "time" && result.targetValue)
+      return result.durationSec >= result.targetValue * 0.95;
+    if (result.targetMode === "distance" && result.targetValue)
+      return result.distanceM >= result.targetValue * 0.95;
+    return true;
+  });
+  if (observed.length === 0) return current;
+  const plannedCount = Math.max(
+    observed.length,
+    ...observed.map((result) => result.repeatTotal || 1),
+  );
+  const completionRate = work.length / plannedCount;
+  const paces = work
+    .map((r) => r.paceSecPerKm)
+    .filter((p): p is number => typeof p === "number" && Number.isFinite(p) && p > 0);
+  const consistency = paces.length < 2 ? null : Math.min(...paces) / Math.max(...paces);
+  if (
+    (input.rpe != null && input.rpe >= 9) ||
+    completionRate < 0.75 ||
+    (consistency != null && consistency < 0.88)
+  )
+    return Math.max(0, current - 1);
+  // Brak oceny lub tempa nie jest dowodem gotowości do zwiększenia dawki.
+  const hasFeedback =
+    input.rpe != null && Number.isFinite(input.rpe) && input.rpe >= 1 && input.rpe <= 7;
+  const targetAdherence = work.every(
+    (r) =>
+      r.targetPaceFastestSecPerKm == null ||
+      r.targetPaceSlowestSecPerKm == null ||
+      (r.paceSecPerKm != null &&
+        r.paceSecPerKm >= r.targetPaceFastestSecPerKm * 0.97 &&
+        r.paceSecPerKm <= r.targetPaceSlowestSecPerKm * 1.03),
+  );
+  if (
+    hasFeedback &&
+    paces.length === work.length &&
+    consistency != null &&
+    consistency >= 0.94 &&
+    completionRate >= 0.95 &&
+    targetAdherence
+  )
+    return Math.min(3, current + 1);
   return current;
 }

@@ -60,7 +60,7 @@ function announceStep(step: RunningIntervalStep | null) {
   window.speechSynthesis.cancel();
   const text = step
     ? `${step.label} ${step.repeatIndex} z ${step.repeatTotal}. ${step.target.label}.`
-    : "Interwały zakończone. Wykonaj schłodzenie i zakończ zapis.";
+    : "Część główna zakończona. Wykonaj schłodzenie i zakończ zapis.";
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "pl-PL";
   utterance.rate = 1.05;
@@ -473,8 +473,13 @@ export function EnduranceRunTracker({
           <h3 className="text-sm font-semibold">Najpierw bezpieczeństwo</h3>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-muted-foreground">
             <li>Wykonaj 10–12 minut spokojnej rozgrzewki na płaskiej, bezpiecznej trasie.</li>
-            <li>Po kliknięciu „Start testu” uruchom odcinek i biegnij równo przez pełne 5 minut.</li>
-            <li>Przerwij przy ostrym bólu, zawrotach głowy, bólu w klatce lub innym niepokojącym objawie.</li>
+            <li>
+              Po kliknięciu „Start testu” uruchom odcinek i biegnij równo przez pełne 5 minut.
+            </li>
+            <li>
+              Przerwij przy ostrym bólu, zawrotach głowy, bólu w klatce lub innym niepokojącym
+              objawie.
+            </li>
           </ol>
           <label className="mt-3 flex items-start gap-2 text-xs font-medium">
             <input
@@ -491,7 +496,7 @@ export function EnduranceRunTracker({
       {intervalProtocol && !isTracking && !pending && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
-            <Volume2 className="h-3.5 w-3.5" aria-hidden="true" /> Prowadzenie interwałowe
+            <Volume2 className="h-3.5 w-3.5" aria-hidden="true" /> Prowadzenie biegu
           </div>
           <div className="mt-1.5 text-sm font-semibold">{intervalProtocol.summary}</div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -525,18 +530,18 @@ export function EnduranceRunTracker({
           ) : intervalProtocol && !guideStarted ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                GPS rejestruje rozgrzewkę
+                Gotowy do części głównej
               </div>
-              <div className="mt-2 text-2xl font-semibold">Najpierw przygotuj ciało</div>
+              <div className="mt-2 text-2xl font-semibold">Uruchom prowadzenie biegu</div>
               <p className="mt-1 text-sm opacity-70">
-                Po rozgrzewce uruchom pierwszy odcinek. Dalej BallWise poprowadzi Cię głosem.
+                Po rozgrzewce rozpocznij część główną. Dalej prowadzą komendy głosowe.
               </p>
               <button
                 type="button"
                 onClick={startIntervalGuide}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
               >
-                <Play className="h-4 w-4" /> Start interwałów
+                <Play className="h-4 w-4" /> Rozpocznij bieg
               </button>
             </>
           ) : currentIntervalStep ? (
@@ -577,7 +582,9 @@ export function EnduranceRunTracker({
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-background/10 p-3 text-xs">
                   <div>
                     <div className="opacity-60">Cel</div>
-                    <div className="mt-0.5 font-semibold">{currentIntervalStep.target.paceTarget.label}</div>
+                    <div className="mt-0.5 font-semibold">
+                      {currentIntervalStep.target.paceTarget.label}
+                    </div>
                   </div>
                   <div>
                     <div className="opacity-60">Teraz</div>
@@ -605,7 +612,7 @@ export function EnduranceRunTracker({
           ) : intervalProtocol && guideComplete ? (
             <>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                Interwały ukończone
+                Część główna ukończona
               </div>
               <div className="mt-2 text-2xl font-semibold">Teraz spokojne schłodzenie</div>
               <p className="mt-1 text-sm opacity-70">Po schłodzeniu zakończ zapis GPS.</p>
@@ -670,7 +677,8 @@ export function EnduranceRunTracker({
               disabled={isFieldMasTest && !safetyAcknowledged}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <LocateFixed className="h-4 w-4" /> {activity ? "Nagraj ponownie" : isFieldMasTest ? "Start testu 5 min" : "Start GPS"}
+              <LocateFixed className="h-4 w-4" />{" "}
+              {activity ? "Nagraj ponownie" : isFieldMasTest ? "Start testu 5 min" : "Start GPS"}
             </button>
           )}
           {!pending && (
