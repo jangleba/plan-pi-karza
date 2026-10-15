@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      BALLWISE_FILES: ${{ runner.temp }}/ballwise-coach-files.nul
+      BALLWISE_FILES: .git/ballwise-coach-files.nul
     steps:
       - name: Pobierz kod z tego uruchomienia
         uses: actions/checkout@v4
