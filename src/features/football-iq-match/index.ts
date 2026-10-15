@@ -1,1 +1,1 @@
-export { FootballIQMatch } from "./FootballIQMatch";
+export { FootballIQJourney as FootballIQMatch } from "./FootballIQJourney";

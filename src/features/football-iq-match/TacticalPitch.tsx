@@ -4,6 +4,7 @@ import { createPlayback, samplePlayback } from "./playback";
 import type { TeachingMarker } from "./teaching";
 import type { PitchScene } from "./pitchScene";
 import type { ActionMode, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
+import type { PlaybackFrame } from "./animation";
 
 type Props = {
   scenario: Scenario;
@@ -24,6 +25,11 @@ type Props = {
   teachingMarkers?: TeachingMarker[];
   activeTeachingId?: string;
   onTeachingSelect?: (id: string) => void;
+  frameOverride?: PlaybackFrame;
+  selectablePlayerIds?: string[];
+  destinations?: { id: string; point: Point; label: string }[];
+  onDestinationSelect?: (id: string) => void;
+  showActionOrders?: boolean;
 };
 export function TacticalPitch({
   scenario,
@@ -44,6 +50,11 @@ export function TacticalPitch({
   teachingMarkers = [],
   activeTeachingId,
   onTeachingSelect,
+  frameOverride,
+  selectablePlayerIds,
+  destinations = [],
+  onDestinationSelect,
+  showActionOrders = true,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -52,13 +63,15 @@ export function TacticalPitch({
   const highlightLabels = useRef(new Map<number, HTMLDivElement>());
   const playerLabels = useRef(new Map<string, HTMLButtonElement>());
   const routeLabels = useRef(new Map<string, HTMLSpanElement>());
+  const destinationLabels = useRef(new Map<string, HTMLButtonElement>());
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const playback = useMemo(() => createPlayback(scenario, actions), [scenario, actions]);
-  const frame = useMemo(
+  const sampledFrame = useMemo(
     () => samplePlayback(playback, interactive ? 1 : playbackProgress),
     [playback, interactive, playbackProgress],
   );
+  const frame = frameOverride ?? sampledFrame;
   const latest = useRef({
     frame,
     actions,
@@ -72,6 +85,7 @@ export function TacticalPitch({
     cameraActions,
     activeActionId,
     activeTeachingId,
+    destinations,
   });
   latest.current = {
     frame,
@@ -86,6 +100,7 @@ export function TacticalPitch({
     cameraActions,
     activeActionId,
     activeTeachingId,
+    destinations,
   };
 
   function sync() {
@@ -105,9 +120,43 @@ export function TacticalPitch({
     playerLabels.current.forEach((element, id) => {
       const point = state.frame.positions.get(id);
       if (!point) return;
-      const p = api.project(point, 9.1);
+      const p = api.project(point, 7.5);
       element.style.left = `${p.x}px`;
       element.style.top = `${p.y}px`;
+    });
+    // Keep the 44 px hit region attached to the player. Only displace the small
+    // number badge when a tightly marked pair would otherwise cover each other.
+    const occupied: { x: number; y: number }[] = [];
+    const hostWidth = host.current?.clientWidth ?? 0;
+    playerLabels.current.forEach((element) => {
+      const x = parseFloat(element.style.left),
+        y = parseFloat(element.style.top);
+      const candidates = [
+        { x: 0, y: 0 },
+        { x: 22, y: 0 },
+        { x: -22, y: 0 },
+        { x: 0, y: -22 },
+        { x: 22, y: -22 },
+      ];
+      const offset =
+        candidates.find(
+          (offset) =>
+            x + offset.x >= 12 &&
+            x + offset.x <= hostWidth - 12 &&
+            !occupied.some(
+              (p) => Math.abs(p.x - x - offset.x) < 21 && Math.abs(p.y - y - offset.y) < 21,
+            ),
+        ) ?? candidates[0];
+      element.style.setProperty("--iq-badge-x", `${offset.x}px`);
+      element.style.setProperty("--iq-badge-y", `${offset.y}px`);
+      occupied.push({ x: x + offset.x, y: y + offset.y });
+    });
+    state.destinations.forEach((destination) => {
+      const element = destinationLabels.current.get(destination.id);
+      if (!element) return;
+      const projected = api.project(destination.point, 0.1);
+      element.style.left = `${projected.x}px`;
+      element.style.top = `${projected.y}px`;
     });
     if (ballLabel.current) {
       const p = api.project(state.frame.ballVisual, state.frame.ballHeight);
@@ -194,6 +243,7 @@ export function TacticalPitch({
     cameraActions,
     activeActionId,
     activeTeachingId,
+    destinations,
   ]);
   const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
     if (!interactive || status !== "ready") return;
@@ -205,14 +255,15 @@ export function TacticalPitch({
     const nearest = scenario.players
       .map((player) => {
         const point = frame.positions.get(player.id)!;
-        const p = api.project(point, 9.1);
+        const p = api.project(point, 7.5);
         return { player, distance: Math.hypot(p.x - x, p.y - y) };
       })
       .sort((a, b) => a.distance - b.distance)[0];
     if (
       ["pass", "through", "cross", "hold", "press", "mark"].includes(mode) &&
       nearest &&
-      nearest.distance <= 23
+      nearest.distance <= 23 &&
+      (!selectablePlayerIds || selectablePlayerIds.includes(nearest.player.id))
     ) {
       onPlayerSelect(nearest.player);
       return;
@@ -268,13 +319,18 @@ export function TacticalPitch({
         {scenario.players.map((player) => (
           <button
             key={player.id}
+            data-iq-player={player.id}
             type="button"
             className={`bwiq-player-hit bwiq-player-hit--${player.team}${interactive && selectedPlayerId === player.id ? " is-selected" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
             ref={(element) => {
               if (element) playerLabels.current.set(player.id, element);
               else playerLabels.current.delete(player.id);
             }}
-            disabled={!interactive || status !== "ready"}
+            disabled={
+              !interactive ||
+              status !== "ready" ||
+              (!!selectablePlayerIds && !selectablePlayerIds.includes(player.id))
+            }
             aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
             onClick={(event) => {
               event.stopPropagation();
@@ -289,21 +345,41 @@ export function TacticalPitch({
         <div ref={ballLabel} className="bwiq-ball-marker" aria-label="Piłka">
           <span />
         </div>
-        {actions.map((action, index) =>
-          action.type === "shot" ? null : (
-            <span
-              key={action.id}
-              className="bwiq-action-order"
-              ref={(element) => {
-                if (element) routeLabels.current.set(action.id, element);
-                else routeLabels.current.delete(action.id);
-              }}
-            >
-              {index + 1}
-            </span>
-          ),
-        )}
+        {showActionOrders &&
+          actions.map((action, index) =>
+            action.type === "shot" ? null : (
+              <span
+                key={action.id}
+                className="bwiq-action-order"
+                ref={(element) => {
+                  if (element) routeLabels.current.set(action.id, element);
+                  else routeLabels.current.delete(action.id);
+                }}
+              >
+                {index + 1}
+              </span>
+            ),
+          )}
       </div>
+      {status === "ready" &&
+        destinations.map((destination) => (
+          <button
+            key={destination.id}
+            data-iq-destination={destination.id}
+            type="button"
+            className="bwiq-destination"
+            ref={(element) => {
+              if (element) destinationLabels.current.set(destination.id, element);
+              else destinationLabels.current.delete(destination.id);
+            }}
+            aria-label={destination.label}
+            disabled={!interactive}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (interactive) onDestinationSelect?.(destination.id);
+            }}
+          />
+        ))}
       {status !== "ready" && (
         <div className="bwiq-model-status" role="status">
           {status === "loading" ? (

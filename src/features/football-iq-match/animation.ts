@@ -2,10 +2,10 @@ import type { MatchPlayer, PlannedAction, Point, Scenario } from "./types";
 
 // Tactical coordinates represent a 68 m wide pitch.
 export const METRES_PER_UNIT = 0.68;
-export const RUN_STRIDE_UNITS = (3.1 / METRES_PER_UNIT) * (8.4 / 6.8);
+export const RUN_STRIDE_UNITS = 3.1 / METRES_PER_UNIT;
 // Supplied Walking advances 184.52 FBX units per cycle. At the displayed
 // Y Bot scale this is 8.57 pitch units; phase follows distance to limit foot slip.
-export const WALK_STRIDE_UNITS = 8.567096312464367;
+export const WALK_STRIDE_UNITS = 8.567096312464367 * (6.8 / 8.4);
 export const BALL_OFFSET = 1.8;
 export const BALL_RADIUS = 0.65;
 export const BALL_REST_HEIGHT = BALL_RADIUS + 0.05;

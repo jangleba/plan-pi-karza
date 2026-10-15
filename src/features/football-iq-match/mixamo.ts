@@ -20,7 +20,7 @@ import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "./playback";
 import type { PlayerMotion } from "./playback";
 import type { MatchPlayer } from "./types";
 
-export const PLAYER_HEIGHT = 8.4;
+export const PLAYER_HEIGHT = 6.8;
 export type AdditionalAnimation = "idle" | "walking" | "soccer-pass" | "receive";
 type AdditionalClips = Partial<Record<AdditionalAnimation, AnimationClip>>;
 const additionalUrls = import.meta.glob<string>("./assets/{idle,walking,soccer-pass,receive}.fbx", {

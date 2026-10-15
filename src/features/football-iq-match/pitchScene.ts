@@ -45,9 +45,9 @@ export async function createPitchScene(
   renderer.domElement.setAttribute("aria-hidden", "true");
   host.append(renderer.domElement);
   const scene = new Scene();
-  scene.background = new Color("#87ac91");
+  scene.background = new Color("#1b4a40");
   const camera = new OrthographicCamera(-50, 50, 70, -70, 0.1, 600);
-  const relevant = players.filter((p) => !p.goalkeeper);
+  const relevant = players.filter((p) => !p.goalkeeper || p.controlled);
   const showGoal = (players.find((p) => p.controlled)?.y ?? Infinity) < 60;
   const defaultBounds = {
     xMin: Math.max(0, Math.min(...relevant.map((p) => p.x)) - 16),
@@ -80,8 +80,8 @@ export async function createPitchScene(
     mesh.position.copy(world({ x, y }, 0));
     ground.add(mesh);
   }
-  for (let i = 0; i < 10; i++) plane(50, 7 + i * 14, 100, 14, i % 2 ? "#8eb599" : "#86ad91");
-  const paint = new LineBasicMaterial({ color: "#edf5df", transparent: true, opacity: 0.85 });
+  for (let i = 0; i < 10; i++) plane(50, 7 + i * 14, 100, 14, i % 2 ? "#205347" : "#1c4e43");
+  const paint = new LineBasicMaterial({ color: "#c5dacb", transparent: true, opacity: 0.6 });
   ownedMaterials.add(paint);
   function line(points: Point[], height = 0.04) {
     const geometry = new BufferGeometry().setFromPoints(points.map((p) => world(p, height)));
@@ -208,9 +208,13 @@ export async function createPitchScene(
   renderer.domElement.addEventListener("webglcontextlost", lost);
 
   let viewBounds = defaultBounds;
+  let renderWidth = 1,
+    renderHeight = 1;
   const resize = () => {
     const width = Math.max(1, host.clientWidth);
     const height = Math.max(1, host.clientHeight);
+    renderWidth = width;
+    renderHeight = height;
     const aspect = width / height;
     let maxX = 0;
     let maxY = 0;
@@ -374,7 +378,7 @@ export async function createPitchScene(
           world(action.from, 0.12),
           delta.length(),
           action.type === "pass"
-            ? "#2c5369"
+            ? "#b5deff"
             : ["cover", "mark", "press"].includes(action.type)
               ? "#376951"
               : "#347eb4",
@@ -408,7 +412,7 @@ export async function createPitchScene(
   };
   const project = (point: Point, height = 0) => {
     const p = world(point, height).project(camera);
-    return { x: ((p.x + 1) * host.clientWidth) / 2, y: ((1 - p.y) * host.clientHeight) / 2 };
+    return { x: ((p.x + 1) * renderWidth) / 2, y: ((1 - p.y) * renderHeight) / 2 };
   };
   const pick = (clientX: number, clientY: number): Point | null => {
     const bounds = renderer.domElement.getBoundingClientRect();
