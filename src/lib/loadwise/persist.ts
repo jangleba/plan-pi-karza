@@ -68,8 +68,6 @@ export async function persistMonthlyPlan(
   plan: SessionDay[],
 ): Promise<void> {
   assertPlanExerciseContract(plan);
-  const original = plan;
-  plan = structuredClone(plan);
   const planId = crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 
@@ -78,10 +76,9 @@ export async function persistMonthlyPlan(
   const exerciseRows: ExerciseRow[] = [];
 
   for (const day of plan) {
-    const dayId = day.dayDbId ?? crypto.randomUUID();
-    const existingDay = Boolean(day.dayDbId);
+    const dayId = crypto.randomUUID();
     day.dayDbId = dayId;
-    if (!existingDay) dayRows.push({
+    dayRows.push({
       id: dayId,
       user_id: userId,
       plan_id: planId,
@@ -94,9 +91,7 @@ export async function persistMonthlyPlan(
     if (day.secondSession) sessions.push(day.secondSession);
 
     for (const s of sessions) {
-      if (s.dbId) continue;
       const sessionId = crypto.randomUUID();
-      s.dayDbId = dayId;
       s.dbId = sessionId;
       sessionRows.push({
         id: sessionId,
@@ -143,14 +138,6 @@ export async function persistMonthlyPlan(
     p_exercises: exerciseRows as unknown as Json,
   });
   assertNoSupabaseError("persist_training_plan_atomic", atomicWrite.error);
-  for (let i = 0; i < plan.length; i++) {
-    original[i].dbId = plan[i].dbId;
-    original[i].dayDbId = plan[i].dayDbId;
-    if (original[i].secondSession && plan[i].secondSession) {
-      original[i].secondSession!.dbId = plan[i].secondSession!.dbId;
-      original[i].secondSession!.dayDbId = plan[i].secondSession!.dayDbId;
-    }
-  }
 }
 
 /**

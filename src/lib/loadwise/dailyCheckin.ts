@@ -109,10 +109,9 @@ export function normalizeLegacyPersistedPlan(plan: SessionDay[]): {
 function stripReadinessMetadata(session: SessionDay): SessionDay {
   const next: SessionDay = {
     ...session,
-
+    readinessAdjustedDate: null,
+    readinessOriginalSession: null,
   };
-  delete next.readinessAdjustedDate;
-  delete next.readinessOriginalSession;
   if (session.secondSession) {
     next.secondSession = stripReadinessMetadata(session.secondSession);
   }
@@ -184,8 +183,7 @@ export function resolveAdjustedDay(
   ) {
     return normalized;
   }
-  const base = stripReadinessMetadata(normalized.readinessOriginalSession ?? normalized);
-  const adjusted = applyReadiness(base, readiness, profile).session;
+  const adjusted = applyReadiness(normalized, readiness, profile).session;
   return normalizeLegacyExternalCommitmentDay(adjusted).session;
 }
 
@@ -196,8 +194,10 @@ export function resolveEffectiveDay(
   profile: Profile | null,
   modifications: SessionModification[] = [],
 ): SessionDay {
-  const base = stripReadinessMetadata(day.readinessOriginalSession ?? day);
-  return resolveAdjustedDay(resolveModifiedDay(base, modifications), readiness, profile);
+  return resolveModifiedDay(
+    resolveAdjustedDay(day, readiness, profile),
+    modifications,
+  );
 }
 
 export function resolveTodayPlanRowSource(

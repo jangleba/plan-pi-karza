@@ -1,4 +1,3 @@
-import { classifySession } from "../loadwise/sessionClassification";
 import { addIsoDays } from "@/lib/isoDate";
 /**
  * Adapter Plan → FuelWise (READ-ONLY).
@@ -25,13 +24,12 @@ export function sessionKindFrom(session: SessionDay | null): SessionKind {
   if (session.dayType === "match") return "match";
   if (session.dayType === "rest") return "none";
   if (session.dayType === "recovery") return "recovery";
-  const category = classifySession(session).category;
-  if (category === "match") return "match";
-  if (category === "rest") return "none";
-  if (category === "gym_strength") return "strength";
-  if (category === "endurance_conditioning") return "endurance";
-  if (category === "speed_sprint") return "speed";
-  if (category === "recovery_prehab" || category === "mobility") return "recovery";
+  const text =
+    `${session.type ?? ""} ${session.sessionType} ${session.title} ${session.goalLabel}`.toLowerCase();
+  if (/sprint|szybko|przyspiesz|akcelera/.test(text)) return "speed";
+  if (/siła|siłow|strength|moc|power/.test(text)) return "strength";
+  if (/wytrzyma|interwał|kondyc|tempo|aerob|endurance/.test(text)) return "endurance";
+  if (/regenera|mobil|prehab/.test(text)) return "recovery";
   return "football";
 }
 

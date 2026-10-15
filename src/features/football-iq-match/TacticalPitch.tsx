@@ -6,7 +6,6 @@ import type { PitchScene } from "./pitchScene";
 import type { ActionMode, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
 
 type Props = {
-  liveProgress?: {current:number};
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -27,7 +26,6 @@ type Props = {
   onTeachingSelect?: (id: string) => void;
 };
 export function TacticalPitch({
-  liveProgress,
   scenario,
   actions,
   selectedPlayerId,
@@ -94,9 +92,8 @@ export function TacticalPitch({
     const api = scene.current;
     if (!api) return;
     const state = latest.current;
-    const liveFrame = liveProgress && !state.interactive ? samplePlayback(playback,liveProgress.current):state.frame;
     api.update(
-      liveFrame,
+      state.frame,
       state.actions,
       state.interactive ? state.selectedPlayerId : null,
       state.playing,
@@ -106,14 +103,14 @@ export function TacticalPitch({
       state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point,
     );
     playerLabels.current.forEach((element, id) => {
-      const point = liveFrame.positions.get(id);
+      const point = state.frame.positions.get(id);
       if (!point) return;
       const p = api.project(point, 9.1);
       element.style.left = `${p.x}px`;
       element.style.top = `${p.y}px`;
     });
     if (ballLabel.current) {
-      const p = api.project(liveFrame.ballVisual, liveFrame.ballHeight);
+      const p = api.project(state.frame.ballVisual, state.frame.ballHeight);
       ballLabel.current.style.left = `${p.x}px`;
       ballLabel.current.style.top = `${p.y}px`;
     }
@@ -142,8 +139,6 @@ export function TacticalPitch({
       element.style.top = `${p.y - 5}px`;
     });
   }
-  const syncRef = useRef(sync);
-  syncRef.current = sync;
   useEffect(() => {
     const element = host.current;
     if (!element) return;
@@ -168,10 +163,10 @@ export function TacticalPitch({
         scene.current = api;
         observer = new ResizeObserver(() => {
           api?.resize();
-          syncRef.current();
+          sync();
         });
         observer.observe(element);
-        syncRef.current();
+        sync();
         setStatus("ready");
         latest.current.onReadyChange?.(true);
       })
@@ -184,7 +179,7 @@ export function TacticalPitch({
     };
   }, [scenario.players, attempt]);
   useEffect(() => {
-    syncRef.current();
+    sync();
   }, [
     frame,
     actions,
@@ -200,13 +195,6 @@ export function TacticalPitch({
     activeActionId,
     activeTeachingId,
   ]);
-  useEffect(()=>{
-    if (!liveProgress || !playing || status !== "ready") return;
-    let raf=0;
-    const draw = () => {if (!document.hidden) syncRef.current();raf=requestAnimationFrame(draw);};
-    raf=requestAnimationFrame(draw);
-    return ()=>cancelAnimationFrame(raf);
-  },[liveProgress,playing,status]);
   const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
     if (!interactive || status !== "ready") return;
     const api = scene.current;

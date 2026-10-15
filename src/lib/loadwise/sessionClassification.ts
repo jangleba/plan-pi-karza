@@ -196,9 +196,6 @@ function resolveCategory(session: SessionDay): CategoryResult {
     };
   }
 
-  if (/bramkarsk|footwork|praca nóg.*bramkar|chwyt.*pił/i.test(explicitHeader)) {
-    return {category:"other",subcategory:"ball_technical",sourceRule:"header=goalkeeper technique"};
-  }
   // 3) Regeneracja / prehab / mobilność — NIE liczą się jako pełna siłownia.
   //    Sprawdzamy zanim spojrzymy na słowa siłowe (prehab ma ćwiczenia siłowe).
   if (session.dayType === "recovery" || has(explicitHeader, RE_RECOVERY)) {

@@ -324,10 +324,9 @@ export function createPlanActions(
     if (!user) return;
     const profile = state.profile;
     if (!profile) return;
-    const [{ weekRanges }, { persistMonthlyPlan }, { generatePlanAsync }] = await Promise.all([
+    const [{ generatePlan, weekRanges }, { persistMonthlyPlan }] = await Promise.all([
       import("../planEngine"),
       import("../persist"),
-      import("../asyncPlan"),
     ]);
 
     // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
@@ -350,8 +349,8 @@ export function createPlanActions(
         matchDates: normalizedMatchDates,
       };
       const regenDays = range.end - range.start;
-      const fresh = await generatePlanAsync(tempProfile, weekStart, regenDays, weekNumber);
-      newPlan = structuredClone([...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)]);
+      const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
+      newPlan = [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)];
       // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
       await persistMonthlyPlan(user.id, profile, newPlan);
     }

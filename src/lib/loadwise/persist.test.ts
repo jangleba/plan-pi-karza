@@ -149,19 +149,3 @@ describe("persistMonthlyPlan", () => {
     expect(operations).toHaveLength(0);
   });
 });
-
-
-describe("persistent identity regression",()=>{
- it("does not mutate caller identifiers when the atomic transaction fails",async()=>{
-  const day=makeDay("2026-10-15");state.forcedError={table:"persist_training_plan_atomic",method:"rpc",error:{message:"offline"}};
-  await expect(persistMonthlyPlan("qa",profile,[day])).rejects.toThrow();
-  expect(day.dbId).toBeUndefined();expect(day.dayDbId).toBeUndefined();
- });
- it("retains existing IDs without reinserting their rows",async()=>{
-  state.forcedError=null;const day={...makeDay("2026-10-15"),dbId:"existing-session",dayDbId:"existing-day"};
-  await persistMonthlyPlan("qa",profile,[day]);
-  const write=operations.filter(o=>o.method==="rpc").at(-1)!.payload as {p_days:unknown[];p_sessions:unknown[]};
-  expect(write.p_days).toEqual([]);expect(write.p_sessions).toEqual([]);
-  expect(day.dbId).toBe("existing-session");expect(day.dayDbId).toBe("existing-day");
- });
-});

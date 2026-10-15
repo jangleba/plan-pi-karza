@@ -11,9 +11,7 @@ export const SELF_CONSENT_AGE = 16;
 export const ADULT_AGE = 18;
 
 function asUtcDate(value: string | Date): Date | null {
-  if (typeof value === "string" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(`${value.slice(0, 10)}T12:00:00Z`);
-  if (typeof value === "string" && Number.isFinite(date.getTime()) && date.toISOString().slice(0,10) !== value) return null;
   return Number.isFinite(date.getTime()) ? date : null;
 }
 

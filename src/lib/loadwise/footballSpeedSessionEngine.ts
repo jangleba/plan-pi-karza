@@ -1244,7 +1244,7 @@ export function generateFootballSpeedSession(
     .filter((exercise) => exercise.speedQualities?.includes(REPEATED_SPRINT))
     .map((exercise) => exercise.id);
 
-  if (hasPain(input) || input.profile.hasSprintSpace === false) {
+  if (hasPain(input)) {
     return {
       status: "blocked",
       date: input.date,
@@ -1255,7 +1255,7 @@ export function generateFootballSpeedSession(
       exercises: [],
       excludedExerciseIds,
       safetyNote:
-        input.profile.hasSprintSpace === false ? "Brak bezpiecznego miejsca do sprintu." : "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą.",
+        "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą.",
     };
   }
   // MD-1 is a protected date as well: activation is not a speed-session

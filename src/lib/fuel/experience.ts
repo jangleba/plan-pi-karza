@@ -4,7 +4,7 @@ import { sessionKindFrom } from "./planAdapter";
 import type { SessionKind } from "./types";
 import type { StoreProduct } from "./storeCheck";
 
-export type FuelPhase = "before" | "training" | "after" | "ordinary" | "unconfirmed";
+export type FuelPhase = "before" | "training" | "after" | "ordinary";
 export interface FuelContext {
   key: string;
   date: string;
@@ -146,15 +146,14 @@ export function planFuelContexts(
         });
     });
 }
-export function resolveFuelTiming(context: FuelContext, saved?: FuelTiming, now = Date.now()): FuelTiming {
+export function resolveFuelTiming(context: FuelContext, saved?: FuelTiming): FuelTiming {
   if (context.completed)
     return {
       startsAt: saved?.startsAt ?? null,
       phase: "after",
       endedAt: context.endedAt ?? saved?.endedAt,
     };
-  if (saved) return saved.phase === "before" && saved.startsAt !== null && saved.startsAt <= now
-    ? {...saved, phase:"unconfirmed"} : saved;
+  if (saved) return saved;
   let startsAt: number | null = null;
   const clock = context.scheduledStartTime;
   if (
@@ -169,7 +168,7 @@ export function resolveFuelTiming(context: FuelContext, saved?: FuelTiming, now 
   }
   return {
     startsAt,
-    phase: context.kind === "none" ? "ordinary" : startsAt !== null && startsAt <= now ? "unconfirmed" : "before",
+    phase: context.kind === "none" ? "ordinary" : context.completed ? "after" : "before",
   };
 }
 export function minutesToFuelStart(timing: FuelTiming, now: number): number | null {
@@ -177,7 +176,7 @@ export function minutesToFuelStart(timing: FuelTiming, now: number): number | nu
   return Math.max(0, Math.ceil((timing.startsAt - now) / 60_000));
 }
 export function fuelMoment(timing: FuelTiming): FuelMoment {
-  return timing.phase === "after" ? "after" : (timing.phase === "ordinary" || timing.phase === "unconfirmed") ? "ordinary" : "before";
+  return timing.phase === "after" ? "after" : timing.phase === "ordinary" ? "ordinary" : "before";
 }
 export function clockFuelStart(clock: string, now: number): number | null {
   if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(clock)) return null;
@@ -193,9 +192,6 @@ export function contextGuidance(
   now: number,
 ): { title: string; body: string } {
   const minutes = minutesToFuelStart(timing, now);
-  if (timing.phase === "unconfirmed") return {
-    title:"Godzina startu minęła", body:"Potwierdź, czy trening trwa, zakończył się, czy zaczynasz później.",
-  };
   if (timing.phase === "training")
     return {
       title: "Trening trwa",
@@ -267,7 +263,7 @@ function isSelection(value: unknown, today: string): value is FuelSelection {
 function isTiming(value: unknown): value is FuelTiming {
   return (
     isRecord(value) &&
-    ["before", "training", "after", "ordinary", "unconfirmed"].includes(String(value.phase)) &&
+    ["before", "training", "after", "ordinary"].includes(String(value.phase)) &&
     (value.startsAt === null ||
       (typeof value.startsAt === "number" && Number.isFinite(value.startsAt))) &&
     (value.presetMin === undefined ||

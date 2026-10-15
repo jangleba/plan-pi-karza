@@ -90,8 +90,9 @@ describe("regression — gym access + full week", () => {
         );
         expect(speedDay).toBeDefined();
         expect(speedDay?.speedGeneratorVersion).toBe(FOOTBALL_SPEED_GENERATOR_VERSION);
-        expect(speedDay!.structuredSections!.flatMap(section=>section.blocks).length).toBeGreaterThan(0);
-        expect(speedDay!.structuredSections!.flatMap(section=>section.blocks).length).toBeLessThanOrEqual(EXPECTED_SPEED_BLOCK_COUNT);
+        expect(speedDay?.structuredSections?.flatMap((section) => section.blocks)).toHaveLength(
+          EXPECTED_SPEED_BLOCK_COUNT,
+        );
         expect(
           speedDay?.structuredSections
             ?.flatMap((section) => section.blocks)

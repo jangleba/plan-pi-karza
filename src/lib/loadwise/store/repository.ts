@@ -98,8 +98,7 @@ export async function loadSessionHistory(
       date,
       title: typeof session.title === "string" && session.title.trim() ? session.title : "Trening",
       category,
-      durationMin: typeof log.duration_minutes === "number" && Number.isFinite(log.duration_minutes) && log.duration_minutes >= 0
-        ? log.duration_minutes : typeof session.duration_min === "number" ? session.duration_min : 0,
+      durationMin: typeof session.duration_min === "number" ? session.duration_min : 0,
       rpe: typeof log.rpe === "number" ? log.rpe : null,
       notes: typeof log.notes === "string" ? log.notes : "",
     });
@@ -124,18 +123,18 @@ export async function shouldReusePersistedPlan(
   return hasMonthly && coversToday && persistedPlanIsSafe && sameRevision && schemaOk;
 }
 
-export function createPlanPersistence(user: StoreUser, todayIso: string, isCurrent = () => true) {
+export function createPlanPersistence(user: StoreUser, todayIso: string) {
   async function savePlanToDb(
     profile: Profile,
     revision: string | null,
     missedSessions: SessionDay[] = [],
   ): Promise<SessionDay[]> {
-    const [{ generatePlanAsync }, { persistMonthlyPlan }] = await Promise.all([
-      import("../asyncPlan"),
+    const [{ generatePlan }, { persistMonthlyPlan }] = await Promise.all([
+      import("../planEngine"),
       import("../persist"),
     ]);
     const canonical = stampPlanRevision(
-      await generatePlanAsync(profile, localToday()),
+      generatePlan(profile, localToday()),
       revision,
       ONBOARDING_SCHEMA_VERSION,
     );
@@ -143,7 +142,6 @@ export function createPlanPersistence(user: StoreUser, todayIso: string, isCurre
     if (missedSessions.length > 0) {
       plan = buildMinimumEffectiveWeek(plan, missedSessions, todayIso, profile).plan;
     }
-    if (!isCurrent()) throw new Error("Konto zmieniło się podczas przeliczania planu.");
     if (user) {
       await persistMonthlyPlan(user.id, profile, plan);
     }

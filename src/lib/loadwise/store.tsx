@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
 import { initialState, type LoadwiseContextValue } from "./store/model";
 import { createPlanActions } from "./store/planActions";
@@ -39,9 +39,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setSyncing,
     setHydrationError,
   });
-  const ownerRef = useRef(user?.id);
-  ownerRef.current = user?.id;
-  const persistence = useMemo(()=>createPlanPersistence(user, todayIso, ()=>ownerRef.current === user?.id),[user,todayIso]);
+  const persistence = createPlanPersistence(user, todayIso);
   const context = { user, state, setState, todayIso, ...persistence };
   usePersistedState(user, hydrated && !syncing, state);
   useMissedSessionSync({ ...context, hydrated: hydrated && !syncing && !hydrationError });

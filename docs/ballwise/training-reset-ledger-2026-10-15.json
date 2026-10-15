@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "applied": [
+    {
+      "stage": 1,
+      "sha256": "185f3f282457e60cb8c541834bfbb79fcbd7ef1ef50d73e348cc57ffd78ce50e"
+    }
+  ],
+  "files": {
+    "src/components/fuel/FuelWorkspace.tsx": "0ae59aa4f7df1e87cfa796f6cd56b211c3896aae177d3a278cdaff79fff7d5b5",
+    "src/features/browser-lab/longJumpAuto.test.ts": "2928092a26f4b3750c98c524e740c20626a93c0fa611d632a20111d50c99973b",
+    "src/features/browser-lab/longJumpAuto.ts": "1c425532cbc2b48d334f41f087fa2a7fad8be35414def11a8da24b0e8ea794d5",
+    "src/features/football-iq-match/FootballIQMatch.tsx": "57e1c411161e6bd50f222262754db24225ceb4189b9c8ebc8e4df1cad542965d",
+    "src/features/football-iq-match/TacticalPitch.tsx": "71eb4cccb298524a941b26888c3d62d0fefdc2862054ba090e50c93ebe8b4cd1",
+    "src/lib/audit/flowAudit.test.ts": null,
+    "src/lib/audit/fuelAudit.test.ts": null,
+    "src/lib/audit/iqLabAudit.test.ts": null,
+    "src/lib/audit/planMatrix.test.ts": null,
+    "src/lib/fuel/experience.ts": "d0edc5827c91171ea7c9fd4ebc975fd2923dd0483b03deaca9cfd4516cc3f208",
+    "src/lib/fuel/planAdapter.ts": "dee0acb8cc3e0cf7e3194f2b838472318a9b5e2471db859ba9569ad21298e189",
+    "src/lib/fuel/practical.test.ts": "54321cbbbeccd0b81c53fec7441912b830efc33d4699c644ce9ed7ad311900a5",
+    "src/lib/fuel/reminderPlan.ts": "71acb46024fed9c3e153fd9623c8fca60dd8b56eacd8fdd3800f827f6211170f",
+    "src/lib/loadwise/agePolicy.ts": "26e30ef1da52ff4573214de7e9e24968b6dd56e090e683c6a25d8d865574bd1e",
+    "src/lib/loadwise/asyncPlan.test.ts": null,
+    "src/lib/loadwise/asyncPlan.ts": null,
+    "src/lib/loadwise/dailyCheckin.test.ts": "21a817b0a6440fe744a6c5475fc4ded303895938a6d5f0ae02a75eb8cac9176d",
+    "src/lib/loadwise/dailyCheckin.ts": "db5b549dedd7fae35fbff178155e18b863b444daae65c5e7a5cde10dc2813c5f",
+    "src/lib/loadwise/dailyPlanCheckin.ts": "607c9ee1cca6dd74fde6eb8a5b03f98d192677ea5b6ac02abf3b0aaafa049746",
+    "src/lib/loadwise/finalDayConstraints.ts": null,
+    "src/lib/loadwise/footballSpeedSessionEngine.ts": "bd2cf78680d647f90085d350804691e02fee62479d215c14297402591d2d6a26",
+    "src/lib/loadwise/persist.test.ts": "5b4cf3004ea86c0c50a61ffa0ec4637c6e13042647d0d122685a53592d3de03a",
+    "src/lib/loadwise/persist.ts": "5cd502ff5ae776b4312c50bfbde25b0dd404a464827c2f3ec9c5b1157d34d4de",
+    "src/lib/loadwise/plan.worker.ts": null,
+    "src/lib/loadwise/planEngine.ts": "ff941840dd60e8ad207d1721369f8edeb88865cc7ef14f8b39c12eca1129591f",
+    "src/lib/loadwise/planEngineRegression.test.ts": "7fcae7de4ce5c3bea4696f80768204c51af7688c4461d33af8010fa07d1d70e8",
+    "src/lib/loadwise/planVersion.ts": "bd08c8271724a6836d49e76fdfbe16c5f230abc5ac8d555217fb14b9bb48d826",
+    "src/lib/loadwise/profileExerciseGate.ts": null,
+    "src/lib/loadwise/retainCompletedSessions.test.ts": null,
+    "src/lib/loadwise/retainCompletedSessions.ts": null,
+    "src/lib/loadwise/sessionClassification.ts": "20784ad006b9c3f90edcaf1890c1c6fe820f489459c019b6a74197973ef681ac",
+    "src/lib/loadwise/sessionDose.ts": null,
+    "src/lib/loadwise/severeReadiness.test.ts": null,
+    "src/lib/loadwise/store.tsx": "653af80193391255db78f27c59fec7193a4fda83505002450cec913b7e5b0ead",
+    "src/lib/loadwise/store/model.ts": "4333f8643aaab9954688bafcc146ec4ccd6cc100b9c6772319e0f33e0d55c3d7",
+    "src/lib/loadwise/store/planActions.ts": "42782976e91f3fde0c1d2b84d72aaa80dc0cca1c50f6f4e166f171cf8f76ea72",
+    "src/lib/loadwise/store/profileActions.ts": "e88815e254a49389bd7a926de08b684194c350b4bce06902c7507d8495aaf033",
+    "src/lib/loadwise/store/repository.ts": "0c221cdc76702183cfd7322ad7b8906d2cada2c0247b4c812bbcc993e51b7e57",
+    "src/lib/loadwise/store/useHydration.ts": "d3e844f4d5c63204875933a415a8e1c0f50fe58738013a92f79a041337242e98",
+    "src/lib/loadwise/strengthBlocks.ts": "9c551734cad438ee3e8866d49ea6b0de2544753435575fd4f7575c45daafc0ba",
+    "src/routes/onboarding.tsx": "48073cefea1acc25add73f66930493fa30fd67f9deddc1979736116b1fadf2b1",
+    "vite.mobile.config.ts": "f3ee4c225294955baff78f28ee9cfeecaa5ad2fc9471039fbbc0579e02500965"
+  }
+}

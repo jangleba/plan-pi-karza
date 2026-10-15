@@ -262,7 +262,7 @@ export function buildProfile(
     ]),
     equipment,
     painInjury: Boolean(ath.pain_injury),
-    painLocations: ath.health_personalization_enabled && ath.pain_injury ? normalizePersistedPainLocations(onboardingAnswers?.painLocations) : [],
+    painLocations: normalizePersistedPainLocations(onboardingAnswers?.painLocations),
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
@@ -272,7 +272,6 @@ export function buildProfile(
     onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
     seasonPhase: normalizeSeasonPhase(ath.season_phase),
-    seasonPhaseOverride: onboardingAnswers?.seasonPhaseOverride === true,
     seasonStage: (ath.season_stage as Profile["seasonStage"]) ?? null,
     competitionLevel: normalizeCompLevel(ath.competition_level),
     weeklyMatches:

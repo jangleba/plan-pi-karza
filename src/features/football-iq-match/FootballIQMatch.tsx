@@ -97,7 +97,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   const [transportRevision, setTransportRevision] = useState(0);
   const [comparisonProgress, setComparisonProgress] = useState(1);
   const playhead = useRef(0);
-  const liveProgress = useRef(0);
   const demoReturn = useRef<"intro" | "plan">("intro");
   const activeMarker = markers[Math.min(coachIndex, markers.length - 1)];
   const guideWasPaused = useRef(false);
@@ -203,14 +202,13 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   useEffect(() => {
     if (!["playback", "demo"].includes(phase) || !ready) return;
     let raf = 0,
-      last = performance.now(), lastPublished = 0;
+      last = performance.now();
     const animate = (time: number) => {
       if (!document.hidden && !playingRef.current.paused)
         playhead.current += (Math.max(0, time - last) / 1000) * playingRef.current.speed;
       last = time;
       const p = Math.min(1, playhead.current / Math.max(0.1, playback.duration));
-      liveProgress.current = p;
-      if (time-lastPublished >= 100 || p === 1) {setProgress(p);lastPublished=time;}
+      setProgress(p);
       if (p < 1 || playingRef.current.paused) raf = requestAnimationFrame(animate);
       else finishRef.current();
     };
@@ -223,7 +221,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     setEvaluation(null);
     setReference(false);
     playhead.current = 0;
-    liveProgress.current = 0;
     setProgress(0);
     setPaused(false);
     setCoachIndex(0);
@@ -242,7 +239,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     recordResult.current = true;
     setReference(false);
     playhead.current = 0;
-    liveProgress.current = 0;
     setProgress(0);
     setPaused(false);
     setPhase("playback");
@@ -374,7 +370,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     setEvaluation(null);
     setReference(false);
     playhead.current = 0;
-    liveProgress.current = 0;
     setProgress(0);
     setPaused(false);
   };
@@ -382,7 +377,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     recordResult.current = false;
     setReference(showReference);
     playhead.current = 0;
-    liveProgress.current = 0;
     setProgress(0);
     setPaused(false);
     setPhase("playback");
@@ -392,7 +386,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     demoReturn.current = phase;
     recordResult.current = false;
     playhead.current = 0;
-    liveProgress.current = 0;
     setProgress(0);
     setPaused(false);
     setPhase("demo");
@@ -402,12 +395,10 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
     setPaused(false);
     setProgress(0);
     playhead.current = 0;
-    liveProgress.current = 0;
   };
   const seek = (value: number) => {
     const p = clampProgress(value);
     playhead.current = p * playback.duration;
-    liveProgress.current = p;
     setProgress(p);
     setPaused(true);
     setTransportRevision((v) => v + 1);
@@ -416,7 +407,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
   const togglePlay = () => {
     if (progress >= 1) {
       playhead.current = 0;
-    liveProgress.current = 0;
       setProgress(0);
       setPaused(false);
     } else setPaused((v) => !v);
@@ -470,7 +460,6 @@ export function FootballIQMatch({ initialScenario = 0, onBack, onComplete, histo
       )}
       <section className="bwiq-stage">
         <TacticalPitch
-          liveProgress={phase === "playback" || phase === "demo" ? liveProgress:undefined}
           scenario={scenario}
           actions={activeActions}
           selectedPlayerId={selected}

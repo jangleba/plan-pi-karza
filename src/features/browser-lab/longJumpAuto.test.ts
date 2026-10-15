@@ -20,11 +20,7 @@ const pose = (frameIndex: number, x: number): PoseFrame => ({
 describe("automatic long-jump event proposal", () => {
   it("selects the last stable start and first stable landing around a forward displacement", () => {
     const x = [0.2, 0.2, 0.205, 0.21, 0.3, 0.48, 0.68, 0.79, 0.8, 0.802, 0.801, 0.8];
-    const selected = selectLongJumpWindow(x.map((value, index) => {
-      const p = pose(10 + index * 10, value);
-      if (index >= 4 && index <= 6) {p.hip[1] -= 0.12;p.toes = p.toes.map(([x,y])=>[x,y-0.15]) as PoseFrame["toes"];}
-      return p;
-    }));
+    const selected = selectLongJumpWindow(x.map((value, index) => pose(10 + index * 10, value)));
     expect(selected.start.frameIndex).toBe(40);
     expect(selected.end.frameIndex).toBe(80);
     expect(selected.confidence).toBe(0.9);

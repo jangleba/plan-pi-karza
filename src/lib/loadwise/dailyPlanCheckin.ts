@@ -1,5 +1,4 @@
-import { reduceSessionDose } from "./sessionDose";
-import type { Intensity, SessionDay } from "./types";
+import type { ExerciseItem, Intensity, SessionDay } from "./types";
 
 export type DailyPlanCheckinAction =
   "keep" | "lighter" | "swap" | "add" | "week_change" | "unavailable";
@@ -105,6 +104,23 @@ function lowerIntensity(intensity: Intensity): Intensity {
   return INTENSITY_ORDER[index];
 }
 
+function lighterPrescription(value: string): string {
+  return value.replace(/\b(\d+)\s*[×x]\s*/i, (_match, rawSets: string) => {
+    const sets = Number(rawSets);
+    return `${Math.max(1, Math.ceil(sets * 0.75))} × `;
+  });
+}
+
+function lighterExercise(exercise: ExerciseItem): ExerciseItem {
+  return {
+    ...exercise,
+    prescription: lighterPrescription(exercise.prescription),
+    displayPrescription: exercise.displayPrescription
+      ? lighterPrescription(exercise.displayPrescription)
+      : exercise.displayPrescription,
+  };
+}
+
 /**
  * Jedna przewidywalna wersja „lżej”: ten sam cel, około 25% mniej czasu
  * i jeden poziom intensywności niżej. Druga sesja pozostaje bez zmian,
@@ -127,7 +143,7 @@ export function buildLighterSession(session: SessionDay): SessionDay {
     };
   }
 
-  const reduced = reduceSessionDose(session, 0.75);
+  const mapSection = (items: ExerciseItem[]) => items.map(lighterExercise);
   return {
     ...session,
     dbId: undefined,
@@ -140,14 +156,14 @@ export function buildLighterSession(session: SessionDay): SessionDay {
     riskManaged: "Około 25% mniej objętości i niższa intensywność.",
     loadLabelOverride: "Lżejszy wariant",
     sections: {
-      warmup: reduced.sections.warmup,
-      main: reduced.sections.main,
-      accessory: reduced.sections.accessory,
-      footballTransfer: reduced.sections.footballTransfer,
-      cooldown: reduced.sections.cooldown,
+      warmup: mapSection(session.sections.warmup),
+      main: mapSection(session.sections.main),
+      accessory: mapSection(session.sections.accessory),
+      footballTransfer: mapSection(session.sections.footballTransfer),
+      cooldown: mapSection(session.sections.cooldown),
     },
-    structuredSections: reduced.structuredSections,
-    exercises: reduced.exercises,
+    structuredSections: undefined,
+    exercises: undefined,
     classification: undefined,
   };
 }
