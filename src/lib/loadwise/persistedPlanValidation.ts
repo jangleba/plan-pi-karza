@@ -1,13 +1,5 @@
-import type {
-  Profile,
-  SessionDay,
-} from "./types";
-import {
-  addDays,
-  isoDate,
-  isoDayOfWeek,
-  parseIso,
-} from "./labels";
+import type { Profile, SessionDay } from "./types";
+import { addDays, isoDate, isoDayOfWeek, parseIso } from "./labels";
 import { assessDaySpeedLoad } from "./speedLoad";
 import { validatePlanExerciseContract } from "./planExerciseContract";
 import {
@@ -51,6 +43,7 @@ export function validatePersistedPlan(
   plan: SessionDay[],
   profile: Profile,
   engineVersion: string,
+  versionEffectiveFrom?: string,
 ): PersistedPlanValidation {
   const issues: PersistedPlanIssue[] = [];
 
@@ -69,19 +62,26 @@ export function validatePersistedPlan(
   if (
     plan.some(
       (day) =>
+        (!versionEffectiveFrom || day.date >= versionEffectiveFrom) &&
+        !day.executionProtected &&
         day.generatorVersion !== engineVersion,
     )
   ) {
     issues.push({
       code: "stale-generator",
-      message:
-        "Plan został utworzony przez starszą wersję generatora.",
+      message: "Plan został utworzony przez starszą wersję generatora.",
     });
   }
 
   // Only plans stamped by the canonical generator carry this numeric marker.
   if (plan.some((day) => typeof day.canonicalSchemaVersion === "number")) {
     for (const issue of validatePlanExerciseContract(plan)) {
+      if (
+        versionEffectiveFrom &&
+        (issue.date < versionEffectiveFrom ||
+          plan.find((day) => day.date === issue.date)?.executionProtected)
+      )
+        continue;
       issues.push({
         code: "invalid-exercise-contract",
         date: issue.date,
@@ -90,24 +90,21 @@ export function validatePersistedPlan(
     }
   }
 
-  for (
-    let index = 0;
-    index < plan.length;
-    index += 1
-  ) {
+  for (let index = 0; index < plan.length; index += 1) {
     const day = plan[index];
+    if (versionEffectiveFrom && (day.date < versionEffectiveFrom || day.executionProtected))
+      continue;
 
     if (
       day.dayType === "club" &&
-      !profile.clubTrainingDays.includes(
-        isoDayOfWeek(parseIso(day.date)),
-      )
+      (!versionEffectiveFrom || day.date >= versionEffectiveFrom) &&
+      !day.executionProtected &&
+      !profile.clubTrainingDays.includes(isoDayOfWeek(parseIso(day.date)))
     ) {
       issues.push({
         code: "club-day-mismatch",
         date: day.date,
-        message:
-          "Trening klubowy znajduje się w nieprawidłowym dniu.",
+        message: "Trening klubowy znajduje się w nieprawidłowym dniu.",
       });
     }
 
@@ -115,8 +112,9 @@ export function validatePersistedPlan(
 
     if (day.secondSession) {
       const firstCategory = (day.classification ?? classifySession(day)).category;
-      const secondCategory =
-        (day.secondSession.classification ?? classifySession(day.secondSession)).category;
+      const secondCategory = (
+        day.secondSession.classification ?? classifySession(day.secondSession)
+      ).category;
       if (firstCategory === secondCategory) {
         issues.push({
           code: "duplicate-dominant-stimulus",
@@ -140,8 +138,7 @@ export function validatePersistedPlan(
       issues.push({
         code: "duplicate-speed-same-day",
         date: day.date,
-        message:
-          "Dzień zawiera więcej niż jedną realną ekspozycję szybkościową.",
+        message: "Dzień zawiera więcej niż jedną realną ekspozycję szybkościową.",
       });
     }
 
@@ -149,39 +146,42 @@ export function validatePersistedPlan(
 
     const previous = plan[index - 1];
 
-    const consecutive =
-      isoDate(
-        addDays(parseIso(previous.date), 1),
-      ) === day.date;
+    const consecutive = isoDate(addDays(parseIso(previous.date), 1)) === day.date;
 
     if (!consecutive) continue;
 
-    const previousSpeed =
-      assessDaySpeedLoad(previous);
+    const previousSpeed = assessDaySpeedLoad(previous);
 
-    if (
-      previousSpeed.blocksAdjacentSpeedDay &&
-      speed.realExposureCount > 0
-    ) {
+    if (previousSpeed.blocksAdjacentSpeedDay && speed.realExposureCount > 0) {
       issues.push({
         code: "adjacent-speed-days",
         date: day.date,
-        message:
-          "Realne ekspozycje szybkościowe występują dzień po dniu.",
+        message: "Realne ekspozycje szybkościowe występują dzień po dniu.",
       });
     }
   }
 
   for (const issue of gymSpacingIssues(plan)) {
-    issues.push({ ...issue, message: issue.code === "adjacent-gym-days"
-      ? "Siłownie występują dzień po dniu — wymagany co najmniej jeden dzień przerwy."
-      : "Dzień zawiera dwie sesje siłowni." });
+    if (
+      versionEffectiveFrom &&
+      (issue.date < versionEffectiveFrom ||
+        plan.find((day) => day.date === issue.date)?.executionProtected)
+    )
+      continue;
+    issues.push({
+      ...issue,
+      message:
+        issue.code === "adjacent-gym-days"
+          ? "Siłownie występują dzień po dniu — wymagany co najmniej jeden dzień przerwy."
+          : "Dzień zawiera dwie sesje siłowni.",
+    });
   }
 
   const planDates = plan.map((day) => day.date).sort();
   for (const matchDate of profileMatchDates(profile)) {
     if (
       matchDate >= planDates[0] &&
+      (!versionEffectiveFrom || matchDate >= versionEffectiveFrom) &&
       matchDate <= planDates[planDates.length - 1] &&
       !plan.some((day) => day.date === matchDate && isMatchSession(day))
     ) {
@@ -203,8 +203,13 @@ export function validatePersistedPlan(
   }
   for (const [monday, week] of calendarWeeks) {
     if (week.length !== 7) continue;
-    const sessions = week.flatMap((day) =>
-      [day, day.secondSession].filter(Boolean) as SessionDay[],
+    if (
+      versionEffectiveFrom &&
+      week.some((day) => day.date < versionEffectiveFrom || day.executionProtected)
+    )
+      continue;
+    const sessions = week.flatMap(
+      (day) => [day, day.secondSession].filter(Boolean) as SessionDay[],
     );
     const matchCount = sessions.filter(isMatchSession).length;
     const requirements = calculateWeeklyMinimumRequirements(
@@ -218,8 +223,7 @@ export function validatePersistedPlan(
       profile.goal,
       {
         gymExperienceLevel: profile.gymExperienceLevel,
-        hasActivePain:
-          profile.painInjury || (profile.painLocations?.length ?? 0) > 0,
+        hasActivePain: profile.painInjury || (profile.painLocations?.length ?? 0) > 0,
       },
     );
     const counts = {
@@ -253,10 +257,7 @@ export function persistedPlanNeedsRegeneration(
   plan: SessionDay[],
   profile: Profile,
   engineVersion: string,
+  versionEffectiveFrom?: string,
 ): boolean {
-  return !validatePersistedPlan(
-    plan,
-    profile,
-    engineVersion,
-  ).valid;
+  return !validatePersistedPlan(plan, profile, engineVersion, versionEffectiveFrom).valid;
 }

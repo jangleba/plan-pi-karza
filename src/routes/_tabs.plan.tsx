@@ -15,8 +15,9 @@ import {
   validatePlanWeeks,
   type WeekPhase,
 } from "@/lib/loadwise/planEngine";
-import { resolveEffectiveDay, resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
+import { resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
 import { AppHeader } from "@/components/loadwise/ui";
 import { LabEntry } from "@/features/browser-lab/LabEntry";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
@@ -174,8 +175,13 @@ function weekSummary(week: PlanWeek, goal: Goal) {
 function PlanScreen() {
   const { state, todayIso, todaySession, updateProfile } = useLoadwise();
   const plan = useMemo(
-    () => resolveEffectivePlan(state.plan, state.modifications),
-    [state.plan, state.modifications],
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        profile: state.profile,
+        readiness: state.readiness,
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, state.profile, state.readiness, state.completions],
   );
   const completions = state.completions;
   const profile = state.profile;
@@ -212,18 +218,11 @@ function PlanScreen() {
   }, [plan, profile]);
 
   // Obciążenie dnia po korekcie daily readiness (osobna wartość od planned).
+  const effectiveToday = plan.find((day) => day.date === todayIso) ?? todaySession;
   const todayAdjusted =
-    todaySession && profile
-      ? applyExerciseReplacements(
-          resolveEffectiveDay(
-            todaySession,
-            state.readiness[todayIso],
-            profile,
-            state.modifications[todayIso] ?? [],
-          ),
-          state.exerciseReplacements[todayIso] ?? [],
-        )
-      : todaySession;
+    effectiveToday && profile
+      ? applyExerciseReplacements(effectiveToday, state.exerciseReplacements[todayIso] ?? [])
+      : effectiveToday;
 
   // Tryb sezonu: świadomy wybór w profilu. "Poza sezonem" TYLKO gdy
   // seasonPhase = offseason/transition. Brak daty meczu NIE oznacza automatycznie
@@ -236,7 +235,8 @@ function PlanScreen() {
 
   // Czy dany tydzień ma potwierdzoną datę kolejnego meczu (twarda blokada).
   const weekHasMatchDate = (i: number) =>
-    !!transitions[i]?.nextMatchDate || (offseasonAllowed && !!transitions[i]?.noMatchNextWeek);
+    transitionMatchesBlock(plan, transitions[i], i) &&
+    (!!transitions[i]?.nextMatchDate || !!transitions[i]?.noMatchNextWeek);
 
   // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
   // tydzień wymaga zapisanej daty meczu dla każdego wcześniejszego przejścia.
@@ -280,9 +280,7 @@ function PlanScreen() {
 
   const monthGoal = GOAL_LABELS[profile?.goal ?? "matchready"] ?? "gotowość meczowa";
   const current = weeks[Math.min(activeWeek, weeks.length - 1)] ?? null;
-  const summary = current
-    ? weekSummary(current, profile?.goal ?? "matchready")
-    : null;
+  const summary = current ? weekSummary(current, profile?.goal ?? "matchready") : null;
 
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
@@ -641,7 +639,7 @@ function PlanScreen() {
           weekNumber={gateWeek}
           nextWeekStart={gateWeekData.startDate}
           nextWeekEnd={gateWeekData.endDate}
-          allowNoMatch={offseasonAllowed}
+          allowNoMatch={true}
           onConfirmed={() => {
             const target = gateWeek;
             setGateWeek(null);

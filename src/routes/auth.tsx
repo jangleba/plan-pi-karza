@@ -21,8 +21,16 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthScreen() {
-  const { user, loading, recoveryMode, signIn, signUp, requestPasswordReset, updatePassword } =
-    useAuth();
+  const {
+    user,
+    loading,
+    recoveryMode,
+    callbackError,
+    signIn,
+    signUp,
+    requestPasswordReset,
+    updatePassword,
+  } = useAuth();
   const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
 
@@ -164,6 +172,14 @@ function AuthScreen() {
           </p>
         </div>
 
+        {callbackError && (
+          <p
+            role="alert"
+            className="mt-5 rounded-xl border border-destructive/30 p-3 text-sm text-destructive"
+          >
+            {callbackError}
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           {mode === "register" && (
             <>

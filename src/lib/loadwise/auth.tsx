@@ -9,14 +9,19 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AccountOwnerType } from "./agePolicy";
-import { clearLocalUserData } from "./localPrivacy";
+import { clearLocalSessionData } from "./localPrivacy";
 import { clearConsentStatusCache } from "./legalStatus";
+import { configuredAuthRedirect, installNativeAuthCallbacks } from "./nativeAuth";
+import { nativeRecorder, nativeRunningAvailable } from "@/lib/running/nativeRecorder";
+import { forgetOfflineOwner, loadOfflineOwner, rememberOfflineOwner } from "./offlineOwner";
 
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
   recoveryMode: boolean;
+  callbackError: string | null;
+  offlineIdentity: boolean;
   signUp: (
     email: string,
     password: string,
@@ -40,6 +45,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
+  const [offlineIdentity, setOfflineIdentity] = useState(false);
+
+  useEffect(() => {
+    const ownerId = user?.id;
+    return () => {
+      if (ownerId && nativeRunningAvailable())
+        void nativeRecorder.pauseOwner({ ownerId }).catch(() => undefined);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    void installNativeAuthCallbacks(
+      (code) => supabase.auth.exchangeCodeForSession(code),
+      (error, recovery) => {
+        if (disposed) return;
+        setCallbackError(error);
+        if (recovery) setRecoveryMode(true);
+        window.dispatchEvent(
+          new CustomEvent("ballwise:auth-callback", { detail: { error, recovery } }),
+        );
+      },
+    )
+      .then((value) => {
+        if (disposed) value();
+        else cleanup = value;
+      })
+      .catch((error) => {
+        if (!disposed)
+          setCallbackError(
+            error instanceof Error ? error.message : "Nie skonfigurowano linków logowania.",
+          );
+      });
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, []);
 
   useClientLayoutEffect(() => {
     let active = true;
@@ -51,11 +96,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       authRevision += 1;
       setSession(sess);
+      const localOwner = !sess && navigator.onLine === false ? loadOfflineOwner() : null;
+      setOfflineIdentity(!!localOwner);
+      if (sess?.user && navigator.onLine !== false) rememberOfflineOwner(sess.user);
       setUser((current) => {
-        const next = sess?.user ?? null;
+        const next = sess?.user ?? localOwner;
         return current?.id === next?.id && event !== "USER_UPDATED" ? current : next;
       });
-      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+        window.dispatchEvent(
+          new CustomEvent("ballwise:auth-callback", { detail: { recovery: true, error: null } }),
+        );
+      }
       if (event === "SIGNED_OUT") {
         clearConsentStatusCache();
         setRecoveryMode(false);
@@ -70,7 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => {
         if (!active || authRevision !== revisionAtRequest) return;
         setSession(data.session);
-        setUser(data.session?.user ?? null);
+        const localOwner = !data.session && navigator.onLine === false ? loadOfflineOwner() : null;
+        setOfflineIdentity(!!localOwner);
+        setUser(data.session?.user ?? localOwner);
       })
       .catch(() => {
         // Auth listener pozostaje źródłem prawdy; brak sesji obsłuży routing.
@@ -85,6 +140,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    const reconnect = () => {
+      if (!offlineIdentity || navigator.onLine === false) return;
+      void supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          setOfflineIdentity(false);
+          if (!data.session)
+            setCallbackError(
+              "Połączenie wróciło. Zaloguj się ponownie, aby wysłać zapisane treningi.",
+            );
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener("online", reconnect);
+    return () => window.removeEventListener("online", reconnect);
+  }, [offlineIdentity]);
+
   async function signUp(
     email: string,
     password: string,
@@ -92,7 +167,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accountOwnerType: AccountOwnerType,
     athleteBirthDate: string,
   ) {
-    const redirectUrl = typeof window !== "undefined" ? window.location.origin : undefined;
+    let redirectUrl: string;
+    try {
+      redirectUrl = configuredAuthRedirect();
+    } catch (error) {
+      return { error: (error as Error).message, needsEmailConfirmation: false };
+    }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -120,7 +200,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resendSignupConfirmation(email: string) {
-    const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    let emailRedirectTo: string;
+    try {
+      emailRedirectTo = configuredAuthRedirect();
+    } catch (error) {
+      return { error: (error as Error).message };
+    }
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
@@ -130,13 +215,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function requestAccountEmailChange(email: string) {
-    const emailRedirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    let emailRedirectTo: string;
+    try {
+      emailRedirectTo = configuredAuthRedirect();
+    } catch (error) {
+      return { error: (error as Error).message };
+    }
     const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo });
     return { error: error?.message ?? null };
   }
 
   async function requestPasswordReset(email: string) {
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth` : undefined;
+    let redirectTo: string;
+    try {
+      redirectTo = configuredAuthRedirect();
+    } catch (error) {
+      return { error: (error as Error).message };
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     });
@@ -151,11 +246,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     const userId = user?.id;
+    forgetOfflineOwner(userId);
+    setOfflineIdentity(false);
     try {
+      if (userId && nativeRunningAvailable())
+        await nativeRecorder.pauseOwner({ ownerId: userId }).catch(() => {
+          setCallbackError(
+            "Nie potwierdzono zatrzymania GPS. Sprawdź wskaźnik lokalizacji w telefonie.",
+          );
+        });
       await supabase.auth.signOut();
     } finally {
       clearConsentStatusCache();
-      if (userId) clearLocalUserData(userId);
+      if (userId) clearLocalSessionData(userId);
     }
   }
 
@@ -166,6 +269,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         loading,
         recoveryMode,
+        callbackError,
+        offlineIdentity,
         signUp,
         signIn,
         resendSignupConfirmation,

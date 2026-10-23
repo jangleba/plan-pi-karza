@@ -3,7 +3,7 @@ import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
 import { isoDate, localToday } from "./labels";
 import { assertPlanExerciseContract } from "./planExerciseContract";
-import type { ExerciseItem, Profile, SessionDay } from "./types";
+import type { ExerciseItem, Profile, SessionDay, WeeklyTransition } from "./types";
 
 /** Wyciąga łączny dystans (w metrach) z opisu ćwiczenia, jeśli dotyczy sprintu. */
 function extractDistance(name: string, prescription: string): string | null {
@@ -59,16 +59,23 @@ function buildExerciseRows(
 /**
  * Zapisuje wygenerowany plan do znormalizowanych tabel:
  * training_plans -> training_days -> training_sessions -> session_exercises.
- * Mutuje obiekty SessionDay, dopisując dbId/dayDbId, aby plan_json zawierał
- * identyfikatory potrzebne do śledzenia ukończenia sesji.
+ * Zwraca oddzielną kopię z dbId/dayDbId dopiero po potwierdzeniu transakcji.
  */
-export async function persistMonthlyPlan(
+export function prepareMonthlyPlan(
   userId: string,
   profile: Profile,
   plan: SessionDay[],
-): Promise<void> {
+  transition?: WeeklyTransition,
+) {
   assertPlanExerciseContract(plan);
+  // Allocate on a detached tree. A rejected transaction leaves the live plan untouched.
+  plan = plan.map((day) => ({
+    ...day,
+    secondSession: day.secondSession ? { ...day.secondSession } : null,
+  }));
+  const expectedPlanId = plan.find((day) => day.planDbId)?.planDbId;
   const planId = crypto.randomUUID();
+  const cycleId = plan.find((day) => day.cycleId)?.cycleId ?? crypto.randomUUID();
   const month = isoDate(localToday()).slice(0, 7);
 
   const dayRows: Record<string, unknown>[] = [];
@@ -76,8 +83,10 @@ export async function persistMonthlyPlan(
   const exerciseRows: ExerciseRow[] = [];
 
   for (const day of plan) {
-    const dayId = crypto.randomUUID();
+    const dayId = day.dayDbId ?? crypto.randomUUID();
     day.dayDbId = dayId;
+    day.planDbId = planId;
+    day.cycleId = cycleId;
     dayRows.push({
       id: dayId,
       user_id: userId,
@@ -91,7 +100,10 @@ export async function persistMonthlyPlan(
     if (day.secondSession) sessions.push(day.secondSession);
 
     for (const s of sessions) {
-      const sessionId = crypto.randomUUID();
+      const sessionId = s.dbId ?? crypto.randomUUID();
+      s.dayDbId = dayId;
+      s.planDbId = planId;
+      s.cycleId = cycleId;
       s.dbId = sessionId;
       sessionRows.push({
         id: sessionId,
@@ -126,18 +138,32 @@ export async function persistMonthlyPlan(
     }
   }
 
-  // Jeden RPC = jedna transakcja Postgresa. Przerwany internet nie może już
-  // pozostawić połowy planu ani wyłączyć poprzedniego aktywnego planu.
-  const atomicWrite = await supabase.rpc("persist_training_plan_atomic", {
-    p_plan_id: planId,
-    p_goal: profile.goal,
-    p_month: month,
-    p_plan_json: plan as unknown as Json,
-    p_days: dayRows as unknown as Json,
-    p_sessions: sessionRows as unknown as Json,
-    p_exercises: exerciseRows as unknown as Json,
-  });
-  assertNoSupabaseError("persist_training_plan_atomic", atomicWrite.error);
+  return {
+    plan,
+    args: {
+      p_expected_plan_id: expectedPlanId,
+      p_transition: transition ? (transition as unknown as Json) : undefined,
+      p_plan_id: planId,
+      p_goal: profile.goal,
+      p_month: month,
+      p_plan_json: plan as unknown as Json,
+      p_days: dayRows as unknown as Json,
+      p_sessions: sessionRows as unknown as Json,
+      p_exercises: exerciseRows as unknown as Json,
+    },
+  };
+}
+
+export async function persistMonthlyPlan(
+  userId: string,
+  profile: Profile,
+  plan: SessionDay[],
+  transition?: WeeklyTransition,
+): Promise<SessionDay[]> {
+  const prepared = prepareMonthlyPlan(userId, profile, plan, transition);
+  const atomicWrite = await supabase.rpc("persist_training_plan_v2", prepared.args);
+  assertNoSupabaseError("persist_training_plan_v2", atomicWrite.error);
+  return prepared.plan;
 }
 
 /**
@@ -197,4 +223,39 @@ export async function persistModifiedSession(
   }
 
   return persisted;
+}
+
+/** Prepare a command payload without performing any partial database writes. */
+export function prepareModifiedSession(
+  userId: string,
+  trainingDayId: string,
+  session: SessionDay,
+  reuseId?: string,
+) {
+  const id = reuseId ?? crypto.randomUUID();
+  const persisted = { ...session, dbId: id, dayDbId: trainingDayId };
+  const row = {
+    id,
+    user_id: userId,
+    training_day_id: trainingDayId,
+    session_type: session.type ?? session.sessionType,
+    title: session.title,
+    goal: session.goalOfSession,
+    duration_min: session.durationMin,
+    intensity: session.intensity,
+    warmup_json: session.sections.warmup,
+    main_work_json: [
+      ...session.sections.main,
+      ...session.sections.accessory,
+      ...session.sections.footballTransfer,
+    ],
+    cooldown_json: session.sections.cooldown,
+    safety_notes: session.safetyNote,
+  };
+  const exercises: ExerciseRow[] = [];
+  for (const section of ["warmup", "main", "accessory", "footballTransfer", "cooldown"] as const)
+    exercises.push(
+      ...buildExerciseRows(userId, id, exercises.length, section, session.sections[section]),
+    );
+  return { session: persisted, row, exercises };
 }

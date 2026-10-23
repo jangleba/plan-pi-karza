@@ -10,6 +10,7 @@ import { Route } from "./sesja.$date";
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   checkin: vi.fn(),
+  startSession: vi.fn<(session: SessionDay) => Promise<void>>(),
   auth: { user: { id: "user-1" }, loading: false },
   search: { slot: 1, mod: undefined as string | undefined },
   state: {
@@ -45,7 +46,12 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/lib/loadwise/store", () => ({
   applyExerciseReplacements: (session: SessionDay) => session,
-  useLoadwise: () => ({ state: mocks.state, hydrated: true, todayIso: "2026-09-29" }),
+  useLoadwise: () => ({
+    state: mocks.state,
+    hydrated: true,
+    todayIso: "2026-09-29",
+    startSession: mocks.startSession,
+  }),
 }));
 vi.mock("@/lib/loadwise/uiHooks", () => ({
   useInstantBack: () => mocks.navigate,
@@ -103,6 +109,16 @@ async function render() {
 function completionId() {
   return host.querySelector<HTMLElement>("[data-completion]")?.dataset.completion;
 }
+async function startSelectedSession() {
+  const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+    (item) => item.textContent === "Rozpocznij trening",
+  );
+  expect(button).toBeDefined();
+  await act(async () => {
+    button!.click();
+  });
+  await render();
+}
 
 beforeAll(async () => {
   await SessionDetail.preload?.();
@@ -124,6 +140,22 @@ beforeEach(() => {
   mocks.state.exerciseReplacements = {};
   mocks.state.completions = {};
   mocks.state.runningActivities = {};
+  mocks.startSession.mockReset().mockImplementation(async (session) => {
+    // The store publishes the canonical started receipt after save_training_log.
+    // Routing can enable this slot only after that state transition.
+    mocks.state.completions = {
+      ...mocks.state.completions,
+      [session.dbId!]: {
+        completed: false,
+        status: "started",
+        rpe: null,
+        notes: "",
+        writeVersion: 1,
+        startedAt: "2026-09-29T10:00:00Z",
+        executionSnapshot: { ...session, executionSlot: mocks.search.slot === 2 ? 2 : 1 },
+      },
+    };
+  });
 });
 
 afterEach(async () => {
@@ -143,6 +175,7 @@ describe("session route gates", () => {
     expect(host.textContent).not.toContain("Najpierw check-in");
     expect(host.querySelector("h1")?.textContent).toBe(mocks.state.plan[0].title);
     expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.startSession).not.toHaveBeenCalled();
   });
 
   it("uses the selected sprint slot and resets completion visibility when the slot changes", async () => {
@@ -168,11 +201,27 @@ describe("session route gates", () => {
     expect(host.querySelector("h1")?.textContent).toBe("Drugi sprint");
     expect(completionId()).toBeUndefined();
     await act(async () => host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')!.click());
+    expect(completionId()).toBeUndefined();
+    expect(mocks.startSession).not.toHaveBeenCalled();
+    await startSelectedSession();
+    expect(mocks.startSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dbId: "session-2" }),
+    );
+    expect(mocks.state.completions["session-2"]).toMatchObject({
+      status: "started",
+      writeVersion: 1,
+    });
+    expect(completionId()).toBeUndefined();
+    await act(async () => host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')!.click());
     expect(completionId()).toBe("session-2");
     mocks.search.slot = 1;
     await render();
     expect(host.querySelector("h1")?.textContent).toBe("Pierwszy sprint");
     expect(completionId()).toBeUndefined();
+    await startSelectedSession();
+    expect(mocks.startSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dbId: "session-1" }),
+    );
     await act(async () => host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')!.click());
     expect(completionId()).toBe("session-1");
   });
@@ -198,6 +247,11 @@ describe("session route gates", () => {
     mocks.search.mod = "mod-1";
     await render();
     expect(host.querySelector("h1")?.textContent).toBe("Dodana jednostka");
+    expect(completionId()).toBeUndefined();
+    await startSelectedSession();
+    expect(mocks.startSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dbId: "added-session" }),
+    );
     expect(completionId()).toBe("added-session");
   });
 
@@ -224,7 +278,45 @@ describe("session route gates", () => {
     mocks.state.plan = [session];
     await render();
     expect(completionId()).toBeUndefined();
-    mocks.state.runningActivities["session-1"] = {} as LoadwiseState["runningActivities"][string];
+    await startSelectedSession();
+    expect(mocks.state.completions["session-1"]).toMatchObject({
+      status: "started",
+      writeVersion: 1,
+    });
+    expect(completionId()).toBeUndefined();
+    mocks.state.runningActivities["session-1"] = {
+      id: "mas-result",
+      sessionId: "session-1",
+      date: session.date,
+      durationSec: 300,
+      distanceM: 1200,
+      avgPaceSecPerKm: 250,
+      source: "gps",
+      isFieldMasTest: true,
+      startedAt: "2026-09-29T10:00:00Z",
+      endedAt: "2026-09-29T10:05:00Z",
+      createdAt: "2026-09-29T10:05:00Z",
+      updatedAt: "2026-09-29T10:05:00Z",
+      writeVersion: 1,
+      route: [],
+      splits: [],
+      intervalResults: [
+        {
+          stepId: "test",
+          kind: "work",
+          label: "Test 5 min",
+          repeatIndex: 1,
+          repeatTotal: 1,
+          targetMode: "time",
+          targetValue: 300,
+          targetLabel: "5 min",
+          durationSec: 300,
+          distanceM: 1200,
+          paceSecPerKm: 250,
+          completed: true,
+        },
+      ],
+    };
     await render();
     expect(completionId()).toBe("session-1");
   });

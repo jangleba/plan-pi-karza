@@ -1,3 +1,5 @@
+import { stateWithoutHealthData } from "../localPrivacy";
+import type { PendingTrainingWrite } from "../offlineTrainingQueue";
 import type { LoadwiseState, SessionHistoryRecord } from "../types";
 
 /** A slow startup read must not undo a click or a save made while it was in flight. */
@@ -45,7 +47,7 @@ export function mergeHydratedState(
 ): LoadwiseState {
   // These fields describe one plan revision; keep them together after a local edit.
   const planChanged = hasLocalPlanChanges(current, baseline);
-  return {
+  const result = {
     ...remote,
     ...(planChanged
       ? {
@@ -67,4 +69,32 @@ export function mergeHydratedState(
     ),
     history: current.history === baseline.history ? remote.history : current.history,
   };
+  return remote.profile?.healthPersonalizationEnabled === false
+    ? stateWithoutHealthData(result)
+    : result;
+}
+
+/** A queue snapshot can outlive its acknowledgement while startup reads are in flight. */
+export function mergePendingCompletionRows(
+  remote: Record<string, unknown>[],
+  pending: PendingTrainingWrite[],
+): Record<string, unknown>[] {
+  const rows = new Map(remote.map((row) => [row.session_id, row]));
+  for (const write of pending) {
+    if (write.kind !== "session_log") continue;
+    const row = write.payload,
+      old = rows.get(row.session_id);
+    if (old?.completed && !row.completed) continue;
+    if (
+      typeof old?.write_version === "number" &&
+      write.expectedVersion !== undefined &&
+      old.write_version > write.expectedVersion
+    )
+      continue;
+    rows.set(row.session_id, {
+      ...row,
+      write_version: write.expectedVersion ?? row.write_version ?? 0,
+    });
+  }
+  return [...rows.values()];
 }

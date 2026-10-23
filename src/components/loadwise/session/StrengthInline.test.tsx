@@ -20,6 +20,30 @@ vi.mock("@/lib/loadwise/store", () => ({
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: async (
+      name: string,
+      args: {
+        p_payload: Record<string, unknown>;
+        p_expected_version: number;
+        p_operation_id: string;
+      },
+    ) => {
+      if (name !== "save_exercise_set") throw new Error(`Unexpected RPC ${name}`);
+      if (m.fail) return { data: null, error: { message: "denied", code: "42501" } };
+      const payload = args.p_payload;
+      const old = m.rows.find(
+        (row) =>
+          row.exercise_key === payload.exercise_key &&
+          row.set_number === payload.set_number &&
+          row.session_id === payload.session_id,
+      );
+      if (Number(old?.write_version ?? 0) !== args.p_expected_version)
+        return { data: null, error: { message: "stale version", code: "40001" } };
+      const saved = { ...payload, write_version: Number(old?.write_version ?? 0) + 1 };
+      m.writes.push(payload);
+      m.rows = [...m.rows.filter((row) => row !== old), saved];
+      return { data: saved, error: null };
+    },
     from: () => {
       const filters: Record<string, unknown> = {};
       let mode = "select",

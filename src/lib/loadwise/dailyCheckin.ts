@@ -1,12 +1,7 @@
 import { applyReadiness } from "./planEngine";
-import type {
-  Profile,
-  Readiness,
-  SessionDay,
-  SessionModification,
-} from "./types";
+import type { Profile, Readiness, SessionDay, SessionModification } from "./types";
 import { classifySession } from "./sessionClassification";
-import { resolveModifiedDay } from "./effectivePlan";
+import { resolveExecutionDay, resolveModifiedDay } from "./effectivePlan";
 
 const LEGACY_RECOVERY_RE =
   /regener|recovery|marsz|spacer|trucht|easy run|bike|rower|oddech|oddychan|breathing|mobil|stretch|rozciągan/i;
@@ -32,10 +27,7 @@ function canonicalExternalSessionType(kind: "club" | "match"): string {
 function stripLegacyRecoveryBlocks(session: SessionDay): SessionDay {
   const filterItems = (items: typeof session.sections.main) =>
     items.filter(
-      (item) =>
-        !LEGACY_RECOVERY_RE.test(
-          `${item.name ?? ""} ${item.prescription ?? ""}`,
-        ),
+      (item) => !LEGACY_RECOVERY_RE.test(`${item.name ?? ""} ${item.prescription ?? ""}`),
     );
 
   const cleanedSections = {
@@ -72,9 +64,7 @@ export function normalizeLegacyExternalCommitmentDay(session: SessionDay): {
     title,
     sessionType,
     loadLabelOverride:
-      base.loadLabelOverride === "Ogranicz"
-        ? "Ogranicz obciążenie"
-        : base.loadLabelOverride,
+      base.loadLabelOverride === "Ogranicz" ? "Ogranicz obciążenie" : base.loadLabelOverride,
     // Trening klubowy i mecz są stałym pierwszym punktem dnia, ale nie mogą
     // kasować prawidłowo zaplanowanej, uzupełniającej sesji BallWise.
     // O jej redukcji lub usunięciu decyduje dopiero check-in i reguły bólu.
@@ -118,10 +108,7 @@ function stripReadinessMetadata(session: SessionDay): SessionDay {
   return next;
 }
 
-export function hasPersistedReadinessAdjustment(
-  session: SessionDay,
-  date: string,
-): boolean {
+export function hasPersistedReadinessAdjustment(session: SessionDay, date: string): boolean {
   return session.readinessAdjustedDate === date;
 }
 
@@ -143,9 +130,7 @@ export function applyCheckInToPlanDay(
   }
 
   const current = normalizedPlan[index];
-  const baseOriginal = stripReadinessMetadata(
-    current.readinessOriginalSession ?? current,
-  );
+  const baseOriginal = stripReadinessMetadata(current.readinessOriginalSession ?? current);
   const base = normalizeLegacyExternalCommitmentDay(baseOriginal).session;
   const adaptedBase = applyReadiness(base, readiness, profile).session;
   const adapted = normalizeLegacyExternalCommitmentDay(adaptedBase).session;
@@ -177,10 +162,7 @@ export function resolveAdjustedDay(
 ): SessionDay {
   const normalized = normalizeLegacyExternalCommitmentDay(day).session;
   if (!profile) return normalized;
-  if (
-    readiness &&
-    hasPersistedReadinessAdjustment(normalized, readiness.date)
-  ) {
+  if (readiness && hasPersistedReadinessAdjustment(normalized, readiness.date)) {
     return normalized;
   }
   const adjusted = applyReadiness(normalized, readiness, profile).session;
@@ -194,10 +176,10 @@ export function resolveEffectiveDay(
   profile: Profile | null,
   modifications: SessionModification[] = [],
 ): SessionDay {
-  return resolveModifiedDay(
-    resolveAdjustedDay(day, readiness, profile),
-    modifications,
-  );
+  return resolveExecutionDay(resolveModifiedDay(day, modifications), {
+    profile,
+    readiness: readiness ? { [readiness.date]: readiness } : {},
+  });
 }
 
 export function resolveTodayPlanRowSource(

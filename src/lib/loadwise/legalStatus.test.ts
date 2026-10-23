@@ -20,6 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         eq: () => chain,
         in: () => chain,
         order: () => chain,
+        range: () => chain,
         abortSignal: () => chain,
         then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
           mocks.execute().then(resolve, reject),
@@ -73,6 +74,7 @@ describe("startup consent read", () => {
     expect(
       consentNeeds(rows, { ...profile, healthPersonalizationEnabled: true }).healthRenewal,
     ).toBe(true);
+    expect(consentNeeds(rows, { ...profile, fuelPrecisionEnabled: true }).fuelRenewal).toBe(false);
   });
   it("does not cache an error and allows a retry", async () => {
     mocks.execute.mockResolvedValueOnce({ data: null, error: { message: "Offline" } });
@@ -93,5 +95,25 @@ describe("startup consent read", () => {
     resolve({ data: rows, error: null });
     await pending;
     expect(cachedConsentRows("a")).toBeNull();
+  });
+});
+
+describe("offline consent policy", () => {
+  it("allows previously verified current terms after restart/TTL while keeping revocations effective", async () => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    await loadConsentRows("offline");
+    clock.mockReturnValue(now + 24 * 60 * 60_000);
+    window.sessionStorage.clear();
+    mocks.execute.mockResolvedValue({ data: null, error: { message: "Failed to fetch" } });
+    await expect(loadConsentRows("offline", true)).resolves.toEqual(rows);
+    expect(cachedConsentRows("someone-else", true)).toBeNull();
+    clock.mockReturnValue(now + 8 * 24 * 60 * 60_000);
+    await expect(loadConsentRows("offline", true)).rejects.toThrow();
+  });
+  it("a forbidden request cannot fall back to an accepted stale cache", async () => {
+    await loadConsentRows("blocked");
+    mocks.execute.mockResolvedValue({ data: null, error: { status: 403, message: "Forbidden" } });
+    await expect(loadConsentRows("blocked", true)).rejects.toThrow();
   });
 });
