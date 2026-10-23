@@ -1,0 +1,179 @@
+import { BillingProvider } from "@/features/billing/BillingProvider";
+import { BillingGate } from "@/features/billing/BillingGate";
+import {
+  Outlet,
+  Link,
+  createRootRoute,
+  useRouter,
+  HeadContent,
+  Scripts,
+  type ErrorComponentProps,
+} from "@tanstack/react-router";
+import { useEffect, type ReactNode } from "react";
+
+import appCss from "../styles.css?url";
+import visualSystemCss from "../styles/ballwise-visual-system.css?url";
+import { reportLovableError } from "../lib/lovable-error-reporting";
+import { LoadwiseProvider } from "../lib/loadwise/store";
+import { AuthProvider } from "../lib/loadwise/auth";
+import { Toaster } from "../components/ui/sonner";
+import { LEGAL_RELEASE_BLOCKED } from "../lib/loadwise/legal";
+import { useDuplicateNavigationGuard } from "../lib/useDuplicateNavigationGuard";
+import { FuelReminderBridge } from "../components/fuel/FuelReminderBridge";
+
+function NotFoundComponent() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="text-7xl font-bold text-foreground">404</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Nie znaleziono strony</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ta strona nie istnieje albo została przeniesiona.
+        </p>
+        <div className="mt-6">
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 active:scale-[0.98]"
+          >
+            Wróć na start
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
+  console.error(error);
+  const router = useRouter();
+  useEffect(() => {
+    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+  }, [error]);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Nie udało się wczytać strony
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Coś poszło nie tak. Spróbuj ponownie albo wróć na stronę startową.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <button
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 active:scale-[0.98]"
+          >
+            Spróbuj ponownie
+          </button>
+          <Link
+            to="/"
+            onClick={reset}
+            className="inline-flex items-center justify-center rounded-xl border border-input bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-[transform,background-color] duration-200 active:scale-[0.98]"
+          >
+            Wróć na start
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
+      { title: "BallWise — mądrzejsze decyzje treningowe w piłce" },
+      {
+        name: "description",
+        content:
+          "BallWise podpowiada, co trenować dziś, dlaczego i jak mocno — na podstawie wieku, pozycji, celu i gotowości.",
+      },
+      { name: "author", content: "BallWise" },
+      { name: "theme-color", content: "#f6f8fb" },
+      { property: "og:title", content: "BallWise" },
+      {
+        property: "og:description",
+        content: "Decyzje treningowe w piłce nożnej, dopasowane do Ciebie.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+    links: [
+      {
+        rel: "stylesheet",
+        href: appCss,
+      },
+      {
+        rel: "stylesheet",
+        href: visualSystemCss,
+      },
+    ],
+  }),
+  shellComponent: RootShell,
+  component: RootComponent,
+  notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
+});
+
+function RootShell({ children }: { children: ReactNode }) {
+  return (
+    <html lang="pl">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
+function RootComponent() {
+  useDuplicateNavigationGuard();
+  const router = useRouter();
+  useEffect(() => {
+    const onAuthCallback = (event: Event) => {
+      const detail = (event as CustomEvent<{ recovery?: boolean; error?: string | null }>).detail;
+      if (detail?.recovery || detail?.error) void router.navigate({ to: "/auth" });
+    };
+    window.addEventListener("ballwise:auth-callback", onAuthCallback);
+    return () => window.removeEventListener("ballwise:auth-callback", onAuthCallback);
+  }, [router]);
+
+  if (LEGAL_RELEASE_BLOCKED) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md rounded-2xl border border-destructive/40 bg-card p-6 text-center">
+          <h1 className="text-xl font-semibold">Publikacja BallWise jest zablokowana</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Uzupełnij dane administratora, dane rejestrowe, kontakt, retencję, region danych i
+            warunki subskrypcji w konfiguracji środowiska produkcyjnego.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <AuthProvider>
+      <BillingProvider>
+        <LoadwiseProvider>
+          <FuelReminderBridge />
+          <BillingGate>
+            <Outlet />
+          </BillingGate>
+          <Toaster position="top-center" />
+        </LoadwiseProvider>
+      </BillingProvider>
+    </AuthProvider>
+  );
+}
