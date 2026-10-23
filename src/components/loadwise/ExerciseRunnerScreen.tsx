@@ -193,10 +193,10 @@ export function ExerciseRunnerScreen({
   const needsStartingLoad = metricKind === "load" && !hasSavedLoad;
   const sessionContext = useMemo(
     () =>
-      effectiveSessions(resolveEffectivePlan(state.plan, state.modifications)).find(
+      effectiveSessions(resolveEffectivePlan(state.plan, state.modifications, {profile:state.profile, readiness:state.readiness, completions:state.completions})).find(
         (item) => item.dbId === sessionId || item.sessionId === sessionId,
       ) ?? null,
-    [state.plan, state.modifications, sessionId],
+    [state.plan, state.modifications, state.profile, state.readiness, state.completions, sessionId],
   );
   const recommendation = useMemo(
     () =>

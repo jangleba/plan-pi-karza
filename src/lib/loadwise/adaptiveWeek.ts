@@ -1,6 +1,8 @@
 import { addIsoDays } from "@/lib/isoDate";
 import type { PlanChangeEvent, Profile, Readiness, SessionCompletion, SessionDay } from "./types";
 import { resolveMdPlusOne, type AutomationSessionCategory } from "./automationPolicy";
+import { normalizeSessionCategory } from "./sessionClassification";
+import { gymChangeBlockReason } from "./strengthScheduling";
 
 export function automationCategory(session: SessionDay): AutomationSessionCategory {
   const cls = session.classification;
@@ -73,27 +75,70 @@ export function adaptMdPlusOneFromMatchMinutes(
       detail: `${completion.durationMin ?? "brak"} min meczu → ${decision.title.toLowerCase()}.`,
     });
     if (decision.mode === "compensation") {
-      return {
+      return normalizeSessionCategory({
         ...day,
+        dayType: "training",
+        type: "endurance_running",
         title: decision.title,
+        sessionType: "Wytrzymałość — lekka kompensacja",
+        intensity: "niska",
         durationMin: decision.durationMin,
         reason: decision.reason,
         whyToday: decision.reason,
-      };
+        sections: {
+          warmup: [{ name: "Spokojne przygotowanie", prescription: "5 min marszu i mobilności" }],
+          main: [
+            {
+              name: "Lekki bieg tlenowy",
+              prescription: "15 min w tempie konwersacyjnym",
+              cue: "Bez sprintów i mocnych interwałów.",
+            },
+            { name: "Spokojna technika z piłką", prescription: "10 min bez presji czasu" },
+          ],
+          accessory: [],
+          footballTransfer: [],
+          cooldown: [{ name: "Marsz i oddech", prescription: "5 min" }],
+        },
+        structuredSections: undefined,
+        exercises: undefined,
+        classification: undefined,
+        secondSession: null,
+        slotLabel: null,
+      });
     }
     if (decision.mode === "mixed") {
-      return {
+      return normalizeSessionCategory({
         ...day,
         title: decision.title,
         intensity: "niska",
         durationMin: decision.durationMin,
         reason: decision.reason,
         whyToday: decision.reason,
-      };
+        dayType: "recovery",
+        type: "recovery",
+        sessionType: "Regeneracja — wariant mieszany",
+        sections: {
+          warmup: [],
+          main: [
+            { name: "Mobilność bez wymuszania zakresu", prescription: "8 min" },
+            { name: "Spokojna technika z piłką", prescription: "10 min" },
+            { name: "Marsz i oddech", prescription: "7 min" },
+          ],
+          accessory: [],
+          footballTransfer: [],
+          cooldown: [],
+        },
+        structuredSections: undefined,
+        exercises: undefined,
+        classification: undefined,
+        secondSession: null,
+        slotLabel: null,
+      });
     }
-    return {
+    return normalizeSessionCategory({
       ...day,
       dayType: "recovery",
+      type: "recovery",
       title: decision.title,
       sessionType: "Regeneracja",
       goalLabel: "Regeneracja",
@@ -108,7 +153,8 @@ export function adaptMdPlusOneFromMatchMinutes(
       exercises: undefined,
       secondSession: null,
       slotLabel: null,
-    };
+      classification: undefined,
+    });
   });
   return { plan: next, events };
 }
@@ -146,9 +192,13 @@ export function buildMinimumEffectiveWeek(
     ...day,
     secondSession: day.secondSession ? { ...day.secondSession } : null,
   }));
+  const weekEnd = (() => {
+    const date = new Date(`${todayIso}T12:00:00Z`);
+    return addIsoDays(todayIso, 7 - (date.getUTCDay() || 7));
+  })();
   const futureCategories = new Set(
     plan
-      .filter((day) => day.date >= todayIso)
+      .filter((day) => day.date >= todayIso && day.date <= weekEnd)
       .flatMap((day) => [day, day.secondSession].filter(Boolean) as SessionDay[])
       .map(automationCategory),
   );
@@ -174,8 +224,23 @@ export function buildMinimumEffectiveWeek(
     const targetIndex = plan.findIndex(
       (day) =>
         day.date > todayIso &&
+        day.date <= weekEnd &&
         !protectedDay(day) &&
         day.secondSession == null &&
+        (category !== "speed" ||
+          !plan.some(
+            (neighbor) =>
+              [addIsoDays(day.date, -1), addIsoDays(day.date, 1)].includes(neighbor.date) &&
+              [neighbor, neighbor.secondSession].some(
+                (slot) => slot && automationCategory(slot) === "speed",
+              ),
+          )) &&
+        (category !== "gym" ||
+          !gymChangeBlockReason(plan, day.date, {
+            ...source,
+            date: day.date,
+            secondSession: null,
+          })) &&
         (day.dayType === "rest" || day.intensity === "niska"),
     );
     if (targetIndex < 0 || profile.painInjury) {
@@ -199,6 +264,9 @@ export function buildMinimumEffectiveWeek(
       sessionId: undefined,
       mdLabel: target.mdLabel,
       mdRelation: target.mdRelation,
+      blockWeekNumber: target.blockWeekNumber,
+      blockPhaseLabel: target.blockPhaseLabel,
+      weekMeta: target.weekMeta,
       reason: `Minimalny skuteczny tydzień: przeniesiono tylko brakujący bodziec ${category}.`,
       whyToday: "To najbliższe wolne i niechronione miejsce w planie.",
       secondSession: null,

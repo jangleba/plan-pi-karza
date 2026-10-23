@@ -22,13 +22,14 @@ const LoadwiseContext = createContext<LoadwiseContextValue | null>(null);
 export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading, recoveryMode } = useAuth();
   const [state, setState] = useState<LoadwiseState>(initialState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const generatingRef = useRef(false);
   const [planGenerating, setPlanGenerating] = useState(false);
   const replacementInFlightRef = useRef(new Set<string>());
   const todayIso = useTodayIso();
   const [syncing, setSyncing] = useState(true);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
-  useOfflineTrainingSync(user);
   const hydrated = useHydration({
     user,
     authLoading,
@@ -39,8 +40,15 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     setSyncing,
     setHydrationError,
   });
-  const persistence = createPlanPersistence(user, todayIso);
-  const context = { user, state, setState, todayIso, ...persistence };
+  const persistence = createPlanPersistence(user, todayIso, state, () => stateRef.current);
+  const activeUser = useRef(user?.id);
+  activeUser.current = user?.id;
+  const ownerId = user?.id;
+  const guardedSetState: typeof setState = (update) => {
+    setState(current => activeUser.current === ownerId ? (typeof update === "function" ? update(current) : update) : current);
+  };
+  const context = { user, state, setState: guardedSetState, getState: () => stateRef.current, todayIso, ...persistence };
+  useOfflineTrainingSync(user, { setState: guardedSetState });
   usePersistedState(user, hydrated && !syncing, state);
   useMissedSessionSync({ ...context, hydrated: hydrated && !syncing && !hydrationError });
   const profileActions = createProfileActions({ ...context, generatingRef, setPlanGenerating });

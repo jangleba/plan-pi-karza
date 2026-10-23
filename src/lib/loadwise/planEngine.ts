@@ -36,6 +36,7 @@ import { effectiveSeasonPhase } from "./seasonValidation";
 import { normalizeSessionCategory, classifySession } from "./sessionClassification";
 import { repairUnsafeExercisesForAthleteProfile } from "./athleteProfileRepair";
 import { enforceStrengthEligibility } from "./strengthEligibility";
+import { reduceSessionDose } from "./doseAdjustment";
 import {
   generateFootballSpeedSession,
   persistedFootballSpeedFamily,
@@ -4843,6 +4844,18 @@ export function applyReadiness(
   }
 
   const r = readiness.overall;
+  if (readiness.redFlags?.length || readiness.altersMovement) {
+    const external = session.dayType === "club" || session.dayType === "match" || session.externalCommitment;
+    return { session:normalizeSessionCategory({...session,
+      dayType:external ? session.dayType : "recovery",
+      title:external ? session.title : "Sesja wstrzymana po check-inie",
+      durationMin:0,intensity:"niska",loadLabelOverride:"Wstrzymaj trening",
+      sections:{warmup:[],main:[],accessory:[],footballTransfer:[],cooldown:[]},
+      structuredSections:undefined,exercises:undefined,secondSession:null,slotLabel:null,
+      classification:undefined,safetyNote:"Wstrzymaj wysiłek i ustal dalsze postępowanie z lekarzem lub fizjoterapeutą.",
+    }), decision:{headline:"Wstrzymaj trening",detail:"Nie rozpoczynaj wysiłku przy zgłoszonych objawach.",
+      adjustment:"Plan nie zastępuje oceny medycznej."} };
+  }
   // Sygnały bardzo złego dnia (skala 1–10): zły sen, silne zmęczenie,
   // mocna bolesność lub istotny ból stawów — mogą zadziałać jak readiness 1–3.
   const localizedPain = readiness.jointPain >= 4 && Boolean(readiness.painLocation);
@@ -5075,8 +5088,7 @@ export function applyReadiness(
     }
   } else {
     adjusted = {
-      ...session,
-      durationMin: Math.round(session.durationMin * factor),
+      ...reduceSessionDose(session, factor),
       intensity: removeHard
         ? lowerIntensity(session.intensity, 2)
         : keepIntensity
@@ -5084,18 +5096,18 @@ export function applyReadiness(
           : factor < 1
             ? lowerIntensity(session.intensity, 1)
             : session.intensity,
-      structuredSections: removeHard ? undefined : session.structuredSections,
+      structuredSections: removeHard ? undefined : reduceSessionDose(session, factor).structuredSections,
       sections: {
-        ...session.sections,
+        ...reduceSessionDose(session, factor).sections,
         main: removeHard
           ? painOverride
-            ? session.sections.main.filter((m) => !PAIN_RISKY_RE.test(m.name))
-            : session.sections.main.map((m) =>
+            ? reduceSessionDose(session, factor).sections.main.filter((m) => !PAIN_RISKY_RE.test(m.name))
+            : reduceSessionDose(session, factor).sections.main.map((m) =>
                 PAIN_RISKY_RE.test(m.name)
                   ? safeReplacementForCategory(session.classification?.category)
                   : m,
               )
-          : session.sections.main,
+          : reduceSessionDose(session, factor).sections.main,
       },
     };
   }
@@ -5111,8 +5123,7 @@ export function applyReadiness(
     adjusted = {
       ...adjusted,
       secondSession: {
-        ...adjusted.secondSession,
-        durationMin: Math.max(20, Math.round(adjusted.secondSession.durationMin * 0.8)),
+        ...reduceSessionDose(adjusted.secondSession, 0.8),
         intensity: lowerIntensity(adjusted.secondSession.intensity, 1),
         reason: `${adjusted.secondSession.reason} Obciążenie drugiej sesji zmniejszono po check-inie.`,
         safetyNote: "Niższa gotowość: zmniejszono objętość drugiej sesji; przerwij przy nasileniu bólu.",

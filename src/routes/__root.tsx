@@ -1,3 +1,5 @@
+import { BillingProvider } from "@/features/billing/BillingProvider";
+import { BillingGate } from "@/features/billing/BillingGate";
 import {
   Outlet,
   Link,
@@ -86,7 +88,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       { title: "BallWise — mądrzejsze decyzje treningowe w piłce" },
       {
@@ -137,6 +139,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   useDuplicateNavigationGuard();
+  const router = useRouter();
+  useEffect(() => {
+    const onAuthCallback = (event: Event) => {
+      const detail = (event as CustomEvent<{ recovery?: boolean; error?: string | null }>).detail;
+      if (detail?.recovery || detail?.error) void router.navigate({ to: "/auth" });
+    };
+    window.addEventListener("ballwise:auth-callback", onAuthCallback);
+    return () => window.removeEventListener("ballwise:auth-callback", onAuthCallback);
+  }, [router]);
 
   if (LEGAL_RELEASE_BLOCKED) {
     return (
@@ -154,11 +165,15 @@ function RootComponent() {
 
   return (
     <AuthProvider>
-      <LoadwiseProvider>
-        <FuelReminderBridge />
-        <Outlet />
-        <Toaster position="top-center" />
-      </LoadwiseProvider>
+      <BillingProvider>
+        <LoadwiseProvider>
+          <FuelReminderBridge />
+          <BillingGate>
+            <Outlet />
+          </BillingGate>
+          <Toaster position="top-center" />
+        </LoadwiseProvider>
+      </BillingProvider>
     </AuthProvider>
   );
 }

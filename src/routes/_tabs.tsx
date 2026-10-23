@@ -1,3 +1,4 @@
+import { TrainingSyncStatus } from "@/components/loadwise/TrainingSyncStatus";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -51,6 +52,7 @@ function TabsLayout() {
         className="app-shell relative min-h-screen"
         style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
       >
+        <TrainingSyncStatus />
         <Outlet />
         <BottomNav />
       </div>

@@ -135,6 +135,7 @@ export function CompletionPanel({ session }: { session: SessionDay }) {
     setDurationMin(existing?.durationMin ?? session.durationMin ?? 90);
     setActivityType(existing?.activityType ?? "mixed");
   }, [
+    session.dbId,
     existingRpe,
     existingNotes,
     existing?.durationMin,

@@ -1,7 +1,7 @@
 // Centralne teksty prawne i wersjonowane zgody. Dane administratora są
 // konfiguracją wydania — nie wolno ich zgadywać ani ukrywać w kodzie.
 
-export const LEGAL_VERSION = "2.2";
+export const LEGAL_VERSION = "2.3";
 
 export const FUEL_PRECISION_CONSENT =
   "Wyrażam wyraźną zgodę na używanie wieku i opcjonalnej masy ciała wyłącznie do obliczania orientacyjnych zakresów paliwa przed treningiem. Fuel działa także bez tej zgody. Zgodę mogę wycofać w aplikacji, a masa ciała zostanie usunięta.";
@@ -83,7 +83,7 @@ export const CONSENTS: ConsentDef[] = [
     required: false,
     title: "Personalizacja na podstawie danych o zdrowiu (opcjonalna)",
     text:
-      "Wyrażam wyraźną zgodę na przetwarzanie danych o gotowości i zdrowiu: snu, energii, zmęczenia, bolesności, stresu, motywacji, bólu oraz — jeśli sam je podam — alergii i nietolerancji żywnościowych. Dane służą wyłącznie personalizacji treningu i bezpieczeństwu Fuel. Brak zgody nie blokuje aplikacji; plan pozostanie ostrożny, a Fuel poprosi o każdorazowe potwierdzenie składników.",
+      "Wyrażam wyraźną zgodę na przetwarzanie danych o gotowości i zdrowiu: snu, energii, zmęczenia, bolesności, stresu, motywacji, bólu oraz — jeśli sam je podam — alergii i nietolerancji żywnościowych. Dane służą wyłącznie personalizacji treningu i bezpieczeństwu Fuel. Po osobnym zaznaczeniu w panelu kopii mogę również wysłać na swoje konto własne notatki zawierające dane o zdrowiu. Brak zgody nie blokuje aplikacji; plan pozostanie ostrożny, a Fuel poprosi o każdorazowe potwierdzenie składników.",
   },
   {
     type: "marketing",
@@ -110,11 +110,13 @@ Przetwarzamy:
 - dane konta: identyfikator, e-mail, imię właściciela i jego rolę;
 - profil zawodnika: imię, data urodzenia, wiek wyliczony z daty urodzenia, pozycja, poziom, cel, kalendarz, sprzęt i dostępność;
 - trening i wynik: plan, wykonanie sesji, czas, RPE, serie, notatki, testy i postęp;
-- bieg: dystans, czas i średnie tempo; nie zapisujemy trasy GPS, współrzędnych ani splitów;
+- bieg: dystans, czas, średnie tempo oraz wyniki interwałów i progresji. Podczas biegu lokalizacja służy pomiarowi; nie zapisujemy pełnej trasy GPS. Stan niedokończonego biegu jest przechowywany na urządzeniu do wznowienia lub usunięcia;
 - po wyraźnej zgodzie zdrowotnej: sen, energia, zmęczenie, bolesność, stres, motywacja, ból oraz dobrowolnie podane alergie i nietolerancje żywnościowe;
-- po osobnej zgodzie Fuel Precision: wiek i opcjonalna masa ciała;
-- przy skanowaniu posiłku: zdjęcie wybrane przez użytkownika i kontekst najbliższej sesji przesyłane do jednorazowej analizy AI;
+- Fuel działa obecnie w trybie orientacyjnych porcji, bez ilościowego Fuel Precision. Dawniej podaną masę ciała można wyeksportować lub usunąć przez wycofanie odpowiedniej zgody; nie używamy jej do obliczeń w obecnej wersji;
+- Fuel: produkty i składniki wpisane przez użytkownika, lokalna historia i zapisane porcje. Wyszukiwanie nazwy lub kodu wysyła zapytanie do Open Food Facts. Zdjęcie kodu jest odczytywane lokalnie, jeśli urządzenie udostępnia tę funkcję. Analiza zdjęcia posiłku AI nie jest podłączona do obecnego ekranu Fuel;
 - przy dyktowaniu: dźwięk może zostać przetworzony przez usługę rozpoznawania mowy systemu lub przeglądarki. BallWise nie zapisuje nagrania;
+- lokalne historie Lab, Football IQ i Reakcji oraz szkice sesji. Opcjonalna kopia na innym urządzeniu wymaga osobnego, świadomego wysłania metadanych; pliki wideo i pełna trasa GPS nie są wysyłane w tej kopii;
+- minimalny stan subskrypcji: identyfikator konta, produkt, sklep, status, termin dostępu i czas weryfikacji;
 - dane techniczne niezbędne do bezpieczeństwa i diagnostyki, jeżeli takie raportowanie jest aktywne w wydaniu produkcyjnym.
 
 Nie sprzedajemy danych. Nie używamy danych treningowych, zdrowotnych, zdjęć ani głosu do reklam, śledzenia między aplikacjami lub profilowania marketingowego.
@@ -127,7 +129,7 @@ Nie sprzedajemy danych. Nie używamy danych treningowych, zdrowotnych, zdjęć a
 - marketing elektroniczny: osobna zgoda.
 
 5. Zgody zdrowotne
-Brak zgody zdrowotnej nie blokuje konta ani podstawowego planu. Po jej wycofaniu usuwamy zapisane check-iny, wpisy bólu, trwały profil alergii i nietolerancji oraz zdrowotne pola w kopii odpowiedzi onboardingowych. Fuel może nadal działać po każdorazowym potwierdzeniu bezpieczeństwa składników. Wycofanie Fuel Precision usuwa masę ciała. Dowód udzielenia lub wycofania zgody przechowujemy oddzielnie przez okres wskazany niżej.
+Brak zgody zdrowotnej nie blokuje konta ani podstawowego planu. Po jej wycofaniu usuwamy zapisane check-iny, wpisy bólu, trwały profil alergii i nietolerancji oraz zdrowotne pola w kopii odpowiedzi onboardingowych. Fuel może nadal działać po każdorazowym potwierdzeniu bezpieczeństwa składników. Wycofanie Fuel Precision usuwa masę ciała. Wycofanie zgody zdrowotnej usuwa również opcjonalne kopie modułów w chmurze, do których dołączono własne teksty; nie przywracamy z nich później notatek zdrowotnych. Dowód udzielenia lub wycofania zgody przechowujemy oddzielnie przez okres wskazany niżej.
 
 6. Automatyczne rekomendacje
 BallWise analizuje profil, kalendarz, obciążenie i — tylko po zgodzie — gotowość, aby zaproponować plan i decyzję dnia. Rekomendacja nie wywołuje skutków prawnych ani podobnie istotnych skutków. Użytkownik może jej nie wykonać, zmienić dane lub usunąć konto. BallWise nie diagnozuje urazów ani chorób.
@@ -136,6 +138,8 @@ BallWise analizuje profil, kalendarz, obciążenie i — tylko po zgodzie — go
 - Supabase: uwierzytelnianie, baza i funkcje serwerowe; skonfigurowany region: ${supabaseRegion};
 - OpenAI: jednorazowa analiza zdjęcia posiłku po osobnym działaniu użytkownika; żądanie ma parametr store:false. OpenAI nie używa danych API do treningu domyślnie, ale standardowe logi bezpieczeństwa mogą być przechowywane do 30 dni, chyba że administrator uzyskał krótszy tryb retencji;
 - Apple: rozliczenie subskrypcji kupionej w App Store;
+- RevenueCat: obsługa zakupów i weryfikacji stanu subskrypcji, z identyfikatorem konta BallWise; nie wysyłamy mu notatek treningowych ani danych zdrowotnych;
+- Open Food Facts: wyszukiwanie publicznych informacji o produktach po nazwie lub kodzie;
 - dostawca hostingu i opcjonalny dostawca diagnostyki błędów, wyłącznie w zakresie niezbędnym do działania usługi;
 - dostawca rozpoznawania mowy urządzenia lub przeglądarki, gdy użytkownik uruchomi dyktowanie.
 
@@ -144,7 +148,9 @@ Aktualna lista podmiotów, ich lokalizacje, podstawa transferu poza EOG oraz zas
 8. Retencja
 - konto, profil i historia treningowa: ${accountRetention};
 - dowody zgód i ich wycofania: ${consentRetention};
-- zdjęcie posiłku i wynik skanu: BallWise nie zapisuje ich w profilu; obowiązuje retencja bezpieczeństwa dostawcy opisana w pkt 7;
+- obecny Fuel nie przesyła zdjęcia posiłku do AI. Zachowana funkcja serwerowa wymaga osobnego uruchomienia i wtedy obowiązuje retencja dostawcy opisana w pkt 7;
+- lokalne historie i szkice: do usunięcia w module, usunięcia konta lub danych aplikacji. Wylogowanie zachowuje niewysłane treningi i historie przypisane do konta. Przed odinstalowaniem zalecany jest eksport;
+- dobrowolne kopie metadanych w chmurze: do nadpisania kopii danego urządzenia lub usunięcia konta, z zastrzeżeniem retencji backupu;
 - surowe nagranie głosu: BallWise go nie zapisuje;
 - kopie zapasowe: ${backupRetention};
 - dane wymagane przepisami, np. księgowe: przez okres wynikający z prawa.
@@ -183,7 +189,7 @@ Użytkownik podaje prawdziwe informacje, zapewnia bezpieczne miejsce i sprzęt, 
 Właściciel konta odpowiada za prawidłowy e-mail i poufność hasła. Nie wolno udostępniać konta. Przekazanie konta zawodnikowi po ukończeniu 16 lat wymaga funkcji przekazania i potwierdzenia nowego e-maila.
 
 6. Subskrypcja i okres próbny
-Aktualna oferta: ${subscriptionPrice}. Okres próbny: ${trialDescription}. W aplikacji iOS zakup cyfrowej subskrypcji odbywa się przez Apple In-App Purchase. Subskrypcja odnawia się automatycznie, dopóki nie zostanie anulowana w ustawieniach Apple ID. Przed zakupem użytkownik widzi cenę, okres rozliczeniowy, zakres usługi i warunki próby. Należy udostępnić funkcje „Przywróć zakupy” i „Zarządzaj subskrypcją”.
+Oferta miesięczna i cena: ${subscriptionPrice}. Nowy uprawniony subskrybent otrzymuje 7 dni bez opłaty; kwalifikację ustala Apple. Dodatkowe warunki próby: ${trialDescription}. W przypadku rozbieżności cenę i termin pierwszej opłaty potwierdza ekran sklepu przed zakupem. W aplikacji iOS zakup cyfrowej subskrypcji odbywa się przez Apple In-App Purchase. Subskrypcja odnawia się automatycznie, dopóki nie zostanie anulowana w ustawieniach Apple ID. Przed zakupem użytkownik widzi cenę, okres rozliczeniowy, zakres usługi i warunki próby. Dostępne są funkcje „Przywróć zakupy” i „Zarządzaj subskrypcją”. Po wygaśnięciu pozostaje dostęp do własnej historii, eksportu, ustawień konta i usunięcia danych. Wcześniej zweryfikowany dostęp może działać offline do 24 godzin, nie dłużej niż do końca opłaconego okresu.
 
 7. Prawo konsumenckie i reklamacje
 Prawa konsumenta, zasady odstąpienia dotyczące usługi lub treści cyfrowej, zgodność usługi cyfrowej z umową oraz sposób składania reklamacji wynikają z bezwzględnie obowiązujących przepisów. Reklamacje można składać na ${contact}. Odpowiedź zostanie udzielona w terminie wymaganym prawem. Zasady zwrotów za zakup przez App Store podlegają również procedurom Apple.

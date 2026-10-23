@@ -1,5 +1,10 @@
+import { trainingProfileRevision } from "../planIdentity";
 import { supabase } from "@/integrations/supabase/client";
-import { encodeStrengthExperience, normalizeStrengthExperience, type StrengthExperience } from "../strengthExperience";
+import {
+  encodeStrengthExperience,
+  normalizeStrengthExperience,
+  type StrengthExperience,
+} from "../strengthExperience";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
 import type { Dispatch, RefObject, SetStateAction } from "react";
@@ -11,13 +16,17 @@ import {
 } from "../consent";
 import { CONSENTS } from "../legal";
 import type { Profile, SessionDay } from "../types";
-import { loadLocal, localKey } from "./localState";
+import { prepareMonthlyPlan } from "../persist";
 import {
   ONBOARDING_SCHEMA_VERSION,
   type LoadwiseContextValue,
   type StoreActionContext,
 } from "./model";
-import { clearFutureOverlaysForUser, shouldReusePersistedPlan } from "./repository";
+import {
+  clearFutureOverlaysForUser,
+  profileWritePayloads,
+  shouldReusePersistedPlan,
+} from "./repository";
 
 export function createProfileActions(
   context: StoreActionContext & {
@@ -26,18 +35,14 @@ export function createProfileActions(
   },
 ): Pick<
   LoadwiseContextValue,
-  "completeOnboarding" | "updateProfile" | "saveStrengthExperience" | "saveFuelPrecision" | "refreshPlanIfNeeded"
+  | "completeOnboarding"
+  | "updateProfile"
+  | "saveStrengthExperience"
+  | "saveFuelPrecision"
+  | "refreshPlanIfNeeded"
 > {
-  const {
-    user,
-    state,
-    setState,
-    todayIso,
-    saveProfileRows,
-    savePlanToDb,
-    generatingRef,
-    setPlanGenerating,
-  } = context;
+  const { user, state, setState, todayIso, savePlanToDb, generatingRef, setPlanGenerating } =
+    context;
 
   function completedProfile(profile: Profile, revision: string | null): Profile {
     return {
@@ -50,7 +55,7 @@ export function createProfileActions(
     };
   }
 
-  function commitProfilePlan(nextProfile: Profile, plan: SessionDay[]) {
+  function commitProfilePlan(nextProfile: Profile, plan: SessionDay[], clearTransitions = true) {
     setState((s) => ({
       ...s,
       profile: nextProfile,
@@ -60,12 +65,13 @@ export function createProfileActions(
       modifications: Object.fromEntries(
         Object.entries(s.modifications).filter(([date]) => date < todayIso),
       ),
-      transitions: {},
+      transitions: clearTransitions ? {} : s.transitions,
     }));
   }
 
   async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
     if (!user) return;
+    let expectedRevision = (context.getState?.() ?? state).profile?.serverProfileUpdatedAt ?? null;
     // Consent is persisted before enabling optional health processing. The DB
     // trigger then refuses health mode unless the latest audit row is accepted.
     if (consents) {
@@ -82,53 +88,63 @@ export function createProfileActions(
           accepted: Boolean(consents[consent.type]),
         })),
       );
-      await recordConsentDecisions(decisions);
+      expectedRevision =
+        (await recordConsentDecisions(decisions, expectedRevision)) ?? expectedRevision;
     }
-    const revision = await saveProfileRows(profile, false);
-    const nextProfile = completedProfile(profile, revision);
-    const plan = await savePlanToDb(nextProfile, revision);
-    const onboardingAnswersWrite = await supabase.from("onboarding_answers").insert({
-      user_id: user.id,
-      // Dane profilu mają własne kolumny w profiles/athlete_profiles. Ten wpis
-      // jest tylko śladem ukończenia wersji formularza, bez kopii zdrowia,
-      // masy, bólu, preferencji żywieniowych i całego planu.
-      answers_json: {
-        schema_version: ONBOARDING_SCHEMA_VERSION,
-        completed: true,
-        account_owner_type: nextProfile.accountOwnerType ?? "athlete",
-      } as unknown as Json,
-      completed_at: new Date().toISOString(),
-    });
-    assertNoSupabaseError("onboarding_answers.insert", onboardingAnswersWrite.error);
-    if (!nextProfile.healthPersonalizationEnabled) {
-      const [readinessDelete, painDelete] = await Promise.all([
-        supabase.from("readiness_logs").delete().eq("user_id", user.id),
-        supabase.from("pain_logs").delete().eq("user_id", user.id),
-      ]);
-      assertNoSupabaseError("readiness_logs.consent_cleanup", readinessDelete.error);
-      assertNoSupabaseError("pain_logs.consent_cleanup", painDelete.error);
-      try {
-        const local = loadLocal(user.id);
-        window.localStorage.setItem(localKey(user.id), JSON.stringify({ ...local, readiness: {} }));
-      } catch {
-        window.localStorage.removeItem(localKey(user.id));
-      }
-    }
-    await clearFutureOverlaysForUser(user.id, todayIso);
-    const profileCompleteWrite = await supabase
-      .from("profiles")
-      .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
-    assertNoSupabaseError("profiles.mark_onboarding_complete", profileCompleteWrite.error);
-    commitProfilePlan(nextProfile, plan);
+    await updateProfile(
+      { ...state.profile, ...profile, createdAt: state.profile?.createdAt ?? profile.createdAt },
+      expectedRevision,
+    );
   }
 
-  async function updateProfile(profile: Profile) {
+  async function updateProfile(profile: Profile, expectedRevision?: string | null) {
     if (!user) return;
-    const revision = await saveProfileRows(profile, true);
-    const nextProfile = completedProfile(profile, revision);
-    const plan = await savePlanToDb(nextProfile, revision);
-    await clearFutureOverlaysForUser(user.id, todayIso);
-    commitProfilePlan(nextProfile, plan);
+    const before = context.getState?.() ?? state;
+    let nextProfile = completedProfile(profile, null);
+    const revision = trainingProfileRevision(nextProfile);
+    nextProfile = { ...nextProfile, onboardingRevision: revision };
+    const trainingChanged =
+      !before.profile ||
+      !before.profile.onboardingComplete ||
+      trainingProfileRevision(before.profile) !== revision;
+    const calendar = (p: Profile) =>
+      JSON.stringify([
+        p.clubTrainingDays,
+        p.individualTrainingDays,
+        p.unavailableDays,
+        p.usualMatchDay,
+        p.matchDate,
+        p.matchDates,
+      ]);
+    const clearTransitions = !before.profile || calendar(before.profile) !== calendar(nextProfile);
+    const plan = trainingChanged
+      ? await savePlanToDb(nextProfile, revision, [], {}, !clearTransitions, false)
+      : before.plan;
+    const prepared = trainingChanged ? prepareMonthlyPlan(user.id, nextProfile, plan) : null;
+    const { profileRow, athleteRow } = profileWritePayloads(user.id, nextProfile, true);
+    const saved = await supabase.rpc("save_profile_and_plan", {
+      p_profile: profileRow as unknown as Json,
+      p_athlete: athleteRow as unknown as Json,
+      p_plan: prepared ? (prepared.args as unknown as Json) : null,
+      p_expected_profile_updated_at:
+        (expectedRevision !== undefined
+          ? expectedRevision
+          : before.profile?.serverProfileUpdatedAt) ?? undefined,
+      p_clear_transitions: trainingChanged && clearTransitions,
+      p_from_date: todayIso,
+    });
+    assertNoSupabaseError("save_profile_and_plan", saved.error);
+    const response = saved.data as Record<string, unknown> | null;
+    const athlete = response?.athlete as Record<string, unknown> | undefined;
+    nextProfile = {
+      ...nextProfile,
+      serverProfileUpdatedAt:
+        (athlete?.updated_at as string | undefined) ?? nextProfile.serverProfileUpdatedAt,
+    };
+    if (trainingChanged) commitProfilePlan(nextProfile, prepared!.plan, clearTransitions);
+    else setState((current) => ({ ...current, profile: nextProfile }));
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event("ballwise:server-state-changed"));
   }
 
   async function saveFuelPrecision(enabled: boolean, weightKg: number | null) {
@@ -137,7 +153,28 @@ export function createProfileActions(
       throw new Error("Podaj masę od 25 do 250 kg.");
     }
 
-    await recordConsentDecision({ type: "fuel_precision", accepted: enabled });
+    const expectedRevision =
+      (context.getState?.() ?? state).profile?.serverProfileUpdatedAt ?? null;
+    const consentRevision = await recordConsentDecision(
+      { type: "fuel_precision", accepted: enabled },
+      expectedRevision,
+    );
+    if (!enabled) {
+      setState((current) => ({
+        ...current,
+        profile: current.profile
+          ? {
+              ...current.profile,
+              fuelPrecisionEnabled: false,
+              weightKg: null,
+              serverProfileUpdatedAt: consentRevision ?? current.profile.serverProfileUpdatedAt,
+            }
+          : null,
+      }));
+      if (typeof window !== "undefined")
+        window.dispatchEvent(new Event("ballwise:server-state-changed"));
+      return;
+    }
 
     const profileWrite = await supabase
       .from("athlete_profiles")
@@ -145,8 +182,12 @@ export function createProfileActions(
         fuel_precision_enabled: enabled,
         weight_optional: enabled ? weightKg : null,
       })
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("user_id,updated_at")
+      .maybeSingle();
     assertNoSupabaseError("athlete_profiles.fuel_precision", profileWrite.error);
+    if (!profileWrite.data) throw new Error("Nie zapisano ustawienia Fuel. Odśwież konto.");
+    const profileUpdatedAt = profileWrite.data.updated_at;
 
     setState((current) => ({
       ...current,
@@ -155,6 +196,7 @@ export function createProfileActions(
             ...current.profile,
             fuelPrecisionEnabled: enabled,
             weightKg: enabled ? weightKg : null,
+            serverProfileUpdatedAt: profileUpdatedAt,
           }
         : null,
     }));
@@ -163,16 +205,32 @@ export function createProfileActions(
   async function saveStrengthExperience(value: StrengthExperience) {
     if (!user || !state.profile) throw new Error("Zaloguj się ponownie.");
     const clean = normalizeStrengthExperience(value);
-    const result = await supabase.from("athlete_profiles")
-      .update({ training_experience: encodeStrengthExperience(clean) }).eq("user_id", user.id)
-      .select("user_id").maybeSingle();
+    const result = await supabase
+      .from("athlete_profiles")
+      .update({ training_experience: encodeStrengthExperience(clean) })
+      .eq("user_id", user.id)
+      .select("user_id,updated_at")
+      .maybeSingle();
     assertNoSupabaseError("athlete_profiles.strength_experience", result.error);
     if (!result.data) throw new Error("Nie zapisano doświadczenia. Spróbuj ponownie.");
+    const profileUpdatedAt = result.data.updated_at;
     // No history, set log, calendar or current workout progress is reset here.
-    setState(current => ({ ...current, profile: current.profile
-      ? { ...current.profile, gymExperienceLevel: clean.gymExperienceLevel,
-        strengthTrainingMonths: clean.strengthTrainingMonths, movementCompetence: clean.movementCompetence,
-        supervisionLevel: clean.supervisionLevel } : null }));
+    setState((current) => ({
+      ...current,
+      profile: current.profile
+        ? {
+            ...current.profile,
+            gymExperienceLevel: clean.gymExperienceLevel,
+            strengthTrainingMonths: clean.strengthTrainingMonths,
+            movementCompetence: clean.movementCompetence,
+            supervisionLevel: clean.supervisionLevel,
+            serverProfileUpdatedAt: profileUpdatedAt,
+            onboardingRevision: trainingProfileRevision({ ...current.profile, ...clean }),
+          }
+        : null,
+    }));
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event("ballwise:server-state-changed"));
   }
 
   function refreshPlanIfNeeded() {
@@ -187,7 +245,7 @@ export function createProfileActions(
         if (await shouldReusePersistedPlan(state.plan, profile)) return;
         setPlanGenerating(true);
         const plan = await savePlanToDb(profile, profile.onboardingRevision ?? null);
-        await clearFutureOverlaysForUser(user.id, todayIso);
+        await clearFutureOverlaysForUser(user.id, todayIso, false);
         setState((s) => ({
           ...s,
           plan,
@@ -195,7 +253,7 @@ export function createProfileActions(
           modifications: Object.fromEntries(
             Object.entries(s.modifications).filter(([date]) => date < todayIso),
           ),
-          transitions: {},
+          transitions: s.transitions,
         }));
       } catch (error) {
         console.error("[loadwise] plan refresh failed", error);
@@ -205,5 +263,11 @@ export function createProfileActions(
       }
     })();
   }
-  return { completeOnboarding, updateProfile, saveStrengthExperience, saveFuelPrecision, refreshPlanIfNeeded };
+  return {
+    completeOnboarding,
+    updateProfile,
+    saveStrengthExperience,
+    saveFuelPrecision,
+    refreshPlanIfNeeded,
+  };
 }

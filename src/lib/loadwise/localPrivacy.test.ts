@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Profile } from "./types";
 import {
   clearLocalUserData,
+  clearLocalSessionData,
   profileWithoutFuelPrecision,
   profileWithoutHealthData,
 } from "./localPrivacy";
@@ -52,10 +53,7 @@ describe("local privacy", () => {
     storage.setItem("ballwise:fuel-protocol:legacy-session", "legacy");
     storage.setItem("loadwise:sprint-progress:legacy-session", "legacy");
     storage.setItem("loadwise:v3:u2", "keep");
-    storage.setItem(
-      "ballwise:fuel-protocol:123e4567-e89b-42d3-a456-426614174000:session",
-      "keep",
-    );
+    storage.setItem("ballwise:fuel-protocol:123e4567-e89b-42d3-a456-426614174000:session", "keep");
 
     clearLocalUserData("u1", storage);
 
@@ -76,6 +74,19 @@ describe("local privacy", () => {
     ).toBe("keep");
   });
 
+  it("retains unsent writes and local-only history at logout, then wipes them for deletion", () => {
+    const storage = new MemoryStorage();
+    storage.setItem("loadwise:boot:v2:u1", "cache");
+    storage.setItem("loadwise:training-queue:v1:u1", "unsent");
+    storage.setItem("ballwise.browser-lab.v1:u1", "measurements");
+    clearLocalSessionData("u1", storage);
+    expect(storage.getItem("loadwise:boot:v2:u1")).toBeNull();
+    expect(storage.getItem("loadwise:training-queue:v1:u1")).toBe("unsent");
+    expect(storage.getItem("ballwise.browser-lab.v1:u1")).toBe("measurements");
+    clearLocalUserData("u1", storage);
+    expect(storage.length).toBe(0);
+  });
+
   it("removes health fields and body mass without changing unrelated profile data", () => {
     const noHealth = profileWithoutHealthData(profile);
     const noFuelPrecision = profileWithoutFuelPrecision(profile);
@@ -91,5 +102,15 @@ describe("local privacy", () => {
     expect(noFuelPrecision.fuelPrecisionEnabled).toBe(false);
     expect(noFuelPrecision.weightKg).toBeNull();
     expect(noFuelPrecision.healthPersonalizationEnabled).toBe(true);
+  });
+  it("clears only the deleted account's offline identity and active pointer", () => {
+    const storage = new MemoryStorage();
+    storage.setItem("ballwise:offline-owner:v1:u1", "owner-one");
+    storage.setItem("ballwise:offline-owner:active", "u2");
+    clearLocalUserData("u1", storage);
+    expect(storage.getItem("ballwise:offline-owner:v1:u1")).toBeNull();
+    expect(storage.getItem("ballwise:offline-owner:active")).toBe("u2");
+    clearLocalUserData("u2", storage);
+    expect(storage.getItem("ballwise:offline-owner:active")).toBeNull();
   });
 });

@@ -64,9 +64,20 @@ export function loadBootState(userId: string): LoadwiseState | null {
       envelope.version !== BOOT_CACHE_VERSION ||
       envelope.engineVersion !== PLAN_ENGINE_VERSION ||
       typeof envelope.savedAt !== "number" ||
+      !Number.isFinite(envelope.savedAt) ||
+      envelope.savedAt > Date.now() ||
       Date.now() - envelope.savedAt > MAX_AGE_MS ||
       !envelope.state ||
       !Array.isArray(envelope.state.plan) ||
+      !Array.isArray(envelope.state.history) ||
+      ![
+        envelope.state.completions,
+        envelope.state.readiness,
+        envelope.state.runningActivities,
+        envelope.state.modifications,
+        envelope.state.transitions,
+        envelope.state.exerciseReplacements,
+      ].every((value) => !!value && typeof value === "object" && !Array.isArray(value)) ||
       !envelope.state.profile?.onboardingComplete
     ) {
       window.localStorage.removeItem(cacheKey(userId));

@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { CalendarDays, Check, ChevronRight, Move, ScanLine } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
 import {
   buildLighterSession,
   buildUnavailableSession,
@@ -31,6 +30,7 @@ import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
+import { TodaySessionCard } from "@/components/loadwise/TodaySessionCard";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -472,12 +472,15 @@ function StartScreen() {
   const session = todaySession;
   const userId = user.id;
   const activeProfile = profile;
-  const adjusted = resolveEffectiveDay(
-    session,
-    undefined,
+  const effectivePlan = resolveEffectivePlan(state.plan, state.modifications, {
     profile,
-    state.modifications[todayIso] ?? [],
-  );
+    readiness: state.readiness,
+    completions: state.completions,
+  });
+  const adjusted = effectivePlan.find((day) => day.date === todayIso) ?? session;
+  const commandDay =
+    resolveEffectivePlan(state.plan, state.modifications).find((day) => day.date === todayIso) ??
+    session;
   const decisionMode = resolveTrainingDecisionMode({
     isToday: true,
     hasTodayCheckin: Boolean(checkin),
@@ -578,24 +581,24 @@ function StartScreen() {
     setSavingAction(true);
     try {
       if (action === "lighter") {
-        const lighter = buildLighterSession(adjusted);
+        const lighter = buildLighterSession(commandDay);
         await applyModification(
           todayIso,
           "swap",
           lighter,
-          adjusted,
+          commandDay,
           "[daily-checkin:lighter] Zawodnik wybrał lżejszy wariant.",
         );
       } else if (action === "unavailable" && !hasPlannedSecond) {
-        const unavailable = buildUnavailableSession(adjusted);
+        const unavailable = buildUnavailableSession(commandDay);
         await applyModification(
           todayIso,
           "swap",
           unavailable,
-          adjusted,
+          commandDay,
           "[daily-checkin:unavailable] Dzisiejsza sesja jest niedostępna.",
         );
-        await handleRemovedStimulus(adjusted);
+        await handleRemovedStimulus(commandDay);
       }
       continueAfterPrimary(action);
       toast.success(
@@ -623,7 +626,7 @@ function StartScreen() {
       return;
     }
 
-    const secondSession = adjusted.secondSession;
+    const secondSession = commandDay.secondSession;
     if (!secondSession && action !== "remove") return;
 
     setSavingAction(true);
@@ -631,9 +634,9 @@ function StartScreen() {
       if (pendingPrimaryAction === "unavailable") {
         const replacement =
           action === "remove"
-            ? buildUnavailableSession(adjusted)
+            ? buildUnavailableSession(commandDay)
             : promoteSecondSession(
-                adjusted,
+                commandDay,
                 action === "lighter" && secondSession
                   ? buildLighterSession(secondSession)
                   : secondSession,
@@ -642,18 +645,18 @@ function StartScreen() {
           todayIso,
           "swap",
           replacement,
-          adjusted,
+          commandDay,
           action === "remove"
             ? "[daily-checkin:both-unavailable] Obie sesje zostały usunięte."
             : `[daily-checkin:promote-second-${action}] Pozostaje tylko druga sesja.`,
         );
-        await handleRemovedStimulus(adjusted);
+        await handleRemovedStimulus(commandDay);
       } else if (action === "remove") {
         await applyModification(
           todayIso,
           "swap",
-          withoutSecondSession(adjusted),
-          adjusted,
+          withoutSecondSession(commandDay),
+          commandDay,
           "[daily-checkin:remove-second] Druga sesja została usunięta.",
         );
         if (secondSession) await handleRemovedStimulus(secondSession);
@@ -661,19 +664,15 @@ function StartScreen() {
         await applyModification(
           todayIso,
           "swap",
-          withoutSecondSession(adjusted),
-          adjusted,
-          "[daily-checkin:replace-second] Aktualizacja drugiej sesji.",
-        );
-        await applyModification(
-          todayIso,
-          "add",
           {
-            ...buildLighterSession(secondSession),
-            slotLabel: "Sesja 2",
-            secondSession: null,
+            ...commandDay,
+            secondSession: {
+              ...buildLighterSession(secondSession),
+              slotLabel: "Sesja 2",
+              secondSession: null,
+            },
           },
-          null,
+          commandDay,
           "[daily-checkin:second-lighter] Druga sesja w lżejszej wersji.",
         );
       }
@@ -693,11 +692,11 @@ function StartScreen() {
     if (modifyTarget === "second") {
       const selectedSecond: SessionDay = {
         ...proposal.session,
-        date: adjusted.date,
-        dayName: adjusted.dayName,
-        dayOfWeek: adjusted.dayOfWeek,
-        mdRelation: adjusted.mdRelation,
-        mdLabel: adjusted.mdLabel,
+        date: commandDay.date,
+        dayName: commandDay.dayName,
+        dayOfWeek: commandDay.dayOfWeek,
+        mdRelation: commandDay.mdRelation,
+        mdLabel: commandDay.mdLabel,
         slotLabel: pendingPrimaryAction === "unavailable" ? null : "Sesja 2",
         secondSession: null,
       };
@@ -706,23 +705,20 @@ function StartScreen() {
         await applyModification(
           todayIso,
           "swap",
-          promoteSecondSession(adjusted, selectedSecond),
-          adjusted,
+          promoteSecondSession(commandDay, selectedSecond),
+          commandDay,
           "[daily-checkin:promote-second-swap] Pozostaje zamieniona druga sesja.",
         );
       } else {
         await applyModification(
           todayIso,
           "swap",
-          withoutSecondSession(adjusted),
-          adjusted,
-          "[daily-checkin:replace-second] Aktualizacja drugiej sesji.",
-        );
-        await applyModification(
-          todayIso,
-          "add",
-          selectedSecond,
-          null,
+          {
+            ...commandDay,
+            secondSession: selectedSecond,
+            slotLabel: "Sesja 1",
+          },
+          commandDay,
           `[daily-checkin:second-swap] ${proposal.reason}`,
         );
       }
@@ -742,20 +738,20 @@ function StartScreen() {
 
     const replacement: SessionDay = {
       ...proposal.session,
-      date: adjusted.date,
-      dayName: adjusted.dayName,
-      dayOfWeek: adjusted.dayOfWeek,
-      dayDbId: adjusted.dayDbId,
-      mdRelation: adjusted.mdRelation,
-      mdLabel: adjusted.mdLabel,
-      slotLabel: adjusted.secondSession ? "Sesja 1" : null,
-      secondSession: adjusted.secondSession,
+      date: commandDay.date,
+      dayName: commandDay.dayName,
+      dayOfWeek: commandDay.dayOfWeek,
+      dayDbId: commandDay.dayDbId,
+      mdRelation: commandDay.mdRelation,
+      mdLabel: commandDay.mdLabel,
+      slotLabel: commandDay.secondSession ? "Sesja 1" : null,
+      secondSession: commandDay.secondSession,
     };
     await applyModification(
       todayIso,
       "swap",
       replacement,
-      adjusted,
+      commandDay,
       `[daily-checkin:swap] ${proposal.reason}`,
     );
   }
@@ -783,6 +779,14 @@ function StartScreen() {
         </header>
 
         <div className="mt-8 space-y-4">
+          <TodaySessionCard
+            plan={effectivePlan}
+            completions={state.completions}
+            todayIso={todayIso}
+            onOpen={(date, slot) =>
+              void navigate({ to: "/sesja/$date", params: { date }, search: { slot } })
+            }
+          />
           <section className="soft-card px-5 py-5" aria-labelledby="start-checkin-title">
             <div className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">
               CHECK-IN
