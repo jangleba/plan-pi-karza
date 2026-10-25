@@ -35,7 +35,15 @@ export function storeBrowserResults(
   if (new Set(validated.map((r) => r.id)).size !== validated.length)
     throw new Error("Powtórzone identyfikatory prób.");
   try {
-    store.setItem(keyFor(owner), JSON.stringify(validated));
+    const value = JSON.stringify(validated);
+    store.setItem(keyFor(owner), value);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ballwise:module-data-changed", {
+          detail: { userId: owner, module: "lab", value },
+        }),
+      );
+    }
   } catch {
     throw new Error(
       "Safari nie zapisało historii. Pobierz wynik przed zamknięciem. Sprawdź wolne miejsce i użyj zwykłego okna przeglądarki.",

@@ -5,7 +5,7 @@ import { AppHeader, Disclaimer } from "@/components/loadwise/ui";
 import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 import { ProgressHistory } from "@/components/progress/ProgressHistory";
 import { buildTrainingHistory, mergeTrainingHistory } from "@/lib/progress/progress";
-import { buildMicrocycle, buildDirection } from "@/lib/progress/center";
+import { buildMicrocycle, buildDirection, nextActionableSession } from "@/lib/progress/center";
 import {
   buildCycleBar,
   buildLoadReport,
@@ -46,8 +46,13 @@ function ProgressScreen() {
   const { state, todayIso } = useLoadwise();
   const [tab, setTab] = useState<TabId>("dashboard");
   const effectivePlan = useMemo(
-    () => resolveEffectivePlan(state.plan, state.modifications),
-    [state.plan, state.modifications],
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        profile: state.profile,
+        readiness: state.readiness,
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, state.profile, state.readiness, state.completions],
   );
 
   const history = useMemo(
@@ -60,11 +65,8 @@ function ProgressScreen() {
     [effectivePlan, history, todayIso],
   );
   const nextSession = useMemo(
-    () =>
-      effectivePlan
-        .filter((day) => day.date >= todayIso && day.dayType !== "rest" && !day.isUnavailable)
-        .sort((a, b) => (a.date < b.date ? -1 : 1))[0] ?? null,
-    [effectivePlan, todayIso],
+    () => nextActionableSession(effectivePlan, state.completions, todayIso),
+    [effectivePlan, state.completions, todayIso],
   );
   const direction = useMemo(
     () => buildDirection(state.profile, micro, nextSession),

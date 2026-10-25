@@ -54,12 +54,21 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
         typeof VideoDecoder !== "undefined" &&
         typeof EncodedVideoChunk !== "undefined",
     );
-    try {
-      setRows(loadBrowserResults(ownerId));
-      setError("");
-    } catch (reason) {
-      setError(messageOf(reason));
-    }
+    const reload = () => {
+      try {
+        setRows(loadBrowserResults(ownerId));
+        setError("");
+      } catch (reason) {
+        setError(messageOf(reason));
+      }
+    };
+    const applied = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; module?: string }>).detail;
+      if (detail?.userId === ownerId && detail.module === "lab") reload();
+    };
+    reload();
+    window.addEventListener("ballwise:module-data-applied", applied);
+    return () => window.removeEventListener("ballwise:module-data-applied", applied);
   }, [ownerId]);
   function begin(ids: readonly BrowserTestId[]) {
     if (!capable) return;
@@ -125,6 +134,7 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
           </div>
           {!session.saved && session.restUntil > 0 && <RestReminder until={session.restUntil} />}
           <VideoAnalyzer
+            ownerId={ownerId}
             key={`${session.id}:${session.index}`}
             attempt={session.attempts[session.index]}
             sessionId={session.id}
@@ -257,10 +267,10 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                   </li>
                 </ol>
                 <p className="bl-muted">
-                  LiDAR nie jest potrzebny. Skok w dal używa dwóch wydrukowanych wzorców na
-                  podłożu; wysokość pozostałych skoków obliczamy z czasu lotu, a odcinki biegowe
-                  trzeba zmierzyć taśmą. Przy 30/60 FPS wyniki czasowe są orientacyjne — sprawdź
-                  podany zakres rozdzielczości. Zmiana tempa filmu uniemożliwia poprawny pomiar.
+                  LiDAR nie jest potrzebny. Skok w dal używa dwóch wydrukowanych wzorców na podłożu;
+                  wysokość pozostałych skoków obliczamy z czasu lotu, a odcinki biegowe trzeba
+                  zmierzyć taśmą. Przy 30/60 FPS wyniki czasowe są orientacyjne — sprawdź podany
+                  zakres rozdzielczości. Zmiana tempa filmu uniemożliwia poprawny pomiar.
                 </p>
               </details>
             </>

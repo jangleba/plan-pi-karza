@@ -344,6 +344,14 @@ function isProductEntry(value: unknown): boolean {
       ))
   );
 }
+export class CorruptFuelDataError extends Error {
+  constructor() {
+    super(
+      "Nie udało się odczytać zapisu Fuel. Zachowano oryginał. Pobierz kopię przed odzyskiwaniem danych.",
+    );
+    this.name = "CorruptFuelDataError";
+  }
+}
 export function readFuelData(
   storage: Pick<Storage, "getItem">,
   userId: string,
@@ -351,8 +359,19 @@ export function readFuelData(
 ): FuelDeviceData {
   const empty = emptyFuelData();
   try {
-    const raw: unknown = JSON.parse(storage.getItem(fuelStorageKey(userId)) ?? "null");
-    if (!isRecord(raw) || raw.version !== 3) return empty;
+    const original = storage.getItem(fuelStorageKey(userId));
+    if (original === null) return empty;
+    const raw: unknown = JSON.parse(original);
+    if (
+      !isRecord(raw) ||
+      raw.version !== 3 ||
+      !isRecord(raw.preferences) ||
+      !isRecord(raw.timings) ||
+      !Array.isArray(raw.entries) ||
+      raw.entries.length > 100 ||
+      !raw.entries.every(isEntry)
+    )
+      throw new CorruptFuelDataError();
     const p = isRecord(raw.preferences) ? raw.preferences : {};
     const strings = (value: unknown) =>
       Array.isArray(value)
@@ -388,7 +407,7 @@ export function readFuelData(
         : [],
     };
   } catch {
-    return empty;
+    throw new CorruptFuelDataError();
   }
 }
 export function writeFuelData(
@@ -414,7 +433,16 @@ export function writeFuelData(
         )
         .slice(0, 100),
     };
-    storage.setItem(fuelStorageKey(userId), JSON.stringify(retained));
+    const key = fuelStorageKey(userId);
+    const value = JSON.stringify(retained);
+    const previous = (storage as Partial<Storage>).getItem?.(key);
+    storage.setItem(key, value);
+    if (previous !== value && typeof window !== "undefined")
+      window.dispatchEvent(
+        new CustomEvent("ballwise:module-data-changed", {
+          detail: { userId, module: "fuel", key, value },
+        }),
+      );
     return true;
   } catch {
     return false;
@@ -431,4 +459,23 @@ export function markFuelEntryEaten(entry: FuelEntry, fraction: number, now: numb
     fraction: Math.min(1, Math.max(0.1, fraction)),
     eatenAt: now,
   };
+}
+
+/** A backup includes preferences and exact edited portions, not just recipe IDs. */
+export function createFuelBackup(data: FuelDeviceData) {
+  return { schema: "ballwise.fuel.backup.v1", exportedAt: new Date().toISOString(), data };
+}
+export function readFuelBackup(input: unknown, userId: string, now = Date.now()): FuelDeviceData {
+  // Accept the former entries-only export as an import into otherwise empty preferences.
+  const value = Array.isArray(input)
+    ? { ...emptyFuelData(), entries: input }
+    : isRecord(input) && input.schema === "ballwise.fuel.backup.v1"
+      ? input.data
+      : null;
+  const data =
+    value ??
+    (isRecord(input) && Array.isArray(input.entries)
+      ? { ...emptyFuelData(), entries: input.entries }
+      : null);
+  return readFuelData({ getItem: () => JSON.stringify(data) }, userId, now);
 }

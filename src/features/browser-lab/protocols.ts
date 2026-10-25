@@ -111,7 +111,7 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
   {
     id: "standing_long_jump",
     title: "Skok w dal",
-    subtitle: "Automatyczny pomiar z kontrolą jakości",
+    subtitle: "Szacowanie odległości z filmu",
     category: "jump",
     sides: [null],
     trials: 2,

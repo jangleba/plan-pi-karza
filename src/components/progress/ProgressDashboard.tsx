@@ -130,7 +130,7 @@ export function ProgressDashboard({
           <Link
             to="/sesja/$date"
             params={{ date: direction.cta.date }}
-            search={{ slot: 1 }}
+            search={{ slot: direction.cta.slot ?? 1 }}
             className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform duration-200 active:scale-[0.98]"
           >
             <Target className="h-4 w-4" aria-hidden="true" /> {direction.cta.label}

@@ -1,6 +1,6 @@
-import { decodeJumpFrame, type OpenedVideo } from "./video";
+import { createJumpFrameDecoder, type OpenedVideo } from "./video";
 import { paintVideoFrame } from "./videoFrame";
-import { detectPose, type DetectedPose } from "./pose";
+import { createPoseDetector, type DetectedPose } from "./poseWorkerClient";
 import {
   automaticLongJumpSchema,
   findBallWiseCalibrationMarkers,
@@ -88,8 +88,9 @@ const nextPaint = async (
   canvas: HTMLCanvasElement,
   signal: AbortSignal,
   maxDimension: number,
+  decoder: ReturnType<typeof createJumpFrameDecoder>,
 ) => {
-  const frame = await decodeJumpFrame(video, frameIndex, signal);
+  const frame = await decoder.decode(frameIndex, signal);
   try {
     return paintVideoFrame(canvas, frame, video.rotation, maxDimension);
   } finally {
@@ -113,78 +114,87 @@ export async function analyzeLongJump(
   ];
   const canvas = document.createElement("canvas");
   const poses: PoseFrame[] = [];
-  for (let index = 0; index < indices.length; index++) {
-    signal.throwIfAborted();
-    const frameIndex = indices[index];
-    await nextPaint(video, frameIndex, canvas, signal, 640);
-    const pose = await detectPose(canvas);
-    if (pose) poses.push({ ...pose, frameIndex });
-    onProgress(Math.round(((index + 1) / indices.length) * 72));
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const detector = createPoseDetector(signal);
+  const decoder = createJumpFrameDecoder(video, indices);
+  try {
+    for (let index = 0; index < indices.length; index++) {
+      signal.throwIfAborted();
+      const frameIndex = indices[index];
+      await nextPaint(video, frameIndex, canvas, signal, 640, decoder);
+      const pose = await detector.detect(canvas);
+      if (pose) poses.push({ ...pose, frameIndex });
+      onProgress(Math.round(((index + 1) / indices.length) * 72));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+    const selected = selectLongJumpWindow(poses);
+    await nextPaint(video, selected.start.frameIndex, canvas, signal, 1280, decoder);
+    const startMarkers = findBallWiseCalibrationMarkers(
+      canvas
+        .getContext("2d", { willReadFrequently: true })!
+        .getImageData(0, 0, canvas.width, canvas.height),
+    );
+    if (!startMarkers)
+      throw new Error(
+        "Nie widzę obu wzorców: niebieskiego START i pomarańczowego 3 METRY. Pokaż je w całości.",
+      );
+    onProgress(84);
+    await nextPaint(video, selected.end.frameIndex, canvas, signal, 1280, decoder);
+    const landingMarkers = findBallWiseCalibrationMarkers(
+      canvas
+        .getContext("2d", { willReadFrequently: true })!
+        .getImageData(0, 0, canvas.width, canvas.height),
+    );
+    if (!landingMarkers)
+      throw new Error(
+        "Jeden ze wzorców zniknął podczas lądowania. Ustaw szerszy kadr i nagraj ponownie.",
+      );
+    const line = takeoffEdge(startMarkers.start.corners, selected.start.toes);
+    const common = {
+      method: "ballwise-marker-pose-v2" as const,
+      referenceCorners: startMarkers.start.corners,
+      rangeCorners: startMarkers.range.corners,
+      landingReferenceCorners: landingMarkers.start.corners,
+      landingRangeCorners: landingMarkers.range.corners,
+      referenceWidthCm: 20,
+      referenceDepthCm: 24,
+      baselineCm: 300,
+      imageWidth: canvas.width,
+      imageHeight: canvas.height,
+      calibrationFrameIndex: selected.start.frameIndex,
+      lineFrameIndex: selected.start.frameIndex,
+      heelFrameIndex: selected.end.frameIndex,
+      takeoffLine: line,
+      poseConfidence: selected.confidence,
+      markerQuality: Math.min(
+        startMarkers.start.quality,
+        startMarkers.range.quality,
+        landingMarkers.start.quality,
+        landingMarkers.range.quality,
+      ),
+      heelSource: "pose",
+    };
+    const candidates = selected.end.heels
+      .map((heel) => automaticLongJumpSchema.parse({ ...common, heel }))
+      .map((calibration) => {
+        try {
+          return { calibration, measurement: longJumpMeasurement(calibration) };
+        } catch {
+          return null;
+        }
+      })
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+      .sort((left, right) => left.measurement.primaryValue - right.measurement.primaryValue);
+    const result = candidates[0]?.calibration;
+    if (!result)
+      throw new Error(
+        "Automatyczny punkt pięty nie daje wiarygodnego wyniku. Popraw kadr i nagraj próbę ponownie.",
+      );
+    onProgress(100);
+    return result;
+  } finally {
+    detector.dispose();
+    decoder.dispose();
+    canvas.width = 0;
+    canvas.height = 0;
   }
-  const selected = selectLongJumpWindow(poses);
-  await nextPaint(video, selected.start.frameIndex, canvas, signal, 1280);
-  const startMarkers = findBallWiseCalibrationMarkers(
-    canvas
-      .getContext("2d", { willReadFrequently: true })!
-      .getImageData(0, 0, canvas.width, canvas.height),
-  );
-  if (!startMarkers)
-    throw new Error(
-      "Nie widzę obu wzorców: niebieskiego START i pomarańczowego 3 METRY. Pokaż je w całości.",
-    );
-  onProgress(84);
-  await nextPaint(video, selected.end.frameIndex, canvas, signal, 1280);
-  const landingMarkers = findBallWiseCalibrationMarkers(
-    canvas
-      .getContext("2d", { willReadFrequently: true })!
-      .getImageData(0, 0, canvas.width, canvas.height),
-  );
-  if (!landingMarkers)
-    throw new Error(
-      "Jeden ze wzorców zniknął podczas lądowania. Ustaw szerszy kadr i nagraj ponownie.",
-    );
-  const line = takeoffEdge(startMarkers.start.corners, selected.start.toes);
-  const common = {
-    method: "ballwise-marker-pose-v2" as const,
-    referenceCorners: startMarkers.start.corners,
-    rangeCorners: startMarkers.range.corners,
-    landingReferenceCorners: landingMarkers.start.corners,
-    landingRangeCorners: landingMarkers.range.corners,
-    referenceWidthCm: 20,
-    referenceDepthCm: 24,
-    baselineCm: 300,
-    imageWidth: canvas.width,
-    imageHeight: canvas.height,
-    calibrationFrameIndex: selected.start.frameIndex,
-    lineFrameIndex: selected.start.frameIndex,
-    heelFrameIndex: selected.end.frameIndex,
-    takeoffLine: line,
-    poseConfidence: selected.confidence,
-    markerQuality: Math.min(
-      startMarkers.start.quality,
-      startMarkers.range.quality,
-      landingMarkers.start.quality,
-      landingMarkers.range.quality,
-    ),
-    heelSource: "pose",
-  };
-  const candidates = selected.end.heels
-    .map((heel) => automaticLongJumpSchema.parse({ ...common, heel }))
-    .map((calibration) => {
-      try {
-        return { calibration, measurement: longJumpMeasurement(calibration) };
-      } catch {
-        return null;
-      }
-    })
-    .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
-    .sort((left, right) => left.measurement.primaryValue - right.measurement.primaryValue);
-  const result = candidates[0]?.calibration;
-  if (!result)
-    throw new Error(
-      "Automatyczny punkt pięty nie daje wiarygodnego wyniku. Popraw kadr i nagraj próbę ponownie.",
-    );
-  onProgress(100);
-  return result;
 }

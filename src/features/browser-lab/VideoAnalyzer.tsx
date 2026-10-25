@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ChevronLeft, ChevronRight, FileVideo, RotateCcw, ZoomIn } from "lucide-react";
 import { createBrowserResult, resultValue, timedMeasurement, type BrowserResult } from "./results";
 import { protocolFor, sideLabel, type BrowserAttempt } from "./protocols";
-import { decodeJumpFrame, openJumpVideo, type OpenedVideo } from "./video";
+import { createJumpFrameDecoder, openJumpVideo, type OpenedVideo } from "./video";
 import { createHistoryBackup } from "./storage";
 import { downloadText, downloadBlob } from "./download";
 import { LabButton, LabNotice, messageOf } from "./LabUI";
@@ -13,10 +13,12 @@ import { analyzeLongJump } from "./longJumpAuto";
 import { paintVideoFrame } from "./videoFrame";
 
 export function VideoAnalyzer({
+  ownerId,
   attempt,
   sessionId,
   onSave,
 }: {
+  ownerId?: string;
   attempt: BrowserAttempt;
   sessionId: string;
   onSave: (result: BrowserResult) => void;
@@ -57,6 +59,19 @@ export function VideoAnalyzer({
   const canvas = useRef<HTMLCanvasElement>(null);
   const load = useRef<AbortController | null>(null);
   const version = useRef(0);
+  const decoderRef = useRef<ReturnType<typeof createJumpFrameDecoder> | null>(null);
+
+  const stopImport = useCallback(
+    (message: string) => {
+      load.current?.abort();
+      setReading(false);
+      if (video && isLongJump && autoStatus === "analyzing") {
+        setAutoStatus("error");
+        setAutoError(message);
+      } else setError(message);
+    },
+    [video, isLongJump, autoStatus],
+  );
 
   useEffect(
     () => () => {
@@ -66,7 +81,27 @@ export function VideoAnalyzer({
     [],
   );
   useEffect(() => {
+    if (!reading) return;
+    const pause = () => {
+      if (document.hidden)
+        stopImport(
+          "Analiza przerwana po schowaniu aplikacji. Wybierz film ponownie, aby kontynuować.",
+        );
+    };
+    document.addEventListener("visibilitychange", pause);
+    return () => document.removeEventListener("visibilitychange", pause);
+  }, [reading, stopImport]);
+  useEffect(() => {
     if (!video || saved) return;
+    const decoder = createJumpFrameDecoder(video);
+    decoderRef.current = decoder;
+    return () => {
+      decoder.dispose();
+      if (decoderRef.current === decoder) decoderRef.current = null;
+    };
+  }, [video, saved]);
+  useEffect(() => {
+    if (!video || saved || !decoderRef.current) return;
     const controller = new AbortController();
     let active = true;
     setPainted(null);
@@ -75,7 +110,8 @@ export function VideoAnalyzer({
       else if (controller.signal.aborted) setRefresh((value) => value + 1);
     };
     document.addEventListener("visibilitychange", visibility);
-    void decodeJumpFrame(video, frameIndex, controller.signal)
+    void decoderRef.current
+      .decode(frameIndex, controller.signal)
       .then((frame) => {
         try {
           if (!active || controller.signal.aborted || !canvas.current) return;
@@ -288,12 +324,32 @@ export function VideoAnalyzer({
     input.value = "";
     if (file) void importVideo(file);
   }
-  function downloadDraft() {
+  async function downloadDraft() {
     if (!draft) return;
-    downloadText(
-      `BallWise-proba-${draft.id.slice(0, 8)}.json`,
-      JSON.stringify(createHistoryBackup([draft]), null, 2),
-    );
+    const snapshot = version.current;
+    try {
+      const result = await downloadText(
+        `BallWise-proba-${draft.id.slice(0, 8)}.json`,
+        JSON.stringify(createHistoryBackup([draft]), null, 2),
+        "application/json",
+        ownerId,
+      );
+      if (version.current === snapshot && result === "cancelled")
+        setError("Anulowano przekazanie kopii. Wynik pozostaje na ekranie.");
+    } catch (error) {
+      if (version.current === snapshot) setError(messageOf(error));
+    }
+  }
+  async function downloadOriginal() {
+    if (!lastFile) return;
+    const snapshot = version.current;
+    try {
+      const result = await downloadBlob(lastFile.name, lastFile, ownerId);
+      if (version.current === snapshot && result === "cancelled")
+        setError("Anulowano przekazanie filmu. Oryginał pozostaje dostępny.");
+    } catch (error) {
+      if (version.current === snapshot) setError(messageOf(error));
+    }
   }
   return (
     <div className="bl-analyzer bl-compact">
@@ -415,10 +471,7 @@ export function VideoAnalyzer({
       )}
       {error && <LabNotice error>{error}</LabNotice>}
       {error && !video && lastFile && !reading && !cameraOpen && (
-        <LabButton
-          className="bl-secondary bl-wide"
-          onClick={() => downloadBlob(lastFile.name, lastFile)}
-        >
+        <LabButton className="bl-secondary bl-wide" onClick={() => void downloadOriginal()}>
           Zachowaj nagranie
         </LabButton>
       )}
@@ -431,6 +484,12 @@ export function VideoAnalyzer({
             <span style={{ width: `${autoProgress}%` }} />
           </div>
           <p className="bl-muted">Sylwetka · wzorzec · ruch kamery · bliższa pięta</p>
+          <LabButton
+            className="bl-secondary"
+            onClick={() => stopImport("Analiza anulowana. Możesz ponownie wybrać film.")}
+          >
+            Anuluj analizę
+          </LabButton>
         </section>
       )}
       {video && isLongJump && autoStatus === "error" && (
@@ -475,8 +534,8 @@ export function VideoAnalyzer({
           </p>
           {isLongJump && (
             <p className="bl-muted">
-              Sprawdź punkt pięty. Pierwszą próbę porównaj z taśmą — podany zakres nie obejmuje
-              błędu automatycznego rozpoznania.
+              Sprawdź punkt pięty i porównaj odległość z taśmą. Warunki nagrania wpływają na wynik;
+              podany zakres nie obejmuje błędu automatycznego rozpoznania.
             </p>
           )}
           {measure.averageSpeedMps !== undefined && (
@@ -533,10 +592,7 @@ export function VideoAnalyzer({
           <details className="bl-details">
             <summary>Szczegóły pomiaru</summary>
             {lastFile && (
-              <LabButton
-                className="bl-secondary"
-                onClick={() => downloadBlob(lastFile.name, lastFile)}
-              >
+              <LabButton className="bl-secondary" onClick={() => void downloadOriginal()}>
                 Pobierz film
               </LabButton>
             )}

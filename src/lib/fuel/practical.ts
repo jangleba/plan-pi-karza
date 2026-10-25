@@ -1,4 +1,11 @@
-import { FOOD_BY_ID, RECIPES, mealNutrition, suggestRecipes, type FuelRecipe } from "./catalog";
+import {
+  FOOD_BY_ID,
+  RECIPES,
+  mealNutrition,
+  suggestRecipes,
+  foodAllowed,
+  type FuelRecipe,
+} from "./catalog";
 import {
   localDate,
   minutesToFuelStart,
@@ -63,6 +70,7 @@ export function practicalRecipes(input: {
   pantry?: string[];
   quick?: boolean;
   store?: boolean;
+  restrictions?: string[];
 }): FuelRecipe[] {
   const p = input.data.preferences;
   const preferences = {
@@ -76,7 +84,7 @@ export function practicalRecipes(input: {
     timing: input.timing,
     now: input.now,
     preferences,
-    restrictions: [],
+    restrictions: input.restrictions ?? [],
     pantry: input.pantry,
   });
   const minutes = minutesToFuelStart(input.timing, input.now);
@@ -114,6 +122,7 @@ export function completeMeal(
   lines: MealLine[],
   preferences: FuelPreferences,
   phase: FuelTiming["phase"],
+  restrictions: string[] = [],
 ): { foodId: string; reason: string } | null {
   const hasCarb = lines.some((l) => ["carb", "fruit"].includes(FOOD_BY_ID[l.foodId]?.role));
   const hasProtein = lines.some((l) => FOOD_BY_ID[l.foodId]?.role === "protein");
@@ -125,8 +134,7 @@ export function completeMeal(
   const foodId = options.find(
     (id) =>
       !preferences.excludedFoodIds.includes(id) &&
-      (preferences.diet !== "vegan" || FOOD_BY_ID[id].vegan) &&
-      (preferences.diet !== "vegetarian" || FOOD_BY_ID[id].vegetarian),
+      foodAllowed(FOOD_BY_ID[id], restrictions, preferences.diet),
   );
   return foodId
     ? {
@@ -164,11 +172,29 @@ export function createRecipeEntry(
   };
 }
 
-export function packList(recipe: FuelRecipe): Array<{ label: string; portion: string }> {
+export function packList(
+  recipe: Pick<FuelRecipe, "lines">,
+): Array<{ label: string; portion: string }> {
   return recipe.lines.map((line) => ({
-    label: FOOD_BY_ID[line.foodId].label,
+    label: FOOD_BY_ID[line.foodId]?.label ?? line.foodId,
     portion: householdPortion(line),
   }));
 }
 
 export const ALL_RECIPE_IDS = new Set(RECIPES.map((r) => r.id));
+
+export function fuelEntryAllowed(
+  entry: Pick<FuelEntry, "lines">,
+  preferences: FuelPreferences,
+  restrictions: string[],
+) {
+  return (
+    entry.lines.length > 0 &&
+    entry.lines.every(
+      (line) =>
+        Boolean(FOOD_BY_ID[line.foodId]) &&
+        !preferences.excludedFoodIds.includes(line.foodId) &&
+        foodAllowed(FOOD_BY_ID[line.foodId], restrictions, preferences.diet),
+    )
+  );
+}

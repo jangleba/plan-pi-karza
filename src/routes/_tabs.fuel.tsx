@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { FuelWorkspace } from "@/components/fuel/FuelWorkspace";
-import { planFuelContexts } from "@/lib/fuel/experience";
+import { planFuelContexts, foodRestrictionTerms } from "@/lib/fuel/experience";
 import { useAuth } from "@/lib/loadwise/auth";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -25,8 +25,8 @@ function FuelScreen() {
   const { user } = useAuth();
   const { state, todayIso } = useLoadwise();
   const effectivePlan = useMemo(
-    () => resolveEffectivePlan(state.plan, state.modifications),
-    [state.plan, state.modifications],
+    () => resolveEffectivePlan(state.plan, state.modifications, {profile:state.profile,readiness:state.readiness,completions:state.completions}),
+    [state.plan, state.modifications, state.profile, state.readiness, state.completions],
   );
   const contexts = useMemo(
     () => planFuelContexts(effectivePlan, todayIso, state.completions),
@@ -44,6 +44,7 @@ function FuelScreen() {
       userId={user?.id ?? "guest"}
       contexts={contexts}
       tomorrowMatch={tomorrowMatch}
+      profileRestrictions={foodRestrictionTerms(state.profile)}
     />
   );
 }

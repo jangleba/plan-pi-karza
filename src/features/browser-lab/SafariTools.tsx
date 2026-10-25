@@ -32,6 +32,10 @@ export function SafariTools({
   const [error, setError] = useState("");
   const controller = useRef<AbortController | null>(null);
   const mounted = useRef(true);
+  const currentRepair = useRef(repair);
+  currentRepair.current = repair;
+  const activeOwner = useRef(ownerId);
+  activeOwner.current = ownerId;
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -61,6 +65,7 @@ export function SafariTools({
     }
   }
   async function restore(file: File) {
+    const owner = ownerId;
     setRepair(null);
     setRawDownloaded(false);
     setNotice("");
@@ -69,7 +74,7 @@ export function SafariTools({
       if (file.size > 2 * 1024 * 1024)
         throw new Error("Kopia jest za duża. Wybierz JSON BallWise Lab do 2 MB.");
       const input: unknown = JSON.parse(await file.text());
-      if (!mounted.current) return;
+      if (!mounted.current || activeOwner.current !== owner) return;
       backupResults(input);
       let restored;
       try {
@@ -89,12 +94,15 @@ export function SafariTools({
       if (mounted.current) setError(messageOf(reason));
     }
   }
-  function safely(action: () => void) {
+  async function safely(action: () => unknown | Promise<unknown>) {
+    const owner = ownerId;
     setError("");
     try {
-      action();
+      const result = await action();
+      if (mounted.current && activeOwner.current === owner && result === "cancelled")
+        setNotice("Anulowano przekazanie pliku. Dane pozostają bez zmian.");
     } catch (reason) {
-      setError(messageOf(reason));
+      if (mounted.current && activeOwner.current === owner) setError(messageOf(reason));
     }
   }
   return (
@@ -152,7 +160,14 @@ export function SafariTools({
           <LabButton
             className="bl-link"
             onClick={() =>
-              downloadText("BallWise-kontrola-Safari.json", JSON.stringify(check, null, 2))
+              safely(() =>
+                downloadText(
+                  "BallWise-kontrola-Safari.json",
+                  JSON.stringify(check, null, 2),
+                  "application/json",
+                  ownerId,
+                ),
+              )
             }
           >
             Pobierz raport przeglądarki
@@ -173,6 +188,8 @@ export function SafariTools({
                 downloadText(
                   "BallWise-Lab-kopia.json",
                   JSON.stringify(createHistoryBackup(rows), null, 2),
+                  "application/json",
+                  ownerId,
                 ),
               )
             }
@@ -185,7 +202,12 @@ export function SafariTools({
             disabled={!rows.length}
             onClick={() =>
               safely(() =>
-                downloadText("BallWise-Lab-wyniki.csv", historyCSV(rows), "text/csv;charset=utf-8"),
+                downloadText(
+                  "BallWise-Lab-wyniki.csv",
+                  historyCSV(rows),
+                  "text/csv;charset=utf-8",
+                  ownerId,
+                ),
               )
             }
           >
@@ -217,6 +239,7 @@ export function SafariTools({
                 "BallWise-Lab-surowa-historia.txt",
                 rawBrowserHistory(ownerId),
                 "text/plain",
+                ownerId,
               ),
             )
           }
@@ -230,9 +253,17 @@ export function SafariTools({
           <LabButton
             className="bl-secondary bl-wide"
             onClick={() =>
-              safely(() => {
-                downloadText("BallWise-Lab-surowa-historia.txt", repair.raw, "text/plain");
-                setRawDownloaded(true);
+              safely(async () => {
+                setRawDownloaded(false);
+                const result = await downloadText(
+                  "BallWise-Lab-surowa-historia.txt",
+                  repair.raw,
+                  "text/plain",
+                  ownerId,
+                );
+                if (mounted.current && currentRepair.current === repair && result === "delivered")
+                  setRawDownloaded(true);
+                return result;
               })
             }
           >

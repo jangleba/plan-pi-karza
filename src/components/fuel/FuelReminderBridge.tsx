@@ -33,8 +33,13 @@ export function FuelReminderBridge() {
   const [now, setNow] = useState(() => Date.now());
   const userId = user?.id;
   const plan = useMemo(
-    () => resolveEffectivePlan(state.plan, state.modifications),
-    [state.plan, state.modifications],
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        profile: state.profile,
+        readiness: state.readiness,
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, state.profile, state.readiness, state.completions],
   );
   useEffect(() => {
     const refresh = () => {
@@ -78,7 +83,13 @@ export function FuelReminderBridge() {
       void cancelFuelNotifications().catch(() => undefined);
       return;
     }
-    const data = readFuelData(storage, userId, now);
+    let data;
+    try {
+      data = readFuelData(storage, userId, now);
+    } catch {
+      void cancelFuelNotifications().catch(() => undefined);
+      return;
+    }
     const prefs = readReminderPreferences(storage, userId);
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);

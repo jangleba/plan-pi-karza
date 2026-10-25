@@ -35,7 +35,16 @@ import {
   restoreJourney,
   saveJourneyAttempt,
   saveJourneyDraft,
+  makeJourneyDraft,
+  createJourneyBackup,
+  rawJourneyData,
+  restoreJourneyBackup,
+  clearJourneyDataAfterBackup,
+  journeyHistoryKey,
+  journeyDraftKey,
+  type JourneyDraft,
 } from "./journeyHistory";
+import { downloadText } from "../browser-lab/download";
 import { loadIQHistory } from "./history";
 import type {
   IQRole,
@@ -139,6 +148,19 @@ export function FootballIQJourney({
     [playhead, setPlayhead] = useState(0),
     [speed, setSpeed] = useState(1);
   const [reduced, setReduced] = useState(false);
+  const [loadedOwner, setLoadedOwner] = useState<string | undefined | null>(null);
+  const [pendingAttempt, setPendingAttempt] = useState<JourneyAttempt | null>(null);
+  const [incomingDraft, setIncomingDraft] = useState<JourneyDraft | null>(null);
+  const [draftChanged, setDraftChanged] = useState(false);
+  const [saveRevision, setSaveRevision] = useState(0);
+  const [backupNote, setBackupNote] = useState("");
+  const [rawDownloaded, setRawDownloaded] = useState<ReturnType<typeof rawJourneyData> | null>(
+    null,
+  );
+  const [clearConfirmed, setClearConfirmed] = useState(false);
+  const draftBlocked = useRef(false);
+  const activeOwner = useRef(historyOwner);
+  activeOwner.current = historyOwner;
   const playheadRef = useRef(0),
     choiceLock = useRef(false),
     attemptId = useRef(""),
@@ -257,6 +279,22 @@ export function FootballIQJourney({
 
   useEffect(() => {
     attemptId.current = crypto.randomUUID();
+    saved.current = "";
+    notified.current = "";
+    draftBlocked.current = false;
+    setPendingAttempt(null);
+    setIncomingDraft(null);
+    setDraftChanged(false);
+    setSession(createJourney(initial));
+    setMode("learn");
+    setTransport(null);
+    setView("decision");
+    setHistory([]);
+    setLegacyCount(0);
+    setRawDownloaded(null);
+    setClearConfirmed(false);
+    setBackupNote("");
+    setNote("");
     try {
       setHistory(loadJourneyHistory(historyOwner));
     } catch {
@@ -277,7 +315,34 @@ export function FootballIQJourney({
     } catch {
       setNote("Nie udało się przywrócić poprzedniej akcji. Możesz rozegrać nową.");
     }
+    setLoadedOwner(historyOwner);
     setBooted(true);
+  }, [historyOwner, initial]);
+  useEffect(() => {
+    const applied = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; module?: string; key?: string }>)
+        .detail;
+      if (!historyOwner || detail?.userId !== historyOwner || detail.module !== "iq") return;
+      try {
+        if (detail.key === journeyHistoryKey(historyOwner))
+          setHistory(loadJourneyHistory(historyOwner));
+        if (detail.key === journeyDraftKey(historyOwner)) {
+          // A cloud restore may arrive during a decision; never autosave over it or replace play silently.
+          draftBlocked.current = true;
+          setIncomingDraft(loadJourneyDraft(historyOwner));
+          setDraftChanged(true);
+        }
+      } catch (error) {
+        draftBlocked.current = detail.key === journeyDraftKey(historyOwner);
+        setNote(
+          error instanceof Error
+            ? error.message
+            : "Zapis IQ jest niedostępny. Pobierz surową kopię w pomocy.",
+        );
+      }
+    };
+    window.addEventListener("ballwise:module-data-applied", applied);
+    return () => window.removeEventListener("ballwise:module-data-applied", applied);
   }, [historyOwner]);
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -292,28 +357,43 @@ export function FootballIQJourney({
     };
   }, []);
   useEffect(() => {
-    if (!booted) return;
+    if (!booted || loadedOwner !== historyOwner) return;
     if (session.outcome) {
       if (saved.current === attemptId.current) return;
       const attempt = makeJourneyAttempt(session, mode, attemptId.current);
       try {
-        saveJourneyAttempt(historyOwner, attempt);
-        saveJourneyDraft(historyOwner, session, mode, attemptId.current);
+        if (!saveJourneyAttempt(historyOwner, attempt)) {
+          setPendingAttempt(attempt);
+          setNote("Próba gościa jest dostępna na tym ekranie. Pobierz ją przed wyjściem.");
+          return;
+        }
         saved.current = attemptId.current;
-        setHistory((previous) =>
-          previous.some((a) => a.id === attempt.id) ? previous : [...previous, attempt].slice(-100),
+        setPendingAttempt((current) => (current?.id === attempt.id ? null : current));
+        setHistory(loadJourneyHistory(historyOwner));
+        if (!draftBlocked.current) {
+          try {
+            saveJourneyDraft(historyOwner, session, mode, attemptId.current);
+          } catch {
+            setNote(
+              "Próba zapisana. Nie udało się usunąć zapisu roboczego; historia jest bezpieczna.",
+            );
+          }
+        }
+      } catch (error) {
+        setPendingAttempt(attempt);
+        setNote(
+          `${error instanceof Error ? error.message : "Nie udało się zapisać próby."} Powtórka i pobranie bieżącej próby nadal działają.`,
         );
-      } catch {
-        setNote("Nie udało się zapisać próby. Powtórka i analiza nadal działają w tej sesji.");
       }
     } else {
       try {
+        if (draftBlocked.current) return;
         saveJourneyDraft(historyOwner, session, mode, attemptId.current);
       } catch {
         setNote("Przeglądarka nie zapisała postępu. Dokończ akcję przed zamknięciem ekranu.");
       }
     }
-  }, [booted, session, mode, historyOwner]);
+  }, [booted, session, mode, historyOwner, loadedOwner, saveRevision]);
   useEffect(() => {
     if (view !== "summary" || !session.outcome || notified.current === attemptId.current) return;
     notified.current = attemptId.current;
@@ -426,6 +506,10 @@ export function FootballIQJourney({
     setShowAfter(false);
   }
   function newScenario(definition: JourneyDefinition) {
+    if (pendingAttempt) {
+      setNote("Pobierz niezapisaną próbę albo ponów zapis przed rozpoczęciem kolejnej akcji.");
+      return;
+    }
     setNote("");
     setTransport(null);
     playheadRef.current = 0;
@@ -464,6 +548,71 @@ export function FootballIQJourney({
       to: journeyDuration(next),
       paused: false,
     });
+  }
+  async function downloadPending() {
+    if (!pendingAttempt) return;
+    const owner = historyOwner,
+      pendingId = pendingAttempt.id;
+    try {
+      const result = await downloadText(
+        `BallWise-IQ-proba-${pendingAttempt.id}.json`,
+        JSON.stringify(createJourneyBackup([pendingAttempt]), null, 2),
+        "application/json",
+        owner,
+      );
+      if (activeOwner.current !== owner) return;
+      if (result === "delivered") {
+        setPendingAttempt((current) => (current?.id === pendingId ? null : current));
+        setNote("Przekazano próbę do zapisania. Sprawdź plik przed opuszczeniem ekranu.");
+      } else setNote("Anulowano przekazanie próby. Niezapisany wynik pozostaje na ekranie.");
+    } catch (error) {
+      if (activeOwner.current !== owner) return;
+      setNote(error instanceof Error ? error.message : "Nie udało się pobrać próby.");
+    }
+  }
+  async function exportBackup() {
+    const owner = historyOwner;
+    try {
+      const rows = historyOwner ? loadJourneyHistory(historyOwner) : [];
+      const draft = session.outcome ? null : makeJourneyDraft(session, mode, attemptId.current);
+      const result = await downloadText(
+        "BallWise-IQ-kopia.json",
+        JSON.stringify(createJourneyBackup(rows, draft), null, 2),
+        "application/json",
+        owner,
+      );
+      if (activeOwner.current !== owner) return;
+      setBackupNote(
+        result === "delivered"
+          ? "Przekazano kopię historii i bieżącej akcji. Sprawdź plik w wybranym miejscu."
+          : "Anulowano przekazanie kopii. Historia pozostaje bez zmian.",
+      );
+    } catch (error) {
+      if (activeOwner.current !== owner) return;
+      setBackupNote(
+        `${error instanceof Error ? error.message : "Nie udało się utworzyć kopii."} Użyj surowej kopii, która zachowuje oryginalne dane.`,
+      );
+    }
+  }
+  async function importBackup(file: File) {
+    const owner = historyOwner;
+    try {
+      if (!owner) throw new Error("Zaloguj się przed przywróceniem kopii.");
+      if (file.size > 2_000_000) throw new Error("Kopia IQ przekracza 2 MB.");
+      const input: unknown = JSON.parse(await file.text());
+      if (activeOwner.current !== owner) return;
+      const restored = restoreJourneyBackup(owner, input);
+      setHistory(restored.attempts);
+      if (restored.draft) {
+        draftBlocked.current = true;
+        setIncomingDraft(restored.draft);
+        setDraftChanged(true);
+      }
+      setBackupNote(`Przywrócono ${restored.added} nowych prób. Istniejące próby zachowano.`);
+    } catch (error) {
+      if (activeOwner.current === owner)
+        setBackupNote(error instanceof Error ? error.message : "Nie udało się przywrócić kopii.");
+    }
   }
   const filteredBank = useMemo(() => {
     const roles =
@@ -987,6 +1136,67 @@ export function FootballIQJourney({
             {note}
           </p>
         )}
+        {pendingAttempt && (
+          <div className="iqJ-actions">
+            <button type="button" className="iqJ-button" onClick={downloadPending}>
+              Pobierz niezapisaną próbę
+            </button>
+            <button
+              type="button"
+              className="iqJ-text"
+              onClick={() => setSaveRevision((value) => value + 1)}
+            >
+              Ponów zapis próby
+            </button>
+          </div>
+        )}
+        {draftChanged && (
+          <div role="status">
+            <p>
+              Zmieniono zapis niedokończonej akcji. Twoja bieżąca akcja pozostaje na ekranie. Kopię
+              możesz pobrać w pomocy.
+            </p>
+            {incomingDraft && (
+              <button
+                type="button"
+                className="iqJ-button"
+                onClick={() => {
+                  try {
+                    setSession(restoreJourney(incomingDraft));
+                    setMode(incomingDraft.mode);
+                    attemptId.current = incomingDraft.id;
+                    saved.current = "";
+                    setTransport(null);
+                    setView("decision");
+                    elapsed.current = 0;
+                    choiceLock.current = false;
+                    draftBlocked.current = false;
+                    setDraftChanged(false);
+                    setIncomingDraft(null);
+                  } catch (error) {
+                    setNote(
+                      error instanceof Error ? error.message : "Nie udało się przywrócić akcji.",
+                    );
+                  }
+                }}
+              >
+                Przywróć zaktualizowaną akcję
+              </button>
+            )}
+            <button
+              type="button"
+              className="iqJ-text"
+              onClick={() => {
+                draftBlocked.current = false;
+                setDraftChanged(false);
+                setIncomingDraft(null);
+                setSaveRevision((value) => value + 1);
+              }}
+            >
+              Zachowaj bieżącą akcję
+            </button>
+          </div>
+        )}
       </footer>
       <dialog
         className="iqJ-dialog"
@@ -1094,6 +1304,104 @@ export function FootballIQJourney({
         {(mode === "learn" || session.outcome) && (
           <p className="iqJ-help-focus">Cel: {session.definition.focus}</p>
         )}
+        <details>
+          <summary>Historia i kopie IQ</summary>
+          <p>
+            Próby i niedokończona akcja są zapisywane lokalnie na tym urządzeniu. Limit historii to
+            100 prób; starsze wyniki nie są automatycznie usuwane. Kopię w chmurze możesz osobno
+            zapisać w profilu.
+          </p>
+          <button type="button" className="iqJ-button" onClick={exportBackup}>
+            Pobierz kopię IQ
+          </button>
+          <label className="iqJ-field">
+            Przywróć kopię IQ JSON
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (file) void importBackup(file);
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="iqJ-button"
+            disabled={!historyOwner}
+            onClick={async () => {
+              const owner = historyOwner;
+              setRawDownloaded(null);
+              try {
+                if (!owner) return;
+                const snapshot = rawJourneyData(owner);
+                const result = await downloadText(
+                  "BallWise-IQ-surowa-kopia.json",
+                  JSON.stringify(
+                    { schema: "ballwise.iq.raw.v1", ...snapshot, pendingAttempt },
+                    null,
+                    2,
+                  ),
+                  "application/json",
+                  owner,
+                );
+                if (activeOwner.current !== owner) return;
+                if (result === "delivered") setRawDownloaded(snapshot);
+                setClearConfirmed(false);
+                setBackupNote(
+                  result === "delivered"
+                    ? "Przekazano surową kopię. Sprawdź plik przed wyczyszczeniem zapisu."
+                    : "Anulowano przekazanie kopii. Czyszczenie pozostaje zablokowane.",
+                );
+              } catch (error) {
+                if (activeOwner.current !== owner) return;
+                setBackupNote(
+                  error instanceof Error ? error.message : "Nie udało się pobrać surowej kopii.",
+                );
+              }
+            }}
+          >
+            Pobierz surową kopię zapisu
+          </button>
+          <label className="iqJ-field">
+            <input
+              type="checkbox"
+              checked={clearConfirmed}
+              onChange={(event) => setClearConfirmed(event.target.checked)}
+            />
+            Zachowałem surową kopię i chcę wyczyścić lokalną historię oraz zapis roboczy.
+          </label>
+          <button
+            type="button"
+            className="iqJ-button"
+            disabled={!historyOwner || !rawDownloaded || !clearConfirmed}
+            onClick={() => {
+              try {
+                if (!historyOwner || !rawDownloaded) return;
+                clearJourneyDataAfterBackup(historyOwner, rawDownloaded);
+                setHistory([]);
+                saved.current = "";
+                draftBlocked.current = false;
+                setIncomingDraft(null);
+                setDraftChanged(false);
+                setRawDownloaded(null);
+                setClearConfirmed(false);
+                setSaveRevision((value) => value + 1);
+                setBackupNote(
+                  "Lokalny zapis wyczyszczony. Bieżąca akcja zostanie zapisana ponownie.",
+                );
+              } catch (error) {
+                setBackupNote(
+                  error instanceof Error ? error.message : "Nie udało się wyczyścić zapisu.",
+                );
+              }
+            }}
+          >
+            Wyczyść zapis po wykonaniu kopii
+          </button>
+          {backupNote && <p role="status">{backupNote}</p>}
+        </details>
         <button type="button" className="iqJ-button iqJ-primary" onClick={() => setHelp(false)}>
           Rozumiem
         </button>

@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { TacticalPitch } from "./TacticalPitch";
+import { createPitchScene } from "./pitchScene";
 import { createJourney, journeyFrame } from "./journeyEngine";
 import { journeyBank } from "./journeyBank";
 import type { ComponentProps } from "react";
@@ -120,5 +121,29 @@ describe("pitch guidance boundary", () => {
         ),
     );
     expect(props.onPitchSelect).not.toHaveBeenCalled();
+  });
+});
+
+describe("simplified pitch fallback", () => {
+  it("keeps decisions usable after WebGL fails and maps free movement to pitch coordinates", async () => {
+    vi.mocked(createPitchScene).mockRejectedValueOnce(new Error("WebGL unavailable"));
+    props.freeMovement = true;
+    props.onReadyChange = vi.fn();
+    await render();
+    expect(host.querySelector('svg[aria-label="Boisko w trybie uproszczonym"]')).not.toBeNull();
+    expect(props.onReadyChange).toHaveBeenLastCalledWith(true);
+    const canvas = host.querySelector<HTMLDivElement>(".bwiq-pitch-canvas")!;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 280,
+    } as DOMRect);
+    await act(async () =>
+      host
+        .querySelector(".bwiq-pitch-wrap")!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 100, clientY: 140 })),
+    );
+    expect(props.onPitchSelect).toHaveBeenCalledWith({ x: 50, y: 70 });
   });
 });

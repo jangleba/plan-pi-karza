@@ -117,40 +117,89 @@ function restingClip(model: Group) {
   return new AnimationClip("neutral-stance", 1, tracks);
 }
 
-async function loadAsset() {
-  const loader = new FBXLoader();
-  const asset = prepareRunningModel(await loader.loadAsync(runningUrl));
+/** Every request is bounded; scene cancellation also stops compressed asset downloads. */
+export async function readAnimationFile(url: string, signal?: AbortSignal, timeoutMs = 15_000) {
+  const controller = new AbortController();
+  const abort = () =>
+    controller.abort(signal?.reason ?? new DOMException("Anulowano", "AbortError"));
+  signal?.throwIfAborted();
+  signal?.addEventListener("abort", abort, { once: true });
+  const timeout = setTimeout(
+    () => controller.abort(new Error("Pobieranie animacji trwa za długo.")),
+    timeoutMs,
+  );
   try {
-    for (const [path, url] of Object.entries(additionalUrls)) {
-      const name = path.split("/").at(-1)!.replace(".fbx", "") as AdditionalAnimation;
-      const source = await loader.loadAsync(url);
-      try {
-        asset.clips[name] = prepareAdditionalClip(source, asset.model, name);
-      } finally {
-        disposeModel(source);
-      }
-    }
-    const urls = Object.fromEntries(
-      Object.entries(aerialUrls).map(([path, url]) => [
-        path.split("/").at(-1)!.replace(".fbx", ""),
-        url,
-      ]),
-    );
-    await attachAerialClips(asset, urls, aerialCalibrations, async (url) => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Nie można pobrać opcjonalnej animacji.");
-      const bytes = await response.arrayBuffer();
-      const digest = await crypto.subtle.digest("SHA-256", bytes);
-      const sha256 = Array.from(new Uint8Array(digest), (byte) =>
-        byte.toString(16).padStart(2, "0"),
-      ).join("");
-      return { source: loader.parse(bytes, ""), sha256 };
-    });
-    return asset;
-  } catch (error) {
-    disposeModel(asset.model);
-    throw error;
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error("Nie można pobrać animacji.");
+    const bytes = await response.arrayBuffer();
+    controller.signal.throwIfAborted();
+    if (bytes.byteLength === 0 || bytes.byteLength > 32 * 1024 * 1024)
+      throw new Error("Nieprawidłowy rozmiar animacji.");
+    return bytes;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
+}
+
+/** Optional clips attach after the base model is usable; a bad clip cannot dispose it. */
+export async function attachOptionalClips(
+  asset: ReturnType<typeof prepareRunningModel>,
+  urls: Record<string, string>,
+  read: (url: string) => Promise<Group>,
+  signal?: AbortSignal,
+) {
+  await Promise.allSettled(
+    Object.entries(urls).map(async ([path, url]) => {
+      const name = path.split("/").at(-1)!.replace(".fbx", "") as AdditionalAnimation;
+      if (asset.clips[name] || signal?.aborted) return;
+      let source: Group | undefined;
+      try {
+        source = await read(url);
+        if (!signal?.aborted) asset.clips[name] = prepareAdditionalClip(source, asset.model, name);
+      } catch {
+        /* optional network, parser and skeleton errors retain the neutral/base motion */
+      } finally {
+        if (source) disposeModel(source);
+      }
+    }),
+  );
+}
+async function loadAsset(signal?: AbortSignal) {
+  const bytes = await readAnimationFile(runningUrl, signal);
+  signal?.throwIfAborted();
+  return prepareRunningModel(new FBXLoader().parse(bytes, ""));
+}
+function loadOptionalAnimations(
+  asset: ReturnType<typeof prepareRunningModel>,
+  signal?: AbortSignal,
+) {
+  const loader = new FBXLoader();
+  void attachOptionalClips(
+    asset,
+    additionalUrls,
+    async (url) => loader.parse(await readAnimationFile(url, signal), ""),
+    signal,
+  );
+  const urls = Object.fromEntries(
+    Object.entries(aerialUrls).map(([path, url]) => [
+      path.split("/").at(-1)!.replace(".fbx", ""),
+      url,
+    ]),
+  );
+  if (!Object.keys(urls).length) return;
+  void attachAerialClips(asset, urls, aerialCalibrations, async (url) => {
+    const bytes = await readAnimationFile(url, signal);
+    signal?.throwIfAborted();
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    signal?.throwIfAborted();
+    return {
+      source: loader.parse(bytes, ""),
+      sha256: [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join(""),
+    };
+  });
 }
 
 export function prepareAdditionalClip(source: Group, target: Group, name: AdditionalAnimation) {
@@ -251,12 +300,19 @@ export function prepareRunningModel(model: Group) {
 }
 
 let cachedAsset: Promise<Awaited<ReturnType<typeof loadAsset>>> | null = null;
-export function loadRunningModel() {
-  cachedAsset ??= loadAsset().catch((error) => {
-    cachedAsset = null;
-    throw error;
-  });
-  return cachedAsset;
+export async function loadRunningModel(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  if (!cachedAsset) {
+    const pending = loadAsset(signal).catch((error) => {
+      if (cachedAsset === pending) cachedAsset = null;
+      throw error;
+    });
+    cachedAsset = pending;
+  }
+  const asset = await cachedAsset;
+  signal?.throwIfAborted();
+  loadOptionalAnimations(asset, signal);
+  return asset;
 }
 export type RunningModel = Awaited<ReturnType<typeof loadRunningModel>>;
 
@@ -287,13 +343,13 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
   const root = new Group();
   root.add(model);
   const mixer = new AnimationMixer(model);
-  const idle = mixer.clipAction(asset.clips.idle ?? asset.idle).play();
+  let idle = mixer.clipAction(asset.clips.idle ?? asset.idle).play();
   const run = mixer.clipAction(asset.running).play();
-  const walk = asset.clips.walking ? mixer.clipAction(asset.clips.walking).play() : null;
-  const pass = asset.clips["soccer-pass"]
+  let walk = asset.clips.walking ? mixer.clipAction(asset.clips.walking).play() : null;
+  let pass = asset.clips["soccer-pass"]
     ? mixer.clipAction(asset.clips["soccer-pass"]).setLoop(LoopOnce, 1).play()
     : null;
-  const receive = asset.clips.receive
+  let receive = asset.clips.receive
     ? mixer.clipAction(asset.clips.receive).setLoop(LoopOnce, 1).play()
     : null;
   const aerial = Object.fromEntries(
@@ -304,7 +360,7 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
         : null,
     ]),
   );
-  const actions = [idle, run, walk, pass, receive, ...Object.values(aerial)].filter(
+  let actions = [idle, run, walk, pass, receive, ...Object.values(aerial)].filter(
     (action) => action !== null,
   );
   actions.forEach((action) => {
@@ -319,7 +375,30 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
     return bone ? [{ bone, base: bone.quaternion.clone() }] : [];
   });
 
+  const attached = new Map(Object.entries(asset.clips));
   const pose = (motion: PlayerMotion, idleClock = motion.clock ?? 0) => {
+    // Upgrade each actor when a late optional clip arrives without rebuilding the scene.
+    for (const [name, clip] of Object.entries(asset.clips)) {
+      if (!clip || attached.get(name) === clip) continue;
+      attached.set(name, clip);
+      const next = mixer.clipAction(clip).play();
+      next.paused = true;
+      next.clampWhenFinished = true;
+      next.setEffectiveWeight(0);
+      if (name === "idle") {
+        idle.stop();
+        idle = next;
+      } else if (name === "walking") walk = next;
+      else {
+        next.setLoop(LoopOnce, 1);
+        if (name === "soccer-pass") pass = next;
+        else if (name === "receive") receive = next;
+        else aerial[name] = next;
+      }
+      actions = [idle, run, walk, pass, receive, ...Object.values(aerial)].filter(
+        (action) => action !== null,
+      );
+    }
     gestureBones.forEach(({ bone, base }) => bone.quaternion.copy(base));
     const movement = motion.gait === "walk" && walk ? walk : run;
     const gesture = motion.clip

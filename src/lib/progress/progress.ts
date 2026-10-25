@@ -20,7 +20,7 @@ export const TRAINING_CATEGORY_LABELS: Record<TrainingCategoryKey, string> = {
 
 export type CompletedSessionEntry = SessionHistoryRecord;
 
-function categoryOf(day: SessionDay): TrainingCategoryKey | null {
+export function categoryOf(day: SessionDay): TrainingCategoryKey | null {
   const type = day.type ?? day.sessionType ?? "";
   if (type === "testing") return null;
   if (day.dayType === "match" || type === "match") return "match";
@@ -60,7 +60,7 @@ export function buildTrainingHistory(
         date: session.date,
         title: session.title,
         category,
-        durationMin: session.durationMin ?? 0,
+        durationMin: completion.durationMin ?? session.durationMin ?? 0,
         rpe: completion.rpe,
         notes: completion.notes ?? "",
       });

@@ -51,7 +51,9 @@ async function landmarker() {
   return poseTask;
 }
 
-export async function detectPose(canvas: HTMLCanvasElement): Promise<DetectedPose | null> {
+export async function detectPose(
+  canvas: HTMLCanvasElement | ImageBitmap,
+): Promise<DetectedPose | null> {
   const task = await landmarker();
   const landmarks = task.detect(canvas).landmarks[0];
   if (!landmarks?.[32]) return null;
