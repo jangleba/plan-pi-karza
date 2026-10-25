@@ -134,8 +134,8 @@ describe.sequential("full migration runtime contracts", () => {
       snapshot = { dbId: sid, title: "Pinned" };
     const first = await log(sid, 0, { ...completed(), execution_snapshot: snapshot }, op);
     expect(first.write_version).toBe(1);
-    expect(first.started_at).toBe("2026-10-17T10:00:00+00:00");
-    expect(first.ended_at).toBe("2026-10-17T11:00:00+00:00");
+    expect(new Date(String(first.started_at)).toISOString()).toBe("2026-10-17T10:00:00.000Z");
+    expect(new Date(String(first.ended_at)).toISOString()).toBe("2026-10-17T11:00:00.000Z");
     expect((await log(sid, 0, completed(2), op)).rpe).toBe(8);
     await expect(log(sid, 0, completed(2))).rejects.toMatchObject({ code: "40001" });
     const edited = await log(sid, 1, {
