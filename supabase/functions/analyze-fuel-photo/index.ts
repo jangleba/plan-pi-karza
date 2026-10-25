@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
+import { paidApiDecision } from "../_shared/billing/paidApi.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -188,13 +189,18 @@ Deno.serve(async (request) => {
   });
   const token = authHeader.replace(/^Bearer\s+/i, "");
   const { data: authData, error: authError } = await userClient.auth.getUser(token);
-  if (authError || !authData.user) {
+  if (authError || !authData.user || authData.user.is_anonymous) {
     return json(request, 401, { error: "invalid_authorization" });
   }
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  if (Deno.env.get("BILLING_ENFORCED") === "true") {
+    const result = await serviceClient.from("billing_entitlements").select("status,expires_at,verified_at").eq("user_id", authData.user.id).maybeSingle();
+    const access = paidApiDecision(true, result.data, !!result.error);
+    if (access !== "ok") return json(request, access === "subscription" ? 402 : 503, { error: access === "subscription" ? "subscription_required" : "billing_unavailable" });
+  }
   const { data: quotaData, error: quotaError } = await serviceClient
     .rpc("consume_fuel_photo_quota", { p_user_id: authData.user.id })
     .maybeSingle();
