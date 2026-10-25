@@ -33,6 +33,7 @@ function AuthScreen() {
   } = useAuth();
   const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
+  const usablePlan = !!state.profile?.onboardingComplete && state.plan.length > 0;
 
   const [mode, setMode] = useState<"login" | "register" | "forgot" | "recovery">("register");
   const [name, setName] = useState("");
@@ -49,7 +50,14 @@ function AuthScreen() {
 
   // Redirect signed-in users onward.
   useEffect(() => {
-    if (loading || !user || !hydrated || hydrationError || recoveryMode || mode === "recovery")
+    if (
+      loading ||
+      !user ||
+      !hydrated ||
+      (hydrationError && !usablePlan) ||
+      recoveryMode ||
+      mode === "recovery"
+    )
       return;
     if (state.profile?.onboardingComplete) {
       navigate({ to: "/start", replace: true });
@@ -64,6 +72,7 @@ function AuthScreen() {
     recoveryMode,
     mode,
     hydrationError,
+    usablePlan,
     navigate,
   ]);
 
@@ -149,8 +158,7 @@ function AuthScreen() {
     }
   }
 
-  if (hydrationError && user && !recoveryMode && !state.profile?.onboardingComplete)
-    return <AppDataError />;
+  if (hydrationError && user && !recoveryMode && !usablePlan) return <AppDataError />;
 
   if (loading || (user && !hydrated && !recoveryMode)) {
     return <AppLaunchScreen />;

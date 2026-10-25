@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { prepareMonthlyPlan } from "./persist";
 import { sessionFixture, sectionFixture } from "@/components/loadwise/session/testFixtures";
 import { resolveEffectivePlan } from "./effectivePlan";
 import { applyReadiness, generatePlan } from "./planEngine";
@@ -18,8 +19,15 @@ import { createSessionActions } from "./store/sessionActions";
 import { createProfileActions } from "./store/profileActions";
 import type { LoadwiseState, Profile, Readiness } from "./types";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc } }));
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), sessions: [] as Record<string, unknown>[] }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {
+  rpc: mocks.rpc,
+  from: () => {
+    const chain = { select: () => chain, eq: () => chain, in: () => chain,
+      abortSignal: async () => ({ data: mocks.sessions, error: null }) };
+    return chain;
+  },
+} }));
 vi.mock("sonner", () => ({ toast: { info: vi.fn() } }));
 vi.mock("./offlineTrainingQueue", () => ({
   isRetryableWriteError: () => false,
@@ -357,6 +365,7 @@ describe("training contracts after reliability repair", () => {
       },
       replacementInFlightRef: { current: new Set() },
     } as unknown as Parameters<typeof createPlanActions>[0]);
+    mocks.sessions = prepareMonthlyPlan("u", profile, plan).args.p_sessions as Record<string, unknown>[];
     await actions.confirmWeeklyTransition(1, [], true);
     expect(state.transitions[1]).toMatchObject({
       cycleId: "cycle",

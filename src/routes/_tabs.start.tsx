@@ -385,6 +385,7 @@ function StartScreen() {
     todayIso,
     hydrated,
     syncing,
+    hydrationError,
     planGenerating,
     refreshPlanIfNeeded,
     applyModification,
@@ -412,7 +413,10 @@ function StartScreen() {
   const autoGenerateRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
 
-  const planMissing = hydrated && !syncing && Boolean(profile?.onboardingComplete) && !todaySession;
+  // A failed read does not prove the server has no plan. Re-read it before any
+  // generation, so optimistic locking and existing training history stay intact.
+  const planMissing =
+    hydrated && !syncing && !hydrationError && Boolean(profile?.onboardingComplete) && !todaySession;
 
   useEffect(() => {
     if (!user) {
@@ -438,8 +442,27 @@ function StartScreen() {
     }
   }, [todaySession]);
 
-  if (!hydrated || !checkinLoaded || (planGenerating && !todaySession)) {
+  if (!hydrated || !checkinLoaded || ((syncing || planGenerating) && !todaySession)) {
     return <PlanLoadingState />;
+  }
+
+  if (hydrationError && !todaySession) {
+    return (
+      <main className="space-y-4 px-6 pt-12" role="status">
+        <p className="text-sm text-muted-foreground">
+          Nie udało się wczytać planu. Sprawdź połączenie i spróbuj ponownie.
+        </p>
+        <Button
+          onClick={() => {
+            autoGenerateRef.current = false;
+            setAutoGenerateTried(false);
+            window.dispatchEvent(new Event("ballwise:server-state-changed"));
+          }}
+        >
+          Spróbuj ponownie
+        </Button>
+      </main>
+    );
   }
 
   if (!profile?.onboardingComplete) {

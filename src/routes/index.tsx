@@ -13,6 +13,7 @@ function Index() {
   const { user, loading } = useAuth();
   const { hydrated, hydrationError, state } = useLoadwise();
   const navigate = useNavigate();
+  const usablePlan = !!state.profile?.onboardingComplete && state.plan.length > 0;
 
   useEffect(() => {
     if (loading) return;
@@ -20,14 +21,22 @@ function Index() {
       navigate({ to: "/auth", replace: true });
       return;
     }
-    if (!hydrated || hydrationError) return;
+    if (!hydrated || (hydrationError && !usablePlan)) return;
     if (state.profile?.onboardingComplete) {
       navigate({ to: "/start", replace: true });
     } else {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [loading, user, hydrated, state.profile?.onboardingComplete, hydrationError, navigate]);
+  }, [
+    loading,
+    user,
+    hydrated,
+    state.profile?.onboardingComplete,
+    hydrationError,
+    usablePlan,
+    navigate,
+  ]);
 
-  if (hydrationError && user && !state.profile?.onboardingComplete) return <AppDataError />;
+  if (hydrationError && user && !usablePlan) return <AppDataError />;
   return <AppLaunchScreen />;
 }

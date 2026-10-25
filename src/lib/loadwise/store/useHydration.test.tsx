@@ -20,6 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from(table: string) {
       let userId = "";
+      const filters: Record<string, unknown> = {};
       const chain = {
         select: () => chain,
         range: () => chain,
@@ -28,12 +29,13 @@ vi.mock("@/integrations/supabase/client", () => ({
         order: () => chain,
         limit: () => chain,
         maybeSingle: () => chain,
-        eq(column: string, value: string) {
-          if (column === "user_id") userId = value;
+        eq(column: string, value: unknown) {
+          filters[column] = value;
+          if (column === "user_id") userId = String(value);
           return chain;
         },
         then(resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) {
-          mocks.queries(table, userId);
+          mocks.queries(table, userId, filters);
           const request = mocks.requests.get(userId);
           if (!request) throw new Error(`Missing request for ${userId}`);
           return request
@@ -141,6 +143,9 @@ describe("store hydration", () => {
     expect(snapshot.state.profile?.name).toBe("Cached athlete");
 
     await act(async () => remote.resolve(remoteRows("Updated athlete")));
+    expect(mocks.queries).toHaveBeenCalledWith("training_plans", "a", {
+      user_id: "a", status: "active", active: true,
+    });
     expect(snapshot.state.profile?.name).toBe("Updated athlete");
     expect(snapshot.state.history).toEqual([]);
     const completed = {

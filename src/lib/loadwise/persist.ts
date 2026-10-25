@@ -160,7 +160,8 @@ export async function persistMonthlyPlan(
   plan: SessionDay[],
   transition?: WeeklyTransition,
 ): Promise<SessionDay[]> {
-  const prepared = prepareMonthlyPlan(userId, profile, plan, transition);
+  const { preparePlanWrite } = await import("./preparePlanWrite");
+  const prepared = await preparePlanWrite(userId, profile, plan, transition);
   const atomicWrite = await supabase.rpc("persist_training_plan_v2", prepared.args);
   assertNoSupabaseError("persist_training_plan_v2", atomicWrite.error);
   return prepared.plan;

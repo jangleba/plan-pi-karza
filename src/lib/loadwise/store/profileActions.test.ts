@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createProfileActions } from "./profileActions";
 import { decodeStrengthExperience } from "../strengthExperience";
+import { shouldReusePersistedPlan } from "./repository";
 
 const mocks = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mocks.from } }));
@@ -71,4 +72,24 @@ describe("strength experience profile update", () => {
     expect(x.setState).not.toHaveBeenCalled();
     expect(x.rebuild).not.toHaveBeenCalled();
   });
+});
+
+it("marks a refresh busy while validation is pending, without starting duplicate generation", async () => {
+  let finish!: (reuse: boolean) => void;
+  vi.mocked(shouldReusePersistedPlan).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  const setPlanGenerating = vi.fn();
+  const savePlanToDb = vi.fn();
+  const actions = createProfileActions({
+    user: { id: "real-user" },
+    state: { profile: { onboardingComplete: true }, plan: [] },
+    generatingRef: { current: false },
+    setPlanGenerating,
+    savePlanToDb,
+  } as unknown as Parameters<typeof createProfileActions>[0]);
+  actions.refreshPlanIfNeeded();
+  actions.refreshPlanIfNeeded();
+  expect(setPlanGenerating.mock.calls).toEqual([[true]]);
+  finish(true);
+  await vi.waitFor(() => expect(setPlanGenerating).toHaveBeenLastCalledWith(false));
+  expect(savePlanToDb).not.toHaveBeenCalled();
 });

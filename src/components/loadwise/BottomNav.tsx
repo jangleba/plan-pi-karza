@@ -25,7 +25,7 @@ export function BottomNav() {
             <Link
               key={item.to}
               to={item.to}
-              preload="viewport"
+              preload="intent"
               onClick={(event) => {
                 if (active) event.preventDefault();
               }}

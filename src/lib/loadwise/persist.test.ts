@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { persistMonthlyPlan } from "./persist";
+import { persistMonthlyPlan, prepareMonthlyPlan } from "./persist";
 import type { Profile, SessionDay } from "./types";
 
 type SupabaseErrorLike = { message: string; details?: string; hint?: string; code?: string };
@@ -15,6 +15,7 @@ const { operations, state } = vi.hoisted(() => ({
   operations: [] as Operation[],
   state: {
     forcedError: null as { table: string; method: string; error: SupabaseErrorLike } | null,
+    sessions: [] as Record<string, unknown>[],
   },
 }));
 
@@ -26,13 +27,20 @@ function nextResult(table: string, method: string) {
   ) {
     return { error: state.forcedError.error };
   }
-  return { error: null };
+  return { error: null, data: table === "training_sessions" ? state.sessions : null };
 }
 
 function builder(table: string, method: string, payload?: unknown) {
   const operation: Operation = { table, method, payload, filters: [] };
   operations.push(operation);
   const chain = {
+    in(column: string, value: unknown) {
+      operation.filters.push({ op: "in", column, value });
+      return chain;
+    },
+    abortSignal() {
+      return chain;
+    },
     eq(column: string, value: unknown) {
       operation.filters.push({ op: "eq", column, value });
       return chain;
@@ -59,6 +67,9 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
     from(table: string) {
       return {
+        select() {
+          return builder(table, "select");
+        },
         insert(payload: unknown) {
           operations.push({ table, method: "insert", payload, filters: [] });
           return Promise.resolve(nextResult(table, "insert"));
@@ -103,6 +114,7 @@ describe("persistMonthlyPlan", () => {
   beforeEach(() => {
     operations.length = 0;
     state.forcedError = null;
+    state.sessions = [];
   });
 
   it("persists the complete plan through one atomic RPC", async () => {
@@ -139,11 +151,17 @@ describe("persistMonthlyPlan", () => {
       dayDbId: "old-day",
       planDbId: "old-plan",
     };
+    state.sessions = prepareMonthlyPlan("user-1", profile, [day]).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
     const saved = await persistMonthlyPlan("user-1", profile, [day]);
     expect(saved[0]).not.toBe(day);
     expect(saved[0]).toMatchObject({ dbId: "old-session", dayDbId: "old-day" });
     expect(day.planDbId).toBe("old-plan");
-    expect(operations[0].payload).toMatchObject({ p_expected_plan_id: "old-plan" });
+    expect(operations.find((op) => op.method === "rpc")?.payload).toMatchObject({
+      p_expected_plan_id: "old-plan",
+    });
   });
 
   it("does not allocate identifiers in the caller's plan on failure", async () => {
@@ -157,6 +175,100 @@ describe("persistMonthlyPlan", () => {
     expect(day.dbId).toBeUndefined();
     expect(day.dayDbId).toBeUndefined();
     expect(day.planDbId).toBeUndefined();
+  });
+
+  it("keeps immutable historical prescriptions when legacy JSON has enriched or renamed exercises", async () => {
+    const old = {
+      ...makeDay("2020-10-18"),
+      dbId: "old-session",
+      dayDbId: "old-day",
+      planDbId: "old-plan",
+      sections: {
+        warmup: [],
+        main: [{ name: "Dawna nazwa", prescription: "3 × 8" }],
+        accessory: [],
+        footballTransfer: [],
+        cooldown: [],
+      },
+    };
+    state.sessions = prepareMonthlyPlan("user-1", profile, [old]).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    const enriched = {
+      ...old,
+      executionProtected: true,
+      sections: {
+        ...old.sections,
+        main: [{ ...old.sections.main[0], name: "Aktualna nazwa", technique: "Nowa instrukcja" }],
+      },
+    };
+    const saved = await persistMonthlyPlan("user-1", profile, [enriched]);
+    const write = operations.find((op) => op.method === "rpc")?.payload as {
+      p_sessions: unknown[];
+    };
+    expect(write.p_sessions).toEqual(state.sessions);
+    expect(saved[0].dbId).toBe("old-session");
+    expect(operations[0].filters).toContainEqual({ op: "eq", column: "user_id", value: "user-1" });
+  });
+
+  it("allocates fresh IDs for changed future content and keeps all payload references aligned", async () => {
+    const old = {
+      ...makeDay("2099-10-18"),
+      dbId: "future-session",
+      dayDbId: "future-day",
+      planDbId: "old-plan",
+    };
+    state.sessions = prepareMonthlyPlan("user-1", profile, [old]).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    const changed = {
+      ...old,
+      title: "Nowa sesja",
+      sections: { ...old.sections, main: [{ name: "Nowe ćwiczenie", prescription: "2 × 5" }] },
+    };
+    const saved = await persistMonthlyPlan("user-1", profile, [changed]);
+    expect(saved[0].dbId).not.toBe("future-session");
+    const write = operations.find((op) => op.method === "rpc")?.payload as {
+      p_sessions: { id: string }[];
+      p_exercises: { session_id: string }[];
+      p_plan_json: SessionDay[];
+    };
+    expect(write.p_sessions[0].id).toBe(saved[0].dbId);
+    expect(write.p_exercises[0].session_id).toBe(saved[0].dbId);
+    expect(write.p_plan_json[0].dbId).toBe(saved[0].dbId);
+    expect(changed.dbId).toBe("future-session");
+  });
+
+  it("keeps identical future IDs even when Postgres returns keys in another order", async () => {
+    const old = {
+      ...makeDay("2099-10-18"),
+      dbId: "same-session",
+      dayDbId: "same-day",
+      planDbId: "old-plan",
+    };
+    const rows = prepareMonthlyPlan("user-1", profile, [old]).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    state.sessions = rows.map((row) => Object.fromEntries(Object.entries(row).reverse()));
+    const saved = await persistMonthlyPlan("user-1", profile, [old]);
+    expect(saved[0].dbId).toBe("same-session");
+  });
+
+  it("stops before writing when an existing session cannot be verified", async () => {
+    const old = {
+      ...makeDay("2020-10-18"),
+      dbId: "missing",
+      dayDbId: "old-day",
+      planDbId: "old-plan",
+    };
+    await expect(persistMonthlyPlan("user-1", profile, [old])).rejects.toThrow(
+      "potwierdzić zapisanej sesji",
+    );
+    expect(operations.some((op) => op.method === "rpc")).toBe(false);
+    expect(old.dbId).toBe("missing");
   });
 
   it("rejects persistence when executable session misses athlete-visible instructions", async () => {

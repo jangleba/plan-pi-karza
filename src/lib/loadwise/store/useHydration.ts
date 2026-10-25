@@ -200,6 +200,7 @@ export function useHydration({
             .abortSignal(controller.signal)
             .eq("user_id", user.id)
             .eq("status", "active")
+            .eq("active", true)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle(),

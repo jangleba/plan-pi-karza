@@ -97,7 +97,7 @@ export function reconcilePlanIdentity(
       ? preserve(candidate.secondSession, oldSecond)
       : oldSecond &&
           (oldSecond.date < today || secondLog?.completed || secondLog?.status === "started")
-        ? { ...oldSecond }
+        ? { ...oldSecond, executionProtected: true }
         : null;
     return {
       ...primary,
