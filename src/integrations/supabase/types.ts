@@ -27,6 +27,7 @@ export type Database = {
           double_sessions_allowed: string | null
           equipment: Json
           field_mas_kmh: number | null
+          field_mas_source_session_id: string | null
           field_mas_tested_at: string | null
           food_allergies: Json
           food_exclusions: Json
@@ -56,6 +57,7 @@ export type Database = {
           ownership_transfer_status: string
           ownership_transferred_at: string | null
           pain_injury: boolean | null
+          pain_locations: Json
           position: string | null
           running_progression_level: number
           running_progression_updated_at: string | null
@@ -85,6 +87,7 @@ export type Database = {
           double_sessions_allowed?: string | null
           equipment?: Json
           field_mas_kmh?: number | null
+          field_mas_source_session_id?: string | null
           field_mas_tested_at?: string | null
           food_allergies?: Json
           food_exclusions?: Json
@@ -114,6 +117,7 @@ export type Database = {
           ownership_transfer_status?: string
           ownership_transferred_at?: string | null
           pain_injury?: boolean | null
+          pain_locations?: Json
           position?: string | null
           running_progression_level?: number
           running_progression_updated_at?: string | null
@@ -143,6 +147,7 @@ export type Database = {
           double_sessions_allowed?: string | null
           equipment?: Json
           field_mas_kmh?: number | null
+          field_mas_source_session_id?: string | null
           field_mas_tested_at?: string | null
           food_allergies?: Json
           food_exclusions?: Json
@@ -172,6 +177,7 @@ export type Database = {
           ownership_transfer_status?: string
           ownership_transferred_at?: string | null
           pain_injury?: boolean | null
+          pain_locations?: Json
           position?: string | null
           running_progression_level?: number
           running_progression_updated_at?: string | null
@@ -188,6 +194,57 @@ export type Database = {
           usual_match_day?: string | null
           weekly_matches?: boolean | null
           weight_optional?: number | null
+        }
+        Relationships: []
+      }
+      billing_entitlements: {
+        Row: {
+          expires_at: string | null
+          product_id: string | null
+          status: string
+          store: string | null
+          updated_at: string
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          expires_at?: string | null
+          product_id?: string | null
+          status: string
+          store?: string | null
+          updated_at?: string
+          user_id: string
+          verified_at: string
+        }
+        Update: {
+          expires_at?: string | null
+          product_id?: string | null
+          status?: string
+          store?: string | null
+          updated_at?: string
+          user_id?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
+      billing_events: {
+        Row: {
+          event_id: string
+          processed_at: string
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          event_id: string
+          processed_at?: string
+          user_id: string
+          verified_at: string
+        }
+        Update: {
+          event_id?: string
+          processed_at?: string
+          user_id?: string
+          verified_at?: string
         }
         Relationships: []
       }
@@ -349,11 +406,13 @@ export type Database = {
           performed_at: string
           reps: number | null
           rir: number | null
+          server_updated_at: string
           session_id: string | null
           set_number: number
           updated_at: string
           user_id: string
           weight_kg: number | null
+          write_version: number
         }
         Insert: {
           created_at?: string
@@ -365,11 +424,13 @@ export type Database = {
           performed_at?: string
           reps?: number | null
           rir?: number | null
+          server_updated_at?: string
           session_id?: string | null
           set_number: number
           updated_at?: string
           user_id: string
           weight_kg?: number | null
+          write_version?: number
         }
         Update: {
           created_at?: string
@@ -381,11 +442,43 @@ export type Database = {
           performed_at?: string
           reps?: number | null
           rir?: number | null
+          server_updated_at?: string
           session_id?: string | null
           set_number?: number
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
+          write_version?: number
+        }
+        Relationships: []
+      }
+      module_backups: {
+        Row: {
+          device_id: string
+          module: string
+          operation_id: string
+          payload: Json
+          revision: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          device_id: string
+          module: string
+          operation_id: string
+          payload: Json
+          revision?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          device_id?: string
+          module?: string
+          operation_id?: string
+          payload?: Json
+          revision?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -555,11 +648,17 @@ export type Database = {
           date: string
           distance_m: number
           duration_sec: number
+          ended_at: string | null
           id: string
+          interval_results: Json
           is_field_mas_test: boolean
+          progression_applied: boolean
+          server_updated_at: string
           session_id: string
+          started_at: string | null
           updated_at: string
           user_id: string
+          write_version: number
         }
         Insert: {
           avg_pace_sec_per_km?: number | null
@@ -567,11 +666,17 @@ export type Database = {
           date: string
           distance_m: number
           duration_sec: number
+          ended_at?: string | null
           id?: string
+          interval_results?: Json
           is_field_mas_test?: boolean
+          progression_applied?: boolean
+          server_updated_at?: string
           session_id: string
+          started_at?: string | null
           updated_at?: string
           user_id: string
+          write_version?: number
         }
         Update: {
           avg_pace_sec_per_km?: number | null
@@ -579,11 +684,17 @@ export type Database = {
           date?: string
           distance_m?: number
           duration_sec?: number
+          ended_at?: string | null
           id?: string
+          interval_results?: Json
           is_field_mas_test?: boolean
+          progression_applied?: boolean
+          server_updated_at?: string
           session_id?: string
+          started_at?: string | null
           updated_at?: string
           user_id?: string
+          write_version?: number
         }
         Relationships: []
       }
@@ -657,13 +768,16 @@ export type Database = {
           created_at: string
           duration_minutes: number | null
           ended_at: string | null
+          execution_snapshot: Json | null
           id: string
           notes: string | null
           rpe: number | null
+          server_updated_at: string
           session_id: string | null
           started_at: string | null
           updated_at: string
           user_id: string
+          write_version: number
         }
         Insert: {
           activity_type?: string | null
@@ -672,13 +786,16 @@ export type Database = {
           created_at?: string
           duration_minutes?: number | null
           ended_at?: string | null
+          execution_snapshot?: Json | null
           id?: string
           notes?: string | null
           rpe?: number | null
+          server_updated_at?: string
           session_id?: string | null
           started_at?: string | null
           updated_at?: string
           user_id: string
+          write_version?: number
         }
         Update: {
           activity_type?: string | null
@@ -687,13 +804,16 @@ export type Database = {
           created_at?: string
           duration_minutes?: number | null
           ended_at?: string | null
+          execution_snapshot?: Json | null
           id?: string
           notes?: string | null
           rpe?: number | null
+          server_updated_at?: string
           session_id?: string | null
           started_at?: string | null
           updated_at?: string
           user_id?: string
+          write_version?: number
         }
         Relationships: []
       }
@@ -823,6 +943,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          cycle_id: string
           goal: string | null
           id: string
           month: string | null
@@ -833,6 +954,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          cycle_id?: string
           goal?: string | null
           id?: string
           month?: string | null
@@ -843,6 +965,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          cycle_id?: string
           goal?: string | null
           id?: string
           month?: string | null
@@ -908,39 +1031,75 @@ export type Database = {
           },
         ]
       }
+      training_write_receipts: {
+        Row: {
+          created_at: string
+          kind: string
+          operation_id: string
+          result_version: number
+          target_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          kind: string
+          operation_id: string
+          result_version: number
+          target_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          kind?: string
+          operation_id?: string
+          result_version?: number
+          target_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_transitions: {
         Row: {
           confirmed_at: string
           created_at: string
+          cycle_id: string | null
           id: string
           next_match_date: string | null
           next_match_dates: Json
           no_match_next_week: boolean
           updated_at: string
           user_id: string
+          week_end: string | null
           week_number: number
+          week_start: string | null
         }
         Insert: {
           confirmed_at?: string
           created_at?: string
+          cycle_id?: string | null
           id?: string
           next_match_date?: string | null
           next_match_dates?: Json
           no_match_next_week?: boolean
           updated_at?: string
           user_id: string
+          week_end?: string | null
           week_number: number
+          week_start?: string | null
         }
         Update: {
           confirmed_at?: string
           created_at?: string
+          cycle_id?: string | null
           id?: string
           next_match_date?: string | null
           next_match_dates?: Json
           no_match_next_week?: boolean
           updated_at?: string
           user_id?: string
+          week_end?: string | null
           week_number?: number
+          week_start?: string | null
         }
         Relationships: []
       }
@@ -949,12 +1108,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_plan_modification: {
+        Args: {
+          p_exercises: Json
+          p_expected_plan_id: string
+          p_modification: Json
+          p_operation_id: string
+          p_second_exercises?: Json
+          p_second_session?: Json
+          p_session: Json
+        }
+        Returns: Json
+      }
       consume_fuel_photo_quota: {
         Args: { p_user_id: string }
         Returns: {
           allowed: boolean
           retry_after_seconds: number
         }[]
+      }
+      delete_running_activity_atomic: {
+        Args: { p_activity_id: string }
+        Returns: boolean
+      }
+      insert_owned_training_session: {
+        Args: { p_exercises: Json; p_session: Json }
+        Returns: undefined
       }
       latest_consent_is_accepted: {
         Args: { p_consent_type: string; p_user_id: string }
@@ -963,6 +1142,14 @@ export type Database = {
       latest_consent_is_accepted_for_version: {
         Args: { p_consent_type: string; p_user_id: string; p_version: string }
         Returns: boolean
+      }
+      merge_own_profile_row: {
+        Args: { p_patch: Json; p_table: string }
+        Returns: Json
+      }
+      next_running_level: {
+        Args: { current_level: number; results: Json; rpe: number }
+        Returns: number
       }
       persist_training_plan_atomic: {
         Args: {
@@ -976,9 +1163,119 @@ export type Database = {
         }
         Returns: undefined
       }
+      persist_training_plan_v2: {
+        Args: {
+          p_days: Json
+          p_exercises: Json
+          p_expected_plan_id?: string
+          p_goal: string
+          p_month: string
+          p_plan_id: string
+          p_plan_json: Json
+          p_sessions: Json
+          p_transition?: Json
+        }
+        Returns: undefined
+      }
+      record_billing_entitlement: {
+        Args: {
+          p_event_id?: string
+          p_expires_at: string
+          p_product_id: string
+          p_status: string
+          p_store: string
+          p_user_id: string
+          p_verified_at: string
+        }
+        Returns: undefined
+      }
       record_consent: {
         Args: { p_accepted: boolean; p_consent_type: string }
         Returns: undefined
+      }
+      record_consent_state: {
+        Args: {
+          p_accepted: boolean
+          p_consent_type: string
+          p_expected_profile_updated_at?: string
+        }
+        Returns: Json
+      }
+      save_exercise_set: {
+        Args: {
+          p_expected_version: number
+          p_operation_id: string
+          p_payload: Json
+        }
+        Returns: Json
+      }
+      save_module_backup: {
+        Args: {
+          p_device_id: string
+          p_expected_version: number
+          p_module: string
+          p_operation_id: string
+          p_payload: Json
+        }
+        Returns: Json
+      }
+      save_profile_and_plan: {
+        Args: {
+          p_athlete: Json
+          p_clear_transitions?: boolean
+          p_expected_profile_updated_at?: string
+          p_from_date?: string
+          p_plan?: Json
+          p_profile: Json
+        }
+        Returns: Json
+      }
+      save_readiness_checkin: { Args: { p_payload: Json }; Returns: Json }
+      save_running_result: {
+        Args: {
+          p_expected_version: number
+          p_operation_id: string
+          p_payload: Json
+        }
+        Returns: Json
+      }
+      save_training_log: {
+        Args: {
+          p_expected_version: number
+          p_operation_id: string
+          p_payload: Json
+          p_session_id: string
+        }
+        Returns: Json
+      }
+      set_equipment_replacement: {
+        Args: {
+          p_operation_id: string
+          p_replacement?: Json
+          p_undo_id?: string
+        }
+        Returns: Json
+      }
+      training_expected_version: {
+        Args: {
+          p_expected: number
+          p_kind: string
+          p_payload: Json
+          p_target: string
+        }
+        Returns: number
+      }
+      undo_plan_modification: {
+        Args: {
+          p_expected_plan_id?: string
+          p_modification_id: string
+          p_operation_id?: string
+        }
+        Returns: undefined
+      }
+      valid_training_list: {
+        Args: { maximum: number; value: Json }
+        Returns: boolean
       }
       withdraw_health_data_consent: {
         Args: { p_text_snapshot: string; p_version: string }
