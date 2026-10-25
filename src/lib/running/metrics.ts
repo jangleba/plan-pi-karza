@@ -8,7 +8,6 @@ import type { RunningIntervalResult } from "./types";
 import { sanitizeIntervalResults } from "./intervals";
 
 const EARTH_RADIUS_M = 6_371_000;
-const MAX_ROUTE_POINTS = 5_000;
 const MAX_ACCURACY_M = 100;
 const MAX_PLAUSIBLE_SPEED_MPS = 14;
 const MIN_MOVEMENT_M = 2;
@@ -51,25 +50,28 @@ export function isRoutePoint(value: unknown): value is RoutePoint {
 
 /**
  * Odrzuca szum GPS i nierealne skoki. Dane nie opuszczają urządzenia podczas
- * obliczeń; do zapisu trafia maksymalnie 5000 punktów.
+ * obliczeń. Punkty nie są ucinane przed obliczeniem łącznego dystansu.
  */
 export function sanitizeRoute(input: unknown): RoutePoint[] {
   if (!Array.isArray(input)) return [];
   const clean: RoutePoint[] = [];
 
   for (const raw of input) {
-    if (!isRoutePoint(raw) || clean.length >= MAX_ROUTE_POINTS) continue;
+    if (!isRoutePoint(raw)) continue;
     const point: RoutePoint = {
       lat: Number(raw.lat.toFixed(7)),
       lng: Number(raw.lng.toFixed(7)),
       recordedAt: raw.recordedAt,
       elapsedSec: Math.round(raw.elapsedSec * 10) / 10,
+      ...(Number.isInteger(raw.segment) && (raw.segment ?? -1) >= 0
+        ? { segment: raw.segment }
+        : {}),
       ...(raw.accuracyM === undefined ? {} : { accuracyM: Math.round(raw.accuracyM * 10) / 10 }),
     };
     if ((point.accuracyM ?? 0) > MAX_ACCURACY_M) continue;
 
     const previous = clean.at(-1);
-    if (!previous) {
+    if (!previous || point.segment !== previous.segment) {
       clean.push(point);
       continue;
     }
@@ -88,7 +90,8 @@ export function sanitizeRoute(input: unknown): RoutePoint[] {
 export function routeDistanceM(route: RoutePoint[]): number {
   let total = 0;
   for (let index = 1; index < route.length; index += 1) {
-    total += haversineDistanceM(route[index - 1], route[index]);
+    if (route[index - 1].segment === route[index].segment)
+      total += haversineDistanceM(route[index - 1], route[index]);
   }
   return total;
 }
@@ -104,6 +107,7 @@ export function buildKilometerSplits(route: RoutePoint[]): KilometerSplit[] {
   for (let index = 1; index < route.length; index += 1) {
     const previous = route[index - 1];
     const current = route[index];
+    if (previous.segment !== current.segment) continue;
     const segmentDistance = haversineDistanceM(previous, current);
     const beforeSegment = totalDistance;
     totalDistance += segmentDistance;

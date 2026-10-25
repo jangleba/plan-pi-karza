@@ -12,7 +12,19 @@
   </array>
   <key>NSPrivacyAccessedAPITypes</key>
   <array>
-    <!-- Xcode's privacy report must determine required-reason API declarations. -->
+    <!-- Capacitor Filesystem: app-owned export files. Review against the final SDK privacy report. -->
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array><string>C617.1</string></array>
+    </dict>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array><string>35F9.1</string></array>
+    </dict>
   </array>
 </dict>
 </plist>

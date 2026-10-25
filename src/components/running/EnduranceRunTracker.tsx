@@ -17,7 +17,7 @@ import {
   formatDistance,
   formatPace,
   formatRunDuration,
-  routeDistanceM,
+  haversineDistanceM,
   sanitizeRoute,
 } from "@/lib/running/metrics";
 import {
@@ -36,6 +36,18 @@ import type {
 } from "@/lib/running/types";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { RunActivitySummary } from "./RunActivitySummary";
+import {
+  nativeRecorder,
+  nativeRunningAvailable,
+  nativeRunDraft,
+  type NativeRunState,
+} from "@/lib/running/nativeRecorder";
+import {
+  clearRunCheckpoint,
+  loadRunCheckpoint,
+  saveRunCheckpoint,
+  quarantineRunCheckpoint,
+} from "@/lib/running/runCheckpoint";
 
 type TrackerPhase = "idle" | "recording" | "paused" | "review";
 
@@ -67,7 +79,8 @@ function announceStep(step: RunningIntervalStep | null) {
   window.speechSynthesis.speak(utterance);
 }
 
-export function EnduranceRunTracker({
+function RunTracker({
+  ownerId,
   session,
   sessionId,
   date,
@@ -76,6 +89,7 @@ export function EnduranceRunTracker({
   onSave,
   onDelete,
 }: {
+  ownerId?: string;
   session: SessionDay;
   sessionId: string;
   date: string;
@@ -87,8 +101,16 @@ export function EnduranceRunTracker({
   const intervalProtocol = useMemo(() => deriveRunningIntervalProtocol(session), [session]);
   const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
+  const nativeMode = !!ownerId && nativeRunningAvailable();
+  const nativeIdentity = { ownerId: ownerId ?? "", sessionId };
+  const checkpointBlockedRef = useRef(false);
+  const checkpointSourceRef = useRef<"native" | "web">("web");
   const [phase, setPhase] = useState<TrackerPhase>("idle");
-  const [route, setRoute] = useState<RoutePoint[]>([]);
+  const [routePointCount, setRoutePointCount] = useState(0);
+  const mountedRef = useRef(true);
+  const startingRef = useRef(false);
+  const finishingRef = useRef(false);
+  const segmentRef = useRef(0);
   const [pending, setPending] = useState<RunningActivityDraft | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [distanceM, setDistanceM] = useState(0);
@@ -124,6 +146,191 @@ export function EnduranceRunTracker({
     [],
   );
 
+  const applyNativeState = useCallback(
+    (value: NativeRunState) => {
+      if (
+        !mountedRef.current ||
+        !value.present ||
+        value.ownerId !== ownerId ||
+        value.sessionId !== sessionId
+      )
+        return;
+      accumulatedSecRef.current = value.durationSec ?? 0;
+      segmentStartedMsRef.current = Date.now();
+      distanceMRef.current = value.distanceM ?? 0;
+      startedAtRef.current = value.startedAt ?? null;
+      phaseRef.current = value.phase ?? "paused";
+      intervalResultsRef.current = value.intervalResults ?? [];
+      setPhase(value.phase ?? "paused");
+      setElapsedSec(Math.round(value.durationSec ?? 0));
+      setDistanceM(value.distanceM ?? 0);
+      setRoutePointCount(value.pointCount ?? 0);
+      if (value.guideState) {
+        const guide = value.guideState;
+        guideStartedRef.current = guide.started;
+        guideCompleteRef.current = guide.complete;
+        intervalStepIndexRef.current = guide.stepIndex;
+        intervalStepStartedElapsedRef.current = guide.stepStartedElapsedSec;
+        intervalStepStartedDistanceRef.current = guide.stepStartedDistanceM;
+        setGuideStarted(guide.started);
+        setGuideComplete(guide.complete);
+        setIntervalStepIndex(guide.stepIndex);
+      }
+      if (value.phase === "review") setPending(nativeRunDraft(value));
+      if (value.storageError) setGpsError(value.storageError);
+      else if (value.recovered)
+        setGpsError("Odzyskano szkic biegu. Pomiar był przerwany; wznów go lub zapisz wynik.");
+    },
+    [ownerId, sessionId],
+  );
+
+  useEffect(() => {
+    if (!ownerId) return;
+    let active = true;
+    const identity = { ownerId, sessionId };
+    const handles: Promise<{ remove(): Promise<void> }>[] = [];
+    if (nativeMode) {
+      void nativeRecorder
+        .getState(identity)
+        .then((value) => {
+          if (active) applyNativeState(value);
+        })
+        .catch((error) => {
+          if (active) {
+            checkpointBlockedRef.current = true;
+            checkpointSourceRef.current = "native";
+            setGpsError(String(error instanceof Error ? error.message : error));
+          }
+        });
+      handles.push(nativeRecorder.addListener("runState", applyNativeState));
+      handles.push(
+        nativeRecorder.addListener("runError", (event) => {
+          if (active) setGpsError(event.message);
+        }),
+      );
+    }
+    // GPX imports have no native recording; keep their review in the local journal on iOS too.
+    {
+      try {
+        const saved = loadRunCheckpoint(ownerId, sessionId);
+        if (saved && (!nativeMode || saved.pending?.source === "gpx")) {
+          startedAtRef.current = saved.startedAt;
+          accumulatedSecRef.current = saved.durationSec;
+          distanceMRef.current = saved.distanceM;
+          phaseRef.current = saved.phase;
+          setElapsedSec(Math.round(saved.durationSec));
+          setDistanceM(saved.distanceM);
+          setPhase(saved.phase);
+          setPending(saved.pending ?? null);
+          intervalResultsRef.current = saved.intervalResults ?? [];
+          if (saved.guideState) {
+            intervalStepIndexRef.current = saved.guideState.stepIndex;
+            setIntervalStepIndex(saved.guideState.stepIndex);
+            guideStartedRef.current = false;
+            setGuideStarted(false);
+            guideCompleteRef.current = saved.guideState.complete;
+            setGuideComplete(saved.guideState.complete);
+          }
+          setGpsError(
+            "Odzyskano szkic biegu. Czas przerwy i brakujące punkty GPS nie zostały doliczone.",
+          );
+        }
+      } catch (error) {
+        checkpointBlockedRef.current = true;
+        checkpointSourceRef.current = "web";
+        setGpsError(error instanceof Error ? error.message : "Nie odczytano szkicu.");
+      }
+    }
+    const onActive = (event: Event) => {
+      if (nativeMode && (event as CustomEvent<{ isActive: boolean }>).detail?.isActive)
+        void nativeRecorder
+          .getState(identity)
+          .then((value) => {
+            if (active) applyNativeState(value);
+          })
+          .catch(() => undefined);
+    };
+    window.addEventListener("ballwise:app-state", onActive);
+    return () => {
+      active = false;
+      window.removeEventListener("ballwise:app-state", onActive);
+      for (const handle of handles)
+        void handle.then((value) => value.remove()).catch(() => undefined);
+    };
+  }, [ownerId, sessionId, nativeMode, applyNativeState]);
+
+  useEffect(() => {
+    if (
+      !ownerId ||
+      (nativeMode && pending?.source !== "gpx") ||
+      phase === "idle" ||
+      checkpointBlockedRef.current
+    )
+      return;
+    const save = () => {
+      if (!startedAtRef.current || phaseRef.current === "idle") return;
+      try {
+        saveRunCheckpoint({
+          schema: 1,
+          ownerId,
+          sessionId,
+          date,
+          startedAt: startedAtRef.current,
+          durationSec: currentElapsed(),
+          distanceM: distanceMRef.current,
+          phase: phaseRef.current === "review" ? "review" : "paused",
+          pending: pending ?? undefined,
+          intervalResults: intervalResultsRef.current,
+          guideState: {
+            started: false,
+            complete: guideCompleteRef.current,
+            stepIndex: intervalStepIndexRef.current,
+            stepStartedElapsedSec: intervalStepStartedElapsedRef.current,
+            stepStartedDistanceM: intervalStepStartedDistanceRef.current,
+          },
+        });
+      } catch {
+        setGpsError("Nie zapisano szkicu biegu. Zapisz wynik przed zamknięciem telefonu.");
+      }
+    };
+    save();
+    const timer = window.setInterval(save, 5000);
+    const unload = (event: BeforeUnloadEvent) => {
+      save();
+      if (phaseRef.current !== "idle") {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", unload);
+    window.addEventListener("pagehide", save);
+    return () => {
+      save();
+      clearInterval(timer);
+      window.removeEventListener("beforeunload", unload);
+      window.removeEventListener("pagehide", save);
+    };
+  }, [ownerId, sessionId, date, phase, pending, nativeMode, currentElapsed]);
+
+  const persistNativeGuide = () => {
+    if (!nativeMode) return;
+    void nativeRecorder
+      .updateIntervals({
+        ...nativeIdentity,
+        intervalResults: intervalResultsRef.current,
+        guideState: {
+          started: guideStartedRef.current,
+          complete: guideCompleteRef.current,
+          stepIndex: intervalStepIndexRef.current,
+          stepStartedElapsedSec: intervalStepStartedElapsedRef.current,
+          stepStartedDistanceM: intervalStepStartedDistanceRef.current,
+        },
+      })
+      .catch(() =>
+        setGpsError("Nie zapisano prowadzenia interwałów. Zachowaj ekran i spróbuj ponownie."),
+      );
+  };
+
   const releaseWakeLock = async () => {
     const lock = wakeLockRef.current;
     wakeLockRef.current = null;
@@ -150,12 +357,19 @@ export function EnduranceRunTracker({
       recordedAt: new Date(position.timestamp || Date.now()).toISOString(),
       elapsedSec: accumulatedSecRef.current + (Date.now() - segmentStartedMsRef.current) / 1_000,
       accuracyM: position.coords.accuracy,
+      segment: segmentRef.current,
     };
-    routeRef.current = [...routeRef.current, point].slice(-5_200);
-    setRoute(routeRef.current);
-    const nextDistance = routeDistanceM(sanitizeRoute(routeRef.current));
-    distanceMRef.current = nextDistance;
-    setDistanceM(nextDistance);
+    if (!mountedRef.current || phaseRef.current !== "recording") return;
+    const previous = routeRef.current.at(-1);
+    const accepted = sanitizeRoute(previous ? [previous, point] : [point]);
+    if (accepted.at(-1)?.recordedAt !== point.recordedAt || accepted.length < (previous ? 2 : 1))
+      return;
+    const clean = accepted.at(-1)!;
+    routeRef.current.push(clean);
+    if (previous && previous.segment === clean.segment)
+      distanceMRef.current += haversineDistanceM(previous, clean);
+    setRoutePointCount(routeRef.current.length);
+    setDistanceM(distanceMRef.current);
   };
 
   const startWatch = () => {
@@ -201,6 +415,7 @@ export function EnduranceRunTracker({
         guideCompleteRef.current = true;
         setGuideComplete(true);
         announceStep(null);
+        persistNativeGuide();
         return;
       }
       intervalStepIndexRef.current = nextIndex;
@@ -208,8 +423,11 @@ export function EnduranceRunTracker({
       intervalStepStartedDistanceRef.current = distanceMRef.current;
       setIntervalStepIndex(nextIndex);
       announceStep(intervalProtocol.steps[nextIndex]);
+      persistNativeGuide();
     },
-    [currentElapsed, intervalProtocol],
+    // The native writer reads refs for the current identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentElapsed, intervalProtocol, nativeMode, ownerId, sessionId],
   );
 
   useEffect(() => {
@@ -233,25 +451,36 @@ export function EnduranceRunTracker({
     phase,
   ]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       stopWatch();
       void releaseWakeLock();
-    },
-    [],
-  );
+    };
+  }, []);
 
   async function startRecording() {
+    if (startingRef.current || phaseRef.current !== "idle") return;
+    if (checkpointBlockedRef.current) {
+      setGpsError("Najpierw odzyskaj istniejący szkic biegu. Nie nadpisano go.");
+      return;
+    }
     setGpsError(null);
     if (isFieldMasTest && !safetyAcknowledged) {
       setGpsError("Przed startem potwierdź, że przeczytałeś zasady bezpieczeństwa testu.");
       return;
     }
-    if (!navigator.geolocation) {
+    if (!nativeMode && !navigator.geolocation) {
       setGpsError("Ta przeglądarka nie obsługuje lokalizacji GPS.");
       return;
     }
+    startingRef.current = true;
     try {
+      if (nativeMode) {
+        applyNativeState(await nativeRecorder.start({ ...nativeIdentity, date }));
+        return;
+      }
       const first = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
@@ -259,6 +488,8 @@ export function EnduranceRunTracker({
           timeout: 15_000,
         }),
       );
+      if (!mountedRef.current) return;
+      segmentRef.current = 0;
       const now = Date.now();
       startedAtRef.current = new Date(now).toISOString();
       segmentStartedMsRef.current = now;
@@ -269,10 +500,11 @@ export function EnduranceRunTracker({
         recordedAt: new Date(first.timestamp || now).toISOString(),
         elapsedSec: 0,
         accuracyM: first.coords.accuracy,
+        segment: 0,
       };
       routeRef.current = [firstPoint];
       distanceMRef.current = 0;
-      setRoute([firstPoint]);
+      setRoutePointCount(1);
       setDistanceM(0);
       setElapsedSec(0);
       setPending(null);
@@ -290,15 +522,32 @@ export function EnduranceRunTracker({
       startWatch();
       void requestWakeLock();
     } catch (error) {
-      if (error && typeof error === "object" && "code" in error) {
+      if (nativeMode) {
+        setGpsError(
+          error instanceof Error
+            ? error.message
+            : error && typeof error === "object" && "message" in error
+              ? String(error.message)
+              : "Nie udało się uruchomić natywnego pomiaru GPS.",
+        );
+      } else if (error && typeof error === "object" && "code" in error) {
         setGpsError(positionErrorMessage(error as GeolocationPositionError));
       } else {
         setGpsError("Nie udało się uruchomić GPS.");
       }
+    } finally {
+      startingRef.current = false;
     }
   }
 
   function pauseRecording() {
+    if (nativeMode) {
+      void nativeRecorder
+        .pause(nativeIdentity)
+        .then(applyNativeState)
+        .catch((error) => setGpsError(String(error)));
+      return;
+    }
     accumulatedSecRef.current = currentElapsed();
     phaseRef.current = "paused";
     setElapsedSec(Math.round(accumulatedSecRef.current));
@@ -308,6 +557,14 @@ export function EnduranceRunTracker({
   }
 
   function resumeRecording() {
+    if (nativeMode) {
+      void nativeRecorder
+        .resume(nativeIdentity)
+        .then(applyNativeState)
+        .catch((error) => setGpsError(String(error)));
+      return;
+    }
+    segmentRef.current += 1;
     segmentStartedMsRef.current = Date.now();
     setGpsError(null);
     phaseRef.current = "recording";
@@ -316,16 +573,90 @@ export function EnduranceRunTracker({
     void requestWakeLock();
   }
 
+  useEffect(() => {
+    const onHidden = () => {
+      if (nativeMode && document.hidden && guideStartedRef.current && !guideCompleteRef.current) {
+        // GPS continues natively; the suspended web UI must not invent interval transitions.
+        guideStartedRef.current = false;
+        setGuideStarted(false);
+        window.speechSynthesis?.cancel();
+        persistNativeGuide();
+        setGpsError(
+          "GPS nadal mierzy bieg. Prowadzenie interwałów wstrzymano po ukryciu ekranu; uruchom je ponownie dla bieżącego odcinka.",
+        );
+      }
+      if (!nativeMode && document.hidden && phaseRef.current === "recording") {
+        accumulatedSecRef.current = currentElapsed();
+        phaseRef.current = "paused";
+        if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+        setElapsedSec(Math.round(accumulatedSecRef.current));
+        setPhase("paused");
+        setGpsError("Pomiar wstrzymany po ukryciu aplikacji. Wróć na ekran biegu i wznów GPS.");
+      }
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => document.removeEventListener("visibilitychange", onHidden);
+    // Native guide writer reads current identity and refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentElapsed, nativeMode, ownerId, sessionId]);
+
   function startIntervalGuide() {
-    if (!intervalProtocol?.steps[0] || phaseRef.current !== "recording") return;
+    const step = intervalProtocol?.steps[intervalStepIndexRef.current];
+    if (!step || phaseRef.current !== "recording") return;
     intervalStepStartedElapsedRef.current = currentElapsed();
     intervalStepStartedDistanceRef.current = distanceMRef.current;
     guideStartedRef.current = true;
     setGuideStarted(true);
-    announceStep(intervalProtocol.steps[0]);
+    announceStep(step);
+    persistNativeGuide();
   }
 
-  function finishRecording() {
+  async function finishRecording() {
+    if (nativeMode) {
+      if (finishingRef.current) return;
+      finishingRef.current = true;
+      try {
+        const value = await nativeRecorder.finish(nativeIdentity);
+        if ((value.distanceM ?? 0) < 50) {
+          applyNativeState({ ...value, phase: "paused" });
+          setGpsError("Za mało wiarygodnego dystansu GPS. Potrzeba co najmniej 50 m.");
+          return;
+        }
+        let results = value.intervalResults ?? intervalResultsRef.current;
+        if (intervalProtocol && guideStartedRef.current && !guideCompleteRef.current) {
+          const step = intervalProtocol.steps[intervalStepIndexRef.current];
+          if (step) {
+            const partial = buildIntervalResult({
+              step,
+              durationSec: (value.durationSec ?? 0) - intervalStepStartedElapsedRef.current,
+              distanceM: (value.distanceM ?? 0) - intervalStepStartedDistanceRef.current,
+              completed: false,
+            });
+            if (partial.durationSec >= 1 || partial.distanceM >= 2) results = [...results, partial];
+          }
+        }
+        let intervalError = false;
+        if (results.length !== (value.intervalResults ?? []).length) {
+          try {
+            await nativeRecorder.updateIntervals({ ...nativeIdentity, intervalResults: results });
+          } catch {
+            intervalError = true;
+          }
+        }
+        intervalResultsRef.current = results;
+        applyNativeState({ ...value, intervalResults: results });
+        if (intervalError)
+          setGpsError(
+            "Wynik GPS jest w szkicu. Nie utrwalono ostatniego interwału — zapisz wynik przed zamknięciem aplikacji.",
+          );
+      } catch (error) {
+        setGpsError(error instanceof Error ? error.message : "Nie zapisano szkicu biegu.");
+      } finally {
+        finishingRef.current = false;
+      }
+      return;
+    }
     const durationSec = Math.max(1, Math.round(currentElapsed()));
     accumulatedSecRef.current = durationSec;
     phaseRef.current = "paused";
@@ -356,13 +687,17 @@ export function EnduranceRunTracker({
       source: "gps",
       intervalResults,
     });
-    if (draft.route.length < 2 || draft.distanceM < 50) {
+    draft.distanceM = Math.round(distanceMRef.current);
+    draft.avgPaceSecPerKm = draft.distanceM > 0 ? (durationSec / draft.distanceM) * 1000 : null;
+    if (draft.distanceM < 50) {
       setGpsError(
         "Za mało wiarygodnych punktów GPS. Poczekaj na sygnał i przebiegnij co najmniej 50 m.",
       );
       setPhase("paused");
       return;
     }
+    intervalResultsRef.current = intervalResults;
+    phaseRef.current = "review";
     setPending(draft);
     setPhase("review");
   }
@@ -372,6 +707,13 @@ export function EnduranceRunTracker({
     setGpsError(null);
     try {
       const draft = activityDraftFromGpx({ xml: await file.text(), date, sessionId });
+      startedAtRef.current = draft.startedAt;
+      accumulatedSecRef.current = draft.durationSec;
+      distanceMRef.current = draft.distanceM;
+      intervalResultsRef.current = draft.intervalResults;
+      phaseRef.current = "review";
+      setElapsedSec(Math.round(draft.durationSec));
+      setDistanceM(draft.distanceM);
       setPending(draft);
       setPhase("review");
     } catch (error) {
@@ -384,6 +726,15 @@ export function EnduranceRunTracker({
     setSaving(true);
     try {
       await onSave(pending);
+      phaseRef.current = "idle";
+      try {
+        if (nativeMode && pending.source === "gps") await nativeRecorder.clear(nativeIdentity);
+        if (ownerId) clearRunCheckpoint(ownerId, sessionId);
+      } catch {
+        setGpsError(
+          "Wynik zapisano, ale nie usunięto szkicu z telefonu. Nie rozpoczynaj ponownie tej samej próby.",
+        );
+      }
       setPending(null);
       setPhase("idle");
       toast.success("Zapisano dystans, czas i średnie tempo biegu.");
@@ -467,6 +818,32 @@ export function EnduranceRunTracker({
           pamięci telefonu. Do bazy trafiają wyłącznie dystans, czas i średnie tempo.
         </p>
       </div>
+      {checkpointBlockedRef.current && ownerId && (
+        <button
+          type="button"
+          className="text-sm underline"
+          onClick={() => {
+            if (
+              !window.confirm(
+                "Zabezpieczyć uszkodzony szkic w osobnym pliku i odblokować nowy bieg? Uszkodzonych danych nie będzie można użyć jako wyniku.",
+              )
+            )
+              return;
+            void (
+              checkpointSourceRef.current === "native"
+                ? nativeRecorder.quarantineCorruptCheckpoint({ confirm: true })
+                : Promise.resolve().then(() => quarantineRunCheckpoint(ownerId, sessionId))
+            )
+              .then(() => {
+                checkpointBlockedRef.current = false;
+                setGpsError(null);
+              })
+              .catch((error) => setGpsError(String(error)));
+          }}
+        >
+          Zabezpiecz uszkodzony szkic i odblokuj GPS
+        </button>
+      )}
 
       {isFieldMasTest && !activity && !pending && !isTracking && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3">
@@ -504,6 +881,12 @@ export function EnduranceRunTracker({
             odcinki poniżej 80 m potwierdzasz ręcznie, bo GPS telefonu nie mierzy ich dość
             dokładnie.
           </p>
+          {nativeMode && (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              GPS może działać przy blokadzie telefonu. Komendy i prowadzenie interwałów wymagają
+              widocznego ekranu; po jego ukryciu bieżący odcinek trzeba uruchomić ponownie.
+            </p>
+          )}
           {intervalProtocol.steps.some((step) => step.target.paceTarget) && (
             <p className="mt-2 rounded-xl bg-background/70 px-3 py-2 text-xs leading-relaxed">
               Tempo widzisz w min/km. <strong>Dwie krótkie wibracje</strong> oznaczają: przyspiesz.
@@ -628,7 +1011,8 @@ export function EnduranceRunTracker({
             </>
           )}
           <div className="mt-3 text-xs opacity-70">
-            {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {route.length} punktów
+            {formatRunDuration(elapsedSec)} · {formatDistance(distanceM)} · {routePointCount}{" "}
+            punktów
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {phase === "recording" ? (
@@ -709,8 +1093,22 @@ export function EnduranceRunTracker({
                 type="button"
                 disabled={saving}
                 onClick={() => {
-                  setPending(null);
-                  setPhase("idle");
+                  if (!window.confirm("Odrzucić niezapisany wynik biegu?")) return;
+                  const discard = async () => {
+                    try {
+                      if (nativeMode && pending.source === "gps")
+                        await nativeRecorder.clear(nativeIdentity);
+                      if (ownerId) clearRunCheckpoint(ownerId, sessionId);
+                      phaseRef.current = "idle";
+                      setPending(null);
+                      setPhase("idle");
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error ? error.message : "Nie usunięto szkicu biegu.",
+                      );
+                    }
+                  };
+                  void discard();
                 }}
                 className="rounded-full border border-border px-4 py-3 text-sm font-semibold"
               >
@@ -737,10 +1135,16 @@ export function EnduranceRunTracker({
       )}
       {canRecord && !isTracking && !activity && !pending && (
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Dla pewniejszego zapisu zostaw BallWise otwarte podczas biegu. Po starcie schowaj telefon
-          do kieszeni — nie trzeba go trzymać w dłoni.
+          {nativeMode
+            ? "Pomiar GPS działa także po zablokowaniu ekranu. Telefon zapisuje szkic wyniku bez współrzędnych. Po wymuszonym zamknięciu aplikacji pomiar zostanie przerwany."
+            : "W przeglądarce pomiar wymaga widocznego ekranu. Blokada telefonu lub przejście do innej aplikacji wstrzymuje GPS. Możesz też zaimportować GPX."}
         </p>
       )}
     </section>
   );
+}
+
+/** Session identity owns all GPS resources and unsaved state. */
+export function EnduranceRunTracker(props: Parameters<typeof RunTracker>[0]) {
+  return <RunTracker key={`${props.sessionId}:${props.date}`} {...props} />;
 }
