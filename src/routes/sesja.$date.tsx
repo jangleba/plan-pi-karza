@@ -5,7 +5,8 @@ import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
-import { resolveEffectiveDay } from "@/lib/loadwise/dailyCheckin";
+import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { activeSessionForRoute, isActiveSessionWithinGrace } from "@/lib/loadwise/activeSession";
 import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
 import { professionalSessionTitle } from "@/lib/loadwise/labels";
 import { ModifySheet } from "@/components/loadwise/ModifySheet";
@@ -32,6 +33,7 @@ import {
 import { StructuredSections } from "@/components/loadwise/session/GenericRunner";
 import { SprintStructuredSections } from "@/components/loadwise/session/SprintRunner";
 import { StrengthStructuredSections } from "@/components/loadwise/session/StrengthRunner";
+import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPanel";
 import {
   ClubMonitoring,
   CompletionPanel,
@@ -86,7 +88,20 @@ function SessionDetail() {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
   }, [authLoading, user, navigate]);
 
-  const day = state.plan.find((p) => p.date === date);
+  const resolvedPlan = resolveEffectivePlan(state.plan, state.modifications, {
+    profile: state.profile,
+    readiness: state.readiness,
+    completions: state.completions,
+  });
+  const storedDay = state.plan.find((p) => p.date === date);
+  const activeFallback = activeSessionForRoute(
+    resolvedPlan,
+    state.completions,
+    date,
+    slot === 2 ? 2 : 1,
+    todayIso,
+  );
+  const day = storedDay ?? activeFallback;
   // Dane jeszcze się ładują (np. po odświeżeniu / deep link) — nie pokazuj
   // pustego białego ekranu. Skeleton w tym samym layoucie, z krótkim delay.
   const stillLoading = !hydrated;
@@ -128,7 +143,7 @@ function SessionDetail() {
   const selectedAdd = addMods.find((item) => item.id === mod) ?? null;
 
   // Sesja główna: zamieniona (jeśli jest) lub zaplanowana.
-  const effectiveDay = resolveEffectiveDay(day, undefined, state.profile, mods);
+  const effectiveDay = resolvedPlan.find((item) => item.date === date) ?? day;
   // Ostatnia bariera przed runnerem: ekran nie zależy od powodzenia zapisu
   // migracji i nigdy nie dostaje historycznie uciętego slotu sprintowego.
   const primary = repairRuntimeSpeedDay(effectiveDay, state.profile, {
@@ -138,8 +153,11 @@ function SessionDetail() {
     plan: state.plan,
   });
 
-  let session: SessionDay = selectedAdd?.session ?? primary;
-  if (!selectedAdd && slot === 2) {
+  let session: SessionDay = selectedAdd
+    ? ([primary, primary.secondSession].find((item) => item?.dbId === selectedAdd.session.dbId) ??
+      selectedAdd.session)
+    : primary;
+  if (!selectedAdd && slot === 2 && !(activeFallback && !storedDay)) {
     if (!primary.secondSession) {
       return (
         <SessionScreenShell onBack={goBack}>
@@ -179,9 +197,14 @@ function SessionDetail() {
     0;
 
   const fallbackExercises = hasFlatSectionContent ? [] : (session.exercises ?? []);
-  const replacedSession = applyExerciseReplacements(session, state.exerciseReplacements[date] ?? []);
+  const replacedSession = applyExerciseReplacements(
+    session,
+    state.exerciseReplacements[date] ?? [],
+  );
   const completed = session.dbId && state.completions[session.dbId]?.status === "completed";
-  const displayedSession = completed ? replacedSession : enforceStrengthEligibility(replacedSession, state.profile);
+  const displayedSession = completed
+    ? replacedSession
+    : enforceStrengthEligibility(replacedSession, state.profile);
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
@@ -219,6 +242,11 @@ function SessionDetail() {
     recoveryRunner && recoveryDuration != null
       ? { ...session, durationMin: recoveryDuration }
       : session;
+  const completion = session.dbId ? state.completions[session.dbId] : undefined;
+  const hasStarted = completion?.status === "started" || !!completion?.completed;
+  const canExecute =
+    !!completion?.completed ||
+    (hasStarted && (isToday || isActiveSessionWithinGrace(session.date, completion, todayIso)));
 
   async function undo(dateToUndo: string, id: string) {
     try {
@@ -264,91 +292,115 @@ function SessionDetail() {
 
         {strengthRunner && !completed && <StrengthExperienceSetup />}
 
-        {ballTechnicalSession && (
-          <Link
-            to="/reakcja"
-            className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
-          >
-            <div>
-              <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
-              <p className="mt-0.5 text-xs text-primary-foreground/75">
-                Włącz bodźce w wybranym fragmencie własnego treningu.
-              </p>
-            </div>
-            <ArrowRight className="h-5 w-5 shrink-0" />
-          </Link>
-        )}
-
-        {enduranceSession && enduranceWarmup.length > 0 && (
-          <WarmupCoach
-            key={`${session.dbId ?? date}:warmup`}
-            exercises={enduranceWarmup}
-            kind={
-              /spokojny|easy aerobic|baza tlenowa/i.test(`${session.title} ${session.sessionType}`)
-                ? "easy"
-                : "intervals"
-            }
-            storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
-          />
-        )}
-        {trackableEndurance && session.dbId && (
-          <EnduranceRunTracker
-            session={session}
-            sessionId={session.dbId}
-            date={session.date}
-            canRecord={isToday}
-            activity={state.runningActivities[session.dbId] ?? null}
-            onSave={saveRunningActivity}
-            onDelete={deleteRunningActivity}
-          />
-        )}
-
-        {isClub ? (
-          <>
-            <ClubMonitoring />
-            {structured.length > 0 && (
-              <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
-            )}
-          </>
-        ) : recoveryRunner ? (
-          <RecoveryCoach
-            key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
-            storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
-            context={recoveryContext}
-            blocked={session.loadLabelOverride === "Wstrzymaj trening"}
-            onDurationChange={setRecoveryDuration}
-            onFinish={() => setShowRecoveryCompletion(true)}
-          />
-        ) : sprintRunner ? (
-          <SprintStructuredSections
-            sections={structured}
-            date={date}
-            session={session}
-            onFinish={() => setShowSprintCompletion(true)}
-          />
-        ) : strengthRunner ? (
-          <StrengthStructuredSections
-            sections={structured}
-            date={date}
-            sessionId={session.dbId}
-            onFinish={() => setShowStrengthCompletion(true)}
-          />
+        {session.dayType === "match" ? (
+          <MatchStartPanel session={session} isToday={isToday} />
         ) : (
-          <>
-            <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Do wykonania
-            </div>
-            <StructuredSections
-              sections={
-                enduranceSession
-                  ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
-                  : structured
+          <SessionStartPanel session={session} canStart={isToday} />
+        )}
+
+        <fieldset className="min-w-0 space-y-3" disabled={!canExecute}>
+          {ballTechnicalSession && (
+            <Link
+              to="/reakcja"
+              aria-disabled={!canExecute}
+              tabIndex={canExecute ? 0 : -1}
+              onClick={(event) => {
+                if (!canExecute) event.preventDefault();
+              }}
+              className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
+            >
+              <div>
+                <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
+                <p className="mt-0.5 text-xs text-primary-foreground/75">
+                  Włącz bodźce w wybranym fragmencie własnego treningu.
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 shrink-0" />
+            </Link>
+          )}
+
+          {enduranceSession && enduranceWarmup.length > 0 && (
+            <WarmupCoach
+              key={`${session.dbId ?? date}:warmup`}
+              exercises={enduranceWarmup}
+              kind={
+                /spokojny|easy aerobic|baza tlenowa/i.test(
+                  `${session.title} ${session.sessionType}`,
+                )
+                  ? "easy"
+                  : "intervals"
               }
+              storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+            />
+          )}
+          {trackableEndurance &&
+            session.dbId &&
+            (hasStarted || state.runningActivities[session.dbId]) &&
+            session.loadLabelOverride !== "Wstrzymaj trening" && (
+              <EnduranceRunTracker
+                key={`${user.id}:${session.dbId}`}
+                ownerId={user.id}
+                session={session}
+                sessionId={session.dbId}
+                date={session.date}
+                canRecord={canExecute && !completion?.completed}
+                activity={state.runningActivities[session.dbId] ?? null}
+                onSave={saveRunningActivity}
+                onDelete={deleteRunningActivity}
+              />
+            )}
+
+          {session.loadLabelOverride === "Wstrzymaj trening" ? (
+            <div className="soft-card p-4" role="alert">
+              Wstrzymaj dalszy wysiłek. Zapis wcześniejszej części sesji pozostaje w historii.
+            </div>
+          ) : isClub ? (
+            <>
+              <ClubMonitoring />
+              {structured.length > 0 && (
+                <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+              )}
+            </>
+          ) : recoveryRunner ? (
+            <RecoveryCoach
+              key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
+              storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+              context={recoveryContext}
+              blocked={session.loadLabelOverride === "Wstrzymaj trening"}
+              onDurationChange={setRecoveryDuration}
+              onFinish={() => setShowRecoveryCompletion(true)}
+            />
+          ) : sprintRunner ? (
+            <SprintStructuredSections
+              sections={structured}
+              date={date}
+              session={session}
+              onFinish={() => setShowSprintCompletion(true)}
+            />
+          ) : strengthRunner ? (
+            <StrengthStructuredSections
+              sections={structured}
               date={date}
               sessionId={session.dbId}
+              onFinish={() => setShowStrengthCompletion(true)}
             />
-          </>
-        )}
+          ) : (
+            <>
+              <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Do wykonania
+              </div>
+              <StructuredSections
+                sections={
+                  enduranceSession
+                    ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
+                    : structured
+                }
+                date={date}
+                sessionId={session.dbId}
+              />
+            </>
+          )}
+        </fieldset>
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
           <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
@@ -378,9 +430,8 @@ function SessionDetail() {
           </div>
         )}
 
-        {session.dayType === "match" && <MatchStartPanel session={session} isToday={isToday} />}
-
         {canShowPostSessionForm(session) &&
+          hasStarted &&
           matchCanBeCompleted(
             session,
             session.dbId ? state.completions[session.dbId]?.status : undefined,
@@ -390,7 +441,7 @@ function SessionDetail() {
           (!sprintRunner || showSprintCompletion) &&
           (!strengthRunner || showStrengthCompletion) &&
           (!recoveryRunner || showRecoveryCompletion) && (
-            <CompletionPanel session={presentedSession} />
+            <CompletionPanel key={session.dbId} session={presentedSession} />
           )}
 
         {/* Status zmiany + cofnij */}

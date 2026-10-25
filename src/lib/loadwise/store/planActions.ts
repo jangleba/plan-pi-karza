@@ -1,3 +1,7 @@
+import { assertSafePlanChange } from "../planChangeValidation";
+import { generatePlanAsync } from "../generatePlanAsync";
+import { reconcilePlanIdentity, sessionPrescription } from "../planIdentity";
+import { ONBOARDING_SCHEMA_VERSION, stampPlanRevision } from "./model";
 import { supabase } from "@/integrations/supabase/client";
 import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
@@ -78,33 +82,34 @@ export function createPlanActions(
         equipmentIds,
         createdAt: new Date().toISOString(),
       };
-      const insert = await supabase.from("exercise_replacements").insert({
-        id: item.id,
-        user_id: user.id,
-        date,
-        exercise_id: item.exerciseId,
-        original_json: item.original as unknown as Json,
-        replacement_json: item.replacement as unknown as Json,
-        equipment_ids: item.equipmentIds,
-        active: true,
+      const write = await supabase.rpc("set_equipment_replacement", {
+        p_operation_id: item.id,
+        p_replacement: {
+          id: item.id,
+          user_id: user.id,
+          date,
+          exercise_id: item.exerciseId,
+          original_json: item.original,
+          replacement_json: item.replacement,
+          equipment_ids: item.equipmentIds,
+          active: true,
+        } as unknown as Json,
       });
-      assertNoSupabaseError("exercise_replacements.insert", insert.error);
-      const profileUpdate = await supabase
-        .from("athlete_profiles")
-        .update({ unavailable_equipment_ids: unavailableEquipmentIds })
-        .eq("user_id", user.id);
-      if (profileUpdate.error) {
-        await supabase
-          .from("exercise_replacements")
-          .delete()
-          .eq("id", item.id)
-          .eq("user_id", user.id);
-        assertNoSupabaseError("athlete_profiles.equipment", profileUpdate.error);
-      }
+      assertNoSupabaseError("set_equipment_replacement", write.error);
+      const response = write.data as Record<string, unknown> | null;
+      const persistedUnavailable = Array.isArray(response?.unavailable_equipment_ids)
+        ? (response.unavailable_equipment_ids as string[])
+        : unavailableEquipmentIds;
       setState((s) => ({
         ...s,
         equipmentNotice: null,
-        profile: s.profile ? { ...s.profile, unavailableEquipmentIds } : s.profile,
+        profile: s.profile
+          ? {
+              ...s.profile,
+              unavailableEquipmentIds: persistedUnavailable,
+              serverProfileUpdatedAt: response?.profile_updated_at as string | undefined,
+            }
+          : s.profile,
         exerciseReplacements: {
           ...s.exerciseReplacements,
           [date]: [...(s.exerciseReplacements[date] ?? []), item],
@@ -125,40 +130,34 @@ export function createPlanActions(
     const current = state.exerciseReplacements[date] ?? [];
     const removed = current.find((replacement) => replacement.id === replacementId);
     if (!removed) return;
-    const stillUsed = Object.values(state.exerciseReplacements)
-      .flat()
-      .some(
-        (replacement) =>
-          replacement.id !== replacementId &&
-          replacement.equipmentIds.some((id) => removed.equipmentIds.includes(id)),
-      );
-    const unavailableEquipmentIds = stillUsed
-      ? (state.profile?.unavailableEquipmentIds ?? [])
-      : (state.profile?.unavailableEquipmentIds ?? []).filter(
-          (id) => !removed.equipmentIds.includes(id),
-        );
-    const deactivate = await supabase
-      .from("exercise_replacements")
-      .update({ active: false })
-      .eq("id", replacementId)
-      .eq("user_id", user.id);
-    assertNoSupabaseError("exercise_replacements.undo", deactivate.error);
-    const profileUpdate = await supabase
-      .from("athlete_profiles")
-      .update({ unavailable_equipment_ids: unavailableEquipmentIds })
-      .eq("user_id", user.id);
-    if (profileUpdate.error) {
-      await supabase
-        .from("exercise_replacements")
-        .update({ active: true })
-        .eq("id", replacementId)
-        .eq("user_id", user.id);
-      assertNoSupabaseError("athlete_profiles.equipment_undo", profileUpdate.error);
-    }
+    const remainingEquipment = new Set(
+      Object.values(state.exerciseReplacements)
+        .flat()
+        .filter((replacement) => replacement.id !== replacementId)
+        .flatMap((replacement) => replacement.equipmentIds),
+    );
+    const unavailableEquipmentIds = (state.profile?.unavailableEquipmentIds ?? []).filter(
+      (id) => !removed.equipmentIds.includes(id) || remainingEquipment.has(id),
+    );
+    const write = await supabase.rpc("set_equipment_replacement", {
+      p_operation_id: crypto.randomUUID(),
+      p_undo_id: replacementId,
+    });
+    assertNoSupabaseError("set_equipment_replacement.undo", write.error);
+    const response = write.data as Record<string, unknown> | null;
+    const persistedUnavailable = Array.isArray(response?.unavailable_equipment_ids)
+      ? (response.unavailable_equipment_ids as string[])
+      : unavailableEquipmentIds;
     setState((s) => ({
       ...s,
       equipmentNotice: null,
-      profile: s.profile ? { ...s.profile, unavailableEquipmentIds } : s.profile,
+      profile: s.profile
+        ? {
+            ...s.profile,
+            unavailableEquipmentIds: persistedUnavailable,
+            serverProfileUpdatedAt: response?.profile_updated_at as string | undefined,
+          }
+        : s.profile,
       exerciseReplacements: {
         ...s.exerciseReplacements,
         [date]: (s.exerciseReplacements[date] ?? []).filter(
@@ -176,124 +175,138 @@ export function createPlanActions(
     reason: string,
   ) {
     if (!user) return;
+    const sourceDay = state.plan.find((day) => day.date === date);
+    const current = sourceDay
+      ? resolveModifiedDay(sourceDay, state.modifications[date] ?? [])
+      : originalSession;
+    if (!current?.dayDbId) throw new Error("Brak zapisanego dnia treningowego dla tej sesji.");
+    const original = type === "swap" ? current : null;
+    const protectedSlot = (
+      old: SessionDay | null | undefined,
+      next: SessionDay | null | undefined,
+    ) => {
+      const log = old?.dbId ? state.completions[old.dbId] : undefined;
+      if (
+        (log?.completed || log?.status === "started") &&
+        (!next || sessionPrescription(old!) !== sessionPrescription(next))
+      )
+        throw new Error("Nie zmieniamy rozpoczętej lub ukończonej sesji. Wybierz inną jednostkę.");
+    };
+    if (type === "swap") {
+      protectedSlot(current, session);
+      protectedSlot(current.secondSession, session.secondSession);
+    }
     const id = crypto.randomUUID();
     const safetyStatus: SessionStatus = type === "swap" ? "swapped_by_user" : "added_by_user";
-    const sourceDay = state.plan.find((day) => day.date === date);
-    if (sourceDay) {
-      const proposed: SessionModification = {
-        id,
-        date,
-        type,
-        reason,
-        safetyStatus,
-        session,
-        originalSession,
-        createdAt: new Date().toISOString(),
-      };
-      const changedDay = resolveModifiedDay(sourceDay, [
-        ...(state.modifications[date] ?? []),
-        proposed,
-      ]);
-      const blockReason = gymChangeBlockReason(
-        resolveEffectivePlan(state.plan, state.modifications),
-        date,
-        changedDay,
-      );
-      if (blockReason) throw new Error(blockReason);
-    }
-    const trainingDayId =
-      originalSession?.dayDbId ?? state.plan.find((day) => day.date === date)?.dayDbId;
-    if (!trainingDayId) {
-      throw new Error("Brak zapisanego dnia treningowego dla tej sesji.");
-    }
-    const { persistModifiedSession } = await import("../persist");
-    const persistedSession = await persistModifiedSession(user.id, trainingDayId, session);
+    const { prepareModifiedSession } = await import("../persist");
+    const samePrimary =
+      !!original && sessionPrescription(original) === sessionPrescription(session);
+    const prepared = prepareModifiedSession(
+      user.id,
+      current.dayDbId,
+      { ...session, planDbId: current.planDbId, cycleId: current.cycleId },
+      samePrimary ? original?.dbId : undefined,
+    );
+    const sameSecond =
+      !!session.secondSession &&
+      !!current.secondSession &&
+      sessionPrescription(session.secondSession) === sessionPrescription(current.secondSession);
+    const second = session.secondSession
+      ? prepareModifiedSession(
+          user.id,
+          current.dayDbId,
+          session.secondSession,
+          sameSecond ? current.secondSession?.dbId : undefined,
+        )
+      : null;
+    prepared.session.secondSession = second?.session ?? null;
+    const replaceSecond =
+      type === "swap" &&
+      JSON.stringify(current.secondSession) !== JSON.stringify(session.secondSession);
     const mod: SessionModification = {
       id,
       date,
       type,
       reason,
       safetyStatus,
-      session: persistedSession,
-      originalSession,
+      session: prepared.session,
+      originalSession: original,
       createdAt: new Date().toISOString(),
     };
-    const modificationWrite = await supabase.from("session_modifications").insert({
-      id,
-      user_id: user.id,
-      date,
-      type,
-      reason,
-      safety_status: safetyStatus,
-      original_session_id: originalSession?.dbId ?? null,
-      new_session_id: persistedSession.dbId ?? null,
-      original_session_json: originalSession as unknown as Json,
-      new_session_json: persistedSession as unknown as Json,
-      active: true,
+    const retained = (state.modifications[date] ?? []).filter(
+      (item) =>
+        !(type === "swap" && item.type === "swap") && !(replaceSecond && item.type === "add"),
+    );
+    const changedDay = resolveModifiedDay(sourceDay ?? current, [...retained, mod]);
+    const effective = resolveEffectivePlan(state.plan, state.modifications);
+    const blockReason = gymChangeBlockReason(effective, date, changedDay);
+    if (blockReason) throw new Error(blockReason);
+    if (state.profile)
+      assertSafePlanChange(
+        effective,
+        effective.map((day) => (day.date === date ? changedDay : day)),
+        state.profile,
+      );
+    const expectedPlanId = current.planDbId ?? sourceDay?.planDbId;
+    if (!expectedPlanId) throw new Error("Odśwież plan przed zapisaniem zmiany.");
+    const result = await supabase.rpc("apply_plan_modification", {
+      p_operation_id: id,
+      p_expected_plan_id: expectedPlanId,
+      p_modification: {
+        id,
+        user_id: user.id,
+        date,
+        type,
+        reason,
+        safety_status: safetyStatus,
+        original_session_id: original?.dbId ?? null,
+        new_session_id: prepared.session.dbId,
+        original_session_json: original,
+        new_session_json: prepared.session,
+        active: true,
+        replace_second: replaceSecond,
+      } as unknown as Json,
+      p_session: prepared.row as unknown as Json,
+      p_exercises: prepared.exercises as unknown as Json,
+      p_second_session: (second?.row as unknown as Json) ?? undefined,
+      p_second_exercises: (second?.exercises ?? []) as unknown as Json,
     });
-    if (modificationWrite.error) {
-      await supabase
-        .from("training_sessions")
-        .delete()
-        .eq("id", persistedSession.dbId!)
-        .eq("user_id", user.id);
-      assertNoSupabaseError("session_modifications.insert", modificationWrite.error);
-    }
-    if (type === "swap") {
-      const deactivate = await supabase
-        .from("session_modifications")
-        .update({ active: false })
-        .eq("user_id", user.id)
-        .eq("date", date)
-        .eq("type", "swap")
-        .neq("id", id);
-      if (deactivate.error) {
-        await supabase.from("session_modifications").delete().eq("id", id).eq("user_id", user.id);
-        await supabase
-          .from("training_sessions")
-          .delete()
-          .eq("id", persistedSession.dbId!)
-          .eq("user_id", user.id);
-        assertNoSupabaseError("session_modifications.deactivate_previous", deactivate.error);
-      }
-    }
-    setState((current) => {
-      const existing = current.modifications[date] ?? [];
-      const filtered = type === "swap" ? existing.filter((item) => item.type !== "swap") : existing;
-      return {
-        ...current,
-        modifications: {
-          ...current.modifications,
-          [date]: [...filtered, mod],
-        },
-      };
-    });
+    assertNoSupabaseError("apply_plan_modification", result.error);
+    setState((currentState) => ({
+      ...currentState,
+      modifications: {
+        ...currentState.modifications,
+        [date]: [
+          ...(currentState.modifications[date] ?? []).filter(
+            (item) =>
+              !(type === "swap" && item.type === "swap") && !(replaceSecond && item.type === "add"),
+          ),
+          mod,
+        ],
+      },
+    }));
   }
 
   async function undoModification(date: string, id: string) {
     if (!user) return;
     const modification = (state.modifications[date] ?? []).find((item) => item.id === id);
-    const deactivate = await supabase
-      .from("session_modifications")
-      .update({ active: false })
-      .eq("user_id", user.id)
-      .eq("id", id);
-    assertNoSupabaseError("session_modifications.undo", deactivate.error);
-    const modifiedSessionId = modification?.session.dbId;
-    if (modifiedSessionId) {
-      const logDelete = await supabase
-        .from("session_logs")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("session_id", modifiedSessionId);
-      assertNoSupabaseError("session_logs.delete_modified", logDelete.error);
-      const sessionDelete = await supabase
-        .from("training_sessions")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("id", modifiedSessionId);
-      assertNoSupabaseError("training_sessions.delete_modified", sessionDelete.error);
-    }
+    const resultId = modification?.session.dbId;
+    const log = resultId ? state.completions[resultId] : undefined;
+    const ownsNewSession = resultId && resultId !== modification?.originalSession?.dbId;
+    if (ownsNewSession && (log?.completed || log?.status === "started"))
+      throw new Error("Nie można usunąć rozpoczętej lub ukończonej sesji przez cofnięcie zmiany.");
+    const oldSecond = modification?.session.secondSession;
+    const secondLog = oldSecond?.dbId ? state.completions[oldSecond.dbId] : undefined;
+    if (secondLog?.completed || secondLog?.status === "started")
+      throw new Error("Nie można cofnąć zmiany obejmującej rozpoczętą lub ukończoną drugą sesję.");
+    const deactivate = await supabase.rpc("undo_plan_modification", {
+      p_modification_id: id,
+      p_operation_id: crypto.randomUUID(),
+      p_expected_plan_id: state.plan[0]?.planDbId,
+    });
+    assertNoSupabaseError("undo_plan_modification", deactivate.error);
+    // Rows and results are archival records; undo only changes the active overlay.
+    const modifiedSessionId: string | undefined = undefined;
     setState((current) => {
       const existing = current.modifications[date] ?? [];
       const next = existing.filter((item) => item.id !== id);
@@ -324,7 +337,7 @@ export function createPlanActions(
     if (!user) return;
     const profile = state.profile;
     if (!profile) return;
-    const [{ generatePlan, weekRanges }, { persistMonthlyPlan }] = await Promise.all([
+    const [{ weekRanges }, { persistMonthlyPlan }] = await Promise.all([
       import("../planEngine"),
       import("../persist"),
     ]);
@@ -338,6 +351,14 @@ export function createPlanActions(
     const ranges = planStart ? weekRanges(planStart, current.length) : [];
     const range = ranges[weekNumber];
 
+    if (!range || !current[range.start]) throw new Error("Nie znaleziono tygodnia. Odśwież plan.");
+    const startDate = current[range.start].date;
+    const endDate = current[range.end - 1].date;
+    if (
+      normalizedMatchDates.some((date) => date < startDate || date > endDate) ||
+      (!noMatchNextWeek && normalizedMatchDates.length === 0)
+    )
+      throw new Error("Wybierz daty meczów w podanym tygodniu.");
     if (range && current[range.start]) {
       const startIdx = range.start;
       const weekStart = parseIso(current[startIdx].date);
@@ -349,35 +370,47 @@ export function createPlanActions(
         matchDates: normalizedMatchDates,
       };
       const regenDays = range.end - range.start;
-      const fresh = generatePlan(tempProfile, weekStart, regenDays, weekNumber);
+      const fresh = stampPlanRevision(
+        await generatePlanAsync(tempProfile, weekStart, regenDays, weekNumber),
+        profile.onboardingRevision ?? null,
+        ONBOARDING_SCHEMA_VERSION,
+      );
       newPlan = [...current.slice(0, startIdx), ...fresh, ...current.slice(startIdx + regenDays)];
-      // Zapisujemy cały plan ponownie (regeneruje identyfikatory sesji).
-      await persistMonthlyPlan(user.id, profile, newPlan);
+      newPlan = reconcilePlanIdentity(newPlan, current, state.completions, context.todayIso);
+      newPlan = stampPlanRevision(
+        newPlan,
+        profile.onboardingRevision ?? null,
+        ONBOARDING_SCHEMA_VERSION,
+      );
+      assertSafePlanChange(current, newPlan, { ...profile, matchDate: null, matchDates: [] });
+      const effectiveNew = resolveEffectivePlan(newPlan, state.modifications);
+      for (const matchDate of normalizedMatchDates) {
+        if (effectiveNew.find((day) => day.date === matchDate)?.dayType !== "match")
+          throw new Error(
+            "Zapisana zmiana sesji koliduje z nowym meczem. Cofnij zmianę tego dnia i potwierdź tydzień ponownie.",
+          );
+      }
+      assertSafePlanChange(resolveEffectivePlan(current, state.modifications), effectiveNew, {
+        ...profile,
+        matchDate: null,
+        matchDates: [],
+      });
     }
 
     const id = state.transitions[weekNumber]?.id ?? crypto.randomUUID();
     const transition: WeeklyTransition = {
       id,
       weekNumber,
+      cycleId: current[0]?.cycleId,
+      weekStart: startDate,
+      weekEnd: endDate,
       nextMatchDate: normalizedMatchDates[0] ?? null,
       nextMatchDates: normalizedMatchDates,
       noMatchNextWeek,
       confirmedAt: new Date().toISOString(),
     };
 
-    const transitionWrite = await supabase.from("weekly_transitions").upsert(
-      {
-        id,
-        user_id: user.id,
-        week_number: weekNumber,
-        next_match_date: transition.nextMatchDate,
-        next_match_dates: transition.nextMatchDates ?? [],
-        no_match_next_week: noMatchNextWeek,
-        confirmed_at: transition.confirmedAt,
-      },
-      { onConflict: "user_id,week_number" },
-    );
-    assertNoSupabaseError("weekly_transitions.upsert", transitionWrite.error);
+    newPlan = await persistMonthlyPlan(user.id, profile, newPlan, transition);
     setState((s) => ({
       ...s,
       plan: newPlan,
@@ -392,11 +425,9 @@ export function createPlanActions(
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       throw new Error("Check-in zdrowotny wymaga połączenia z internetem.");
     }
-    const { applyCheckInToPlanDay } = await import("../dailyCheckin");
     if (user) {
-      const write = await supabase.from("readiness_logs").upsert(
-        {
-          user_id: user.id,
+      const write = await supabase.rpc("save_readiness_checkin", {
+        p_payload: {
           date: r.date,
           sleep: r.sleep,
           energy: r.energy,
@@ -410,33 +441,14 @@ export function createPlanActions(
           red_flags: r.redFlags ?? [],
           overall: r.overall,
           updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,date" },
-      );
-      assertNoSupabaseError("readiness_logs.upsert", write.error);
-
-      const painWrite =
-        r.jointPain > 0
-          ? await supabase.from("pain_logs").upsert(
-              {
-                user_id: user.id,
-                date: r.date,
-                pain_level: r.jointPain,
-                pain_location: r.painLocation ?? null,
-                notes: null,
-              },
-              { onConflict: "user_id,date" },
-            )
-          : await supabase.from("pain_logs").delete().eq("user_id", user.id).eq("date", r.date);
-      assertNoSupabaseError("pain_logs.sync", painWrite.error);
+        } as unknown as Json,
+      });
+      assertNoSupabaseError("save_readiness_checkin", write.error);
     }
 
     setState((s) => {
       const nextReadiness = { ...s.readiness, [r.date]: r };
-      const nextPlan = s.profile
-        ? applyCheckInToPlanDay(s.plan, r.date, r, s.profile).plan
-        : s.plan;
-      const next = { ...s, readiness: nextReadiness, plan: nextPlan };
+      const next = { ...s, readiness: nextReadiness };
       persistLocal(user?.id, next);
       return next;
     });

@@ -1,9 +1,40 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "./model";
-import { mergeHydratedHistory, mergeHydratedRecord, mergeHydratedState } from "./hydrationMerge";
+import {
+  mergeHydratedHistory,
+  mergeHydratedRecord,
+  mergeHydratedState,
+  mergePendingCompletionRows,
+} from "./hydrationMerge";
 import type { SessionHistoryRecord } from "../types";
 
 describe("background hydration merges", () => {
+  it("keeps a pending completion across an acknowledgement/read race without reviving an older start", () => {
+    const completed = {
+      session_id: "s",
+      completed: true,
+      completion_status: "completed",
+      updated_at: "2026-10-18T12:00:00Z",
+    };
+    const started = {
+      session_id: "s",
+      completed: false,
+      completion_status: "started",
+      updated_at: "2026-10-18T11:00:00Z",
+    };
+    expect(
+      mergePendingCompletionRows(
+        [started],
+        [{ kind: "session_log", dedupeKey: "s", payload: { ...completed, user_id: "u" } }],
+      )[0],
+    ).toMatchObject(completed);
+    expect(
+      mergePendingCompletionRows(
+        [completed],
+        [{ kind: "session_log", dedupeKey: "s", payload: { ...started, user_id: "u" } }],
+      ),
+    ).toEqual([completed]);
+  });
   it("keeps new and deleted local entries while refreshing unchanged entries", () => {
     const old = { value: 1 };
     const baseline = { unchanged: old, edited: old, deleted: old };
@@ -51,5 +82,24 @@ describe("background hydration merges", () => {
       newRow,
       { ...row, title: "Updated" },
     ]);
+  });
+  it("keeps the server base revision when a locally committed result is restored after restart", () => {
+    const rows = mergePendingCompletionRows(
+      [],
+      [
+        {
+          kind: "session_log",
+          dedupeKey: "session:s",
+          expectedVersion: 5,
+          payload: {
+            user_id: "u",
+            session_id: "s",
+            completed: true,
+            completion_status: "completed",
+          },
+        },
+      ],
+    );
+    expect(rows[0]).toMatchObject({ session_id: "s", write_version: 5, completed: true });
   });
 });

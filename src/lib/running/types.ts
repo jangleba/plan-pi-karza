@@ -7,6 +7,7 @@ export interface RoutePoint {
   /** Czas aktywnego biegu — pauza nie jest wliczana. */
   elapsedSec: number;
   accuracyM?: number;
+  segment?: number; // incremented after a pause; never bridge stopped GPS segments
 }
 
 export interface KilometerSplit {
@@ -81,8 +82,10 @@ export interface RunningActivity {
   splits: KilometerSplit[];
   intervalResults: RunningIntervalResult[];
   source: RunningActivitySource;
+  isFieldMasTest?: boolean;
   createdAt: string;
   updatedAt: string;
+  writeVersion?: number;
 }
 
 export type RunningActivityDraft = Omit<RunningActivity, "id" | "createdAt" | "updatedAt">;

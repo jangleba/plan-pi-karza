@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FuelMealSheet, type FuelMealDraft } from "./FuelMealSheet";
-import { FuelPanels, type FuelPanelName } from "./FuelPanels";
+import { FuelPanels, downloadFuelFile, type FuelPanelName } from "./FuelPanels";
 import { StoreCheckSheet } from "./StoreCheckSheet";
 import { FOOD_BY_ID, findRecipe, parsePantry, type FuelRecipe } from "@/lib/fuel/catalog";
 import {
@@ -26,6 +26,8 @@ import {
   readFuelData,
   resolveFuelTiming,
   writeFuelData,
+  fuelStorageKey,
+  readFuelBackup,
   type FuelContext,
   type FuelDeviceData,
   type FuelEntry,
@@ -40,7 +42,7 @@ import {
   householdPortion,
   practicalRecipes,
   relativeFuelTiming,
-  repeatableRecipe,
+  fuelEntryAllowed,
   FUEL_TIME_PRESETS,
 } from "@/lib/fuel/practical";
 import {
@@ -77,14 +79,23 @@ export function FuelWorkspace({
   userId,
   contexts,
   tomorrowMatch = false,
+  profileRestrictions = [],
 }: {
   userId: string;
   contexts: FuelContext[];
   tomorrowMatch?: boolean;
+  profileRestrictions?: string[];
 }) {
   const [data, setData] = useState<FuelDeviceData>(emptyFuelData);
   const [loaded, setLoaded] = useState(false);
   const [storageOK, setStorageOK] = useState(true);
+  const [storageBlocked, setStorageBlocked] = useState(false);
+  const [storageError, setStorageError] = useState("");
+  const [recoveryDownloaded, setRecoveryDownloaded] = useState(false);
+  const recoverySnapshot = useRef<string | null>(null);
+  const activeUser = useRef(userId);
+  activeUser.current = userId;
+  const pendingSaveFeedback = useRef<{ message: string; undo: () => void } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [panel, setPanel] = useState<FuelPanelName>(null);
   const [text, setText] = useState("");
@@ -123,37 +134,139 @@ export function FuelWorkspace({
   const timing = resolveFuelTiming(context, data.timings[context.key]);
   const minutes = minutesToFuelStart(timing, now);
   const parsed = useMemo(() => parsePantry(text), [text]);
-  const recipes = practicalRecipes({ context, timing, now, data, pantry, quick });
+  const recipes = practicalRecipes({
+    context,
+    timing,
+    now,
+    data,
+    pantry,
+    quick,
+    restrictions: profileRestrictions,
+  });
   const hero = recipes.length ? recipes[recipeIndex % recipes.length] : null;
-  const repeat = repeatableRecipe(data.entries, recipes);
-  const restrictions = foodPreferenceTerms(data.preferences);
+  const restrictions = [...profileRestrictions, ...foodPreferenceTerms(data.preferences)];
+  const repeat = data.entries.find(
+    (entry) =>
+      entry.status === "eaten" &&
+      !entry.product &&
+      fuelEntryAllowed(entry, data.preferences, restrictions),
+  );
   const latest = data.entries.find(
     (e) => e.status === "eaten" && e.eatenAt !== null && localDate(e.eatenAt) === localDate(now),
   );
   const selectedEntry = data.entries.find(
     (e) => e.contextKey === context.key && e.status === "selected",
   );
-  const packRecipe = selectedEntry ? (findRecipe(selectedEntry.recipeId) ?? hero) : hero;
+  const packRecipe = selectedEntry ? null : hero;
   const native = nativeFuelRemindersAvailable();
 
   useEffect(() => {
-    try {
-      setData(readFuelData(window.localStorage, userId));
-      setReminders(readReminderPreferences(window.localStorage, userId));
-    } catch {
-      setStorageOK(false);
-    }
-    setLoaded(true);
+    const reload = () => {
+      try {
+        setData(readFuelData(window.localStorage, userId));
+        setReminders(readReminderPreferences(window.localStorage, userId));
+        setStorageBlocked(false);
+        setStorageError("");
+      } catch (error) {
+        setStorageOK(false);
+        setStorageBlocked(true);
+        setStorageError(error instanceof Error ? error.message : "Zapis Fuel jest niedostępny.");
+      }
+      setLoaded(true);
+    };
+    reload();
+    const applied = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; module: string }>).detail;
+      if (detail?.userId === userId && detail.module === "fuel") reload();
+    };
+    window.addEventListener("ballwise:module-data-applied", applied);
+    return () => window.removeEventListener("ballwise:module-data-applied", applied);
   }, [userId]);
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || storageBlocked) return;
+    let saved = false;
     try {
-      setStorageOK(writeFuelData(window.localStorage, userId, data));
+      saved = writeFuelData(window.localStorage, userId, data);
     } catch {
-      setStorageOK(false);
+      /* retain in memory */
+    }
+    setStorageOK(saved);
+    const feedback = pendingSaveFeedback.current;
+    pendingSaveFeedback.current = null;
+    if (feedback) {
+      if (saved)
+        toast.success(feedback.message, { action: { label: "Cofnij", onClick: feedback.undo } });
+      else
+        toast.info(
+          "Nie zapisano posiłku na urządzeniu. Pobierz kopię w Historii przed zamknięciem.",
+        );
     }
     window.dispatchEvent(new CustomEvent("ballwise:fuel-changed"));
-  }, [data, loaded, userId]);
+  }, [data, loaded, storageBlocked, userId]);
+  async function downloadRecoveryCopy() {
+    setRecoveryDownloaded(false);
+    recoverySnapshot.current = null;
+    const owner = userId;
+    try {
+      const raw = localStorage.getItem(fuelStorageKey(owner));
+      const result = await downloadFuelFile(
+        "BallWise-Fuel-oryginalny-zapis.json",
+        raw ?? "null",
+        "application/json",
+        owner,
+      );
+      if (activeUser.current !== owner) return;
+      if (result === "delivered" && localStorage.getItem(fuelStorageKey(owner)) === raw) {
+        recoverySnapshot.current = raw;
+        setRecoveryDownloaded(true);
+      } else
+        toast.info(
+          result === "cancelled"
+            ? "Anulowano przekazanie kopii. Oryginalny zapis pozostaje bez zmian."
+            : "Zapis zmienił się podczas eksportu. Pobierz nową kopię przed utworzeniem nowego zapisu.",
+        );
+    } catch {
+      toast.info("Nie udało się pobrać kopii. Sprawdź dostęp do plików.");
+    }
+  }
+  function recoveryCopyMatches() {
+    try {
+      return (
+        recoveryDownloaded &&
+        localStorage.getItem(fuelStorageKey(userId)) === recoverySnapshot.current
+      );
+    } catch {
+      return false;
+    }
+  }
+  function importBackup(value: unknown) {
+    if (storageBlocked && !recoveryCopyMatches()) {
+      toast.info("Najpierw pobierz oryginalny zapis. Import nie nadpisze go bez kopii.");
+      return;
+    }
+    try {
+      const incoming = readFuelBackup(value, userId);
+      const entries = [
+        ...data.entries,
+        ...incoming.entries.filter(
+          (entry) => !data.entries.some((existing) => existing.id === entry.id),
+        ),
+      ];
+      if (entries.length > 100)
+        throw new Error(
+          "Kopia i historia mają razem ponad 100 wpisów. Zachowaj oba eksporty i wybierz mniejszą kopię.",
+        );
+      const next = { ...incoming, entries };
+      if (!writeFuelData(localStorage, userId, next))
+        throw new Error("Brak miejsca na zapis kopii. Oryginalny zapis pozostał bez zmian.");
+      setStorageBlocked(false);
+      setStorageError("");
+      setData(next);
+      toast.success("Przywrócono kopię Fuel.");
+    } catch (error) {
+      toast.info(error instanceof Error ? error.message : "Nie udało się odczytać kopii.");
+    }
+  }
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
     const refresh = () => setNow(Date.now());
@@ -252,28 +365,44 @@ export function FuelWorkspace({
   }
   function recordEntry(entry: FuelEntry, replaceId?: string | null) {
     const previous = replaceId ? data.entries.find((e) => e.id === replaceId) : null;
+    if (
+      !previous &&
+      !data.entries.some((existing) => existing.id === entry.id) &&
+      data.entries.length >= 100
+    ) {
+      toast.info(
+        "Historia ma 100 wpisów. Pobierz kopię i usuń starsze wpisy, żeby zapisać nowy posiłek.",
+      );
+      return;
+    }
     setData((d) => ({
       ...d,
       entries: [entry, ...d.entries.filter((e) => e.id !== (replaceId ?? entry.id))].slice(0, 100),
     }));
-    toast.success(
-      entry.status === "eaten" ? "Zapisano zjedzony zestaw." : "Zestaw zapisany na później.",
-      {
-        action: {
-          label: "Cofnij",
-          onClick: () =>
-            setData((d) => ({
-              ...d,
-              entries: [
-                ...(previous ? [previous] : []),
-                ...d.entries.filter((e) => e.id !== entry.id),
-              ],
-            })),
-        },
-      },
-    );
+    pendingSaveFeedback.current = {
+      message:
+        entry.status === "eaten" ? "Zapisano zjedzony zestaw." : "Zestaw zapisany na później.",
+      undo: () =>
+        setData((current) => ({
+          ...current,
+          entries: [
+            ...(previous ? [previous] : []),
+            ...current.entries.filter((row) => row.id !== entry.id),
+          ],
+        })),
+    };
+    if (storageBlocked) {
+      pendingSaveFeedback.current = null;
+      toast.info(
+        "Posiłek jest tylko na tym ekranie. Najpierw odzyskaj zapis lub pobierz kopię w Historii.",
+      );
+    }
   }
   function quickSave(recipe: FuelRecipe, status: FuelEntry["status"]) {
+    if (!fuelEntryAllowed({ lines: recipe.lines }, data.preferences, restrictions)) {
+      toast.info("Ten zestaw koliduje z aktualnymi ograniczeniami. Wybierz zamiennik.");
+      return;
+    }
     const at = Date.now();
     if (at - lastTap.current < 700) return;
     lastTap.current = at;
@@ -521,9 +650,37 @@ export function FuelWorkspace({
       </header>
       <main className="fuel-v4-main">
         {!storageOK && (
-          <p className="fuel-v4-warning" role="status">
-            Przeglądarka nie zapisuje historii. Bieżący wybór działa.
-          </p>
+          <div className="fuel-v4-warning" role="status">
+            <p>
+              {storageError ||
+                "Nie zapisano ostatnich zmian. Pobierz kopię w Historii przed zamknięciem aplikacji."}
+            </p>
+            {storageBlocked && (
+              <>
+                <button className="fuel-secondary mt-2" onClick={downloadRecoveryCopy}>
+                  Pobierz oryginalny zapis
+                </button>
+                <button
+                  className="fuel-text-button mt-2"
+                  disabled={!recoveryDownloaded}
+                  onClick={() => {
+                    if (!recoveryCopyMatches()) {
+                      setRecoveryDownloaded(false);
+                      toast.info(
+                        "Zapis zmienił się. Pobierz aktualną kopię przed utworzeniem nowego.",
+                      );
+                      return;
+                    }
+                    setStorageBlocked(false);
+                    setStorageError("");
+                    setData(emptyFuelData());
+                  }}
+                >
+                  Po pobraniu kopii utwórz nowy zapis
+                </button>
+              </>
+            )}
+          </div>
         )}
         <section className="fuel-v4-time" aria-label="Czas do treningu">
           <div className="fuel-row">
@@ -721,11 +878,31 @@ export function FuelWorkspace({
           <button onClick={() => setPanel("history")}>
             <History size={15} /> Historia{latest ? " · zapisano dziś" : ""}
           </button>
-          {repeat && <button onClick={() => openRecipe(repeat)}>Powtórz zestaw</button>}
+          {repeat && (
+            <button
+              onClick={() => {
+                setEditingId(null);
+                setDraft({
+                  id: repeat.recipeId,
+                  title: repeat.title,
+                  lines: repeat.lines.map((line) => ({ ...line })),
+                  recipe: findRecipe(repeat.recipeId),
+                  repeated: true,
+                  fraction: repeat.fraction,
+                });
+              }}
+            >
+              Powtórz zestaw
+            </button>
+          )}
         </div>
-        <p className="fuel-v4-discreet">Propozycje do wysiłku. Porcje i miary są orientacyjne.</p>
+        <p className="fuel-v4-discreet">
+          Propozycje do wysiłku. Porcje i miary są orientacyjne; Fuel nie wylicza dawek z masy
+          ciała.
+        </p>
       </main>
       <FuelPanels
+        userId={userId}
         panel={panel}
         setPanel={setPanel}
         data={data}
@@ -737,6 +914,9 @@ export function FuelWorkspace({
         hero={hero}
         recipes={recipes}
         packRecipe={packRecipe}
+        packEntry={selectedEntry ?? null}
+        restrictions={restrictions}
+        onImportBackup={importBackup}
         text={text}
         setText={setText}
         parsed={parsed}

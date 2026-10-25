@@ -16,7 +16,10 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("./video", () => ({
   openJumpVideo: mocks.open,
-  decodeJumpFrame: mocks.decode,
+  createJumpFrameDecoder: (source: OpenedVideo) => ({
+    decode: (index: number, signal: AbortSignal) => mocks.decode(source, index, signal),
+    dispose: vi.fn(),
+  }),
 }));
 vi.mock("./camera", () => ({
   openLabCamera: mocks.camera,
@@ -152,6 +155,27 @@ async function render(save = vi.fn(), testId: "cmj" | "standing_long_jump" | "co
 }
 
 describe("browser video measurement flow", () => {
+  it.each(["button", "background"])(
+    "cancels AUTO through %s without saving a partial result",
+    async (reason) => {
+      mocks.auto.mockImplementation(() => new Promise(() => {}));
+      const save = await render(vi.fn(), "standing_long_jump");
+      await importFile();
+      const analysisSignal = mocks.auto.mock.calls[0][1] as AbortSignal;
+      expect(analysisSignal.aborted).toBe(false);
+      await act(async () => {
+        if (reason === "button") button("Anuluj analizę").click();
+        else {
+          vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+          document.dispatchEvent(new Event("visibilitychange"));
+        }
+      });
+      expect(analysisSignal.aborted).toBe(true);
+      expect(host.textContent).toContain("BRAK WIARYGODNEGO WYNIKU");
+      expect(save).not.toHaveBeenCalled();
+      expect(host.querySelector(".bl-result")).toBeNull();
+    },
+  );
   it("opens an in-app preview, counts down and imports the original recorded file", async () => {
     vi.useFakeTimers();
     let finish!: (file: File) => void;

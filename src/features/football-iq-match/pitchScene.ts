@@ -34,6 +34,7 @@ export async function createPitchScene(
   host: HTMLDivElement,
   players: MatchPlayer[],
   onContextLost: () => void,
+  signal?: AbortSignal,
 ) {
   const renderer = new WebGLRenderer({
     antialias: true,
@@ -252,7 +253,7 @@ export async function createPitchScene(
   };
   let asset: Awaited<ReturnType<typeof loadRunningModel>>;
   try {
-    asset = await loadRunningModel();
+    asset = await loadRunningModel(signal);
   } catch (error) {
     renderer.domElement.removeEventListener("webglcontextlost", lost);
     ownedGeometries.forEach((g) => g.dispose());

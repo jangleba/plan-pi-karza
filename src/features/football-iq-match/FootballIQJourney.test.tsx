@@ -9,6 +9,8 @@ import { journeyBank } from "./journeyBank";
 import { chooseJourney, createJourney, journeyStep, journeyPointChoice } from "./journeyEngine";
 import { loadJourneyHistory } from "./journeyHistory";
 import type { JourneySession } from "./journeyTypes";
+const exports = vi.hoisted(() => ({ deliver: vi.fn() }));
+vi.mock("@/lib/loadwise/deliverExportFile", () => ({ deliverExportFile: exports.deliver }));
 const bridge = vi.hoisted(() => ({ props: null as ComponentProps<typeof TacticalPitch> | null }));
 vi.mock("./TacticalPitch", () => ({
   TacticalPitch: (props: ComponentProps<typeof TacticalPitch>) => {
@@ -57,6 +59,7 @@ beforeEach(() => {
     this.open = false;
   };
   localStorage.clear();
+  exports.deliver.mockReset().mockResolvedValue("delivered");
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -239,6 +242,41 @@ describe("individual IQ screen", () => {
     await mount("goalkeeper");
     expect(Object.fromEntries(bridge.props!.frameOverride!.positions)).toEqual(expected);
     expect(host.textContent).toContain("2/4");
+  });
+  it("does not unlock clearing after a cancelled or unfinished raw backup handoff", async () => {
+    await mount("goalkeeper");
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Jak rozegrać akcję"]')!.click(),
+    );
+    const rawKey = "ballwise:iq:journeys:v1:account-a:draft";
+    const original = localStorage.getItem(rawKey);
+    const reset = [...host.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Wyczyść zapis po wykonaniu kopii"),
+    )!;
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    exports.deliver.mockResolvedValueOnce("cancelled");
+    await clickText("Pobierz surową kopię zapisu");
+    expect(reset.disabled).toBe(true);
+    expect(localStorage.getItem(rawKey)).toBe(original);
+    expect(host.textContent).toContain("Czyszczenie pozostaje zablokowane");
+    expect(exports.deliver).toHaveBeenCalledWith(
+      "BallWise-IQ-surowa-kopia.json",
+      expect.any(String),
+      "application/json",
+      "account-a",
+    );
+    let resolve!: (result: string) => void;
+    exports.deliver.mockReturnValueOnce(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    await clickText("Pobierz surową kopię zapisu");
+    expect(reset.disabled).toBe(true);
+    await act(async () => resolve("delivered"));
+    expect(reset.disabled).toBe(true);
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    expect(reset.disabled).toBe(false);
   });
   it("opens the positional catalog and offers all 480 contexts explicitly", async () => {
     await mount("forward");

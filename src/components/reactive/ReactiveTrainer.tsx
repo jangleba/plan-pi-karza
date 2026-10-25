@@ -37,7 +37,12 @@ import {
 import {
   loadReactiveCustomSets,
   saveReactiveCustomSets,
+  loadReactiveSession,
+  loadReactiveResults,
+  saveReactiveSession,
 } from "@/lib/reactive-training/storage";
+import { deliverExportFile } from "@/lib/loadwise/deliverExportFile";
+import { ReactiveClock } from "@/lib/reactive-training/clock";
 import type {
   ReactiveColor,
   ReactiveCue,
@@ -129,7 +134,13 @@ function toggleValue<T extends string>(values: T[], value: T, minimum = 2): T[] 
   return [...values, value];
 }
 
-function DirectionIcon({ direction, className = "h-5 w-5" }: { direction: ReactiveDirection; className?: string }) {
+function DirectionIcon({
+  direction,
+  className = "h-5 w-5",
+}: {
+  direction: ReactiveDirection;
+  className?: string;
+}) {
   if (direction === "left") return <ArrowLeft className={className} />;
   if (direction === "right") return <ArrowRight className={className} />;
   if (direction === "forward") return <ArrowUp className={className} />;
@@ -174,7 +185,9 @@ function CueDisplay({ cue, visible }: { cue: ReactiveCue; visible: boolean }) {
   if (cue.mode === "sequence") {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-[#05070a] px-5 text-white">
-        <p className="mb-8 text-sm font-bold uppercase tracking-[0.22em] text-white/55">Sekwencja</p>
+        <p className="mb-8 text-sm font-bold uppercase tracking-[0.22em] text-white/55">
+          Sekwencja
+        </p>
         <div className="flex max-w-full flex-wrap items-center justify-center gap-3 sm:gap-5">
           {cue.sequence.map((direction, index) => (
             <div
@@ -228,22 +241,41 @@ function CueDisplay({ cue, visible }: { cue: ReactiveCue; visible: boolean }) {
   );
 }
 
-function DistributionBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+function DistributionBar({
+  label,
+  value,
+  total,
+  color,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+}) {
   const percent = total > 0 ? Math.round((value / total) * 100) : 0;
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
         <span className="font-medium text-foreground">{label}</span>
-        <span className="tabular-nums text-muted-foreground">{value} · {percent}%</span>
+        <span className="tabular-nums text-muted-foreground">
+          {value} · {percent}%
+        </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: color }} />
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${percent}%`, backgroundColor: color }}
+        />
       </div>
     </div>
   );
 }
 
-export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
+export function ReactiveTrainer(props: ReactiveTrainerProps) {
+  return <ReactiveTrainerSession key={props.storageKey} {...props} />;
+}
+
+function ReactiveTrainerSession({ storageKey, onBack }: ReactiveTrainerProps) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [settings, setSettings] = useState<ReactiveSettings>(DEFAULT_REACTIVE_SETTINGS);
   const [customSets, setCustomSets] = useState<ReactiveCustomSet[]>([]);
@@ -251,21 +283,52 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
   const [cue, setCue] = useState<ReactiveCue | null>(null);
   const [cueVisible, setCueVisible] = useState(true);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const [stats, setStats] = useState<ReactiveSessionStats>(() => initialReactiveStats(DEFAULT_REACTIVE_SETTINGS));
+  const [stats, setStats] = useState<ReactiveSessionStats>(() =>
+    initialReactiveStats(DEFAULT_REACTIVE_SETTINGS),
+  );
   const [setupError, setSetupError] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
   const [customLabel, setCustomLabel] = useState("");
   const [customDirection, setCustomDirection] = useState<ReactiveDirection | "">("");
   const [customColor, setCustomColor] = useState<ReactiveColor | "">("");
   const [draftActions, setDraftActions] = useState<ReactiveCustomAction[]>([]);
-  const startedAtMs = useRef(0);
+  const clock = useRef(new ReactiveClock());
   const pausedAtSec = useRef(0);
+  const sessionId = useRef("");
+  const mounted = useRef(true);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const [saveNote, setSaveNote] = useState("");
   const statsRef = useRef(stats);
   const cueRef = useRef<ReactiveCue | null>(null);
   const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
 
   useEffect(() => {
-    setCustomSets(loadReactiveCustomSets(storageKey));
+    try {
+      setCustomSets(loadReactiveCustomSets(storageKey));
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Nie udało się odczytać zestawów.");
+    }
+    try {
+      const saved = loadReactiveSession(storageKey);
+      if (saved) {
+        sessionId.current = saved.id;
+        setSettings(saved.settings);
+        statsRef.current = saved.stats;
+        setStats(saved.stats);
+        clock.current.restore(saved.stats.elapsedSec);
+        pausedAtSec.current = saved.stats.elapsedSec;
+        setElapsedSec(saved.stats.elapsedSec);
+        setPhase(saved.phase);
+        setSaveNote(
+          saved.phase === "paused"
+            ? "Przywrócono rozpoczęty trening. Wznów, gdy będziesz gotowy."
+            : "Przywrócono ostatni zapisany wynik.",
+        );
+      }
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Nie udało się odczytać sesji.");
+    }
   }, [storageKey]);
 
   useEffect(() => {
@@ -287,7 +350,12 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
       const nav = navigator as Navigator & {
         wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinelLike> };
       };
-      wakeLockRef.current = await nav.wakeLock?.request("screen") ?? null;
+      const lock = (await nav.wakeLock?.request("screen")) ?? null;
+      if (!mounted.current || ["paused", "summary", "setup"].includes(phaseRef.current)) {
+        await lock?.release();
+        return;
+      }
+      wakeLockRef.current = lock;
     } catch {
       wakeLockRef.current = null;
     }
@@ -329,36 +397,148 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
     setCue(null);
     setElapsedSec(0);
     pausedAtSec.current = 0;
+    clock.current.restore(0);
+    sessionId.current = crypto.randomUUID();
+    setSaveNote("");
     const nextStats = initialReactiveStats(normalized);
     statsRef.current = nextStats;
     setStats(nextStats);
+    phaseRef.current = "countdown";
     setPhase("countdown");
     void enterFullscreen();
     void keepScreenAwake();
   }
 
+  function persistProgress(final = false, elapsed = clock.current.seconds()) {
+    if (!sessionId.current) return;
+    const nextStats = { ...statsRef.current, elapsedSec: elapsed };
+    const saved = saveReactiveSession(storageKey, {
+      version: 1,
+      id: sessionId.current,
+      settings: normalized,
+      stats: nextStats,
+      phase: final ? "summary" : "paused",
+    });
+    if (mounted.current)
+      setSaveNote(
+        saved
+          ? final
+            ? "Wynik zapisany na tym urządzeniu."
+            : "Postęp zapisany na tym urządzeniu."
+          : "Nie zapisano ostatnich zmian. Pobierz kopię przed zamknięciem. Zachowano wcześniejszy zapis.",
+      );
+  }
   function finishSession() {
-    const elapsed = phase === "paused"
-      ? pausedAtSec.current
-      : Math.max(pausedAtSec.current, Math.round((Date.now() - startedAtMs.current) / 1_000));
+    const elapsed = clock.current.pause();
+    pausedAtSec.current = elapsed;
     const finalStats = finishReactiveStats(statsRef.current, elapsed);
     statsRef.current = finalStats;
     setStats(finalStats);
     setElapsedSec(elapsed);
+    phaseRef.current = "summary";
     setPhase("summary");
+    persistProgress(true, elapsed);
     void releaseScreen();
     void leaveFullscreen();
   }
-
   function pauseSession() {
-    pausedAtSec.current = elapsedSec;
+    const elapsed = clock.current.pause();
+    pausedAtSec.current = elapsed;
+    setElapsedSec(elapsed);
+    phaseRef.current = "paused";
     setPhase("paused");
+    persistProgress(false, elapsed);
+    void releaseScreen();
   }
-
   function resumeSession() {
-    startedAtMs.current = Date.now() - pausedAtSec.current * 1_000;
-    setPhase("running");
+    if (document.hidden) return;
+    if (normalized.mode === "custom" && (!activeCustomSet || activeCustomSet.actions.length < 2)) {
+      setSetupError("Zestaw tej sesji jest niedostępny. Wybierz zestaw przed wznowieniem.");
+      setPhase("setup");
+      return;
+    }
+    setCountdown(3);
+    phaseRef.current = "countdown";
+    setPhase("countdown");
     void keepScreenAwake();
+  }
+  const backgroundPause = useRef(pauseSession);
+  backgroundPause.current = pauseSession;
+  const persistOnExit = useRef(persistProgress);
+  persistOnExit.current = persistProgress;
+  const finishCurrent = useRef(finishSession);
+  finishCurrent.current = finishSession;
+  useEffect(() => {
+    mounted.current = true;
+    const sessionClock = clock.current;
+    const pause = () => {
+      if (["running", "countdown"].includes(phaseRef.current)) backgroundPause.current();
+    };
+    const pauseHidden = () => {
+      if (document.hidden) pause();
+    };
+    const nativeState = (event: Event) => {
+      if ((event as CustomEvent<{ isActive: boolean }>).detail?.isActive === false) pause();
+    };
+    // WKWebView also dispatches visibilitychange when the native app becomes inactive.
+    document.addEventListener("visibilitychange", pauseHidden);
+    window.addEventListener("pagehide", pause);
+    window.addEventListener("blur", pause);
+    window.addEventListener("ballwise:app-state", nativeState);
+    return () => {
+      mounted.current = false;
+      if (["running", "countdown", "paused"].includes(phaseRef.current)) {
+        const elapsed = sessionClock.pause();
+        persistOnExit.current(false, elapsed);
+      }
+      document.removeEventListener("visibilitychange", pauseHidden);
+      window.removeEventListener("pagehide", pause);
+      window.removeEventListener("blur", pause);
+      window.removeEventListener("ballwise:app-state", nativeState);
+    };
+  }, []);
+  async function exportResults() {
+    let history: unknown = null;
+    try {
+      history = loadReactiveResults(storageKey);
+    } catch {
+      /* include raw copy below */
+    }
+    const raw = (key: string) => {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    };
+    const backup = {
+      schema: "ballwise.reactive.backup.v1",
+      exportedAt: new Date().toISOString(),
+      history,
+      current: { id: sessionId.current, stats: statsRef.current, settings: normalized },
+      rawHistory: raw(`${storageKey}:history`),
+      rawSession: raw(`${storageKey}:session`),
+      rawCustomSets: raw(storageKey),
+    };
+    try {
+      const result = await deliverExportFile(
+        "BallWise-Reakcja.json",
+        JSON.stringify(backup, null, 2),
+        "application/json",
+        storageKey.startsWith("ballwise:reactive:v1:")
+          ? storageKey.slice("ballwise:reactive:v1:".length)
+          : undefined,
+      );
+      if (mounted.current)
+        setSaveNote(
+          result === "delivered"
+            ? "Przekazano kopię do zapisania. Sprawdź plik w wybranym miejscu."
+            : "Anulowano przekazanie kopii; wynik pozostaje na ekranie.",
+        );
+    } catch {
+      if (mounted.current)
+        setSaveNote("Nie udało się przekazać kopii. Sprawdź dostęp do Plików i spróbuj ponownie.");
+    }
   }
 
   useEffect(() => {
@@ -367,7 +547,7 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
       setCountdown((current) => {
         if (current <= 1) {
           window.clearInterval(timer);
-          startedAtMs.current = Date.now();
+          clock.current.resume();
           setPhase("running");
           return 0;
         }
@@ -380,10 +560,19 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
   useEffect(() => {
     if (phase !== "running") return;
     let cancelled = false;
-    const timers: number[] = [];
+    const timers = new Set<number>();
+    let flashTimer: number | undefined;
+    const schedule = (work: () => void, delay: number) => {
+      const handle = window.setTimeout(() => {
+        timers.delete(handle);
+        work();
+      }, delay);
+      timers.add(handle);
+      return handle;
+    };
 
     const emitCue = (decisionChange: boolean) => {
-      if (cancelled) return;
+      if (cancelled || document.hidden || phaseRef.current !== "running") return;
       const next = createReactiveCue({
         settings: normalized,
         stats: statsRef.current,
@@ -399,34 +588,33 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
       setStats(nextStats);
       if (normalized.vibration && typeof navigator.vibrate === "function") navigator.vibrate(60);
       if (normalized.mode === "flash") {
-        timers.push(window.setTimeout(() => setCueVisible(false), normalized.flashDurationMs));
+        if (flashTimer !== undefined) {
+          window.clearTimeout(flashTimer);
+          timers.delete(flashTimer);
+        }
+        flashTimer = schedule(() => setCueVisible(false), normalized.flashDurationMs);
       }
     };
 
     const scheduleWindow = () => {
       const delay = nextCueDelayMs(normalized);
       if (shouldChangeDecision(normalized.level)) {
-        timers.push(window.setTimeout(() => emitCue(true), Math.round(delay * 0.62)));
+        schedule(() => emitCue(true), Math.round(delay * 0.62));
       }
-      timers.push(window.setTimeout(() => {
+      schedule(() => {
         emitCue(false);
         scheduleWindow();
-      }, delay));
+      }, delay);
     };
 
     emitCue(false);
     scheduleWindow();
     const elapsedTimer = window.setInterval(() => {
-      const nextElapsed = Math.max(0, Math.round((Date.now() - startedAtMs.current) / 1_000));
+      const nextElapsed = clock.current.seconds();
       setElapsedSec(nextElapsed);
+      if (nextElapsed % 5 === 0) persistOnExit.current(false, nextElapsed);
       if (normalized.durationMin != null && nextElapsed >= normalized.durationMin * 60) {
-        pausedAtSec.current = nextElapsed;
-        const finalStats = finishReactiveStats(statsRef.current, nextElapsed);
-        statsRef.current = finalStats;
-        setStats(finalStats);
-        setPhase("summary");
-        void releaseScreen();
-        void leaveFullscreen();
+        finishCurrent.current();
       }
     }, 1_000);
 
@@ -437,9 +625,12 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
     };
   }, [activeCustomSet, normalized, phase]);
 
-  useEffect(() => () => {
-    void releaseScreen();
-  }, []);
+  useEffect(
+    () => () => {
+      void releaseScreen();
+    },
+    [],
+  );
 
   function addDraftAction() {
     const label = customLabel.trim();
@@ -471,8 +662,13 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
       actions: draftActions,
     };
     const nextSets = [...customSets, nextSet];
+    if (!saveReactiveCustomSets(storageKey, nextSets)) {
+      setSetupError(
+        "Nie zapisano zestawu. Sprawdź miejsce na urządzeniu; wcześniejszych danych nie zmieniono.",
+      );
+      return;
+    }
     setCustomSets(nextSets);
-    saveReactiveCustomSets(storageKey, nextSets);
     setSettings((current) => ({ ...current, customSetId: nextSet.id }));
     setCustomName("");
     setDraftActions([]);
@@ -483,10 +679,22 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#05070a] px-6 text-center text-white">
         <Smartphone className="h-12 w-12 text-white/55" />
-        <p className="mt-5 text-sm font-bold uppercase tracking-[0.22em] text-white/55">Ustaw telefon pionowo</p>
+        <p className="mt-5 text-sm font-bold uppercase tracking-[0.22em] text-white/55">
+          Ustaw telefon pionowo
+        </p>
         <div className="mt-3 text-[10rem] font-black leading-none tabular-nums">{countdown}</div>
-        <p className="mt-5 max-w-sm text-lg text-white/70">Oprzyj telefon stabilnie, zwiększ jasność ekranu i odejdź na wybraną odległość.</p>
-        <button type="button" onClick={() => { setPhase("setup"); void releaseScreen(); void leaveFullscreen(); }} className="mt-10 rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white/70">
+        <p className="mt-5 max-w-sm text-lg text-white/70">
+          Oprzyj telefon stabilnie, zwiększ jasność ekranu i odejdź na wybraną odległość.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setPhase("setup");
+            void releaseScreen();
+            void leaveFullscreen();
+          }}
+          className="mt-10 rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white/70"
+        >
           Anuluj
         </button>
       </div>
@@ -500,13 +708,28 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
         <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 bg-gradient-to-b from-black/65 to-transparent px-4 pb-10 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white">
           <div>
             <p className="text-2xl font-black tabular-nums">{formatTime(elapsedSec)}</p>
-            <p className="text-xs font-semibold text-white/65">{stats.cueCount} bodźców · {stats.decisionChanges} zmian</p>
+            <p className="text-xs font-semibold text-white/65">
+              {stats.cueCount} bodźców · {stats.decisionChanges} zmian
+            </p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={phase === "paused" ? resumeSession : pauseSession} className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 backdrop-blur">
-              {phase === "paused" ? <Play className="h-5 w-5 fill-current" /> : <Pause className="h-5 w-5 fill-current" />}
+            <button
+              type="button"
+              aria-label={phase === "paused" ? "Wznów trening" : "Wstrzymaj trening"}
+              onClick={phase === "paused" ? resumeSession : pauseSession}
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 backdrop-blur"
+            >
+              {phase === "paused" ? (
+                <Play className="h-5 w-5 fill-current" />
+              ) : (
+                <Pause className="h-5 w-5 fill-current" />
+              )}
             </button>
-            <button type="button" onClick={finishSession} className="flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black">
+            <button
+              type="button"
+              onClick={finishSession}
+              className="flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black"
+            >
               <Square className="h-4 w-4 fill-current" /> Zakończ
             </button>
           </div>
@@ -516,7 +739,19 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
             <div className="text-center">
               <Pause className="mx-auto h-14 w-14" />
               <p className="mt-4 text-3xl font-black">Pauza</p>
-              <button type="button" onClick={resumeSession} className="mt-6 rounded-full bg-white px-8 py-3 font-bold text-black">Wznów</button>
+              <p className="mt-3 px-5 text-sm" role="status">
+                {saveNote}
+              </p>
+              <button type="button" className="mt-3 text-sm underline" onClick={exportResults}>
+                Pobierz kopię wyniku
+              </button>
+              <button
+                type="button"
+                onClick={resumeSession}
+                className="mt-6 rounded-full bg-white px-8 py-3 font-bold text-black"
+              >
+                Wznów
+              </button>
             </div>
           </div>
         )}
@@ -525,28 +760,61 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
   }
 
   if (phase === "summary") {
-    const directionTotal = Object.values(stats.directionCounts).reduce((sum, value) => sum + value, 0);
+    const directionTotal = Object.values(stats.directionCounts).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
     const colorTotal = Object.values(stats.colorCounts).reduce((sum, value) => sum + value, 0);
     return (
       <div className="app-shell min-h-screen pb-10">
         <div className="px-5 pt-[calc(1.5rem+env(safe-area-inset-top))]">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Check className="h-6 w-6" /></div>
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-primary">Sesja zakończona</p>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+            <Check className="h-6 w-6" />
+          </div>
+          <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+            Sesja zakończona
+          </p>
           <h1 className="mt-1 text-3xl font-black tracking-tight">Uczciwe podsumowanie</h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Telefon raportuje wyłącznie wygenerowane bodźce. Nie udaje, że zna czas reakcji ani jakość wykonania.</p>
+          <p className="mt-3 text-sm" role="status">
+            {saveNote}
+          </p>
+          <button type="button" className="mt-3 text-sm underline" onClick={exportResults}>
+            Pobierz kopię wyników
+          </button>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Telefon raportuje wyłącznie wygenerowane bodźce. Nie udaje, że zna czas reakcji ani
+            jakość wykonania.
+          </p>
         </div>
 
         <div className="mt-6 grid grid-cols-3 gap-2 px-5">
-          <div className="rounded-2xl bg-secondary/70 p-4"><p className="text-2xl font-black tabular-nums">{formatTime(stats.elapsedSec)}</p><p className="mt-1 text-[11px] text-muted-foreground">czas</p></div>
-          <div className="rounded-2xl bg-secondary/70 p-4"><p className="text-2xl font-black tabular-nums">{stats.cueCount}</p><p className="mt-1 text-[11px] text-muted-foreground">bodźce</p></div>
-          <div className="rounded-2xl bg-secondary/70 p-4"><p className="text-2xl font-black tabular-nums">{stats.decisionChanges}</p><p className="mt-1 text-[11px] text-muted-foreground">zmiany</p></div>
+          <div className="rounded-2xl bg-secondary/70 p-4">
+            <p className="text-2xl font-black tabular-nums">{formatTime(stats.elapsedSec)}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">czas</p>
+          </div>
+          <div className="rounded-2xl bg-secondary/70 p-4">
+            <p className="text-2xl font-black tabular-nums">{stats.cueCount}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">bodźce</p>
+          </div>
+          <div className="rounded-2xl bg-secondary/70 p-4">
+            <p className="text-2xl font-black tabular-nums">{stats.decisionChanges}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">zmiany</p>
+          </div>
         </div>
 
         {directionTotal > 0 && (
           <div className="mx-5 mt-4 rounded-3xl border border-border bg-card p-5">
             <h2 className="text-sm font-bold">Rozkład kierunków</h2>
             <div className="mt-4 space-y-3">
-              {DIRECTIONS.map((direction) => <DistributionBar key={direction} label={DIRECTION_LABELS[direction]} value={stats.directionCounts[direction]} total={directionTotal} color="#316fd1" />)}
+              {DIRECTIONS.map((direction) => (
+                <DistributionBar
+                  key={direction}
+                  label={DIRECTION_LABELS[direction]}
+                  value={stats.directionCounts[direction]}
+                  total={directionTotal}
+                  color="#316fd1"
+                />
+              ))}
             </div>
           </div>
         )}
@@ -555,14 +823,30 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
           <div className="mx-5 mt-4 rounded-3xl border border-border bg-card p-5">
             <h2 className="text-sm font-bold">Rozkład kolorów</h2>
             <div className="mt-4 space-y-3">
-              {COLORS.map((color) => <DistributionBar key={color} label={COLOR_LABELS[color]} value={stats.colorCounts[color]} total={colorTotal} color={COLOR_HEX[color]} />)}
+              {COLORS.map((color) => (
+                <DistributionBar
+                  key={color}
+                  label={COLOR_LABELS[color]}
+                  value={stats.colorCounts[color]}
+                  total={colorTotal}
+                  color={COLOR_HEX[color]}
+                />
+              ))}
             </div>
           </div>
         )}
 
         <div className="mt-6 flex gap-2 px-5">
-          <Button className="h-12 flex-1 rounded-2xl" onClick={startCountdown}><RotateCcw className="mr-2 h-4 w-4" /> Powtórz</Button>
-          <Button variant="outline" className="h-12 flex-1 rounded-2xl" onClick={() => setPhase("setup")}>Ustawienia</Button>
+          <Button className="h-12 flex-1 rounded-2xl" onClick={startCountdown}>
+            <RotateCcw className="mr-2 h-4 w-4" /> Powtórz
+          </Button>
+          <Button
+            variant="outline"
+            className="h-12 flex-1 rounded-2xl"
+            onClick={() => setPhase("setup")}
+          >
+            Ustawienia
+          </Button>
         </div>
       </div>
     );
@@ -572,30 +856,57 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
     <div className="app-shell min-h-screen pb-12">
       <div className="px-5 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         {onBack && (
-          <button type="button" onClick={onBack} className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground"><ChevronLeft className="h-4 w-4" /> Plan</button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" /> Plan
+          </button>
         )}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">BallWise Lab</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              BallWise Lab
+            </p>
             <h1 className="mt-1 text-3xl font-black tracking-tight">Trener reakcji</h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">Telefon pokazuje bodziec. Ty przypisujesz mu własną akcję z piłką.</p>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Telefon pokazuje bodziec. Ty przypisujesz mu własną akcję z piłką.
+            </p>
           </div>
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Sparkles className="h-5 w-5" /></span>
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </span>
         </div>
       </div>
 
       <div className="mt-7 space-y-7 px-5">
         <section>
-          <div className="mb-3 flex items-end justify-between"><h2 className="text-sm font-bold">1. Wybierz bodziec</h2><span className="text-[11px] text-muted-foreground">7 trybów</span></div>
+          <div className="mb-3 flex items-end justify-between">
+            <h2 className="text-sm font-bold">1. Wybierz bodziec</h2>
+            <span className="text-[11px] text-muted-foreground">7 trybów</span>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {MODE_OPTIONS.map((mode) => (
-              <button key={mode.id} type="button" onClick={() => setSettings((current) => ({
-                ...current,
-                mode: mode.id,
-                level: mode.id === "combo" && current.level === "basic" ? "intermediate" : current.level,
-              }))} className={`min-h-24 rounded-2xl border p-3 text-left transition-colors ${settings.mode === mode.id ? "border-primary bg-primary/8 ring-1 ring-primary/30" : "border-border bg-card"}`}>
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() =>
+                  setSettings((current) => ({
+                    ...current,
+                    mode: mode.id,
+                    level:
+                      mode.id === "combo" && current.level === "basic"
+                        ? "intermediate"
+                        : current.level,
+                  }))
+                }
+                className={`min-h-24 rounded-2xl border p-3 text-left transition-colors ${settings.mode === mode.id ? "border-primary bg-primary/8 ring-1 ring-primary/30" : "border-border bg-card"}`}
+              >
                 <p className="text-sm font-bold">{mode.title}</p>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{mode.description}</p>
+                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                  {mode.description}
+                </p>
               </button>
             ))}
           </div>
@@ -612,19 +923,39 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
                 onClick={() => setSettings((current) => ({ ...current, level: level.id }))}
                 className={`rounded-2xl border px-2 py-3 text-center disabled:cursor-not-allowed disabled:opacity-35 ${settings.level === level.id ? "border-primary bg-primary/8" : "border-border bg-card"}`}
               >
-                <p className="text-xs font-bold">{level.title}</p><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{level.note}</p>
+                <p className="text-xs font-bold">{level.title}</p>
+                <p className="mt-1 text-[10px] leading-tight text-muted-foreground">{level.note}</p>
               </button>
             ))}
           </div>
         </section>
 
-        {(settings.mode === "directions" || settings.mode === "opponent" || settings.mode === "combo" || settings.mode === "flash" || settings.mode === "sequence") && (
+        {(settings.mode === "directions" ||
+          settings.mode === "opponent" ||
+          settings.mode === "combo" ||
+          settings.mode === "flash" ||
+          settings.mode === "sequence") && (
           <section>
             <h2 className="mb-3 text-sm font-bold">Aktywne kierunki</h2>
             <div className="grid grid-cols-4 gap-2">
               {DIRECTIONS.map((direction) => {
                 const active = settings.activeDirections.includes(direction);
-                return <button key={direction} type="button" onClick={() => setSettings((current) => ({ ...current, activeDirections: toggleValue(current.activeDirections, direction) }))} className={`flex flex-col items-center gap-1 rounded-2xl border py-3 ${active ? "border-primary bg-primary/8 text-primary" : "border-border bg-card text-muted-foreground"}`}><DirectionIcon direction={direction} /><span className="text-[10px] font-semibold">{DIRECTION_LABELS[direction]}</span></button>;
+                return (
+                  <button
+                    key={direction}
+                    type="button"
+                    onClick={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        activeDirections: toggleValue(current.activeDirections, direction),
+                      }))
+                    }
+                    className={`flex flex-col items-center gap-1 rounded-2xl border py-3 ${active ? "border-primary bg-primary/8 text-primary" : "border-border bg-card text-muted-foreground"}`}
+                  >
+                    <DirectionIcon direction={direction} />
+                    <span className="text-[10px] font-semibold">{DIRECTION_LABELS[direction]}</span>
+                  </button>
+                );
               })}
             </div>
           </section>
@@ -636,7 +967,27 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
             <div className="grid grid-cols-4 gap-2">
               {COLORS.map((color) => {
                 const active = settings.activeColors.includes(color);
-                return <button key={color} type="button" onClick={() => setSettings((current) => ({ ...current, activeColors: toggleValue(current.activeColors, color) }))} className={`rounded-2xl border p-2 ${active ? "border-primary bg-primary/8" : "border-border bg-card opacity-45"}`}><span className="mx-auto block h-7 w-7 rounded-full" style={{ backgroundColor: COLOR_HEX[color] }} /><span className="mt-1 block text-[9px] font-semibold">{COLOR_LABELS[color]}</span></button>;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        activeColors: toggleValue(current.activeColors, color),
+                      }))
+                    }
+                    className={`rounded-2xl border p-2 ${active ? "border-primary bg-primary/8" : "border-border bg-card opacity-45"}`}
+                  >
+                    <span
+                      className="mx-auto block h-7 w-7 rounded-full"
+                      style={{ backgroundColor: COLOR_HEX[color] }}
+                    />
+                    <span className="mt-1 block text-[9px] font-semibold">
+                      {COLOR_LABELS[color]}
+                    </span>
+                  </button>
+                );
               })}
             </div>
           </section>
@@ -644,47 +995,282 @@ export function ReactiveTrainer({ storageKey, onBack }: ReactiveTrainerProps) {
 
         {settings.mode === "custom" && (
           <section className="rounded-3xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between"><h2 className="text-sm font-bold">Własne komendy</h2><span className="text-[10px] text-muted-foreground">zapis tylko na tym urządzeniu</span></div>
-            {customSets.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{customSets.map((set) => <button key={set.id} type="button" onClick={() => setSettings((current) => ({ ...current, customSetId: set.id }))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${settings.customSetId === set.id ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{set.name}</button>)}</div>}
-            <div className="mt-4 space-y-2">
-              <input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="Nazwa zestawu, np. Drybling 1v1" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" />
-              <div className="grid grid-cols-2 gap-2">
-                <select value={customDirection} onChange={(event) => setCustomDirection(event.target.value as ReactiveDirection | "")} className="h-11 rounded-xl border border-input bg-background px-3 text-sm"><option value="">Bez strzałki</option>{DIRECTIONS.map((direction) => <option key={direction} value={direction}>{DIRECTION_LABELS[direction]}</option>)}</select>
-                <select value={customColor} onChange={(event) => setCustomColor(event.target.value as ReactiveColor | "")} className="h-11 rounded-xl border border-input bg-background px-3 text-sm"><option value="">Bez koloru</option>{COLORS.map((color) => <option key={color} value={color}>{COLOR_LABELS[color]}</option>)}</select>
-              </div>
-              <div className="flex gap-2"><input value={customLabel} onChange={(event) => setCustomLabel(event.target.value)} placeholder="Komenda, np. zwód + wyjście" className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /><Button type="button" variant="outline" className="h-11 rounded-xl" onClick={addDraftAction}><Plus className="h-4 w-4" /></Button></div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold">Własne komendy</h2>
+              <span className="text-[10px] text-muted-foreground">
+                zapis tylko na tym urządzeniu
+              </span>
             </div>
-            {draftActions.length > 0 && <div className="mt-3 space-y-1">{draftActions.map((action) => <div key={action.id} className="flex items-center justify-between rounded-xl bg-secondary/65 px-3 py-2 text-xs"><span>{action.label}</span><button type="button" onClick={() => setDraftActions((items) => items.filter((item) => item.id !== action.id))}><X className="h-3.5 w-3.5 text-muted-foreground" /></button></div>)}</div>}
-            <Button type="button" variant="outline" className="mt-3 w-full rounded-xl" onClick={saveCustomSet}><Save className="mr-2 h-4 w-4" /> Zapisz zestaw</Button>
+            {customSets.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {customSets.map((set) => (
+                  <button
+                    key={set.id}
+                    type="button"
+                    onClick={() => setSettings((current) => ({ ...current, customSetId: set.id }))}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${settings.customSetId === set.id ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
+                  >
+                    {set.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 space-y-2">
+              <input
+                value={customName}
+                onChange={(event) => setCustomName(event.target.value)}
+                placeholder="Nazwa zestawu, np. Drybling 1v1"
+                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={customDirection}
+                  onChange={(event) =>
+                    setCustomDirection(event.target.value as ReactiveDirection | "")
+                  }
+                  className="h-11 rounded-xl border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Bez strzałki</option>
+                  {DIRECTIONS.map((direction) => (
+                    <option key={direction} value={direction}>
+                      {DIRECTION_LABELS[direction]}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={customColor}
+                  onChange={(event) => setCustomColor(event.target.value as ReactiveColor | "")}
+                  className="h-11 rounded-xl border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Bez koloru</option>
+                  {COLORS.map((color) => (
+                    <option key={color} value={color}>
+                      {COLOR_LABELS[color]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={customLabel}
+                  onChange={(event) => setCustomLabel(event.target.value)}
+                  placeholder="Komenda, np. zwód + wyjście"
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-xl"
+                  onClick={addDraftAction}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {draftActions.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {draftActions.map((action) => (
+                  <div
+                    key={action.id}
+                    className="flex items-center justify-between rounded-xl bg-secondary/65 px-3 py-2 text-xs"
+                  >
+                    <span>{action.label}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraftActions((items) => items.filter((item) => item.id !== action.id))
+                      }
+                    >
+                      <X className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full rounded-xl"
+              onClick={saveCustomSet}
+            >
+              <Save className="mr-2 h-4 w-4" /> Zapisz zestaw
+            </Button>
           </section>
         )}
 
         <section className="rounded-3xl bg-secondary/55 p-4">
           <h2 className="text-sm font-bold">3. Rytm</h2>
-          <div className="mt-4 flex items-center justify-between"><span className="text-xs text-muted-foreground">Zmiana co</span><span className="text-lg font-black tabular-nums">{settings.intervalSec} s</span></div>
-          <input type="range" min={2} max={15} step={1} value={settings.intervalSec} onChange={(event) => setSettings((current) => ({ ...current, intervalSec: Number(event.target.value) }))} className="mt-2 w-full accent-[var(--primary)]" />
-          <button type="button" onClick={() => setSettings((current) => ({ ...current, randomTiming: !current.randomTiming }))} className="mt-3 flex w-full items-center justify-between rounded-2xl bg-card px-4 py-3 text-left"><span className="flex items-center gap-2 text-sm font-semibold"><Shuffle className="h-4 w-4" /> Losowy rytm</span><span className={`h-6 w-10 rounded-full p-1 transition-colors ${settings.randomTiming ? "bg-primary" : "bg-muted"}`}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${settings.randomTiming ? "translate-x-4" : ""}`} /></span></button>
-          {settings.mode === "flash" && <div className="mt-4"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">Widoczność błysku</span><span className="text-sm font-bold">{(settings.flashDurationMs / 1_000).toFixed(1)} s</span></div><input type="range" min={500} max={2000} step={100} value={settings.flashDurationMs} onChange={(event) => setSettings((current) => ({ ...current, flashDurationMs: Number(event.target.value) }))} className="mt-2 w-full accent-[var(--primary)]" /></div>}
-          {settings.mode === "sequence" && <div className="mt-4"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">Długość sekwencji</span><span className="text-sm font-bold">{settings.sequenceLength}</span></div><input type="range" min={2} max={8} step={1} value={settings.sequenceLength} onChange={(event) => setSettings((current) => ({ ...current, sequenceLength: Number(event.target.value) }))} className="mt-2 w-full accent-[var(--primary)]" /></div>}
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Zmiana co</span>
+            <span className="text-lg font-black tabular-nums">{settings.intervalSec} s</span>
+          </div>
+          <input
+            type="range"
+            min={2}
+            max={15}
+            step={1}
+            value={settings.intervalSec}
+            onChange={(event) =>
+              setSettings((current) => ({ ...current, intervalSec: Number(event.target.value) }))
+            }
+            className="mt-2 w-full accent-[var(--primary)]"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              setSettings((current) => ({ ...current, randomTiming: !current.randomTiming }))
+            }
+            className="mt-3 flex w-full items-center justify-between rounded-2xl bg-card px-4 py-3 text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <Shuffle className="h-4 w-4" /> Losowy rytm
+            </span>
+            <span
+              className={`h-6 w-10 rounded-full p-1 transition-colors ${settings.randomTiming ? "bg-primary" : "bg-muted"}`}
+            >
+              <span
+                className={`block h-4 w-4 rounded-full bg-white transition-transform ${settings.randomTiming ? "translate-x-4" : ""}`}
+              />
+            </span>
+          </button>
+          {settings.mode === "flash" && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Widoczność błysku</span>
+                <span className="text-sm font-bold">
+                  {(settings.flashDurationMs / 1_000).toFixed(1)} s
+                </span>
+              </div>
+              <input
+                type="range"
+                min={500}
+                max={2000}
+                step={100}
+                value={settings.flashDurationMs}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    flashDurationMs: Number(event.target.value),
+                  }))
+                }
+                className="mt-2 w-full accent-[var(--primary)]"
+              />
+            </div>
+          )}
+          {settings.mode === "sequence" && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Długość sekwencji</span>
+                <span className="text-sm font-bold">{settings.sequenceLength}</span>
+              </div>
+              <input
+                type="range"
+                min={2}
+                max={8}
+                step={1}
+                value={settings.sequenceLength}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    sequenceLength: Number(event.target.value),
+                  }))
+                }
+                className="mt-2 w-full accent-[var(--primary)]"
+              />
+            </div>
+          )}
         </section>
 
         <section>
           <h2 className="mb-3 text-sm font-bold">4. Czas fragmentu</h2>
           <div className="grid grid-cols-3 gap-2">
-            {[5, 10, 15, 20].map((minutes) => <button key={minutes} type="button" onClick={() => setSettings((current) => ({ ...current, durationMin: minutes }))} className={`rounded-2xl border py-3 text-sm font-bold ${settings.durationMin === minutes ? "border-primary bg-primary/8 text-primary" : "border-border bg-card"}`}>{minutes} min</button>)}
-            <button type="button" onClick={() => setSettings((current) => ({ ...current, durationMin: null }))} className={`rounded-2xl border py-3 text-sm font-bold ${settings.durationMin === null ? "border-primary bg-primary/8 text-primary" : "border-border bg-card"}`}>Bez limitu</button>
-            <label className={`flex items-center justify-center rounded-2xl border px-2 ${settings.durationMin != null && ![5, 10, 15, 20].includes(settings.durationMin) ? "border-primary bg-primary/8" : "border-border bg-card"}`}><input type="number" min={1} max={180} placeholder="własny" value={settings.durationMin != null && ![5, 10, 15, 20].includes(settings.durationMin) ? settings.durationMin : ""} onChange={(event) => setSettings((current) => ({ ...current, durationMin: Number(event.target.value) || 1 }))} className="w-full bg-transparent text-center text-sm font-bold outline-none" /></label>
+            {[5, 10, 15, 20].map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => setSettings((current) => ({ ...current, durationMin: minutes }))}
+                className={`rounded-2xl border py-3 text-sm font-bold ${settings.durationMin === minutes ? "border-primary bg-primary/8 text-primary" : "border-border bg-card"}`}
+              >
+                {minutes} min
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSettings((current) => ({ ...current, durationMin: null }))}
+              className={`rounded-2xl border py-3 text-sm font-bold ${settings.durationMin === null ? "border-primary bg-primary/8 text-primary" : "border-border bg-card"}`}
+            >
+              Bez limitu
+            </button>
+            <label
+              className={`flex items-center justify-center rounded-2xl border px-2 ${settings.durationMin != null && ![5, 10, 15, 20].includes(settings.durationMin) ? "border-primary bg-primary/8" : "border-border bg-card"}`}
+            >
+              <input
+                type="number"
+                min={1}
+                max={180}
+                placeholder="własny"
+                value={
+                  settings.durationMin != null && ![5, 10, 15, 20].includes(settings.durationMin)
+                    ? settings.durationMin
+                    : ""
+                }
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    durationMin: Number(event.target.value) || 1,
+                  }))
+                }
+                className="w-full bg-transparent text-center text-sm font-bold outline-none"
+              />
+            </label>
           </div>
         </section>
 
-        <button type="button" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))} className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-left"><span className="flex items-center gap-2 text-sm font-semibold"><Vibrate className="h-4 w-4" /> Krótka wibracja przy nowym bodźcu</span><span className={`h-6 w-10 rounded-full p-1 transition-colors ${settings.vibration ? "bg-primary" : "bg-muted"}`}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${settings.vibration ? "translate-x-4" : ""}`} /></span></button>
+        <button
+          type="button"
+          onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Vibrate className="h-4 w-4" /> Krótka wibracja przy nowym bodźcu
+          </span>
+          <span
+            className={`h-6 w-10 rounded-full p-1 transition-colors ${settings.vibration ? "bg-primary" : "bg-muted"}`}
+          >
+            <span
+              className={`block h-4 w-4 rounded-full bg-white transition-transform ${settings.vibration ? "translate-x-4" : ""}`}
+            />
+          </span>
+        </button>
 
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground"><span className="font-bold text-foreground">Jak używać:</span> ustaw telefon pionowo, wybierz własne ćwiczenie z piłką i reaguj na ekran. Moduł możesz uruchamiać w kilku fragmentach całej, minimum 30-minutowej sesji.</div>
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          <span className="font-bold text-foreground">Jak używać:</span> ustaw telefon pionowo,
+          wybierz własne ćwiczenie z piłką i reaguj na ekran. Moduł możesz uruchamiać w kilku
+          fragmentach całej, minimum 30-minutowej sesji.
+        </div>
 
-        {setupError && <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">{setupError}</p>}
+        {setupError && (
+          <div
+            role="alert"
+            className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+          >
+            <p>{setupError}</p>
+            <button type="button" className="mt-2 underline" onClick={exportResults}>
+              Pobierz oryginalny zapis i bieżący wynik
+            </button>
+          </div>
+        )}
 
-        <Button type="button" onClick={startCountdown} className="h-14 w-full rounded-2xl text-base font-bold"><Maximize2 className="mr-2 h-5 w-5" /> Uruchom bodźce</Button>
-        <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground"><Zap className="h-3.5 w-3.5" /> 10 sekund na ustawienie telefonu · bez komend głosowych</div>
+        <Button
+          type="button"
+          onClick={startCountdown}
+          className="h-14 w-full rounded-2xl text-base font-bold"
+        >
+          <Maximize2 className="mr-2 h-5 w-5" /> Uruchom bodźce
+        </Button>
+        <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+          <Zap className="h-3.5 w-3.5" /> 10 sekund na ustawienie telefonu · bez komend głosowych
+        </div>
       </div>
     </div>
   );

@@ -11,10 +11,13 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { deliverExportFile } from "@/lib/loadwise/deliverExportFile";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { FOODS, FOOD_BY_ID, type FuelRecipe } from "@/lib/fuel/catalog";
+import { FOODS, FOOD_BY_ID, foodAllowed, type FuelRecipe } from "@/lib/fuel/catalog";
 import {
   clockFuelStart,
+  createFuelBackup,
+  fuelMoment,
   type FuelContext,
   type FuelDeviceData,
   type FuelEntry,
@@ -23,6 +26,7 @@ import {
   SESSION_LABELS,
 } from "@/lib/fuel/experience";
 import { completeMeal, packList, FUEL_TIME_PRESETS } from "@/lib/fuel/practical";
+import { evaluateStoreProduct } from "@/lib/fuel/storeCheck";
 import { reminderCalendar, type FuelReminderPreferences } from "@/lib/fuel/reminderPlan";
 
 export type FuelPanelName =
@@ -37,6 +41,7 @@ export type FuelPanelName =
   | "reminders"
   | null;
 interface Props {
+  userId: string;
   panel: FuelPanelName;
   setPanel(panel: FuelPanelName): void;
   data: FuelDeviceData;
@@ -47,6 +52,9 @@ interface Props {
   preferences: FuelPreferences;
   hero: FuelRecipe | null;
   packRecipe: FuelRecipe | null;
+  packEntry: FuelEntry | null;
+  restrictions: string[];
+  onImportBackup(input: unknown): void;
   recipes: FuelRecipe[];
   text: string;
   setText: Dispatch<SetStateAction<string>>;
@@ -93,7 +101,30 @@ export function FuelPanels(p: Props) {
     p.parsed.ids.map((foodId) => ({ foodId, grams: FOOD_BY_ID[foodId].unitGrams })),
     p.preferences,
     p.timing.phase,
+    p.restrictions,
   );
+  const pack = p.packEntry ?? p.packRecipe;
+  const productRestriction = p.packEntry?.product
+    ? evaluateStoreProduct({
+        product: p.packEntry.product.value,
+        portion: p.packEntry.product.portion,
+        unit: p.packEntry.product.unit,
+        moment: fuelMoment(p.timing),
+        load: p.context.load,
+        restrictions: p.restrictions,
+        diet: p.preferences.diet,
+      }).label === "Sprawdź ograniczenia"
+    : false;
+  const packAllowed =
+    !productRestriction &&
+    (!pack ||
+      Boolean(p.packEntry?.product) ||
+      pack.lines.every(
+        (line) =>
+          FOOD_BY_ID[line.foodId] &&
+          !p.preferences.excludedFoodIds.includes(line.foodId) &&
+          foodAllowed(FOOD_BY_ID[line.foodId], p.restrictions, p.preferences.diet),
+      ));
   const filteredFoods = FOODS.filter(
     (f) =>
       f.label.toLocaleLowerCase("pl").includes(search.toLocaleLowerCase("pl")) ||
@@ -438,7 +469,11 @@ export function FuelPanels(p: Props) {
               <details className="mt-3">
                 <summary className="fuel-text-button">Wybierz produkty z listy</summary>
                 <div className="fuel-v4-food-preferences">
-                  {FOODS.filter((f) => !p.preferences.excludedFoodIds.includes(f.id)).map((f) => (
+                  {FOODS.filter(
+                    (f) =>
+                      !p.preferences.excludedFoodIds.includes(f.id) &&
+                      foodAllowed(f, p.restrictions, p.preferences.diet),
+                  ).map((f) => (
                     <button
                       key={f.id}
                       className="fuel-chip-button"
@@ -475,11 +510,23 @@ export function FuelPanels(p: Props) {
           )}
           {p.panel === "pack" && (
             <>
-              {p.packRecipe ? (
+              {pack ? (
                 <>
-                  <h3>{p.packRecipe.title}</h3>
+                  <h3>{pack.title}</h3>
+                  {!packAllowed && (
+                    <p role="alert" className="fuel-note">
+                      Zapisany zestaw koliduje z aktualnymi ograniczeniami. Popraw składniki przed
+                      ponownym wyborem.
+                    </p>
+                  )}
+                  {p.packEntry?.product && (
+                    <p>
+                      {p.packEntry.product.value.name} · {p.packEntry.product.portion}{" "}
+                      {p.packEntry.product.unit}
+                    </p>
+                  )}
                   <ul className="fuel-v4-pack-list">
-                    {packList(p.packRecipe).map((line) => (
+                    {packList(pack).map((line) => (
                       <li key={line.label}>
                         <label>
                           <input type="checkbox" />
@@ -499,13 +546,30 @@ export function FuelPanels(p: Props) {
                       </label>
                     </li>
                   </ul>
-                  <p className="fuel-note">{p.packRecipe.storage}</p>
+                  <p className="fuel-note">
+                    {p.packRecipe?.storage ??
+                      "Przechowuj przygotowane produkty zgodnie z ich etykietą. Lista zachowuje zapisane porcje."}
+                  </p>
                   <button
                     className="fuel-primary mt-4"
-                    onClick={() => p.quickSave(p.packRecipe!, "selected")}
+                    disabled={!packAllowed}
+                    onClick={() => {
+                      if (p.packEntry) {
+                        p.recordEntry({ ...p.packEntry, status: "selected" }, p.packEntry.id);
+                        p.setPanel(null);
+                      } else if (p.packRecipe) p.quickSave(p.packRecipe, "selected");
+                    }}
                   >
-                    Zapisz zestaw na później
+                    {p.packEntry ? "Zachowaj wybrany zestaw" : "Zapisz zestaw na później"}
                   </button>
+                  {p.packEntry && !p.packEntry.product && (
+                    <button
+                      className="fuel-secondary mt-3"
+                      onClick={() => p.editEntry(p.packEntry!)}
+                    >
+                      Popraw składniki i porcje
+                    </button>
+                  )}
                   <button className="fuel-secondary mt-3" onClick={p.onStore}>
                     Sprawdź produkt w sklepie
                   </button>
@@ -569,17 +633,40 @@ export function FuelPanels(p: Props) {
                 onClick={() =>
                   downloadFuelFile(
                     "BallWise-Fuel-historia.json",
-                    JSON.stringify(
-                      { exportedAt: new Date().toISOString(), entries: p.data.entries },
-                      null,
-                      2,
-                    ),
+                    JSON.stringify(createFuelBackup(p.data), null, 2),
                     "application/json",
+                    p.userId,
                   )
                 }
               >
                 Eksportuj historię
               </button>
+              <p className="fuel-note mt-3">
+                Fuel zachowuje do 100 wpisów z ostatnich 30 dni. Kopia obejmuje też preferencje i
+                dokładne porcje.
+              </p>
+              <label className="fuel-secondary mt-3">
+                Przywróć kopię Fuel
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  className="sr-only"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file) return;
+                    try {
+                      if (file.size > 2_000_000)
+                        throw new Error("Kopia jest zbyt duża (maks. 2 MB).");
+                      p.onImportBackup(JSON.parse(await file.text()));
+                    } catch (error) {
+                      toast.info(
+                        error instanceof Error ? error.message : "Nieprawidłowy plik kopii.",
+                      );
+                    }
+                  }}
+                />
+              </label>
               <button
                 className="fuel-text-button mt-4"
                 onClick={() => {
@@ -600,6 +687,10 @@ export function FuelPanels(p: Props) {
           )}
           {p.panel === "reminders" && (
             <>
+              <p className="fuel-note">
+                Przypomnienia planujemy na dziś i jutro. Otwórz aplikację, aby zaktualizować
+                harmonogram.
+              </p>
               {p.native ? (
                 <>
                   <div className="fuel-v4-setting-list">
@@ -688,6 +779,7 @@ export function FuelPanels(p: Props) {
                         "BallWise-Fuel.ics",
                         reminderCalendar(p.timing.startsAt),
                         "text/calendar;charset=utf-8",
+                        p.userId,
                       );
                     }}
                   >
@@ -706,13 +798,11 @@ export function FuelPanels(p: Props) {
     </Sheet>
   );
 }
-function downloadFuelFile(name: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+export async function downloadFuelFile(name: string, text: string, type: string, ownerId?: string) {
+  try {
+    return await deliverExportFile(name, text, type, ownerId);
+  } catch {
+    toast.info("Nie udało się przekazać pliku. Sprawdź dostęp do Plików i spróbuj ponownie.");
+    return "cancelled" as const;
+  }
 }

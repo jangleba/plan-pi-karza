@@ -15,11 +15,26 @@ const mocks = vi.hoisted(() => ({
   events: [] as string[],
   writes: [] as Array<{ table: string; payload: unknown }>,
   error: null as { message: string; status?: number } | null,
+  rpcData: null as Record<string, unknown> | null,
   consent: vi.fn(),
   clearOverlays: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    async rpc(name: string, args: Record<string, unknown>) {
+      mocks.events.push(name);
+      mocks.writes.push({ table: name, payload: args });
+      return {
+        error: mocks.error,
+        data:
+          mocks.rpcData ??
+          (name === "save_training_log"
+            ? { ...(args.p_payload as object), session_id: args.p_session_id, write_version: 1 }
+            : name === "save_profile_and_plan"
+              ? { athlete: { updated_at: "2026-09-29T12:00:00Z" } }
+              : null),
+      };
+    },
     from(table: string) {
       const write = (method: string, payload?: unknown) => {
         mocks.events.push(`${table}.${method}`);
@@ -46,7 +61,8 @@ vi.mock("../consent", () => ({
   recordConsentDecisions: mocks.consent,
   recordConsentDecision: mocks.consent,
 }));
-vi.mock("./repository", () => ({
+vi.mock("./repository", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./repository")>()),
   clearFutureOverlaysForUser: mocks.clearOverlays,
   shouldReusePersistedPlan: vi.fn(),
 }));
@@ -59,6 +75,7 @@ function context(): StoreActionContext {
   return {
     user: { id: "athlete" },
     state,
+    getState: () => state,
     todayIso: "2026-09-29",
     saveProfileRows,
     savePlanToDb,
@@ -134,6 +151,7 @@ beforeEach(() => {
   mocks.events.length = 0;
   mocks.writes.length = 0;
   mocks.error = null;
+  mocks.rpcData = null;
   mocks.consent.mockReset().mockImplementation(async () => {
     mocks.events.push("consent");
   });
@@ -166,25 +184,18 @@ describe("store action contracts", () => {
       privacy: true,
       health_data: true,
     });
-    expect(mocks.events).toEqual([
-      "consent",
-      "profile:false",
-      "plan",
-      "onboarding_answers.insert",
-      "clearOverlays",
-      "profiles.upsert",
-      "state",
-    ]);
+    expect(mocks.events).toEqual(["consent", "plan", "save_profile_and_plan", "state"]);
     expect(state.profile).toMatchObject({
       onboardingComplete: true,
-      onboardingRevision: "revision",
       unavailableEquipmentIds: ["sled"],
     });
+    expect(state.profile?.onboardingRevision).toMatch(/^training-inputs:v1:/);
     expect(state.planGeneratedFor).toBe("2026-09-29");
     expect(
-      mocks.writes.find((write) => write.table === "onboarding_answers")?.payload,
+      mocks.writes.find((write) => write.table === "save_profile_and_plan")?.payload,
     ).toMatchObject({
-      answers_json: { schema_version: 2, completed: true, account_owner_type: "athlete" },
+      p_profile: { onboarding_completed: true },
+      p_athlete: { unavailable_equipment_ids: ["sled"] },
     });
   });
 
@@ -222,14 +233,14 @@ describe("store action contracts", () => {
     expect(savePlanToDb).not.toHaveBeenCalled();
   });
 
-  it("propagates permanent persistence errors without publishing or queuing completion", async () => {
+  it("preserves a rejected draft without falsely publishing completion", async () => {
     const previous = state;
     mocks.error = { message: "Permission denied", status: 403 };
     await expect(createSessionActions(context()).completeSession(session(), 6, "")).rejects.toThrow(
-      "[session_logs.upsert] Permission denied",
+      "[save_training_log.complete] Permission denied",
     );
     expect(state).toBe(previous);
-    expect(readPendingTrainingWrites("athlete")).toEqual([]);
+    expect(readPendingTrainingWrites("athlete")).toHaveLength(1);
   });
 
   it("persists completed running progression before regenerating and publishing its plan", async () => {
@@ -255,11 +266,20 @@ describe("store action contracts", () => {
         updatedAt: "now",
       } as RunningActivity,
     };
+    mocks.rpcData = {
+      session_id: "session",
+      completed: true,
+      completion_status: "completed",
+      rpe: 6,
+      duration_minutes: 720,
+      write_version: 1,
+      profile: { running_progression_level: 1, updated_at: "2026-09-29T12:00:00Z" },
+    };
     await createSessionActions(context()).completeSession(endurance, 6, "");
-    expect(mocks.events).toEqual(["session_logs.upsert", "profile:true", "plan", "state"]);
+    expect(mocks.events).toEqual(["save_training_log", "state", "state", "plan", "state"]);
     expect(state.profile).toMatchObject({
       runningProgressionLevel: 1,
-      onboardingRevision: "revision",
+      onboardingRevision: expect.stringMatching(/^training-inputs:v1:/),
     });
   });
 

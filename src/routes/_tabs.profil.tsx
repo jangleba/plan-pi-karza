@@ -25,6 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
+import { SubscriptionSettings } from "@/features/billing/SubscriptionSettings";
+import { DeviceDiagnosticsPanel } from "@/components/loadwise/DeviceDiagnosticsPanel";
+import { ModuleBackupPanel } from "@/features/module-backup/ModuleBackupPanel";
 import {
   CalendarDays,
   ChevronRight,
@@ -193,14 +196,14 @@ function ProfileScreen() {
             />
             <Row
               label="Fuel Precision"
-              value={
-                profile.fuelPrecisionEnabled && profile.weightKg
-                  ? `Włączony · ${profile.weightKg} kg`
-                  : "Wyłączony · zakres ogólny"
-              }
+              value={"Porcje orientacyjne · tryb ilościowy niedostępny"}
             />
           </div>
         </section>
+
+        <SubscriptionSettings />
+        <DeviceDiagnosticsPanel />
+        {user && <ModuleBackupPanel key={user.id} userId={user.id} />}
 
         {canTransferToAthlete && (
           <section className="soft-card p-4">

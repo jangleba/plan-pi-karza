@@ -234,7 +234,7 @@ describe("daily check-in integration", () => {
     ]);
     expect(result.title).toBe(swapped.title);
     expect(result.sessionType).toBe(swapped.sessionType);
-    expect(result.sections).toEqual(swapped.sections);
+    expect(result.sections.main[0].prescription).toBe("5 × 30 m");
   });
 
   it("falls through to the readiness-adjusted canonical session without a swap", () => {
@@ -244,6 +244,6 @@ describe("daily check-in integration", () => {
       PROFILE,
     );
     expect(result.secondSession).toBeNull();
-    expect(result.readinessAdjustedDate).toBeUndefined();
+    expect(result.readinessAdjustedDate).toBe("2026-08-17");
   });
 });

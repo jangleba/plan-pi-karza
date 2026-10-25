@@ -1,6 +1,6 @@
 import avcClip from "./__fixtures__/240fps-bframes.mp4?url";
 import hevcClip from "./__fixtures__/240fps-hevc.mov?url";
-import { decodeJumpFrame, openJumpVideo } from "./video";
+import { createJumpFrameDecoder, openJumpVideo } from "./video";
 import { timedMeasurement } from "./results";
 export interface SafariCheck {
   date: string;
@@ -41,27 +41,32 @@ export async function runSafariCheck(
       );
       if (Math.abs(video.timeline.fps - 240) > 0.001)
         throw new Error("Czasy klatek kontrolnych są nieprawidłowe.");
-      for (const index of indices) {
-        signal.throwIfAborted();
-        const frame = await decodeJumpFrame(video, index, signal);
-        try {
-          if (
-            frame.timestamp !== video.timeline.frames[index].timestampUs ||
-            frame.displayWidth !== 160 ||
-            frame.displayHeight !== 120
-          )
-            throw new Error("Przeglądarka zwróciła niewłaściwą klatkę.");
-          const canvas = document.createElement("canvas");
-          canvas.width = 160;
-          canvas.height = 120;
-          const context = canvas.getContext("2d");
-          if (!context) throw new Error("Przeglądarka nie wyświetla klatek.");
-          context.drawImage(frame, 0, 0);
-          if (!context.getImageData(0, 0, 160, 120).data.some((v, i) => i % 4 !== 3 && v > 20))
-            throw new Error("Obraz klatki jest pusty.");
-        } finally {
-          frame.close();
+      const decoder = createJumpFrameDecoder(video, indices);
+      try {
+        for (const index of indices) {
+          signal.throwIfAborted();
+          const frame = await decoder.decode(index, signal);
+          try {
+            if (
+              frame.timestamp !== video.timeline.frames[index].timestampUs ||
+              frame.displayWidth !== 160 ||
+              frame.displayHeight !== 120
+            )
+              throw new Error("Przeglądarka zwróciła niewłaściwą klatkę.");
+            const canvas = document.createElement("canvas");
+            canvas.width = 160;
+            canvas.height = 120;
+            const context = canvas.getContext("2d");
+            if (!context) throw new Error("Przeglądarka nie wyświetla klatek.");
+            context.drawImage(frame, 0, 0);
+            if (!context.getImageData(0, 0, 160, 120).data.some((v, i) => i % 4 !== 3 && v > 20))
+              throw new Error("Obraz klatki jest pusty.");
+          } finally {
+            frame.close();
+          }
         }
+      } finally {
+        decoder.dispose();
       }
       const jump = timedMeasurement("cmj", video.timeline, 60, 164);
       if (Math.abs(jump.primaryValue - 23.01838680555555) > 1e-7)

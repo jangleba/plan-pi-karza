@@ -69,7 +69,7 @@ export function TacticalPitch({
   const playerLabels = useRef(new Map<string, HTMLButtonElement>());
   const routeLabels = useRef(new Map<string, HTMLSpanElement>());
   const destinationLabels = useRef(new Map<string, HTMLButtonElement>());
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [attempt, setAttempt] = useState(0);
   const playback = useMemo(() => createPlayback(scenario, actions), [scenario, actions]);
   const sampledFrame = useMemo(
@@ -202,20 +202,27 @@ export function TacticalPitch({
     const element = host.current;
     if (!element) return;
     let cancelled = false;
+    let failed = false;
+    const controller = new AbortController();
     let api: PitchScene | null = null;
     let observer: ResizeObserver | null = null;
     setStatus("loading");
     latest.current.onReadyChange?.(false);
     const fail = () => {
       if (cancelled) return;
-      setStatus("error");
-      latest.current.onReadyChange?.(false);
+      failed = true;
+      controller.abort();
+      scene.current = null;
+      api?.dispose();
+      api = null;
+      setStatus("fallback");
+      latest.current.onReadyChange?.(true);
     };
     void import("./pitchScene")
       .then(async ({ createPitchScene }) => {
         if (cancelled) return;
-        api = await createPitchScene(element, scenario.players, fail);
-        if (cancelled) {
+        api = await createPitchScene(element, scenario.players, fail, controller.signal);
+        if (cancelled || failed) {
           api.dispose();
           return;
         }
@@ -232,6 +239,7 @@ export function TacticalPitch({
       .catch(fail);
     return () => {
       cancelled = true;
+      controller.abort();
       observer?.disconnect();
       scene.current = null;
       api?.dispose();
@@ -257,16 +265,18 @@ export function TacticalPitch({
     showGuidance,
   ]);
   const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
-    if (!interactive || status !== "ready") return;
+    if (!interactive || status === "loading") return;
     const api = scene.current;
-    if (!api || !host.current) return;
+    if (!host.current) return;
     const bounds = host.current.getBoundingClientRect();
     const x = event.clientX - bounds.left,
       y = event.clientY - bounds.top;
     const nearest = scenario.players
       .map((player) => {
         const point = frame.positions.get(player.id)!;
-        const p = api.project(point, 7.5);
+        const p = api
+          ? api.project(point, 7.5)
+          : { x: (point.x / 100) * bounds.width, y: (point.y / 140) * bounds.height };
         return { player, distance: Math.hypot(p.x - x, p.y - y) };
       })
       .sort((a, b) => a.distance - b.distance)[0];
@@ -280,7 +290,14 @@ export function TacticalPitch({
       onPlayerSelect(nearest.player);
       return;
     }
-    const point = api.pick(event.clientX, event.clientY);
+    const point = api
+      ? api.pick(event.clientX, event.clientY)
+      : bounds.width && bounds.height
+        ? {
+            x: Math.max(0, Math.min(100, (x / bounds.width) * 100)),
+            y: Math.max(0, Math.min(140, (y / bounds.height) * 140)),
+          }
+        : null;
     if (point) onPitchSelect(point);
   };
   return (
@@ -289,6 +306,54 @@ export function TacticalPitch({
       onClick={selectPoint}
     >
       <div className="bwiq-pitch-canvas" ref={host} />
+      {status === "fallback" && (
+        <>
+          <svg
+            viewBox="0 0 100 140"
+            preserveAspectRatio="none"
+            aria-label="Boisko w trybie uproszczonym"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              background: "#1b4a40",
+            }}
+          >
+            <g fill="none" stroke="#c5dacb" strokeWidth="0.5">
+              <rect x="2" y="3" width="96" height="134" />
+              <path d="M2 70H98M22 3V27H78V3M22 137V113H78V137" />
+              <circle cx="50" cy="70" r="9" />
+            </g>
+            <circle cx={frame.ballVisual.x} cy={frame.ballVisual.y} r="1.1" fill="white" />
+          </svg>
+          <div
+            role="status"
+            style={{
+              position: "absolute",
+              top: 6,
+              left: 8,
+              right: 8,
+              zIndex: 5,
+              fontSize: 11,
+              pointerEvents: "none",
+            }}
+          >
+            Tryb uproszczony · akcja i wybory pozostają dostępne.
+            <button
+              type="button"
+              style={{ pointerEvents: "auto", marginLeft: 8 }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Spróbuj boiska 3D
+            </button>
+          </div>
+        </>
+      )}
       <div className="bwiq-pitch-legend">
         <span>{scenario.defensive ? "↓ Twoja bramka" : "↑ Atakujesz"}</span>
         <span>
@@ -298,7 +363,7 @@ export function TacticalPitch({
       {showGuidance &&
         highlights?.map((point, i) => {
           const p = scene.current?.project(point, 0.2);
-          return p ? (
+          return p || status === "fallback" ? (
             <div
               key={i}
               className={highlightGood ? "bwiq-highlight bwiq-highlight--good" : "bwiq-highlight"}
@@ -306,16 +371,25 @@ export function TacticalPitch({
                 if (element) highlightLabels.current.set(i, element);
                 else highlightLabels.current.delete(i);
               }}
-              style={{ left: p.x, top: p.y }}
+              style={
+                status === "fallback"
+                  ? { left: `${point.x}%`, top: `${(point.y / 140) * 100}%` }
+                  : { left: p!.x, top: p!.y }
+              }
               aria-label={highlightGood ? "Miejsce stworzenia przewagi" : "Miejsce do poprawy"}
             />
           ) : null;
         })}
       {showGuidance &&
-        status === "ready" &&
+        status !== "loading" &&
         teachingMarkers.map((marker) => (
           <button
             key={marker.id}
+            style={
+              status === "fallback"
+                ? { left: `${marker.point.x}%`, top: `${(marker.point.y / 140) * 100}%` }
+                : undefined
+            }
             ref={(element) => {
               if (element) teachingLabels.current.set(marker.id, element);
               else teachingLabels.current.delete(marker.id);
@@ -332,11 +406,21 @@ export function TacticalPitch({
             <em>{marker.label}</em>
           </button>
         ))}
-      <div className={`bwiq-pitch-labels${status !== "ready" ? " is-loading" : ""}`}>
+      <div className={`bwiq-pitch-labels${status === "loading" ? " is-loading" : ""}`}>
         {scenario.players.map((player) => (
           <button
             key={player.id}
             data-iq-player={player.id}
+            style={
+              status === "fallback"
+                ? {
+                    left: `${frame.positions.get(player.id)?.x ?? player.x}%`,
+                    top: `${((frame.positions.get(player.id)?.y ?? player.y) / 140) * 100}%`,
+                    background: player.team === "home" ? "#44a6d8" : "#ecebe2",
+                    borderRadius: "50%",
+                  }
+                : undefined
+            }
             type="button"
             className={`bwiq-player-hit bwiq-player-hit--${player.team}${showGuidance && interactive && selectedPlayerId === player.id ? " is-selected" : ""}${showGuidance && frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${showGuidance && interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
             ref={(element) => {
@@ -345,7 +429,7 @@ export function TacticalPitch({
             }}
             disabled={
               !interactive ||
-              status !== "ready" ||
+              status === "loading" ||
               (!freeMovement && !!selectablePlayerIds && !selectablePlayerIds.includes(player.id))
             }
             aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
@@ -381,11 +465,16 @@ export function TacticalPitch({
           )}
       </div>
       {showGuidance &&
-        status === "ready" &&
+        status !== "loading" &&
         destinations.map((destination) => (
           <button
             key={destination.id}
             data-iq-destination={destination.id}
+            style={
+              status === "fallback"
+                ? { left: `${destination.point.x}%`, top: `${(destination.point.y / 140) * 100}%` }
+                : undefined
+            }
             type="button"
             className="bwiq-destination"
             ref={(element) => {
@@ -400,24 +489,9 @@ export function TacticalPitch({
             }}
           />
         ))}
-      {status !== "ready" && (
+      {status === "loading" && (
         <div className="bwiq-model-status" role="status">
-          {status === "loading" ? (
-            <span>Ładowanie zawodników…</span>
-          ) : (
-            <>
-              <span>Nie udało się wczytać boiska.</span>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setAttempt((n) => n + 1);
-                }}
-              >
-                Wczytaj ponownie
-              </button>
-            </>
-          )}
+          <span>Ładowanie zawodników…</span>
         </div>
       )}
     </div>

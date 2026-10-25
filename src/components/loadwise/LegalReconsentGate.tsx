@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { recordConsentDecisions, type ConsentDecision } from "@/lib/loadwise/consent";
 import { CONSENTS, FUEL_PRECISION_CONSENT, LEGAL_VERSION } from "@/lib/loadwise/legal";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { profileWithoutFuelPrecision, profileWithoutHealthData } from "@/lib/loadwise/localPrivacy";
 
 type GateStatus = "checking" | "required" | "complete" | "error";
 
@@ -18,7 +17,7 @@ const HEALTH_DATA_CONSENT_TEXT =
 export function LegalReconsentGate({ children }: { children?: ReactNode }) {
   const { user, signOut } = useAuth();
   const userId = user?.id;
-  const { state, updateProfile } = useLoadwise();
+  const { state } = useLoadwise();
   const profile = state.profile;
   const [status, setStatus] = useState<GateStatus>(() => {
     const rows = userId ? cachedConsentRows(userId) : null;
@@ -88,6 +87,32 @@ export function LegalReconsentGate({ children }: { children?: ReactNode }) {
     retryRevision,
   ]);
 
+  useEffect(() => {
+    if (!userId || !profile?.onboardingComplete) return;
+    let active = true;
+    const refresh = () => {
+      if (document.visibilityState === "hidden" || navigator.onLine === false) return;
+      void loadConsentRows(userId, true)
+        .then((rows) => {
+          if (!active) return;
+          if (consentNeeds(rows, profile).required) setRetryRevision((value) => value + 1);
+        })
+        .catch(() => {
+          /* Previously verified current documents remain usable during a transient outage. */
+        });
+    };
+    const changed = () => setRetryRevision((value) => value + 1);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    window.addEventListener("ballwise:consent-changed", changed);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("ballwise:consent-changed", changed);
+    };
+  }, [userId, profile]);
+
   if (!user || !profile?.onboardingComplete || status === "complete") return <>{children}</>;
   if (status === "checking") return <AppLaunchScreen />;
 
@@ -98,16 +123,13 @@ export function LegalReconsentGate({ children }: { children?: ReactNode }) {
 
     try {
       const decisions: ConsentDecision[] = [];
-      let nextProfile = profile;
 
       if (healthNeedsRenewal && !healthOptIn) {
         decisions.push({ type: "health_data", accepted: false });
-        nextProfile = profileWithoutHealthData(nextProfile);
       }
 
       if (fuelNeedsRenewal && !fuelOptIn) {
         decisions.push({ type: "fuel_precision", accepted: false });
-        nextProfile = profileWithoutFuelPrecision(nextProfile);
       }
 
       if (termsNeedUpdate) {
@@ -127,7 +149,6 @@ export function LegalReconsentGate({ children }: { children?: ReactNode }) {
       }
 
       await recordConsentDecisions(decisions);
-      if (nextProfile !== profile) await updateProfile(nextProfile);
       await loadConsentRows(user!.id);
       setSaving(false);
       setStatus("complete");
@@ -153,6 +174,9 @@ export function LegalReconsentGate({ children }: { children?: ReactNode }) {
               Nie udało się sprawdzić dokumentów
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">{errorMessage}</p>
+            <a href="/data-rights" className="mt-4 inline-block min-h-11 py-3 text-sm underline">
+              Moje dane: pobierz wyniki z telefonu
+            </a>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <button
                 type="button"

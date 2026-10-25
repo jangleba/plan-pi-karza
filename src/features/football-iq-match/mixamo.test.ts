@@ -1,8 +1,10 @@
 import fs from "node:fs";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import {
   attachAerialClips,
+  attachOptionalClips,
+  readAnimationFile,
   makeActor,
   prepareAdditionalClip,
   prepareRunningModel,
@@ -490,5 +492,74 @@ describe("actual Mixamo asset", () => {
     );
     expect(point().distanceTo(resting)).toBeLessThan(0.001);
     actor.dispose();
+  });
+});
+
+describe("progressive optional animations", () => {
+  it("keeps the base model usable when an optional FBX has the wrong skeleton", async () => {
+    const local = { ...asset, clips: {}, aerial: {}, aerialStatus: { ...asset.aerialStatus } };
+    await expect(
+      attachOptionalClips(local, { "idle.fbx": "bad" }, async () => new Group()),
+    ).resolves.toBeUndefined();
+    expect(local.clips).toEqual({});
+    const actor = makeActor(local, {
+      id: "test",
+      team: "home",
+      number: 1,
+      role: "M",
+      x: 50,
+      y: 70,
+    });
+    expect(() =>
+      actor.pose({ moving: true, heading: 0, distance: 1, elapsed: 1, duration: 2 }),
+    ).not.toThrow();
+    actor.dispose();
+  });
+  it("applies a late walking clip to actors already displayed in the base scene", () => {
+    const lateAsset: RunningModel = { ...asset, clips: {} };
+    const player = { id: "test", team: "home" as const, number: 1, role: "M", x: 50, y: 70 };
+    const late = makeActor(lateAsset, player);
+    const early = makeActor({ ...asset, clips: { walking: asset.clips.walking } }, player);
+    lateAsset.clips.walking = asset.clips.walking;
+    const motion = {
+      moving: true,
+      gait: "walk" as const,
+      heading: 0,
+      distance: 2,
+      elapsed: 1,
+      duration: 2,
+    };
+    late.pose(motion);
+    early.pose(motion);
+    expect(
+      late.root
+        .getObjectByName("mixamorigLeftUpLeg")!
+        .quaternion.angleTo(early.root.getObjectByName("mixamorigLeftUpLeg")!.quaternion),
+    ).toBeLessThan(0.00001);
+    late.dispose();
+    early.dispose();
+  });
+  it("aborts a stalled asset download at the timeout", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url, options: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) =>
+            options.signal.addEventListener("abort", () => reject(options.signal.reason), {
+              once: true,
+            }),
+          ),
+      ),
+    );
+    try {
+      const request = readAnimationFile("slow.fbx", undefined, 100);
+      const rejected = expect(request).rejects.toThrow("trwa za długo");
+      await vi.advanceTimersByTimeAsync(100);
+      await rejected;
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });

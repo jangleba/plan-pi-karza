@@ -1,9 +1,7 @@
 import { addIsoDays } from "@/lib/isoDate";
-import type { Profile, SessionDay } from "@/lib/loadwise/types";
-import type {
-  CompletedSessionEntry,
-  TrainingCategoryKey,
-} from "@/lib/progress/progress";
+import type { Profile, SessionDay, SessionCompletion } from "@/lib/loadwise/types";
+import { categoryOf } from "@/lib/progress/progress";
+import type { CompletedSessionEntry, TrainingCategoryKey } from "@/lib/progress/progress";
 
 /** Dzień mikrocyklu — wyłącznie realny plan i zapisane wykonanie. */
 export interface MicrocycleDay {
@@ -31,8 +29,11 @@ export interface MicrocycleReport {
 const WEEKDAYS = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
 function planSessions(day: SessionDay): SessionDay[] {
-  if (day.dayType === "rest" || day.isUnavailable) return [];
-  return day.secondSession ? [day, day.secondSession] : [day];
+  if (day.isUnavailable) return [];
+  return (day.secondSession ? [day, day.secondSession] : [day]).filter(
+    (session) =>
+      session.dayType !== "rest" && !session.isUnavailable && categoryOf(session) !== null,
+  );
 }
 
 export function buildMicrocycle(
@@ -42,12 +43,8 @@ export function buildMicrocycle(
 ): MicrocycleReport {
   const dates = Array.from({ length: 7 }, (_, index) => addIsoDays(todayIso, index - 6));
   const fromIso = dates[0]!;
-  const recentHistory = history.filter(
-    (item) => item.date >= fromIso && item.date <= todayIso,
-  );
-  const recentPlan = plan.filter(
-    (day) => day.date >= fromIso && day.date <= todayIso,
-  );
+  const recentHistory = history.filter((item) => item.date >= fromIso && item.date <= todayIso);
+  const recentPlan = plan.filter((day) => day.date >= fromIso && day.date <= todayIso);
   const byCategory: Record<TrainingCategoryKey, number> = {
     gym: 0,
     speed: 0,
@@ -63,9 +60,7 @@ export function buildMicrocycle(
   const days: MicrocycleDay[] = dates.map((date) => {
     const planned = recentPlan.flatMap(planSessions).filter((item) => item.date === date);
     const completed = recentHistory.filter((item) => item.date === date);
-    const dayRpes = completed
-      .map((item) => item.rpe)
-      .filter((rpe): rpe is number => rpe != null);
+    const dayRpes = completed.map((item) => item.rpe).filter((rpe): rpe is number => rpe != null);
     return {
       date,
       weekdayLabel: WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]!,
@@ -73,42 +68,37 @@ export function buildMicrocycle(
       completed: completed.length > 0,
       category: completed[0]?.category ?? null,
       durationMin: completed.reduce((sum, item) => sum + item.durationMin, 0),
-      rpe: dayRpes.length
-        ? dayRpes.reduce((sum, value) => sum + value, 0) / dayRpes.length
-        : null,
+      rpe: dayRpes.length ? dayRpes.reduce((sum, value) => sum + value, 0) / dayRpes.length : null,
       isToday: date === todayIso,
     };
   });
 
-  const plannedCount = recentPlan.flatMap(planSessions).length;
-  const completedCount = recentHistory.length;
-  const rpes = recentHistory
-    .map((item) => item.rpe)
-    .filter((rpe): rpe is number => rpe != null);
-  const avgRpe = rpes.length
-    ? rpes.reduce((sum, value) => sum + value, 0) / rpes.length
-    : null;
-  const executionPct =
-    plannedCount > 0
-      ? Math.min(100, Math.round((completedCount / plannedCount) * 100))
-      : null;
-  const totalMinutes = recentHistory.reduce(
-    (sum, item) => sum + item.durationMin,
-    0,
+  const plannedSessions = recentPlan.flatMap(planSessions);
+  const plannedKeys = new Set(
+    plannedSessions.map((session) => session.dbId ?? session.sessionId).filter(Boolean),
   );
+  const matched = recentHistory.filter((item) => plannedKeys.has(item.key));
+  const plannedCount = plannedSessions.length;
+  const completedCount = new Set(matched.map((item) => item.key)).size;
+  const rpes = recentHistory.map((item) => item.rpe).filter((rpe): rpe is number => rpe != null);
+  const avgRpe = rpes.length ? rpes.reduce((sum, value) => sum + value, 0) / rpes.length : null;
+  const executionPct =
+    plannedCount > 0 ? Math.min(100, Math.round((completedCount / plannedCount) * 100)) : null;
+  const totalMinutes = recentHistory.reduce((sum, item) => sum + item.durationMin, 0);
 
   let nextWeekDirection: string;
   if (plannedCount === 0) {
     nextWeekDirection = "Uzupełnij plan, aby rozpocząć kolejny mikrocykl.";
   } else if (executionPct != null && executionPct < 60) {
-    nextWeekDirection =
-      "Utrzymaj objętość i najpierw popraw regularność wykonania.";
+    nextWeekDirection = "Utrzymaj objętość i najpierw popraw regularność wykonania.";
   } else if (avgRpe != null && avgRpe >= 8) {
+    nextWeekDirection = "Nie zwiększaj intensywności — ostatnie odczuwane obciążenie było wysokie.";
+  } else if (executionPct === 100 && matched.some((item) => item.rpe == null)) {
     nextWeekDirection =
-      "Nie zwiększaj intensywności — ostatnie odczuwane obciążenie było wysokie.";
-  } else if (executionPct === 100 && (avgRpe == null || avgRpe <= 7)) {
+      "Uzupełnij RPE po wykonanych jednostkach. Brak oceny nie jest podstawą do zwiększania obciążenia.";
+  } else if (executionPct === 100 && avgRpe != null && avgRpe <= 7) {
     nextWeekDirection =
-      "Możesz progresować jedną zmienną zgodnie z następną jednostką planu.";
+      "Trzymaj się dawki zapisanej w kolejnej jednostce planu. Sama realizacja nie jest podstawą do dokładania obciążenia.";
   } else {
     nextWeekDirection = "Utrzymaj obecną strukturę i zapisuj RPE po treningu.";
   }
@@ -131,7 +121,7 @@ export interface DirectionCard {
   loadSignal: string;
   limiter: string;
   nextStep: string;
-  cta: { label: string; to: "plan" | "session"; date?: string };
+  cta: { label: string; to: "plan" | "session"; date?: string; slot?: 1 | 2 };
 }
 
 const LIMITER_LABELS: Record<string, string> = {
@@ -157,7 +147,7 @@ export function developmentStage(age: number | null): string {
 export function buildDirection(
   profile: Profile | null,
   micro: MicrocycleReport,
-  nextSession: SessionDay | null,
+  nextSession: (SessionDay & { slot?: 1 | 2 }) | null,
 ): DirectionCard {
   const limiterKey = profile?.secondaryLimiter ?? null;
   const limiter =
@@ -166,7 +156,7 @@ export function buildDirection(
       : micro.executionPct != null && micro.executionPct < 60
         ? "Regularność wykonania"
         : limiterKey
-          ? LIMITER_LABELS[limiterKey] ?? "Nieokreślony"
+          ? (LIMITER_LABELS[limiterKey] ?? "Nieokreślony")
           : "Brak wskazanego ogranicznika";
 
   return {
@@ -188,7 +178,49 @@ export function buildDirection(
           label: "Otwórz następną jednostkę",
           to: "session",
           date: nextSession.date,
+          slot: nextSession.slot ?? 1,
         }
       : { label: "Otwórz plan", to: "plan" },
   };
+}
+
+/** Return the exact actionable slot; additional historical work cannot complete it. */
+export function nextActionableSession(
+  plan: SessionDay[],
+  completions: Record<string, SessionCompletion>,
+  todayIso: string,
+): (SessionDay & { slot: 1 | 2 }) | null {
+  return (
+    plan
+      .flatMap((day) =>
+        day.isUnavailable
+          ? []
+          : [
+              { ...day, slot: 1 as const },
+              ...(day.secondSession
+                ? [{ ...day.secondSession, date: day.date, slot: 2 as const }]
+                : []),
+            ],
+      )
+      .filter((session) => {
+        const key = session.dbId ?? session.sessionId;
+        const completion = key ? completions[key] : undefined;
+        return (
+          session.date >= todayIso &&
+          session.dayType !== "rest" &&
+          !session.isUnavailable &&
+          !completion?.completed &&
+          completion?.status !== "missed"
+        );
+      })
+      .sort((a, b) => {
+        const dateOrder = a.date.localeCompare(b.date);
+        if (dateOrder) return dateOrder;
+        const started = (session: SessionDay) => {
+          const key = session.dbId ?? session.sessionId;
+          return key && completions[key]?.status === "started" ? 0 : 1;
+        };
+        return started(a) - started(b) || a.slot - b.slot;
+      })[0] ?? null
+  );
 }

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.111.0";
 import { createCoachHandler, TOPICS, type CoachTopic } from "./handler.ts";
+import { paidApiDecision } from "../_shared/billing/paidApi.ts";
 
 const url = Deno.env.get("SUPABASE_URL") ?? "";
 const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
@@ -36,6 +37,11 @@ Deno.serve(createCoachHandler({
   async quota(userId) {
     if (!service) return "unavailable";
     const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
+    if (Deno.env.get("BILLING_ENFORCED") === "true") {
+      const result = await admin.from("billing_entitlements").select("status,expires_at,verified_at").eq("user_id", userId).maybeSingle();
+      const access = paidApiDecision(true, result.data, !!result.error);
+      if (access !== "ok") return access;
+    }
     const { data, error } = await admin.rpc("consume_training_coach_quota", { p_user_id: userId }).maybeSingle();
     if (error || !data || typeof data !== "object" || !("allowed" in data) || typeof data.allowed !== "boolean")
       return "unavailable";

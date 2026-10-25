@@ -7,7 +7,7 @@ export interface CoachDependencies {
   origins: Set<string>;
   enabled: boolean;
   authenticate: (request: Request) => Promise<CoachActor | null>;
-  quota: (userId: string) => Promise<"ok" | "limit" | "unavailable">;
+  quota: (userId: string) => Promise<"ok" | "limit" | "unavailable" | "subscription">;
   classify: (question: string, signal: AbortSignal) => Promise<CoachTopic>;
 }
 
@@ -69,7 +69,7 @@ export function createCoachHandler(deps: CoachDependencies) {
     if (!deps.enabled) return json(503, { error: "coach_not_configured" });
     let quota: Awaited<ReturnType<CoachDependencies["quota"]>>;
     try { quota = await deps.quota(actor.userId); } catch { quota = "unavailable"; }
-    if (quota !== "ok") return json(quota === "limit" ? 429 : 503, { error: quota === "limit" ? "limit_reached" : "quota_unavailable" });
+    if (quota !== "ok") return json(quota === "subscription" ? 402 : quota === "limit" ? 429 : 503, { error: quota === "subscription" ? "subscription_required" : quota === "limit" ? "limit_reached" : "quota_unavailable" });
     const controller = new AbortController();
     const abort = () => controller.abort();
     request.signal.addEventListener("abort", abort, { once: true });

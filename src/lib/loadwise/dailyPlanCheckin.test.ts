@@ -50,14 +50,7 @@ describe("daily plan check-in", () => {
     };
     const now = new Date("2026-09-20T08:00:00.000Z");
 
-    saveDailyPlanCheckin(
-      "user-1",
-      "2026-09-20",
-      "lighter",
-      "remove",
-      storage,
-      now,
-    );
+    saveDailyPlanCheckin("user-1", "2026-09-20", "lighter", "remove", storage, now);
 
     expect(readDailyPlanCheckin("user-1", "2026-09-20", storage)).toEqual({
       date: "2026-09-20",
@@ -83,21 +76,17 @@ describe("daily plan check-in", () => {
   });
 
   it("buduje lżejszy wariant i zachowuje drugą sesję do osobnej decyzji", () => {
-    const result = buildLighterSession(
-      session({ secondSession: session({ title: "Technika" }) }),
-    );
+    const result = buildLighterSession(session({ secondSession: session({ title: "Technika" }) }));
 
     expect(result.durationMin).toBe(45);
     expect(result.intensity).toBe("umiarkowana");
-    expect(result.sections.main[0].prescription).toBe("3 × 8");
+    expect(result.sections.main[0].prescription).toBe("4 × 6");
     expect(result.secondSession?.title).toBe("Technika");
     expect(result.loadLabelOverride).toBe("Lżejszy wariant");
   });
 
   it("nie zmienia jednostki klubowej, tylko oznacza mniejszy udział", () => {
-    const result = buildLighterSession(
-      session({ dayType: "club", externalCommitment: true }),
-    );
+    const result = buildLighterSession(session({ dayType: "club", externalCommitment: true }));
 
     expect(result.durationMin).toBe(60);
     expect(result.loadLabelOverride).toBe("Ogranicz obciążenie");

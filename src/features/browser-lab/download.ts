@@ -1,19 +1,14 @@
+import { deliverExportBlob, deliverExportFile } from "@/lib/loadwise/deliverExportFile";
+
+/** Resolution means the browser/system accepted the handoff; cancellation never acknowledges a backup. */
 export function downloadText(
   name: string,
   text: string,
   type = "application/json",
+  ownerId?: string,
 ) {
-  downloadBlob(name, new Blob([text], { type }));
+  return deliverExportFile(name, text, type, ownerId);
 }
-
-export function downloadBlob(name: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  // Safari can read the download after the click handler has returned.
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+export function downloadBlob(name: string, blob: Blob, ownerId?: string) {
+  return deliverExportBlob(name, blob, ownerId);
 }

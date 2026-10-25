@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
+import type { Json } from "@/integrations/supabase/types";
 import type { TrainingExercise } from "@/lib/loadwise/types";
-import { enqueueTrainingWrite, isRetryableWriteError } from "@/lib/loadwise/offlineTrainingQueue";
+import {
+  enqueueDurableTrainingWrite,
+  recoverTrainingQueue,
+  readPendingTrainingWrites,
+  isRetryableWriteError,
+  withDurableTrainingWrite,
+} from "@/lib/loadwise/offlineTrainingQueue";
 import {
   previousExerciseSessions,
   toSetLog,
@@ -28,7 +35,9 @@ export function exerciseKey(e: Pick<TrainingExercise, "exerciseId" | "name">): s
 /** Liczba planowanych serii ćwiczenia (0 = brak logowania serii). */
 export function plannedSets(e: TrainingExercise): number {
   if (typeof e.sets === "number" && Number.isFinite(e.sets)) return Math.max(0, Math.round(e.sets));
-  const explicit = String(e.sets ?? "").trim().match(/^(\d+)(?:\s*[–-]\s*\d+)?$/);
+  const explicit = String(e.sets ?? "")
+    .trim()
+    .match(/^(\d+)(?:\s*[–-]\s*\d+)?$/);
   if (explicit) return Number(explicit[1]);
   const match = String(e.displayPrescription ?? "").match(/(\d+)\s*(?:serie|serii|seria|×)/i);
   return match ? Number(match[1]) : 0;
@@ -64,100 +73,146 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
   const [previous, setPrevious] = useState<Record<number, SetLog>>({});
   const [recentSessions, setRecentSessions] = useState<ExerciseSessionLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const scope = `${userId ?? ""}:${sessionId ?? ""}:${key}`;
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
+  const requestRevision = useRef(0);
+  const localEdits = useRef<Record<number, SetLog>>({});
+  const versions = useRef<Record<number, number>>({});
 
   const load = useCallback(async () => {
+    const revision = ++requestRevision.current;
+    const isCurrent = () => activeScope.current === scope && requestRevision.current === revision;
     if (!userId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const { data } = await table()
+    await recoverTrainingQueue(userId);
+    if (!isCurrent()) return;
+    const pending = readPendingTrainingWrites(userId).filter(
+      (write) => write.kind === "exercise_set_log" && write.payload.exercise_key === key,
+    );
+    const { data, error } = await table()
       .select(
-        "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at",
+        "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at,write_version",
       )
       .eq("user_id", userId)
       .eq("exercise_key", key)
       .order("performed_at", { ascending: false })
       .limit(60);
-    const rows = (data ?? []) as unknown as SetLogRow[];
+    if (!isCurrent()) return;
+    if (error && pending.length === 0) {
+      setLoading(false);
+      return;
+    }
+    const rows = [
+      ...(data ?? []),
+      ...pending.map((write) => write.payload),
+    ] as unknown as SetLogRow[];
+    rows.sort((a, b) => b.performed_at.localeCompare(a.performed_at));
     const mine: Record<number, SetLog> = {};
     for (const row of rows) {
       if (sessionId && row.session_id === sessionId) {
         if (!mine[row.set_number]) mine[row.set_number] = toSetLog(row);
       }
     }
-    setCurrent(mine);
+    for (const row of (data ?? []) as (SetLogRow & { write_version?: number })[]) {
+      if (row.session_id === sessionId)
+        versions.current[row.set_number] = Math.max(
+          versions.current[row.set_number] ?? 0,
+          row.write_version ?? 0,
+        );
+    }
+    for (const write of pending)
+      if (write.kind === "exercise_set_log" && write.payload.session_id === sessionId) {
+        const number = write.payload.set_number;
+        mine[number] = toSetLog(write.payload as unknown as SetLogRow);
+        versions.current[number] = Math.max(
+          versions.current[number] ?? 0,
+          write.expectedVersion ?? 0,
+        );
+      }
+    setCurrent({ ...mine, ...localEdits.current });
     setPrevious(previousSessionLogs(rows, sessionId));
     setRecentSessions(previousExerciseSessions(rows, sessionId));
     setLoading(false);
-  }, [userId, key, sessionId]);
+  }, [userId, key, sessionId, scope]);
 
   useEffect(() => {
+    localEdits.current = {};
+    versions.current = {};
+    setCurrent({});
+    setPrevious({});
+    setRecentSessions([]);
     void load();
+    return () => {
+      requestRevision.current += 1;
+    };
   }, [load]);
 
   const saveSet = useCallback(
     async (log: SetLog) => {
       if (!userId) return false;
-      const { error } = await table().upsert(
-        {
-          user_id: userId,
-          session_id: sessionId ?? null,
-          exercise_key: key,
-          set_number: log.setNumber,
-          weight_kg: log.weightKg,
-          reps: log.reps,
-          rir: log.rir,
-          metric_kind: log.metricKind ?? null,
-          metric_value: log.metricValue ?? null,
-          performed_at: new Date().toISOString(),
+      const payload = {
+        user_id: userId,
+        session_id: sessionId ?? null,
+        exercise_key: key,
+        set_number: log.setNumber,
+        weight_kg: log.weightKg,
+        reps: log.reps,
+        rir: log.rir,
+        metric_kind: log.metricKind ?? null,
+        metric_value: log.metricValue ?? null,
+        performed_at: new Date().toISOString(),
+      };
+      const dedupeKey = `set:${sessionId ?? "none"}:${key}:${log.setNumber}`;
+      const operationId = crypto.randomUUID();
+      let expectedVersion = versions.current[log.setNumber] ?? 0;
+      const result = await withDurableTrainingWrite(
+        userId,
+        { kind: "exercise_set_log", dedupeKey, payload, operationId, expectedVersion },
+        async (previous) => {
+          if (activeScope.current === scope) expectedVersion = versions.current[log.setNumber] ?? 0;
+          const saved = await supabase.rpc("save_exercise_set", {
+            p_operation_id: operationId,
+            p_expected_version: expectedVersion,
+            p_payload: {
+              ...payload,
+              _predecessor_operation_ids: [
+                ...(previous?.predecessors ?? []),
+                ...(previous?.operationId ? [previous.operationId] : []),
+              ],
+            } as Json,
+          });
+          if (!saved.error && activeScope.current === scope) {
+            const canonical = saved.data as { write_version?: number } | null;
+            versions.current[log.setNumber] = canonical?.write_version ?? expectedVersion;
+          }
+          return saved;
         },
-        { onConflict: "user_id,session_id,exercise_key,set_number" },
       );
-      if (error) {
-        // Brak zapisu z session_id (np. konflikt indeksu częściowego) — spróbuj update.
-        let updateQuery = table()
-          .update({
-            weight_kg: log.weightKg,
-            reps: log.reps,
-            rir: log.rir,
-            metric_kind: log.metricKind ?? null,
-            metric_value: log.metricValue ?? null,
-            performed_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId)
-          .eq("exercise_key", key)
-          .eq("set_number", log.setNumber);
-        updateQuery = sessionId
-          ? updateQuery.eq("session_id", sessionId)
-          : updateQuery.is("session_id", null);
-        const { error: updateError } = await updateQuery;
-        if (updateError) {
-          const queued =
-            isRetryableWriteError(updateError) &&
-            enqueueTrainingWrite(userId, {
-              kind: "exercise_set_log",
-              dedupeKey: `set:${sessionId ?? "none"}:${key}:${log.setNumber}`,
-              payload: {
-                user_id: userId,
-                session_id: sessionId ?? null,
-                exercise_key: key,
-                set_number: log.setNumber,
-                weight_kg: log.weightKg,
-                reps: log.reps,
-                rir: log.rir,
-                metric_kind: log.metricKind ?? null,
-                metric_value: log.metricValue ?? null,
-                performed_at: new Date().toISOString(),
-              },
-            });
-          if (!queued) return false;
-        }
-      }
+      if (
+        result.error &&
+        !(
+          isRetryableWriteError(result.error) &&
+          (await enqueueDurableTrainingWrite(userId, {
+            kind: "exercise_set_log",
+            dedupeKey,
+            payload,
+            operationId,
+            expectedVersion,
+          }))
+        )
+      )
+        return false;
+      // A successful old save belongs to its session, never the newly opened one.
+      if (activeScope.current !== scope) return true;
+      localEdits.current[log.setNumber] = log;
       setCurrent((state) => ({ ...state, [log.setNumber]: log }));
       return true;
     },
-    [userId, key, sessionId],
+    [userId, key, sessionId, scope],
   );
 
   return { current, previous, recentSessions, loading, saveSet };

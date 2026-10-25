@@ -109,7 +109,7 @@ describe("persistMonthlyPlan", () => {
     await persistMonthlyPlan("user-1", profile, [makeDay("2026-08-20")]);
 
     expect(operations).toHaveLength(1);
-    expect(operations[0]?.table).toBe("persist_training_plan_atomic");
+    expect(operations[0]?.table).toBe("persist_training_plan_v2");
     expect(operations[0]?.payload).toMatchObject({
       p_goal: "speed",
       p_days: expect.any(Array),
@@ -120,16 +120,43 @@ describe("persistMonthlyPlan", () => {
 
   it("surfaces an atomic persistence failure without client-side cleanup", async () => {
     state.forcedError = {
-      table: "persist_training_plan_atomic",
+      table: "persist_training_plan_v2",
       method: "rpc",
       error: { message: "transaction failed", code: "23503" },
     };
 
     await expect(persistMonthlyPlan("user-1", profile, [makeDay("2026-08-20")])).rejects.toThrow(
-      "[persist_training_plan_atomic] transaction failed | code: 23503",
+      "[persist_training_plan_v2] transaction failed | code: 23503",
     );
 
     expect(operations).toHaveLength(1);
+  });
+
+  it("returns a detached snapshot and preserves existing identifiers", async () => {
+    const day = {
+      ...makeDay("2026-10-18"),
+      dbId: "old-session",
+      dayDbId: "old-day",
+      planDbId: "old-plan",
+    };
+    const saved = await persistMonthlyPlan("user-1", profile, [day]);
+    expect(saved[0]).not.toBe(day);
+    expect(saved[0]).toMatchObject({ dbId: "old-session", dayDbId: "old-day" });
+    expect(day.planDbId).toBe("old-plan");
+    expect(operations[0].payload).toMatchObject({ p_expected_plan_id: "old-plan" });
+  });
+
+  it("does not allocate identifiers in the caller's plan on failure", async () => {
+    const day = makeDay("2026-10-18");
+    state.forcedError = {
+      table: "persist_training_plan_v2",
+      method: "rpc",
+      error: { message: "offline" },
+    };
+    await expect(persistMonthlyPlan("user-1", profile, [day])).rejects.toThrow();
+    expect(day.dbId).toBeUndefined();
+    expect(day.dayDbId).toBeUndefined();
+    expect(day.planDbId).toBeUndefined();
   });
 
   it("rejects persistence when executable session misses athlete-visible instructions", async () => {

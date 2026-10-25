@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   queries: vi.fn(),
   history: vi.fn(),
   clearBootState: vi.fn(),
+  persist: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -21,6 +22,8 @@ vi.mock("@/integrations/supabase/client", () => ({
       let userId = "";
       const chain = {
         select: () => chain,
+        range: () => chain,
+        gte: () => chain,
         abortSignal: () => chain,
         order: () => chain,
         limit: () => chain,
@@ -42,6 +45,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
   },
 }));
+vi.mock("../persist", () => ({ persistMonthlyPlan: mocks.persist }));
 vi.mock("../legalStatus", () => ({ primeConsentRows: vi.fn() }));
 vi.mock("../bootCache", () => ({
   loadBootState: (userId: string) => mocks.cached.get(userId) ?? null,
@@ -109,6 +113,7 @@ beforeEach(() => {
   mocks.queries.mockClear();
   mocks.history.mockReset().mockResolvedValue([]);
   mocks.clearBootState.mockClear();
+  mocks.persist.mockReset().mockImplementation(async (_user, _profile, plan) => plan);
   onRender.mockClear();
   window.localStorage.clear();
   host = document.createElement("div");
@@ -178,7 +183,7 @@ describe("store hydration", () => {
     expect(snapshot.hydrated).toBe(false);
   });
 
-  it("preserves a new workout completion during slow background hydration", async () => {
+  it("preserves a new completion while removing health notes when the server confirms no consent", async () => {
     const remote = deferred<RemoteRows>();
     mocks.requests.set("a", remote.promise);
     mocks.cached.set("a", cachedState("Athlete A"));
@@ -190,7 +195,7 @@ describe("store hydration", () => {
       })),
     );
     await act(async () => remote.resolve(remoteRows("Updated athlete")));
-    expect(snapshot.state.completions.new).toEqual({ completed: true, rpe: 7, notes: "new" });
+    expect(snapshot.state.completions.new).toEqual({ completed: true, rpe: 7, notes: "" });
     expect(snapshot.state.profile?.name).toBe("Updated athlete");
   });
 
@@ -260,5 +265,21 @@ describe("store hydration", () => {
     expect(snapshot.state.profile?.name).toBe("Cached athlete");
     expect(snapshot.state.readiness).toEqual({});
     expect(snapshot.state.equipmentNotice).toContain("ostatnie dostępne dane");
+  });
+  it("keeps the expected active header when recovering an empty corrupted plan snapshot", async () => {
+    const rows = remoteRows("Athlete");
+    rows.profiles = { full_name: "Athlete", onboarding_completed: true };
+    rows.training_plans = {
+      id: "existing-active-header",
+      plan_json: [],
+      created_at: "2026-09-28T12:00:00Z",
+    };
+    mocks.requests.set("a", Promise.resolve(rows));
+    await render({ id: "a" });
+    await act(async () => {
+      await vi.waitFor(() => expect(mocks.persist).toHaveBeenCalled(), { timeout: 5000 });
+    });
+    const plan = mocks.persist.mock.calls[0][2] as { planDbId?: string }[];
+    expect(plan[0].planDbId).toBe("existing-active-header");
   });
 });

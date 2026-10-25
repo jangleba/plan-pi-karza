@@ -1,3 +1,4 @@
+import { trainingProfileRevision } from "../planIdentity";
 import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
 import type { Dispatch, SetStateAction } from "react";
 import { ageOnDate } from "../agePolicy";
@@ -85,6 +86,20 @@ export function historyCategoryOf(
 ): SessionHistoryCategory | null {
   const normalized = (sessionType ?? "").toLowerCase();
   if (normalized === "testing" || /\btest/.test(normalized)) return null;
+  const canonicalTypes: Record<string, SessionHistoryCategory> = {
+    strength_power: "gym",
+    sprint_acceleration: "speed",
+    cod_agility: "speed",
+    endurance_running: "endurance",
+    football_technical: "ball",
+    club_training: "club",
+    match: "match",
+    recovery: "recovery",
+    prehab_mobility: "recovery",
+    activation: "recovery",
+  };
+  // A second slot's own type wins over its club/match calendar day.
+  if (canonicalTypes[normalized]) return canonicalTypes[normalized];
   if (dayType === "match" || normalized === "match" || /mecz/.test(normalized)) {
     return "match";
   }
@@ -199,12 +214,6 @@ export function buildProfile(
   onboardingAnswers: AnyRow | null,
 ): Profile | null {
   if (!prof || !ath) return null;
-  const onboardingRevision =
-    (ath.updated_at as string | null) ??
-    (ath.created_at as string | null) ??
-    (prof.updated_at as string | null) ??
-    (prof.created_at as string | null) ??
-    null;
   const equipment = (ath.equipment as string[]) ?? [];
   const birthDate = (prof.birth_date as string | null) ?? null;
   const calculatedAge = birthDate ? ageOnDate(birthDate) : null;
@@ -216,7 +225,7 @@ export function buildProfile(
     typeof ath.guardian_email === "string" &&
     typeof ath.guardian_verified_at === "string" &&
     typeof ath.guardian_consent_at === "string";
-  return {
+  const profile: Profile = {
     name: (prof.full_name as string) ?? "",
     age,
     birthDate,
@@ -264,13 +273,16 @@ export function buildProfile(
     ]),
     equipment,
     painInjury: Boolean(ath.pain_injury),
-    painLocations: normalizePersistedPainLocations(onboardingAnswers?.painLocations),
+    painLocations: ath.health_personalization_enabled
+      ? normalizePersistedPainLocations(ath.pain_locations ?? onboardingAnswers?.painLocations)
+      : [],
     doubleSessionsAllowed:
       (ath.double_sessions_allowed as Profile["doubleSessionsAllowed"]) ?? "no",
     guardianConsent: Boolean(ath.guardian_consent),
     onboardingComplete:
       Boolean(prof.onboarding_completed) && (!requiresGuardianOwner || guardianOwnershipReady),
-    onboardingRevision,
+    onboardingRevision: null,
+    serverProfileUpdatedAt: (ath.updated_at as string | null) ?? null,
     onboardingSchemaVersion: ONBOARDING_SCHEMA_VERSION,
     createdAt: (ath.created_at as string) ?? new Date().toISOString(),
     seasonPhase: normalizeSeasonPhase(ath.season_phase),
@@ -296,9 +308,11 @@ export function buildProfile(
         ? null
         : Number(ath.field_mas_kmh),
     fieldMasTestedAt: (ath.field_mas_tested_at as string | null) ?? null,
+    fieldMasSourceSessionId: (ath.field_mas_source_session_id as string | null) ?? null,
     runningProgressionLevel: Number(ath.running_progression_level ?? 0),
     runningProgressionUpdatedAt: (ath.running_progression_updated_at as string | null) ?? null,
   };
+  return { ...profile, onboardingRevision: trainingProfileRevision(profile) };
 }
 
 export function findSessionByDbId(plan: SessionDay[], sessionId: string): SessionDay | null {
@@ -422,17 +436,21 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
     id: row.id,
     sessionId: row.session_id,
     date: row.date,
-    startedAt: timestamp,
-    endedAt: timestamp,
+    startedAt: typeof row.started_at === "string" ? row.started_at : timestamp,
+    endedAt: typeof row.ended_at === "string" ? row.ended_at : timestamp,
     durationSec,
     distanceM,
     avgPaceSecPerKm,
     route: [],
     splits: [],
-    intervalResults: [],
+    intervalResults: Array.isArray(row.interval_results)
+      ? (row.interval_results as unknown as RunningActivity["intervalResults"])
+      : [],
     source: "gps",
+    isFieldMasTest: row.is_field_mas_test === true,
     createdAt: timestamp,
     updatedAt: typeof row.updated_at === "string" ? row.updated_at : timestamp,
+    writeVersion: Number(row.write_version ?? 0),
   };
 }
 
@@ -500,6 +518,11 @@ export function mapCompletionRows(rows: AnyRow[]): Record<string, SessionComplet
       activityType: (row.activity_type as SessionCompletion["activityType"]) ?? null,
       startedAt: (row.started_at as string | null) ?? null,
       endedAt: (row.ended_at as string | null) ?? null,
+      executionSnapshot:
+        row.execution_snapshot && typeof row.execution_snapshot === "object"
+          ? (row.execution_snapshot as SessionDay)
+          : null,
+      writeVersion: Number(row.write_version ?? 0),
     };
   }
   return completions;
@@ -508,6 +531,7 @@ export function mapCompletionRows(rows: AnyRow[]): Record<string, SessionComplet
 export type StoreUser = { id: string } | null;
 export type StateSetter = Dispatch<SetStateAction<LoadwiseState>>;
 export interface StoreActionContext {
+  getState?: () => LoadwiseState;
   user: StoreUser;
   state: LoadwiseState;
   setState: StateSetter;
@@ -517,5 +541,8 @@ export interface StoreActionContext {
     profile: Profile,
     revision: string | null,
     missedSessions?: SessionDay[],
+    recentCompletions?: Record<string, SessionCompletion>,
+    keepConfirmedCalendar?: boolean,
+    persist?: boolean,
   ) => Promise<SessionDay[]>;
 }

@@ -1,87 +1,61 @@
+import { TrainingConflictReview } from "@/components/loadwise/TrainingConflictReview";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, FileDown, Trash2, ShieldOff, HeartOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { deliverExportFile, clearExportCacheForUser } from "@/lib/loadwise/deliverExportFile";
+import { buildUserDataExport, buildLocalUserDataExport } from "@/lib/loadwise/dataExport";
+import { clearLocalHealthData } from "@/lib/loadwise/localPrivacy";
+import { purgeTrainingQueue } from "@/lib/loadwise/offlineTrainingQueue";
 import { useAuth } from "@/lib/loadwise/auth";
 import { recordConsentDecision } from "@/lib/loadwise/consent";
 import { MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import { useInstantBack } from "@/lib/loadwise/uiHooks";
-import { useLoadwise } from "@/lib/loadwise/store";
-import {
-  clearLocalUserData,
-  profileWithoutHealthData,
-} from "@/lib/loadwise/localPrivacy";
+import { clearLocalUserData } from "@/lib/loadwise/localPrivacy";
 
 export const Route = createFileRoute("/data-rights")({
   component: DataRights,
 });
 
-const USER_TABLES = [
-  "profiles",
-  "athlete_profiles",
-  "onboarding_answers",
-  "readiness_logs",
-  "pain_logs",
-  "training_plans",
-  "training_days",
-  "training_sessions",
-  "session_exercises",
-  "session_logs",
-  "exercise_set_logs",
-  "session_modifications",
-  "weekly_transitions",
-  "exercise_replacements",
-  "running_activities",
-  "user_roles",
-  "consent_logs",
-] as const;
-
-type UserScopedTable = {
-  select: (columns: "*") => {
-    eq: (column: "user_id", value: string) => PromiseLike<{
-      data: unknown;
-      error: unknown;
-    }>;
-  };
-};
-
 function DataRights() {
   const navigate = useNavigate();
   const goBack = useInstantBack("/profil");
   const { user, signOut } = useAuth();
-  const { state, updateProfile } = useLoadwise();
+  const activeUser = useRef(user?.id);
+  activeUser.current = user?.id;
+
   const [busy, setBusy] = useState(false);
 
-  async function exportData() {
+  async function exportData(localOnly = false) {
     if (!user) return;
     setBusy(true);
     try {
-      const bundle: Record<string, unknown> = {
-        account: { id: user.id, email: user.email },
-        exported_at: new Date().toISOString(),
+      const account = {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        email_confirmed_at: user.email_confirmed_at,
+        phone_confirmed_at: user.phone_confirmed_at,
+        last_sign_in_at: user.last_sign_in_at,
+        user_metadata: user.user_metadata,
+        app_metadata: user.app_metadata,
+        identities: user.identities,
       };
-      for (const t of USER_TABLES) {
-        const table = supabase.from(
-          t as keyof Database["public"]["Tables"],
-        ) as unknown as UserScopedTable;
-        const { data, error } = await table
-          .select("*")
-          .eq("user_id", user.id);
-        if (error) throw error;
-        bundle[t] = data ?? [];
-      }
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ballwise-moje-dane.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Eksport danych gotowy.");
+      const bundle = await (localOnly
+        ? buildLocalUserDataExport(account)
+        : buildUserDataExport(account));
+      if (activeUser.current !== account.id) return;
+      const result = await deliverExportFile(
+        "ballwise-moje-dane.json",
+        JSON.stringify(bundle, null, 2),
+        "application/json",
+        account.id,
+      );
+      if (result === "cancelled" || activeUser.current !== account.id) return;
+      toast.success("Plik eksportu przygotowany i przekazany do pobrania.");
     } catch {
       toast.error("Nie udało się wyeksportować danych.");
     } finally {
@@ -102,14 +76,20 @@ function DataRights() {
     if (type === "health_data") {
       try {
         await recordConsentDecision({ type: "health_data", accepted: false });
-        if (state.profile) await updateProfile(profileWithoutHealthData(state.profile));
       } catch {
         setBusy(false);
         toast.error("Nie udało się wycofać zgody i usunąć danych.");
         return;
       }
+      try {
+        await clearLocalHealthData(user.id);
+      } catch {
+        toast.warning(
+          "Zgoda została wycofana. Czyszczenie pamięci telefonu wymaga ponownego otwarcia aplikacji.",
+        );
+      }
       setBusy(false);
-      toast.success("Usunięto dane zdrowotne i wyłączono ich personalizację.");
+      toast.success("Zgoda zdrowotna wycofana. Plan działa bez personalizacji zdrowotnej.");
       navigate({ to: "/start", replace: true });
       return;
     }
@@ -139,8 +119,23 @@ function DataRights() {
       });
       if (error) throw error;
       clearLocalUserData(user.id);
+      let deviceCleared = await purgeTrainingQueue(user.id);
+      const cleanup = await Promise.allSettled([
+        clearExportCacheForUser(user.id),
+        (async () => {
+          const { nativeRecorder, nativeRunningAvailable } =
+            await import("@/lib/running/nativeRecorder");
+          if (nativeRunningAvailable()) await nativeRecorder.clearOwner({ ownerId: user.id });
+        })(),
+      ]);
+      if (cleanup.some((result) => result.status === "rejected")) deviceCleared = false;
+      if (activeUser.current !== user.id) return;
       await signOut();
-      toast.success("Konto logowania i powiązane dane zostały usunięte.");
+      if (deviceCleared) toast.success("Konto logowania i powiązane dane zostały usunięte.");
+      else
+        toast.warning(
+          "Konto zostało usunięte z serwera. Nie udało się całkowicie wyczyścić pamięci telefonu. Usuń aplikację z telefonu, aby usunąć pozostałe dane lokalne.",
+        );
       navigate({ to: "/auth", replace: true });
     } catch {
       toast.error("Nie udało się usunąć danych.");
@@ -170,7 +165,7 @@ function DataRights() {
         </div>
 
         <button
-          onClick={exportData}
+          onClick={() => void exportData(false)}
           disabled={busy}
           className="soft-card flex w-full items-center gap-3 p-4 text-left"
         >
@@ -178,9 +173,19 @@ function DataRights() {
           <div>
             <div className="text-sm font-semibold">Eksportuj moje dane (JSON)</div>
             <div className="text-xs text-muted-foreground">
-              Pobierz wszystkie swoje dane w jednym pliku.
+              Pobierz dane z bazy, lokalne historie i niewysłane wyniki z tego telefonu.
             </div>
           </div>
+        </button>
+
+        {user && <TrainingConflictReview key={user.id} userId={user.id} />}
+
+        <button
+          onClick={() => void exportData(true)}
+          disabled={busy}
+          className="soft-card w-full p-4 text-left text-sm"
+        >
+          Pobierz kopię danych z tego telefonu (również offline)
         </button>
 
         <button

@@ -8,9 +8,15 @@ import {
 
 class MemoryStorage {
   private values = new Map<string, string>();
-  getItem(key: string) { return this.values.get(key) ?? null; }
-  setItem(key: string, value: string) { this.values.set(key, value); }
-  removeItem(key: string) { this.values.delete(key); }
+  getItem(key: string) {
+    return this.values.get(key) ?? null;
+  }
+  setItem(key: string, value: string) {
+    this.values.set(key, value);
+  }
+  removeItem(key: string) {
+    this.values.delete(key);
+  }
 }
 
 const sessionWrite = (completed: boolean) => ({
@@ -38,11 +44,15 @@ describe("offline training queue", () => {
   it("removes successful writes and retains failed writes", async () => {
     const storage = new MemoryStorage();
     enqueueTrainingWrite("u1", sessionWrite(true), storage);
-    enqueueTrainingWrite("u1", {
-      kind: "running_progression",
-      dedupeKey: "progression",
-      payload: { running_progression_level: 2, running_progression_updated_at: "2026-09-13" },
-    }, storage);
+    enqueueTrainingWrite(
+      "u1",
+      {
+        kind: "running_progression",
+        dedupeKey: "progression",
+        payload: { running_progression_level: 2, running_progression_updated_at: "2026-09-13" },
+      },
+      storage,
+    );
     const result = await flushPendingTrainingWrites(
       "u1",
       async (write) => write.kind === "session_log",
@@ -52,11 +62,11 @@ describe("offline training queue", () => {
     expect(readPendingTrainingWrites("u1", storage)[0].kind).toBe("running_progression");
   });
 
-  it("drops expired local writes", () => {
+  it("retains old unsent results until acknowledged", () => {
     const storage = new MemoryStorage();
     enqueueTrainingWrite("u1", sessionWrite(true), storage, 0);
     const eightDays = 8 * 24 * 60 * 60 * 1000;
-    expect(readPendingTrainingWrites("u1", storage, eightDays)).toEqual([]);
+    expect(readPendingTrainingWrites("u1", storage, eightDays)).toHaveLength(1);
   });
 
   it("retries transient HTTP and network failures but not validation errors", () => {

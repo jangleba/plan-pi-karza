@@ -116,6 +116,7 @@ export interface Profile {
   guardianConsent: boolean;
   onboardingComplete: boolean;
   onboardingRevision?: string | null;
+  serverProfileUpdatedAt?: string | null;
   onboardingSchemaVersion?: number;
   createdAt: string;
   // --- Kontekst sezonu i rozgrywek (steruje generatorem) ---
@@ -154,6 +155,7 @@ export interface Profile {
   /** Terenowe MAS wyliczone z ostatniego testu 5-minutowego GPS. */
   fieldMasKmh?: number | null;
   fieldMasTestedAt?: string | null;
+  fieldMasSourceSessionId?: string | null;
   /** Poziom 0–3 sterujący dawką biegu; tempo bazowe zmienia tylko kolejny test. */
   runningProgressionLevel?: number;
   runningProgressionUpdatedAt?: string | null;
@@ -550,6 +552,7 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
+  executionSlot?: 1 | 2;
   /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
   isUnavailable?: boolean;
   generatorVersion?: string;
@@ -568,8 +571,12 @@ export interface SessionDay {
   canonicalRevision?: string | null;
   canonicalSchemaVersion?: number;
   dbId?: string; // id wiersza training_sessions (po zapisie do bazy)
+  planDbId?: string; // revision header used for optimistic concurrency
+  cycleId?: string; // stable across revisions of the same dated block
+  executionProtected?: boolean;
   dayDbId?: string; // id wiersza training_days (po zapisie do bazy)
   readinessAdjustedDate?: string | null;
+  readinessAdjustmentKey?: string;
   readinessOriginalSession?: SessionDay | null;
   sessionId?: string;
   date: string; // yyyy-MM-dd
@@ -649,6 +656,8 @@ export interface SessionCompletion {
   activityType?: "technical" | "mixed" | "running_endurance" | null;
   startedAt?: string | null;
   endedAt?: string | null;
+  executionSnapshot?: SessionDay | null;
+  writeVersion?: number;
 }
 
 export interface PlanChangeEvent {
@@ -695,6 +704,9 @@ export interface WeeklyTransition {
   nextMatchDates?: string[];
   noMatchNextWeek: boolean;
   confirmedAt: string;
+  cycleId?: string;
+  weekStart?: string;
+  weekEnd?: string;
 }
 
 export interface LoadwiseState {
