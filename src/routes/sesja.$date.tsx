@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
@@ -30,6 +30,7 @@ import {
   canGuideRecoverySession,
   recoveryContextForSession,
 } from "@/lib/loadwise/preparation/protocols";
+import { SessionExercisePreview } from "@/components/loadwise/session/SessionExercisePreview";
 import { StructuredSections } from "@/components/loadwise/session/GenericRunner";
 import { SprintStructuredSections } from "@/components/loadwise/session/SprintRunner";
 import { StrengthStructuredSections } from "@/components/loadwise/session/StrengthRunner";
@@ -88,11 +89,15 @@ function SessionDetail() {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
   }, [authLoading, user, navigate]);
 
-  const resolvedPlan = resolveEffectivePlan(state.plan, state.modifications, {
-    profile: state.profile,
-    readiness: state.readiness,
-    completions: state.completions,
-  });
+  const resolvedPlan = useMemo(
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        profile: state.profile,
+        readiness: state.readiness,
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, state.profile, state.readiness, state.completions],
+  );
   const storedDay = state.plan.find((p) => p.date === date);
   const activeFallback = activeSessionForRoute(
     resolvedPlan,
@@ -298,109 +303,113 @@ function SessionDetail() {
           <SessionStartPanel session={session} canStart={isToday} />
         )}
 
-        <fieldset className="min-w-0 space-y-3" disabled={!canExecute}>
-          {ballTechnicalSession && (
-            <Link
-              to="/reakcja"
-              aria-disabled={!canExecute}
-              tabIndex={canExecute ? 0 : -1}
-              onClick={(event) => {
-                if (!canExecute) event.preventDefault();
-              }}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
-            >
-              <div>
-                <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
-                <p className="mt-0.5 text-xs text-primary-foreground/75">
-                  Włącz bodźce w wybranym fragmencie własnego treningu.
-                </p>
-              </div>
-              <ArrowRight className="h-5 w-5 shrink-0" />
-            </Link>
-          )}
-
-          {enduranceSession && enduranceWarmup.length > 0 && (
-            <WarmupCoach
-              key={`${session.dbId ?? date}:warmup`}
-              exercises={enduranceWarmup}
-              kind={
-                /spokojny|easy aerobic|baza tlenowa/i.test(
-                  `${session.title} ${session.sessionType}`,
-                )
-                  ? "easy"
-                  : "intervals"
-              }
-              storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
-            />
-          )}
-          {trackableEndurance &&
-            session.dbId &&
-            (hasStarted || state.runningActivities[session.dbId]) &&
-            session.loadLabelOverride !== "Wstrzymaj trening" && (
-              <EnduranceRunTracker
-                key={`${user.id}:${session.dbId}`}
-                ownerId={user.id}
-                session={session}
-                sessionId={session.dbId}
-                date={session.date}
-                canRecord={canExecute && !completion?.completed}
-                activity={state.runningActivities[session.dbId] ?? null}
-                onSave={saveRunningActivity}
-                onDelete={deleteRunningActivity}
-              />
+        {!canExecute ? (
+          <SessionExercisePreview sections={structured} />
+        ) : (
+          <fieldset className="min-w-0 space-y-3">
+            {ballTechnicalSession && (
+              <Link
+                to="/reakcja"
+                aria-disabled={!canExecute}
+                tabIndex={canExecute ? 0 : -1}
+                onClick={(event) => {
+                  if (!canExecute) event.preventDefault();
+                }}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-primary px-4 py-4 text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
+              >
+                <div>
+                  <p className="text-sm font-bold">Uruchom Trenera reakcji</p>
+                  <p className="mt-0.5 text-xs text-primary-foreground/75">
+                    Włącz bodźce w wybranym fragmencie własnego treningu.
+                  </p>
+                </div>
+                <ArrowRight className="h-5 w-5 shrink-0" />
+              </Link>
             )}
 
-          {session.loadLabelOverride === "Wstrzymaj trening" ? (
-            <div className="soft-card p-4" role="alert">
-              Wstrzymaj dalszy wysiłek. Zapis wcześniejszej części sesji pozostaje w historii.
-            </div>
-          ) : isClub ? (
-            <>
-              <ClubMonitoring />
-              {structured.length > 0 && (
-                <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
-              )}
-            </>
-          ) : recoveryRunner ? (
-            <RecoveryCoach
-              key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
-              storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
-              context={recoveryContext}
-              blocked={session.loadLabelOverride === "Wstrzymaj trening"}
-              onDurationChange={setRecoveryDuration}
-              onFinish={() => setShowRecoveryCompletion(true)}
-            />
-          ) : sprintRunner ? (
-            <SprintStructuredSections
-              sections={structured}
-              date={date}
-              session={session}
-              onFinish={() => setShowSprintCompletion(true)}
-            />
-          ) : strengthRunner ? (
-            <StrengthStructuredSections
-              sections={structured}
-              date={date}
-              sessionId={session.dbId}
-              onFinish={() => setShowStrengthCompletion(true)}
-            />
-          ) : (
-            <>
-              <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Do wykonania
-              </div>
-              <StructuredSections
-                sections={
-                  enduranceSession
-                    ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
-                    : structured
+            {enduranceSession && enduranceWarmup.length > 0 && (
+              <WarmupCoach
+                key={`${session.dbId ?? date}:warmup`}
+                exercises={enduranceWarmup}
+                kind={
+                  /spokojny|easy aerobic|baza tlenowa/i.test(
+                    `${session.title} ${session.sessionType}`,
+                  )
+                    ? "easy"
+                    : "intervals"
                 }
+                storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+              />
+            )}
+            {trackableEndurance &&
+              session.dbId &&
+              (hasStarted || state.runningActivities[session.dbId]) &&
+              session.loadLabelOverride !== "Wstrzymaj trening" && (
+                <EnduranceRunTracker
+                  key={`${user.id}:${session.dbId}`}
+                  ownerId={user.id}
+                  session={session}
+                  sessionId={session.dbId}
+                  date={session.date}
+                  canRecord={canExecute && !completion?.completed}
+                  activity={state.runningActivities[session.dbId] ?? null}
+                  onSave={saveRunningActivity}
+                  onDelete={deleteRunningActivity}
+                />
+              )}
+
+            {session.loadLabelOverride === "Wstrzymaj trening" ? (
+              <div className="soft-card p-4" role="alert">
+                Wstrzymaj dalszy wysiłek. Zapis wcześniejszej części sesji pozostaje w historii.
+              </div>
+            ) : isClub ? (
+              <>
+                <ClubMonitoring />
+                {structured.length > 0 && (
+                  <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+                )}
+              </>
+            ) : recoveryRunner ? (
+              <RecoveryCoach
+                key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
+                storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+                context={recoveryContext}
+                blocked={session.loadLabelOverride === "Wstrzymaj trening"}
+                onDurationChange={setRecoveryDuration}
+                onFinish={() => setShowRecoveryCompletion(true)}
+              />
+            ) : sprintRunner ? (
+              <SprintStructuredSections
+                sections={structured}
+                date={date}
+                session={session}
+                onFinish={() => setShowSprintCompletion(true)}
+              />
+            ) : strengthRunner ? (
+              <StrengthStructuredSections
+                sections={structured}
                 date={date}
                 sessionId={session.dbId}
+                onFinish={() => setShowStrengthCompletion(true)}
               />
-            </>
-          )}
-        </fieldset>
+            ) : (
+              <>
+                <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Do wykonania
+                </div>
+                <StructuredSections
+                  sections={
+                    enduranceSession
+                      ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
+                      : structured
+                  }
+                  date={date}
+                  sessionId={session.dbId}
+                />
+              </>
+            )}
+          </fieldset>
+        )}
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
           <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
