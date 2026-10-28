@@ -153,6 +153,8 @@ function AuthScreen() {
           return;
         }
       }
+    } catch {
+      toast.error("Nie udało się połączyć. Sprawdź połączenie i spróbuj ponownie.");
     } finally {
       setBusy(false);
     }

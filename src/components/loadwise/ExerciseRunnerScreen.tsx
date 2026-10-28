@@ -105,7 +105,7 @@ function NumberField({
  * Jeden reusable ekran wykonywania ćwiczenia sterowany danymi:
  * widok serii + widok „Technika”. Bez osobnego kodu per ruch.
  */
-export function ExerciseRunnerScreen({
+function ActiveExerciseRunnerScreen({
   exercise,
   sessionId,
   open,
@@ -143,12 +143,20 @@ export function ExerciseRunnerScreen({
   const activeContext = useRef<string>("");
   const isOpen = useRef(open);
   isOpen.current = open;
+  useEffect(() => {
+    isOpen.current = true;
+    return () => {
+      isOpen.current = false;
+    };
+  }, []);
   const [restToken, setRestToken] = useState(0);
 
   const total = Math.max(1, plannedSets(exercise));
   const key = exerciseKey(exercise);
   const logs = useExerciseSetLogs(sessionId, key);
   const { current, previous, loading, saveSet } = logs;
+  const loadError = "loadError" in logs ? logs.loadError : null;
+  const busyReading = loading || Boolean(loadError);
   const recentHistory = "recentSessions" in logs ? logs.recentSessions : undefined;
   const recentSessions = useMemo(
     () =>
@@ -193,9 +201,13 @@ export function ExerciseRunnerScreen({
   const needsStartingLoad = metricKind === "load" && !hasSavedLoad;
   const sessionContext = useMemo(
     () =>
-      effectiveSessions(resolveEffectivePlan(state.plan, state.modifications, {profile:state.profile, readiness:state.readiness, completions:state.completions})).find(
-        (item) => item.dbId === sessionId || item.sessionId === sessionId,
-      ) ?? null,
+      effectiveSessions(
+        resolveEffectivePlan(state.plan, state.modifications, {
+          profile: state.profile,
+          readiness: state.readiness,
+          completions: state.completions,
+        }),
+      ).find((item) => item.dbId === sessionId || item.sessionId === sessionId) ?? null,
     [state.plan, state.modifications, state.profile, state.readiness, state.completions, sessionId],
   );
   const recommendation = useMemo(
@@ -250,21 +262,41 @@ export function ExerciseRunnerScreen({
   }, [context]);
 
   if (!open) return null;
-  if (exercise.executionBlockedReason) return <div className="bw-training-inline" role="status">
-    <p>{exercise.executionBlockedReason}</p>
-    <ExerciseQuickGuide exercise={exercise} compact />
-    <button type="button" onClick={onClose}>Zamknij ćwiczenie</button>
-  </div>;
+  if (exercise.executionBlockedReason)
+    return (
+      <div className="bw-training-inline" role="status">
+        <p>{exercise.executionBlockedReason}</p>
+        <ExerciseQuickGuide exercise={exercise} compact />
+        <button type="button" onClick={onClose}>
+          Zamknij ćwiczenie
+        </button>
+      </div>
+    );
 
   const last = previous[setNumber];
-  const hint = loading ? "Wczytuję historię…" : describeLog(last, fields, unit);
+  const hint = loading ? "Wczytuję historię…" : loadError || describeLog(last, fields, unit);
   const num = parseTrainingNumber;
   const willComplete = Array.from({ length: total }, (_, index) => index + 1).every(
     (number) => number === setNumber || current[number],
   );
   const rest = exercise.restAfterPair || exercise.restAfterExercise;
+  const historyRetry = loadError ? (
+    <div role="alert" className="p-3 text-sm">
+      <p>{loadError}</p>
+      <button
+        type="button"
+        onClick={() => {
+          if ("retry" in logs) void logs.retry();
+        }}
+        className="min-h-11 text-primary"
+      >
+        Ponów wczytanie historii
+      </button>
+    </div>
+  ) : null;
 
   async function saveCurrentSet() {
+    if (busyReading) return;
     const validationError = validateTrainingFields(values, metricKind);
     if (validationError) {
       setBaselineError(validationError);
@@ -313,13 +345,14 @@ export function ExerciseRunnerScreen({
   if (inline)
     return (
       <div className="bw-training-inline">
+        {historyRetry}
         <div className="bw-set-heading">
           <label>
             Seria{" "}
             <select
               aria-label="Wybierz serię"
               value={setNumber}
-              disabled={saving || loading}
+              disabled={saving || busyReading}
               onChange={(e) => setSetNumber(Number(e.target.value))}
             >
               {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
@@ -343,7 +376,7 @@ export function ExerciseRunnerScreen({
               key={field.id}
               field={field}
               value={values[field.id]}
-              disabled={saving || loading}
+              disabled={saving || busyReading}
               onChange={(next) => {
                 setValues((v) => ({ ...v, [field.id]: next }));
                 setBaselineError(null);
@@ -364,7 +397,7 @@ export function ExerciseRunnerScreen({
         <button
           type="button"
           className="bw-save-set"
-          disabled={saving || loading}
+          disabled={saving || busyReading}
           onClick={() => void saveCurrentSet()}
         >
           {saving
@@ -412,6 +445,7 @@ export function ExerciseRunnerScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background pb-[env(safe-area-inset-bottom)]">
+      {historyRetry}
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-background/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
         <button
           type="button"
@@ -491,7 +525,7 @@ export function ExerciseRunnerScreen({
                 }`}
                 aria-label={`Seria ${n}`}
                 aria-pressed={n === setNumber}
-                disabled={saving || loading}
+                disabled={saving || busyReading}
               >
                 {current[n] && <Check className="h-3 w-3" aria-hidden="true" />}
                 {n}
@@ -624,7 +658,7 @@ export function ExerciseRunnerScreen({
                 key={field.id}
                 field={field}
                 value={values[field.id]}
-                disabled={saving || loading}
+                disabled={saving || busyReading}
                 onChange={(next) => {
                   setValues((state) => ({ ...state, [field.id]: next }));
                   if (field.id === "weight") setBaselineError(null);
@@ -668,7 +702,7 @@ export function ExerciseRunnerScreen({
 
           <button
             type="button"
-            disabled={saving || loading}
+            disabled={saving || busyReading}
             onClick={() => void saveCurrentSet()}
             className="mt-5 w-full rounded-xl bg-primary px-4 py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
@@ -776,4 +810,9 @@ export function ExerciseRunnerScreen({
       )}
     </div>
   );
+}
+
+/** Closed panels must not subscribe to history or resolve the plan. */
+export function ExerciseRunnerScreen(props: Parameters<typeof ActiveExerciseRunnerScreen>[0]) {
+  return props.open ? <ActiveExerciseRunnerScreen {...props} /> : null;
 }

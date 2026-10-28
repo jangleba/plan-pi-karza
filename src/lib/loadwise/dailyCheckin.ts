@@ -1,4 +1,4 @@
-import { applyReadiness } from "./planEngine";
+import { applyReadiness } from "./readinessAdapter";
 import type { Profile, Readiness, SessionDay, SessionModification } from "./types";
 import { classifySession } from "./sessionClassification";
 import { resolveExecutionDay, resolveModifiedDay } from "./effectivePlan";

@@ -49,6 +49,9 @@ vi.mock("@/integrations/supabase/client", () => ({
       let mode = "select",
         payload: Record<string, unknown> = {};
       const chain = {
+        abortSignal() {
+          return chain;
+        },
         select() {
           m.reads++;
           return chain;
@@ -171,14 +174,14 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("inline strength execution", () => {
-  it("shows every exercise at once and loads history only for the opened block", async () => {
+  it("shows every exercise at once and loads history only for the opened exercise", async () => {
     await render();
     expect(host.querySelectorAll(".bw-training-exercise")).toHaveLength(3);
     expect(m.reads).toBe(0);
     await click(".bw-exercise-open");
     expect(host.querySelector(".bw-training-inline")).not.toBeNull();
     expect(host.querySelector(".fixed")).toBeNull();
-    expect(m.reads).toBe(2);
+    expect(m.reads).toBe(1);
     expect(host.textContent).not.toContain("Rozpocznij blok");
     expect(host.textContent).not.toContain("Etap 1");
   });
