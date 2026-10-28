@@ -5,7 +5,12 @@ import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "./auth";
 
-const mocks = vi.hoisted(() => ({ getSession: vi.fn(), clear: vi.fn(), unsubscribe: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  signIn: vi.fn(),
+  clear: vi.fn(),
+  unsubscribe: vi.fn(),
+}));
 let listener: (event: AuthChangeEvent, session: Session | null) => void;
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -15,6 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         return { data: { subscription: { unsubscribe: mocks.unsubscribe } } };
       },
       getSession: mocks.getSession,
+      signInWithPassword: mocks.signIn,
     },
   },
 }));
@@ -50,6 +56,59 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("authentication startup", () => {
+  it("bounds a stalled password login without inventing a signed-in user", async () => {
+    vi.useFakeTimers();
+    mocks.signIn.mockReturnValue(new Promise(() => {}));
+    try {
+      await act(async () =>
+        root.render(
+          <AuthProvider>
+            <Harness />
+          </AuthProvider>,
+        ),
+      );
+      const result = snapshot.signIn("player@example.test", "test-password");
+      await act(async () => vi.advanceTimersByTimeAsync(15_000));
+      expect((await result).error).toContain("trwa za długo");
+      expect(snapshot.user).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("leaves the loading screen on timeout and accepts a later valid sign-in", async () => {
+    vi.useFakeTimers();
+    try {
+      await act(async () =>
+        root.render(
+          <AuthProvider>
+            <Harness />
+          </AuthProvider>,
+        ),
+      );
+      await act(async () => vi.advanceTimersByTimeAsync(12_000));
+      expect(snapshot.loading).toBe(false);
+      expect(snapshot.user).toBeNull();
+      expect(snapshot.callbackError).toContain("trwa za długo");
+      await act(async () => listener("SIGNED_IN", session("a")));
+      expect(snapshot.user?.id).toBe("a");
+      expect(snapshot.callbackError).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows a rejected session read without leaving an unhandled rejection", async () => {
+    mocks.getSession.mockRejectedValue(new Error("network"));
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    expect(snapshot.loading).toBe(false);
+    expect(snapshot.callbackError).toContain("Nie udało się");
+  });
   it("finishes startup on sign-in even if the earlier session read is still pending", async () => {
     await act(async () =>
       root.render(

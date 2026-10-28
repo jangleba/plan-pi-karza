@@ -1,3 +1,4 @@
+import { awaitAbortable } from "@/lib/awaitAbortable";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -73,6 +74,8 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
   const [previous, setPrevious] = useState<Record<number, SetLog>>({});
   const [recentSessions, setRecentSessions] = useState<ExerciseSessionLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
   const scope = `${userId ?? ""}:${sessionId ?? ""}:${key}`;
   const activeScope = useRef(scope);
   activeScope.current = scope;
@@ -81,6 +84,9 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
   const versions = useRef<Record<number, number>>({});
 
   const load = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     const revision = ++requestRevision.current;
     const isCurrent = () => activeScope.current === scope && requestRevision.current === revision;
     if (!userId) {
@@ -88,55 +94,68 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
       return;
     }
     setLoading(true);
-    await recoverTrainingQueue(userId);
-    if (!isCurrent()) return;
-    const pending = readPendingTrainingWrites(userId).filter(
-      (write) => write.kind === "exercise_set_log" && write.payload.exercise_key === key,
-    );
-    const { data, error } = await table()
-      .select(
-        "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at,write_version",
-      )
-      .eq("user_id", userId)
-      .eq("exercise_key", key)
-      .order("performed_at", { ascending: false })
-      .limit(60);
-    if (!isCurrent()) return;
-    if (error && pending.length === 0) {
-      setLoading(false);
-      return;
-    }
-    const rows = [
-      ...(data ?? []),
-      ...pending.map((write) => write.payload),
-    ] as unknown as SetLogRow[];
-    rows.sort((a, b) => b.performed_at.localeCompare(a.performed_at));
-    const mine: Record<number, SetLog> = {};
-    for (const row of rows) {
-      if (sessionId && row.session_id === sessionId) {
-        if (!mine[row.set_number]) mine[row.set_number] = toSetLog(row);
+    setLoadError(null);
+    const timeout = setTimeout(() => controller.abort(), 12_000);
+    try {
+      await awaitAbortable(recoverTrainingQueue(userId), controller.signal);
+      controller.signal.throwIfAborted();
+      if (!isCurrent()) return;
+      const pending = readPendingTrainingWrites(userId).filter(
+        (write) => write.kind === "exercise_set_log" && write.payload.exercise_key === key,
+      );
+      const { data, error } = await awaitAbortable(
+        table()
+          .select(
+            "session_id,exercise_key,set_number,weight_kg,reps,rir,metric_kind,metric_value,performed_at,write_version",
+          )
+          .eq("user_id", userId)
+          .eq("exercise_key", key)
+          .order("performed_at", { ascending: false })
+          .limit(60)
+          .abortSignal(controller.signal),
+        controller.signal,
+      );
+      if (!isCurrent()) return;
+      if (error) throw error;
+      const rows = [
+        ...(data ?? []),
+        ...pending.map((write) => write.payload),
+      ] as unknown as SetLogRow[];
+      rows.sort((a, b) => b.performed_at.localeCompare(a.performed_at));
+      const mine: Record<number, SetLog> = {};
+      for (const row of rows) {
+        if (sessionId && row.session_id === sessionId) {
+          if (!mine[row.set_number]) mine[row.set_number] = toSetLog(row);
+        }
       }
-    }
-    for (const row of (data ?? []) as (SetLogRow & { write_version?: number })[]) {
-      if (row.session_id === sessionId)
-        versions.current[row.set_number] = Math.max(
-          versions.current[row.set_number] ?? 0,
-          row.write_version ?? 0,
-        );
-    }
-    for (const write of pending)
-      if (write.kind === "exercise_set_log" && write.payload.session_id === sessionId) {
-        const number = write.payload.set_number;
-        mine[number] = toSetLog(write.payload as unknown as SetLogRow);
-        versions.current[number] = Math.max(
-          versions.current[number] ?? 0,
-          write.expectedVersion ?? 0,
-        );
+      for (const row of (data ?? []) as (SetLogRow & { write_version?: number })[]) {
+        if (row.session_id === sessionId)
+          versions.current[row.set_number] = Math.max(
+            versions.current[row.set_number] ?? 0,
+            row.write_version ?? 0,
+          );
       }
-    setCurrent({ ...mine, ...localEdits.current });
-    setPrevious(previousSessionLogs(rows, sessionId));
-    setRecentSessions(previousExerciseSessions(rows, sessionId));
-    setLoading(false);
+      for (const write of pending)
+        if (write.kind === "exercise_set_log" && write.payload.session_id === sessionId) {
+          const number = write.payload.set_number;
+          mine[number] = toSetLog(write.payload as unknown as SetLogRow);
+          versions.current[number] = Math.max(
+            versions.current[number] ?? 0,
+            write.expectedVersion ?? 0,
+          );
+        }
+      setCurrent({ ...mine, ...localEdits.current });
+      setPrevious(previousSessionLogs(rows, sessionId));
+      setRecentSessions(previousExerciseSessions(rows, sessionId));
+    } catch {
+      if (isCurrent())
+        setLoadError(
+          "Nie udało się wczytać historii serii. Twoje wpisy są zachowane. Spróbuj ponownie.",
+        );
+    } finally {
+      clearTimeout(timeout);
+      if (isCurrent()) setLoading(false);
+    }
   }, [userId, key, sessionId, scope]);
 
   useEffect(() => {
@@ -148,6 +167,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
     void load();
     return () => {
       requestRevision.current += 1;
+      controllerRef.current?.abort();
     };
   }, [load]);
 
@@ -215,5 +235,5 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
     [userId, key, sessionId, scope],
   );
 
-  return { current, previous, recentSessions, loading, saveSet };
+  return { current, previous, recentSessions, loading, loadError, retry: load, saveSet };
 }

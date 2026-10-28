@@ -9,11 +9,15 @@ const mock = vi.hoisted(() => ({ upsertError: null as unknown, responses: [] as 
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "u" } }) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    rpc: async () => ({ data: mock.upsertError ? null : {write_version: 1}, error: mock.upsertError }),
+    rpc: async () => ({
+      data: mock.upsertError ? null : { write_version: 1 },
+      error: mock.upsertError,
+    }),
     from: () => {
       let operation = "read";
       const q: any = {
         select: () => q,
+        abortSignal: () => q,
         eq: () => q,
         is: () => q,
         order: () => q,
@@ -57,6 +61,30 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   vi.unstubAllGlobals();
+});
+test("a rejected read exposes retry and never silently erases local edits", async () => {
+  mock.responses.push(Promise.reject(new Error("offline")));
+  await act(async () => root.render(<Harness sessionId="one" />));
+  expect(snapshot.loading).toBe(false);
+  expect(snapshot.loadError).toContain("Nie udało się");
+  await act(async () => snapshot.retry());
+  expect(snapshot.loadError).toBeNull();
+  expect(snapshot.loading).toBe(false);
+});
+test("a stalled adapter is bounded even when it ignores AbortSignal", async () => {
+  vi.useFakeTimers();
+  try {
+    mock.responses.push(new Promise(() => {}));
+    await act(async () => root.render(<Harness sessionId="one" />));
+    expect(snapshot.loading).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(12_000));
+    expect(snapshot.loading).toBe(false);
+    expect(snapshot.loadError).not.toBeNull();
+    await act(async () => snapshot.retry());
+    expect(snapshot.loadError).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 test("REPRO: failed insert never reports a successful save without a row", async () => {
   await act(async () => root.render(<Harness sessionId="one" />));

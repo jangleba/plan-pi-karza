@@ -9,7 +9,14 @@ import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { MovementBlueprint } from "./MovementBlueprint";
 import { ExerciseQuickGuide } from "./session/ExerciseQuickGuide";
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
-import { ListChecks, ListOrdered, AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import {
+  ListChecks,
+  ListOrdered,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  X,
+} from "lucide-react";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 function doseChip(e: TrainingExercise): string | null {
@@ -151,7 +158,17 @@ export function ExerciseDetailSheet({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[92vh] border-border/60 bg-background/95 backdrop-blur-xl">
-        <div className="mx-auto w-full max-w-md overflow-y-auto px-5 pb-8">
+        <div className="mx-auto min-h-0 w-full max-w-md overflow-y-auto overscroll-contain px-5 pb-8">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              aria-label="Zamknij szczegóły ćwiczenia"
+              onClick={() => onOpenChange(false)}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <div className="pt-1">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
               Szczegóły ćwiczenia

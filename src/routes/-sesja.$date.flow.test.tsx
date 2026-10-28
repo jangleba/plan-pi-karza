@@ -165,6 +165,23 @@ afterEach(async () => {
 });
 
 describe("session route gates", () => {
+  it("allows reading sprint instructions before starting without mounting execution controls", async () => {
+    mocks.state.plan = [
+      sessionFixture({
+        structuredSections: [
+          sectionFixture("main", [{ id: "preview-sprint", name: "Sprint", speedRole: "primary" }]),
+        ],
+      }),
+    ];
+    await render();
+    const details = host.querySelector<HTMLButtonElement>('[aria-label="Podgląd ćwiczeń"] button');
+    expect(details).not.toBeNull();
+    expect(details?.closest("fieldset[disabled]")).toBeNull();
+    expect(details?.disabled).toBe(false);
+    expect(host.querySelector("[data-runner]")).toBeNull();
+    expect(mocks.startSession).not.toHaveBeenCalled();
+  });
+
   it("waits for authentication and opens today's runner without forcing a check-in", async () => {
     mocks.auth.loading = true;
     mocks.checkin.mockReturnValue(null);
@@ -200,7 +217,7 @@ describe("session route gates", () => {
     await render();
     expect(host.querySelector("h1")?.textContent).toBe("Drugi sprint");
     expect(completionId()).toBeUndefined();
-    await act(async () => host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')!.click());
+    expect(host.querySelector('[data-runner="sprint"]')).toBeNull();
     expect(completionId()).toBeUndefined();
     expect(mocks.startSession).not.toHaveBeenCalled();
     await startSelectedSession();

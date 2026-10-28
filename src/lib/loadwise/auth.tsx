@@ -1,3 +1,4 @@
+import { awaitAbortable } from "@/lib/awaitAbortable";
 import {
   createContext,
   useContext,
@@ -89,12 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useClientLayoutEffect(() => {
     let active = true;
     let authRevision = 0;
+    const startupTimeout = setTimeout(() => {
+      if (!active || authRevision !== 0) return;
+      setCallbackError(
+        "Sprawdzenie logowania trwa za długo. Sprawdź połączenie i spróbuj ponownie.",
+      );
+      setLoading(false);
+    }, 12_000);
 
     // Listener rejestrujemy przed odczytem. Numer rewizji chroni przed sytuacją,
     // w której wolniejszy getSession nadpisuje nowsze zdarzenie logowania.
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!active) return;
       authRevision += 1;
+      clearTimeout(startupTimeout);
+      setCallbackError(null);
       setSession(sess);
       const localOwner = !sess && navigator.onLine === false ? loadOfflineOwner() : null;
       setOfflineIdentity(!!localOwner);
@@ -122,20 +132,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => {
         if (!active || authRevision !== revisionAtRequest) return;
+        clearTimeout(startupTimeout);
+        setCallbackError(null);
         setSession(data.session);
         const localOwner = !data.session && navigator.onLine === false ? loadOfflineOwner() : null;
         setOfflineIdentity(!!localOwner);
         setUser(data.session?.user ?? localOwner);
       })
       .catch(() => {
-        // Auth listener pozostaje źródłem prawdy; brak sesji obsłuży routing.
+        if (active && authRevision === revisionAtRequest) {
+          setCallbackError(
+            "Nie udało się sprawdzić logowania. Sprawdź połączenie i spróbuj ponownie.",
+          );
+        }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active && authRevision === revisionAtRequest) {
+          clearTimeout(startupTimeout);
+          setLoading(false);
+        }
       });
 
     return () => {
       active = false;
+      clearTimeout(startupTimeout);
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -192,11 +212,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error?.message ?? null };
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () =>
+        controller.abort(
+          new Error("Logowanie trwa za długo. Sprawdź połączenie i spróbuj ponownie."),
+        ),
+      15_000,
+    );
+    try {
+      const { error } = await awaitAbortable(
+        supabase.auth.signInWithPassword({ email, password }),
+        controller.signal,
+      );
+      return { error: error?.message ?? null };
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error.message : "Nie udało się zalogować. Spróbuj ponownie.",
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async function resendSignupConfirmation(email: string) {
