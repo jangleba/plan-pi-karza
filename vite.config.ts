@@ -6,6 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import { startupBudgetPlugin } from "./scripts/startup-budget";
 
 export default defineConfig({
   tanstackStart: {
@@ -14,6 +15,19 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    // Start deliberately leaves its router unbundled for environment transforms.
+    // Prebundle only the pure serializer dependencies it otherwise serves raw in preview.
+    optimizeDeps: { include: ["seroval", "seroval-plugins/web"] },
+    server: {
+      warmup: {
+        clientFiles: [
+          "./src/router.tsx",
+          "./src/routes/__root.tsx",
+          "./src/routes/_tabs.start.tsx",
+          "./src/routes/_tabs.plan.tsx",
+        ],
+      },
+    },
+    plugins: [mcpPlugin(), startupBudgetPlugin()],
   },
 });

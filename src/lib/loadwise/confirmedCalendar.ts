@@ -33,7 +33,7 @@ export async function applyConfirmedCalendar(
   signal?: AbortSignal,
 ): Promise<SessionDay[]> {
   if (!plan.length || !Object.keys(transitions).length) return plan;
-  const { weekRanges } = await import("./planEngine");
+  const { weekRanges } = await import("./sessionRuntime");
   const ranges = weekRanges(parseIso(plan[0].date), plan.length);
   const next = [...plan];
   for (const [key, transition] of Object.entries(transitions)) {

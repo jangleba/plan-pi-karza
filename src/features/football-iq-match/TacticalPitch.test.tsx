@@ -6,6 +6,7 @@ import { TacticalPitch } from "./TacticalPitch";
 import { createPitchScene } from "./pitchScene";
 import { createJourney, journeyFrame } from "./journeyEngine";
 import { journeyBank } from "./journeyBank";
+import * as playbackEngine from "./playback";
 import type { ComponentProps } from "react";
 const bridge = vi.hoisted(() => ({
   update: vi.fn(),
@@ -67,6 +68,31 @@ async function render() {
   await act(async () => root.render(<TacticalPitch {...props} />));
 }
 describe("pitch guidance boundary", () => {
+  it("renders a recorded journey frame without recomputing a second playback timeline", async () => {
+    const create = vi.spyOn(playbackEngine, "createPlayback");
+    const sample = vi.spyOn(playbackEngine, "samplePlayback");
+    try {
+      await render();
+      expect(create).not.toHaveBeenCalled();
+      expect(sample).not.toHaveBeenCalled();
+      expect(bridge.update.mock.calls.at(-1)?.[0]).toBe(props.frameOverride);
+    } finally {
+      create.mockRestore();
+      sample.mockRestore();
+    }
+  });
+  it("restores ordinary playback when an external recorded frame is removed", async () => {
+    const sample = vi.spyOn(playbackEngine, "samplePlayback");
+    try {
+      await render();
+      props = { ...props, frameOverride: undefined };
+      await render();
+      expect(sample).toHaveBeenCalled();
+      expect(bridge.update.mock.calls.at(-1)?.[0]).toBeTruthy();
+    } finally {
+      sample.mockRestore();
+    }
+  });
   it("removes all suggested destinations, target rings, teaching markers and 3D guidance", async () => {
     props.showGuidance = false;
     props.freeMovement = true;

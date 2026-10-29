@@ -4,6 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
+import { startupBudgetPlugin } from "./scripts/startup-budget";
 
 // Capacitor needs static files. This config intentionally stays separate from the regular
 // Lovable/Nitro SSR build and emits a TanStack SPA shell to dist/client/index.html.
@@ -13,6 +14,7 @@ export default defineConfig({
   // Worker graphs do not inherit the tsconfig-paths plugin. Use a shared Vite alias.
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   plugins: [
+    startupBudgetPlugin(),
     tsConfigPaths(),
     tanstackStart({
       server: { entry: "server" },

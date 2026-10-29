@@ -1,5 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { Home, CalendarDays, Brain, TrendingUp, Apple } from "lucide-react";
+import { scheduleCommonRouteWarmup } from "@/lib/routeWarmup";
 
 const items = [
   { to: "/start", label: "Start", icon: Home },
@@ -10,9 +12,20 @@ const items = [
 ] as const;
 
 export function BottomNav() {
+  const router = useRouter();
+  const warmed = useRef(new Set<string>());
   const pathname = useRouterState({
     select: (s) => s.location.pathname,
   });
+  useEffect(
+    () =>
+      scheduleCommonRouteWarmup(pathname, async (to) => {
+        if (warmed.current.has(to)) return;
+        await router.preloadRoute({ to });
+        warmed.current.add(to);
+      }),
+    [pathname, router],
+  );
 
   return (
     <nav className="bw-tab-bar" aria-label="Główna nawigacja">

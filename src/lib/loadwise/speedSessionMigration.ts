@@ -5,7 +5,7 @@ import {
   persistedFootballSpeedFamily,
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
-import { PLAN_ENGINE_VERSION } from "./planEngine";
+import { PLAN_ENGINE_VERSION } from "./planVersion";
 import { classifySession } from "./sessionClassification";
 import {
   nearestFutureValidFootballSpeedDate,

@@ -9,12 +9,7 @@ import {
   professionalSessionTitle,
 } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
-import {
-  buildPlanWeeks,
-  computeWeekStats,
-  validatePlanWeeks,
-  type WeekPhase,
-} from "@/lib/loadwise/planEngine";
+import { buildPlanWeeks, computeWeekStats, validatePlanWeeks } from "@/lib/loadwise/sessionRuntime";
 import { resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
 import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
@@ -23,7 +18,7 @@ import { LabEntry } from "@/features/browser-lab/LabEntry";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { SessionDay, Intensity, Goal, PlanWeek } from "@/lib/loadwise/types";
+import type { SessionDay, Intensity, Goal, PlanWeek, WeekPhase } from "@/lib/loadwise/types";
 import {
   ChevronRight,
   CheckCircle2,
@@ -192,7 +187,7 @@ function PlanScreen() {
   const [switchingSeason, setSwitchingSeason] = useState(false);
   const autoWeekKeyRef = useRef<string | null>(null);
 
-  const weeks = buildPlanWeeks(plan, profile);
+  const weeks = useMemo(() => buildPlanWeeks(plan, profile), [plan, profile]);
 
   useEffect(() => {
     if (weeks.length === 0) return;

@@ -71,12 +71,15 @@ export function TacticalPitch({
   const destinationLabels = useRef(new Map<string, HTMLButtonElement>());
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [attempt, setAttempt] = useState(0);
-  const playback = useMemo(() => createPlayback(scenario, actions), [scenario, actions]);
-  const sampledFrame = useMemo(
-    () => samplePlayback(playback, interactive ? 1 : playbackProgress),
-    [playback, interactive, playbackProgress],
+  const hasRecordedFrame = frameOverride != null;
+  const playback = useMemo(
+    () => (hasRecordedFrame ? null : createPlayback(scenario, actions)),
+    [scenario, actions, hasRecordedFrame],
   );
-  const frame = frameOverride ?? sampledFrame;
+  const frame = useMemo(
+    () => frameOverride ?? samplePlayback(playback!, interactive ? 1 : playbackProgress),
+    [frameOverride, playback, interactive, playbackProgress],
+  );
   const latest = useRef({
     frame,
     actions,
@@ -114,6 +117,8 @@ export function TacticalPitch({
     const api = scene.current;
     if (!api) return;
     const state = latest.current;
+    // Read geometry before changing label styles, avoiding a forced layout per frame.
+    const hostWidth = host.current?.clientWidth ?? 0;
     api.update(
       state.frame,
       state.showGuidance ? state.actions : NO_ACTIONS,
@@ -137,7 +142,6 @@ export function TacticalPitch({
     // Keep the 44 px hit region attached to the player. Only displace the small
     // number badge when a tightly marked pair would otherwise cover each other.
     const occupied: { x: number; y: number }[] = [];
-    const hostWidth = host.current?.clientWidth ?? 0;
     playerLabels.current.forEach((element) => {
       const x = parseFloat(element.style.left),
         y = parseFloat(element.style.top);

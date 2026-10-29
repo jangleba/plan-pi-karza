@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CalendarDays, Check, ChevronRight, Move, ScanLine } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -391,6 +391,19 @@ function StartScreen() {
     applyModification,
   } = useLoadwise();
   const profile = state.profile;
+  const effectivePlan = useMemo(
+    () =>
+      resolveEffectivePlan(state.plan, state.modifications, {
+        profile,
+        readiness: state.readiness,
+        completions: state.completions,
+      }),
+    [state.plan, state.modifications, profile, state.readiness, state.completions],
+  );
+  const commandPlan = useMemo(
+    () => resolveEffectivePlan(state.plan, state.modifications),
+    [state.plan, state.modifications],
+  );
   const navigate = useNavigate();
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
@@ -416,7 +429,11 @@ function StartScreen() {
   // A failed read does not prove the server has no plan. Re-read it before any
   // generation, so optimistic locking and existing training history stay intact.
   const planMissing =
-    hydrated && !syncing && !hydrationError && Boolean(profile?.onboardingComplete) && !todaySession;
+    hydrated &&
+    !syncing &&
+    !hydrationError &&
+    Boolean(profile?.onboardingComplete) &&
+    !todaySession;
 
   useEffect(() => {
     if (!user) {
@@ -495,15 +512,8 @@ function StartScreen() {
   const session = todaySession;
   const userId = user.id;
   const activeProfile = profile;
-  const effectivePlan = resolveEffectivePlan(state.plan, state.modifications, {
-    profile,
-    readiness: state.readiness,
-    completions: state.completions,
-  });
   const adjusted = effectivePlan.find((day) => day.date === todayIso) ?? session;
-  const commandDay =
-    resolveEffectivePlan(state.plan, state.modifications).find((day) => day.date === todayIso) ??
-    session;
+  const commandDay = commandPlan.find((day) => day.date === todayIso) ?? session;
   const decisionMode = resolveTrainingDecisionMode({
     isToday: true,
     hasTodayCheckin: Boolean(checkin),

@@ -5,7 +5,7 @@ import type {
   SessionDay,
   SessionModification,
 } from "./types";
-import { applyReadiness } from "./planEngine";
+import { applyReadiness } from "./sessionRuntime";
 import { adaptMdPlusOneFromMatchMinutes } from "./adaptiveWeek";
 
 export interface EffectivePlanContext {
