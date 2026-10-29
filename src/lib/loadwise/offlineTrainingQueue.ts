@@ -436,21 +436,30 @@ export async function flushPendingTrainingWrites(
         status === "conflict"
           ? "Ten wynik został zmieniony na innym urządzeniu. Zachowano kopię do odzyskania."
           : "Serwer odrzucił zapis. Zachowano kopię do odzyskania.";
+      let markedDurably = false;
       if (durable) {
-        const envelope = await updateDurableTrainingValue<QueueEnvelope>(
-          userId,
-          (current) =>
-            current && {
-              ...current,
-              items: current.items.map((existing) =>
-                existing.operationId === item.operationId
-                  ? { ...existing, status, error: message }
-                  : existing,
-              ),
-            },
-        );
-        if (envelope) durableSnapshots.set(userId, envelope);
-      } else if (storage)
+        try {
+          const envelope = await updateDurableTrainingValue<QueueEnvelope>(
+            userId,
+            (current) =>
+              current && {
+                ...current,
+                items: current.items.map((existing) =>
+                  existing.operationId === item.operationId
+                    ? { ...existing, status, error: message }
+                    : existing,
+                ),
+              },
+          );
+          if (envelope) {
+            durableSnapshots.set(userId, envelope);
+            markedDurably = true;
+          }
+        } catch {
+          // IndexedDB can exist while access is denied. Preserve the fallback's failure state.
+        }
+      }
+      if (!markedDurably && storage)
         writeQueue(
           userId,
           readPendingTrainingWrites(userId, storage).map((existing) =>
@@ -472,19 +481,23 @@ async function acknowledgeDurableWrite(
   expected: StoredTrainingWrite | undefined,
 ) {
   if (!expected || purgedUsers.has(userId)) return;
-  const envelope = await updateDurableTrainingValue<QueueEnvelope>(
-    userId,
-    (current) =>
-      current && {
-        ...current,
-        items: current.items.filter(
-          (row) => row.dedupeKey !== dedupeKey || row.operationId !== expected.operationId,
-        ),
-      },
-  );
-  if (envelope && !purgedUsers.has(userId)) durableSnapshots.set(userId, envelope);
-  acknowledgeTrainingWrite(userId, dedupeKey, expected);
-  changed(userId);
+  try {
+    const envelope = await updateDurableTrainingValue<QueueEnvelope>(
+      userId,
+      (current) =>
+        current && {
+          ...current,
+          items: current.items.filter(
+            (row) => row.dedupeKey !== dedupeKey || row.operationId !== expected.operationId,
+          ),
+        },
+    );
+    if (envelope && !purgedUsers.has(userId)) durableSnapshots.set(userId, envelope);
+  } finally {
+    // A denied IndexedDB must not leave a confirmed localStorage write pending forever.
+    acknowledgeTrainingWrite(userId, dedupeKey, expected);
+    changed(userId);
+  }
 }
 
 /** Remove only obsolete versions after a confirmed foreground save. */
@@ -676,7 +689,7 @@ export async function resolveTrainingQueueConflict(
     return false;
   await recoverTrainingQueue(userId);
   let resolved = false;
-  const envelope = await updateDurableTrainingValue<QueueEnvelope>(userId, (current) => {
+  const resolve = (current: QueueEnvelope | undefined): QueueEnvelope | undefined => {
     if (!current) return current;
     const selected = current.items.find(
       (row) =>
@@ -703,8 +716,23 @@ export async function resolveTrainingQueueConflict(
                   },
             ),
     };
-  });
-  if (envelope) durableSnapshots.set(userId, envelope);
+  };
+  try {
+    const envelope = await updateDurableTrainingValue<QueueEnvelope>(userId, resolve);
+    if (envelope) durableSnapshots.set(userId, envelope);
+  } catch {
+    // Use the same reviewed operation/version check when IndexedDB is unavailable.
+    resolved = false;
+    await withTrainingWriteLock(userId, async () => {
+      if (purgedUsers.has(userId)) return;
+      const storage = browserStorage();
+      if (!storage) return;
+      const current = parseEnvelope(storage.getItem(queueKey(userId)), userId);
+      if (current.recoveryRaw) return;
+      const next = resolve(current);
+      if (resolved && next) writeQueue(userId, next.items, storage);
+    });
+  }
   if (resolved) {
     changed(userId);
     if (typeof window !== "undefined") window.dispatchEvent(new Event("ballwise:training-synced"));

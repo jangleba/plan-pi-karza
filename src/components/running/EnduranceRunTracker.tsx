@@ -110,6 +110,7 @@ function RunTracker({
   const mountedRef = useRef(true);
   const startingRef = useRef(false);
   const finishingRef = useRef(false);
+  const savingRef = useRef(false);
   const segmentRef = useRef(0);
   const [pending, setPending] = useState<RunningActivityDraft | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -703,10 +704,16 @@ function RunTracker({
   }
 
   async function importGpx(file: File | undefined) {
-    if (!file) return;
+    if (!file || startingRef.current || phaseRef.current !== "idle") return;
+    if (checkpointBlockedRef.current) {
+      setGpsError("Najpierw odzyskaj istniejący szkic biegu. Nie nadpisano go.");
+      return;
+    }
+    startingRef.current = true;
     setGpsError(null);
     try {
       const draft = activityDraftFromGpx({ xml: await file.text(), date, sessionId });
+      if (!mountedRef.current) return;
       startedAtRef.current = draft.startedAt;
       accumulatedSecRef.current = draft.durationSec;
       distanceMRef.current = draft.distanceM;
@@ -717,12 +724,16 @@ function RunTracker({
       setPending(draft);
       setPhase("review");
     } catch (error) {
-      setGpsError(error instanceof Error ? error.message : "Nie udało się odczytać GPX.");
+      if (mountedRef.current)
+        setGpsError(error instanceof Error ? error.message : "Nie udało się odczytać GPX.");
+    } finally {
+      startingRef.current = false;
     }
   }
 
   async function savePending() {
-    if (!pending) return;
+    if (!pending || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       await onSave(pending);
@@ -745,6 +756,7 @@ function RunTracker({
           : "Nie udało się zapisać biegu. Dane zostały na ekranie — spróbuj ponownie.",
       );
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }

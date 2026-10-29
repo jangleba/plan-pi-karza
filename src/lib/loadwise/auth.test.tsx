@@ -47,6 +47,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 describe("authentication startup", () => {
@@ -99,5 +100,62 @@ describe("authentication startup", () => {
     expect(snapshot.user).toBeNull();
     expect(snapshot.loading).toBe(false);
     expect(mocks.clear).toHaveBeenCalled();
+  });
+
+  it("does not restore an offline identity after receiving a sign-out event", async () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    localStorage.setItem("ballwise:offline-owner:active", id);
+    localStorage.setItem(
+      `ballwise:offline-owner:v1:${id}`,
+      JSON.stringify({ id, authenticatedAt: Date.now() }),
+    );
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    await act(async () => listener("INITIAL_SESSION", null));
+    expect(snapshot.user?.id).toBe(id);
+    expect(snapshot.offlineIdentity).toBe(true);
+    await act(async () => listener("SIGNED_OUT", null));
+    expect(snapshot.user).toBeNull();
+    expect(snapshot.offlineIdentity).toBe(false);
+    expect(localStorage.getItem("ballwise:offline-owner:active")).toBeNull();
+  });
+
+  it("a pending reconnect cannot restore a session after a newer logout", async () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    localStorage.setItem("ballwise:offline-owner:active", id);
+    localStorage.setItem(
+      `ballwise:offline-owner:v1:${id}`,
+      JSON.stringify({ id, authenticatedAt: Date.now() }),
+    );
+    const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    await act(async () =>
+      root.render(
+        <AuthProvider>
+          <Harness />
+        </AuthProvider>,
+      ),
+    );
+    await act(async () => listener("INITIAL_SESSION", null));
+    let resolve!: (value: unknown) => void;
+    mocks.getSession.mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    online.mockReturnValue(true);
+    await act(async () => window.dispatchEvent(new Event("online")));
+    await act(async () => {
+      listener("SIGNED_OUT", null);
+      resolve({ data: { session: session(id) } });
+    });
+    expect(snapshot.user).toBeNull();
+    expect(snapshot.session).toBeNull();
+    expect(snapshot.offlineIdentity).toBe(false);
   });
 });

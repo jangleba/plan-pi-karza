@@ -45,7 +45,12 @@ export async function syncFuelNotifications(plans: FuelReminder[], userId: strin
     const matches = (n: (typeof own)[number], p: FuelReminder) =>
       p.id === n.id &&
       n.extra?.userId === userId &&
-      (p.key === n.extra?.key || String(n.extra?.key).startsWith(`${p.key}:snooze:`));
+      ((p.key === n.extra?.key &&
+        n.extra?.at === p.at &&
+        n.extra?.expiresAt === p.expiresAt &&
+        n.title === p.title &&
+        n.body === p.body) ||
+        String(n.extra?.key).startsWith(`${p.key}:snooze:`));
     const obsolete = own.filter((n) => !plans.some((p) => matches(n, p)));
     if (obsolete.length) await LocalNotifications.cancel({ notifications: obsolete });
     if (ticket !== revision || blockedOwners.has(userId)) return;

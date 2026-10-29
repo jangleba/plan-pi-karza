@@ -7,6 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useInstantBack } from "@/lib/loadwise/uiHooks";
+import { APP_VERSION } from "@/lib/appVersion";
 
 export const Route = createFileRoute("/faq")({
   component: FaqScreen,
@@ -117,6 +118,7 @@ function FaqScreen() {
         BallWise wspiera planowanie treningu, ale nie zastępuje trenera, lekarza, fizjoterapeuty ani
         dietetyka.
       </p>
+      <p className="mt-3 px-1 text-xs text-muted-foreground">Wersja aplikacji: {APP_VERSION}</p>
     </main>
   );
 }

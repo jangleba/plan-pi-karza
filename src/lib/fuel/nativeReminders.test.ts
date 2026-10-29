@@ -4,7 +4,7 @@ import type { FuelReminder } from "./reminderPlan";
 const mock = vi.hoisted(() => ({
   native: true,
   granted: true,
-  pending: [] as { id: number; extra?: Record<string, unknown> }[],
+  pending: [] as { id: number; title?: string; body?: string; extra?: Record<string, unknown> }[],
   cancel: vi.fn(),
   schedule: vi.fn(),
   request: vi.fn(),
@@ -76,6 +76,30 @@ describe("native Fuel notification lifecycle", () => {
     expect(mock.schedule).not.toHaveBeenCalled();
     await syncFuelNotifications([], "a");
     expect(mock.cancel).toHaveBeenCalledWith({ notifications: mock.pending });
+  });
+  it.each(["time", "meal"])(
+    "updates a pending reminder when its %s changes without changing the context key",
+    async (change) => {
+      const p = plan();
+      mock.pending = [{ id: p.id, title: p.title, body: p.body, extra: { ...p } }];
+      const next =
+        change === "time"
+          ? { ...p, at: p.at + 15 * 60_000 }
+          : { ...p, body: "Nowy wybrany posiłek" };
+      await syncFuelNotifications([next], "a");
+      expect(mock.cancel).toHaveBeenCalledWith({ notifications: mock.pending });
+      expect(mock.schedule).toHaveBeenCalledOnce();
+      const notification = mock.schedule.mock.calls[0][0].notifications[0];
+      expect(notification.schedule.at.getTime()).toBe(next.at);
+      expect(notification.body).toBe(next.body);
+    },
+  );
+  it("leaves an unchanged pending reminder in place", async () => {
+    const p = plan();
+    mock.pending = [{ id: p.id, title: p.title, body: p.body, extra: { ...p } }];
+    await syncFuelNotifications([p], "a");
+    expect(mock.cancel).not.toHaveBeenCalled();
+    expect(mock.schedule).not.toHaveBeenCalled();
   });
   it("cancels pending and delivered Fuel alarms on logout and blocks a late reschedule", async () => {
     mock.pending = [{ id: 1610000001 }, { id: 12 }];

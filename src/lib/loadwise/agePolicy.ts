@@ -1,18 +1,22 @@
 export type AccountOwnerType = "athlete" | "guardian";
 export type SubscriptionPayerType = "self" | "guardian";
-export type OwnershipTransferStatus =
-  | "not_applicable"
-  | "not_requested"
-  | "pending"
-  | "completed";
+export type OwnershipTransferStatus = "not_applicable" | "not_requested" | "pending" | "completed";
 
 export const MIN_PERSONALIZED_AGE = 13;
 export const SELF_CONSENT_AGE = 16;
 export const ADULT_AGE = 18;
 
 function asUtcDate(value: string | Date): Date | null {
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(`${value.slice(0, 10)}T12:00:00Z`);
-  return Number.isFinite(date.getTime()) ? date : null;
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? new Date(value.getTime()) : null;
+  }
+  const calendarDate = value.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(calendarDate)) return null;
+  const date = new Date(`${calendarDate}T12:00:00Z`);
+  // Date normalizes impossible dates such as February 31 into March.
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === calendarDate
+    ? date
+    : null;
 }
 
 /** Pełne lata w danym dniu. Daty liczymy w UTC, żeby strefa telefonu nie zmieniała progu wieku. */
@@ -32,7 +36,8 @@ export function birthDateForApproximateAge(age: number, onDate: Date = new Date(
   const safeAge = Math.max(0, Math.min(120, Math.floor(age)));
   const year = onDate.getUTCFullYear() - safeAge;
   const month = String(onDate.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(onDate.getUTCDate()).padStart(2, "0");
+  const lastDay = new Date(Date.UTC(year, onDate.getUTCMonth() + 1, 0)).getUTCDate();
+  const day = String(Math.min(onDate.getUTCDate(), lastDay)).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -46,13 +51,14 @@ export interface AgeAccessPolicy {
 }
 
 export function policyForAge(age: number): AgeAccessPolicy {
+  const valid = Number.isInteger(age) && age >= 0 && age <= 120;
   return {
     age,
-    personalizedAccountAllowed: age >= MIN_PERSONALIZED_AGE,
-    guardianMustOwnAccount: age >= MIN_PERSONALIZED_AGE && age < SELF_CONSENT_AGE,
-    athleteMayOwnAccount: age >= SELF_CONSENT_AGE,
-    adultPayerRequired: age < ADULT_AGE,
-    transferMayBeOffered: age >= SELF_CONSENT_AGE && age < ADULT_AGE,
+    personalizedAccountAllowed: valid && age >= MIN_PERSONALIZED_AGE,
+    guardianMustOwnAccount: valid && age >= MIN_PERSONALIZED_AGE && age < SELF_CONSENT_AGE,
+    athleteMayOwnAccount: valid && age >= SELF_CONSENT_AGE,
+    adultPayerRequired: valid && age < ADULT_AGE,
+    transferMayBeOffered: valid && age >= SELF_CONSENT_AGE && age < ADULT_AGE,
   };
 }
 

@@ -58,4 +58,39 @@ describe("reaction time is active time and results are recoverable", () => {
     expect(storage.values.get("u:session")).toBe("{broken");
     expect(storage.values.get("u")).toBe("{broken");
   });
+  it("keeps the recoverable draft when a final result cannot enter history", () => {
+    for (const history of [
+      "{broken",
+      JSON.stringify(
+        Array.from({ length: 100 }, (_, index) => ({
+          ...session(),
+          id: `older-${index}`,
+          phase: "summary",
+        })),
+      ),
+    ]) {
+      const storage = memory();
+      const draft = session();
+      expect(saveReactiveSession("u", draft, storage)).toBe(true);
+      storage.values.set("u:history", history);
+      expect(saveReactiveSession("u", { ...draft, phase: "summary" }, storage)).toBe(false);
+      expect(loadReactiveSession("u", storage)).toEqual(draft);
+      expect(storage.values.get("u:history")).toBe(history);
+    }
+  });
+  it("keeps the recoverable draft if writing history fails", () => {
+    const storage = memory();
+    const draft = session();
+    expect(saveReactiveSession("u", draft, storage)).toBe(true);
+    const failHistory = {
+      getItem: storage.getItem,
+      setItem: (key: string, value: string) => {
+        if (key === "u:history") throw new Error("Storage quota exceeded");
+        storage.setItem(key, value);
+      },
+    };
+    expect(saveReactiveSession("u", { ...draft, phase: "summary" }, failHistory)).toBe(false);
+    expect(loadReactiveSession("u", storage)).toEqual(draft);
+    expect(loadReactiveResults("u", storage)).toEqual([]);
+  });
 });

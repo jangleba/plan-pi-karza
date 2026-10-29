@@ -1,7 +1,8 @@
 import { buildRunningActivityDraft } from "./metrics";
 import type { RunningActivityDraft, RoutePoint } from "./types";
 
-const TRACK_POINT = /<(?:trkpt|rtept)\b([^>]*)>([\s\S]*?)<\/(?:trkpt|rtept)>/gi;
+const TRACK_POINT = /<(?:[\w.-]+:)?(trkpt|rtept)\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?\1>/gi;
+const SEGMENT_END = /<\/(?:[\w.-]+:)?(?:trkseg|trk|rte)\s*>/i;
 
 function attribute(source: string, name: string): string | null {
   const match = source.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, "i"));
@@ -10,14 +11,29 @@ function attribute(source: string, name: string): string | null {
 
 export function parseGpxTrack(xml: string): RoutePoint[] {
   if (xml.length > 5_000_000) throw new Error("Plik GPX jest za duży (maks. 5 MB).");
-  const raw: Array<{ lat: number; lng: number; timestamp: number; recordedAt: string }> = [];
+  const raw: Array<{
+    lat: number;
+    lng: number;
+    timestamp: number;
+    recordedAt: string;
+    segment: number;
+  }> = [];
   let match: RegExpExecArray | null;
+  let previousPointEnd = 0;
+  let segment = 0;
   TRACK_POINT.lastIndex = 0;
 
   while ((match = TRACK_POINT.exec(xml))) {
-    const lat = Number(attribute(match[1], "lat"));
-    const lng = Number(attribute(match[1], "lon"));
-    const timeText = match[2].match(/<time\b[^>]*>([^<]+)<\/time>/i)?.[1]?.trim();
+    // Track breaks represent missing GPS, not a measured straight line between tracks.
+    if (SEGMENT_END.test(xml.slice(previousPointEnd, match.index))) segment += 1;
+    previousPointEnd = TRACK_POINT.lastIndex;
+    const latitude = attribute(match[2], "lat");
+    const longitude = attribute(match[2], "lon");
+    const lat = latitude?.trim() ? Number(latitude) : Number.NaN;
+    const lng = longitude?.trim() ? Number(longitude) : Number.NaN;
+    const timeText = match[3]
+      .match(/<(?:[\w.-]+:)?time\b[^>]*>([^<]+)<\/(?:[\w.-]+:)?time>/i)?.[1]
+      ?.trim();
     const timestamp = timeText ? Date.parse(timeText) : Number.NaN;
     if (
       Number.isFinite(lat) &&
@@ -28,7 +44,11 @@ export function parseGpxTrack(xml: string): RoutePoint[] {
       lng <= 180 &&
       Number.isFinite(timestamp)
     ) {
-      raw.push({ lat, lng, timestamp, recordedAt: new Date(timestamp).toISOString() });
+      const previous = raw.at(-1);
+      if (previous && timestamp < previous.timestamp)
+        throw new Error("Punkty GPX muszą być zapisane w kolejności czasu.");
+      if (previous && timestamp === previous.timestamp) continue;
+      raw.push({ lat, lng, timestamp, recordedAt: new Date(timestamp).toISOString(), segment });
     }
   }
 
@@ -41,6 +61,7 @@ export function parseGpxTrack(xml: string): RoutePoint[] {
     lng: point.lng,
     recordedAt: point.recordedAt,
     elapsedSec: Math.max(0, (point.timestamp - startedAtMs) / 1_000),
+    segment: point.segment,
   }));
 }
 

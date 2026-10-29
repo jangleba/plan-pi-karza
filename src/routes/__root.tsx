@@ -7,6 +7,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  ClientOnly,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
@@ -130,7 +131,9 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        {/* A static mobile shell must hydrate the same route boundary tree at every
+            URL, including global not-found paths that omit Outlet's Suspense. */}
+        {import.meta.env.BALLWISE_MOBILE_SPA ? <ClientOnly>{children}</ClientOnly> : children}
         <Scripts />
       </body>
     </html>

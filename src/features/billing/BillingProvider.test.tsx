@@ -106,6 +106,22 @@ afterEach(async () => {
 });
 afterAll(() => vi.unstubAllEnvs());
 describe("purchase identity and server verification", () => {
+  it("retries a missing Apple offer without requiring an account switch or reload", async () => {
+    mocks.offerings.mockRejectedValueOnce(new Error("temporary store outage"));
+    await render();
+    await settle();
+    expect(value.offer).toBeNull();
+    expect(mocks.offerings).toHaveBeenCalledTimes(1);
+    await act(async () => value.refresh());
+    expect(mocks.offerings).toHaveBeenCalledTimes(2);
+    expect(value.offer?.product.identifier).toBe("monthly");
+    expect(value.eligibleTrial).toBe(true);
+    expect(value.reachable).toBe(true);
+    expect(value.error).toBeNull();
+    // A normal access check does not repeatedly fetch an already loaded store offer.
+    await act(async () => value.refresh());
+    expect(mocks.offerings).toHaveBeenCalledTimes(2);
+  });
   it("waits for the server after Apple succeeds and does not grant from SDK claims", async () => {
     await render();
     await settle();

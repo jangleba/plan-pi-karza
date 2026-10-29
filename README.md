@@ -13,18 +13,25 @@ medycznym, nie diagnozuje, nie leczy i nie zastępuje konsultacji ze specjalist�
 - **Football IQ:** interaktywne sytuacje meczowe z `src/features/football-iq-match`.
 - **Fuel:** lokalne propozycje posiłków z podanych składników i kontekstu sesji;
   sprawdzanie produktu po nazwie lub kodzie w Open Food Facts. Zdjęcie kodu jest
-  odczytywane przez przeglądarkowy `BarcodeDetector`, jeżeli jest dostępny.
+  odczytywane lokalnie przez `BarcodeDetector` lub dołączony dekoder zgodności.
   Opcjonalny opis głosowy korzysta z `SpeechRecognition`; zawsze można wpisać tekst.
   Funkcja serwerowa analizy zdjęcia posiłku jest zachowana, ale niepodłączona do UI.
-- **BallWise Lab:** aktywne pomiary sportowe z natywnej kamery iOS 240 FPS,
-  ręczny wybór klatek, historia i synchronizacja wyników. Stary **Vision Lab**
-  i MediaPipe zostały wycofane; nie należy mylić ich z obecnym Lab.
+- **BallWise Lab:** aktywny ekran `/lab` analizuje oryginalne MP4/MOV przez
+  WebCodecs w zgodnej przeglądarce/WKWebView, z nagrywaniem lub importem filmu.
+  Skok w dal AUTO używa wzorców podłoża i detekcji sylwetki (MediaPipe);
+  pozostałe testy mają ręcznie oznaczane zdarzenia. Historia jest lokalna,
+  z eksportem/importem i ręcznymi kopiami modułu. Zachowany adapter natywnej
+  kamery 240 FPS nie jest aktywną trasą `/lab`. Stary Vision Lab jest osobnym,
+  wycofanym modułem.
 - **Trening reaktywny:** ćwiczenia reakcji i lokalnie zapisane własne zestawy.
 
 Konto spersonalizowane jest dostępne od 13 lat; dla wieku 13–15 właścicielem
 jest opiekun. Kod sprawdza potwierdzenie jego e-maila i oświadczenie, nie tożsamość
 ani prawny status opiekuna. Poniżej 13 lat dostępne jest publiczne demo.
-StoreKit/IAP pozostaje [propozycją](docs/apple/IAP-SUBSCRIPTION-SPEC.md).
+Kod [subskrypcji iOS](docs/apple/IAP-SUBSCRIPTION-SPEC.md) obejmuje RevenueCat,
+paywall, zakup/przywracanie i serwerowe potwierdzanie dostępu. Wymaga osobnej
+konfiguracji Apple/RevenueCat/backendu i testów sandbox; obecność kodu nie
+potwierdza aktywnej oferty ani publikacji.
 
 ## Uruchomienie
 
@@ -66,10 +73,10 @@ build mobilny. Pojedynczo: `npm run typecheck`, `npm test`, `npm run lint`,
 Webowy build TanStack/Nitro jest w `.output`; `npm run preview` uruchamia go
 lokalnie przez Wrangler. Build mobilny używa osobnej konfiguracji SPA i tworzy
 `dist/client/index.html` dla Capacitor. Zwykłego buildu SSR nie kopiuj do iOS.
-Router ładuje trasy przy intencji nawigacji; nie ma harmonogramu pobierania
-wszystkich ekranów w tle.
+Router ładuje trasy przy intencji nawigacji; część zakładek przygotowuje kod
+w tle po pokazaniu nawigacji. To zachowanie trzeba uwzględnić w pomiarze startu.
 
-## iOS i natywny Lab
+## iOS i pomiary Lab
 
 Na macOS z Xcode wybierz własny bundle ID:
 
@@ -78,14 +85,20 @@ BALLWISE_IOS_BUNDLE_ID=pl.twojafirma.ballwise npm run ios:setup
 npm run ios:open
 ```
 
-Setup buduje SPA, tworzy projekt `ios/`, jeśli go brakuje, synchronizuje
-Capacitor i lokalny plugin `@ballwise/camera`, oraz ustawia opis kamery. Po
+Setup sprawdza konfigurację wydania, buduje SPA, tworzy projekt `ios/`, jeśli
+go brakuje, i synchronizuje Capacitor wraz z lokalnymi pluginami kamery/runtime.
+Ustawia opisy kamery i lokalizacji, tryb lokalizacji w tle oraz przygotowuje
+Associated Domains i plik prywatności. Skonfiguruj też domenę powrotu logowania
+według [instrukcji wdrożenia](docs/WDROZENIE-2026-10-29.md). Po
 kolejnych zmianach uruchom
 `BALLWISE_IOS_BUNDLE_ID=pl.twojafirma.ballwise npm run ios:sync`.
 Podpisywanie, uprawnienia, privacy manifest i archiwum wymagają konfiguracji w
-Xcode. Projekt iOS/IPA nie jest dostarczany w repozytorium. Kamera Lab wymaga
-fizycznego zgodnego iPhone'a; przeglądarka/PWA nie nagrywa tym pluginem.
-Szczegóły: [protokół Lab](docs/BALLWISE-LAB-PROTOCOL.md) i
+Xcode. Projekt iOS/IPA nie jest dostarczany w repozytorium. Aktywny Lab wymaga
+HTTPS i obsługi WebCodecs; wysoki FPS kamery zależy od urządzenia/przeglądarki.
+Nie deklaruj dokładności pomiaru bez prób referencyjnych na fizycznym telefonie.
+Szczegóły: [Lab w Safari](docs/BROWSER_LAB_SAFARI.md),
+[skok w dal i 505](docs/LAB_SKOK_W_DAL_505.md),
+[zachowany protokół natywny](docs/BALLWISE-LAB-PROTOCOL.md) oraz
 [szablony iOS](ios-templates/README.md).
 
 ## Wdrożenie i dokumentacja
@@ -95,6 +108,7 @@ kolejności nazw, a potem uruchom odczytowe kontrole z `supabase/verification`.
 Do SQL Editora wklejaj SQL, nie wyniki ani eksport CSV. Wdrożenia i testy na
 urządzeniach muszą mieć osobny dowód; lokalne testy ich nie wykonują.
 
+- [Wdrożenie bieżącej paczki](docs/WDROZENIE-2026-10-29.md)
 - [Indeks dokumentacji](docs/README.md)
 - [Aktualna macierz QA](docs/QA-MATRIX.md) i [lista wydania](docs/RELEASE-CHECKLIST.md)
 - [Usuwanie konta](supabase/functions/delete-account/README.md)

@@ -69,11 +69,12 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     [reachable, setReachable] = useState(false);
   const lastCheck = useRef(0),
     request = useRef(0),
-    purchaseInFlight = useRef(false);
+    purchaseInFlight = useRef(false),
+    offerOwner = useRef<string | null>(null);
   const invalidatePendingRequests = useCallback(() => {
     request.current++;
   }, []);
-  const refresh = useCallback(async () => {
+  const verifyAccess = useCallback(async () => {
     if (!owner || !billingEnforced) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       setReachable(false);
@@ -110,7 +111,48 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       if (active.current === owner && request.current === revision) setLoading(false);
     }
   }, [owner]);
+  const loadOffer = useCallback(async () => {
+    if (!owner || !billingEnforced || !nativeIOS() || !publicKey || !productId) return;
+    if (offerOwner.current === owner) return;
+    try {
+      const result = await withPurchases(owner, async (sdk) => {
+        const offerings = await sdk.getOfferings();
+        const selected =
+          offerings.current?.availablePackages.find(
+            (p) => p.product.identifier === productId && p.product.subscriptionPeriod === "P1M",
+          ) ?? null;
+        if (!selected) return null;
+        const eligibility = await sdk.checkTrialOrIntroductoryPriceEligibility({
+          productIdentifiers: [productId],
+        });
+        return { selected, eligible: eligibility[productId]?.status === 2 };
+      });
+      if (active.current !== owner) return;
+      if (!result) {
+        setError("Oferta sklepu jest chwilowo niedostępna. Spróbuj ponownie później.");
+        return;
+      }
+      const { selected, eligible } = result;
+      // Do not sell an unexpected free period while advertising seven days.
+      if (selected.product.introPrice?.price === 0 && !sevenDayTrial(selected.product.introPrice)) {
+        setError("Oferta próbna wymaga aktualizacji. Zakup jest chwilowo niedostępny.");
+        return;
+      }
+      offerOwner.current = owner;
+      setOffer(selected);
+      setEligibleTrial(eligible && sevenDayTrial(selected.product.introPrice));
+      // SDK registration must finish before a first-time subscriber is verified.
+      await verifyAccess();
+    } catch {
+      if (active.current === owner)
+        setError("Nie udało się pobrać oferty Apple. Spróbuj ponownie.");
+    }
+  }, [owner, verifyAccess]);
+  const refresh = useCallback(async () => {
+    await Promise.all([verifyAccess(), loadOffer()]);
+  }, [verifyAccess, loadOffer]);
   useEffect(() => {
+    offerOwner.current = null;
     setOffer(null);
     setEligibleTrial(false);
     setEntitlement(null);
@@ -133,43 +175,6 @@ export function BillingProvider({ children }: { children: ReactNode }) {
       /* invalid cached claims never grant new access */
     }
     void refresh();
-    if (nativeIOS() && publicKey && productId) {
-      void (async () => {
-        const result = await withPurchases(owner, async (sdk) => {
-          const offerings = await sdk.getOfferings();
-          const selected =
-            offerings.current?.availablePackages.find(
-              (p) => p.product.identifier === productId && p.product.subscriptionPeriod === "P1M",
-            ) ?? null;
-          if (!selected) return null;
-          const eligibility = await sdk.checkTrialOrIntroductoryPriceEligibility({
-            productIdentifiers: [productId],
-          });
-          return { selected, eligible: eligibility[productId]?.status === 2 };
-        });
-        if (active.current !== owner) return;
-        if (!result) {
-          setError("Oferta sklepu jest chwilowo niedostępna. Spróbuj ponownie później.");
-          return;
-        }
-        const { selected, eligible } = result;
-        // Do not sell an unexpected free period while advertising seven days.
-        if (
-          selected.product.introPrice?.price === 0 &&
-          !sevenDayTrial(selected.product.introPrice)
-        ) {
-          setError("Oferta próbna wymaga aktualizacji. Zakup jest chwilowo niedostępny.");
-          return;
-        }
-        setOffer(selected);
-        setEligibleTrial(eligible && sevenDayTrial(selected.product.introPrice));
-        // SDK registration must finish before a first-time subscriber is verified.
-        void refresh();
-      })().catch(() => {
-        if (active.current === owner)
-          setError("Nie udało się pobrać oferty Apple. Spróbuj ponownie.");
-      });
-    }
     return invalidatePendingRequests;
   }, [owner, refresh, invalidatePendingRequests]);
   useEffect(() => {

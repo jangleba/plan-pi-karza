@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from "vitest";
 import { forgetOfflineOwner, loadOfflineOwner, rememberOfflineOwner } from "./offlineOwner";
 function storage() {
   const rows = new Map<string, string>();
@@ -14,6 +15,18 @@ function storage() {
 }
 const id = "11111111-1111-4111-8111-111111111111";
 describe("offline local identity", () => {
+  it("keeps auth events and logout usable when storage access itself is denied", () => {
+    const blocked = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new DOMException("Blocked", "SecurityError");
+    });
+    try {
+      expect(() => rememberOfflineOwner({ id })).not.toThrow();
+      expect(() => forgetOfflineOwner(id)).not.toThrow();
+      expect(loadOfflineOwner()).toBeNull();
+    } finally {
+      blocked.mockRestore();
+    }
+  });
   it("allows only a bounded previous owner and never creates a server session", () => {
     const store = storage();
     rememberOfflineOwner({ id }, store, 1000);

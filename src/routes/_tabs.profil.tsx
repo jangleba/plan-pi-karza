@@ -28,6 +28,7 @@ import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
 import { SubscriptionSettings } from "@/features/billing/SubscriptionSettings";
 import { DeviceDiagnosticsPanel } from "@/components/loadwise/DeviceDiagnosticsPanel";
 import { ModuleBackupPanel } from "@/features/module-backup/ModuleBackupPanel";
+import { APP_VERSION } from "@/lib/appVersion";
 import {
   CalendarDays,
   ChevronRight,
@@ -413,6 +414,9 @@ function ProfileScreen() {
       </div>
 
       <Disclaimer />
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        Wersja aplikacji: {APP_VERSION}
+      </p>
     </div>
   );
 }

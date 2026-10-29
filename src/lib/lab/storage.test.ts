@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resultFixture } from "./testFixtures";
 import { newLabId } from "./id";
 import { isVisibleLabResult } from "./engine";
+import { clearLocalUserData } from "@/lib/loadwise/localPrivacy";
 
 const cloud = vi.hoisted(() => ({ insert: vi.fn(), select: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({
@@ -38,6 +39,45 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("LAB persistence", () => {
+  it("does not recreate deleted account data when a save upload finishes", async () => {
+    const response = deferred<{ error: null }>();
+    cloud.insert.mockImplementationOnce(() => response.promise);
+    const result = resultFixture();
+    const saving = saveLabResult(result);
+    clearLocalUserData(result.userId);
+    response.resolve({ error: null });
+    await saving;
+    expect(localStorage.getItem(`ballwise:lab:results:${result.userId}`)).toBeNull();
+  });
+
+  it("does not repopulate the cache from a cloud load after account deletion", async () => {
+    const result = resultFixture();
+    await saveLabResult(result);
+    const inserted = cloud.insert.mock.calls[0][0];
+    const response = deferred<{ data: unknown[]; error: null }>();
+    cloud.select.mockImplementationOnce(() => response.promise);
+    const loading = loadLabResults(result.userId);
+    clearLocalUserData(result.userId);
+    response.resolve({ data: [inserted], error: null });
+    expect(await loading).toEqual([]);
+    expect(localStorage.getItem(`ballwise:lab:results:${result.userId}`)).toBeNull();
+  });
+
+  it("stops a pending sync after account data was cleared in another tab", async () => {
+    const result = resultFixture();
+    cloud.insert.mockRejectedValueOnce(new Error("offline"));
+    await saveLabResult(result);
+    const response = deferred<{ error: null }>();
+    cloud.insert.mockImplementationOnce(() => response.promise);
+    const syncing = syncPendingLabResults(result.userId);
+    const storageKey = `ballwise:lab:results:${result.userId}`;
+    localStorage.removeItem(storageKey);
+    window.dispatchEvent(new StorageEvent("storage", { key: storageKey, newValue: null }));
+    response.resolve({ error: null });
+    expect(await syncing).toEqual([]);
+    expect(localStorage.getItem(storageKey)).toBeNull();
+  });
+
   it("generates UUIDs accepted by Postgres on iOS without crypto.randomUUID", () => {
     const randomUUID = crypto.randomUUID;
     Object.defineProperty(crypto, "randomUUID", { configurable: true, value: undefined });

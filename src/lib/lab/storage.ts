@@ -51,6 +51,28 @@ type LabDatabase = {
 
 const labClient = supabase as unknown as SupabaseClient<LabDatabase>;
 
+// A late network response must not recreate account data removed while it was pending.
+const revisions = new Map<string, number>();
+let watchingStorage = false;
+function storageRevision(userId: string): number {
+  if (!revisions.has(userId)) revisions.set(userId, 0);
+  if (typeof window !== "undefined" && !watchingStorage) {
+    watchingStorage = true;
+    const invalidate = (owner: string) => revisions.set(owner, (revisions.get(owner) ?? 0) + 1);
+    window.addEventListener("ballwise:clear-user-data", (event) => {
+      const owner = (event as CustomEvent<{ userId?: unknown }>).detail?.userId;
+      if (typeof owner === "string") invalidate(owner);
+    });
+    window.addEventListener("storage", (event) => {
+      if (event.newValue !== null) return;
+      const prefix = "ballwise:lab:results:";
+      if (event.key?.startsWith(prefix)) invalidate(event.key.slice(prefix.length));
+      else if (event.key === null) for (const owner of revisions.keys()) invalidate(owner);
+    });
+  }
+  return revisions.get(userId)!;
+}
+
 function key(userId: string) {
   return `ballwise:lab:results:${userId}`;
 }
@@ -161,9 +183,11 @@ function upload(result: LabResult): Promise<void> {
   return promise;
 }
 
-function markSynced(result: LabResult) {
+function markSynced(result: LabResult, revision: number) {
   const synced = { ...result, synced: true };
-  writeLocal(result.userId, mergeLabResults(readLocal(result.userId), [synced]));
+  const local = readLocal(result.userId);
+  if (storageRevision(result.userId) === revision && local.some((row) => row.id === result.id))
+    writeLocal(result.userId, mergeLabResults(local, [synced]));
   return synced;
 }
 
@@ -173,6 +197,7 @@ export function listLocalLabResults(userId: string) {
 
 export async function saveLabResult(result: LabResult) {
   labResultSchema.parse(result);
+  const revision = storageRevision(result.userId);
   const local = readLocal(result.userId);
   const existing = local.find((item) => item.id === result.id);
   if (existing?.synced) return { result: existing, cloudSaved: true };
@@ -182,13 +207,14 @@ export async function saveLabResult(result: LabResult) {
 
   try {
     await upload(result);
-    return { result: markSynced(result), cloudSaved: true };
+    return { result: markSynced(result, revision), cloudSaved: true };
   } catch {
     return { result, cloudSaved: false };
   }
 }
 
 export async function loadLabResults(userId: string) {
+  const revision = storageRevision(userId);
   try {
     const { data, error } = await labClient
       .from("lab_test_results")
@@ -197,6 +223,7 @@ export async function loadLabResults(userId: string) {
       .order("recorded_at", { ascending: false })
       .limit(300);
     if (error) throw error;
+    if (storageRevision(userId) !== revision) return listLocalLabResults(userId);
     const cloud = (data ?? []).flatMap((row) => {
       const decoded = labResultSchema.safeParse(fromRow(row));
       return decoded.success && decoded.data.userId === userId ? [decoded.data] : [];
@@ -210,12 +237,14 @@ export async function loadLabResults(userId: string) {
 }
 
 export async function syncPendingLabResults(userId: string) {
+  const revision = storageRevision(userId);
   const local = readLocal(userId);
   for (const result of local) {
+    if (storageRevision(userId) !== revision) break;
     if (result.synced) continue;
     try {
       await upload(result);
-      markSynced(result);
+      markSynced(result, revision);
     } catch {
       // Keep the current local record queued, including results saved during this upload.
     }

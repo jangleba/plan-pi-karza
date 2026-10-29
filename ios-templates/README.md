@@ -1,29 +1,40 @@
 # Szablony iOS
 
-`npm run ios:setup` tworzy/synchronizuje Capacitor na macOS i wpisuje opis kamery;
-`npm run ios:sync` powtarza build i synchronizację istniejącego projektu. Oba
-polecenia wymagają tego samego `BALLWISE_IOS_BUNDLE_ID`. Pozostałe ustawienia
-podpisywania, uprawnień i manifestu należą do docelowego projektu Xcode.
+`npm run ios:setup` sprawdza konfigurację wydania, buduje mobilne SPA i
+tworzy/synchronizuje projekt Capacitor na macOS z Xcode. `npm run ios:sync`
+powtarza te kontrole dla istniejącego projektu. Oba polecenia wymagają tego
+samego `BALLWISE_IOS_BUNDLE_ID` oraz konfiguracji domeny/logowania opisanej w
+[instrukcji wdrożenia](../docs/WDROZENIE-2026-10-29.md).
+
+Aktualny setup dodaje opis kamery i lokalizacji, tryb lokalizacji w tle,
+Associated Domains oraz kopię pliku prywatności. Istniejące entitlements
+zachowuje i wymaga uzgodnienia domeny. Samo skopiowanie pliku nie potwierdza
+membership targetu ani poprawnego podpisywania w Xcode; sprawdź raport setupu
+`ios/App/ballwise-capabilities.json` i target aplikacji.
+
+Aktywny Lab `/lab` używa przeglądarkowego WebCodecs i kamery/importu filmu.
+Adapter natywnej kamery 240 FPS jest zachowany, ale nie jest tą trasą. Nie
+obiecuj 240 FPS w Safari/WKWebView: sprawdź tryb oferowany przez dane urządzenie
+i znaczniki czasu gotowego filmu. Fuel może odczytać zdjęcie kodu lokalnie;
+funkcja serwerowej analizy zdjęcia posiłku nie jest podłączona do obecnego UI.
 
 [Info.plist-purpose-strings.template](Info.plist-purpose-strings.template)
-zawiera parę dla kamery: aktywny Lab nagrywa próby 240 FPS, a Fuel może otworzyć
-aparat przez pole zdjęcia kodu, jeśli platforma obsługuje tę ścieżkę. Skopiuj
-parę do głównego `dict` właściwego `Info.plist`, nie cały plik jako zamiennik.
+to pomocniczy szablon par klucz/wartość, nie zamiennik całego `Info.plist`.
+Obecny setup wpisuje opis kamery bez obietnicy konkretnego FPS. Opis mikrofonu
+jest opcjonalny: dodaj go tylko, jeśli docelowe opakowanie rzeczywiście
+udostępnia głosowy `SpeechRecognition` w Fuel. Kamera Lab nie nagrywa dźwięku;
+alternatywa tekstowa pozostaje dostępna. Dodatkowe natywne API rozpoznawania
+mowy lub biblioteki zdjęć wymagałyby własnej konfiguracji uprawnień.
 
-Opis mikrofonu jest w szablonie jako opcjonalna para: dodaj go, jeśli testowane
-opakowanie natywne udostępnia głosowy `SpeechRecognition` z Fuel. Zawsze działa
-alternatywa tekstowa. Kamera Lab nie nagrywa dźwięku. Nie dodawaj opisu analizy
-zdjęć posiłków ani dostępu do całej biblioteki tylko dlatego, że istnieje
-niepodłączona Edge Function. Jeśli później dodasz natywny dostęp do biblioteki
-zdjęć lub rozpoznawania mowy, skonfiguruj wymagane klucze dla faktycznych API.
-
-Bieganie korzysta z geolokalizacji; wymagane opisy i zachowanie zgody w docelowym
-WKWebView należy potwierdzić na urządzeniu. Setup automatycznie dodaje wyłącznie
-kamerę — nie jest pełną konfiguracją wszystkich uprawnień.
+Bieganie korzysta z natywnego runtime na iOS lub geolokalizacji przeglądarki.
+Testy zgody, odmowy, przerwania i aktywnego biegu przy zablokowanym ekranie
+muszą odbyć się na urządzeniu. Obecność `UIBackgroundModes` nie dowodzi
+poprawności pomiaru w tle ani spełnienia wymagań App Review.
 
 [PrivacyInfo.xcprivacy.template](PrivacyInfo.xcprivacy.template) jest szkieletem.
 Uzupełnij kategorie i required-reason APIs po raporcie prywatności Xcode oraz
-przeglądzie wszystkich SDK, nadaj nazwę `PrivacyInfo.xcprivacy` i dołącz do targetu.
+przeglądzie SDK, potwierdź nazwę `PrivacyInfo.xcprivacy` i dołączenie do targetu.
 Puste tablice nie stanowią deklaracji gotowej do wysłania.
-[App Privacy](../docs/apple/APP-PRIVACY-ANSWERS.md) i
-[lista wydania](../docs/RELEASE-CHECKLIST.md) zawierają otwarte kontrole.
+[App Privacy](../docs/apple/APP-PRIVACY-ANSWERS.md) jest roboczym materiałem do
+uzgodnienia z faktycznym kodem/ruchiem, a [lista wydania](../docs/RELEASE-CHECKLIST.md)
+zawiera wymagane kontrole. Żaden szablon nie stanowi dowodu publikacji.

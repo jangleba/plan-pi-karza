@@ -109,3 +109,63 @@ it("persists an imported GPX review without requiring a prior GPS start", async 
   await act(async () => button("Zapisz bieg").click());
   expect(save.mock.calls[0][0].source).toBe("gpx");
 });
+
+it("does not replace a corrupt recovered journal by importing a new GPX", async () => {
+  const key = `ballwise:run-draft:v1:${ownerId}:${sessionId}`;
+  localStorage.setItem(key, "unreadable-but-preserved");
+  await render();
+  const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+  const read = vi.fn().mockResolvedValue("<gpx />");
+  Object.defineProperty(input, "files", { configurable: true, value: [{ text: read }] });
+  await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+  expect(read).not.toHaveBeenCalled();
+  expect(localStorage.getItem(key)).toBe("unreadable-but-preserved");
+  expect(host.textContent).toContain("Najpierw odzyskaj istniejący szkic biegu");
+  expect(button("Zapisz bieg")).toBeUndefined();
+});
+
+it("saves one result when the save button is tapped twice before rerender", async () => {
+  await render();
+  const xml =
+    '<gpx><trkpt lat="52" lon="21"><time>2026-10-18T10:00:00Z</time></trkpt><trkpt lat="52.001" lon="21"><time>2026-10-18T10:00:20Z</time></trkpt></gpx>';
+  const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, "files", { configurable: true, value: [{ text: async () => xml }] });
+  await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
+  let finish!: () => void;
+  save.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await act(async () => {
+    const control = button("Zapisz bieg");
+    control.click();
+    control.click();
+  });
+  expect(save).toHaveBeenCalledTimes(1);
+  await act(async () => finish());
+  expect(loadRunCheckpoint(ownerId, sessionId)).toBeNull();
+});
+
+it("does not start GPS while an imported GPX is still being read", async () => {
+  await render();
+  let finish!: (xml: string) => void;
+  const read = new Promise<string>((resolve) => {
+    finish = resolve;
+  });
+  const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, "files", { configurable: true, value: [{ text: () => read }] });
+  await act(async () => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    button("Start GPS").click();
+  });
+  expect(loadRunCheckpoint(ownerId, sessionId)).toBeNull();
+  await act(async () =>
+    finish(
+      '<gpx><trkpt lat="52" lon="21"><time>2026-10-18T10:00:00Z</time></trkpt><trkpt lat="52.001" lon="21"><time>2026-10-18T10:00:20Z</time></trkpt></gpx>',
+    ),
+  );
+  expect(loadRunCheckpoint(ownerId, sessionId)?.pending?.source).toBe("gpx");
+  expect(button("Zapisz bieg")).toBeTruthy();
+});

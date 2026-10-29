@@ -140,15 +140,17 @@ export function saveReactiveSession(
     const target = storage ?? localStorage;
     loadReactiveSession(key, target);
     if (!validSession(session)) return false;
-    target.setItem(`${key}:session`, JSON.stringify(session));
     if (session.phase === "summary") {
       const previous = loadReactiveResults(key, target);
       if (previous.length >= 100 && !previous.some((row) => row.id === session.id)) return false;
+      // Persist the result before replacing the recoverable draft. A full/corrupt
+      // history or a failed history write must leave the previous session intact.
       target.setItem(
         `${key}:history`,
         JSON.stringify([...previous.filter((row) => row.id !== session.id), session]),
       );
     }
+    target.setItem(`${key}:session`, JSON.stringify(session));
     return true;
   } catch {
     return false;

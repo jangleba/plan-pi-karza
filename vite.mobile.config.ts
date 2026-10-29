@@ -9,6 +9,7 @@ import tsConfigPaths from "vite-tsconfig-paths";
 // Lovable/Nitro SSR build and emits a TanStack SPA shell to dist/client/index.html.
 export default defineConfig({
   preview: { host: "127.0.0.1" },
+  define: { "import.meta.env.BALLWISE_MOBILE_SPA": "true" },
   // Worker graphs do not inherit the tsconfig-paths plugin. Use a shared Vite alias.
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   plugins: [

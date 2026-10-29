@@ -39,7 +39,20 @@ try {
 } catch {
   errors.push("VITE_SUPABASE_URL: nieprawidłowy URL.");
 }
-requireValue("VITE_SUPABASE_PUBLISHABLE_KEY");
+const publicKey = requireValue("VITE_SUPABASE_PUBLISHABLE_KEY");
+// A public variable name does not make a privileged key safe to ship. This is
+// a configuration check, not cryptographic verification of a legacy JWT.
+let isPublicKey = /^sb_publishable_[A-Za-z0-9_-]+$/.test(publicKey);
+if (!isPublicKey && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(publicKey)) {
+  try {
+    const claims = JSON.parse(Buffer.from(publicKey.split(".")[1], "base64url").toString("utf8"));
+    isPublicKey = claims.role === "anon";
+  } catch {
+    // Malformed and privileged keys are rejected without printing their values.
+  }
+}
+if (publicKey && !isPublicKey)
+  errors.push("VITE_SUPABASE_PUBLISHABLE_KEY: użyj klucza sb_publishable_ lub legacy anon, nigdy klucza serwerowego ani tokenu użytkownika.");
 const bundle = requireValue("BALLWISE_IOS_BUNDLE_ID");
 if (bundle && !/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9-]+){2,}$/.test(bundle))
   errors.push("BALLWISE_IOS_BUNDLE_ID: nieprawidłowy identyfikator.");

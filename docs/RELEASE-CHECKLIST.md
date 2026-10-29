@@ -1,6 +1,6 @@
 # BallWise — jedna lista kontroli wydania
 
-Stan: 29 września 2026. To lista do wykonania dla konkretnego commitu i środowiska.
+Stan: 29 października 2026; dotyczy obecnego kodu, nie potwierdzenia wdrożenia. To lista do wykonania dla konkretnego commitu i środowiska.
 Zaznaczenie wymaga dowodu i właściciela; brak zaznaczenia nie jest wynikiem testu.
 Dawne checklisty Apple i prawne kierują tutaj.
 
@@ -15,9 +15,9 @@ Dawne checklisty Apple i prawne kierują tutaj.
 
 - [ ] Operator wybrał projekt Supabase; wszystkie migracje oraz odpowiednie odczytowe kontrole z `supabase/verification` wykonano i zapisano wyniki. Test A/B potwierdza RLS, zgody, Lab i usuwanie.
 - [ ] Funkcja `delete-account` działa dla aktualnego JWT i usuwa właściwe konto oraz dane objęte kaskadą. Potwierdź zachowanie pozostałych sesji, backupów i ewentualnych obiektów Storage.
-- [ ] **Otwarta luka eksportu:** `data-rights.tsx` eksportuje konto (ID/e-mail) i 17 tabel; nie obejmuje metadanych Auth, `lab_test_results` ani wszystkich danych lokalnych. Uzgodnij pełny zakres i popraw eksport przed obietnicą „wszystkich danych”.
-- [ ] **Otwarta luka czyszczenia lokalnego:** `clearLocalUserData` nie obejmuje wszystkich nowszych kluczy, m.in. `ballwise:lab:results`, `ballwise:daily-plan-checkin:v2` i `ballwise:fuel:last-choice`. Sprawdź pełny wykaz kluczy i pliki robocze przy wylogowaniu/usunięciu; działająca obsługa starszych kluczy nie potwierdza pokrycia nowych.
-- [ ] **Otwarta zgodność tekstów:** polityka i zgody w kodzie muszą odpowiadać aktywnemu Fuel (kod/Open Food Facts i opcjonalna mowa), natywnemu Lab oraz faktycznemu eksportowi/retencji. Opis zdjęć AI nie dowodzi podłączenia funkcji do UI.
+- [ ] Zweryfikowano eksport z `dataExport.ts`: metadane konta, dostępne tabele (w tym Lab i kopie modułów), lokalne historie i niewysłane wyniki. Sprawdzono stronicowanie, brak opcjonalnej tabeli i uczciwy zakres eksportu; filmy źródłowe pozostają w plikach użytkownika.
+- [ ] Sprawdzono `clearLocalUserData`, czyszczenie trwałej kolejki i natywnych plików przy wylogowaniu/usunięciu. Kod obejmuje klucze Lab, check-inu, Fuel i IQ; potwierdź na urządzeniu izolację kont i brak ponownego zapisu ze spóźnionych żądań.
+- [ ] **Otwarta zgodność tekstów:** polityka i zgody w kodzie muszą odpowiadać aktywnemu Fuel (kod/Open Food Facts i opcjonalna mowa), aktywnemu przeglądarkowemu Lab (WebCodecs, wzorce i analiza sylwetki) oraz faktycznemu eksportowi/retencji. Opis zdjęć AI nie dowodzi podłączenia funkcji do UI.
 - [ ] Jeśli utrzymujesz wdrożone `analyze-fuel-photo`, skonfiguruj originy, sekrety i quota RPC; przejdź testy odmowy i limitu z [instrukcji](../supabase/functions/analyze-fuel-photo/README.md). Nie opisuj jej jako funkcji obecnego ekranu Fuel.
 - [ ] Jeżeli projekt miał Vision Lab, potwierdź jednorazowe usunięcie dawnego bucketa przez [Storage API](VISION-LAB-CLEANUP.md). Nie usuwaj danych aktywnego Lab.
 - [ ] Operator potwierdził listę dostawców/SDK, region, retencję kont/zgód/backupów i transfery; audyt ruchu obejmuje także Open Food Facts, rozpoznawanie mowy oraz ewentualne raportowanie Lovable.
@@ -33,16 +33,16 @@ Dawne checklisty Apple i prawne kierują tutaj.
 ## iOS, App Store i płatności
 
 - [ ] Własny bundle ID, projekt z `ios:setup`, podpisywanie, App ID i archiwum w Xcode są gotowe; `ios:sync` używa tego samego bundle ID.
-- [ ] Na fizycznych iPhone'ach sprawdzono kamerę Lab 240 FPS, odmowę/przerwanie, GPS, skanowanie kodu i opcjonalny głos. Uprawnienia i purpose strings odpowiadają wyłącznie rzeczywiście udostępnionym funkcjom.
+- [ ] Na fizycznych iPhone'ach sprawdzono aktywny Lab WebCodecs, kamerę/import różnych FPS, wzorce AUTO, odmowę/przerwanie, GPS, skanowanie kodu, powiadomienia Fuel i opcjonalny głos. Nie zakładaj 240 FPS w przeglądarce. Uprawnienia i purpose strings odpowiadają wyłącznie rzeczywiście udostępnionym funkcjom.
 - [ ] Uzupełniono [szablony iOS](../ios-templates/README.md), membership privacy manifest oraz deklaracje API/SDK według raportu Xcode. Sam pusty szablon nie jest gotowym manifestem.
 - [ ] [App Privacy](apple/APP-PRIVACY-ANSWERS.md) zatwierdzono względem kodu, partnerów i ruchu sieciowego; publiczne HTTPS Privacy Policy/Support URL i metadane sklepu są prawdziwe.
 - [ ] [Review Notes](apple/APP-REVIEW-NOTES.md) zawierają działające konto testowe, instrukcję Lab/sprzęt oraz środowisko; usługi dostępne podczas review. Demo publiczne nie zastępuje dostępu do wszystkich recenzowanych funkcji.
-- [ ] **Warunkowo, przed płatnym wydaniem:** zaimplementowano [IAP](apple/IAP-SUBSCRIPTION-SPEC.md), serwerowe entitlementy, zakup/przywrócenie/zarządzanie oraz całą macierz StoreKit. Obecny kod nie ma tych ekranów; cena i trial w propozycji nie są zatwierdzoną ofertą.
+- [ ] **Przed płatnym wydaniem:** skonfigurowano istniejący [kod IAP/RevenueCat](apple/IAP-SUBSCRIPTION-SPEC.md), produkty/ofertę, webhook i serwerowe entitlementy. Zakup, przywracanie, zarządzanie oraz macierz sandbox przeszły na urządzeniu. Cena pochodzi ze sklepu; 7-dniowy trial pokazuje się wyłącznie dla zgodnej oferty i uprawnionego użytkownika.
 - [ ] Przetestowano docelowe logowanie i linki Auth; jeśli dodano login społecznościowy, oceniono wymogi Guideline 4.8. Konfiguracji Apple nie potwierdza obecność opisu w repozytorium.
 
 ## Źródła platformowe
 
-Sprawdzono 29 września 2026; ponownie sprawdź przy wysyłaniu wydania:
+Odnośniki referencyjne z wcześniejszego przeglądu; aktualne wymagania ponownie sprawdź przy wysyłaniu wydania:
 [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/),
 [usuwanie konta](https://developer.apple.com/support/offering-account-deletion-in-your-app/),
 [App Privacy](https://developer.apple.com/app-store/app-privacy-details/),

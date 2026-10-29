@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accountSetupIsAllowed,
   ageOnDate,
+  birthDateForApproximateAge,
   policyForAge,
 } from "./agePolicy";
 
@@ -11,29 +12,59 @@ describe("age policy", () => {
     expect(ageOnDate("2010-09-10", "2026-09-10")).toBe(16);
   });
 
+  it("rejects impossible birth dates instead of moving them into another month", () => {
+    expect(ageOnDate("2010-02-31", "2026-09-10")).toBeNull();
+    expect(ageOnDate("2011-02-29", "2026-09-10")).toBeNull();
+    expect(ageOnDate("2012-02-29", "2026-09-10")).toBe(14);
+  });
+
+  it("uses a valid date for the signup limit on leap day", () => {
+    expect(birthDateForApproximateAge(13, new Date("2028-02-29T12:00:00Z"))).toBe("2015-02-28");
+  });
+
+  it("does not allow invalid numeric ages through the account policy", () => {
+    for (const age of [NaN, Infinity, -1, 16.5, 121]) {
+      expect(policyForAge(age).personalizedAccountAllowed).toBe(false);
+      expect(
+        accountSetupIsAllowed({
+          age,
+          accountOwnerType: "athlete",
+          guardianEmailVerified: true,
+          guardianDeclarationAccepted: true,
+        }),
+      ).toBe(false);
+    }
+  });
+
   it("poniżej 13 lat nie tworzy spersonalizowanego konta", () => {
     expect(policyForAge(12).personalizedAccountAllowed).toBe(false);
   });
 
   it("dla 13–15 wymaga zweryfikowanego konta opiekuna i jego deklaracji", () => {
-    expect(accountSetupIsAllowed({
-      age: 15,
-      accountOwnerType: "athlete",
-      guardianEmailVerified: true,
-      guardianDeclarationAccepted: true,
-    })).toBe(false);
-    expect(accountSetupIsAllowed({
-      age: 15,
-      accountOwnerType: "guardian",
-      guardianEmailVerified: false,
-      guardianDeclarationAccepted: true,
-    })).toBe(false);
-    expect(accountSetupIsAllowed({
-      age: 15,
-      accountOwnerType: "guardian",
-      guardianEmailVerified: true,
-      guardianDeclarationAccepted: true,
-    })).toBe(true);
+    expect(
+      accountSetupIsAllowed({
+        age: 15,
+        accountOwnerType: "athlete",
+        guardianEmailVerified: true,
+        guardianDeclarationAccepted: true,
+      }),
+    ).toBe(false);
+    expect(
+      accountSetupIsAllowed({
+        age: 15,
+        accountOwnerType: "guardian",
+        guardianEmailVerified: false,
+        guardianDeclarationAccepted: true,
+      }),
+    ).toBe(false);
+    expect(
+      accountSetupIsAllowed({
+        age: 15,
+        accountOwnerType: "guardian",
+        guardianEmailVerified: true,
+        guardianDeclarationAccepted: true,
+      }),
+    ).toBe(true);
   });
 
   it("od 16 lat zawodnik może być właścicielem konta, a do 18 wymaga dorosłego płatnika", () => {
@@ -50,17 +81,21 @@ describe("age policy", () => {
   });
 
   it("od 18 lat konto musi należeć do zawodnika", () => {
-    expect(accountSetupIsAllowed({
-      age: 18,
-      accountOwnerType: "guardian",
-      guardianEmailVerified: true,
-      guardianDeclarationAccepted: true,
-    })).toBe(false);
-    expect(accountSetupIsAllowed({
-      age: 18,
-      accountOwnerType: "athlete",
-      guardianEmailVerified: false,
-      guardianDeclarationAccepted: false,
-    })).toBe(true);
+    expect(
+      accountSetupIsAllowed({
+        age: 18,
+        accountOwnerType: "guardian",
+        guardianEmailVerified: true,
+        guardianDeclarationAccepted: true,
+      }),
+    ).toBe(false);
+    expect(
+      accountSetupIsAllowed({
+        age: 18,
+        accountOwnerType: "athlete",
+        guardianEmailVerified: false,
+        guardianDeclarationAccepted: false,
+      }),
+    ).toBe(true);
   });
 });

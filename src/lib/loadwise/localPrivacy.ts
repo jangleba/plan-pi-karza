@@ -10,6 +10,16 @@ export interface PrivacyStorage {
 
 const LEGACY_UNSCOPED_PREFIXES = ["ballwise:fuel-protocol:", "loadwise:sprint-progress:"] as const;
 
+function localPrivacyStorage(storage: PrivacyStorage | null | undefined): PrivacyStorage | null {
+  if (storage !== undefined) return storage;
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 const UUID_PREFIX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}:/i;
 
 function isUserScopedProgressKey(key: string, prefix: string): boolean {
@@ -23,9 +33,10 @@ function isUserScopedProgressKey(key: string, prefix: string): boolean {
  */
 export function clearLocalUserData(
   userId: string,
-  storage: PrivacyStorage | null = typeof window === "undefined" ? null : window.localStorage,
+  storage: PrivacyStorage | null | undefined = undefined,
 ): void {
-  if (!storage || !userId) return;
+  if (!userId) return;
+  storage = localPrivacyStorage(storage);
 
   const exactKeys = new Set([
     `ballwise:offline-owner:v1:${userId}`,
@@ -56,10 +67,13 @@ export function clearLocalUserData(
   ];
 
   try {
-    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter(
-      (key): key is string => Boolean(key),
-    );
-    if (storage.getItem?.("ballwise:offline-owner:active") === userId)
+    const local = storage;
+    const keys = local
+      ? Array.from({ length: local.length }, (_, index) => local.key(index)).filter(
+          (key): key is string => Boolean(key),
+        )
+      : [];
+    if (storage?.getItem?.("ballwise:offline-owner:active") === userId)
       storage.removeItem("ballwise:offline-owner:active");
     for (const key of keys) {
       if (
@@ -71,7 +85,7 @@ export function clearLocalUserData(
           (prefix) => key.startsWith(prefix) && !isUserScopedProgressKey(key, prefix),
         )
       ) {
-        storage.removeItem(key);
+        storage?.removeItem(key);
       }
     }
   } catch {
@@ -91,8 +105,9 @@ export function clearLocalUserData(
 /** Logout drops cached server state; account deletion separately wipes local histories/queue. */
 export function clearLocalSessionData(
   userId: string,
-  storage: PrivacyStorage | null = typeof window === "undefined" ? null : window.localStorage,
+  storage: PrivacyStorage | null | undefined = undefined,
 ): void {
+  storage = localPrivacyStorage(storage);
   if (!storage || !userId) return;
   try {
     storage.removeItem(`loadwise:v3:${userId}`);

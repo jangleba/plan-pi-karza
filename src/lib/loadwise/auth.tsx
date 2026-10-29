@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [callbackError, setCallbackError] = useState<string | null>(null);
   const [offlineIdentity, setOfflineIdentity] = useState(false);
+  const authRevision = useRef(0);
 
   useEffect(() => {
     const ownerId = user?.id;
@@ -88,15 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useClientLayoutEffect(() => {
     let active = true;
-    let authRevision = 0;
 
     // Listener rejestrujemy przed odczytem. Numer rewizji chroni przed sytuacją,
     // w której wolniejszy getSession nadpisuje nowsze zdarzenie logowania.
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (!active) return;
-      authRevision += 1;
+      authRevision.current += 1;
       setSession(sess);
-      const localOwner = !sess && navigator.onLine === false ? loadOfflineOwner() : null;
+      const localOwner =
+        !sess && event !== "SIGNED_OUT" && navigator.onLine === false ? loadOfflineOwner() : null;
       setOfflineIdentity(!!localOwner);
       if (sess?.user && navigator.onLine !== false) rememberOfflineOwner(sess.user);
       setUser((current) => {
@@ -110,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       }
       if (event === "SIGNED_OUT") {
+        forgetOfflineOwner();
         clearConsentStatusCache();
         setRecoveryMode(false);
       }
@@ -117,11 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const revisionAtRequest = authRevision;
+    const revisionAtRequest = authRevision.current;
     void supabase.auth
       .getSession()
       .then(({ data }) => {
-        if (!active || authRevision !== revisionAtRequest) return;
+        if (!active || authRevision.current !== revisionAtRequest) return;
         setSession(data.session);
         const localOwner = !data.session && navigator.onLine === false ? loadOfflineOwner() : null;
         setOfflineIdentity(!!localOwner);
@@ -141,11 +144,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
     const reconnect = () => {
       if (!offlineIdentity || navigator.onLine === false) return;
+      const revisionAtRequest = authRevision.current;
       void supabase.auth
         .getSession()
         .then(({ data }) => {
+          if (!active || authRevision.current !== revisionAtRequest) return;
           setSession(data.session);
           setUser(data.session?.user ?? null);
           setOfflineIdentity(false);
@@ -157,7 +163,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch(() => undefined);
     };
     window.addEventListener("online", reconnect);
-    return () => window.removeEventListener("online", reconnect);
+    return () => {
+      active = false;
+      window.removeEventListener("online", reconnect);
+    };
   }, [offlineIdentity]);
 
   async function signUp(
@@ -245,6 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    authRevision.current += 1;
     const userId = user?.id;
     forgetOfflineOwner(userId);
     setOfflineIdentity(false);
