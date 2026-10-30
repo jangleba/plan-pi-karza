@@ -1,3 +1,4 @@
+import { NavigationProgress } from "@/components/loadwise/NavigationProgress";
 import { BillingProvider } from "@/features/billing/BillingProvider";
 import { BillingGate } from "@/features/billing/BillingGate";
 import {
@@ -20,7 +21,7 @@ import { AuthProvider } from "../lib/loadwise/auth";
 import { Toaster } from "../components/ui/sonner";
 import { LEGAL_RELEASE_BLOCKED } from "../lib/loadwise/legal";
 import { useDuplicateNavigationGuard } from "../lib/useDuplicateNavigationGuard";
-import { FuelReminderBridge } from "../components/fuel/FuelReminderBridge";
+import { NativeFuelReminderBridge } from "../components/fuel/NativeFuelReminderBridge";
 
 function NotFoundComponent() {
   return (
@@ -170,7 +171,8 @@ function RootComponent() {
     <AuthProvider>
       <BillingProvider>
         <LoadwiseProvider>
-          <FuelReminderBridge />
+          <NativeFuelReminderBridge />
+          <NavigationProgress />
           <BillingGate>
             <Outlet />
           </BillingGate>

@@ -14,7 +14,8 @@ import {
 } from "@/lib/loadwise/strengthProgression";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
-import { effectiveSessions, resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { effectiveSessions } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import {
   PoseFigure,
   getIllustration,
@@ -193,9 +194,13 @@ export function ExerciseRunnerScreen({
   const needsStartingLoad = metricKind === "load" && !hasSavedLoad;
   const sessionContext = useMemo(
     () =>
-      effectiveSessions(resolveEffectivePlan(state.plan, state.modifications, {profile:state.profile, readiness:state.readiness, completions:state.completions})).find(
-        (item) => item.dbId === sessionId || item.sessionId === sessionId,
-      ) ?? null,
+      effectiveSessions(
+        selectEffectivePlan(state.plan, state.modifications, {
+          profile: state.profile,
+          readiness: state.readiness,
+          completions: state.completions,
+        }),
+      ).find((item) => item.dbId === sessionId || item.sessionId === sessionId) ?? null,
     [state.plan, state.modifications, state.profile, state.readiness, state.completions, sessionId],
   );
   const recommendation = useMemo(
@@ -250,11 +255,16 @@ export function ExerciseRunnerScreen({
   }, [context]);
 
   if (!open) return null;
-  if (exercise.executionBlockedReason) return <div className="bw-training-inline" role="status">
-    <p>{exercise.executionBlockedReason}</p>
-    <ExerciseQuickGuide exercise={exercise} compact />
-    <button type="button" onClick={onClose}>Zamknij ćwiczenie</button>
-  </div>;
+  if (exercise.executionBlockedReason)
+    return (
+      <div className="bw-training-inline" role="status">
+        <p>{exercise.executionBlockedReason}</p>
+        <ExerciseQuickGuide exercise={exercise} compact />
+        <button type="button" onClick={onClose}>
+          Zamknij ćwiczenie
+        </button>
+      </div>
+    );
 
   const last = previous[setNumber];
   const hint = loading ? "Wczytuję historię…" : describeLog(last, fields, unit);

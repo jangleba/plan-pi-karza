@@ -10,7 +10,7 @@ import {
 import { loadConsentRows } from "../legalStatus";
 import type { Json } from "@/integrations/supabase/types";
 import { clearBootState, saveBootState } from "../bootCache";
-import { resolveEffectivePlan } from "../effectivePlan";
+import { selectEffectivePlan } from "../effectivePlanSelector";
 import { isoDate, localToday } from "../labels";
 import {
   flushPendingTrainingWrites,
@@ -207,13 +207,25 @@ export function usePersistedState(user: StoreUser, hydrated: boolean, state: Loa
   }, [user, hydrated, state.profile?.unavailableEquipmentIds, state.exerciseReplacements]);
   useEffect(() => {
     if (!user || !hydrated || !state.profile?.onboardingComplete) return;
-    const timeout = window.setTimeout(() => saveBootState(user.id, state), 180);
-    return () => window.clearTimeout(timeout);
+    let idle: number | undefined;
+    let cancelled = false;
+    const save = () => {
+      if (!cancelled) saveBootState(user.id, state);
+    };
+    const timeout = window.setTimeout(() => {
+      if (window.requestIdleCallback) idle = window.requestIdleCallback(save, { timeout: 2000 });
+      else save();
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      if (idle !== undefined) window.cancelIdleCallback?.(idle);
+    };
   }, [user, hydrated, state]);
 }
 
 function sessionsIncludingOrphanExecutions(state: LoadwiseState): SessionDay[] {
-  const sessions = resolveEffectivePlan(state.plan, state.modifications, {
+  const sessions = selectEffectivePlan(state.plan, state.modifications, {
     profile: state.profile,
     readiness: state.readiness,
     completions: state.completions,

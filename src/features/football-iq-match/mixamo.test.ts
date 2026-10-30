@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import {
+  parseCompactAnimation,
   attachAerialClips,
   attachOptionalClips,
   readAnimationFile,
@@ -562,4 +563,23 @@ describe("progressive optional animations", () => {
       vi.unstubAllGlobals();
     }
   });
+});
+
+describe("compact motion assets", () => {
+  it.each(["idle", "walking", "soccer-pass"] as const)(
+    "preserves every original %s motion track and bind height",
+    (name) => {
+      const original = fs.readFileSync(new URL(`./assets/${name}.fbx`, import.meta.url));
+      const compact = fs.readFileSync(new URL(`./assets/${name}.clip.json`, import.meta.url));
+      const buffer = (data: Buffer) =>
+        data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+      const raw = new FBXLoader().parse(buffer(original), "");
+      const restored = parseCompactAnimation(buffer(compact));
+      const expected = prepareAdditionalClip(raw, asset.model, name);
+      const actual = prepareAdditionalClip(restored, asset.model, name);
+      expect(actual.duration).toBe(expected.duration);
+      expect(actual.toJSON().tracks).toEqual(expected.toJSON().tracks);
+      expect(compact.byteLength).toBeLessThan(original.byteLength / 4);
+    },
+  );
 });

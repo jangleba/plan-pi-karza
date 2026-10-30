@@ -19,6 +19,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   createFileRoute: () => (options: unknown) => ({ options }),
   useNavigate: () => vi.fn(),
+  useRouter: () => ({ preloadRoute: vi.fn(async () => {}) }),
 }));
 vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 vi.mock("@/lib/loadwise/store", () => ({
@@ -27,7 +28,9 @@ vi.mock("@/lib/loadwise/store", () => ({
 vi.mock("@/components/loadwise/ui", () => ({ ProfileAvatar: () => <span>Avatar</span> }));
 import { Route } from "./_tabs.start";
 const Component = Route.options.component as ComponentType & { preload?: () => Promise<unknown> };
-beforeAll(async () => { await Component.preload?.(); });
+beforeAll(async () => {
+  await Component.preload?.();
+});
 let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
@@ -47,7 +50,13 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 const render = async () => {
-  await act(async () => root.render(<Suspense fallback="loading"><Component /></Suspense>));
+  await act(async () =>
+    root.render(
+      <Suspense fallback="loading">
+        <Component />
+      </Suspense>,
+    ),
+  );
 };
 
 it("retries reading after a failed hydration without generating over an unknown server plan", async () => {
@@ -56,7 +65,9 @@ it("retries reading after a failed hydration without generating over an unknown 
   expect(host.textContent).toContain("Nie udało się wczytać planu");
   const dispatch = vi.spyOn(window, "dispatchEvent");
   await act(async () => host.querySelector("button")!.click());
-  expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "ballwise:server-state-changed" }));
+  expect(dispatch).toHaveBeenCalledWith(
+    expect.objectContaining({ type: "ballwise:server-state-changed" }),
+  );
   expect(mocks.refresh).not.toHaveBeenCalled();
 });
 

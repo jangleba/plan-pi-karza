@@ -173,3 +173,41 @@ describe("simplified pitch fallback", () => {
     expect(props.onPitchSelect).toHaveBeenCalledWith({ x: 50, y: 70 });
   });
 });
+
+it("allows a decision while the optional 3D scene is still downloading", async () => {
+  vi.mocked(createPitchScene).mockImplementationOnce(() => new Promise(() => {}));
+  props.onReadyChange = vi.fn();
+  props.selectablePlayerIds = ["support"];
+  await render();
+  expect(host.querySelector('svg[aria-label="Boisko w trybie uproszczonym"]')).not.toBeNull();
+  expect(props.onReadyChange).toHaveBeenCalledWith(true);
+  const support = host.querySelector<HTMLButtonElement>('[data-iq-player="support"]')!;
+  expect(support.disabled).toBe(false);
+  await act(async () => support.click());
+  expect(props.onPlayerSelect).toHaveBeenCalled();
+});
+
+it("samples live frames without a parent render and cancels the loop on pause", async () => {
+  const frames: FrameRequestCallback[] = [];
+  const cancel = vi.fn();
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+  let frame = props.frameOverride!;
+  props.frameSource = () => frame;
+  props.playing = true;
+  await render();
+  bridge.update.mockClear();
+  frame = { ...frame, ballVisual: { x: 22, y: 44 } };
+  await act(async () => frames.at(-1)!(16));
+  expect(bridge.update.mock.lastCall?.[0]).toBe(frame);
+  const late = frames.at(-1)!;
+  props.playing = false;
+  await render();
+  bridge.update.mockClear();
+  await act(async () => late(32));
+  expect(bridge.update).not.toHaveBeenCalled();
+  expect(cancel).toHaveBeenCalled();
+});

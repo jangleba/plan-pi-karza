@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import {
   localDate,
   manualFuelContext,
@@ -34,7 +34,7 @@ export function FuelReminderBridge() {
   const userId = user?.id;
   const plan = useMemo(
     () =>
-      resolveEffectivePlan(state.plan, state.modifications, {
+      selectEffectivePlan(state.plan, state.modifications, {
         profile: state.profile,
         readiness: state.readiness,
         completions: state.completions,

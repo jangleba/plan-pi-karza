@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { FuelWorkspace } from "@/components/fuel/FuelWorkspace";
 import { planFuelContexts, foodRestrictionTerms } from "@/lib/fuel/experience";
 import { useAuth } from "@/lib/loadwise/auth";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { useLoadwise } from "@/lib/loadwise/store";
 import "@/styles/fuel-v3.css";
 import "@/styles/fuel-v4.css";
@@ -25,7 +25,12 @@ function FuelScreen() {
   const { user } = useAuth();
   const { state, todayIso } = useLoadwise();
   const effectivePlan = useMemo(
-    () => resolveEffectivePlan(state.plan, state.modifications, {profile:state.profile,readiness:state.readiness,completions:state.completions}),
+    () =>
+      selectEffectivePlan(state.plan, state.modifications, {
+        profile: state.profile,
+        readiness: state.readiness,
+        completions: state.completions,
+      }),
     [state.plan, state.modifications, state.profile, state.readiness, state.completions],
   );
   const contexts = useMemo(

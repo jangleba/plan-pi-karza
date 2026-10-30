@@ -5,6 +5,7 @@ potwierdzenia wdrożenia, odbioru prawnego ani testów na fizycznym urządzeniu.
 
 ## Utrzymywane instrukcje
 
+- [Szybkość reakcji aplikacji — paczka 17](REAKCJA-2026-10-29.md)
 - [Płynność aplikacji i podglądu — paczka 16](PLYNNOSC-2026-10-29.md)
 - [Wdrożenie bieżącej paczki](WDROZENIE-2026-10-29.md)
 - [Uruchomienie, npm, web i iOS](../README.md)

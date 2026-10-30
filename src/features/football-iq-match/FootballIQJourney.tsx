@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -202,6 +202,10 @@ export function FootballIQJourney({
     [session, mode, view],
   );
   const animationSession = transport?.kind === "alternative" && alternative ? alternative : session;
+  const sampleLiveFrame = useCallback(
+    () => sampleJourney(animationSession, playheadRef.current),
+    [animationSession],
+  );
   const frame = useMemo(() => {
     if (transport) return sampleJourney(animationSession, playhead);
     if (view === "review" && decision)
@@ -453,6 +457,7 @@ export function FootballIQJourney({
     }
     let handle = 0,
       last = performance.now(),
+      lastHUD = 0,
       cancelled = false;
     const tick = (now: number) => {
       if (cancelled) return;
@@ -462,7 +467,11 @@ export function FootballIQJourney({
       last = now;
       const next = Math.min(transport.to, playheadRef.current + delta * speed);
       playheadRef.current = next;
-      setPlayhead(next);
+      // The pitch samples every frame. Text and slider do not need a full React render at 60 Hz.
+      if (now - lastHUD >= 100 || next >= transport.to) {
+        lastHUD = now;
+        setPlayhead(next);
+      }
       if (next >= transport.to) {
         finishTransport.current();
         return;
@@ -784,6 +793,7 @@ export function FootballIQJourney({
             scenario={session.scenario}
             actions={reviewActions}
             frameOverride={frame}
+            frameSource={transport ? sampleLiveFrame : undefined}
             focusOnActions
             cameraActions={cameraActions}
             selectedPlayerId="you"
@@ -1208,61 +1218,65 @@ export function FootballIQJourney({
           pickerTrigger.current?.focus();
         }}
       >
-        <div className="iqJ-dialog-header">
-          <h2 id="iqJ-picker-title">Wybierz akcję</h2>
-          <button
-            type="button"
-            className="iqJ-icon"
-            aria-label="Zamknij wybór akcji"
-            onClick={() => setPicker(false)}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <label className="iqJ-field">
-          Pozycja
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as IQRole | "profile" | "all")}
-          >
-            <option value="profile">Z Twojego onboardingu</option>
-            {Object.entries(roleLabels).map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-            <option value="all">Wszystkie pozycje</option>
-          </select>
-        </label>
-        <label className="iqJ-field">
-          Szukaj sytuacji
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Np. pressing, kontra, asekuracja"
-          />
-        </label>
-        <p className="iqJ-bank-count">
-          {filteredBank.length} scenariuszy · {journeyTopicCount} wątków w całej bazie
-        </p>
-        <div className="iqJ-scenario-list">
-          {filteredBank.map((definition, index) => (
-            <button
-              type="button"
-              key={definition.id}
-              className="iqJ-scenario"
-              onClick={() => newScenario(definition)}
-            >
-              <span>{mode === "challenge" ? `Sytuacja ${index + 1}` : definition.title}</span>
-              <small>
-                {definition.revision === 2 ? "Nowe · " : ""}
-                {roleLabels[definition.role]}
-                {mode === "learn" ? ` · ${definition.contextLabel}` : ""}
-              </small>
-            </button>
-          ))}
-          {!filteredBank.length && <p>Brak pasujących sytuacji. Zmień frazę lub pozycję.</p>}
-        </div>
+        {picker && (
+          <>
+            <div className="iqJ-dialog-header">
+              <h2 id="iqJ-picker-title">Wybierz akcję</h2>
+              <button
+                type="button"
+                className="iqJ-icon"
+                aria-label="Zamknij wybór akcji"
+                onClick={() => setPicker(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <label className="iqJ-field">
+              Pozycja
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value as IQRole | "profile" | "all")}
+              >
+                <option value="profile">Z Twojego onboardingu</option>
+                {Object.entries(roleLabels).map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+                <option value="all">Wszystkie pozycje</option>
+              </select>
+            </label>
+            <label className="iqJ-field">
+              Szukaj sytuacji
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Np. pressing, kontra, asekuracja"
+              />
+            </label>
+            <p className="iqJ-bank-count">
+              {filteredBank.length} scenariuszy · {journeyTopicCount} wątków w całej bazie
+            </p>
+            <div className="iqJ-scenario-list">
+              {filteredBank.map((definition, index) => (
+                <button
+                  type="button"
+                  key={definition.id}
+                  className="iqJ-scenario"
+                  onClick={() => newScenario(definition)}
+                >
+                  <span>{mode === "challenge" ? `Sytuacja ${index + 1}` : definition.title}</span>
+                  <small>
+                    {definition.revision === 2 ? "Nowe · " : ""}
+                    {roleLabels[definition.role]}
+                    {mode === "learn" ? ` · ${definition.contextLabel}` : ""}
+                  </small>
+                </button>
+              ))}
+              {!filteredBank.length && <p>Brak pasujących sytuacji. Zmień frazę lub pozycję.</p>}
+            </div>
+          </>
+        )}
       </dialog>
       <dialog
         className="iqJ-dialog iqJ-help"
@@ -1271,140 +1285,146 @@ export function FootballIQJourney({
         onCancel={() => setHelp(false)}
         onClose={() => setHelp(false)}
       >
-        <div className="iqJ-dialog-header">
-          <h2 id="iqJ-help-title">Jedna decyzja naraz</h2>
-          <button
-            type="button"
-            className="iqJ-icon"
-            aria-label="Zamknij pomoc"
-            onClick={() => setHelp(false)}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <p>
-          {mode === "learn"
-            ? "Dotknij partnera, aby podać. Przy ruchu dotknij jednej z zaznaczonych przestrzeni."
-            : "Dotknij partnera, aby podać. Przy ruchu wskaż samodzielnie miejsce na boisku."}
-        </p>
-        <p>
-          {mode === "learn"
-            ? "W nowych akcjach wybierz tor podania, a potem partnera. Po stracie wybierz doskok albo powrót do obrony."
-            : "Rodzaj podania wybierasz przyciskami. Po stracie także sam wskazujesz miejsce reakcji."}
-        </p>
-        <p>
-          Po wyborze zobaczysz reakcję zawodników i kolejne zadanie. Po końcu odtworzysz własną
-          akcję i sprawdzisz konkretne decyzje.
-        </p>
-        <p>
-          {mode === "learn"
-            ? "Wskazówka jest dostępna na żądanie."
-            : "Ten tryb nie pokazuje podpowiedzi ani oceny w trakcie akcji."}
-        </p>
-        {(mode === "learn" || session.outcome) && (
-          <p className="iqJ-help-focus">Cel: {session.definition.focus}</p>
+        {help && (
+          <>
+            <div className="iqJ-dialog-header">
+              <h2 id="iqJ-help-title">Jedna decyzja naraz</h2>
+              <button
+                type="button"
+                className="iqJ-icon"
+                aria-label="Zamknij pomoc"
+                onClick={() => setHelp(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p>
+              {mode === "learn"
+                ? "Dotknij partnera, aby podać. Przy ruchu dotknij jednej z zaznaczonych przestrzeni."
+                : "Dotknij partnera, aby podać. Przy ruchu wskaż samodzielnie miejsce na boisku."}
+            </p>
+            <p>
+              {mode === "learn"
+                ? "W nowych akcjach wybierz tor podania, a potem partnera. Po stracie wybierz doskok albo powrót do obrony."
+                : "Rodzaj podania wybierasz przyciskami. Po stracie także sam wskazujesz miejsce reakcji."}
+            </p>
+            <p>
+              Po wyborze zobaczysz reakcję zawodników i kolejne zadanie. Po końcu odtworzysz własną
+              akcję i sprawdzisz konkretne decyzje.
+            </p>
+            <p>
+              {mode === "learn"
+                ? "Wskazówka jest dostępna na żądanie."
+                : "Ten tryb nie pokazuje podpowiedzi ani oceny w trakcie akcji."}
+            </p>
+            {(mode === "learn" || session.outcome) && (
+              <p className="iqJ-help-focus">Cel: {session.definition.focus}</p>
+            )}
+            <details>
+              <summary>Historia i kopie IQ</summary>
+              <p>
+                Próby i niedokończona akcja są zapisywane lokalnie na tym urządzeniu. Limit historii
+                to 100 prób; starsze wyniki nie są automatycznie usuwane. Kopię w chmurze możesz
+                osobno zapisać w profilu.
+              </p>
+              <button type="button" className="iqJ-button" onClick={exportBackup}>
+                Pobierz kopię IQ
+              </button>
+              <label className="iqJ-field">
+                Przywróć kopię IQ JSON
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) void importBackup(file);
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="iqJ-button"
+                disabled={!historyOwner}
+                onClick={async () => {
+                  const owner = historyOwner;
+                  setRawDownloaded(null);
+                  try {
+                    if (!owner) return;
+                    const snapshot = rawJourneyData(owner);
+                    const result = await downloadText(
+                      "BallWise-IQ-surowa-kopia.json",
+                      JSON.stringify(
+                        { schema: "ballwise.iq.raw.v1", ...snapshot, pendingAttempt },
+                        null,
+                        2,
+                      ),
+                      "application/json",
+                      owner,
+                    );
+                    if (activeOwner.current !== owner) return;
+                    if (result === "delivered") setRawDownloaded(snapshot);
+                    setClearConfirmed(false);
+                    setBackupNote(
+                      result === "delivered"
+                        ? "Przekazano surową kopię. Sprawdź plik przed wyczyszczeniem zapisu."
+                        : "Anulowano przekazanie kopii. Czyszczenie pozostaje zablokowane.",
+                    );
+                  } catch (error) {
+                    if (activeOwner.current !== owner) return;
+                    setBackupNote(
+                      error instanceof Error
+                        ? error.message
+                        : "Nie udało się pobrać surowej kopii.",
+                    );
+                  }
+                }}
+              >
+                Pobierz surową kopię zapisu
+              </button>
+              <label className="iqJ-field">
+                <input
+                  type="checkbox"
+                  checked={clearConfirmed}
+                  onChange={(event) => setClearConfirmed(event.target.checked)}
+                />
+                Zachowałem surową kopię i chcę wyczyścić lokalną historię oraz zapis roboczy.
+              </label>
+              <button
+                type="button"
+                className="iqJ-button"
+                disabled={!historyOwner || !rawDownloaded || !clearConfirmed}
+                onClick={() => {
+                  try {
+                    if (!historyOwner || !rawDownloaded) return;
+                    clearJourneyDataAfterBackup(historyOwner, rawDownloaded);
+                    setHistory([]);
+                    saved.current = "";
+                    draftBlocked.current = false;
+                    setIncomingDraft(null);
+                    setDraftChanged(false);
+                    setRawDownloaded(null);
+                    setClearConfirmed(false);
+                    setSaveRevision((value) => value + 1);
+                    setBackupNote(
+                      "Lokalny zapis wyczyszczony. Bieżąca akcja zostanie zapisana ponownie.",
+                    );
+                  } catch (error) {
+                    setBackupNote(
+                      error instanceof Error ? error.message : "Nie udało się wyczyścić zapisu.",
+                    );
+                  }
+                }}
+              >
+                Wyczyść zapis po wykonaniu kopii
+              </button>
+              {backupNote && <p role="status">{backupNote}</p>}
+            </details>
+            <button type="button" className="iqJ-button iqJ-primary" onClick={() => setHelp(false)}>
+              Rozumiem
+            </button>
+          </>
         )}
-        <details>
-          <summary>Historia i kopie IQ</summary>
-          <p>
-            Próby i niedokończona akcja są zapisywane lokalnie na tym urządzeniu. Limit historii to
-            100 prób; starsze wyniki nie są automatycznie usuwane. Kopię w chmurze możesz osobno
-            zapisać w profilu.
-          </p>
-          <button type="button" className="iqJ-button" onClick={exportBackup}>
-            Pobierz kopię IQ
-          </button>
-          <label className="iqJ-field">
-            Przywróć kopię IQ JSON
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (file) void importBackup(file);
-              }}
-            />
-          </label>
-          <button
-            type="button"
-            className="iqJ-button"
-            disabled={!historyOwner}
-            onClick={async () => {
-              const owner = historyOwner;
-              setRawDownloaded(null);
-              try {
-                if (!owner) return;
-                const snapshot = rawJourneyData(owner);
-                const result = await downloadText(
-                  "BallWise-IQ-surowa-kopia.json",
-                  JSON.stringify(
-                    { schema: "ballwise.iq.raw.v1", ...snapshot, pendingAttempt },
-                    null,
-                    2,
-                  ),
-                  "application/json",
-                  owner,
-                );
-                if (activeOwner.current !== owner) return;
-                if (result === "delivered") setRawDownloaded(snapshot);
-                setClearConfirmed(false);
-                setBackupNote(
-                  result === "delivered"
-                    ? "Przekazano surową kopię. Sprawdź plik przed wyczyszczeniem zapisu."
-                    : "Anulowano przekazanie kopii. Czyszczenie pozostaje zablokowane.",
-                );
-              } catch (error) {
-                if (activeOwner.current !== owner) return;
-                setBackupNote(
-                  error instanceof Error ? error.message : "Nie udało się pobrać surowej kopii.",
-                );
-              }
-            }}
-          >
-            Pobierz surową kopię zapisu
-          </button>
-          <label className="iqJ-field">
-            <input
-              type="checkbox"
-              checked={clearConfirmed}
-              onChange={(event) => setClearConfirmed(event.target.checked)}
-            />
-            Zachowałem surową kopię i chcę wyczyścić lokalną historię oraz zapis roboczy.
-          </label>
-          <button
-            type="button"
-            className="iqJ-button"
-            disabled={!historyOwner || !rawDownloaded || !clearConfirmed}
-            onClick={() => {
-              try {
-                if (!historyOwner || !rawDownloaded) return;
-                clearJourneyDataAfterBackup(historyOwner, rawDownloaded);
-                setHistory([]);
-                saved.current = "";
-                draftBlocked.current = false;
-                setIncomingDraft(null);
-                setDraftChanged(false);
-                setRawDownloaded(null);
-                setClearConfirmed(false);
-                setSaveRevision((value) => value + 1);
-                setBackupNote(
-                  "Lokalny zapis wyczyszczony. Bieżąca akcja zostanie zapisana ponownie.",
-                );
-              } catch (error) {
-                setBackupNote(
-                  error instanceof Error ? error.message : "Nie udało się wyczyścić zapisu.",
-                );
-              }
-            }}
-          >
-            Wyczyść zapis po wykonaniu kopii
-          </button>
-          {backupNote && <p role="status">{backupNote}</p>}
-        </details>
-        <button type="button" className="iqJ-button iqJ-primary" onClick={() => setHelp(false)}>
-          Rozumiem
-        </button>
       </dialog>
     </section>
   );

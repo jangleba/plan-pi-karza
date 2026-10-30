@@ -9,9 +9,9 @@ import {
   professionalSessionTitle,
 } from "@/lib/loadwise/labels";
 import { GOAL_LABELS } from "@/lib/loadwise/labels";
-import { buildPlanWeeks, computeWeekStats, validatePlanWeeks } from "@/lib/loadwise/sessionRuntime";
+import { computeWeekStats, validatePlanWeeks } from "@/lib/loadwise/sessionRuntime";
 import { resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan, selectPlanWeeks } from "@/lib/loadwise/effectivePlanSelector";
 import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
 import { AppHeader } from "@/components/loadwise/ui";
 import { LabEntry } from "@/features/browser-lab/LabEntry";
@@ -171,7 +171,7 @@ function PlanScreen() {
   const { state, todayIso, todaySession, updateProfile } = useLoadwise();
   const plan = useMemo(
     () =>
-      resolveEffectivePlan(state.plan, state.modifications, {
+      selectEffectivePlan(state.plan, state.modifications, {
         profile: state.profile,
         readiness: state.readiness,
         completions: state.completions,
@@ -187,7 +187,7 @@ function PlanScreen() {
   const [switchingSeason, setSwitchingSeason] = useState(false);
   const autoWeekKeyRef = useRef<string | null>(null);
 
-  const weeks = useMemo(() => buildPlanWeeks(plan, profile), [plan, profile]);
+  const weeks = useMemo(() => selectPlanWeeks(plan, profile), [plan, profile]);
 
   useEffect(() => {
     if (weeks.length === 0) return;
@@ -295,8 +295,11 @@ function PlanScreen() {
   const hasHiddenBefore =
     (current?.days ?? []).some((d) => d.outsideActivePlan) && planStartDate !== null;
 
-  // Po wejściu i przy zmianie tygodnia przewiń ekran na górę.
+  // Router restores entry scroll. Only a week change needs a second scroll operation.
+  const previousWeek = useRef(activeWeek);
   useEffect(() => {
+    if (previousWeek.current === activeWeek) return;
+    previousWeek.current = activeWeek;
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [activeWeek]);
 

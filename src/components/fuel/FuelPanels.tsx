@@ -97,6 +97,7 @@ export function FuelPanels(p: Props) {
   const [clock, setClock] = useState("");
   const [minutes, setMinutes] = useState("");
   const [search, setSearch] = useState("");
+  if (p.panel === null) return null;
   const addition = completeMeal(
     p.parsed.ids.map((foodId) => ({ foodId, grams: FOOD_BY_ID[foodId].unitGrams })),
     p.preferences,

@@ -12,7 +12,7 @@ import {
   buildEvidence,
   buildTimeline,
 } from "@/lib/progress/dashboard";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 
 export const Route = createFileRoute("/_tabs/postep")({
   component: ProgressScreen,
@@ -47,7 +47,7 @@ function ProgressScreen() {
   const [tab, setTab] = useState<TabId>("dashboard");
   const effectivePlan = useMemo(
     () =>
-      resolveEffectivePlan(state.plan, state.modifications, {
+      selectEffectivePlan(state.plan, state.modifications, {
         profile: state.profile,
         readiness: state.readiness,
         completions: state.completions,

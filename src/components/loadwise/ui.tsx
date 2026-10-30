@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import type { Intensity, DayType } from "@/lib/loadwise/types";
 import { ShieldAlert, User } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
 
 /** Avatar w prawym górnym rogu — wejście do profilu, konta i ustawień. */
 export function ProfileAvatar() {
+  const router = useRouter();
   const { state } = useLoadwise();
   const initials = (state.profile?.name ?? "")
     .trim()
@@ -19,6 +20,9 @@ export function ProfileAvatar() {
     <Link
       to="/profil"
       preload="intent"
+      onPointerDown={() => {
+        void router.preloadRoute({ to: "/profil" }).catch(() => undefined);
+      }}
       aria-label="Profil, konto i ustawienia"
       className="flex h-10 w-10 items-center justify-center rounded-full border border-border/75 bg-card text-sm font-semibold text-foreground shadow-[0_8px_22px_-17px_oklch(0.18_0.06_255/0.45)] transition-[transform,border-color] duration-200 active:scale-[0.96]"
     >
@@ -127,4 +131,3 @@ export function Disclaimer() {
     </div>
   );
 }
-

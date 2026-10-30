@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CalendarDays, Check, ChevronRight, Move, ScanLine } from "lucide-react";
@@ -28,7 +28,7 @@ import { ModifySheet, type ModificationChoice } from "@/components/loadwise/Modi
 import { ProfileAvatar } from "@/components/loadwise/ui";
 import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 import { TodaySessionCard } from "@/components/loadwise/TodaySessionCard";
 
@@ -393,7 +393,7 @@ function StartScreen() {
   const profile = state.profile;
   const effectivePlan = useMemo(
     () =>
-      resolveEffectivePlan(state.plan, state.modifications, {
+      selectEffectivePlan(state.plan, state.modifications, {
         profile,
         readiness: state.readiness,
         completions: state.completions,
@@ -401,10 +401,11 @@ function StartScreen() {
     [state.plan, state.modifications, profile, state.readiness, state.completions],
   );
   const commandPlan = useMemo(
-    () => resolveEffectivePlan(state.plan, state.modifications),
+    () => selectEffectivePlan(state.plan, state.modifications),
     [state.plan, state.modifications],
   );
   const navigate = useNavigate();
+  const router = useRouter();
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
@@ -545,7 +546,7 @@ function StartScreen() {
 
   async function handleRemovedStimulus(removed: SessionDay) {
     const decision = decideRemovedSession({
-      effectivePlan: resolveEffectivePlan(state.plan, state.modifications),
+      effectivePlan: selectEffectivePlan(state.plan, state.modifications),
       removed,
       todayIso,
       profile: activeProfile,
@@ -816,6 +817,11 @@ function StartScreen() {
             plan={effectivePlan}
             completions={state.completions}
             todayIso={todayIso}
+            onPrepare={(date, slot) => {
+              void router
+                .preloadRoute({ to: "/sesja/$date", params: { date }, search: { slot } })
+                .catch(() => undefined);
+            }}
             onOpen={(date, slot) =>
               void navigate({ to: "/sesja/$date", params: { date }, search: { slot } })
             }
@@ -886,6 +892,12 @@ function StartScreen() {
             <div className="space-y-3">
               <button
                 type="button"
+                onPointerDown={() => {
+                  void Promise.all([
+                    router.preloadRoute({ to: "/lab" }),
+                    import("@/features/browser-lab/BrowserLab"),
+                  ]).catch(() => undefined);
+                }}
                 onClick={() => navigate({ to: "/lab" })}
                 className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
               >
@@ -908,6 +920,9 @@ function StartScreen() {
 
               <button
                 type="button"
+                onPointerDown={() => {
+                  void router.preloadRoute({ to: "/reakcja" }).catch(() => undefined);
+                }}
                 onClick={() => navigate({ to: "/reakcja" })}
                 className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
               >

@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { billingEnforced, useBilling } from "./BillingProvider";
 import { hasAccess } from "./model";
 import { activeSessionForRoute } from "@/lib/loadwise/activeSession";
@@ -29,7 +29,7 @@ export function BillingGate({ children }: { children: ReactNode }) {
   // entry points stay gated; pending writes sync in LoadwiseProvider independently.
   const requested = /^\/sesja\/(\d{4}-\d{2}-\d{2})$/.exec(path)?.[1];
   if (requested) {
-    const plan = resolveEffectivePlan(state.plan, state.modifications, {
+    const plan = selectEffectivePlan(state.plan, state.modifications, {
       profile: state.profile,
       readiness: state.readiness,
       completions: state.completions,

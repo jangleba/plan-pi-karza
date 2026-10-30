@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppLaunchScreen } from "@/components/loadwise/AppLaunchScreen";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useInstantBack, useDelayedFlag } from "@/lib/loadwise/uiHooks";
-import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
+import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { activeSessionForRoute, isActiveSessionWithinGrace } from "@/lib/loadwise/activeSession";
 import { repairRuntimeSpeedDay } from "@/lib/loadwise/runtimeSpeedRepair";
 import { professionalSessionTitle } from "@/lib/loadwise/labels";
@@ -88,7 +88,7 @@ function SessionDetail() {
     if (!authLoading && !user) navigate({ to: "/auth", replace: true });
   }, [authLoading, user, navigate]);
 
-  const resolvedPlan = resolveEffectivePlan(state.plan, state.modifications, {
+  const resolvedPlan = selectEffectivePlan(state.plan, state.modifications, {
     profile: state.profile,
     readiness: state.readiness,
     completions: state.completions,
@@ -107,6 +107,28 @@ function SessionDetail() {
   const stillLoading = !hydrated;
   const showSkeleton = useDelayedFlag(stillLoading);
 
+  const effectiveDay = resolvedPlan.find((item) => item.date === date) ?? day;
+  const primary = useMemo(
+    () =>
+      effectiveDay && state.profile && hydrated
+        ? repairRuntimeSpeedDay(effectiveDay, state.profile, {
+            today: todayIso,
+            completions: state.completions,
+            modifications: state.modifications,
+            plan: state.plan,
+          })
+        : null,
+    [
+      effectiveDay,
+      state.profile,
+      hydrated,
+      todayIso,
+      state.completions,
+      state.modifications,
+      state.plan,
+    ],
+  );
+
   if (authLoading || !user) {
     return <AppLaunchScreen />;
   }
@@ -119,7 +141,7 @@ function SessionDetail() {
     );
   }
 
-  if (!day || !state.profile) {
+  if (!day || !state.profile || !primary) {
     // Dane dotarły, ale sesji nie ma — czytelny stan błędu zamiast wiszącego loadera.
     return (
       <SessionScreenShell onBack={goBack}>
@@ -141,17 +163,6 @@ function SessionDetail() {
   const swapMod = mods.find((m) => m.type === "swap");
   const addMods = mods.filter((m) => m.type === "add");
   const selectedAdd = addMods.find((item) => item.id === mod) ?? null;
-
-  // Sesja główna: zamieniona (jeśli jest) lub zaplanowana.
-  const effectiveDay = resolvedPlan.find((item) => item.date === date) ?? day;
-  // Ostatnia bariera przed runnerem: ekran nie zależy od powodzenia zapisu
-  // migracji i nigdy nie dostaje historycznie uciętego slotu sprintowego.
-  const primary = repairRuntimeSpeedDay(effectiveDay, state.profile, {
-    today: todayIso,
-    completions: state.completions,
-    modifications: state.modifications,
-    plan: state.plan,
-  });
 
   let session: SessionDay = selectedAdd
     ? ([primary, primary.secondSession].find((item) => item?.dbId === selectedAdd.session.dbId) ??

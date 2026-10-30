@@ -6,7 +6,7 @@ import { useRouter } from "@tanstack/react-router";
  * Dzięki temu unikamy migania loadera przy szybkim ładowaniu danych —
  * pusty/skeletonowy ekran pokazuje się tylko, gdy faktycznie trzeba czekać.
  */
-export function useDelayedFlag(active: boolean, delay = 280): boolean {
+export function useDelayedFlag(active: boolean, delay = 80): boolean {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     if (!active) {

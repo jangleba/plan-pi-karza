@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { resolveEffectivePlan } from "@/lib/loadwise/effectivePlan";
@@ -96,21 +96,23 @@ export function ModifySheet({
     }
   }
 
+  const result = useMemo(
+    () =>
+      open && profile && step === "proposals"
+        ? buildProposals(
+            resolveEffectivePlan(state.plan, state.modifications),
+            profile,
+            date,
+            null,
+            choice,
+            place,
+            time,
+            context,
+          )
+        : null,
+    [open, profile, step, state.plan, state.modifications, date, choice, place, time, context],
+  );
   if (!profile) return null;
-
-  const result =
-    step === "proposals"
-      ? buildProposals(
-          resolveEffectivePlan(state.plan, state.modifications),
-          profile,
-          date,
-          null,
-          choice,
-          place,
-          time,
-          context ?? "primary",
-        )
-      : null;
 
   return (
     <Dialog open={open} onOpenChange={close}>

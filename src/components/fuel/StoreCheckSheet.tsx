@@ -88,6 +88,7 @@ export function StoreCheckSheet({
       setPortionConfirmed(false);
     }
   }, [open]);
+  if (!open) return null;
   const nutrients = product?.nutriments;
   function fromLabel(event: React.FormEvent) {
     event.preventDefault();

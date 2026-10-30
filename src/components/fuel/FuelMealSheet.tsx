@@ -65,6 +65,7 @@ export function FuelMealSheet({
     setPortionScale(1);
     setGramsDrafts({});
   }, [draft]);
+  if (!draft) return null;
   const validAmounts = Object.values(gramsDrafts).every(
     (raw) =>
       raw.trim() !== "" && Number.isFinite(Number(raw)) && Number(raw) >= 1 && Number(raw) <= 2000,

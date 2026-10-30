@@ -10,11 +10,13 @@ export function TodaySessionCard({
   completions,
   todayIso,
   onOpen,
+  onPrepare,
 }: {
   plan: SessionDay[];
   completions: Record<string, SessionCompletion>;
   todayIso: string;
   onOpen: (date: string, slot: 1 | 2) => void;
+  onPrepare?: (date: string, slot: 1 | 2) => void;
 }) {
   const [, refresh] = useState(0);
   const summary = buildStartSessionSummary(plan, completions, todayIso);
@@ -86,6 +88,8 @@ export function TodaySessionCard({
         <Button
           type="button"
           className="mt-4 h-12 w-full rounded-full text-[15px]"
+          onPointerDown={() => onPrepare?.(target.session.date, target.slot)}
+          onFocus={() => onPrepare?.(target.session.date, target.slot)}
           onClick={() => onOpen(target.session.date, target.slot)}
         >
           {blocked ? "Sprawdź zalecenia" : active ? "Wróć do treningu" : "Otwórz trening"}

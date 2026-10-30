@@ -25,11 +25,25 @@ import type { AerialAnimation, AerialCalibrations } from "./aerialClips";
 export const PLAYER_HEIGHT = 6.8;
 export type AdditionalAnimation = "idle" | "walking" | "soccer-pass" | "receive" | AerialAnimation;
 type AdditionalClips = Partial<Record<AdditionalAnimation, AnimationClip>>;
-const additionalUrls = import.meta.glob<string>("./assets/{idle,walking,soccer-pass,receive}.fbx", {
+const originalUrls = import.meta.glob<string>("./assets/{idle,walking,soccer-pass,receive}.fbx", {
   eager: true,
   query: "?url",
   import: "default",
 });
+const compactUrls = import.meta.glob<string>(
+  "./assets/{idle,walking,soccer-pass,receive}.clip.json",
+  {
+    eager: true,
+    query: "?url",
+    import: "default",
+  },
+);
+const additionalUrls = {
+  ...originalUrls,
+  ...Object.fromEntries(
+    Object.entries(compactUrls).map(([path, url]) => [path.replace(".clip.json", ".fbx"), url]),
+  ),
+};
 const aerialUrls = import.meta.glob<string>("./assets/{long-kick,header}.fbx", {
   eager: true,
   query: "?url",
@@ -178,7 +192,10 @@ function loadOptionalAnimations(
   void attachOptionalClips(
     asset,
     additionalUrls,
-    async (url) => loader.parse(await readAnimationFile(url, signal), ""),
+    async (url) => {
+      const bytes = await readAnimationFile(url, signal);
+      return /\.json(?:\?|$)/.test(url) ? parseCompactAnimation(bytes) : loader.parse(bytes, "");
+    },
     signal,
   );
   const urls = Object.fromEntries(
@@ -200,6 +217,27 @@ function loadOptionalAnimations(
         .join(""),
     };
   });
+}
+
+/** A compact clip contains the original motion and bind height, without duplicate mesh data. */
+export function parseCompactAnimation(bytes: ArrayBuffer): Group {
+  const data = JSON.parse(new TextDecoder().decode(bytes));
+  if (
+    data.version !== 1 ||
+    !/^[a-f0-9]{64}$/.test(data.sourceSha256) ||
+    !Number.isFinite(data.hipsBindY) ||
+    !data.clip ||
+    !Array.isArray(data.clip.tracks) ||
+    !(data.clip.duration > 0)
+  )
+    throw new Error("Nieprawidłowy plik animacji.");
+  const source = new Group();
+  const hips = new Bone();
+  hips.name = "mixamorigHips";
+  hips.position.y = data.hipsBindY;
+  source.add(hips);
+  source.animations = [AnimationClip.parse(data.clip)];
+  return source;
 }
 
 export function prepareAdditionalClip(source: Group, target: Group, name: AdditionalAnimation) {

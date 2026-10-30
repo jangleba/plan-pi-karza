@@ -109,7 +109,7 @@
   letter-spacing: -0.035em;
 }
 .fuel-v4-hero {
-  animation: fuel-choice-in 0.2s ease-out;
+  animation: none;
 }
 .fuel-v4-hero h3 {
   font-size: 20px;

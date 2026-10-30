@@ -588,18 +588,25 @@ export const RECIPES: FuelRecipe[] = [
 export function findRecipe(id: string): FuelRecipe | undefined {
   return RECIPES.find((r) => r.id === id);
 }
-export function parsePantry(text: string): { ids: string[]; unknown: string[] } {
-  const normalized = normalizeFuelText(text);
-  const matched = new Set<string>();
-  let remaining = normalized;
-  const aliases = FOODS.flatMap((f) =>
-    f.aliases.map((alias) => ({ id: f.id, alias: normalizeFuelText(alias) })),
-  ).sort((a, b) => b.alias.length - a.alias.length);
-  for (const { id, alias } of aliases) {
-    const pattern = new RegExp(
+const PANTRY_ALIASES = FOODS.flatMap((food) =>
+  food.aliases.map((alias) => ({ id: food.id, alias: normalizeFuelText(alias) })),
+)
+  .sort((a, b) => b.alias.length - a.alias.length)
+  .map(({ id, alias }) => ({
+    id,
+    pattern: new RegExp(
       `(^|[^a-z])${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^a-z])`,
       "g",
-    );
+    ),
+  }));
+
+export function parsePantry(text: string): { ids: string[]; unknown: string[] } {
+  const normalized = normalizeFuelText(text);
+  if (!normalized) return { ids: [], unknown: [] };
+  const matched = new Set<string>();
+  let remaining = normalized;
+  for (const { id, pattern } of PANTRY_ALIASES) {
+    pattern.lastIndex = 0;
     if (pattern.test(remaining)) {
       matched.add(id);
       remaining = remaining.replace(pattern, " ");

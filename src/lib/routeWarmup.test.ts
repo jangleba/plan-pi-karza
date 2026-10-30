@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { scheduleCommonRouteWarmup } from "./routeWarmup";
+import { scheduleCommonRouteWarmup, scheduleRouteWarmup } from "./routeWarmup";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -79,5 +79,61 @@ describe("bounded common-route warmup", () => {
     work?.({ didTimeout: false, timeRemaining: () => 30 });
     expect(cancelIdle).toHaveBeenCalledWith(42);
     expect(preload).not.toHaveBeenCalled();
+  });
+});
+
+describe("serial application warmup", () => {
+  it("waits for one import to finish before preparing the next destination", async () => {
+    let finish!: () => void;
+    const first = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const preload = vi.fn((target: string) => (target === "plan" ? first : Promise.resolve()));
+    const cancel = scheduleRouteWarmup(["plan", "fuel"], preload);
+    await vi.advanceTimersByTimeAsync(2700);
+    expect(preload.mock.calls).toEqual([["plan"]]);
+    finish();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(preload.mock.calls).toEqual([["plan"], ["fuel"]]);
+    cancel();
+  });
+  it("does not continue a sequence after leaving the screen during an import", async () => {
+    let finish!: () => void;
+    const preload = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const cancel = scheduleRouteWarmup(["plan", "fuel"], preload);
+    await vi.advanceTimersByTimeAsync(700);
+    cancel();
+    finish();
+    await vi.runAllTimersAsync();
+    expect(preload).toHaveBeenCalledTimes(1);
+  });
+  it("gives pending user input priority without dropping the next destination", async () => {
+    const pending = vi.fn(() => true);
+    Object.defineProperty(navigator, "scheduling", {
+      configurable: true,
+      value: { isInputPending: pending },
+    });
+    const preload = vi.fn(async () => {});
+    const cancel = scheduleRouteWarmup(["plan"], preload);
+    await vi.advanceTimersByTimeAsync(700);
+    expect(preload).not.toHaveBeenCalled();
+    pending.mockReturnValue(false);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(preload).toHaveBeenCalledWith("plan");
+    cancel();
+    Reflect.deleteProperty(navigator, "scheduling");
+  });
+  it("retains normal navigation after one background import fails", async () => {
+    const preload = vi.fn(async (target: string) => {
+      if (target === "plan") throw new Error("network");
+    });
+    scheduleRouteWarmup(["plan", "fuel"], preload);
+    await vi.runAllTimersAsync();
+    expect(preload.mock.calls).toEqual([["plan"], ["fuel"]]);
   });
 });

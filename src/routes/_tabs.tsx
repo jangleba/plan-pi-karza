@@ -1,3 +1,4 @@
+import { AppRouteWarmup } from "@/components/loadwise/AppRouteWarmup";
 import { TrainingSyncStatus } from "@/components/loadwise/TrainingSyncStatus";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -52,6 +53,7 @@ function TabsLayout() {
         className="app-shell relative min-h-screen"
         style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
       >
+        <AppRouteWarmup />
         <TrainingSyncStatus />
         <Outlet />
         <BottomNav />

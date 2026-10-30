@@ -64,6 +64,8 @@ import {
 } from "@/lib/fuel/storeCheck";
 import type { SessionKind } from "@/lib/fuel/types";
 
+const EMPTY_RESTRICTIONS: string[] = [];
+
 type Speech = {
   lang: string;
   interimResults: boolean;
@@ -79,7 +81,7 @@ export function FuelWorkspace({
   userId,
   contexts,
   tomorrowMatch = false,
-  profileRestrictions = [],
+  profileRestrictions = EMPTY_RESTRICTIONS,
 }: {
   userId: string;
   contexts: FuelContext[];
@@ -120,31 +122,44 @@ export function FuelWorkspace({
   const request = useRef<AbortController | null>(null);
   const requestRevision = useRef(0);
   const lastTap = useRef(0);
-  const selected = data.selection?.date === localDate(now) ? data.selection.contextKey : undefined;
-  const planned =
-    selected === null ? null : chooseFuelContext(contexts, selected ?? null, localDate(now));
-  const context =
-    planned ??
-    manualFuelContext(
-      localDate(now),
-      data.selection?.manualKind ?? "football",
-      data.selection?.manualDurationMin ?? null,
-      data.selection?.manualLoad ?? "moderate",
+  const date = localDate(now);
+  const context = useMemo(() => {
+    const selected = data.selection?.date === date ? data.selection.contextKey : undefined;
+    const planned = selected === null ? null : chooseFuelContext(contexts, selected ?? null, date);
+    return (
+      planned ??
+      manualFuelContext(
+        date,
+        data.selection?.manualKind ?? "football",
+        data.selection?.manualDurationMin ?? null,
+        data.selection?.manualLoad ?? "moderate",
+      )
     );
-  const timing = resolveFuelTiming(context, data.timings[context.key]);
+  }, [contexts, data.selection, date]);
+  const timing = useMemo(
+    () => resolveFuelTiming(context, data.timings[context.key]),
+    [context, data.timings],
+  );
   const minutes = minutesToFuelStart(timing, now);
   const parsed = useMemo(() => parsePantry(text), [text]);
-  const recipes = practicalRecipes({
-    context,
-    timing,
-    now,
-    data,
-    pantry,
-    quick,
-    restrictions: profileRestrictions,
-  });
+  const recipes = useMemo(
+    () =>
+      practicalRecipes({
+        context,
+        timing,
+        now,
+        data,
+        pantry,
+        quick,
+        restrictions: profileRestrictions,
+      }),
+    [context, timing, now, data, pantry, quick, profileRestrictions],
+  );
   const hero = recipes.length ? recipes[recipeIndex % recipes.length] : null;
-  const restrictions = [...profileRestrictions, ...foodPreferenceTerms(data.preferences)];
+  const restrictions = useMemo(
+    () => [...profileRestrictions, ...foodPreferenceTerms(data.preferences)],
+    [profileRestrictions, data.preferences],
+  );
   const repeat = data.entries.find(
     (entry) =>
       entry.status === "eaten" &&

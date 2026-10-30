@@ -27,6 +27,7 @@ type Props = {
   activeTeachingId?: string;
   onTeachingSelect?: (id: string) => void;
   frameOverride?: PlaybackFrame;
+  frameSource?: () => PlaybackFrame;
   selectablePlayerIds?: string[];
   destinations?: { id: string; point: Point; label: string }[];
   onDestinationSelect?: (id: string) => void;
@@ -54,6 +55,7 @@ export function TacticalPitch({
   activeTeachingId,
   onTeachingSelect,
   frameOverride,
+  frameSource,
   selectablePlayerIds,
   destinations = [],
   onDestinationSelect,
@@ -64,6 +66,7 @@ export function TacticalPitch({
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
   const ballLabel = useRef<HTMLDivElement>(null);
+  const fallbackBall = useRef<SVGCircleElement>(null);
   const teachingLabels = useRef(new Map<string, HTMLButtonElement>());
   const highlightLabels = useRef(new Map<number, HTMLDivElement>());
   const playerLabels = useRef(new Map<string, HTMLButtonElement>());
@@ -82,6 +85,7 @@ export function TacticalPitch({
   );
   const latest = useRef({
     frame,
+    frameSource,
     actions,
     selectedPlayerId,
     interactive,
@@ -98,6 +102,7 @@ export function TacticalPitch({
   });
   latest.current = {
     frame,
+    frameSource,
     actions,
     selectedPlayerId,
     interactive,
@@ -115,12 +120,29 @@ export function TacticalPitch({
 
   function sync() {
     const api = scene.current;
-    if (!api) return;
     const state = latest.current;
+    const liveFrame = state.frameSource?.() ?? state.frame;
+    if (!api) {
+      // The lightweight pitch remains usable while the optional 3D assets arrive.
+      playerLabels.current.forEach((element, id) => {
+        const point = liveFrame.positions.get(id);
+        if (point) {
+          element.style.left = `${point.x}%`;
+          element.style.top = `${(point.y / 140) * 100}%`;
+        }
+      });
+      fallbackBall.current?.setAttribute("cx", String(liveFrame.ballVisual.x));
+      fallbackBall.current?.setAttribute("cy", String(liveFrame.ballVisual.y));
+      if (ballLabel.current) {
+        ballLabel.current.style.left = `${liveFrame.ballVisual.x}%`;
+        ballLabel.current.style.top = `${(liveFrame.ballVisual.y / 140) * 100}%`;
+      }
+      return;
+    }
     // Read geometry before changing label styles, avoiding a forced layout per frame.
     const hostWidth = host.current?.clientWidth ?? 0;
     api.update(
-      state.frame,
+      liveFrame,
       state.showGuidance ? state.actions : NO_ACTIONS,
       state.interactive && state.showGuidance ? state.selectedPlayerId : null,
       state.playing,
@@ -133,7 +155,7 @@ export function TacticalPitch({
       state.showGuidance,
     );
     playerLabels.current.forEach((element, id) => {
-      const point = state.frame.positions.get(id);
+      const point = liveFrame.positions.get(id);
       if (!point) return;
       const p = api.project(point, 7.5);
       element.style.left = `${p.x}px`;
@@ -173,7 +195,7 @@ export function TacticalPitch({
       element.style.top = `${projected.y}px`;
     });
     if (ballLabel.current) {
-      const p = api.project(state.frame.ballVisual, state.frame.ballHeight);
+      const p = api.project(liveFrame.ballVisual, liveFrame.ballHeight);
       ballLabel.current.style.left = `${p.x}px`;
       ballLabel.current.style.top = `${p.y}px`;
     }
@@ -211,7 +233,7 @@ export function TacticalPitch({
     let api: PitchScene | null = null;
     let observer: ResizeObserver | null = null;
     setStatus("loading");
-    latest.current.onReadyChange?.(false);
+    latest.current.onReadyChange?.(true);
     const fail = () => {
       if (cancelled) return;
       failed = true;
@@ -250,9 +272,10 @@ export function TacticalPitch({
     };
   }, [scenario.players, attempt]);
   useEffect(() => {
-    sync();
+    if (!(playing && frameSource)) sync();
   }, [
     frame,
+    frameSource,
     actions,
     selectedPlayerId,
     interactive,
@@ -268,8 +291,23 @@ export function TacticalPitch({
     destinations,
     showGuidance,
   ]);
+  useEffect(() => {
+    if (!playing || !frameSource) return;
+    let handle = 0,
+      cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      if (!document.hidden) sync();
+      handle = requestAnimationFrame(tick);
+    };
+    handle = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(handle);
+    };
+  }, [playing, frameSource, status]);
   const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
-    if (!interactive || status === "loading") return;
+    if (!interactive) return;
     const api = scene.current;
     if (!host.current) return;
     const bounds = host.current.getBoundingClientRect();
@@ -310,7 +348,7 @@ export function TacticalPitch({
       onClick={selectPoint}
     >
       <div className="bwiq-pitch-canvas" ref={host} />
-      {status === "fallback" && (
+      {status !== "ready" && (
         <>
           <svg
             viewBox="0 0 100 140"
@@ -330,32 +368,40 @@ export function TacticalPitch({
               <path d="M2 70H98M22 3V27H78V3M22 137V113H78V137" />
               <circle cx="50" cy="70" r="9" />
             </g>
-            <circle cx={frame.ballVisual.x} cy={frame.ballVisual.y} r="1.1" fill="white" />
+            <circle
+              ref={fallbackBall}
+              cx={frame.ballVisual.x}
+              cy={frame.ballVisual.y}
+              r="1.1"
+              fill="white"
+            />
           </svg>
-          <div
-            role="status"
-            style={{
-              position: "absolute",
-              top: 6,
-              left: 8,
-              right: 8,
-              zIndex: 5,
-              fontSize: 11,
-              pointerEvents: "none",
-            }}
-          >
-            Tryb uproszczony · akcja i wybory pozostają dostępne.
-            <button
-              type="button"
-              style={{ pointerEvents: "auto", marginLeft: 8 }}
-              onClick={(event) => {
-                event.stopPropagation();
-                setAttempt((n) => n + 1);
+          {status === "fallback" && (
+            <div
+              role="status"
+              style={{
+                position: "absolute",
+                top: 6,
+                left: 8,
+                right: 8,
+                zIndex: 5,
+                fontSize: 11,
+                pointerEvents: "none",
               }}
             >
-              Spróbuj boiska 3D
-            </button>
-          </div>
+              Tryb uproszczony · akcja i wybory pozostają dostępne.
+              <button
+                type="button"
+                style={{ pointerEvents: "auto", marginLeft: 8 }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setAttempt((n) => n + 1);
+                }}
+              >
+                Spróbuj boiska 3D
+              </button>
+            </div>
+          )}
         </>
       )}
       <div className="bwiq-pitch-legend">
@@ -367,7 +413,7 @@ export function TacticalPitch({
       {showGuidance &&
         highlights?.map((point, i) => {
           const p = scene.current?.project(point, 0.2);
-          return p || status === "fallback" ? (
+          return p || status !== "ready" ? (
             <div
               key={i}
               className={highlightGood ? "bwiq-highlight bwiq-highlight--good" : "bwiq-highlight"}
@@ -376,7 +422,7 @@ export function TacticalPitch({
                 else highlightLabels.current.delete(i);
               }}
               style={
-                status === "fallback"
+                status !== "ready"
                   ? { left: `${point.x}%`, top: `${(point.y / 140) * 100}%` }
                   : { left: p!.x, top: p!.y }
               }
@@ -385,12 +431,11 @@ export function TacticalPitch({
           ) : null;
         })}
       {showGuidance &&
-        status !== "loading" &&
         teachingMarkers.map((marker) => (
           <button
             key={marker.id}
             style={
-              status === "fallback"
+              status !== "ready"
                 ? { left: `${marker.point.x}%`, top: `${(marker.point.y / 140) * 100}%` }
                 : undefined
             }
@@ -410,13 +455,13 @@ export function TacticalPitch({
             <em>{marker.label}</em>
           </button>
         ))}
-      <div className={`bwiq-pitch-labels${status === "loading" ? " is-loading" : ""}`}>
+      <div className="bwiq-pitch-labels">
         {scenario.players.map((player) => (
           <button
             key={player.id}
             data-iq-player={player.id}
             style={
-              status === "fallback"
+              status !== "ready"
                 ? {
                     left: `${frame.positions.get(player.id)?.x ?? player.x}%`,
                     top: `${((frame.positions.get(player.id)?.y ?? player.y) / 140) * 100}%`,
@@ -433,7 +478,6 @@ export function TacticalPitch({
             }}
             disabled={
               !interactive ||
-              status === "loading" ||
               (!freeMovement && !!selectablePlayerIds && !selectablePlayerIds.includes(player.id))
             }
             aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
@@ -469,13 +513,12 @@ export function TacticalPitch({
           )}
       </div>
       {showGuidance &&
-        status !== "loading" &&
         destinations.map((destination) => (
           <button
             key={destination.id}
             data-iq-destination={destination.id}
             style={
-              status === "fallback"
+              status !== "ready"
                 ? { left: `${destination.point.x}%`, top: `${(destination.point.y / 140) * 100}%` }
                 : undefined
             }
@@ -493,11 +536,6 @@ export function TacticalPitch({
             }}
           />
         ))}
-      {status === "loading" && (
-        <div className="bwiq-model-status" role="status">
-          <span>Ładowanie zawodników…</span>
-        </div>
-      )}
     </div>
   );
 }
