@@ -184,10 +184,14 @@ describe("session route gates", () => {
       structuredSections: [sectionFixture("main", [{ id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" }])],
     })];
     await render();
+    expect(host.querySelector(".bw-training-hero")).not.toBeNull();
+    expect(host.querySelector(".bw-sprint-page")).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>(".bw-plan-group-trigger")!.click());
     const stage = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(button => button.textContent?.includes("Drille"))!;
     expect(stage.matches(":disabled")).toBe(false);
     await act(async () => stage.click());
     const panel = stage.closest(".bw-sprint-stage")!;
+    await act(async () => panel.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click());
     await act(async () => panel.querySelector<HTMLButtonElement>(".bw-technique-trigger")!.click());
     expect(panel.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
     const play = panel.querySelector<HTMLButtonElement>(".bw-animation-open")!;
@@ -211,7 +215,7 @@ describe("session route gates", () => {
     expect(host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')?.matches(":disabled")).toBe(true);
     expect(mocks.startSession).not.toHaveBeenCalled();
     expect(completionId()).toBeUndefined();
-    if (today !== "2026-09-29") expect(host.textContent).toContain("Podgląd jednostki z innego dnia");
+    if (today !== "2026-09-29") expect(host.textContent).toContain("Podgląd treningu z innego dnia");
   });
   it("waits for authentication and opens today's runner without forcing a check-in", async () => {
     mocks.auth.loading = true;

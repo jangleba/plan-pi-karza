@@ -1,5 +1,5 @@
-import { memo, useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronRight } from "lucide-react";
+import { memo, useEffect, useId, useState } from "react";
+import { Check, ChevronDown, ChevronRight, Footprints, Ruler, Wind, Zap } from "lucide-react";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -11,12 +11,10 @@ import {
 } from "@/lib/loadwise/sessionPresentation";
 import {
   buildSprintRunnerBlocks,
-  resolveSprintExerciseDetails,
   SPRINT_RUNNER_CONTAINER_CLASS,
   type SprintExerciseView,
 } from "@/lib/loadwise/sprintPresentation";
 import { WarmupCoach } from "../preparation/PreparationGuide";
-import { MovementBlueprint } from "../MovementBlueprint";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
 import { CourseSetup } from "./CourseSetup";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
@@ -54,7 +52,6 @@ function SprintExerciseRow({
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const exercise = view.exercise;
   const rest = restLabel(exercise);
-  const details = resolveSprintExerciseDetails(exercise);
   const equipmentNames = equipmentNamesFor(equipmentIds);
   if (getSkipGuide(exercise.exerciseId)) {
     return (
@@ -65,6 +62,7 @@ function SprintExerciseRow({
         done={done}
         onToggle={onToggle}
         canRecord={canRecord}
+        compact
       />
     );
   }
@@ -127,14 +125,14 @@ function SprintExerciseRow({
               </span>
             </div>
           )}
-          <ExerciseQuickGuide exercise={exercise} />
-          {!done && view.showSkipSetLabels && (
+          {expanded && <ExerciseQuickGuide exercise={exercise} />}
+          {expanded && !done && view.showSkipSetLabels && (
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
               Seria 1: dodatkowe odbicie na tej samej nodze podporowej, potem zmiana nóg. Seria 2:
               płynna wymiana nóg bez dodatkowego odbicia.
             </p>
           )}
-          {canRecord && !done && equipmentIds.length > 0 && (
+          {expanded && canRecord && !done && equipmentIds.length > 0 && (
             <button
               type="button"
               onClick={onUnavailable}
@@ -143,8 +141,8 @@ function SprintExerciseRow({
               Nie mam {equipmentNames.join(", ")}
             </button>
           )}
-          {rest && <SprintRestTimer label={rest} compact={!isMainSprint} />}
-          {canRecord && <ExercisePersonalNote exercise={exercise} />}
+          {expanded && rest && <SprintRestTimer label={rest} compact={!isMainSprint} />}
+          {expanded && canRecord && <ExercisePersonalNote exercise={exercise} />}
           {isMainSprint && (
             <button
               type="button"
@@ -158,68 +156,9 @@ function SprintExerciseRow({
               {done ? "Wykonane" : "Oznacz jako wykonane"}
             </button>
           )}
-          {expanded && (
-            <div className="mt-2 space-y-2 border-l border-border pl-3 text-xs">
-              {details.purpose && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Cel</div>
-                  <p className="mt-1 text-sm leading-relaxed text-foreground">{details.purpose}</p>
-                </div>
-              )}
-              {details.howTo && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Jak wykonać</div>
-                  <p className="mt-1 leading-relaxed text-foreground">{details.howTo}</p>
-                </div>
-              )}
-              {details.cues.length > 0 && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Wskazówki</div>
-                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {details.cues.map((cue, i) => (
-                      <li key={i}>{cue}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {details.errors.length > 0 && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Błędy</div>
-                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {details.errors.map((error, i) => (
-                      <li key={i}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {details.safety && (
-                <div>
-                  <div className="font-semibold text-muted-foreground">Bezpieczeństwo</div>
-                  <p className="mt-1 leading-relaxed text-foreground">{details.safety}</p>
-                </div>
-              )}
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div>
-                  <div className="font-semibold text-muted-foreground">Sprzęt</div>
-                  <p className="mt-1 leading-relaxed text-foreground">{details.equipment}</p>
-                </div>
-                <div>
-                  <div className="font-semibold text-muted-foreground">Zamiana bez sprzętu</div>
-                  <p className="mt-1 leading-relaxed text-foreground">
-                    {details.noEquipmentReplacement}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetailSheetOpen(true)}
-                className="text-[11px] font-semibold text-primary"
-              >
-                Otwórz pełne szczegóły ćwiczenia
-              </button>
-              <MovementBlueprint exercise={exercise} />
-            </div>
-          )}
+          {expanded && <button type="button" onClick={() => setDetailSheetOpen(true)} className="mt-3 text-xs font-semibold text-primary">
+            Pełne szczegóły ćwiczenia
+          </button>}
         </div>
       </div>
       <ExerciseDetailSheet
@@ -236,12 +175,14 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   date,
   session,
   canRecord = true,
+  autoStart = false,
   onFinish,
 }: {
   sections: TrainingSection[];
   date: string;
   session: SessionDay;
   canRecord?: boolean;
+  autoStart?: boolean;
   onFinish: () => void;
 }) {
   const { user } = useAuth();
@@ -267,9 +208,12 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   );
   const [lastToggle, setLastToggle] = useState<{ id: string; wasDone: boolean } | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const groupId = useId();
   const [finished, setFinished] = useState(false);
   useEffect(() => {
     setExpanded({});
+    setExpandedGroups({});
     setFinished(false);
     setLastToggle(null);
   }, [progressKey, fingerprint]);
@@ -322,33 +266,19 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   );
   const actionDisabled = started && !currentBlockCompleted;
 
+  const saveProgress = local.setValue;
+  useEffect(() => {
+    if (!autoStart || !canRecord || progress.started) return;
+    saveProgress(current => ({ ...progressForPrescription(current, fingerprint), started: true, fingerprint }));
+  }, [autoStart, canRecord, progress.started, fingerprint, saveProgress]);
+  const groups = [
+    { key: "preparation", title: "Przygotowanie", subtitle: "Rozgrzewka, technika i aktywacja", keys: ["ramp", "skip", "technical"], icon: Footprints },
+    { key: "main", title: "Część główna", subtitle: "Sprinty i kontrola ruchu", keys: ["plyo", "resisted", "main", "terminal"], icon: Zap },
+    { key: "cooldown", title: "Wyciszenie", subtitle: "Etap " + (blocks.find(block => block.key === "cooldown")?.index ?? "8") + " · zakończenie sesji", keys: ["cooldown"], icon: Wind },
+  ];
+
   return (
     <div className={`bw-sprint-session ${SPRINT_RUNNER_CONTAINER_CLASS}`}>
-      <div className="bw-sprint-goal">
-        <div className="bw-sprint-goal-label">Cel</div>
-        <div className="bw-sprint-goal-title">{session.goalOfSession || session.goalLabel}</div>
-        <div className="bw-sprint-goal-meta">
-          {session.durationMin} min · {session.intensity} intensywność
-        </div>
-        <details className="bw-sprint-session-info">
-          <summary>Sprzęt i relacja do meczu</summary>
-          <p>Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"}</p>
-          <p>Relacja MD: {mdRelation}</p>
-        </details>
-      </div>
-
-      <CourseSetup
-        key={progressKey}
-        exercises={sections.flatMap((section) =>
-          section.blocks.flatMap((block) => block.exercises),
-        )}
-      />
-      <SessionPreparation equipment={equipmentPool} />
-      {canRecord && <div className="mt-2 text-xs text-muted-foreground" role="status">
-        {local.available
-          ? "Oznaczenia ćwiczeń zachowane na urządzeniu."
-          : "Zapis na urządzeniu niedostępny — postęp pozostaje w otwartym ekranie."}
-      </div>}
       {canRecord && <CompletionUndo
         label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
         onUndo={() => {
@@ -365,13 +295,25 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
         }}
       />}
 
-      <div className="space-y-2">
-        <div className="px-1 text-xs text-muted-foreground">
-          Pełny trening · etap {currentBlockIdx + 1} z {blocks.length}
-        </div>
+      <div>
+        <div className="bw-plan-heading"><h2>Plan sesji</h2><span>{blocks.length} etapów</span></div>
+        <div className="bw-plan-groups">
+        {groups.map(group => {
+          const groupExpanded = expandedGroups[group.key] ?? (started && group.keys.includes(currentBlock?.key ?? ""));
+          const GroupIcon = group.icon;
+          const panelId = groupId + "-" + group.key;
+          return <section className="bw-plan-group" key={group.key}>
+            <button type="button" className="bw-plan-group-trigger" aria-expanded={groupExpanded} aria-controls={panelId}
+              onClick={() => setExpandedGroups(current => ({ ...current, [group.key]: !groupExpanded }))}>
+              <span className="bw-plan-group-icon"><GroupIcon aria-hidden="true" /></span>
+              <span className="bw-plan-group-copy"><strong>{group.title}</strong><small>{group.subtitle}</small></span>
+              <ChevronDown className="bw-plan-group-chevron" aria-hidden="true" />
+            </button>
+            {groupExpanded && <div id={panelId} className="bw-plan-group-panel">
         {blocks.map((block, index) => {
+          if (!group.keys.includes(block.key)) return null;
           const isCurrent = index === currentBlockIdx;
-          const isExpanded = expanded[block.key] ?? isCurrent;
+          const isExpanded = expanded[block.key] ?? (started && isCurrent);
           const exerciseCount = block.exercises.length;
           const completedCount = block.exercises.filter((exercise) => done[exercise.id]).length;
           return (
@@ -472,7 +414,20 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
             </div>
           );
         })}
+            </div>}
+          </section>;
+        })}
+        </div>
       </div>
+      <details className="bw-session-tools">
+        <summary><Ruler aria-hidden="true" />Sprzęt i przygotowanie</summary>
+        <div className="bw-session-tools-content">
+          <CourseSetup key={progressKey} exercises={sections.flatMap(section => section.blocks.flatMap(block => block.exercises))} />
+          <SessionPreparation equipment={equipmentPool} />
+          <p className="text-xs text-muted-foreground">Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"} · {mdRelation}</p>
+          {!local.available && <p className="text-xs text-muted-foreground">Postęp pozostaje w otwartym ekranie; zapis na urządzeniu jest niedostępny.</p>}
+        </div>
+      </details>
       {canRecord && <NextExercisePreview
         exercise={
           blocks
@@ -495,6 +450,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
               }
               if (currentBlockIdx < blocks.length - 1) {
                 setExpanded({});
+                setExpandedGroups({});
                 setCurrentBlockIdx((value) => value + 1);
                 return;
               }

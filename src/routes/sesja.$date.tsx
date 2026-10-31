@@ -34,6 +34,7 @@ import { StructuredSections } from "@/components/loadwise/session/GenericRunner"
 import { SprintStructuredSections } from "@/components/loadwise/session/SprintRunner";
 import { StrengthStructuredSections } from "@/components/loadwise/session/StrengthRunner";
 import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPanel";
+import { SprintSessionHeader } from "@/components/loadwise/session/SprintSessionHeader";
 import {
   ClubMonitoring,
   CompletionPanel,
@@ -270,16 +271,18 @@ function SessionDetail() {
 
   return (
     <div
-      className={`app-shell min-h-screen pb-[100px] ${strengthRunner ? "bw-training-page" : ""}`}
+      className={`app-shell min-h-screen pb-[100px] ${sprintRunner ? "bw-sprint-page" : strengthRunner ? "bw-training-page" : ""}`}
     >
+      {sprintRunner ? <SprintSessionHeader session={presentedSession} onBack={goBack} /> : (
       <SessionHeader
         session={presentedSession}
         strengthRunner={strengthRunner}
         isToday={isToday}
         onBack={goBack}
       />
+      )}
 
-      <div className="mt-5 space-y-3 px-5">
+      <div className={sprintRunner ? "bw-sprint-content" : "mt-5 space-y-3 px-5"}>
         {/* Sesje dnia — przełącznik gdy są dwie */}
         <SessionSlotSwitcher
           primary={primary}
@@ -290,7 +293,7 @@ function SessionDetail() {
         />
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
-        {shortNote && (!strengthRunner || session.loadLabelOverride || session.safetyNote) && (
+        {shortNote && ((!strengthRunner && !sprintRunner) || session.loadLabelOverride || session.safetyNote) && (
           <div className="soft-card bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
             {shortNote}
           </div>
@@ -303,11 +306,11 @@ function SessionDetail() {
 
         {strengthRunner && !completed && <StrengthExperienceSetup />}
 
-        {session.dayType === "match" ? (
+        {!sprintRunner && (session.dayType === "match" ? (
           <MatchStartPanel session={session} isToday={isToday} />
         ) : (
           <SessionStartPanel session={session} canStart={isToday} />
-        )}
+        ))}
 
         {/* Sprint previews keep disclosure/teaching controls usable; the runner gates recording. */}
         <fieldset className="min-w-0 space-y-3" disabled={!canExecute && !sprintRunner}>
@@ -388,6 +391,7 @@ function SessionDetail() {
               date={date}
               session={session}
               canRecord={canExecute}
+              autoStart={hasStarted && canExecute}
               onFinish={() => { if (canExecute) setShowSprintCompletion(true); }}
             />
           ) : strengthRunner ? (
@@ -414,6 +418,9 @@ function SessionDetail() {
             </>
           )}
         </fieldset>
+
+        {sprintRunner && !hasStarted && isToday && <div className="bw-sprint-start-panel"><SessionStartPanel session={session} canStart /></div>}
+        {sprintRunner && !isToday && !canExecute && <p className="bw-sprint-preview-note">Podgląd treningu z innego dnia. Możesz oglądać wszystkie ćwiczenia.</p>}
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
           <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">

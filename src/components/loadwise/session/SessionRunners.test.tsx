@@ -61,7 +61,7 @@ async function click(text: string) {
   await act(async () => button(text).click());
 }
 
-async function renderSprint(dbId = "session-1", canRecord = true, sections = sprintSectionsFixture()) {
+async function renderSprint(dbId = "session-1", canRecord = true, sections = sprintSectionsFixture(), openGroups = true) {
   await act(async () =>
     root.render(
       <SprintStructuredSections
@@ -73,6 +73,13 @@ async function renderSprint(dbId = "session-1", canRecord = true, sections = spr
       />,
     ),
   );
+  if (openGroups) for (const group of host.querySelectorAll<HTMLButtonElement>(".bw-plan-group-trigger")) {
+    if (group.getAttribute("aria-expanded") === "false") await act(async () => group.click());
+  }
+  if (openGroups) {
+    const currentStage = host.querySelector<HTMLButtonElement>(".bw-stage-current > .bw-stage-header");
+    if (currentStage?.getAttribute("aria-expanded") === "false") await act(async () => currentStage.click());
+  }
 }
 
 beforeEach(() => {
@@ -93,6 +100,25 @@ afterEach(async () => {
 });
 
 describe("session runners", () => {
+  it("starts with three compact groups and keeps all eight stages available without recording", async () => {
+    await renderSprint("session-1", false, sprintSectionsFixture(), false);
+    const groups = [...host.querySelectorAll<HTMLButtonElement>(".bw-plan-group-trigger")];
+    expect(groups.map(group => group.querySelector("strong")?.textContent)).toEqual(["Przygotowanie", "Część główna", "Wyciszenie"]);
+    expect(groups.every(group => group.getAttribute("aria-expanded") === "false")).toBe(true);
+    expect(host.querySelectorAll(".bw-stage-header")).toHaveLength(0);
+    expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(0);
+    for (const group of groups) await act(async () => group.click());
+    expect(host.querySelectorAll(".bw-stage-header")).toHaveLength(8);
+    expect([...host.querySelectorAll(".bw-stage-header")].every(stage => stage.getAttribute("aria-expanded") === "false")).toBe(true);
+    expect(window.localStorage.getItem(progressKey)).toBeNull();
+  });
+  it("opens the first group automatically only after the session authorizes recording", async () => {
+    await act(async () => root.render(<SprintStructuredSections sections={sprintSectionsFixture()} date="2026-09-29" session={sessionFixture()} canRecord autoStart onFinish={finish} />));
+    expect(host.querySelector(".bw-plan-group-trigger")?.getAttribute("aria-expanded")).toBe("true");
+    expect(button("Następny blok").disabled).toBe(true);
+    expect(JSON.parse(window.localStorage.getItem(progressKey)!).started).toBe(true);
+    expect(finish).not.toHaveBeenCalled();
+  });
   it("opens drills, instructions and an animation in preview without recording progress", async () => {
     const sections = sprintSectionsFixture();
     sections[1].blocks[0].exercises[0] = { id: "technical", exerciseId: "ankling", name: "Ankling", speedRole: "technical" };
@@ -105,6 +131,7 @@ describe("session runners", () => {
     await act(async () => drill.click());
     expect(drill.getAttribute("aria-expanded")).toBe("true");
     const stage = drill.closest(".bw-sprint-stage")!;
+    await act(async () => stage.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click());
     const instructions = stage.querySelector<HTMLButtonElement>(".bw-technique-trigger")!;
     await act(async () => instructions.click());
     expect(stage.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
@@ -125,6 +152,7 @@ describe("session runners", () => {
     await act(async () => skip.click());
     const card = skip.closest(".bw-sprint-stage")!.querySelector(".bw-skip-card")!;
     expect(card.querySelector<HTMLButtonElement>(".bw-skip-done")?.matches(":disabled")).toBe(true);
+    await act(async () => card.querySelector<HTMLButtonElement>(".bw-skip-title-trigger")!.click());
     const animation = card.querySelector<HTMLButtonElement>(".bw-animation-open")!;
     expect(animation.matches(":disabled")).toBe(false);
     await act(async () => animation.click());
@@ -133,12 +161,13 @@ describe("session runners", () => {
   });
   it("keeps sprint guidance visible after completing a non-skip exercise", async () => {
     await renderSprint();
+    await click("Przygotowanie");
     expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);
     await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.click());
     expect(host.querySelector('[aria-label="Wykonane"]')).not.toBeNull();
     expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);
   });
-  it("shows all four skip animation controls and short instructions without opening exercise details", async () => {
+  it("opens each skip's animation and short instruction from its compact row", async () => {
     window.localStorage.setItem(
       progressKey,
       JSON.stringify({ done: { ramp: true }, started: true, currentBlockIdx: 1 }),
@@ -150,6 +179,8 @@ describe("session runners", () => {
     expect(host.textContent).not.toContain("1 Z DODATKOWYM ODBICIEM");
     expect(host.textContent).not.toContain("Brak ilustracji");
     for (const card of cards) {
+      expect(card.querySelector(".bw-animation-open")).toBeNull();
+      await act(async () => card.querySelector<HTMLButtonElement>(".bw-skip-title-trigger")!.click());
       expect(card.querySelector(".bw-animation-open")?.textContent).toContain("Pokaż animację ruchu");
       expect(card.querySelector("iframe")).toBeNull();
       expect(card.querySelectorAll("li")).toHaveLength(3);
@@ -203,6 +234,7 @@ describe("session runners", () => {
   it("pauses, resumes, resets and cleans up the sprint rest timer", async () => {
     vi.useFakeTimers();
     await renderSprint();
+    await click("Przygotowanie");
     await click("Start");
     await act(async () => vi.advanceTimersByTime(1000));
     expect(host.querySelector('[role="timer"]')?.textContent).toBe("00:02");
