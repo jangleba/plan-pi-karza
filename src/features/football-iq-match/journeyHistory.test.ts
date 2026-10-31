@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { journeyBank } from "./journeyBank";
-import { chooseJourney, createJourney, journeyStep } from "./journeyEngine";
+import { chooseJourney, createJourney, createJourneyForRules, journeyStep } from "./journeyEngine";
 import {
   loadJourneyDraft,
   loadJourneyHistory,
@@ -22,8 +22,8 @@ function store() {
     },
   };
 }
-function finished() {
-  let s = createJourney(journeyBank[0]);
+function finished(rules: 3 | 4 = 4) {
+  let s = createJourneyForRules(journeyBank[0], rules);
   while (!s.outcome) {
     const choices = journeyStep(s).choices;
     const c = choices.find((c) => c.quality === "good") ?? choices[0];
@@ -34,7 +34,7 @@ function finished() {
 describe("IQ journey persistence", () => {
   it("keeps installed bank v1 history and drafts readable alongside the expanded bank", () => {
     const storage = store(),
-      session = finished();
+      session = finished(3);
     const attempt = { ...makeJourneyAttempt(session, "learn", "old"), bankVersion: "2026-10-15.1" };
     storage.data.set("ballwise:iq:journeys:v1:a", JSON.stringify([attempt]));
     expect(loadJourneyHistory("a", storage)).toEqual([attempt]);

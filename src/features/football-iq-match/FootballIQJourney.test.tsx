@@ -7,7 +7,7 @@ import type { TacticalPitch } from "./TacticalPitch";
 import { FootballIQJourney } from "./FootballIQJourney";
 import { journeyBank } from "./journeyBank";
 import { chooseJourney, createJourney, journeyStep, journeyPointChoice } from "./journeyEngine";
-import { loadJourneyHistory } from "./journeyHistory";
+import { loadJourneyHistory, makeJourneyAttempt, saveJourneyAttempt } from "./journeyHistory";
 import type { JourneySession } from "./journeyTypes";
 const exports = vi.hoisted(() => ({ deliver: vi.fn() }));
 vi.mock("@/lib/loadwise/deliverExportFile", () => ({ deliverExportFile: exports.deliver }));
@@ -219,6 +219,13 @@ describe("individual IQ screen", () => {
       });
     }
     expect(host.textContent).toContain("Moja akcja");
+    const quality = host.querySelector('[aria-label="Jakość decyzji"]')!;
+    expect(quality.textContent).toContain(
+      `Trafne: ${plan.decisions.filter((d) => d.quality === "good").length}`,
+    );
+    expect(quality.textContent).toContain(
+      `Błędy: ${plan.decisions.filter((d) => d.quality === "error").length}`,
+    );
     expect(loadJourneyHistory("account-a")).toHaveLength(1);
     await clickText("Moja akcja");
     expect(loadJourneyHistory("account-a")).toHaveLength(1);
@@ -284,13 +291,31 @@ describe("individual IQ screen", () => {
       '[aria-label="Wybierz sytuację i rolę"]',
     )!;
     await act(async () => trigger.click());
-    expect(host.textContent).toContain("120 scenariuszy");
+    expect(host.textContent).toContain("40 tematów · 120 wariantów");
     const select = host.querySelector("select")!;
     await act(async () => {
       select.value = "all";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(host.textContent).toContain("480 scenariuszy");
+    expect(host.textContent).toContain("160 tematów · 480 wariantów");
     expect(host.querySelectorAll(".iqJ-scenario")).toHaveLength(480);
+  });
+  it("opens another task on a later visit when the previous action was already completed", async () => {
+    const first = journeyBank.find((d) => d.role === "six" && d.revision === 2)!;
+    let previous = createJourney(first);
+    while (!previous.outcome) {
+      const choices = journeyStep(previous).choices;
+      previous = chooseJourney(
+        previous,
+        (choices.find((c) => c.quality === "good") ?? choices[0]).id,
+        2,
+      );
+    }
+    saveJourneyAttempt("account-a", makeJourneyAttempt(previous, "learn", "completed"));
+    await act(async () =>
+      root.render(<FootballIQJourney position="midfielder" historyOwner="account-a" />),
+    );
+    expect(bridge.props?.scenario.id).not.toBe(first.id);
+    expect(loadJourneyHistory("account-a")).toHaveLength(1);
   });
 });

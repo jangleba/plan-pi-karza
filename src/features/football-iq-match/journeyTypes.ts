@@ -101,6 +101,8 @@ export type JourneyDecision = {
   decisionSeconds: number;
 };
 export type JourneySession = {
+  /** Absent in saved pre-22 engines; their replays retain the original rules. */
+  rulesVersion?: 4;
   definition: JourneyDefinition;
   scenario: Scenario;
   players: MatchPlayer[];

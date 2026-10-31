@@ -3,6 +3,7 @@ import { journeyBank, rolesForPosition } from "./journeyBank";
 import {
   chooseJourney,
   createJourney,
+  createJourneyForRules,
   journeyDuration,
   journeyCameraPoints,
   journeyOffside,
@@ -120,8 +121,9 @@ describe("IQ individual action bank", () => {
         visit(next);
       }
     }
-    journeyBank.filter((d) => !d.revision).forEach((d) => visit(createJourney(d)));
-    expect(branches).toBeGreaterThan(5000);
+    for (const rules of [3, 4] as const)
+      journeyBank.filter((d) => !d.revision).forEach((d) => visit(createJourneyForRules(d, rules)));
+    expect(branches).toBeGreaterThan(9000);
   });
   it("uses the supplied pass animation windup before launching the ball", () => {
     const s = createJourney(journeyBank[0]),

@@ -12,13 +12,14 @@ import {
   X,
 } from "lucide-react";
 import { TacticalPitch } from "./TacticalPitch";
-import { journeyBank, journeyTopicCount, roleLabels, rolesForPosition } from "./journeyBank";
+import { journeyBank, roleLabels, rolesForPosition } from "./journeyBank";
 import { deliveryLabels } from "./ballFlight";
 import type { BallDelivery } from "./ballFlight";
 import { nextPractice, practiceToday } from "./journeyPractice";
 import {
   chooseJourney,
   createJourney,
+  createJourneyForRules,
   journeyDuration,
   journeyCameraPoints,
   journeyFrame,
@@ -245,12 +246,12 @@ export function FootballIQJourney({
   );
   const currentChoices = useMemo(() => {
     if (!decision || view !== "review") return null;
-    let base = createJourney(session.definition);
+    let base = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
     session.decisions.slice(0, reviewIndex).forEach((d) => {
       base = chooseJourney(base, d.choiceId, d.decisionSeconds);
     });
     return { base, step: journeyStep(base) };
-  }, [decision, view, session.definition, session.decisions, reviewIndex]);
+  }, [decision, view, session.definition, session.decisions, session.rulesVersion, reviewIndex]);
   const reviewActions = useMemo<PlannedAction[]>(() => {
     if (view !== "review" || !decision || !currentChoices || transport) return EMPTY_ACTIONS;
     const c = comparing
@@ -300,7 +301,11 @@ export function FootballIQJourney({
     setBackupNote("");
     setNote("");
     try {
-      setHistory(loadJourneyHistory(historyOwner));
+      const previous = loadJourneyHistory(historyOwner);
+      setHistory(previous);
+      if (initialScenario === undefined && previous.some((a) => a.mode === "learn")) {
+        setSession(createJourney(nextPractice(poolFor(position), previous, "learn", initial)));
+      }
     } catch {
       setNote("Historia jest chwilowo niedostępna. Bieżąca akcja pozostaje dostępna.");
     }
@@ -321,7 +326,7 @@ export function FootballIQJourney({
     }
     setLoadedOwner(historyOwner);
     setBooted(true);
-  }, [historyOwner, initial]);
+  }, [historyOwner, initial, initialScenario, position]);
   useEffect(() => {
     const applied = (event: Event) => {
       const detail = (event as CustomEvent<{ userId?: string; module?: string; key?: string }>)
@@ -647,6 +652,10 @@ export function FootballIQJourney({
       )
     : null;
   const totalDone = history.filter((a) => a.mode === mode).length;
+  const decisionCounts = session.decisions.reduce(
+    (counts, d) => ({ ...counts, [d.quality]: counts[d.quality] + 1 }),
+    { good: 0, possible: 0, error: 0 },
+  );
   const stepCount = session.definition.steps.length;
   const footerTitle =
     view === "summary"
@@ -974,6 +983,10 @@ export function FootballIQJourney({
         )}
         {view === "summary" && (
           <>
+            <p className="iqJ-series" aria-label="Jakość decyzji">
+              Trafne: {decisionCounts.good} · Warunkowe: {decisionCounts.possible} · Błędy:{" "}
+              {decisionCounts.error}
+            </p>
             <p className="iqJ-series">
               {practiceToday(history, mode) < 3
                 ? `Krótka seria · ${practiceToday(history, mode)}/3`
@@ -1255,7 +1268,8 @@ export function FootballIQJourney({
               />
             </label>
             <p className="iqJ-bank-count">
-              {filteredBank.length} scenariuszy · {journeyTopicCount} wątków w całej bazie
+              {new Set(filteredBank.map((d) => d.topicId)).size} tematów · {filteredBank.length}{" "}
+              wariantów
             </p>
             <div className="iqJ-scenario-list">
               {filteredBank.map((definition, index) => (

@@ -1,5 +1,5 @@
 import { JOURNEY_BANK_VERSION, SUPPORTED_JOURNEY_BANK_VERSIONS, journeyBank } from "./journeyBank";
-import { chooseJourney, createJourney, journeyVerdict } from "./journeyEngine";
+import { chooseJourney, createJourneyForRules, journeyVerdict } from "./journeyEngine";
 import type { JourneyAttempt, JourneyMode, JourneySession } from "./journeyTypes";
 
 export type JourneyDraft = {
@@ -53,7 +53,9 @@ function validBase(v: unknown): v is JourneyDraft {
     v.choices.every(validChoice) &&
     v.choices.every(
       (c) =>
-        !c.id.startsWith("free:") || (v.bankVersion === "2026-10-15.3" && v.mode === "challenge"),
+        !c.id.startsWith("free:") ||
+        (["2026-10-15.3", JOURNEY_BANK_VERSION].includes(v.bankVersion as string) &&
+          v.mode === "challenge"),
     )
   );
 }
@@ -72,7 +74,10 @@ function validAttempt(v: unknown): v is JourneyAttempt {
 }
 export function restoreJourney(value: JourneyDraft): JourneySession {
   if (!validBase(value)) throw new Error("Nieobsługiwana wersja zapisu akcji.");
-  let session = createJourney(definitionById.get(value.scenarioId)!);
+  let session = createJourneyForRules(
+    definitionById.get(value.scenarioId)!,
+    value.bankVersion === JOURNEY_BANK_VERSION ? 4 : 3,
+  );
   for (const choice of value.choices) session = chooseJourney(session, choice.id, choice.seconds);
   return session;
 }
@@ -104,7 +109,7 @@ export function makeJourneyAttempt(
   if (!session.outcome) throw new Error("Nie zapisujemy nieukończonej akcji jako wyniku.");
   return {
     version: 1,
-    bankVersion: JOURNEY_BANK_VERSION,
+    bankVersion: session.rulesVersion === 4 ? JOURNEY_BANK_VERSION : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     role: session.definition.role,
@@ -196,7 +201,7 @@ export function makeJourneyDraft(
 ): JourneyDraft {
   return {
     version: 1,
-    bankVersion: JOURNEY_BANK_VERSION,
+    bankVersion: session.rulesVersion === 4 ? JOURNEY_BANK_VERSION : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     mode,

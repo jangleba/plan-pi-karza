@@ -57,6 +57,13 @@ export function isJourneyDefensive(definition: JourneyDefinition) {
   return defensiveKinds.has(definition.steps[0]);
 }
 export function createJourney(definition: JourneyDefinition): JourneySession {
+  return createJourneyForRules(definition, 4);
+}
+
+export function createJourneyForRules(
+  definition: JourneyDefinition,
+  rulesVersion: 3 | 4 = 4,
+): JourneySession {
   const base = anchors[definition.role];
   const side = definition.ordinal % 2 === 0 ? 1 : -1;
   const x =
@@ -181,6 +188,7 @@ export function createJourney(definition: JourneyDefinition): JourneySession {
     defensive: defending,
   };
   return {
+    ...(rulesVersion === 4 ? { rulesVersion: 4 as const } : {}),
     definition,
     scenario,
     players,
@@ -333,6 +341,58 @@ function passChoices(session: JourneySession): JourneyChoice[] {
     }),
   );
 }
+function returnDelivery(session: JourneySession): BallDelivery {
+  return session.definition.pattern === "air-control" || session.definition.pattern === "third-air"
+    ? (session.definition.delivery ?? "ground")
+    : "ground";
+}
+
+// Use the same defender response and reception geometry as the recorded move.
+// In particular a good current passing lane may close during the run.
+function movementAssessment(session: JourneySession, p: Point, carrying: boolean) {
+  const you = session.world.positions.you;
+  const holder = session.world.positions[session.world.carrierId];
+  const positions: Record<string, Point> = { ...session.world.positions, you: p };
+  session.players
+    .filter((r) => r.team === "away" && !r.goalkeeper)
+    .forEach((r, i) => {
+      const from = session.world.positions[r.id];
+      const t = i === session.definition.context ? 0.13 : 0.055;
+      positions[r.id] = point(from.x + (p.x - from.x) * t, from.y + (p.y - from.y) * t);
+    });
+  const predicted = { ...session, world: { ...session.world, positions } };
+  const delivery = returnDelivery(session);
+  const target = session.definition.revision === 2 ? receivePoint(predicted, "you", delivery) : p;
+  const lane = carrying
+    ? journeyLane(session, you, p)
+    : journeyDeliveryLane(predicted, holder, target, delivery);
+  const clearance = nearestOpponent(predicted, carrying ? p : target).distance;
+  const offside = !carrying && journeyOffside(predicted, p, holder);
+  const stationary = distance(you, p) < 1;
+  const quality: JourneyChoice["quality"] =
+    stationary || offside || lane.distance < 2.6 || clearance < 3
+      ? "error"
+      : lane.distance < 5 || clearance < 6 || (!carrying && distance(holder, p) > 48)
+        ? "possible"
+        : "good";
+  const why = stationary
+    ? "Pozostałeś w tym samym miejscu, bez zmiany ustawienia."
+    : offside
+      ? "W momencie podania po Twoim ruchu znajdziesz się na spalonym."
+      : lane.distance < 2.6
+        ? carrying
+          ? "Droga prowadzenia przechodzi przez zasięg rywala."
+          : "Po przesunięciu rywali linia podania do Ciebie jest zamknięta."
+        : clearance < 3
+          ? "Po ruchu znajdziesz się w bezpośrednim zasięgu rywala."
+          : quality === "possible"
+            ? "Ruch jest możliwy, ale pozostawia presję lub trudne kolejne podanie."
+            : carrying
+              ? "Wolna droga prowadzenia i miejsce poza zasięgiem rywala."
+              : "Po ruchu masz otwartą linię podania i miejsce na przyjęcie.";
+  return { quality, why };
+}
+
 function movementChoices(session: JourneySession, carry: boolean): JourneyChoice[] {
   const w = session.world,
     you = w.positions.you,
@@ -346,7 +406,7 @@ function movementChoices(session: JourneySession, carry: boolean): JourneyChoice
     [24, 8],
     [0, -23],
   ].map(([x, y]) => point(you.x + x, you.y + y));
-  if (session.definition.revision === 2 && !carry) {
+  if ((session.rulesVersion === 4 || session.definition.revision === 2) && !carry) {
     const line =
       session.players
         .filter((p) => p.team === "away")
@@ -372,14 +432,36 @@ function movementChoices(session: JourneySession, carry: boolean): JourneyChoice
         progress * 0.25 -
         supportPenalty -
         offsidePenalty;
-      return { p, lane, clearance, score };
+      const assessment = session.rulesVersion === 4 ? movementAssessment(session, p, carry) : null;
+      return { p, lane, clearance, score, assessment };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      const rank = { good: 2, possible: 1, error: 0 };
+      return (
+        (a.assessment && b.assessment
+          ? rank[b.assessment.quality] - rank[a.assessment.quality]
+          : 0) || b.score - a.score
+      );
+    });
   const best = ranked[0];
   const weak = ranked.filter((r) => distance(r.p, best.p) > 19).at(-1) ?? ranked.at(-1)!;
   const enemy = session.world.positions[nearestOpponent(session, you).id];
   const bad = session.definition.context === 2 && distance(enemy, best.p) > 20 ? enemy : weak.p;
   const badClear = nearestOpponent(session, bad).distance;
+  if (session.rulesVersion === 4) {
+    return [best.p, bad].map((p, index) => ({
+      id: index === 0 ? "space:open" : "space:other",
+      point: { ...p },
+      label: carry
+        ? index === 0
+          ? "Prowadź w wybrany korytarz"
+          : "Prowadź w drugi korytarz"
+        : index === 0
+          ? "Wbiegnij w wybraną przestrzeń"
+          : "Zajmij drugą przestrzeń",
+      ...movementAssessment(session, p, carry),
+    }));
+  }
   return [
     {
       id: "space:open",
@@ -564,6 +646,8 @@ export function journeyPointChoice(session: JourneySession, location: Point): Jo
   if (distance(you, p) < 1) {
     quality = "error";
     why = "Pozostałeś w tym samym miejscu, bez zmiany ustawienia.";
+  } else if ((kind === "carry" || kind === "move") && session.rulesVersion === 4) {
+    ({ quality, why } = movementAssessment(session, p, kind === "carry"));
   } else if (kind === "carry" || kind === "move") {
     const carrying = kind === "carry";
     const lane = journeyLane(session, carrying ? you : ball, p);
@@ -940,7 +1024,9 @@ export function chooseJourney(
     if (step.kind === "carry" && !hadBall) throw new Error("Prowadzenie wymaga posiadania piłki.");
     const from = clone(session.world.positions.you);
     const freeLane =
-      hadBall && choiceId.startsWith("free:") ? journeyLane(session, from, choice.point) : null;
+      hadBall && (session.rulesVersion === 4 || choiceId.startsWith("free:"))
+        ? journeyLane(session, from, choice.point)
+        : null;
     const stoppedBy = freeLane && freeLane.distance < 2.6 ? freeLane : null;
     const destination = stoppedBy?.point ?? choice.point;
     beat(
@@ -974,17 +1060,14 @@ export function chooseJourney(
       session.outcome = "loss";
     } else if (!hadBall) {
       const holder = session.world.carrierId;
-      const returnDelivery =
-        session.definition.pattern === "air-control" || session.definition.pattern === "third-air"
-          ? (session.definition.delivery ?? "ground")
-          : "ground";
+      const delivery = returnDelivery(session);
       const lane = journeyDeliveryLane(
         session,
         session.world.positions[holder],
         session.definition.revision === 2
-          ? receivePoint(session, "you", returnDelivery)
+          ? receivePoint(session, "you", delivery)
           : session.world.positions.you,
-        returnDelivery,
+        delivery,
       );
       if (lane.distance < 2.6) {
         beat(
@@ -1008,7 +1091,7 @@ export function chooseJourney(
             : "Otrzymujesz podanie zwrotne.",
           true,
           false,
-          returnDelivery,
+          delivery,
         );
         if (session.outcome === "blocked") {
           quality = "error";

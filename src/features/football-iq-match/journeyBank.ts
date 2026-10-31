@@ -7,10 +7,11 @@ import type {
 } from "./journeyTypes";
 import { journeyExpansion } from "./journeyExpansion";
 
-export const JOURNEY_BANK_VERSION = "2026-10-15.3";
+export const JOURNEY_BANK_VERSION = "2026-10-31.4";
 export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
   "2026-10-15.1",
   "2026-10-15.2",
+  "2026-10-15.3",
   JOURNEY_BANK_VERSION,
 ];
 export const roleLabels: Record<IQRole, string> = {

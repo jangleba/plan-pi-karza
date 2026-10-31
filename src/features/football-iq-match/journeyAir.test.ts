@@ -6,6 +6,7 @@ import { journeyBank } from "./journeyBank";
 import {
   chooseJourney,
   createJourney,
+  createJourneyForRules,
   journeyDuration,
   journeyFrame,
   journeyStep,
@@ -58,7 +59,7 @@ describe("airborne IQ actions", () => {
     const rows = journeyBank
       .filter((d) => !d.revision)
       .map((d) => {
-        let s = createJourney(d);
+        let s = createJourneyForRules(d, 3);
         while (!s.outcome) {
           const cs = journeyStep(s).choices;
           s = chooseJourney(s, (cs.find((c) => c.quality === "good") ?? cs[0]).id, 2);
