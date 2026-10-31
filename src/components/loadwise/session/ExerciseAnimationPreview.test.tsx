@@ -20,7 +20,7 @@ describe("exercise animation integration", () => {
     expect(host.querySelector("iframe")).toBeNull();
     await click("Pokaż animację ruchu");
     const frame = host.querySelector("iframe")!;
-    expect(frame.getAttribute("src")).toBe("/technique/animations/index.html?id=a_skip&embed=1&v=2026.10.30.19");
+    expect(frame.getAttribute("src")).toBe("/technique/animations/index.html?id=a_skip&embed=1&v=2026.10.31.20");
     expect(frame.title).toContain("Ćwiczenie");
     await click("Zamknij animację"); expect(host.querySelector("iframe")).toBeNull();
   });

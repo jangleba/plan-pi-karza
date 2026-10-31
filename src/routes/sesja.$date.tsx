@@ -309,7 +309,8 @@ function SessionDetail() {
           <SessionStartPanel session={session} canStart={isToday} />
         )}
 
-        <fieldset className="min-w-0 space-y-3" disabled={!canExecute}>
+        {/* Sprint previews keep disclosure/teaching controls usable; the runner gates recording. */}
+        <fieldset className="min-w-0 space-y-3" disabled={!canExecute && !sprintRunner}>
           {ballTechnicalSession && (
             <Link
               to="/reakcja"
@@ -386,7 +387,8 @@ function SessionDetail() {
               sections={structured}
               date={date}
               session={session}
-              onFinish={() => setShowSprintCompletion(true)}
+              canRecord={canExecute}
+              onFinish={() => { if (canExecute) setShowSprintCompletion(true); }}
             />
           ) : strengthRunner ? (
             <StrengthStructuredSections

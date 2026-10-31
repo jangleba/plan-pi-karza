@@ -11,12 +11,14 @@ export function SkipExerciseCard({
   rest,
   done,
   onToggle,
+  canRecord = true,
 }: {
   exercise: TrainingExercise;
   prescription: string;
   rest: string | null;
   done: boolean;
   onToggle: () => void;
+  canRecord?: boolean;
 }) {
   const guide = getSkipGuide(exercise.exerciseId);
   if (!guide) return null;
@@ -30,7 +32,8 @@ export function SkipExerciseCard({
         </div>
         <button
           type="button"
-          onClick={onToggle}
+          disabled={!canRecord}
+          onClick={() => { if (canRecord) onToggle(); }}
           className="bw-skip-done"
           aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
           aria-pressed={done}

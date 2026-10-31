@@ -61,13 +61,14 @@ async function click(text: string) {
   await act(async () => button(text).click());
 }
 
-async function renderSprint(dbId = "session-1") {
+async function renderSprint(dbId = "session-1", canRecord = true, sections = sprintSectionsFixture()) {
   await act(async () =>
     root.render(
       <SprintStructuredSections
-        sections={sprintSectionsFixture()}
+        sections={sections}
         date="2026-09-29"
         session={sessionFixture({ dbId })}
+        canRecord={canRecord}
         onFinish={finish}
       />,
     ),
@@ -92,6 +93,44 @@ afterEach(async () => {
 });
 
 describe("session runners", () => {
+  it("opens drills, instructions and an animation in preview without recording progress", async () => {
+    const sections = sprintSectionsFixture();
+    sections[1].blocks[0].exercises[0] = { id: "technical", exerciseId: "ankling", name: "Ankling", speedRole: "technical" };
+    await renderSprint("session-1", false, sections);
+    expect(host.querySelector(".bw-sprint-action")).toBeNull();
+    const drill = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(el => el.textContent?.includes("Drille"))!;
+    expect(drill).toBeDefined();
+    expect(drill.matches(":disabled")).toBe(false);
+    expect(drill.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => drill.click());
+    expect(drill.getAttribute("aria-expanded")).toBe("true");
+    const stage = drill.closest(".bw-sprint-stage")!;
+    const instructions = stage.querySelector<HTMLButtonElement>(".bw-technique-trigger")!;
+    await act(async () => instructions.click());
+    expect(stage.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
+    const animation = stage.querySelector<HTMLButtonElement>(".bw-animation-open")!;
+    expect(animation.matches(":disabled")).toBe(false);
+    await act(async () => animation.click());
+    expect(stage.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
+    const completed = stage.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!;
+    expect(completed.matches(":disabled")).toBe(true);
+    await act(async () => completed.click());
+    expect(window.localStorage.getItem(progressKey)).toBeNull();
+    expect(finish).not.toHaveBeenCalled();
+    expect(mocks.unavailable).not.toHaveBeenCalled();
+  });
+  it("allows skip animations in preview while completion remains disabled", async () => {
+    await renderSprint("session-1", false);
+    const skip = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(el => el.textContent?.includes("Skipy"))!;
+    await act(async () => skip.click());
+    const card = skip.closest(".bw-sprint-stage")!.querySelector(".bw-skip-card")!;
+    expect(card.querySelector<HTMLButtonElement>(".bw-skip-done")?.matches(":disabled")).toBe(true);
+    const animation = card.querySelector<HTMLButtonElement>(".bw-animation-open")!;
+    expect(animation.matches(":disabled")).toBe(false);
+    await act(async () => animation.click());
+    expect(card.querySelector("iframe")).not.toBeNull();
+    expect(window.localStorage.getItem(progressKey)).toBeNull();
+  });
   it("keeps sprint guidance visible after completing a non-skip exercise", async () => {
     await renderSprint();
     expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);

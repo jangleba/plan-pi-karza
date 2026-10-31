@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, Suspense, type ComponentType, type ReactNode } from "react";
+import { act, Suspense, type ComponentProps, type ComponentType, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoadwiseState, Profile, SessionDay } from "@/lib/loadwise/types";
@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   checkin: vi.fn(),
   startSession: vi.fn<(session: SessionDay) => Promise<void>>(),
   auth: { user: { id: "user-1" }, loading: false },
+  todayIso: "2026-09-29",
+  realSprint: false,
   search: { slot: 1, mod: undefined as string | undefined },
   state: {
     plan: [],
@@ -49,7 +51,7 @@ vi.mock("@/lib/loadwise/store", () => ({
   useLoadwise: () => ({
     state: mocks.state,
     hydrated: true,
-    todayIso: "2026-09-29",
+    todayIso: mocks.todayIso,
     startSession: mocks.startSession,
   }),
 }));
@@ -72,13 +74,19 @@ vi.mock("@/components/running/EnduranceRunTracker", () => ({ EnduranceRunTracker
 vi.mock("@/components/loadwise/session/GenericRunner", () => ({
   StructuredSections: () => <div data-runner="generic" />,
 }));
-vi.mock("@/components/loadwise/session/SprintRunner", () => ({
-  SprintStructuredSections: ({ onFinish }: { onFinish: () => void }) => (
-    <button data-runner="sprint" onClick={onFinish}>
-      Finish sprint
-    </button>
-  ),
-}));
+vi.mock("@/components/loadwise/session/SprintRunner", async (importOriginal) => {
+  const { SprintStructuredSections } = await importOriginal<typeof import("@/components/loadwise/session/SprintRunner")>();
+  return { SprintStructuredSections: (props: ComponentProps<typeof SprintStructuredSections>) => mocks.realSprint
+    ? <SprintStructuredSections {...props} />
+    : (
+    <>
+      <button type="button" data-preview-control>Obejrzyj ćwiczenie</button>
+      <button data-runner="sprint" disabled={!props.canRecord} onClick={props.onFinish}>
+        Finish sprint
+      </button>
+    </>
+  ) };
+});
 vi.mock("@/components/loadwise/session/StrengthRunner", () => ({
   StrengthStructuredSections: ({ onFinish }: { onFinish: () => void }) => (
     <button data-runner="strength" onClick={onFinish}>
@@ -132,6 +140,9 @@ beforeEach(() => {
   mocks.navigate.mockReset();
   mocks.checkin.mockReset().mockReturnValue({});
   mocks.auth.loading = false;
+  mocks.todayIso = "2026-09-29";
+  mocks.realSprint = false;
+  window.localStorage.clear();
   mocks.search.slot = 1;
   mocks.search.mod = undefined;
   mocks.state.plan = [sessionFixture()];
@@ -165,6 +176,43 @@ afterEach(async () => {
 });
 
 describe("session route gates", () => {
+  it("opens the real drill instructions and animation through yesterday's complete session route", async () => {
+    mocks.todayIso = "2026-09-30";
+    mocks.realSprint = true;
+    mocks.state.plan = [sessionFixture({
+      speedGeneratorVersion: "test",
+      structuredSections: [sectionFixture("main", [{ id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" }])],
+    })];
+    await render();
+    const stage = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(button => button.textContent?.includes("Drille"))!;
+    expect(stage.matches(":disabled")).toBe(false);
+    await act(async () => stage.click());
+    const panel = stage.closest(".bw-sprint-stage")!;
+    await act(async () => panel.querySelector<HTMLButtonElement>(".bw-technique-trigger")!.click());
+    expect(panel.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
+    const play = panel.querySelector<HTMLButtonElement>(".bw-animation-open")!;
+    expect(play.matches(":disabled")).toBe(false);
+    await act(async () => play.click());
+    expect(panel.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
+    expect(panel.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')?.matches(":disabled")).toBe(true);
+    expect(host.querySelector(".bw-sprint-action")).toBeNull();
+    expect(mocks.startSession).not.toHaveBeenCalled();
+    expect(mocks.state.completions).toEqual({});
+    expect(window.localStorage.getItem("loadwise:sprint-progress:user-1:session-1")).toBeNull();
+  });
+  it.each(["2026-09-29", "2026-09-30"])("keeps sprint teaching controls usable before recording on %s", async (today) => {
+    mocks.todayIso = today;
+    mocks.state.plan = [sessionFixture({
+      speedGeneratorVersion: "test",
+      structuredSections: [sectionFixture("main", [{ id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" }])],
+    })];
+    await render();
+    expect(host.querySelector<HTMLButtonElement>("[data-preview-control]")?.matches(":disabled")).toBe(false);
+    expect(host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')?.matches(":disabled")).toBe(true);
+    expect(mocks.startSession).not.toHaveBeenCalled();
+    expect(completionId()).toBeUndefined();
+    if (today !== "2026-09-29") expect(host.textContent).toContain("Podgląd jednostki z innego dnia");
+  });
   it("waits for authentication and opens today's runner without forcing a check-in", async () => {
     mocks.auth.loading = true;
     mocks.checkin.mockReturnValue(null);

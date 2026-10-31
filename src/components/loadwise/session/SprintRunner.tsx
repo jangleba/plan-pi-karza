@@ -40,6 +40,7 @@ function SprintExerciseRow({
   onUnavailable,
   equipmentIds,
   isMainSprint,
+  canRecord,
 }: {
   view: SprintExerciseView;
   done: boolean;
@@ -47,6 +48,7 @@ function SprintExerciseRow({
   onUnavailable: () => void;
   equipmentIds: string[];
   isMainSprint: boolean;
+  canRecord: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
@@ -62,6 +64,7 @@ function SprintExerciseRow({
         rest={rest}
         done={done}
         onToggle={onToggle}
+        canRecord={canRecord}
       />
     );
   }
@@ -71,6 +74,7 @@ function SprintExerciseRow({
         {!isMainSprint && (
           <button
             type="button"
+            disabled={!canRecord}
             onClick={onToggle}
             className="-ml-1 flex h-11 w-11 shrink-0 items-start justify-center pt-[11px]"
             aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
@@ -130,7 +134,7 @@ function SprintExerciseRow({
               płynna wymiana nóg bez dodatkowego odbicia.
             </p>
           )}
-          {!done && equipmentIds.length > 0 && (
+          {canRecord && !done && equipmentIds.length > 0 && (
             <button
               type="button"
               onClick={onUnavailable}
@@ -140,10 +144,11 @@ function SprintExerciseRow({
             </button>
           )}
           {rest && <SprintRestTimer label={rest} compact={!isMainSprint} />}
-          <ExercisePersonalNote exercise={exercise} />
+          {canRecord && <ExercisePersonalNote exercise={exercise} />}
           {isMainSprint && (
             <button
               type="button"
+              disabled={!canRecord}
               onClick={onToggle}
               className="bw-sprint-complete"
               aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
@@ -230,11 +235,13 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   sections,
   date,
   session,
+  canRecord = true,
   onFinish,
 }: {
   sections: TrainingSection[];
   date: string;
   session: SessionDay;
+  canRecord?: boolean;
   onFinish: () => void;
 }) {
   const { user } = useAuth();
@@ -267,6 +274,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
     setLastToggle(null);
   }, [progressKey, fingerprint]);
   function setStarted(value: boolean) {
+    if (!canRecord) return;
     local.setValue((current) => ({
       ...progressForPrescription(current, fingerprint),
       started: value,
@@ -274,6 +282,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
     }));
   }
   function setCurrentBlockIdx(update: (current: number) => number) {
+    if (!canRecord) return;
     local.setValue((current) => ({
       ...progressForPrescription(current, fingerprint),
       currentBlockIdx: update(current.currentBlockIdx),
@@ -281,6 +290,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
     }));
   }
   function markDone(id: string) {
+    if (!canRecord) return;
     setLastToggle({ id, wasDone: Boolean(done[id]) });
     local.setValue((current) => {
       const latest = progressForPrescription(current, fingerprint);
@@ -334,12 +344,12 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
         )}
       />
       <SessionPreparation equipment={equipmentPool} />
-      <div className="mt-2 text-xs text-muted-foreground" role="status">
+      {canRecord && <div className="mt-2 text-xs text-muted-foreground" role="status">
         {local.available
           ? "Oznaczenia ćwiczeń zachowane na urządzeniu."
           : "Zapis na urządzeniu niedostępny — postęp pozostaje w otwartym ekranie."}
-      </div>
-      <CompletionUndo
+      </div>}
+      {canRecord && <CompletionUndo
         label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
         onUndo={() => {
           if (!lastToggle) return;
@@ -353,7 +363,7 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
           });
           setLastToggle(null);
         }}
-      />
+      />}
 
       <div className="space-y-2">
         <div className="px-1 text-xs text-muted-foreground">
@@ -418,9 +428,9 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                       <WarmupCoach
                         exercises={block.exercises.map((item) => item.exercise)}
                         kind="sprint"
-                        storageKey={`${progressKey}:guided`}
+                        storageKey={`${progressKey}:guided${canRecord ? "" : ":preview"}`}
                         onFinish={(all) => {
-                          if (!all) return;
+                          if (!canRecord || !all) return;
                           local.setValue((current) => {
                             const latest = progressForPrescription(current, fingerprint);
                             return {
@@ -446,9 +456,10 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
                         key={item.id}
                         view={item}
                         done={!!done[item.id]}
+                        canRecord={canRecord}
                         onToggle={() => markDone(item.id)}
                         onUnavailable={() => {
-                          if (equipmentIds.length)
+                          if (canRecord && equipmentIds.length)
                             markEquipmentUnavailable(date, item.exercise, equipmentIds);
                         }}
                         equipmentIds={equipmentIds}
@@ -462,16 +473,16 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
           );
         })}
       </div>
-      <NextExercisePreview
+      {canRecord && <NextExercisePreview
         exercise={
           blocks
             .slice(currentBlockIdx)
             .flatMap((block) => block.exercises)
             .find((item) => !done[item.id])?.exercise
         }
-      />
+      />}
 
-      {!finished && (
+      {canRecord && !finished && (
         <div className="bw-sprint-action">
           <button
             type="button"
