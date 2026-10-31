@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="pl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>BallWise · animacja ćwiczenia</title>
+<link rel="stylesheet" href="./player.css?v=2026.10.30.19">
+<main id="main"><div id="library" hidden><label for="search">Biblioteka 88 animacji</label><input id="search" type="search" placeholder="Szukaj ćwiczenia…"><select id="exercise" aria-label="Wybierz ćwiczenie"></select></div>
+<h1 id="title">Animacja ruchu</h1><p class="scope" id="scope">Animacja poglądowa · fazy ruchu</p>
+<div id="variant-block" hidden><label for="variant">Wariant z Twojej sesji</label><select id="variant"><option value="">Wybierz wariant ruchu</option></select></div>
+<p id="error" role="status" hidden></p>
+<div id="player"><svg id="stage" viewBox="0 0 360 292" role="img" aria-label="Anatomiczny kontur człowieka wykonującego ćwiczenie">
+<rect id="stage-bg" x="-500" y="-300" width="1400" height="900" fill="#fff"/><path id="ground-line" d="M-500 264H900" stroke="#7a8d7d" stroke-width=".8"/><g id="ground" stroke="#c7d1c7" stroke-width=".8"></g><g id="extras"></g><g id="athlete"></g><g id="emphasis"></g></svg>
+<div class="view-tools"><button type="button" id="focus-toggle" aria-pressed="true">Wyróżnij pracę stawów</button><button type="button" id="zoom-toggle" aria-pressed="false">Zbliżenie ruchu</button></div>
+<div class="focus-card"><strong id="focus-title"></strong><p id="focus-cue"></p></div><p id="focus-legend">Niebieskie wyróżnienie wskazuje najważniejszy element ruchu.</p>
+<p id="phase" aria-live="off"></p><div id="contacts"></div>
+<input id="progress" type="range" min="0" max="10000" step="1" value="0" aria-label="Moment ruchu">
+<div class="controls"><button type="button" id="previous" aria-label="Poprzednia klatka">← Klatka</button><button type="button" id="play" class="primary">Odtwórz</button><button type="button" id="next" aria-label="Następna klatka">Klatka →</button></div>
+<label class="speed" for="speed"><span>Tempo podglądu</span><select id="speed"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option></select></label></div>
+<details><summary>Wykonanie · źródło</summary><p>Wariant, tempo wykonania i dawka wynikają z instrukcji Twojej sesji. Podgląd pokazuje schemat faz ruchu.</p><p id="timing-note"></p><ul id="notes"></ul><a id="source" target="_blank" rel="noopener noreferrer">Porównaj z materiałem źródłowym ↗</a><p id="source-gap" hidden>Dokładny wzorzec tego wariantu pozostaje do uzgodnienia.</p></details>
+</main><script src="./engine.js?v=2026.10.30.19"></script><script src="./player.js?v=2026.10.30.19"></script></html>

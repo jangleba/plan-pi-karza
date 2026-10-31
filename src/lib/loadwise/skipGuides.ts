@@ -1,5 +1,5 @@
-/** Instrukcje skipów uzgodnione z trenerem, 11.10.2026. */
-export const SKIP_LANDING = "Ląduj na śródstopiu pod biodrem — nie przed ani za sobą.";
+/** Educational cues; joint angles refer to the named phase, not the entire drill. */
+export const SKIP_LANDING = "Sprowadzaj stopę blisko pod biodro. Przyjmuj kontakt sprężyście od przodu stopy; pozwól pięcie naturalnie opaść.";
 
 export interface SkipGuide {
   exerciseId: string;
@@ -16,13 +16,13 @@ export const SKIP_GUIDES: Readonly<Record<string, SkipGuide>> = {
     exerciseId: "a_skip",
     title: "Skip A",
     steps: [
-      "Kolano do biodra; rama 90° w biodrze, kolanie i kostce.",
+      "Unieś udo w okolice poziomu; w uniesionej nodze kolano zegnij mniej więcej do kąta prostego.",
       "Ściągnij stopę mocno w dół pod biodro.",
       "Zmieniaj nogi; ręce pracują przeciwnie.",
     ],
     setup: "Tułów pionowo, wzrok przed siebie, stopa zadarta.",
-    focus: "Rama 90° i mocno pod siebie.",
-    errors: ["Stopa lądująca przed lub za biodrem", "Lądowanie na całej stopie"],
+    focus: "Pozycja A w uniesieniu; potem płynne sprowadzenie stopy.",
+    errors: ["Sięganie stopą daleko przed ciało", "Odchylanie tułowia dla uniesienia kolana"],
     imageAlt: "Skip A z boku: pozycja A jednej nogi, przejście i pozycja A drugiej nogi.",
   },
   b_skip: {
@@ -30,25 +30,25 @@ export const SKIP_GUIDES: Readonly<Record<string, SkipGuide>> = {
     title: "Skip B",
     steps: [
       "Unieś kolano jak w skipie A.",
-      "Wysuń podudzie w przód, około 40° od pionu.",
+      "Płynnie otwórz podudzie w przód, bez szarpnięcia i blokowania kolana.",
       "Grzebnij mocno w dół pod biodro i zmień nogę.",
     ],
     setup: "Tułów pionowo, barki luźne, ręce pracują przeciwnie do nóg.",
     focus: "Pozycja A → wysunięcie → grzebnięcie pod biodro.",
-    errors: ["Kontakt stopy przed lub za biodrem", "Lądowanie na całej stopie"],
+    errors: ["Dalekie kopnięcie zamiast płynnej sekwencji", "Blokowanie kolana przy otwarciu"],
     imageAlt: "Skip B z boku: pozycja A, wysunięcie podudzia w przód i powrót pod biodro.",
   },
   c_skip: {
     exerciseId: "c_skip",
     title: "Skip C",
     steps: [
-      "Pięta do pośladka, kolano lekko w przód.",
-      "But nie wychodzi za pośladek; stopa bez skręcania.",
+      "Zegnij kolano, kierując piętę w stronę pośladka, bez wymuszania dotknięcia.",
+      "Biodra wysoko, tułów stabilny; stopa nie skręca na boki.",
       "Ściągnij stopę mocno w dół tą samą linią i zmień nogę.",
     ],
-    setup: "Tułów pionowo; pięta porusza się pod biodrem, a stopa pozostaje bez rotacji.",
+    setup: "Tułów pionowo; pięta wraca blisko ciała, a stopa pozostaje bez rotacji.",
     focus: "Pięta do pośladka i mocno w dół tą samą linią.",
-    errors: ["But wychodzący za tylną linię pośladka", "Skręcanie stopy na boki"],
+    errors: ["Wymuszanie dotknięcia pośladka kosztem ustawienia tułowia", "Skręcanie stopy na boki"],
     imageAlt:
       "Skip C z boku: pięta do pośladka jednej nogi, przejście i druga noga; but w obrysie pośladka.",
   },
@@ -56,12 +56,12 @@ export const SKIP_GUIDES: Readonly<Record<string, SkipGuide>> = {
     exerciseId: "d_skip",
     title: "Skip D",
     steps: [
-      "Pracuj na zmianę prostymi nogami, palce stóp w górę.",
+      "Pracuj na zmianę prawie prostymi nogami, bez blokowania kolan; palce stóp w górę.",
       "Tułów pionowo lub lekko w przód — nie odchylaj się w tył.",
       "Odbijaj się mocno; nogi mijają się pod biodrami.",
     ],
-    setup: "Proste kolano, ruch z biodra; tułów pionowo lub lekko w przód.",
-    focus: "Prosta noga, stabilny tułów, mocne odbicie.",
+    setup: "Prawie proste, miękkie kolano; ruch z biodra, stabilny tułów.",
+    focus: "Ruch z biodra, bez przeprostu kolana.",
     errors: ["Odchylanie tułowia do tyłu", "Kontakt stopy przed lub za biodrem"],
     imageAlt: "Skip D z boku: naprzemienna praca prostych nóg i dwie fazy przejściowe w powietrzu.",
   },

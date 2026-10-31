@@ -34,6 +34,15 @@ const profile = (overrides: Partial<Profile> = {}): Profile => ({
 });
 
 describe("football speed session engine", () => {
+  it("preserves each skip rhythm in structured and legacy session rows", () => {
+    const result = generateFootballSpeedSession({ profile: profile(), date: "2026-08-20", family: "acceleration" });
+    const expected = result.exercises.filter(e => e.role === "primer").map(e => e.variant);
+    expect(new Set(expected)).toEqual(new Set(["step_in", "continuous"]));
+    const structured = result.session?.structuredSections?.flatMap(s => s.blocks.flatMap(b => b.exercises)).filter(e => e.speedRole === "primer") ?? [];
+    expect(structured.map(e => e.animationVariant)).toEqual(expected);
+    const legacy = [result.session?.sections.warmup ?? [], result.session?.sections.main ?? [], result.session?.sections.cooldown ?? []].flat().filter(e => e.speedRole === "primer");
+    expect(legacy.map(e => e.animationVariant)).toEqual(expected);
+  });
   it("keeps the mandatory A → C → B → D skips and three rotating drills", () => {
     const result = generateFootballSpeedSession({
       profile: profile(),

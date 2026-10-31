@@ -2,6 +2,7 @@ import type { Profile, TrainingExercise } from "@/lib/loadwise/types";
 import { resolveDefinitionForExercise } from "@/lib/loadwise/sessionPresentation";
 import { resolveQuickGuide } from "@/lib/courseMeasure/quickGuide";
 import { hintKey, TECHNIQUE_HINTS, type TechniqueHint } from "./knowledge";
+import { jointPositionReply } from "./biomechanics";
 
 export function techniqueHint(exercise: TrainingExercise): TechniqueHint {
   const def = resolveDefinitionForExercise(exercise);
@@ -44,6 +45,8 @@ export function localCoachReply(question: string, exercise: TrainingExercise, pr
       ? "Sama odpowiedź ani nagranie nie potwierdzą, że ten wariant jest dla Ciebie odpowiedni. Pierwszą próbę wymagającego ćwiczenia wykonaj z trenerem. Dobór wariantu zależy od doświadczenia i kontroli ruchu."
       : "Sprawdź wariant, doświadczenie i wymagany nadzór. Jeśli nie znasz tego ruchu, zacznij od nauki z trenerem; sam opis nie potwierdza gotowości do danego ciężaru.", true);
   }
+  const joints = jointPositionReply(question, exercise);
+  if (joints) return reply(joints);
   if (/ciezar|kilogram|\bkg\b|obciazen|dokladac|progres/.test(q))
     return reply(`Zalecenie tej serii: ${exercise.loadTarget || exercise.rir || "dobierz lekki opór do nauki ruchu"}. Zapas oznacza powtórzenia możliwe do wykonania z tą samą techniką. Samo zaliczenie serii nie jest powodem do dokładania ciężaru.`);
   if (!/przerw|odpocz|rest/.test(q) && /tempo|opuszcz|sekund|szybk|woln|ekscentr|koncentr/.test(q))

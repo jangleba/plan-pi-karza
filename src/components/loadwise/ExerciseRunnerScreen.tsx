@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronDown } from "lucide-react";
+import { Check, ChevronLeft } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { exerciseKey, plannedSets, useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
 import {
@@ -21,9 +21,7 @@ import {
   getIllustration,
   illustrationKeyForExercise,
 } from "@/components/loadwise/exerciseIllustrations";
-import { resolveExerciseSheetViewModel } from "@/components/loadwise/ExerciseDetailSheet";
 import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
-import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
 import {
   parseTrainingFields,
   parseTrainingNumber,
@@ -135,7 +133,6 @@ export function ExerciseRunnerScreen({
   const [setNumber, setSetNumber] = useState(1);
   const [saving, setSaving] = useState(false);
   const [baselineError, setBaselineError] = useState<string | null>(null);
-  const [errorsOpen, setErrorsOpen] = useState(false);
   const [frame, setFrame] = useState(0);
   const [progressionChoice, setProgressionChoice] = useState<"accepted" | "repeat" | null>(null);
   const { state } = useLoadwise();
@@ -181,10 +178,7 @@ export function ExerciseRunnerScreen({
   const illustration = getIllustration(illustrationKeyForExercise(exercise));
   const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
   const frameIndex = Math.min(frame, Math.max(0, (illustration?.frames.length ?? 1) - 1));
-  const details = resolveExerciseSheetViewModel(exercise);
   const displayName = exerciseDisplayName(canonicalExerciseName(exercise));
-  const skip = getSkipGuide(exercise.exerciseId);
-  const cues = skip ? [...skip.steps, SKIP_LANDING] : details.cues.slice(0, 3);
   const doneCount = Array.from({ length: total }, (_, index) => index + 1).filter(
     (number) => current[number],
   ).length;
@@ -323,6 +317,7 @@ export function ExerciseRunnerScreen({
   if (inline)
     return (
       <div className="bw-training-inline">
+        <ExerciseQuickGuide exercise={exercise} compact />
         <div className="bw-set-heading">
           <label>
             Seria{" "}
@@ -395,7 +390,6 @@ export function ExerciseRunnerScreen({
           </div>
         )}
         <div className="bw-exercise-options">
-          <ExerciseQuickGuide exercise={exercise} compact />
           {(recommendation || needsStartingLoad) && (
             <details className="bw-load-advice">
               <summary>Dobór ciężaru</summary>
@@ -451,6 +445,7 @@ export function ExerciseRunnerScreen({
 
       {view === "sets" ? (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
+          <ExerciseQuickGuide exercise={exercise} compact />
           <button
             type="button"
             onClick={() => setView("technique")}
@@ -740,40 +735,7 @@ export function ExerciseRunnerScreen({
             </div>
           )}
 
-          {cues.length > 0 && (
-            <ul className="mt-5 space-y-2">
-              {cues.map((cue, index) => (
-                <li key={index} className="flex gap-2 text-[14px] text-foreground">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                  <span>{cue}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {details.errors.length > 0 && (
-            <div className="mt-5 rounded-xl border border-border/70">
-              <button
-                type="button"
-                onClick={() => setErrorsOpen((state) => !state)}
-                className="flex w-full items-center justify-between px-4 py-3 text-[13px] font-semibold text-foreground"
-              >
-                Najczęstsze błędy
-                <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${
-                    errorsOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {errorsOpen && (
-                <ul className="space-y-1.5 px-4 pb-3 text-[13px] text-muted-foreground">
-                  {details.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          <ExerciseQuickGuide exercise={exercise} initialExpanded showImage={false} />
 
           <button
             type="button"

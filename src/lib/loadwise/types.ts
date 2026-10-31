@@ -198,6 +198,8 @@ export type SpeedRole =
   | "cooldown";
 
 export interface ExerciseItem {
+  /** Zachowuje wariant animacji podczas zapisu starszego formatu planu. */
+  animationVariant?: string;
   /** No approved regression is available; keep visible but do not allow execution. */
   executionBlockedReason?: string;
   name: string;
@@ -263,6 +265,8 @@ export interface TrainingExercise {
   id: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
   exerciseId?: string;
+  /** Wariant ruchu z silnika, potrzebny do dobrania właściwej animacji. */
+  animationVariant?: string;
   /** Kanoniczna rola sprintowa przenoszona z silnika football speed. */
   speedRole?: SpeedRole;
   label?: string; // A1 | A2 | B1 | B2 ...

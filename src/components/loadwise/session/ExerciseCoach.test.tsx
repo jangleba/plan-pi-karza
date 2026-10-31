@@ -29,6 +29,11 @@ describe('exercise coach interactions', () => {
   await click('Ile przerwy?'); expect(host.querySelector('[role="status"]')?.textContent).toContain('90 s');
   expect(mocks.ask).not.toHaveBeenCalled(); expect(exercise.reps).toBe('6');
  });
+ it('answers knee-angle questions locally without inventing a universal squat depth', async () => {
+  await click('Jaki kąt w kolanie?');
+  expect(host.querySelector('[role="status"]')?.textContent).toContain('Nie ma jednego obowiązkowego kąta');
+  expect(mocks.ask).not.toHaveBeenCalled();
+ });
  it('requires a deliberate opt-in before the optional AI request', async () => {
   await question('Co oznacza rytm ruchu?'); expect(button('Zapytaj AI').disabled).toBe(true);
   await act(async () => host.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());

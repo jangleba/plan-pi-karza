@@ -103,7 +103,7 @@ export function ExerciseRow({
           <ChevronRight className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
       </div>
-      {!done && <ExerciseQuickGuide exercise={e} className="ml-11" />}
+      <ExerciseQuickGuide exercise={e} className="ml-11" />
       {expanded && (
         <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3 text-xs">
           {details.purpose && (

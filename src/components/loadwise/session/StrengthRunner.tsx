@@ -216,6 +216,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                             <ChevronDown size={17} className={active ? "is-open" : ""} />
                           </button>
                         </div>
+                        {!active && <ExerciseQuickGuide exercise={exercise} compact />}
                         {exercise.executionBlockedReason && <p role="status" className="bw-coach-notice">{exercise.executionBlockedReason}</p>}
                         {activeBlock && sets > 0 && (
                           <ExerciseRunnerScreen

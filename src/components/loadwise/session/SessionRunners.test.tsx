@@ -92,7 +92,14 @@ afterEach(async () => {
 });
 
 describe("session runners", () => {
-  it("shows all four skip illustrations and short instructions without opening exercise details", async () => {
+  it("keeps sprint guidance visible after completing a non-skip exercise", async () => {
+    await renderSprint();
+    expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.click());
+    expect(host.querySelector('[aria-label="Wykonane"]')).not.toBeNull();
+    expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);
+  });
+  it("shows all four skip animation controls and short instructions without opening exercise details", async () => {
     window.localStorage.setItem(
       progressKey,
       JSON.stringify({ done: { ramp: true }, started: true, currentBlockIdx: 1 }),
@@ -103,9 +110,9 @@ describe("session runners", () => {
     expect(host.querySelectorAll(".bw-skip-rhythm")).toHaveLength(1);
     expect(host.textContent).not.toContain("1 Z DODATKOWYM ODBICIEM");
     expect(host.textContent).not.toContain("Brak ilustracji");
-    for (const [index, id] of ["a_skip", "c_skip", "b_skip", "d_skip"].entries()) {
-      const card = cards[index];
-      expect(card.querySelector("img")?.getAttribute("src")).toBe(`/sprint/small/${id}.png`);
+    for (const card of cards) {
+      expect(card.querySelector(".bw-animation-open")?.textContent).toContain("Pokaż animację ruchu");
+      expect(card.querySelector("iframe")).toBeNull();
       expect(card.querySelectorAll("li")).toHaveLength(3);
       expect(card.querySelector("details")).toBeNull();
       expect(card.textContent).not.toContain("Otwórz pełne szczegóły");
@@ -114,7 +121,7 @@ describe("session runners", () => {
     const completion = cards[0].querySelector<HTMLButtonElement>("[aria-pressed]")!;
     await act(async () => completion.click());
     expect(completion.getAttribute("aria-pressed")).toBe("true");
-    expect(cards[0].querySelector("img")).not.toBeNull();
+    expect(cards[0].querySelector(".bw-animation-card")).not.toBeNull();
     expect(cards[0].querySelectorAll("li")).toHaveLength(3);
     expect(button("Następny blok").disabled).toBe(true);
   });

@@ -5,6 +5,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { localCoachReply, type CoachReply } from "@/lib/trainingCoach/coach";
 import { askTrainingCoach } from "@/lib/trainingCoach/transport";
+import { resolveTechniqueLesson } from "@/lib/trainingCoach/biomechanics";
 import "./training-coach.css";
 
 type Recognition = {
@@ -59,6 +60,9 @@ export function ExerciseCoach({ exercise }: { exercise: TrainingExercise }) {
   const store = useLoadwise();
   const { user } = useAuth();
   const profile = store.state?.profile;
+  const lesson = resolveTechniqueLesson(exercise);
+  const questions = ["Jak to wykonać?", ...(lesson ? ["Jaki kąt w kolanie?"] : []), "Jakie tempo?", "Ile przerwy?",
+    ...(!lesson || ["squat", "rdl", "singleLegRdl", "deadlift", "split", "elevatedSplit", "iso"].includes(lesson.id) ? ["Jaki ciężar?"] : [])];
   const [question, setQuestion] = useState("");
   const [reply, setReply] = useState<CoachReply | null>(null);
   const [consent, setConsent] = useState(false);
@@ -136,7 +140,7 @@ export function ExerciseCoach({ exercise }: { exercise: TrainingExercise }) {
   }
   return <section className="bw-exercise-coach" aria-label="Pomoc do ćwiczenia">
     <div className="bw-coach-chips">
-      {["Jak to wykonać?", "Jakie tempo?", "Ile przerwy?", "Jaki ciężar?"].map(label =>
+      {questions.map(label =>
         <button type="button" key={label} onClick={() => answer(label)}>{label}</button>)}
     </div>
     <label className="bw-coach-question-label">Zapytaj o to ćwiczenie

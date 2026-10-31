@@ -42,3 +42,77 @@
 .bw-technique-help :focus-visible, .bw-exercise-coach :focus-visible, .bw-coach-experience :focus-visible {
   outline: 2px solid var(--primary); outline-offset: 3px;
 }
+
+.bw-technique-guide {
+  margin-top: 10px; padding: 12px; min-width: 0;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--card); color: var(--foreground); overflow-wrap: anywhere;
+}
+.bw-technique-heading { display: flex; align-items: center; gap: 7px; color: var(--primary); font-size: 11px; font-weight: 700; }
+.bw-technique-heading svg { width: 16px; height: 16px; flex-shrink: 0; }
+.bw-technique-reminder { margin: 6px 0 0; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.bw-technique-guide .bw-technique-trigger { width: 100%; justify-content: space-between; text-align: left; font-size: 12px; }
+.bw-technique-trigger .is-open { transform: rotate(180deg); }
+.bw-technique-panel { padding-top: 4px; }
+.bw-technique-panel h4 { margin: 14px 0 10px; font-size: 13px; font-weight: 700; }
+.bw-technique-guide .bw-technique-hints { display: grid; gap: 10px; padding: 0; margin: 0; }
+.bw-technique-guide .bw-technique-hints > div { display: grid; grid-template-columns: 1fr; gap: 3px; }
+.bw-technique-guide .bw-technique-hints dt { font-size: 11px; color: var(--muted-foreground); }
+.bw-technique-guide .bw-technique-hints dd { margin: 0; font-size: 13px; line-height: 1.55; }
+.bw-technique-session-steps { padding-left: 20px; display: grid; gap: 8px; font-size: 13px; line-height: 1.5; }
+.bw-technique-question-trigger, .bw-joint-source-trigger {
+  display: flex; align-items: center; min-height: 44px; padding: 8px 0;
+  color: var(--primary); font-size: 12px; font-weight: 600; background: transparent; border: 0; cursor: pointer; text-align: left;
+}
+.bw-joint-guide { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.bw-joint-guide h4 { margin-top: 0; }
+.bw-joint-phases { display: flex; flex-wrap: wrap; gap: 6px; }
+.bw-joint-phases button {
+  display: flex; align-items: center; justify-content: center; min-height: 44px;
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px;
+  background: var(--background); color: var(--foreground); cursor: pointer; font-size: 12px; line-height: 1.3;
+}
+.bw-joint-phases button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.bw-joint-figure { margin: 10px 0; border-radius: 12px; background: var(--muted); padding: 8px; }
+.bw-joint-figure svg { display: block; width: 100%; max-height: 250px; color: var(--primary); }
+.bw-joint-figure figcaption { margin-top: 4px; color: var(--muted-foreground); font-size: 10px; line-height: 1.45; text-align: center; }
+.bw-joint-ground { stroke: var(--muted-foreground); stroke-width: 1; opacity: .45; }
+.bw-joint-body { stroke: var(--primary); stroke-width: 7; }
+.bw-joint-back { stroke: var(--muted-foreground); stroke-width: 6; opacity: .45; }
+.bw-joint-arm { stroke: var(--primary); stroke-width: 5; opacity: .7; }
+.bw-joint-head { fill: var(--primary); }
+.bw-joint-dot { fill: var(--card); stroke: var(--primary); stroke-width: 2; }
+.bw-joint-knee { fill: var(--primary); stroke: var(--card); stroke-width: 2; }
+.bw-joint-arc { stroke: var(--primary); stroke-width: 2; }
+.bw-joint-angle { fill: var(--primary); font-size: 17px; font-weight: 700; }
+.bw-joint-side { fill: var(--muted-foreground); font-size: 9px; letter-spacing: 1px; }
+.bw-joint-cue { font-size: 13px; font-weight: 650; margin: 8px 0 12px; }
+.bw-joint-notes { display: grid; gap: 11px; margin: 0; }
+.bw-joint-notes > div { display: grid; grid-template-columns: 1fr; gap: 3px; }
+.bw-joint-notes dt { color: var(--primary); font-size: 11px; font-weight: 700; }
+.bw-joint-notes dd { margin: 0; font-size: 13px; line-height: 1.55; }
+.bw-joint-mistake { margin: 12px 0 4px; color: var(--muted-foreground); font-size: 12px; line-height: 1.55; }
+.bw-joint-sources { color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
+.bw-joint-sources a { display: flex; align-items: center; min-height: 44px; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
+.bw-technique-guide :focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.bw-training-exercise > .bw-strength-guide { margin: 4px 12px 10px; }
+.bw-exercise-options > .bw-technique-guide { flex-basis: 100%; }
+.bw-strength-guide { padding: 10px 12px; }
+@media (prefers-reduced-motion: reduce) { .bw-technique-guide * { transition: none; } }
+.bw-animation-card{margin:12px 0;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--card)}
+.bw-animation-actions{display:flex;align-items:center;gap:8px;padding:10px;flex-wrap:wrap}
+.bw-animation-actions button,.bw-animation-choice select,.bw-animation-panel-heading button{min-height:44px;border-radius:10px;border:1px solid var(--border);padding:8px 12px;background:var(--background);color:var(--foreground);font:inherit;touch-action:manipulation}
+.bw-animation-open{display:flex;gap:8px;align-items:center;font-weight:650;flex:1}
+.bw-animation-open svg{width:17px;height:17px;flex-shrink:0}
+.bw-animation-open:disabled{opacity:.55;cursor:not-allowed}
+.bw-animation-library{font-size:12px!important}
+.bw-animation-choice{padding:12px 12px 0}
+.bw-animation-choice label{display:block;margin-bottom:6px;font-size:12px;font-weight:650}
+.bw-animation-choice select{width:100%;min-width:0;max-width:100%}
+.bw-animation-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;font-size:13px}
+.bw-animation-panel-heading button{padding:8px;min-width:44px;display:grid;place-items:center}
+.bw-animation-panel-heading svg{width:18px;height:18px}
+.bw-animation-frame{display:block;width:100%;border:0;background:#fff;min-height:440px}
+.bw-animation-loading,.bw-animation-note{font-size:12px;color:var(--muted-foreground);padding:0 12px;margin:8px 0 12px;line-height:1.5}
+.bw-animation-card button:focus-visible,.bw-animation-card select:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.bw-joint-figure img{display:block;width:100%;height:auto;background:#fff;border-radius:12px}

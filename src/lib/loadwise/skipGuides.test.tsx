@@ -22,14 +22,16 @@ function exercise(exerciseId: string): TrainingExercise {
 
 describe("skip guide integration", () => {
   it.each(["a_skip", "b_skip", "c_skip", "d_skip"])(
-    "shows the approved image and all steps immediately for %s, including saved sessions",
+    "shows an animation entry and all steps immediately for %s, including saved sessions",
     (id) => {
       const e = exercise(id);
       const markup = renderToStaticMarkup(<ExerciseQuickGuide exercise={e} />);
       const host = document.createElement("div");
       host.innerHTML = markup;
       expect(host.querySelectorAll("li")).toHaveLength(3);
-      expect(host.querySelector("img")?.getAttribute("src")).toBe(`/sprint/small/${id}.png`);
+      expect(host.querySelector(".bw-animation-open")?.textContent).toContain("Pokaż animację ruchu");
+      expect(host.querySelector("iframe")).toBeNull();
+      expect(host.querySelector("img")).toBeNull();
       expect(host.querySelector("details")).toBeNull();
       expect(host.textContent).toContain(SKIP_LANDING);
       expect(host.textContent).not.toContain("STARY OPIS");
@@ -55,8 +57,8 @@ describe("skip guide integration", () => {
 
   it("keeps the existing guide and image for non-skip exercises", () => {
     const e = exercise("goblet_squat");
-    const markup = renderToStaticMarkup(<ExerciseQuickGuide exercise={e} />);
-    expect(markup).toContain("<details");
+    const markup = renderToStaticMarkup(<ExerciseQuickGuide exercise={e} initialExpanded />);
+    expect(markup).toContain("Instrukcja Twojej sesji");
     expect(markup).toContain("STARE USTAWIENIE");
     expect(markup).toContain("STARY BŁĄD");
     expect(getExerciseTechniqueImage(e.exerciseId)?.category).toBe("strength");

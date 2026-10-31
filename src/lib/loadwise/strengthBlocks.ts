@@ -3036,6 +3036,7 @@ export function structuredToFlat(sections: TrainingSection[]): {
     const item: ExerciseItem = {
       name: e.label ? `${e.label} — ${e.name}` : e.name,
       exerciseId: e.exerciseId,
+      animationVariant: e.animationVariant,
       purpose: e.purpose,
       visualId: e.visualId,
       displayPrescription: e.displayPrescription,
@@ -3136,6 +3137,7 @@ export function flatToStructured(sections: {
                   canonicalize: false,
                   name: it.name,
                   exerciseId: it.exerciseId,
+                  animationVariant: it.animationVariant,
                   speedRole: it.speedRole,
                   purpose: it.purpose,
                   visualId: it.visualId,

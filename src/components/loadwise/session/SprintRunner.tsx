@@ -123,7 +123,7 @@ function SprintExerciseRow({
               </span>
             </div>
           )}
-          {!done && <ExerciseQuickGuide exercise={exercise} />}
+          <ExerciseQuickGuide exercise={exercise} />
           {!done && view.showSkipSetLabels && (
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
               Seria 1: dodatkowe odbicie na tej samej nodze podporowej, potem zmiana nóg. Seria 2:

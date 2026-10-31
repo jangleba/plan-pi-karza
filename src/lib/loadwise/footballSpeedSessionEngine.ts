@@ -1050,7 +1050,7 @@ function buildRow(
     },
     direction: spec.direction,
     pass,
-    variant,
+    variant: variant ?? spec.variant,
     sets: "1",
     reps: dose,
     distanceOrDuration: dose,
@@ -1082,6 +1082,7 @@ function toTrainingExercise(date: string, exercise: FootballSpeedExercise): Trai
   return {
     id: `${date}-${exercise.order}-${exercise.exerciseId}`,
     exerciseId: exercise.exerciseId,
+    animationVariant: exercise.variant,
     speedRole: exercise.role,
     name: exercise.name,
     purpose: exercise.purpose,
@@ -1166,6 +1167,7 @@ function buildSessionDay(
   const toItem = (exercise: FootballSpeedExercise) => ({
     name: exercise.name,
     exerciseId: exercise.exerciseId,
+    animationVariant: exercise.variant,
     // Rola sprintowa musi przetrwać do widoku (mapowanie bloków 01–07).
     speedRole: exercise.role,
     purpose: exercise.purpose,
