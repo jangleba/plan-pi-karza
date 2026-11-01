@@ -1,5 +1,5 @@
 .browser-lab {
-  padding: 4px 20px 110px;
+  padding: 4px 20px 28px;
   color: var(--foreground);
   font-size: 14px;
   line-height: 1.55;
@@ -61,6 +61,8 @@
   cursor: default;
 }
 .bl-button:focus-visible,
+.bl-test-card:focus-visible,
+.bl-tabs button:focus-visible,
 .browser-lab input:focus-visible,
 .browser-lab select:focus-visible,
 .browser-lab summary:focus-visible {
@@ -147,35 +149,69 @@
 .bl-profile h2 {
   font-size: 24px;
 }
+.bl-profile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bl-profile-heading h2 {
+  margin: 0;
+  font-size: 21px;
+}
 .bl-profile .bl-button {
   margin-top: 12px;
   width: 100%;
 }
 .bl-test-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
   align-items: center;
   gap: 12px;
-  padding: 18px 14px;
+  padding: 18px 16px;
+  min-height: 108px;
+  width: 100%;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
 }
-.bl-test-card > div:nth-child(2) {
-  flex: 1;
+.bl-test-card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.bl-test-card:not(:disabled):active {
+  background: var(--secondary);
+}
+.bl-test-copy {
   min-width: 0;
+  display: grid;
+  gap: 3px;
 }
-.bl-test-card h2 {
-  font-size: 18px;
-  margin-bottom: 3px;
+.bl-test-copy strong {
+  font-size: 17px;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
 }
-.bl-test-card p {
-  margin: 3px 0;
+.bl-test-copy > span {
   font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.bl-test-copy .bl-test-meta {
+  font-size: 11px;
+}
+.bl-test-chevron {
+  color: var(--muted-foreground);
 }
 .bl-test-icon {
   display: grid;
   place-items: center;
   background: var(--secondary);
   color: var(--primary);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   border-radius: 12px;
 }
@@ -251,6 +287,8 @@
   background: #070d16;
   color: white;
   overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   --primary: #1688ff;
   --primary-foreground: white;
   --secondary: #15283eee;
@@ -265,9 +303,11 @@
   padding: 0;
 }
 .bl-camera-overlay .bl-camera-preview {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  inset: auto;
   height: 100%;
+  min-height: 0;
+  grid-row: 2;
   border-radius: 0;
 }
 .bl-camera-overlay .bl-camera-preview video {
@@ -277,7 +317,8 @@
   object-fit: contain;
 }
 .bl-camera-header {
-  position: absolute;
+  position: relative;
+  grid-row: 1;
   top: 0;
   left: 0;
   right: 0;
@@ -305,7 +346,8 @@
   font-variant-numeric: tabular-nums;
 }
 .bl-camera-bottom {
-  position: absolute;
+  position: relative;
+  grid-row: 3;
   bottom: 0;
   left: 0;
   right: 0;
@@ -326,6 +368,31 @@
 .bl-camera-tip {
   font-size: 13px;
   text-wrap: balance;
+}
+.bl-camera-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 260px);
+  gap: 12px;
+  margin: 10px auto;
+}
+.bl-camera-options label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  text-align: left;
+  font-size: 11px;
+}
+.bl-camera-options select {
+  min-height: 44px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #ffffff50;
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: #15283e;
+  color: white;
+  font-size: 16px;
 }
 .bl-camera-shutter {
   margin-top: 10px;
@@ -401,9 +468,22 @@
   font-size: 16px;
 }
 @media (orientation: landscape) and (max-height: 500px) {
+  .bl-camera-overlay {
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 30%);
+  }
+  .bl-camera-header {
+    grid-column: 1 / -1;
+  }
+  .bl-camera-overlay .bl-camera-preview {
+    grid-column: 1;
+  }
   .bl-camera-bottom {
+    grid-row: 2;
+    grid-column: 2;
     left: auto;
-    width: min(32%, 250px);
+    width: auto;
+    overflow-y: auto;
     padding: 12px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) 10px;
     background: #071627bb;
     border-radius: 18px 0 0 0;
@@ -523,7 +603,7 @@
   padding-top: 12px;
 }
 .bl-details summary {
-  min-height: 36px;
+  min-height: 44px;
   cursor: pointer;
   font-weight: 650;
 }
@@ -706,7 +786,13 @@
     padding: 16px;
   }
   .bl-test-icon {
-    display: none;
+    width: 36px;
+    height: 36px;
+  }
+  .bl-test-card {
+    grid-template-columns: 36px minmax(0, 1fr) 18px;
+    padding: 16px 12px;
+    gap: 10px;
   }
   .bl-frame-card {
     padding: 12px;
@@ -733,13 +819,76 @@
   height: 1px;
   clip-path: inset(50%);
 }
+.bl-attempt-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+.bl-attempt-heading .bl-kicker {
+  margin: 0 0 4px;
+}
+.bl-attempt-heading h2 {
+  margin: 0;
+  font-size: 23px;
+}
+.bl-saved-badge {
+  border-radius: 20px;
+  padding: 6px 10px;
+  background: var(--secondary);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 650;
+}
+.bl-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0;
+  margin: 0 0 14px;
+  list-style: none;
+}
+.bl-flow-steps li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 11px;
+  color: var(--muted-foreground);
+  background: var(--secondary);
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+.bl-flow-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 10px;
+  background: var(--card);
+}
+.bl-flow-steps [aria-current="step"] {
+  color: var(--primary);
+  background: var(--card);
+  border-color: var(--primary);
+  font-weight: 650;
+}
+.bl-flow-steps .is-complete {
+  color: var(--primary);
+}
+.bl-correction-cancel {
+  margin: 0 0 8px;
+}
 .bl-step-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 .bl-step-tabs button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 11px;

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   stop: vi.fn(),
   auto: vi.fn(),
   markers: vi.fn(),
+  download: vi.fn(),
 }));
 vi.mock("./video", () => ({
   openJumpVideo: mocks.open,
@@ -30,6 +31,7 @@ vi.mock("./camera", () => ({
 vi.mock("./longJumpAuto", () => ({
   analyzeLongJump: mocks.auto,
 }));
+vi.mock("./download", () => ({ downloadBlob: mocks.download, downloadText: vi.fn() }));
 vi.mock("./longJump", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./longJump")>()),
   findBallWiseCalibrationMarkers: mocks.markers,
@@ -120,6 +122,7 @@ beforeEach(() => {
   mocks.stop.mockReset();
   mocks.record.mockReset();
   mocks.auto.mockReset().mockResolvedValue(automaticSpatial);
+  mocks.download.mockReset().mockResolvedValue("delivered");
   mocks.markers.mockReset().mockReturnValue({
     start: { corners: startMarker, quality: 0.95 },
     range: { corners: rangeMarker, quality: 0.95 },
@@ -426,6 +429,66 @@ it("analyzes long jump automatically, exposes one heel correction and saves the 
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 7);
   expect(save.mock.calls[0][0].spatial.heelSource).toBe("manual");
+});
+
+it("keeps portrait footage and its heel overlay in the same aspect ratio at a viewport height limit", async () => {
+  mocks.decode.mockImplementation(async (_video, index) => ({
+    timestamp: timeline.frames[index].timestampUs,
+    displayWidth: 1080,
+    displayHeight: 1920,
+    close: vi.fn(),
+  }));
+  await render(vi.fn(), "standing_long_jump");
+  await importFile();
+  const frame = host.querySelector<HTMLElement>(".bl-frame")!;
+  expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(0.5625, 8);
+  expect(frame.style.maxWidth).toBe("27svh");
+  await act(async () => button("Popraw punkt pięty").click());
+  expect(frame.style.maxWidth).toBe("32.625dvh");
+});
+
+it.each(["button", "escape"])(
+  "cancels heel correction through %s and restores its previous point",
+  async (via) => {
+    mocks.decode.mockImplementation(async (_video, index) => ({
+      timestamp: timeline.frames[index].timestampUs,
+      displayWidth: 1920,
+      displayHeight: 1080,
+      close: vi.fn(),
+    }));
+    const save = await render(vi.fn(), "standing_long_jump");
+    await importFile();
+    await act(async () => button("Popraw punkt pięty").click());
+    await floorPoint(...groundPoint(7, 215));
+    expect(host.querySelector(".bl-result")?.textContent).toContain("215,0 cm");
+    if (via === "button") {
+      const cancel = [...host.querySelectorAll("button")].find(
+        (b) => b.getAttribute("aria-label") === "Anuluj korektę",
+      );
+      expect(cancel).toBeTruthy();
+      await act(async () => cancel!.click());
+    } else
+      await act(async () =>
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+      );
+    expect(host.querySelector(".bl-auto-correction")).toBeNull();
+    expect(host.querySelector(".bl-result")?.textContent).toContain("214,0 cm");
+    expect(document.body.style.overflow).not.toBe("hidden");
+    expect(save).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps a camera recording downloadable when automatic analysis cannot find a valid jump", async () => {
+  mocks.auto.mockRejectedValue(new Error("Brak widocznego wzorca"));
+  await render(vi.fn(), "standing_long_jump");
+  await importFile();
+  const keep = [...host.querySelectorAll("button")].find(
+    (b) => b.textContent?.trim() === "Zachowaj nagranie",
+  );
+  expect(keep).toBeTruthy();
+  await act(async () => keep!.click());
+  expect(mocks.download).toHaveBeenCalledOnce();
+  expect(mocks.download.mock.calls[0][1]).toBeInstanceOf(File);
 });
 
 it.each(["moved", "missing"])(

@@ -3,9 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openLabCamera, recordLabCamera } from "./camera";
 
 class Recorder {
-  static isTypeSupported = vi.fn((type: string) =>
-    type.startsWith("video/mp4"),
-  );
+  static isTypeSupported = vi.fn((type: string) => type.startsWith("video/mp4"));
   static all: Recorder[] = [];
   mimeType = "video/mp4";
   state = "inactive";
@@ -28,14 +26,11 @@ function fixture() {
     stop: vi.fn(),
     getCapabilities: () => ({ frameRate: { min: 15, max: 240 } }),
     getSettings: () => ({ frameRate: fps, width: 1920, height: 1080 }),
-    applyConstraints: vi.fn(
-      async (constraints: { frameRate: { exact: number } }) => {
-        const target = constraints.frameRate.exact;
-        if (target > 60)
-          throw new DOMException("Unsupported mode", "OverconstrainedError");
-        fps = target;
-      },
-    ),
+    applyConstraints: vi.fn(async (constraints: { frameRate: { exact: number } }) => {
+      const target = constraints.frameRate.exact;
+      if (target > 60) throw new DOMException("Unsupported mode", "OverconstrainedError");
+      fps = target;
+    }),
   };
   const stream = {
     getVideoTracks: () => [track],
@@ -50,9 +45,7 @@ beforeEach(() => {
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("MediaRecorder", Recorder);
   Recorder.all = [];
-  Recorder.isTypeSupported.mockImplementation((type: string) =>
-    type.startsWith("video/mp4"),
-  );
+  Recorder.isTypeSupported.mockImplementation((type: string) => type.startsWith("video/mp4"));
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -60,6 +53,34 @@ afterEach(() => {
 });
 
 describe("camera negotiation and recording lifecycle", () => {
+  it("honors an explicit longer recording limit", async () => {
+    const { stream } = fixture();
+    const camera = { stream, mimeType: "video/mp4", settings: {} };
+    const recording = recordLabCamera(camera, new AbortController().signal, vi.fn(), 15);
+    const recorder = Recorder.all.at(-1)!;
+    await vi.advanceTimersByTimeAsync(14999);
+    expect(recorder.stop).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(recorder.stop).toHaveBeenCalledOnce();
+    recorder.ondataavailable?.({ data: new Blob(["video"]) });
+    recorder.onstop?.();
+    expect((await recording.finished).size).toBe(5);
+  });
+  it.each([0, -1, 19, NaN, Infinity, 3.5])(
+    "rejects an unsafe recording duration %s before creating an encoder",
+    (seconds) => {
+      const { stream } = fixture();
+      expect(() =>
+        recordLabCamera(
+          { stream, mimeType: "video/mp4", settings: {} },
+          new AbortController().signal,
+          vi.fn(),
+          seconds,
+        ),
+      ).toThrow("sekund");
+      expect(Recorder.all).toHaveLength(0);
+    },
+  );
   it("requests the rear camera without audio and falls back to a supported actual FPS", async () => {
     const { track, gum } = fixture();
     const camera = await openLabCamera(new AbortController().signal);
@@ -67,18 +88,16 @@ describe("camera negotiation and recording lifecycle", () => {
       audio: false,
       video: { facingMode: { exact: "environment" } },
     });
-    expect(
-      track.applyConstraints.mock.calls.map(([c]) => c.frameRate.exact),
-    ).toEqual([240, 120, 60]);
+    expect(track.applyConstraints.mock.calls.map(([c]) => c.frameRate.exact)).toEqual([
+      240, 120, 60,
+    ]);
     expect(camera.settings.frameRate).toBe(60);
   });
   it("allows a browser-exposed 24 FPS mode without requesting unavailable high rates", async () => {
     const { track } = fixture();
     track.getCapabilities = () => ({ frameRate: { min: 15, max: 24 } });
     const camera = await openLabCamera(new AbortController().signal);
-    expect(
-      track.applyConstraints.mock.calls.map(([c]) => c.frameRate.exact),
-    ).toEqual([24]);
+    expect(track.applyConstraints.mock.calls.map(([c]) => c.frameRate.exact)).toEqual([24]);
     expect(camera.settings.frameRate).toBe(24);
   });
   it("releases camera access obtained after cancellation", async () => {
@@ -91,9 +110,7 @@ describe("camera negotiation and recording lifecycle", () => {
         }),
     );
     const controller = new AbortController();
-    const outcome = openLabCamera(controller.signal).catch(
-      (reason: unknown) => reason,
-    );
+    const outcome = openLabCamera(controller.signal).catch((reason: unknown) => reason);
     controller.abort();
     resolve(stream);
     expect(((await outcome) as DOMException).name).toBe("AbortError");
@@ -102,9 +119,7 @@ describe("camera negotiation and recording lifecycle", () => {
   it("offers a useful permission error and does not silently switch to another capture flow", async () => {
     const { gum } = fixture();
     gum.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
-    await expect(openLabCamera(new AbortController().signal)).rejects.toThrow(
-      "Zezwól na kamerę",
-    );
+    await expect(openLabCamera(new AbortController().signal)).rejects.toThrow("Zezwól na kamerę");
     expect(gum).toHaveBeenCalledOnce();
   });
   it("rejects an unsupported recording container before asking for camera access", async () => {
@@ -119,11 +134,7 @@ describe("camera negotiation and recording lifecycle", () => {
     const { track } = fixture();
     const camera = await openLabCamera(new AbortController().signal);
     const progress = vi.fn();
-    const recording = recordLabCamera(
-      camera,
-      new AbortController().signal,
-      progress,
-    );
+    const recording = recordLabCamera(camera, new AbortController().signal, progress);
     const recorder = Recorder.all.at(-1)!;
     recorder.ondataavailable!({ data: new Blob(["first"]) });
     await vi.advanceTimersByTimeAsync(8000);

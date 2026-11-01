@@ -23,6 +23,8 @@ export function CameraRecorder({
     "opening" | "ready" | "countdown" | "recording" | "finishing" | "error"
   >("opening");
   const [count, setCount] = useState(3);
+  const [countdownSeconds, setCountdownSeconds] = useState(3);
+  const [maximumSeconds, setMaximumSeconds] = useState(8);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
   const capture = useRef<AbortController | null>(null);
@@ -46,7 +48,9 @@ export function CameraRecorder({
       }
       if (event.key !== "Tab") return;
       const controls = [
-        ...(dialog.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []),
+        ...(dialog.current?.querySelectorAll<HTMLElement>(
+          "button:not(:disabled),select:not(:disabled)",
+        ) ?? []),
       ];
       const first = controls[0],
         last = controls[controls.length - 1];
@@ -133,7 +137,7 @@ export function CameraRecorder({
   useEffect(() => {
     if (phase !== "countdown" || !camera) return;
     const controller = capture.current!;
-    let value = 3;
+    let value = countdownSeconds;
     const timer = setInterval(() => {
       value--;
       if (value > 0) {
@@ -143,7 +147,7 @@ export function CameraRecorder({
       clearInterval(timer);
       if (controller.signal.aborted) return;
       try {
-        const recording = recordLabCamera(camera, controller.signal, setSeconds);
+        const recording = recordLabCamera(camera, controller.signal, setSeconds, maximumSeconds);
         stop.current = recording.stop;
         setPhase("recording");
         void recording.finished
@@ -162,7 +166,7 @@ export function CameraRecorder({
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [phase, camera]);
+  }, [phase, camera, countdownSeconds, maximumSeconds]);
 
   const settings = camera?.settings;
   return createPortal(
@@ -189,7 +193,7 @@ export function CameraRecorder({
         <h2>{title}</h2>
         <span className="bl-camera-status" role="status">
           {phase === "recording"
-            ? `● ${seconds} / 8 s`
+            ? `● ${seconds} / ${maximumSeconds} s`
             : phase === "opening"
               ? "Uruchamiam…"
               : phase === "finishing"
@@ -211,11 +215,41 @@ export function CameraRecorder({
         {phase === "ready" && (
           <>
             <p className="bl-camera-tip">{instruction}</p>
-            <p className="bl-camera-small">Start za 3 s · nagranie 8 s · telefon nieruchomo</p>
+            <div className="bl-camera-options">
+              <label>
+                Start za
+                <select
+                  aria-label="Opóźnienie startu"
+                  value={countdownSeconds}
+                  onChange={(event) => setCountdownSeconds(Number(event.target.value))}
+                >
+                  {[3, 5, 10].map((value) => (
+                    <option key={value} value={value}>
+                      {value} s
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Nagranie
+                <select
+                  aria-label="Długość nagrania"
+                  value={maximumSeconds}
+                  onChange={(event) => setMaximumSeconds(Number(event.target.value))}
+                >
+                  {[8, 12, 15].map((value) => (
+                    <option key={value} value={value}>
+                      {value} s
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="bl-camera-small">Telefon nieruchomo · możesz zakończyć wcześniej</p>
             <LabButton
               className="bl-camera-shutter"
               onClick={() => {
-                setCount(3);
+                setCount(countdownSeconds);
                 setPhase("countdown");
               }}
             >

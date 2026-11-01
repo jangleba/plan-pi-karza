@@ -44,6 +44,25 @@ const starts = () =>
       b.getAttribute("aria-label")?.startsWith("Rozpocznij"),
   );
 describe("Lab capability gate", () => {
+  it("switches accessible Testy/Historia panels with arrow and Home keys", async () => {
+    vi.stubGlobal("isSecureContext", true);
+    await render();
+    const tabs = host.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    tabs[0].focus();
+    await act(async () =>
+      tabs[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
+    );
+    expect(tabs[1].getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tabs[1]);
+    expect(host.querySelector('[role="tabpanel"]')?.getAttribute("aria-labelledby")).toBe(
+      tabs[1].id,
+    );
+    await act(async () =>
+      tabs[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true })),
+    );
+    expect(tabs[0].getAttribute("aria-selected")).toBe("true");
+    expect(tabs[1].tabIndex).toBe(-1);
+  });
   it("completes all 17 profile slots once, preserving sides, trial numbers and saved history", async () => {
     vi.stubGlobal("isSecureContext", true);
     await render();

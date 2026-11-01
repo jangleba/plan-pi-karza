@@ -1,5 +1,16 @@
-import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, ArrowRight, Clock, FlaskConical } from "lucide-react";
+import { useEffect, useId, useState, type KeyboardEvent } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronRight,
+  Clock,
+  FlaskConical,
+  Footprints,
+  MoveRight,
+  RotateCcw,
+  Timer,
+  ArrowUpFromLine,
+} from "lucide-react";
 import {
   PROTOCOLS,
   TEST_IDS,
@@ -35,12 +46,13 @@ function RestReminder({ until }: { until: number }) {
     <p className="bl-rest">
       <Clock size={17} />
       {seconds > 0
-        ? `Przerwa: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+        ? `Zalecana przerwa: ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
         : "Możesz wykonać kolejną próbę."}
     </p>
   );
 }
 export default function BrowserLab({ ownerId }: { ownerId: string }) {
+  const tabsId = useId();
   const [tab, setTab] = useState<"tests" | "history">("tests");
   const [rows, setRows] = useState<BrowserResult[]>([]);
   const [error, setError] = useState("");
@@ -48,6 +60,22 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
   const [exit, setExit] = useState(false);
   const [capable, setCapable] = useState<boolean | null>(null);
   const [finished, setFinished] = useState<number | null>(null);
+  function tabKeys(event: KeyboardEvent<HTMLButtonElement>, current: "tests" | "history") {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next =
+      event.key === "Home"
+        ? "tests"
+        : event.key === "End"
+          ? "history"
+          : current === "tests"
+            ? "history"
+            : "tests";
+    setTab(next);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-tab="${next}"]`)
+      ?.focus();
+  }
   useEffect(() => {
     setCapable(
       globalThis.isSecureContext &&
@@ -162,15 +190,20 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
             </div>
             <div>
               <p className="bl-kicker">LAB</p>
-              <h2>Sprawdź swoją formę</h2>
-              <p>Skoki, szybkość i zwrotność.</p>
+              <h2>Wybierz test</h2>
+              <p>Skok, sprint lub zmiana kierunku.</p>
             </div>
           </section>
           <div className="bl-tabs" role="tablist" aria-label="BallWise Lab">
             <button
               type="button"
               role="tab"
+              id={`${tabsId}-tests`}
+              data-tab="tests"
+              aria-controls={`${tabsId}-panel`}
+              tabIndex={tab === "tests" ? 0 : -1}
               aria-selected={tab === "tests"}
+              onKeyDown={(event) => tabKeys(event, "tests")}
               onClick={() => setTab("tests")}
             >
               Testy
@@ -178,7 +211,12 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
             <button
               type="button"
               role="tab"
+              id={`${tabsId}-history`}
+              data-tab="history"
+              aria-controls={`${tabsId}-panel`}
+              tabIndex={tab === "history" ? 0 : -1}
               aria-selected={tab === "history"}
+              onKeyDown={(event) => tabKeys(event, "history")}
               onClick={() => setTab("history")}
             >
               Historia <span>{rows.length}</span>
@@ -199,97 +237,107 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
               Historia i kopie wyników pozostają dostępne.
             </LabNotice>
           )}
-          {tab === "tests" ? (
-            <>
-              <section className="bl-card bl-profile">
-                <p className="bl-kicker">PEŁNY PROFIL</p>
-                <h2>
-                  {TEST_IDS.length} testów · {attemptPlan(TEST_IDS).length} prób
-                </h2>
-                <p>
-                  Skoczność, szybkość i zmiana kierunku. Przed sesją zrób rozgrzewkę, przygotuj
-                  taśmę, pachołki i statyw. Zaplanuj czas na przerwy: 60–90 s po skoku, 3 min po
-                  biegu. Skok w dal wymaga dwóch wzorców AUTO oraz taśmy.
-                </p>
-                <LabButton disabled={capable !== true} onClick={() => begin(TEST_IDS)}>
-                  Rozpocznij pełny profil
-                  <ArrowRight size={18} />
-                </LabButton>
-              </section>
-              <div className="bl-test-list">
-                {PROTOCOLS.map((protocol) => (
-                  <section key={protocol.id} className="bl-card bl-test-card">
-                    <div className="bl-test-icon">
-                      <Activity size={20} />
-                    </div>
-                    <div>
-                      <p className="bl-kicker">
-                        {protocol.category === "jump"
-                          ? "SKOCZNOŚĆ"
-                          : protocol.category === "speed"
-                            ? "SZYBKOŚĆ"
-                            : "ZMIANA KIERUNKU"}
-                      </p>
-                      <h2>{protocol.title}</h2>
-                      <p>{protocol.subtitle}</p>
-                      <span className="bl-muted">
-                        {protocol.trials} próby
-                        {protocol.sides.length > 1 ? " na każdą nogę" : ""} ·{" "}
-                        {protocol.category === "jump" ? "wynik w cm" : "wynik w sekundach"}
-                      </span>
-                    </div>
-                    <LabButton
-                      className="bl-secondary"
-                      aria-label={`Rozpocznij ${protocol.title}`}
-                      disabled={capable !== true}
-                      onClick={() => begin([protocol.id as BrowserTestId])}
-                    >
-                      Start
-                      <ArrowRight size={16} />
-                    </LabButton>
-                  </section>
-                ))}
-              </div>
-              <details className="bl-details">
-                <summary>Jak wykonać pomiar?</summary>
-                <ol className="bl-steps">
-                  <li>
-                    Nagraj jedną próbę, około 5–10 s. Dla rozdzielczości czasu wybierz oryginalne
-                    120/240 FPS. Obsługujemy HD i 4K od 15 FPS; przy 30/60 FPS wynik jest
-                    orientacyjny.
-                  </li>
-                  <li>
-                    Wybierz test i zaimportuj oryginalny MP4/MOV z Plików. Sprawdź rzeczywiste FPS
-                    odczytane przez Lab.
-                  </li>
-                  <li>
-                    Skok w dal analizuje się automatycznie — sprawdzasz tylko punkt pięty. W
-                    pozostałych testach oznacz zdarzenia klatka po klatce i zapisz wynik.
-                  </li>
-                </ol>
-                <p className="bl-muted">
-                  LiDAR nie jest potrzebny. Skok w dal używa dwóch wydrukowanych wzorców na podłożu;
-                  wysokość pozostałych skoków obliczamy z czasu lotu, a odcinki biegowe trzeba
-                  zmierzyć taśmą. Przy 30/60 FPS wyniki czasowe są orientacyjne — sprawdź podany
-                  zakres rozdzielczości. Zmiana tempa filmu uniemożliwia poprawny pomiar.
-                </p>
-              </details>
-            </>
-          ) : (
-            <BrowserHistory
-              rows={rows}
-              onDelete={(id) => {
-                try {
-                  setRows(deleteBrowserResult(ownerId, id));
-                  setError("");
-                  return true;
-                } catch (reason) {
-                  setError(messageOf(reason));
-                  return false;
-                }
-              }}
-            />
-          )}
+          <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`}>
+            {tab === "tests" ? (
+              <>
+                <section className="bl-card bl-profile">
+                  <div className="bl-profile-heading">
+                    <h2>Pełny profil</h2>
+                    <span className="bl-badge">
+                      {TEST_IDS.length} testów · {attemptPlan(TEST_IDS).length} prób
+                    </span>
+                  </div>
+                  <p className="bl-muted">Cały zestaw z przerwami. Przygotuj taśmę i dwa wzorce.</p>
+                  <LabButton disabled={capable !== true} onClick={() => begin(TEST_IDS)}>
+                    Rozpocznij pełny profil
+                    <ArrowRight size={18} />
+                  </LabButton>
+                  <details className="bl-details">
+                    <summary>Co przygotować?</summary>
+                    <p>
+                      Rozgrzewka, taśma, pachołki i statyw. Dla skoku w dal: dwa wydrukowane wzorce.
+                      Odpoczynek: 60–90 s po skoku, 3 min po biegu.
+                    </p>
+                  </details>
+                </section>
+                <div className="bl-test-list">
+                  {PROTOCOLS.map((protocol) => {
+                    const Icon =
+                      protocol.id === "cmj"
+                        ? ArrowUpFromLine
+                        : protocol.id === "single_leg_cmj"
+                          ? Footprints
+                          : protocol.id === "sprint_10m"
+                            ? Timer
+                            : protocol.id === "standing_long_jump"
+                              ? MoveRight
+                              : RotateCcw;
+                    return (
+                      <button
+                        type="button"
+                        key={protocol.id}
+                        className="bl-card bl-test-card"
+                        aria-label={`Rozpocznij ${protocol.title}`}
+                        disabled={capable !== true}
+                        onClick={() => begin([protocol.id as BrowserTestId])}
+                      >
+                        <span className="bl-test-icon" aria-hidden="true">
+                          <Icon size={21} />
+                        </span>
+                        <span className="bl-test-copy">
+                          <strong>{protocol.title}</strong>
+                          <span>{protocol.subtitle}</span>
+                          <span className="bl-test-meta">
+                            {protocol.trials} próby{protocol.sides.length > 1 ? " na nogę" : ""} ·{" "}
+                            {protocol.category === "jump" ? "cm" : "sekundy"}
+                          </span>
+                        </span>
+                        <ChevronRight size={20} className="bl-test-chevron" aria-hidden="true" />
+                      </button>
+                    );
+                  })}
+                </div>
+                <details className="bl-details">
+                  <summary>Jak wykonać pomiar?</summary>
+                  <ol className="bl-steps">
+                    <li>
+                      Nagraj jedną próbę, około 5–10 s. Dla rozdzielczości czasu wybierz oryginalne
+                      120/240 FPS. Obsługujemy HD i 4K od 15 FPS; przy 30/60 FPS wynik jest
+                      orientacyjny.
+                    </li>
+                    <li>
+                      Wybierz test i zaimportuj oryginalny MP4/MOV z Plików. Sprawdź rzeczywiste FPS
+                      odczytane przez Lab.
+                    </li>
+                    <li>
+                      Skok w dal analizuje się automatycznie — sprawdzasz tylko punkt pięty. W
+                      pozostałych testach oznacz zdarzenia klatka po klatce i zapisz wynik.
+                    </li>
+                  </ol>
+                  <p className="bl-muted">
+                    LiDAR nie jest potrzebny. Skok w dal używa dwóch wydrukowanych wzorców na
+                    podłożu; wysokość pozostałych skoków obliczamy z czasu lotu, a odcinki biegowe
+                    trzeba zmierzyć taśmą. Przy 30/60 FPS wyniki czasowe są orientacyjne — sprawdź
+                    podany zakres rozdzielczości. Zmiana tempa filmu uniemożliwia poprawny pomiar.
+                  </p>
+                </details>
+              </>
+            ) : (
+              <BrowserHistory
+                rows={rows}
+                onDelete={(id) => {
+                  try {
+                    setRows(deleteBrowserResult(ownerId, id));
+                    setError("");
+                    return true;
+                  } catch (reason) {
+                    setError(messageOf(reason));
+                    return false;
+                  }
+                }}
+              />
+            )}
+          </div>
           <SafariTools
             ownerId={ownerId}
             rows={rows}

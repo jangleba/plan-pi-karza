@@ -11,10 +11,7 @@ export function stopCamera(camera: LabCamera) {
 }
 
 function recordingTypes() {
-  if (
-    typeof MediaRecorder === "undefined" ||
-    typeof MediaRecorder.isTypeSupported !== "function"
-  )
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function")
     return [];
   return ["video/mp4;codecs=avc1", "video/mp4"].filter((type) =>
     MediaRecorder.isTypeSupported(type),
@@ -25,11 +22,7 @@ function recordingTypes() {
 export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
   signal.throwIfAborted();
   const mimeTypes = recordingTypes();
-  if (
-    !globalThis.isSecureContext ||
-    !navigator.mediaDevices?.getUserMedia ||
-    !mimeTypes.length
-  )
+  if (!globalThis.isSecureContext || !navigator.mediaDevices?.getUserMedia || !mimeTypes.length)
     throw new Error(
       "Nagrywanie w Lab nie jest dostępne. Otwórz opublikowaną aplikację w Safari lub wybierz film.",
     );
@@ -47,11 +40,7 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
         video: constraints,
       });
     } catch (reason) {
-      if (
-        !(reason instanceof DOMException) ||
-        reason.name !== "OverconstrainedError"
-      )
-        throw reason;
+      if (!(reason instanceof DOMException) || reason.name !== "OverconstrainedError") throw reason;
       signal.throwIfAborted();
       stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -61,10 +50,7 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
     signal.throwIfAborted();
     const track = stream.getVideoTracks()[0];
     if (!track) throw new Error("Kamera nie udostępniła obrazu. Wybierz film.");
-    const capabilities =
-      typeof track.getCapabilities === "function"
-        ? track.getCapabilities()
-        : {};
+    const capabilities = typeof track.getCapabilities === "function" ? track.getCapabilities() : {};
     const rates = [
       ...new Set([
         Math.min(240, capabilities.frameRate?.max ?? 240),
@@ -81,11 +67,7 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
       .filter((rate) => rate >= 15)
       .sort((a, b) => b - a);
     for (const fps of rates) {
-      if (
-        capabilities.frameRate?.max !== undefined &&
-        capabilities.frameRate.max < fps
-      )
-        continue;
+      if (capabilities.frameRate?.max !== undefined && capabilities.frameRate.max < fps) continue;
       try {
         await track.applyConstraints({
           width: { ideal: 1920, max: 1920 },
@@ -98,10 +80,7 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
         if (actual === undefined || actual >= fps * 0.95) break;
       } catch (reason) {
         signal.throwIfAborted();
-        if (
-          !(reason instanceof DOMException) ||
-          reason.name !== "OverconstrainedError"
-        )
+        if (!(reason instanceof DOMException) || reason.name !== "OverconstrainedError")
           throw reason;
       }
     }
@@ -112,16 +91,10 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
         new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12_000_000 });
         return { stream, mimeType, settings: track.getSettings() };
       } catch (reason) {
-        if (
-          !(reason instanceof DOMException) ||
-          reason.name !== "NotSupportedError"
-        )
-          throw reason;
+        if (!(reason instanceof DOMException) || reason.name !== "NotSupportedError") throw reason;
       }
     }
-    throw new Error(
-      "Kamera nie obsługuje zapisu MP4 w Lab. Wybierz film z Aparatu.",
-    );
+    throw new Error("Kamera nie obsługuje zapisu MP4 w Lab. Wybierz film z Aparatu.");
   } catch (reason) {
     stream?.getTracks().forEach((track) => track.stop());
     if (signal.aborted) throw signal.reason;
@@ -148,8 +121,11 @@ export function recordLabCamera(
   camera: LabCamera,
   signal: AbortSignal,
   onSeconds: (seconds: number) => void,
+  maximumSeconds = 8,
 ) {
   signal.throwIfAborted();
+  if (!Number.isInteger(maximumSeconds) || maximumSeconds < 2 || maximumSeconds > 18)
+    throw new Error("Wybierz nagranie od 2 do 18 sekund.");
   const recorder = new MediaRecorder(camera.stream, {
     mimeType: camera.mimeType,
     videoBitsPerSecond: 12_000_000,
@@ -191,8 +167,7 @@ export function recordLabCamera(
     stopCamera(camera);
     fail(reason);
   };
-  const cancel = () =>
-    reject(signal.reason ?? new DOMException("Anulowano", "AbortError"));
+  const cancel = () => reject(signal.reason ?? new DOMException("Anulowano", "AbortError"));
   const stop = () => {
     if (settled || stopping) return;
     stopping = true;
@@ -200,8 +175,7 @@ export function recordLabCamera(
     clearInterval(progress);
     // Bound a platform recorder that never sends its final data/stop event.
     stopTimeout = setTimeout(
-      () =>
-        reject(new Error("Kamera nie zakończyła nagrania. Spróbuj ponownie.")),
+      () => reject(new Error("Kamera nie zakończyła nagrania. Spróbuj ponownie.")),
       5000,
     );
     try {
@@ -218,11 +192,7 @@ export function recordLabCamera(
     else chunks.push(event.data);
   };
   recorder.onerror = () =>
-    reject(
-      new Error(
-        "Nie udało się nagrać filmu. Spróbuj ponownie lub wybierz film.",
-      ),
-    );
+    reject(new Error("Nie udało się nagrać filmu. Spróbuj ponownie lub wybierz film."));
   recorder.onstop = () => {
     if (settled) return;
     if (!bytes) {
@@ -233,17 +203,15 @@ export function recordLabCamera(
     clean();
     stopCamera(camera);
     finish(
-      new File(
-        chunks,
-        `BallWise-${new Date().toISOString().replace(/[:.]/g, "-")}.mp4`,
-        { type: recorder.mimeType || camera.mimeType },
-      ),
+      new File(chunks, `BallWise-${new Date().toISOString().replace(/[:.]/g, "-")}.mp4`, {
+        type: recorder.mimeType || camera.mimeType,
+      }),
     );
   };
   signal.addEventListener("abort", cancel, { once: true });
-  const maximum = setTimeout(stop, 8000);
+  const maximum = setTimeout(stop, maximumSeconds * 1000);
   const progress = setInterval(
-    () => onSeconds(Math.min(8, Math.floor((Date.now() - started) / 1000))),
+    () => onSeconds(Math.min(maximumSeconds, Math.floor((Date.now() - started) / 1000))),
     250,
   );
   try {

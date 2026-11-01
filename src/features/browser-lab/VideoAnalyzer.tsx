@@ -66,6 +66,65 @@ export function VideoAnalyzer({
   const load = useRef<AbortController | null>(null);
   const version = useRef(0);
   const decoderRef = useRef<ReturnType<typeof createJumpFrameDecoder> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const correctionRef = useRef<HTMLElement>(null);
+  const correctionBefore = useRef<{
+    spatial: AutomaticLongJumpCalibration;
+    end: number | null;
+    frameIndex: number;
+    draft: BrowserResult | null;
+    error: string;
+  } | null>(null);
+  const cancelCorrectionRef = useRef<() => void>(() => {});
+  cancelCorrectionRef.current = cancelHeelCorrection;
+
+  useEffect(() => {
+    if (!isLongJump || !editing) return;
+    const root = rootRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    correctionRef.current?.focus();
+    const keys = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelCorrectionRef.current();
+      }
+      if (event.key !== "Tab") return;
+      const controls = [
+        ...(correctionRef.current?.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), input:not(:disabled), select:not(:disabled)",
+        ) ?? []),
+      ];
+      const first = controls[0],
+        last = controls.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === correctionRef.current)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || document.activeElement === correctionRef.current)
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", keys, true);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", keys, true);
+      queueMicrotask(() => {
+        if (root?.isConnected) root.querySelector<HTMLButtonElement>("[data-heel-edit]")?.focus();
+      });
+    };
+  }, [isLongJump, editing]);
 
   const stopImport = useCallback(
     (message: string) => {
@@ -257,6 +316,24 @@ export function VideoAnalyzer({
     setConfirmed(false);
     setError("");
   }
+  function beginHeelCorrection() {
+    if (!spatial || saved) return;
+    correctionBefore.current = { spatial, end, frameIndex, draft, error };
+    setEditing(true);
+    if (end !== null) move(end);
+  }
+  function cancelHeelCorrection() {
+    const previous = correctionBefore.current;
+    if (previous) {
+      setSpatial(previous.spatial);
+      setEnd(previous.end);
+      setDraft(previous.draft);
+      setError(previous.error);
+      move(previous.frameIndex);
+    }
+    correctionBefore.current = null;
+    setEditing(false);
+  }
   function save() {
     if (
       !video ||
@@ -359,7 +436,34 @@ export function VideoAnalyzer({
     }
   }
   return (
-    <div className="bl-analyzer bl-compact">
+    <div className="bl-analyzer bl-compact" ref={rootRef}>
+      <header className="bl-attempt-heading">
+        <div>
+          <p className="bl-kicker">
+            PRÓBA {attempt.trial} / {attempt.trials}
+          </p>
+          <h2>
+            {protocol.title}
+            {attempt.side && ` · ${sideLabel(attempt.side)}`}
+          </h2>
+        </div>
+        {saved && <span className="bl-saved-badge">Zapisano</span>}
+      </header>
+      <ol className="bl-flow-steps" aria-label="Etapy pomiaru">
+        {["Film", "Pomiar", "Wynik"].map((title, index) => {
+          const current = saved || (measure && !editing) ? 2 : video ? 1 : 0;
+          return (
+            <li
+              key={title}
+              aria-current={current === index ? "step" : undefined}
+              className={index < current ? "is-complete" : ""}
+            >
+              <span>{index + 1}</span>
+              {title}
+            </li>
+          );
+        })}
+      </ol>
       {!saved && (
         <>
           <input
@@ -395,13 +499,7 @@ export function VideoAnalyzer({
       )}
       {!video && !cameraOpen && (
         <section className="bl-card bl-source-card">
-          <p className="bl-kicker">
-            PRÓBA {attempt.trial} / {attempt.trials}
-          </p>
-          <h2>
-            {protocol.title}
-            {attempt.side && ` · ${sideLabel(attempt.side)}`}
-          </h2>
+          <h3>Dodaj nagranie</h3>
           <p className="bl-muted">{shortSetup}</p>
           {isLongJump && (
             <div className="bl-auto-setup">
@@ -488,7 +586,7 @@ export function VideoAnalyzer({
         </section>
       )}
       {error && <LabNotice error>{error}</LabNotice>}
-      {error && !video && lastFile && !reading && !cameraOpen && (
+      {!video && lastFile && !reading && !cameraOpen && (
         <LabButton className="bl-secondary bl-wide" onClick={() => void downloadOriginal()}>
           Zachowaj nagranie
         </LabButton>
@@ -515,6 +613,11 @@ export function VideoAnalyzer({
           <p className="bl-kicker">BRAK WIARYGODNEGO WYNIKU</p>
           <h2>Nie zgaduję centymetrów</h2>
           <LabNotice error>{autoError}</LabNotice>
+          {lastFile && (
+            <LabButton className="bl-secondary bl-wide" onClick={() => void downloadOriginal()}>
+              Zachowaj nagranie
+            </LabButton>
+          )}
           <LabButton className="bl-wide" onClick={() => galleryInput.current?.click()}>
             Wybierz lepszy film
           </LabButton>
@@ -522,9 +625,9 @@ export function VideoAnalyzer({
             className="bl-secondary bl-wide"
             onClick={() => {
               setVideo(null);
-              setLastFile(null);
               setAutoStatus("idle");
               setAutoError("");
+              setCameraOpen(true);
             }}
           >
             Nagraj ponownie
@@ -682,6 +785,11 @@ export function VideoAnalyzer({
       )}
       {video && (!isLongJump || (autoStatus === "ready" && spatial)) && (
         <section
+          ref={correctionRef}
+          tabIndex={isLongJump && editing ? -1 : undefined}
+          role={isLongJump && editing ? "dialog" : undefined}
+          aria-modal={isLongJump && editing ? true : undefined}
+          aria-label={isLongJump && editing ? "Popraw punkt pięty" : undefined}
           className={`bl-card bl-frame-card${
             isLongJump ? (editing ? " bl-auto-correction" : " bl-auto-proof") : ""
           }`}
@@ -712,7 +820,16 @@ export function VideoAnalyzer({
             </>
           ) : (
             <div className="bl-auto-edit-heading">
-              <p className="bl-kicker">{editing ? "KOREKTA OPCJONALNA" : "SPRAWDŹ WYKRYCIE"}</p>
+              {editing && (
+                <LabButton
+                  className="bl-link bl-correction-cancel"
+                  aria-label="Anuluj korektę"
+                  onClick={cancelHeelCorrection}
+                >
+                  Wróć bez zmian
+                </LabButton>
+              )}
+              <p className="bl-kicker">{editing ? "KOREKTA PIĘTY" : "SPRAWDŹ WYKRYCIE"}</p>
               <h2>
                 {editing
                   ? "Przesuń punkt dokładnie na bliższą piętę"
@@ -724,7 +841,7 @@ export function VideoAnalyzer({
             className="bl-frame"
             style={{
               aspectRatio: aspect,
-              ...(isLongJump ? {} : { maxWidth: `${38 * aspect}svh` }),
+              maxWidth: `${(isLongJump ? (editing ? 58 : 48) : 38) * aspect}${isLongJump && editing ? "dvh" : "svh"}`,
             }}
           >
             <div
@@ -907,17 +1024,19 @@ export function VideoAnalyzer({
               disabled={
                 !ready || saved || !measure || !spatial || spatial.heelFrameIndex !== frameIndex
               }
-              onClick={() => setEditing(false)}
+              onClick={() => {
+                correctionBefore.current = null;
+                setEditing(false);
+                setError("");
+              }}
             >
               Zatwierdź punkt pięty
             </LabButton>
           ) : isLongJump ? (
             <LabButton
               className="bl-secondary bl-wide"
-              onClick={() => {
-                setEditing(true);
-                if (end !== null) move(end);
-              }}
+              data-heel-edit
+              onClick={beginHeelCorrection}
             >
               Popraw punkt pięty
             </LabButton>
