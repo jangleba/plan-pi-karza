@@ -1,5 +1,6 @@
 import type { Profile, TrainingExercise } from "./types";
 import type { SetLog } from "./setLogs";
+import { exercisePrescriptionKey, type ExerciseSessionLog } from "./setLogHistory";
 
 export type StrengthProgressionMode = "increase" | "repeat" | "reduce";
 
@@ -16,7 +17,8 @@ export interface StrengthProgressionContext {
   smallestIncrementKg?: number;
   exercise?: Pick<
     TrainingExercise,
-    "name" | "purpose" | "loadTarget" | "progression" | "ageSafetyLevel"
+    "name" | "purpose" | "loadTarget" | "progression" | "ageSafetyLevel" |
+    "sets" | "displayPrescription" | "tempo"
   >;
 }
 
@@ -60,16 +62,24 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function sessionSummary(sets: SetLog[]) {
+function sessionSummary(entry: { sets: SetLog[]; verification?: ExerciseSessionLog["verification"] }) {
+  const sets = entry.sets;
   const complete = sets.filter(
-    (set) => set.weightKg != null && set.reps != null && set.rir != null,
+    (set) => set.weightKg != null && Number.isFinite(set.weightKg) && set.weightKg >= 0 &&
+      set.reps != null && Number.isFinite(set.reps) && set.reps > 0 &&
+      set.rir != null && Number.isFinite(set.rir) && set.rir >= 0 && set.rir <= 10,
   );
   if (complete.length === 0) return null;
   return {
     weightKg: Math.max(...complete.map((set) => set.weightKg!)),
+    uniformWeight: complete.every(set => set.weightKg === complete[0].weightKg),
     minimumReps: Math.min(...complete.map((set) => set.reps!)),
     averageRir: average(complete.map((set) => set.rir!)),
-    allSetsLogged: complete.length === sets.length,
+    prescriptionKey: entry.verification?.prescriptionKey,
+    allSetsLogged: Boolean(entry.verification && entry.verification.expectedSets > 0 &&
+      complete.length === entry.verification.expectedSets && sets.length === complete.length &&
+      Array.from({ length: entry.verification.expectedSets }, (_, index) => index + 1)
+        .every(number => complete.filter(set => set.setNumber === number).length === 1)),
   };
 }
 
@@ -120,18 +130,17 @@ function repeat(
  * sam: zawodnik zawsze akceptuje wzrost albo odkłada go o jedną sesję.
  */
 export function recommendNextLoad(
-  history: SetLog[][] | SetLog[],
+  history: SetLog[][] | SetLog[] | ExerciseSessionLog[],
   reps: string | undefined,
   rir: string | undefined,
   context: StrengthProgressionContext = {},
 ): StrengthProgressionRecommendation | null {
-  const sessions: SetLog[][] = Array.isArray(history[0])
-    ? (history as SetLog[][])
-    : [history as SetLog[]];
+  const sessions: { sets: SetLog[]; verification?: ExerciseSessionLog["verification"] }[] =
+    Array.isArray(history[0]) ? (history as SetLog[][]).map(sets => ({ sets })) :
+      history[0] && "sets" in history[0] ? history as ExerciseSessionLog[] : [{ sets: history as SetLog[] }];
   const summaries = sessions
     .map(sessionSummary)
-    .filter(Boolean)
-    .slice(0, 3) as NonNullable<ReturnType<typeof sessionSummary>>[];
+    .slice(0, 3);
   const latest = summaries[0];
   if (!latest) return null;
 
@@ -181,10 +190,22 @@ export function recommendNextLoad(
     );
   }
 
-  const recent = summaries.slice(
-    0,
-    young || novice || kind === "power" ? 2 : 2,
-  );
+  const candidates = summaries.slice(0, 2);
+  const prescriptionKey = exercisePrescriptionKey({
+    sets: context.exercise?.sets,
+    displayPrescription: context.exercise?.displayPrescription,
+    reps,
+    rir,
+    tempo: context.exercise?.tempo,
+  });
+  if (candidates.some(item => !item?.allSetsLogged || item.prescriptionKey !== prescriptionKey)) {
+    return repeat(current,
+      "Potrzebujemy dwóch ukończonych, porównywalnych sesji z kompletem zaplanowanych serii.", "low");
+  }
+  const recent = candidates as NonNullable<ReturnType<typeof sessionSummary>>[];
+  if (recent.some(item => item.weightKg !== current || !item.uniformWeight)) {
+    return repeat(current, "Powtórz obecny ciężar, aby potwierdzić wynik w dwóch porównywalnych sesjach.");
+  }
   const failed = recent.some(
     (item) =>
       !item.allSetsLogged ||

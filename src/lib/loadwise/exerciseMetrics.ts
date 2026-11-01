@@ -1,4 +1,5 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
+import { getExerciseDefinition } from "./exerciseLibrary";
 
 /** Rodzaj pomiaru wykonania serii. */
 export type MetricKind = "load" | "time" | "distance" | "contacts" | "hold";
@@ -12,6 +13,9 @@ export interface MetricField {
 
 /** Deterministyczny typ pomiaru wynikający z danych ćwiczenia. */
 export function metricKindForExercise(e: TrainingExercise): MetricKind {
+  // Solo football rows prescribe timed technique bouts, including when a flat
+  // session adapter carries that dose in `reps`. Never ask for kg or RIR here.
+  if (getExerciseDefinition(e.exerciseId ?? "")?.family === "football_ball_work") return "time";
   const text = `${e.name} ${e.displayPrescription ?? ""} ${e.reps ?? ""} ${e.duration ?? ""}`;
   if (/deska|plank|izometr|utrzyman|hold|wall sit/i.test(text)) return "hold";
   if (typeof e.groundContacts === "number" && e.groundContacts > 0) return "contacts";

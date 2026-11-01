@@ -13,6 +13,11 @@ import {
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import { profileMatchDates } from "./matchSchedule";
 import { gymSpacingIssues } from "./strengthScheduling";
+import {
+  finalPolicyMissingTargets,
+  secondSessionPolicyViolation, isConservativeReturnContext,
+} from "./finalPlanPolicy";
+import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 
 export type PersistedPlanIssueCode =
   | "missing-plan"
@@ -24,6 +29,10 @@ export type PersistedPlanIssueCode =
   | "adjacent-gym-days"
   | "duplicate-dominant-stimulus"
   | "invalid-beginner-double"
+  | "double-sessions-disabled"
+  | "sprint-space-unavailable"
+  | "own-training-unavailable"
+  | "conservative-return-violation"
   | "missing-weekly-minimum"
   | "match-date-mismatch"
   | "invalid-exercise-contract";
@@ -110,29 +119,33 @@ export function validatePersistedPlan(
 
     const speed = assessDaySpeedLoad(day);
 
-    if (day.secondSession) {
-      const firstCategory = (day.classification ?? classifySession(day)).category;
-      const secondCategory = (
-        day.secondSession.classification ?? classifySession(day.secondSession)
-      ).category;
-      if (firstCategory === secondCategory) {
-        issues.push({
-          code: "duplicate-dominant-stimulus",
-          date: day.date,
-          message: "Dwie sesje tego dnia mają ten sam główny bodziec.",
-        });
-      }
-      if (
-        (profile.level === "beginner" || profile.age < 16) &&
-        day.secondSession.intensity !== "niska"
-      ) {
-        issues.push({
-          code: "invalid-beginner-double",
-          date: day.date,
-          message: "Początkujący lub młodszy zawodnik ma drugą mocną sesję.",
-        });
-      }
-    }
+    const secondViolation = secondSessionPolicyViolation(day, profile);
+    if (secondViolation) issues.push({
+      code: secondViolation, date: day.date,
+      message: secondViolation === "double-sessions-disabled"
+        ? "Profil nie dopuszcza drugiej sesji tego dnia."
+        : secondViolation === "invalid-beginner-double"
+          ? "Profil dopuszcza wyłącznie lekką drugą sesję."
+          : "Dwie sesje tego dnia mają ten sam główny bodziec.",
+    });
+    const ownSessions = [day, day.secondSession].filter((session): session is SessionDay =>
+      !!session && !session.executionProtected && session.dayType !== "rest" &&
+      session.dayType !== "club" && session.dayType !== "match" &&
+      !session.externalCommitment && session.durationMin > 0);
+    const weekday = isoDayOfWeek(parseIso(day.date));
+    if (ownSessions.length && ((profile.unavailableDays ?? []).includes(weekday) ||
+      (Array.isArray(profile.individualTrainingDays) && !profile.individualTrainingDays.includes(weekday))))
+      issues.push({ code: "own-training-unavailable", date: day.date,
+        message: "Własny trening wypada w dniu niedostępnym." });
+    if (profile.hasSprintSpace === false && ownSessions.some(session =>
+      assessDaySpeedLoad({ ...session, secondSession: null }).realExposureCount > 0))
+      issues.push({ code: "sprint-space-unavailable", date: day.date,
+        message: "Trening szybkościowy wymaga niedostępnego miejsca do sprintu." });
+    if (isConservativeReturnContext(profile) && ownSessions.some(session =>
+      session.intensity === "wysoka" || classifySession(session).subcategory === "field_mas_test" ||
+      assessDaySpeedLoad({ ...session, secondSession: null }).realExposureCount > 0))
+      issues.push({ code: "conservative-return-violation", date: day.date,
+        message: "Maksymalny lub mocny trening nie pasuje do ostrożnego etapu powrotu." });
 
     if (speed.hasDuplicateRealSpeedExposures) {
       issues.push({
@@ -238,11 +251,16 @@ export function validatePersistedPlan(
       counts.speed < requirements.requiredSpeedSessions ? "sprint" : null,
       counts.ball < requirements.requiredBallSessions ? "piłka" : null,
     ].filter(Boolean);
-    if (missing.length > 0) {
+    const acceptsReducedTargets = hasAcknowledgedReducedTargets(week);
+    // A current final-policy pass can explicitly reduce soft goals; hard checks
+    // above still reject the plan. This prevents regenerating an infeasible week forever.
+    const actualMissing = isConservativeReturnContext(profile)
+      ? finalPolicyMissingTargets(week, profile) : missing;
+    if (actualMissing.length > 0 && !acceptsReducedTargets) {
       issues.push({
         code: "missing-weekly-minimum",
         date: monday,
-        message: `Pełny tydzień nie realizuje minimum: ${missing.join(", ")}.`,
+        message: `Pełny tydzień nie realizuje minimum: ${actualMissing.join(", ")}.`,
       });
     }
   }

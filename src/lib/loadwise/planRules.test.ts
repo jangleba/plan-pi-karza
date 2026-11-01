@@ -10,6 +10,7 @@ import {
   weekThemeFor,
 } from "./planRules";
 import type { Profile, Goal } from "./types";
+import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 
 function baseProfile(p: Partial<Profile>): Profile {
   return {
@@ -196,12 +197,15 @@ describe("cel główny + ograniczenie — twarde minima", () => {
       .filter((r) => r.end - r.start === 7)
       .map((r) => plan.slice(r.start, r.end));
 
-  it("każdy cel ma min. mandatoryCount bodźców powiązanych z celem", () => {
+  it("realizuje cel albo jawnie wskazuje redukcję po uwzględnieniu twardych ograniczeń", () => {
     for (const goal of ["speed", "strength", "endurance", "power", "general"] as Goal[]) {
       for (const week of full(generatePlan(baseProfile({ goal }), START2, 28))) {
-        expect(countWeekRoles(week, goal).mandatory).toBeGreaterThanOrEqual(
-          MAIN_GOAL_RULES[goal].mandatoryCount,
-        );
+        const mandatory = countWeekRoles(week, goal).mandatory;
+        if (mandatory < MAIN_GOAL_RULES[goal].mandatoryCount) {
+          expect(hasAcknowledgedReducedTargets(week)).toBe(true);
+          expect(week[0].weekMeta?.planningNotes?.length).toBeGreaterThan(0);
+        }
+        expect(week.every(day => !day.secondSession)).toBe(true);
       }
     }
   });

@@ -14,6 +14,7 @@ import type {
   TrainingSection,
 } from "./types";
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
+import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
 
 export type FootballSpeedFamily =
@@ -133,7 +134,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v6-club-aware";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v7-ball-free";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -1246,7 +1247,9 @@ export function generateFootballSpeedSession(
     .filter((exercise) => exercise.speedQualities?.includes(REPEATED_SPRINT))
     .map((exercise) => exercise.id);
 
-  if (hasPain(input)) {
+  if (hasPain(input) || input.profile.hasSprintSpace === false ||
+      input.profile.goal === "return" || input.profile.secondaryLimiter === "return" ||
+      input.profile.secondaryLimiter === "fatigue" || input.profile.seasonPhase === "return_injury") {
     return {
       status: "blocked",
       date: input.date,
@@ -1256,8 +1259,9 @@ export function generateFootballSpeedSession(
       session: null,
       exercises: [],
       excludedExerciseIds,
-      safetyNote:
-        "Ból uruchamia istniejącą ścieżkę bezpieczeństwa: nie wykonuj sprintu i skontaktuj się z trenerem/specjalistą.",
+      safetyNote: hasPain(input)
+        ? "Ból: wstrzymaj sprint i ustal postępowanie z trenerem lub specjalistą."
+        : "Sprint wymaga bezpiecznej przestrzeni i gotowości do szybkich odcinków. Przy powrocie lub przeciążeniu wybierz ostrożną ścieżkę planu.",
     };
   }
   // MD-1 is a protected date as well: activation is not a speed-session
@@ -1331,7 +1335,7 @@ export function generateFootballSpeedSession(
     family: input.family,
     title,
     shortTitle,
-    session: buildSessionDay(input, spec, exercises, title, mode),
+    session: enforceSprintOnlyContent(buildSessionDay(input, spec, exercises, title, mode)),
     exercises,
     primaryExerciseId: mainSprintRows(input, spec)[0].id,
     secondaryExerciseId: terminal.exerciseId,

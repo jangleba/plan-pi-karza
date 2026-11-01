@@ -12,6 +12,8 @@ import {
 } from "@/lib/loadwise/offlineTrainingQueue";
 import {
   previousExerciseSessions,
+  exerciseHistoryKey,
+  plannedExerciseSets,
   toSetLog,
   type HistorySetLog,
   type HistorySetLogRow,
@@ -29,18 +31,12 @@ export interface SetLogRow extends HistorySetLogRow {
 
 /** Stabilny klucz ćwiczenia — po ID z biblioteki, w ostateczności po nazwie. */
 export function exerciseKey(e: Pick<TrainingExercise, "exerciseId" | "name">): string {
-  return (e.exerciseId?.trim() || e.name.trim().toLowerCase()).slice(0, 120);
+  return exerciseHistoryKey(e);
 }
 
 /** Liczba planowanych serii ćwiczenia (0 = brak logowania serii). */
 export function plannedSets(e: TrainingExercise): number {
-  if (typeof e.sets === "number" && Number.isFinite(e.sets)) return Math.max(0, Math.round(e.sets));
-  const explicit = String(e.sets ?? "")
-    .trim()
-    .match(/^(\d+)(?:\s*[–-]\s*\d+)?$/);
-  if (explicit) return Number(explicit[1]);
-  const match = String(e.displayPrescription ?? "").match(/(\d+)\s*(?:serie|serii|seria|×)/i);
-  return match ? Number(match[1]) : 0;
+  return plannedExerciseSets(e);
 }
 
 const table = () => supabase.from("exercise_set_logs");

@@ -9,6 +9,7 @@ import type {
   SessionCategory,
   SessionDay,
 } from "./types";
+import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 
 // ---------------------------------------------------------------------------
 // 1–2. clubSchedule / matchSchedule — obsługiwane w planEngine (kalendarz).
@@ -378,7 +379,7 @@ export function validateGeneratedWeek(
   const rule = MAIN_GOAL_RULES[ctx.goal];
   const counts = countWeekRoles(sessions, ctx.goal);
 
-  if (ctx.isFullWeek) {
+  if (ctx.isFullWeek && !hasAcknowledgedReducedTargets(sessions)) {
     // 5. Każdy mainGoal musi mieć min. `mandatoryCount` obowiązkowych bodźców
     //    (dla większości celów = 2 jednostki powiązane z celem).
     if (counts.mandatory < rule.mandatoryCount) {

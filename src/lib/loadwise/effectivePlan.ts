@@ -7,6 +7,7 @@ import type {
 } from "./types";
 import { applyReadiness } from "./sessionRuntime";
 import { adaptMdPlusOneFromMatchMinutes } from "./adaptiveWeek";
+import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 
 export interface EffectivePlanContext {
   profile?: Profile | null;
@@ -129,12 +130,13 @@ export function resolveEffectivePlan(
   modifications: Record<string, SessionModification[]> = {},
   context?: EffectivePlanContext,
 ): SessionDay[] {
-  const modified = plan.map((day) => resolveModifiedDay(day, modifications[day.date] ?? []));
+  const modified = plan.map((day) => enforceSprintOnlyContent(resolveModifiedDay(day, modifications[day.date] ?? [])));
   if (!context) return modified;
   const adapted = adaptMdPlusOneFromMatchMinutes(
     modified,
     context.completions ?? {},
     context.readiness ?? {},
+    context.profile,
   ).plan;
   return adapted.map((day) => resolveExecutionDay(day, context));
 }

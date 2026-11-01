@@ -3,6 +3,7 @@ import { generatePlan, weekRanges } from "./planEngine";
 import { classifySession, isBallTechnicalSession } from "./sessionClassification";
 import { assertFinalPlanMeetsMinimums, requirementsFor } from "./weekFinalization";
 import type { Profile, SessionDay } from "./types";
+import { getExerciseDefinition } from "./exerciseLibrary";
 
 const START = new Date("2026-09-14T00:00:00");
 
@@ -83,7 +84,7 @@ describe("finalizator — reprezentatywna macierz gęstych tygodni", () => {
   ];
 
   for (const testCase of cases) {
-    it(`${testCase.name}: każdy pełny tydzień spełnia minima i reguły`, () => {
+    it(`${testCase.name}: twarde reguły obowiązują, pominięte cele są jawnie opisane`, () => {
       console.debug = () => undefined;
       const plan = generatePlan(testCase.profile, START, 28);
       const ranges = weekRanges(START, plan.length).filter((range) => range.end - range.start === 7);
@@ -97,6 +98,10 @@ describe("finalizator — reprezentatywna macierz gęstych tygodni", () => {
         );
         expect(report.unresolvedIssues).toEqual([]);
         expect(report.finalStatus).toBe("valid");
+        if (report.unmetTargets?.length) {
+          expect(week[0].weekMeta?.planningStatus).toBe("reduced");
+          expect(week[0].weekMeta?.planningNotes?.length).toBeGreaterThan(0);
+        }
 
         for (const session of week.flatMap(sessions)) {
           expect(session.classification?.category).toBe(classifySession(session).category);
@@ -119,7 +124,10 @@ describe("finalizator — reprezentatywna macierz gęstych tygodni", () => {
 
     expect(ballExercises.length).toBeGreaterThan(0);
     expect(ballExercises.every((exercise) => Boolean(exercise.exerciseId))).toBe(true);
-    expect(ballExercises.some((exercise) => exercise.exerciseId === "football_technical_self_selected")).toBe(true);
+    expect(ballExercises.some((exercise) => {
+      const definition = getExerciseDefinition(exercise.exerciseId ?? "");
+      return definition?.approved === true && definition.requiresBall && definition.family === "football_ball_work";
+    })).toBe(true);
     expect(ballExercises.some((exercise) => /piłk|technicz|reakcji/i.test(exercise.name))).toBe(true);
     const wrong = plan
       .flatMap(sessions)

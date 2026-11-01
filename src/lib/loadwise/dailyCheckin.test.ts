@@ -143,14 +143,21 @@ describe("daily check-in integration", () => {
     expect(result.adjusted?.safetyNote).toMatch(/ból nasila|fizjoterapeut/i);
   });
 
-  it("dla gotowości 3/10 zmniejsza objętość o 25%, ale nie zamienia sesji na regenerację", () => {
+  it("dla gotowości 3/10 zmniejsza objętość bardziej niż dla 4/10 bez udawania pełnego wypoczynku", () => {
     const result = applyCheckInToPlanDay(
       [makeSession()],
       "2026-08-17",
       readiness({ overall: 3 }),
       PROFILE,
     );
-    expect(result.adjusted?.durationMin).toBe(68);
+    expect(result.adjusted?.durationMin).toBe(45);
+    const score4 = applyCheckInToPlanDay(
+      [makeSession()],
+      "2026-08-17",
+      readiness({ overall: 4 }),
+      PROFILE,
+    );
+    expect(result.adjusted!.durationMin).toBeLessThan(score4.adjusted!.durationMin);
     expect(result.adjusted?.title).toBe("Szybkość");
     expect(result.adjusted?.secondSession).toBeNull();
   });

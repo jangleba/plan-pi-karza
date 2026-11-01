@@ -598,8 +598,8 @@ export function applyReadiness(
     return {
       session,
       decision: {
-        headline: "Uzupełnij check-in gotowości",
-        detail: "Zaznacz, jak się dziś czujesz, a dopasujemy intensywność sesji.",
+        headline: "Brak oceny samopoczucia",
+        detail: "Plan wynika z danych profilu. Nie mamy dzisiejszej oceny samopoczucia.",
         adjustment: null,
       },
     };
@@ -650,7 +650,12 @@ export function applyReadiness(
   let recoveryOnly = false;
   let wellnessSafetyHold = false;
 
-  if (r >= 8) {
+  if (severeSignals) {
+    // Conservative scheduling policy: one severe signal overrides the mean,
+    // including older saved check-ins whose overall score was not capped.
+    recoveryOnly = true;
+    adjustment = "Bardzo słabe samopoczucie: rezygnujemy dziś z zaplanowanej mocnej jednostki.";
+  } else if (r >= 8) {
     // 8–10: pełny plan.
     factor = 1;
     adjustment = null;
@@ -666,10 +671,10 @@ export function applyReadiness(
     adjustment =
       "Gotowość 4–5: redukcja objętości o ok. 40% i usunięcie ciężkiej siły, maksymalnych sprintów oraz pracy o wysokiej intensywności.";
   } else if (r === 3 && !severeSignals) {
-    factor = 0.75;
+    factor = 0.5;
     removeHard = true;
     adjustment =
-      "Gotowość 3/10: zmniejszamy objętość o 25% i usuwamy maksymalne sprinty oraz ciężką pracę.";
+      "Gotowość 3/10: zmniejszamy objętość o ok. 50% i usuwamy maksymalne sprinty oraz ciężką pracę.";
   } else {
     // 1–2 lub bardzo zły sen/zmęczenie/ból: zamiana jednostki na regenerację.
     recoveryOnly = true;
@@ -748,7 +753,9 @@ export function applyReadiness(
     adjustment =
       "Dyskomfort 4–6/10 w kończynie dolnej: sesja szybkościowa została wstrzymana; aplikacja nie dobiera rehabilitacji.";
   } else if (recoveryOnly && externalCommitment) {
-    const painStop = painOverride || severeSignals;
+    // Poor sleep/fatigue is a reason to discuss lower load with the coach,
+    // not by itself a medical red flag or an instruction to seek treatment.
+    const painStop = painOverride;
     adjusted = {
       ...session,
       dayType: externalKind,
@@ -833,6 +840,8 @@ export function applyReadiness(
       },
       structuredSections: undefined,
       exercises: undefined,
+      secondSession: null,
+      slotLabel: null,
     };
   } else if (session.speedGeneratorVersion && cls.isSpeed && !painOverride && r >= 4 && r < 8) {
     const regenerated = generateFootballSpeedSession({
@@ -893,7 +902,10 @@ export function applyReadiness(
   // gotowość zmniejsza obciążenie, ale nie tworzy fałszywej blokady.
   if (
     adjusted.secondSession &&
-    (readiness.overall <= 3 || !secondSessionAllowedToday(readiness, profile))
+    (recoveryOnly ||
+      severeSignals ||
+      readiness.overall <= 3 ||
+      !secondSessionAllowedToday(readiness, profile))
   ) {
     adjusted = { ...adjusted, secondSession: null, slotLabel: null };
   } else if (adjusted.secondSession && readiness.overall >= 4 && readiness.overall < 7) {
@@ -961,19 +973,22 @@ export function applyReadiness(
             : externalKind === "match"
               ? "Dziś mecz"
               : "Dziś trening klubowy"
-        : `Gotowość ${r}/10 — ${
-            r >= 8
-              ? "działamy normalnie"
-              : r >= 6
-                ? "lekka redukcja"
-                : r >= 4
-                  ? "mocna redukcja"
-                  : r === 3
-                    ? "redukcja objętości"
-                    : "tylko regeneracja"
-          }`,
-      detail:
-        r >= 8
+        : recoveryOnly
+          ? "Dziś regeneracja — słabe samopoczucie"
+          : `Gotowość ${r}/10 — ${
+              r >= 8
+                ? "działamy normalnie"
+                : r >= 6
+                  ? "lekka redukcja"
+                  : r >= 4
+                    ? "mocna redukcja"
+                    : r === 3
+                      ? "redukcja objętości"
+                      : "tylko regeneracja"
+            }`,
+      detail: recoveryOnly
+        ? "Dzisiejsze odpowiedzi przemawiają za odpuszczeniem mocnej jednostki. Nie traktuj tej oceny jak diagnozy."
+        : r >= 8
           ? "Czujesz się dobrze — możesz zrealizować zaplanowaną sesję lub lekko progresować."
           : "Dopasowaliśmy dzisiejszą sesję do Twojego samopoczucia.",
       adjustment,

@@ -31,6 +31,7 @@ import type { SessionDay } from "@/lib/loadwise/types";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 import { TodaySessionCard } from "@/components/loadwise/TodaySessionCard";
+import { WellnessCheckin } from "@/components/loadwise/WellnessCheckin";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -389,6 +390,7 @@ function StartScreen() {
     planGenerating,
     refreshPlanIfNeeded,
     applyModification,
+    saveReadiness,
   } = useLoadwise();
   const profile = state.profile;
   const effectivePlan = useMemo(
@@ -407,6 +409,7 @@ function StartScreen() {
   const navigate = useNavigate();
   const router = useRouter();
   const [checkinOpen, setCheckinOpen] = useState(false);
+  const [wellnessOpen, setWellnessOpen] = useState(false);
   const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [modifyTarget, setModifyTarget] = useState<"primary" | "second" | null>(null);
@@ -857,6 +860,23 @@ function StartScreen() {
                 {checkinComplete ? "Zmień check-in" : "Rozpocznij check-in"}
                 <ChevronRight className="h-4 w-4" />
               </Button>
+              {profile?.healthPersonalizationEnabled === true && (
+                <div className="mt-4 w-full border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    {state.readiness?.[todayIso]
+                      ? "Samopoczucie zapisane na dziś"
+                      : "Samopoczucie: brak oceny na dziś"}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2 min-h-11 w-full rounded-full"
+                    onClick={() => setWellnessOpen(true)}
+                  >
+                    {state.readiness?.[todayIso] ? "Zmień samopoczucie" : "Oceń samopoczucie"}
+                  </Button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -953,6 +973,17 @@ function StartScreen() {
         canAddSession={!hasPlannedSecond}
         saving={savingAction}
         onAction={(action) => void handleCheckinAction(action)}
+      />
+      <WellnessCheckin
+        open={wellnessOpen}
+        onOpenChange={setWellnessOpen}
+        enabled={profile?.healthPersonalizationEnabled === true}
+        date={todayIso}
+        previous={state.readiness?.[todayIso]}
+        onSave={async (readiness) => {
+          await saveReadiness(readiness);
+          toast.success("Samopoczucie zapisane.");
+        }}
       />
 
       <SecondSessionCheckinDialog

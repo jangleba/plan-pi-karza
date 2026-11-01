@@ -34,9 +34,8 @@ import {
   isYouthOrBeginner as isYouthOrBeginnerSched,
   type UserSchedulingSettings,
 } from "./dailyScheduling";
-import { buildAthleteTrainingProfile, getDevelopmentStage } from "./athleteProfile";
+import { getDevelopmentStage } from "./athleteProfile";
 import {
-  calculateWeeklyMinimumRequirements,
   type WeeklyRequirements,
   type WeekRequirementContext,
 } from "./weeklyRequirements";
@@ -45,10 +44,12 @@ import {
   validateWeek,
 } from "./globalPlanRules";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
-import { buildRunningSessionPrescription } from "@/lib/running/engine";
+import { buildRunningConditioning } from "./sessionContent";
 import { generateFootballSpeedSession } from "./footballSpeedSessionEngine";
 
 import { gymSpacingIssues, repairGymSpacing } from "./strengthScheduling";
+import { secondSessionPolicyViolation, finalPolicyRequirementsFor } from "./finalPlanPolicy";
+import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 
 const LOWER_LIMB_PAIN = new Set(["knee", "ankle", "hamstring", "groin", "hip"]);
 
@@ -104,6 +105,8 @@ export interface WeekValidationReport {
   noBackToBackSpeedDays: boolean;
   speedSessionsHaveMinimumOneDayGap: boolean;
   unresolvedIssues: string[];
+  planningStatus?: "complete" | "reduced" | "health_limited";
+  unmetTargets?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -213,24 +216,22 @@ interface EnduranceBuild {
 }
 
 function normalEnduranceBuild(profile: Profile, date: string, index: number): EnduranceBuild {
-  const built = buildRunningSessionPrescription({
-    fieldMasKmh: profile.fieldMasKmh,
-    fieldMasTestedAt: profile.fieldMasTestedAt,
+  const built = buildRunningConditioning(profile, {
     date,
-    sessionIndex: index,
-    progressionLevel: profile.runningProgressionLevel,
+    seed: index,
+    scheduleFieldMasTest: index === 0,
   });
   return {
     title: built.title,
     sessionType: built.sessionType,
-    goalOfSession: built.goal,
+    goalOfSession: built.goalOfSession,
     intensity: built.intensity,
-    loadLevel: built.loadLevel,
-    durationMin: built.durationMin,
-    main: built.main.map((exercise) =>
+    loadLevel: built.intensity === "wysoka" ? "high" : built.intensity === "umiarkowana" ? "moderate" : "low",
+    durationMin: built.durationMin ?? 30,
+    main: built.sections.main.map((exercise) =>
       canonicalizeGeneratedExercise(
         {
-          exerciseId: built.method === "field_mas_test" ? "field_mas_5_min_test" : undefined,
+          exerciseId: /test.*MAS/i.test(built.sessionType) ? "field_mas_5_min_test" : undefined,
           ...exercise,
         },
         "conditioning",
@@ -1801,6 +1802,7 @@ export function assertFinalPlanMeetsMinimums(
   profile?: Profile,
 ): WeekValidationReport {
   const unresolvedIssues: string[] = [];
+  const unmetTargets: string[] = [];
 
   const gymSessionsCount = countGymSessions(weekPlan);
   const enduranceSessionsCount = countEnduranceSessions(weekPlan);
@@ -1829,6 +1831,8 @@ export function assertFinalPlanMeetsMinimums(
       ),
   );
   const noMoreThanMaxSessionsPerDay = !weekPlan.some((d) => realSessionCount(d) > 2);
+  const secondSessionViolations = profile
+    ? weekPlan.filter(day => secondSessionPolicyViolation(day, profile)) : [];
   const gymIssues = gymSpacingIssues(weekPlan);
   const noDuplicateGymSameDay = !gymIssues.some((issue) => issue.code === "duplicate-gym-same-day");
   const noBackToBackGymDays = !gymIssues.some((issue) => issue.code === "adjacent-gym-days");
@@ -1840,24 +1844,28 @@ export function assertFinalPlanMeetsMinimums(
   const speedSessionsHaveMinimumOneDayGap = gapReport.ok;
 
   if (gymSessionsCount < requiredGymSessions)
-    unresolvedIssues.push(`Za mało siłowni: ${gymSessionsCount}/${requiredGymSessions}.`);
+    unmetTargets.push(`Za mało siłowni: ${gymSessionsCount}/${requiredGymSessions}.`);
   if (enduranceSessionsCount < absoluteMinimumEnduranceSessions)
-    unresolvedIssues.push(
+    unmetTargets.push(
       `Za mało wydolności: ${enduranceSessionsCount}/${absoluteMinimumEnduranceSessions}.`,
     );
   if (speedSessionsCount < requiredSpeedSessions)
-    unresolvedIssues.push(`Za mało szybkości: ${speedSessionsCount}/${requiredSpeedSessions}.`);
+    unmetTargets.push(`Za mało szybkości: ${speedSessionsCount}/${requiredSpeedSessions}.`);
   if (ballSessionsCount < requiredBallSessions)
-    unresolvedIssues.push(`Za mało własnej piłki: ${ballSessionsCount}/${requiredBallSessions}.`);
+    unmetTargets.push(`Za mało własnej piłki: ${ballSessionsCount}/${requiredBallSessions}.`);
+  const acknowledgesReduced = hasAcknowledgedReducedTargets(weekPlan);
+  if (!acknowledgesReduced) unresolvedIssues.push(...unmetTargets);
   if (!noEnduranceOnClubDays) unresolvedIssues.push("Zbyt ciężki endurance w dzień klubowy.");
   if (!noMoreThanMaxSessionsPerDay) unresolvedIssues.push("Dzień z 3 sesjami.");
+  if (secondSessionViolations.length)
+    unresolvedIssues.push("Druga sesja narusza ograniczenia profilu lub powiela główny bodziec.");
   if (!noDuplicateGymSameDay) unresolvedIssues.push("Dwie siłownie tego samego dnia.");
   if (!noBackToBackGymDays) unresolvedIssues.push("Siłownia dzień po dniu (brak dnia przerwy).");
   if (!noDuplicateSpeedSameDay) unresolvedIssues.push("Dwie szybkości tego samego dnia.");
   if (!noBackToBackSpeedDays) unresolvedIssues.push("Szybkość dzień po dniu (brak min. 1 dnia przerwy).");
 
   // Twardy gate: 0 endurance = plan NIGDY nie może być valid.
-  const enduranceOk = enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
+  const enduranceOk = acknowledgesReduced || enduranceSessionsCount >= absoluteMinimumEnduranceSessions;
   const ok = unresolvedIssues.length === 0 && enduranceOk;
 
   return {
@@ -1880,6 +1888,9 @@ export function assertFinalPlanMeetsMinimums(
     noBackToBackSpeedDays,
     speedSessionsHaveMinimumOneDayGap,
     unresolvedIssues,
+    planningStatus: unmetTargets.length && acknowledgesReduced ? "reduced" :
+      weekPlan[0]?.weekMeta?.planningStatus ?? "complete",
+    unmetTargets,
   };
 }
 
@@ -1899,20 +1910,7 @@ function weekContextFor(weekPlan: SessionDay[], profile: Profile): WeekRequireme
 }
 
 export function requirementsFor(weekPlan: SessionDay[], profile: Profile): WeeklyRequirements {
-  const ctx = weekContextFor(weekPlan, profile);
-  const athlete = buildAthleteTrainingProfile(profile);
-  return calculateWeeklyMinimumRequirements(
-    ctx,
-    { hasGym: profile.hasGym, clubTrainingDays: profile.clubTrainingDays, matchDate: profile.matchDate },
-    profile.goal,
-    {
-      developmentStage: athlete.developmentStage,
-      gymExperienceLevel: athlete.gymExperienceLevel,
-      hasActivePain:
-        profile.painInjury ||
-        (profile.painLocations?.length ?? 0) > 0,
-    },
-  );
+  return finalPolicyRequirementsFor(weekPlan, profile);
 }
 
 /**

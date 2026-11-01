@@ -40,6 +40,7 @@ import type {
   SessionCategory,
   SessionDay,
 } from "./types";
+import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 import {
   MAIN_GOAL_RULES,
   LIMITATION_RULES,
@@ -708,7 +709,7 @@ export function validateWeek(
   const counts = countWeekRoles(week, context.mainGoal);
   const hasMatch = week.some((d) => dayHasMatch(d));
 
-  if (opts.isFullWeek) {
+  if (opts.isFullWeek && !hasAcknowledgedReducedTargets(week)) {
     // 5. mainGoal ma min. `mandatoryCount` obowiązkowych bodźców (dla większości = 2).
     if (counts.mandatory < view.mandatoryCount) {
       errors.push(`missing-mandatory-goal-session:${view.focusLabel}`);
@@ -743,7 +744,8 @@ export function validateWeek(
     if (hasEquipGym) errors.push("gym-generated-without-access");
   }
   // gymAccess=true nie może być ignorowany dla celów, które używają siłowni.
-  if (context.gymAccess && view.usesGymWhenAvailable && opts.isFullWeek) {
+  if (context.gymAccess && view.usesGymWhenAvailable && opts.isFullWeek &&
+    !hasAcknowledgedReducedTargets(week)) {
     const hasGym = week.some(
       (d) => isMainGymSession(d) || (d.secondSession && isMainGymSession(d.secondSession)),
     );

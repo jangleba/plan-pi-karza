@@ -87,6 +87,42 @@ function allMainText(session: SessionDay): string {
 
 const BALL_RE = /podani|prowadzen|piłk|ball|technik.{0,12}piłk/i;
 
+describe("Severe individual signals override favourable legacy scores", () => {
+  it.each([{ sleep: 1 }, { fatigue: 9 }, { soreness: 9 }])(
+    "uses recovery and removes the second slot for %j",
+    (signal) => {
+      const second = makeSession({
+        title: "Lekka technika",
+        sessionType: "Technika",
+        intensity: "niska",
+      });
+      const planned = makeSession({
+        title: "Siłownia",
+        sessionType: "Siła",
+        secondSession: second,
+      });
+      const result = applyReadiness(planned, makeReadiness(9, signal), BASE_PROFILE);
+      expect(result.session.classification?.category).toBe("recovery_prehab");
+      expect(result.session.secondSession).toBeNull();
+      expect(result.decision.headline).toContain("regeneracja");
+      expect(result.decision.detail).not.toContain("Czujesz się dobrze");
+    },
+  );
+  it("communicates fatigue to the club coach without inventing a medical red flag", () => {
+    const planned = makeSession({
+      title: "Trening klubowy",
+      sessionType: "Klub",
+      dayType: "club",
+      externalCommitment: true,
+    });
+    const result = applyReadiness(planned, makeReadiness(9, { sleep: 1 }), BASE_PROFILE);
+    expect(result.session.dayType).toBe("club");
+    expect(result.session.loadLabelOverride).toBe("Ogranicz obciążenie");
+    expect(result.session.safetyNote).toContain("trenerowi");
+    expect(result.session.safetyNote).not.toContain("Skonsultuj się z lekarzem");
+  });
+});
+
 // ─── Sprint session ──────────────────────────────────────────────────────────
 
 describe("Sprint session — readiness adaptation", () => {
@@ -410,7 +446,9 @@ describe("Daily pain override without profile pain flag", () => {
     expect(session.classification?.countsAsSpeed).toBe(false);
     expect(session.sections.main).toEqual([]);
     expect(session.speedGeneratorVersion).toBeUndefined();
-    expect(`${session.riskManaged} ${decision.adjustment}`).toMatch(/nie diagnozuje|rehabilitacji/i);
+    expect(`${session.riskManaged} ${decision.adjustment}`).toMatch(
+      /nie diagnozuje|rehabilitacji/i,
+    );
   });
 
   it("umiarkowany dyskomfort przed klubem zachowuje wpis, ale ogranicza load i usuwa sesję 2", () => {

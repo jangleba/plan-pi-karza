@@ -193,7 +193,7 @@ describe("regression — club + safe second gym session", () => {
     }
   });
 
-  it("stary przełącznik nie blokuje bezpiecznych podwójnych dni intermediate", () => {
+  it("jawny zakaz podwójnych sesji obowiązuje także u intermediate", () => {
     const common: Partial<Profile> = {
       goal: "strength",
       hasGym: true,
@@ -212,9 +212,8 @@ describe("regression — club + safe second gym session", () => {
       28,
     );
 
-    expect(legacyNo.map((day) => Boolean(day.secondSession))).toEqual(
-      legacyYes.map((day) => Boolean(day.secondSession)),
-    );
+    expect(legacyNo.every((day) => !day.secondSession)).toBe(true);
+    expect(legacyYes.some((day) => Boolean(day.secondSession))).toBe(true);
   });
 });
 

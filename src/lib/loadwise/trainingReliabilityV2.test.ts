@@ -17,6 +17,7 @@ import {
 } from "./store/model";
 import { createSessionActions } from "./store/sessionActions";
 import { createProfileActions } from "./store/profileActions";
+import { buildReadiness } from "./readinessModel";
 import type { LoadwiseState, Profile, Readiness } from "./types";
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), sessions: [] as Record<string, unknown>[] }));
@@ -201,7 +202,7 @@ describe("training contracts after reliability repair", () => {
     const next = adaptMdPlusOneFromMatchMinutes(
       [match, recovery],
       { "session-1": { completed: true, rpe: 6, notes: "", durationMin: 10 } },
-      {},
+      { "2026-10-19": buildReadiness("2026-10-19", { sleep: 7, fatigue: 3, jointPain: 0 }) },
     ).plan[1];
     expect(next.title).toBe("Kompensacja po krótkim występie");
     expect(next.sections.main.map((x) => x.name).join(" ")).toMatch(/Lekki bieg/);

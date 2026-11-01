@@ -16,6 +16,7 @@ import type {
   CurrentPitchFeeling,
   DesiredPitchFeeling,
   PainLocation,
+  DoubleSessions,
 } from "@/lib/loadwise/types";
 import {
   CURRENT_PITCH_FEELINGS,
@@ -247,7 +248,7 @@ function Onboarding() {
   const [clubDays, setClubDays] = useState<number[]>(existing?.clubTrainingDays ?? []);
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
   const [noMatch, setNoMatch] = useState(!existing?.matchDate && existing?.weeklyMatches === false);
-  const equipment: string[] = existing?.equipment ?? [];
+  const [equipment, setEquipment] = useState<string[]>(existing?.equipment ?? []);
   const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
   const [painLocations, setPainLocations] = useState<PainLocation[]>(existing?.painLocations ?? []);
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
@@ -262,7 +263,10 @@ function Onboarding() {
   const [weeklyMatches, setWeeklyMatches] = useState(existing?.weeklyMatches ?? true);
   const [hasGym, setHasGym] = useState(existing?.hasGym ?? false);
   const [hasPitch, setHasPitch] = useState(existing?.hasPitch ?? true);
-  const [hasSprintSpace] = useState(existing?.hasSprintSpace ?? true);
+  const [hasSprintSpace, setHasSprintSpace] = useState(existing?.hasSprintSpace ?? true);
+  const [doubleSessionsAllowed, setDoubleSessionsAllowed] = useState<DoubleSessions>(
+    existing?.doubleSessionsAllowed ?? "no",
+  );
   const [seasonPhaseOverride, setSeasonPhaseOverride] = useState(
     existing?.seasonPhaseOverride ?? false,
   );
@@ -502,7 +506,8 @@ function Onboarding() {
       equipment,
       painInjury: Boolean(consents.health_data && painInjury),
       painLocations: consents.health_data && painInjury ? painLocations : [],
-      doubleSessionsAllowed: level === "beginner" ? "light_only" : "yes_if_safe",
+      doubleSessionsAllowed: level === "beginner" && doubleSessionsAllowed === "yes_if_safe"
+        ? "light_only" : doubleSessionsAllowed,
       guardianConsent: isGuardianChild ? consent : accountOwnerType === "guardian" ? consent : true,
       onboardingComplete: true,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -1004,8 +1009,8 @@ function Onboarding() {
                 </div>
 
                 <p className="rounded-xl bg-secondary px-4 py-3 text-xs text-muted-foreground">
-                  Liczbę sesji dobiera BallWise z poziomu zawodnika i obciążenia tygodnia.
-                  Początkujący nie dostanie dwóch mocnych treningów jednego dnia.
+                  Plan uwzględni klub, mecze i Twoją dostępność.
+                  Druga sesja u początkujących i młodszych zawodników może być tylko lekka.
                 </p>
               </div>
 
@@ -1020,6 +1025,27 @@ function Onboarding() {
                   <Checkbox checked={hasPitch} onCheckedChange={(c) => setHasPitch(c === true)} />
                   <span className="text-sm">Mam dostęp do boiska</span>
                 </label>
+                <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+                  <Checkbox checked={hasSprintSpace} onCheckedChange={(c) => setHasSprintSpace(c === true)} />
+                  <span className="text-sm">Mam bezpieczną prostą i miejsce do wyhamowania sprintu</span>
+                </label>
+                <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+                  <Checkbox checked={equipment.some(item => /wall|rebounder|odbojnik|ściana/i.test(item))}
+                    onCheckedChange={checked => setEquipment(items => checked === true
+                      ? [...items.filter(item => !/wall|rebounder|odbojnik|ściana/i.test(item)), "rebounder"]
+                      : items.filter(item => !/wall|rebounder|odbojnik|ściana/i.test(item)))} />
+                  <span className="text-sm">Mam bezpieczną ścianę lub odbojnik do podań</span>
+                </label>
+                <div className="rounded-xl border border-border bg-card p-3.5">
+                  <Label htmlFor="double-sessions">Dwie sesje jednego dnia</Label>
+                  <select id="double-sessions" value={doubleSessionsAllowed}
+                    onChange={event => setDoubleSessionsAllowed(event.target.value as DoubleSessions)}
+                    className="mt-2 w-full rounded-lg border border-input bg-background p-2.5 text-sm">
+                    <option value="no">Maksymalnie jedna sesja dziennie</option>
+                    <option value="light_only">Druga tylko lekka, jeśli jest bezpiecznie</option>
+                    {level !== "beginner" && <option value="yes_if_safe">Dopuszczam dwie, jeśli jest bezpiecznie</option>}
+                  </select>
+                </div>
                 {consents.health_data ? (
                   <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
                     <Checkbox

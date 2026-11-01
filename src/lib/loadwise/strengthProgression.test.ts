@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SetLog } from "./setLogs";
+import { previousExerciseSessions, verifyExerciseHistory } from "./setLogHistory";
+import { sectionFixture, sessionFixture } from "@/components/loadwise/session/testFixtures";
+import type { SessionCompletion, TrainingExercise } from "./types";
 import {
   recommendNextLoad,
   saveStrengthProgressionDecision,
@@ -9,25 +12,91 @@ function sets(weightKg: number, reps: number, rir: number): SetLog[] {
   return [1, 2, 3].map((setNumber) => ({ setNumber, weightKg, reps, rir }));
 }
 
+const exercise: TrainingExercise = {
+  id: "squat", exerciseId: "squat", name: "Przysiad ze sztangą", sets: "3", reps: "6", rir: "2",
+};
+const adult = {
+  age: 22, level: "intermediate" as const, gymExperienceLevel: "intermediate" as const,
+  strengthTrainingMonths: 24, movementCompetence: "high" as const,
+  smallestIncrementKg: 2.5, exercise,
+};
+function history(options: {
+  loggedSets?: number; plannedSets?: string; completed?: boolean; reps?: number; targetReps?: string;
+  status?: SessionCompletion["status"]; missingSnapshot?: boolean; olderWeight?: number; tempo?: string;
+} = {}) {
+  const sessions = ["newest", "older"];
+  const rows = sessions.flatMap((session_id, index) =>
+    Array.from({ length: options.loggedSets ?? 3 }, (_, n) => ({
+      session_id, set_number: n + 1, weight_kg: index ? options.olderWeight ?? 60 : 60,
+      reps: options.reps ?? 6, rir: 3, performed_at: `2026-10-${20 - index}T10:0${n}:00Z`,
+    })));
+  const completions: Record<string, SessionCompletion> = Object.fromEntries(sessions.map(id => [id, {
+    completed: options.completed ?? true, status: options.status ?? "completed", rpe: 6, notes: "",
+    executionSnapshot: options.missingSnapshot ? null : sessionFixture({ dbId: id,
+      structuredSections: [sectionFixture("main", [{ ...exercise, sets: options.plannedSets ?? "3",
+        reps: options.targetReps ?? "6", tempo: options.tempo }])] }),
+  }]));
+  return verifyExerciseHistory(previousExerciseSessions(rows, "current"), "squat", completions);
+}
+
 describe("strength progression", () => {
   it("proponuje mały wzrost dopiero po dwóch stabilnych ekspozycjach", () => {
     const result = recommendNextLoad(
-      [sets(60, 6, 3), sets(60, 6, 3)],
+      history(),
       "6",
       "2",
-      {
-        age: 22,
-        level: "intermediate",
-        gymExperienceLevel: "intermediate",
-        strengthTrainingMonths: 24,
-        movementCompetence: "high",
-        smallestIncrementKg: 2.5,
-        exercise: { name: "Przysiad ze sztangą" },
-      },
+      adult,
     );
 
     expect(result?.mode).toBe("increase");
     expect(result?.weightKg).toBe(62.5);
+  });
+
+  it("nie uznaje dwóch pojedynczych zapisów za ukończone treningi czteroseryjne", () => {
+    const result = recommendNextLoad(history({ loggedSets: 1, plannedSets: "4" }), "6", "2",
+      { ...adult, exercise: { ...exercise, sets: "4" } });
+    expect(result?.mode).toBe("repeat");
+    expect(result?.reason).toContain("kompletem");
+  });
+
+  it.each([
+    { completed: false, status: "started" as const },
+    { completed: false, status: "missed" as const },
+    { missingSnapshot: true },
+  ])("nie zwiększa przy nieukończonym lub nieznanym wykonaniu: %o", options => {
+    expect(recommendNextLoad(history(options), "6", "2", adult)?.mode).toBe("repeat");
+  });
+
+  it("same stare wpisy serii bez dowodu wykonania nie odblokowują progresji", () => {
+    expect(recommendNextLoad([sets(60, 6, 3), sets(60, 6, 3)], "6", "2", adult)?.mode).toBe("repeat");
+  });
+
+  it.each([{ targetReps: "8" }, { tempo: "3-1-1" }, { plannedSets: "4", loggedSets: 4 }])(
+    "nie porównuje wyników z innej dawki/tempa: %o", options => {
+      expect(recommendNextLoad(history(options), "6", "2", adult)?.mode).toBe("repeat");
+    },
+  );
+
+  it("nie zwiększa drugi raz po pojedynczej ekspozycji nowym ciężarem", () => {
+    expect(recommendNextLoad(history({ olderWeight: 57.5 }), "6", "2", adult)?.mode).toBe("repeat");
+  });
+
+  it("nie pomija nowszej ekspozycji bez ważnych wyników na rzecz starszych dobrych serii", () => {
+    const sessions = history();
+    sessions[1].sets = sessions[1].sets.map(set => ({ ...set, reps: null }));
+    expect(recommendNextLoad(sessions, "6", "2", adult)?.mode).toBe("repeat");
+    sessions[0].sets = [];
+    expect(recommendNextLoad(sessions, "6", "2", adult)).toBeNull();
+  });
+
+  it("nie ekstrapoluje maksymalnego ciężaru na serię rozgrzewkową lub back-off", () => {
+    const sessions = history();
+    sessions[0].sets[0].weightKg = 40;
+    expect(recommendNextLoad(sessions, "6", "2", adult)?.mode).toBe("repeat");
+  });
+
+  it("odróżnia dwa pełne nieudane treningi od braku danych i proponuje redukcję", () => {
+    expect(recommendNextLoad(history({ reps: 4 }), "6", "2", adult)?.mode).toBe("reduce");
   });
 
   it("po jednej sesji utrzymuje ciężar", () => {

@@ -291,6 +291,9 @@ function PlanScreen() {
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
   const visibleDays = (current?.days ?? []).filter((d) => !d.outsideActivePlan);
+  const planningMeta = visibleDays.find(({ source }) =>
+    source.weekMeta?.planningStatus !== "complete" && source.weekMeta?.planningNotes?.length,
+  )?.source.weekMeta;
   const planStartDate = visibleDays[0]?.date ?? null;
   const hasHiddenBefore =
     (current?.days ?? []).some((d) => d.outsideActivePlan) && planStartDate !== null;
@@ -393,6 +396,17 @@ function PlanScreen() {
         </div>
       )}
 
+      {planningMeta && (
+        <details className="mx-5 mt-4 rounded-2xl border border-border bg-card px-4 py-3 text-sm">
+          <summary className="cursor-pointer font-medium text-primary">
+            {planningMeta.planningStatus === "health_limited"
+              ? "Plan ograniczony ze względu na zdrowie" : "Plan dopasowany do Twoich ograniczeń"}
+          </summary>
+          <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
+            {planningMeta.planningNotes?.map(note => <li key={note}>{note}</li>)}
+          </ul>
+        </details>
+      )}
       {visibleDays.length > 0 && (
         <div className="px-5 pt-4">
           <div className="border-y border-border/75 py-4">

@@ -12,6 +12,7 @@
 
 import type { PainLocation } from "./types";
 import { SKIP_GUIDES, SKIP_LANDING } from "./skipGuides";
+import { INDIVIDUAL_FOOTBALL_DRILLS } from "./individualFootballSessionEngine";
 import type { ExerciseInstructionStep, ExerciseItem, SessionDay, TrainingExercise } from "./types";
 import type {
   AthleteTrainingProfile,
@@ -2674,6 +2675,25 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     family: "football_ball_work",
   },
 ];
+
+// Distinct canonical identities preserve the actual solo task and its
+// instructions after hydration and in the exercise runner.
+const footballTechniqueBase = STRENGTH_DOMAIN_EXPANSIONS.find((item) => item.id === "football_technical_self_selected")!;
+for (const drill of INDIVIDUAL_FOOTBALL_DRILLS) {
+  LIBRARY.push({
+    ...footballTechniqueBase,
+    id: drill.id,
+    name: drill.name,
+    displayNamePl: drill.name,
+    aliases: [],
+    spaceRequirement: "home_small",
+    coachingCues: [drill.quality, "Obie nogi", "Kontrola przed intensywnością"],
+    commonErrors: [drill.mistake],
+    instructionsPl: [...drill.steps],
+    objective: drill.quality,
+    footballRelevance: ["Samodzielna praca techniczna; uzupełnia grę z partnerami i przeciwnikiem."],
+  });
+}
 
 const ACCELERATION_CUES = [
   "Pchnij boisko za siebie.",

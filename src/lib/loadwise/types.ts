@@ -649,6 +649,10 @@ export interface WeekMeta {
   recoverySessions: number; // liczba sesji regeneracja/prehab/mobilność
   weeklyLoadScore: number; // sumaryczny wynik obciążenia tygodnia
   validationStatus: "valid" | "rebuilt" | "invalid";
+  /** Feasible goals after enforcing calendar/access/safety limits; never a medical diagnosis. */
+  planningStatus?: "complete" | "reduced" | "health_limited";
+  planningNotes?: string[];
+  finalPolicyVersion?: string;
 }
 
 export interface SessionCompletion {

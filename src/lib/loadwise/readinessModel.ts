@@ -11,6 +11,18 @@ export const PAIN_LOCATION_OPTIONS: { value: PainLocation; label: string }[] = [
   { value: "other", label: "Inny obszar" },
 ];
 
+/** Values accepted by the readiness RPC; symptoms are independent of joint pain. */
+export const READINESS_RED_FLAG_OPTIONS = [
+  { value: "chest_pain", label: "Ból w klatce piersiowej" },
+  { value: "fainting", label: "Omdlenie" },
+  { value: "breathlessness", label: "Duszność w spoczynku" },
+  { value: "head_injury", label: "Uraz głowy" },
+  {
+    value: "deformity_or_no_weight",
+    label: "Nie mogę obciążyć kończyny lub widzę zniekształcenie",
+  },
+] as const;
+
 export interface ShortReadinessInput {
   sleep: number;
   /** Legacy caller compatibility; no longer collected in the main check-in. */
@@ -32,13 +44,32 @@ function clamp(value: number, min: number, max: number): number {
 export function calculateOverallReadiness(input: ShortReadinessInput): number {
   const recoveryFromFatigue = 11 - clamp(input.fatigue, 1, 10);
   const recoveryFromSoreness = 11 - clamp(input.soreness ?? input.fatigue, 1, 10);
-  const recoveryFromStress = 11 - clamp(input.stress ?? 3, 1, 10);
-  const movementComfort = 11 - clamp(input.jointPain, 0, 10);
-  return clamp(
-    (input.sleep + recoveryFromFatigue + recoveryFromSoreness + recoveryFromStress + movementComfort) / 5,
+  const movementComfort = 10 - clamp(input.jointPain, 0, 10);
+  // Internal scheduling score, not a validated clinical readiness measure.
+  // Missing optional answers cannot be interpreted as positive observations.
+  const observations = [
+    clamp(input.sleep, 1, 10),
+    recoveryFromFatigue,
+    recoveryFromSoreness,
+    movementComfort,
+  ];
+  if (input.stress !== undefined) observations.push(11 - clamp(input.stress, 1, 10));
+  const mean = clamp(
+    observations.reduce((sum, value) => sum + value, 0) / observations.length,
     1,
     10,
   );
+  if (input.redFlags?.length || input.altersMovement) return 1;
+  // A single severe response must not disappear inside a favourable mean.
+  if (
+    input.sleep <= 2 ||
+    input.fatigue >= 9 ||
+    (input.soreness ?? input.fatigue) >= 9 ||
+    input.jointPain >= 7
+  ) {
+    return Math.min(mean, 3);
+  }
+  return mean;
 }
 
 export function buildReadiness(date: string, input: ShortReadinessInput): Readiness {
@@ -52,12 +83,14 @@ export function buildReadiness(date: string, input: ShortReadinessInput): Readin
     soreness: clamp(input.soreness ?? input.fatigue, 1, 10),
     jointPain: clamp(input.jointPain, 0, 10),
     painLocation: input.jointPain > 0 ? (input.painLocation ?? "other") : null,
-    stress: clamp(input.stress ?? 3, 1, 10),
-    motivation: clamp(11 - (input.stress ?? 3), 1, 10),
+    // Neutral legacy placeholders; stress/motivation are not inferred as good.
+    stress: clamp(input.stress ?? 5, 1, 10),
+    motivation: clamp(11 - (input.stress ?? 5), 1, 10),
     overall: calculateOverallReadiness(input),
     painOnset: input.jointPain > 0 ? (input.painOnset ?? null) : null,
     altersMovement: input.jointPain > 0 ? Boolean(input.altersMovement) : false,
-    redFlags: input.jointPain > 0 ? (input.redFlags ?? []) : [],
+    // Chest symptoms/fainting can occur without any joint pain.
+    redFlags: input.redFlags ?? [],
   };
 }
 

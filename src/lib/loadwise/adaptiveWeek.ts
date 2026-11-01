@@ -3,6 +3,8 @@ import type { PlanChangeEvent, Profile, Readiness, SessionCompletion, SessionDay
 import { resolveMdPlusOne, type AutomationSessionCategory } from "./automationPolicy";
 import { normalizeSessionCategory } from "./sessionClassification";
 import { gymChangeBlockReason } from "./strengthScheduling";
+import { isoDayOfWeek, parseIso } from "./labels";
+import { isConservativeReturnContext } from "./finalPlanPolicy";
 
 export function automationCategory(session: SessionDay): AutomationSessionCategory {
   const cls = session.classification;
@@ -51,10 +53,26 @@ export function adaptMdPlusOneFromMatchMinutes(
   plan: SessionDay[],
   completions: Record<string, SessionCompletion>,
   readiness: Record<string, Readiness>,
+  profile?: Profile | null,
 ): { plan: SessionDay[]; events: PlanChangeEvent[] } {
   const events: PlanChangeEvent[] = [];
   const next = plan.map((day, index): SessionDay => {
     if (day.mdLabel !== "MD+1") return day;
+    // A derived adjustment cannot undo availability, health policy, an external
+    // obligation or a prescription already being executed in either slot.
+    const slotProtected = (session: SessionDay | null | undefined) => {
+      const log = session?.dbId ? completions[session.dbId] : undefined;
+      return session?.executionProtected || log?.completed || log?.status === "started";
+    };
+    if (day.isUnavailable || day.dayType === "club" || day.dayType === "match" ||
+      day.externalCommitment || slotProtected(day) || slotProtected(day.secondSession)) return day;
+    if (profile) {
+      const weekday = isoDayOfWeek(parseIso(day.date));
+      if ((profile.unavailableDays ?? []).includes(weekday) ||
+        (Array.isArray(profile.individualTrainingDays) && !profile.individualTrainingDays.includes(weekday)) ||
+        profile.painInjury || profile.seasonPhase === "return_injury" ||
+        isConservativeReturnContext(profile)) return day;
+    }
     const matchDate = addIsoDays(day.date, -1);
     const match = [...plan.slice(0, index)]
       .reverse()

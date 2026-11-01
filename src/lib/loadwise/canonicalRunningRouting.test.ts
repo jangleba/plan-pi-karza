@@ -18,7 +18,8 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     matchDate: null,
     equipment: [],
     painInjury: false,
-    doubleSessionsAllowed: "no",
+    // This suite isolates running prescriptions; capacity limits have dedicated tests.
+    doubleSessionsAllowed: "yes_if_safe",
     guardianConsent: true,
     onboardingComplete: true,
     createdAt: "2026-01-01",
@@ -29,6 +30,7 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     hasGym: true,
     hasPitch: true,
     hasSprintSpace: true,
+    movementCompetence: "medium",
     ...overrides,
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import { exerciseKey, plannedSets, useExerciseSetLogs, type SetLog } from "@/lib/loadwise/setLogs";
+import { verifyExerciseHistory, type ExerciseSessionLog } from "@/lib/loadwise/setLogHistory";
 import {
   fieldsForMetric,
   metricKindForExercise,
@@ -151,9 +152,9 @@ export function ExerciseRunnerScreen({
   const recentSessions = useMemo(
     () =>
       Array.isArray(recentHistory)
-        ? (recentHistory as { sets: SetLog[] }[])
-        : [{ sets: Object.values(previous) }],
-    [recentHistory, previous],
+        ? verifyExerciseHistory(recentHistory as ExerciseSessionLog[], key, state.completions)
+        : [],
+    [recentHistory, key, state.completions],
   );
   const context = trainingStorageKey("screen", user?.id, sessionId ?? date ?? "unattached", key);
   activeContext.current = context;
@@ -201,7 +202,7 @@ export function ExerciseRunnerScreen({
     () =>
       metricKind === "load"
         ? recommendNextLoad(
-            recentSessions.map((item) => item.sets),
+            recentSessions,
             exercise.reps,
             exercise.rir,
             {

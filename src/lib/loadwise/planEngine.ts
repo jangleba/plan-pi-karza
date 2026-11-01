@@ -92,6 +92,8 @@ export {
 export type { PlanSessionCategory, PlanValidationIssue, DecisionResult } from "./sessionRuntime";
 
 export { PLAN_ENGINE_VERSION } from "./planVersion";
+import { enforceFinalPlanPolicy } from "./finalPlanPolicy";
+import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 
 const MAX_SPRINT_M = 240;
 // maksymalna objętość sprintów wysokiej intensywności na sesję
@@ -3391,7 +3393,10 @@ export function generatePlan(
   // Silnik korzysta z ZWALIDOWANEGO okresu sezonu: jeśli zapisany okres jest
   // sprzeczny z kalendarzem i nie włączono trybu niestandardowego, używamy
   // sugestii kalendarzowej, by load i dobór sesji były wiarygodne.
-  const effPhase = effectiveSeasonPhase(rawProfile, startDate);
+  const needsReintroduction = rawProfile.goal === "return" ||
+    rawProfile.secondaryLimiter === "return" || rawProfile.secondaryLimiter === "fatigue";
+  const effPhase = needsReintroduction && !rawProfile.painInjury && rawProfile.seasonPhase !== "return_injury"
+    ? "transition" : effectiveSeasonPhase(rawProfile, startDate);
   const profile: Profile =
     effPhase === rawProfile.seasonPhase ? rawProfile : { ...rawProfile, seasonPhase: effPhase };
   const out: SessionDay[] = [];
@@ -4233,8 +4238,9 @@ export function generatePlan(
       session.loadTags = computeLoadTags(session);
     }
   }
-  assertPlanExerciseContract(finalPlan);
-  return finalPlan;
+  const constrainedPlan = enforceFinalPlanPolicy(finalPlan.map(enforceSprintOnlyContent), rawProfile);
+  assertPlanExerciseContract(constrainedPlan);
+  return constrainedPlan;
 }
 
 /**

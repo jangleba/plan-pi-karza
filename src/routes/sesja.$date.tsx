@@ -24,6 +24,7 @@ import {
 } from "@/lib/loadwise/sessionPresentation";
 import { isSprintRunnerSession } from "@/lib/loadwise/sprintPresentation";
 import { enforceStrengthEligibility } from "@/lib/loadwise/strengthEligibility";
+import { enforceSprintOnlyContent } from "@/lib/loadwise/sprintContentPolicy";
 import { StrengthExperienceSetup } from "@/components/loadwise/session/StrengthExperienceSetup";
 import { RecoveryCoach, WarmupCoach } from "@/components/loadwise/preparation/PreparationGuide";
 import {
@@ -216,7 +217,7 @@ function SessionDetail() {
   const completed = session.dbId && state.completions[session.dbId]?.status === "completed";
   const displayedSession = completed
     ? replacedSession
-    : enforceStrengthEligibility(replacedSession, state.profile);
+    : enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile));
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =

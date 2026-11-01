@@ -16,7 +16,8 @@ function makeProfile(goal: Goal): Profile {
     goal,
     secondaryLimiter: null,
     clubTrainingDays: [2, 4],
-    individualTrainingDays: [1, 3, 5, 6],
+    // Enough days for category coverage without violating the no-double fixture.
+    individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
     usualMatchDay: null,
     matchDate: null,
     equipment: [],
@@ -33,6 +34,7 @@ function makeProfile(goal: Goal): Profile {
     hasGym: true,
     hasPitch: true,
     hasSprintSpace: true,
+    movementCompetence: "medium",
   };
 }
 

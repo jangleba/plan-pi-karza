@@ -14,7 +14,20 @@ export function resolveMdPlusOne(
   matchMinutes: number | null,
   readiness: number | null,
 ): MdPlusOneDecision {
-  if (matchMinutes == null) {
+  const hasMinutes = matchMinutes != null && Number.isFinite(matchMinutes) && matchMinutes >= 0;
+  const hasReadiness = readiness != null && Number.isFinite(readiness) && readiness >= 1 && readiness <= 10;
+  if ((hasMinutes && matchMinutes >= 60) || (hasReadiness && readiness <= 5)) {
+    return {
+      mode: "recovery",
+      durationMin: 20,
+      title: "Regeneracja pomeczowa",
+      reason:
+        hasMinutes && matchMinutes >= 60
+          ? "Wysoki udział w meczu: tylko spokojne rozruszanie i mobilność."
+          : "Niższa gotowość: kompensacja została zastąpiona regeneracją.",
+    };
+  }
+  if (!hasMinutes) {
     return {
       mode: "mixed",
       durationMin: 25,
@@ -22,18 +35,16 @@ export function resolveMdPlusOne(
       reason: "Brakuje minut meczowych, więc aplikacja wybiera ostrożny wariant pośredni.",
     };
   }
-  if (matchMinutes >= 60 || (readiness != null && readiness <= 5)) {
+  if (!hasReadiness) {
     return {
-      mode: "recovery",
-      durationMin: 20,
-      title: "Regeneracja pomeczowa",
+      mode: "mixed",
+      durationMin: 25,
+      title: "MD+1 — lekka sesja do potwierdzenia",
       reason:
-        matchMinutes >= 60
-          ? "Wysoki udział w meczu: tylko spokojne rozruszanie i mobilność."
-          : "Niższa gotowość: kompensacja została zastąpiona regeneracją.",
+        "Brak oceny gotowości: krótki występ nie potwierdza, że można zwiększyć obciążenie.",
     };
   }
-  if (matchMinutes < 30 && (readiness == null || readiness >= 6)) {
+  if (matchMinutes < 30 && readiness >= 6) {
     return {
       mode: "compensation",
       durationMin: 35,

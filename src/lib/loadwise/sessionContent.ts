@@ -6,7 +6,10 @@
 // są zamieniane na poprawne odpowiedniki tej samej kategorii.
 // ============================================================
 
-import type { ExerciseItem, Position, Profile, SessionDay } from "./types";
+import type { ExerciseItem, Profile, SessionDay } from "./types";
+import { buildIndividualFootballSession } from "./individualFootballSessionEngine";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
+import { getExerciseDefinition, isExerciseAllowedForProfile } from "./exerciseLibrary";
 import { buildRunningSessionPrescription } from "@/lib/running/engine";
 import {
   buildWarmupProtocol,
@@ -777,275 +780,11 @@ export function buildSportPerformance(
 // FOOTBALL / PIŁKARSKI — tylko z piłką, solo-compatible, wg pozycji
 // ============================================================
 
-function posTag(position: Position): Exclude<PositionTag, "ALL"> {
-  switch (position) {
-    case "goalkeeper":
-      return "GK";
-    case "defender":
-      return "DEF";
-    case "midfielder":
-      return "MID";
-    case "forward":
-    default:
-      return "FWD";
-  }
-}
-
-function ballWarmup(): CatExercise[] {
-  return [
-    mk(
-      {
-        name: "Rozgrzewka z piłką",
-        prescription: "6 min: prowadzenie, sole rolls, lekkie podania o ścianę",
-        cue: "Miękkie kontakty obiema nogami, głowa do góry.",
-      },
-      {
-        requiresBall: true,
-        isFootballSpecific: true,
-        equipmentRequired: ["piłka"],
-        primaryQuality: "rozgrzewka z piłką",
-        allowedSessionTypes: ["football"],
-      },
-    ),
-    mk(
-      {
-        name: "Żonglerka i czucie piłki",
-        prescription: "4 min, obie nogi + udo",
-        cue: "Spokojny rytm, kontrola, słabsza noga co drugie powtórzenie.",
-      },
-      {
-        requiresBall: true,
-        isFootballSpecific: true,
-        equipmentRequired: ["piłka"],
-        primaryQuality: "czucie piłki",
-        allowedSessionTypes: ["football"],
-      },
-    ),
-  ];
-}
-
-function ballCooldown(): CatExercise[] {
-  return [
-    mk(
-      { name: "Lekkie podania o ścianę", prescription: "5 min, spokojnie, obie nogi" },
-      {
-        requiresBall: true,
-        isFootballSpecific: true,
-        primaryQuality: "wyciszenie z piłką",
-        allowedSessionTypes: ["football"],
-      },
-    ),
-    mk(
-      { name: "Rozciąganie i oddech", prescription: "4 min: biodra, uda, łydki + spokojny oddech" },
-      { primaryQuality: "wyciszenie" },
-    ),
-  ];
-}
-
-/** Solo-compatible, pozycyjne bloki techniczne z transferem meczowym. */
-function footballThemes(
-  position: Position,
-  seed: number,
-): {
-  technical: CatExercise;
-  matchAction: CatExercise;
-  finishing: CatExercise;
-  title: string;
-} {
-  const tag = posTag(position);
-  const ball = {
-    requiresBall: true,
-    isFootballSpecific: true,
-    equipmentRequired: ["piłka", "ściana/odbojnik"],
-    allowedSessionTypes: ["football"] as SessionContentCategory[],
-    positionTags: [tag] as PositionTag[],
-  };
-
-  if (tag === "GK") {
-    const technicals: CatExercise[] = [
-      mk(
-        {
-          name: "Przyjęcie cofniętej piłki pod presją",
-          prescription: "12 min: przyjęcie kierunkowe + podanie o ścianę",
-          cue: "Otwarta sylwetka, pierwszy kontakt od presji. Transfer: jak przy back-passie w meczu.",
-        },
-        { ...ball, primaryQuality: "gra nogami" },
-      ),
-      mk(
-        {
-          name: "Praca nóg z piłką",
-          prescription: "10 min: kontakty w różne strefy + podanie",
-          cue: "Szybka praca stóp, stabilna pozycja. Transfer: dystrybucja po obronie.",
-        },
-        { ...ball, primaryQuality: "footwork z piłką" },
-      ),
-    ];
-    return {
-      title: "Trening bramkarski z piłką (gra nogami)",
-      technical: pick(technicals, seed),
-      matchAction: mk(
-        {
-          name: "Reakcja i ustawienie + wznowienie",
-          prescription: "8 min: sygnał, krok w bok, przyjęcie i wznowienie gry",
-          cue: "Reaguj wzrokowo, kontroluj pierwszy kontakt. Transfer: szybkie wznowienie po interwencji.",
-        },
-        { ...ball, primaryQuality: "reakcja / dystrybucja" },
-      ),
-      finishing: mk(
-        {
-          name: "Zasięg podania / wybicie z ręki i nogi",
-          prescription: "10 min na różne dystanse",
-          cue: "Celność przed siłą, obie nogi. Transfer: otwieranie gry długim podaniem.",
-        },
-        { ...ball, primaryQuality: "zasięg podania" },
-      ),
-    };
-  }
-  if (tag === "DEF") {
-    const technicals: CatExercise[] = [
-      mk(
-        {
-          name: "Przyjęcie od presji + podanie diagonalne",
-          prescription: "12 min o ścianę, przyjęcie w otwartą sylwetkę",
-          cue: "Sylwetka przed przyjęciem, pierwszy kontakt od presji. Transfer: wyprowadzenie spod pressingu.",
-        },
-        { ...ball, primaryQuality: "wyprowadzenie piłki" },
-      ),
-      mk(
-        {
-          name: "Długie podanie i celność",
-          prescription: "12 min: zmiana strony / podanie za linię",
-          cue: "Stabilna noga postawna, czysty kontakt. Transfer: zmiana strony gry.",
-        },
-        { ...ball, primaryQuality: "długie podanie" },
-      ),
-    ];
-    return {
-      title: "Trening obrońcy z piłką (wyprowadzenie)",
-      technical: pick(technicals, seed),
-      matchAction: mk(
-        {
-          name: "Wall pass + prowadzenie w wolną przestrzeń",
-          prescription: "10 min: podanie o ścianę, przyjęcie, prowadzenie 5 m",
-          cue: "Decyzja przed kontaktem, prowadzenie w przestrzeń. Transfer: wyjście z piłką po odbiorze.",
-        },
-        { ...ball, primaryQuality: "prowadzenie w przestrzeń" },
-      ),
-      finishing: mk(
-        {
-          name: "Sylwetka ciała przed przyjęciem",
-          prescription: "8 min: skan, otwarcie bioder, przyjęcie",
-          cue: "Skanuj przed przyjęciem, otwórz się na grę. Transfer: orientacja w defensywie.",
-        },
-        { ...ball, primaryQuality: "skanowanie / sylwetka" },
-      ),
-    };
-  }
-  if (tag === "MID") {
-    const technicals: CatExercise[] = [
-      mk(
-        {
-          name: "Przyjęcie na półobrocie",
-          prescription: "12 min: skan, przyjęcie kierunkowe na pół-obrocie o ścianę",
-          cue: "Skan przed przyjęciem, pierwszy kontakt w kierunku gry. Transfer: gra przez linie.",
-        },
-        { ...ball, primaryQuality: "przyjęcie kierunkowe" },
-      ),
-      mk(
-        {
-          name: "Kombinacje wall pass",
-          prescription: "12 min: podanie o ścianę, dwa kontakty, zmiana tempa",
-          cue: "Szybka decyzja, zmiana tempa po przyjęciu. Transfer: jednokontaktowa gra w środku pola.",
-        },
-        { ...ball, primaryQuality: "kombinacje" },
-      ),
-    ];
-    return {
-      title: "Trening pomocnika z piłką (gra w środku)",
-      technical: pick(technicals, seed),
-      matchAction: mk(
-        {
-          name: "Skanowanie + gra przez linie",
-          prescription: "10 min: symulacja podania pod presją, zmiana kierunku gry",
-          cue: "Głowa do góry przed przyjęciem, otwórz się na podanie do przodu. Transfer: rozegranie przez linie.",
-        },
-        { ...ball, primaryQuality: "rozegranie przez linie" },
-      ),
-      finishing: mk(
-        {
-          name: "Zmiana tempa po przyjęciu",
-          prescription: "8 min: przyjęcie i przyspieszenie z piłką",
-          cue: "Pierwszy kontakt w przestrzeń, przyspiesz po przyjęciu. Transfer: progresja gry po przyjęciu.",
-        },
-        { ...ball, primaryQuality: "zmiana tempa z piłką" },
-      ),
-    };
-  }
-  // FWD (oraz skrzydłowy)
-  const technicals: CatExercise[] = [
-    mk(
-      {
-        name: "Przyjęcie tyłem do bramki + obrót",
-        prescription: "12 min: przyjęcie, obrót, kontakt do strzału",
-        cue: "Osłona piłki, szybki obrót w przestrzeń. Transfer: gra tyłem do bramki.",
-      },
-      { ...ball, primaryQuality: "obrót i przyjęcie" },
-    ),
-    mk(
-      {
-        name: "Ruch przed przyjęciem + pierwszy kontakt",
-        prescription: "12 min: zwód, oderwanie, przyjęcie w bieg",
-        cue: "Oderwij się przed podaniem, pierwszy kontakt w przestrzeń. Transfer: timing wejścia.",
-      },
-      { ...ball, primaryQuality: "ruch bez piłki + przyjęcie" },
-    ),
-  ];
-  return {
-    title: "Trening napastnika z piłką (wykończenie)",
-    technical: pick(technicals, seed),
-    matchAction: mk(
-      {
-        name: "Wall pass + strzał",
-        prescription: "10 min: podanie o ścianę, przyjęcie, wykończenie",
-        cue: "Szybkie wejście po odbiciu, kontrola przed strzałem. Transfer: gra w jeden-dwa i finalizacja.",
-      },
-      { ...ball, primaryQuality: "kombinacja + strzał" },
-    ),
-    finishing: mk(
-      {
-        name: "Wykończenia: pierwszy kontakt / obrót i strzał",
-        prescription: "10 min: bliski/daleki słupek, jeden kontakt, obie nogi",
-        cue: "Spokój przy wykończeniu, celność. Transfer: różne wzorce strzału w polu karnym.",
-      },
-      { ...ball, primaryQuality: "wykończenie" },
-    ),
-  };
-}
-
 export function buildFootball(
   profile: Profile,
-  opts: { seed: number; light?: boolean },
+  opts: { seed: number; light?: boolean; durationMin?: number; weekIndex?: number },
 ): BuiltContent {
-  const t = footballThemes(profile.position, opts.seed);
-  const main = opts.light ? [t.technical, t.matchAction] : [t.technical, t.matchAction];
-  const transfer = opts.light ? [] : [t.finishing];
-  return {
-    title: t.title,
-    sessionType: "Piłka / technika (pozycyjna)",
-    goalOfSession:
-      "Kompletna praca z piłką w obrębie kategorii piłkarskiej: technika pozycyjna, akcja meczowa i transfer — wszystko z piłką i możliwe solo.",
-    riskManaged:
-      "Praca techniczna o umiarkowanej objętości, każde ćwiczenie z piłką i dopasowane do pozycji — bez fatygujących obwodów.",
-    avoidToday:
-      "Bez bloków siłowni i bez czystych sprintów bez piłki w tej sesji. To trening piłkarski.",
-    sections: {
-      warmup: ballWarmup().map(toItem),
-      main: main.map(toItem),
-      accessory: [],
-      footballTransfer: transfer.map(toItem),
-      cooldown: ballCooldown().map(toItem),
-    },
-  };
+  return buildIndividualFootballSession(profile, opts);
 }
 
 // ============================================================
@@ -1062,14 +801,18 @@ export function buildRunningConditioning(
     scheduleFieldMasTest?: boolean;
   },
 ): BuiltContent {
+  const masEligible = isExerciseAllowedForProfile(
+    getExerciseDefinition("field_mas_5_min_test"),
+    buildAthleteTrainingProfile(profile),
+  ).ok;
   const prescription = buildRunningSessionPrescription({
     fieldMasKmh: profile.fieldMasKmh,
     fieldMasTestedAt: profile.fieldMasTestedAt,
     date: opts.date ?? "1970-01-01",
     sessionIndex: opts.seed,
     progressionLevel: profile.runningProgressionLevel,
-    scheduleFieldMasTest: opts.scheduleFieldMasTest,
-    forceLight: opts.light,
+    scheduleFieldMasTest: masEligible ? opts.scheduleFieldMasTest : false,
+    forceLight: opts.light || !masEligible,
   });
 
   const warmupProtocol = buildWarmupProtocol(
@@ -1097,8 +840,9 @@ export function buildRunningConditioning(
     durationMin: prescription.durationMin,
     intensity: prescription.intensity,
     goalOfSession: prescription.goal,
-    riskManaged:
-      "Metoda, tempo i dawka pochodzą z jednego silnika biegowego. Praca bez piłki; progresja zmienia jedną główną zmienną naraz.",
+    riskManaged: masEligible
+      ? "Metoda, tempo i dawka pochodzą z jednego silnika biegowego. Praca bez piłki; progresja zmienia jedną główną zmienną naraz."
+      : "Spokojny wariant: wymagania testu maksymalnego nie są jeszcze potwierdzone w profilu. Nie wykonuj testu na własną rękę przy bólu lub innych niepokojących objawach.",
     avoidToday: "Bez piłki i bez bloków siłowych w tej sesji. To trening biegowy/kondycyjny.",
     sections: {
       warmup: warmup.map(toItem),
@@ -1298,7 +1042,7 @@ export function enforceSessionCategory(
     }
     case "football": {
       const seed = ctx.counters.football + ctx.weekIndex;
-      built = buildFootball(profile, { seed, light: ctx.light });
+      built = buildFootball(profile, { seed, light: ctx.light, durationMin: session.durationMin, weekIndex: ctx.weekIndex });
       ctx.counters.football++;
       break;
     }
