@@ -140,7 +140,7 @@ export function FuelMealSheet({
               ? "Porcje z poprzedniego wpisu. Potwierdź ilości — zapis utworzy nowy posiłek."
               : draft?.own
                 ? "Ustaw faktyczne ilości. Podane na start porcje są przykładowe."
-                : `${draft?.recipe?.subtitle ? `${draft.recipe.subtitle}. ` : ""}Porcję możesz zmniejszyć, zwiększyć lub zmienić składniki.`}
+                : `${timing.phase === "before" ? "Zestaw przed wysiłkiem" : timing.phase === "after" ? "Zestaw po sesji" : timing.phase === "training" ? "Propozycja na dogodną przerwę" : "Zwykły posiłek"}. Porcję możesz zmniejszyć, zwiększyć lub zmienić składniki.`}
         </SheetDescription>
         {draft && (
           <>

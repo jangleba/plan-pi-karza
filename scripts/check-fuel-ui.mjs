@@ -10,7 +10,7 @@ const require = createRequire(path.join(root, "package.json"));
 const esbuild = require("esbuild");
 const work =
   process.env.BALLWISE_FUEL_UI_DIR ||
-  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-fuel-ui-25");
+  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-fuel-ui-26");
 await fs.mkdir(work, { recursive: true });
 await esbuild.build({
   entryPoints: [path.join(root, "src/components/fuel/__qa__/FuelHarness.tsx")],
@@ -147,6 +147,11 @@ try {
     }),
     "Adjusted portions lost",
   );
+  const mealTitle = await page.evaluate(() => window.__fuelQA.read().entries[0].title);
+  await page
+    .locator(".fuel-recent-meal")
+    .getByText(mealTitle, { exact: false })
+    .waitFor({ timeout: 1500 });
   await page.getByRole("button", { name: /Historia/ }).click();
   await snap("historia-porcje");
   await page.getByRole("button", { name: "Było ciężko", exact: true }).click();
@@ -181,6 +186,13 @@ try {
     (await page.evaluate(() => window.__fuelQA.read().drinks[0].ml)) === 250,
     "Drink not saved",
   );
+  await page
+    .getByText("Napoje · 250 ml zapisane do tej sesji dziś", { exact: true })
+    .waitFor({ timeout: 1500 });
+  await page.mouse.move(0, 0);
+  await page
+    .getByText("Zapisano wypity napój.", { exact: true })
+    .waitFor({ state: "hidden", timeout: 7000 });
   await snap("napoje");
   await page.getByText("Twój plan · Teraz / Zabierz / Po sesji", { exact: true }).click();
   await snap("plan-sesji");

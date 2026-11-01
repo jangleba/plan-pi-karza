@@ -422,6 +422,7 @@ export function FuelWorkspace({
     });
   }
   function recordEntry(entry: FuelEntry, replaceId?: string | null) {
+    setNow(Date.now());
     const previous = replaceId ? data.entries.find((e) => e.id === replaceId) : null;
     if (
       entry.status === "eaten" &&
@@ -963,12 +964,11 @@ export function FuelWorkspace({
               return;
             }
             const id = crypto.randomUUID();
+            const at = Date.now();
+            setNow(at);
             setData((d) => ({
               ...d,
-              drinks: [
-                { id, contextKey: context.key, at: Date.now(), ml, kind },
-                ...(d.drinks ?? []),
-              ],
+              drinks: [{ id, contextKey: context.key, at, ml, kind }, ...(d.drinks ?? [])],
             }));
             pendingSaveFeedback.current = {
               message: "Zapisano wypity napój.",

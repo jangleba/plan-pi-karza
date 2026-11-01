@@ -44,6 +44,28 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("Fuel25 corrected application flows", () => {
+  it("immediately shows a newly eaten meal and drink when the clock advanced since rendering", async () => {
+    await act(async () => root.render(<FuelWorkspace userId="u" contexts={[]} />));
+    const title = host.querySelector(".fuel-v4-hero h3")!.textContent!;
+    vi.mocked(Date.now).mockReturnValue(now + 10_000);
+    await click("Zjadłem", host);
+    expect(host.querySelector(".fuel-recent-meal p")?.textContent).toContain(title);
+    vi.mocked(Date.now).mockReturnValue(now + 15_000);
+    await click("Zapisz napój", host);
+    expect(host.querySelector(".fuel-next-steps")?.textContent).toContain(
+      "250 ml zapisane do tej sesji dziś",
+    );
+  });
+  it("describes the selected pre-match meal as before exercise", async () => {
+    const match = { ...manualFuelContext(localDate(now), "match", 90, "high"), fromPlan: true };
+    const data = emptyFuelData();
+    data.timings[match.key] = relativeFuelTiming(120, now)!;
+    localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
+    await act(async () => root.render(<FuelWorkspace userId="u" contexts={[match]} />));
+    await click("Porcje i przygotowanie", host);
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain("Zestaw przed wysiłkiem");
+  });
   it("preserves exact selected portions on the main card and when eaten", async () => {
     const data = emptyFuelData();
     data.timings[context.key] = relativeFuelTiming(120, now)!;
