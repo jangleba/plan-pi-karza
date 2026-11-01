@@ -258,7 +258,8 @@ export function CompletionPanel({ session }: { session: SessionDay }) {
 export function ClubMonitoring({ session }: { session?: SessionDay }) {
   const { state } = useLoadwise();
   return (
-    <section className="soft-card bw-club-summary" aria-label="Podsumowanie treningu klubowego">
+    <details className="soft-card bw-club-summary" aria-label="Podsumowanie treningu klubowego">
+      <summary>Po treningu: czas i RPE</summary>
       <h2>Twoja sesja</h2>
       <p>Zrób trening zgodnie z planem drużyny. Po zakończeniu zapisz wykonanie poniżej.</p>
       {session && (
@@ -288,6 +289,6 @@ export function ClubMonitoring({ session }: { session?: SessionDay }) {
       {state.profile?.healthPersonalizationEnabled === true && (
         <p className="mt-3">Ból i zmęczenie możesz zaznaczyć w zapisie wykonania.</p>
       )}
-    </section>
+    </details>
   );
 }

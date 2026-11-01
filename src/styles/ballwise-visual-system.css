@@ -347,3 +347,27 @@ a,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Compact rhythm: preserve readable text and 44px touch targets. */
+:root { --bw-nav-size: 60px; }
+.app-shell:has(> .bw-tab-bar) > .app-shell { min-height: 0; border-inline: 0; }
+.bw-tab-item { min-height: 44px; gap: 3px; }
+.bw-tab-list { padding-block: 8px; }
+.bw-page-header { padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: 10px; }
+.bw-page-header h1 { font-size: clamp(24px, 6.5vw, 28px); }
+.app-shell .soft-card.p-4 { padding: 12px; }
+.start-decision-screen { padding-top: 14px; padding-bottom: 24px; }
+.start-decision-screen > .mt-8 { margin-top: 16px; }
+.start-decision-screen .soft-card { padding: 12px 14px; }
+.bw-session-header { padding-top: 14px; }
+.bw-session-header > button { margin-bottom: 8px; min-height: 36px; }
+.bw-session-header h1 { font-size: 23px; }
+.bw-session-header .bw-session-meta { margin-top: 8px; }
+.bw-session-page > .bw-session-body { margin-top: 14px; }
+.bw-session-notice { padding: 10px 12px; }
+.bw-session-start > p { font-size: 12px; line-height: 1.4; }
+.bw-club-summary { padding: 0 12px; }
+.bw-club-summary > summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 13px; font-weight: 600; color: var(--primary); }
+.bw-club-summary[open] { padding-bottom: 12px; }
+.bw-club-summary h2 { margin: 10px 0 8px; font-size: 14px; }
+.bw-club-summary dl { margin: 8px 0; }

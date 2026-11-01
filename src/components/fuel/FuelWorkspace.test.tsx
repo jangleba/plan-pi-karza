@@ -46,12 +46,13 @@ describe("practical Fuel user flow", () => {
     await act(async () => root.unmount());
     root = createRoot(host);
     await act(async () => root.render(<FuelWorkspace userId="qa-user" contexts={[]} />));
-    expect(host.querySelector('.fuel-v4-presets button[aria-pressed="true"]')?.textContent).toBe(
-      "1 h",
-    );
+    expect(host.querySelector(".fuel-v4-time-value strong")?.textContent).toBe("1 h");
+    expect(host.querySelector(".fuel-time-options")).toBeNull();
     const stored = JSON.parse(localStorage.getItem(fuelStorageKey("qa-user"))!);
     expect(stored.preferences.excludedFoodIds).toContain("banana");
     expect(host.querySelector(".fuel-v4-ingredients")?.textContent).not.toContain("Banan");
+    await click("Zmień");
+    expect(document.querySelector('[role="dialog"]')).toBeTruthy();
   });
   it("turns a selected meal into eaten without leaving an extra preparation entry", async () => {
     await click("Zamień");

@@ -51,7 +51,7 @@ function TabsLayout() {
     <LegalReconsentGate>
       <div
         className="app-shell relative min-h-screen"
-        style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
+        style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}
       >
         <AppRouteWarmup />
         <TrainingSyncStatus />

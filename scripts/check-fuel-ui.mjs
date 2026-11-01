@@ -149,6 +149,11 @@ try {
     await snap("fuel-" + width + "x" + height);
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await goto();
+  const mealAction = await page.getByRole("button", { name: "Zjadłem", exact: true }).boundingBox();
+  const nav = await page.locator(".bw-tab-bar").boundingBox();
+  ensure(mealAction && nav && mealAction.y + mealAction.height <= nav.y, "Main meal action needs scrolling on the compact phone view");
+  ensure(await page.locator(".fuel-time-options").count() === 0, "Known timing should not repeat the expanded chooser");
   await goto("?mode=adjusted");
   await page.getByRole("button", { name: "Zjadłem", exact: true }).click();
   ensure(

@@ -798,7 +798,7 @@ export function FuelWorkspace({
               Zmień
             </button>
           </div>
-          {timing.phase === "before" && (
+          {timing.phase === "before" && minutes === null && (
             <div className="fuel-time-options">
               <div className="fuel-v4-presets">
                 {FUEL_TIME_PRESETS.map((v) => (

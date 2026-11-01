@@ -140,7 +140,7 @@ export function TacticalPitch({
       if (fallbackHeight.current) {
         fallbackHeight.current.setAttribute("x", String(liveFrame.ballVisual.x));
         fallbackHeight.current.setAttribute("y", String(Math.max(5, liveFrame.ballVisual.y - 4)));
-        fallbackHeight.current.textContent = liveFrame.ballHeight > 0.5 ? "Piłka górą" : "";
+        fallbackHeight.current.textContent = liveFrame.ballInFlight && liveFrame.ballHeight > 2 ? "Piłka górą" : "";
       }
       if (ballLabel.current) {
         ballLabel.current.style.left = `${liveFrame.ballVisual.x}%`;
@@ -425,7 +425,7 @@ export function TacticalPitch({
               strokeWidth=".25"
               paintOrder="stroke"
             >
-              {frame.ballHeight > 0.5 ? "Piłka górą" : ""}
+              {frame.ballInFlight && frame.ballHeight > 2 ? "Piłka górą" : ""}
             </text>
           </svg>
           {status === "fallback" && !diagram && (

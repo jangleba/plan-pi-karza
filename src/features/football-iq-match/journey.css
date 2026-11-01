@@ -654,3 +654,11 @@
   background: #173e3b;
   color: #edf5f5;
 }
+
+/* Keep the lesson within the usable viewport above the compact shared nav. */
+.bwiq-app.iq-journey { bottom: calc(var(--bw-nav-size, 60px) + env(safe-area-inset-bottom)); height: calc(100dvh - var(--bw-nav-size, 60px) - env(safe-area-inset-bottom)); }
+.iq-journey .iqJ-header { padding-block: 4px 8px; }
+.iq-journey .iqJ-title { margin-bottom: 8px; }
+.iq-journey .iqJ-title h1 { font-size: 21px; }
+.iq-journey .iqJ-modes { margin-bottom: 8px; }
+.iq-journey .iqJ-footer { padding-top: 10px; padding-bottom: 6px; }

@@ -780,3 +780,20 @@
   border-radius: 10px;
   box-shadow: none;
 }
+
+/* Selected timing stays a single short row; presets remain available through Zmień. */
+.fuel-v4 { padding-top: 14px; padding-bottom: 12px; }
+.fuel-v4-header { margin-bottom: 12px; }
+.fuel-v4-header h1 { font-size: 25px; }
+.fuel-v4-main { gap: 10px; }
+.fuel-v4-time { padding: 10px 12px; }
+.fuel-v4-time-value > div { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+.fuel-v4-time-value strong { font-size: 18px; }
+.fuel-v4-time .fuel-text-button { min-height: 44px; }
+.fuel-v4-hero { padding: 12px; }
+.fuel-v4-hero h3 { font-size: 19px; }
+.fuel-v4-ingredients { margin-block: 6px; }
+.fuel-v4-ingredients li { min-height: 48px; padding-block: 6px; }
+.fuel-v4-hero-actions { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 8px; }
+.fuel-v4-section-title h2 { font-size: 18px; }
+.fuel-next-steps summary { min-height: 44px; }

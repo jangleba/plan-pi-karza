@@ -39,9 +39,6 @@ export function SessionStartPanel({
   }
   return (
     <div className="bw-session-start space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Rozpocznij, gdy jesteś gotowy do wykonania tej jednostki.
-      </p>
       <Button className="w-full" disabled={starting} onClick={() => void start()}>
         {starting ? "Rozpoczynanie…" : "Rozpocznij trening"}
       </Button>
