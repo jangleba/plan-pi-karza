@@ -805,3 +805,242 @@
     min-height: 44px;
   }
 }
+/* Guided lesson: one intention on the pitch, then one explicit execution. */
+.iqL-mode-menu {
+  position: relative;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.iqL-mode-menu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.iqL-mode-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.iqL-mode-menu > .iqJ-modes {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 250px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 20px #12324820;
+  background: var(--card);
+}
+.iqL-lesson .iqJ-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 8px;
+  padding: 2px 16px 6px;
+}
+.iqL-lesson .iqJ-header-line {
+  grid-row: 1;
+  grid-column: 1 / -1;
+}
+.iqL-lesson .iqJ-title {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  display: flex;
+  margin: 0;
+}
+.iqL-lesson .iqJ-title h1 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+.iqL-lesson .iqJ-context {
+  grid-row: 3;
+  grid-column: 1;
+  align-self: center;
+  margin: 0;
+  font-size: 10px;
+}
+.iqL-lesson .iqL-mode-menu,
+.iqL-lesson .iqJ-mode-label {
+  grid-row: 3;
+  grid-column: 2;
+  align-self: center;
+  margin: 0;
+  font-size: 10px;
+}
+.iqL-lesson .iqJ-mode-label > span {
+  display: none;
+}
+.iqL-lesson .iqJ-progress {
+  grid-row: 4;
+  grid-column: 1 / -1;
+}
+.iqL-situation {
+  grid-row: 5;
+  grid-column: 1 / -1;
+  margin: 7px 0 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.iqL-lesson .iqJ-board-meta {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 10px;
+}
+.iqL-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.iqL-tools button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  background: transparent;
+  color: var(--primary);
+  font-size: 11px;
+}
+.iqL-tools [aria-pressed="true"] {
+  background: var(--secondary);
+  border-radius: 9px;
+}
+.iq-journey .iqL-footer {
+  flex: 0 0 auto;
+  max-height: 45dvh;
+  padding: 4px 16px 8px;
+}
+.iqL-options {
+  display: grid;
+  gap: 5px;
+}
+.iqL-option-nav {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+}
+.iqL-option-nav button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card);
+  color: var(--primary);
+}
+.iqL-option-nav > span {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.iqL-option-copy {
+  min-height: 56px;
+}
+.iqL-option-copy strong {
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1.25;
+}
+.iqL-option-copy p {
+  margin-top: 4px !important;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+.iqL-option-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.iqL-option-title select {
+  max-width: 125px;
+  min-height: 44px;
+  padding: 2px 5px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--primary);
+  background: var(--card);
+}
+.iqL-commit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  width: 100%;
+  border-radius: 12px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+.iqL-cue {
+  padding: 8px 10px;
+  margin: 0 0 6px !important;
+  border-radius: 10px;
+  background: var(--secondary);
+  font-size: 12px !important;
+}
+.iqL-footer .iqJ-actions:empty {
+  display: none;
+}
+.iq-journey .bwiq-player-hit[hidden] {
+  display: none;
+}
+@media (max-width: 360px) {
+  .iqL-lesson .iqJ-header {
+    padding-inline: 12px;
+  }
+  .iqL-lesson .iqJ-title h1 {
+    font-size: 18px;
+  }
+  .iq-journey .iqL-footer {
+    padding-inline: 12px;
+  }
+  .iqL-option-copy p {
+    font-size: 10px !important;
+  }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .iqL-lesson .iqJ-header {
+    padding: 0 12px 4px;
+  }
+  .iqL-lesson .iqJ-title {
+    display: none;
+  }
+  .iqL-lesson .iqL-situation {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .iqL-lesson .iqJ-board-meta {
+    grid-row: 1;
+  }
+  .iqL-lesson .iqJ-stage {
+    grid-row: 2 / 4;
+  }
+  .iq-journey .iqL-footer {
+    max-height: none;
+    flex: initial;
+    min-height: 0;
+    overflow: auto;
+    padding: 2px 12px 6px;
+  }
+  .iqL-option-copy {
+    min-height: 48px;
+  }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .bwiq-app.iq-journey.iqL-lesson {
+    grid-template-rows: 44px auto minmax(0, 1fr);
+  }
+}
+.iqL-mode-menu:not([open]) > .iqJ-modes {
+  display: none;
+}

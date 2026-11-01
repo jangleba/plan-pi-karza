@@ -70,6 +70,23 @@ async function render() {
   await act(async () => root.render(<TacticalPitch {...props} />));
 }
 describe("pitch guidance boundary", () => {
+  it("keeps only requested labels while retaining the real 3D scene and close camera", async () => {
+    props.visibleLabelIds = ["you", "support"];
+    props.cameraClose = true;
+    props.destinations = [];
+    await render();
+    expect(host.querySelectorAll("[data-iq-player]")).toHaveLength(2);
+    expect(host.querySelector(".iq3-label-guides")).toBeNull();
+    expect(host.querySelector("[data-iq-destination]")).toBeNull();
+    expect(bridge.update.mock.lastCall![9]).toBe(true);
+    vi.mocked(createPitchScene).mockRejectedValueOnce(new Error("No model"));
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await render();
+    expect(host.querySelectorAll("[data-iq-figure]")).toHaveLength(props.scenario.players.length);
+    expect(host.querySelectorAll("[data-iq-player]")).toHaveLength(2);
+    expect(host.querySelector(".iqD-anchor")).toBeNull();
+  });
   it("maps an independent diagram tap through the actual crop and keeps choices hidden", async () => {
     props.diagram = true;
     props.freeMovement = true;

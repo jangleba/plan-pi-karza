@@ -12,6 +12,13 @@ import {
   X,
 } from "lucide-react";
 import { TacticalPitch } from "./TacticalPitch";
+import { LessonChoicePanel } from "./LessonChoicePanel";
+import {
+  lessonFocus,
+  lessonInstruction,
+  lessonPreviewAction,
+  lessonPlaybackPoints,
+} from "./lessonPresentation";
 import { journeyBank, iqScenarioBank, roleLabels, rolesForPosition } from "./journeyBank";
 import { advancedJourneyBank } from "./advancedJourneyBank";
 import { freshJourneyEntry, journeyVisits, rememberJourneyEntry } from "./journeyEntry";
@@ -79,6 +86,7 @@ type Transport = {
 };
 const EMPTY_ACTIONS: PlannedAction[] = [];
 const EMPTY_IDS: string[] = [];
+const EMPTY_DESTINATIONS: { id: string; point: Point; label: string; shortLabel?: string }[] = [];
 const labels: Record<JourneyAction, string> = {
   pass: "Podanie",
   move: "Ruch bez piłki",
@@ -129,6 +137,8 @@ export function FootballIQJourney({
   );
   const [session, setSession] = useState(() => createJourney(initial));
   const [mode, setMode] = useState<JourneyMode>("learn");
+  const [preview, setPreview] = useState<{ scope: string; id: string } | null>(null);
+  const [overview, setOverview] = useState(false);
   const [delivery, setDelivery] = useState<BallDelivery | null>(null);
   const [view, setView] = useState<View>("decision");
   const [booted, setBooted] = useState(false),
@@ -197,18 +207,48 @@ export function FootballIQJourney({
     [selectedStep, selectedDelivery],
   );
   const decision = session.decisions[reviewIndex];
+  const lesson = mode === "learn" && view === "decision" && !transport && !!selectedStep;
+  const previewScope = `${session.definition.id}:${session.step}:${selectedDelivery}:${mode}`;
+  const previewChoice = lesson
+    ? (visibleChoices.find((c) => preview?.scope === previewScope && c.id === preview.id) ??
+      visibleChoices[0])
+    : undefined;
+  const instruction = lesson && selectedStep ? lessonInstruction(session, selectedStep) : null;
+  const focus = useMemo(() => lessonFocus(session, previewChoice), [session, previewChoice]);
+  const transportFrom = transport?.from ?? 0,
+    transportTo = transport?.to ?? 0,
+    transporting = transport !== null;
+  const movingFocus = useMemo(
+    () => (transporting ? lessonPlaybackPoints(session, transportFrom, transportTo) : []),
+    [session, transporting, transportFrom, transportTo],
+  );
+  const previewActions = useMemo(
+    () => (lesson && previewChoice ? [lessonPreviewAction(session, previewChoice)] : null),
+    [lesson, previewChoice, session],
+  );
+  const setPreviewChoice = (id: string) => {
+    if (visibleChoices.some((c) => c.id === id)) {
+      setPreview({ scope: previewScope, id });
+      setNote("");
+    }
+  };
   const duration = useMemo(() => journeyDuration(session), [session]);
   const debrief = useMemo(() => journeyDebrief(session), [session]);
   const cameraActions = useMemo<PlannedAction[]>(
     () =>
-      journeyCameraPoints(session, mode === "learn" || view === "review").map((point, index) => ({
+      (mode === "learn" && !overview && (lesson || transporting)
+        ? transporting
+          ? movingFocus
+          : focus.points
+        : journeyCameraPoints(session, mode === "learn" || view === "review")
+      ).map((point, index) => ({
         id: `camera-${index}`,
         type: "run",
         playerId: "you",
         from: point,
         to: point,
       })),
-    [session, mode, view],
+    [session, mode, view, lesson, overview, focus.points, movingFocus, transporting],
   );
   const animationSession = transport?.kind === "alternative" && alternative ? alternative : session;
   const sampleLiveFrame = useCallback(
@@ -242,21 +282,7 @@ export function FootballIQJourney({
         : EMPTY_IDS,
     [interactive, selectedStep, visibleChoices],
   );
-  const destinations = useMemo(
-    () =>
-      mode === "learn" &&
-      interactive &&
-      selectedStep &&
-      !["pass", "finish", "transition"].includes(selectedStep.kind)
-        ? visibleChoices.map((c, index) => ({
-            id: c.id,
-            point: c.point,
-            label: c.label,
-            shortLabel: String.fromCharCode(65 + index),
-          }))
-        : [],
-    [interactive, selectedStep, mode, visibleChoices],
-  );
+  const destinations = EMPTY_DESTINATIONS;
   const currentChoices = useMemo(() => {
     if (!decision || view !== "review") return null;
     let base = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
@@ -536,6 +562,8 @@ export function FootballIQJourney({
     choiceLock.current = true;
     try {
       const next = chooseJourney(session, choiceId, elapsed.current);
+      setPreview(null);
+      setOverview(false);
       if (offeredDraft) {
         draftBlocked.current = false;
         setOfferedDraft(null);
@@ -749,7 +777,7 @@ export function FootballIQJourney({
                     : "Wybierz oznaczenie na boisku albo przycisk poniżej.";
   return (
     <section
-      className="bwiq-app iq-journey"
+      className={`bwiq-app iq-journey${mode === "learn" && (lesson || transport) ? " iqL-lesson" : ""}`}
       data-iq-scenario={session.definition.id}
       aria-label="BallWise IQ — pełne akcje"
     >
@@ -789,39 +817,19 @@ export function FootballIQJourney({
           </button>
         </div>
         {session.definition.revision === 3 && (
-          <p className="iqJ-context">{session.definition.contextLabel}</p>
-        )}
-        {offeredDraft && (
-          <div className="iqJ-resume">
-            <span>Nowy wybór zastąpi niedokończoną akcję.</span>
-            <button
-              type="button"
-              className="iqJ-text"
-              onClick={() => {
-                try {
-                  setSession(restoreJourney(offeredDraft));
-                  setMode(offeredDraft.mode);
-                  attemptId.current = offeredDraft.id;
-                  choiceLock.current = false;
-                  setTransport(null);
-                  setView("decision");
-                  setOfferedDraft(null);
-                  draftBlocked.current = false;
-                  setNote("");
-                } catch {
-                  setNote("Nie udało się wznowić poprzedniej akcji. Zapis pozostaje zachowany.");
-                }
-              }}
-            >
-              Wznów poprzednią
-            </button>
-          </div>
+          <p className="iqJ-context">
+            {session.definition.contextLabel.split(" · ").slice(0, 2).join(" · ")}
+          </p>
         )}
         <div className="iqJ-title">
           <h1>
-            {mode === "challenge" && !session.outcome
-              ? "Rozegraj sytuację"
-              : session.definition.title}
+            {instruction
+              ? instruction.title
+              : transport && mode === "learn"
+                ? "Obserwuj rozegranie"
+                : mode === "challenge" && !session.outcome
+                  ? "Rozegraj sytuację"
+                  : session.definition.title}
           </h1>
           <span>
             {view === "review"
@@ -834,28 +842,33 @@ export function FootballIQJourney({
           </span>
         </div>
         {session.step === 0 && view === "decision" ? (
-          <div className="iqJ-modes" role="group" aria-label="Tryb akcji">
-            <button
-              type="button"
-              aria-pressed={mode === "learn"}
-              onClick={() => {
-                setMode("learn");
-                setHinted(false);
-              }}
-            >
-              Z podpowiedziami
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === "challenge"}
-              onClick={() => {
-                setMode("challenge");
-                setHinted(false);
-              }}
-            >
-              Bez podpowiedzi
-            </button>
-          </div>
+          <details className="iqL-mode-menu">
+            <summary>{modeLabel}⌄</summary>
+            <div className="iqJ-modes" role="group" aria-label="Tryb akcji">
+              <button
+                type="button"
+                aria-pressed={mode === "learn"}
+                onClick={(event) => {
+                  setMode("learn");
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  setHinted(false);
+                }}
+              >
+                Z podpowiedziami
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "challenge"}
+                onClick={(event) => {
+                  setMode("challenge");
+                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  setHinted(false);
+                }}
+              >
+                Bez podpowiedzi
+              </button>
+            </div>
+          </details>
         ) : (
           <div className="iqJ-mode-label">
             {modeLabel}
@@ -882,29 +895,49 @@ export function FootballIQJourney({
             <span className={session.transition === "choose" ? "is-current" : "is-done"} />
           )}
         </div>
+        {instruction && <p className="iqL-situation">{instruction.situation}</p>}
       </header>
       <div className="iqJ-board-meta">
         <span>{session.scenario.defensive ? "↓ Bronisz" : "↑ Atakujesz"}</span>
         <span className="iqJ-teams">
           <i /> Twoi <i /> Rywale
         </span>
-        <span className="iqJ-possession">
-          {transport
-            ? transport.kind === "live"
-              ? "Akcja w ruchu"
-              : "Powtórka"
-            : session.world.carrierId === "you"
-              ? "Masz piłkę"
-              : session.world.carrierId.startsWith("r")
-                ? "Piłka rywali"
-                : "Piłka u partnera"}
-        </span>
+        {lesson ? (
+          <span className="iqL-tools">
+            <button type="button" onClick={() => setOverview((v) => !v)} aria-pressed={overview}>
+              {overview ? "Przybliż" : "Całość"}
+            </button>
+            <button
+              type="button"
+              aria-label={hinted ? "Ukryj wskazówkę" : "Wskazówka"}
+              aria-pressed={hinted}
+              onClick={() => setHinted((h) => !h)}
+            >
+              <Lightbulb size={17} />
+              <span className="sr-only">Wskazówka</span>
+            </button>
+          </span>
+        ) : (
+          <span className="iqJ-possession">
+            {transport
+              ? transport.kind === "live"
+                ? "Akcja w ruchu"
+                : "Powtórka"
+              : session.world.carrierId === "you"
+                ? "Masz piłkę"
+                : session.world.carrierId.startsWith("r")
+                  ? "Piłka rywali"
+                  : "Piłka u partnera"}
+          </span>
+        )}
       </div>
       <div className="iqJ-stage">
         {booted ? (
           <TacticalPitch
             scenario={session.scenario}
-            actions={reviewActions}
+            actions={previewActions ?? reviewActions}
+            visibleLabelIds={mode === "learn" ? focus.labelIds : undefined}
+            cameraClose={mode === "learn" && !overview && (lesson || !!transport)}
             frameOverride={frame}
             frameSource={transport ? sampleLiveFrame : undefined}
             focusOnActions
@@ -917,14 +950,17 @@ export function FootballIQJourney({
             selectablePlayerIds={selectable}
             onPlayerSelect={(player) => {
               const c = visibleChoices.find((c) => c.targetId === player.id);
-              if (c) choose(c.id);
+              if (c) {
+                if (mode === "learn") setPreviewChoice(c.id);
+                else choose(c.id);
+              }
             }}
             onPitchSelect={(point) => {
               if (mode === "learn" && interactive && selectedStep) {
                 setNote(
                   ["pass", "finish"].includes(selectedStep.kind)
-                    ? "Dotknij numeru partnera albo przycisku pod boiskiem."
-                    : "Wybierz oznaczenie albo przycisk pod boiskiem.",
+                    ? "Dotknij partnera, żeby obejrzeć podanie. Przycisk Zagraj tak wykona wybór."
+                    : "Porównaj ruchy przyciskami Poprzedni/Następny wariant. Zagraj tak wykona wybór.",
                 );
                 return;
               }
@@ -942,7 +978,7 @@ export function FootballIQJourney({
               }
             }}
             destinations={destinations}
-            onDestinationSelect={choose}
+            onDestinationSelect={mode === "learn" ? setPreviewChoice : choose}
             showActionOrders={false}
             showGuidance={
               mode === "learn" || view === "review" || transport?.kind === "alternative"
@@ -952,7 +988,7 @@ export function FootballIQJourney({
               !!selectedStep &&
               !["pass", "finish"].includes(selectedStep.kind)
             }
-            highlights={highlights}
+            highlights={lesson ? undefined : highlights}
             highlightGood
           />
         ) : (
@@ -961,27 +997,36 @@ export function FootballIQJourney({
           </div>
         )}
       </div>
-      <footer className="iqJ-footer" aria-live="polite" aria-atomic="true">
-        <span className="iqJ-kicker">
-          {view === "summary"
-            ? verdictLabels[journeyVerdict(session)]
-            : view === "review"
-              ? decision?.quality === "good"
-                ? "Dobra decyzja"
-                : decision?.quality === "possible"
-                  ? "Możliwe, ale trudniejsze"
-                  : "Moment do poprawy"
-              : transport
-                ? "Obserwuj reakcję"
-                : selectedStep
-                  ? mode === "challenge"
-                    ? "Twoja decyzja"
-                    : labels[selectedStep.kind]
-                  : ""}
-        </span>
-        <h2>{footerTitle}</h2>
-        <p>{footerDetail}</p>
-        {view === "decision" && !transport && deliveries.length > 1 && (
+      <footer className={`iqJ-footer${lesson ? " iqL-footer" : ""}`}>
+        {!lesson && (
+          <>
+            <span className="iqJ-kicker">
+              {view === "summary"
+                ? verdictLabels[journeyVerdict(session)]
+                : view === "review"
+                  ? decision?.quality === "good"
+                    ? "Dobra decyzja"
+                    : decision?.quality === "possible"
+                      ? "Możliwe, ale trudniejsze"
+                      : "Moment do poprawy"
+                  : transport
+                    ? "Obserwuj reakcję"
+                    : selectedStep
+                      ? mode === "challenge"
+                        ? "Twoja decyzja"
+                        : labels[selectedStep.kind]
+                      : ""}
+            </span>
+            <h2>{footerTitle}</h2>
+            <p>{footerDetail}</p>
+          </>
+        )}
+        {lesson && hinted && selectedStep && (
+          <p className="iqL-cue" role="status">
+            {selectedStep.cue}
+          </p>
+        )}
+        {!lesson && view === "decision" && !transport && deliveries.length > 1 && (
           <div className="iqJ-deliveries" role="group" aria-label="Rodzaj podania">
             {deliveries.map((kind) => (
               <button
@@ -999,58 +1044,50 @@ export function FootballIQJourney({
             ))}
           </div>
         )}
-        {mode === "learn" && view === "decision" && !transport && selectedStep && (
-          <div
-            className="iqJ-choices"
-            data-count={visibleChoices.length}
-            role="group"
-            aria-label="Wybierz zagranie"
-            style={{
-              gridTemplateColumns: `repeat(${Math.min(5, visibleChoices.length)}, minmax(0, 1fr))`,
-            }}
-          >
-            {visibleChoices.map((c, index) => (
-              <button
-                key={c.id}
-                type="button"
-                className="iqJ-choice"
-                data-iq-choice={c.id}
-                aria-label={c.label}
-                disabled={!interactive}
-                onClick={() => choose(c.id)}
-              >
-                {c.targetId ? (
-                  <>
-                    <strong>{session.players.find((p) => p.id === c.targetId)?.number}</strong>
-                    <span>Podaj</span>
-                  </>
-                ) : c.id === "shot" ? (
-                  <span>Strzel</span>
-                ) : selectedStep.kind === "transition" ? (
-                  c.label
-                ) : (
-                  <>
-                    <strong>{String.fromCharCode(65 + index)}</strong>
-                    <span>{selectedStep.kind === "carry" ? "Korytarz" : "Miejsce"}</span>
-                  </>
-                )}
-              </button>
-            ))}
-          </div>
+        {lesson && previewChoice && selectedStep && (
+          <LessonChoicePanel
+            session={session}
+            step={selectedStep}
+            choices={visibleChoices}
+            activeId={previewChoice.id}
+            disabled={!interactive}
+            onPreview={setPreviewChoice}
+            onCommit={() => choose(previewChoice.id)}
+            deliveryControl={
+              deliveries.length > 1 ? (
+                <select
+                  aria-label="Rodzaj podania"
+                  value={selectedDelivery}
+                  disabled={!interactive}
+                  onChange={(event) => {
+                    const kind = event.target.value as BallDelivery;
+                    const match = selectedStep.choices.find(
+                      (c) => c.targetId === previewChoice.targetId && c.delivery === kind,
+                    );
+                    setDelivery(kind);
+                    setHinted(false);
+                    setPreview(
+                      match
+                        ? {
+                            scope: `${session.definition.id}:${session.step}:${kind}:${mode}`,
+                            id: match.id,
+                          }
+                        : null,
+                    );
+                  }}
+                >
+                  {deliveries.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {deliveryLabels[kind]}
+                    </option>
+                  ))}
+                </select>
+              ) : undefined
+            }
+          />
         )}
         {view === "decision" && (
           <div className="iqJ-actions">
-            {mode === "learn" && (
-              <button
-                type="button"
-                className="iqJ-text"
-                onClick={() => setHinted((h) => !h)}
-                disabled={!ready}
-              >
-                <Lightbulb size={16} />
-                {hinted ? "Ukryj wskazówkę" : "Wskazówka"}
-              </button>
-            )}
             {selectedShot && mode === "challenge" && (
               <button
                 type="button"
@@ -1497,7 +1534,7 @@ export function FootballIQJourney({
             </div>
             <p>
               {mode === "learn"
-                ? "Dotknij zawodnika albo przycisku pod boiskiem. Przy ruchu wybierz oznaczenie na boisku lub poniżej."
+                ? "Najpierw przeczytaj, kto ma piłkę i co robisz TY. Porównaj warianty strzałkami pod boiskiem: każdy pokazuje jeden ruch. Zagraj tak wykonuje wybrany wariant."
                 : "Dotknij partnera, aby podać. Przy ruchu wskaż samodzielnie miejsce na boisku."}
             </p>
             <p>
@@ -1534,6 +1571,33 @@ export function FootballIQJourney({
             </details>
             <details>
               <summary>Historia i kopie IQ</summary>
+              {offeredDraft && (
+                <>
+                  <p>Nowe wykonanie zastąpi niedokończoną akcję. Możesz ją wcześniej wznowić.</p>
+                  <button
+                    type="button"
+                    className="iqJ-button"
+                    onClick={() => {
+                      try {
+                        setSession(restoreJourney(offeredDraft));
+                        setMode(offeredDraft.mode);
+                        attemptId.current = offeredDraft.id;
+                        choiceLock.current = false;
+                        setTransport(null);
+                        setView("decision");
+                        setOfferedDraft(null);
+                        draftBlocked.current = false;
+                        setHelp(false);
+                        setNote("");
+                      } catch {
+                        setNote("Nie udało się wznowić akcji. Zapis pozostaje zachowany.");
+                      }
+                    }}
+                  >
+                    Wznów poprzednią
+                  </button>
+                </>
+              )}
               <p>
                 Próby i niedokończona akcja są zapisywane lokalnie na tym urządzeniu. Limit historii
                 to 100 prób; starsze wyniki nie są automatycznie usuwane. Kopię w chmurze możesz

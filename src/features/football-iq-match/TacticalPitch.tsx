@@ -13,6 +13,8 @@ const NO_ACTIONS: PlannedAction[] = [];
 export type TacticalPitchProps = {
   diagram?: boolean;
   figures?: boolean;
+  visibleLabelIds?: string[];
+  cameraClose?: boolean;
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -71,6 +73,8 @@ function TacticalScenePitch({
   showActionOrders = true,
   showGuidance = true,
   freeMovement = false,
+  visibleLabelIds,
+  cameraClose = false,
 }: TacticalPitchProps) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -111,6 +115,8 @@ function TacticalScenePitch({
     showGuidance,
     selectablePlayerIds,
     freeMovement,
+    visibleLabelIds,
+    cameraClose,
   });
   latest.current = {
     frame,
@@ -130,6 +136,8 @@ function TacticalScenePitch({
     showGuidance,
     selectablePlayerIds,
     freeMovement,
+    visibleLabelIds,
+    cameraClose,
   };
 
   function sync() {
@@ -152,6 +160,7 @@ function TacticalScenePitch({
         ? state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point
         : undefined,
       state.showGuidance,
+      state.cameraClose,
     );
     const items: DiagramLabel[] = [];
     playerLabels.current.forEach((_element, id) => {
@@ -187,8 +196,11 @@ function TacticalScenePitch({
     const syncLabel = (element: HTMLElement, id: string) => {
       const label = labels.get(id);
       if (!label) return;
-      element.style.left = `${label.center.x}px`;
-      element.style.top = `${label.center.y}px`;
+      const point = state.visibleLabelIds ? label.anchor : label.center;
+      element.style.left = `${point.x}px`;
+      element.style.top = `${point.y}px`;
+      element.hidden =
+        point.x < 12 || point.x > hostWidth - 12 || point.y < 12 || point.y > hostHeight - 12;
       const line = labelLeaders.current.get(id);
       line?.setAttribute("x1", String(label.anchor.x));
       line?.setAttribute("y1", String(label.anchor.y));
@@ -301,6 +313,8 @@ function TacticalScenePitch({
     activeTeachingId,
     destinations,
     showGuidance,
+    visibleLabelIds,
+    cameraClose,
   ]);
   useEffect(() => {
     if (!playing || !frameSource) return;
@@ -389,6 +403,8 @@ function TacticalScenePitch({
             showActionOrders,
             showGuidance,
             freeMovement,
+            visibleLabelIds,
+            cameraClose,
           }}
           figures
         />
@@ -460,76 +476,80 @@ function TacticalScenePitch({
                 <em>{marker.label}</em>
               </button>
             ))}
-          <svg className="iq3-label-guides" aria-hidden="true">
-            {scenario.players.map((player) => (
-              <line
-                key={player.id}
-                ref={(el) => {
-                  const id = `player:${player.id}`;
-                  if (el) labelLeaders.current.set(id, el);
-                  else labelLeaders.current.delete(id);
-                }}
-              />
-            ))}
-            {showGuidance &&
-              destinations.map((d) => (
-                <g key={d.id}>
-                  <line
-                    ref={(el) => {
-                      const id = `destination:${d.id}`;
-                      if (el) labelLeaders.current.set(id, el);
-                      else labelLeaders.current.delete(id);
-                    }}
-                  />
-                  <circle
-                    r="3"
-                    ref={(el) => {
-                      const id = `destination:${d.id}`;
-                      if (el) destinationDots.current.set(id, el);
-                      else destinationDots.current.delete(id);
-                    }}
-                  />
-                </g>
+          {!visibleLabelIds && (
+            <svg className="iq3-label-guides" aria-hidden="true">
+              {scenario.players.map((player) => (
+                <line
+                  key={player.id}
+                  ref={(el) => {
+                    const id = `player:${player.id}`;
+                    if (el) labelLeaders.current.set(id, el);
+                    else labelLeaders.current.delete(id);
+                  }}
+                />
               ))}
-          </svg>
+              {showGuidance &&
+                destinations.map((d) => (
+                  <g key={d.id}>
+                    <line
+                      ref={(el) => {
+                        const id = `destination:${d.id}`;
+                        if (el) labelLeaders.current.set(id, el);
+                        else labelLeaders.current.delete(id);
+                      }}
+                    />
+                    <circle
+                      r="3"
+                      ref={(el) => {
+                        const id = `destination:${d.id}`;
+                        if (el) destinationDots.current.set(id, el);
+                        else destinationDots.current.delete(id);
+                      }}
+                    />
+                  </g>
+                ))}
+            </svg>
+          )}
           <div className="bwiq-pitch-labels">
-            {scenario.players.map((player) => (
-              <button
-                key={player.id}
-                data-iq-player={player.id}
-                style={
-                  status !== "ready"
-                    ? {
-                        left: `${frame.positions.get(player.id)?.x ?? player.x}%`,
-                        top: `${((frame.positions.get(player.id)?.y ?? player.y) / 140) * 100}%`,
-                        background: player.team === "home" ? "#44a6d8" : "#ecebe2",
-                        borderRadius: "50%",
-                      }
-                    : undefined
-                }
-                type="button"
-                className={`bwiq-player-hit bwiq-player-hit--${player.team}${showGuidance && interactive && selectedPlayerId === player.id ? " is-selected" : ""}${showGuidance && frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${showGuidance && interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
-                ref={(element) => {
-                  if (element) playerLabels.current.set(player.id, element);
-                  else playerLabels.current.delete(player.id);
-                }}
-                disabled={
-                  !interactive ||
-                  (!freeMovement &&
-                    !!selectablePlayerIds &&
-                    !selectablePlayerIds.includes(player.id))
-                }
-                aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (interactive && (mode === "carry" || freeMovement) && event.detail > 0)
-                    selectPoint(event);
-                  else onPlayerSelect(player);
-                }}
-              >
-                <span>{player.controlled ? "TY" : player.number}</span>
-              </button>
-            ))}
+            {scenario.players
+              .filter((p) => !visibleLabelIds || visibleLabelIds.includes(p.id))
+              .map((player) => (
+                <button
+                  key={player.id}
+                  data-iq-player={player.id}
+                  style={
+                    status !== "ready"
+                      ? {
+                          left: `${frame.positions.get(player.id)?.x ?? player.x}%`,
+                          top: `${((frame.positions.get(player.id)?.y ?? player.y) / 140) * 100}%`,
+                          background: player.team === "home" ? "#44a6d8" : "#ecebe2",
+                          borderRadius: "50%",
+                        }
+                      : undefined
+                  }
+                  type="button"
+                  className={`bwiq-player-hit bwiq-player-hit--${player.team}${showGuidance && interactive && selectedPlayerId === player.id ? " is-selected" : ""}${showGuidance && frame.ballCarrierId === player.id && !frame.ballInFlight ? " has-ball" : ""}${showGuidance && interactive && ["pass", "through", "cross"].includes(mode) && player.team === "home" && frame.ballCarrierId !== player.id ? " is-pass-target" : ""}`}
+                  ref={(element) => {
+                    if (element) playerLabels.current.set(player.id, element);
+                    else playerLabels.current.delete(player.id);
+                  }}
+                  disabled={
+                    !interactive ||
+                    (!freeMovement &&
+                      !!selectablePlayerIds &&
+                      !selectablePlayerIds.includes(player.id))
+                  }
+                  aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (interactive && (mode === "carry" || freeMovement) && event.detail > 0)
+                      selectPoint(event);
+                    else onPlayerSelect(player);
+                  }}
+                >
+                  <span>{player.controlled ? "TY" : player.number}</span>
+                </button>
+              ))}
             <div ref={ballLabel} className="bwiq-ball-marker" aria-label="Piłka">
               <span />
             </div>

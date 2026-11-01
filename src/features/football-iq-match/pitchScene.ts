@@ -23,7 +23,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import { loadRunningModel, makeActor } from "./mixamo";
+import { loadRunningModel, makeActor, PLAYER_HEIGHT } from "./mixamo";
 import type { PlaybackFrame } from "./playback";
 import { BALL_RADIUS } from "./playback";
 import type { MatchPlayer, PlannedAction, Point } from "./types";
@@ -44,6 +44,7 @@ export async function createPitchScene(
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.domElement.setAttribute("aria-hidden", "true");
+  renderer.domElement.dataset.iqPlayerCount = String(players.length);
   host.append(renderer.domElement);
   const scene = new Scene();
   scene.background = new Color("#1b4a40");
@@ -338,6 +339,7 @@ export async function createPitchScene(
   document.addEventListener("visibilitychange", refreshIdle);
   reducedMotion.addEventListener("change", refreshIdle);
   let focused = false;
+  let closeCamera = false;
   let focusActions: PlannedAction[] | null = null;
   const update = (
     frame: PlaybackFrame,
@@ -349,10 +351,16 @@ export async function createPitchScene(
     activeActionId?: string,
     teachingPoint?: Point,
     showGuidance = true,
+    cameraClose = false,
   ) => {
     if (disposed || contextLost) return;
-    if (focused !== focusOnActions || (focusOnActions && focusActions !== cameraActions)) {
+    if (
+      focused !== focusOnActions ||
+      closeCamera !== cameraClose ||
+      (focusOnActions && focusActions !== cameraActions)
+    ) {
       focused = focusOnActions;
+      closeCamera = cameraClose;
       focusActions = cameraActions;
       if (focused && cameraActions.length) {
         const points = cameraActions.flatMap((action) =>
@@ -362,10 +370,13 @@ export async function createPitchScene(
           maxX = Math.max(...points.map((p) => p.x));
         const minY = Math.min(...points.map((p) => p.y)),
           maxY = Math.max(...points.map((p) => p.y));
-        const cx = Math.max(35, Math.min(65, (minX + maxX) / 2));
-        const cy = Math.max(31, Math.min(109, (minY + maxY) / 2));
-        const hx = Math.max(35, (maxX - minX) / 2 + 10);
-        const hy = Math.max(31, (maxY - minY) / 2 + 10);
+        const minWidth = cameraClose ? 18 : 35,
+          minHeight = cameraClose ? 18 : 31,
+          padding = cameraClose ? 7 : 10;
+        const cx = Math.max(minWidth, Math.min(100 - minWidth, (minX + maxX) / 2));
+        const cy = Math.max(minHeight, Math.min(140 - minHeight, (minY + maxY) / 2));
+        const hx = Math.max(minWidth, (maxX - minX) / 2 + padding);
+        const hy = Math.max(minHeight, (maxY - minY) / 2 + padding);
         viewBounds = {
           xMin: Math.max(0, cx - hx),
           xMax: Math.min(100, cx + hx),
@@ -377,12 +388,28 @@ export async function createPitchScene(
         x: (viewBounds.xMin + viewBounds.xMax) / 2,
         y: (viewBounds.yMin + viewBounds.yMax) / 2,
       });
-      camera.position.copy(center).add(new Vector3(0, 170, 120));
+      camera.position
+        .copy(center)
+        .add(cameraClose ? new Vector3(0, 105, 145) : new Vector3(0, 170, 120));
       camera.lookAt(center);
       camera.updateMatrixWorld();
       resize();
     }
     currentFrame = frame;
+    renderer.domElement.dataset.iqActionCount = String(actions.length);
+    renderer.domElement.dataset.iqCameraClose = String(cameraClose);
+    const controlled = players.find((p) => p.controlled);
+    if (controlled) {
+      const position = frame.positions.get(controlled.id)!;
+      const floorPoint = world(position).project(camera),
+        headPoint = world(position, PLAYER_HEIGHT).project(camera);
+      renderer.domElement.dataset.iqControlledHeight = String(
+        Math.hypot(
+          ((headPoint.x - floorPoint.x) * renderWidth) / 2,
+          ((headPoint.y - floorPoint.y) * renderHeight) / 2,
+        ),
+      );
+    }
     guidanceVisible = showGuidance;
     playing = isPlaying;
     if (playing) stopIdle();

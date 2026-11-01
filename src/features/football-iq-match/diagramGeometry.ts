@@ -5,20 +5,30 @@ export type DiagramView = DiagramSize & { x: number; y: number; scale: number };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 /** The same scale on both axes: the field and its circles retain their shape. */
-export function diagramView(points: readonly Point[], size: DiagramSize): DiagramView {
+export function diagramView(
+  points: readonly Point[],
+  size: DiagramSize,
+  close = false,
+): DiagramView {
   const width = Math.max(1, size.width),
     height = Math.max(1, size.height);
   const valid = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
   const low = Math.min(...valid.map((p) => p.y), 140);
   const high = Math.max(...valid.map((p) => p.y), 0);
   const aspect = width / height;
-  const worldHeight = Math.max(72, high - low + 26, 112 / aspect);
+  const minX = Math.min(...valid.map((p) => p.x), 100),
+    maxX = Math.max(...valid.map((p) => p.x), 0);
+  const worldHeight = close
+    ? Math.max(42, high - low + 22, Math.max(42, maxX - minX + 22) / aspect)
+    : Math.max(72, high - low + 26, 112 / aspect);
   const worldWidth = worldHeight * aspect;
   const middle = valid.length ? (low + high) / 2 : 70;
   return {
     width: worldWidth,
     height: worldHeight,
-    x: (100 - worldWidth) / 2,
+    x: close
+      ? Math.max(-6, Math.min(106 - worldWidth, (minX + maxX - worldWidth) / 2))
+      : (100 - worldWidth) / 2,
     y:
       worldHeight <= 152
         ? clamp(middle - worldHeight / 2, -6, 146 - worldHeight)

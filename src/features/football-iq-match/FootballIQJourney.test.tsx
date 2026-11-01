@@ -88,6 +88,13 @@ async function clickText(text: string) {
   expect(button).toBeTruthy();
   await act(async () => button!.click());
 }
+async function changeDelivery(value: string) {
+  const select = host.querySelector<HTMLSelectElement>('select[aria-label="Rodzaj podania"]')!;
+  await act(async () => {
+    select.value = value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
 function complete(s: JourneySession): JourneySession | null {
   if (s.outcome) return s.step === 4 && !["loss", "blocked"].includes(s.outcome) ? s : null;
   for (const c of journeyStep(s).choices) {
@@ -127,25 +134,33 @@ describe("individual IQ screen", () => {
     );
     expect(bridge.props!.scenario.id).not.toBe(definition.id);
     expect(localStorage.getItem("ballwise:iq:journeys:v1:resume-owner:draft")).toBe(raw);
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Jak rozegrać akcję"]')!.click(),
+    );
     await clickText("Wznów poprzednią");
     expect(bridge.props!.scenario.id).toBe(definition.id);
     expect(Object.fromEntries(bridge.props!.frameOverride!.positions)).toEqual(
       partial.world.positions,
     );
   });
-  it("executes a visible movement button and clears feedback from a missed field tap", async () => {
+  it("previews one named movement at a time and records only after explicit confirmation", async () => {
     await mount("forward");
-    const choices = host.querySelectorAll<HTMLButtonElement>("[data-iq-choice]");
-    expect(choices).toHaveLength(2);
-    expect([...choices].map((b) => b.textContent)).toEqual(["AKorytarz", "BKorytarz"]);
-    expect(bridge.props?.destinations?.map((d) => d.shortLabel)).toEqual(["A", "B"]);
-    await act(async () => bridge.props!.onPitchSelect({ x: 50, y: 70 }));
-    expect(host.textContent).toContain("przycisk pod boiskiem");
-    const id = choices[0].dataset.iqChoice!;
-    await act(async () => choices[0].click());
-    expect(host.textContent).not.toContain("przycisk pod boiskiem");
-    const draft = JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
-    expect(draft.choices[0].id).toBe(id);
+    const draft = () =>
+      JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    const first = host.querySelector<HTMLElement>("[data-iq-commit]")!.dataset.iqCommit;
+    expect(bridge.props!.destinations).toEqual([]);
+    expect(bridge.props!.actions).toHaveLength(1);
+    expect(bridge.props!.visibleLabelIds!.length).toBeLessThanOrEqual(3);
+    expect(host.textContent).not.toContain("Miejsce");
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Następny wariant"]')!.click(),
+    );
+    const second = host.querySelector<HTMLElement>("[data-iq-commit]")!.dataset.iqCommit;
+    expect(second).not.toBe(first);
+    expect(draft().choices).toEqual([]);
+    await clickText("Zagraj tak");
+    const stored = draft() ?? loadJourneyHistory("account-a")[0];
+    expect(stored.choices[0].id).toBe(second);
   });
   it("starts a new positional action and records the explicitly selected delivery", async () => {
     await act(async () =>
@@ -155,8 +170,8 @@ describe("individual IQ screen", () => {
     );
     const group = host.querySelector('[aria-label="Rodzaj podania"]')!;
     expect(group).toBeTruthy();
-    expect(group.querySelector('[aria-pressed="true"]')?.textContent).toBe("Przerzut");
-    await clickText("Po ziemi");
+    expect((group as HTMLSelectElement).selectedOptions[0].textContent).toBe("Przerzut");
+    await changeDelivery("ground");
     const s = createJourney(journeyBank.find((d) => d.role === "gk" && d.revision === 2)!);
     const c = journeyStep(s).choices.find((c) => c.delivery === "ground" && c.quality === "good")!;
     await act(async () =>
@@ -164,6 +179,7 @@ describe("individual IQ screen", () => {
         bridge.props!.scenario.players.find((p) => p.id === c.targetId)!,
       ),
     );
+    await clickText("Zagraj tak");
     const draft = JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
     expect(draft.choices[0].id).toBe(c.id);
     expect(host.textContent).toContain("2/5");
@@ -174,7 +190,7 @@ describe("individual IQ screen", () => {
         <FootballIQJourney position="goalkeeper" historyOwner="account-a" initialScenario={30} />,
       ),
     );
-    await clickText("Po ziemi");
+    await changeDelivery("ground");
     const s = createJourney(journeyBank.find((d) => d.role === "gk" && d.revision === 2)!);
     const c = journeyStep(s).choices.find((c) => c.delivery === "ground" && c.quality === "error")!;
     expect(c).toBeTruthy();
@@ -183,9 +199,11 @@ describe("individual IQ screen", () => {
         bridge.props!.scenario.players.find((p) => p.id === c.targetId)!,
       ),
     );
-    expect(host.textContent).toContain("Strata. Doskok czy powrót?");
+    await clickText("Zagraj tak");
+    expect(host.textContent).toContain("Zareaguj po stracie");
     expect(host.textContent).not.toContain("Moja akcja");
-    await clickText("Powrót");
+    await act(async () => bridge.props!.onDestinationSelect!("transition:recover"));
+    await clickText("Zagraj tak");
     expect(host.textContent).toContain("Osłoniłeś drogę do bramki.");
     expect(loadJourneyHistory("account-a")).toHaveLength(1);
     await clickText("Analiza");
@@ -213,6 +231,7 @@ describe("individual IQ screen", () => {
         bridge.props!.scenario.players.find((p) => p.id === c.targetId)!,
       ),
     );
+    await clickText("Zagraj tak");
     await act(async () => callbacks.shift()!(250));
     await act(async () => callbacks.shift()!(2500));
     expect(host.textContent).toContain("2/4");
@@ -232,7 +251,7 @@ describe("individual IQ screen", () => {
   });
   it("switches movement markers off and executes the user's own coordinates in independent mode", async () => {
     await mount("forward");
-    expect(bridge.props?.destinations).toHaveLength(2);
+    expect(bridge.props?.destinations).toHaveLength(0);
     await clickText("Bez podpowiedzi");
     expect(bridge.props?.destinations).toEqual([]);
     expect(bridge.props?.freeMovement).toBe(true);
@@ -261,7 +280,7 @@ describe("individual IQ screen", () => {
     await clickText("Bez podpowiedzi");
     await clickText("Z podpowiedziami");
     expect(bridge.props?.showGuidance).toBe(true);
-    expect(bridge.props?.destinations).toHaveLength(2);
+    expect(bridge.props?.destinations).toHaveLength(0);
     expect(bridge.props?.freeMovement).toBe(false);
     expect(host.textContent).toContain("Wskazówka");
   });
@@ -277,6 +296,7 @@ describe("individual IQ screen", () => {
           props.onPlayerSelect(props.scenario.players.find((p) => p.id === d.choiceId.slice(5))!);
         else props.onDestinationSelect?.(d.choiceId);
       });
+      await clickText("Zagraj tak");
     }
     expect(host.textContent).toContain("Moja akcja");
     const quality = host.querySelector('[aria-label="Jakość decyzji"]')!;
@@ -303,6 +323,7 @@ describe("individual IQ screen", () => {
         bridge.props!.scenario.players.find((p) => p.id === choice.targetId)!,
       ),
     );
+    await clickText("Zagraj tak");
     const expected = Object.fromEntries(bridge.props!.frameOverride!.positions);
     await act(async () => root.unmount());
     root = createRoot(host);
@@ -352,7 +373,7 @@ describe("individual IQ screen", () => {
     )!;
     await act(async () => trigger.click());
     expect(host.textContent).toContain("46 tematów · 138 wariantów");
-    const select = host.querySelector("select")!;
+    const select = host.querySelector<HTMLSelectElement>(".iqJ-dialog select")!;
     await act(async () => {
       select.value = "all";
       select.dispatchEvent(new Event("change", { bubbles: true }));

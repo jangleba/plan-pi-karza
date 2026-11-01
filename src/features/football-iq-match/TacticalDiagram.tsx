@@ -32,6 +32,8 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     highlights,
     highlightGood,
     figures = false,
+    visibleLabelIds,
+    cameraClose = false,
   } = props;
   const root = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<DiagramSize>({ width: 360, height: 280 });
@@ -54,16 +56,19 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     () =>
       diagramView(
         [
-          ...scenario.players
-            .filter((p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId)
-            .map((p) => frame.positions.get(p.id) ?? p),
+          ...(cameraClose && cameraActions?.length
+            ? []
+            : scenario.players
+                .filter((p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId)
+                .map((p) => frame.positions.get(p.id) ?? p)),
           frame.ballVisual,
           ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
           ...shownDestinations.map((d) => d.point),
         ],
         figures ? { ...size, height: Math.max(60, size.height - 48) } : size,
+        cameraClose,
       ),
-    [scenario.players, frame, cameraActions, shownDestinations, size, figures],
+    [scenario.players, frame, cameraActions, shownDestinations, size, figures, cameraClose],
   );
   const view = figures
     ? {
@@ -75,13 +80,18 @@ export function TacticalDiagram(props: TacticalPitchProps) {
   const canSelectPlayer = (id: string) =>
     interactive && (freeMovement || !selectablePlayerIds || selectablePlayerIds.includes(id));
   function layout(live: PlaybackFrame) {
-    const items: DiagramLabel[] = scenario.players.map((player) => ({
-      id: `player:${player.id}`,
-      anchor: projectDiagram(live.positions.get(player.id) ?? player, view),
-      kind: "player",
-      priority: player.id === selectedPlayerId ? 1 : canSelectPlayer(player.id) ? 2 : 3,
-      interactive: canSelectPlayer(player.id) && !freeMovement,
-    }));
+    const items: DiagramLabel[] = scenario.players
+      .filter((p) => !visibleLabelIds || visibleLabelIds.includes(p.id))
+      .map((player) => ({
+        id: `player:${player.id}`,
+        anchor: (() => {
+          const p = projectDiagram(live.positions.get(player.id) ?? player, view);
+          return visibleLabelIds ? { ...p, y: p.y - (figures ? 54 : 20) } : p;
+        })(),
+        kind: "player",
+        priority: player.id === selectedPlayerId ? 1 : canSelectPlayer(player.id) ? 2 : 3,
+        interactive: canSelectPlayer(player.id) && !freeMovement,
+      }));
     items.push(
       ...shownDestinations.map((d) => ({
         id: `destination:${d.id}`,
@@ -91,6 +101,18 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         interactive,
       })),
     );
+    if (visibleLabelIds)
+      return new Map(
+        items
+          .filter(
+            (item) =>
+              item.anchor.x >= 12 &&
+              item.anchor.x <= size.width - 12 &&
+              item.anchor.y >= 12 &&
+              item.anchor.y <= size.height - 12,
+          )
+          .map((item) => [item.id, { ...item, center: item.anchor, radius: 16 }]),
+      );
     return placeDiagramLabels(
       items.filter(
         (item) =>
@@ -308,7 +330,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
               />
             ))}
         </g>
-        {scenario.players.map((p) => marker(`player:${p.id}`, p.team))}
+        {!visibleLabelIds && scenario.players.map((p) => marker(`player:${p.id}`, p.team))}
         {shownDestinations.map((d) => marker(`destination:${d.id}`))}
       </svg>
       {figures &&
@@ -332,34 +354,36 @@ export function TacticalDiagram(props: TacticalPitchProps) {
             </svg>
           );
         })}
-      {scenario.players.map((player) => {
-        const id = `player:${player.id}`;
-        return (
-          <button
-            key={id}
-            type="button"
-            hidden={!placed.has(id)}
-            data-iq-player={player.id}
-            data-has-ball={frame.ballCarrierId === player.id && !frame.ballInFlight}
-            className={`iqD-player iqD-player--${player.team}${player.id === selectedPlayerId ? " is-you" : ""}`}
-            style={styleAt(id)}
-            disabled={!canSelectPlayer(player.id)}
-            aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
-            ref={(element) => {
-              if (element) buttons.current.set(id, element);
-              else buttons.current.delete(id);
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (!interactive) return;
-              if (freeMovement) onPitchSelect(frame.positions.get(player.id) ?? player);
-              else onPlayerSelect(player);
-            }}
-          >
-            <span>{player.controlled ? "TY" : player.number}</span>
-          </button>
-        );
-      })}
+      {scenario.players
+        .filter((p) => !visibleLabelIds || visibleLabelIds.includes(p.id))
+        .map((player) => {
+          const id = `player:${player.id}`;
+          return (
+            <button
+              key={id}
+              type="button"
+              hidden={!placed.has(id)}
+              data-iq-player={player.id}
+              data-has-ball={frame.ballCarrierId === player.id && !frame.ballInFlight}
+              className={`iqD-player iqD-player--${player.team}${player.id === selectedPlayerId ? " is-you" : ""}`}
+              style={styleAt(id)}
+              disabled={!canSelectPlayer(player.id)}
+              aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
+              ref={(element) => {
+                if (element) buttons.current.set(id, element);
+                else buttons.current.delete(id);
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!interactive) return;
+                if (freeMovement) onPitchSelect(frame.positions.get(player.id) ?? player);
+                else onPlayerSelect(player);
+              }}
+            >
+              <span>{player.controlled ? "TY" : player.number}</span>
+            </button>
+          );
+        })}
       {shownDestinations.map((d, index) => {
         const id = `destination:${d.id}`;
         return (

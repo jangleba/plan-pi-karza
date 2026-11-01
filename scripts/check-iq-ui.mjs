@@ -17,7 +17,7 @@ const { default: tailwindcss } = await import(
 );
 const work =
   process.env.BALLWISE_IQ_UI_DIR ||
-  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-iq-ui-32");
+  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-iq-ui-33");
 await fs.mkdir(work, { recursive: true });
 await fs.writeFile(
   path.join(work, "index.html"),
@@ -110,7 +110,19 @@ try {
       (await page.locator(".bwiq-pitch-canvas canvas").count()) === 1,
       "Missing real 3D canvas",
     );
-    ensure((await page.locator("[data-iq-player]").count()) === 12, "Missing actual players");
+    ensure(
+      (await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-player-count")) ===
+        "12",
+      "Missing actual players",
+    );
+    ensure(
+      (await page.locator("[data-iq-player]").count()) <= 3,
+      "Guided view shows too many numbers",
+    );
+    ensure(
+      (await page.locator(".iq3-label-guides, [data-iq-destination]").count()) === 0,
+      "Guided view has cluttered leader lines/destination circles",
+    );
   }
   async function snap(name) {
     ensure(
@@ -132,8 +144,8 @@ try {
     const id = await page.locator("[data-iq-scenario]").getAttribute("data-iq-scenario");
     ensure(!starts.includes(id), "Fresh entry repeated an unfinished/zero-choice action");
     starts.push(id);
-    const choices = await page.locator("[data-iq-choice]").all();
-    ensure(choices.length >= 2, "No clear choices");
+    const choices = await page.locator("[data-iq-commit]").all();
+    ensure(choices.length === 1, "Expected one preview and one explicit execution");
     const footer = await page.locator(".iqJ-footer").boundingBox();
     const nav = await page.locator(".bw-tab-bar").boundingBox();
     const button = await choices[0].boundingBox();
@@ -145,32 +157,76 @@ try {
         button.y + button.height <= Math.min(nav.y, footer.y + footer.height),
       "Main IQ choice is hidden " + width + "x" + height,
     );
+    if (width === 390 && height >= 740) {
+      const playerHeight = Number(
+        await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-controlled-height"),
+      );
+      const field = await page.locator(".iqJ-stage").boundingBox();
+      ensure(playerHeight >= 22, "Controlled footballer is still too small: " + playerHeight);
+      ensure(field.height >= 220, "Too little space for the pitch: " + field.height);
+    }
     await snap("iq-3d-" + width + "x" + height);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await enter();
   const id = await page.locator("[data-iq-scenario]").getAttribute("data-iq-scenario");
   const plan = await page.evaluate((id) => window.__iqQA.plan(id), id);
-  await page.getByRole("button", { name: "Bez podpowiedzi", exact: true }).click();
+  async function setMode(name) {
+    await page.locator(".iqL-mode-menu summary").click();
+    await page.getByRole("button", { name, exact: true }).click();
+  }
+  await setMode("Bez podpowiedzi");
   ensure(
-    (await page.locator("[data-iq-choice], [data-iq-destination]").count()) === 0,
+    (await page.locator("[data-iq-commit], [data-iq-destination]").count()) === 0,
     "Independent mode leaks suggested choices",
   );
-  await page.getByRole("button", { name: "Z podpowiedziami", exact: true }).click();
+  await setMode("Z podpowiedziami");
+  const beforePreview = await page.evaluate(() =>
+    localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
+  );
+  await page.getByRole("button", { name: "Następny wariant", exact: true }).click();
+  ensure(
+    (await page.evaluate(() =>
+      localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
+    )) === beforePreview,
+    "Preview saved a decision",
+  );
+  ensure(
+    (await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-action-count")) === "1",
+    "Preview must show one arrow",
+  );
+  await snap("iq-jeden-wariant");
+  await page.getByRole("button", { name: "Całość", exact: true }).click();
+  ensure(
+    (await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-camera-close")) ===
+      "false",
+    "Overview did not expand",
+  );
+  await page.getByRole("button", { name: "Przybliż", exact: true }).click();
   for (const [index, decision] of plan.entries()) {
-    if (
-      decision.delivery &&
-      (await page.getByRole("button", { name: decision.delivery, exact: true }).count())
-    )
-      await page.getByRole("button", { name: decision.delivery, exact: true }).click();
+    if (decision.delivery && (await page.locator('select[aria-label="Rodzaj podania"]').count())) {
+      await page
+        .getByRole("combobox", { name: "Rodzaj podania" })
+        .selectOption({ label: decision.delivery });
+    }
+    const previous = page.getByRole("button", { name: "Poprzedni wariant", exact: true });
+    while (await previous.isEnabled()) await previous.click();
+    for (
+      let i = 0;
+      (await page.locator("[data-iq-commit]").getAttribute("data-iq-commit")) !== decision.id;
+      i++
+    ) {
+      ensure(i < 12, "Requested choice missing from guided previews");
+      await page.getByRole("button", { name: "Następny wariant", exact: true }).click();
+    }
     if (index === 0) await page.emulateMedia({ reducedMotion: "no-preference" });
     const before =
       index === 0 ? await page.locator(".bwiq-pitch-canvas canvas").screenshot() : null;
-    await page.locator(`[data-iq-choice="${decision.id}"]`).click();
+    await page.getByRole("button", { name: "Zagraj tak", exact: true }).click();
     if (index === 0) {
       await page.getByRole("heading", { name: "Akcja trwa…", exact: true }).waitFor();
       ensure(
-        (await page.locator("[data-iq-choice]").count()) === 0,
+        (await page.locator("[data-iq-commit]").count()) === 0,
         "Playback accepts duplicate input",
       );
       const during = await page.locator(".bwiq-pitch-canvas canvas").screenshot();
@@ -217,7 +273,8 @@ try {
     (await fallback.locator("[data-iq-figure]").count()) === 12,
     "Fallback lost the human figures",
   );
-  await fallback.locator("[data-iq-choice]").first().click();
+  ensure((await fallback.locator("[data-iq-player]").count()) <= 3, "Fallback shows every number");
+  await fallback.getByRole("button", { name: "Zagraj tak", exact: true }).click();
   await fallback.waitForFunction(() => !document.querySelector(".iqJ-transport"));
   await fallback.screenshot({ path: path.join(work, "iq-zawodnicy-bez-webgl.png") });
   views.push("iq-zawodnicy-bez-webgl");
