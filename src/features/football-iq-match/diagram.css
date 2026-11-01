@@ -149,3 +149,36 @@
 .iqD-board [hidden] {
   display: none;
 }
+
+.iqD-figure {
+  position: absolute;
+  z-index: 2;
+  width: 32px;
+  height: 48px;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  --figure-shirt: #4a9ac8;
+  --figure-shorts: #183d60;
+}
+.iqD-figure--away {
+  --figure-shirt: #eceee7;
+  --figure-shorts: #525f65;
+}
+.iqD-figure--keeper {
+  --figure-shirt: #ed9d43;
+  --figure-shorts: #855c36;
+}
+.iqD-board--figures .iqD-player > span {
+  width: 20px;
+  height: 18px;
+  min-height: 18px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+.iqD-board--figures .iqD-player.is-you > span {
+  width: 24px;
+  height: 19px;
+  border: 1px solid #ceeaff;
+  outline-offset: 1px;
+  font-size: 9px;
+}

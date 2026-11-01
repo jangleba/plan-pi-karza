@@ -5,6 +5,7 @@ import type { DiagramLabel, DiagramSize } from "./diagramGeometry";
 import type { PlaybackFrame } from "./animation";
 import type { TacticalPitchProps } from "./TacticalPitch";
 import "./diagram.css";
+import { applyFootballerPose, FootballerFigure } from "./FootballerFigure";
 
 const EMPTY_DESTINATIONS: NonNullable<TacticalPitchProps["destinations"]> = [];
 
@@ -30,6 +31,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     playbackProgress = 0,
     highlights,
     highlightGood,
+    figures = false,
   } = props;
   const root = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<DiagramSize>({ width: 360, height: 280 });
@@ -38,6 +40,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
   const anchors = useRef(new Map<string, SVGCircleElement>());
   const leaders = useRef(new Map<string, SVGLineElement>());
   const ball = useRef<HTMLDivElement>(null);
+  const figureNodes = useRef(new Map<string, SVGSVGElement>());
   const playback = useMemo(
     () => (frameOverride ? null : createPlayback(scenario, actions)),
     [scenario, actions, frameOverride],
@@ -47,7 +50,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     [frameOverride, playback, interactive, playbackProgress],
   );
   const shownDestinations = showGuidance ? destinations : EMPTY_DESTINATIONS;
-  const view = useMemo(
+  const baseView = useMemo(
     () =>
       diagramView(
         [
@@ -58,10 +61,17 @@ export function TacticalDiagram(props: TacticalPitchProps) {
           ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
           ...shownDestinations.map((d) => d.point),
         ],
-        size,
+        figures ? { ...size, height: Math.max(60, size.height - 48) } : size,
       ),
-    [scenario.players, frame, cameraActions, shownDestinations, size],
+    [scenario.players, frame, cameraActions, shownDestinations, size, figures],
   );
+  const view = figures
+    ? {
+        ...baseView,
+        y: baseView.y - 48 / baseView.scale,
+        height: baseView.height + 48 / baseView.scale,
+      }
+    : baseView;
   const canSelectPlayer = (id: string) =>
     interactive && (freeMovement || !selectablePlayerIds || selectablePlayerIds.includes(id));
   function layout(live: PlaybackFrame) {
@@ -91,6 +101,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
       ),
       size,
       projectDiagram(live.ballVisual, view),
+      figures ? -56 : -24,
     );
   }
   const placed = layout(frame);
@@ -128,6 +139,15 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         const current = latest.current;
         const live = current.frameSource?.() ?? current.frame;
         const labels = current.layout(live);
+        figureNodes.current.forEach((element, id) => {
+          const point = live.positions.get(id);
+          const motion = live.motions.get(id);
+          if (!point || !motion) return;
+          const screen = projectDiagram(point, current.view);
+          element.style.left = `${screen.x}px`;
+          element.style.top = `${screen.y}px`;
+          applyFootballerPose(element, motion);
+        });
         buttons.current.forEach((element, id) => {
           const label = labels.get(id);
           element.hidden = !label;
@@ -227,8 +247,11 @@ export function TacticalDiagram(props: TacticalPitchProps) {
   return (
     <div
       ref={root}
-      className={`bwiq-pitch-wrap bwiq-pitch-wrap--diagram iqD-board${showGuidance ? "" : " bwiq-pitch-wrap--independent"}`}
-      onClick={(event) => selectPoint(event.clientX, event.clientY)}
+      className={`bwiq-pitch-wrap bwiq-pitch-wrap--diagram iqD-board${figures ? " iqD-board--figures" : ""}${showGuidance ? "" : " bwiq-pitch-wrap--independent"}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        selectPoint(event.clientX, event.clientY);
+      }}
     >
       <svg
         className="iqD-field"
@@ -288,6 +311,27 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         {scenario.players.map((p) => marker(`player:${p.id}`, p.team))}
         {shownDestinations.map((d) => marker(`destination:${d.id}`))}
       </svg>
+      {figures &&
+        scenario.players.map((player) => {
+          const p = projectDiagram(frame.positions.get(player.id) ?? player, view);
+          const motion = frame.motions.get(player.id)!;
+          return (
+            <svg
+              key={player.id}
+              data-iq-figure={player.id}
+              className={`iqD-figure iqD-figure--${player.team}${player.goalkeeper ? " iqD-figure--keeper" : ""}`}
+              viewBox="0 0 40 60"
+              style={{ left: p.x, top: p.y }}
+              aria-hidden="true"
+              ref={(element) => {
+                if (element) figureNodes.current.set(player.id, element);
+                else figureNodes.current.delete(player.id);
+              }}
+            >
+              <FootballerFigure motion={motion} />
+            </svg>
+          );
+        })}
       {scenario.players.map((player) => {
         const id = `player:${player.id}`;
         return (

@@ -6,6 +6,7 @@ import type {
   JourneyPattern,
 } from "./journeyTypes";
 import { journeyExpansion } from "./journeyExpansion";
+import { advancedJourneyBank, ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
 
 export const JOURNEY_BANK_VERSION = "2026-10-31.4";
 export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
@@ -13,6 +14,7 @@ export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
   "2026-10-15.2",
   "2026-10-15.3",
   JOURNEY_BANK_VERSION,
+  ADVANCED_JOURNEY_BANK_VERSION,
 ];
 export const roleLabels: Record<IQRole, string> = {
   gk: "Bramkarz",
@@ -300,6 +302,7 @@ const originalBank: JourneyDefinition[] = (Object.keys(topics) as IQRole[]).flat
 );
 // Existing IDs and routes stay stable so old attempts reproduce exactly.
 export const journeyBank: JourneyDefinition[] = [...originalBank, ...journeyExpansion];
+export const iqScenarioBank: JourneyDefinition[] = [...advancedJourneyBank, ...journeyBank];
 export const journeyTopicCount = new Set(journeyBank.map((s) => s.topicId)).size;
 export function scenariosForRoles(roles: readonly IQRole[]): JourneyDefinition[] {
   return journeyBank.filter((s) => roles.includes(s.role));

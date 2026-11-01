@@ -39,7 +39,8 @@ export type JourneyDefinition = {
   contextLabel: string;
   ordinal: number;
   steps: JourneyAction[];
-  revision?: 2;
+  revision?: 2 | 3;
+  concept?: "third-player" | "overload-switch" | "press-cover";
   delivery?: Exclude<BallDelivery, "ground">;
 };
 export type JourneyWorld = {
@@ -102,7 +103,7 @@ export type JourneyDecision = {
 };
 export type JourneySession = {
   /** Absent in saved pre-22 engines; their replays retain the original rules. */
-  rulesVersion?: 4;
+  rulesVersion?: 4 | 5;
   definition: JourneyDefinition;
   scenario: Scenario;
   players: MatchPlayer[];

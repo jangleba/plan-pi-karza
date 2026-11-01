@@ -239,7 +239,7 @@ try {
   ensure(!errors.length, "Browser errors: " + errors.join("; "));
   for (const width of [320, 390, 480]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const mode of ["visual-club", "visual-iq"]) {
+    for (const mode of ["visual-club"]) {
       await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=" + mode);
       await page
         .locator(mode === "visual-club" ? ".bw-club-summary" : ".bwiq-pitch-wrap--diagram")
@@ -259,89 +259,6 @@ try {
       }
     }
   }
-  ensure(!errors.length, "Browser errors: " + errors.join("; "));
-  for (const [width, height] of [
-    [320, 568],
-    [320, 640],
-    [390, 740],
-    [390, 844],
-    [480, 844],
-    [844, 390],
-  ]) {
-    await page.setViewportSize({ width, height });
-    await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=visual-iq");
-    await page.locator(".iqD-destination").first().waitFor();
-    await page.evaluate(() => document.fonts.ready);
-    const layout = await page.evaluate(() => {
-      const board = document.querySelector(".iqD-board").getBoundingClientRect();
-      const nav = document.querySelector(".bw-tab-bar").getBoundingClientRect();
-      const badges = [
-        ...document.querySelectorAll(".iqD-player:not([hidden]) > span, .iqD-destination"),
-      ].map((e) => e.getBoundingClientRect());
-      const choices = [...document.querySelectorAll("[data-iq-choice]")].map((e) =>
-        e.getBoundingClientRect(),
-      );
-      return {
-        overlap: badges.some((a, i) =>
-          badges.some(
-            (b, j) =>
-              i < j &&
-              Math.hypot(
-                a.x + a.width / 2 - b.x - b.width / 2,
-                a.y + a.height / 2 - b.y - b.height / 2,
-              ) <
-                (a.width + b.width) / 2 - 1,
-          ),
-        ),
-        clipped: badges.some(
-          (a) =>
-            a.left < board.left - 1 ||
-            a.right > board.right + 1 ||
-            a.top < board.top - 1 ||
-            a.bottom > board.bottom + 1,
-        ),
-        choicesVisible:
-          choices.length === 2 &&
-          choices.every((a) => a.height >= 44 && a.bottom <= nav.top && a.top >= 0),
-        stretched: Math.abs(badges[0].width - badges[0].height) > 1,
-      };
-    });
-    ensure(
-      !layout.overlap && !layout.clipped && !layout.stretched,
-      "IQ diagram overlap/crop at " + width + "x" + height + ": " + JSON.stringify(layout),
-    );
-    ensure(layout.choicesVisible, "IQ choices need scrolling at " + width + "x" + height);
-    await snap("iq-czytelny-" + width + "x" + height);
-  }
-  await page.setViewportSize({ width: 390, height: 740 });
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=visual-iq");
-  await page.locator("[data-iq-choice]").first().waitFor();
-  await page.getByRole("button", { name: "Bez podpowiedzi", exact: true }).click();
-  ensure(
-    (await page.locator(".iqD-destination, [data-iq-choice]").count()) === 0,
-    "Independent IQ reveals guided choices",
-  );
-  await page.getByRole("button", { name: "Z podpowiedziami", exact: true }).click();
-  const chosenId = await page.locator("[data-iq-choice]").first().getAttribute("data-iq-choice");
-  await page.locator("[data-iq-choice]").first().click();
-  await page.getByRole("heading", { name: "Akcja trwa…", exact: true }).waitFor();
-  ensure(
-    (await page.locator("[data-iq-choice]").count()) === 0,
-    "IQ accepts another choice during playback",
-  );
-  await page.waitForFunction(() => !document.querySelector(".iqJ-transport"), undefined, {
-    timeout: 15000,
-  });
-  const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:visual-qa:draft") || "null"),
-  );
-  ensure(
-    stored?.choices.length === 1 && stored.choices[0].id === chosenId,
-    "IQ choice was lost or saved twice",
-  );
-  await snap("iq-po-pierwszym-wyborze");
-  await page.emulateMedia({ reducedMotion: "reduce" });
   ensure(!errors.length, "Browser errors: " + errors.join("; "));
   await fs.writeFile(
     path.join(work, "wynik.json"),

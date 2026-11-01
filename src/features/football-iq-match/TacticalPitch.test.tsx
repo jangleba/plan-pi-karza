@@ -84,15 +84,13 @@ describe("pitch guidance boundary", () => {
     expect(host.querySelector("[data-iq-destination]")).toBeNull();
     const ball = host.querySelector<HTMLDivElement>(".iqD-ball")!;
     await act(async () =>
-      host
-        .querySelector(".iqD-board")!
-        .dispatchEvent(
-          new MouseEvent("click", {
-            bubbles: true,
-            clientX: parseFloat(ball.style.left) + 10,
-            clientY: parseFloat(ball.style.top) + 20,
-          }),
-        ),
+      host.querySelector(".iqD-board")!.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX: parseFloat(ball.style.left) + 10,
+          clientY: parseFloat(ball.style.top) + 20,
+        }),
+      ),
     );
     const point = vi.mocked(props.onPitchSelect).mock.lastCall![0];
     expect(point.x).toBeCloseTo(props.frameOverride!.ballVisual.x, 8);
@@ -242,21 +240,34 @@ describe("simplified pitch fallback", () => {
     props.freeMovement = true;
     props.onReadyChange = vi.fn();
     await render();
-    expect(host.querySelector('svg[aria-label="Boisko w trybie uproszczonym"]')).not.toBeNull();
+    expect(host.querySelector("[data-iq-figure='you']")).not.toBeNull();
     expect(props.onReadyChange).toHaveBeenLastCalledWith(true);
-    const canvas = host.querySelector<HTMLDivElement>(".bwiq-pitch-canvas")!;
+    const canvas = host.querySelector<HTMLDivElement>(".iqD-board")!;
     vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,
       width: 200,
       height: 280,
     } as DOMRect);
+    const marker = host.querySelector<HTMLDivElement>(".iqD-ball")!;
     await act(async () =>
-      host
-        .querySelector(".bwiq-pitch-wrap")!
-        .dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 100, clientY: 140 })),
+      canvas.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX: parseFloat(marker.style.left),
+          clientY: parseFloat(marker.style.top),
+        }),
+      ),
     );
-    expect(props.onPitchSelect).toHaveBeenCalledWith({ x: 50, y: 70 });
+    expect(props.onPitchSelect).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(props.onPitchSelect).mock.lastCall![0].x).toBeCloseTo(
+      props.frameOverride!.ballVisual.x,
+      8,
+    );
+    expect(vi.mocked(props.onPitchSelect).mock.lastCall![0].y).toBeCloseTo(
+      props.frameOverride!.ballVisual.y,
+      8,
+    );
   });
 });
 
@@ -265,7 +276,7 @@ it("allows a decision while the optional 3D scene is still downloading", async (
   props.onReadyChange = vi.fn();
   props.selectablePlayerIds = ["support"];
   await render();
-  expect(host.querySelector('svg[aria-label="Boisko w trybie uproszczonym"]')).not.toBeNull();
+  expect(host.querySelector("[data-iq-figure='you']")).not.toBeNull();
   expect(props.onReadyChange).toHaveBeenCalledWith(true);
   const support = host.querySelector<HTMLButtonElement>('[data-iq-player="support"]')!;
   expect(support.disabled).toBe(false);

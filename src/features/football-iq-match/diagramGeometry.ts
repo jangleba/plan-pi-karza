@@ -50,10 +50,11 @@ export function placeDiagramLabels(
   items: readonly DiagramLabel[],
   size: DiagramSize,
   ball: Point,
+  playerRise = -24,
 ): Map<string, PlacedDiagramLabel> {
   const placed: PlacedDiagramLabel[] = [];
   const offsets = [
-    [0, -24],
+    [0, playerRise],
     [-34, -24],
     [34, -24],
     [0, 26],

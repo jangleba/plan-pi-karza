@@ -179,7 +179,11 @@ const routes = [
     getParentRoute: () => rootRoute,
     path: "/football-iq",
     component: () => (
-      <FootballIQJourney initialScenario={0} position="forward" historyOwner="visual-qa" />
+      <FootballIQJourney
+        initialScenario={new URLSearchParams(location.search).has("advanced") ? undefined : 0}
+        position="forward"
+        historyOwner="visual-qa"
+      />
     ),
   }),
 ];

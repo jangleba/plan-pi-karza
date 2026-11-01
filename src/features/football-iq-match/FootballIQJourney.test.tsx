@@ -6,8 +6,14 @@ import type { ComponentProps } from "react";
 import type { TacticalPitch } from "./TacticalPitch";
 import { FootballIQJourney } from "./FootballIQJourney";
 import { journeyBank } from "./journeyBank";
+import { advancedJourneyBank } from "./advancedJourneyBank";
 import { chooseJourney, createJourney, journeyStep, journeyPointChoice } from "./journeyEngine";
-import { loadJourneyHistory, makeJourneyAttempt, saveJourneyAttempt } from "./journeyHistory";
+import {
+  loadJourneyHistory,
+  makeJourneyAttempt,
+  saveJourneyAttempt,
+  saveJourneyDraft,
+} from "./journeyHistory";
 import type { JourneySession } from "./journeyTypes";
 const exports = vi.hoisted(() => ({ deliver: vi.fn() }));
 vi.mock("@/lib/loadwise/deliverExportFile", () => ({ deliverExportFile: exports.deliver }));
@@ -91,6 +97,42 @@ function complete(s: JourneySession): JourneySession | null {
   return null;
 }
 describe("individual IQ screen", () => {
+  it("starts a different advanced action on every fresh entry even without a completed attempt", async () => {
+    await act(async () =>
+      root.render(<FootballIQJourney position="forward" historyOwner="fresh-owner" />),
+    );
+    const first = bridge.props!.scenario.id;
+    expect(first).toMatch(/^iqx-/);
+    expect(bridge.props!.diagram).not.toBe(true);
+    expect(bridge.props!.scenario.players).toHaveLength(12);
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () =>
+      root.render(<FootballIQJourney position="forward" historyOwner="fresh-owner" />),
+    );
+    expect(bridge.props!.scenario.id).not.toBe(first);
+    expect(loadJourneyHistory("fresh-owner")).toEqual([]);
+  });
+  it("offers an unfinished action explicitly while showing another fresh task first", async () => {
+    const definition = advancedJourneyBank.find((d) => d.role === "six")!;
+    const initial = createJourney(definition);
+    const partial = chooseJourney(
+      initial,
+      journeyStep(initial).choices.find((c) => c.quality !== "error")!.id,
+    );
+    saveJourneyDraft("resume-owner", partial, "learn", "original-draft");
+    const raw = localStorage.getItem("ballwise:iq:journeys:v1:resume-owner:draft");
+    await act(async () =>
+      root.render(<FootballIQJourney position="midfielder" historyOwner="resume-owner" />),
+    );
+    expect(bridge.props!.scenario.id).not.toBe(definition.id);
+    expect(localStorage.getItem("ballwise:iq:journeys:v1:resume-owner:draft")).toBe(raw);
+    await clickText("Wznów poprzednią");
+    expect(bridge.props!.scenario.id).toBe(definition.id);
+    expect(Object.fromEntries(bridge.props!.frameOverride!.positions)).toEqual(
+      partial.world.positions,
+    );
+  });
   it("executes a visible movement button and clears feedback from a missed field tap", async () => {
     await mount("forward");
     const choices = host.querySelectorAll<HTMLButtonElement>("[data-iq-choice]");
@@ -107,7 +149,9 @@ describe("individual IQ screen", () => {
   });
   it("starts a new positional action and records the explicitly selected delivery", async () => {
     await act(async () =>
-      root.render(<FootballIQJourney position="goalkeeper" historyOwner="account-a" />),
+      root.render(
+        <FootballIQJourney position="goalkeeper" historyOwner="account-a" initialScenario={30} />,
+      ),
     );
     const group = host.querySelector('[aria-label="Rodzaj podania"]')!;
     expect(group).toBeTruthy();
@@ -126,7 +170,9 @@ describe("individual IQ screen", () => {
   });
   it("shows a transition after a loss and can restart from the reviewed moment", async () => {
     await act(async () =>
-      root.render(<FootballIQJourney position="goalkeeper" historyOwner="account-a" />),
+      root.render(
+        <FootballIQJourney position="goalkeeper" historyOwner="account-a" initialScenario={30} />,
+      ),
     );
     await clickText("Po ziemi");
     const s = createJourney(journeyBank.find((d) => d.role === "gk" && d.revision === 2)!);
@@ -299,20 +345,20 @@ describe("individual IQ screen", () => {
     await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
     expect(reset.disabled).toBe(false);
   });
-  it("opens the positional catalog and offers all 480 contexts explicitly", async () => {
+  it("opens the positional catalog including the advanced contexts", async () => {
     await mount("forward");
     const trigger = host.querySelector<HTMLButtonElement>(
       '[aria-label="Wybierz sytuację i rolę"]',
     )!;
     await act(async () => trigger.click());
-    expect(host.textContent).toContain("40 tematów · 120 wariantów");
+    expect(host.textContent).toContain("46 tematów · 138 wariantów");
     const select = host.querySelector("select")!;
     await act(async () => {
       select.value = "all";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(host.textContent).toContain("160 tematów · 480 wariantów");
-    expect(host.querySelectorAll(".iqJ-scenario")).toHaveLength(480);
+    expect(host.textContent).toContain("184 tematów · 552 wariantów");
+    expect(host.querySelectorAll(".iqJ-scenario")).toHaveLength(552);
   });
   it("opens another task on a later visit when the previous action was already completed", async () => {
     const first = journeyBank.find((d) => d.role === "six" && d.revision === 2)!;
