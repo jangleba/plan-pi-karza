@@ -91,6 +91,20 @@ function complete(s: JourneySession): JourneySession | null {
   return null;
 }
 describe("individual IQ screen", () => {
+  it("executes a visible movement button and clears feedback from a missed field tap", async () => {
+    await mount("forward");
+    const choices = host.querySelectorAll<HTMLButtonElement>("[data-iq-choice]");
+    expect(choices).toHaveLength(2);
+    expect([...choices].map((b) => b.textContent)).toEqual(["AKorytarz", "BKorytarz"]);
+    expect(bridge.props?.destinations?.map((d) => d.shortLabel)).toEqual(["A", "B"]);
+    await act(async () => bridge.props!.onPitchSelect({ x: 50, y: 70 }));
+    expect(host.textContent).toContain("przycisk pod boiskiem");
+    const id = choices[0].dataset.iqChoice!;
+    await act(async () => choices[0].click());
+    expect(host.textContent).not.toContain("przycisk pod boiskiem");
+    const draft = JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    expect(draft.choices[0].id).toBe(id);
+  });
   it("starts a new positional action and records the explicitly selected delivery", async () => {
     await act(async () =>
       root.render(<FootballIQJourney position="goalkeeper" historyOwner="account-a" />),

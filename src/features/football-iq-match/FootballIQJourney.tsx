@@ -186,7 +186,12 @@ export function FootballIQJourney({
       ? delivery
       : (session.definition.delivery ?? "ground");
   const visibleChoices = useMemo(
-    () => selectedStep?.choices.filter((c) => !c.delivery || c.delivery === selectedDelivery) ?? [],
+    // Spatial ordering keeps A/B stable without always putting the preferred answer first.
+    () =>
+      [
+        ...(selectedStep?.choices.filter((c) => !c.delivery || c.delivery === selectedDelivery) ??
+          []),
+      ].sort((a, b) => a.point.x - b.point.x || a.point.y - b.point.y || a.id.localeCompare(b.id)),
     [selectedStep, selectedDelivery],
   );
   const decision = session.decisions[reviewIndex];
@@ -240,9 +245,14 @@ export function FootballIQJourney({
       interactive &&
       selectedStep &&
       !["pass", "finish", "transition"].includes(selectedStep.kind)
-        ? selectedStep.choices.map((c) => ({ id: c.id, point: c.point, label: c.label }))
+        ? visibleChoices.map((c, index) => ({
+            id: c.id,
+            point: c.point,
+            label: c.label,
+            shortLabel: String.fromCharCode(65 + index),
+          }))
         : [],
-    [interactive, selectedStep, mode],
+    [interactive, selectedStep, mode, visibleChoices],
   );
   const currentChoices = useMemo(() => {
     if (!decision || view !== "review") return null;
@@ -501,6 +511,7 @@ export function FootballIQJourney({
     try {
       const next = chooseJourney(session, choiceId, elapsed.current);
       const start = journeyDuration(session);
+      setNote("");
       setSession(next);
       setDelivery(null);
       setHinted(false);
@@ -692,7 +703,13 @@ export function FootballIQJourney({
                 : selectedStep?.kind === "finish"
                   ? "Podaj do partnera albo wybierz strzał."
                   : "Dotknij miejsca, do którego ruszysz."
-              : selectedStep?.instruction;
+              : selectedStep?.kind === "pass"
+                ? "Dotknij partnera lub wybierz jego numer."
+                : selectedStep?.kind === "finish"
+                  ? "Podaj do partnera albo wybierz strzał."
+                  : selectedStep?.kind === "transition"
+                    ? selectedStep.instruction
+                    : "Wybierz A lub B na boisku albo poniżej.";
   return (
     <section className="bwiq-app iq-journey" aria-label="BallWise IQ — pełne akcje">
       <header className="iqJ-header">
@@ -796,6 +813,23 @@ export function FootballIQJourney({
           )}
         </div>
       </header>
+      <div className="iqJ-board-meta">
+        <span>{session.scenario.defensive ? "↓ Bronisz" : "↑ Atakujesz"}</span>
+        <span className="iqJ-teams">
+          <i /> Twoi <i /> Rywale
+        </span>
+        <span className="iqJ-possession">
+          {transport
+            ? transport.kind === "live"
+              ? "Akcja w ruchu"
+              : "Powtórka"
+            : session.world.carrierId === "you"
+              ? "Masz piłkę"
+              : session.world.carrierId.startsWith("r")
+                ? "Piłka rywali"
+                : "Piłka u partnera"}
+        </span>
+      </div>
       <div className="iqJ-stage">
         {booted ? (
           <TacticalPitch
@@ -817,6 +851,14 @@ export function FootballIQJourney({
               if (c) choose(c.id);
             }}
             onPitchSelect={(point) => {
+              if (mode === "learn" && interactive && selectedStep) {
+                setNote(
+                  ["pass", "finish"].includes(selectedStep.kind)
+                    ? "Dotknij numeru partnera albo przycisku pod boiskiem."
+                    : "Wybierz oznaczenie A lub B albo przycisk pod boiskiem.",
+                );
+                return;
+              }
               if (
                 mode !== "challenge" ||
                 !interactive ||
@@ -849,17 +891,6 @@ export function FootballIQJourney({
             Przygotowuję akcję…
           </div>
         )}
-        <div className="iqJ-field-status" aria-hidden="true">
-          {transport
-            ? transport.kind === "live"
-              ? "Akcja w ruchu"
-              : "Powtórka"
-            : session.world.carrierId === "you"
-              ? "Masz piłkę"
-              : session.world.carrierId.startsWith("r")
-                ? "Piłka rywali"
-                : "Piłka u partnera"}
-        </div>
       </div>
       <footer className="iqJ-footer" aria-live="polite" aria-atomic="true">
         <span className="iqJ-kicker">
@@ -881,7 +912,7 @@ export function FootballIQJourney({
         </span>
         <h2>{footerTitle}</h2>
         <p>{footerDetail}</p>
-        {view === "decision" && deliveries.length > 1 && (
+        {view === "decision" && !transport && deliveries.length > 1 && (
           <div className="iqJ-deliveries" role="group" aria-label="Rodzaj podania">
             {deliveries.map((kind) => (
               <button
@@ -899,17 +930,40 @@ export function FootballIQJourney({
             ))}
           </div>
         )}
-        {mode === "learn" && view === "decision" && selectedStep?.kind === "transition" && (
-          <div className="iqJ-actions">
-            {selectedStep.choices.map((c) => (
+        {mode === "learn" && view === "decision" && !transport && selectedStep && (
+          <div
+            className="iqJ-choices"
+            role="group"
+            aria-label="Wybierz zagranie"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(4, visibleChoices.length)}, minmax(0, 1fr))`,
+            }}
+          >
+            {visibleChoices.map((c, index) => (
               <button
                 key={c.id}
                 type="button"
-                className="iqJ-button"
+                className="iqJ-choice"
+                data-iq-choice={c.id}
+                aria-label={c.label}
                 disabled={!interactive}
                 onClick={() => choose(c.id)}
               >
-                {c.label}
+                {c.targetId ? (
+                  <>
+                    <strong>{session.players.find((p) => p.id === c.targetId)?.number}</strong>
+                    <span>Podaj</span>
+                  </>
+                ) : c.id === "shot" ? (
+                  <span>Strzel</span>
+                ) : selectedStep.kind === "transition" ? (
+                  c.label
+                ) : (
+                  <>
+                    <strong>{String.fromCharCode(65 + index)}</strong>
+                    <span>{selectedStep.kind === "carry" ? "Korytarz" : "Miejsce"}</span>
+                  </>
+                )}
               </button>
             ))}
           </div>
@@ -927,7 +981,7 @@ export function FootballIQJourney({
                 {hinted ? "Ukryj wskazówkę" : "Wskazówka"}
               </button>
             )}
-            {selectedShot && (
+            {selectedShot && mode === "challenge" && (
               <button
                 type="button"
                 className="iqJ-button iqJ-primary"
@@ -1315,7 +1369,7 @@ export function FootballIQJourney({
             </div>
             <p>
               {mode === "learn"
-                ? "Dotknij partnera, aby podać. Przy ruchu dotknij jednej z zaznaczonych przestrzeni."
+                ? "Dotknij numeru partnera albo przycisku pod boiskiem. Przy ruchu wybierz A lub B — na boisku lub poniżej."
                 : "Dotknij partnera, aby podać. Przy ruchu wskaż samodzielnie miejsce na boisku."}
             </p>
             <p>

@@ -27,6 +27,7 @@ beforeEach(() => {
     },
   );
   Object.values(bridge).forEach((fn) => fn.mockClear());
+  vi.mocked(createPitchScene).mockClear();
   bridge.pick.mockReturnValue({ x: 42.37, y: 83.91 });
   const session = createJourney(journeyBank.find((d) => d.role === "wing")!);
   props = {
@@ -62,12 +63,84 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 async function render() {
   await act(async () => root.render(<TacticalPitch {...props} />));
 }
 describe("pitch guidance boundary", () => {
+  it("maps an independent diagram tap through the actual crop and keeps choices hidden", async () => {
+    props.diagram = true;
+    props.freeMovement = true;
+    props.showGuidance = false;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      left: 10,
+      top: 20,
+      width: 360,
+      height: 280,
+    } as DOMRect);
+    await render();
+    expect(host.querySelector("[data-iq-destination]")).toBeNull();
+    const ball = host.querySelector<HTMLDivElement>(".iqD-ball")!;
+    await act(async () =>
+      host
+        .querySelector(".iqD-board")!
+        .dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            clientX: parseFloat(ball.style.left) + 10,
+            clientY: parseFloat(ball.style.top) + 20,
+          }),
+        ),
+    );
+    const point = vi.mocked(props.onPitchSelect).mock.lastCall![0];
+    expect(point.x).toBeCloseTo(props.frameOverride!.ballVisual.x, 8);
+    expect(point.y).toBeCloseTo(props.frameOverride!.ballVisual.y, 8);
+    expect(props.onPlayerSelect).not.toHaveBeenCalled();
+  });
+  it("executes a diagram choice once, supports keyboard clicks, and blocks playback input", async () => {
+    props.diagram = true;
+    await render();
+    const choice = host.querySelector<HTMLButtonElement>("[data-iq-destination='suggested']")!;
+    await act(async () => choice.click());
+    expect(props.onDestinationSelect).toHaveBeenCalledExactlyOnceWith("suggested");
+    expect(props.onPitchSelect).not.toHaveBeenCalled();
+    props.interactive = false;
+    await render();
+    await act(async () => choice.click());
+    expect(props.onDestinationSelect).toHaveBeenCalledTimes(1);
+    expect(host.querySelector<HTMLButtonElement>("[data-iq-player='you']")?.disabled).toBe(true);
+  });
+  it("animates diagram positions directly from the recorded clock and stops on pause", async () => {
+    const callbacks: FrameRequestCallback[] = [],
+      cancel = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", cancel);
+    props.diagram = true;
+    props.interactive = false;
+    props.playing = true;
+    let live = props.frameOverride!;
+    props.frameSource = () => live;
+    await render();
+    const ball = host.querySelector<HTMLDivElement>(".iqD-ball")!;
+    const before = ball.style.left;
+    live = { ...live, ballVisual: { x: 71, y: 62 }, ballInFlight: true, ballHeight: 4 };
+    await act(async () => callbacks.at(-1)!(16));
+    expect(ball.style.left).not.toBe(before);
+    expect(ball.dataset.airborne).toBe("true");
+    const stale = callbacks.at(-1)!;
+    props.playing = false;
+    await render();
+    const paused = ball.style.left;
+    live = { ...live, ballVisual: { x: 33, y: 21 } };
+    await act(async () => stale(32));
+    expect(ball.style.left).toBe(paused);
+    expect(cancel).toHaveBeenCalled();
+  });
   it("renders a functional diagram without loading a 3D scene or offering a fake retry", async () => {
     props.diagram = true;
     await render();
@@ -75,8 +148,11 @@ describe("pitch guidance boundary", () => {
     expect(host.querySelector("svg")).toBeTruthy();
     expect(host.textContent).not.toContain("Spróbuj boiska 3D");
     const player = host.querySelector<HTMLButtonElement>("[data-iq-player='you']")!;
-    expect(player.style.left).toBe(`${props.frameOverride!.positions.get("you")!.x}%`);
-    expect(host.querySelector(".bwiq-destination")).toBeTruthy();
+    expect(player.style.left).toMatch(/px$/);
+    expect(player.textContent).toBe("TY");
+    expect(host.querySelector('[data-iq-destination="suggested"]')?.textContent).toBe("A");
+    expect(vi.mocked(createPitchScene)).not.toHaveBeenCalled();
+    expect(host.querySelector("svg")?.getAttribute("preserveAspectRatio")).toBe("xMidYMid meet");
   });
   it("renders a recorded journey frame without recomputing a second playback timeline", async () => {
     const create = vi.spyOn(playbackEngine, "createPlayback");

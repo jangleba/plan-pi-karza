@@ -5,9 +5,10 @@ import type { TeachingMarker } from "./teaching";
 import type { PitchScene } from "./pitchScene";
 import type { ActionMode, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
 import type { PlaybackFrame } from "./animation";
+import { TacticalDiagram } from "./TacticalDiagram";
 const NO_ACTIONS: PlannedAction[] = [];
 
-type Props = {
+export type TacticalPitchProps = {
   diagram?: boolean;
   scenario: Scenario;
   actions: PlannedAction[];
@@ -30,13 +31,16 @@ type Props = {
   frameOverride?: PlaybackFrame;
   frameSource?: () => PlaybackFrame;
   selectablePlayerIds?: string[];
-  destinations?: { id: string; point: Point; label: string }[];
+  destinations?: { id: string; point: Point; label: string; shortLabel?: string }[];
   onDestinationSelect?: (id: string) => void;
   showActionOrders?: boolean;
   showGuidance?: boolean;
   freeMovement?: boolean;
 };
-export function TacticalPitch({
+export function TacticalPitch(props: TacticalPitchProps) {
+  return props.diagram ? <TacticalDiagram {...props} /> : <TacticalScenePitch {...props} />;
+}
+function TacticalScenePitch({
   diagram = false,
   scenario,
   actions,
@@ -64,7 +68,7 @@ export function TacticalPitch({
   showActionOrders = true,
   showGuidance = true,
   freeMovement = false,
-}: Props) {
+}: TacticalPitchProps) {
   const host = useRef<HTMLDivElement>(null);
   const arrowId = useId().replace(/:/g, "");
   const scene = useRef<PitchScene | null>(null);
@@ -140,7 +144,8 @@ export function TacticalPitch({
       if (fallbackHeight.current) {
         fallbackHeight.current.setAttribute("x", String(liveFrame.ballVisual.x));
         fallbackHeight.current.setAttribute("y", String(Math.max(5, liveFrame.ballVisual.y - 4)));
-        fallbackHeight.current.textContent = liveFrame.ballInFlight && liveFrame.ballHeight > 2 ? "Piłka górą" : "";
+        fallbackHeight.current.textContent =
+          liveFrame.ballInFlight && liveFrame.ballHeight > 2 ? "Piłka górą" : "";
       }
       if (ballLabel.current) {
         ballLabel.current.style.left = `${liveFrame.ballVisual.x}%`;
