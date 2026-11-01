@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CalendarDays, Check, ChevronRight, Move, ScanLine } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import {
@@ -30,7 +30,8 @@ import type { Proposal } from "@/lib/loadwise/modifications";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
-import { TodaySessionCard } from "@/components/loadwise/TodaySessionCard";
+import { StartDashboard } from "@/components/loadwise/StartDashboard";
+import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
 import { WellnessCheckin } from "@/components/loadwise/WellnessCheckin";
 
 export const Route = createFileRoute("/_tabs/start")({
@@ -798,174 +799,43 @@ function StartScreen() {
 
   return (
     <>
-      <main className="start-decision-screen px-5 pb-32 pt-5">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
-              <span className="text-[11px] font-semibold tracking-[0.28em] text-primary">
-                BALLWISE
-              </span>
-            </div>
-            <h1 className="mt-4 text-[36px] font-semibold leading-none tracking-[-0.045em] text-foreground">
-              Start
-            </h1>
-            <p className="mt-2 text-[17px] text-muted-foreground">Cześć, {firstName}</p>
-          </div>
-          <ProfileAvatar />
-        </header>
-
-        <div className="mt-8 space-y-4">
-          <TodaySessionCard
-            plan={effectivePlan}
-            completions={state.completions}
-            todayIso={todayIso}
-            onPrepare={(date, slot) => {
-              void router
-                .preloadRoute({ to: "/sesja/$date", params: { date }, search: { slot } })
-                .catch(() => undefined);
-            }}
-            onOpen={(date, slot) =>
-              void navigate({ to: "/sesja/$date", params: { date }, search: { slot } })
-            }
-          />
-          <section className="soft-card px-5 py-5" aria-labelledby="start-checkin-title">
-            <div className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground">
-              CHECK-IN
-            </div>
-            <div className="mt-5 flex flex-col items-center text-center">
-              <span
-                className="grid h-14 w-14 place-items-center rounded-full border border-primary/35 bg-primary/[0.035] text-primary"
-                aria-hidden="true"
-              >
-                <Check className="h-7 w-7" strokeWidth={1.8} />
-              </span>
-              <h2
-                id="start-checkin-title"
-                className="mt-4 text-[21px] font-semibold tracking-[-0.025em] text-foreground"
-              >
-                {checkinComplete ? "Check-in wykonany" : "Czy dzisiejszy plan jest aktualny?"}
-              </h2>
-              <p className="mt-2 max-w-[18rem] text-sm leading-relaxed text-muted-foreground">
-                {checkinComplete
-                  ? copy.title
-                  : "Możesz otworzyć trening od razu. Check-in służy do zmiany planu."}
-              </p>
-              <Button
-                type="button"
-                className="mt-5 h-12 w-full rounded-full text-[15px]"
-                disabled={savingAction}
-                onClick={() => setCheckinOpen(true)}
-              >
-                {checkinComplete ? "Zmień check-in" : "Rozpocznij check-in"}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              {profile?.healthPersonalizationEnabled === true && (
-                <div className="mt-4 w-full border-t border-border pt-4">
-                  <p className="text-xs text-muted-foreground">
-                    {state.readiness?.[todayIso]
-                      ? "Samopoczucie zapisane na dziś"
-                      : "Samopoczucie: brak oceny na dziś"}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-2 min-h-11 w-full rounded-full"
-                    onClick={() => setWellnessOpen(true)}
-                  >
-                    {state.readiness?.[todayIso] ? "Zmień samopoczucie" : "Oceń samopoczucie"}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/plan" })}
-            className="soft-card flex min-h-[5.5rem] w-full items-center gap-4 px-4 py-3.5 text-left active:scale-[0.99]"
-          >
-            <span
-              className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
-              aria-hidden="true"
-            >
-              <CalendarDays className="h-5 w-5" strokeWidth={1.8} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[17px] font-semibold tracking-[-0.02em] text-foreground">
-                Twój plan
-              </span>
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                Dzisiejszy trening i cały tydzień
-              </span>
-            </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-          </button>
-
-          <section className="pt-3" aria-labelledby="start-tools-title">
-            <h2
-              id="start-tools-title"
-              className="mb-3 text-[23px] font-semibold tracking-[-0.035em] text-foreground"
-            >
-              Narzędzia
-            </h2>
-            <div className="space-y-3">
-              <button
-                type="button"
-                onPointerDown={() => {
-                  void Promise.all([
-                    router.preloadRoute({ to: "/lab" }),
-                    import("@/features/browser-lab/BrowserLab"),
-                  ]).catch(() => undefined);
-                }}
-                onClick={() => navigate({ to: "/lab" })}
-                className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
-              >
-                <span
-                  className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
-                  aria-hidden="true"
-                >
-                  <ScanLine className="h-5 w-5" strokeWidth={1.8} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold text-foreground">
-                    BallWise Lab
-                  </span>
-                  <span className="mt-0.5 block text-sm text-muted-foreground">
-                    Testy i pomiary
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-              </button>
-
-              <button
-                type="button"
-                onPointerDown={() => {
-                  void router.preloadRoute({ to: "/reakcja" }).catch(() => undefined);
-                }}
-                onClick={() => navigate({ to: "/reakcja" })}
-                className="soft-card flex min-h-[5.25rem] w-full items-center gap-4 px-4 py-3 text-left active:scale-[0.99]"
-              >
-                <span
-                  className="icon-bubble grid h-12 w-12 shrink-0 place-items-center"
-                  aria-hidden="true"
-                >
-                  <Move className="h-5 w-5" strokeWidth={1.8} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold text-foreground">
-                    Bodźce boiskowe
-                  </span>
-                  <span className="mt-0.5 block text-sm text-muted-foreground">
-                    Kierunki i kolory
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-              </button>
-            </div>
-          </section>
-        </div>
-      </main>
+      <StartDashboard
+        name={firstName}
+        avatar={<ProfileAvatar />}
+        plan={effectivePlan}
+        completions={state.completions}
+        todayIso={todayIso}
+        checkinComplete={checkinComplete}
+        wellnessEnabled={profile.healthPersonalizationEnabled === true}
+        wellnessComplete={Boolean(state.readiness?.[todayIso])}
+        busy={savingAction}
+        checkinDetail={copy.title}
+        onCheckin={() => setCheckinOpen(true)}
+        onWellness={() => setWellnessOpen(true)}
+        onPlan={() => void navigate({ to: "/plan" })}
+        onLab={() => void navigate({ to: "/lab" })}
+        onReaction={() => void navigate({ to: "/reakcja" })}
+        onPrepareLab={() => {
+          void Promise.all([
+            router.preloadRoute({ to: "/lab" }),
+            import("@/features/browser-lab/BrowserLab"),
+          ]).catch(() => undefined);
+        }}
+        onPrepareReaction={() => {
+          void router.preloadRoute({ to: "/reakcja" }).catch(() => undefined);
+        }}
+        onPrepare={(date, slot) => {
+          void router
+            .preloadRoute({ to: "/sesja/$date", params: { date }, search: { slot } })
+            .catch(() => undefined);
+        }}
+        onOpen={(date, slot) =>
+          void navigate({ to: "/sesja/$date", params: { date }, search: { slot } })
+        }
+      />
+      <UpcomingWeekPrompt
+        onConfirmed={(week) => void navigate({ to: "/plan", search: { week } })}
+      />
       <DailyPlanCheckinDialog
         open={checkinOpen}
         onOpenChange={setCheckinOpen}

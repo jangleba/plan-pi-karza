@@ -8,6 +8,9 @@ import type { Json } from "@/integrations/supabase/types";
 import type { RefObject } from "react";
 import { selectEquipmentAwareReplacement } from "../exerciseLibrary";
 import { parseIso } from "../labels";
+import { addIsoDays } from "@/lib/isoDate";
+import { weeklyConfirmationBounds } from "../weeklyNavigation";
+import { transitionMatchesBlock } from "../confirmedCalendar";
 import { normalizeMatchDates } from "../matchSchedule";
 import { resolveEffectivePlan, resolveModifiedDay } from "../effectivePlan";
 import { gymChangeBlockReason } from "../strengthScheduling";
@@ -344,8 +347,49 @@ export function createPlanActions(
 
     // weekNumber = indeks (0-based) ODBLOKOWYWANEGO tygodnia kalendarzowego.
     // Wyznaczamy jego przedział w planie wg granic poniedziałek–niedziela.
-    const current = state.plan;
+    let current = state.plan;
     const normalizedMatchDates = noMatchNextWeek ? [] : normalizeMatchDates(nextMatchDates);
+    const bounds = weeklyConfirmationBounds(
+      current.map((day) => day.date),
+      weekNumber,
+    );
+    if (
+      normalizedMatchDates.some((date) => date < bounds.startDate || date > bounds.endDate) ||
+      (!noMatchNextWeek && !normalizedMatchDates.length)
+    )
+      throw new Error("Wybierz daty meczów w podanym tygodniu.");
+    const lastDate = current[current.length - 1].date;
+    const knownDates = normalizeMatchDates(
+      [
+        ...(profile.matchDates ?? []),
+        ...(profile.matchDate ? [profile.matchDate] : []),
+        ...current.filter((day) => day.dayType === "match").map((day) => day.date),
+        ...Object.entries(state.transitions).filter(([key, item]) => transitionMatchesBlock(state.plan, item, Number(key))).flatMap(
+          ([, item]) => item.nextMatchDates ?? (item.nextMatchDate ? [item.nextMatchDate] : []),
+        ),
+      ],
+      64,
+    ).filter((date) => date < bounds.startDate || date > bounds.endDate);
+    const dates = normalizeMatchDates([...knownDates, ...normalizedMatchDates], 64);
+    if (lastDate < bounds.endDate) {
+      const extensionDays = Math.round(
+        (Date.parse(`${bounds.endDate}T12:00:00Z`) - Date.parse(`${lastDate}T12:00:00Z`)) /
+          86_400_000,
+      );
+      if (extensionDays > 13) throw new Error("Najpierw przygotuj poprzedni tydzień.");
+      const extension = await generatePlanAsync(
+        {
+          ...profile,
+          usualMatchDay: "no_fixed_day",
+          matchDate: dates[0] ?? null,
+          matchDates: dates,
+        },
+        parseIso(addIsoDays(lastDate, 1)),
+        extensionDays,
+        Math.max(0, weekNumber - 1),
+      );
+      current = [...current, ...extension];
+    }
     let newPlan = current;
     const planStart = current[0] ? parseIso(current[0].date) : null;
     const ranges = planStart ? weekRanges(planStart, current.length) : [];
@@ -362,12 +406,12 @@ export function createPlanActions(
     if (range && current[range.start]) {
       const startIdx = range.start;
       const weekStart = parseIso(current[startIdx].date);
-      // Profil tymczasowy: tylko podana data meczu steruje taperem.
+      // Keep neighboring confirmed matches so Monday still knows about Sunday's load.
       const tempProfile: Profile = {
         ...profile,
         usualMatchDay: "no_fixed_day",
-        matchDate: normalizedMatchDates[0] ?? null,
-        matchDates: normalizedMatchDates,
+        matchDate: dates[0] ?? null,
+        matchDates: dates,
       };
       const regenDays = range.end - range.start;
       const fresh = stampPlanRevision(

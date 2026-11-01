@@ -22,6 +22,7 @@ import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPan
 import { FootballIQJourney } from "@/features/football-iq-match/FootballIQJourney";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { StartDashboard } from "@/components/loadwise/StartDashboard";
 const now = Date.now();
 const date = localDate(now);
 const tomorrow = new Date(now);
@@ -147,6 +148,31 @@ const rootRoute = createRootRoute({
   ),
 });
 const routes = [
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/start",
+    component: () => (
+      <StartDashboard
+        name="Johny"
+        avatar={<button aria-label="Profil">J</button>}
+        plan={[{ ...club, title: "Mecz", dayType: "match", sessionType: "Mecz" }]}
+        completions={{}}
+        todayIso={date}
+        checkinComplete={false}
+        checkinDetail="Zmień plan na dziś"
+        wellnessEnabled
+        wellnessComplete={false}
+        busy={false}
+        onCheckin={() => undefined}
+        onWellness={() => undefined}
+        onLab={() => undefined}
+        onReaction={() => undefined}
+        onPlan={() => void qaRouter.navigate({ to: "/plan" })}
+        onOpen={() => void qaRouter.navigate({ to: "/plan" })}
+        onPrepare={() => undefined}
+      />
+    ),
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/fuel", component: FuelView }),
   createRoute({ getParentRoute: () => rootRoute, path: "/plan", component: ClubView }),
   createRoute({
@@ -161,7 +187,13 @@ const qaRouter = createRouter({
   routeTree: rootRoute.addChildren(routes),
   history: createMemoryHistory({
     initialEntries: [
-      mode === "visual-club" ? "/plan" : mode === "visual-iq" ? "/football-iq" : "/fuel",
+      mode === "visual-start"
+        ? "/start"
+        : mode === "visual-club"
+          ? "/plan"
+          : mode === "visual-iq"
+            ? "/football-iq"
+            : "/fuel",
     ],
   }),
 });

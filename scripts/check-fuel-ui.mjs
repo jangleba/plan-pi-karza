@@ -152,8 +152,14 @@ try {
   await goto();
   const mealAction = await page.getByRole("button", { name: "Zjadłem", exact: true }).boundingBox();
   const nav = await page.locator(".bw-tab-bar").boundingBox();
-  ensure(mealAction && nav && mealAction.y + mealAction.height <= nav.y, "Main meal action needs scrolling on the compact phone view");
-  ensure(await page.locator(".fuel-time-options").count() === 0, "Known timing should not repeat the expanded chooser");
+  ensure(
+    mealAction && nav && mealAction.y + mealAction.height <= nav.y,
+    "Main meal action needs scrolling on the compact phone view",
+  );
+  ensure(
+    (await page.locator(".fuel-time-options").count()) === 0,
+    "Known timing should not repeat the expanded chooser",
+  );
   await goto("?mode=adjusted");
   await page.getByRole("button", { name: "Zjadłem", exact: true }).click();
   ensure(
@@ -216,6 +222,20 @@ try {
     (await page.evaluate(() => window.__fuelQA.allergenVerdict)) === "Sprawdź ograniczenia",
     "Declared allergen conflict ignored",
   );
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 640 });
+    await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=visual-start");
+    await page.locator(".bw-home-tools").waitFor();
+    const tools = await page.locator(".bw-home-tools").boundingBox();
+    const bottomNav = await page.locator(".bw-tab-bar").boundingBox();
+    ensure(
+      tools && bottomNav && tools.y + tools.height <= bottomNav.y,
+      "Home tools require scrolling in the compact view",
+    );
+    await snap("start-compact-" + width);
+    await page.getByRole("button", { name: /Otwórz trening/ }).click();
+    await page.locator(".bw-club-summary").waitFor();
+  }
   ensure(!errors.length, "Browser errors: " + errors.join("; "));
   for (const width of [320, 390, 480]) {
     await page.setViewportSize({ width, height: 844 });

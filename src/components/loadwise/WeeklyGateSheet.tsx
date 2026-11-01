@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/loadwise/labels";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
 
 export function WeeklyGateSheet({
   open,
@@ -26,7 +27,16 @@ export function WeeklyGateSheet({
   onConfirmed: () => void;
 }) {
   const { state, confirmWeeklyTransition } = useLoadwise();
-  const existing = state.transitions[weekNumber];
+  const candidate = state.transitions[weekNumber];
+  const existing = transitionMatchesBlock(state.plan, candidate, weekNumber)
+    ? candidate
+    : undefined;
+  const plannedMatches = state.plan
+    .filter(
+      (day) => day.dayType === "match" && day.date >= nextWeekStart && day.date <= nextWeekEnd,
+    )
+    .map((day) => day.date)
+    .join("|");
 
   const [matchDate, setMatchDate] = useState<string>("");
   const [secondMatchDate, setSecondMatchDate] = useState<string>("");
@@ -35,14 +45,17 @@ export function WeeklyGateSheet({
 
   useEffect(() => {
     if (open) {
-      setMatchDate(existing?.nextMatchDate ?? "");
+      const defaults = plannedMatches ? plannedMatches.split("|") : [];
+      setMatchDate(existing?.nextMatchDate ?? defaults[0] ?? "");
       setSecondMatchDate(
-        existing?.nextMatchDates?.find((date) => date !== existing.nextMatchDate) ?? "",
+        existing?.nextMatchDates?.find((date) => date !== existing.nextMatchDate) ??
+          defaults[1] ??
+          "",
       );
       setNoMatch(allowNoMatch && Boolean(existing?.noMatchNextWeek));
       setSaving(false);
     }
-  }, [open, existing, allowNoMatch]);
+  }, [open, existing, allowNoMatch, plannedMatches]);
 
   const canSave =
     noMatch || (matchDate !== "" && (secondMatchDate === "" || secondMatchDate > matchDate));

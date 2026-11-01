@@ -51,7 +51,6 @@
     0 18px 48px -25px oklch(0.16 0.06 255 / 0.35), 0 2px 8px oklch(0.16 0.05 255 / 0.06);
 }
 
-
 html {
   background: var(--background);
   -webkit-text-size-adjust: 100%;
@@ -349,25 +348,227 @@ a,
 }
 
 /* Compact rhythm: preserve readable text and 44px touch targets. */
-:root { --bw-nav-size: 60px; }
-.app-shell:has(> .bw-tab-bar) > .app-shell { min-height: 0; border-inline: 0; }
-.bw-tab-item { min-height: 44px; gap: 3px; }
-.bw-tab-list { padding-block: 8px; }
-.bw-page-header { padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: 10px; }
-.bw-page-header h1 { font-size: clamp(24px, 6.5vw, 28px); }
-.app-shell .soft-card.p-4 { padding: 12px; }
-.start-decision-screen { padding-top: 14px; padding-bottom: 24px; }
-.start-decision-screen > .mt-8 { margin-top: 16px; }
-.start-decision-screen .soft-card { padding: 12px 14px; }
-.bw-session-header { padding-top: 14px; }
-.bw-session-header > button { margin-bottom: 8px; min-height: 36px; }
-.bw-session-header h1 { font-size: 23px; }
-.bw-session-header .bw-session-meta { margin-top: 8px; }
-.bw-session-page > .bw-session-body { margin-top: 14px; }
-.bw-session-notice { padding: 10px 12px; }
-.bw-session-start > p { font-size: 12px; line-height: 1.4; }
-.bw-club-summary { padding: 0 12px; }
-.bw-club-summary > summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 13px; font-weight: 600; color: var(--primary); }
-.bw-club-summary[open] { padding-bottom: 12px; }
-.bw-club-summary h2 { margin: 10px 0 8px; font-size: 14px; }
-.bw-club-summary dl { margin: 8px 0; }
+:root {
+  --bw-nav-size: 60px;
+}
+.app-shell:has(> .bw-tab-bar) > .app-shell {
+  min-height: 0;
+  border-inline: 0;
+}
+.bw-tab-item {
+  min-height: 44px;
+  gap: 3px;
+}
+.bw-tab-list {
+  padding-block: 8px;
+}
+.bw-page-header {
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-bottom: 10px;
+}
+.bw-page-header h1 {
+  font-size: clamp(24px, 6.5vw, 28px);
+}
+.app-shell .soft-card.p-4 {
+  padding: 12px;
+}
+.start-decision-screen {
+  padding-top: 14px;
+  padding-bottom: 24px;
+}
+.start-decision-screen > .mt-8 {
+  margin-top: 16px;
+}
+.start-decision-screen .soft-card {
+  padding: 12px 14px;
+}
+.bw-session-header {
+  padding-top: 14px;
+}
+.bw-session-header > button {
+  margin-bottom: 8px;
+  min-height: 36px;
+}
+.bw-session-header h1 {
+  font-size: 23px;
+}
+.bw-session-header .bw-session-meta {
+  margin-top: 8px;
+}
+.bw-session-page > .bw-session-body {
+  margin-top: 14px;
+}
+.bw-session-notice {
+  padding: 10px 12px;
+}
+.bw-session-start > p {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.bw-club-summary {
+  padding: 0 12px;
+}
+.bw-club-summary > summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.bw-club-summary[open] {
+  padding-bottom: 12px;
+}
+.bw-club-summary h2 {
+  margin: 10px 0 8px;
+  font-size: 14px;
+}
+.bw-club-summary dl {
+  margin: 8px 0;
+}
+
+/* Start dashboard: every main destination within the first phone viewport. */
+.bw-home-compact {
+  padding: 14px 16px 20px;
+}
+.bw-home-compact > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.bw-home-brand {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.19em;
+}
+.bw-home-compact h1 {
+  margin-top: 4px;
+  font-size: 23px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.bw-home-compact > header > :last-child {
+  width: 44px;
+  height: 44px;
+}
+.bw-home-section-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 4px;
+}
+.bw-home-section-line h2 {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.bw-home-section-line button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--primary);
+  font-size: 12px;
+}
+.bw-home-compact .bw-today-compact {
+  padding: 14px;
+}
+.bw-today-compact h2 {
+  margin-top: 6px;
+  font-size: 21px;
+  line-height: 1.2;
+}
+.bw-today-compact > button {
+  margin-top: 12px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.bw-home-checks,
+.bw-home-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.bw-home-checks.is-single {
+  grid-template-columns: 1fr;
+}
+.bw-home-checks button,
+.bw-home-tools button {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--primary);
+  padding: 12px;
+}
+.bw-home-checks button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  text-align: left;
+}
+.bw-home-checks strong,
+.bw-home-tools strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+.bw-home-checks small,
+.bw-home-tools small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  margin-top: 3px;
+}
+.bw-home-tools button {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-height: 84px;
+  text-align: left;
+}
+.bw-home-tools small {
+  margin-top: 0;
+}
+.bw-week-nav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+.bw-week-nav > div {
+  text-align: center;
+}
+.bw-week-nav strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+}
+.bw-week-nav small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+.bw-week-nav button {
+  padding-inline: 12px;
+  min-width: 44px;
+}
+.bw-plan-screen .bw-page-header {
+  padding-bottom: 6px;
+}

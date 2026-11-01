@@ -11,12 +11,14 @@ export function TodaySessionCard({
   todayIso,
   onOpen,
   onPrepare,
+  compact = false,
 }: {
   plan: SessionDay[];
   completions: Record<string, SessionCompletion>;
   todayIso: string;
   onOpen: (date: string, slot: 1 | 2) => void;
   onPrepare?: (date: string, slot: 1 | 2) => void;
+  compact?: boolean;
 }) {
   const [, refresh] = useState(0);
   const summary = buildStartSessionSummary(plan, completions, todayIso);
@@ -62,7 +64,7 @@ export function TodaySessionCard({
 
   return (
     <section
-      className="soft-card border-primary/25 bg-primary/[0.035] px-5 py-5"
+      className={`soft-card border-primary/25 bg-primary/[0.035] px-5 py-5 ${compact ? "bw-today-compact" : ""}`}
       aria-labelledby="today-session-title"
     >
       <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-primary">
@@ -83,7 +85,9 @@ export function TodaySessionCard({
           {target.session.date !== todayIso && <span>Rozpoczęta {target.session.date}</span>}
         </div>
       )}
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      {(!compact || !target || blocked || active) && (
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      )}
       {target && (
         <Button
           type="button"

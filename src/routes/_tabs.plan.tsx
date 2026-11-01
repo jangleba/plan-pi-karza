@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { applyExerciseReplacements, useLoadwise } from "@/lib/loadwise/store";
@@ -14,17 +14,19 @@ import { resolveTodayPlanRowSource } from "@/lib/loadwise/dailyCheckin";
 import { selectEffectivePlan, selectPlanWeeks } from "@/lib/loadwise/effectivePlanSelector";
 import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
 import { AppHeader } from "@/components/loadwise/ui";
-import { LabEntry } from "@/features/browser-lab/LabEntry";
+import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
+import { currentWeekIndex, weekBounds } from "@/lib/loadwise/weeklyNavigation";
+import { addIsoDays } from "@/lib/isoDate";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SessionDay, Intensity, Goal, PlanWeek, WeekPhase } from "@/lib/loadwise/types";
 import {
   ChevronRight,
+  ChevronLeft,
   CheckCircle2,
   CalendarClock,
   Dumbbell,
-  Lock,
   ArrowRight,
   Leaf,
   Zap,
@@ -35,6 +37,12 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_tabs/plan")({
+  validateSearch: (search: Record<string, unknown>): { week?: string } => ({
+    week:
+      typeof search.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.week)
+        ? search.week
+        : undefined,
+  }),
   component: PlanScreen,
 });
 
@@ -168,6 +176,8 @@ function weekSummary(week: PlanWeek, goal: Goal) {
 }
 
 function PlanScreen() {
+  const navigate = useNavigate();
+  const requestedWeek = Route.useSearch().week;
   const { state, todayIso, todaySession, updateProfile } = useLoadwise();
   const plan = useMemo(
     () =>
@@ -191,16 +201,20 @@ function PlanScreen() {
 
   useEffect(() => {
     if (weeks.length === 0) return;
-    const autoKey = `${todayIso}:${plan[0]?.date ?? ""}:${plan.length}`;
+    const autoKey = `${todayIso}:${plan[0]?.date ?? ""}:${plan.length}:${requestedWeek ?? ""}`;
     if (autoWeekKeyRef.current === autoKey) return;
     autoWeekKeyRef.current = autoKey;
-    const todayWeekIndex = weeks.findIndex((week) =>
-      week.days.some((day) => day.date === todayIso),
-    );
+    const requestedIndex = requestedWeek
+      ? weeks.findIndex((week) => week.startDate === requestedWeek)
+      : -1;
+    const todayWeekIndex =
+      requestedIndex >= 0 && weeks[requestedIndex].endDate >= todayIso
+        ? requestedIndex
+        : currentWeekIndex(weeks, todayIso);
     if (todayWeekIndex >= 0) {
       setActiveWeek(todayWeekIndex);
     }
-  }, [weeks, todayIso, plan]);
+  }, [weeks, todayIso, plan, requestedWeek]);
 
   // Walidacja przed wyświetleniem: żaden tydzień nie może być lekki bez powodu.
   useEffect(() => {
@@ -235,10 +249,14 @@ function PlanScreen() {
 
   // Tydzień 0 zawsze dostępny. Poza sezonem — pełna swoboda. W sezonie kolejny
   // tydzień wymaga zapisanej daty meczu dla każdego wcześniejszego przejścia.
+  const todayIndex = currentWeekIndex(weeks, todayIso);
   const canAccess = (i: number) => {
+    if (i >= weeks.length) return false;
+    if (i === todayIndex) return true;
+    if (weeks[i]?.endDate < todayIso) return true;
     if (i === 0) return true;
     if (seasonStatus === "off_season") return true;
-    for (let j = 1; j <= i; j++) {
+    for (let j = Math.max(1, todayIndex + 1); j <= i; j++) {
       if (!weekHasMatchDate(j)) return false;
     }
     return true;
@@ -246,7 +264,7 @@ function PlanScreen() {
 
   // Najwcześniejszy tydzień bez daty meczu na drodze do i.
   const firstLockedUpTo = (i: number): number | null => {
-    for (let j = 1; j <= i; j++) {
+    for (let j = Math.max(1, todayIndex + 1); j <= i; j++) {
       if (!weekHasMatchDate(j)) return j;
     }
     return null;
@@ -254,6 +272,10 @@ function PlanScreen() {
 
   // Jedyna droga zmiany aktywnego tygodnia — twarda blokada w kodzie.
   const goToWeek = (i: number) => {
+    if (i === weeks.length) {
+      setGateWeek(i);
+      return;
+    }
     if (canAccess(i)) {
       setActiveWeek(i);
       return;
@@ -279,20 +301,23 @@ function PlanScreen() {
 
   // Czy istnieje kolejny tydzień po aktywnym?
   const nextIndex = activeWeek + 1;
-  const hasNext = nextIndex < weeks.length;
+  const nextBounds = weekBounds(weeks, nextIndex);
+  const hasNext =
+    nextIndex < weeks.length ||
+    Boolean(nextBounds && nextBounds.startDate <= addIsoDays(todayIso, 7));
   const nextTransition = transitions[nextIndex];
 
   // Kolejny tydzień gotowy: poza sezonem zawsze, w sezonie tylko z datą meczu.
-  const nextReady = seasonStatus === "off_season" || weekHasMatchDate(nextIndex);
 
   // Granice tygodnia wymagającego daty meczu (dla bramki i modala).
   const gateNextIndex = gateWeek ?? needMatchWeek;
-  const gateWeekData = gateNextIndex !== null ? (weeks[gateNextIndex] ?? null) : null;
+  const gateWeekData = gateNextIndex !== null ? weekBounds(weeks, gateNextIndex) : null;
 
   // Dni należące do aktywnego planu (ukryj dni przed startem planu).
   const visibleDays = (current?.days ?? []).filter((d) => !d.outsideActivePlan);
-  const planningMeta = visibleDays.find(({ source }) =>
-    source.weekMeta?.planningStatus !== "complete" && source.weekMeta?.planningNotes?.length,
+  const planningMeta = visibleDays.find(
+    ({ source }) =>
+      source.weekMeta?.planningStatus !== "complete" && source.weekMeta?.planningNotes?.length,
   )?.source.weekMeta;
   const planStartDate = visibleDays[0]?.date ?? null;
   const hasHiddenBefore =
@@ -318,9 +343,10 @@ function PlanScreen() {
   }, [activeWeek, transitions, seasonStatus]);
 
   return (
-    <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
+    <div className="bw-plan-screen pb-6">
       <AppHeader
-        title="Plan tygodnia"
+        title="Plan"
+        brand={false}
         subtitle={
           current
             ? `${formatDate(current.startDate)}–${formatDate(current.endDate)} · ${monthGoal}`
@@ -333,43 +359,41 @@ function PlanScreen() {
         }
       />
 
-      <LabEntry />
-
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
           Generujemy Twój plan… Jeśli to się utrzymuje, uzupełnij profil w onboardingu.
         </p>
       )}
 
-      {/* Przełącznik tygodni — lekki, bez konkurujących kart */}
       {weeks.length > 0 && (
-        <div className="flex gap-6 overflow-x-auto px-5 pb-2 pr-8 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {weeks.map((week, i) => {
-            const locked = !canAccess(i);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => goToWeek(i)}
-                className={`relative flex shrink-0 flex-col items-start gap-0.5 pb-2 text-sm font-medium transition-colors ${
-                  i === activeWeek
-                    ? "text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
-                    : locked
-                      ? "text-muted-foreground/60"
-                      : "text-muted-foreground"
-                }`}
-              >
-                {locked && <Lock className="h-3.5 w-3.5" />}
-                <span>Tydzień {i + 1}</span>
-                <span className="text-[11px] opacity-80">
-                  {formatDate(week.startDate)}–{formatDate(week.endDate)}
-                </span>
-              </button>
-            );
-          })}
+        <div className="bw-week-nav" aria-label="Przełączanie tygodni">
+          <Button
+            variant="outline"
+            disabled={activeWeek === 0}
+            onClick={() => goToWeek(activeWeek - 1)}
+            aria-label="Poprzedni tydzień"
+          >
+            <ChevronLeft size={17} />
+          </Button>
+          <div>
+            <strong>Tydzień {activeWeek + 1}</strong>
+            <small>
+              {current && `${formatDate(current.startDate)}–${formatDate(current.endDate)}`}
+            </small>
+          </div>
+          <Button
+            variant="outline"
+            disabled={!hasNext}
+            onClick={() => goToWeek(nextIndex)}
+            aria-label="Następny tydzień"
+          >
+            Dalej <ChevronRight size={17} />
+          </Button>
         </div>
       )}
-
+      <UpcomingWeekPrompt
+        onConfirmed={(week) => void navigate({ to: "/plan", search: { week } })}
+      />
       {/* Pasek trybu poza sezonem */}
       {seasonStatus === "off_season" && weeks.length > 0 && (
         <div className="px-5 pt-2">
@@ -400,82 +424,87 @@ function PlanScreen() {
         <details className="mx-5 mt-4 rounded-2xl border border-border bg-card px-4 py-3 text-sm">
           <summary className="cursor-pointer font-medium text-primary">
             {planningMeta.planningStatus === "health_limited"
-              ? "Plan ograniczony ze względu na zdrowie" : "Plan dopasowany do Twoich ograniczeń"}
+              ? "Plan ograniczony ze względu na zdrowie"
+              : "Plan dopasowany do Twoich ograniczeń"}
           </summary>
           <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
-            {planningMeta.planningNotes?.map(note => <li key={note}>{note}</li>)}
+            {planningMeta.planningNotes?.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
           </ul>
         </details>
       )}
-      {visibleDays.length > 0 && (
-        <div className="px-5 pt-4">
-          <div className="border-y border-border/75 py-4">
-            <div className="grid grid-cols-7 gap-1">
-              {visibleDays.map(({ source }) => {
-                const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
-                const date = parseIso(day.date);
-                const isToday = day.date === todayIso;
-                const isMatch = day.dayType === "match";
-                return (
-                  <Link
-                    key={day.date}
-                    to="/sesja/$date"
-                    params={{ date: day.date }}
-                    search={{ slot: 1 }}
-                    className={`flex min-w-0 flex-col items-center gap-2 py-1 text-center transition-opacity active:opacity-60 ${
-                      isToday ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    <span className="text-[10px] font-medium uppercase tracking-wide">
-                      {shortDayName(date)}
-                    </span>
-                    <span className="relative flex h-9 items-end">
-                      <span
-                        className={`w-1.5 rounded-full ${
-                          isMatch
-                            ? "bg-[oklch(0.58_0.055_55)]"
-                            : isToday
-                              ? "bg-primary"
-                              : "bg-[oklch(0.62_0.035_151)]"
-                        }`}
-                        style={{ height: loadBarHeight(day) }}
-                      />
-                    </span>
-                    <span className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}>
-                      {date.getDate()}
-                    </span>
-                    {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
-                  </Link>
-                );
-              })}
-            </div>
-            <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>Rytm obciążenia mikrocyklu</span>
-              <span>{summary ? LOAD_LABEL[summary.load] : null}</span>
+      <details className="bw-week-overview mx-4 mt-2 rounded-xl border border-border bg-card px-3">
+        <summary className="min-h-11 cursor-pointer content-center text-xs font-medium text-muted-foreground">
+          Obciążenie i cel tygodnia
+        </summary>
+        {visibleDays.length > 0 && (
+          <div className="px-5 pt-4">
+            <div className="border-y border-border/75 py-4">
+              <div className="grid grid-cols-7 gap-1">
+                {visibleDays.map(({ source }) => {
+                  const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+                  const date = parseIso(day.date);
+                  const isToday = day.date === todayIso;
+                  const isMatch = day.dayType === "match";
+                  return (
+                    <Link
+                      key={day.date}
+                      to="/sesja/$date"
+                      params={{ date: day.date }}
+                      search={{ slot: 1 }}
+                      className={`flex min-w-0 flex-col items-center gap-2 py-1 text-center transition-opacity active:opacity-60 ${
+                        isToday ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide">
+                        {shortDayName(date)}
+                      </span>
+                      <span className="relative flex h-9 items-end">
+                        <span
+                          className={`w-1.5 rounded-full ${
+                            isMatch
+                              ? "bg-[oklch(0.58_0.055_55)]"
+                              : isToday
+                                ? "bg-primary"
+                                : "bg-[oklch(0.62_0.035_151)]"
+                          }`}
+                          style={{ height: loadBarHeight(day) }}
+                        />
+                      </span>
+                      <span className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}>
+                        {date.getDate()}
+                      </span>
+                      {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span>Rytm obciążenia mikrocyklu</span>
+                <span>{summary ? LOAD_LABEL[summary.load] : null}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Kierunek mikrocyklu — jeden spokojny wiersz */}
-      {summary && (
-        <div className="px-5 pt-3">
-          <div className="border-b border-border/75 px-1 pb-3">
-            <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Kierunek mikrocyklu
-            </span>
-            <span className="mt-1 block truncate text-sm font-medium text-foreground">
-              {summary.goal}
-            </span>
+        {/* Kierunek mikrocyklu — jeden spokojny wiersz */}
+        {summary && (
+          <div className="px-5 pt-3">
+            <div className="border-b border-border/75 px-1 pb-3">
+              <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Kierunek mikrocyklu
+              </span>
+              <span className="mt-1 block truncate text-sm font-medium text-foreground">
+                {summary.goal}
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </details>
 
       {/* Dni tygodnia */}
-      <div
-        className="divide-y divide-border/75 px-5 pt-4"
-        style={{ paddingBottom: "calc(120px + env(safe-area-inset-bottom))" }}
-      >
+      <div className="divide-y divide-border/75 px-5 pt-4" style={{ paddingBottom: "12px" }}>
         {hasHiddenBefore && planStartDate && (
           <div className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs text-muted-foreground">
             Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego tygodnia są poza
@@ -572,7 +601,10 @@ function PlanScreen() {
       {/* Podsumowanie tygodnia + weekly gate */}
       {hasNext && current && (
         <div className="px-5 pt-5">
-          <div className="soft-card p-4">
+          <details className="soft-card p-3">
+            <summary className="min-h-11 cursor-pointer content-center text-sm">
+              Ustawienia kolejnego tygodnia
+            </summary>
             <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               {nextTransition?.nextMatchDate
@@ -584,14 +616,7 @@ function PlanScreen() {
 
             <Button
               className="mt-3 w-full"
-              onClick={() => {
-                if (!nextReady) {
-                  // Twarda blokada: brak daty meczu w sezonie -> modal.
-                  setNeedMatchWeek(nextIndex);
-                  return;
-                }
-                goToWeek(nextIndex);
-              }}
+              onClick={() => goToWeek(nextIndex)}
             >
               Przejdź do kolejnego tygodnia
               <ArrowRight className="ml-1 h-4 w-4" />
@@ -606,7 +631,7 @@ function PlanScreen() {
                 ? "Ustaw datę meczu (opcjonalnie)"
                 : "Zmień datę meczu"}
             </button>
-          </div>
+          </details>
         </div>
       )}
 
@@ -653,14 +678,12 @@ function PlanScreen() {
           nextWeekEnd={gateWeekData.endDate}
           allowNoMatch={true}
           onConfirmed={() => {
-            const target = gateWeek;
+            const target = gateWeekData.startDate;
             setGateWeek(null);
-            if (target !== null) setActiveWeek(target);
+            void navigate({ to: "/plan", search: { week: target } });
           }}
         />
       )}
-
-      <div className="h-[140px]" />
     </div>
   );
 }

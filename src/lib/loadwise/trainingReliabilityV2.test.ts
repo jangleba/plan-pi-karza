@@ -21,14 +21,20 @@ import { buildReadiness } from "./readinessModel";
 import type { LoadwiseState, Profile, Readiness } from "./types";
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), sessions: [] as Record<string, unknown>[] }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: {
-  rpc: mocks.rpc,
-  from: () => {
-    const chain = { select: () => chain, eq: () => chain, in: () => chain,
-      abortSignal: async () => ({ data: mocks.sessions, error: null }) };
-    return chain;
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    rpc: mocks.rpc,
+    from: () => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        in: () => chain,
+        abortSignal: async () => ({ data: mocks.sessions, error: null }),
+      };
+      return chain;
+    },
   },
-} }));
+}));
 vi.mock("sonner", () => ({ toast: { info: vi.fn() } }));
 vi.mock("./offlineTrainingQueue", () => ({
   isRetryableWriteError: () => false,
@@ -366,7 +372,10 @@ describe("training contracts after reliability repair", () => {
       },
       replacementInFlightRef: { current: new Set() },
     } as unknown as Parameters<typeof createPlanActions>[0]);
-    mocks.sessions = prepareMonthlyPlan("u", profile, plan).args.p_sessions as Record<string, unknown>[];
+    mocks.sessions = prepareMonthlyPlan("u", profile, plan).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
     await actions.confirmWeeklyTransition(1, [], true);
     expect(state.transitions[1]).toMatchObject({
       cycleId: "cycle",
@@ -378,6 +387,56 @@ describe("training contracts after reliability repair", () => {
     expect(
       state.plan.filter((day) => day.date >= "2026-10-26").some((day) => day.dayType === "match"),
     ).toBe(false);
+  });
+  it.each([
+    ["2026-11-01", 4, "2026-11-29", "2026-11-23"],
+    ["2026-11-02", 4, "2026-12-06", "2026-11-30"],
+  ])("confirms a full week at the horizon starting %s", async (start, index, match, weekStart) => {
+    const plan = generatePlan(profile, new Date(`${start}T12:00:00`), 28).map((day, i) => ({
+      ...day,
+      cycleId: "cycle",
+      planDbId: "plan",
+      dayDbId: `day-${i}`,
+      dbId: `session-${i}`,
+    }));
+    let state: LoadwiseState = {
+      ...initialState,
+      profile,
+      plan,
+      completions: {
+        [plan[0].dbId]: {
+          completed: true,
+          status: "completed",
+          rpe: 5,
+          notes: "history",
+          executionSnapshot: plan[0],
+        },
+      },
+    };
+    const actions = createPlanActions({
+      user: { id: "u" },
+      state,
+      todayIso: plan[27].date,
+      setState: (update: Parameters<StoreActionContext["setState"]>[0]) => {
+        state = typeof update === "function" ? update(state) : update;
+      },
+      replacementInFlightRef: { current: new Set() },
+    } as unknown as Parameters<typeof createPlanActions>[0]);
+    mocks.sessions = prepareMonthlyPlan("u", profile, plan).args.p_sessions as Record<
+      string,
+      unknown
+    >[];
+    await actions.confirmWeeklyTransition(index, [match], false);
+    expect(state.plan.at(-1)?.date).toBe(match);
+    expect(state.plan.find((day) => day.date === match)?.dayType).toBe("match");
+    expect(state.transitions[index]).toMatchObject({
+      weekStart,
+      weekEnd: match,
+      nextMatchDate: match,
+    });
+    expect(transitionMatchesBlock(state.plan, state.transitions[index], index)).toBe(true);
+    expect(state.plan[0].dbId).toBe(plan[0].dbId);
+    expect(state.plan[0].sections).toEqual(plan[0].sections);
   });
   it("keeps a non-training profile edit in one RPC without rebuilding the plan", async () => {
     const originalPlan = [strength()];

@@ -191,6 +191,39 @@ describe.sequential("Postgres plan transaction and ordering", () => {
     ]);
     expect((await db.query("select * from running_activities")).rows).toEqual([]);
   });
+  it("persists an extended 35-day horizon without losing an existing completed log", async () => {
+    const days = Array.from({ length: 35 }, (_, index) => ({
+      id: index === 0 ? dayId : crypto.randomUUID(),
+      date: new Date(Date.UTC(2026, 9, 18 + index)).toISOString().slice(0, 10),
+      day_type: "training",
+    }));
+    const sessions = days.map((day, index) => ({
+      id: index === 0 ? sessionId : crypto.randomUUID(),
+      training_day_id: day.id,
+      title: "Trening",
+    }));
+    await db.query(
+      "select persist_training_plan_v2($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::jsonb)",
+      [
+        planId(5),
+        "speed",
+        "2026-10",
+        JSON.stringify(days.map((day, i) => ({ date: day.date, dbId: sessions[i].id }))),
+        JSON.stringify(days),
+        JSON.stringify(sessions),
+        "[]",
+        planId(3),
+        "null",
+      ],
+    );
+    expect(
+      (await db.query("select count(*)::int n from training_days where plan_id=$1", [planId(5)]))
+        .rows,
+    ).toEqual([{ n: 35 }]);
+    expect(
+      (await db.query("select completed from session_logs where session_id=$1", [sessionId])).rows,
+    ).toEqual([{ completed: true }]);
+  });
   it("keeps another owner's IDs and results inaccessible under RLS", async () => {
     await db.exec(
       "select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',false)",
