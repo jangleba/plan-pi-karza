@@ -26,6 +26,14 @@ import {
   chooseAdvancedJourney,
   createAdvancedJourney,
 } from "./advancedJourney";
+import {
+  createTacticalJourney,
+  tacticalStep,
+  tacticalChoice,
+  freeTacticalChoice,
+  chooseTacticalJourney,
+} from "./tacticalJourney";
+import type { TacticalIntent, DribbleStyle, ActionTiming } from "./journeyTypes";
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
@@ -63,13 +71,17 @@ export function isJourneyDefensive(definition: JourneyDefinition) {
   return defensiveKinds.has(definition.steps[0]);
 }
 export function createJourney(definition: JourneyDefinition): JourneySession {
-  return createJourneyForRules(definition, definition.revision === 3 ? 5 : 4);
+  return createJourneyForRules(definition, definition.revision === 3 ? 6 : 4);
 }
 
 export function createJourneyForRules(
   definition: JourneyDefinition,
-  rulesVersion: 3 | 4 | 5 = 4,
+  rulesVersion: 3 | 4 | 5 | 6 = 4,
 ): JourneySession {
+  if (rulesVersion === 6) {
+    if (definition.revision !== 3) throw new Error("Niezgodna wersja zadania.");
+    return createTacticalJourney(definition);
+  }
   if (rulesVersion === 5) {
     if (definition.revision !== 3) throw new Error("Niezgodna wersja zadania.");
     return createAdvancedJourney(definition);
@@ -496,6 +508,7 @@ function movementChoices(session: JourneySession, carry: boolean): JourneyChoice
   ];
 }
 export function journeyStep(session: JourneySession): JourneyStep {
+  if (session.rulesVersion === 6) return tacticalStep(session);
   if (session.rulesVersion === 5) return advancedStep(session);
   if (session.outcome) throw new Error("Akcja została już zakończona.");
   if (session.transition === "choose") {
@@ -637,7 +650,15 @@ function worldMoved(world: JourneyWorld, id: string, to: Point): void {
 }
 // Independent-mode destinations are actual coordinates, not a nearest authored
 // answer. Canonical IDs keep drafts, replays and analysis deterministic.
-export function journeyPointChoice(session: JourneySession, location: Point): JourneyChoice {
+export function journeyPointChoice(
+  session: JourneySession,
+  location: Point,
+  intent?: TacticalIntent,
+  style?: DribbleStyle,
+  timing?: ActionTiming,
+): JourneyChoice {
+  if (session.rulesVersion === 6)
+    return freeTacticalChoice(session, location, intent, style, timing);
   if (session.rulesVersion === 5) return advancedPointChoice(session, location);
   const kind = journeyStep(session).kind;
   if (
@@ -747,6 +768,7 @@ export function journeyPointChoice(session: JourneySession, location: Point): Jo
   };
 }
 export function journeyChoice(session: JourneySession, id: string): JourneyChoice | undefined {
+  if (session.rulesVersion === 6) return tacticalChoice(session, id);
   const authored = journeyStep(session).choices.find((c) => c.id === id);
   if (authored || !id.startsWith("free:")) return authored;
   const match = /^free:([a-z]+):(\d{1,2}\.\d{2}):(\d{1,3}\.\d{2})$/.exec(id);
@@ -764,6 +786,8 @@ export function chooseJourney(
   decisionSeconds = 0,
   findAlternative = true,
 ): JourneySession {
+  if (previous.rulesVersion === 6)
+    return chooseTacticalJourney(previous, choiceId, decisionSeconds, findAlternative);
   if (previous.rulesVersion === 5)
     return chooseAdvancedJourney(previous, choiceId, decisionSeconds, findAlternative);
   if (previous.outcome) throw new Error("Nie można dopisać decyzji po końcu akcji.");
@@ -1167,6 +1191,12 @@ export function chooseJourney(
 }
 
 export function journeyVerdict(session: JourneySession): EvaluationLevel {
+  if (session.rulesVersion === 6)
+    return session.decisions.some((d) => d.quality === "error")
+      ? "risky"
+      : session.decisions.some((d) => d.quality === "possible")
+        ? "conditional"
+        : "strong";
   if (
     session.outcome === "loss" ||
     session.outcome === "blocked" ||

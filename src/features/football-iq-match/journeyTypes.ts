@@ -24,7 +24,20 @@ export type JourneyPattern =
   | "defend-air"
   | "wide-return";
 export type JourneyAction =
-  "pass" | "move" | "carry" | "cover" | "press" | "mark" | "finish" | "transition";
+  | "pass"
+  | "move"
+  | "carry"
+  | "cover"
+  | "press"
+  | "mark"
+  | "finish"
+  | "transition"
+  | "play"
+  | "wait";
+export type TacticalIntent =
+  "pass" | "carry" | "move" | "decoy" | "cover" | "press" | "mark" | "hold" | "wait" | "shoot";
+export type DribbleStyle = "direct" | "cut-left" | "cut-right" | "stop-go" | "turn-back" | "shield";
+export type ActionTiming = "now" | "delay";
 export type JourneyQuality = "good" | "possible" | "error";
 export type JourneyOutcome =
   "progress" | "retained" | "chance" | "blocked" | "loss" | "recovered" | "contained";
@@ -57,6 +70,9 @@ export type JourneyChoice = {
   quality: JourneyQuality;
   why: string;
   delivery?: BallDelivery;
+  intent?: TacticalIntent;
+  style?: DribbleStyle;
+  timing?: ActionTiming;
 };
 export type JourneyStep = {
   kind: JourneyAction;
@@ -86,6 +102,7 @@ export type JourneyBeat = {
   landingHeight?: number;
   flightDistance?: number;
   receiveAt?: Point;
+  autonomous?: { intent: TacticalIntent; reason: string; team: "home" | "away" };
 };
 export type JourneyDecision = {
   index: number;
@@ -100,10 +117,13 @@ export type JourneyDecision = {
   firstBeat: number;
   lastBeat: number;
   decisionSeconds: number;
+  actorId?: string;
 };
 export type JourneySession = {
   /** Absent in saved pre-22 engines; their replays retain the original rules. */
-  rulesVersion?: 4 | 5;
+  rulesVersion?: 4 | 5 | 6;
+  controlledId?: string;
+  finishTeam?: "home" | "away";
   definition: JourneyDefinition;
   scenario: Scenario;
   players: MatchPlayer[];

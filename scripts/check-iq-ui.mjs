@@ -17,7 +17,7 @@ const { default: tailwindcss } = await import(
 );
 const work =
   process.env.BALLWISE_IQ_UI_DIR ||
-  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-iq-ui-33");
+  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-iq-ui-34");
 await fs.mkdir(work, { recursive: true });
 await fs.writeFile(
   path.join(work, "index.html"),
@@ -112,7 +112,7 @@ try {
     );
     ensure(
       (await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-player-count")) ===
-        "12",
+        "13",
       "Missing actual players",
     );
     ensure(
@@ -204,6 +204,9 @@ try {
   );
   await page.getByRole("button", { name: "Przybliż", exact: true }).click();
   for (const [index, decision] of plan.entries()) {
+    await page
+      .getByRole("combobox", { name: "Zamiar i moment", exact: true })
+      .selectOption(decision.group);
     if (decision.delivery && (await page.locator('select[aria-label="Rodzaj podania"]').count())) {
       await page
         .getByRole("combobox", { name: "Rodzaj podania" })
@@ -216,7 +219,7 @@ try {
       (await page.locator("[data-iq-commit]").getAttribute("data-iq-commit")) !== decision.id;
       i++
     ) {
-      ensure(i < 12, "Requested choice missing from guided previews");
+      ensure(i < 16, "Requested choice missing from guided previews");
       await page.getByRole("button", { name: "Następny wariant", exact: true }).click();
     }
     if (index === 0) await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -261,6 +264,48 @@ try {
     "Takeaway is disconnected from the actual decision",
   );
   await snap("iq-analiza-momentu");
+  // Explicit takeover must be an unsaved preview until one actual choice is committed.
+  const partner = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  partner.on("pageerror", (e) => errors.push(e.message));
+  await partner.goto(base + "?fixture=partner&position=goalkeeper");
+  await partner.locator('[data-iq-renderer="ready"]').waitFor({ timeout: 45000 });
+  const actor = await partner
+    .getByRole("combobox", { name: "Sterowany zawodnik", exact: true })
+    .locator("option")
+    .last()
+    .getAttribute("value");
+  const draftBefore = await partner.evaluate(() =>
+    localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
+  );
+  await partner
+    .getByRole("combobox", { name: "Sterowany zawodnik", exact: true })
+    .selectOption(actor);
+  await partner
+    .getByRole("combobox", { name: "Zamiar i moment", exact: true })
+    .selectOption("pass:delay");
+  ensure(
+    (await partner.evaluate(() =>
+      localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
+    )) === draftBefore,
+    "Takeover preview changed the saved decisions",
+  );
+  ensure((await partner.locator("[data-iq-player]").count()) <= 3, "Takeover crowded the pitch");
+  const takeoverId = await partner.locator("[data-iq-commit]").getAttribute("data-iq-commit");
+  ensure(takeoverId.startsWith("as6:" + actor + ":"), "Takeover controls the wrong actor");
+  await partner.screenshot({ path: path.join(work, "iq-decyzja-partnera.png") });
+  views.push("iq-decyzja-partnera");
+  await partner.getByRole("button", { name: "Zagraj tak", exact: true }).click();
+  await partner.waitForFunction(() => !document.querySelector(".iqJ-transport"));
+  const partnerRecord = await partner.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft")) ??
+      JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa"))?.at(-1),
+  );
+  ensure(partnerRecord.choices.at(-1).id === takeoverId, "Takeover was not recorded for replay");
+  await partner.close();
   // Explicitly reject the model download: figures must still animate and accept a choice.
   const fallback = await browser.newPage({
     viewport: { width: 390, height: 844 },
@@ -270,7 +315,7 @@ try {
   await fallback.goto(base);
   await fallback.locator('[data-iq-renderer="fallback"]').waitFor({ timeout: 45000 });
   ensure(
-    (await fallback.locator("[data-iq-figure]").count()) === 12,
+    (await fallback.locator("[data-iq-figure]").count()) === 13,
     "Fallback lost the human figures",
   );
   ensure((await fallback.locator("[data-iq-player]").count()) <= 3, "Fallback shows every number");

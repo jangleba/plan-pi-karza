@@ -939,6 +939,44 @@
   font-size: 11px;
   color: var(--muted-foreground);
 }
+.iqL-option-nav > .iqL-intent-slot {
+  min-width: 0;
+  align-items: center;
+  flex-direction: column;
+  gap: 1px;
+}
+.iqL-intent-slot select,
+.iqT-intents select {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  min-height: 44px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--primary);
+  background: var(--card);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.iqL-intent-slot:has(select) > strong {
+  font-size: 10px;
+}
+.iqT-intents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+  margin-block: 6px;
+}
+.iqT-control {
+  min-width: 0;
+  max-width: 155px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 11px;
+}
 .iqL-option-copy {
   min-height: 56px;
 }

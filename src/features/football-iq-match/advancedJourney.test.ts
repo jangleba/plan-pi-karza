@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { advancedJourneyBank, ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
 import {
   chooseJourney,
-  createJourney,
+  createJourneyForRules,
   journeyDuration,
   journeyFrame,
   journeyStep,
@@ -11,7 +11,8 @@ import {
 } from "./journeyEngine";
 import { makeJourneyAttempt, makeJourneyDraft, restoreJourney } from "./journeyHistory";
 import { journeyDebrief, journeyDebriefText } from "./journeyDebrief";
-import type { JourneySession } from "./journeyTypes";
+import type { JourneyDefinition, JourneySession } from "./journeyTypes";
+const createJourney = (definition: JourneyDefinition) => createJourneyForRules(definition, 5);
 
 function complete(s: JourneySession): JourneySession | null {
   if (s.outcome)

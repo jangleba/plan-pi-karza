@@ -13,21 +13,32 @@ import { BottomNav } from "@/components/loadwise/BottomNav";
 import { advancedJourneyBank } from "../advancedJourneyBank";
 import { chooseJourney, createJourney, journeyChoice, journeyStep } from "../journeyEngine";
 import { deliveryLabels } from "../ballFlight";
+import { tacticalGroup } from "../tacticalJourney";
+import { makeJourneyDraft } from "../journeyHistory";
 import type { JourneySession } from "../journeyTypes";
 import "@/styles.css";
 import "@/styles/ballwise-visual-system.css";
 const query = new URLSearchParams(location.search);
+if (query.get("fixture") === "partner") {
+  const base = createJourney(advancedJourneyBank[0]);
+  const partial = chooseJourney(base, "t:pass:support:ground", 2);
+  if (partial.outcome || partial.world.carrierId === "you")
+    throw new Error("Partner QA fixture no longer provides a takeover");
+  localStorage.setItem(
+    "ballwise:iq:journeys:v1:iq-browser-qa:draft",
+    JSON.stringify(makeJourneyDraft(partial, "learn", "qa-partner")),
+  );
+}
 function complete(s: JourneySession): JourneySession | null {
-  if (s.outcome)
-    return s.step === 6 && !s.transition && !["loss", "blocked"].includes(s.outcome) ? s : null;
-  for (const c of [...journeyStep(s).choices].sort(
-    (a, b) => Number(a.quality !== "good") - Number(b.quality !== "good"),
-  )) {
-    if (c.quality === "error") continue;
-    const result = complete(chooseJourney(s, c.id, 2, false));
-    if (result) return result;
+  while (!s.outcome) {
+    const choices = journeyStep(s).choices;
+    const c =
+      choices.find((c) => c.quality === "good" && c.intent !== "shoot" && !c.timing) ??
+      choices.find((c) => c.quality === "possible") ??
+      choices[0];
+    s = chooseJourney(s, c.id, 2, false);
   }
-  return null;
+  return s;
 }
 Object.assign(window, {
   __iqQA: {
@@ -37,7 +48,11 @@ Object.assign(window, {
       let s = createJourney(definition);
       return final.decisions.map((d) => {
         const c = journeyChoice(s, d.choiceId)!;
-        const result = { id: d.choiceId, delivery: c.delivery ? deliveryLabels[c.delivery] : null };
+        const result = {
+          id: d.choiceId,
+          group: `${tacticalGroup(c)}:${c.timing ?? "now"}`,
+          delivery: c.delivery ? deliveryLabels[c.delivery] : null,
+        };
         s = chooseJourney(s, d.choiceId, 2, false);
         return result;
       });
@@ -56,7 +71,11 @@ const iq = createRoute({
   getParentRoute: () => route,
   path: "/football-iq",
   component: () => (
-    <FootballIQJourney position={query.get("position") ?? "forward"} historyOwner="iq-browser-qa" />
+    <FootballIQJourney
+      position={query.get("position") ?? "forward"}
+      historyOwner="iq-browser-qa"
+      initialScenario={query.get("fixture") === "partner" ? 0 : undefined}
+    />
   ),
 });
 const router = createRouter({

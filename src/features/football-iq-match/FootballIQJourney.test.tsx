@@ -13,6 +13,7 @@ import {
   makeJourneyAttempt,
   saveJourneyAttempt,
   saveJourneyDraft,
+  restoreJourney,
 } from "./journeyHistory";
 import type { JourneySession } from "./journeyTypes";
 const exports = vi.hoisted(() => ({ deliver: vi.fn() }));
@@ -95,6 +96,14 @@ async function changeDelivery(value: string) {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
+async function select(label: string, value: string) {
+  const input = host.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!;
+  expect(input).toBeTruthy();
+  await act(async () => {
+    input.value = value;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
 function complete(s: JourneySession): JourneySession | null {
   if (s.outcome) return s.step === 4 && !["loss", "blocked"].includes(s.outcome) ? s : null;
   for (const c of journeyStep(s).choices) {
@@ -104,6 +113,55 @@ function complete(s: JourneySession): JourneySession | null {
   return null;
 }
 describe("individual IQ screen", () => {
+  it("lets the player choose a dribble, location and timing without revealing authored destinations", async () => {
+    const s = createJourney(advancedJourneyBank[0]);
+    saveJourneyDraft("account-a", s, "learn", "free-tactical");
+    await mount("goalkeeper");
+    await clickText("Bez podpowiedzi");
+    await select("Zamiar i moment", "carry:delay");
+    await select("Sposób dryblingu", "cut-left");
+    expect(bridge.props!.actions).toEqual([]);
+    expect(bridge.props!.destinations).toEqual([]);
+    const p = { x: s.world.positions.you.x - 8.23, y: s.world.positions.you.y - 4.5 };
+    const c = journeyPointChoice(s, p, "carry", "cut-left", "delay"),
+      expected = chooseJourney(s, c.id);
+    await act(async () => bridge.props!.onPitchSelect(p));
+    expect(Object.fromEntries(bridge.props!.frameOverride!.positions)).toEqual(
+      expected.world.positions,
+    );
+    const stored = expected.outcome
+      ? loadJourneyHistory("account-a")[0]
+      : JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    expect(stored.choices[0].id).toBe(c.id);
+  });
+  it("explicitly takes over the partner for one decision and saves that actor in the replay", async () => {
+    const initial = createJourney(advancedJourneyBank[0]);
+    const pass = journeyStep(initial).choices.find((c) => c.id === "t:pass:support:ground")!;
+    const base = chooseJourney(initial, pass.id);
+    expect(base.outcome).toBeNull();
+    expect(base.world.carrierId).not.toBe("you");
+    saveJourneyDraft("account-a", base, "learn", "partner-control");
+    await mount("goalkeeper");
+    expect(bridge.props!.selectedPlayerId).toBe("you");
+    const before = localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft");
+    await select("Sterowany zawodnik", base.world.carrierId);
+    expect(bridge.props!.selectedPlayerId).toBe(base.world.carrierId);
+    expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
+    await select("Zamiar i moment", "pass:delay");
+    await changeDelivery("ground");
+    const id = host.querySelector<HTMLElement>("[data-iq-commit]")!.dataset.iqCommit!;
+    expect(id).toMatch(/^as6:/);
+    expect(bridge.props!.actions[0].playerId).toBe(base.world.carrierId);
+    await clickText("Zagraj tak");
+    expect(bridge.props!.selectedPlayerId).toBe("you");
+    const history = loadJourneyHistory("account-a");
+    const stored = history.length
+      ? history[0]
+      : JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    const replay = restoreJourney(stored);
+    expect(replay.decisions.at(-1)!.actorId).toBe(base.world.carrierId);
+    expect(replay.decisions.at(-1)!.choiceId).toBe(id);
+  });
   it("starts a different advanced action on every fresh entry even without a completed attempt", async () => {
     await act(async () =>
       root.render(<FootballIQJourney position="forward" historyOwner="fresh-owner" />),
@@ -111,7 +169,7 @@ describe("individual IQ screen", () => {
     const first = bridge.props!.scenario.id;
     expect(first).toMatch(/^iqx-/);
     expect(bridge.props!.diagram).not.toBe(true);
-    expect(bridge.props!.scenario.players).toHaveLength(12);
+    expect(bridge.props!.scenario.players).toHaveLength(13);
     await act(async () => root.unmount());
     root = createRoot(host);
     await act(async () =>

@@ -11,6 +11,7 @@ type Props = {
   onPreview: (id: string) => void;
   onCommit: () => void;
   deliveryControl?: ReactNode;
+  intentControl?: ReactNode;
 };
 export function LessonChoicePanel({
   session,
@@ -21,6 +22,7 @@ export function LessonChoicePanel({
   onPreview,
   onCommit,
   deliveryControl,
+  intentControl,
 }: Props) {
   const index = Math.max(
       0,
@@ -40,8 +42,8 @@ export function LessonChoicePanel({
         >
           <ChevronLeft size={20} />
         </button>
-        <span>
-          Podgląd wariantu{" "}
+        <span className="iqL-intent-slot">
+          {intentControl ?? "Podgląd wariantu"}{" "}
           <strong>
             {index + 1} z {choices.length}
           </strong>

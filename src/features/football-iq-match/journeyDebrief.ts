@@ -6,8 +6,17 @@ import {
   journeyStep,
 } from "./journeyEngine";
 import type { JourneyChoice, JourneyDecision, JourneySession } from "./journeyTypes";
+import { controlTacticalActor, tacticalGroup } from "./tacticalJourney";
 
 export const IQ_COACHING_SOURCES = [
+  {
+    label: "FIFA: ruch bez piłki i tworzenie przestrzeni",
+    url: "https://www.fifatrainingcentre.com/en/game/performance-analysis/football-language-analysis/movement-to-receive.php",
+  },
+  {
+    label: "FIFA: prowadzenie na obrońcę i ruch partnerów",
+    url: "https://www.fifatrainingcentre.com/en/practice/talent-coach-programme/sessions/movement-to-attack-the-space-in-behind.php",
+  },
   {
     label: "FIFA: gra na trzeciego",
     url: "https://www.fifatrainingcentre.com/en/game/game-analysis/in-possession/third-player-combinations.php",
@@ -30,8 +39,13 @@ export type JourneyDebrief = {
   comparison: string | null;
   rule: MatchRule;
   mission: string;
+  teamDecisions?: string[];
 };
-function ruleFor(session: JourneySession, decision: JourneyDecision): MatchRule {
+function ruleFor(
+  session: JourneySession,
+  decision: JourneyDecision,
+  choice?: JourneyChoice,
+): MatchRule {
   if (decision.why.toLowerCase().includes("spalon"))
     return {
       signal: "Podający podnosi głowę, a obrona wychodzi w górę.",
@@ -40,6 +54,37 @@ function ruleFor(session: JourneySession, decision: JourneyDecision): MatchRule 
       exception:
         "Jeśli podający nadal jest pod naciskiem i nie może zagrać, nie zakładaj, że piłka ruszy zgodnie z Twoim pierwszym biegiem.",
       reminder: "Zobacz podającego, potem uruchom bieg.",
+    };
+  if (session.rulesVersion === 6 && choice?.intent === "carry")
+    return {
+      signal:
+        "Obrońca skraca dystans lub przenosi ciężar ciała, a za nim pojawia się wolne wyjście.",
+      action:
+        choice.style === "shield"
+          ? "Ustaw ciało między rywalem a piłką i obserwuj drugą stronę. Osłona ma kupić czas na kolejne zagranie, a nie zastępować ocenę partnerów."
+          : "Dobierz stronę i zmianę tempa do doskoku. Po minięciu pierwszego rywala ponownie sprawdź osłonę: prowadzenie może przyciągnąć drugiego obrońcę i uwolnić partnera do podania.",
+      exception:
+        "Jeśli drugi rywal zamyka wyjście albo partner ma lepszą linię, przerwij pojedynek: odegraj, osłoń piłkę lub zawróć. Sam zwód nie tworzy jeszcze przewagi.",
+      reminder: "Miń nacisk, zobacz drugiego rywala i partnera.",
+    };
+  if (session.rulesVersion === 6 && ["decoy", "move", "wait"].includes(choice?.intent ?? ""))
+    return {
+      signal: "Partner ma piłkę, a rywal wybiera między kryciem Ciebie a zamknięciem innej linii.",
+      action:
+        "Obserwuj reakcję krycia po swoim ruchu. Jeżeli rywal idzie za Tobą, wolne miejsce może wykorzystać inny partner. Zachowaj nowy kąt i osłonę zamiast od razu wracać po piłkę.",
+      exception:
+        "Jeśli krycie nie podąża albo partner jest już pod naciskiem, skróć wsparcie lub utrzymaj szerokość. Bieg bez dostępnego kolejnego zagrania może jedynie ścisnąć przestrzeń.",
+      reminder: "Twórz opcję dla akcji, nie tylko podanie do siebie.",
+    };
+  if (session.rulesVersion === 6 && choice?.intent === "hold")
+    return {
+      signal:
+        "Linia jest chwilowo zamknięta, lecz partnerzy zmieniają pozycje i masz odstęp od nacisku.",
+      action:
+        "Przytrzymaj tylko tyle, by zobaczyć nową linię. Porównaj podanie, zmianę strony i prowadzenie po przesunięciu pierwszego obrońcy.",
+      exception:
+        "Gdy rywal skraca odstęp albo tracisz osłonę, zakończ czekanie. Wcześniej bezpieczne utrzymanie może stać się stratą.",
+      reminder: "Czekaj na zmianę, nie na zamknięcie wszystkich opcji.",
     };
   const concept =
     session.definition.concept ??
@@ -83,8 +128,16 @@ function observationAt(
   choice: JourneyChoice | undefined,
 ) {
   const before = decision.before,
-    you = before.positions.you;
+    you = before.positions[decision.actorId ?? "you"];
   const playerNumber = (id: string) => session.players.find((p) => p.id === id)?.number;
+  if (session.rulesVersion === 6 && choice?.intent === "shoot")
+    return "Wybrałeś próbę zakończenia zamiast kontynuacji akcji. Oceniaj dostępny tor i pozycję partnerów; wynik strzału nie przesądza o jakości całej decyzji.";
+  if (session.rulesVersion === 6 && choice?.intent === "carry")
+    return `${choice.label}. ${choice.why} ${choice.timing === "delay" ? "Przed działaniem rywale mieli czas na przesunięcie." : "Ruch rozpoczął się od razu."}`;
+  if (session.rulesVersion === 6 && choice?.intent === "decoy")
+    return "Twój bieg był ruchem dla dalszej gry zespołu. Sprawdź w odtworzeniu, kto poszedł za Tobą i jaką linię wybrał zawodnik z piłką; otrzymanie podania nie jest warunkiem powodzenia takiego ruchu.";
+  if (session.rulesVersion === 6 && ["hold", "wait"].includes(choice?.intent ?? ""))
+    return `Wybrałeś pozostanie w pozycji. ${decision.before.carrierId === "you" ? "Partnerzy szukali linii, a rywale mogli skrócić odstęp." : "Piłka pozostała w grze innych zawodników; Twój brak biegu również zmienił dostępne im opcje."}`;
   if (choice?.targetId) {
     const lane = journeyDeliveryLane(
       { ...session, world: before },
@@ -142,12 +195,17 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
   let before = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
   for (const d of session.decisions.slice(0, decisionIndex))
     before = chooseJourney(before, d.choiceId, d.decisionSeconds);
+  if (session.rulesVersion === 6 && decision.actorId && decision.actorId !== "you")
+    before = controlTacticalActor(before, decision.actorId);
   const choice = journeyChoice(before, decision.choiceId);
-  const candidates = journeyStep(before).choices.filter(
-    (c) =>
-      c.id !== decision.choiceId &&
-      (!choice?.delivery || !c.delivery || c.delivery === choice.delivery),
-  );
+  const candidates = journeyStep(before)
+    .choices.filter(
+      (c) =>
+        c.id !== decision.choiceId &&
+        (!choice?.delivery || !c.delivery || c.delivery === choice.delivery) &&
+        (session.rulesVersion !== 6 || !choice || tacticalGroup(c) === tacticalGroup(choice)),
+    )
+    .slice(0, session.rulesVersion === 6 ? 6 : undefined);
   const viable = candidates
     .map((c) => ({ choice: c, next: chooseJourney(before, c.id, 0, false) }))
     .filter(
@@ -162,15 +220,31 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
     : null;
   return {
     decisionIndex,
-    moment: `Decyzja ${decisionIndex + 1}: ${decision.label}`,
+    moment: `Decyzja ${decisionIndex + 1}${decision.actorId && decision.actorId !== "you" ? ` za partnera nr ${session.players.find((p) => p.id === decision.actorId)!.number}` : ""}: ${decision.label}`,
     observation: observationAt(before, decision, choice),
     consequence: decision.why,
     comparison,
-    rule: ruleFor(session, decision),
+    rule: ruleFor(session, decision, choice),
+    ...(session.rulesVersion === 6
+      ? {
+          teamDecisions: [
+            ...new Set(
+              session.beats
+                .filter((b) => b.autonomous)
+                .map((b) => {
+                  const p = session.players.find((p) => p.id === b.actorId)!;
+                  return `${p.team === "home" ? "Partner" : "Rywal"} nr ${p.number}: ${b.text}`;
+                }),
+            ),
+          ].slice(0, 4),
+        }
+      : {}),
     mission:
-      session.definition.concept === "press-cover"
-        ? "W meczu przed pierwszym doskokiem znajdź partnera osłaniającego Twoje plecy i odbiorcę w środku. Sprawdź, czy po Twoim ruchu linia do niego rzeczywiście znika."
-        : "W meczu po następnym odegraniu sprawdź reakcję najbliższego rywala i otwórz nowy kąt. Oceń, czy kolejne podanie stało się łatwiejsze — nie tylko czy sam ruszyłeś do przodu.",
+      session.rulesVersion === 6
+        ? "W następnym meczu sprawdź jedną akcję, w której pomagasz partnerowi bez otrzymania piłki, i jedną, w której po przyciągnięciu nacisku wybierasz nowe zagranie. Obserwuj reakcję rywala, nie odtwarzaj schematu na pamięć."
+        : session.definition.concept === "press-cover"
+          ? "W meczu przed pierwszym doskokiem znajdź partnera osłaniającego Twoje plecy i odbiorcę w środku. Sprawdź, czy po Twoim ruchu linia do niego rzeczywiście znika."
+          : "W meczu po następnym odegraniu sprawdź reakcję najbliższego rywala i otwórz nowy kąt. Oceń, czy kolejne podanie stało się łatwiejsze — nie tylko czy sam ruszyłeś do przodu.",
   };
 }
 export function journeyDebriefText(session: JourneySession, report: JourneyDebrief) {
@@ -182,6 +256,7 @@ export function journeyDebriefText(session: JourneySession, report: JourneyDebri
     report.observation,
     report.consequence,
     report.comparison ? `Inny wariant: ${report.comparison}` : "",
+    ...(report.teamDecisions?.length ? ["DECYZJE INNYCH ZAWODNIKÓW", ...report.teamDecisions] : []),
     "",
     "DO WYKORZYSTANIA W MECZU",
     `Sygnał: ${report.rule.signal}`,

@@ -4,6 +4,7 @@ import {
   iqScenarioBank,
 } from "./journeyBank";
 import { ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
+import { TACTICAL_BANK_VERSION } from "./tacticalWorld";
 import { chooseJourney, createJourneyForRules, journeyVerdict } from "./journeyEngine";
 import type { JourneyAttempt, JourneyMode, JourneySession } from "./journeyTypes";
 
@@ -51,19 +52,22 @@ function validBase(v: unknown): v is JourneyDraft {
     v.id.length <= 100 &&
     typeof v.scenarioId === "string" &&
     definitionById.has(v.scenarioId) &&
-    (v.bankVersion === ADVANCED_JOURNEY_BANK_VERSION) ===
+    [ADVANCED_JOURNEY_BANK_VERSION, TACTICAL_BANK_VERSION].includes(v.bankVersion) ===
       (definitionById.get(v.scenarioId)?.revision === 3) &&
     (v.bankVersion !== "2026-10-15.1" || definitionById.get(v.scenarioId)?.revision !== 2) &&
     ["learn", "challenge"].includes(String(v.mode)) &&
     Array.isArray(v.choices) &&
-    v.choices.length <= 8 &&
+    v.choices.length <= 10 &&
     v.choices.every(validChoice) &&
     v.choices.every(
       (c) =>
-        !c.id.startsWith("free:") ||
-        (["2026-10-15.3", JOURNEY_BANK_VERSION, ADVANCED_JOURNEY_BANK_VERSION].includes(
-          v.bankVersion as string,
-        ) &&
+        (!c.id.startsWith("free:") && !/^(?:as6:[a-z0-9-]+:)?free6:/.test(c.id)) ||
+        ([
+          "2026-10-15.3",
+          JOURNEY_BANK_VERSION,
+          ADVANCED_JOURNEY_BANK_VERSION,
+          TACTICAL_BANK_VERSION,
+        ].includes(v.bankVersion as string) &&
           v.mode === "challenge"),
     )
   );
@@ -85,11 +89,13 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
   if (!validBase(value)) throw new Error("Nieobsługiwana wersja zapisu akcji.");
   let session = createJourneyForRules(
     definitionById.get(value.scenarioId)!,
-    value.bankVersion === ADVANCED_JOURNEY_BANK_VERSION
-      ? 5
-      : value.bankVersion === JOURNEY_BANK_VERSION
-        ? 4
-        : 3,
+    value.bankVersion === TACTICAL_BANK_VERSION
+      ? 6
+      : value.bankVersion === ADVANCED_JOURNEY_BANK_VERSION
+        ? 5
+        : value.bankVersion === JOURNEY_BANK_VERSION
+          ? 4
+          : 3,
   );
   for (const choice of value.choices) session = chooseJourney(session, choice.id, choice.seconds);
   return session;
@@ -123,11 +129,13 @@ export function makeJourneyAttempt(
   return {
     version: 1,
     bankVersion:
-      session.rulesVersion === 5
-        ? ADVANCED_JOURNEY_BANK_VERSION
-        : session.rulesVersion === 4
-          ? JOURNEY_BANK_VERSION
-          : "2026-10-15.3",
+      session.rulesVersion === 6
+        ? TACTICAL_BANK_VERSION
+        : session.rulesVersion === 5
+          ? ADVANCED_JOURNEY_BANK_VERSION
+          : session.rulesVersion === 4
+            ? JOURNEY_BANK_VERSION
+            : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     role: session.definition.role,
@@ -220,11 +228,13 @@ export function makeJourneyDraft(
   return {
     version: 1,
     bankVersion:
-      session.rulesVersion === 5
-        ? ADVANCED_JOURNEY_BANK_VERSION
-        : session.rulesVersion === 4
-          ? JOURNEY_BANK_VERSION
-          : "2026-10-15.3",
+      session.rulesVersion === 6
+        ? TACTICAL_BANK_VERSION
+        : session.rulesVersion === 5
+          ? ADVANCED_JOURNEY_BANK_VERSION
+          : session.rulesVersion === 4
+            ? JOURNEY_BANK_VERSION
+            : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     mode,
@@ -260,7 +270,7 @@ export function createJourneyBackup(
   return {
     schema: "ballwise.iq.journey-backup.v1",
     exportedAt: new Date().toISOString(),
-    bankVersion: ADVANCED_JOURNEY_BANK_VERSION,
+    bankVersion: TACTICAL_BANK_VERSION,
     attempts: [...attempts],
     draft,
   };
