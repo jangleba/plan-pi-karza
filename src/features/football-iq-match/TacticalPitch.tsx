@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPlayback, samplePlayback } from "./playback";
 import type { TeachingMarker } from "./teaching";
@@ -8,6 +8,7 @@ import type { PlaybackFrame } from "./animation";
 const NO_ACTIONS: PlannedAction[] = [];
 
 type Props = {
+  diagram?: boolean;
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -36,6 +37,7 @@ type Props = {
   freeMovement?: boolean;
 };
 export function TacticalPitch({
+  diagram = false,
   scenario,
   actions,
   selectedPlayerId,
@@ -64,9 +66,11 @@ export function TacticalPitch({
   freeMovement = false,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const arrowId = useId().replace(/:/g, "");
   const scene = useRef<PitchScene | null>(null);
   const ballLabel = useRef<HTMLDivElement>(null);
   const fallbackBall = useRef<SVGCircleElement>(null);
+  const fallbackHeight = useRef<SVGTextElement>(null);
   const teachingLabels = useRef(new Map<string, HTMLButtonElement>());
   const highlightLabels = useRef(new Map<number, HTMLDivElement>());
   const playerLabels = useRef(new Map<string, HTMLButtonElement>());
@@ -133,6 +137,11 @@ export function TacticalPitch({
       });
       fallbackBall.current?.setAttribute("cx", String(liveFrame.ballVisual.x));
       fallbackBall.current?.setAttribute("cy", String(liveFrame.ballVisual.y));
+      if (fallbackHeight.current) {
+        fallbackHeight.current.setAttribute("x", String(liveFrame.ballVisual.x));
+        fallbackHeight.current.setAttribute("y", String(Math.max(5, liveFrame.ballVisual.y - 4)));
+        fallbackHeight.current.textContent = liveFrame.ballHeight > 0.5 ? "Piłka górą" : "";
+      }
       if (ballLabel.current) {
         ballLabel.current.style.left = `${liveFrame.ballVisual.x}%`;
         ballLabel.current.style.top = `${(liveFrame.ballVisual.y / 140) * 100}%`;
@@ -227,6 +236,11 @@ export function TacticalPitch({
   useEffect(() => {
     const element = host.current;
     if (!element) return;
+    if (diagram) {
+      setStatus("fallback");
+      latest.current.onReadyChange?.(true);
+      return;
+    }
     let cancelled = false;
     let failed = false;
     const controller = new AbortController();
@@ -270,7 +284,7 @@ export function TacticalPitch({
       scene.current = null;
       api?.dispose();
     };
-  }, [scenario.players, attempt]);
+  }, [scenario.players, attempt, diagram]);
   useEffect(() => {
     if (!(playing && frameSource)) sync();
   }, [
@@ -344,7 +358,7 @@ export function TacticalPitch({
   };
   return (
     <div
-      className={`bwiq-pitch-wrap bwiq-pitch-wrap--3d${showGuidance ? "" : " bwiq-pitch-wrap--independent"}`}
+      className={`bwiq-pitch-wrap ${diagram ? "bwiq-pitch-wrap--diagram" : "bwiq-pitch-wrap--3d"}${showGuidance ? "" : " bwiq-pitch-wrap--independent"}`}
       onClick={selectPoint}
     >
       <div className="bwiq-pitch-canvas" ref={host} />
@@ -360,7 +374,7 @@ export function TacticalPitch({
               width: "100%",
               height: "100%",
               pointerEvents: "none",
-              background: "#1b4a40",
+              background: "#295750",
             }}
           >
             <g fill="none" stroke="#c5dacb" strokeWidth="0.5">
@@ -368,6 +382,31 @@ export function TacticalPitch({
               <path d="M2 70H98M22 3V27H78V3M22 137V113H78V137" />
               <circle cx="50" cy="70" r="9" />
             </g>
+            <defs>
+              <marker
+                id={arrowId}
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="4"
+                markerHeight="4"
+                orient="auto-start-reverse"
+              >
+                <path d="M0 0 L10 5 L0 10Z" fill="#d9ecfa" />
+              </marker>
+            </defs>
+            {showGuidance &&
+              actions.map((action) => (
+                <path
+                  key={action.id}
+                  d={`M${action.from.x} ${action.from.y} L${action.to.x} ${action.to.y}`}
+                  fill="none"
+                  stroke="#d9ecfa"
+                  strokeWidth=".8"
+                  strokeDasharray={action.type === "pass" ? "2 2" : undefined}
+                  markerEnd={`url(#${arrowId})`}
+                />
+              ))}
             <circle
               ref={fallbackBall}
               cx={frame.ballVisual.x}
@@ -375,8 +414,21 @@ export function TacticalPitch({
               r="1.1"
               fill="white"
             />
+            <text
+              ref={fallbackHeight}
+              x={frame.ballVisual.x}
+              y={Math.max(5, frame.ballVisual.y - 4)}
+              textAnchor="middle"
+              fontSize="3"
+              fill="white"
+              stroke="#173e3b"
+              strokeWidth=".25"
+              paintOrder="stroke"
+            >
+              {frame.ballHeight > 0.5 ? "Piłka górą" : ""}
+            </text>
           </svg>
-          {status === "fallback" && (
+          {status === "fallback" && !diagram && (
             <div
               role="status"
               style={{

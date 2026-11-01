@@ -68,6 +68,16 @@ async function render() {
   await act(async () => root.render(<TacticalPitch {...props} />));
 }
 describe("pitch guidance boundary", () => {
+  it("renders a functional diagram without loading a 3D scene or offering a fake retry", async () => {
+    props.diagram = true;
+    await render();
+    expect(host.querySelector(".bwiq-pitch-wrap--diagram")).toBeTruthy();
+    expect(host.querySelector("svg")).toBeTruthy();
+    expect(host.textContent).not.toContain("Spróbuj boiska 3D");
+    const player = host.querySelector<HTMLButtonElement>("[data-iq-player='you']")!;
+    expect(player.style.left).toBe(`${props.frameOverride!.positions.get("you")!.x}%`);
+    expect(host.querySelector(".bwiq-destination")).toBeTruthy();
+  });
   it("renders a recorded journey frame without recomputing a second playback timeline", async () => {
     const create = vi.spyOn(playbackEngine, "createPlayback");
     const sample = vi.spyOn(playbackEngine, "samplePlayback");

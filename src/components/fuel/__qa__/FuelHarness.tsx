@@ -7,6 +7,21 @@ import { createRecipeEntry, practicalRecipes, relativeFuelTiming } from "@/lib/f
 import { evaluateStoreProduct } from "@/lib/fuel/storeCheck";
 import "@/styles/fuel-v3.css";
 import "@/styles/fuel-v4.css";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from "@tanstack/react-router";
+import { BottomNav } from "@/components/loadwise/BottomNav";
+import { SessionHeader } from "@/components/loadwise/session/SessionChrome";
+import { ClubMonitoring, CompletionPanel } from "@/components/loadwise/session/SessionCompletion";
+import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPanel";
+import { FootballIQJourney } from "@/features/football-iq-match/FootballIQJourney";
+import { sessionFixture } from "@/components/loadwise/session/testFixtures";
+import { useLoadwise } from "@/lib/loadwise/store";
 const now = Date.now();
 const date = localDate(now);
 const tomorrow = new Date(now);
@@ -22,6 +37,42 @@ const future = {
   key: localDate(tomorrow.getTime()) + ":qa-match:1",
 };
 const mode = new URLSearchParams(location.search).get("mode");
+const club = sessionFixture({
+  dbId: "qa-club",
+  title: "Trening klubowy",
+  dayType: "club",
+  sessionType: "Klub",
+  durationMin: 90,
+  date,
+});
+let visualState = {
+  profile: { healthPersonalizationEnabled: false },
+  completions: {} as Record<string, unknown>,
+};
+const subscribers = new Set<() => void>();
+Object.assign(window, {
+  __visualStore: {
+    snapshot: () => visualState,
+    subscribe: (listener: () => void) => {
+      subscribers.add(listener);
+      return () => subscribers.delete(listener);
+    },
+    startSession: async () => {
+      visualState = {
+        ...visualState,
+        completions: { ["qa-club"]: { status: "started", completed: false } },
+      };
+      subscribers.forEach((listener) => listener());
+    },
+    completeSession: async () => {
+      visualState = {
+        ...visualState,
+        completions: { ["qa-club"]: { status: "completed", completed: true } },
+      };
+      subscribers.forEach((listener) => listener());
+    },
+  },
+});
 const data = emptyFuelData();
 data.timings[context.key] = relativeFuelTiming(120, now)!;
 const recipe = practicalRecipes({ context, timing: data.timings[context.key], now, data })[0];
@@ -59,16 +110,59 @@ Object.assign(window, {
     }).label,
   },
 });
-createRoot(document.getElementById("root")!).render(
-  <div className="app-shell">
-    <header className="fuel-qa-banner">Fuel · dane kontrolne interfejsu</header>
-    <FuelWorkspace
-      userId="fuel-qa"
-      contexts={[
-        mode === "completed" ? { ...context, completed: true, endedAt: now - 60_000 } : context,
-      ]}
-      tomorrowContext={future}
-    />
-    <Toaster />
-  </div>,
-);
+function FuelView() {
+  return (
+    <>
+      <header className="fuel-qa-banner">Fuel · dane kontrolne interfejsu</header>
+      <FuelWorkspace
+        userId="fuel-qa"
+        contexts={[
+          mode === "completed" ? { ...context, completed: true, endedAt: now - 60_000 } : context,
+        ]}
+        tomorrowContext={future}
+      />
+    </>
+  );
+}
+function ClubView() {
+  const { state } = useLoadwise();
+  return (
+    <div className="bw-session-page pb-6">
+      <SessionHeader session={club} strengthRunner={false} isToday onBack={() => undefined} />
+      <div className="bw-session-body mt-5 space-y-4 px-5">
+        <SessionStartPanel session={club} canStart />
+        <ClubMonitoring session={club} />
+        {state.completions["qa-club"] && <CompletionPanel session={club} />}
+      </div>
+    </div>
+  );
+}
+const rootRoute = createRootRoute({
+  component: () => (
+    <div className="app-shell pb-28">
+      <Outlet />
+      <BottomNav />
+      <Toaster />
+    </div>
+  ),
+});
+const routes = [
+  createRoute({ getParentRoute: () => rootRoute, path: "/fuel", component: FuelView }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/plan", component: ClubView }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/football-iq",
+    component: () => (
+      <FootballIQJourney initialScenario={0} position="forward" historyOwner="visual-qa" />
+    ),
+  }),
+];
+const qaRouter = createRouter({
+  routeTree: rootRoute.addChildren(routes),
+  history: createMemoryHistory({
+    initialEntries: [
+      mode === "visual-club" ? "/plan" : mode === "visual-iq" ? "/football-iq" : "/fuel",
+    ],
+  }),
+});
+createRoot(document.getElementById("root")!).render(<RouterProvider router={qaRouter} />);

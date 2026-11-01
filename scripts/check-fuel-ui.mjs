@@ -19,12 +19,23 @@ await esbuild.build({
   platform: "browser",
   format: "iife",
   jsx: "automatic",
+  loader: { ".fbx": "file" },
   alias: { "@": path.join(root, "src") },
   define: { "process.env.NODE_ENV": '"production"', "import.meta.env": "{}" },
   plugins: [
     {
       name: "fuel-qa-adapters",
       setup(build) {
+        build.onResolve({ filter: /\/loadwise\/store$/ }, () => ({
+          path: "store",
+          namespace: "visual",
+        }));
+        build.onLoad({ filter: /.*/, namespace: "visual" }, () => ({
+          contents:
+            "import {useSyncExternalStore} from 'react';export const useLoadwise=()=>{const v=window.__visualStore;const state=useSyncExternalStore(v.subscribe,v.snapshot,v.snapshot);return {state,startSession:v.startSession,completeSession:v.completeSession};};",
+          loader: "js",
+          resolveDir: root,
+        }));
         build.onResolve(
           { filter: /(?:^|\/)(nativeReminders|deliverExportFile)(?:\.tsx?)?$/ },
           (args) => ({ path: path.basename(args.path).replace(/\.tsx?$/, ""), namespace: "qa" }),
@@ -33,7 +44,7 @@ await esbuild.build({
           contents:
             args.path === "nativeReminders"
               ? "export const nativeFuelRemindersAvailable=()=>false;export const enableFuelReminderPermission=async()=>false;"
-              : "export const deliverExportFile=async()=> 'delivered';",
+              : "export const deliverExportFile=async()=> 'delivered';export const deliverExportBlob=async()=> 'delivered';",
           loader: "js",
         }));
       },
@@ -200,6 +211,29 @@ try {
     (await page.evaluate(() => window.__fuelQA.allergenVerdict)) === "Sprawdź ograniczenia",
     "Declared allergen conflict ignored",
   );
+  ensure(!errors.length, "Browser errors: " + errors.join("; "));
+  for (const width of [320, 390, 480]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const mode of ["visual-club", "visual-iq"]) {
+      await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=" + mode);
+      await page
+        .locator(mode === "visual-club" ? ".bw-club-summary" : ".bwiq-pitch-wrap--diagram")
+        .waitFor();
+      ensure((await page.locator(".bw-tab-item").count()) === 5, "Missing shared navigation");
+      await snap(mode + "-" + width);
+      if (mode === "visual-club" && width === 390) {
+        await page.getByRole("button", { name: "Rozpocznij trening", exact: true }).click();
+        await page.getByRole("button", { name: "Oznacz jako wykonane", exact: true }).click();
+        ensure(
+          await page.evaluate(
+            () => window.__visualStore.snapshot().completions["qa-club"]?.completed === true,
+          ),
+          "Club form did not save",
+        );
+        await snap("club-zapis-wykonania");
+      }
+    }
+  }
   ensure(!errors.length, "Browser errors: " + errors.join("; "));
   await fs.writeFile(
     path.join(work, "wynik.json"),

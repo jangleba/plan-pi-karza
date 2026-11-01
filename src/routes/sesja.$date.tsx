@@ -272,18 +272,20 @@ function SessionDetail() {
 
   return (
     <div
-      className={`app-shell min-h-screen pb-[100px] ${sprintRunner ? "bw-sprint-page" : strengthRunner ? "bw-training-page" : ""}`}
+      className={`app-shell bw-session-page min-h-screen pb-[100px] ${sprintRunner ? "bw-sprint-page" : strengthRunner ? "bw-training-page" : ""}`}
     >
-      {sprintRunner ? <SprintSessionHeader session={presentedSession} onBack={goBack} /> : (
-      <SessionHeader
-        session={presentedSession}
-        strengthRunner={strengthRunner}
-        isToday={isToday}
-        onBack={goBack}
-      />
+      {sprintRunner ? (
+        <SprintSessionHeader session={presentedSession} onBack={goBack} />
+      ) : (
+        <SessionHeader
+          session={presentedSession}
+          strengthRunner={strengthRunner}
+          isToday={isToday}
+          onBack={goBack}
+        />
       )}
 
-      <div className={sprintRunner ? "bw-sprint-content" : "mt-5 space-y-3 px-5"}>
+      <div className={sprintRunner ? "bw-sprint-content" : "bw-session-body mt-5 space-y-3 px-5"}>
         {/* Sesje dnia — przełącznik gdy są dwie */}
         <SessionSlotSwitcher
           primary={primary}
@@ -294,11 +296,10 @@ function SessionDetail() {
         />
 
         {/* Krótki komunikat decyzji — max 1 zdanie */}
-        {shortNote && ((!strengthRunner && !sprintRunner) || session.loadLabelOverride || session.safetyNote) && (
-          <div className="soft-card bg-primary/5 px-4 py-3 text-sm font-medium text-foreground">
-            {shortNote}
-          </div>
-        )}
+        {shortNote &&
+          ((!strengthRunner && !sprintRunner) ||
+            session.loadLabelOverride ||
+            session.safetyNote) && <div className="bw-session-notice">{shortNote}</div>}
         {state.equipmentNotice && (
           <div className="soft-card px-4 py-3 text-sm text-muted-foreground">
             {state.equipmentNotice}
@@ -307,11 +308,12 @@ function SessionDetail() {
 
         {strengthRunner && !completed && <StrengthExperienceSetup />}
 
-        {!sprintRunner && (session.dayType === "match" ? (
-          <MatchStartPanel session={session} isToday={isToday} />
-        ) : (
-          <SessionStartPanel session={session} canStart={isToday} />
-        ))}
+        {!sprintRunner &&
+          (session.dayType === "match" ? (
+            <MatchStartPanel session={session} isToday={isToday} />
+          ) : (
+            <SessionStartPanel session={session} canStart={isToday} />
+          ))}
 
         {/* Sprint previews keep disclosure/teaching controls usable; the runner gates recording. */}
         <fieldset className="min-w-0 space-y-3" disabled={!canExecute && !sprintRunner}>
@@ -372,9 +374,22 @@ function SessionDetail() {
             </div>
           ) : isClub ? (
             <>
-              <ClubMonitoring />
+              <ClubMonitoring session={presentedSession} />
               {structured.length > 0 && (
-                <StructuredSections sections={structured} date={date} sessionId={session.dbId} />
+                <details className="soft-card px-4 py-3 text-sm">
+                  <summary className="cursor-pointer font-medium">Informacje o sesji</summary>
+                  <div className="mt-3 space-y-3 text-xs text-muted-foreground">
+                    {structured
+                      .flatMap((section) => section.blocks.flatMap((block) => block.exercises))
+                      .map((exercise) => (
+                        <p key={exercise.id}>
+                          <strong>{exercise.name}</strong>
+                          <br />
+                          {exercise.displayPrescription ?? exercise.reps ?? exercise.technique}
+                        </p>
+                      ))}
+                  </div>
+                </details>
               )}
             </>
           ) : recoveryRunner ? (
@@ -393,7 +408,9 @@ function SessionDetail() {
               session={session}
               canRecord={canExecute}
               autoStart={hasStarted && canExecute}
-              onFinish={() => { if (canExecute) setShowSprintCompletion(true); }}
+              onFinish={() => {
+                if (canExecute) setShowSprintCompletion(true);
+              }}
             />
           ) : strengthRunner ? (
             <StrengthStructuredSections
@@ -420,8 +437,16 @@ function SessionDetail() {
           )}
         </fieldset>
 
-        {sprintRunner && !hasStarted && isToday && <div className="bw-sprint-start-panel"><SessionStartPanel session={session} canStart /></div>}
-        {sprintRunner && !isToday && !canExecute && <p className="bw-sprint-preview-note">Podgląd treningu z innego dnia. Możesz oglądać wszystkie ćwiczenia.</p>}
+        {sprintRunner && !hasStarted && isToday && (
+          <div className="bw-sprint-start-panel">
+            <SessionStartPanel session={session} canStart />
+          </div>
+        )}
+        {sprintRunner && !isToday && !canExecute && (
+          <p className="bw-sprint-preview-note">
+            Podgląd treningu z innego dnia. Możesz oglądać wszystkie ćwiczenia.
+          </p>
+        )}
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
           <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">

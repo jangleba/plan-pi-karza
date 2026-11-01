@@ -799,6 +799,7 @@ export function FootballIQJourney({
       <div className="iqJ-stage">
         {booted ? (
           <TacticalPitch
+            diagram
             scenario={session.scenario}
             actions={reviewActions}
             frameOverride={frame}

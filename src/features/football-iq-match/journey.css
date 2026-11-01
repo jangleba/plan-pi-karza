@@ -576,3 +576,81 @@
     display: none;
   }
 }
+
+/* Lesson surfaces keep semantic feedback colors and all action hit areas. */
+.bwiq-app.iq-journey {
+  z-index: 40;
+  max-width: 30rem;
+  bottom: calc(68px + env(safe-area-inset-bottom));
+  height: calc(100dvh - 68px - env(safe-area-inset-bottom));
+}
+.iq-journey .iqJ-stage {
+  background: var(--background);
+}
+.iq-journey .iqJ-header {
+  padding: 10px 20px 14px;
+  background: var(--background);
+}
+.iq-journey .iqJ-title h1 {
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+.iq-journey .iqJ-modes {
+  background: var(--secondary);
+  padding: 3px;
+  border-radius: 10px;
+}
+.iq-journey .iqJ-modes button {
+  min-height: 44px;
+  border-radius: 8px;
+}
+.iq-journey .iqJ-modes [aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: none;
+}
+.bwiq-pitch-wrap--diagram {
+  inset-block: 8px;
+  margin-inline: 16px;
+  width: calc(100% - 32px);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.bwiq-pitch-wrap--diagram .bwiq-player-hit {
+  transform: translate(-50%, -50%);
+  background: transparent !important;
+  padding: 0;
+  justify-content: center;
+}
+.bwiq-pitch-wrap--diagram .bwiq-player-hit > span {
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: #f9fbfc;
+  color: #183448;
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: 0 1px 3px #10233330;
+}
+.bwiq-pitch-wrap--diagram .bwiq-player-hit--home > span {
+  background: #073f6b;
+  color: white;
+  border: 1px solid #d7e9f6;
+}
+.bwiq-pitch-wrap--diagram .bwiq-player-hit.is-selected > span {
+  outline: 2px solid #a4daf9;
+  outline-offset: 3px;
+}
+.bwiq-pitch-wrap--diagram .bwiq-player-hit small {
+  position: absolute;
+  bottom: 38px;
+  background: transparent;
+  color: white;
+}
+.bwiq-pitch-wrap--diagram .bwiq-pitch-legend {
+  background: #173e3b;
+  color: #edf5f5;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Flag } from "lucide-react";
+import { CheckCircle2, Flag, Clock3, Gauge, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -255,33 +255,39 @@ export function CompletionPanel({ session }: { session: SessionDay }) {
   );
 }
 
-export function ClubMonitoring() {
+export function ClubMonitoring({ session }: { session?: SessionDay }) {
   const { state } = useLoadwise();
-  const healthPersonalizationEnabled = state.profile?.healthPersonalizationEnabled === true;
-  const steps = healthPersonalizationEnabled
-    ? [
-        "Zrób trening z drużyną",
-        "Po treningu wpisz RPE",
-        "Opcjonalnie zaznacz ból lub zmęczenie",
-        "Opcjonalnie zapisz krótki komentarz",
-      ]
-    : ["Zrób trening z drużyną", "Po treningu wpisz RPE", "Uzupełnij czas i charakter wysiłku"];
   return (
-    <>
-      <div className="soft-card p-4">
-        <h3 className="text-sm font-semibold">Trening klubowy</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">To główne obciążenie dnia.</p>
-        <ol className="mt-3 space-y-2">
-          {steps.map((s, i) => (
-            <li key={i} className="flex items-center gap-2.5 text-sm">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
-                {i + 1}
-              </span>
-              {s}
-            </li>
-          ))}
-        </ol>
-      </div>
-    </>
+    <section className="soft-card bw-club-summary" aria-label="Podsumowanie treningu klubowego">
+      <h2>Twoja sesja</h2>
+      <p>Zrób trening zgodnie z planem drużyny. Po zakończeniu zapisz wykonanie poniżej.</p>
+      {session && (
+        <dl>
+          <div>
+            <dt>Planowany czas</dt>
+            <dd>{session.durationMin} min</dd>
+          </div>
+          <div>
+            <dt>Rodzaj</dt>
+            <dd>Trening z drużyną</dd>
+          </div>
+        </dl>
+      )}
+      <h2>Po treningu</h2>
+      <ul>
+        <li>
+          <Clock3 aria-hidden="true" /> Rzeczywisty czas trwania
+        </li>
+        <li>
+          <Gauge aria-hidden="true" /> Odczucie wysiłku · RPE
+        </li>
+        <li>
+          <NotebookPen aria-hidden="true" /> Notatka · opcjonalnie
+        </li>
+      </ul>
+      {state.profile?.healthPersonalizationEnabled === true && (
+        <p className="mt-3">Ból i zmęczenie możesz zaznaczyć w zapisie wykonania.</p>
+      )}
+    </section>
   );
 }

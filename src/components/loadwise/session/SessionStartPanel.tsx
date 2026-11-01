@@ -19,16 +19,11 @@ export function SessionStartPanel({
     return null;
   if (completion?.status === "started")
     return (
-      <p className="soft-card p-4 text-sm" role="status">
+      <p className="bw-session-preview" role="status">
         Trening rozpoczęty.
       </p>
     );
-  if (!canStart)
-    return (
-      <p className="soft-card p-4 text-sm text-muted-foreground">
-        Podgląd jednostki z innego dnia.
-      </p>
-    );
+  if (!canStart) return <p className="bw-session-preview">Podgląd jednostki z innego dnia.</p>;
   if (session.loadLabelOverride === "Wstrzymaj trening") return null;
   async function start() {
     if (starting) return;
@@ -43,7 +38,7 @@ export function SessionStartPanel({
     }
   }
   return (
-    <div className="soft-card space-y-3 p-4">
+    <div className="bw-session-start space-y-3">
       <p className="text-sm text-muted-foreground">
         Rozpocznij, gdy jesteś gotowy do wykonania tej jednostki.
       </p>

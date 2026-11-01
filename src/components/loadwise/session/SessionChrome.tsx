@@ -102,7 +102,7 @@ export function SessionHeader({
   onBack: () => void;
 }) {
   return (
-    <div className="px-5 pt-6">
+    <div className="bw-session-header px-5 pt-6">
       <button
         onClick={onBack}
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"
@@ -158,12 +158,14 @@ export function SessionHeader({
             {professionalSessionTitle(session.title)}
           </h1>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <DayTypeTag type={session.dayType} />
+          <div className="bw-session-meta mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {session.dayType !== "club" && <DayTypeTag type={session.dayType} />}
             <IntensityBadge intensity={session.intensity} label={statusBadgeLabel(session)} />
-            <span className="inline-flex items-center gap-1">
-              <Target className="h-3.5 w-3.5" /> {session.sessionType}
-            </span>
+            {session.dayType !== "club" && (
+              <span className="inline-flex items-center gap-1">
+                <Target className="h-3.5 w-3.5" /> {session.sessionType}
+              </span>
+            )}
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" /> {session.durationMin} min
             </span>

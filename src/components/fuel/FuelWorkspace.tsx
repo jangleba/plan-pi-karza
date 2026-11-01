@@ -799,8 +799,7 @@ export function FuelWorkspace({
             </button>
           </div>
           {timing.phase === "before" && (
-            <details className="fuel-time-options" open={minutes === null}>
-              <summary>Zmień czas do startu</summary>
+            <div className="fuel-time-options">
               <div className="fuel-v4-presets">
                 {FUEL_TIME_PRESETS.map((v) => (
                   <button
@@ -815,7 +814,7 @@ export function FuelWorkspace({
               <button className="fuel-v4-clock-link" onClick={() => setPanel("time")}>
                 Wpisz godzinę lub inny czas
               </button>
-            </details>
+            </div>
           )}
           {timing.phase === "before" && minutes === 0 && (
             <div className="fuel-v4-expired">
@@ -870,7 +869,10 @@ export function FuelWorkspace({
               {hero.prepMin} min{hero.noCook ? " · bez gotowania" : ""}
               {hero.portable ? " · do zabrania" : ""}
             </p>
-            <p className="fuel-reason">{dayGuide.reason}</p>
+            <details className="fuel-reason">
+              <summary>Dlaczego ten posiłek?</summary>
+              <p>{dayGuide.reason}</p>
+            </details>
             <ul className="fuel-v4-ingredients">
               {hero.lines.map((line) => (
                 <li key={line.foodId}>
