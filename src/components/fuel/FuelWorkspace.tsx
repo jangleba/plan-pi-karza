@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FuelMealSheet, type FuelMealDraft } from "./FuelMealSheet";
+import { FuelNextSteps } from "./FuelNextSteps";
+import { fuelDayGuide } from "@/lib/fuel/guidance";
 import { FuelPanels, downloadFuelFile, type FuelPanelName } from "./FuelPanels";
 import { StoreCheckSheet } from "./StoreCheckSheet";
 import { FOOD_BY_ID, findRecipe, parsePantry, type FuelRecipe } from "@/lib/fuel/catalog";
@@ -81,11 +83,13 @@ export function FuelWorkspace({
   userId,
   contexts,
   tomorrowMatch = false,
+  tomorrowContext = null,
   profileRestrictions = EMPTY_RESTRICTIONS,
 }: {
   userId: string;
   contexts: FuelContext[];
   tomorrowMatch?: boolean;
+  tomorrowContext?: FuelContext | null;
   profileRestrictions?: string[];
 }) {
   const [data, setData] = useState<FuelDeviceData>(emptyFuelData);
@@ -105,6 +109,7 @@ export function FuelWorkspace({
   const [quick, setQuick] = useState(false);
   const [pantry, setPantry] = useState<string[]>([]);
   const [draft, setDraft] = useState<FuelMealDraft | null>(null);
+  const [packingTomorrow, setPackingTomorrow] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reminders, setReminders] = useState<FuelReminderPreferences>({
     ...DEFAULT_FUEL_REMINDERS,
@@ -124,15 +129,16 @@ export function FuelWorkspace({
   const lastTap = useRef(0);
   const date = localDate(now);
   const context = useMemo(() => {
-    const selected = data.selection?.date === date ? data.selection.contextKey : undefined;
+    const selection = data.selection?.date === date ? data.selection : null;
+    const selected = selection?.contextKey;
     const planned = selected === null ? null : chooseFuelContext(contexts, selected ?? null, date);
     return (
       planned ??
       manualFuelContext(
         date,
-        data.selection?.manualKind ?? "football",
-        data.selection?.manualDurationMin ?? null,
-        data.selection?.manualLoad ?? "moderate",
+        selection?.manualKind ?? "football",
+        selection?.manualDurationMin ?? null,
+        selection?.manualLoad ?? "moderate",
       )
     );
   }, [contexts, data.selection, date]);
@@ -155,7 +161,14 @@ export function FuelWorkspace({
       }),
     [context, timing, now, data, pantry, quick, profileRestrictions],
   );
-  const hero = recipes.length ? recipes[recipeIndex % recipes.length] : null;
+  const selectedEntry = data.entries.find(
+    (e) => e.contextKey === context.key && e.status === "selected",
+  );
+  const suggestedHero = recipes.length ? recipes[recipeIndex % recipes.length] : null;
+  const hero =
+    suggestedHero && selectedEntry?.recipeId === suggestedHero.id
+      ? { ...suggestedHero, title: selectedEntry.title, lines: selectedEntry.lines }
+      : suggestedHero;
   const restrictions = useMemo(
     () => [...profileRestrictions, ...foodPreferenceTerms(data.preferences)],
     [profileRestrictions, data.preferences],
@@ -169,10 +182,32 @@ export function FuelWorkspace({
   const latest = data.entries.find(
     (e) => e.status === "eaten" && e.eatenAt !== null && localDate(e.eatenAt) === localDate(now),
   );
-  const selectedEntry = data.entries.find(
-    (e) => e.contextKey === context.key && e.status === "selected",
-  );
-  const packRecipe = selectedEntry ? null : hero;
+  const tomorrowDate = new Date(now);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const packContext = packingTomorrow
+    ? (tomorrowContext ?? manualFuelContext(localDate(tomorrowDate.getTime()), "match", 90, "high"))
+    : context;
+  const packEntry =
+    data.entries.find((e) => e.contextKey === packContext.key && e.status === "selected") ?? null;
+  const packRecipe = packEntry
+    ? null
+    : packingTomorrow
+      ? (practicalRecipes({
+          context: packContext,
+          timing: resolveFuelTiming(packContext),
+          now,
+          data: { ...data, preferences: { ...data.preferences, portable: true } },
+          restrictions: profileRestrictions,
+        })[0] ?? null)
+      : hero;
+  const nextSession =
+    contexts.find(
+      (c) =>
+        c.key !== context.key &&
+        !c.completed &&
+        (resolveFuelTiming(c, data.timings[c.key]).startsAt ?? Infinity) > (timing.startsAt ?? now),
+    ) ?? null;
+  const dayGuide = fuelDayGuide(context, timing, now, data, nextSession);
   const native = nativeFuelRemindersAvailable();
 
   useEffect(() => {
@@ -271,7 +306,15 @@ export function FuelWorkspace({
         throw new Error(
           "Kopia i historia mają razem ponad 100 wpisów. Zachowaj oba eksporty i wybierz mniejszą kopię.",
         );
-      const next = { ...incoming, entries };
+      const drinks = [
+        ...(data.drinks ?? []),
+        ...(incoming.drinks ?? []).filter(
+          (d) => !(data.drinks ?? []).some((existing) => existing.id === d.id),
+        ),
+      ];
+      if (drinks.length > 100)
+        throw new Error("Połączona historia napojów przekracza 100 wpisów. Zachowaj obie kopie.");
+      const next = { ...incoming, entries, drinks };
       if (!writeFuelData(localStorage, userId, next))
         throw new Error("Brak miejsca na zapis kopii. Oryginalny zapis pozostał bez zmian.");
       setStorageBlocked(false);
@@ -381,6 +424,21 @@ export function FuelWorkspace({
   function recordEntry(entry: FuelEntry, replaceId?: string | null) {
     const previous = replaceId ? data.entries.find((e) => e.id === replaceId) : null;
     if (
+      entry.status === "eaten" &&
+      previous?.status !== "eaten" &&
+      entry.contextKey === context.key
+    ) {
+      const before = minutesToFuelStart(timing, entry.eatenAt ?? Date.now());
+      entry = {
+        ...entry,
+        sessionKind: entry.sessionKind ?? context.kind,
+        phase: entry.phase ?? timing.phase,
+        minutesBefore: before !== null && before <= 1440 ? before : null,
+      };
+    }
+    if (entry.minutesBefore != null && entry.minutesBefore > 1440)
+      entry = { ...entry, minutesBefore: null };
+    if (
       !previous &&
       !data.entries.some((existing) => existing.id === entry.id) &&
       data.entries.length >= 100
@@ -413,7 +471,7 @@ export function FuelWorkspace({
       );
     }
   }
-  function quickSave(recipe: FuelRecipe, status: FuelEntry["status"]) {
+  function quickSave(recipe: FuelRecipe, status: FuelEntry["status"], targetContext = context) {
     if (!fuelEntryAllowed({ lines: recipe.lines }, data.preferences, restrictions)) {
       toast.info("Ten zestaw koliduje z aktualnymi ograniczeniami. Wybierz zamiennik.");
       return;
@@ -422,26 +480,40 @@ export function FuelWorkspace({
     if (at - lastTap.current < 700) return;
     lastTap.current = at;
     const existing = data.entries.find(
-      (e) => e.contextKey === context.key && e.recipeId === recipe.id && e.status === "selected",
+      (e) =>
+        e.contextKey === targetContext.key && e.recipeId === recipe.id && e.status === "selected",
     );
     const entry = createRecipeEntry(
       recipe,
-      context.key,
+      targetContext.key,
       status,
       at,
       existing?.id ?? crypto.randomUUID(),
     );
-    if (existing) entry.createdAt = existing.createdAt;
-    recordEntry(entry, existing?.id);
+    const exact = existing
+      ? { ...existing, status, eatenAt: status === "eaten" ? at : null }
+      : entry;
+    exact.sessionKind = targetContext.kind;
+    exact.phase = status === "eaten" ? timing.phase : exact.phase;
+    exact.minutesBefore = status === "eaten" ? minutesToFuelStart(timing, at) : exact.minutesBefore;
+    if (!fuelEntryAllowed(exact, data.preferences, restrictions)) {
+      toast.info("Zapisany zestaw koliduje z aktualnymi ograniczeniami. Popraw go przed wyborem.");
+      return;
+    }
+    recordEntry(exact, existing?.id);
     if (status === "selected") setPanel(null);
   }
-  function openRecipe(recipe: FuelRecipe) {
-    setEditingId(null);
+  function openRecipe(recipe: FuelRecipe, initialSwapFoodId?: string) {
+    const selected = data.entries.find(
+      (e) => e.contextKey === context.key && e.recipeId === recipe.id && e.status === "selected",
+    );
+    setEditingId(selected?.id ?? null);
     setDraft({
       id: recipe.id,
       title: recipe.title,
-      lines: recipe.lines.map((l) => ({ ...l })),
+      lines: (selected?.lines ?? recipe.lines).map((l) => ({ ...l })),
       recipe,
+      initialSwapFoodId,
     });
     setPanel(null);
   }
@@ -457,9 +529,12 @@ export function FuelWorkspace({
         contextKey: existing?.contextKey ?? context.key,
         status: eaten ? "eaten" : "selected",
         createdAt: existing?.createdAt ?? at,
-        eatenAt: eaten ? (existing?.eatenAt ?? at) : null,
+        eatenAt: eaten ? (meal.eatenAt ?? existing?.eatenAt ?? at) : null,
         fraction: eaten ? fraction : 1,
         feedback: null,
+        sessionKind: existing?.sessionKind ?? context.kind,
+        phase: eaten ? timing.phase : undefined,
+        minutesBefore: eaten ? minutesToFuelStart(timing, meal.eatenAt ?? at) : undefined,
       },
       editingId,
     );
@@ -653,7 +728,13 @@ export function FuelWorkspace({
       <header className="fuel-v4-header">
         <div>
           <h1>Fuel</h1>
-          <span>{context.fromPlan ? context.title : "Jedzenie do Twojego treningu"}</span>
+          <span>
+            {timing.phase === "ordinary"
+              ? "Zwykły posiłek"
+              : context.fromPlan
+                ? context.title
+                : "Jedzenie do Twojego treningu"}
+          </span>
         </div>
         <button
           className="fuel-icon-button"
@@ -702,7 +783,13 @@ export function FuelWorkspace({
             <div className="fuel-v4-time-value">
               <Clock3 size={21} />
               <div>
-                <span>{timing.phase === "before" ? "Do treningu" : "Twój moment"}</span>
+                <span>
+                  {timing.phase === "before"
+                    ? context.kind === "match"
+                      ? "Do meczu"
+                      : "Do treningu"
+                    : "Twój moment"}
+                </span>
                 <strong className="tabular-nums">{timingTitle}</strong>
               </div>
             </div>
@@ -711,7 +798,8 @@ export function FuelWorkspace({
             </button>
           </div>
           {timing.phase === "before" && (
-            <>
+            <details className="fuel-time-options" open={minutes === null}>
+              <summary>Zmień czas do startu</summary>
               <div className="fuel-v4-presets">
                 {FUEL_TIME_PRESETS.map((v) => (
                   <button
@@ -726,7 +814,7 @@ export function FuelWorkspace({
               <button className="fuel-v4-clock-link" onClick={() => setPanel("time")}>
                 Wpisz godzinę lub inny czas
               </button>
-            </>
+            </details>
           )}
           {timing.phase === "before" && minutes === 0 && (
             <div className="fuel-v4-expired">
@@ -738,7 +826,13 @@ export function FuelWorkspace({
           )}
         </section>
         <div className="fuel-row fuel-v4-section-title">
-          <h2>{timing.phase === "after" ? "Co zjeść po treningu" : "Co zjeść teraz"}</h2>
+          <h2>
+            {timing.phase === "after"
+              ? "Co zjeść po sesji"
+              : timing.phase === "training"
+                ? "W przerwie wysiłku"
+                : "Co zjeść teraz"}
+          </h2>
           {(quick || pantry.length > 0) && (
             <button
               className="fuel-text-button"
@@ -775,6 +869,7 @@ export function FuelWorkspace({
               {hero.prepMin} min{hero.noCook ? " · bez gotowania" : ""}
               {hero.portable ? " · do zabrania" : ""}
             </p>
+            <p className="fuel-reason">{dayGuide.reason}</p>
             <ul className="fuel-v4-ingredients">
               {hero.lines.map((line) => (
                 <li key={line.foodId}>
@@ -786,7 +881,7 @@ export function FuelWorkspace({
                   <button
                     className="fuel-v4-ingredient-change"
                     aria-label={`Zmień ${FOOD_BY_ID[line.foodId].label}`}
-                    onClick={() => openRecipe(hero)}
+                    onClick={() => openRecipe(hero, line.foodId)}
                   >
                     <RefreshCw size={15} />
                   </button>
@@ -847,6 +942,41 @@ export function FuelWorkspace({
             <span>Mam swoje jedzenie</span>
           </button>
         </div>
+        <FuelNextSteps
+          context={context}
+          timing={timing}
+          now={now}
+          data={data}
+          nextSession={nextSession}
+          onOwn={() => {
+            setText("");
+            setPanel("own");
+          }}
+          onHistory={() => setPanel("history")}
+          onPack={() => {
+            setPackingTomorrow(false);
+            setPanel("pack");
+          }}
+          onDrink={(ml, kind) => {
+            if ((data.drinks ?? []).length >= 100) {
+              toast.info("Historia napojów ma 100 wpisów. Pobierz kopię i usuń starsze wpisy.");
+              return;
+            }
+            const id = crypto.randomUUID();
+            setData((d) => ({
+              ...d,
+              drinks: [
+                { id, contextKey: context.key, at: Date.now(), ml, kind },
+                ...(d.drinks ?? []),
+              ],
+            }));
+            pendingSaveFeedback.current = {
+              message: "Zapisano wypity napój.",
+              undo: () =>
+                setData((d) => ({ ...d, drinks: (d.drinks ?? []).filter((row) => row.id !== id) })),
+            };
+          }}
+        />
         <div className="fuel-v4-reminder">
           <button onClick={() => setPanel("reminders")}>
             <Bell size={19} />
@@ -870,7 +1000,13 @@ export function FuelWorkspace({
           )}
         </div>
         {selectedEntry && (
-          <button className="fuel-v4-next" onClick={() => setPanel("pack")}>
+          <button
+            className="fuel-v4-next"
+            onClick={() => {
+              setPackingTomorrow(false);
+              setPanel("pack");
+            }}
+          >
             <PackageCheck size={19} />
             <div>
               <strong>Na później</strong>
@@ -879,8 +1015,14 @@ export function FuelWorkspace({
             <ChevronRight size={17} />
           </button>
         )}
-        {tomorrowMatch && (
-          <button className="fuel-v4-next" onClick={() => setPanel("pack")}>
+        {(tomorrowMatch || tomorrowContext) && (
+          <button
+            className="fuel-v4-next"
+            onClick={() => {
+              setPackingTomorrow(true);
+              setPanel("pack");
+            }}
+          >
             <PackageCheck size={19} />
             <div>
               <strong>Jutro mecz</strong>
@@ -929,7 +1071,14 @@ export function FuelWorkspace({
         hero={hero}
         recipes={recipes}
         packRecipe={packRecipe}
-        packEntry={selectedEntry ?? null}
+        packEntry={packEntry}
+        packContext={packContext}
+        onPackSave={() => {
+          if (packEntry) {
+            recordEntry(packEntry, packEntry.id);
+            setPanel(null);
+          } else if (packRecipe) quickSave(packRecipe, "selected", packContext);
+        }}
         restrictions={restrictions}
         onImportBackup={importBackup}
         text={text}
@@ -958,6 +1107,7 @@ export function FuelWorkspace({
             edited: true,
             recipe: findRecipe(entry.recipeId),
             fraction: entry.fraction,
+            eatenAt: entry.eatenAt ?? undefined,
           });
           setPanel(null);
         }}

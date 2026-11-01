@@ -326,7 +326,11 @@ export function StoreCheckSheet({
                 <div className="fuel-action-grid mt-3">
                   <button
                     className="fuel-secondary"
-                    disabled={!portionConfirmed || !validPortion}
+                    disabled={
+                      !portionConfirmed ||
+                      !validPortion ||
+                      evaluation.label === "Sprawdź ograniczenia"
+                    }
                     onClick={() => onLog(product, portion, unit, false)}
                   >
                     Wybieram na później

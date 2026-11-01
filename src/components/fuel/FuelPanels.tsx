@@ -53,6 +53,8 @@ interface Props {
   hero: FuelRecipe | null;
   packRecipe: FuelRecipe | null;
   packEntry: FuelEntry | null;
+  packContext: FuelContext;
+  onPackSave(): void;
   restrictions: string[];
   onImportBackup(input: unknown): void;
   recipes: FuelRecipe[];
@@ -511,6 +513,9 @@ export function FuelPanels(p: Props) {
           )}
           {p.panel === "pack" && (
             <>
+              <p className="fuel-note">
+                {p.packContext.date} · {p.packContext.title}
+              </p>
               {pack ? (
                 <>
                   <h3>{pack.title}</h3>
@@ -554,12 +559,7 @@ export function FuelPanels(p: Props) {
                   <button
                     className="fuel-primary mt-4"
                     disabled={!packAllowed}
-                    onClick={() => {
-                      if (p.packEntry) {
-                        p.recordEntry({ ...p.packEntry, status: "selected" }, p.packEntry.id);
-                        p.setPanel(null);
-                      } else if (p.packRecipe) p.quickSave(p.packRecipe, "selected");
-                    }}
+                    onClick={p.onPackSave}
                   >
                     {p.packEntry ? "Zachowaj wybrany zestaw" : "Zapisz zestaw na później"}
                   </button>
@@ -605,6 +605,38 @@ export function FuelPanels(p: Props) {
                       })}
                     </p>
                     <div className="fuel-v4-panel-presets">
+                      {entry.status === "eaten" && (
+                        <div
+                          className="fuel-tolerance"
+                          role="group"
+                          aria-label={`Tolerancja: ${entry.title}`}
+                        >
+                          <span>Jak po tym zestawie?</span>
+                          {(
+                            [
+                              ["comfortable", "Było lekko"],
+                              ["heavy", "Było ciężko"],
+                              [null, "Nie oceniam"],
+                            ] as const
+                          ).map(([feedback, label]) => (
+                            <button
+                              key={label}
+                              className="fuel-chip-button"
+                              aria-pressed={entry.feedback === feedback}
+                              onClick={() =>
+                                p.setData((d) => ({
+                                  ...d,
+                                  entries: d.entries.map((e) =>
+                                    e.id === entry.id ? { ...e, feedback } : e,
+                                  ),
+                                }))
+                              }
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {entry.status === "selected" && (
                         <button
                           className="fuel-chip-button"
@@ -642,6 +674,35 @@ export function FuelPanels(p: Props) {
               >
                 Eksportuj historię
               </button>
+              {(p.data.drinks ?? []).length > 0 && (
+                <details className="mt-4">
+                  <summary>Napoje · {(p.data.drinks ?? []).length} wpisów</summary>
+                  {(p.data.drinks ?? []).map((drink) => (
+                    <div className="fuel-drink-history" key={drink.id}>
+                      <span>
+                        {drink.kind === "water" ? "Woda" : "Napój sportowy"} · {drink.ml} ml ·{" "}
+                        {new Date(drink.at).toLocaleString("pl-PL", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <button
+                        aria-label={`Usuń napój ${drink.ml} ml`}
+                        onClick={() =>
+                          p.setData((d) => ({
+                            ...d,
+                            drinks: (d.drinks ?? []).filter((row) => row.id !== drink.id),
+                          }))
+                        }
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </details>
+              )}
               <p className="fuel-note mt-3">
                 Fuel zachowuje do 100 wpisów z ostatnich 30 dni. Kopia obejmuje też preferencje i
                 dokładne porcje.
@@ -672,12 +733,17 @@ export function FuelPanels(p: Props) {
                 className="fuel-text-button mt-4"
                 onClick={() => {
                   const previous = p.data.entries;
-                  p.setData((d) => ({ ...d, entries: [] }));
+                  const previousDrinks = p.data.drinks ?? [];
+                  p.setData((d) => ({ ...d, entries: [], drinks: [] }));
                   toast.success("Wyczyszczono historię.", {
                     action: {
                       label: "Cofnij",
                       onClick: () =>
-                        p.setData((d) => ({ ...d, entries: [...previous, ...d.entries] })),
+                        p.setData((d) => ({
+                          ...d,
+                          entries: [...previous, ...d.entries],
+                          drinks: [...previousDrinks, ...(d.drinks ?? [])],
+                        })),
                     },
                   });
                 }}

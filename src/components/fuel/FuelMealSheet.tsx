@@ -23,6 +23,8 @@ export interface FuelMealDraft {
   fraction?: number;
   edited?: boolean;
   repeated?: boolean;
+  initialSwapFoodId?: string;
+  eatenAt?: number;
 }
 export function FuelMealSheet({
   draft,
@@ -54,22 +56,31 @@ export function FuelMealSheet({
   const [lastSwap, setLastSwap] = useState("");
   const [portionScale, setPortionScale] = useState(1);
   const [gramsDrafts, setGramsDrafts] = useState<Record<number, string>>({});
+  const [eatenClock, setEatenClock] = useState("");
   useEffect(() => {
     setLines(draft?.lines.map((l) => ({ ...l })) ?? []);
     setConfirmed(!draft?.own);
     setFraction(draft?.fraction ?? 1);
-    setSwapping(null);
+    const swapIndex =
+      draft?.lines.findIndex((line) => line.foodId === draft.initialSwapFoodId) ?? -1;
+    setSwapping(swapIndex >= 0 ? swapIndex : null);
     setAdding(false);
     setShowSteps(false);
     setLastSwap("");
     setPortionScale(1);
     setGramsDrafts({});
+    const at = draft?.eatenAt ?? Date.now();
+    const date = new Date(at);
+    setEatenClock(new Date(at - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16));
   }, [draft]);
   if (!draft) return null;
   const validAmounts = Object.values(gramsDrafts).every(
     (raw) =>
       raw.trim() !== "" && Number.isFinite(Number(raw)) && Number(raw) >= 1 && Number(raw) <= 2000,
   );
+  const eatenAt = new Date(eatenClock).getTime();
+  const validTime =
+    Number.isFinite(eatenAt) && eatenAt <= Date.now() && eatenAt >= Date.now() - 30 * 86_400_000;
   const nutrition = mealNutrition(lines);
   const assessment = assessMeal(lines, context, timing, now);
   const safe =
@@ -413,13 +424,27 @@ export function FuelMealSheet({
               </button>
               <button
                 className="fuel-primary"
-                disabled={!safe || !confirmed}
-                onClick={() => onSave(draft, lines, true, fraction)}
+                disabled={!safe || !confirmed || !validTime}
+                onClick={() => onSave({ ...draft, eatenAt }, lines, true, fraction)}
               >
                 <Check size={15} />
                 Zjedzone
               </button>
             </div>
+            <label className="fuel-label mt-3">
+              Kiedy zjadłeś?
+              <input
+                className="fuel-input"
+                type="datetime-local"
+                value={eatenClock}
+                onChange={(e) => setEatenClock(e.target.value)}
+              />
+            </label>
+            {!validTime && (
+              <p role="alert" className="fuel-note">
+                Wybierz rzeczywistą godzinę z ostatnich 30 dni, nie z przyszłości.
+              </p>
+            )}
             <label className="fuel-label mt-3">
               Ile zjadłeś?
               <select

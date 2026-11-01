@@ -40,15 +40,16 @@ function FuelScreen() {
   const tomorrow = new Date(`${todayIso}T12:00:00`);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowIso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
-  const tomorrowMatch = effectivePlan.some(
-    (s) => s.date === tomorrowIso && s.dayType === "match" && !s.isUnavailable,
-  );
+  const tomorrowContext =
+    planFuelContexts(effectivePlan, tomorrowIso, state.completions).find(
+      (c) => c.kind === "match",
+    ) ?? null;
   return (
     <FuelWorkspace
       key={user?.id ?? "guest"}
       userId={user?.id ?? "guest"}
       contexts={contexts}
-      tomorrowMatch={tomorrowMatch}
+      tomorrowContext={tomorrowContext}
       profileRestrictions={foodRestrictionTerms(state.profile)}
     />
   );

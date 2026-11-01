@@ -49,6 +49,11 @@ export interface FuelEntry {
   eatenAt: number | null;
   fraction: number;
   feedback: "comfortable" | "heavy" | null;
+  /** Optional context of a new entry. Old backups remain readable. */
+  sessionKind?: SessionKind;
+  minutesBefore?: number | null;
+  phase?: FuelPhase;
+  note?: string;
   product?: { value: StoreProduct; portion: number; unit: "g" | "ml" };
 }
 export interface FuelDeviceData {
@@ -57,6 +62,14 @@ export interface FuelDeviceData {
   timings: Record<string, FuelTiming>;
   entries: FuelEntry[];
   selection: FuelSelection | null;
+  drinks?: FuelDrink[];
+}
+export interface FuelDrink {
+  id: string;
+  contextKey: string;
+  at: number;
+  ml: number;
+  kind: "water" | "sports";
 }
 export interface FuelSelection {
   date: string;
@@ -91,6 +104,7 @@ export function emptyFuelData(): FuelDeviceData {
     timings: {},
     entries: [],
     selection: null,
+    drinks: [],
   };
 }
 export function manualFuelContext(
@@ -147,6 +161,7 @@ export function planFuelContexts(
     });
 }
 export function resolveFuelTiming(context: FuelContext, saved?: FuelTiming): FuelTiming {
+  if (saved?.phase === "ordinary") return saved;
   if (context.completed)
     return {
       startsAt: saved?.startsAt ?? null,
@@ -289,6 +304,18 @@ function isEntry(value: unknown): value is FuelEntry {
     value.fraction > 0 &&
     value.fraction <= 1 &&
     [null, "comfortable", "heavy"].includes(value.feedback as null | string) &&
+    (value.sessionKind === undefined ||
+      (typeof value.sessionKind === "string" &&
+        Object.hasOwn(SESSION_LABELS, value.sessionKind))) &&
+    (value.phase === undefined ||
+      ["before", "training", "after", "ordinary"].includes(String(value.phase))) &&
+    (value.minutesBefore === undefined ||
+      value.minutesBefore === null ||
+      (typeof value.minutesBefore === "number" &&
+        Number.isFinite(value.minutesBefore) &&
+        value.minutesBefore >= 0 &&
+        value.minutesBefore <= 1440)) &&
+    (value.note === undefined || (typeof value.note === "string" && value.note.length <= 280)) &&
     (value.product === undefined || isProductEntry(value.product)) &&
     Array.isArray(value.lines) &&
     (value.lines.length > 0 || isProductEntry(value.product)) &&
@@ -352,6 +379,20 @@ export class CorruptFuelDataError extends Error {
     this.name = "CorruptFuelDataError";
   }
 }
+function isDrink(value: unknown): value is FuelDrink {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.contextKey === "string" &&
+    typeof value.at === "number" &&
+    Number.isFinite(value.at) &&
+    typeof value.ml === "number" &&
+    Number.isFinite(value.ml) &&
+    value.ml >= 1 &&
+    value.ml <= 2000 &&
+    (value.kind === "water" || value.kind === "sports")
+  );
+}
 export function readFuelData(
   storage: Pick<Storage, "getItem">,
   userId: string,
@@ -368,6 +409,8 @@ export function readFuelData(
       !isRecord(raw.preferences) ||
       !isRecord(raw.timings) ||
       !Array.isArray(raw.entries) ||
+      (raw.drinks !== undefined &&
+        (!Array.isArray(raw.drinks) || raw.drinks.length > 100 || !raw.drinks.every(isDrink))) ||
       raw.entries.length > 100 ||
       !raw.entries.every(isEntry)
     )
@@ -388,6 +431,11 @@ export function readFuelData(
       version: 3,
       timings: timings as Record<string, FuelTiming>,
       selection: isSelection(raw.selection, localDate(now)) ? raw.selection : null,
+      drinks: Array.isArray(raw.drinks)
+        ? raw.drinks
+            .filter(isDrink)
+            .filter((d) => d.at >= now - 30 * 86_400_000 && d.at <= now + 60_000)
+        : [],
       preferences: {
         detailed: p.detailed === true,
         diet: p.diet === "vegan" || p.diet === "vegetarian" ? p.diet : "all",
@@ -420,6 +468,10 @@ export function writeFuelData(
     const today = localDate(now);
     const retained: FuelDeviceData = {
       ...data,
+      drinks: (data.drinks ?? [])
+        .filter(isDrink)
+        .filter((d) => d.at >= now - 30 * 86_400_000 && d.at <= now + 60_000)
+        .slice(0, 100),
       selection: isSelection(data.selection, today) ? data.selection : null,
       timings: Object.fromEntries(
         Object.entries(data.timings)

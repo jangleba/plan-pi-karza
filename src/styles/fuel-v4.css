@@ -6,6 +6,122 @@
   --fuel-muted: var(--muted-foreground);
   --fuel-border: var(--border);
 }
+.fuel-time-options summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--fuel-accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+.fuel-time-options[open] summary {
+  margin-top: 8px;
+}
+.fuel-reason {
+  color: var(--fuel-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+.fuel-next-steps {
+  border: 1px solid var(--fuel-border);
+  border-radius: 22px;
+  background: var(--card);
+  padding: 4px 16px;
+}
+.fuel-next-steps details + details,
+.fuel-recent-meal {
+  border-top: 1px solid var(--fuel-border);
+}
+.fuel-next-steps summary {
+  min-height: 52px;
+  align-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fuel-accent);
+  font-weight: 600;
+}
+.fuel-next-steps ol {
+  padding: 0;
+  list-style: none;
+  margin: 4px 0 14px;
+  display: grid;
+  gap: 12px;
+}
+.fuel-next-steps li {
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+}
+.fuel-next-steps li span,
+.fuel-recent-meal p {
+  color: var(--fuel-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.fuel-recent-meal {
+  padding: 14px 0;
+}
+.fuel-recent-meal strong {
+  font-size: 13px;
+}
+.fuel-recent-meal button {
+  min-height: 44px;
+  margin-right: 12px;
+}
+.fuel-drink-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-bottom: 14px;
+}
+.fuel-drink-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  min-width: 0;
+}
+.fuel-drink-form input,
+.fuel-drink-form select {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--fuel-border);
+  border-radius: 12px;
+  padding: 8px;
+  font-size: 16px;
+  background: var(--card);
+}
+.fuel-drink-form button {
+  grid-column: 1/-1;
+}
+.fuel-tolerance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+}
+.fuel-tolerance span {
+  flex-basis: 100%;
+  font-size: 13px;
+}
+.fuel-tolerance button {
+  min-height: 44px;
+}
+.fuel-drink-history {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 8px 0;
+}
+.fuel-drink-history button {
+  min-height: 44px;
+  min-width: 44px;
+  display: grid;
+  place-items: center;
+}
 .fuel-v4 {
   max-width: 540px;
   margin: 0 auto;
@@ -82,7 +198,7 @@
   gap: 3px;
 }
 .fuel-v4-presets button {
-  min-height: 39px;
+  min-height: 44px;
   border-radius: 12px;
   font-size: 13px;
   transition:

@@ -690,7 +690,9 @@ export function suggestRecipes(input: {
 }): FuelRecipe[] {
   const { preferences: p, pantry = [], restrictions } = input;
   const minutes = minutesToFuelStart(input.timing, input.now);
-  const close = minutes !== null && minutes <= 60 && input.timing.phase === "before";
+  const close =
+    input.timing.phase === "training" ||
+    (minutes !== null && minutes <= 60 && input.timing.phase === "before");
   return RECIPES.filter(
     (r) =>
       !p.hidden.includes(r.id) &&

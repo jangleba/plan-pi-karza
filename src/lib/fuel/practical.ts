@@ -16,6 +16,7 @@ import {
   type FuelTiming,
   type MealLine,
 } from "./experience";
+import { foodToleranceIds, sessionRecipeScore } from "./guidance";
 
 export const FUEL_TIME_PRESETS = [30, 60, 120, 180] as const;
 
@@ -73,6 +74,12 @@ export function practicalRecipes(input: {
   restrictions?: string[];
 }): FuelRecipe[] {
   const p = input.data.preferences;
+  const heavyRecipeIds = foodToleranceIds(
+    input.data.entries,
+    input.timing,
+    input.now,
+    input.context.kind,
+  );
   const preferences = {
     ...p,
     quick: p.quick || Boolean(input.quick),
@@ -86,6 +93,7 @@ export function practicalRecipes(input: {
     preferences,
     restrictions: input.restrictions ?? [],
     pantry: input.pantry,
+    heavyRecipeIds,
   });
   const minutes = minutesToFuelStart(input.timing, input.now);
   const recent = input.data.entries.filter(
@@ -103,9 +111,11 @@ export function practicalRecipes(input: {
       return {
         recipe,
         score:
-          -index / 100 -
+          -index / 10 -
           missing * 8 -
           repeated * 4 +
+          sessionRecipeScore(input.context, input.timing, recipe.lines) -
+          (heavyRecipeIds.includes(recipe.id) ? 5 : 0) +
           (input.timing.phase === "after" && hasProtein ? 4 : 0) +
           (minutes !== null && minutes <= 90 && n && n.fat <= 10 && n.fiber <= 5 ? 2 : 0) +
           (input.context.load === "high" && minutes !== null && minutes > 90 && n && n.carbs >= 50

@@ -3,6 +3,7 @@ import { validProductBarcode } from "./barcode";
 import { FOOD_BY_ID, foodAllowed, parsePantry } from "./catalog";
 import type { FuelPreferences } from "./experience";
 import { fuelRequest } from "./request";
+import { productRestrictionCheck } from "./allergens";
 
 export interface StoreProduct {
   barcode?: string;
@@ -45,6 +46,7 @@ interface OpenFoodFactsResponse {
     ingredients_text?: string;
     categories_tags?: string[];
     allergens_tags?: string[];
+    traces_tags?: string[];
     image_front_small_url?: string;
     image_front_url?: string;
     nutriments?: Record<string, number | string | undefined>;
@@ -66,6 +68,7 @@ export async function lookupStoreProduct(
     "ingredients_text",
     "categories_tags",
     "allergens_tags",
+    "traces_tags",
     "image_front_small_url",
     "image_front_url",
     "nutriments",
@@ -94,7 +97,9 @@ export async function lookupStoreProduct(
   return {
     barcode: clean,
     source: "openfoodfacts",
-    allergens: stringArray(product.allergens_tags),
+    allergens: [
+      ...new Set([...stringArray(product.allergens_tags), ...stringArray(product.traces_tags)]),
+    ],
     name,
     brand: stringValue(product.brands),
     ingredientsText:
@@ -134,6 +139,7 @@ export function evaluateStoreProduct(input: StoreEvaluationInput): StoreEvaluati
   if (!input.restrictions?.length && (!input.diet || input.diet === "all")) return result;
   const restrictions = input.restrictions ?? [],
     diet = input.diet ?? "all";
+  const restrictionCheck = productRestrictionCheck({ ...input.product, restrictions, diet });
   const allowed = (id: string) => foodAllowed(FOOD_BY_ID[id], restrictions, diet);
   const carbs = ["banana", "bread", "ricecakes", "juice"]
     .filter(allowed)
@@ -158,7 +164,7 @@ export function evaluateStoreProduct(input: StoreEvaluationInput): StoreEvaluati
       .map((tag) => allergyFoods[tag.split(":").at(-1) ?? ""])
       .filter(Boolean),
   ];
-  if (ids.some((id) => !allowed(id)))
+  if (restrictionCheck === "conflict" || ids.some((id) => !allowed(id)))
     return {
       verdict: "swap",
       label: "Sprawdź ograniczenia",
@@ -167,6 +173,16 @@ export function evaluateStoreProduct(input: StoreEvaluationInput): StoreEvaluati
         "Rozpoznany rodzaj lub skład produktu może kolidować z Twoimi ustawieniami. Sprawdź etykietę przed wyborem.",
       addition: null,
       replacement: carbs.length && protein.length ? `${carbs[0]} + ${protein[0]}` : null,
+    };
+  if (restrictionCheck === "unverified")
+    return {
+      verdict: "unknown",
+      label: "Sprawdź skład",
+      confidence: "orientational",
+      reason:
+        "Dane produktu nie wystarczają do sprawdzenia Twoich ograniczeń. Sprawdź pełny skład i alergeny na opakowaniu.",
+      addition: null,
+      replacement: null,
     };
   return {
     ...result,
