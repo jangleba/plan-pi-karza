@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_tabs/lab")({
       {
         name: "description",
         content:
-          "Skoki, sprint i 505 z oryginalnych filmów 120/240 FPS. Protokoły, historia i porównania prób.",
+          "Skoki, sprint i 505 z oryginalnych filmów HD/4K od 15 FPS. Protokoły, historia i porównania prób.",
       },
     ],
   }),

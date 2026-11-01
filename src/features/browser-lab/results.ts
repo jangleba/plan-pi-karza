@@ -15,13 +15,19 @@ import {
   type StoredTestId,
   CALIBRATED_LAB_PROTOCOL,
   AUTOMATED_LAB_PROTOCOL,
+  PERSPECTIVE_LAB_PROTOCOL,
 } from "./protocols";
 
 import { longJumpSchema, longJumpMeasurement, type LongJumpCalibration } from "./longJump";
 
 const time = z.number().finite().min(0).max(21);
 const resultSchema = z.object({
-  version: z.enum([BROWSER_LAB_PROTOCOL, CALIBRATED_LAB_PROTOCOL, AUTOMATED_LAB_PROTOCOL]),
+  version: z.enum([
+    BROWSER_LAB_PROTOCOL,
+    CALIBRATED_LAB_PROTOCOL,
+    AUTOMATED_LAB_PROTOCOL,
+    PERSPECTIVE_LAB_PROTOCOL,
+  ]),
   id: z.string().min(8).max(100),
   sessionId: z.string().min(8).max(100),
   testId: z.enum([...TEST_IDS, "flying_10m"]),
@@ -121,6 +127,9 @@ export function validatedResult(input: unknown): BrowserResult {
     result.endFrameIndex >= result.frameCount ||
     result.startPreviousSeconds >= result.startSeconds ||
     result.endPreviousSeconds >= result.endSeconds ||
+    (result.endFrameIndex === result.startFrameIndex + 1
+      ? !closeTo(result.endPreviousSeconds, result.startSeconds)
+      : result.endPreviousSeconds <= result.startSeconds) ||
     elapsed < protocol.minimumSeconds ||
     elapsed > protocol.maximumSeconds ||
     !closeTo(elapsed, result.elapsedSeconds) ||
@@ -141,7 +150,9 @@ export function validatedResult(input: unknown): BrowserResult {
     throw new Error("Wartości pomiaru nie zgadzają się z czasem klatek lub protokołem.");
   if (result.testId === "standing_long_jump") {
     if (
-      ![CALIBRATED_LAB_PROTOCOL, AUTOMATED_LAB_PROTOCOL].includes(result.version) ||
+      ![CALIBRATED_LAB_PROTOCOL, AUTOMATED_LAB_PROTOCOL, PERSPECTIVE_LAB_PROTOCOL].includes(
+        result.version,
+      ) ||
       !result.spatial ||
       result.resolutionMin !== undefined ||
       result.resolutionMax !== undefined ||
@@ -155,7 +166,9 @@ export function validatedResult(input: unknown): BrowserResult {
       (result.spatial.method === "floor-homography-v1" &&
         result.version !== CALIBRATED_LAB_PROTOCOL) ||
       (result.spatial.method === "ballwise-marker-pose-v2" &&
-        result.version !== AUTOMATED_LAB_PROTOCOL)
+        result.version !== AUTOMATED_LAB_PROTOCOL) ||
+      (result.spatial.method === "ballwise-marker-pose-v3" &&
+        result.version !== PERSPECTIVE_LAB_PROTOCOL)
     )
       throw new Error("Metoda skoku w dal nie zgadza się z wersją protokołu.");
   } else if (result.spatial !== undefined)
@@ -196,12 +209,23 @@ export function createBrowserResult(data: {
   spatial?: LongJumpCalibration;
   turnFrameIndex?: number;
 }): BrowserResult {
+  if (data.attempt.testId === "cod_505" && data.turnFrameIndex !== undefined) {
+    if (
+      !Number.isInteger(data.turnFrameIndex) ||
+      data.turnFrameIndex <= data.start ||
+      data.turnFrameIndex >= data.end
+    )
+      throw new Error("Oznacz nawrót pomiędzy wejściem a powrotem.");
+    validateEventGaps(data.timeline, data.turnFrameIndex, data.turnFrameIndex);
+  }
   return validatedResult({
     version:
       data.attempt.testId === "standing_long_jump"
         ? data.spatial?.method === "floor-homography-v1"
           ? CALIBRATED_LAB_PROTOCOL
-          : AUTOMATED_LAB_PROTOCOL
+          : data.spatial?.method === "ballwise-marker-pose-v3"
+            ? PERSPECTIVE_LAB_PROTOCOL
+            : AUTOMATED_LAB_PROTOCOL
         : data.attempt.testId === "cod_505"
           ? CALIBRATED_LAB_PROTOCOL
           : BROWSER_LAB_PROTOCOL,
@@ -241,11 +265,11 @@ export function createBrowserResult(data: {
 
 export function sameTrial(a: BrowserResult, b: BrowserResult) {
   return (
+    a.version === b.version &&
     a.sourceHash === b.sourceHash &&
     a.startFrameIndex === b.startFrameIndex &&
     a.endFrameIndex === b.endFrameIndex &&
-    a.testId === b.testId &&
-    a.side === b.side
+    a.testId === b.testId
   );
 }
 export function resultValue(value: number, unit: "cm" | "s") {
@@ -261,7 +285,7 @@ export function resultValue(value: number, unit: "cm" | "s") {
 export function resultGroups(results: readonly BrowserResult[]) {
   const grouped = new Map<string, BrowserResult[]>();
   for (const result of results) {
-    const key = `${result.sessionId}:${result.testId}:${result.side ?? "both"}`;
+    const key = `${result.sessionId}:${result.testId}:${result.side ?? "both"}:${result.version}`;
     grouped.set(key, [...(grouped.get(key) ?? []), result]);
   }
   return [...grouped.values()]
@@ -274,11 +298,15 @@ export function resultGroups(results: readonly BrowserResult[]) {
       );
       const expected = protocol.trials;
       return {
-        key: `${rows[0].sessionId}:${rows[0].testId}:${rows[0].side}`,
+        key: `${rows[0].sessionId}:${rows[0].testId}:${rows[0].side}:${rows[0].version}`,
         rows,
         best: sorted[0],
         average: rows.reduce((s, r) => s + r.primaryValue, 0) / rows.length,
-        complete: rows.length === expected && new Set(rows.map((r) => r.trial)).size === expected,
+        complete:
+          rows.length === expected &&
+          new Set(rows.map((r) => r.trial)).size === expected &&
+          new Set(rows.map((r) => `${r.sourceHash}:${r.startFrameIndex}:${r.endFrameIndex}`))
+            .size === expected,
         expected,
       };
     })
@@ -312,8 +340,24 @@ export function sideDifference(
   const groups = resultGroups(results).filter(
     (g) => g.best.sessionId === sessionId && g.best.testId === testId && g.complete,
   );
-  const left = groups.find((g) => g.best.side === "left");
-  const right = groups.find((g) => g.best.side === "right");
+  const independent = (left: (typeof groups)[number], right: (typeof groups)[number]) =>
+    !left.rows.some((a) => right.rows.some((b) => sameTrial(a, b)));
+  const left = groups.find(
+    (g) =>
+      g.best.side === "left" &&
+      groups.some(
+        (other) =>
+          other.best.side === "right" &&
+          other.best.version === g.best.version &&
+          independent(g, other),
+      ),
+  );
+  const right =
+    left &&
+    groups.find(
+      (g) =>
+        g.best.side === "right" && g.best.version === left.best.version && independent(left, g),
+    );
   if (!left || !right) return null;
   return {
     left: left.best.primaryValue,

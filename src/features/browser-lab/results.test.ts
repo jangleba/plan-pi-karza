@@ -163,11 +163,38 @@ describe("five browser protocols", () => {
     ])
       expect(() => validatedResult({ ...valid, ...changed })).toThrow();
   });
+  it("rejects adjacent frame numbers with non-adjacent event times", () => {
+    const result = fixtureResult();
+    expect(() =>
+      validatedResult({ ...result, endFrameIndex: result.startFrameIndex + 1 }),
+    ).toThrow();
+  });
+  it("refuses a 505 turn contact that spans missing frames", () => {
+    const samples = Array.from({ length: 180 }, (_, cts) => ({ cts, timescale: 30, duration: 1 }));
+    samples.splice(60, 4);
+    expect(() =>
+      createBrowserResult({
+        attempt: attemptPlan(["cod_505"])[0],
+        sessionId: "session-505-gap",
+        timeline: buildJumpTimeline(samples),
+        start: 10,
+        end: 100,
+        turnFrameIndex: 60,
+        sourceName: "505.mp4",
+        sourceHash: "c".repeat(64),
+        sourceBytes: 1000,
+        codec: "avc1.640029",
+        guidePositions: [0.5, 0.5],
+        notes: "",
+      }),
+    ).toThrow("Brakuje klatek");
+  });
   it("requires all distinct trials before calculating a left/right difference", () => {
     const rows = ["left", "right"].flatMap((side) =>
       [1, 2, 3].map((trial) =>
         fixtureResult({
           id: `${side}-${trial}-12345`,
+          sourceHash: `${side === "left" ? "a" : "b"}${trial}`.padEnd(64, "0"),
           testId: "single_leg_cmj",
           side: side as "left" | "right",
           trial,
@@ -191,9 +218,65 @@ describe("five browser protocols", () => {
     expect(() => comparison(a, { ...b, testId: "single_leg_cmj" })).toThrow();
     expect(() => comparison(a, { ...b, side: "left" })).toThrow();
   });
+  it("does not count repeated physical footage as three independent trials", () => {
+    const sameFootage = [1, 2, 3].map((trial) => fixtureResult({ trial }));
+    expect(resultGroups(sameFootage)[0].complete).toBe(false);
+  });
+  it("does not calculate left/right difference from the same three filmed events labelled as both legs", () => {
+    const rows = ["left", "right"].flatMap((side) =>
+      [1, 2, 3].map((trial) =>
+        fixtureResult({
+          side: side as "left" | "right",
+          testId: "single_leg_cmj",
+          trial,
+          sourceHash: trial.toString(16).padStart(64, "0"),
+        }),
+      ),
+    );
+    expect(sideDifference(rows, "session-1234", "single_leg_cmj")).toBeNull();
+  });
+  it("keeps different protocol versions in separate session summaries", () => {
+    const a = fixtureResult({ trial: 1 });
+    const b = fixtureResult({ trial: 2, version: "ballwise-browser-lab-1.1" });
+    const groups = resultGroups([a, b]);
+    expect(groups).toHaveLength(2);
+    expect(groups.every((group) => !group.complete)).toBe(true);
+  });
 });
 
 describe("account-scoped local history", () => {
+  it("refuses the same filmed event relabelled as the other leg", () => {
+    const store = memoryStore();
+    const left = fixtureResult({ testId: "single_leg_cmj", side: "left" });
+    appendBrowserResult("a", left, store);
+    expect(() =>
+      appendBrowserResult("a", { ...left, id: "another-result", side: "right" }, store),
+    ).toThrow("już zapisana");
+    expect(loadBrowserResults("a", store)).toEqual([left]);
+  });
+  it("refuses conflicting IDs before writing any part of an imported backup", () => {
+    const store = memoryStore();
+    const existing = fixtureResult();
+    appendBrowserResult("a", existing, store);
+    const before = [...store.data];
+    const fresh = fixtureResult({ sourceHash: "b".repeat(64) });
+    const conflict = { ...existing, notes: "inna wersja wyniku" };
+    expect(() => restoreHistoryBackup("a", createHistoryBackup([fresh, conflict]), store)).toThrow(
+      /konflikt|identyfikator/i,
+    );
+    expect([...store.data]).toEqual(before);
+  });
+  it("does not silently discard a different calibration of the same video events", () => {
+    const store = memoryStore();
+    const existing = fixtureResult();
+    appendBrowserResult("a", existing, store);
+    const changed = fixtureResult({ notes: "sprawdzona korekta" });
+    const before = [...store.data];
+    expect(() => restoreHistoryBackup("a", createHistoryBackup([changed]), store)).toThrow(
+      /konflikt|inna/i,
+    );
+    expect([...store.data]).toEqual(before);
+  });
   it("separates owners, blocks duplicate measurements and deletes only one result", () => {
     const store = memoryStore();
     const a = fixtureResult();

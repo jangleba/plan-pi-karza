@@ -20,7 +20,7 @@ const legacyLongJumpSchema = z.object({
   stationaryConfirmed: z.literal(true),
 });
 export const automaticLongJumpSchema = z.object({
-  method: z.literal("ballwise-marker-pose-v2"),
+  method: z.enum(["ballwise-marker-pose-v2", "ballwise-marker-pose-v3"]),
   referenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
   rangeCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
   landingReferenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
@@ -124,8 +124,40 @@ function projectiveTransform(image: readonly FloorPoint[], destination: readonly
   };
 }
 
+function automaticLineIndices(data: AutomaticLongJumpCalibration): readonly [number, number] {
+  for (const edge of [
+    [0, 1],
+    [2, 3],
+  ] as const) {
+    const [a, b] = edge.map((index) => data.referenceCorners[index]);
+    const [from, to] = data.takeoffLine;
+    if (
+      (distance(a, from) < 1e-6 && distance(b, to) < 1e-6) ||
+      (distance(a, to) < 1e-6 && distance(b, from) < 1e-6)
+    )
+      return edge;
+  }
+  throw new Error("Niebieska krawędź wzorca nie wyznacza linii odbicia.");
+}
+
+function projectiveCentre(corners: AutomaticLongJumpCalibration["rangeCorners"]): FloorPoint {
+  const [a, b, c, d] = corners;
+  const turns = corners.map((p, i) => cross(p, corners[(i + 1) % 4], corners[(i + 2) % 4]));
+  if (
+    turns.some((turn) => Math.abs(turn) < 1e-7) ||
+    !turns.every((turn) => Math.sign(turn) === Math.sign(turns[0]))
+  )
+    throw new Error("Wzorzec 3 METRY nie ma poprawnych narożników.");
+  const ac: FloorPoint = [c[0] - a[0], c[1] - a[1]];
+  const bd: FloorPoint = [d[0] - b[0], d[1] - b[1]];
+  const denominator = ac[0] * bd[1] - ac[1] * bd[0];
+  if (Math.abs(denominator) < 1e-8) throw new Error("Wzorzec 3 METRY jest zbyt płaski w kadrze.");
+  const t = ((b[0] - a[0]) * bd[1] - (b[1] - a[1]) * bd[0]) / denominator;
+  return [a[0] + t * ac[0], a[1] + t * ac[1]];
+}
+
 function automaticFloorTransform(data: AutomaticLongJumpCalibration) {
-  const topLine = distance(data.takeoffLine[0], data.referenceCorners[0]) < 1e-6;
+  const topLine = automaticLineIndices(data)[0] === 0;
   const startWorld: FloorPoint[] = topLine
     ? [
         [0, 0],
@@ -139,10 +171,15 @@ function automaticFloorTransform(data: AutomaticLongJumpCalibration) {
         [20, 0],
         [0, 0],
       ];
-  const endCentre = data.rangeCorners.reduce<FloorPoint>(
-    (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
-    [0, 0],
-  );
+  // A rectangle's projected centre is the intersection of its diagonals.
+  // Retain the v2 arithmetic centroid only for historical measurements.
+  const endCentre =
+    data.method === "ballwise-marker-pose-v3"
+      ? projectiveCentre(data.rangeCorners)
+      : data.rangeCorners.reduce<FloorPoint>(
+          (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
+          [0, 0],
+        );
   return projectiveTransform(
     [...data.referenceCorners, endCentre],
     [...startWorld, [10, data.baselineCm]],
@@ -171,7 +208,7 @@ export function longJumpMeasurement(input: unknown) {
   if (area < 0.003)
     throw new Error("Wzorzec zajmuje za mało kadru. Powiększ go i nagraj ponownie.");
   const map =
-    data.method === "ballwise-marker-pose-v2"
+    data.method !== "floor-homography-v1"
       ? automaticFloorTransform(data)
       : floorTransform(data.referenceCorners, data.referenceWidthCm, data.referenceDepthCm);
   let measuredControlCm: number | undefined;
@@ -195,16 +232,13 @@ export function longJumpMeasurement(input: unknown) {
     const rangeShift = data.rangeCorners.map(
       (point, index) => [point, data.landingRangeCorners[index]] as const,
     );
+    const shifts = [...startShift, ...rangeShift].map(([point, other]) =>
+      Math.hypot((point[0] - other[0]) * data.imageWidth, (point[1] - other[1]) * data.imageHeight),
+    );
     cameraShiftPx =
-      [...startShift, ...rangeShift].reduce((sum, [point, other]) => {
-        return (
-          sum +
-          Math.hypot(
-            (point[0] - other[0]) * data.imageWidth,
-            (point[1] - other[1]) * data.imageHeight,
-          )
-        );
-      }, 0) / 8;
+      data.method === "ballwise-marker-pose-v3"
+        ? Math.max(...shifts)
+        : shifts.reduce((sum, shift) => sum + shift, 0) / 8;
     if (cameraShiftPx > 5)
       throw new Error("Telefon poruszył się podczas próby. Ustaw go stabilnie i nagraj ponownie.");
     const longEdges: [FloorPoint, FloorPoint][] = [
@@ -223,14 +257,16 @@ export function longJumpMeasurement(input: unknown) {
   }
   const [a, b] = data.takeoffLine.map(map);
   const heel = map(data.heel);
+  if (data.method === "ballwise-marker-pose-v3" && heel[1] <= Math.max(a[1], b[1]))
+    throw new Error("Pięta musi znajdować się za linią START, w kierunku wzorca 3 METRY.");
   const lineLength = distance(a, b);
-  if (lineLength < 20)
+  if (lineLength < 20 - 1e-6)
     throw new Error("Zaznacz dwa oddalone punkty tej samej linii odbicia (co najmniej 20 cm). ");
   const primaryValue = Math.abs(cross(a, b, heel)) / lineLength;
   if (primaryValue < 10 || primaryValue > 500)
     throw new Error("Odległość jest nietypowa. Sprawdź linię, piętę i wymiary wzorca.");
   const uncertaintyCm =
-    data.method === "ballwise-marker-pose-v2" ? spatialUncertainty(data) : undefined;
+    data.method !== "floor-homography-v1" ? spatialUncertainty(data) : undefined;
   if (uncertaintyCm !== undefined && uncertaintyCm > MAX_LONG_JUMP_UNCERTAINTY_CM)
     throw new Error(
       `Kadr nie pozwala na dokładny wynik (niepewność około ±${uncertaintyCm.toFixed(1)} cm). Ustaw telefon bliżej i wzorzec bardziej centralnie.`,
@@ -246,16 +282,21 @@ export function longJumpMeasurement(input: unknown) {
 }
 
 function spatialUncertainty(data: AutomaticLongJumpCalibration) {
-  const lineIndices =
-    distance(data.takeoffLine[0], data.referenceCorners[0]) < 1e-6
-      ? ([0, 1] as const)
-      : ([2, 3] as const);
+  const lineIndices = automaticLineIndices(data);
   const value = (
     corners: AutomaticLongJumpCalibration["referenceCorners"],
     rangeCorners: AutomaticLongJumpCalibration["rangeCorners"],
     heel: FloorPoint,
   ) => {
-    const adjusted = { ...data, referenceCorners: corners, rangeCorners };
+    // Keep the selected edge attached to its corner indices while perturbing
+    // the calibration. Comparing noisy corners with the original line could
+    // switch to the opposite edge and invent a 24 cm change in uncertainty.
+    const adjusted = {
+      ...data,
+      referenceCorners: corners,
+      rangeCorners,
+      takeoffLine: [corners[lineIndices[0]], corners[lineIndices[1]]] as [FloorPoint, FloorPoint],
+    };
     const transform = automaticFloorTransform(adjusted);
     const a = transform(corners[lineIndices[0]]);
     const b = transform(corners[lineIndices[1]]);

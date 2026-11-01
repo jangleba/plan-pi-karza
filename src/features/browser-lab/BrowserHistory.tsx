@@ -9,6 +9,7 @@ import {
 } from "./results";
 import { LabButton, LabConfirm, LabNotice } from "./LabUI";
 import { videoPrecision } from "./measurement";
+import { longJumpMeasurement } from "./longJump";
 
 const dateOf = (date: string) =>
   new Date(date).toLocaleString("pl-PL", {
@@ -16,6 +17,7 @@ const dateOf = (date: string) =>
     timeStyle: "short",
   });
 function ResultDetails({ result }: { result: BrowserResult }) {
+  const geometry = result.spatial ? longJumpMeasurement(result.spatial) : null;
   return (
     <dl className="bl-result-details">
       <dt>Dokładność nagrania</dt>
@@ -34,7 +36,7 @@ function ResultDetails({ result }: { result: BrowserResult }) {
         <>
           <dt>Metoda</dt>
           <dd>
-            {result.spatial.method === "ballwise-marker-pose-v2"
+            {result.spatial.method !== "floor-homography-v1"
               ? "Wzorzec AUTO + propozycja sylwetki + kontrola ruchu kamery."
               : "Ręczna kalibracja płaszczyzny podłoża (wersja archiwalna)."}
           </dd>
@@ -51,6 +53,10 @@ function ResultDetails({ result }: { result: BrowserResult }) {
             <>
               <dt>Baza kalibracji</dt>
               <dd>{result.spatial.baselineCm} cm</dd>
+              <dt>Czułość geometrii</dt>
+              <dd>±{geometry?.uncertaintyCm?.toFixed(1)} cm (bez błędu rozpoznania pięty)</dd>
+              <dt>Ruch kamery</dt>
+              <dd>{geometry?.cameraShiftPx?.toFixed(1)} px</dd>
               <dt>Punkt pięty</dt>
               <dd>
                 {result.spatial.heelSource === "manual" ? "sprawdzony ręcznie" : "automatyczny"}
@@ -94,6 +100,42 @@ function ResultDetails({ result }: { result: BrowserResult }) {
     </dl>
   );
 }
+function TrialDetails({
+  rows,
+  onCompare,
+  onDelete,
+}: {
+  rows: BrowserResult[];
+  onCompare: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="bl-details" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>Pokaż próby i czasy klatek</summary>
+      {open &&
+        [...rows]
+          .sort((a, b) => a.trial - b.trial)
+          .map((row) => (
+            <article className="bl-trial-row" key={row.id}>
+              <h3>
+                Próba {row.trial} · {resultValue(row.primaryValue, row.primaryUnit)}
+              </h3>
+              <ResultDetails result={row} />
+              <div className="bl-actions">
+                <LabButton className="bl-secondary" onClick={() => onCompare(row.id)}>
+                  Porównaj próbę
+                </LabButton>
+                <LabButton className="bl-link" onClick={() => onDelete(row.id)}>
+                  Usuń próbę
+                </LabButton>
+              </div>
+            </article>
+          ))}
+    </details>
+  );
+}
+
 export function BrowserHistory({
   rows,
   onDelete,
@@ -197,37 +239,17 @@ export function BrowserHistory({
                 To opis wyników z tej sesji, bez oceny ryzyka urazu.
               </LabNotice>
             )}
-            <details className="bl-details">
-              <summary>Pokaż próby i czasy klatek</summary>
-              {[...group.rows]
-                .sort((a, b) => a.trial - b.trial)
-                .map((row) => (
-                  <article className="bl-trial-row" key={row.id}>
-                    <h3>
-                      Próba {row.trial} · {resultValue(row.primaryValue, row.primaryUnit)}
-                    </h3>
-                    <ResultDetails result={row} />
-                    <div className="bl-actions">
-                      <LabButton
-                        className="bl-secondary"
-                        onClick={() => {
-                          setFirstId(row.id);
-                          setSecondId("");
-                          document.getElementById("bl-compare")?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                          });
-                        }}
-                      >
-                        Porównaj próbę
-                      </LabButton>
-                      <LabButton className="bl-link" onClick={() => setDeleteId(row.id)}>
-                        Usuń próbę
-                      </LabButton>
-                    </div>
-                  </article>
-                ))}
-            </details>
+            <TrialDetails
+              rows={group.rows}
+              onDelete={setDeleteId}
+              onCompare={(id) => {
+                setFirstId(id);
+                setSecondId("");
+                document
+                  .getElementById("bl-compare")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            />
           </section>
         );
       })}

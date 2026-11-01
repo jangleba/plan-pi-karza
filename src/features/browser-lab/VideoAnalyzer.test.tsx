@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   record: vi.fn(),
   stop: vi.fn(),
   auto: vi.fn(),
+  markers: vi.fn(),
 }));
 vi.mock("./video", () => ({
   openJumpVideo: mocks.open,
@@ -28,6 +29,10 @@ vi.mock("./camera", () => ({
 }));
 vi.mock("./longJumpAuto", () => ({
   analyzeLongJump: mocks.auto,
+}));
+vi.mock("./longJump", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./longJump")>()),
+  findBallWiseCalibrationMarkers: mocks.markers,
 }));
 const timeline = buildJumpTimeline(
   Array.from({ length: 360 }, (_, cts) => ({
@@ -115,6 +120,10 @@ beforeEach(() => {
   mocks.stop.mockReset();
   mocks.record.mockReset();
   mocks.auto.mockReset().mockResolvedValue(automaticSpatial);
+  mocks.markers.mockReset().mockReturnValue({
+    start: { corners: startMarker, quality: 0.95 },
+    range: { corners: rangeMarker, quality: 0.95 },
+  });
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     clearRect: vi.fn(),
     beginPath: vi.fn(),
@@ -126,6 +135,7 @@ beforeEach(() => {
     rotate: vi.fn(),
     drawImage: vi.fn(),
     restore: vi.fn(),
+    getImageData: vi.fn(() => ({ width: 1280, height: 720, data: new Uint8ClampedArray() })),
   } as unknown as CanvasRenderingContext2D);
   mocks.open.mockReset().mockResolvedValue(video);
   mocks.decode.mockReset().mockImplementation(async (_video, index) => ({
@@ -408,6 +418,7 @@ it("analyzes long jump automatically, exposes one heel correction and saves the 
   expect(host.querySelector(".bl-result")?.textContent).not.toContain("Zakres z klatek");
   expect(button("Zapisz wynik").disabled).toBe(false);
   await act(async () => button("Popraw punkt pięty").click());
+  expect(button("Zapisz wynik").disabled).toBe(true);
   await floorPoint(...groundPoint(7, 215));
   await act(async () => button("Zatwierdź punkt pięty").click());
   expect(host.querySelector(".bl-result")?.textContent).toContain("215,0 cm");
@@ -415,6 +426,62 @@ it("analyzes long jump automatically, exposes one heel correction and saves the 
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 7);
   expect(save.mock.calls[0][0].spatial.heelSource).toBe("manual");
+});
+
+it.each(["moved", "missing"])(
+  "refuses heel correction on another frame with %s calibration markers",
+  async (problem) => {
+    mocks.decode.mockImplementation(async (_video, index) => ({
+      timestamp: timeline.frames[index].timestampUs,
+      displayWidth: 1920,
+      displayHeight: 1080,
+      close: vi.fn(),
+    }));
+    const save = await render(vi.fn(), "standing_long_jump");
+    await importFile();
+    await act(async () => button("Popraw punkt pięty").click());
+    await go(191);
+    mocks.markers.mockReturnValue(
+      problem === "missing"
+        ? null
+        : {
+            start: { corners: startMarker.map(([x, y]) => [x + 0.04, y]), quality: 0.95 },
+            range: { corners: rangeMarker.map(([x, y]) => [x + 0.04, y]), quality: 0.95 },
+          },
+    );
+    await floorPoint(...groundPoint(7, 215));
+    expect(mocks.markers).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain(
+      problem === "missing" ? "nie widać obu wzorców" : "Telefon poruszył się",
+    );
+    expect(button("Zatwierdź punkt pięty").disabled).toBe(true);
+    expect(button("Zapisz wynik").disabled).toBe(true);
+    await act(async () => button("Zapisz wynik").click());
+    expect(save).not.toHaveBeenCalled();
+  },
+);
+
+it("retains the new frame's calibration and time after a successful heel correction", async () => {
+  mocks.decode.mockImplementation(async (_video, index) => ({
+    timestamp: timeline.frames[index].timestampUs,
+    displayWidth: 1920,
+    displayHeight: 1080,
+    close: vi.fn(),
+  }));
+  const save = await render(vi.fn(), "standing_long_jump");
+  await importFile();
+  await act(async () => button("Popraw punkt pięty").click());
+  await go(191);
+  await floorPoint(...groundPoint(7, 215));
+  expect(mocks.markers).toHaveBeenCalledOnce();
+  await act(async () => button("Zatwierdź punkt pięty").click());
+  await act(async () => button("Zapisz wynik").click());
+  expect(save).toHaveBeenCalledOnce();
+  expect(save.mock.calls[0][0]).toMatchObject({
+    endFrameIndex: 191,
+    spatial: { heelFrameIndex: 191, imageWidth: 1280, imageHeight: 720, heelSource: "manual" },
+  });
+  expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 6);
 });
 
 it("blocks 505 return marking until a turn contact between events is selected", async () => {

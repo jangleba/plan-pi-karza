@@ -254,8 +254,9 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                 <summary>Jak wykonać pomiar?</summary>
                 <ol className="bl-steps">
                   <li>
-                    Nagraj jedną próbę w Aparacie: najlepiej HD 60 FPS, około 5–10 s. Obsługujemy
-                    też 4K, 30 FPS i oryginalne nagrania 120/240 FPS.
+                    Nagraj jedną próbę, około 5–10 s. Dla rozdzielczości czasu wybierz oryginalne
+                    120/240 FPS. Obsługujemy HD i 4K od 15 FPS; przy 30/60 FPS wynik jest
+                    orientacyjny.
                   </li>
                   <li>
                     Wybierz test i zaimportuj oryginalny MP4/MOV z Plików. Sprawdź rzeczywiste FPS

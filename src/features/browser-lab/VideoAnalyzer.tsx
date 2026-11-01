@@ -8,9 +8,15 @@ import { downloadText, downloadBlob } from "./download";
 import { LabButton, LabNotice, messageOf } from "./LabUI";
 import { CameraRecorder } from "./CameraRecorder";
 import { AutomaticLongJumpOverlay } from "./LongJumpEditor";
-import { longJumpMeasurement, longJumpSchema, type AutomaticLongJumpCalibration } from "./longJump";
+import {
+  findBallWiseCalibrationMarkers,
+  longJumpMeasurement,
+  longJumpSchema,
+  type AutomaticLongJumpCalibration,
+} from "./longJump";
 import { analyzeLongJump } from "./longJumpAuto";
 import { paintVideoFrame } from "./videoFrame";
+import { APP_VERSION } from "@/lib/appVersion";
 
 export function VideoAnalyzer({
   ownerId,
@@ -258,6 +264,7 @@ export function VideoAnalyzer({
       start === null ||
       end === null ||
       (!isLongJump && (!original || !confirmed)) ||
+      (isLongJump && (editing || !ready)) ||
       saved
     )
       return;
@@ -399,14 +406,25 @@ export function VideoAnalyzer({
           {isLongJump && (
             <div className="bl-auto-setup">
               <span>1</span>
-              <p>Wydrukuj dwa arkusze: START oraz 3 METRY. Długa krawędź ma 20,0 cm.</p>
+              <p>
+                Wydrukuj dwa arkusze: START oraz 3 METRY. Ramka ma 20,0 × 24,0 cm. Linia START to
+                krawędź 20,0 cm.
+              </p>
               <span>2</span>
               <p>Krzyżyk pomarańczowego arkusza ustaw dokładnie 3,00 m od linii startu.</p>
               <div className="bl-auto-downloads">
-                <a className="bl-button bl-secondary" href="/lab-wzorzec.svg" download>
+                <a
+                  className="bl-button bl-secondary"
+                  href={`/lab-wzorzec.svg?v=${APP_VERSION}`}
+                  download
+                >
                   1. START
                 </a>
-                <a className="bl-button bl-secondary" href="/lab-wzorzec-3m.svg" download>
+                <a
+                  className="bl-button bl-secondary"
+                  href={`/lab-wzorzec-3m.svg?v=${APP_VERSION}`}
+                  download
+                >
                   2. 3 METRY
                 </a>
               </div>
@@ -524,7 +542,7 @@ export function VideoAnalyzer({
           </p>
           <p className="bl-muted">
             {isLongJump ? (
-              <>Szacowana niepewność geometrii: ±{measure.uncertaintyCm?.toFixed(1)} cm</>
+              <>Czułość geometrii: ±{measure.uncertaintyCm?.toFixed(1)} cm</>
             ) : (
               <>
                 Zakres z klatek: {resultValue(measure.resolutionMin!, measure.primaryUnit)}–
@@ -568,7 +586,7 @@ export function VideoAnalyzer({
               )}
               <LabButton
                 className="bl-wide"
-                disabled={!isLongJump && (!original || !confirmed)}
+                disabled={isLongJump ? editing || !ready : !original || !confirmed}
                 onClick={save}
               >
                 Zapisz wynik
@@ -616,7 +634,7 @@ export function VideoAnalyzer({
             )}
             {isLongJump && (
               <p className="bl-muted">
-                Odległość prostopadle od długiej krawędzi wzorca do bliższej pięty. Automatyka nie
+                Odległość prostopadle od krawędzi START (20 cm) do bliższej pięty. Automatyka nie
                 zapisuje wyniku, jeśli wzorzec jest za mały, kamera się poruszyła albo szacowana
                 niepewność geometrii przekracza 5 cm. To nadal pomiar z filmu, nie certyfikowany
                 system laboratoryjny.
@@ -724,16 +742,50 @@ export function VideoAnalyzer({
                   ready={ready}
                   canvas={canvas}
                   onHeel={(heel) => {
-                    setSpatial({
-                      ...spatial,
-                      heel,
-                      heelFrameIndex: frameIndex,
-                      heelSource: "manual",
-                    });
-                    setEnd(frameIndex);
-                    setDraft(null);
-                    setConfirmed(false);
-                    setEditing(true);
+                    if (!ready || saved || !canvas.current) return;
+                    try {
+                      if (start === null || frameIndex <= start)
+                        throw new Error("Wybierz klatkę lądowania po odbiciu.");
+                      let candidate: AutomaticLongJumpCalibration = {
+                        ...spatial,
+                        heel,
+                        heelFrameIndex: frameIndex,
+                        heelSource: "manual",
+                      };
+                      if (frameIndex !== spatial.heelFrameIndex) {
+                        // A different frame needs its own stability check. Reusing
+                        // markers from the automatic landing could conceal camera motion.
+                        const image = canvas.current
+                          .getContext("2d", { willReadFrequently: true })
+                          ?.getImageData(0, 0, canvas.current.width, canvas.current.height);
+                        const markers = image && findBallWiseCalibrationMarkers(image);
+                        if (!markers)
+                          throw new Error(
+                            "Na tej klatce nie widać obu wzorców. Wybierz klatkę lądowania z widocznymi wzorcami.",
+                          );
+                        candidate = {
+                          ...candidate,
+                          landingReferenceCorners: markers.start.corners,
+                          landingRangeCorners: markers.range.corners,
+                          imageWidth: canvas.current.width,
+                          imageHeight: canvas.current.height,
+                          markerQuality: Math.min(
+                            candidate.markerQuality,
+                            markers.start.quality,
+                            markers.range.quality,
+                          ),
+                        };
+                      }
+                      longJumpMeasurement(candidate);
+                      setSpatial(candidate);
+                      setEnd(frameIndex);
+                      setDraft(null);
+                      setConfirmed(false);
+                      setEditing(true);
+                      setError("");
+                    } catch (reason) {
+                      setError(messageOf(reason));
+                    }
                   }}
                 />
               )}
@@ -852,7 +904,9 @@ export function VideoAnalyzer({
           {isLongJump && editing ? (
             <LabButton
               className="bl-wide"
-              disabled={!ready || saved || !spatial || spatial.heelFrameIndex !== frameIndex}
+              disabled={
+                !ready || saved || !measure || !spatial || spatial.heelFrameIndex !== frameIndex
+              }
               onClick={() => setEditing(false)}
             >
               Zatwierdź punkt pięty

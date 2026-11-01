@@ -92,6 +92,114 @@ const source = {
 };
 
 describe("calibrated floor measurement", () => {
+  it("round trips the perspective protocol without changing the measured value", () => {
+    const spatial = { ...automaticFloor(), method: "ballwise-marker-pose-v3" as const };
+    const result = createBrowserResult({
+      ...source,
+      attempt: attemptPlan(["standing_long_jump"])[0],
+      spatial,
+    });
+    expect(result.version).toBe("ballwise-browser-lab-1.3");
+    expect(validatedResult(result)).toEqual(result);
+    const data = new Map<string, string>();
+    const store = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        data.set(key, value);
+      },
+      removeItem: (key: string) => {
+        data.delete(key);
+      },
+    };
+    const backup = JSON.parse(JSON.stringify(createHistoryBackup([result])));
+    expect(restoreHistoryBackup("athlete", backup, store).added).toBe(1);
+    expect(loadBrowserResults("athlete", store)).toEqual([result]);
+    expect(restoreHistoryBackup("athlete", backup, store).added).toBe(0);
+    const old = createBrowserResult({
+      ...source,
+      attempt: attemptPlan(["standing_long_jump"])[0],
+      spatial: automaticFloor(),
+    });
+    expect(restoreHistoryBackup("athlete", createHistoryBackup([old]), store).added).toBe(1);
+    expect(loadBrowserResults("athlete", store)).toHaveLength(2);
+    expect(() => validatedResult({ ...result, version: "ballwise-browser-lab-1.2" })).toThrow(
+      "wersją",
+    );
+  });
+  it("recovers 214 cm under a perspective camera and preserves the installed v2 value", () => {
+    const p = (x: number, y: number): FloorPoint => [
+      (0.004 * x + 0.00015 * y + 0.18) / (1 + 0.0005 * y),
+      (0.0001 * x + 0.0025 * y + 0.12) / (1 + 0.0005 * y),
+    ];
+    const referenceCorners = [
+      p(0, -24),
+      p(20, -24),
+      p(20, 0),
+      p(0, 0),
+    ] as AutomaticLongJumpCalibration["referenceCorners"];
+    const rangeCorners = [
+      p(0, 288),
+      p(20, 288),
+      p(20, 312),
+      p(0, 312),
+    ] as AutomaticLongJumpCalibration["rangeCorners"];
+    const previous = {
+      ...automaticFloor(),
+      referenceCorners,
+      rangeCorners,
+      landingReferenceCorners: referenceCorners,
+      landingRangeCorners: rangeCorners,
+      takeoffLine: [referenceCorners[2], referenceCorners[3]],
+      heel: p(7, 214),
+    };
+    // Independently captured from the unmodified main10463d2 engine.
+    expect(longJumpMeasurement(previous).primaryValue).toBeCloseTo(214.03282790337389, 8);
+    expect(
+      longJumpMeasurement({ ...previous, method: "ballwise-marker-pose-v3" }).primaryValue,
+    ).toBeCloseTo(214, 6);
+  });
+  it("does not turn a heel behind the start into a forward jump in the new method", () => {
+    expect(() =>
+      longJumpMeasurement({
+        ...automaticFloor(),
+        method: "ballwise-marker-pose-v3",
+        heel: automaticPoint(7, -15),
+      }),
+    ).toThrow("kierunku");
+  });
+  it("does not hide a displaced calibration corner inside a small average camera shift", () => {
+    const calibration = { ...automaticFloor(), method: "ballwise-marker-pose-v3" as const };
+    const corners = calibration.landingRangeCorners.map((p) => [
+      ...p,
+    ]) as AutomaticLongJumpCalibration["rangeCorners"];
+    corners[0][0] += 20 / calibration.imageWidth;
+    expect(() => longJumpMeasurement({ ...calibration, landingRangeCorners: corners })).toThrow(
+      "poruszył",
+    );
+  });
+  it("preserves a known 214 cm result for either start edge and either endpoint order", () => {
+    const original = automaticFloor();
+    const top = [
+      automaticPoint(0, 0),
+      automaticPoint(20, 0),
+      automaticPoint(20, -24),
+      automaticPoint(0, -24),
+    ] as AutomaticLongJumpCalibration["referenceCorners"];
+    for (const useTop of [false, true]) {
+      const corners = useTop ? top : original.referenceCorners;
+      const edge = useTop ? [corners[0], corners[1]] : [corners[2], corners[3]];
+      for (const reverse of [false, true]) {
+        const measured = longJumpMeasurement({
+          ...original,
+          referenceCorners: corners,
+          landingReferenceCorners: corners,
+          takeoffLine: reverse ? [edge[1], edge[0]] : edge,
+        });
+        expect(measured.primaryValue).toBeCloseTo(214, 6);
+        expect(measured.uncertaintyCm).toBeLessThan(5);
+      }
+    }
+  });
   it("recovers 214 cm with perspective and lateral landing displacement, rather than diagonal toe-to-heel distance", () => {
     const measured = longJumpMeasurement(calibratedFloor());
     expect(measured.primaryValue).toBeCloseTo(214, 7);

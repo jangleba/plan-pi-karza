@@ -10,6 +10,7 @@ export type BrowserTestId = (typeof TEST_IDS)[number];
 export type StoredTestId = BrowserTestId | "flying_10m";
 export const CALIBRATED_LAB_PROTOCOL = "ballwise-browser-lab-1.1";
 export const AUTOMATED_LAB_PROTOCOL = "ballwise-browser-lab-1.2";
+export const PERSPECTIVE_LAB_PROTOCOL = "ballwise-browser-lab-1.3";
 export type TestSide = "left" | "right" | null;
 
 export interface BrowserProtocol {
@@ -118,12 +119,12 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
     restSeconds: 90,
     markers: ["Przed odbiciem", "Lądowanie"],
     instructions: [
-      "Automatyka wybiera pozycję przed odbiciem i długą krawędź wzorca ustawioną przy palcach.",
+      "Automatyka wybiera pozycję przed odbiciem i krawędź START (20 cm) ustawioną przy palcach.",
       "Automatyka wybiera stabilne lądowanie i bliższą piętę. Punkt możesz poprawić jednym dotknięciem.",
     ],
     setup: [
-      "Wydrukuj dwa wzorce w skali 100%: niebieski START i pomarańczowy 3 METRY. Sprawdź, czy długa krawędź każdego ma 20,0 cm.",
-      "START połóż za linią odbicia, długą krawędzią równo z palcami. Krzyżyk drugiego arkusza ustaw taśmą dokładnie 3,00 m od tej linii.",
+      "Wydrukuj dwa wzorce w skali 100%: niebieski START i pomarańczowy 3 METRY. Sprawdź ramkę każdego: 20,0 × 24,0 cm.",
+      "START połóż za linią odbicia, krawędzią 20,0 cm równo z palcami. Krzyżyk drugiego arkusza ustaw taśmą dokładnie 3,00 m od tej linii, prostopadle do niej.",
       "Telefon ustaw nieruchomo z boku. Oba wzorce, całe ciało i lądowanie muszą pozostać widoczne. Nie dotykaj telefonu podczas próby.",
       "Skocz obunóż i zatrzymaj lądowanie na chwilę, bez cofnięcia stóp ani podparcia ręką za piętą.",
     ],

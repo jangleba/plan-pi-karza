@@ -55,7 +55,13 @@ export async function detectPose(
   canvas: HTMLCanvasElement | ImageBitmap,
 ): Promise<DetectedPose | null> {
   const task = await landmarker();
-  const landmarks = task.detect(canvas).landmarks[0];
+  return poseFromLandmarks(task.detect(canvas).landmarks[0]);
+}
+
+/** A high average body score must not conceal an occluded heel or hip. */
+export function poseFromLandmarks(
+  landmarks: readonly NormalizedLandmark[] | undefined,
+): DetectedPose | null {
   if (!landmarks?.[32]) return null;
   const selected = [
     landmarks[11],
@@ -69,7 +75,14 @@ export async function detectPose(
     landmarks[31],
     landmarks[32],
   ];
-  const score = confidence(selected);
+  if (selected.some((point) => !point || !Number.isFinite(point.x) || !Number.isFinite(point.y)))
+    return null;
+  const score = Math.min(
+    confidence(selected),
+    ...[23, 24, 29, 30, 31, 32].map((index) =>
+      Math.min(landmarks[index].visibility ?? 0, landmarks[index].presence ?? 1),
+    ),
+  );
   if (score < 0.45) return null;
   const hip = midpoint(landmarks[23], landmarks[24]);
   const shoulders = midpoint(landmarks[11], landmarks[12]);

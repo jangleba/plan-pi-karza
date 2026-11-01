@@ -15,10 +15,10 @@
   <g font-family="Arial,sans-serif" fill="#0b1c32" text-anchor="middle">
     <text x="105" y="132" font-size="8" font-weight="700">3,00 m</text>
     <text x="105" y="146" font-size="4.5">POMARAŃCZOWY WZORZEC ZASIĘGU</text>
-    <path d="M95 160h20M105 150v20" stroke="#f97316" stroke-width="2"/>
-    <circle cx="105" cy="160" r="4" fill="none" stroke="#f97316" stroke-width="1"/>
+    <path d="M95 159h20M105 149v20" stroke="#f97316" stroke-width="2"/>
+    <circle cx="105" cy="159" r="4" fill="none" stroke="#f97316" stroke-width="1"/>
     <text x="105" y="181" font-size="4.7" font-weight="700">CENTRUM KRZYŻYKA = DOKŁADNIE 3,00 m OD LINII STARTU</text>
-    <text x="105" y="194" font-size="4">Zmierz taśmą prostopadle do długiej krawędzi wzorca START.</text>
+    <text x="105" y="194" font-size="4">Zmierz taśmą prostopadle do krawędzi START (20 cm).</text>
     <text x="105" y="205" font-size="4">Połóż płasko na tym samym podłożu. Nie przesuwaj podczas sesji.</text>
     <text x="105" y="291" font-size="3.5">Oba wzorce, całe ciało i lądowanie muszą być widoczne przez cały film.</text>
   </g>

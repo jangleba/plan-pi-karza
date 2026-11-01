@@ -150,7 +150,7 @@ export async function analyzeLongJump(
       );
     const line = takeoffEdge(startMarkers.start.corners, selected.start.toes);
     const common = {
-      method: "ballwise-marker-pose-v2" as const,
+      method: "ballwise-marker-pose-v3" as const,
       referenceCorners: startMarkers.start.corners,
       rangeCorners: startMarkers.range.corners,
       landingReferenceCorners: landingMarkers.start.corners,

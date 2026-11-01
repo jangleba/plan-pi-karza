@@ -1,14 +1,21 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BrowserLab from "./BrowserLab";
-import { storeBrowserResults } from "./storage";
+import { storeBrowserResults, loadBrowserResults } from "./storage";
+import type { VideoAnalyzer } from "./VideoAnalyzer";
 import { createBrowserResult } from "./results";
 import { attemptPlan } from "./protocols";
 import { buildJumpTimeline } from "./measurement";
 vi.mock("./SafariTools", () => ({ SafariTools: () => <p>Kopie dostępne</p> }));
-vi.mock("./VideoAnalyzer", () => ({ VideoAnalyzer: () => <p>Pomiar rozpoczęty</p> }));
+const bridge = vi.hoisted(() => ({ props: null as ComponentProps<typeof VideoAnalyzer> | null }));
+vi.mock("./VideoAnalyzer", () => ({
+  VideoAnalyzer: (props: ComponentProps<typeof VideoAnalyzer>) => {
+    bridge.props = props;
+    return <p>Pomiar rozpoczęty</p>;
+  },
+}));
 let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
@@ -37,6 +44,89 @@ const starts = () =>
       b.getAttribute("aria-label")?.startsWith("Rozpocznij"),
   );
 describe("Lab capability gate", () => {
+  it("completes all 17 profile slots once, preserving sides, trial numbers and saved history", async () => {
+    vi.stubGlobal("isSecureContext", true);
+    await render();
+    await act(async () => starts()[0].click());
+    const timeline = buildJumpTimeline(
+      Array.from({ length: 1000 }, (_, cts) => ({ cts, timescale: 240, duration: 1 })),
+    );
+    const p = (x: number, y: number): [number, number] => [0.1 + 0.004 * x, 0.1 + 0.0025 * y];
+    const reference = [p(0, -24), p(20, -24), p(20, 0), p(0, 0)] as [
+      [number, number],
+      [number, number],
+      [number, number],
+      [number, number],
+    ];
+    const range = [p(0, 288), p(20, 288), p(20, 312), p(0, 312)] as typeof reference;
+    for (let i = 0; i < 17; i++) {
+      const props = bridge.props!;
+      expect(host.textContent).toContain(`${i + 1} / 17`);
+      const isRun = ["sprint_10m", "cod_505"].includes(props.attempt.testId);
+      const spatial =
+        props.attempt.testId === "standing_long_jump"
+          ? {
+              method: "ballwise-marker-pose-v3" as const,
+              referenceCorners: reference,
+              rangeCorners: range,
+              landingReferenceCorners: reference,
+              landingRangeCorners: range,
+              referenceWidthCm: 20 as const,
+              referenceDepthCm: 24 as const,
+              baselineCm: 300 as const,
+              imageWidth: 1920,
+              imageHeight: 1080,
+              calibrationFrameIndex: 30,
+              lineFrameIndex: 30,
+              heelFrameIndex: 130,
+              takeoffLine: [reference[2], reference[3]] as [[number, number], [number, number]],
+              heel: p(7, 214),
+              poseConfidence: 0.95,
+              markerQuality: 0.95,
+              heelSource: "manual" as const,
+            }
+          : undefined;
+      const result = createBrowserResult({
+        attempt: props.attempt,
+        sessionId: props.sessionId,
+        timeline,
+        start: 30,
+        end: isRun ? 630 : 130,
+        sourceName: `trial-${i}.mp4`,
+        sourceHash: (i + 1).toString(16).padStart(64, "0"),
+        sourceBytes: 1000,
+        codec: "avc1.640029",
+        guidePositions: [0.5, 0.5],
+        notes: "",
+        spatial,
+        ...(props.attempt.testId === "cod_505" ? { turnFrameIndex: 330 } : {}),
+      });
+      await act(async () => props.onSave(result));
+      expect(loadBrowserResults("qa-athlete")).toHaveLength(i + 1);
+      const next = [...host.querySelectorAll("button")].find((b) =>
+        b.textContent?.includes(i === 16 ? "Zakończ i pokaż wyniki" : "Kolejna próba"),
+      )!;
+      await act(async () => next.click());
+    }
+    expect(host.textContent).toContain("Zapisano 17 poprawnych prób");
+    expect(host.textContent).toContain("17 zapisanych prób");
+    const rows = loadBrowserResults("qa-athlete");
+    const counts = Object.fromEntries(
+      ["cmj", "single_leg_cmj", "sprint_10m", "standing_long_jump", "cod_505"].map((id) => [
+        id,
+        rows.filter((r) => r.testId === id).length,
+      ]),
+    );
+    expect(counts).toEqual({
+      cmj: 3,
+      single_leg_cmj: 6,
+      sprint_10m: 2,
+      standing_long_jump: 2,
+      cod_505: 4,
+    });
+    expect(rows.filter((r) => r.side === "left")).toHaveLength(5);
+    expect(rows.filter((r) => r.side === "right")).toHaveLength(5);
+  });
   it("announces persisted Lab data and reloads only a matching applied cloud snapshot", async () => {
     vi.stubGlobal("isSecureContext", true);
     await render();

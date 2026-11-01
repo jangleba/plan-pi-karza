@@ -102,7 +102,32 @@ export function restoreHistoryBackup(owner: string, input: unknown, store: Store
   const merged = [...current];
   let added = 0;
   for (const result of incoming) {
-    if (merged.some((r) => r.id === result.id || sameTrial(r, result))) continue;
+    const sameId = merged.find((r) => r.id === result.id);
+    if (sameId) {
+      if (JSON.stringify(sameId) !== JSON.stringify(result))
+        throw new Error(
+          "Konflikt identyfikatora próby: kopia zawiera inną wersję wyniku. Zachowaj obie kopie. Historii nie zmieniono.",
+        );
+      continue;
+    }
+    const previous = merged.find((r) => sameTrial(r, result));
+    if (previous) {
+      // A second export can have a different ID/date/slot but the same actual
+      // measurement. A changed calibration, guide or note must not disappear.
+      const signature = (row: BrowserResult) =>
+        JSON.stringify(
+          Object.fromEntries(
+            Object.entries(row).filter(
+              ([key]) => !["id", "sessionId", "trial", "recordedAt"].includes(key),
+            ),
+          ),
+        );
+      if (signature(previous) !== signature(result))
+        throw new Error(
+          "Konflikt pomiaru: te same klatki mają inną kalibrację, oznaczenia lub notatkę. Zachowaj obie kopie. Historii nie zmieniono.",
+        );
+      continue;
+    }
     merged.push(result);
     added++;
   }
