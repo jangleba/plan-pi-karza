@@ -44,6 +44,14 @@ const starts = () =>
       b.getAttribute("aria-label")?.startsWith("Rozpocznij"),
   );
 describe("Lab capability gate", () => {
+  it("opens the saved-history destination directly from Progress", async () => {
+    await act(async () => root.render(<BrowserLab ownerId="qa-athlete" initialTab="history" />));
+    const history = [...host.querySelectorAll('[role="tab"]')].find((tab) =>
+      tab.textContent?.includes("Historia"),
+    )!;
+    expect(history.getAttribute("aria-selected")).toBe("true");
+    expect(host.querySelectorAll(".bl-test-card")).toHaveLength(0);
+  });
   it("switches accessible Testy/Historia panels with arrow and Home keys", async () => {
     vi.stubGlobal("isSecureContext", true);
     await render();
@@ -66,7 +74,11 @@ describe("Lab capability gate", () => {
   it("completes all 17 profile slots once, preserving sides, trial numbers and saved history", async () => {
     vi.stubGlobal("isSecureContext", true);
     await render();
-    await act(async () => starts()[0].click());
+    await act(async () =>
+      starts()
+        .find((b) => b.textContent?.includes("Rozpocznij pełny profil"))!
+        .click(),
+    );
     const timeline = buildJumpTimeline(
       Array.from({ length: 1000 }, (_, cts) => ({ cts, timescale: 240, duration: 1 })),
     );

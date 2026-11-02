@@ -11,6 +11,7 @@ export type StoredTestId = BrowserTestId | "flying_10m";
 export const CALIBRATED_LAB_PROTOCOL = "ballwise-browser-lab-1.1";
 export const AUTOMATED_LAB_PROTOCOL = "ballwise-browser-lab-1.2";
 export const PERSPECTIVE_LAB_PROTOCOL = "ballwise-browser-lab-1.3";
+export const ORIENTED_LAB_PROTOCOL = "ballwise-browser-lab-1.4";
 export type TestSide = "left" | "right" | null;
 
 export interface BrowserProtocol {

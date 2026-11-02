@@ -1,42 +1,44 @@
 import { Link } from "@tanstack/react-router";
 import { Clock3, Gauge, ListChecks, Route as RouteIcon, Target } from "lucide-react";
 import { CycleBar } from "@/components/progress/CycleBar";
-import { EvidenceRail } from "@/components/progress/EvidenceRail";
 import { LoadCard } from "@/components/progress/LoadCard";
 import { TrainingBalance } from "@/components/progress/TrainingBalance";
 import { WeekLine } from "@/components/progress/WeekLine";
 import type { DirectionCard, MicrocycleReport } from "@/lib/progress/center";
-import type { CycleBar as CycleBarData, EvidenceCard, LoadReport } from "@/lib/progress/dashboard";
+import type { CycleBar as CycleBarData, LoadReport } from "@/lib/progress/dashboard";
 import type { RunningActivity } from "@/lib/running/types";
 import { formatDistance, formatPace, formatRunDuration } from "@/lib/running/metrics";
 import { RunActivitySummary } from "@/components/running/RunActivitySummary";
+import type { ProgressSessionTarget } from "@/lib/progress/navigation";
 
 export function ProgressDashboard({
   cycle,
   direction,
-  evidence,
   load,
   micro,
   runningActivities,
   todayIso,
+  onHistory,
+  missingRpeTarget,
 }: {
   cycle: CycleBarData;
   direction: DirectionCard;
-  evidence: EvidenceCard[];
   load: LoadReport;
   micro: MicrocycleReport;
   runningActivities: Record<string, RunningActivity>;
   todayIso: string;
+  onHistory: (missingRpe?: boolean) => void;
+  missingRpeTarget?: ProgressSessionTarget;
 }) {
   const kpis = [
     {
-      label: "Realizacja",
+      label: "Plan aktywny",
       value: micro.executionPct == null ? "—" : `${micro.executionPct}%`,
       icon: ListChecks,
     },
     {
-      label: "Czas",
-      value: `${micro.totalMinutes} min`,
+      label: "Czas sesji",
+      value: `${micro.estimatedDurationCount ? "≈ " : ""}${micro.totalMinutes} min`,
       icon: Clock3,
     },
     {
@@ -46,42 +48,73 @@ export function ProgressDashboard({
     },
   ];
   const weekStart = new Date(`${todayIso}T00:00:00Z`);
-  weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+  weekStart.setUTCDate(weekStart.getUTCDate() - micro.periodDays + 1);
   const recentRuns = Object.values(runningActivities)
     .filter(
       (activity) =>
-        activity.date >= weekStart.toISOString().slice(0, 10) && activity.date <= todayIso,
+        Number.isFinite(activity.distanceM) &&
+        activity.distanceM >= 0 &&
+        Number.isFinite(activity.durationSec) &&
+        activity.durationSec >= 0 &&
+        activity.date >= weekStart.toISOString().slice(0, 10) &&
+        activity.date <= todayIso,
     )
     .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
   const runningDistance = recentRuns.reduce((sum, activity) => sum + activity.distanceM, 0);
   const runningDuration = recentRuns.reduce((sum, activity) => sum + activity.durationSec, 0);
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      <CycleBar cycle={cycle} />
-
+    <div className="space-y-3 animate-fade-in" data-progress-period={micro.periodDays}>
       <section className="soft-card p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">Ostatnie 7 dni</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Plan i ukończone jednostki</p>
+            <h2 className="text-sm font-semibold">Ostatnie {micro.periodDays} dni</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {micro.loggedCount} zapisanych sesji · {micro.fromIso.slice(8)}.
+              {micro.fromIso.slice(5, 7)}–{todayIso.slice(8)}.{todayIso.slice(5, 7)}
+            </p>
           </div>
           <span className="text-xs font-medium text-primary">
-            {micro.completedCount}/{micro.plannedCount || "—"}
+            Plan: {micro.completedCount}/{micro.plannedCount || "—"}
           </span>
         </div>
-        <div className="mt-4">
-          <WeekLine days={micro.days} />
-        </div>
+        <div className="mt-4">{micro.periodDays === 7 && <WeekLine days={micro.days} />}</div>
         <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3">
-          {kpis.map(({ label, value, icon: Icon }) => (
-            <div key={label} className="rounded-2xl bg-muted/55 p-2.5">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Icon className="h-3 w-3" aria-hidden="true" /> {label}
-              </div>
-              <div className="mt-1 text-sm font-semibold">{value}</div>
-            </div>
-          ))}
+          {kpis.map(({ label, value, icon: Icon }, index) => {
+            const content = (
+              <>
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Icon className="hidden h-3 w-3 min-[400px]:block" aria-hidden="true" />{" "}
+                  <span className="min-w-0">{label}</span> <span aria-hidden="true">›</span>
+                </div>
+                <div className="mt-1 text-sm font-semibold">{value}</div>
+              </>
+            );
+            const className =
+              "min-h-14 rounded-2xl bg-muted/55 p-2.5 text-left transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary";
+            return index === 0 ? (
+              <Link
+                key={label}
+                to="/plan"
+                className={className}
+                aria-label={`Otwórz plan: ${value}`}
+              >
+                {content}
+              </Link>
+            ) : (
+              <button
+                key={label}
+                type="button"
+                onClick={() => onHistory()}
+                className={className}
+                aria-label={
+                  index === 2 ? "Pokaż RPE z tego okresu" : "Pokaż treningi z tego okresu"
+                }
+              >
+                {content}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -90,7 +123,7 @@ export function ProgressDashboard({
           <div className="flex items-center gap-2">
             <RouteIcon className="h-4 w-4 text-primary" aria-hidden="true" />
             <div>
-              <h2 className="text-sm font-semibold">Bieganie · 7 dni</h2>
+              <h2 className="text-sm font-semibold">Bieganie · {micro.periodDays} dni</h2>
               <p className="text-xs text-muted-foreground">
                 {recentRuns.length} {recentRuns.length === 1 ? "zapisany bieg" : "zapisane biegi"}
               </p>
@@ -106,26 +139,33 @@ export function ProgressDashboard({
               )}
             />
           </div>
-          <div className="mt-4 border-t border-border pt-4">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Ostatni bieg
-            </div>
+          <details className="mt-3 border-t border-border pt-3">
+            <summary className="cursor-pointer text-xs font-medium">Ostatni bieg</summary>
             <RunActivitySummary activity={recentRuns[0]} compact showSplits={false} />
-          </div>
+          </details>
         </section>
       )}
 
       <section className="soft-card p-4">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-          Twój kierunek
-        </div>
-        <div className="mt-0.5 text-sm font-semibold leading-snug">{direction.stage}</div>
-        <dl className="mt-3 space-y-2 border-t border-border pt-3 text-sm">
-          <Row label="Realizacja" value={direction.execution} />
-          <Row label="Obciążenie" value={direction.loadSignal} />
-          <Row label="Ogranicznik" value={direction.limiter} />
-          <Row label="Następny krok" value={direction.nextStep} />
-        </dl>
+        <h2 className="text-sm font-semibold">Co dalej</h2>
+        <p className="mt-1 text-sm leading-relaxed">{direction.nextStep}</p>
+        {micro.loggedCount > 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            RPE zapisano dla {micro.rpeCount}/{micro.loggedCount} sesji. Brak oceny nie oznacza
+            lekkiego treningu.
+          </p>
+        )}
+        {missingRpeTarget && (
+          <Link
+            to="/sesja/$date"
+            params={{ date: missingRpeTarget.date }}
+            search={{ slot: missingRpeTarget.slot, mod: missingRpeTarget.mod }}
+            hash={`session-completion-${missingRpeTarget.sessionId}`}
+            className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+          >
+            Uzupełnij RPE →
+          </Link>
+        )}
         {direction.cta.to === "session" && direction.cta.date ? (
           <Link
             to="/sesja/$date"
@@ -145,9 +185,21 @@ export function ProgressDashboard({
         )}
       </section>
 
-      <EvidenceRail cards={evidence} />
       <LoadCard report={load} />
-      <TrainingBalance byCategory={micro.byCategory} />
+      <details className="soft-card p-4">
+        <summary className="cursor-pointer text-sm font-semibold">Cel i rozkład treningów</summary>
+        <div className="mt-3 space-y-3">
+          <CycleBar cycle={cycle} />
+          <dl className="space-y-2">
+            <Row label="Priorytet z profilu" value={direction.limiter} />
+          </dl>
+          <TrainingBalance byCategory={micro.byCategory} periodDays={micro.periodDays} />
+          <p className="text-xs text-muted-foreground">
+            Realizacja dotyczy aktywnego planu. Archiwalne treningi wliczamy do zapisanej pracy, ale
+            nie zaliczają nowych jednostek. Upływ czasu cyklu nie oznacza poprawy formy.
+          </p>
+        </div>
+      </details>
     </div>
   );
 }

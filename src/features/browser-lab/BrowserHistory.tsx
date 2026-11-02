@@ -37,7 +37,9 @@ function ResultDetails({ result }: { result: BrowserResult }) {
           <dt>Metoda</dt>
           <dd>
             {result.spatial.method !== "floor-homography-v1"
-              ? "Wzorzec AUTO + propozycja sylwetki + kontrola ruchu kamery."
+              ? result.spatial.heelSource === "manual" && result.spatial.poseConfidence === 0
+                ? "Kalibracja z dwóch wzorców i kontrola ruchu kamery. Pięta wskazana ręcznie."
+                : "Wzorzec AUTO + propozycja sylwetki + kontrola ruchu kamery."
               : "Ręczna kalibracja płaszczyzny podłoża (wersja archiwalna)."}
           </dd>
           <dt>Wzorzec</dt>

@@ -163,7 +163,7 @@ export function CompletionPanel({ session }: { session: SessionDay }) {
   }
 
   return (
-    <div className="soft-card p-4">
+    <div id={`session-completion-${session.dbId}`} className="soft-card scroll-mt-5 p-4">
       <div className="flex items-center gap-2">
         <CheckCircle2 className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`} />
         <h3 className="text-sm font-semibold">

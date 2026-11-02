@@ -8,11 +8,13 @@ export function CameraRecorder({
   title = "Nagraj próbę",
   onRecording,
   onCancel,
+  highDetail = false,
 }: {
   instruction: string;
   title?: string;
   onRecording: (file: File) => void;
   onCancel: () => void;
+  highDetail?: boolean;
 }) {
   const dialog = useRef<HTMLElement>(null);
   const cancel = useRef(onCancel);
@@ -98,7 +100,7 @@ export function CameraRecorder({
       setPhase("error");
     };
     document.addEventListener("visibilitychange", visibility);
-    void openLabCamera(controller.signal)
+    void openLabCamera(controller.signal, highDetail)
       .then(async (opened) => {
         if (controller.signal.aborted) {
           stopCamera(opened);
@@ -132,33 +134,46 @@ export function CameraRecorder({
       if (element) element.srcObject = null;
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, []);
+  }, [highDetail]);
 
   useEffect(() => {
     if (phase !== "countdown" || !camera) return;
     const controller = capture.current!;
     let value = countdownSeconds;
+    let started = false;
+    const beginRecording = () => {
+      if (started || controller.signal.aborted) return;
+      started = true;
+      const recording = recordLabCamera(
+        camera,
+        controller.signal,
+        (n) => setSeconds(Math.max(0, n - 1)),
+        maximumSeconds + 1,
+      );
+      stop.current = recording.stop;
+      void recording.finished
+        .then((file) => {
+          if (!controller.signal.aborted) complete.current(file);
+        })
+        .catch((reason: unknown) => {
+          if (controller.signal.aborted) return;
+          setError(messageOf(reason));
+          setPhase("error");
+        });
+    };
     const timer = setInterval(() => {
       value--;
-      if (value > 0) {
-        setCount(value);
-        return;
-      }
-      clearInterval(timer);
       if (controller.signal.aborted) return;
       try {
-        const recording = recordLabCamera(camera, controller.signal, setSeconds, maximumSeconds);
-        stop.current = recording.stop;
-        setPhase("recording");
-        void recording.finished
-          .then((file) => {
-            if (!controller.signal.aborted) complete.current(file);
-          })
-          .catch((reason: unknown) => {
-            if (controller.signal.aborted) return;
-            setError(messageOf(reason));
-            setPhase("error");
-          });
+        // Keep one second of stillness before START for movement detection.
+        // Measurement always uses the file's actual frame timestamps.
+        if (value === 1) beginRecording();
+        if (value > 0) setCount(value);
+        else {
+          clearInterval(timer);
+          beginRecording();
+          setPhase("recording");
+        }
       } catch (reason) {
         if (cameraRef.current) stopCamera(cameraRef.current);
         setError(messageOf(reason));
@@ -183,6 +198,11 @@ export function CameraRecorder({
         {phase === "countdown" && (
           <strong className="bl-camera-count" aria-live="assertive">
             {count}
+          </strong>
+        )}
+        {phase === "recording" && seconds === 0 && (
+          <strong className="bl-camera-count" aria-live="assertive">
+            START
           </strong>
         )}
       </div>
@@ -245,7 +265,9 @@ export function CameraRecorder({
                 </select>
               </label>
             </div>
-            <p className="bl-camera-small">Telefon nieruchomo · możesz zakończyć wcześniej</p>
+            <p className="bl-camera-small">
+              Stań spokojnie. Zacznij po napisie START. Możesz zakończyć wcześniej.
+            </p>
             <LabButton
               className="bl-camera-shutter"
               onClick={() => {

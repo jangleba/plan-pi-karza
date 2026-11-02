@@ -8,6 +8,7 @@ const DOT_TONE: Record<string, string> = {
   club: "bg-foreground/70",
   match: "bg-destructive",
   recovery: "bg-muted-foreground/50",
+  ball: "bg-primary/80",
 };
 
 /** Animowana linia ostatnich 7 dni: plan, wykonanie i rodzaj jednostki. */
@@ -19,6 +20,7 @@ export function WeekLine({ days }: { days: MicrocycleDay[] }) {
         {days.map((d, i) => (
           <div
             key={d.date}
+            aria-label={`${d.date}: ${d.completed ? `zapisane ${d.durationMin} min` : d.planned ? "zaplanowany trening" : "brak wpisu"}`}
             className="flex w-9 flex-col items-center gap-1 animate-fade-in"
             style={{ animationDelay: `${i * 45}ms`, animationFillMode: "backwards" }}
           >

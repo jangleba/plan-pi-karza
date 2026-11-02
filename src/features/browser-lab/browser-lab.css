@@ -177,6 +177,71 @@
   cursor: pointer;
   touch-action: manipulation;
 }
+.bl-test-list .bl-test-card {
+  padding: 13px 14px;
+  margin-block: 8px;
+  min-height: 76px;
+}
+.bl-event-proof {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-block: 10px;
+}
+.bl-event-proof figure {
+  margin: 0;
+  min-width: 0;
+}
+.bl-event-proof canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  background: var(--secondary);
+}
+.bl-event-proof figcaption {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-align: center;
+}
+.bl-event-proof > p {
+  grid-column: 1 / -1;
+}
+.bl-manual-heel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  touch-action: none;
+  cursor: crosshair;
+}
+.bl-manual-heel span {
+  display: none;
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--primary);
+  background: var(--card);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.bl-manual-heel:focus-visible span {
+  display: block;
+}
+.bl-assist-line {
+  margin-block: 4px 14px;
+}
+.bl-assist-line .bl-label {
+  margin-block: 4px;
+}
+.bl-auto-progress progress {
+  width: 100%;
+  accent-color: var(--primary);
+}
 .bl-test-card:disabled {
   opacity: 0.45;
   cursor: default;

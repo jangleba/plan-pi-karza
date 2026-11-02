@@ -53,6 +53,18 @@ afterEach(() => {
 });
 
 describe("camera negotiation and recording lifecycle", () => {
+  it("prioritizes native detail for long-jump markers without forcing a lower-resolution high FPS", async () => {
+    const { gum, track } = fixture();
+    const camera = await openLabCamera(new AbortController().signal, true);
+    expect(gum.mock.calls[0][0].video).toMatchObject({
+      width: { ideal: 3840, max: 3840 },
+      height: { ideal: 2160 },
+      frameRate: { ideal: 30, max: 60 },
+    });
+    expect(track.applyConstraints).not.toHaveBeenCalled();
+    expect(camera.videoBitsPerSecond).toBe(24_000_000);
+    expect(camera.settings.frameRate).toBe(30);
+  });
   it("honors an explicit longer recording limit", async () => {
     const { stream } = fixture();
     const camera = { stream, mimeType: "video/mp4", settings: {} };

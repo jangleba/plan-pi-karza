@@ -3,8 +3,11 @@ import type { Profile, SessionDay } from "@/lib/loadwise/types";
 import { GOAL_LABELS, SECONDARY_LIMITER_LABELS } from "@/lib/loadwise/labels";
 import {
   TRAINING_CATEGORY_LABELS,
+  uniqueTrainingHistory,
+  validProgressDate,
   type CompletedSessionEntry,
   type TrainingCategoryKey,
+  type ProgressPeriod,
 } from "@/lib/progress/progress";
 import type { MicrocycleReport } from "@/lib/progress/center";
 
@@ -35,7 +38,10 @@ export function buildCycleBar(
   plan: SessionDay[],
   todayIso: string,
 ): CycleBar {
-  const dates = plan.map((day) => day.date).sort();
+  const dates = plan
+    .map((day) => day.date)
+    .filter(validProgressDate)
+    .sort();
   const goalLabel = profile?.goal ? GOAL_LABELS[profile.goal] : "Cel nieustawiony";
   const focusLabel = profile?.secondaryLimiter
     ? SECONDARY_LIMITER_LABELS[profile.secondaryLimiter]
@@ -81,12 +87,25 @@ export interface LoadReport {
   byCategory: Record<TrainingCategoryKey, number>;
   insight: string | null;
   hasData: boolean;
+  periodDays: ProgressPeriod;
+  recordedCount: number;
+  missingRpeCount: number;
+  missingDurationCount: number;
+  previousCount: number;
+  comparable: boolean;
 }
 
 const WEEKDAYS = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
-export function buildLoadReport(history: CompletedSessionEntry[], todayIso: string): LoadReport {
-  const dates = Array.from({ length: 7 }, (_, index) => addIsoDays(todayIso, index - 6));
+export function buildLoadReport(
+  history: CompletedSessionEntry[],
+  todayIso: string,
+  periodDays: ProgressPeriod = 7,
+): LoadReport {
+  history = uniqueTrainingHistory(history);
+  const dates = Array.from({ length: periodDays }, (_, index) =>
+    addIsoDays(todayIso, index - periodDays + 1),
+  );
   const byCategory: Record<TrainingCategoryKey, number> = {
     gym: 0,
     speed: 0,
@@ -96,8 +115,15 @@ export function buildLoadReport(history: CompletedSessionEntry[], todayIso: stri
     match: 0,
     recovery: 0,
   };
-  const loadOf = (item: CompletedSessionEntry) =>
-    item.rpe != null && item.durationMin > 0 ? item.durationMin * item.rpe : 0;
+  const usable = (item: CompletedSessionEntry) =>
+    item.rpe != null && item.durationMin > 0 && !item.durationEstimated;
+  const loadOf = (item: CompletedSessionEntry) => (usable(item) ? item.durationMin * item.rpe! : 0);
+  const current = history.filter((item) => item.date >= dates[0] && item.date <= todayIso);
+  const recordedCount = current.filter(usable).length;
+  const missingRpeCount = current.filter((item) => item.rpe == null).length;
+  const missingDurationCount = current.filter(
+    (item) => item.durationMin <= 0 || item.durationEstimated,
+  ).length;
 
   const days: LoadDay[] = dates.map((date) => {
     const categoryLoad: Partial<Record<TrainingCategoryKey, number>> = {};
@@ -118,20 +144,29 @@ export function buildLoadReport(history: CompletedSessionEntry[], todayIso: stri
   });
 
   const total = days.reduce((sum, day) => sum + day.load, 0);
-  const previousFrom = addIsoDays(todayIso, -13);
-  const previousTo = addIsoDays(todayIso, -7);
-  const previousTotal = history
-    .filter((item) => item.date >= previousFrom && item.date <= previousTo)
-    .reduce((sum, item) => sum + loadOf(item), 0);
+  const previousFrom = addIsoDays(todayIso, -periodDays * 2 + 1);
+  const previousTo = addIsoDays(todayIso, -periodDays);
+  const previous = history.filter((item) => item.date >= previousFrom && item.date <= previousTo);
+  const previousTotal = previous.reduce((sum, item) => sum + loadOf(item), 0);
+  const comparable =
+    current.length > 0 && previous.length > 0 && current.every(usable) && previous.every(usable);
   const ranked = (Object.keys(byCategory) as TrainingCategoryKey[])
     .filter((key) => byCategory[key] > 0)
     .sort((a, b) => byCategory[b] - byCategory[a]);
 
   let insight: string | null = null;
-  if (total > 0 && previousTotal > 0 && total > previousTotal * 1.3) {
-    insight = "Obciążenie wzrosło wyraźnie względem poprzedniego tygodnia.";
-  } else if (total > 0 && previousTotal > 0 && total < previousTotal * 0.7) {
-    insight = "Obciążenie spadło względem poprzedniego tygodnia.";
+  if (
+    !comparable &&
+    (current.some((item) => !usable(item)) || previous.some((item) => !usable(item)))
+  ) {
+    insight =
+      "Brakuje czasu lub RPE — suma obejmuje pełne wpisy. Nie porównujemy niepełnych zapisów między okresami.";
+  } else if (comparable && previousTotal > 0 && total > previousTotal * 1.3) {
+    insight =
+      "Zapisane obciążenie wzrosło względem poprzedniego okresu. To opis pracy, nie ocena formy ani ryzyka urazu.";
+  } else if (comparable && previousTotal > 0 && total < previousTotal * 0.7) {
+    insight =
+      "Zapisane obciążenie spadło względem poprzedniego okresu. Sprawdź plan i kompletność wpisów.";
   } else if (ranked[0]) {
     insight = `Najwięcej obciążenia dał obszar: ${TRAINING_CATEGORY_LABELS[
       ranked[0]
@@ -145,7 +180,13 @@ export function buildLoadReport(history: CompletedSessionEntry[], todayIso: stri
     maxDayLoad: Math.max(1, ...days.map((day) => day.load)),
     byCategory,
     insight,
-    hasData: total > 0,
+    hasData: recordedCount > 0,
+    periodDays,
+    recordedCount,
+    missingRpeCount,
+    missingDurationCount,
+    previousCount: previous.length,
+    comparable,
   };
 }
 
@@ -164,17 +205,20 @@ export function buildEvidence(
   micro: MicrocycleReport,
   history: CompletedSessionEntry[],
   todayIso: string,
+  periodDays: ProgressPeriod = 7,
 ): EvidenceCard[] {
   const cards: EvidenceCard[] = [];
-  const weekAgo = addIsoDays(todayIso, -6);
-  const recent = history.filter((item) => item.date >= weekAgo && item.date <= todayIso);
+  const weekAgo = addIsoDays(todayIso, 1 - periodDays);
+  const recent = uniqueTrainingHistory(history).filter(
+    (item) => item.date >= weekAgo && item.date <= todayIso,
+  );
 
   if (recent.length > 0) {
     cards.push({
       id: "trainings-week",
       kind: "training",
       title: "Wykonana praca",
-      detail: `${recent.reduce((sum, item) => sum + item.durationMin, 0)} min w ostatnich 7 dniach`,
+      detail: `${recent.reduce((sum, item) => sum + item.durationMin, 0)} min w ostatnich ${periodDays} dniach`,
       value: recent.length,
       suffix: recent.length === 1 ? "jednostka" : "jednostki",
     });
@@ -197,7 +241,7 @@ export function buildEvidence(
       id: "matches-week",
       kind: "match",
       title: "Zapisane mecze",
-      detail: "Ostatnie 7 dni",
+      detail: `Ostatnie ${periodDays} dni`,
       value: matches.length,
     });
   }
@@ -219,10 +263,11 @@ export interface TimelineEvent {
   kind: TimelineKind;
   title: string;
   detail: string;
+  rpe: number | null;
 }
 
 export function buildTimeline(history: CompletedSessionEntry[]): TimelineEvent[] {
-  return history
+  return uniqueTrainingHistory(history)
     .map((item) => ({
       id: `training:${item.key}`,
       sessionKey: item.key,
@@ -231,11 +276,14 @@ export function buildTimeline(history: CompletedSessionEntry[]): TimelineEvent[]
       title: item.title,
       detail: [
         TRAINING_CATEGORY_LABELS[item.category],
-        item.durationMin ? `${item.durationMin} min` : null,
+        item.durationMin
+          ? `${item.durationEstimated ? "ok. " : ""}${item.durationMin} min`
+          : "czas nieuzupełniony",
         item.rpe != null ? `RPE ${item.rpe}` : null,
       ]
         .filter(Boolean)
         .join(" · "),
+      rpe: item.rpe,
     }))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }

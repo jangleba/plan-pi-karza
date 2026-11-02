@@ -4,6 +4,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import http from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -27,6 +28,7 @@ const mocks = {
   video: mockVideo,
   camera: mockCamera,
   longJumpAuto: `export async function analyzeLongJump(video,signal,progress){signal.throwIfAborted();progress(100);return window.__labQA.spatial}`,
+  timedAuto: `export async function analyzeTimedVideo(){throw new Error('Interfejs kontrolny: oznacz zdarzenia recznie.')}`,
   deliverExportFile: `export async function deliverExportFile(){return 'delivered'} export async function deliverExportBlob(){return 'delivered'}`,
 };
 await esbuild.build({
@@ -44,7 +46,7 @@ await esbuild.build({
       name: "isolated-lab-inputs",
       setup(build) {
         build.onResolve(
-          { filter: /(?:^|\/)(video|camera|longJumpAuto|deliverExportFile)(?:\.tsx?)?$/ },
+          { filter: /(?:^|\/)(video|camera|longJumpAuto|timedAuto|deliverExportFile)(?:\.tsx?)?$/ },
           (args) => {
             const key = path.basename(args.path).replace(/\.tsx?$/, "");
             if (!mocks[key]) return;
@@ -127,10 +129,24 @@ const packagePath = process.env.BALLWISE_PLAYWRIGHT_PACKAGE;
 const { chromium } = packagePath
   ? await import(pathToFileURL(path.join(packagePath, "index.mjs")).href)
   : await import("playwright");
-const browser = await chromium.launch({ headless: true });
+const server = http.createServer(async (_req, res) => {
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+  res.end(await fs.readFile(path.join(work, "index.html")));
+});
+await new Promise((resolve, reject) => {
+  server.once("error", reject);
+  server.listen(0, "127.0.0.1", resolve);
+});
+let browser;
 const results = [];
 const errors = [];
 try {
+  browser = await chromium.launch({
+    headless: true,
+    ...(process.env.BALLWISE_CHROMIUM_EXECUTABLE
+      ? { executablePath: process.env.BALLWISE_CHROMIUM_EXECUTABLE }
+      : {}),
+  });
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 1,
@@ -141,7 +157,7 @@ try {
     window.VideoDecoder ??= class {};
     window.EncodedVideoChunk ??= class {};
   });
-  const url = pathToFileURL(path.join(work, "index.html")).href;
+  const url = `http://127.0.0.1:${server.address().port}/`;
   const ensure = (condition, message) => {
     if (!condition) throw new Error(message);
   };
@@ -158,13 +174,25 @@ try {
     await page.evaluate(() => document.fonts.ready);
   }
   async function importClip() {
-    await page
-      .locator('input[aria-label="Wybierz oryginalny film"]')
-      .setInputFiles({
-        name: "Kontrola.mp4",
-        mimeType: "video/mp4",
-        buffer: Buffer.from("qa-input"),
-      });
+    await page.locator('input[aria-label="Wybierz oryginalny film"]').setInputFiles({
+      name: "Kontrola.mp4",
+      mimeType: "video/mp4",
+      buffer: Buffer.from("qa-input"),
+    });
+  }
+  async function paintedFrame(index) {
+    // A result can render before the decoder paints the canvas and React updates
+    // its aspect ratio. Inspect the actual selected frame, not that intermediate UI.
+    await page.waitForFunction((index) => {
+      const el = document.querySelector("[data-lab-painted]");
+      return (
+        el?.dataset.labLoaded === "true" &&
+        el.dataset.labReading === "false" &&
+        el.dataset.labPainted !== "-1" &&
+        el.dataset.labPainted === el.dataset.labFrame &&
+        (index === undefined || el.dataset.labFrame === String(index))
+      );
+    }, index);
   }
   async function goFrame(index) {
     await page.locator('[aria-label="Pozycja w filmie"]').evaluate((el, value) => {
@@ -175,7 +203,7 @@ try {
       el.dispatchEvent(new Event("input", { bubbles: true }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
     }, index);
-    await page.locator(".bl-frame-loading").waitFor({ state: "hidden" });
+    await paintedFrame(index);
   }
   for (const [width, height] of [
     [320, 740],
@@ -188,14 +216,12 @@ try {
       (await page.locator('button[aria-label^="Rozpocznij"]').count()) === 5,
       "Five individual test targets must be available",
     );
-    for (const box of await page
-      .locator(".bl-test-card")
-      .evaluateAll((els) =>
-        els.map((el) => ({
-          w: el.getBoundingClientRect().width,
-          h: el.getBoundingClientRect().height,
-        })),
-      ))
+    for (const box of await page.locator(".bl-test-card").evaluateAll((els) =>
+      els.map((el) => ({
+        w: el.getBoundingClientRect().width,
+        h: el.getBoundingClientRect().height,
+      })),
+    ))
       ensure(box.w >= 44 && box.h >= 44, "Small test touch target");
     await fit("testy-" + width + "x" + height);
   }
@@ -233,6 +259,18 @@ try {
   await importClip();
   await page.locator(".bl-big-value").waitFor();
   async function aligned() {
+    await paintedFrame();
+    // Canvas pixels and React's layout commit can land in different animation
+    // frames. Require the layout to settle as well; never skip the ratio check.
+    await page.waitForFunction(() => {
+      const el = document.querySelector(".bl-frame"),
+        canvas = el?.querySelector("canvas");
+      if (!el || !canvas || !canvas.height) return false;
+      const box = el.getBoundingClientRect();
+      return (
+        box.height > 0 && Math.abs(box.width / box.height - canvas.width / canvas.height) < 0.01
+      );
+    });
     const boxes = await page.locator(".bl-frame").evaluate((el) => {
       const c = el.querySelector("canvas");
       const r = el.getBoundingClientRect();
@@ -240,7 +278,7 @@ try {
     });
     ensure(
       Math.abs(boxes.ratio - boxes.image) < 0.01,
-      "Video and heel overlay have different aspect ratios",
+      "Video and heel overlay have different aspect ratios: " + JSON.stringify(boxes),
     );
   }
   await aligned();
@@ -311,5 +349,6 @@ try {
   );
   console.log(JSON.stringify({ passed: true, views: results }));
 } finally {
-  await browser.close();
+  await browser?.close();
+  await new Promise((resolve) => server.close(resolve));
 }

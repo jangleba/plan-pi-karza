@@ -1,7 +1,11 @@
 import { addIsoDays } from "@/lib/isoDate";
 import type { Profile, SessionDay, SessionCompletion } from "@/lib/loadwise/types";
-import { categoryOf } from "@/lib/progress/progress";
-import type { CompletedSessionEntry, TrainingCategoryKey } from "@/lib/progress/progress";
+import { categoryOf, uniqueTrainingHistory, validProgressDate } from "@/lib/progress/progress";
+import type {
+  CompletedSessionEntry,
+  TrainingCategoryKey,
+  ProgressPeriod,
+} from "@/lib/progress/progress";
 
 /** Dzień mikrocyklu — wyłącznie realny plan i zapisane wykonanie. */
 export interface MicrocycleDay {
@@ -24,13 +28,18 @@ export interface MicrocycleReport {
   avgRpe: number | null;
   byCategory: Record<TrainingCategoryKey, number>;
   nextWeekDirection: string;
+  periodDays: ProgressPeriod;
+  fromIso: string;
+  loggedCount: number;
+  rpeCount: number;
+  estimatedDurationCount: number;
 }
 
 const WEEKDAYS = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
 function planSessions(day: SessionDay): SessionDay[] {
   if (day.isUnavailable) return [];
-  return (day.secondSession ? [day, day.secondSession] : [day]).filter(
+  return (day.secondSession ? [day, { ...day.secondSession, date: day.date }] : [day]).filter(
     (session) =>
       session.dayType !== "rest" && !session.isUnavailable && categoryOf(session) !== null,
   );
@@ -40,10 +49,15 @@ export function buildMicrocycle(
   plan: SessionDay[],
   history: CompletedSessionEntry[],
   todayIso: string,
+  periodDays: ProgressPeriod = 7,
 ): MicrocycleReport {
-  const dates = Array.from({ length: 7 }, (_, index) => addIsoDays(todayIso, index - 6));
+  const dates = Array.from({ length: periodDays }, (_, index) =>
+    addIsoDays(todayIso, index - periodDays + 1),
+  );
   const fromIso = dates[0]!;
-  const recentHistory = history.filter((item) => item.date >= fromIso && item.date <= todayIso);
+  const recentHistory = uniqueTrainingHistory(history).filter(
+    (item) => item.date >= fromIso && item.date <= todayIso,
+  );
   const recentPlan = plan.filter((day) => day.date >= fromIso && day.date <= todayIso);
   const byCategory: Record<TrainingCategoryKey, number> = {
     gym: 0,
@@ -73,9 +87,15 @@ export function buildMicrocycle(
     };
   });
 
-  const plannedSessions = recentPlan.flatMap(planSessions);
+  const plannedSessions = [
+    ...new Map(
+      recentPlan
+        .flatMap(planSessions)
+        .map((s, index) => [s.dbId || s.sessionId || `planned:${s.date}:${index}`, s]),
+    ).values(),
+  ];
   const plannedKeys = new Set(
-    plannedSessions.map((session) => session.dbId ?? session.sessionId).filter(Boolean),
+    plannedSessions.map((session) => session.dbId || session.sessionId).filter(Boolean),
   );
   const matched = recentHistory.filter((item) => plannedKeys.has(item.key));
   const plannedCount = plannedSessions.length;
@@ -104,6 +124,11 @@ export function buildMicrocycle(
   }
 
   return {
+    periodDays,
+    fromIso,
+    loggedCount: recentHistory.length,
+    rpeCount: rpes.length,
+    estimatedDurationCount: recentHistory.filter((row) => row.durationEstimated).length,
     days,
     plannedCount,
     completedCount,
@@ -136,12 +161,7 @@ const LIMITER_LABELS: Record<string, string> = {
 };
 
 export function developmentStage(age: number | null): string {
-  if (age == null) return "Etap nieokreślony";
-  if (age <= 12) return "Etap koordynacji i techniki";
-  if (age <= 14) return "Etap jakości ruchu";
-  if (age <= 16) return "Etap budowy siły strukturalnej";
-  if (age <= 18) return "Etap rozwoju mocy i szybkości";
-  return "Etap wydajności seniorskiej";
+  return age == null ? "Kierunek z Twojego planu" : `Profil treningowy · ${age} lat`;
 }
 
 export function buildDirection(
@@ -152,7 +172,7 @@ export function buildDirection(
   const limiterKey = profile?.secondaryLimiter ?? null;
   const limiter =
     micro.avgRpe != null && micro.avgRpe >= 8
-      ? "Wysokie obciążenie w mikrocyklu"
+      ? "Wysokie odczuwane RPE"
       : micro.executionPct != null && micro.executionPct < 60
         ? "Regularność wykonania"
         : limiterKey
@@ -166,11 +186,11 @@ export function buildDirection(
         ? `${micro.completedCount}/${micro.plannedCount} jednostek (${micro.executionPct}%)`
         : "Brak zaplanowanych jednostek",
     loadSignal:
-      micro.completedCount > 0
+      micro.loggedCount > 0
         ? `${micro.totalMinutes} min pracy${
             micro.avgRpe != null ? ` · średnie RPE ${micro.avgRpe.toFixed(1)}` : ""
           }`
-        : "Brak ukończonych jednostek w ostatnich 7 dniach",
+        : `Brak zapisanych jednostek w ostatnich ${micro.periodDays} dniach`,
     limiter,
     nextStep: micro.nextWeekDirection,
     cta: nextSession
@@ -207,6 +227,7 @@ export function nextActionableSession(
         const completion = key ? completions[key] : undefined;
         return (
           session.date >= todayIso &&
+          validProgressDate(session.date) &&
           session.dayType !== "rest" &&
           !session.isUnavailable &&
           !completion?.completed &&

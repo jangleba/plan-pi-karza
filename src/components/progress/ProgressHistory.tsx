@@ -9,6 +9,8 @@ import {
 } from "@/lib/progress/dashboard";
 import type { RunningActivity } from "@/lib/running/types";
 import { RunActivitySummary } from "@/components/running/RunActivitySummary";
+import { Link } from "@tanstack/react-router";
+import type { ProgressSessionTarget } from "@/lib/progress/navigation";
 
 const KINDS: (TimelineKind | "all")[] = ["all", "training", "match"];
 const KIND_LABEL: Record<TimelineKind | "all", string> = {
@@ -39,12 +41,18 @@ function monthLabel(key: string): string {
 export function ProgressHistory({
   events,
   runningActivities,
+  targets = {},
+  initialMissingRpe = false,
 }: {
   events: TimelineEvent[];
   runningActivities: Record<string, RunningActivity>;
+  targets?: Record<string, ProgressSessionTarget>;
+  initialMissingRpe?: boolean;
 }) {
   const [kind, setKind] = useState<TimelineKind | "all">("all");
   const [month, setMonth] = useState<string>("all");
+  const [visible, setVisible] = useState(20);
+  const [missingRpe, setMissingRpe] = useState(initialMissingRpe);
   const months = useMemo(
     () =>
       Array.from(new Set(events.map((event) => monthKey(event.date))))
@@ -57,11 +65,12 @@ export function ProgressHistory({
       events.filter(
         (event) =>
           (kind === "all" || event.kind === kind) &&
-          (month === "all" || monthKey(event.date) === month),
+          (!missingRpe || event.rpe === null) &&
+          (month === "all" || !months.includes(month) || monthKey(event.date) === month),
       ),
-    [events, kind, month],
+    [events, kind, month, months, missingRpe],
   );
-  const weeks = useMemo(() => groupByWeek(filtered), [filtered]);
+  const weeks = useMemo(() => groupByWeek(filtered.slice(0, visible)), [filtered, visible]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -71,8 +80,11 @@ export function ProgressHistory({
             key={item}
             type="button"
             aria-pressed={kind === item}
-            onClick={() => setKind(item)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
+            onClick={() => {
+              setKind(item);
+              setVisible(20);
+            }}
+            className={`min-h-11 shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
               kind === item
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
@@ -81,22 +93,46 @@ export function ProgressHistory({
             {KIND_LABEL[item]}
           </button>
         ))}
+        <button
+          type="button"
+          aria-pressed={missingRpe}
+          onClick={() => {
+            setMissingRpe((v) => !v);
+            setVisible(20);
+          }}
+          className={`min-h-11 shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium ${missingRpe ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+        >
+          Brak RPE
+        </button>
       </div>
 
       {months.length > 1 && (
         <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5">
-          <Chip active={month === "all"} onClick={() => setMonth("all")} label="Cały okres" />
+          <Chip
+            active={month === "all" || !months.includes(month)}
+            onClick={() => {
+              setMonth("all");
+              setVisible(20);
+            }}
+            label="Cały okres"
+          />
           {months.map((item) => (
             <Chip
               key={item}
               active={month === item}
-              onClick={() => setMonth(item)}
+              onClick={() => {
+                setMonth(item);
+                setVisible(20);
+              }}
               label={monthLabel(item)}
             />
           ))}
         </div>
       )}
 
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        Wpisy: {filtered.length}
+      </p>
       {weeks.length === 0 ? (
         <div className="soft-card px-4 py-8 text-center text-sm text-muted-foreground">
           Brak ukończonych treningów w tym filtrze.
@@ -110,6 +146,7 @@ export function ProgressHistory({
             <div className="soft-card divide-y divide-border">
               {week.events.map((event) => {
                 const run = runningActivities[event.sessionKey];
+                const target = targets[event.sessionKey];
                 return (
                   <article key={event.id} className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -117,7 +154,21 @@ export function ProgressHistory({
                         {formatDate(event.date)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{event.title}</div>
+                        {target ? (
+                          <Link
+                            to="/sesja/$date"
+                            params={{ date: target.date }}
+                            search={{ slot: target.slot, mod: target.mod }}
+                            hash={`session-completion-${target.sessionId}`}
+                            aria-label={`Otwórz trening: ${event.title}`}
+                            className="inline-flex min-h-11 items-center gap-1 break-words text-sm font-semibold text-primary"
+                          >
+                            {event.title}
+                            <span aria-hidden="true"> ›</span>
+                          </Link>
+                        ) : (
+                          <div className="break-words text-sm font-medium">{event.title}</div>
+                        )}
                         <div className="truncate text-[11px] text-muted-foreground">
                           {event.detail}
                         </div>
@@ -133,9 +184,12 @@ export function ProgressHistory({
                       </span>
                     </div>
                     {run && (
-                      <div className="mt-3 border-t border-border pt-3">
+                      <details className="mt-3 border-t border-border pt-3">
+                        <summary className="cursor-pointer text-xs font-medium">
+                          Szczegóły biegu
+                        </summary>
                         <RunActivitySummary activity={run} compact showSplits={false} />
-                      </div>
+                      </details>
                     )}
                   </article>
                 );
@@ -143,6 +197,15 @@ export function ProgressHistory({
             </div>
           </section>
         ))
+      )}
+      {filtered.length > visible && (
+        <button
+          type="button"
+          className="min-h-11 w-full rounded-xl border border-border px-3 text-sm font-medium"
+          onClick={() => setVisible((n) => n + 20)}
+        >
+          Pokaż kolejne {Math.min(20, filtered.length - visible)}
+        </button>
       )}
     </div>
   );
@@ -154,7 +217,7 @@ function Chip({ active, onClick, label }: { active: boolean; onClick: () => void
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
+      className={`min-h-11 shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
         active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
       }`}
     >

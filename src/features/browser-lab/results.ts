@@ -16,6 +16,7 @@ import {
   CALIBRATED_LAB_PROTOCOL,
   AUTOMATED_LAB_PROTOCOL,
   PERSPECTIVE_LAB_PROTOCOL,
+  ORIENTED_LAB_PROTOCOL,
 } from "./protocols";
 
 import { longJumpSchema, longJumpMeasurement, type LongJumpCalibration } from "./longJump";
@@ -27,6 +28,7 @@ const resultSchema = z.object({
     CALIBRATED_LAB_PROTOCOL,
     AUTOMATED_LAB_PROTOCOL,
     PERSPECTIVE_LAB_PROTOCOL,
+    ORIENTED_LAB_PROTOCOL,
   ]),
   id: z.string().min(8).max(100),
   sessionId: z.string().min(8).max(100),
@@ -150,9 +152,12 @@ export function validatedResult(input: unknown): BrowserResult {
     throw new Error("Wartości pomiaru nie zgadzają się z czasem klatek lub protokołem.");
   if (result.testId === "standing_long_jump") {
     if (
-      ![CALIBRATED_LAB_PROTOCOL, AUTOMATED_LAB_PROTOCOL, PERSPECTIVE_LAB_PROTOCOL].includes(
-        result.version,
-      ) ||
+      ![
+        CALIBRATED_LAB_PROTOCOL,
+        AUTOMATED_LAB_PROTOCOL,
+        PERSPECTIVE_LAB_PROTOCOL,
+        ORIENTED_LAB_PROTOCOL,
+      ].includes(result.version) ||
       !result.spatial ||
       result.resolutionMin !== undefined ||
       result.resolutionMax !== undefined ||
@@ -168,7 +173,9 @@ export function validatedResult(input: unknown): BrowserResult {
       (result.spatial.method === "ballwise-marker-pose-v2" &&
         result.version !== AUTOMATED_LAB_PROTOCOL) ||
       (result.spatial.method === "ballwise-marker-pose-v3" &&
-        result.version !== PERSPECTIVE_LAB_PROTOCOL)
+        result.version !== PERSPECTIVE_LAB_PROTOCOL) ||
+      (result.spatial.method === "ballwise-marker-pose-v4" &&
+        result.version !== ORIENTED_LAB_PROTOCOL)
     )
       throw new Error("Metoda skoku w dal nie zgadza się z wersją protokołu.");
   } else if (result.spatial !== undefined)
@@ -221,11 +228,13 @@ export function createBrowserResult(data: {
   return validatedResult({
     version:
       data.attempt.testId === "standing_long_jump"
-        ? data.spatial?.method === "floor-homography-v1"
-          ? CALIBRATED_LAB_PROTOCOL
-          : data.spatial?.method === "ballwise-marker-pose-v3"
-            ? PERSPECTIVE_LAB_PROTOCOL
-            : AUTOMATED_LAB_PROTOCOL
+        ? data.spatial?.method === "ballwise-marker-pose-v4"
+          ? ORIENTED_LAB_PROTOCOL
+          : data.spatial?.method === "floor-homography-v1"
+            ? CALIBRATED_LAB_PROTOCOL
+            : data.spatial?.method === "ballwise-marker-pose-v3"
+              ? PERSPECTIVE_LAB_PROTOCOL
+              : AUTOMATED_LAB_PROTOCOL
         : data.attempt.testId === "cod_505"
           ? CALIBRATED_LAB_PROTOCOL
           : BROWSER_LAB_PROTOCOL,

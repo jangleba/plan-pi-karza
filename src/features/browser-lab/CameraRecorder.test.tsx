@@ -58,10 +58,14 @@ describe("camera setup and countdown", () => {
     )!;
     await act(async () => start.click());
     expect(document.querySelector(".bl-camera-count")?.textContent).toBe("10");
-    await act(async () => vi.advanceTimersByTime(9000));
+    await act(async () => vi.advanceTimersByTime(8999));
     expect(capture.record).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(capture.record.mock.calls[0][3]).toBe(16);
+    expect(document.querySelector(".bl-camera-count")?.textContent).toBe("1");
     await act(async () => vi.advanceTimersByTime(1000));
-    expect(capture.record.mock.calls[0][3]).toBe(15);
+    expect(capture.record).toHaveBeenCalledOnce();
+    expect(document.querySelector(".bl-camera-count")?.textContent).toBe("START");
     expect(document.querySelector(".bl-camera-status")?.textContent).toContain("/ 15 s");
   });
   it("does not start a recording after leaving during the countdown", async () => {

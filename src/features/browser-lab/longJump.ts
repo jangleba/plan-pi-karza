@@ -20,7 +20,7 @@ const legacyLongJumpSchema = z.object({
   stationaryConfirmed: z.literal(true),
 });
 export const automaticLongJumpSchema = z.object({
-  method: z.enum(["ballwise-marker-pose-v2", "ballwise-marker-pose-v3"]),
+  method: z.enum(["ballwise-marker-pose-v2", "ballwise-marker-pose-v3", "ballwise-marker-pose-v4"]),
   referenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
   rangeCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
   landingReferenceCorners: z.tuple([pointSchema, pointSchema, pointSchema, pointSchema]),
@@ -140,7 +140,9 @@ function automaticLineIndices(data: AutomaticLongJumpCalibration): readonly [num
   throw new Error("Niebieska krawędź wzorca nie wyznacza linii odbicia.");
 }
 
-function projectiveCentre(corners: AutomaticLongJumpCalibration["rangeCorners"]): FloorPoint {
+export function projectiveCentre(
+  corners: AutomaticLongJumpCalibration["rangeCorners"],
+): FloorPoint {
   const [a, b, c, d] = corners;
   const turns = corners.map((p, i) => cross(p, corners[(i + 1) % 4], corners[(i + 2) % 4]));
   if (
@@ -174,7 +176,7 @@ function automaticFloorTransform(data: AutomaticLongJumpCalibration) {
   // A rectangle's projected centre is the intersection of its diagonals.
   // Retain the v2 arithmetic centroid only for historical measurements.
   const endCentre =
-    data.method === "ballwise-marker-pose-v3"
+    data.method !== "ballwise-marker-pose-v2"
       ? projectiveCentre(data.rangeCorners)
       : data.rangeCorners.reduce<FloorPoint>(
           (sum, point) => [sum[0] + point[0] / 4, sum[1] + point[1] / 4],
@@ -222,7 +224,10 @@ export function longJumpMeasurement(input: unknown) {
         `Kontrola skali różni się o ${controlErrorCm.toFixed(1)} cm. Popraw narożniki, wymiary i punkty kontrolne (dopuszczalne 2 cm).`,
       );
   } else {
-    if (data.poseConfidence < 0.58)
+    if (
+      data.poseConfidence < 0.58 &&
+      (data.method !== "ballwise-marker-pose-v4" || data.heelSource !== "manual")
+    )
       throw new Error("Automatyczne wykrycie sylwetki jest zbyt niepewne. Nagraj próbę ponownie.");
     if (data.markerQuality < 0.72)
       throw new Error("Wzorzec BallWise jest niewyraźny. Popraw światło i nagraj ponownie.");
@@ -236,7 +241,7 @@ export function longJumpMeasurement(input: unknown) {
       Math.hypot((point[0] - other[0]) * data.imageWidth, (point[1] - other[1]) * data.imageHeight),
     );
     cameraShiftPx =
-      data.method === "ballwise-marker-pose-v3"
+      data.method !== "ballwise-marker-pose-v2"
         ? Math.max(...shifts)
         : shifts.reduce((sum, shift) => sum + shift, 0) / 8;
     if (cameraShiftPx > 5)
@@ -257,10 +262,18 @@ export function longJumpMeasurement(input: unknown) {
   }
   const [a, b] = data.takeoffLine.map(map);
   const heel = map(data.heel);
-  if (data.method === "ballwise-marker-pose-v3" && heel[1] <= Math.max(a[1], b[1]))
+  if (
+    data.method !== "floor-homography-v1" &&
+    data.method !== "ballwise-marker-pose-v2" &&
+    heel[1] <= Math.max(a[1], b[1])
+  )
     throw new Error("Pięta musi znajdować się za linią START, w kierunku wzorca 3 METRY.");
   const lineLength = distance(a, b);
-  if (lineLength < 20 - 1e-6)
+  if (
+    data.method === "ballwise-marker-pose-v4"
+      ? Math.abs(lineLength - 20) > 0.5
+      : lineLength < 20 - 1e-6
+  )
     throw new Error("Zaznacz dwa oddalone punkty tej samej linii odbicia (co najmniej 20 cm). ");
   const primaryValue = Math.abs(cross(a, b, heel)) / lineLength;
   if (primaryValue < 10 || primaryValue > 500)
@@ -349,11 +362,69 @@ function spatialUncertainty(data: AutomaticLongJumpCalibration) {
  * The user must review its four corners and enter measured external dimensions. */
 type RectangleCorners = AutomaticLongJumpCalibration["referenceCorners"];
 
+function refinedCorner(
+  image: Pick<ImageData, "data" | "width" | "height">,
+  point: FloorPoint,
+  corner: number,
+  step: number,
+): FloorPoint {
+  const { data, width, height } = image,
+    cx = Math.round(point[0] * width),
+    cy = Math.round(point[1] * height),
+    radius = step * 2 + 2;
+  const left = Math.max(0, cx - radius),
+    top = Math.max(0, cy - radius),
+    right = Math.min(width - 1, cx + radius),
+    bottom = Math.min(height - 1, cy + radius),
+    w = right - left + 1,
+    h = bottom - top + 1;
+  const dark = (x: number, y: number) => {
+    const i = (y * width + x) * 4;
+    return data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114 <= 85;
+  };
+  if (!dark(cx, cy)) return point;
+  const score = (x: number, y: number) =>
+    corner === 0 ? -x - y : corner === 1 ? x - y : corner === 2 ? x + y : y - x;
+  const seen = new Uint8Array(w * h),
+    queue = [(cy - top) * w + cx - left];
+  seen[queue[0]] = 1;
+  let best: [number, number] = [cx, cy],
+    bestScore = score(cx, cy);
+  for (let read = 0; read < queue.length; read++) {
+    const value = queue[read],
+      x = left + (value % w),
+      y = top + Math.floor(value / w),
+      s = score(x, y);
+    if (s > bestScore) {
+      best = [x, y];
+      bestScore = s;
+    }
+    for (const [nx, ny] of [
+      [x - 1, y],
+      [x + 1, y],
+      [x, y - 1],
+      [x, y + 1],
+      [x - 1, y - 1],
+      [x + 1, y - 1],
+      [x - 1, y + 1],
+      [x + 1, y + 1],
+    ]) {
+      if (nx < left || nx > right || ny < top || ny > bottom) continue;
+      const k = (ny - top) * w + nx - left;
+      if (!seen[k] && dark(nx, ny)) {
+        seen[k] = 1;
+        queue.push(k);
+      }
+    }
+  }
+  return [(best[0] + 0.5) / width, (best[1] + 0.5) / height];
+}
+
 function referenceRectangles(
   image: Pick<ImageData, "data" | "width" | "height">,
 ): { score: number; points: RectangleCorners }[] {
   const { data, width, height } = image;
-  const step = Math.max(1, Math.ceil(Math.max(width, height) / 640));
+  const step = Math.max(1, Math.ceil(Math.max(width, height) / 1280));
   const w = Math.floor(width / step),
     h = Math.floor(height / step);
   const grey = new Uint8Array(w * h),
@@ -398,6 +469,10 @@ function referenceRectangles(
         x + 1 < w ? index + 1 : -1,
         y > 0 ? index - w : -1,
         y + 1 < h ? index + w : -1,
+        x > 0 && y > 0 ? index - w - 1 : -1,
+        x + 1 < w && y > 0 ? index - w + 1 : -1,
+        x > 0 && y + 1 < h ? index + w - 1 : -1,
+        x + 1 < w && y + 1 < h ? index + w + 1 : -1,
       ]) {
         if (next < 0 || seen[next] || grey[next] > 85) continue;
         seen[next] = 1;
@@ -405,6 +480,13 @@ function referenceRectangles(
       }
     }
     const boxArea = (maxX - minX + 1) * (maxY - minY + 1);
+    const quadArea =
+      Math.abs(
+        extremes.reduce((sum, p, i) => {
+          const q = extremes[(i + 1) % 4];
+          return sum + p[0] * q[1] - q[0] * p[1];
+        }, 0),
+      ) / 2;
     if (
       minX < 2 ||
       minY < 2 ||
@@ -414,13 +496,17 @@ function referenceRectangles(
       maxY - minY < 24 / step ||
       boxArea < w * h * 0.0006 ||
       boxArea > w * h * 0.35 ||
-      count / boxArea < 0.08 ||
-      count / boxArea > 0.8
+      quadArea < 1 ||
+      count / quadArea < 0.08 ||
+      count / quadArea > 0.8
     )
       continue;
-    const points = extremes.map(
+    const coarse = extremes.map(
       ([x, y]) => [(x * step) / width, (y * step) / height] as FloorPoint,
     ) as RectangleCorners;
+    // Coarse search only finds candidates. Refine connected border pixels in
+    // the original image rather than quantizing 4K to the search grid.
+    const points = coarse.map((p, i) => refinedCorner(image, p, i, step)) as RectangleCorners;
     try {
       floorTransform(points, 20, 14);
     } catch {

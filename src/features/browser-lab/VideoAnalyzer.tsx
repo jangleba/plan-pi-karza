@@ -15,8 +15,13 @@ import {
   type AutomaticLongJumpCalibration,
 } from "./longJump";
 import { analyzeLongJump } from "./longJumpAuto";
+import { analyzeTimedVideo } from "./timedAuto";
+import type { TimedEventProposal, TimedTestId } from "./timedEventDetection";
+import { EventFrameProof } from "./EventFrameProof";
+import { prepareManualJump, completeManualJump, type ManualJumpStart } from "./manualLongJump";
 import { paintVideoFrame } from "./videoFrame";
 import { APP_VERSION } from "@/lib/appVersion";
+import { orientStartMarker } from "./markerGeometry";
 
 export function VideoAnalyzer({
   ownerId,
@@ -33,10 +38,17 @@ export function VideoAnalyzer({
   const isLongJump = attempt.testId === "standing_long_jump";
   const is505 = attempt.testId === "cod_505";
   const [spatial, setSpatial] = useState<AutomaticLongJumpCalibration | null>(null);
-  const [autoStatus, setAutoStatus] = useState<"idle" | "analyzing" | "ready" | "error">("idle");
+  const [autoStatus, setAutoStatus] = useState<"idle" | "analyzing" | "ready" | "error" | "manual">(
+    "idle",
+  );
   const [autoProgress, setAutoProgress] = useState(0);
   const [autoError, setAutoError] = useState("");
   const [turnFrame, setTurnFrame] = useState<number | null>(null);
+  const [timedProposal, setTimedProposal] = useState<TimedEventProposal | null>(null);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [proofReady, setProofReady] = useState(false);
+  const [manualJump, setManualJump] = useState<{ start?: ManualJumpStart } | null>(null);
+  const [manualCursor, setManualCursor] = useState<[number, number]>([0.5, 0.8]);
   const [video, setVideo] = useState<OpenedVideo | null>(null);
   const [reading, setReading] = useState(false);
   const [frameIndex, setFrameIndex] = useState(1);
@@ -130,12 +142,12 @@ export function VideoAnalyzer({
     (message: string) => {
       load.current?.abort();
       setReading(false);
-      if (video && isLongJump && autoStatus === "analyzing") {
+      if (video && autoStatus === "analyzing") {
         setAutoStatus("error");
         setAutoError(message);
       } else setError(message);
     },
-    [video, isLongJump, autoStatus],
+    [video, autoStatus],
   );
 
   useEffect(
@@ -180,7 +192,12 @@ export function VideoAnalyzer({
       .then((frame) => {
         try {
           if (!active || controller.signal.aborted || !canvas.current) return;
-          const paintedFrame = paintVideoFrame(canvas.current, frame, video.rotation);
+          const paintedFrame = paintVideoFrame(
+            canvas.current,
+            frame,
+            video.rotation,
+            isLongJump || zoom > 1 ? 4096 : 1280,
+          );
           setAspect(paintedFrame.aspect);
           setPainted(frameIndex);
           setError("");
@@ -196,7 +213,7 @@ export function VideoAnalyzer({
       controller.abort();
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [video, frameIndex, refresh, saved]);
+  }, [video, frameIndex, refresh, saved, zoom, isLongJump]);
 
   async function importVideo(file: File) {
     setCameraOpen(false);
@@ -215,6 +232,10 @@ export function VideoAnalyzer({
     setAutoProgress(0);
     setAutoError("");
     setTurnFrame(null);
+    setTimedProposal(null);
+    setReviewIndex(0);
+    setProofReady(false);
+    setManualJump(null);
     setOriginal(false);
     setConfirmed(false);
     setDraft(null);
@@ -249,6 +270,8 @@ export function VideoAnalyzer({
           setAutoError(messageOf(reason));
           setAutoStatus("error");
         }
+      } else if (protocol.category === "jump") {
+        await proposeTiming(opened, controller, current);
       }
     } catch (reason) {
       if (current === version.current && !controller.signal.aborted) setError(messageOf(reason));
@@ -256,7 +279,74 @@ export function VideoAnalyzer({
       if (current === version.current) setReading(false);
     }
   }
+  async function proposeTiming(
+    opened: OpenedVideo,
+    controller: AbortController,
+    current: number,
+    line?: number,
+  ) {
+    setAutoStatus("analyzing");
+    setAutoProgress(0);
+    setAutoError("");
+    setTimedProposal(null);
+    setProofReady(false);
+    try {
+      const proposal = await analyzeTimedVideo(
+        opened,
+        attempt.testId as TimedTestId,
+        attempt.side,
+        line,
+        controller.signal,
+        (progress) => {
+          if (current === version.current && !controller.signal.aborted) setAutoProgress(progress);
+        },
+      );
+      if (current !== version.current || controller.signal.aborted) return;
+      setStart(proposal.start);
+      setEnd(proposal.end);
+      setTurnFrame(proposal.turn ?? null);
+      setTimedProposal(proposal);
+      setReviewIndex(0);
+      setFrameIndex(proposal.start);
+      setMarking("start");
+      setEditing(true);
+      setConfirmed(false);
+      setOriginal(false);
+      setDraft(null);
+      setAutoStatus("ready");
+    } catch (reason) {
+      if (current === version.current && !controller.signal.aborted) {
+        setAutoStatus("error");
+        setAutoError(messageOf(reason));
+      }
+    }
+  }
+  async function findTimedEvents() {
+    if (!video || reading || saved) return;
+    load.current?.abort();
+    const controller = new AbortController();
+    load.current = controller;
+    const current = ++version.current;
+    setReading(true);
+    setStart(null);
+    setEnd(null);
+    setTurnFrame(null);
+    setDraft(null);
+    setConfirmed(false);
+    await proposeTiming(
+      video,
+      controller,
+      current,
+      protocol.category === "jump" ? undefined : guides[is505 ? 0 : 1],
+    );
+    if (current === version.current) setReading(false);
+  }
   const ready = video !== null && painted === frameIndex && !reading;
+  const reviewStages: ("start" | "turn" | "end")[] = is505
+    ? ["start", "turn", "end"]
+    : ["start", "end"];
+  const reviewing = timedProposal !== null && reviewIndex < reviewStages.length;
+  const reviewTarget = reviewStages[reviewIndex];
   let measure:
     | (Pick<
         BrowserResult,
@@ -323,6 +413,15 @@ export function VideoAnalyzer({
     if (end !== null) move(end);
   }
   function cancelHeelCorrection() {
+    if (manualJump) {
+      setManualJump(null);
+      setAutoStatus("error");
+      setEditing(false);
+      setStart(null);
+      setEnd(null);
+      setSpatial(null);
+      return;
+    }
     const previous = correctionBefore.current;
     if (previous) {
       setSpatial(previous.spatial);
@@ -340,6 +439,10 @@ export function VideoAnalyzer({
       !measure ||
       start === null ||
       end === null ||
+      !ready ||
+      reading ||
+      editing ||
+      reviewing ||
       (!isLongJump && (!original || !confirmed)) ||
       (isLongJump && (editing || !ready)) ||
       saved
@@ -366,6 +469,96 @@ export function VideoAnalyzer({
       setDraft(result);
       onSave(result);
       setSaved(true);
+      setError("");
+    } catch (reason) {
+      setError(messageOf(reason));
+    }
+  }
+  function useManualTiming() {
+    load.current?.abort();
+    setReading(false);
+    setTimedProposal(null);
+    setAutoStatus("manual");
+    setAutoError("");
+    setStart(null);
+    setEnd(null);
+    setTurnFrame(null);
+    setMarking("start");
+    setEditing(true);
+    setDraft(null);
+    setOriginal(false);
+    setConfirmed(false);
+    move(1);
+  }
+  function confirmProposedEvent() {
+    if (!ready || !proofReady || !reviewing) return;
+    if (
+      frameIndex < 1 ||
+      (reviewTarget === "start" && end !== null && frameIndex >= end) ||
+      (reviewTarget === "turn" &&
+        (start === null || end === null || frameIndex <= start || frameIndex >= end)) ||
+      (reviewTarget === "end" && frameIndex <= (turnFrame ?? start ?? 0))
+    ) {
+      setError("Zdarzenia muszą zachować kolejność: początek, ewentualny nawrót, koniec.");
+      return;
+    }
+    if (reviewTarget === "start") setStart(frameIndex);
+    else if (reviewTarget === "turn") setTurnFrame(frameIndex);
+    else setEnd(frameIndex);
+    setDraft(null);
+    setConfirmed(false);
+    setProofReady(false);
+    const next = reviewIndex + 1;
+    setReviewIndex(next);
+    if (next >= reviewStages.length) {
+      setEditing(false);
+      return;
+    }
+    const target = reviewStages[next];
+    setMarking(target === "start" ? "start" : "end");
+    move(target === "turn" ? turnFrame! : target === "end" ? end! : start!);
+  }
+  function changeGuide(value: number, index: number) {
+    setGuides((old) =>
+      protocol.sharedGuide ? [value, value] : index === 0 ? [value, old[1]] : [old[0], value],
+    );
+    setDraft(null);
+    setConfirmed(false);
+    if (protocol.category !== "jump") {
+      setTimedProposal(null);
+      setStart(null);
+      setEnd(null);
+      setTurnFrame(null);
+      setMarking("start");
+      setEditing(true);
+      setAutoStatus("idle");
+    }
+  }
+  function startManualJump() {
+    setAutoStatus("manual");
+    setManualJump({});
+    setSpatial(null);
+    setStart(null);
+    setEnd(null);
+    setEditing(true);
+    setZoom(1);
+    setPan([0, 0]);
+    move(1);
+    setError("");
+  }
+  function acceptManualHeel(heel: [number, number]) {
+    if (!ready || !manualJump?.start || !canvas.current) return;
+    try {
+      const image = canvas.current
+        .getContext("2d", { willReadFrequently: true })!
+        .getImageData(0, 0, canvas.current.width, canvas.current.height);
+      const calibration = completeManualJump(manualJump.start, image, heel, frameIndex);
+      setSpatial(calibration);
+      setEnd(frameIndex);
+      setManualJump(null);
+      setAutoStatus("ready");
+      setEditing(false);
+      setDraft(null);
       setError("");
     } catch (reason) {
       setError(messageOf(reason));
@@ -436,7 +629,16 @@ export function VideoAnalyzer({
     }
   }
   return (
-    <div className="bl-analyzer bl-compact" ref={rootRef}>
+    <div
+      className="bl-analyzer bl-compact"
+      ref={rootRef}
+      data-lab-test={attempt.testId}
+      data-lab-loaded={!!video}
+      data-lab-reading={reading}
+      data-lab-auto={autoStatus}
+      data-lab-frame={frameIndex}
+      data-lab-painted={painted ?? -1}
+    >
       <header className="bl-attempt-heading">
         <div>
           <p className="bl-kicker">
@@ -489,6 +691,7 @@ export function VideoAnalyzer({
       )}
       {cameraOpen && (
         <CameraRecorder
+          highDetail={isLongJump}
           title={`${protocol.title}${attempt.side ? ` · ${sideLabel(attempt.side)}` : ""}`}
           instruction={shortSetup}
           onRecording={(file) => {
@@ -613,6 +816,9 @@ export function VideoAnalyzer({
           <p className="bl-kicker">BRAK WIARYGODNEGO WYNIKU</p>
           <h2>Nie zgaduję centymetrów</h2>
           <LabNotice error>{autoError}</LabNotice>
+          <LabButton className="bl-wide" onClick={startManualJump}>
+            Wskaż lądowanie ręcznie
+          </LabButton>
           {lastFile && (
             <LabButton className="bl-secondary bl-wide" onClick={() => void downloadOriginal()}>
               Zachowaj nagranie
@@ -634,7 +840,23 @@ export function VideoAnalyzer({
           </LabButton>
         </section>
       )}
-      {video && measure && (
+      {video && !isLongJump && autoStatus === "analyzing" && (
+        <section className="bl-card bl-auto-progress" aria-live="polite">
+          <h3>Szukam zdarzeń w nagraniu</h3>
+          <progress max={100} value={autoProgress} aria-label="Postęp wyszukiwania zdarzeń" />
+          <p className="bl-muted">Potem sprawdzisz sąsiednie klatki przed zapisem.</p>
+          <LabButton
+            className="bl-link"
+            onClick={() => stopImport("Analiza anulowana. Możesz oznaczyć zdarzenia ręcznie.")}
+          >
+            Anuluj analizę
+          </LabButton>
+        </section>
+      )}
+      {video && !isLongJump && autoStatus === "error" && (
+        <LabNotice>{autoError} Ręczne oznaczanie pozostaje dostępne.</LabNotice>
+      )}
+      {video && measure && !reviewing && (
         <section className="bl-card bl-result" aria-label="Wynik próby">
           <p className="bl-kicker">{saved ? "ZAPISANO LOKALNIE" : "WYNIK PRÓBY"}</p>
           <div className="bl-big-value">
@@ -684,12 +906,14 @@ export function VideoAnalyzer({
                 <div className="bl-auto-checks">
                   <span>✓ Oba wzorce rozpoznane</span>
                   <span>✓ Kamera stabilna ({measure.cameraShiftPx?.toFixed(1)} px)</span>
-                  <span>✓ Proponowana linia i pięta</span>
+                  <span>✓ Linia START i punkt pięty</span>
                 </div>
               )}
               <LabButton
                 className="bl-wide"
-                disabled={isLongJump ? editing || !ready : !original || !confirmed}
+                disabled={
+                  !ready || reading || editing || (!isLongJump && (!original || !confirmed))
+                }
                 onClick={save}
               >
                 Zapisz wynik
@@ -783,13 +1007,19 @@ export function VideoAnalyzer({
           )}
         </section>
       )}
-      {video && (!isLongJump || (autoStatus === "ready" && spatial)) && (
+      {video && (!isLongJump || (autoStatus === "ready" && spatial) || manualJump) && (
         <section
           ref={correctionRef}
           tabIndex={isLongJump && editing ? -1 : undefined}
           role={isLongJump && editing ? "dialog" : undefined}
           aria-modal={isLongJump && editing ? true : undefined}
-          aria-label={isLongJump && editing ? "Popraw punkt pięty" : undefined}
+          aria-label={
+            isLongJump && editing
+              ? manualJump
+                ? "Pomiar skoku w dal ze wzorców"
+                : "Popraw punkt pięty"
+              : undefined
+          }
           className={`bl-card bl-frame-card${
             isLongJump ? (editing ? " bl-auto-correction" : " bl-auto-proof") : ""
           }`}
@@ -797,14 +1027,40 @@ export function VideoAnalyzer({
         >
           {!isLongJump ? (
             <>
+              {protocol.category !== "jump" && !reviewing && !saved && (
+                <div className="bl-assist-line">
+                  <label className="bl-label">
+                    {is505 ? "Ustaw linię pomiarową" : "Ustaw linię mety 10 m"}
+                    <input
+                      type="range"
+                      className="bl-range"
+                      aria-label="Linia do automatycznej analizy"
+                      min={0.03}
+                      max={0.97}
+                      step={0.005}
+                      value={guides[is505 ? 0 : 1]}
+                      disabled={reading}
+                      onChange={(event) => changeGuide(Number(event.target.value), is505 ? 0 : 1)}
+                    />
+                  </label>
+                  <LabButton
+                    className="bl-secondary bl-wide"
+                    disabled={!ready}
+                    onClick={() => void findTimedEvents()}
+                  >
+                    Linia ustawiona — znajdź zdarzenia
+                  </LabButton>
+                </div>
+              )}
               <div className="bl-step-tabs" aria-label="Zdarzenie do oznaczenia">
                 {protocol.markers.map((title, i) => (
                   <button
                     type="button"
                     key={title}
                     aria-pressed={stepIndex === i}
-                    disabled={saved || (i === 1 && start === null)}
+                    disabled={saved || reviewing || reading || (i === 1 && start === null)}
                     onClick={() => {
+                      setTimedProposal(null);
                       setMarking(i === 0 ? "start" : "end");
                       setEditing(true);
                       const selected = i === 0 ? start : end;
@@ -816,7 +1072,32 @@ export function VideoAnalyzer({
                   </button>
                 ))}
               </div>
-              <p className="bl-step-instruction">{shortInstructions[attempt.testId][stepIndex]}</p>
+              <p className="bl-step-instruction">
+                {reviewing && reviewTarget === "turn"
+                  ? "Sprawdź kontakt wybranej nogi na linii nawrotu. Sam zwrot tułowia nie wystarcza."
+                  : shortInstructions[attempt.testId][stepIndex]}
+              </p>
+              {reviewing && timedProposal && (
+                <>
+                  <p className="bl-kicker">
+                    Sprawdź propozycję {reviewIndex + 1}/{reviewStages.length}
+                  </p>
+                  <EventFrameProof
+                    video={video}
+                    index={frameIndex}
+                    focus={timedProposal.focus[reviewTarget]!}
+                    onReady={setProofReady}
+                    line={
+                      protocol.category === "jump" || reviewTarget === "turn"
+                        ? undefined
+                        : guides[is505 ? 0 : 1]
+                    }
+                  />
+                  <p className="bl-muted">
+                    Porównaj poprzednią i wybraną klatkę. W razie potrzeby popraw −1 / +1.
+                  </p>
+                </>
+              )}
             </>
           ) : (
             <div className="bl-auto-edit-heading">
@@ -829,11 +1110,17 @@ export function VideoAnalyzer({
                   Wróć bez zmian
                 </LabButton>
               )}
-              <p className="bl-kicker">{editing ? "KOREKTA PIĘTY" : "SPRAWDŹ WYKRYCIE"}</p>
+              <p className="bl-kicker">
+                {manualJump ? "POMIAR ZE WZORCÓW" : editing ? "KOREKTA PIĘTY" : "SPRAWDŹ WYKRYCIE"}
+              </p>
               <h2>
-                {editing
-                  ? "Przesuń punkt dokładnie na bliższą piętę"
-                  : "Czy niebieski punkt leży na bliższej pięcie?"}
+                {manualJump
+                  ? manualJump.start
+                    ? "Wybierz lądowanie i dotknij bliższej pięty"
+                    : "Wybierz klatkę tuż przed skokiem"
+                  : editing
+                    ? "Przesuń punkt dokładnie na bliższą piętę"
+                    : "Czy niebieski punkt leży na bliższej pięcie?"}
               </h2>
             </div>
           )}
@@ -851,6 +1138,63 @@ export function VideoAnalyzer({
               }}
             >
               <canvas ref={canvas} aria-label="Dokładna klatka filmu" />
+              {manualJump?.start && (
+                <button
+                  type="button"
+                  className="bl-manual-heel"
+                  aria-label="Wskaż bliższą piętę na lądowaniu"
+                  disabled={!ready}
+                  onPointerDown={(event) => {
+                    const box = canvas.current?.getBoundingClientRect();
+                    if (!box || !box.width || !box.height) return;
+                    const point: [number, number] = [
+                      Math.max(0, Math.min(1, (event.clientX - box.left) / box.width)),
+                      Math.max(0, Math.min(1, (event.clientY - box.top) / box.height)),
+                    ];
+                    setManualCursor(point);
+                    acceptManualHeel(point);
+                  }}
+                  onKeyDown={(event) => {
+                    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+                      event.preventDefault();
+                      setManualCursor(([x, y]) => [
+                        Math.max(
+                          0,
+                          Math.min(
+                            1,
+                            x +
+                              (event.key === "ArrowLeft"
+                                ? -0.005
+                                : event.key === "ArrowRight"
+                                  ? 0.005
+                                  : 0),
+                          ),
+                        ),
+                        Math.max(
+                          0,
+                          Math.min(
+                            1,
+                            y +
+                              (event.key === "ArrowUp"
+                                ? -0.005
+                                : event.key === "ArrowDown"
+                                  ? 0.005
+                                  : 0),
+                          ),
+                        ),
+                      ]);
+                    }
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      acceptManualHeel(manualCursor);
+                    }
+                  }}
+                >
+                  <span
+                    style={{ left: `${manualCursor[0] * 100}%`, top: `${manualCursor[1] * 100}%` }}
+                  />
+                </button>
+              )}
               {isLongJump && spatial && (
                 <AutomaticLongJumpOverlay
                   value={spatial}
@@ -882,7 +1226,10 @@ export function VideoAnalyzer({
                           );
                         candidate = {
                           ...candidate,
-                          landingReferenceCorners: markers.start.corners,
+                          landingReferenceCorners:
+                            spatial.method === "ballwise-marker-pose-v4"
+                              ? orientStartMarker(markers.start.corners, markers.range.corners)
+                              : markers.start.corners,
                           landingRangeCorners: markers.range.corners,
                           imageWidth: canvas.current.width,
                           imageHeight: canvas.current.height,
@@ -998,7 +1345,7 @@ export function VideoAnalyzer({
               )}
             </div>
           )}
-          {is505 && start !== null && (
+          {is505 && start !== null && !reviewing && (
             <div className="bl-notice">
               <p>
                 Po wejściu znajdź kontakt wybranej nogi na linii nawrotu, potem oznacz powrót przez
@@ -1018,7 +1365,55 @@ export function VideoAnalyzer({
               {turnFrame !== null && <p className="bl-muted">Nawrót · klatka {turnFrame + 1}</p>}
             </div>
           )}
-          {isLongJump && editing ? (
+          {manualJump ? (
+            <>
+              {!manualJump.start && (
+                <LabButton
+                  className="bl-wide"
+                  disabled={!ready || frameIndex < 1}
+                  onClick={() => {
+                    if (!canvas.current) return;
+                    try {
+                      const image = canvas.current
+                        .getContext("2d", { willReadFrequently: true })!
+                        .getImageData(0, 0, canvas.current.width, canvas.current.height);
+                      const start = prepareManualJump(image, frameIndex);
+                      setManualJump({ start });
+                      setStart(frameIndex);
+                      setError("");
+                      move(video.timeline.frames.length - 2);
+                    } catch (reason) {
+                      setError(messageOf(reason));
+                    }
+                  }}
+                >
+                  To klatka przed skokiem
+                </LabButton>
+              )}
+              <p className="bl-muted">
+                {manualJump.start
+                  ? "Oba wzorce muszą pozostać widoczne. Zaznacz kontakt pięty z podłożem przed cofnięciem stóp."
+                  : "Pokaż oba wzorce na podłożu. Krawędź START zostanie znaleziona automatycznie."}
+              </p>
+              {error && <LabNotice error>{error}</LabNotice>}
+            </>
+          ) : reviewing ? (
+            <>
+              <LabButton
+                className="bl-wide"
+                disabled={!ready || !proofReady}
+                onClick={confirmProposedEvent}
+              >
+                Potwierdź{" "}
+                {reviewTarget === "turn"
+                  ? "nawrót"
+                  : protocol.markers[reviewTarget === "start" ? 0 : 1].toLocaleLowerCase("pl-PL")}
+              </LabButton>
+              <LabButton className="bl-link bl-wide" disabled={reading} onClick={useManualTiming}>
+                Oznacz wszystko ręcznie
+              </LabButton>
+            </>
+          ) : isLongJump && editing ? (
             <LabButton
               className="bl-wide"
               disabled={
@@ -1070,11 +1465,21 @@ export function VideoAnalyzer({
                 <select
                   aria-label="Powiększenie"
                   value={zoom}
-                  onChange={(event) => setZoom(Number(event.target.value))}
+                  onChange={(event) => {
+                    const value = Number(event.target.value),
+                      limit = (1 - 1 / value) * 50;
+                    setZoom(value);
+                    setPan(([x, y]) => [
+                      Math.max(-limit, Math.min(limit, x)),
+                      Math.max(-limit, Math.min(limit, y)),
+                    ]);
+                  }}
                 >
                   <option value={1}>1×</option>
                   <option value={1.5}>1,5×</option>
                   <option value={2}>2×</option>
+                  <option value={4}>4×</option>
+                  <option value={8}>8×</option>
                 </select>
               </label>
               {zoom > 1 &&
@@ -1085,9 +1490,9 @@ export function VideoAnalyzer({
                       className="bl-range"
                       type="range"
                       aria-label={`Przesunięcie ${label.toLowerCase()}`}
-                      min={-25}
-                      max={25}
-                      step={1}
+                      min={-(1 - 1 / zoom) * 50}
+                      max={(1 - 1 / zoom) * 50}
+                      step={0.25}
                       value={pan[i]}
                       onChange={(event) => {
                         const value = Number(event.target.value);
@@ -1116,14 +1521,7 @@ export function VideoAnalyzer({
                         disabled={saved}
                         onChange={(event) => {
                           const value = Number(event.target.value);
-                          setGuides((old) =>
-                            protocol.sharedGuide
-                              ? [value, value]
-                              : i === 0
-                                ? [value, old[1]]
-                                : [old[0], value],
-                          );
-                          setDraft(null);
+                          changeGuide(value, i);
                         }}
                       />
                     </label>

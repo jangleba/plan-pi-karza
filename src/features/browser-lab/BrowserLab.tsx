@@ -51,9 +51,15 @@ function RestReminder({ until }: { until: number }) {
     </p>
   );
 }
-export default function BrowserLab({ ownerId }: { ownerId: string }) {
+export default function BrowserLab({
+  ownerId,
+  initialTab = "tests",
+}: {
+  ownerId: string;
+  initialTab?: "tests" | "history";
+}) {
   const tabsId = useId();
-  const [tab, setTab] = useState<"tests" | "history">("tests");
+  const [tab, setTab] = useState<"tests" | "history">(initialTab);
   const [rows, setRows] = useState<BrowserResult[]>([]);
   const [error, setError] = useState("");
   const [session, setSession] = useState<Session | null>(null);
@@ -142,7 +148,14 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
       {session ? (
         <>
           <div className="bl-session-header">
-            <LabButton className="bl-link" onClick={() => setExit(true)}>
+            <LabButton
+              className="bl-link"
+              onClick={() =>
+                session.saved
+                  ? (setFinished(session.savedCount), setSession(null), setTab("history"))
+                  : setExit(true)
+              }
+            >
               <ArrowLeft size={18} />
               Zakończ sesję
             </LabButton>
@@ -179,6 +192,18 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                   : "Kolejna próba"}
                 <ArrowRight size={18} />
               </LabButton>
+              {session.index < session.attempts.length - 1 && (
+                <LabButton
+                  className="bl-link bl-wide"
+                  onClick={() => {
+                    setFinished(session.savedCount);
+                    setSession(null);
+                    setTab("history");
+                  }}
+                >
+                  Zakończ na teraz
+                </LabButton>
+              )}
             </section>
           )}
         </>
@@ -240,26 +265,6 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
           <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`}>
             {tab === "tests" ? (
               <>
-                <section className="bl-card bl-profile">
-                  <div className="bl-profile-heading">
-                    <h2>Pełny profil</h2>
-                    <span className="bl-badge">
-                      {TEST_IDS.length} testów · {attemptPlan(TEST_IDS).length} prób
-                    </span>
-                  </div>
-                  <p className="bl-muted">Cały zestaw z przerwami. Przygotuj taśmę i dwa wzorce.</p>
-                  <LabButton disabled={capable !== true} onClick={() => begin(TEST_IDS)}>
-                    Rozpocznij pełny profil
-                    <ArrowRight size={18} />
-                  </LabButton>
-                  <details className="bl-details">
-                    <summary>Co przygotować?</summary>
-                    <p>
-                      Rozgrzewka, taśma, pachołki i statyw. Dla skoku w dal: dwa wydrukowane wzorce.
-                      Odpoczynek: 60–90 s po skoku, 3 min po biegu.
-                    </p>
-                  </details>
-                </section>
                 <div className="bl-test-list">
                   {PROTOCOLS.map((protocol) => {
                     const Icon =
@@ -287,16 +292,23 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                         <span className="bl-test-copy">
                           <strong>{protocol.title}</strong>
                           <span>{protocol.subtitle}</span>
-                          <span className="bl-test-meta">
-                            {protocol.trials} próby{protocol.sides.length > 1 ? " na nogę" : ""} ·{" "}
-                            {protocol.category === "jump" ? "cm" : "sekundy"}
-                          </span>
                         </span>
                         <ChevronRight size={20} className="bl-test-chevron" aria-hidden="true" />
                       </button>
                     );
                   })}
                 </div>
+                <details className="bl-details bl-suite-options">
+                  <summary>Cały zestaw testów</summary>
+                  <p className="bl-muted">
+                    Możesz także wykonać wszystkie testy kolejno. Rozgrzej się i zachowuj zalecane
+                    przerwy.
+                  </p>
+                  <LabButton disabled={capable !== true} onClick={() => begin(TEST_IDS)}>
+                    Rozpocznij pełny profil
+                    <ArrowRight size={18} />
+                  </LabButton>
+                </details>
                 <details className="bl-details">
                   <summary>Jak wykonać pomiar?</summary>
                   <ol className="bl-steps">
@@ -310,15 +322,15 @@ export default function BrowserLab({ ownerId }: { ownerId: string }) {
                       odczytane przez Lab.
                     </li>
                     <li>
-                      Skok w dal analizuje się automatycznie — sprawdzasz tylko punkt pięty. W
-                      pozostałych testach oznacz zdarzenia klatka po klatce i zapisz wynik.
+                      Lab proponuje zdarzenia do sprawdzenia. Dla biegów ustaw linię na obrazie.
+                      Porównaj sąsiednie klatki, popraw w razie potrzeby i zapisz wynik.
                     </li>
                   </ol>
                   <p className="bl-muted">
-                    LiDAR nie jest potrzebny. Skok w dal używa dwóch wydrukowanych wzorców na
-                    podłożu; wysokość pozostałych skoków obliczamy z czasu lotu, a odcinki biegowe
-                    trzeba zmierzyć taśmą. Przy 30/60 FPS wyniki czasowe są orientacyjne — sprawdź
-                    podany zakres rozdzielczości. Zmiana tempa filmu uniemożliwia poprawny pomiar.
+                    Skok w dal używa dwóch wydrukowanych wzorców na podłożu; wysokość pozostałych
+                    skoków obliczamy z czasu lotu, a odcinki biegowe trzeba zmierzyć taśmą. Przy
+                    30/60 FPS wyniki czasowe są orientacyjne — sprawdź podany zakres rozdzielczości.
+                    Zmiana tempa filmu uniemożliwia poprawny pomiar.
                   </p>
                 </details>
               </>

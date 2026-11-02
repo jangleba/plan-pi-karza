@@ -38,7 +38,7 @@ describe("exercise animation integration", () => {
     await click("Pokaż animację ruchu");
     const frame = host.querySelector("iframe")!;
     expect(frame.getAttribute("src")).toBe(
-      "/technique/animations/index.html?id=a_skip&embed=1&v=2026.11.01.34",
+      "/technique/animations/index.html?id=a_skip&embed=1&v=2026.11.02.36",
     );
     expect(frame.title).toContain("Ćwiczenie");
     await click("Zamknij animację");

@@ -51,6 +51,7 @@ test("REPRO: resets unsaved notes when session identity changes", async () => {
   const first = sessionFixture({ dbId: "one" }),
     second = sessionFixture({ dbId: "two" });
   await act(async () => root.render(<CompletionPanel session={first} />));
+  expect(host.querySelector("#session-completion-one")).not.toBeNull();
   const area = host.querySelector("textarea")!;
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
   await act(async () => {
@@ -59,6 +60,8 @@ test("REPRO: resets unsaved notes when session identity changes", async () => {
   });
   expect(area.value).toBe("NOTATKA PIERWSZEJ SESJI");
   await act(async () => root.render(<CompletionPanel session={second} />));
+  expect(host.querySelector("#session-completion-one")).toBeNull();
+  expect(host.querySelector("#session-completion-two")).not.toBeNull();
   expect(host.querySelector("textarea")!.value).toBe("");
   await act(async () => button("Oznacz jako wykonane").click());
   expect(mocks.complete.mock.calls[0][0].dbId).toBe("two");

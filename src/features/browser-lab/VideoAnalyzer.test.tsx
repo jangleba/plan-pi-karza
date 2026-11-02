@@ -6,6 +6,7 @@ import { VideoAnalyzer } from "./VideoAnalyzer";
 import { buildJumpTimeline } from "./measurement";
 import { attemptPlan } from "./protocols";
 import type { OpenedVideo } from "./video";
+import type { AutomaticLongJumpCalibration } from "./longJump";
 const mocks = vi.hoisted(() => ({
   open: vi.fn(),
   decode: vi.fn(),
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   record: vi.fn(),
   stop: vi.fn(),
   auto: vi.fn(),
+  timed: vi.fn(),
   markers: vi.fn(),
   download: vi.fn(),
 }));
@@ -30,7 +32,12 @@ vi.mock("./camera", () => ({
 }));
 vi.mock("./longJumpAuto", () => ({
   analyzeLongJump: mocks.auto,
+  takeoffEdgeFromMarkers: (corners: AutomaticLongJumpCalibration["referenceCorners"]) => [
+    corners[2],
+    corners[3],
+  ],
 }));
+vi.mock("./timedAuto", () => ({ analyzeTimedVideo: mocks.timed }));
 vi.mock("./download", () => ({ downloadBlob: mocks.download, downloadText: vi.fn() }));
 vi.mock("./longJump", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./longJump")>()),
@@ -122,6 +129,7 @@ beforeEach(() => {
   mocks.stop.mockReset();
   mocks.record.mockReset();
   mocks.auto.mockReset().mockResolvedValue(automaticSpatial);
+  mocks.timed.mockReset().mockRejectedValue(new Error("Automatyczna propozycja niedostępna."));
   mocks.download.mockReset().mockResolvedValue("delivered");
   mocks.markers.mockReset().mockReturnValue({
     start: { corners: startMarker, quality: 0.95 },
@@ -168,6 +176,72 @@ async function render(save = vi.fn(), testId: "cmj" | "standing_long_jump" | "co
 }
 
 describe("browser video measurement flow", () => {
+  it("measures a manually identified heel without inventing a pose confidence when AUTO fails", async () => {
+    mocks.auto.mockRejectedValue(new Error("Sylwetka niewidoczna."));
+    const save = await render(vi.fn(), "standing_long_jump");
+    await importFile();
+    await act(async () => button("Wskaż lądowanie ręcznie").click());
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+    await act(async () => button("To klatka przed skokiem").click());
+    const canvas = host.querySelector<HTMLCanvasElement>(
+      'canvas[aria-label="Dokładna klatka filmu"]',
+    )!;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 1280,
+      height: 720,
+    } as DOMRect);
+    const heel = automaticSpatial.heel;
+    await act(async () =>
+      host
+        .querySelector<HTMLButtonElement>('[aria-label="Wskaż bliższą piętę na lądowaniu"]')!
+        .dispatchEvent(
+          new MouseEvent("pointerdown", {
+            bubbles: true,
+            clientX: heel[0] * 1280,
+            clientY: heel[1] * 720,
+          }),
+        ),
+    );
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeTruthy();
+    await act(async () => button("Zapisz wynik").click());
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0][0]).toMatchObject({
+      version: "ballwise-browser-lab-1.4",
+      spatial: { method: "ballwise-marker-pose-v4", heelSource: "manual", poseConfidence: 0 },
+    });
+    expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(214, 4);
+  });
+  it("requires adjacent-frame review of both proposed events before showing and saving a result", async () => {
+    mocks.timed.mockResolvedValue({
+      start: 60,
+      end: 160,
+      confidence: 0.9,
+      method: "pose-proposal-v1",
+      focus: { start: [0.5, 0.8], end: [0.5, 0.8] },
+    });
+    const save = await render();
+    await importFile();
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+    expect(host.querySelectorAll(".bl-event-proof canvas")).toHaveLength(2);
+    expect(save).not.toHaveBeenCalled();
+    await act(async () => button("Potwierdź wybicie").click());
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+    await act(async () => button("Potwierdź lądowanie").click());
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeTruthy();
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    await act(async () => button("Zapisz wynik").click());
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0][0]).toMatchObject({ startFrameIndex: 60, endFrameIndex: 160 });
+  });
+  it("preserves manual marking when automatic proposals fail", async () => {
+    await render();
+    await importFile();
+    expect(host.textContent).toContain("Ręczne oznaczanie pozostaje dostępne");
+    expect(button("Oznacz wybicie")).toBeTruthy();
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+  });
   it.each(["button", "background"])(
     "cancels AUTO through %s without saving a partial result",
     async (reason) => {
@@ -542,7 +616,7 @@ it("retains the new frame's calibration and time after a successful heel correct
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0]).toMatchObject({
     endFrameIndex: 191,
-    spatial: { heelFrameIndex: 191, imageWidth: 1280, imageHeight: 720, heelSource: "manual" },
+    spatial: { heelFrameIndex: 191, imageWidth: 1920, imageHeight: 1080, heelSource: "manual" },
   });
   expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 6);
 });

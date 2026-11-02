@@ -484,9 +484,9 @@ function SessionDetail() {
           ) &&
           (session.classification?.subcategory !== "field_mas_test" ||
             Boolean(session.dbId && state.runningActivities[session.dbId])) &&
-          (!sprintRunner || showSprintCompletion) &&
-          (!strengthRunner || showStrengthCompletion) &&
-          (!recoveryRunner || showRecoveryCompletion) && (
+          (!sprintRunner || showSprintCompletion || completion?.completed) &&
+          (!strengthRunner || showStrengthCompletion || completion?.completed) &&
+          (!recoveryRunner || showRecoveryCompletion || completion?.completed) && (
             <CompletionPanel key={session.dbId} session={presentedSession} />
           )}
 

@@ -240,10 +240,10 @@ describe("calibrated floor measurement", () => {
     };
     rect(false);
     expect(findReferenceRectangle({ data, width, height })).toEqual([
-      [0.25, 40 / 150],
-      [0.65, 40 / 150],
-      [0.65, 100 / 150],
-      [0.25, 100 / 150],
+      [50.5 / 200, 40.5 / 150],
+      [130.5 / 200, 40.5 / 150],
+      [130.5 / 200, 100.5 / 150],
+      [50.5 / 200, 100.5 / 150],
     ]);
     rect(true);
     expect(findReferenceRectangle({ data, width, height })).toBeNull();

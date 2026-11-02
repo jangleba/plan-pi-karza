@@ -6,8 +6,9 @@ import {
   findBallWiseCalibrationMarkers,
   longJumpMeasurement,
   type AutomaticLongJumpCalibration,
-  type FloorPoint,
 } from "./longJump";
+import { orientStartMarker, takeoffEdgeFromMarkers } from "./markerGeometry";
+export { takeoffEdgeFromMarkers } from "./markerGeometry";
 
 export interface PoseFrame extends DetectedPose {
   frameIndex: number;
@@ -35,8 +36,15 @@ export function selectLongJumpWindow(input: readonly PoseFrame[]) {
   const direction = Math.sign(displacement);
   const distance = Math.abs(displacement);
   const progress = (frame: PoseFrame) => ((frame.hip[0] - startX) * direction) / distance;
+  const footY = (frame: PoseFrame) =>
+    Math.max(...frame.heels.map((p) => p[1]), ...frame.toes.map((p) => p[1]));
+  const startFloor = median(frames.slice(0, edge).map(footY));
+  const endFloor = median(frames.slice(-edge).map(footY));
   const before = frames.filter(
-    (frame, index) => index < frames.length * 0.6 && progress(frame) <= 0.12,
+    (frame, index) =>
+      index < frames.length * 0.6 &&
+      progress(frame) <= 0.12 &&
+      Math.abs(footY(frame) - startFloor) <= bodyHeight * 0.04,
   );
   if (!before.length) throw new Error("Nie widzę spokojnej pozycji przed odbiciem.");
   const start = before[before.length - 1];
@@ -49,7 +57,10 @@ export function selectLongJumpWindow(input: readonly PoseFrame[]) {
     const spread =
       Math.max(...following.map((item) => item.hip[0])) -
       Math.min(...following.map((item) => item.hip[0]));
-    if (spread <= bodyHeight * 0.09) {
+    if (
+      spread <= bodyHeight * 0.09 &&
+      following.every((p) => Math.abs(footY(p) - endFloor) <= bodyHeight * 0.04)
+    ) {
       end = frame;
       break;
     }
@@ -60,26 +71,6 @@ export function selectLongJumpWindow(input: readonly PoseFrame[]) {
     end,
     confidence: Math.min(start.confidence, end.confidence),
   };
-}
-
-function pointLineDistance(point: FloorPoint, a: FloorPoint, b: FloorPoint) {
-  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-  return Math.abs((b[0] - a[0]) * (a[1] - point[1]) - (a[0] - point[0]) * (b[1] - a[1])) / length;
-}
-
-function takeoffEdge(
-  corners: AutomaticLongJumpCalibration["referenceCorners"],
-  toes: [FloorPoint, FloorPoint],
-): [FloorPoint, FloorPoint] {
-  const edges: [FloorPoint, FloorPoint][] = [
-    [corners[0], corners[1]],
-    [corners[2], corners[3]],
-  ];
-  return edges.sort(
-    ([a1, b1], [a2, b2]) =>
-      Math.min(...toes.map((point) => pointLineDistance(point, a1, b1))) -
-      Math.min(...toes.map((point) => pointLineDistance(point, a2, b2))),
-  )[0];
 }
 
 const nextPaint = async (
@@ -127,7 +118,7 @@ export async function analyzeLongJump(
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     const selected = selectLongJumpWindow(poses);
-    await nextPaint(video, selected.start.frameIndex, canvas, signal, 1280, decoder);
+    await nextPaint(video, selected.start.frameIndex, canvas, signal, 4096, decoder);
     const startMarkers = findBallWiseCalibrationMarkers(
       canvas
         .getContext("2d", { willReadFrequently: true })!
@@ -138,7 +129,7 @@ export async function analyzeLongJump(
         "Nie widzę obu wzorców: niebieskiego START i pomarańczowego 3 METRY. Pokaż je w całości.",
       );
     onProgress(84);
-    await nextPaint(video, selected.end.frameIndex, canvas, signal, 1280, decoder);
+    await nextPaint(video, selected.end.frameIndex, canvas, signal, 4096, decoder);
     const landingMarkers = findBallWiseCalibrationMarkers(
       canvas
         .getContext("2d", { willReadFrequently: true })!
@@ -148,12 +139,17 @@ export async function analyzeLongJump(
       throw new Error(
         "Jeden ze wzorców zniknął podczas lądowania. Ustaw szerszy kadr i nagraj ponownie.",
       );
-    const line = takeoffEdge(startMarkers.start.corners, selected.start.toes);
+    const reference = orientStartMarker(startMarkers.start.corners, startMarkers.range.corners);
+    const landingReference = orientStartMarker(
+      landingMarkers.start.corners,
+      landingMarkers.range.corners,
+    );
+    const line = takeoffEdgeFromMarkers(reference, startMarkers.range.corners);
     const common = {
-      method: "ballwise-marker-pose-v3" as const,
-      referenceCorners: startMarkers.start.corners,
+      method: "ballwise-marker-pose-v4" as const,
+      referenceCorners: reference,
       rangeCorners: startMarkers.range.corners,
-      landingReferenceCorners: landingMarkers.start.corners,
+      landingReferenceCorners: landingReference,
       landingRangeCorners: landingMarkers.range.corners,
       referenceWidthCm: 20,
       referenceDepthCm: 24,

@@ -75,17 +75,23 @@ vi.mock("@/components/loadwise/session/GenericRunner", () => ({
   StructuredSections: () => <div data-runner="generic" />,
 }));
 vi.mock("@/components/loadwise/session/SprintRunner", async (importOriginal) => {
-  const { SprintStructuredSections } = await importOriginal<typeof import("@/components/loadwise/session/SprintRunner")>();
-  return { SprintStructuredSections: (props: ComponentProps<typeof SprintStructuredSections>) => mocks.realSprint
-    ? <SprintStructuredSections {...props} />
-    : (
-    <>
-      <button type="button" data-preview-control>Obejrzyj ćwiczenie</button>
-      <button data-runner="sprint" disabled={!props.canRecord} onClick={props.onFinish}>
-        Finish sprint
-      </button>
-    </>
-  ) };
+  const { SprintStructuredSections } =
+    await importOriginal<typeof import("@/components/loadwise/session/SprintRunner")>();
+  return {
+    SprintStructuredSections: (props: ComponentProps<typeof SprintStructuredSections>) =>
+      mocks.realSprint ? (
+        <SprintStructuredSections {...props} />
+      ) : (
+        <>
+          <button type="button" data-preview-control>
+            Obejrzyj ćwiczenie
+          </button>
+          <button data-runner="sprint" disabled={!props.canRecord} onClick={props.onFinish}>
+            Finish sprint
+          </button>
+        </>
+      ),
+  };
 });
 vi.mock("@/components/loadwise/session/StrengthRunner", () => ({
   StrengthStructuredSections: ({ onFinish }: { onFinish: () => void }) => (
@@ -176,47 +182,98 @@ afterEach(async () => {
 });
 
 describe("session route gates", () => {
+  it("opens the completed sprint feedback from Progress without replaying the runner", async () => {
+    const session = sessionFixture({
+      title: "Zapisany sprint",
+      speedGeneratorVersion: "test",
+      structuredSections: [
+        sectionFixture("main", [{ id: "sprint", name: "Sprint", speedRole: "primary" }]),
+      ],
+    });
+    mocks.state.plan = [session];
+    mocks.todayIso = "2026-09-30";
+    mocks.state.completions["session-1"] = {
+      completed: true,
+      status: "completed",
+      rpe: null,
+      notes: "",
+      durationMin: 30,
+      executionSnapshot: session,
+    };
+    await render();
+    expect(host.querySelector('[data-runner="sprint"]')).not.toBeNull();
+    expect(completionId()).toBe("session-1");
+    expect(mocks.startSession).not.toHaveBeenCalled();
+  });
   it("opens the real drill instructions and animation through yesterday's complete session route", async () => {
     mocks.todayIso = "2026-09-30";
     mocks.realSprint = true;
-    mocks.state.plan = [sessionFixture({
-      speedGeneratorVersion: "test",
-      structuredSections: [sectionFixture("main", [{ id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" }])],
-    })];
+    mocks.state.plan = [
+      sessionFixture({
+        speedGeneratorVersion: "test",
+        structuredSections: [
+          sectionFixture("main", [
+            { id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" },
+          ]),
+        ],
+      }),
+    ];
     await render();
     expect(host.querySelector(".bw-training-hero")).not.toBeNull();
     expect(host.querySelector(".bw-sprint-page")).not.toBeNull();
     await act(async () => host.querySelector<HTMLButtonElement>(".bw-plan-group-trigger")!.click());
-    const stage = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(button => button.textContent?.includes("Drille"))!;
+    const stage = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find((button) =>
+      button.textContent?.includes("Drille"),
+    )!;
     expect(stage.matches(":disabled")).toBe(false);
     await act(async () => stage.click());
     const panel = stage.closest(".bw-sprint-stage")!;
-    await act(async () => panel.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click());
+    await act(async () =>
+      panel.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click(),
+    );
     await act(async () => panel.querySelector<HTMLButtonElement>(".bw-technique-trigger")!.click());
     expect(panel.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
     const play = panel.querySelector<HTMLButtonElement>(".bw-animation-open")!;
     expect(play.matches(":disabled")).toBe(false);
     await act(async () => play.click());
     expect(panel.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
-    expect(panel.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')?.matches(":disabled")).toBe(true);
+    expect(
+      panel
+        .querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')
+        ?.matches(":disabled"),
+    ).toBe(true);
     expect(host.querySelector(".bw-sprint-action")).toBeNull();
     expect(mocks.startSession).not.toHaveBeenCalled();
     expect(mocks.state.completions).toEqual({});
     expect(window.localStorage.getItem("loadwise:sprint-progress:user-1:session-1")).toBeNull();
   });
-  it.each(["2026-09-29", "2026-09-30"])("keeps sprint teaching controls usable before recording on %s", async (today) => {
-    mocks.todayIso = today;
-    mocks.state.plan = [sessionFixture({
-      speedGeneratorVersion: "test",
-      structuredSections: [sectionFixture("main", [{ id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" }])],
-    })];
-    await render();
-    expect(host.querySelector<HTMLButtonElement>("[data-preview-control]")?.matches(":disabled")).toBe(false);
-    expect(host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')?.matches(":disabled")).toBe(true);
-    expect(mocks.startSession).not.toHaveBeenCalled();
-    expect(completionId()).toBeUndefined();
-    if (today !== "2026-09-29") expect(host.textContent).toContain("Podgląd treningu z innego dnia");
-  });
+  it.each(["2026-09-29", "2026-09-30"])(
+    "keeps sprint teaching controls usable before recording on %s",
+    async (today) => {
+      mocks.todayIso = today;
+      mocks.state.plan = [
+        sessionFixture({
+          speedGeneratorVersion: "test",
+          structuredSections: [
+            sectionFixture("main", [
+              { id: "drill", exerciseId: "ankling", name: "Ankling", speedRole: "technical" },
+            ]),
+          ],
+        }),
+      ];
+      await render();
+      expect(
+        host.querySelector<HTMLButtonElement>("[data-preview-control]")?.matches(":disabled"),
+      ).toBe(false);
+      expect(
+        host.querySelector<HTMLButtonElement>('[data-runner="sprint"]')?.matches(":disabled"),
+      ).toBe(true);
+      expect(mocks.startSession).not.toHaveBeenCalled();
+      expect(completionId()).toBeUndefined();
+      if (today !== "2026-09-29")
+        expect(host.textContent).toContain("Podgląd treningu z innego dnia");
+    },
+  );
   it("waits for authentication and opens today's runner without forcing a check-in", async () => {
     mocks.auth.loading = true;
     mocks.checkin.mockReturnValue(null);

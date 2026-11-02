@@ -1,7 +1,4 @@
-import {
-  TRAINING_CATEGORY_LABELS,
-  type TrainingCategoryKey,
-} from "@/lib/progress/progress";
+import { TRAINING_CATEGORY_LABELS, type TrainingCategoryKey } from "@/lib/progress/progress";
 
 const ORDER: TrainingCategoryKey[] = [
   "gym",
@@ -16,8 +13,10 @@ const ORDER: TrainingCategoryKey[] = [
 /** Rozkład ukończonych jednostek z ostatnich siedmiu dni. */
 export function TrainingBalance({
   byCategory,
+  periodDays = 7,
 }: {
   byCategory: Record<TrainingCategoryKey, number>;
+  periodDays?: number;
 }) {
   const rows = ORDER.filter((key) => byCategory[key] > 0);
   const max = Math.max(1, ...rows.map((key) => byCategory[key]));
@@ -26,12 +25,10 @@ export function TrainingBalance({
     <section className="soft-card p-4">
       <h2 className="text-sm font-semibold">Balans treningu</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Ukończone jednostki z ostatnich 7 dni.
+        Zapisane jednostki z ostatnich {periodDays} dni.
       </p>
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Brak danych do pokazania rozkładu.
-        </p>
+        <p className="mt-4 text-sm text-muted-foreground">Brak danych do pokazania rozkładu.</p>
       ) : (
         <div className="mt-4 space-y-2.5">
           {rows.map((key) => (

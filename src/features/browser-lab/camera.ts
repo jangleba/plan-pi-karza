@@ -4,6 +4,7 @@ export interface LabCamera {
   stream: MediaStream;
   mimeType: string;
   settings: MediaTrackSettings;
+  videoBitsPerSecond?: number;
 }
 
 export function stopCamera(camera: LabCamera) {
@@ -19,7 +20,7 @@ function recordingTypes() {
 }
 
 /** Negotiate modes exposed by the browser, never guess a phone model or hardware FPS. */
-export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
+export async function openLabCamera(signal: AbortSignal, highDetail = false): Promise<LabCamera> {
   signal.throwIfAborted();
   const mimeTypes = recordingTypes();
   if (!globalThis.isSecureContext || !navigator.mediaDevices?.getUserMedia || !mimeTypes.length)
@@ -30,9 +31,9 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
   try {
     const constraints: MediaTrackConstraints = {
       facingMode: { exact: "environment" },
-      width: { ideal: 1920, max: 1920 },
-      height: { ideal: 1080, max: 1920 },
-      frameRate: { ideal: 60, max: 240 },
+      width: { ideal: highDetail ? 3840 : 1920, max: highDetail ? 3840 : 1920 },
+      height: { ideal: highDetail ? 2160 : 1080, max: highDetail ? 3840 : 1920 },
+      frameRate: { ideal: highDetail ? 30 : 60, max: highDetail ? 60 : 240 },
     };
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -66,7 +67,7 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
     ]
       .filter((rate) => rate >= 15)
       .sort((a, b) => b - a);
-    for (const fps of rates) {
+    for (const fps of highDetail ? [] : rates) {
       if (capabilities.frameRate?.max !== undefined && capabilities.frameRate.max < fps) continue;
       try {
         await track.applyConstraints({
@@ -88,8 +89,9 @@ export async function openLabCamera(signal: AbortSignal): Promise<LabCamera> {
     // Check recorder construction before offering Start. Encoding can still fail at runtime.
     for (const mimeType of mimeTypes) {
       try {
-        new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12_000_000 });
-        return { stream, mimeType, settings: track.getSettings() };
+        const videoBitsPerSecond = highDetail ? 24_000_000 : 12_000_000;
+        new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
+        return { stream, mimeType, settings: track.getSettings(), videoBitsPerSecond };
       } catch (reason) {
         if (!(reason instanceof DOMException) || reason.name !== "NotSupportedError") throw reason;
       }
@@ -128,7 +130,7 @@ export function recordLabCamera(
     throw new Error("Wybierz nagranie od 2 do 18 sekund.");
   const recorder = new MediaRecorder(camera.stream, {
     mimeType: camera.mimeType,
-    videoBitsPerSecond: 12_000_000,
+    videoBitsPerSecond: camera.videoBitsPerSecond ?? 12_000_000,
   });
   const chunks: Blob[] = [];
   let bytes = 0;
