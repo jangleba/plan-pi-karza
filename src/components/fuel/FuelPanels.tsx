@@ -1,3 +1,4 @@
+import { useClosingSnapshot } from "@/components/ui/useClosingSnapshot";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import {
   Ban,
@@ -95,11 +96,13 @@ const titles: Record<Exclude<FuelPanelName, null>, string> = {
   history: "Twoje zapisane jedzenie",
   reminders: "Przypomnienia",
 };
-export function FuelPanels(p: Props) {
+export function FuelPanels(incoming: Props) {
+  const retained = useClosingSnapshot(incoming, incoming.panel !== null);
+  const p = retained.value;
   const [clock, setClock] = useState("");
   const [minutes, setMinutes] = useState("");
   const [search, setSearch] = useState("");
-  if (p.panel === null) return null;
+  if (!retained.present || p.panel === null) return null;
   const addition = completeMeal(
     p.parsed.ids.map((foodId) => ({ foodId, grams: FOOD_BY_ID[foodId].unitGrams })),
     p.preferences,
@@ -147,14 +150,13 @@ export function FuelPanels(p: Props) {
     });
   }
   return (
-    <Sheet open={p.panel !== null} onOpenChange={(open) => !open && p.onClose()}>
+    <Sheet open={incoming.panel !== null} onOpenChange={(open) => !open && incoming.onClose()}>
       <SheetContent side="bottom" className="fuel-sheet fuel-v4-panel">
-        <div className="fuel-v4-handle" aria-hidden="true" />
         <SheetTitle>{p.panel ? titles[p.panel] : "Fuel"}</SheetTitle>
         <SheetDescription className="sr-only">
           Zmień wybór w Fuel. Ustawienia zapisują się na tym urządzeniu.
         </SheetDescription>
-        <div className="fuel-v4-panel-content">
+        <div className="fuel-v4-panel-content bw-sheet-section" key={p.panel}>
           {p.panel === "time" && (
             <>
               <div className="fuel-v4-panel-presets">

@@ -23,6 +23,7 @@ import {
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { WarmupCoach } from "../preparation/PreparationGuide";
 import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
+import { PersistentExercisePanel } from "./PersistentExercisePanel";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
 import { SprintRestTimer } from "./SprintRestTimer";
 import { exerciseDisplayName } from "./exerciseDisplayNames";
@@ -109,7 +110,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
           ),
         ) ? (
           <WarmupCoach
-            key={stage.key}
+            key={`${progressKey}:${fingerprint}:${stage.key}`}
             exercises={stage.blocks.flatMap((b) => b.exercises)}
             kind="strength"
             storageKey={`${progressKey}:guided`}
@@ -131,7 +132,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
             }}
           />
         ) : (
-          <section className="bw-training-stage" key={stage.key}>
+          <section className="bw-training-stage" key={`${progressKey}:${fingerprint}:${stage.key}`}>
             <h2>{stage.label}</h2>
             {stage.blocks.map((block) => {
               const activeBlock = block.exercises.some((e) => e.id === activeId);
@@ -151,20 +152,20 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                         : ""}
                     </p>
                   )}
-                  {activeBlock && paired && (
-                    <div className="bw-training-rest">
-                      <SprintRestTimer
-                        label={
-                          pairRest.blockId === block.id
-                            ? pairRest.label
-                            : block.exercises.find((e) => e.restAfterPair)?.restAfterPair ||
-                              block.restAfterBlock ||
-                              ""
-                        }
-                        compact
-                        startToken={pairRest.blockId === block.id ? pairRest.token : 0}
-                      />
-                    </div>
+                  {paired && (
+                    <PersistentExercisePanel open={activeBlock}>
+                      <div className="bw-training-rest">
+                        <SprintRestTimer
+                          label={
+                            block.exercises.find((e) => e.restAfterPair)?.restAfterPair ||
+                            block.restAfterBlock ||
+                            ""
+                          }
+                          compact
+                          startToken={pairRest.blockId === block.id ? pairRest.token : 0}
+                        />
+                      </div>
+                    </PersistentExercisePanel>
                   )}
                   {block.exercises.map((exercise) => {
                     const active = activeId === exercise.id;
@@ -216,50 +217,58 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                             <ChevronDown size={17} className={active ? "is-open" : ""} />
                           </button>
                         </div>
-                        {!active && <ExerciseQuickGuide exercise={exercise} compact />}
-                        {exercise.executionBlockedReason && <p role="status" className="bw-coach-notice">{exercise.executionBlockedReason}</p>}
-                        {activeBlock && sets > 0 && (
-                          <ExerciseRunnerScreen
-                            exercise={exercise}
-                            sessionId={sessionId}
-                            date={date}
-                            open={active}
-                            inline
-                            showVisuals={false}
-                            manageRest={!paired}
-                            onClose={() => setActiveId(null)}
-                            onComplete={() => markDone(exercise.id, true)}
-                            onSetSaved={(_log, finished) => nextExercise(block, exercise, finished)}
-                          />
+
+                        {exercise.executionBlockedReason && (
+                          <p role="status" className="bw-coach-notice">
+                            {exercise.executionBlockedReason}
+                          </p>
                         )}
-                        {active && sets === 0 && (
-                          <div className="bw-training-inline">
-                            <ExerciseQuickGuide exercise={exercise} compact />
+                        <PersistentExercisePanel open={active}>
+                          {sets > 0 && (
+                            <ExerciseRunnerScreen
+                              exercise={exercise}
+                              sessionId={sessionId}
+                              date={date}
+                              open
+                              inline
+                              showVisuals={false}
+                              manageRest={!paired}
+                              onClose={() => setActiveId(null)}
+                              onComplete={() => markDone(exercise.id, true)}
+                              onSetSaved={(_log, finished) =>
+                                nextExercise(block, exercise, finished)
+                              }
+                            />
+                          )}
+                          {sets === 0 && (
+                            <div className="bw-training-inline">
+                              <ExerciseQuickGuide exercise={exercise} compact autoAnimation />
+                              <button
+                                type="button"
+                                className="bw-save-set"
+                                disabled={Boolean(exercise.executionBlockedReason)}
+                                onClick={() => {
+                                  markDone(exercise.id, true);
+                                  setActiveId(
+                                    allExercises.find((e) => e.id !== exercise.id && !done[e.id])
+                                      ?.id ?? null,
+                                  );
+                                }}
+                              >
+                                Gotowe
+                              </button>
+                            </div>
+                          )}
+                          {equipment.length > 0 && (
                             <button
                               type="button"
-                              className="bw-save-set"
-                              disabled={Boolean(exercise.executionBlockedReason)}
-                              onClick={() => {
-                                markDone(exercise.id, true);
-                                setActiveId(
-                                  allExercises.find((e) => e.id !== exercise.id && !done[e.id])
-                                    ?.id ?? null,
-                                );
-                              }}
+                              className="bw-equipment-change"
+                              onClick={() => markEquipmentUnavailable(date, exercise, equipment)}
                             >
-                              Gotowe
+                              Brak sprzętu: {equipmentNamesFor(equipment).join(", ")}
                             </button>
-                          </div>
-                        )}
-                        {active && equipment.length > 0 && (
-                          <button
-                            type="button"
-                            className="bw-equipment-change"
-                            onClick={() => markEquipmentUnavailable(date, exercise, equipment)}
-                          >
-                            Brak sprzętu: {equipmentNamesFor(equipment).join(", ")}
-                          </button>
-                        )}
+                          )}
+                        </PersistentExercisePanel>
                       </article>
                     );
                   })}

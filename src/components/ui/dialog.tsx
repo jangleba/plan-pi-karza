@@ -15,7 +15,7 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-foreground/30", className)}
+    className={cn("bw-dialog-overlay fixed inset-0 z-50 bg-foreground/30", className)}
     {...props}
   />
 ));
@@ -30,13 +30,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%_-_2rem)] max-w-[30rem] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-3xl border border-border/80 bg-card p-5 text-card-foreground shadow-[0_26px_80px_-34px_oklch(0.12_0.07_258/0.58)]",
+        "bw-dialog fixed left-1/2 top-1/2 z-50 grid w-[calc(100%_-_2rem)] max-w-[30rem] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[24px] border border-border bg-card p-5 text-card-foreground",
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-3.5 top-3.5 grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-secondary/80 text-muted-foreground transition-[transform,background-color,color] duration-200 hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none">
+      <DialogPrimitive.Close className="absolute right-2 top-2 grid h-11 w-11 cursor-pointer place-items-center rounded-full bg-secondary/80 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Zamknij</span>
       </DialogPrimitive.Close>

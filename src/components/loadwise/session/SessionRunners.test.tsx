@@ -61,7 +61,12 @@ async function click(text: string) {
   await act(async () => button(text).click());
 }
 
-async function renderSprint(dbId = "session-1", canRecord = true, sections = sprintSectionsFixture(), openGroups = true) {
+async function renderSprint(
+  dbId = "session-1",
+  canRecord = true,
+  sections = sprintSectionsFixture(),
+  openGroups = true,
+) {
   await act(async () =>
     root.render(
       <SprintStructuredSections
@@ -73,12 +78,16 @@ async function renderSprint(dbId = "session-1", canRecord = true, sections = spr
       />,
     ),
   );
-  if (openGroups) for (const group of host.querySelectorAll<HTMLButtonElement>(".bw-plan-group-trigger")) {
-    if (group.getAttribute("aria-expanded") === "false") await act(async () => group.click());
-  }
+  if (openGroups)
+    for (const group of host.querySelectorAll<HTMLButtonElement>(".bw-plan-group-trigger")) {
+      if (group.getAttribute("aria-expanded") === "false") await act(async () => group.click());
+    }
   if (openGroups) {
-    const currentStage = host.querySelector<HTMLButtonElement>(".bw-stage-current > .bw-stage-header");
-    if (currentStage?.getAttribute("aria-expanded") === "false") await act(async () => currentStage.click());
+    const currentStage = host.querySelector<HTMLButtonElement>(
+      ".bw-stage-current > .bw-stage-header",
+    );
+    if (currentStage?.getAttribute("aria-expanded") === "false")
+      await act(async () => currentStage.click());
   }
 }
 
@@ -100,70 +109,70 @@ afterEach(async () => {
 });
 
 describe("session runners", () => {
-  it("starts with three compact groups and keeps all eight stages available without recording", async () => {
+  it("shows all stages and exercise rows immediately in preview without writing progress", async () => {
     await renderSprint("session-1", false, sprintSectionsFixture(), false);
-    const groups = [...host.querySelectorAll<HTMLButtonElement>(".bw-plan-group-trigger")];
-    expect(groups.map(group => group.querySelector("strong")?.textContent)).toEqual(["Przygotowanie", "Część główna", "Wyciszenie"]);
-    expect(groups.every(group => group.getAttribute("aria-expanded") === "false")).toBe(true);
-    expect(host.querySelectorAll(".bw-stage-header")).toHaveLength(0);
-    expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(0);
-    for (const group of groups) await act(async () => group.click());
     expect(host.querySelectorAll(".bw-stage-header")).toHaveLength(8);
-    expect([...host.querySelectorAll(".bw-stage-header")].every(stage => stage.getAttribute("aria-expanded") === "false")).toBe(true);
+    expect(host.querySelectorAll(".bw-plan-group-trigger")).toHaveLength(0);
+    expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(0);
     expect(window.localStorage.getItem(progressKey)).toBeNull();
   });
-  it("opens the first group automatically only after the session authorizes recording", async () => {
-    await act(async () => root.render(<SprintStructuredSections sections={sprintSectionsFixture()} date="2026-09-29" session={sessionFixture()} canRecord autoStart onFinish={finish} />));
-    expect(host.querySelector(".bw-plan-group-trigger")?.getAttribute("aria-expanded")).toBe("true");
+  it("authorizes recording through autoStart while keeping the compact list available", async () => {
+    await act(async () =>
+      root.render(
+        <SprintStructuredSections
+          sections={sprintSectionsFixture()}
+          date="2026-09-29"
+          session={sessionFixture()}
+          canRecord
+          autoStart
+          onFinish={finish}
+        />,
+      ),
+    );
+    expect(host.querySelectorAll(".bw-stage-header")).toHaveLength(8);
     expect(button("Następny blok").disabled).toBe(true);
     expect(JSON.parse(window.localStorage.getItem(progressKey)!).started).toBe(true);
     expect(finish).not.toHaveBeenCalled();
   });
-  it("opens drills, instructions and an animation in preview without recording progress", async () => {
+  it("opens a drill animation and instructions on the first row tap without recording preview", async () => {
     const sections = sprintSectionsFixture();
-    sections[1].blocks[0].exercises[0] = { id: "technical", exerciseId: "ankling", name: "Ankling", speedRole: "technical" };
+    sections[1].blocks[0].exercises[0] = {
+      id: "technical",
+      exerciseId: "ankling",
+      name: "Ankling",
+      speedRole: "technical",
+    };
     await renderSprint("session-1", false, sections);
     expect(host.querySelector(".bw-sprint-action")).toBeNull();
-    const drill = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(el => el.textContent?.includes("Drille"))!;
-    expect(drill).toBeDefined();
-    expect(drill.matches(":disabled")).toBe(false);
-    expect(drill.getAttribute("aria-expanded")).toBe("false");
-    await act(async () => drill.click());
-    expect(drill.getAttribute("aria-expanded")).toBe("true");
-    const stage = drill.closest(".bw-sprint-stage")!;
-    await act(async () => stage.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click());
-    const instructions = stage.querySelector<HTMLButtonElement>(".bw-technique-trigger")!;
-    await act(async () => instructions.click());
-    expect(stage.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
-    const animation = stage.querySelector<HTMLButtonElement>(".bw-animation-open")!;
-    expect(animation.matches(":disabled")).toBe(false);
-    await act(async () => animation.click());
+    const row = [...host.querySelectorAll<HTMLButtonElement>(".bw-exercise-name")]
+      .find((el) => el.textContent?.includes("Ankling"))!
+      .closest("button")!;
+    await act(async () => row.click());
+    const stage = row.closest(".bw-sprint-stage")!;
     expect(stage.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
-    const completed = stage.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!;
-    expect(completed.matches(":disabled")).toBe(true);
-    await act(async () => completed.click());
+    await act(async () => stage.querySelector<HTMLButtonElement>(".bw-technique-trigger")!.click());
+    expect(stage.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
+    expect(
+      stage.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.disabled,
+    ).toBe(true);
     expect(window.localStorage.getItem(progressKey)).toBeNull();
     expect(finish).not.toHaveBeenCalled();
-    expect(mocks.unavailable).not.toHaveBeenCalled();
   });
-  it("allows skip animations in preview while completion remains disabled", async () => {
+  it("allows a skip preview on first tap while recording remains disabled", async () => {
     await renderSprint("session-1", false);
-    const skip = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find(el => el.textContent?.includes("Skipy"))!;
-    await act(async () => skip.click());
-    const card = skip.closest(".bw-sprint-stage")!.querySelector(".bw-skip-card")!;
-    expect(card.querySelector<HTMLButtonElement>(".bw-skip-done")?.matches(":disabled")).toBe(true);
+    const card = host.querySelector(".bw-skip-card")!;
     await act(async () => card.querySelector<HTMLButtonElement>(".bw-skip-title-trigger")!.click());
-    const animation = card.querySelector<HTMLButtonElement>(".bw-animation-open")!;
-    expect(animation.matches(":disabled")).toBe(false);
-    await act(async () => animation.click());
     expect(card.querySelector("iframe")).not.toBeNull();
+    expect(card.querySelector<HTMLButtonElement>(".bw-skip-done")!.disabled).toBe(true);
     expect(window.localStorage.getItem(progressKey)).toBeNull();
   });
   it("keeps sprint guidance visible after completing a non-skip exercise", async () => {
     await renderSprint();
     await click("Przygotowanie");
     expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);
-    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.click());
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')!.click(),
+    );
     expect(host.querySelector('[aria-label="Wykonane"]')).not.toBeNull();
     expect(host.querySelectorAll(".bw-technique-guide")).toHaveLength(1);
   });
@@ -175,24 +184,21 @@ describe("session runners", () => {
     await renderSprint();
     const cards = [...host.querySelectorAll<HTMLElement>(".bw-skip-card")];
     expect(cards).toHaveLength(4);
-    expect(host.querySelectorAll(".bw-skip-rhythm")).toHaveLength(1);
-    expect(host.textContent).not.toContain("1 Z DODATKOWYM ODBICIEM");
     expect(host.textContent).not.toContain("Brak ilustracji");
     for (const card of cards) {
-      expect(card.querySelector(".bw-animation-open")).toBeNull();
-      await act(async () => card.querySelector<HTMLButtonElement>(".bw-skip-title-trigger")!.click());
-      expect(card.querySelector(".bw-animation-open")?.textContent).toContain("Pokaż animację ruchu");
-      expect(card.querySelector("iframe")).toBeNull();
-      expect(card.querySelectorAll("li")).toHaveLength(3);
-      expect(card.querySelector("details")).toBeNull();
-      expect(card.textContent).not.toContain("Otwórz pełne szczegóły");
-      expect(card.textContent).not.toContain("Zamiana bez sprzętu");
+      await act(async () =>
+        card.querySelector<HTMLButtonElement>(".bw-skip-title-trigger")!.click(),
+      );
+      expect(card.querySelector("iframe")).not.toBeNull();
+      expect(card.querySelector(".bw-technique-reminder")?.textContent).toBeTruthy();
+      expect(host.querySelectorAll(".bw-exercise-panel:not([hidden])")).toHaveLength(1);
     }
+
     const completion = cards[0].querySelector<HTMLButtonElement>("[aria-pressed]")!;
     await act(async () => completion.click());
     expect(completion.getAttribute("aria-pressed")).toBe("true");
     expect(cards[0].querySelector(".bw-animation-card")).not.toBeNull();
-    expect(cards[0].querySelectorAll("li")).toHaveLength(3);
+    expect(cards[0].querySelector(".bw-technique-reminder")?.textContent).toBeTruthy();
     expect(button("Następny blok").disabled).toBe(true);
   });
 
@@ -201,12 +207,16 @@ describe("session runners", () => {
     window.localStorage.setItem(progressKey, JSON.stringify(saved));
     await renderSprint();
     expect(button("Następny blok").disabled).toBe(true);
-    expect(host.querySelectorAll('[aria-label="Oznacz jako wykonane"]')).toHaveLength(4);
+    expect(
+      host.querySelectorAll('[aria-label="Oznacz jako wykonane"]:not(:disabled)'),
+    ).toHaveLength(4);
     expect(JSON.parse(window.localStorage.getItem(progressKey)!)).toEqual(saved);
 
     await renderSprint("session-2");
     expect(button("Rozpocznij blok").disabled).toBe(false);
-    expect(host.querySelectorAll('[aria-label="Oznacz jako wykonane"]')).toHaveLength(1);
+    expect(
+      host.querySelectorAll('[aria-label="Oznacz jako wykonane"]:not(:disabled)'),
+    ).toHaveLength(1);
     expect(JSON.parse(window.localStorage.getItem(progressKey)!)).toEqual(saved);
   });
 
@@ -250,6 +260,21 @@ describe("session runners", () => {
     await click("Start");
     await act(async () => root.render(null));
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("preserves the running rest while folding its row and opening another exercise", async () => {
+    vi.useFakeTimers();
+    await renderSprint();
+    await click("Przygotowanie");
+    await click("Start");
+    await act(async () => vi.advanceTimersByTime(1000));
+    await act(async () => host.querySelector<HTMLButtonElement>(".bw-skip-title-trigger")!.click());
+    const timer = host.querySelector('[role="timer"]')!;
+    expect(timer.closest("[hidden]")).not.toBeNull();
+    await act(async () => vi.advanceTimersByTime(1000));
+    await click("Przygotowanie");
+    expect(timer.textContent).toBe("00:01");
+    expect(timer.closest("[hidden]")).toBeNull();
   });
 
   it("starts the first unfinished strength exercise and exposes completion on the final stage", async () => {

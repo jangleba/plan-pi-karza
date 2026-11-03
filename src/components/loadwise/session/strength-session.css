@@ -45,7 +45,7 @@
 .bw-training-exercise {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--bw-card-radius);
   margin-bottom: 8px;
   overflow: hidden;
 }
@@ -66,7 +66,7 @@
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--bw-control-radius);
   background: var(--muted);
   color: var(--muted-foreground);
   font-size: 12px;
@@ -204,7 +204,7 @@
   background: var(--primary);
   color: var(--primary-foreground);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--bw-control-radius);
   font-size: 14px;
   font-weight: 600;
 }
@@ -341,4 +341,23 @@
   .bw-exercise-open svg {
     transition: none;
   }
+}
+
+.bw-strength .bw-training-exercise {
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.bw-strength .bw-training-block {
+  border: 1px solid var(--border);
+  border-radius: var(--bw-card-radius);
+  overflow: hidden;
+  background: var(--card);
+}
+.bw-strength .bw-training-block > .bw-training-exercise:last-child {
+  border-bottom: 0;
+}
+.bw-strength .bw-training-exercise-heading {
+  padding: 14px 12px;
 }

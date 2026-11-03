@@ -1,37 +1,37 @@
 .browser-lab {
   padding: 4px 20px 28px;
   color: var(--foreground);
-  font-size: 14px;
+  font-size: var(--bw-body);
   line-height: 1.55;
 }
 .browser-lab * {
   box-sizing: border-box;
 }
 .browser-lab h2 {
-  font-size: 20px;
-  font-weight: 650;
+  font-size: var(--bw-heading);
+  font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.25;
   margin: 3px 0 8px;
 }
 .browser-lab h3 {
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 600;
 }
 .browser-lab p {
   margin: 8px 0;
 }
 .bl-card {
   border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 20px;
+  border-radius: var(--bw-card-radius);
+  padding: 16px;
   background: var(--card);
   margin: 14px 0;
   overflow-wrap: anywhere;
 }
 .bl-kicker {
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: 0.13em;
   color: var(--muted-foreground);
 }
@@ -47,11 +47,11 @@
   gap: 8px;
   min-height: 46px;
   padding: 11px 16px;
-  border-radius: 13px;
+  border-radius: var(--bw-control-radius);
   background: var(--primary);
   color: var(--primary-foreground);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
   text-align: center;
@@ -125,26 +125,27 @@
   grid-template-columns: 1fr 1fr;
   gap: 5px;
   padding: 5px;
-  background: var(--secondary);
-  border-radius: 15px;
+  background: var(--bw-segment-background);
+  border-radius: var(--bw-control-radius);
   margin-bottom: 20px;
 }
 .bl-tabs button {
   padding: 12px;
-  border-radius: 11px;
+  border-radius: calc(var(--bw-control-radius) - 3px);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .bl-tabs button[aria-selected="true"] {
-  background: var(--card);
-  box-shadow: 0 2px 7px #00000008;
+  background: var(--bw-segment-selected);
+  color: var(--bw-segment-text);
+  box-shadow: none;
 }
 .bl-tabs span {
   margin-left: 5px;
   font-size: 11px;
 }
 .bl-profile {
-  background: linear-gradient(135deg, var(--card), var(--secondary));
+  background: var(--card);
 }
 .bl-profile h2 {
   font-size: 24px;
@@ -163,23 +164,35 @@
   margin-top: 12px;
   width: 100%;
 }
+.bl-test-list {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--bw-card-radius);
+  overflow: hidden;
+  background: var(--card);
+}
 .bl-test-card {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 20px;
   align-items: center;
   gap: 12px;
-  padding: 18px 16px;
-  min-height: 108px;
+  padding: 14px 16px;
+  min-height: 84px;
   width: 100%;
   color: var(--foreground);
   font: inherit;
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  margin: 0;
+  background: var(--card);
 }
 .bl-test-list .bl-test-card {
-  padding: 13px 14px;
-  margin-block: 8px;
+  padding: 14px 16px;
+  margin-block: 0;
   min-height: 76px;
 }
 .bl-event-proof {
@@ -331,7 +344,7 @@
   gap: 12px;
   font-size: 11px;
   padding: 0 2px 10px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .bl-frame {
   position: relative;
@@ -670,7 +683,7 @@
 .bl-details summary {
   min-height: 44px;
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 600;
 }
 .bl-details label {
   display: block;
@@ -695,7 +708,7 @@
   min-height: 34px;
 }
 .bl-result {
-  background: linear-gradient(145deg, var(--card), var(--secondary));
+  background: var(--card);
 }
 .bl-big-value {
   font-size: clamp(32px, 8vw, 45px);
@@ -808,7 +821,7 @@
 .bl-history-stats strong {
   display: block;
   font-size: 23px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.03em;
 }
 .bl-trial-row {
@@ -899,12 +912,12 @@
   font-size: 23px;
 }
 .bl-saved-badge {
-  border-radius: 20px;
+  border-radius: var(--bw-card-radius);
   padding: 6px 10px;
   background: var(--secondary);
   color: var(--primary);
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .bl-flow-steps {
   display: grid;
@@ -939,7 +952,7 @@
   color: var(--primary);
   background: var(--card);
   border-color: var(--primary);
-  font-weight: 650;
+  font-weight: 600;
 }
 .bl-flow-steps .is-complete {
   color: var(--primary);
@@ -965,7 +978,7 @@
   color: var(--primary);
   border-color: var(--primary);
   background: var(--card);
-  font-weight: 650;
+  font-weight: 600;
 }
 .bl-step-tabs button:disabled {
   opacity: 0.45;
@@ -1009,7 +1022,7 @@
   border-radius: 50%;
   background: var(--secondary);
   color: var(--primary);
-  font-weight: 750;
+  font-weight: 600;
 }
 .bl-auto-setup p {
   margin: 2px 0;
@@ -1120,4 +1133,17 @@
   font-size: 80px;
   color: #fff;
   background: #0005;
+}
+
+.bl-test-card:last-child {
+  border-bottom: 0;
+}
+.bl-test-card:focus-visible {
+  outline-offset: -3px;
+}
+@media (min-width: 700px) {
+  .bl-test-list {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
 }

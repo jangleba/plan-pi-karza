@@ -1,3 +1,4 @@
+/* Fuel uses the application palette, controls and card rhythm. */
 .fuel-v4,
 .fuel-v4-panel {
   --fuel-accent: var(--primary);
@@ -19,22 +20,22 @@
 }
 .fuel-reason {
   color: var(--fuel-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
-  margin: 10px 0;
+  margin: 8px 0;
 }
 .fuel-next-steps {
   border: 1px solid var(--fuel-border);
-  border-radius: 22px;
+  border-radius: var(--bw-card-radius);
   background: var(--card);
-  padding: 4px 16px;
+  padding: 0 16px;
 }
 .fuel-next-steps details + details,
 .fuel-recent-meal {
   border-top: 1px solid var(--fuel-border);
 }
 .fuel-next-steps summary {
-  min-height: 52px;
+  min-height: 44px;
   align-content: center;
   cursor: pointer;
   font-size: 13px;
@@ -87,7 +88,7 @@
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--fuel-border);
-  border-radius: 12px;
+  border-radius: var(--bw-control-radius);
   padding: 8px;
   font-size: 16px;
   background: var(--card);
@@ -123,29 +124,11 @@
   place-items: center;
 }
 .fuel-v4 {
-  max-width: 540px;
+  max-width: 480px;
   margin: 0 auto;
-  padding: 24px 20px 30px;
-}
-.fuel-v4-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  gap: 12px;
-}
-.fuel-v4-header h1 {
-  font-size: 30px;
-  font-weight: 750;
-  letter-spacing: -0.045em;
-  margin: 0;
-}
-.fuel-v4-header span {
-  display: block;
-  font-size: 12px;
-  color: var(--fuel-muted);
-  margin-top: 4px;
-  max-width: 290px;
+  padding: 20px var(--bw-page-gutter) 16px;
+  padding-top: 14px;
+  padding-bottom: 12px;
 }
 .fuel-v4 .fuel-icon-button {
   color: var(--fuel-accent);
@@ -153,20 +136,22 @@
 }
 .fuel-v4-main {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 .fuel-v4-time,
 .fuel-v4-hero {
   background: var(--card);
   border: 1px solid var(--fuel-border);
-  border-radius: 22px;
-  padding: 18px;
-  box-shadow: 0 3px 12px #163a2010;
+  border-radius: var(--bw-card-radius);
+  padding: 14px 16px;
+  box-shadow: var(--bw-shadow-card);
+  border-width: 1px;
 }
 .fuel-v4-time-value {
   display: flex;
-  gap: 11px;
+  gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 .fuel-v4-time-value > svg {
   color: var(--fuel-accent);
@@ -179,9 +164,10 @@
 }
 .fuel-v4-time-value strong {
   display: block;
-  font-size: 22px;
+  font-size: 18px;
   letter-spacing: -0.025em;
-  line-height: 1.2;
+  line-height: 1.25;
+  font-weight: 600;
 }
 .fuel-v4 .fuel-text-button,
 .fuel-v4-panel .fuel-text-button {
@@ -192,50 +178,55 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   padding: 3px;
-  background: var(--secondary);
-  border-radius: 15px;
-  margin-top: 15px;
+  background: var(--bw-segment-background);
+  border-radius: var(--bw-control-radius);
+  margin-top: 12px;
   gap: 3px;
 }
 .fuel-v4-presets button {
   min-height: 44px;
-  border-radius: 12px;
+  border-radius: calc(var(--bw-control-radius) - 3px);
   font-size: 13px;
-  transition:
-    background-color 0.18s,
-    transform 0.18s;
+  transition: background-color 0.15s;
 }
 .fuel-v4-presets button[aria-pressed="true"] {
-  background: var(--fuel-accent);
-  color: #fff;
+  background: var(--bw-segment-selected);
+  color: var(--bw-segment-text);
+  box-shadow: 0 1px 3px oklch(0.18 0.015 255 / 0.07);
 }
 .fuel-v4-clock-link {
   display: block;
-  min-height: 32px;
+  min-height: 44px;
   margin: 6px auto -6px;
   color: var(--fuel-accent);
-  font-size: 12px;
+  font-size: 13px;
 }
 .fuel-v4-section-title {
   margin: 4px 0 -2px;
+  font-size: 20px;
+  letter-spacing: -0.025em;
 }
 .fuel-v4-section-title h2 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.035em;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 .fuel-v4-hero {
   animation: none;
+  padding: 16px;
+  border-radius: var(--bw-card-radius);
+  box-shadow: var(--bw-shadow-card);
 }
 .fuel-v4-hero h3 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   max-width: 300px;
+  line-height: 1.25;
 }
 .fuel-v4-heart {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -257,12 +248,15 @@
   margin: 13px 0 16px;
   display: grid;
   gap: 8px;
+  margin-block: 6px;
 }
 .fuel-v4-ingredients li {
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 41px;
+  min-height: 52px;
+  padding-block: 5px;
+  border-bottom: 1px solid var(--border);
 }
 .fuel-v4-ingredients li > div {
   flex: 1;
@@ -270,33 +264,35 @@
 }
 .fuel-v4-ingredients li span:not(.fuel-v4-food-dot) {
   display: block;
-  font-size: 14px;
+  font-size: var(--bw-body);
 }
 .fuel-v4-ingredients li small {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--fuel-muted);
   margin-top: 2px;
 }
 .fuel-v4-food-dot {
-  width: 7px;
-  height: 7px;
-  background: var(--fuel-accent);
+  width: 6px;
+  height: 6px;
+  background: var(--primary);
   border-radius: 50%;
-  opacity: 0.4;
+  opacity: 0.5;
   flex: 0 0 auto;
 }
 .fuel-v4-ingredient-change {
-  width: 34px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   color: var(--fuel-muted);
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
 }
 .fuel-v4-hero-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 9px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 8px;
+  flex-direction: column;
 }
 .fuel-v4 .fuel-primary,
 .fuel-v4-panel .fuel-primary,
@@ -304,15 +300,15 @@
   background: var(--fuel-accent, var(--primary));
   color: #fff;
   border: 1px solid var(--fuel-accent, var(--primary));
-  border-radius: 14px;
-  min-height: 46px;
+  border-radius: var(--bw-control-radius);
+  min-height: 44px;
 }
 .fuel-v4 .fuel-secondary,
 .fuel-v4-panel .fuel-secondary,
 .fuel-sheet .fuel-secondary {
   color: var(--fuel-accent, var(--primary));
   border: 1px solid color-mix(in srgb, var(--fuel-accent, var(--primary)) 50%, var(--border));
-  border-radius: 14px;
+  border-radius: var(--bw-control-radius);
   min-height: 46px;
 }
 .fuel-v4-details-link {
@@ -320,10 +316,13 @@
   gap: 4px;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  margin: 7px auto -6px;
+  min-height: 44px;
+  margin: 8px 0 -6px;
   font-size: 12px;
   color: var(--fuel-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 0;
 }
 .fuel-v4-secondary-actions {
   display: grid;
@@ -337,7 +336,7 @@
   gap: 8px;
   background: var(--card);
   border: 1px solid var(--fuel-border);
-  border-radius: 15px;
+  border-radius: var(--bw-control-radius);
   min-height: 49px;
   font-size: 12px;
   padding: 9px;
@@ -349,7 +348,7 @@
   padding: 11px 15px;
   min-height: 56px;
   border: 1px solid var(--fuel-border);
-  border-radius: 16px;
+  border-radius: var(--bw-control-radius);
   background: var(--card);
 }
 .fuel-v4-reminder > button:first-child {
@@ -357,7 +356,7 @@
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  min-height: 32px;
+  min-height: 44px;
 }
 .fuel-v4-switch {
   height: 29px;
@@ -386,7 +385,7 @@
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--bw-control-radius);
   background: var(--fuel-soft);
   text-align: left;
   color: var(--fuel-text);
@@ -414,13 +413,13 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  min-height: 32px;
-  font-size: 11px;
+  min-height: 44px;
+  font-size: 12px;
   color: var(--fuel-muted);
 }
 .fuel-v4-discreet {
   color: var(--fuel-muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: -8px;
 }
 .fuel-v4-panel {
@@ -452,7 +451,7 @@
   gap: 7px;
   min-height: 39px;
   padding: 8px 11px;
-  border-radius: 13px;
+  border-radius: var(--bw-control-radius);
 }
 .fuel-v4-swap-options {
   display: grid;
@@ -465,8 +464,8 @@
   padding: 14px;
   min-height: 53px;
   border: 1px solid var(--fuel-border);
-  border-radius: 16px;
-  font-size: 14px;
+  border-radius: var(--bw-control-radius);
+  font-size: var(--bw-body);
 }
 .fuel-v4-swap-options button svg:last-child {
   margin-left: auto;
@@ -512,7 +511,7 @@
 .fuel-v4-recognized {
   font-size: 12px;
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: var(--bw-control-radius);
   background: var(--fuel-soft);
   color: var(--fuel-accent);
 }
@@ -520,7 +519,7 @@
   margin-top: 15px;
   background: var(--fuel-soft);
   padding: 14px;
-  border-radius: 15px;
+  border-radius: var(--bw-control-radius);
   font-size: 13px;
 }
 .fuel-v4-addition button {
@@ -537,12 +536,12 @@
   gap: 13px;
   min-height: 59px;
   border-bottom: 1px solid var(--fuel-border);
-  font-size: 14px;
+  font-size: var(--bw-body);
 }
 .fuel-v4-pack-list small {
   display: block;
   color: var(--fuel-muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 3px;
 }
 .fuel-v4-history-entry {
@@ -550,7 +549,7 @@
   border-bottom: 1px solid var(--fuel-border);
 }
 .fuel-v4-history-entry strong {
-  font-size: 14px;
+  font-size: var(--bw-body);
 }
 .fuel-v4-history-entry .fuel-v4-panel-presets {
   margin-top: 8px;
@@ -571,14 +570,14 @@
   padding: 8px;
   background: var(--fuel-soft);
   color: var(--fuel-accent);
-  border-radius: 12px;
+  border-radius: var(--bw-control-radius);
   font-size: 12px;
 }
 .fuel-v4-warning {
   padding: 12px;
   font-size: 12px;
   background: var(--secondary);
-  border-radius: 12px;
+  border-radius: var(--bw-control-radius);
 }
 .fuel-v4-empty p {
   font-size: 13px;
@@ -590,22 +589,67 @@
 }
 .fuel-v4 button:active:not(:disabled),
 .fuel-v4-panel button:active:not(:disabled) {
-  transform: scale(0.985);
+  opacity: 0.75;
 }
 .fuel-v4 button:focus-visible,
 .fuel-v4-panel button:focus-visible {
   outline: 2px solid var(--fuel-accent);
   outline-offset: 3px;
 }
-@keyframes fuel-choice-in {
-  from {
-    opacity: 0.65;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.fuel-v4-time {
+  padding: 12px 16px;
+  border: 1px solid var(--fuel-border);
+  border-radius: var(--bw-card-radius);
+  background: var(--card);
+  box-shadow: var(--bw-shadow-card);
+  border-width: 1px;
+}
+.fuel-v4-ingredients li:last-child {
+  border-bottom: 0;
+}
+.fuel-v4-ingredients li > div > span {
+  font-size: var(--bw-body);
+}
+.fuel-v4-ingredients small {
+  font-size: 12px;
+}
+.fuel-v4 .fuel-primary {
+  min-height: 44px;
+  border-radius: var(--bw-control-radius);
+  box-shadow: none;
+}
+.fuel-v4 .fuel-secondary {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: none;
+  border-radius: var(--bw-control-radius);
+}
+.fuel-reason summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+.fuel-reason p {
+  line-height: 1.5;
+}
+.fuel-v4-quick-actions button,
+.fuel-v4-reminder {
+  border-radius: var(--bw-control-radius);
+  box-shadow: none;
+}
+.fuel-v4-time-value > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+}
+.fuel-v4-time .fuel-text-button {
+  min-height: 44px;
+}
+.fuel-v4-header {
+  margin-bottom: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .fuel-v4 *,
@@ -624,176 +668,10 @@
     padding: 15px;
   }
   .fuel-v4-secondary-actions button {
-    font-size: 11px;
+    font-size: 12px;
     gap: 5px;
   }
   .fuel-v4-hero h3 {
     font-size: 18px;
   }
 }
-.dark .fuel-v4,
-.dark .fuel-v4-panel {
-  --fuel-accent: #60bc92;
-  --fuel-soft: #173429;
-  --fuel-text: #e3f0e8;
-  --fuel-muted: #a7b9ad;
-  --fuel-border: #33483a;
-}
-.dark .fuel-v4 .fuel-primary,
-.dark .fuel-v4-panel .fuel-primary {
-  color: #10261b;
-}
-
-/* Basic Modern: same surfaces and touch targets as Plan, IQ and Profile. */
-.fuel-v4 {
-  max-width: 480px;
-  padding: 20px 20px 28px;
-}
-.fuel-v4-header {
-  margin-bottom: 18px;
-}
-.fuel-v4-header h1 {
-  font-size: 28px;
-  letter-spacing: -0.035em;
-  font-weight: 650;
-}
-.fuel-v4-time {
-  padding: 14px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--accent);
-  box-shadow: none;
-}
-.fuel-v4-time-value {
-  gap: 10px;
-  min-width: 0;
-}
-.fuel-v4-time-value span {
-  font-size: 12px;
-}
-.fuel-v4-time-value strong {
-  font-size: 20px;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-}
-.fuel-v4-presets {
-  margin-top: 12px;
-  border-radius: 9px;
-  padding: 3px;
-  background: var(--card);
-}
-.fuel-v4-presets button {
-  min-height: 44px;
-  border-radius: 7px;
-  font-size: 13px;
-}
-.fuel-v4-presets button[aria-pressed="true"] {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  box-shadow: none;
-}
-.fuel-v4-clock-link {
-  min-height: 44px;
-  font-size: 12px;
-}
-.fuel-v4-section-title {
-  font-size: 20px;
-  letter-spacing: -0.025em;
-}
-.fuel-v4-hero {
-  padding: 16px;
-  border-radius: 14px;
-  box-shadow: none;
-}
-.fuel-v4-hero h3 {
-  font-size: 21px;
-  line-height: 1.25;
-  font-weight: 650;
-  letter-spacing: -0.025em;
-}
-.fuel-v4-meta {
-  font-size: 12px;
-}
-.fuel-v4-ingredients {
-  margin-block: 12px;
-}
-.fuel-v4-ingredients li {
-  min-height: 60px;
-  padding-block: 10px;
-  border-bottom: 1px solid var(--border);
-}
-.fuel-v4-ingredients li:last-child {
-  border-bottom: 0;
-}
-.fuel-v4-ingredients li > div > span {
-  font-size: 14px;
-}
-.fuel-v4-ingredients small {
-  font-size: 12px;
-}
-.fuel-v4-food-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--primary);
-  opacity: 0.5;
-}
-.fuel-v4-hero-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.fuel-v4 .fuel-primary {
-  min-height: 46px;
-  border-radius: 10px;
-  box-shadow: none;
-}
-.fuel-v4 .fuel-secondary {
-  min-height: 44px;
-  border: 0;
-  background: transparent;
-  color: var(--primary);
-  box-shadow: none;
-}
-.fuel-v4-details-link {
-  border-top: 1px solid var(--border);
-  margin-top: 8px;
-  padding-top: 10px;
-}
-.fuel-reason {
-  margin: 8px 0;
-  font-size: 12px;
-}
-.fuel-reason summary {
-  min-height: 36px;
-  align-content: center;
-  cursor: pointer;
-}
-.fuel-reason p {
-  line-height: 1.5;
-}
-.fuel-next-steps {
-  border-radius: 14px;
-  padding: 0 16px;
-}
-.fuel-v4-quick-actions button,
-.fuel-v4-reminder {
-  border-radius: 10px;
-  box-shadow: none;
-}
-
-/* Selected timing stays a single short row; presets remain available through Zmień. */
-.fuel-v4 { padding-top: 14px; padding-bottom: 12px; }
-.fuel-v4-header { margin-bottom: 12px; }
-.fuel-v4-header h1 { font-size: 25px; }
-.fuel-v4-main { gap: 10px; }
-.fuel-v4-time { padding: 10px 12px; }
-.fuel-v4-time-value > div { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
-.fuel-v4-time-value strong { font-size: 18px; }
-.fuel-v4-time .fuel-text-button { min-height: 44px; }
-.fuel-v4-hero { padding: 12px; }
-.fuel-v4-hero h3 { font-size: 19px; }
-.fuel-v4-ingredients { margin-block: 6px; }
-.fuel-v4-ingredients li { min-height: 48px; padding-block: 6px; }
-.fuel-v4-hero-actions { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 8px; }
-.fuel-v4-section-title h2 { font-size: 18px; }
-.fuel-next-steps summary { min-height: 44px; }

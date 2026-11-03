@@ -5,7 +5,7 @@ export const getRouter = () => {
   return createRouter({
     routeTree,
     scrollRestoration: true,
-    defaultViewTransition: false,
+    defaultViewTransition: true,
     defaultPendingMs: 150,
     defaultPendingMinMs: 0,
     defaultPreload: "intent",

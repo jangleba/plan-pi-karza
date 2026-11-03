@@ -1,3 +1,4 @@
+import { RouteMotion } from "@/components/loadwise/RouteMotion";
 import { AppRouteWarmup } from "@/components/loadwise/AppRouteWarmup";
 import { TrainingSyncStatus } from "@/components/loadwise/TrainingSyncStatus";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
@@ -55,7 +56,7 @@ function TabsLayout() {
       >
         <AppRouteWarmup />
         <TrainingSyncStatus />
-        <Outlet />
+        <RouteMotion><Outlet /></RouteMotion>
         <BottomNav />
       </div>
     </LegalReconsentGate>

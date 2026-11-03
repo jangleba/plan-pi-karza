@@ -238,6 +238,25 @@ describe("Lab capability gate", () => {
     await render();
     expect(starts().every((b) => !b.disabled)).toBe(true);
     await act(async () => starts()[1].click());
+    expect(host.textContent).not.toContain("Pomiar rozpoczęty");
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Przygotuj miejsce");
+    const proceed = [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      b.textContent?.includes("Przejdź do pomiaru"),
+    )!;
+    await act(async () => proceed.click());
     expect(host.textContent).toContain("Pomiar rozpoczęty");
+  });
+  it("returns from preparation without starting a trial or changing the stored results", async () => {
+    vi.stubGlobal("isSecureContext", true);
+    await render();
+    const before = localStorage.getItem("ballwise.browser-lab.v1:qa-athlete");
+    await act(async () => starts()[0].click());
+    const close = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.getAttribute("aria-label") === "Zamknij",
+    )!;
+    await act(async () => close.click());
+    expect(document.querySelector('[role="dialog"][data-state="open"]')).toBeNull();
+    expect(host.textContent).not.toContain("Pomiar rozpoczęty");
+    expect(localStorage.getItem("ballwise.browser-lab.v1:qa-athlete")).toBe(before);
   });
 });

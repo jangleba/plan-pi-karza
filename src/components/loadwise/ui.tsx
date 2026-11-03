@@ -3,6 +3,8 @@ import { Link, useRouter } from "@tanstack/react-router";
 import type { Intensity, DayType } from "@/lib/loadwise/types";
 import { ShieldAlert, User } from "lucide-react";
 import { useLoadwise } from "@/lib/loadwise/store";
+import { PageHeader } from "./PageHeader";
+import type { SketchKind } from "@/components/design/SurfaceSketch";
 
 /** Avatar w prawym górnym rogu — wejście do profilu, konta i ustawień. */
 export function ProfileAvatar() {
@@ -24,7 +26,7 @@ export function ProfileAvatar() {
         void router.preloadRoute({ to: "/profil" }).catch(() => undefined);
       }}
       aria-label="Profil, konto i ustawienia"
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-border/75 bg-card text-sm font-semibold text-foreground shadow-[0_8px_22px_-17px_oklch(0.18_0.06_255/0.45)] transition-[transform,border-color] duration-200 active:scale-[0.96]"
+      className="bw-avatar"
     >
       {initials || <User className="h-4 w-4" />}
     </Link>
@@ -36,40 +38,30 @@ export function AppHeader({
   subtitle,
   right,
   brand = true,
+  sketch,
 }: {
   title: string;
   subtitle?: string;
   right?: ReactNode;
   brand?: boolean;
+  sketch?: SketchKind;
 }) {
   return (
-    <header className="bw-page-header px-5 pb-3">
-      {brand && (
-        <div className="mb-5 flex items-center justify-between">
-          <span className="bw-wordmark" aria-label="BallWise">
-            <span className="bw-wordmark-dot" aria-hidden="true" />
-            BALLWISE
-          </span>
-          <div className="flex items-center gap-2">
+    <PageHeader
+      title={title}
+      subtitle={subtitle}
+      sketch={sketch}
+      actions={
+        brand ? (
+          <>
             {right}
             <ProfileAvatar />
-          </div>
-        </div>
-      )}
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[26px] font-semibold leading-[1.08] tracking-[-0.035em] text-foreground">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-2 max-w-[36ch] text-sm leading-relaxed text-muted-foreground">
-              {subtitle}
-            </p>
-          )}
-        </div>
-        {!brand && right}
-      </div>
-    </header>
+          </>
+        ) : (
+          right
+        )
+      }
+    />
   );
 }
 

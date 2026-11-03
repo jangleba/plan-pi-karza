@@ -32,7 +32,6 @@ import {
   Zap,
   Target,
   Activity,
-  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 
@@ -344,20 +343,7 @@ function PlanScreen() {
 
   return (
     <div className="bw-plan-screen pb-6">
-      <AppHeader
-        title="Plan"
-        brand={false}
-        subtitle={
-          current
-            ? `${formatDate(current.startDate)}–${formatDate(current.endDate)} · ${monthGoal}`
-            : monthGoal
-        }
-        right={
-          <span className="icon-bubble h-9 w-9 border border-border bg-card">
-            <CalendarDays className="h-4 w-4" />
-          </span>
-        }
-      />
+      <AppHeader title="Plan" sketch="pitch" subtitle={monthGoal} />
 
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
@@ -504,7 +490,7 @@ function PlanScreen() {
       </details>
 
       {/* Dni tygodnia */}
-      <div className="divide-y divide-border/75 px-5 pt-4" style={{ paddingBottom: "12px" }}>
+      <div className="bw-plan-days bw-grouped-list mx-5 mt-3">
         {hasHiddenBefore && planStartDate && (
           <div className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs text-muted-foreground">
             Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego tygodnia są poza
@@ -534,9 +520,9 @@ function PlanScreen() {
                 to="/sesja/$date"
                 params={{ date: day.date }}
                 search={{ slot: 1 }}
-                className="flex items-center gap-3.5 px-2 py-4 active:bg-secondary/35"
+                className="bw-plan-day-link flex items-center active:bg-secondary/35"
               >
-                <div className="w-11 shrink-0 text-center">
+                <div className="w-9 shrink-0 text-center">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {shortDayName(d)}
                   </div>
@@ -547,8 +533,8 @@ function PlanScreen() {
                 </div>
 
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    isRest ? "bg-[oklch(0.95_0.04_150)] text-[oklch(0.5_0.13_150)]" : "icon-bubble"
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded ${
+                    isRest ? "text-[oklch(0.5_0.13_150)]" : "icon-bubble"
                   }`}
                 >
                   <RowIcon className="h-6 w-6" strokeWidth={2} />
@@ -556,7 +542,7 @@ function PlanScreen() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="truncate text-[15px] font-medium text-foreground">
+                    <h3 className="bw-plan-day-title font-medium text-foreground">
                       {professionalSessionTitle(day.title)}
                     </h3>
                     {isToday && (
@@ -566,13 +552,14 @@ function PlanScreen() {
                     )}
                     {done && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
                   </div>
-                  <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                  <p className="bw-plan-day-meta mt-0.5 flex flex-wrap items-center gap-1 text-muted-foreground">
                     <span
                       className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
                         isRest ? "bg-[oklch(0.6_0.13_150)]" : "bg-primary"
                       }`}
                     />
                     {swapped ? "Zamieniona" : (day.loadLabelOverride ?? shortTag(day))}
+                    {day.durationMin > 0 && <span> · {day.durationMin} min</span>}
                   </p>
                 </div>
 
@@ -614,10 +601,7 @@ function PlanScreen() {
                   : "Kolejny mecz: nie ustawiono."}
             </p>
 
-            <Button
-              className="mt-3 w-full"
-              onClick={() => goToWeek(nextIndex)}
-            >
+            <Button className="mt-3 w-full" onClick={() => goToWeek(nextIndex)}>
               Przejdź do kolejnego tygodnia
               <ArrowRight className="ml-1 h-4 w-4" />
             </Button>

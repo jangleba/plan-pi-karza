@@ -1,3 +1,4 @@
+import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -167,7 +168,8 @@ function AuthScreen() {
   return (
     <div className="app-shell auth-premium flex min-h-screen flex-col justify-center px-6 py-10">
       <div className="mx-auto w-full max-w-sm">
-        <div className="text-center">
+        <div className="text-center bw-auth-heading bw-sketch-surface">
+          <SurfaceSketch kind="pitch" />
           <div className="text-[25px] font-medium tracking-[-0.04em] text-foreground">BallWise</div>
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "register"
@@ -320,7 +322,7 @@ function AuthScreen() {
           <button
             type="button"
             onClick={() => setMode("forgot")}
-            className="mt-4 w-full text-center text-sm text-primary"
+            className="mt-4 min-h-11 w-full text-center text-sm text-primary"
           >
             Nie pamiętam hasła
           </button>
@@ -330,7 +332,7 @@ function AuthScreen() {
           <button
             type="button"
             onClick={() => setMode(mode === "register" ? "login" : "register")}
-            className="mt-5 w-full text-center text-sm text-muted-foreground"
+            className="mt-3 min-h-11 w-full text-center text-sm text-muted-foreground"
           >
             {mode === "register"
               ? "Masz już konto? Zaloguj się"

@@ -22,17 +22,19 @@ function exercise(exerciseId: string): TrainingExercise {
 
 describe("skip guide integration", () => {
   it.each(["a_skip", "b_skip", "c_skip", "d_skip"])(
-    "shows an animation entry and all steps immediately for %s, including saved sessions",
+    "preserves canonical steps in the expanded instruction for %s, including saved sessions",
     (id) => {
       const e = exercise(id);
-      const markup = renderToStaticMarkup(<ExerciseQuickGuide exercise={e} />);
+      const markup = renderToStaticMarkup(<ExerciseQuickGuide exercise={e} initialExpanded />);
       const host = document.createElement("div");
       host.innerHTML = markup;
       expect(host.querySelectorAll("li")).toHaveLength(3);
-      expect(host.querySelector(".bw-animation-open")?.textContent).toContain("Pokaż animację ruchu");
+      expect(host.querySelector(".bw-animation-open")?.textContent).toContain(
+        "Pokaż animację ruchu",
+      );
       expect(host.querySelector("iframe")).toBeNull();
-      expect(host.querySelector("img")).toBeNull();
-      expect(host.querySelector("details")).toBeNull();
+      expect(host.querySelector(".bw-skip-image")).toBeNull();
+      expect(host.querySelector(".bw-joint-figure")).not.toBeNull();
       expect(host.textContent).toContain(SKIP_LANDING);
       expect(host.textContent).not.toContain("STARY OPIS");
       expect(getExerciseTechniqueImage(id)?.alt).toContain("z boku");

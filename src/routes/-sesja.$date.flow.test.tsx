@@ -221,21 +221,15 @@ describe("session route gates", () => {
     await render();
     expect(host.querySelector(".bw-training-hero")).not.toBeNull();
     expect(host.querySelector(".bw-sprint-page")).not.toBeNull();
-    await act(async () => host.querySelector<HTMLButtonElement>(".bw-plan-group-trigger")!.click());
-    const stage = [...host.querySelectorAll<HTMLButtonElement>(".bw-stage-header")].find((button) =>
-      button.textContent?.includes("Drille"),
+    const stage = [...host.querySelectorAll<HTMLElement>(".bw-stage-header")].find((el) =>
+      el.textContent?.includes("Drille"),
     )!;
-    expect(stage.matches(":disabled")).toBe(false);
-    await act(async () => stage.click());
     const panel = stage.closest(".bw-sprint-stage")!;
     await act(async () =>
       panel.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click(),
     );
     await act(async () => panel.querySelector<HTMLButtonElement>(".bw-technique-trigger")!.click());
     expect(panel.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
-    const play = panel.querySelector<HTMLButtonElement>(".bw-animation-open")!;
-    expect(play.matches(":disabled")).toBe(false);
-    await act(async () => play.click());
     expect(panel.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
     expect(
       panel

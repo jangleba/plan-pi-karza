@@ -1,56 +1,4 @@
-/* BallWise Basic Modern — shared tokens, surfaces and navigation. */
-:root,
-.dark {
-  color-scheme: light;
-
-  /* Quiet performance palette: cool off-white, ink navy, ice blue. */
-  --radius: 0.75rem;
-  --background: oklch(0.976 0.008 247);
-  --foreground: oklch(0.225 0.038 258);
-  --card: oklch(0.998 0.002 247);
-  --card-foreground: oklch(0.225 0.038 258);
-  --popover: oklch(0.998 0.002 247);
-  --popover-foreground: oklch(0.225 0.038 258);
-  --primary: oklch(0.36 0.095 252);
-  --primary-foreground: oklch(0.99 0.002 247);
-  --secondary: oklch(0.944 0.018 244);
-  --secondary-foreground: oklch(0.29 0.064 253);
-  --muted: oklch(0.951 0.012 247);
-  --muted-foreground: oklch(0.51 0.029 253);
-  --accent: oklch(0.914 0.041 239);
-  --accent-foreground: oklch(0.31 0.078 252);
-  --destructive: oklch(0.58 0.205 25);
-  --destructive-foreground: oklch(0.99 0.002 247);
-  --border: oklch(0.884 0.018 247);
-  --input: oklch(0.86 0.022 247);
-  --ring: oklch(0.56 0.115 245);
-  --brand: oklch(0.36 0.095 252);
-  --brand-soft: oklch(0.914 0.041 239);
-  --graphite: oklch(0.245 0.052 259);
-  --graphite-foreground: oklch(0.986 0.004 247);
-  --graphite-muted: oklch(0.72 0.025 247);
-  --chart-1: oklch(0.52 0.12 248);
-  --chart-2: oklch(0.65 0.09 229);
-  --chart-3: oklch(0.61 0.075 202);
-  --chart-4: oklch(0.7 0.065 261);
-  --chart-5: oklch(0.76 0.052 238);
-  --sidebar: oklch(0.99 0.003 247);
-  --sidebar-foreground: oklch(0.225 0.038 258);
-  --sidebar-primary: oklch(0.36 0.095 252);
-  --sidebar-primary-foreground: oklch(0.99 0.002 247);
-  --sidebar-accent: oklch(0.944 0.018 244);
-  --sidebar-accent-foreground: oklch(0.29 0.064 253);
-  --sidebar-border: oklch(0.884 0.018 247);
-  --sidebar-ring: oklch(0.56 0.115 245);
-
-  --bw-ease: cubic-bezier(0.2, 0.72, 0.2, 1);
-  --bw-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
-  --bw-shadow-card:
-    0 1px 2px oklch(0.18 0.05 255 / 0.03), 0 14px 34px -27px oklch(0.18 0.06 255 / 0.3);
-  --bw-shadow-float:
-    0 18px 48px -25px oklch(0.16 0.06 255 / 0.35), 0 2px 8px oklch(0.16 0.05 255 / 0.06);
-}
-
+/* Application chrome. Shared tokens live in styles.css. */
 html {
   background: var(--background);
   -webkit-text-size-adjust: 100%;
@@ -59,15 +7,10 @@ body {
   min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  font-family: var(--bw-font-family);
+  font-size: var(--bw-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  letter-spacing: -0.012em;
-}
-:root {
-  --bw-shadow-card: none;
-  --bw-shadow-float: none;
-  --bw-ease: ease-out;
 }
 button,
 a,
@@ -80,6 +23,12 @@ button,
 a,
 [role="button"] {
   touch-action: manipulation;
+}
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
 }
 :focus-visible {
   outline: 2px solid var(--ring);
@@ -95,15 +44,16 @@ a,
   min-height: 100dvh;
   background: var(--background);
 }
+.app-shell:has(> .bw-tab-bar) > .app-shell {
+  min-height: 0;
+  border-inline: 0;
+}
 .soft-card,
-.premium-flow .soft-card,
-.progress-premium .soft-card,
-.fuel-premium .soft-card,
-.profile-premium > .space-y-3 > .soft-card {
+.premium-flow .soft-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--bw-card-radius);
   background: var(--card);
-  box-shadow: none;
+  box-shadow: var(--bw-shadow-card);
 }
 .soft-card .soft-card {
   box-shadow: none;
@@ -112,37 +62,127 @@ a,
   background: var(--primary);
   color: var(--primary-foreground);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--bw-card-radius);
   box-shadow: none;
 }
 .icon-bubble {
-  background: var(--accent);
+  border-radius: var(--bw-control-radius);
+  background: transparent;
   color: var(--primary);
   border: 0;
   box-shadow: none;
 }
+
+/* One hierarchy across Start, Plan, Fuel, Lab, Progress and Profile. */
 .bw-page-header {
-  padding-top: max(20px, env(safe-area-inset-top));
-  padding-bottom: 16px;
+  padding: max(20px, env(safe-area-inset-top)) var(--bw-page-gutter) 18px;
+}
+.bw-page-header--inset {
+  padding-inline: 0;
+  padding-top: 0;
+}
+.bw-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.bw-page-heading-copy {
+  min-width: 0;
+}
+.bw-wordmark {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--primary);
+  font-size: var(--bw-caption);
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 .bw-page-header h1 {
-  font-size: clamp(26px, 7vw, 30px);
-  font-weight: 650;
+  margin: 0;
+  color: var(--foreground);
+  font-size: var(--bw-title);
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
-.app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-.app-shell textarea,
-.app-shell select {
-  border-color: var(--input);
-  border-radius: 10px;
+.bw-page-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+.bw-page-subtitle {
+  margin: 7px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--bw-secondary-text);
+  line-height: 1.5;
+}
+.bw-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Neutral segmented controls reserve the navy fill for the main action. */
+.bw-segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--bw-control-radius);
+  background: var(--bw-segment-background);
+}
+.bw-segmented > button {
+  min-height: var(--bw-control-height);
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: calc(var(--bw-control-radius) - 3px);
+  color: var(--muted-foreground);
+  font-size: var(--bw-secondary-text);
+  font-weight: 500;
+}
+.bw-segmented > button:is([aria-selected="true"], [aria-pressed="true"]) {
+  background: var(--bw-segment-selected);
+  color: var(--bw-segment-text);
   box-shadow: none;
 }
-.app-shell input:focus-visible,
-.app-shell textarea:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.bw-button {
+  border-radius: var(--bw-control-radius);
 }
+.bw-input {
+  min-width: 0;
+  border-radius: var(--bw-control-radius);
+  box-shadow: none;
+}
+.bw-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-float);
+}
+.bw-dialog-overlay {
+  background: oklch(0.18 0.015 255 / 0.3);
+}
+.bw-blueprint-frame {
+  border-color: var(--border);
+  background: var(--secondary);
+}
+
+/* A fixed tab bar without five competing filled cards. */
 .bw-tab-bar {
   position: fixed;
   z-index: 50;
@@ -153,16 +193,14 @@ a,
   margin-inline: auto;
   border: 0;
   border-top: 1px solid var(--border);
-  border-radius: 0;
   background: var(--card);
-  box-shadow: none;
   padding-bottom: env(safe-area-inset-bottom);
 }
 .bw-tab-list {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
-  padding: 8px 12px;
+  padding: 7px 12px;
 }
 .bw-tab-item {
   display: flex;
@@ -170,17 +208,17 @@ a,
   justify-content: center;
   align-items: center;
   min-width: 0;
-  min-height: 52px;
-  gap: 5px;
-  border-radius: 10px;
+  min-height: 50px;
+  gap: 4px;
+  border-radius: 0;
   color: var(--muted-foreground);
-  font-size: 10px;
-  font-weight: 550;
+  font-size: 11px;
+  font-weight: 500;
   text-decoration: none;
 }
 .bw-tab-item.is-active {
-  background: var(--accent);
   color: var(--primary);
+  font-weight: 650;
 }
 .bw-tab-icon {
   display: grid;
@@ -197,38 +235,33 @@ a,
 .bw-tab-item:focus-visible {
   outline-offset: 0;
 }
-[data-slot="dialog-content"],
-[data-slot="alert-dialog-content"],
-[data-slot="sheet-content"],
-[data-slot="drawer-content"] {
-  background: var(--card);
-  border-color: var(--border);
-  box-shadow: 0 16px 48px oklch(0.25 0.04 250 / 0.12);
+
+.bw-session-header {
+  padding-top: max(12px, env(safe-area-inset-top));
 }
-[data-slot="dialog-overlay"],
-[data-slot="sheet-overlay"],
-[data-slot="drawer-overlay"] {
-  background: oklch(0.2 0.04 250 / 0.34);
-  backdrop-filter: none;
-}
-.bw-session-page > .bw-session-body {
-  margin-top: 20px;
+.bw-session-header > button {
+  margin-bottom: 8px;
+  min-height: 44px;
 }
 .bw-session-header h1 {
-  font-size: 26px;
+  font-size: 25px;
   font-weight: 650;
   line-height: 1.2;
   letter-spacing: -0.035em;
 }
 .bw-session-header .bw-session-meta {
-  gap: 10px;
+  gap: 8px;
+  margin-top: 10px;
+}
+.bw-session-page > .bw-session-body {
+  margin-top: 16px;
 }
 .bw-session-notice {
   border: 0;
-  border-radius: 12px;
-  background: var(--accent);
-  padding: 14px 16px;
-  color: var(--accent-foreground);
+  border-radius: var(--bw-control-radius);
+  background: var(--secondary);
+  padding: 12px 14px;
+  color: var(--foreground);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -242,13 +275,31 @@ a,
   border: 0;
   background: transparent;
 }
+.bw-session-start > p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bw-session-page fieldset:disabled {
+  opacity: 1;
+}
 .bw-club-summary {
-  padding: 18px;
+  padding: 0 16px;
+}
+.bw-club-summary > summary {
+  cursor: pointer;
+  min-height: 48px;
+  align-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+.bw-club-summary[open] {
+  padding-bottom: 16px;
 }
 .bw-club-summary h2 {
   font-size: 16px;
-  font-weight: 650;
-  margin: 0 0 14px;
+  font-weight: 600;
+  margin: 10px 0 8px;
 }
 .bw-club-summary p {
   font-size: 13px;
@@ -256,7 +307,7 @@ a,
   line-height: 1.5;
 }
 .bw-club-summary dl {
-  margin: 16px 0;
+  margin: 8px 0;
 }
 .bw-club-summary dl > div {
   display: flex;
@@ -291,176 +342,17 @@ a,
   height: 18px;
   color: var(--primary);
 }
-.bw-session-page fieldset:disabled {
-  opacity: 1;
-}
-/* Secondary module cards inherit the same radius and quiet depth. */
-.progress-premium .soft-card,
-.profile-premium .soft-card {
-  box-shadow: none;
-}
-.bw-blueprint-frame {
-  border-color: var(--border);
-  background: var(--secondary);
-}
-.premium-flow,
-.auth-premium,
-.onboarding-premium,
-.start-decision-screen {
-  animation: none;
-}
-.bw-launch {
-  display: grid;
-  min-height: 100dvh;
-  place-items: center;
-  background: var(--background);
-}
-.bw-launch__signal {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--accent);
-}
-.bw-launch__signal::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--primary);
-}
-@media (min-width: 40rem) {
-  .app-shell {
-    border-inline: 1px solid var(--border);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
 
-/* Compact rhythm: preserve readable text and 44px touch targets. */
-:root {
-  --bw-nav-size: 60px;
-}
-.app-shell:has(> .bw-tab-bar) > .app-shell {
-  min-height: 0;
-  border-inline: 0;
-}
-.bw-tab-item {
-  min-height: 44px;
-  gap: 3px;
-}
-.bw-tab-list {
-  padding-block: 8px;
-}
-.bw-page-header {
-  padding-top: max(14px, env(safe-area-inset-top));
-  padding-bottom: 10px;
-}
-.bw-page-header h1 {
-  font-size: clamp(24px, 6.5vw, 28px);
-}
-.app-shell .soft-card.p-4 {
-  padding: 12px;
-}
-.start-decision-screen {
-  padding-top: 14px;
-  padding-bottom: 24px;
-}
-.start-decision-screen > .mt-8 {
-  margin-top: 16px;
-}
-.start-decision-screen .soft-card {
-  padding: 12px 14px;
-}
-.bw-session-header {
-  padding-top: 14px;
-}
-.bw-session-header > button {
-  margin-bottom: 8px;
-  min-height: 36px;
-}
-.bw-session-header h1 {
-  font-size: 23px;
-}
-.bw-session-header .bw-session-meta {
-  margin-top: 8px;
-}
-.bw-session-page > .bw-session-body {
-  margin-top: 14px;
-}
-.bw-session-notice {
-  padding: 10px 12px;
-}
-.bw-session-start > p {
-  font-size: 12px;
-  line-height: 1.4;
-}
-.bw-club-summary {
-  padding: 0 12px;
-}
-.bw-club-summary > summary {
-  cursor: pointer;
-  min-height: 44px;
-  align-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-}
-.bw-club-summary[open] {
-  padding-bottom: 12px;
-}
-.bw-club-summary h2 {
-  margin: 10px 0 8px;
-  font-size: 14px;
-}
-.bw-club-summary dl {
-  margin: 8px 0;
-}
-
-/* Start dashboard: every main destination within the first phone viewport. */
+/* Compact Start keeps the main destinations together. */
 .bw-home-compact {
-  padding: 14px 16px 20px;
-}
-.bw-home-compact > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-.bw-home-brand {
-  color: var(--primary);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.19em;
-}
-.bw-home-compact h1 {
-  margin-top: 4px;
-  font-size: 23px;
-  line-height: 1.2;
-  font-weight: 650;
-  letter-spacing: -0.03em;
-}
-.bw-home-compact > header > :last-child {
-  width: 44px;
-  height: 44px;
+  padding: max(20px, env(safe-area-inset-top)) var(--bw-page-gutter) 20px;
 }
 .bw-home-section-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin: 2px 0 4px;
+  margin: 0 0 6px;
 }
 .bw-home-section-line h2 {
   font-size: 13px;
@@ -476,17 +368,21 @@ a,
   font-size: 12px;
 }
 .bw-home-compact .bw-today-compact {
-  padding: 14px;
+  padding: 18px;
+  border-width: 1px;
+  border-radius: var(--bw-card-radius);
 }
 .bw-today-compact h2 {
-  margin-top: 6px;
-  font-size: 21px;
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 600;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 .bw-today-compact > button {
-  margin-top: 12px;
+  margin-top: 16px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: var(--bw-control-radius);
   font-size: 14px;
 }
 .bw-home-checks,
@@ -494,7 +390,7 @@ a,
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 .bw-home-checks.is-single {
   grid-template-columns: 1fr;
@@ -503,16 +399,16 @@ a,
 .bw-home-tools button {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--bw-card-radius);
   background: var(--card);
   color: var(--primary);
-  padding: 12px;
+  padding: 14px;
 }
 .bw-home-checks button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 64px;
+  gap: 10px;
+  min-height: 68px;
   text-align: left;
 }
 .bw-home-checks strong,
@@ -520,20 +416,20 @@ a,
   display: block;
   color: var(--foreground);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .bw-home-checks small,
 .bw-home-tools small {
   display: block;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 3px;
 }
 .bw-home-tools button {
   display: grid;
   justify-items: start;
-  gap: 4px;
-  min-height: 84px;
+  gap: 5px;
+  min-height: 94px;
   text-align: left;
 }
 .bw-home-tools small {
@@ -547,7 +443,7 @@ a,
   grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 8px var(--bw-page-gutter);
   border-bottom: 1px solid var(--border);
   background: var(--background);
 }
@@ -557,11 +453,11 @@ a,
 .bw-week-nav strong {
   display: block;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .bw-week-nav small {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
   margin-top: 2px;
 }
@@ -570,5 +466,330 @@ a,
   min-width: 44px;
 }
 .bw-plan-screen .bw-page-header {
-  padding-bottom: 6px;
+  padding-bottom: 10px;
+}
+
+.premium-flow,
+.auth-premium,
+.onboarding-premium,
+.start-decision-screen {
+  animation: none;
+}
+.bw-launch {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  background: var(--background);
+}
+.bw-launch__signal {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--bw-control-radius);
+  background: var(--secondary);
+}
+.bw-launch__signal::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+@media (min-width: 40rem) {
+  .app-shell {
+    border-inline: 1px solid var(--border);
+  }
+}
+@media (max-width: 359px) {
+  :root {
+    --bw-page-gutter: 16px;
+    --bw-title: 1.625rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Static sporting line art. Its own layer never changes the content opacity. */
+.bw-sketch-surface {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.bw-sketch-surface > :not(.bw-surface-sketch) {
+  position: relative;
+  z-index: 1;
+}
+.bw-surface-sketch {
+  position: absolute;
+  z-index: 0;
+  right: -24px;
+  top: -18px;
+  width: 140px;
+  height: 140px;
+  color: var(--primary);
+  opacity: 0.04;
+  pointer-events: none;
+  user-select: none;
+  mask-image: linear-gradient(to left, black 45%, transparent 100%);
+}
+.bw-surface-sketch * {
+  vector-effect: non-scaling-stroke;
+}
+.bw-page-header .bw-surface-sketch {
+  top: 10px;
+  right: 50px;
+  width: 120px;
+  height: 120px;
+}
+.bw-sketch-surface .bw-page-heading-copy {
+  z-index: 1;
+}
+.bw-profile-identity {
+  position: relative;
+  padding-right: 42px;
+}
+.bw-auth-heading {
+  padding: 20px 16px;
+  border-radius: var(--bw-card-radius);
+}
+.bw-grouped-list {
+  border: 1px solid var(--border);
+  border-radius: var(--bw-card-radius);
+  background: var(--card);
+  overflow: hidden;
+}
+.bw-grouped-list > * + * {
+  border-top: 1px solid var(--border);
+}
+/* Shared draggable sheet: its content viewport follows the selected detent. */
+.bw-sheet[data-vaul-drawer] {
+  inset-inline: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 28px 28px 0 0;
+  background: var(--card);
+  box-shadow: var(--bw-shadow-float);
+  touch-action: pan-y;
+  transition-duration: 320ms !important;
+  animation-duration: 320ms !important;
+}
+.bw-sheet[data-state="closed"] {
+  pointer-events: none;
+}
+.bw-sheet::before {
+  content: none;
+}
+.bw-sheet-toolbar {
+  height: 56px;
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  align-items: center;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.bw-sheet-collapse {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 6px;
+  font-size: 14px;
+  color: var(--primary);
+}
+.bw-sheet-close {
+  display: grid;
+  place-items: center;
+  justify-self: end;
+  width: 36px;
+  height: 36px;
+  margin: 4px;
+  border-radius: 50%;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  outline-offset: 4px;
+}
+.bw-sheet-close::before {
+  content: "";
+  position: absolute;
+  width: 44px;
+  height: 44px;
+}
+.bw-sheet-handle[data-vaul-handle] {
+  width: 80px;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  opacity: 1;
+  border-radius: 12px;
+  touch-action: none;
+}
+.bw-sheet-handle::after {
+  content: "";
+  position: absolute;
+  width: 36px;
+  height: 5px;
+  top: 19px;
+  left: 22px;
+  border-radius: 99px;
+  background: var(--input);
+  pointer-events: none;
+}
+.bw-sheet-scroll {
+  height: calc(var(--bw-sheet-visible) - 56px);
+  max-height: calc(100% - 56px);
+  padding: 8px 20px max(24px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  box-sizing: border-box;
+  transition: height 320ms var(--bw-ease);
+}
+.bw-sheet-overlay {
+  background: oklch(0.18 0.015 255 / 0.28);
+  backdrop-filter: blur(3px);
+  animation-duration: 240ms !important;
+  transition-duration: 240ms !important;
+}
+.bw-sheet-title {
+  padding: 4px 0 0;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+.bw-week-nav {
+  border-top: 0;
+}
+.bw-plan-day-link {
+  min-height: 72px;
+  padding: 12px 4px;
+  gap: 10px;
+}
+.bw-plan-day-title {
+  font-size: 16px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.bw-plan-day-meta {
+  font-size: 13px;
+  line-height: 1.5;
+}
+@media (max-width: 359px) {
+  .bw-surface-sketch {
+    width: 110px;
+    height: 110px;
+  }
+  .bw-page-header .bw-surface-sketch {
+    right: 38px;
+  }
+}
+
+.profile-premium .soft-card {
+  overflow-wrap: anywhere;
+}
+
+/* Motion communicates navigation and touch, independently of decorative sketches. */
+.bw-tab-bar {
+  background: color-mix(in oklch, var(--card) 94%, transparent);
+  backdrop-filter: blur(18px);
+  view-transition-name: bw-tabs;
+}
+.bw-tab-icon {
+  transition:
+    transform 140ms var(--bw-ease),
+    color 160ms ease;
+}
+.bw-tab-item:active .bw-tab-icon {
+  transform: scale(0.92);
+}
+.bw-button,
+.fuel-primary,
+.fuel-secondary,
+.bl-button,
+.bw-home-checks button,
+.bw-home-tools button {
+  transition:
+    transform 130ms var(--bw-ease),
+    background-color 160ms ease,
+    opacity 130ms ease;
+}
+.bw-button:active:not(:disabled),
+.fuel-primary:active:not(:disabled),
+.bl-button:active:not(:disabled),
+.bw-home-tools button:active,
+.bw-home-checks button:active {
+  transform: scale(0.985);
+}
+.bw-route-motion,
+.bw-sheet-section {
+  animation: bw-page-enter 220ms var(--bw-ease);
+}
+::view-transition-old(root) {
+  animation: bw-page-leave 120ms ease-out both;
+}
+::view-transition-new(root) {
+  animation: bw-page-enter 220ms var(--bw-ease) both;
+}
+::view-transition-old(bw-tabs),
+::view-transition-new(bw-tabs) {
+  animation-duration: 120ms;
+}
+@keyframes bw-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes bw-page-leave {
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-route-motion,
+  .bw-sheet-section,
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(bw-tabs),
+  ::view-transition-new(bw-tabs) {
+    animation: none !important;
+  }
+  .bw-sheet[data-vaul-drawer],
+  .bw-sheet-scroll,
+  .bw-sheet-overlay {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .bw-button:active,
+  .fuel-primary:active,
+  .bl-button:active,
+  .bw-home-tools button:active,
+  .bw-home-checks button:active,
+  .bw-tab-item:active .bw-tab-icon {
+    transform: none;
+  }
 }

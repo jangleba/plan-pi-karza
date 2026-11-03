@@ -19,13 +19,18 @@
  */
 
 @theme inline {
+  --font-sans: var(--bw-font-family);
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.5;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 4px);
+  --radius-3xl: calc(var(--radius) + 6px);
+  --radius-4xl: calc(var(--radius) + 8px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -66,90 +71,72 @@
   --color-brand-soft: var(--brand-soft);
 }
 
-:root {
-  --radius: 0.75rem;
-  --background: oklch(0.925 0.024 82);
-  --foreground: oklch(0.205 0.018 155);
-  --card: oklch(0.968 0.015 83);
-  --card-foreground: oklch(0.205 0.018 155);
-  --popover: oklch(0.975 0.013 83);
-  --popover-foreground: oklch(0.205 0.018 155);
-  --primary: oklch(0.31 0.055 158);
-  --primary-foreground: oklch(0.965 0.015 83);
-  --secondary: oklch(0.895 0.018 82);
-  --secondary-foreground: oklch(0.27 0.032 157);
-  --muted: oklch(0.902 0.014 82);
-  --muted-foreground: oklch(0.49 0.018 150);
-  --accent: oklch(0.86 0.025 151);
-  --accent-foreground: oklch(0.31 0.055 158);
-  --destructive: oklch(0.58 0.21 25);
-  --destructive-foreground: oklch(0.985 0.004 247);
-  --border: oklch(0.84 0.018 82);
-  --input: oklch(0.84 0.018 82);
-  --ring: oklch(0.31 0.055 158);
-  --brand: oklch(0.31 0.055 158);
-  --brand-soft: oklch(0.86 0.025 151);
-  --graphite: oklch(0.205 0.018 155);
-  --graphite-foreground: oklch(0.965 0.015 83);
-  --graphite-muted: oklch(0.64 0.018 150);
-  --chart-1: oklch(0.38 0.06 158);
-  --chart-2: oklch(0.56 0.045 151);
-  --chart-3: oklch(0.58 0.055 55);
-  --chart-4: oklch(0.7 0.03 145);
-  --chart-5: oklch(0.72 0.035 83);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-  /* Boisko IQ — spokojne, analityczne i mniej pastelowe. */
-  --pitch-grass: oklch(0.875 0.024 145);
-  --pitch-grass-alt: oklch(0.855 0.028 145);
-  --pitch-line: oklch(0.965 0.008 145);
-  --pitch-shadow: oklch(0.54 0.026 150);
-}
-
+/* One palette and one type scale, shared by every application module. */
+:root,
 .dark {
-  --background: oklch(0.18 0.018 155);
-  --foreground: oklch(0.94 0.014 83);
-  --card: oklch(0.225 0.022 155);
-  --card-foreground: oklch(0.94 0.014 83);
-  --popover: oklch(0.235 0.022 155);
-  --popover-foreground: oklch(0.94 0.014 83);
-  --primary: oklch(0.72 0.055 151);
-  --primary-foreground: oklch(0.18 0.018 155);
-  --secondary: oklch(0.27 0.02 155);
-  --secondary-foreground: oklch(0.91 0.014 83);
-  --muted: oklch(0.255 0.016 155);
-  --muted-foreground: oklch(0.7 0.018 92);
-  --accent: oklch(0.32 0.03 151);
-  --accent-foreground: oklch(0.9 0.014 83);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.38 0.018 155);
-  --input: oklch(0.4 0.018 155);
-  --ring: oklch(0.72 0.055 151);
-  --brand: oklch(0.72 0.055 151);
-  --brand-soft: oklch(0.3 0.03 151);
-  --graphite: oklch(0.15 0.012 155);
-  --graphite-foreground: oklch(0.94 0.014 83);
-  --graphite-muted: oklch(0.68 0.018 92);
-  --chart-1: oklch(0.72 0.055 151);
-  --chart-2: oklch(0.58 0.045 151);
-  --chart-3: oklch(0.68 0.05 55);
-  --chart-4: oklch(0.77 0.03 145);
-  --chart-5: oklch(0.76 0.035 83);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  color-scheme: light;
+  --bw-font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --bw-title: 1.75rem;
+  --bw-heading: 1.125rem;
+  --bw-body: 1rem;
+  --bw-secondary-text: 0.8125rem;
+  --bw-caption: 0.75rem;
+  --bw-card-radius: 20px;
+  --bw-control-radius: 14px;
+  --bw-control-height: 44px;
+  --bw-page-gutter: 20px;
+  --bw-nav-size: 64px;
+  --bw-segment-background: oklch(0.948 0.004 255);
+  --bw-segment-selected: oklch(1 0 0);
+  --bw-segment-text: oklch(0.255 0.018 255);
+  --bw-shadow-card: 0 1px 2px oklch(0.18 0.015 255 / .025);
+  --bw-shadow-float: 0 -8px 40px oklch(0.18 0.015 255 / .12);
+  --bw-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --bw-ease-emphasized: var(--bw-ease);
+  --radius: 12px;
+  --background: oklch(0.977 0.003 265);
+  --foreground: oklch(0.23 0.018 255);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.37 0.085 253);
+  --primary-foreground: oklch(0.998 0 0);
+  --secondary: oklch(0.956 0.007 252);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.957 0.004 255);
+  --muted-foreground: oklch(0.49 0.014 255);
+  --accent: oklch(0.932 0.018 250);
+  --accent-foreground: var(--primary);
+  --destructive: oklch(0.52 0.19 25);
+  --destructive-foreground: oklch(0.998 0 0);
+  --border: oklch(0.898 0.006 255);
+  --input: oklch(0.84 0.009 255);
+  --ring: oklch(0.53 0.14 253);
+  --brand: var(--primary);
+  --brand-soft: var(--accent);
+  --graphite: oklch(0.23 0.018 255);
+  --graphite-foreground: oklch(0.998 0 0);
+  --graphite-muted: oklch(0.74 0.01 255);
+  --chart-1: var(--primary);
+  --chart-2: oklch(0.58 0.08 252);
+  --chart-3: oklch(0.64 0.055 225);
+  --chart-4: oklch(0.68 0.04 265);
+  --chart-5: oklch(0.76 0.026 250);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  /* The pitch is content, with separate team/field contrast. */
+  --pitch-grass: oklch(0.36 0.045 163);
+  --pitch-grass-alt: oklch(0.37 0.045 163);
+  --pitch-line: oklch(0.9 0.008 163);
+  --pitch-shadow: oklch(0.26 0.02 163);
 }
 
 @layer base {
@@ -160,7 +147,7 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+    font-family: var(--bw-font-family);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -175,16 +162,16 @@
 
 @utility soft-card {
   background-color: var(--color-card);
-  border: 1px solid oklch(0.84 0.018 82 / 0.7);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 10px 28px -24px oklch(0.22 0.025 155 / 0.35);
+  border: 1px solid var(--border);
+  border-radius: var(--bw-card-radius);
+  box-shadow: var(--bw-shadow-card);
 }
 
 /* Dark graphite hero card — premium focal surface */
 @utility hero-card {
-  background: linear-gradient(160deg, oklch(0.29 0.025 264), oklch(0.22 0.02 264));
+  background: var(--primary);
   color: var(--color-graphite-foreground);
-  border-radius: var(--radius-3xl);
+  border-radius: var(--bw-card-radius);
   box-shadow:
     0 1px 2px oklch(0.15 0.03 260 / 0.1),
     0 24px 48px -20px oklch(0.18 0.04 260 / 0.45);
@@ -339,8 +326,8 @@
 
 /* Premium system shared by the remaining product surfaces. */
 .premium-flow .soft-card {
-  border-color: oklch(0.84 0.018 82 / 0.72);
-  border-radius: 0.875rem;
+  border-color: var(--border);
+  border-radius: var(--bw-card-radius);
   box-shadow: none;
 }
 
@@ -348,7 +335,7 @@
 .premium-flow h2,
 .onboarding-premium h2 {
   letter-spacing: -0.025em;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .premium-flow button,
@@ -473,31 +460,24 @@
   }
 }
 
-.profile-premium > .space-y-3 > .soft-card {
-  border-width: 0 0 1px;
-  border-radius: 0;
-  background: transparent;
-  padding-inline: 0.25rem;
-}
-
 .progress-premium .soft-card {
-  background: oklch(0.955 0.016 83 / 0.72);
+  background: var(--card);
 }
 
 .fuel-premium .soft-card {
-  background: oklch(0.955 0.016 83 / 0.72);
+  background: var(--card);
 }
 
 .onboarding-premium [class*="rounded-2xl"],
 .auth-premium [class*="rounded-2xl"] {
-  border-radius: 0.875rem;
+  border-radius: var(--bw-card-radius);
   box-shadow: none;
 }
 
 .onboarding-premium input,
 .auth-premium input,
 .fuel-premium textarea {
-  background: oklch(0.965 0.014 83 / 0.78);
+  background: var(--card);
 }
 
 .fuel-intelligence::after {

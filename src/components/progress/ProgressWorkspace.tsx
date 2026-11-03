@@ -96,13 +96,14 @@ export function ProgressWorkspace({
   ] as const;
   return (
     <div className="premium-flow progress-premium" data-progress-workspace>
-      <AppHeader title="Postęp" subtitle="Wykonanie, obciążenie i Twoje pomiary" brand={brand} />
+      <AppHeader
+        title="Postęp"
+        subtitle="Wykonanie, obciążenie i Twoje pomiary"
+        sketch="pitch"
+        brand={brand}
+      />
       <div className="sticky top-0 z-10 mb-3 bg-background/95 px-5 py-2 backdrop-blur">
-        <div
-          className="grid grid-cols-2 rounded-xl bg-muted p-1"
-          role="tablist"
-          aria-label="Widok postępu"
-        >
+        <div className="bw-segmented" role="tablist" aria-label="Widok postępu">
           {tabs.map((item, index) => (
             <button
               key={item.id}
@@ -148,20 +149,16 @@ export function ProgressWorkspace({
           <>
             {tab === "dashboard" ? (
               <>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">Zapisane treningi</span>
-                  <div
-                    className="flex rounded-xl border border-border p-0.5"
-                    role="group"
-                    aria-label="Okres podsumowania"
-                  >
+                  <div className="bw-segmented" role="group" aria-label="Okres podsumowania">
                     {([7, 28] as const).map((days) => (
                       <button
                         key={days}
                         type="button"
                         aria-pressed={period === days}
                         onClick={() => setPeriod(days)}
-                        className={`min-h-11 rounded-lg px-3 text-xs font-medium ${period === days ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                        className={`min-h-11 rounded-lg px-3 text-xs font-medium ${period === days ? "bg-card text-foreground" : "text-muted-foreground"}`}
                       >
                         {days} dni
                       </button>
@@ -204,7 +201,7 @@ export function ProgressWorkspace({
             ) : (
               <>
                 {historyScope && (
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span>Ostatnie {period} dni</span>
                     <button
                       type="button"

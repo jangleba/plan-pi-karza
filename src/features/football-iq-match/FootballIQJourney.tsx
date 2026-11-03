@@ -1,3 +1,4 @@
+import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -1381,7 +1382,8 @@ export function FootballIQJourney({
         {view === "summary" && (
           <>
             {debrief && (
-              <section className="iqJ-debrief" aria-label="Wnioski z akcji">
+              <section className="iqJ-debrief bw-sketch-surface" aria-label="Wnioski z akcji">
+                <SurfaceSketch kind="play" />
                 <span className="iqJ-kicker">Do wykorzystania w meczu</span>
                 <h3>{debrief.rule.reminder}</h3>
                 <p>

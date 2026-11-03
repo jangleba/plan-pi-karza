@@ -1,93 +1,215 @@
 "use client";
 
 import * as React from "react";
-import * as SheetPrimitive from "@radix-ui/react-dialog";
-import { cva, type VariantProps } from "class-variance-authority";
-import { X } from "lucide-react";
-
+import { Drawer as DrawerPrimitive } from "vaul";
+import { X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const Sheet = SheetPrimitive.Root;
-const SheetPortal = SheetPrimitive.Portal;
+const MEDIUM = 0.58,
+  LARGE = 0.94;
+const SNAP_POINTS = [MEDIUM, LARGE];
+const SheetState = React.createContext({
+  fraction: MEDIUM,
+  setFraction: (_value: number | string | null) => {},
+  close: () => {},
+  direction: "bottom" as "bottom" | "top" | "left" | "right",
+});
 
+function Sheet({
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  direction = "bottom",
+  children,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Root>) {
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen);
+  const [fraction, setFraction] = React.useState<number | string | null>(MEDIUM);
+  const isOpen = open ?? localOpen;
+  const change = (next: boolean) => {
+    setLocalOpen(next);
+    onOpenChange?.(next);
+  };
+  return (
+    <SheetState.Provider
+      value={{
+        fraction: typeof fraction === "number" ? fraction : MEDIUM,
+        setFraction,
+        close: () => change(false),
+        direction,
+      }}
+    >
+      <DrawerPrimitive.Root
+        {...props}
+        open={isOpen}
+        onOpenChange={change}
+        direction={direction}
+        snapPoints={SNAP_POINTS}
+        fadeFromIndex={0}
+        activeSnapPoint={fraction}
+        setActiveSnapPoint={setFraction}
+        shouldScaleBackground={false}
+        handleOnly
+        autoFocus
+        snapToSequentialPoint
+      >
+        {children}
+      </DrawerPrimitive.Root>
+    </SheetState.Provider>
+  );
+}
+const SheetPortal = DrawerPrimitive.Portal;
 const SheetOverlay = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+  React.ElementRef<typeof DrawerPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn("fixed inset-0 z-50 bg-foreground/30", className)}
-    {...props}
+  <DrawerPrimitive.Overlay
     ref={ref}
+    className={cn("bw-sheet-overlay fixed inset-0 z-50", className)}
+    {...props}
   />
 ));
-SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
+SheetOverlay.displayName = "SheetOverlay";
 
-const sheetVariants = cva(
-  "fixed z-50 gap-4 border-border/80 bg-card p-5 text-card-foreground shadow-[0_24px_70px_-32px_oklch(0.12_0.07_258/0.55)]",
-  {
-    variants: {
-      side: {
-        top: "inset-x-0 top-0 rounded-b-3xl border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
-        bottom:
-          "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-[1.75rem] border-t pb-[max(1.25rem,env(safe-area-inset-bottom))] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-[88%] max-w-sm rounded-r-3xl border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
-        right:
-          "inset-y-0 right-0 h-full w-[88%] max-w-sm rounded-l-3xl border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
-      },
-    },
-    defaultVariants: {
-      side: "right",
-    },
-  },
-);
-
-interface SheetContentProps
-  extends
-    React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
-
+interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> {
+  side?: "bottom" | "top" | "left" | "right";
+}
 const SheetContent = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Content>,
+  React.ElementRef<typeof DrawerPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      <SheetPrimitive.Close className="absolute right-3.5 top-3.5 grid h-9 w-9 cursor-pointer place-items-center rounded-full bg-secondary/80 text-muted-foreground transition-[transform,background-color,color] duration-200 hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Zamknij</span>
-      </SheetPrimitive.Close>
-      {children}
-    </SheetPrimitive.Content>
-  </SheetPortal>
-));
-SheetContent.displayName = SheetPrimitive.Content.displayName;
-
+>(({ side, className, children, onOpenAutoFocus, onCloseAutoFocus, style, ...props }, ref) => {
+  const state = React.useContext(SheetState),
+    opener = React.useRef<HTMLElement | null>(null);
+  const dragStart = React.useRef(0),
+    dragged = React.useRef(false);
+  const actualSide = side ?? state.direction,
+    expanded = state.fraction === LARGE;
+  const toggle = () => state.setFraction(expanded ? MEDIUM : LARGE);
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <DrawerPrimitive.Content
+        ref={ref}
+        className={cn("bw-sheet fixed z-50 text-card-foreground outline-none", className)}
+        data-side={actualSide}
+        data-panel-expanded={expanded}
+        style={
+          { ...style, "--bw-sheet-visible": `${state.fraction * 100}dvh` } as React.CSSProperties
+        }
+        {...props}
+        onOpenAutoFocus={(event) => {
+          opener.current =
+            document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          onOpenAutoFocus?.(event);
+          if (!event.defaultPrevented) {
+            event.preventDefault();
+            if (event.target instanceof HTMLElement) event.target.focus({ preventScroll: true });
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          if (!event.defaultPrevented) {
+            event.preventDefault();
+            const target = opener.current;
+            requestAnimationFrame(() => {
+              if (
+                document.querySelector('.bw-sheet[data-state="open"],.bw-dialog[data-state="open"]')
+              )
+                return;
+              if (target?.isConnected) target.focus({ preventScroll: true });
+            });
+          }
+        }}
+      >
+        <div className="bw-sheet-toolbar">
+          <button
+            type="button"
+            className="bw-sheet-collapse"
+            aria-label={expanded ? "Zwiń panel do połowy" : "Zwiń panel"}
+            onClick={() => (expanded ? state.setFraction(MEDIUM) : state.close())}
+          >
+            <ChevronDown size={18} aria-hidden="true" />
+            <span>Zwiń</span>
+          </button>
+          <DrawerPrimitive.Handle
+            className="bw-sheet-handle"
+            preventCycle
+            aria-hidden={false}
+            role="button"
+            tabIndex={0}
+            aria-label={expanded ? "Zwiń panel do połowy uchwytem" : "Rozwiń panel"}
+            aria-expanded={expanded}
+            onPointerDownCapture={(event) => {
+              dragStart.current = event.clientY;
+              dragged.current = false;
+            }}
+            onPointerMoveCapture={(event) => {
+              if (Math.abs(event.clientY - dragStart.current) > 8) dragged.current = true;
+            }}
+            onPointerUpCapture={(event) => {
+              const delta = event.clientY - dragStart.current;
+              // A deliberate slow drag should settle just like a quick swipe.
+              if (delta > 100)
+                requestAnimationFrame(() => (expanded ? state.setFraction(MEDIUM) : state.close()));
+              else if (delta < -75) requestAnimationFrame(() => state.setFraction(LARGE));
+            }}
+            onClick={() => {
+              if (!dragged.current) toggle();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                toggle();
+              }
+            }}
+          />
+          <DrawerPrimitive.Close className="bw-sheet-close" aria-label="Zamknij">
+            <X size={18} aria-hidden="true" />
+          </DrawerPrimitive.Close>
+        </div>
+        <div
+          className="bw-sheet-scroll"
+          data-vaul-no-drag=""
+          onFocusCapture={(event) => {
+            if (
+              event.target instanceof HTMLElement &&
+              event.target.matches(
+                'input:not([type="checkbox"]):not([type="radio"]),textarea,select',
+              )
+            )
+              state.setFraction(LARGE);
+          }}
+        >
+          {children}
+        </div>
+      </DrawerPrimitive.Content>
+    </SheetPortal>
+  );
+});
+SheetContent.displayName = "SheetContent";
 const SheetTitle = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
+  React.ElementRef<typeof DrawerPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title
+  <DrawerPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-tight tracking-[-0.02em] text-foreground",
+      "bw-sheet-title text-lg font-semibold leading-tight tracking-[-.02em] text-foreground",
       className,
     )}
     {...props}
   />
 ));
-SheetTitle.displayName = SheetPrimitive.Title.displayName;
-
+SheetTitle.displayName = "SheetTitle";
 const SheetDescription = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
+  React.ElementRef<typeof DrawerPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <SheetPrimitive.Description
+  <DrawerPrimitive.Description
     ref={ref}
     className={cn("text-sm leading-relaxed text-muted-foreground", className)}
     {...props}
   />
 ));
-SheetDescription.displayName = SheetPrimitive.Description.displayName;
-
+SheetDescription.displayName = "SheetDescription";
 export { Sheet, SheetPortal, SheetOverlay, SheetContent, SheetTitle, SheetDescription };

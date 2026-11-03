@@ -6,8 +6,8 @@
 }
 .iq-journey .iqJ-header {
   flex: none;
-  padding: 5px 16px 11px;
-  background: var(--card, #fff);
+  padding: 5px var(--bw-page-gutter) 11px;
+  background: var(--background);
 }
 .iq-journey .iqJ-header-line {
   display: flex;
@@ -70,11 +70,11 @@
   gap: 3px;
   padding: 3px;
   margin-bottom: 12px;
-  border-radius: 11px;
+  border-radius: var(--bw-control-radius);
   background: var(--muted, #edf3f9);
 }
 .iq-journey .iqJ-modes button {
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 5px;
   border-radius: 8px;
   background: transparent;
@@ -84,7 +84,7 @@
 .iq-journey .iqJ-modes [aria-pressed="true"] {
   color: var(--foreground, #14283f);
   background: var(--card, #fff);
-  box-shadow: 0 1px 4px #13283c12;
+  box-shadow: 0 1px 3px oklch(0.18 0.015 255 / 0.07);
 }
 .iq-journey .iqJ-mode-label {
   display: flex;
@@ -109,10 +109,10 @@
   background: var(--muted, #edf3f9);
 }
 .iq-journey .iqJ-progress .is-current {
-  background: #5d9cc8;
+  background: var(--chart-2);
 }
 .iq-journey .iqJ-progress .is-done {
-  background: #07548e;
+  background: var(--primary);
 }
 .iq-journey .iqJ-stage {
   position: relative;
@@ -173,7 +173,7 @@
   margin-top: 10px;
   padding: 3px;
   background: var(--muted, #edf3f9);
-  border-radius: 11px;
+  border-radius: var(--bw-control-radius);
 }
 .iq-journey .iqJ-deliveries button {
   flex: 1;
@@ -188,7 +188,7 @@
 .iq-journey .iqJ-deliveries [aria-pressed="true"] {
   color: var(--primary, #07548e);
   background: var(--card, #fff);
-  box-shadow: 0 1px 4px #13283c12;
+  box-shadow: 0 1px 3px oklch(0.18 0.015 255 / 0.07);
 }
 .iq-journey .iqJ-button {
   display: flex;
@@ -200,14 +200,14 @@
   min-width: 100px;
   padding: 10px 12px;
   border: 1px solid var(--border, #dfe7f0);
-  border-radius: 11px;
+  border-radius: var(--bw-control-radius);
   color: var(--foreground, #14283f);
   background: var(--card, #fff);
   font-size: 13px;
 }
 .iq-journey .iqJ-primary {
   color: #fff;
-  background: #07548e;
+  background: var(--primary);
   border-color: #07548e;
 }
 .iq-journey .iqJ-text {
@@ -294,7 +294,7 @@
   margin: auto;
   padding: 18px;
   border: 1px solid var(--border, #dfe7f0);
-  border-radius: 20px;
+  border-radius: var(--bw-card-radius);
   color: var(--foreground, #14283f);
   background: var(--card, #fff);
   overscroll-behavior: contain;
@@ -928,7 +928,7 @@
   width: 44px;
   height: 44px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--bw-control-radius);
   background: var(--card);
   color: var(--primary);
 }

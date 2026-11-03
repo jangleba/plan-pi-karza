@@ -1,3 +1,4 @@
+import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import type { ReactNode } from "react";
 import { ChevronLeft, Clock, Flag, Target } from "lucide-react";
 import type { SessionDay } from "@/lib/loadwise/types";
@@ -102,7 +103,18 @@ export function SessionHeader({
   onBack: () => void;
 }) {
   return (
-    <div className="bw-session-header px-5 pt-6">
+    <div className="bw-session-header bw-sketch-surface px-5 pt-6">
+      <SurfaceSketch
+        kind={
+          strengthRunner
+            ? "strength"
+            : /bieg|endurance|sprint/i.test(session.sessionType)
+              ? "track"
+              : /piłk|football|techn/i.test(session.sessionType)
+                ? "play"
+                : "pitch"
+        }
+      />
       <button
         onClick={onBack}
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground active:opacity-60"

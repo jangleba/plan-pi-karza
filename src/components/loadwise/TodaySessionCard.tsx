@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Clock, PauseCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { professionalSessionTitle } from "@/lib/loadwise/labels";
 import { buildStartSessionSummary } from "@/lib/loadwise/startSessionSummary";
 import type { SessionCompletion, SessionDay } from "@/lib/loadwise/types";
@@ -64,9 +65,10 @@ export function TodaySessionCard({
 
   return (
     <section
-      className={`soft-card border-primary/25 bg-primary/[0.035] px-5 py-5 ${compact ? "bw-today-compact" : ""}`}
+      className={`soft-card bw-sketch-surface border-primary/25 bg-primary/[0.035] px-5 py-5 ${compact ? "bw-today-compact" : ""}`}
       aria-labelledby="today-session-title"
     >
+      <SurfaceSketch kind="pitch" />
       <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-primary">
         {blocked ? <PauseCircle className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         {active ? "TRENING ROZPOCZĘTY" : "DZISIEJSZY TRENING"}

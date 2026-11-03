@@ -2,7 +2,17 @@
   'use strict';
   const $ = id => document.getElementById(id), M = window.BWAnim.math, C = window.BWCoaching;
   const params = new URLSearchParams(location.search);
-  const response = await fetch('./catalog.json?v=2026.10.30.19', { cache: 'no-cache' });
+  if (params.get('compact') === '1') {
+    document.documentElement.classList.add('compact-player');
+    const details = document.createElement('details'), summary = document.createElement('summary');
+    details.className = 'compact-technique'; summary.textContent = 'Technika i tempo'; details.append(summary);
+    for (const selector of ['.view-tools', '.focus-card', '#focus-legend', '.speed']) {
+      const node = document.querySelector(selector); if (node) details.append(node);
+    }
+    $('player').append(details);
+  }
+
+  const response = await fetch('./catalog.json?v=2026.11.03.39', { cache: 'no-cache' });
   if (!response.ok) throw new Error('Animation catalog unavailable');
   const data = await response.json(), records = new Map(data.records.map(r => [r.id, r]));
   let active = null, phase = 0, playing = false, speed = 1, last = null, raf = null;

@@ -38,11 +38,27 @@ describe("exercise animation integration", () => {
     await click("Pokaż animację ruchu");
     const frame = host.querySelector("iframe")!;
     expect(frame.getAttribute("src")).toBe(
-      "/technique/animations/index.html?id=a_skip&embed=1&v=2026.11.02.36",
+      "/technique/animations/index.html?id=a_skip&embed=1&v=2026.11.03.40",
     );
     expect(frame.title).toContain("Ćwiczenie");
     await click("Zamknij animację");
     expect(host.querySelector("iframe")).toBeNull();
+  });
+  it("opens the compact player immediately for an expanded exercise, preserving explicit variant selection", async () => {
+    await act(async () =>
+      root.render(<ExerciseAnimationPreview exercise={exercise("a_skip")} autoOpen />),
+    );
+    expect(host.querySelector("iframe")?.getAttribute("src")).toContain("&compact=1");
+    await act(async () =>
+      root.render(<ExerciseAnimationPreview exercise={exercise("a_skip_add_step")} autoOpen />),
+    );
+    expect(host.querySelector("iframe")).toBeNull();
+    const select = host.querySelector("select")!;
+    await act(async () => {
+      select.value = "review:a_skip:gather";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(host.querySelector("iframe")?.getAttribute("src")).toContain("review%3Aa_skip%3Agather");
   });
   it("requires choosing the session rhythm instead of silently playing add-step", async () => {
     await act(async () =>

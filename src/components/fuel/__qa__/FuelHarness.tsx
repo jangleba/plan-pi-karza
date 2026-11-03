@@ -1,3 +1,4 @@
+import { RouteMotion } from "@/components/loadwise/RouteMotion";
 /** Browser-only QA entry; no production route imports it. Uses isolated local data. */
 import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
@@ -141,7 +142,9 @@ function ClubView() {
 const rootRoute = createRootRoute({
   component: () => (
     <div className="app-shell pb-28">
-      <Outlet />
+      <RouteMotion>
+        <Outlet />
+      </RouteMotion>
       <BottomNav />
       <Toaster />
     </div>
@@ -154,7 +157,11 @@ const routes = [
     component: () => (
       <StartDashboard
         name="Johny"
-        avatar={<button aria-label="Profil">J</button>}
+        avatar={
+          <button className="bw-avatar" aria-label="Profil">
+            J
+          </button>
+        }
         plan={[{ ...club, title: "Mecz", dayType: "match", sessionType: "Mecz" }]}
         completions={{}}
         todayIso={date}
@@ -188,6 +195,7 @@ const routes = [
   }),
 ];
 const qaRouter = createRouter({
+  defaultViewTransition: true,
   routeTree: rootRoute.addChildren(routes),
   history: createMemoryHistory({
     initialEntries: [

@@ -93,6 +93,9 @@ const ensure = (value, message) => {
 try {
   browser = await chromium.launch({
     headless: true,
+    ...(process.env.BALLWISE_CHROMIUM_EXECUTABLE
+      ? { executablePath: process.env.BALLWISE_CHROMIUM_EXECUTABLE }
+      : {}),
     args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
   });
   const base = `http://127.0.0.1:${server.address().port}/`;

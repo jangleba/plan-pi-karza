@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { CalendarDays, Check, Move, ScanLine, Smile } from "lucide-react";
+import { CalendarDays, Check, Move, ScanLine, Activity } from "lucide-react";
 import { TodaySessionCard } from "./TodaySessionCard";
 import type { SessionDay, SessionCompletion } from "@/lib/loadwise/types";
+import { PageHeader } from "./PageHeader";
 
 export function StartDashboard({
   name,
@@ -46,13 +47,12 @@ export function StartDashboard({
 }) {
   return (
     <main className="bw-home-compact">
-      <header>
-        <div>
-          <span className="bw-home-brand">BALLWISE</span>
-          <h1>Cześć, {name}</h1>
-        </div>
-        {avatar}
-      </header>
+      <PageHeader
+        brand
+        title={`Cześć, ${name}`}
+        actions={avatar}
+        className="bw-page-header--inset"
+      />
       <div className="bw-home-section-line">
         <h2>Dzisiaj</h2>
         <button onClick={onPlan}>
@@ -80,7 +80,7 @@ export function StartDashboard({
         </button>
         {wellnessEnabled && (
           <button onClick={onWellness}>
-            <Smile size={18} />
+            <Activity size={18} />
             <span>
               <strong>Samopoczucie</strong>
               <small>{wellnessComplete ? "Zapisane · zmień" : "Dodaj ocenę"}</small>

@@ -150,8 +150,8 @@ export function ExerciseDetailSheet({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[92vh] border-border/60 bg-background/95 backdrop-blur-xl">
-        <div className="mx-auto w-full max-w-md overflow-y-auto px-5 pb-8">
+      <DrawerContent aria-describedby={undefined}>
+        <div className="mx-auto w-full max-w-md pb-4">
           <div className="pt-1">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
               Szczegóły ćwiczenia

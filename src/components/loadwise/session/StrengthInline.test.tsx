@@ -146,13 +146,15 @@ async function click(selector: string) {
 }
 async function input(label: string, value: string) {
   await act(async () => {
-    const el = host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    const el = host.querySelector<HTMLInputElement>(
+      `.bw-exercise-panel:not([hidden]) input[aria-label="${label}"]`,
+    )!;
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(el, value);
     el.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
 async function save() {
-  await click(".bw-training-inline .bw-save-set");
+  await click(".bw-exercise-panel:not([hidden]) .bw-training-inline .bw-save-set");
 }
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -171,14 +173,14 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("inline strength execution", () => {
-  it("shows every exercise at once and loads history only for the opened block", async () => {
+  it("shows every exercise at once and loads history only for the opened exercise", async () => {
     await render();
     expect(host.querySelectorAll(".bw-training-exercise")).toHaveLength(3);
     expect(m.reads).toBe(0);
     await click(".bw-exercise-open");
     expect(host.querySelector(".bw-training-inline")).not.toBeNull();
     expect(host.querySelector(".fixed")).toBeNull();
-    expect(m.reads).toBe(2);
+    expect(m.reads).toBe(1);
     expect(host.textContent).not.toContain("Rozpocznij blok");
     expect(host.textContent).not.toContain("Etap 1");
   });

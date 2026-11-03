@@ -99,7 +99,7 @@ export const Route = createRootRoute({
           "BallWise podpowiada, co trenować dziś, dlaczego i jak mocno — na podstawie wieku, pozycji, celu i gotowości.",
       },
       { name: "author", content: "BallWise" },
-      { name: "theme-color", content: "#f6f8fb" },
+      { name: "theme-color", content: "#f7f8fa" },
       { property: "og:title", content: "BallWise" },
       {
         property: "og:description",

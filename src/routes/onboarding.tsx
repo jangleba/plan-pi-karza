@@ -1,3 +1,4 @@
+import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -506,8 +507,10 @@ function Onboarding() {
       equipment,
       painInjury: Boolean(consents.health_data && painInjury),
       painLocations: consents.health_data && painInjury ? painLocations : [],
-      doubleSessionsAllowed: level === "beginner" && doubleSessionsAllowed === "yes_if_safe"
-        ? "light_only" : doubleSessionsAllowed,
+      doubleSessionsAllowed:
+        level === "beginner" && doubleSessionsAllowed === "yes_if_safe"
+          ? "light_only"
+          : doubleSessionsAllowed,
       guardianConsent: isGuardianChild ? consent : accountOwnerType === "guardian" ? consent : true,
       onboardingComplete: true,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -555,12 +558,13 @@ function Onboarding() {
         className="flex-1 overflow-y-auto overscroll-contain"
         style={{ overflowAnchor: "none" }}
       >
-        <div className="px-5 pt-6">
+        <div className="px-5 pt-6 bw-sketch-surface">
+          <SurfaceSketch kind="pitch" />
           <div className="flex items-center gap-3">
             {step > 0 ? (
               <button
                 onClick={() => setStep((s) => s - 1)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-border text-foreground"
                 aria-label="Wstecz"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -1009,8 +1013,8 @@ function Onboarding() {
                 </div>
 
                 <p className="rounded-xl bg-secondary px-4 py-3 text-xs text-muted-foreground">
-                  Plan uwzględni klub, mecze i Twoją dostępność.
-                  Druga sesja u początkujących i młodszych zawodników może być tylko lekka.
+                  Plan uwzględni klub, mecze i Twoją dostępność. Druga sesja u początkujących i
+                  młodszych zawodników może być tylko lekka.
                 </p>
               </div>
 
@@ -1026,24 +1030,47 @@ function Onboarding() {
                   <span className="text-sm">Mam dostęp do boiska</span>
                 </label>
                 <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
-                  <Checkbox checked={hasSprintSpace} onCheckedChange={(c) => setHasSprintSpace(c === true)} />
-                  <span className="text-sm">Mam bezpieczną prostą i miejsce do wyhamowania sprintu</span>
+                  <Checkbox
+                    checked={hasSprintSpace}
+                    onCheckedChange={(c) => setHasSprintSpace(c === true)}
+                  />
+                  <span className="text-sm">
+                    Mam bezpieczną prostą i miejsce do wyhamowania sprintu
+                  </span>
                 </label>
                 <label className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
-                  <Checkbox checked={equipment.some(item => /wall|rebounder|odbojnik|ściana/i.test(item))}
-                    onCheckedChange={checked => setEquipment(items => checked === true
-                      ? [...items.filter(item => !/wall|rebounder|odbojnik|ściana/i.test(item)), "rebounder"]
-                      : items.filter(item => !/wall|rebounder|odbojnik|ściana/i.test(item)))} />
+                  <Checkbox
+                    checked={equipment.some((item) => /wall|rebounder|odbojnik|ściana/i.test(item))}
+                    onCheckedChange={(checked) =>
+                      setEquipment((items) =>
+                        checked === true
+                          ? [
+                              ...items.filter(
+                                (item) => !/wall|rebounder|odbojnik|ściana/i.test(item),
+                              ),
+                              "rebounder",
+                            ]
+                          : items.filter((item) => !/wall|rebounder|odbojnik|ściana/i.test(item)),
+                      )
+                    }
+                  />
                   <span className="text-sm">Mam bezpieczną ścianę lub odbojnik do podań</span>
                 </label>
                 <div className="rounded-xl border border-border bg-card p-3.5">
                   <Label htmlFor="double-sessions">Dwie sesje jednego dnia</Label>
-                  <select id="double-sessions" value={doubleSessionsAllowed}
-                    onChange={event => setDoubleSessionsAllowed(event.target.value as DoubleSessions)}
-                    className="mt-2 w-full rounded-lg border border-input bg-background p-2.5 text-sm">
+                  <select
+                    id="double-sessions"
+                    value={doubleSessionsAllowed}
+                    onChange={(event) =>
+                      setDoubleSessionsAllowed(event.target.value as DoubleSessions)
+                    }
+                    className="mt-2 w-full rounded-lg border border-input bg-background p-2.5 text-sm"
+                  >
                     <option value="no">Maksymalnie jedna sesja dziennie</option>
                     <option value="light_only">Druga tylko lekka, jeśli jest bezpiecznie</option>
-                    {level !== "beginner" && <option value="yes_if_safe">Dopuszczam dwie, jeśli jest bezpiecznie</option>}
+                    {level !== "beginner" && (
+                      <option value="yes_if_safe">Dopuszczam dwie, jeśli jest bezpiecznie</option>
+                    )}
                   </select>
                 </div>
                 {consents.health_data ? (

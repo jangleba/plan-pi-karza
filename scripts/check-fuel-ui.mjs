@@ -3,6 +3,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import http from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -111,10 +112,48 @@ const packagePath = process.env.BALLWISE_PLAYWRIGHT_PACKAGE;
 const { chromium } = packagePath
   ? await import(pathToFileURL(path.join(packagePath, "index.mjs")).href)
   : await import("playwright");
-const browser = await chromium.launch({ headless: true });
+const server = http.createServer(async (req, res) => {
+  try {
+    const name =
+      decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname).replace(/^\/+/, "") ||
+      "index.html";
+    if (name.split("/").includes("..")) throw Error("path");
+    let data;
+    try {
+      data = await fs.readFile(path.join(work, name));
+    } catch {
+      data = await fs.readFile(path.join(root, "public", name));
+    }
+    const mime = {
+      ".html": "text/html",
+      ".js": "text/javascript",
+      ".css": "text/css",
+      ".fbx": "application/octet-stream",
+    };
+    res.writeHead(200, { "Content-Type": mime[path.extname(name)] || "application/octet-stream" });
+    res.end(data);
+  } catch {
+    res.writeHead(404);
+    res.end();
+  }
+});
+await new Promise((resolve, reject) => {
+  server.once("error", reject);
+  server.listen(0, "127.0.0.1", resolve);
+});
+const base = `http://127.0.0.1:${server.address().port}/`;
+let browser;
+
 const views = [],
   errors = [];
 try {
+  browser = await chromium.launch({
+    headless: true,
+    ...(process.env.BALLWISE_CHROMIUM_EXECUTABLE
+      ? { executablePath: process.env.BALLWISE_CHROMIUM_EXECUTABLE }
+      : {}),
+    args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
+  });
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
@@ -124,7 +163,7 @@ try {
     if (!v) throw new Error(m);
   };
   async function goto(query = "") {
-    await page.goto(pathToFileURL(path.join(work, "index.html")).href + query);
+    await page.goto(base + query);
     await page.locator(".fuel-v4-hero").waitFor();
     await page.evaluate(() => document.fonts.ready);
   }
@@ -224,7 +263,7 @@ try {
   );
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 640 });
-    await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=visual-start");
+    await page.goto(base + "?mode=visual-start");
     await page.locator(".bw-home-tools").waitFor();
     const tools = await page.locator(".bw-home-tools").boundingBox();
     const bottomNav = await page.locator(".bw-tab-bar").boundingBox();
@@ -240,7 +279,7 @@ try {
   for (const width of [320, 390, 480]) {
     await page.setViewportSize({ width, height: 844 });
     for (const mode of ["visual-club"]) {
-      await page.goto(pathToFileURL(path.join(work, "index.html")).href + "?mode=" + mode);
+      await page.goto(base + "?mode=" + mode);
       await page
         .locator(mode === "visual-club" ? ".bw-club-summary" : ".bwiq-pitch-wrap--diagram")
         .waitFor();
@@ -260,6 +299,40 @@ try {
     }
   }
   ensure(!errors.length, "Browser errors: " + errors.join("; "));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await goto();
+  const storedBefore = await page.evaluate(() => JSON.stringify(window.__fuelQA.read().entries));
+  await page.getByRole("button", { name: "Porcje i przygotowanie", exact: true }).click();
+  const sheet = page.locator('.bw-sheet[data-state="open"]');
+  const grams = sheet.locator(".fuel-grams input").first();
+  await grams.fill("173");
+  await page.waitForTimeout(380);
+  ensure(
+    (await sheet.getAttribute("data-panel-expanded")) === "true",
+    "Typing does not expand the panel",
+  );
+  await sheet.getByRole("button", { name: "Zwiń panel do połowy", exact: true }).click();
+  await page.waitForTimeout(380);
+  ensure((await grams.inputValue()) === "173", "Collapsing loses entered grams");
+  await sheet.getByRole("button", { name: "Rozwiń panel", exact: true }).click();
+  await page.waitForTimeout(380);
+  ensure((await grams.inputValue()) === "173", "Expanding loses entered grams");
+  await sheet.getByRole("button", { name: "Zamknij", exact: true }).click();
+  await page.waitForTimeout(40);
+  ensure(
+    (await page
+      .locator('.bw-sheet[data-state="closed"] .fuel-grams input')
+      .first()
+      .inputValue()) === "173",
+    "Exit animation clears entered grams",
+  );
+  await page.waitForTimeout(550);
+  ensure(
+    (await page.evaluate(() => JSON.stringify(window.__fuelQA.read().entries))) === storedBefore,
+    "Closing a draft saves a meal",
+  );
+  views.push("iphone-fuel-zwiniecie-zachowuje-porcje");
   await fs.writeFile(
     path.join(work, "wynik.json"),
     JSON.stringify(
@@ -274,5 +347,6 @@ try {
   );
   console.log(JSON.stringify({ passed: true, views }));
 } finally {
-  await browser.close();
+  await browser?.close();
+  await new Promise((resolve) => server.close(resolve));
 }

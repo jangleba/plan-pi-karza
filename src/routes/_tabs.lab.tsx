@@ -23,7 +23,7 @@ function LabScreen() {
   const { view } = Route.useSearch();
   return (
     <div className="pb-[calc(120px+env(safe-area-inset-bottom))]">
-      <AppHeader title="BallWise Lab" subtitle="Testy motoryczne z oryginalnego filmu" />
+      <AppHeader title="Lab" subtitle="Testy motoryczne z oryginalnego filmu" sketch="measure" />
       {user && (
         <Suspense fallback={<p className="px-5 text-sm text-muted-foreground">Wczytuję Lab…</p>}>
           <BrowserLab

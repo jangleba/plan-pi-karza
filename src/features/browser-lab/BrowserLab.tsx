@@ -1,10 +1,10 @@
+import { useClosingSnapshot } from "@/components/ui/useClosingSnapshot";
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   ChevronRight,
   Clock,
-  FlaskConical,
   Footprints,
   MoveRight,
   RotateCcw,
@@ -25,6 +25,7 @@ import { VideoAnalyzer } from "./VideoAnalyzer";
 import { BrowserHistory } from "./BrowserHistory";
 import { SafariTools } from "./SafariTools";
 import { LabButton, LabConfirm, LabNotice, messageOf } from "./LabUI";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import "./browser-lab.css";
 
 interface Session {
@@ -66,6 +67,8 @@ export default function BrowserLab({
   const [exit, setExit] = useState(false);
   const [capable, setCapable] = useState<boolean | null>(null);
   const [finished, setFinished] = useState<number | null>(null);
+  const [preparing, setPreparing] = useState<BrowserTestId | null>(null);
+  const preparation = useClosingSnapshot(preparing, preparing !== null).value;
   function tabKeys(event: KeyboardEvent<HTMLButtonElement>, current: "tests" | "history") {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
@@ -145,6 +148,40 @@ export default function BrowserLab({
   }
   return (
     <div className="browser-lab">
+      <Sheet
+        open={preparing !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreparing(null);
+        }}
+      >
+        <SheetContent side="bottom">
+          <SheetTitle>
+            {preparation ? protocolFor(preparation).title : "Przygotowanie testu"}
+          </SheetTitle>
+          <SheetDescription className="mt-2">
+            Przygotuj miejsce i telefon przed pomiarem.
+          </SheetDescription>
+          {preparation && (
+            <>
+              <ol className="my-4 list-decimal space-y-3 pl-5 text-sm">
+                {protocolFor(preparation).setup.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+              <LabButton
+                className="bl-wide"
+                onClick={() => {
+                  if (!preparing) return;
+                  begin([preparing]);
+                  setPreparing(null);
+                }}
+              >
+                Przejdź do pomiaru <ArrowRight size={18} />
+              </LabButton>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
       {session ? (
         <>
           <div className="bl-session-header">
@@ -209,16 +246,6 @@ export default function BrowserLab({
         </>
       ) : (
         <>
-          <section className="bl-intro">
-            <div className="bl-icon">
-              <FlaskConical size={24} />
-            </div>
-            <div>
-              <p className="bl-kicker">LAB</p>
-              <h2>Wybierz test</h2>
-              <p>Skok, sprint lub zmiana kierunku.</p>
-            </div>
-          </section>
           <div className="bl-tabs" role="tablist" aria-label="BallWise Lab">
             <button
               type="button"
@@ -284,7 +311,7 @@ export default function BrowserLab({
                         className="bl-card bl-test-card"
                         aria-label={`Rozpocznij ${protocol.title}`}
                         disabled={capable !== true}
-                        onClick={() => begin([protocol.id as BrowserTestId])}
+                        onClick={() => setPreparing(protocol.id as BrowserTestId)}
                       >
                         <span className="bl-test-icon" aria-hidden="true">
                           <Icon size={21} />

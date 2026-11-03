@@ -1,3 +1,4 @@
+import { useClosingSnapshot } from "@/components/ui/useClosingSnapshot";
 import { useEffect, useState } from "react";
 import { Check, Heart, RefreshCw, Utensils } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -26,7 +27,8 @@ export interface FuelMealDraft {
   initialSwapFoodId?: string;
   eatenAt?: number;
 }
-export function FuelMealSheet({
+function FuelMealContent({
+  open,
   draft,
   context,
   timing,
@@ -37,6 +39,7 @@ export function FuelMealSheet({
   onSave,
   onFavorite,
 }: {
+  open: boolean;
   draft: FuelMealDraft | null;
   context: FuelContext;
   timing: FuelTiming;
@@ -129,7 +132,7 @@ export function FuelMealSheet({
     setSwapping(null);
   }
   return (
-    <Sheet open={Boolean(draft)} onOpenChange={(value) => !value && onClose()}>
+    <Sheet open={open} onOpenChange={(value) => !value && onClose()}>
       <SheetContent side="bottom" className="fuel-sheet">
         <p className="fuel-eyebrow">{draft?.own ? "Twój posiłek" : "Propozycja dla Ciebie"}</p>
         <SheetTitle>{changed ? "Twój dopasowany zestaw" : (draft?.title ?? "Posiłek")}</SheetTitle>
@@ -473,4 +476,10 @@ export function FuelMealSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+export function FuelMealSheet(props: Omit<Parameters<typeof FuelMealContent>[0], "open">) {
+  const retained = useClosingSnapshot(props, Boolean(props.draft));
+  if (!retained.present) return null;
+  return <FuelMealContent {...retained.value} open={Boolean(props.draft)} />;
 }

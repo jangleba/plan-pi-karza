@@ -201,23 +201,18 @@ export function ExerciseRunnerScreen({
   const recommendation = useMemo(
     () =>
       metricKind === "load"
-        ? recommendNextLoad(
-            recentSessions,
-            exercise.reps,
-            exercise.rir,
-            {
-              age: state.profile?.age,
-              level: state.profile?.level,
-              goal: state.profile?.goal,
-              gymExperienceLevel: state.profile?.gymExperienceLevel,
-              strengthTrainingMonths: state.profile?.strengthTrainingMonths,
-              movementCompetence: state.profile?.movementCompetence,
-              supervisionLevel: state.profile?.supervisionLevel,
-              blockPhaseLabel: sessionContext?.blockPhaseLabel,
-              mdLabel: sessionContext?.mdLabel,
-              exercise,
-            },
-          )
+        ? recommendNextLoad(recentSessions, exercise.reps, exercise.rir, {
+            age: state.profile?.age,
+            level: state.profile?.level,
+            goal: state.profile?.goal,
+            gymExperienceLevel: state.profile?.gymExperienceLevel,
+            strengthTrainingMonths: state.profile?.strengthTrainingMonths,
+            movementCompetence: state.profile?.movementCompetence,
+            supervisionLevel: state.profile?.supervisionLevel,
+            blockPhaseLabel: sessionContext?.blockPhaseLabel,
+            mdLabel: sessionContext?.mdLabel,
+            exercise,
+          })
         : null,
     [metricKind, recentSessions, exercise, state.profile, sessionContext],
   );
@@ -254,7 +249,7 @@ export function ExerciseRunnerScreen({
     return (
       <div className="bw-training-inline" role="status">
         <p>{exercise.executionBlockedReason}</p>
-        <ExerciseQuickGuide exercise={exercise} compact />
+        <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
         <button type="button" onClick={onClose}>
           Zamknij ćwiczenie
         </button>
@@ -318,7 +313,7 @@ export function ExerciseRunnerScreen({
   if (inline)
     return (
       <div className="bw-training-inline">
-        <ExerciseQuickGuide exercise={exercise} compact />
+        <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
         <div className="bw-set-heading">
           <label>
             Seria{" "}
@@ -446,7 +441,7 @@ export function ExerciseRunnerScreen({
 
       {view === "sets" ? (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
-          <ExerciseQuickGuide exercise={exercise} compact />
+          <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
           <button
             type="button"
             onClick={() => setView("technique")}

@@ -28,6 +28,7 @@ import { accountRoleLabel } from "@/lib/loadwise/agePolicy";
 import { SubscriptionSettings } from "@/features/billing/SubscriptionSettings";
 import { DeviceDiagnosticsPanel } from "@/components/loadwise/DeviceDiagnosticsPanel";
 import { ModuleBackupPanel } from "@/features/module-backup/ModuleBackupPanel";
+import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { APP_VERSION } from "@/lib/appVersion";
 import {
   CalendarDays,
@@ -74,6 +75,7 @@ function ProfileScreen() {
   const profile = state.profile;
   const [transferEmail, setTransferEmail] = useState("");
   const [transferBusy, setTransferBusy] = useState(false);
+  const [deviceToolsOpen, setDeviceToolsOpen] = useState(false);
 
   if (!profile) return null;
 
@@ -154,7 +156,8 @@ function ProfileScreen() {
       <AppHeader title="Profil" subtitle="Dane, które sterują Twoim planem." />
 
       <div className="space-y-3 px-5">
-        <section className="soft-card p-4">
+        <section className="soft-card p-4 bw-sketch-surface bw-profile-identity">
+          <SurfaceSketch kind="pitch" />
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-primary/[0.07] text-base font-medium text-primary">
               {profile.name.slice(0, 1).toUpperCase()}
@@ -203,8 +206,6 @@ function ProfileScreen() {
         </section>
 
         <SubscriptionSettings />
-        <DeviceDiagnosticsPanel />
-        {user && <ModuleBackupPanel key={user.id} userId={user.id} />}
 
         {canTransferToAthlete && (
           <section className="soft-card p-4">
@@ -384,6 +385,21 @@ function ProfileScreen() {
         >
           <Pencil className="h-4 w-4" aria-hidden="true" /> Edytuj profil i plan
         </Button>
+
+        <details
+          className="soft-card p-4"
+          onToggle={(event) => setDeviceToolsOpen(event.currentTarget.open)}
+        >
+          <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">
+            Dane i urządzenie
+          </summary>
+          {deviceToolsOpen && (
+            <div className="mt-3 space-y-3">
+              <DeviceDiagnosticsPanel />
+              {user && <ModuleBackupPanel key={user.id} userId={user.id} />}
+            </div>
+          )}
+        </details>
 
         <div className="soft-card divide-y divide-border p-0">
           <SettingsLink

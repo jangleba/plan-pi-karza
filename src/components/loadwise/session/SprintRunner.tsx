@@ -1,5 +1,5 @@
 import { memo, useEffect, useId, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Footprints, Ruler, Wind, Zap } from "lucide-react";
+import { Check, ChevronRight, Ruler } from "lucide-react";
 import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -18,6 +18,7 @@ import { WarmupCoach } from "../preparation/PreparationGuide";
 import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
 import { CourseSetup } from "./CourseSetup";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
+import { PersistentExercisePanel } from "./PersistentExercisePanel";
 import { SkipExerciseCard } from "./SkipExerciseCard";
 import { getSkipGuide } from "@/lib/loadwise/skipGuides";
 import { SprintRestTimer } from "./SprintRestTimer";
@@ -39,6 +40,9 @@ function SprintExerciseRow({
   equipmentIds,
   isMainSprint,
   canRecord,
+  expanded,
+  onExpand,
+  preparation,
 }: {
   view: SprintExerciseView;
   done: boolean;
@@ -47,8 +51,11 @@ function SprintExerciseRow({
   equipmentIds: string[];
   isMainSprint: boolean;
   canRecord: boolean;
+  expanded: boolean;
+  onExpand: () => void;
+  preparation?: React.ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const exercise = view.exercise;
   const rest = restLabel(exercise);
@@ -63,13 +70,15 @@ function SprintExerciseRow({
         onToggle={onToggle}
         canRecord={canRecord}
         compact
+        expanded={expanded}
+        onExpandedChange={onExpand}
       />
     );
   }
   return (
     <div className={`bw-sprint-row ${isMainSprint ? "bw-sprint-row-main" : ""}`}>
       <div className="flex items-start gap-2.5">
-        {!isMainSprint && (
+        {
           <button
             type="button"
             disabled={!canRecord}
@@ -85,13 +94,14 @@ function SprintExerciseRow({
               {done && <Check className="h-3 w-3" />}
             </span>
           </button>
-        )}
+        }
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            onClick={() => setExpanded((current) => !current)}
+            onClick={onExpand}
             className="flex min-h-11 w-full items-start gap-2 py-2 text-left"
             aria-expanded={expanded}
+            aria-controls={panelId}
           >
             <span
               className={`bw-exercise-name min-w-0 flex-1 text-sm font-semibold leading-5 ${
@@ -125,40 +135,28 @@ function SprintExerciseRow({
               </span>
             </div>
           )}
-          {expanded && <ExerciseQuickGuide exercise={exercise} />}
-          {expanded && !done && view.showSkipSetLabels && (
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Seria 1: dodatkowe odbicie na tej samej nodze podporowej, potem zmiana nóg. Seria 2:
-              płynna wymiana nóg bez dodatkowego odbicia.
-            </p>
-          )}
-          {expanded && canRecord && !done && equipmentIds.length > 0 && (
+          <PersistentExercisePanel open={expanded} id={panelId}>
+            {preparation}
+            <ExerciseQuickGuide exercise={exercise} autoAnimation />
+            {canRecord && !done && equipmentIds.length > 0 && (
+              <button
+                type="button"
+                onClick={onUnavailable}
+                className="min-h-11 text-xs font-medium text-primary"
+              >
+                Nie mam {equipmentNames.join(", ")}
+              </button>
+            )}
+            {rest && <SprintRestTimer label={rest} compact />}
+            {canRecord && <ExercisePersonalNote exercise={exercise} />}
             <button
               type="button"
-              onClick={onUnavailable}
-              className="mt-1 text-[11px] font-medium text-primary"
+              onClick={() => setDetailSheetOpen(true)}
+              className="min-h-11 text-xs font-medium text-primary"
             >
-              Nie mam {equipmentNames.join(", ")}
+              Pełne szczegóły ćwiczenia
             </button>
-          )}
-          {expanded && rest && <SprintRestTimer label={rest} compact={!isMainSprint} />}
-          {expanded && canRecord && <ExercisePersonalNote exercise={exercise} />}
-          {isMainSprint && (
-            <button
-              type="button"
-              disabled={!canRecord}
-              onClick={onToggle}
-              className="bw-sprint-complete"
-              aria-label={done ? "Wykonane" : "Oznacz jako wykonane"}
-              aria-pressed={done}
-            >
-              {done && <Check className="h-4 w-4" aria-hidden="true" />}
-              {done ? "Wykonane" : "Oznacz jako wykonane"}
-            </button>
-          )}
-          {expanded && <button type="button" onClick={() => setDetailSheetOpen(true)} className="mt-3 text-xs font-semibold text-primary">
-            Pełne szczegóły ćwiczenia
-          </button>}
+          </PersistentExercisePanel>
         </div>
       </div>
       <ExerciseDetailSheet
@@ -207,13 +205,10 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
     Math.min(Math.max(0, blocks.length - 1), progress.currentBlockIdx),
   );
   const [lastToggle, setLastToggle] = useState<{ id: string; wasDone: boolean } | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const groupId = useId();
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
   useEffect(() => {
-    setExpanded({});
-    setExpandedGroups({});
+    setActiveId(null);
     setFinished(false);
     setLastToggle(null);
   }, [progressKey, fingerprint]);
@@ -269,173 +264,149 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
   const saveProgress = local.setValue;
   useEffect(() => {
     if (!autoStart || !canRecord || progress.started) return;
-    saveProgress(current => ({ ...progressForPrescription(current, fingerprint), started: true, fingerprint }));
+    saveProgress((current) => ({
+      ...progressForPrescription(current, fingerprint),
+      started: true,
+      fingerprint,
+    }));
   }, [autoStart, canRecord, progress.started, fingerprint, saveProgress]);
-  const groups = [
-    { key: "preparation", title: "Przygotowanie", subtitle: "Rozgrzewka, technika i aktywacja", keys: ["ramp", "skip", "technical"], icon: Footprints },
-    { key: "main", title: "Część główna", subtitle: "Sprinty i kontrola ruchu", keys: ["plyo", "resisted", "main", "terminal"], icon: Zap },
-    { key: "cooldown", title: "Wyciszenie", subtitle: "Etap " + (blocks.find(block => block.key === "cooldown")?.index ?? "8") + " · zakończenie sesji", keys: ["cooldown"], icon: Wind },
-  ];
 
   return (
     <div className={`bw-sprint-session ${SPRINT_RUNNER_CONTAINER_CLASS}`}>
-      {canRecord && <CompletionUndo
-        label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
-        onUndo={() => {
-          if (!lastToggle) return;
-          local.setValue((current) => {
-            const latest = progressForPrescription(current, fingerprint);
-            return {
-              ...latest,
-              done: { ...latest.done, [lastToggle.id]: lastToggle.wasDone },
-              fingerprint,
-            };
-          });
-          setLastToggle(null);
-        }}
-      />}
+      {canRecord && (
+        <CompletionUndo
+          label={lastToggle ? "Zmieniono oznaczenie ćwiczenia" : null}
+          onUndo={() => {
+            if (!lastToggle) return;
+            local.setValue((current) => {
+              const latest = progressForPrescription(current, fingerprint);
+              return {
+                ...latest,
+                done: { ...latest.done, [lastToggle.id]: lastToggle.wasDone },
+                fingerprint,
+              };
+            });
+            setLastToggle(null);
+          }}
+        />
+      )}
 
-      <div>
-        <div className="bw-plan-heading"><h2>Plan sesji</h2><span>{blocks.length} etapów</span></div>
-        <div className="bw-plan-groups">
-        {groups.map(group => {
-          const groupExpanded = expandedGroups[group.key] ?? (started && group.keys.includes(currentBlock?.key ?? ""));
-          const GroupIcon = group.icon;
-          const panelId = groupId + "-" + group.key;
-          return <section className="bw-plan-group" key={group.key}>
-            <button type="button" className="bw-plan-group-trigger" aria-expanded={groupExpanded} aria-controls={panelId}
-              onClick={() => setExpandedGroups(current => ({ ...current, [group.key]: !groupExpanded }))}>
-              <span className="bw-plan-group-icon"><GroupIcon aria-hidden="true" /></span>
-              <span className="bw-plan-group-copy"><strong>{group.title}</strong><small>{group.subtitle}</small></span>
-              <ChevronDown className="bw-plan-group-chevron" aria-hidden="true" />
-            </button>
-            {groupExpanded && <div id={panelId} className="bw-plan-group-panel">
-        {blocks.map((block, index) => {
-          if (!group.keys.includes(block.key)) return null;
-          const isCurrent = index === currentBlockIdx;
-          const isExpanded = expanded[block.key] ?? (started && isCurrent);
-          const exerciseCount = block.exercises.length;
-          const completedCount = block.exercises.filter((exercise) => done[exercise.id]).length;
-          return (
-            <div
-              key={block.key}
-              className={`bw-sprint-stage ${isCurrent ? "bw-stage-current" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setExpanded((current) => ({
-                    ...current,
-                    [block.key]: !isExpanded,
-                  }));
-                }}
-                className="bw-stage-header"
-                aria-expanded={Boolean(isExpanded)}
-              >
-                <span className="bw-stage-index">{block.index}</span>
-                <span className="bw-stage-title">{block.title}</span>
-                <span className="bw-stage-count">
-                  {completedCount}/{exerciseCount}
-                </span>
-                {!isExpanded && block.hasDataError && (
-                  <span
-                    className={`text-[11px] ${block.hasDataError ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-                  >
-                    Błąd danych sesji
-                  </span>
-                )}
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                />
-              </button>
-              {isExpanded && block.hasDataError && (
-                <div className="px-3 py-2 text-xs font-medium text-destructive">
-                  Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
-                </div>
-              )}
-              {isExpanded && (
-                <div
-                  className={`bw-stage-exercises divide-y divide-border/50 ${block.key === "skip" ? "bw-skip-stage" : ""}`}
-                >
-                  {block.key === "skip" &&
-                    block.exercises.some((item) => item.showSkipSetLabels) && (
-                      <p className="bw-skip-rhythm">
-                        Seria 1: dodatkowe odbicie na tej samej nodze. Seria 2: płynna zmiana nóg.
-                      </p>
-                    )}
-                  {block.key === "ramp" &&
-                    block.exercises.some((item) =>
-                      /przygotowanie RAMP|dynamiczna rozgrzewka/i.test(item.exercise.name),
-                    ) && (
-                      <WarmupCoach
-                        exercises={block.exercises.map((item) => item.exercise)}
-                        kind="sprint"
-                        storageKey={`${progressKey}:guided${canRecord ? "" : ":preview"}`}
-                        onFinish={(all) => {
-                          if (!canRecord || !all) return;
-                          local.setValue((current) => {
-                            const latest = progressForPrescription(current, fingerprint);
-                            return {
-                              ...latest,
-                              started: true,
-                              done: {
-                                ...latest.done,
-                                ...Object.fromEntries(
-                                  block.exercises.map((item) => [item.id, true]),
-                                ),
-                              },
-                              fingerprint,
-                            };
-                          });
-                        }}
-                      />
-                    )}
-                  {block.exercises.map((item) => {
-                    const definition = resolveDefinitionForExercise(item.exercise);
-                    const equipmentIds = specialistEquipmentForExercise(definition);
-                    return (
-                      <SprintExerciseRow
-                        key={item.id}
-                        view={item}
-                        done={!!done[item.id]}
-                        canRecord={canRecord}
-                        onToggle={() => markDone(item.id)}
-                        onUnavailable={() => {
-                          if (canRecord && equipmentIds.length)
-                            markEquipmentUnavailable(date, item.exercise, equipmentIds);
-                        }}
-                        equipmentIds={equipmentIds}
-                        isMainSprint={block.key === "main"}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-            </div>}
-          </section>;
-        })}
+      <div className="bw-session-exercise-list" key={`${progressKey}:${fingerprint}`}>
+        <div className="bw-plan-heading">
+          <h2>Plan sesji</h2>
+          <span>{blocks.length} etapów</span>
         </div>
+        {blocks.map((block, index) => (
+          <section
+            key={block.key}
+            className={`bw-sprint-stage ${index === currentBlockIdx ? "bw-stage-current" : ""}`}
+          >
+            <div className="bw-stage-header">
+              <span className="bw-stage-index">{block.index}</span>
+              <h3 className="bw-stage-title">{block.title}</h3>
+              <span className="bw-stage-count">
+                {block.exercises.filter((item) => done[item.id]).length}/{block.exercises.length}
+              </span>
+            </div>
+            {block.hasDataError && (
+              <p role="alert" className="px-3 py-2 text-xs text-destructive">
+                Błąd danych sesji: obowiązkowy blok sprintu jest pusty. Wygeneruj sesję ponownie.
+              </p>
+            )}
+            <div
+              className={`bw-stage-exercises divide-y divide-border ${block.key === "skip" ? "bw-skip-stage" : ""}`}
+            >
+              {block.exercises.map((item, itemIndex) => {
+                const equipmentIds = specialistEquipmentForExercise(
+                  resolveDefinitionForExercise(item.exercise),
+                );
+                const guided =
+                  block.key === "ramp" &&
+                  itemIndex === 0 &&
+                  block.exercises.some((row) =>
+                    /przygotowanie RAMP|dynamiczna rozgrzewka/i.test(row.exercise.name),
+                  );
+                return (
+                  <SprintExerciseRow
+                    key={item.id}
+                    view={item}
+                    done={!!done[item.id]}
+                    canRecord={canRecord && index <= currentBlockIdx}
+                    expanded={activeId === item.id}
+                    onExpand={() => setActiveId(activeId === item.id ? null : item.id)}
+                    onToggle={() => markDone(item.id)}
+                    onUnavailable={() => {
+                      if (canRecord && equipmentIds.length)
+                        markEquipmentUnavailable(date, item.exercise, equipmentIds);
+                    }}
+                    equipmentIds={equipmentIds}
+                    isMainSprint={block.key === "main"}
+                    preparation={
+                      guided ? (
+                        <WarmupCoach
+                          exercises={block.exercises.map((row) => row.exercise)}
+                          kind="sprint"
+                          storageKey={`${progressKey}:guided${canRecord ? "" : ":preview"}`}
+                          onFinish={(all) => {
+                            if (!canRecord || !all) return;
+                            local.setValue((current) => {
+                              const latest = progressForPrescription(current, fingerprint);
+                              return {
+                                ...latest,
+                                started: true,
+                                done: {
+                                  ...latest.done,
+                                  ...Object.fromEntries(
+                                    block.exercises.map((row) => [row.id, true]),
+                                  ),
+                                },
+                                fingerprint,
+                              };
+                            });
+                          }}
+                        />
+                      ) : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
       <details className="bw-session-tools">
-        <summary><Ruler aria-hidden="true" />Sprzęt i przygotowanie</summary>
+        <summary>
+          <Ruler aria-hidden="true" />
+          Sprzęt i przygotowanie
+        </summary>
         <div className="bw-session-tools-content">
-          <CourseSetup key={progressKey} exercises={sections.flatMap(section => section.blocks.flatMap(block => block.exercises))} />
+          <CourseSetup
+            key={progressKey}
+            exercises={sections.flatMap((section) =>
+              section.blocks.flatMap((block) => block.exercises),
+            )}
+          />
           <SessionPreparation equipment={equipmentPool} />
-          <p className="text-xs text-muted-foreground">Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"} · {mdRelation}</p>
-          {!local.available && <p className="text-xs text-muted-foreground">Postęp pozostaje w otwartym ekranie; zapis na urządzeniu jest niedostępny.</p>}
+          <p className="text-xs text-muted-foreground">
+            Sprzęt: {equipmentPool.length ? equipmentPool.join(", ") : "Masa ciała"} · {mdRelation}
+          </p>
+          {!local.available && (
+            <p className="text-xs text-muted-foreground">
+              Postęp pozostaje w otwartym ekranie; zapis na urządzeniu jest niedostępny.
+            </p>
+          )}
         </div>
       </details>
-      {canRecord && <NextExercisePreview
-        exercise={
-          blocks
-            .slice(currentBlockIdx)
-            .flatMap((block) => block.exercises)
-            .find((item) => !done[item.id])?.exercise
-        }
-      />}
+      {canRecord && (
+        <NextExercisePreview
+          exercise={
+            blocks
+              .slice(currentBlockIdx)
+              .flatMap((block) => block.exercises)
+              .find((item) => !done[item.id])?.exercise
+          }
+        />
+      )}
 
       {canRecord && !finished && (
         <div className="bw-sprint-action">
@@ -444,13 +415,12 @@ export const SprintStructuredSections = memo(function SprintStructuredSections({
             disabled={actionDisabled}
             onClick={() => {
               if (!started) {
-                if (currentBlock) setExpanded({ [currentBlock.key]: true });
+                if (currentBlock) setActiveId(currentBlock.exercises[0]?.id ?? null);
                 setStarted(true);
                 return;
               }
               if (currentBlockIdx < blocks.length - 1) {
-                setExpanded({});
-                setExpandedGroups({});
+                setActiveId(null);
                 setCurrentBlockIdx((value) => value + 1);
                 return;
               }

@@ -65,6 +65,7 @@ import {
   type StoreProduct,
 } from "@/lib/fuel/storeCheck";
 import type { SessionKind } from "@/lib/fuel/types";
+import { PageHeader } from "@/components/loadwise/PageHeader";
 
 const EMPTY_RESTRICTIONS: string[] = [];
 
@@ -726,25 +727,27 @@ export function FuelWorkspace({
 
   return (
     <div className="fuel-workspace fuel-v4">
-      <header className="fuel-v4-header">
-        <div>
-          <h1>Fuel</h1>
-          <span>
-            {timing.phase === "ordinary"
-              ? "Zwykły posiłek"
-              : context.fromPlan
-                ? context.title
-                : "Jedzenie do Twojego treningu"}
-          </span>
-        </div>
-        <button
-          className="fuel-icon-button"
-          aria-label="Ustawienia Fuel"
-          onClick={() => setPanel("preferences")}
-        >
-          <SlidersHorizontal size={20} />
-        </button>
-      </header>
+      <PageHeader
+        title="Fuel"
+        sketch="fuel"
+        className="fuel-v4-header bw-page-header--inset"
+        subtitle={
+          timing.phase === "ordinary"
+            ? "Zwykły posiłek"
+            : context.fromPlan
+              ? context.title
+              : "Jedzenie do Twojego treningu"
+        }
+        actions={
+          <button
+            className="fuel-icon-button"
+            aria-label="Ustawienia Fuel"
+            onClick={() => setPanel("preferences")}
+          >
+            <SlidersHorizontal size={20} />
+          </button>
+        }
+      />
       <main className="fuel-v4-main">
         {!storageOK && (
           <div className="fuel-v4-warning" role="status">

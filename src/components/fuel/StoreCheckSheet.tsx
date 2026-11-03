@@ -1,3 +1,4 @@
+import { useClosingSnapshot } from "@/components/ui/useClosingSnapshot";
 import { useEffect, useRef, useState } from "react";
 import { Barcode, Camera, LoaderCircle, Mic, Square } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -5,7 +6,8 @@ import type { FuelMoment } from "@/lib/fuel/assistant";
 import type { StoreEvaluation, StoreProduct } from "@/lib/fuel/storeCheck";
 import { FuelMomentPicker } from "./FuelMomentPicker";
 
-export function StoreCheckSheet({
+function StoreCheckContent({
+  visibleOpen,
   open,
   productName,
   barcode,
@@ -29,6 +31,7 @@ export function StoreCheckSheet({
   initialUnit,
   onPortionChange,
 }: {
+  visibleOpen: boolean;
   open: boolean;
   productName: string;
   barcode: string;
@@ -118,7 +121,7 @@ export function StoreCheckSheet({
     setLabelOpen(false);
   }
   return (
-    <Sheet open={open} onOpenChange={(value) => !value && onClose()}>
+    <Sheet open={visibleOpen} onOpenChange={(value) => !value && onClose()}>
       <SheetContent side="bottom" className="fuel-sheet">
         <p className="fuel-eyebrow">W sklepie</p>
         <SheetTitle>Sprawdź produkt</SheetTitle>
@@ -443,4 +446,12 @@ export function StoreCheckSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+export function StoreCheckSheet(
+  props: Omit<Parameters<typeof StoreCheckContent>[0], "visibleOpen">,
+) {
+  const retained = useClosingSnapshot(props, props.open);
+  if (!retained.present) return null;
+  return <StoreCheckContent {...retained.value} visibleOpen={props.open} />;
 }

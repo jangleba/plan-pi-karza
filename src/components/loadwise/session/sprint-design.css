@@ -1,85 +1,483 @@
 /* Sprint session design. Scoped so other application screens keep their theme. */
-.app-shell.bw-sprint-page{background:var(--background);color:var(--foreground);min-height:100svh;padding-bottom:32px}
-.bw-sprint-page .soft-card{background:var(--card);color:var(--foreground);border-color:var(--border);box-shadow:none}
-.bw-training-brandbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 20px;border-bottom:1px solid var(--border)}
-.bw-training-brand{display:inline-flex;align-items:center;gap:11px;padding:0;background:transparent;border:0;color:var(--foreground);font-size:21px;line-height:1.2;font-weight:700;letter-spacing:-.5px;min-height:40px}
-.bw-training-logo{display:grid;place-items:center;width:34px;height:34px;flex-shrink:0;border-radius:10px;background:var(--accent);color:var(--primary)}
-.bw-training-logo svg{width:23px;height:23px}
-.bw-training-section-label{color:var(--muted-foreground);font-size:10px;font-weight:650;letter-spacing:2.6px;text-transform:uppercase}
-.bw-training-date{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:22px 20px;color:var(--muted-foreground);font-size:12px;line-height:1.5}
-.bw-training-date>span:last-child:not(:first-child){color:var(--foreground);font-weight:600}
-.bw-training-hero{position:relative;isolation:isolate;overflow:hidden;margin:0 20px;padding:24px 22px;border-radius:22px;background:var(--secondary);color:var(--foreground)}
-.bw-training-track{position:absolute;z-index:-1;right:-20px;top:-30px;width:155px;height:230px;fill:none;stroke:var(--primary);stroke-opacity:.11;stroke-width:1.5;pointer-events:none}
-.bw-training-kicker{margin:0 0 14px;color:var(--primary);font-size:10px;font-weight:650;letter-spacing:2.8px;text-transform:uppercase}
-.bw-training-hero h1{position:relative;margin:0;font-size:clamp(28px,7.7vw,34px);font-weight:700;line-height:1.13;letter-spacing:-.8px;max-width:100%;overflow-wrap:break-word}
-.bw-training-summary{margin:20px 0 0;color:var(--muted-foreground);font-size:13px;line-height:1.65}
-.bw-training-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border);font-size:12px;color:var(--foreground)}
-.bw-training-meta span{display:inline-flex;align-items:center;gap:8px}
-.bw-training-meta svg{width:17px;height:17px;flex-shrink:0}
-.bw-sprint-page .bw-sprint-content{display:grid;gap:16px;padding:24px 20px 0}
-.bw-sprint-page fieldset{min-width:0;margin:0;border:0;padding:0}
-.bw-sprint-page .bw-plan-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 16px}
-.bw-sprint-page .bw-plan-heading h2{font-size:18px;line-height:1.3;font-weight:650;letter-spacing:-.35px}
-.bw-sprint-page .bw-plan-heading span{font-size:12px;color:var(--muted-foreground)}
-.bw-sprint-page .bw-plan-groups{overflow:hidden;border:1px solid var(--border);border-radius:20px;background:var(--card)}
-.bw-sprint-page .bw-plan-group+.bw-plan-group{border-top:1px solid var(--border)}
-.bw-sprint-page .bw-plan-group-trigger{display:grid;grid-template-columns:42px minmax(0,1fr) 18px;gap:13px;align-items:center;width:100%;min-height:94px;padding:18px 14px;background:transparent;text-align:left;color:var(--foreground);border:0}
-.bw-sprint-page .bw-plan-group-icon{display:grid;place-items:center;width:42px;height:44px;border-radius:13px;background:var(--muted);color:var(--primary)}
-.bw-sprint-page .bw-plan-group-icon svg{width:23px;height:23px}
-.bw-sprint-page .bw-plan-group-copy{min-width:0}
-.bw-sprint-page .bw-plan-group-copy strong{display:block;font-size:16px;line-height:1.35;font-weight:650;letter-spacing:-.15px}
-.bw-sprint-page .bw-plan-group-copy small{display:block;margin-top:6px;font-size:12px;line-height:1.45;color:var(--muted-foreground)}
-.bw-sprint-page .bw-plan-group-chevron{width:17px;height:17px;color:var(--muted-foreground)}
-.bw-sprint-page .bw-plan-group-trigger[aria-expanded=true] .bw-plan-group-chevron{transform:rotate(180deg)}
-.bw-sprint-page .bw-plan-group-panel{padding:0 10px 12px}
-.bw-sprint-page .bw-sprint-stage{margin-top:8px;border-color:var(--border);background:var(--card);border-radius:12px;scroll-margin-top:12px;scroll-margin-bottom:20px}
-.bw-sprint-page .bw-stage-current>.bw-stage-header{background:var(--accent)}
-.bw-sprint-page .bw-stage-header{min-height:54px;padding:10px;gap:9px}
-.bw-sprint-page .bw-stage-index{min-width:29px;height:29px;font-size:11px;background:var(--muted);color:var(--primary);border-radius:8px}
-.bw-sprint-page .bw-stage-title{font-size:12px}
-.bw-sprint-page .bw-stage-exercises,.bw-sprint-page .bw-skip-stage{padding:0 10px}
-.bw-sprint-page .bw-sprint-row{padding:12px 0}
-.bw-sprint-page .bw-sprint-row-main .bw-exercise-name{font-size:16px;line-height:1.4}
-.bw-sprint-page .bw-skip-card{padding:14px 0}
-.bw-sprint-page .bw-skip-title{font-size:15px}
-.bw-sprint-page .bw-skip-dose{font-size:12px}
-.bw-sprint-page .bw-skip-title-trigger{display:flex;gap:8px;align-items:center;justify-content:space-between;width:100%;min-height:44px;text-align:left;background:transparent;border:0;color:inherit;padding:0}
-.bw-sprint-page .bw-skip-title-trigger>div{min-width:0}
-.bw-sprint-page .bw-skip-title-trigger svg{width:17px;height:17px;flex-shrink:0;color:var(--muted-foreground)}
-.bw-sprint-page .bw-technique-guide{padding:10px;background:var(--card);border-color:var(--border);border-radius:12px}
-.bw-sprint-page .bw-technique-reminder{font-size:12px;font-weight:500;line-height:1.6}
-.bw-sprint-page .bw-technique-heading{font-size:10px}
-.bw-sprint-page .bw-animation-card{background:var(--card);border-color:var(--border);border-radius:12px}
-.bw-sprint-page .bw-animation-actions{padding:8px;gap:7px}
-.bw-sprint-page .bw-animation-actions button{background:var(--background);border-color:var(--border);color:var(--foreground);border-radius:10px;font-size:12px}
-.bw-sprint-page .bw-animation-frame{background:var(--card)}
-.bw-sprint-page .bw-animation-panel-heading{font-size:11px}
-.bw-sprint-page .bw-animation-actions .bw-animation-library{font-size:11px!important}
-.bw-sprint-page .bw-session-tools{margin-top:16px;border:1px solid var(--border);border-radius:13px;background:var(--card);padding:0 12px}
-.bw-sprint-page .bw-session-tools>summary{display:flex;align-items:center;gap:8px;min-height:48px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted-foreground);list-style:none}
-.bw-sprint-page .bw-session-tools>summary::-webkit-details-marker{display:none}
-.bw-sprint-page .bw-session-tools>summary svg{width:16px;height:16px}
-.bw-sprint-page .bw-session-tools-content{display:grid;gap:12px;padding-bottom:12px}
-.bw-sprint-page .bw-sprint-start-panel .soft-card{border:0;background:transparent;padding:0;border-radius:0}
-.bw-sprint-page .bw-sprint-start-panel .soft-card>p{display:none}
-.bw-sprint-page .bw-sprint-start-panel button{width:100%;min-height:54px;border-radius:14px;font-size:14px;font-weight:650;background:var(--primary);color:var(--primary-foreground)}
-.bw-sprint-page .bw-sprint-start-panel>.soft-card>p[role=alert]{display:block}
-.bw-sprint-page .bw-sprint-preview-note{padding:0 2px;color:var(--muted-foreground);font-size:12px;line-height:1.6}
-.bw-sprint-page .bw-sprint-action{position:static;z-index:auto;padding-top:16px;margin-top:0}
-.bw-sprint-page .bw-sprint-action>button{min-height:52px;border-radius:14px}
-.bw-sprint-page .bw-sprint-action>button:disabled{background:var(--muted);color:var(--muted-foreground)}
-.bw-sprint-page .bw-training-tools{margin-top:8px;font-size:12px;color:var(--muted-foreground)}
-.bw-sprint-page button:focus-visible,.bw-sprint-page summary:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
-@media(max-width:350px){
- .bw-training-brandbar{padding:18px 16px}.bw-training-date{padding:18px 16px}
- .bw-training-hero{margin:0 16px;padding:22px 18px}
- .bw-sprint-page .bw-sprint-content{padding:22px 16px 0}
- .bw-sprint-page .bw-plan-group-trigger{padding:15px 11px;gap:10px;grid-template-columns:38px minmax(0,1fr) 16px}
- .bw-sprint-page .bw-plan-group-icon{width:38px;height:40px}
- .bw-sprint-page .bw-plan-group-copy strong{font-size:15px}
+.app-shell.bw-sprint-page {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100svh;
+  padding-bottom: 32px;
+}
+.bw-sprint-page .soft-card {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.bw-training-brandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px var(--bw-page-gutter);
+  border-bottom: 1px solid var(--border);
+}
+.bw-training-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--foreground);
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+  min-height: 40px;
+}
+.bw-training-logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--primary);
+}
+.bw-training-logo svg {
+  width: 23px;
+  height: 23px;
+}
+.bw-training-section-label {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bw-training-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px var(--bw-page-gutter);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.bw-training-date > span:last-child:not(:first-child) {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.bw-training-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin: 0 20px;
+  padding: 20px;
+  border-radius: var(--bw-card-radius);
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
-.bw-sprint-page .bw-skip-title-trigger strong,.bw-sprint-page .bw-skip-title-trigger .bw-skip-dose{display:block}
-.bw-sprint-page .bw-skip-rhythm{font-size:11px;line-height:1.5;padding:8px 0}
+.bw-training-kicker {
+  margin: 0 0 14px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bw-training-hero h1 {
+  position: relative;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.13;
+  letter-spacing: -0.8px;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+.bw-training-summary {
+  margin: 20px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.bw-training-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--foreground);
+}
+.bw-training-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.bw-training-meta svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.bw-sprint-page .bw-sprint-content {
+  display: grid;
+  gap: 16px;
+  padding: 20px var(--bw-page-gutter) 0;
+}
+.bw-sprint-page fieldset {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.bw-sprint-page .bw-plan-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 2px 16px;
+}
+.bw-sprint-page .bw-plan-heading h2 {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.35px;
+}
+.bw-sprint-page .bw-plan-heading span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.bw-sprint-page .bw-plan-groups {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--bw-card-radius);
+  background: var(--card);
+}
+.bw-sprint-page .bw-plan-group + .bw-plan-group {
+  border-top: 1px solid var(--border);
+}
+.bw-sprint-page .bw-plan-group-trigger {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
+  gap: 13px;
+  align-items: center;
+  width: 100%;
+  min-height: 80px;
+  padding: 18px 14px;
+  background: transparent;
+  text-align: left;
+  color: var(--foreground);
+  border: 0;
+}
+.bw-sprint-page .bw-plan-group-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 44px;
+  border-radius: var(--bw-control-radius);
+  background: var(--muted);
+  color: var(--primary);
+}
+.bw-sprint-page .bw-plan-group-icon svg {
+  width: 23px;
+  height: 23px;
+}
+.bw-sprint-page .bw-plan-group-copy {
+  min-width: 0;
+}
+.bw-sprint-page .bw-plan-group-copy strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.15px;
+}
+.bw-sprint-page .bw-plan-group-copy small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.bw-sprint-page .bw-plan-group-chevron {
+  width: 17px;
+  height: 17px;
+  color: var(--muted-foreground);
+}
+.bw-sprint-page .bw-plan-group-trigger[aria-expanded="true"] .bw-plan-group-chevron {
+  transform: rotate(180deg);
+}
+.bw-sprint-page .bw-plan-group-panel {
+  padding: 0 10px 12px;
+}
+.bw-sprint-page .bw-sprint-stage {
+  margin-top: 8px;
+  border-color: var(--border);
+  background: var(--card);
+  border-radius: 12px;
+  scroll-margin-top: 12px;
+  scroll-margin-bottom: 20px;
+}
+.bw-sprint-page .bw-stage-current > .bw-stage-header {
+  background: var(--secondary);
+}
+.bw-sprint-page .bw-stage-header {
+  min-height: 54px;
+  padding: 10px;
+  gap: 9px;
+}
+.bw-sprint-page .bw-stage-index {
+  min-width: 29px;
+  height: 29px;
+  font-size: 11px;
+  background: var(--muted);
+  color: var(--primary);
+  border-radius: 8px;
+}
+.bw-sprint-page .bw-stage-title {
+  font-size: 12px;
+}
+.bw-sprint-page .bw-stage-exercises,
+.bw-sprint-page .bw-skip-stage {
+  padding: 0 10px;
+}
+.bw-sprint-page .bw-sprint-row {
+  padding: 12px 0;
+}
+.bw-sprint-page .bw-sprint-row-main .bw-exercise-name {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.bw-sprint-page .bw-skip-card {
+  padding: 14px 0;
+}
+.bw-sprint-page .bw-skip-title {
+  font-size: 15px;
+}
+.bw-sprint-page .bw-skip-dose {
+  font-size: 12px;
+}
+.bw-sprint-page .bw-skip-title-trigger {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
+}
+.bw-sprint-page .bw-skip-title-trigger > div {
+  min-width: 0;
+}
+.bw-sprint-page .bw-skip-title-trigger svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+.bw-sprint-page .bw-technique-guide {
+  padding: 10px;
+  background: var(--card);
+  border-color: var(--border);
+  border-radius: 12px;
+}
+.bw-sprint-page .bw-technique-reminder {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.bw-sprint-page .bw-technique-heading {
+  font-size: 10px;
+}
+.bw-sprint-page .bw-animation-card {
+  background: var(--card);
+  border-color: var(--border);
+  border-radius: 12px;
+}
+.bw-sprint-page .bw-animation-actions {
+  padding: 8px;
+  gap: 7px;
+}
+.bw-sprint-page .bw-animation-actions button {
+  background: var(--background);
+  border-color: var(--border);
+  color: var(--foreground);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.bw-sprint-page .bw-animation-frame {
+  background: var(--card);
+}
+.bw-sprint-page .bw-animation-panel-heading {
+  font-size: 11px;
+}
+.bw-sprint-page .bw-animation-actions .bw-animation-library {
+  font-size: 11px !important;
+}
+.bw-sprint-page .bw-session-tools {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--bw-control-radius);
+  background: var(--card);
+  padding: 0 12px;
+}
+.bw-sprint-page .bw-session-tools > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  list-style: none;
+}
+.bw-sprint-page .bw-session-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.bw-sprint-page .bw-session-tools > summary svg {
+  width: 16px;
+  height: 16px;
+}
+.bw-sprint-page .bw-session-tools-content {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+.bw-sprint-page .bw-sprint-start-panel .soft-card {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+.bw-sprint-page .bw-sprint-start-panel .soft-card > p {
+  display: none;
+}
+.bw-sprint-page .bw-sprint-start-panel button {
+  width: 100%;
+  min-height: 48px;
+  border-radius: var(--bw-control-radius);
+  font-size: 14px;
+  font-weight: 650;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.bw-sprint-page .bw-sprint-start-panel > .soft-card > p[role="alert"] {
+  display: block;
+}
+.bw-sprint-page .bw-sprint-preview-note {
+  padding: 0 2px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.bw-sprint-page .bw-sprint-action {
+  position: static;
+  z-index: auto;
+  padding-top: 16px;
+  margin-top: 0;
+}
+.bw-sprint-page .bw-sprint-action > button {
+  min-height: 48px;
+  border-radius: var(--bw-control-radius);
+}
+.bw-sprint-page .bw-sprint-action > button:disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.bw-sprint-page .bw-training-tools {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.bw-sprint-page button:focus-visible,
+.bw-sprint-page summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (max-width: 350px) {
+  .bw-training-brandbar {
+    padding: 18px 16px;
+  }
+  .bw-training-date {
+    padding: 18px 16px;
+  }
+  .bw-training-hero {
+    margin: 0 16px;
+    padding: 22px 18px;
+  }
+  .bw-sprint-page .bw-sprint-content {
+    padding: 22px 16px 0;
+  }
+  .bw-sprint-page .bw-plan-group-trigger {
+    padding: 15px 11px;
+    gap: 10px;
+    grid-template-columns: 38px minmax(0, 1fr) 16px;
+  }
+  .bw-sprint-page .bw-plan-group-icon {
+    width: 38px;
+    height: 40px;
+  }
+  .bw-sprint-page .bw-plan-group-copy strong {
+    font-size: 15px;
+  }
+}
 
-.bw-sprint-page .bw-training-hero{border:1px solid var(--border)}
+.bw-sprint-page .bw-skip-title-trigger strong,
+.bw-sprint-page .bw-skip-title-trigger .bw-skip-dose {
+  display: block;
+}
+.bw-sprint-page .bw-skip-rhythm {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 8px 0;
+}
+
+.bw-sprint-page .bw-training-hero {
+  border: 1px solid var(--border);
+}
+
+/* A direct list: stage headings and one open exercise, without nested groups. */
+.bw-sprint-page .bw-sprint-stage {
+  border-radius: var(--bw-card-radius);
+  margin-top: 12px;
+}
+.bw-sprint-page .bw-stage-header {
+  min-height: 48px;
+  background: var(--secondary);
+}
+.bw-sprint-page .bw-stage-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.bw-sprint-page .bw-stage-exercises {
+  padding-inline: 12px;
+}
+.bw-sprint-page .bw-exercise-name,
+.bw-sprint-page .bw-skip-title {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.bw-sprint-page .bw-skip-dose {
+  font-size: 13px;
+}
+.bw-sprint-page .bw-sprint-action {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: var(--background);
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+}
+.bw-exercise-panel[hidden] {
+  display: none;
+}
