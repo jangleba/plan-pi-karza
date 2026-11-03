@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useLoadwise } from "@/lib/loadwise/store";
 import {
+  hasProtectedExecution,
   buildLighterSession,
   buildUnavailableSession,
   promoteSecondSession,
@@ -32,7 +33,7 @@ import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { decideRemovedSession, moveSessionToDay } from "@/lib/loadwise/planDecisionEngine";
 import { StartDashboard } from "@/components/loadwise/StartDashboard";
 import { UpcomingWeekPrompt } from "@/components/loadwise/UpcomingWeekPrompt";
-import { WellnessCheckin } from "@/components/loadwise/WellnessCheckin";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_tabs/start")({
   component: StartScreen,
@@ -63,23 +64,23 @@ function DailyPlanCheckinDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogContent className="border-border/70 bg-popover">
+    <Sheet open={open} onOpenChange={changeOpen}>
+      <SheetContent>
         <DialogHeader>
-          <DialogTitle>
+          <SheetTitle>
             {step === "confirm" ? "Czy dzisiejszy plan jest aktualny?" : "Co chcesz zmienić?"}
-          </DialogTitle>
-          <DialogDescription>
+          </SheetTitle>
+          <SheetDescription>
             {step === "confirm"
-              ? "Jedno potwierdzenie i pokażemy decyzję na dziś."
+              ? "Zmieniasz plan, bez pytań o zdrowie i bez podawania przyczyny."
               : "Wybierz jedną zmianę. Nie musisz podawać powodu."}
-          </DialogDescription>
+          </SheetDescription>
         </DialogHeader>
 
         {step === "confirm" ? (
           <div className="space-y-2 pt-2">
             <Button className="h-12 w-full" disabled={saving} onClick={() => onAction("keep")}>
-              Tak — pokaż decyzję
+              Trenuję według planu
             </Button>
             <Button
               className="h-12 w-full"
@@ -92,9 +93,13 @@ function DailyPlanCheckinDialog({
           </div>
         ) : (
           <div className="space-y-2 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Mniej pracy zachowuje rozgrzewkę, przerwy i sposób wykonania. Aby zmienić
+              intensywność, wybierz zamianę sesji. Klub i mecz uzgodnij z trenerem.
+            </p>
             {hasTraining && (
               <CheckinOption
-                label="Dzisiaj chcę trenować lżej"
+                label="Mniej serii lub odcinków"
                 disabled={saving}
                 onClick={() => onAction("lighter")}
               />
@@ -118,7 +123,7 @@ function DailyPlanCheckinDialog({
             />
             {hasTraining && (
               <CheckinOption
-                label="Nie mogę wykonać dzisiejszego treningu"
+                label="Pomiń lub zaproponuj inny termin"
                 disabled={saving}
                 onClick={() => onAction("unavailable")}
               />
@@ -133,8 +138,8 @@ function DailyPlanCheckinDialog({
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -391,7 +396,6 @@ function StartScreen() {
     planGenerating,
     refreshPlanIfNeeded,
     applyModification,
-    saveReadiness,
   } = useLoadwise();
   const profile = state.profile;
   const effectivePlan = useMemo(
@@ -410,7 +414,6 @@ function StartScreen() {
   const navigate = useNavigate();
   const router = useRouter();
   const [checkinOpen, setCheckinOpen] = useState(false);
-  const [wellnessOpen, setWellnessOpen] = useState(false);
   const [secondCheckinOpen, setSecondCheckinOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [modifyTarget, setModifyTarget] = useState<"primary" | "second" | null>(null);
@@ -426,7 +429,7 @@ function StartScreen() {
   const [pendingRescue, setPendingRescue] = useState<{
     removed: SessionDay;
     recommended: SessionDay;
-    alternative: SessionDay;
+    alternative?: SessionDay;
   } | null>(null);
   const autoGenerateRef = useRef(false);
   const [autoGenerateTried, setAutoGenerateTried] = useState(false);
@@ -554,6 +557,7 @@ function StartScreen() {
       removed,
       todayIso,
       profile: activeProfile,
+      completions: state.completions,
     });
     if (decision.action === "already_covered" || decision.action === "drop") {
       toast.info(decision.reason);
@@ -567,26 +571,39 @@ function StartScreen() {
       });
       return;
     }
-    if (decision.action !== "move") return;
-    await applyModification(
-      decision.target.date,
-      "swap",
-      moveSessionToDay(removed, decision.target),
-      decision.target,
-      `[engine:auto-move] ${decision.reason}`,
-    );
-    toast.success(`Sesja przeniesiona na ${decision.target.dayName}.`);
+    if (decision.action === "move") {
+      setPendingRescue({ removed, recommended: decision.target });
+    }
   }
 
   async function applyRescueTarget(target: SessionDay) {
     if (!pendingRescue || savingAction) return;
     setSavingAction(true);
     try {
+      const decision = decideRemovedSession({
+        effectivePlan: selectEffectivePlan(state.plan, state.modifications),
+        removed: pendingRescue.removed,
+        todayIso,
+        profile: activeProfile,
+        completions: state.completions,
+      });
+      const options =
+        decision.action === "move"
+          ? [decision.target]
+          : decision.action === "ask"
+            ? [decision.recommended, decision.alternative]
+            : [];
+      if (!options.some((option) => option.date === target.date))
+        throw new Error(
+          "Kalendarz się zmienił. Ten termin nie jest już proponowany; sesja pozostaje pominięta.",
+        );
+      const currentTarget = commandPlan.find((day) => day.date === target.date);
+      if (!currentTarget) throw new Error("Nie znaleziono terminu w aktualnym planie.");
       await applyModification(
         target.date,
         "swap",
-        moveSessionToDay(pendingRescue.removed, target),
-        target,
+        moveSessionToDay(pendingRescue.removed, currentTarget),
+        currentTarget,
         "[engine:athlete-choice] Przeniesiono brakujący bodziec po jednej decyzji zawodnika.",
       );
       setPendingRescue(null);
@@ -600,6 +617,11 @@ function StartScreen() {
 
   async function handleCheckinAction(action: DailyPlanCheckinAction) {
     if (savingAction) return;
+    const locked = hasProtectedExecution(commandDay, state.completions);
+    if (locked && action !== "keep" && action !== "week_change") {
+      toast.info("Sesja jest rozpoczęta lub wykonana. Ten panel nie zmienia jej zapisu.");
+      return;
+    }
 
     if (action === "swap" || action === "add") {
       setCheckinOpen(false);
@@ -655,6 +677,14 @@ function StartScreen() {
 
   async function handleSecondSessionAction(action: SecondSessionCheckinAction) {
     if (savingAction || !pendingPrimaryAction) return;
+    if (
+      action !== "keep" &&
+      commandDay.secondSession &&
+      hasProtectedExecution(commandDay.secondSession, state.completions)
+    ) {
+      toast.info("Sesja jest rozpoczęta lub wykonana. Ten panel nie zmienia jej zapisu.");
+      return;
+    }
 
     if (action === "swap") {
       setSecondCheckinOpen(false);
@@ -806,12 +836,9 @@ function StartScreen() {
         completions={state.completions}
         todayIso={todayIso}
         checkinComplete={checkinComplete}
-        wellnessEnabled={profile.healthPersonalizationEnabled === true}
-        wellnessComplete={Boolean(state.readiness?.[todayIso])}
         busy={savingAction}
         checkinDetail={copy.title}
         onCheckin={() => setCheckinOpen(true)}
-        onWellness={() => setWellnessOpen(true)}
         onPlan={() => void navigate({ to: "/plan" })}
         onLab={() => void navigate({ to: "/lab" })}
         onReaction={() => void navigate({ to: "/reakcja" })}
@@ -843,17 +870,6 @@ function StartScreen() {
         canAddSession={!hasPlannedSecond}
         saving={savingAction}
         onAction={(action) => void handleCheckinAction(action)}
-      />
-      <WellnessCheckin
-        open={wellnessOpen}
-        onOpenChange={setWellnessOpen}
-        enabled={profile?.healthPersonalizationEnabled === true}
-        date={todayIso}
-        previous={state.readiness?.[todayIso]}
-        onSave={async (readiness) => {
-          await saveReadiness(readiness);
-          toast.success("Samopoczucie zapisane.");
-        }}
       />
 
       <SecondSessionCheckinDialog
@@ -891,9 +907,9 @@ function StartScreen() {
       >
         <DialogContent className="border-border/70 bg-popover">
           <DialogHeader>
-            <DialogTitle>Gdzie przenieść brakujący bodziec?</DialogTitle>
+            <DialogTitle>Chcesz przenieść tę sesję?</DialogTitle>
             <DialogDescription>
-              Dwa terminy są podobnie bezpieczne. Polecamy wcześniejszy.
+              To propozycja według kalendarza, nie obowiązek. Możesz pominąć sesję bez odrabiania.
             </DialogDescription>
           </DialogHeader>
           {pendingRescue && (
@@ -904,13 +920,17 @@ function StartScreen() {
               >
                 {pendingRescue.recommended.dayName} — polecane
               </Button>
-              <Button
-                variant="outline"
-                disabled={savingAction}
-                onClick={() => void applyRescueTarget(pendingRescue.alternative)}
-              >
-                {pendingRescue.alternative.dayName}
-              </Button>
+              {pendingRescue.alternative && (
+                <Button
+                  variant="outline"
+                  disabled={savingAction}
+                  onClick={() =>
+                    pendingRescue.alternative && void applyRescueTarget(pendingRescue.alternative)
+                  }
+                >
+                  {pendingRescue.alternative.dayName}
+                </Button>
+              )}
               <button
                 type="button"
                 disabled={savingAction}

@@ -167,11 +167,8 @@ const routes = [
         todayIso={date}
         checkinComplete={false}
         checkinDetail="Zmień plan na dziś"
-        wellnessEnabled
-        wellnessComplete={false}
         busy={false}
         onCheckin={() => undefined}
-        onWellness={() => undefined}
         onLab={() => undefined}
         onReaction={() => undefined}
         onPlan={() => void qaRouter.navigate({ to: "/plan" })}

@@ -1,7 +1,9 @@
+import { hasProtectedExecution } from "./dailyPlanCheckin";
 import { addIsoDays } from "@/lib/isoDate";
 import { automationCategory } from "./adaptiveWeek";
-import type { Profile, SessionDay } from "./types";
-import { gymChangeBlockReason } from "./strengthScheduling";
+import type { Profile, SessionDay, SessionCompletion } from "./types";
+import { assessDaySpeedLoad } from "./speedLoad";
+import { dayHasGym, gymChangeBlockReason } from "./strengthScheduling";
 
 export type RemovedSessionDecision =
   | { action: "already_covered" | "drop"; reason: string }
@@ -21,6 +23,7 @@ function endOfIsoWeek(date: string): string {
 
 function protectedDay(day: SessionDay): boolean {
   return Boolean(
+    day.executionProtected ||
     day.isUnavailable ||
     day.externalCommitment ||
     day.dayType === "club" ||
@@ -48,16 +51,55 @@ function candidateScore(
 }
 
 /**
- * Decyzja po usunięciu jednostki: najpierw sprawdza pokrycie bodźca, potem
- * bezpieczne wolne miejsce. Pyta tylko przy dwóch równie dobrych opcjach.
+ * Propozycja po pominięciu jednostki. Najpierw pokrycie bodźca, potem terminy
+ * zgodne z kalendarzem. UI wymaga akceptacji także pojedynczej propozycji.
  */
 export function decideRemovedSession(input: {
   effectivePlan: SessionDay[];
   removed: SessionDay;
   todayIso: string;
-  profile: Pick<Profile, "age" | "level">;
+  profile: Pick<Profile, "age" | "level"> &
+    Partial<Pick<Profile, "individualTrainingDays" | "unavailableDays">>;
+  completions?: Record<string, SessionCompletion>;
 }): RemovedSessionDecision {
   const category = automationCategory(input.removed);
+  const executed = (day: SessionDay) => hasProtectedExecution(day, input.completions);
+  if (executed(input.removed))
+    return { action: "drop", reason: "Rozpoczęta lub wykonana sesja nie jest przenoszona." };
+  const demanding =
+    category === "gym" || category === "speed" || input.removed.intensity === "wysoka";
+  const eligible = (day: SessionDay) => {
+    if (
+      input.removed.blockPhaseLabel &&
+      day.blockPhaseLabel &&
+      input.removed.blockPhaseLabel !== day.blockPhaseLabel
+    )
+      return false;
+    const weekday = new Date(`${day.date}T12:00:00Z`).getUTCDay() || 7;
+    if (
+      executed(day) ||
+      input.profile.unavailableDays?.includes(weekday) ||
+      (Array.isArray(input.profile.individualTrainingDays) &&
+        !input.profile.individualTrainingDays.includes(weekday))
+    )
+      return false;
+    if (!demanding) return true;
+    // A conservative scheduling rule, not a numerical estimate of recovery or injury risk.
+    return !input.effectivePlan.some(
+      (neighbor) =>
+        Math.abs(Date.parse(neighbor.date) - Date.parse(day.date)) <= 86400000 &&
+        neighbor.date !== day.date &&
+        [neighbor, neighbor.secondSession].some(
+          (slot) =>
+            slot &&
+            (slot.intensity === "wysoka" ||
+              slot.dayType === "club" ||
+              slot.dayType === "match" ||
+              dayHasGym(slot) ||
+              assessDaySpeedLoad(slot).blocksAdjacentSpeedDay),
+        ),
+    );
+  };
   if (!["gym", "speed", "endurance", "ball"].includes(category)) {
     return {
       action: "drop",
@@ -80,6 +122,7 @@ export function decideRemovedSession(input: {
     .filter(
       (day) =>
         !protectedDay(day) &&
+        eligible(day) &&
         (category !== "gym" ||
           !gymChangeBlockReason(
             input.effectivePlan,
@@ -128,9 +171,12 @@ export function moveSessionToDay(source: SessionDay, target: SessionDay): Sessio
     dayOfWeek: target.dayOfWeek,
     mdLabel: target.mdLabel,
     mdRelation: target.mdRelation,
+    blockWeekNumber: target.blockWeekNumber,
+    blockPhaseLabel: target.blockPhaseLabel,
+    weekMeta: target.weekMeta,
     slotLabel: null,
     secondSession: null,
-    reason: "Silnik przeniósł tylko brakujący bodziec do bezpiecznego miejsca.",
+    reason: "Zawodnik zaakceptował przeniesienie sesji do terminu sprawdzonego w kalendarzu.",
     whyToday: "To wolne, niechronione miejsce w bieżącym tygodniu.",
   };
 }

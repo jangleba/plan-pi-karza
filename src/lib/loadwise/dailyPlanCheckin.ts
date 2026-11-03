@@ -1,5 +1,5 @@
-import type { Intensity, SessionDay } from "./types";
-import { reduceSessionDose } from "./doseAdjustment";
+import type { SessionDay, SessionCompletion } from "./types";
+import { reduceDailySessionDose } from "./dailyDose";
 
 export type DailyPlanCheckinAction =
   "keep" | "lighter" | "swap" | "add" | "week_change" | "unavailable";
@@ -14,7 +14,6 @@ export interface DailyPlanCheckin {
 }
 
 const STORAGE_PREFIX = "ballwise:daily-plan-checkin:v2";
-const INTENSITY_ORDER: Intensity[] = ["niska", "umiarkowana", "wysoka"];
 
 function browserStorage(): Storage | null {
   return typeof window === "undefined" ? null : window.localStorage;
@@ -95,17 +94,28 @@ export function clearDailyPlanCheckin(
   }
 }
 
-function lowerIntensity(intensity: Intensity): Intensity {
-  const index = Math.max(0, INTENSITY_ORDER.indexOf(intensity) - 1);
-  return INTENSITY_ORDER[index];
+/** Both slots, without deriving health or readiness from training choices. */
+export function hasProtectedExecution(
+  day: SessionDay,
+  completions: Record<string, SessionCompletion> = {},
+): boolean {
+  return [day, day.secondSession].some((slot) => {
+    if (!slot) return false;
+    const log = slot.dbId ? completions[slot.dbId] : undefined;
+    return Boolean(
+      slot.executionProtected ||
+      log?.completed ||
+      log?.status === "started" ||
+      log?.status === "completed",
+    );
+  });
 }
 
-/**
- * Jedna przewidywalna wersja „lżej”: ten sam cel, około 25% mniej czasu
- * i jeden poziom intensywności niżej. Druga sesja pozostaje bez zmian,
- * bo zawodnik podejmuje o niej osobną decyzję.
- */
+/** Fewer work sets/intervals, with the original technique, intensity and recovery. */
 export function buildLighterSession(session: SessionDay): SessionDay {
+  if (session.executionProtected)
+    throw new Error("Rozpoczęta lub wykonana sesja nie może być zmieniona tym panelem.");
+  if (session.loadLabelOverride === "Lżejszy wariant") return session;
   const externalCommitment =
     session.externalCommitment === true ||
     session.dayType === "club" ||
@@ -123,14 +133,14 @@ export function buildLighterSession(session: SessionDay): SessionDay {
   }
 
   return {
-    ...reduceSessionDose(session, 0.75),
+    ...reduceDailySessionDose(session),
     dbId: undefined,
     sessionId: undefined,
     title: `${session.title} — lżej`,
-    intensity: lowerIntensity(session.intensity),
     reason: "Zawodnik wybrał lżejszy wariant dzisiejszej jednostki.",
     whyToday: "Zachowujemy cel sesji przy mniejszym obciążeniu.",
-    riskManaged: "Około 25% mniej objętości i niższa intensywność.",
+    riskManaged:
+      "Mniej serii lub odcinków. Rozgrzewka, intensywność wykonania i przerwy pozostają z planu.",
     loadLabelOverride: "Lżejszy wariant",
     classification: undefined,
   };

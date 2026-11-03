@@ -10,6 +10,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
+import { Route as StartRoute } from "@/routes/_tabs.start";
 import { Route as PlanRoute } from "@/routes/_tabs.plan";
 import { Route as ProfileRoute } from "@/routes/_tabs.profil";
 import { Route as AuthRoute } from "@/routes/auth";
@@ -32,6 +33,7 @@ OnboardingRoute.useSearch = (() => ({ edit: true })) as typeof OnboardingRoute.u
 LabRoute.useSearch = (() => ({})) as typeof LabRoute.useSearch;
 const screen = new URLSearchParams(location.search).get("screen") || "plan";
 const entries: Record<string, FunctionComponent> = {
+  start: StartRoute.options.component as FunctionComponent,
   plan: PlanRoute.options.component as FunctionComponent,
   profile: ProfileRoute.options.component as FunctionComponent,
   auth: AuthRoute.options.component as FunctionComponent,

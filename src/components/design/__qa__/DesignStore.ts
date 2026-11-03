@@ -1,4 +1,7 @@
 /** QA-only adapters. No production route imports this file or contacts an account. */
+import { useSyncExternalStore } from "react";
+import { sessionFixture } from "@/components/loadwise/session/testFixtures";
+import type { SessionDay } from "@/lib/loadwise/types";
 import { initialState, buildProfile, applyExerciseReplacements } from "@/lib/loadwise/store/model";
 import type { LoadwiseContextValue } from "@/lib/loadwise/store/model";
 import { generatePlan } from "@/lib/loadwise/planEngine";
@@ -20,19 +23,122 @@ const profile = buildProfile(
   },
   null,
 )!;
-const plan = generatePlan(profile, new Date(2026, 10, 2), 14);
-export const designState = { ...initialState, profile, plan };
-export const useLoadwise = () =>
-  ({
-    state: designState,
+let plan = generatePlan(profile, new Date(2026, 10, 2), 14);
+const startQA = new URLSearchParams(location.search).get("screen") === "start";
+if (startQA) {
+  profile.healthPersonalizationEnabled = true;
+  profile.individualTrainingDays = [1, 2, 3, 4, 5, 6, 7];
+  profile.unavailableDays = [];
+  profile.clubTrainingDays = [];
+  profile.matchDate = null;
+  profile.matchDates = [];
+  profile.weeklyMatches = false;
+  const sample = sessionFixture({
+    dbId: "qa-start",
+    date: today,
+    dayName: "Poniedziałek",
+    type: "strength_power",
+    sessionType: "Siła",
+    title: "Siła",
+    intensity: "wysoka",
+    durationMin: 60,
+    sections: {
+      warmup: [{ name: "Przygotowanie", prescription: "8 min" }],
+      main: [{ name: "Przysiad", prescription: "4 × 8" }],
+      accessory: [],
+      footballTransfer: [],
+      cooldown: [{ name: "Wyciszenie", prescription: "5 min" }],
+    },
+  });
+  plan = [
+    sample,
+    ...plan.slice(1).map((day) => ({
+      ...day,
+      executionProtected: false,
+      externalCommitment: false,
+      isUnavailable: false,
+      dayType: "rest" as const,
+      durationMin: 0,
+      classification: undefined,
+      isClubSession: false,
+      isOwnSession: false,
+      isRecoveryOrPrehab: false,
+      type: "rest" as const,
+      title: "Wolne",
+      sessionType: "Wolne",
+      intensity: "niska" as const,
+      mdLabel: null,
+      secondSession: null,
+      sections: { warmup: [], main: [], accessory: [], footballTransfer: [], cooldown: [] },
+      structuredSections: undefined,
+      exercises: [],
+    })),
+  ];
+  if (new URLSearchParams(location.search).get("second") === "1") {
+    profile.doubleSessionsAllowed = "light_only";
+    plan[0].slotLabel = "Sesja 1";
+    plan[0].secondSession = sessionFixture({
+      dbId: "qa-second",
+      date: today,
+      dayName: "Poniedziałek",
+      type: "endurance_running",
+      sessionType: "Lekki bieg",
+      title: "Lekki bieg",
+      intensity: "niska",
+      durationMin: 20,
+      slotLabel: "Sesja 2",
+      sections: {
+        warmup: [],
+        main: [{ name: "Bieg", prescription: "20 min" }],
+        accessory: [],
+        footballTransfer: [],
+        cooldown: [],
+      },
+    });
+  }
+  if (new URLSearchParams(location.search).get("locked") === "1") plan[0].executionProtected = true;
+}
+export let designState = { ...initialState, profile, plan };
+const listeners = new Set<() => void>();
+const changes: string[] = [];
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+const snapshot = () => designState;
+if (startQA)
+  Object.assign(window, { __startQA: { plan: () => designState.plan, changes, healthWrites: 0 } });
+export const useLoadwise = () => {
+  const state = useSyncExternalStore(subscribe, snapshot, snapshot);
+  return {
+    state,
     hydrated: true,
+    syncing: false,
+    planGenerating: false,
     hydrationError: null,
     loading: false,
     todayIso: today,
-    todaySession: plan[0],
+    todaySession: state.plan[0],
     updateProfile: async () => {},
     markEquipmentUnavailable: async () => {},
     completeOnboarding: async () => {},
     startSession: async () => {},
     completeSession: async () => {},
-  }) as unknown as LoadwiseContextValue;
+    refreshPlanIfNeeded: async () => {},
+    applyModification: async (date: string, _kind: string, replacement: SessionDay) => {
+      changes.push(date);
+      designState = {
+        ...designState,
+        plan: designState.plan.map((day) =>
+          day.date === date ? { ...replacement, dbId: day.dbId } : day,
+        ),
+      };
+      for (const fn of listeners) fn();
+    },
+    saveReadiness: async () => {
+      throw new Error("Start must not collect health answers");
+    },
+  } as unknown as LoadwiseContextValue;
+};

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sessionFixture, sectionFixture } from "@/components/loadwise/session/testFixtures";
 import type { SessionDay } from "./types";
 import {
   buildLighterSession,
@@ -79,8 +80,8 @@ describe("daily plan check-in", () => {
     const result = buildLighterSession(session({ secondSession: session({ title: "Technika" }) }));
 
     expect(result.durationMin).toBe(45);
-    expect(result.intensity).toBe("umiarkowana");
-    expect(result.sections.main[0].prescription).toBe("4 × 6");
+    expect(result.intensity).toBe("wysoka");
+    expect(result.sections.main[0].prescription).toBe("3 × 8");
     expect(result.secondSession?.title).toBe("Technika");
     expect(result.loadLabelOverride).toBe("Lżejszy wariant");
   });
@@ -125,4 +126,138 @@ describe("daily plan check-in", () => {
     expect(result.secondSession).toBeNull();
     expect(result.slotLabel).toBeNull();
   });
+});
+
+it("zmniejsza liczbę serii, zachowując powtórzenia, ciężar, przerwę i przygotowanie", () => {
+  const warmup = sectionFixture("warmup", [{ id: "w", name: "Przygotowanie", duration: "8 min" }]);
+  const source = sessionFixture({
+    type: "strength_power",
+    sessionType: "Siła",
+    intensity: "wysoka",
+    structuredSections: [
+      warmup,
+      sectionFixture("main", [
+        {
+          id: "s",
+          name: "Przysiad",
+          sets: "4",
+          reps: "6",
+          rir: "3",
+          tempo: "3-1-1",
+          loadTarget: "60 kg",
+          restAfterExercise: "180 s",
+          displayPrescription: "4 × 6",
+        },
+      ]),
+    ],
+  });
+  const result = buildLighterSession(source),
+    exercise = result.structuredSections![1].blocks[0].exercises[0];
+  expect(exercise.sets).toBe("3");
+  expect(exercise.reps).toBe("6");
+  expect(exercise.rir).toBe("3");
+  expect(exercise.loadTarget).toBe("60 kg");
+  expect(exercise.restAfterExercise).toBe("180 s");
+  expect(exercise.displayPrescription).toBe("3 × 6");
+  expect(result.structuredSections![0]).toEqual(warmup);
+  expect(result.intensity).toBe("wysoka");
+  expect(buildLighterSession(result)).toEqual(result);
+});
+it("zmniejsza liczbę sprintów bez skracania dystansu i przerwy", () => {
+  const source = sessionFixture({
+    type: "sprint_acceleration",
+    sessionType: "Sprint",
+    intensity: "wysoka",
+    structuredSections: [
+      sectionFixture("main", [
+        {
+          id: "s",
+          name: "Sprint",
+          sets: "1",
+          reps: "6 × 20 m",
+          restAfterExercise: "180 s",
+          displayPrescription: "6 × 20 m",
+        },
+      ]),
+    ],
+  });
+  const result = buildLighterSession(source),
+    exercise = result.structuredSections![0].blocks[0].exercises[0];
+  expect(exercise.reps).toBe("4 × 20 m");
+  expect(exercise.displayPrescription).toBe("4 × 20 m");
+  expect(exercise.restAfterExercise).toBe("180 s");
+  expect(result.intensity).toBe("wysoka");
+});
+it("nie ogłasza zmniejszenia przy niejednoznacznej dawce ani wykonanej sesji", () => {
+  expect(() =>
+    buildLighterSession(
+      sessionFixture({
+        sections: {
+          warmup: [],
+          main: [{ name: "Technika", prescription: "Według wskazówek trenera" }],
+          accessory: [],
+          footballTransfer: [],
+          cooldown: [],
+        },
+      }),
+    ),
+  ).toThrow("jednoznacznie");
+  expect(() => buildLighterSession(sessionFixture({ executionProtected: true }))).toThrow(
+    "Rozpoczęta",
+  );
+});
+it("wybór lżej przechowuje tylko decyzję treningową, bez wnioskowania o zdrowiu", () => {
+  const saved = saveDailyPlanCheckin(
+    "user",
+    "2026-11-02",
+    "lighter",
+    null,
+    null,
+    new Date("2026-11-02T08:00:00Z"),
+  );
+  expect(Object.keys(saved).sort()).toEqual([
+    "completedAt",
+    "date",
+    "primaryAction",
+    "secondAction",
+  ]);
+});
+
+it("zakres sprintów zmniejsza przez liczbę odcinków, nie dystans odcinka", () => {
+  const source = sessionFixture({
+    type: "sprint_acceleration",
+    sessionType: "Sprint",
+    structuredSections: [
+      sectionFixture("main", [
+        {
+          id: "s",
+          name: "Sprint",
+          sets: "1",
+          reps: "6–8 × 20 m",
+          displayPrescription: "6–8 × 20 m",
+        },
+      ]),
+    ],
+  });
+  const result = buildLighterSession(source);
+  expect(result.structuredSections![0].blocks[0].exercises[0].reps).toBe("4–6 × 20 m");
+});
+it("nie skraca pojedynczego sprintu, gdy nie ma liczby odcinków", () => {
+  const source = sessionFixture({
+    type: "sprint_acceleration",
+    sessionType: "Sprint",
+    structuredSections: [
+      sectionFixture("main", [
+        {
+          id: "s",
+          name: "Sprint",
+          sets: "1",
+          reps: "20 m",
+          duration: "5 s",
+          displayPrescription: "20 m",
+        },
+      ]),
+    ],
+  });
+  expect(() => buildLighterSession(source)).toThrow("jednoznacznie");
 });

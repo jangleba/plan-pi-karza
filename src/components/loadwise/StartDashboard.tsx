@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarDays, Check, Move, ScanLine, Activity } from "lucide-react";
+import { CalendarDays, Check, Move, ScanLine } from "lucide-react";
 import { TodaySessionCard } from "./TodaySessionCard";
 import type { SessionDay, SessionCompletion } from "@/lib/loadwise/types";
 import { PageHeader } from "./PageHeader";
@@ -11,12 +11,9 @@ export function StartDashboard({
   completions,
   todayIso,
   checkinComplete,
-  wellnessEnabled,
-  wellnessComplete,
   busy,
   checkinDetail,
   onCheckin,
-  onWellness,
   onPlan,
   onLab,
   onReaction,
@@ -31,12 +28,9 @@ export function StartDashboard({
   completions: Record<string, SessionCompletion>;
   todayIso: string;
   checkinComplete: boolean;
-  wellnessEnabled: boolean;
-  wellnessComplete: boolean;
   busy: boolean;
   checkinDetail: string;
   onCheckin: () => void;
-  onWellness: () => void;
   onPlan: () => void;
   onLab: () => void;
   onReaction: () => void;
@@ -67,10 +61,7 @@ export function StartDashboard({
         onOpen={onOpen}
         onPrepare={onPrepare}
       />
-      <section
-        className={`bw-home-checks ${wellnessEnabled ? "" : "is-single"}`}
-        aria-label="Dzisiejsze ustawienia"
-      >
+      <section className="bw-home-checks is-single" aria-label="Dzisiejsze ustawienia">
         <button onClick={onCheckin} disabled={busy} title={checkinDetail}>
           <Check size={18} />
           <span>
@@ -78,15 +69,6 @@ export function StartDashboard({
             <small>{checkinComplete ? "Potwierdzony · zmień" : "Sprawdź lub zmień"}</small>
           </span>
         </button>
-        {wellnessEnabled && (
-          <button onClick={onWellness}>
-            <Activity size={18} />
-            <span>
-              <strong>Samopoczucie</strong>
-              <small>{wellnessComplete ? "Zapisane · zmień" : "Dodaj ocenę"}</small>
-            </span>
-          </button>
-        )}
       </section>
       <section className="bw-home-tools" aria-label="Narzędzia">
         <button onClick={onLab} onPointerDown={onPrepareLab} onFocus={onPrepareLab}>

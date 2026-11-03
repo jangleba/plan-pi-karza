@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionDay } from "./types";
-import { decideRemovedSession } from "./planDecisionEngine";
+import { decideRemovedSession, moveSessionToDay } from "./planDecisionEngine";
 
 function day(
   date: string,
@@ -99,4 +99,53 @@ describe("plan decision engine", () => {
 
     expect(result.action).toBe("drop");
   });
+});
+
+it("nie proponuje sprintu ani siły obok mocnego dnia, także w drugim slocie i za granicą tygodnia", () => {
+  const removed = day("2026-09-21", "Sprint", "training", "wysoka");
+  const target = day("2026-09-27", "Wolne", "rest", "niska");
+  const monday = {
+    ...day("2026-09-28", "Wolne", "rest", "niska"),
+    secondSession: day("2026-09-28", "Siła", "training", "wysoka"),
+  };
+  expect(
+    decideRemovedSession({
+      effectivePlan: [removed, target, monday],
+      removed,
+      todayIso: removed.date,
+      profile: { age: 22, level: "advanced" },
+    }).action,
+  ).toBe("drop");
+});
+it("respektuje dostępność zawodnika i nie nadpisuje wykonanej jednostki", () => {
+  const removed = day("2026-09-21", "Siła"),
+    target = day("2026-09-24", "Wolne", "rest", "niska");
+  for (const [profile, candidate] of [
+    [{ age: 22, level: "advanced" as const, individualTrainingDays: [1] as number[] }, target],
+    [
+      { age: 22, level: "advanced" as const },
+      { ...target, executionProtected: true },
+    ],
+  ] as const) {
+    expect(
+      decideRemovedSession({
+        effectivePlan: [removed, candidate],
+        removed,
+        todayIso: removed.date,
+        profile,
+      }).action,
+    ).toBe("drop");
+  }
+});
+it("przeniesiona sesja przejmuje kontekst bloku dnia docelowego", () => {
+  const result = moveSessionToDay(
+    { ...day("2026-09-21", "Siła"), blockWeekNumber: 3, blockPhaseLabel: "Rozwój" },
+    {
+      ...day("2026-09-24", "Wolne", "rest", "niska"),
+      blockWeekNumber: 4,
+      blockPhaseLabel: "Odciążenie",
+    },
+  );
+  expect(result.blockWeekNumber).toBe(4);
+  expect(result.blockPhaseLabel).toBe("Odciążenie");
 });
