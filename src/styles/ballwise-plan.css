@@ -1,0 +1,277 @@
+/* Plan keeps the seven days in view. Training detail belongs to the session page. */
+.bw-plan-screen .bw-page-header {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: 4px;
+}
+.bw-plan-screen .bw-week-nav {
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  padding-top: 6px;
+  padding-bottom: 8px;
+  border-bottom-color: transparent;
+}
+.bw-plan-screen .bw-week-nav button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: color-mix(in oklch, var(--foreground) 13%, transparent);
+  background: var(--card);
+  box-shadow: none;
+}
+.bw-plan-screen .bw-week-nav strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.bw-plan-screen .bw-week-nav small {
+  font-size: 12px;
+  margin-top: 1px;
+}
+.bw-plan-screen .bw-plan-days {
+  margin-top: 4px;
+  border-color: color-mix(in oklch, var(--foreground) 13%, transparent);
+  border-radius: 18px;
+}
+.bw-plan-day {
+  position: relative;
+  overflow: hidden;
+}
+.bw-plan-day[data-today]::before {
+  position: absolute;
+  inset: 15px auto 15px 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--primary);
+  content: "";
+}
+.bw-plan-day-main {
+  display: flex;
+  align-items: stretch;
+}
+.bw-plan-screen .bw-plan-day-link {
+  display: flex;
+  flex: 1 1 0%;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 12px;
+  color: var(--foreground);
+  transition: background-color 140ms ease;
+}
+.bw-plan-day-link:active {
+  background: var(--secondary);
+}
+.bw-plan-date {
+  flex: 0 0 38px;
+  min-width: 0;
+  text-align: center;
+  line-height: 1.25;
+}
+.bw-plan-date > span {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bw-plan-date strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.bw-plan-date small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.bw-plan-type-icon {
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+.bw-plan-day-copy {
+  min-width: 0;
+  flex: 1 1 0%;
+}
+.bw-plan-title-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.bw-plan-screen .bw-plan-day-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bw-plan-screen .bw-plan-day-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.bw-plan-today {
+  color: var(--primary);
+  font-weight: 600;
+}
+.bw-plan-completed {
+  flex: 0 0 auto;
+  color: var(--bw-success, #166249);
+}
+.bw-plan-chevron {
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+}
+.bw-plan-more {
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bw-plan-more:active {
+  background: var(--secondary);
+}
+.bw-plan-second-session {
+  margin-left: 71px;
+  border-top: 1px solid var(--border);
+}
+.bw-plan-second-session a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px 8px 0;
+  color: var(--foreground);
+  animation: bw-page-enter 180ms var(--bw-ease);
+}
+.bw-plan-second-session small,
+.bw-plan-second-session strong {
+  display: block;
+}
+.bw-plan-second-session small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.bw-plan-second-session strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+@media (max-width: 359px) {
+  .bw-plan-screen .bw-plan-day-link {
+    padding-inline: 9px;
+    gap: 8px;
+  }
+  .bw-plan-type-icon {
+    width: 17px;
+    height: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-plan-second-session a {
+    animation: none;
+  }
+}
+
+/* Tappable iOS rows; details live in a dismissible bottom panel. */
+.bw-plan-adaptation,
+.bw-plan-tools {
+  margin: 10px var(--bw-page-gutter);
+  overflow: hidden;
+  border: var(--bw-hairline, 1px) solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+.bw-plan-detail-button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  color: var(--foreground);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background-color 140ms var(--bw-ease, ease);
+}
+.bw-plan-detail-button + .bw-plan-detail-button {
+  border-top: var(--bw-hairline, 1px) solid var(--border);
+}
+.bw-plan-detail-button:active {
+  background: var(--secondary);
+}
+.bw-plan-detail-icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 6%, var(--card));
+}
+.bw-plan-detail-chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+.bw-plan-detail-sheet .bw-plan-week-detail > div {
+  padding-inline: 0;
+}
+.bw-plan-detail-sheet .bw-plan-week-detail > div:first-child > div {
+  border-top: 0;
+  padding-top: 4px;
+}
+.bw-plan-adjustments {
+  margin-top: 16px;
+  padding: 0;
+  list-style: none;
+}
+.bw-plan-adjustments li {
+  padding: 12px 0;
+  border-bottom: var(--bw-hairline, 1px) solid var(--border);
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.bw-plan-adjustments li:last-child {
+  border-bottom: 0;
+}
+.bw-plan-detail-notice {
+  margin-top: 16px;
+  color: var(--bw-warning, var(--primary));
+  font-size: 13px;
+  font-weight: 500;
+}
+.bw-plan-next-detail {
+  margin-top: 20px;
+}
+@media (hover: hover) {
+  .bw-plan-detail-button:hover {
+    background: var(--secondary);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-plan-detail-button {
+    transition: none;
+  }
+}

@@ -750,7 +750,7 @@ export function FuelWorkspace({
       />
       <main className="fuel-v4-main">
         {!storageOK && (
-          <div className="fuel-v4-warning" role="status">
+          <div className="fuel-v4-warning bw-inline-error" role="status">
             <p>
               {storageError ||
                 "Nie zapisano ostatnich zmian. Pobierz kopię w Historii przed zamknięciem aplikacji."}
@@ -785,7 +785,14 @@ export function FuelWorkspace({
         <section className="fuel-v4-time" aria-label="Czas do treningu">
           <div className="fuel-row">
             <div className="fuel-v4-time-value">
-              <Clock3 size={21} />
+              <Clock3
+                size={21}
+                className={
+                  timing.phase === "before" && (minutes === null || minutes === 0)
+                    ? "bw-tone--warning"
+                    : undefined
+                }
+              />
               <div>
                 <span>
                   {timing.phase === "before"
@@ -1038,7 +1045,8 @@ export function FuelWorkspace({
         )}
         <div className="fuel-v4-foot-actions">
           <button onClick={() => setPanel("history")}>
-            <History size={15} /> Historia{latest ? " · zapisano dziś" : ""}
+            <History size={15} className={latest ? "bw-tone--success" : undefined} /> Historia
+            {latest ? <span className="bw-tone--success"> · zapisano dziś</span> : ""}
           </button>
           {repeat && (
             <button

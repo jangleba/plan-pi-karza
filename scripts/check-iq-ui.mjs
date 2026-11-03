@@ -147,11 +147,25 @@ try {
     const id = await page.locator("[data-iq-scenario]").getAttribute("data-iq-scenario");
     ensure(!starts.includes(id), "Fresh entry repeated an unfinished/zero-choice action");
     starts.push(id);
+    ensure(
+      (await page.locator('[data-iq-phase="observe"]').count()) === 1,
+      "Missing observation phase",
+    );
+    ensure(
+      (await page.locator("[data-iq-commit]").count()) === 0,
+      "Observation reveals a suggested choice",
+    );
+    await snap("iq-obserwacja-" + width + "x" + height);
+    await page.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
     const choices = await page.locator("[data-iq-commit]").all();
     ensure(choices.length === 1, "Expected one preview and one explicit execution");
     const footer = await page.locator(".iqJ-footer").boundingBox();
     const nav = await page.locator(".bw-tab-bar").boundingBox();
     const button = await choices[0].boundingBox();
+    await page.screenshot({
+      path: path.join(work, "iq-choice-debug-" + width + "x" + height + ".png"),
+    });
+
     ensure(
       button &&
         footer &&
@@ -165,7 +179,7 @@ try {
         await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-controlled-height"),
       );
       const field = await page.locator(".iqJ-stage").boundingBox();
-      ensure(playerHeight >= 22, "Controlled footballer is still too small: " + playerHeight);
+      ensure(playerHeight >= 14, "Footballer is illegible in fixed view: " + playerHeight);
       ensure(field.height >= 220, "Too little space for the pitch: " + field.height);
     }
     await snap("iq-3d-" + width + "x" + height);
@@ -184,6 +198,7 @@ try {
     "Independent mode leaks suggested choices",
   );
   await setMode("Z podpowiedziami");
+  await page.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
   const beforePreview = await page.evaluate(() =>
     localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
   );
@@ -199,13 +214,18 @@ try {
     "Preview must show one arrow",
   );
   await snap("iq-jeden-wariant");
-  await page.getByRole("button", { name: "Całość", exact: true }).click();
   ensure(
     (await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-camera-close")) ===
       "false",
-    "Overview did not expand",
+    "Guided view changed to close-up",
   );
-  await page.getByRole("button", { name: "Przybliż", exact: true }).click();
+  ensure(
+    (await page.getByRole("button", { name: /^(Całość|Przybliż)$/ }).count()) === 0,
+    "Unnecessary camera controls remain",
+  );
+  const fixedBounds = await page
+    .locator(".bwiq-pitch-canvas canvas")
+    .getAttribute("data-iq-view-bounds");
   for (const [index, decision] of plan.entries()) {
     await page
       .getByRole("combobox", { name: "Zamiar i moment", exact: true })
@@ -243,6 +263,26 @@ try {
     await page.waitForFunction(() => !document.querySelector(".iqJ-transport"), undefined, {
       timeout: 20000,
     });
+    ensure(
+      (await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-view-bounds")) ===
+        fixedBounds,
+      "Camera bounds changed after a decision",
+    );
+    ensure(
+      (await page.locator('[data-iq-phase="feedback"]').count()) === 1,
+      "Playback skipped its teaching consequence",
+    );
+    ensure(
+      (await page.locator("[data-iq-commit]").count()) === 0,
+      "Feedback overlaps the next choice",
+    );
+    if (index === 0) await snap("iq-skutek-decyzji");
+    if (await page.getByRole("button", { name: "Następny krok", exact: true }).count()) {
+      await page.getByRole("button", { name: "Następny krok", exact: true }).click();
+      await page.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
+    } else {
+      await page.getByRole("button", { name: "Przejdź do wniosków", exact: true }).click();
+    }
   }
   await page.getByRole("region", { name: "Wnioski z akcji" }).waitFor();
   ensure(
@@ -275,6 +315,7 @@ try {
   partner.on("pageerror", (e) => errors.push(e.message));
   await partner.goto(base + "?fixture=partner&position=goalkeeper");
   await partner.locator('[data-iq-renderer="ready"]').waitFor({ timeout: 45000 });
+  await partner.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
   const actor = await partner
     .getByRole("combobox", { name: "Sterowany zawodnik", exact: true })
     .locator("option")
@@ -322,6 +363,7 @@ try {
     "Fallback lost the human figures",
   );
   ensure((await fallback.locator("[data-iq-player]").count()) <= 3, "Fallback shows every number");
+  await fallback.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
   await fallback.getByRole("button", { name: "Zagraj tak", exact: true }).click();
   await fallback.waitForFunction(() => !document.querySelector(".iqJ-transport"));
   await fallback.screenshot({ path: path.join(work, "iq-zawodnicy-bez-webgl.png") });

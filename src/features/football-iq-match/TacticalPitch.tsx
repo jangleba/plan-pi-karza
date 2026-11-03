@@ -15,6 +15,8 @@ export type TacticalPitchProps = {
   figures?: boolean;
   visibleLabelIds?: string[];
   cameraClose?: boolean;
+  /** Keep the pitch reference frame unchanged while the action unfolds. */
+  fixedView?: boolean;
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -75,6 +77,7 @@ function TacticalScenePitch({
   freeMovement = false,
   visibleLabelIds,
   cameraClose = false,
+  fixedView = false,
 }: TacticalPitchProps) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -117,6 +120,7 @@ function TacticalScenePitch({
     freeMovement,
     visibleLabelIds,
     cameraClose,
+    fixedView,
   });
   latest.current = {
     frame,
@@ -138,6 +142,7 @@ function TacticalScenePitch({
     freeMovement,
     visibleLabelIds,
     cameraClose,
+    fixedView,
   };
 
   function sync() {
@@ -153,14 +158,15 @@ function TacticalScenePitch({
       state.showGuidance ? state.actions : NO_ACTIONS,
       state.interactive && state.showGuidance ? state.selectedPlayerId : null,
       state.playing,
-      state.focusOnActions,
+      !state.fixedView && state.focusOnActions,
       state.cameraActions,
       state.activeActionId,
       state.showGuidance
         ? state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point
         : undefined,
       state.showGuidance,
-      state.cameraClose,
+      !state.fixedView && state.cameraClose,
+      state.fixedView,
     );
     const items: DiagramLabel[] = [];
     playerLabels.current.forEach((_element, id) => {
@@ -168,7 +174,7 @@ function TacticalScenePitch({
       if (!point) return;
       items.push({
         id: `player:${id}`,
-        anchor: api.project(point, 7.5),
+        anchor: api.project(point, 7.5 * (state.fixedView ? 2 : 1)),
         kind: "player",
         priority: id === state.selectedPlayerId ? 1 : 3,
         interactive:
@@ -315,6 +321,7 @@ function TacticalScenePitch({
     showGuidance,
     visibleLabelIds,
     cameraClose,
+    fixedView,
   ]);
   useEffect(() => {
     if (!playing || !frameSource) return;
@@ -405,6 +412,7 @@ function TacticalScenePitch({
             freeMovement,
             visibleLabelIds,
             cameraClose,
+            fixedView,
           }}
           figures
         />

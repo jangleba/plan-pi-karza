@@ -20,20 +20,27 @@ import { addIsoDays } from "@/lib/isoDate";
 import { WeeklyGateSheet } from "@/components/loadwise/WeeklyGateSheet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import type { SessionDay, Intensity, Goal, PlanWeek, WeekPhase } from "@/lib/loadwise/types";
 import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
   CalendarClock,
+  CalendarDays,
+  SlidersHorizontal,
   Dumbbell,
   ArrowRight,
   Leaf,
   Zap,
   Target,
   Activity,
+  Plus,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
+
+import "@/styles/ballwise-plan.css";
 
 export const Route = createFileRoute("/_tabs/plan")({
   validateSearch: (search: Record<string, unknown>): { week?: string } => ({
@@ -53,13 +60,20 @@ const LOAD_LABEL: Record<Intensity, string> = {
 
 /** Ikona w bańce dla typu dnia. */
 function sessionIcon(day: SessionDay): LucideIcon {
-  if (day.dayType === "match") return Target;
+  if (day.dayType === "match" || day.dayType === "club") return Target;
   if (day.dayType === "recovery" || day.dayType === "rest") return Leaf;
   const t = day.sessionType.toLowerCase();
   if (t.includes("szybk") || t.includes("sprint")) return Zap;
   if (t.includes("piłk") || t.includes("techn") || t.includes("ball")) return Target;
   if (t.includes("wytrzym") || t.includes("bieg") || t.includes("aerob")) return Activity;
   return Dumbbell;
+}
+
+/** Keep the overview brief; the session page always shows the complete title. */
+function compactSessionTitle(title: string): string {
+  const full = professionalSessionTitle(title);
+  const short = full.replace(/^Siłownia:\s*/i, "").replace(/\s*\(technika\)\s*$/i, "");
+  return short.charAt(0).toLocaleUpperCase("pl-PL") + short.slice(1);
 }
 
 /** Jednowyrazowy tag pod nazwą sesji. */
@@ -174,6 +188,38 @@ function weekSummary(week: PlanWeek, goal: Goal) {
   };
 }
 
+type PlanPanel = "adaptation" | "load" | "next";
+
+function PlanDetailButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="bw-plan-detail-button"
+      aria-haspopup="dialog"
+      onClick={onClick}
+    >
+      <span className="bw-plan-detail-icon">
+        <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
+      </span>
+      <span>{label}</span>
+      <ChevronRight
+        className="bw-plan-detail-chevron"
+        size={16}
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
 function PlanScreen() {
   const navigate = useNavigate();
   const requestedWeek = Route.useSearch().week;
@@ -191,6 +237,13 @@ function PlanScreen() {
   const profile = state.profile;
   const transitions = state.transitions;
   const [activeWeek, setActiveWeek] = useState(0);
+  const [planPanel, setPlanPanel] = useState<PlanPanel>("load");
+  const [planPanelOpen, setPlanPanelOpen] = useState(false);
+  const openPlanPanel = (panel: PlanPanel) => {
+    setPlanPanel(panel);
+    setPlanPanelOpen(true);
+  };
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [gateWeek, setGateWeek] = useState<number | null>(null);
   const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
   const [switchingSeason, setSwitchingSeason] = useState(false);
@@ -327,6 +380,7 @@ function PlanScreen() {
   useEffect(() => {
     if (previousWeek.current === activeWeek) return;
     previousWeek.current = activeWeek;
+    setPlanPanelOpen(false);
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [activeWeek]);
 
@@ -343,7 +397,7 @@ function PlanScreen() {
 
   return (
     <div className="bw-plan-screen pb-6">
-      <AppHeader title="Plan" sketch="pitch" subtitle={monthGoal} />
+      <AppHeader title="Plan" sketch="pitch" />
 
       {plan.length === 0 && (
         <p className="px-5 text-sm text-muted-foreground">
@@ -373,7 +427,7 @@ function PlanScreen() {
             onClick={() => goToWeek(nextIndex)}
             aria-label="Następny tydzień"
           >
-            Dalej <ChevronRight size={17} />
+            <ChevronRight size={17} />
           </Button>
         </div>
       )}
@@ -407,90 +461,17 @@ function PlanScreen() {
       )}
 
       {planningMeta && (
-        <details className="mx-5 mt-4 rounded-2xl border border-border bg-card px-4 py-3 text-sm">
-          <summary className="cursor-pointer font-medium text-primary">
-            {planningMeta.planningStatus === "health_limited"
-              ? "Plan ograniczony ze względu na zdrowie"
-              : "Plan dopasowany do Twoich ograniczeń"}
-          </summary>
-          <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
-            {planningMeta.planningNotes?.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
-        </details>
+        <div className="bw-plan-adaptation">
+          <PlanDetailButton
+            icon={SlidersHorizontal}
+            label="Dopasowanie planu"
+            onClick={() => openPlanPanel("adaptation")}
+          />
+        </div>
       )}
-      <details className="bw-week-overview mx-4 mt-2 rounded-xl border border-border bg-card px-3">
-        <summary className="min-h-11 cursor-pointer content-center text-xs font-medium text-muted-foreground">
-          Obciążenie i cel tygodnia
-        </summary>
-        {visibleDays.length > 0 && (
-          <div className="px-5 pt-4">
-            <div className="border-y border-border/75 py-4">
-              <div className="grid grid-cols-7 gap-1">
-                {visibleDays.map(({ source }) => {
-                  const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
-                  const date = parseIso(day.date);
-                  const isToday = day.date === todayIso;
-                  const isMatch = day.dayType === "match";
-                  return (
-                    <Link
-                      key={day.date}
-                      to="/sesja/$date"
-                      params={{ date: day.date }}
-                      search={{ slot: 1 }}
-                      className={`flex min-w-0 flex-col items-center gap-2 py-1 text-center transition-opacity active:opacity-60 ${
-                        isToday ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      <span className="text-[10px] font-medium uppercase tracking-wide">
-                        {shortDayName(date)}
-                      </span>
-                      <span className="relative flex h-9 items-end">
-                        <span
-                          className={`w-1.5 rounded-full ${
-                            isMatch
-                              ? "bg-[oklch(0.58_0.055_55)]"
-                              : isToday
-                                ? "bg-primary"
-                                : "bg-[oklch(0.62_0.035_151)]"
-                          }`}
-                          style={{ height: loadBarHeight(day) }}
-                        />
-                      </span>
-                      <span className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}>
-                        {date.getDate()}
-                      </span>
-                      {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
-                    </Link>
-                  );
-                })}
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span>Rytm obciążenia mikrocyklu</span>
-                <span>{summary ? LOAD_LABEL[summary.load] : null}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Kierunek mikrocyklu — jeden spokojny wiersz */}
-        {summary && (
-          <div className="px-5 pt-3">
-            <div className="border-b border-border/75 px-1 pb-3">
-              <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                Kierunek mikrocyklu
-              </span>
-              <span className="mt-1 block truncate text-sm font-medium text-foreground">
-                {summary.goal}
-              </span>
-            </div>
-          </div>
-        )}
-      </details>
 
       {/* Dni tygodnia */}
-      <div className="bw-plan-days bw-grouped-list mx-5 mt-3">
+      <div className="bw-plan-days bw-grouped-list mx-5 mt-3" aria-label="Treningi w tym tygodniu">
         {hasHiddenBefore && planStartDate && (
           <div className="rounded-2xl bg-secondary/70 px-4 py-3 text-xs text-muted-foreground">
             Plan zaczyna się {formatDate(planStartDate)} — wcześniejsze dni tego tygodnia są poza
@@ -509,115 +490,250 @@ function PlanScreen() {
           const d = parseIso(day.date);
           const dayNum = d.getDate();
           const monthShort = d.toLocaleDateString("pl-PL", { month: "short" }).replace(".", "");
+          const secondOpen = !!expandedDays[day.date];
+          const fullTitle = professionalSessionTitle(day.title);
           const RowIcon = sessionIcon(day);
-          const isRest = day.dayType === "rest" || day.dayType === "recovery";
           return (
-            <div key={day.date} className="relative overflow-hidden">
-              {isToday && (
-                <span className="absolute inset-y-4 left-0 w-0.5 rounded-r-full bg-primary" />
-              )}
-              <Link
-                to="/sesja/$date"
-                params={{ date: day.date }}
-                search={{ slot: 1 }}
-                className="bw-plan-day-link flex items-center active:bg-secondary/35"
-              >
-                <div className="w-9 shrink-0 text-center">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {shortDayName(d)}
-                  </div>
-                  <div className="text-lg font-medium leading-none text-foreground">{dayNum}</div>
-                  <div className="text-[10px] font-medium uppercase text-muted-foreground">
-                    {monthShort}
-                  </div>
-                </div>
-
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded ${
-                    isRest ? "text-[oklch(0.5_0.13_150)]" : "icon-bubble"
-                  }`}
-                >
-                  <RowIcon className="h-6 w-6" strokeWidth={2} />
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="bw-plan-day-title font-medium text-foreground">
-                      {professionalSessionTitle(day.title)}
-                    </h3>
-                    {isToday && (
-                      <span className="text-[9px] font-medium uppercase tracking-wide text-primary">
-                        Dziś
-                      </span>
-                    )}
-                    {done && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
-                  </div>
-                  <p className="bw-plan-day-meta mt-0.5 flex flex-wrap items-center gap-1 text-muted-foreground">
-                    <span
-                      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                        isRest ? "bg-[oklch(0.6_0.13_150)]" : "bg-primary"
-                      }`}
-                    />
-                    {swapped ? "Zamieniona" : (day.loadLabelOverride ?? shortTag(day))}
-                    {day.durationMin > 0 && <span> · {day.durationMin} min</span>}
-                  </p>
-                </div>
-
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Link>
-
-              {hasTwo && day.secondSession && (
+            <div key={day.date} className="bw-plan-day" data-today={isToday || undefined}>
+              <div className="bw-plan-day-main">
                 <Link
                   to="/sesja/$date"
                   params={{ date: day.date }}
-                  search={{ slot: 2 }}
-                  className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5 text-xs font-medium text-muted-foreground active:bg-secondary/40"
+                  search={{ slot: 1 }}
+                  className="bw-plan-day-link"
+                  aria-label={`${formatDate(day.date)}: ${fullTitle}${day.durationMin > 0 ? `, ${day.durationMin} min` : ""}${isToday ? ", dziś" : ""}${done ? ", wykonano" : ""}`}
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-foreground/60" />
-                  <span className="truncate">
-                    Druga jednostka: {professionalSessionTitle(day.secondSession.title)}
-                  </span>
-                  <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />
+                  <div className="bw-plan-date" aria-hidden="true">
+                    <span>{shortDayName(d)}</span>
+                    <strong>
+                      {dayNum} <small>{monthShort}</small>
+                    </strong>
+                  </div>
+                  <RowIcon
+                    className="bw-plan-type-icon"
+                    size={19}
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                  <div className="bw-plan-day-copy">
+                    <div className="bw-plan-title-line">
+                      <h3 className="bw-plan-day-title" title={fullTitle}>
+                        {compactSessionTitle(day.title)}
+                      </h3>
+                      {done && (
+                        <CheckCircle2 className="bw-plan-completed" size={15} aria-hidden="true" />
+                      )}
+                    </div>
+                    <p className="bw-plan-day-meta">
+                      {isToday && (
+                        <span className="bw-plan-today">
+                          Dziś <span aria-hidden="true">·</span>{" "}
+                        </span>
+                      )}
+                      {swapped ? "Zamieniona" : (day.loadLabelOverride ?? shortTag(day))}
+                      {day.durationMin > 0 && <span> · {day.durationMin} min</span>}
+                    </p>
+                  </div>
+                  {!hasTwo && (
+                    <ChevronRight className="bw-plan-chevron" size={15} aria-hidden="true" />
+                  )}
                 </Link>
+                {hasTwo && (
+                  <button
+                    type="button"
+                    className="bw-plan-more"
+                    aria-label={`${secondOpen ? "Zwiń" : "Pokaż"} drugą sesję: ${formatDate(day.date)}`}
+                    aria-expanded={secondOpen}
+                    aria-controls={`second-session-${day.date}`}
+                    onClick={() =>
+                      setExpandedDays((previous) => ({
+                        ...previous,
+                        [day.date]: !previous[day.date],
+                      }))
+                    }
+                  >
+                    {secondOpen ? (
+                      <ChevronDown size={16} />
+                    ) : (
+                      <>
+                        <Plus size={12} />
+                        <span>1</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              {hasTwo && day.secondSession && secondOpen && (
+                <div id={`second-session-${day.date}`} className="bw-plan-second-session">
+                  <Link to="/sesja/$date" params={{ date: day.date }} search={{ slot: 2 }}>
+                    <span>
+                      <small>Druga sesja</small>
+                      <strong>{professionalSessionTitle(day.secondSession.title)}</strong>
+                    </span>
+                    <ChevronRight size={15} aria-hidden="true" />
+                  </Link>
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Podsumowanie tygodnia + weekly gate */}
-      {hasNext && current && (
-        <div className="px-5 pt-5">
-          <details className="soft-card p-3">
-            <summary className="min-h-11 cursor-pointer content-center text-sm">
-              Ustawienia kolejnego tygodnia
-            </summary>
-            <h3 className="text-base font-semibold">Podsumowanie tygodnia</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {nextTransition?.nextMatchDate
-                ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
-                : offseasonAllowed && nextTransition?.noMatchNextWeek
-                  ? "Kolejny tydzień bez meczu (poza sezonem)."
-                  : "Kolejny mecz: nie ustawiono."}
-            </p>
+      <div className="bw-plan-tools">
+        <PlanDetailButton
+          icon={Activity}
+          label="Cel i obciążenie"
+          onClick={() => openPlanPanel("load")}
+        />
+        {hasNext && current && (
+          <PlanDetailButton
+            icon={CalendarDays}
+            label="Kolejny tydzień"
+            onClick={() => openPlanPanel("next")}
+          />
+        )}
+      </div>
 
-            <Button className="mt-3 w-full" onClick={() => goToWeek(nextIndex)}>
-              Przejdź do kolejnego tygodnia
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
+      <Sheet open={planPanelOpen} onOpenChange={setPlanPanelOpen}>
+        <SheetContent className="bw-plan-detail-sheet">
+          <SheetTitle>
+            {planPanel === "adaptation"
+              ? "Dopasowanie planu"
+              : planPanel === "load"
+                ? "Cel i obciążenie"
+                : "Kolejny tydzień"}
+          </SheetTitle>
+          <SheetDescription>
+            {planPanel === "adaptation"
+              ? "Dlaczego Twój plan wygląda w ten sposób."
+              : planPanel === "load"
+                ? `Tydzień ${activeWeek + 1} · ${current ? `${formatDate(current.startDate)}–${formatDate(current.endDate)}` : ""}`
+                : "Terminarz i przejście do następnego tygodnia."}
+          </SheetDescription>
+          {planPanel === "adaptation" && planningMeta && (
+            <>
+              {planningMeta.planningStatus === "health_limited" && (
+                <p className="bw-plan-detail-notice">Plan ograniczony ze względu na zdrowie</p>
+              )}
+              {!planningMeta.planningNotes?.length && (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Szczegóły dopasowania nie są dostępne dla tego tygodnia.
+                </p>
+              )}
+              <ul className="bw-plan-adjustments">
+                {planningMeta.planningNotes?.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {planPanel === "load" && (
+            <div className="bw-plan-week-detail">
+              {visibleDays.length > 0 && (
+                <div className="px-5 pt-4">
+                  <div className="border-y border-border/75 py-4">
+                    <div className="grid grid-cols-7 gap-1">
+                      {visibleDays.map(({ source }) => {
+                        const day = resolveTodayPlanRowSource(source, todayIso, todayAdjusted);
+                        const date = parseIso(day.date);
+                        const isToday = day.date === todayIso;
+                        const isMatch = day.dayType === "match";
+                        return (
+                          <Link
+                            key={day.date}
+                            to="/sesja/$date"
+                            params={{ date: day.date }}
+                            search={{ slot: 1 }}
+                            className={`flex min-w-0 flex-col items-center gap-2 py-1 text-center transition-opacity active:opacity-60 ${
+                              isToday ? "text-foreground" : "text-muted-foreground"
+                            }`}
+                          >
+                            <span className="text-[10px] font-medium uppercase tracking-wide">
+                              {shortDayName(date)}
+                            </span>
+                            <span className="relative flex h-9 items-end">
+                              <span
+                                className={`w-1.5 rounded-full ${
+                                  isMatch
+                                    ? "bg-[oklch(0.58_0.055_55)]"
+                                    : isToday
+                                      ? "bg-primary"
+                                      : "bg-[oklch(0.62_0.035_151)]"
+                                }`}
+                                style={{ height: loadBarHeight(day) }}
+                              />
+                            </span>
+                            <span
+                              className={`text-[11px] tabular-nums ${isToday ? "font-medium" : ""}`}
+                            >
+                              {date.getDate()}
+                            </span>
+                            {isToday && <span className="h-0.5 w-5 rounded-full bg-primary" />}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                      <span>Obciążenie w tym tygodniu</span>
+                      <span>{summary ? LOAD_LABEL[summary.load] : null}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            <button
-              type="button"
-              onClick={() => setGateWeek(nextIndex)}
-              className="mt-2 w-full text-center text-xs font-medium text-primary"
-            >
-              {seasonStatus === "off_season"
-                ? "Ustaw datę meczu (opcjonalnie)"
-                : "Zmień datę meczu"}
-            </button>
-          </details>
-        </div>
-      )}
+              {/* Kierunek mikrocyklu — jeden spokojny wiersz */}
+              {summary && (
+                <div className="px-5 pt-3">
+                  <p className="mb-2 text-sm font-medium text-foreground">{monthGoal}</p>
+                  <div className="border-b border-border/75 px-1 pb-3">
+                    <span className="block text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Cel tygodnia
+                    </span>
+                    <span className="mt-1 block text-sm font-medium text-foreground">
+                      {summary.goal}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {planPanel === "next" && hasNext && current && (
+            <div className="bw-plan-next-detail">
+              <p className="mt-1 text-sm text-muted-foreground">
+                {nextTransition?.nextMatchDate
+                  ? `Kolejny mecz: ${formatDate(nextTransition.nextMatchDate)}.`
+                  : offseasonAllowed && nextTransition?.noMatchNextWeek
+                    ? "Kolejny tydzień bez meczu (poza sezonem)."
+                    : "Kolejny mecz: nie ustawiono."}
+              </p>
+
+              <Button
+                className="mt-3 w-full"
+                onClick={() => {
+                  setPlanPanelOpen(false);
+                  goToWeek(nextIndex);
+                }}
+              >
+                Otwórz kolejny tydzień
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPlanPanelOpen(false);
+                  setGateWeek(nextIndex);
+                }}
+                className="mt-2 w-full"
+              >
+                {seasonStatus === "off_season"
+                  ? "Ustaw datę meczu (opcjonalnie)"
+                  : "Zmień datę meczu"}
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Twarda blokada: modal wymuszający datę kolejnego meczu w sezonie */}
       <Dialog

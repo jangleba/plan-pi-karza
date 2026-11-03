@@ -8,7 +8,7 @@ const CAT_COLOR: Record<TrainingCategoryKey, string> = {
   endurance: "bg-primary/50",
   ball: "bg-accent-foreground/55",
   club: "bg-muted-foreground/60",
-  match: "bg-destructive/70",
+  match: "bg-foreground/70",
   recovery: "bg-primary/25",
 };
 

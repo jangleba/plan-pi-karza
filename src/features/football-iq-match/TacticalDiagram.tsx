@@ -8,6 +8,10 @@ import "./diagram.css";
 import { applyFootballerPose, FootballerFigure } from "./FootballerFigure";
 
 const EMPTY_DESTINATIONS: NonNullable<TacticalPitchProps["destinations"]> = [];
+const FIXED_PITCH_CORNERS = [
+  { x: 0, y: 0 },
+  { x: 100, y: 140 },
+];
 
 export function TacticalDiagram(props: TacticalPitchProps) {
   const {
@@ -34,6 +38,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     figures = false,
     visibleLabelIds,
     cameraClose = false,
+    fixedView = false,
   } = props;
   const root = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<DiagramSize>({ width: 360, height: 280 });
@@ -55,20 +60,31 @@ export function TacticalDiagram(props: TacticalPitchProps) {
   const baseView = useMemo(
     () =>
       diagramView(
-        [
-          ...(cameraClose && cameraActions?.length
-            ? []
-            : scenario.players
-                .filter((p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId)
-                .map((p) => frame.positions.get(p.id) ?? p)),
-          frame.ballVisual,
-          ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
-          ...shownDestinations.map((d) => d.point),
-        ],
+        fixedView
+          ? FIXED_PITCH_CORNERS
+          : [
+              ...(cameraClose && cameraActions?.length
+                ? []
+                : scenario.players
+                    .filter((p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId)
+                    .map((p) => frame.positions.get(p.id) ?? p)),
+              frame.ballVisual,
+              ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
+              ...shownDestinations.map((d) => d.point),
+            ],
         figures ? { ...size, height: Math.max(60, size.height - 48) } : size,
-        cameraClose,
+        !fixedView && cameraClose,
       ),
-    [scenario.players, frame, cameraActions, shownDestinations, size, figures, cameraClose],
+    [
+      scenario.players,
+      frame,
+      cameraActions,
+      shownDestinations,
+      size,
+      figures,
+      cameraClose,
+      fixedView,
+    ],
   );
   const view = figures
     ? {

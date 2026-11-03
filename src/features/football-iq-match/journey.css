@@ -1082,3 +1082,225 @@
 .iqL-mode-menu:not([open]) > .iqJ-modes {
   display: none;
 }
+
+/* One learning task at a time. The board keeps the same allocation across phases. */
+.iqS-staged .iqJ-header {
+  padding-bottom: 6px;
+}
+.iqS-staged .iqJ-stage {
+  margin-inline: 12px;
+  border: 0;
+  border-radius: 16px;
+}
+.iqS-staged .iqJ-board-meta {
+  min-height: 36px;
+  font-size: 11px;
+}
+.iqS-staged .iqJ-possession {
+  color: var(--primary);
+  font-weight: 550;
+}
+.iqS-staged .iqJ-footer {
+  padding: 12px 16px;
+}
+.iqS-staged .iqJ-footer h2 {
+  font-size: 18px;
+  line-height: 1.25;
+}
+.iqS-staged .iqJ-footer p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.iqS-observe,
+.iqS-reflection {
+  display: grid;
+  gap: 10px;
+}
+.iqS-phase-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.iqS-phase-label > span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: var(--bw-hairline, 1px) solid var(--border);
+  border-radius: 50%;
+  color: var(--primary);
+}
+.iqS-staged .iqS-observe :is(h2, p) {
+  margin: 0;
+}
+.iqS-staged .iqS-continue {
+  width: 100%;
+  justify-content: center;
+  min-height: 46px;
+  margin: 2px 0 0;
+}
+.iqS-staged .iqL-options {
+  gap: 8px;
+}
+.iqS-intent select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: var(--bw-hairline, 1px) solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--primary);
+  font-size: 12px;
+}
+.iqS-staged .iqL-option-nav button {
+  border-width: var(--bw-hairline, 1px);
+  background: transparent;
+}
+.iqS-staged .iqL-option-nav .iqL-intent-slot {
+  text-align: center;
+  gap: 3px;
+}
+.iqS-staged .iqL-intent-slot strong {
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--foreground);
+}
+.iqS-staged .iqL-intent-slot small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.iqS-staged .iqL-option-copy {
+  min-height: 0;
+}
+.iqS-staged .iqL-option-copy p {
+  margin: 0 !important;
+  font-size: 12px !important;
+}
+.iqS-choice-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.iqS-choice-tools > select {
+  max-width: 55%;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: var(--bw-hairline, 1px) solid var(--border);
+  border-radius: 10px;
+  color: var(--primary);
+  background: var(--card);
+  font-size: 12px;
+}
+.iqS-choice-tools > button {
+  margin-left: auto;
+}
+.iqS-staged[data-iq-phase="feedback"] .iqJ-kicker {
+  color: var(--bw-warning, var(--primary));
+}
+.iqS-staged[data-iq-phase="feedback"] .iqJ-footer > p {
+  margin-bottom: 12px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .iqS-observe,
+  .iqS-reflection,
+  .iqS-staged .iqL-options {
+    animation: iqS-enter 180ms ease-out;
+  }
+  @keyframes iqS-enter {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+@media (orientation: portrait) {
+  .iqS-staged .iqJ-stage {
+    flex: 0 0 42dvh;
+    min-height: 180px;
+  }
+  .iqS-staged .iqJ-footer {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+}
+
+.iqS-intent {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.iqS-intent select {
+  flex: 1;
+  min-width: 0;
+}
+.iqS-intent > button {
+  flex: 0 0 44px;
+  justify-content: center;
+}
+.iqS-intent > button span {
+  display: none;
+}
+.iqS-choice-tools:empty {
+  display: none;
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  .iqS-staged .iqJ-stage {
+    flex-basis: 29dvh;
+    min-height: 150px;
+  }
+}
+.iqS-staged .iqJ-stage > .bwiq-pitch-wrap--3d,
+.iqS-staged .iqJ-stage > .iqD-board {
+  inset: 0;
+  border-radius: 16px;
+  border: var(--bw-hairline, 1px) solid #244f45;
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .iqS-staged .iqJ-footer {
+    padding: 6px 12px;
+  }
+  .iqS-staged .iqL-options {
+    gap: 6px;
+  }
+}
+
+.iqS-intent > .iqS-phase-label {
+  flex: 1;
+}
+.iqS-execute-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.iqS-execute-row > select {
+  max-width: 40%;
+  min-height: 46px;
+  padding: 4px 8px;
+  border: var(--bw-hairline, 1px) solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--primary);
+  font-size: 12px;
+}
+.iqS-execute-row > button {
+  flex: 1;
+  min-width: 0;
+}
+@media (orientation: portrait) and (min-height: 701px) and (max-height: 780px) {
+  .iqS-staged .iqJ-stage {
+    flex-basis: 40dvh;
+  }
+}
+
+.iqS-staged[data-iq-phase="feedback"][data-iq-quality="good"] .iqJ-kicker {
+  color: var(--bw-success, var(--primary));
+}

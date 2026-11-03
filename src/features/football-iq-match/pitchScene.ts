@@ -302,8 +302,14 @@ export async function createPitchScene(
     actors.forEach((actor, id) => {
       const point = frame.positions.get(id)!;
       actor.root.position.copy(world(point));
+      actor.root.scale.setScalar(figureScale);
       actor.shadow.position.copy(world(point, 0.06));
-      actor.pose(frame.motions.get(id)!, clock);
+      const motion = frame.motions.get(id)!;
+      // Leg stride follows map distance at this display scale; field coordinates stay unchanged.
+      actor.pose(
+        figureScale === 1 ? motion : { ...motion, distance: motion.distance / figureScale },
+        clock,
+      );
     });
     ball.position.copy(world(frame.ballVisual, frame.ballHeight));
     ballShadow.position.copy(world(frame.ballVisual, 0.08));
@@ -340,6 +346,8 @@ export async function createPitchScene(
   reducedMotion.addEventListener("change", refreshIdle);
   let focused = false;
   let closeCamera = false;
+  let fixedCamera = false;
+  let figureScale = 1;
   let focusActions: PlannedAction[] | null = null;
   const update = (
     frame: PlaybackFrame,
@@ -352,17 +360,23 @@ export async function createPitchScene(
     teachingPoint?: Point,
     showGuidance = true,
     cameraClose = false,
+    fixedView = false,
   ) => {
     if (disposed || contextLost) return;
     if (
+      fixedCamera !== fixedView ||
       focused !== focusOnActions ||
       closeCamera !== cameraClose ||
       (focusOnActions && focusActions !== cameraActions)
     ) {
+      fixedCamera = fixedView;
+      figureScale = fixedView ? 2 : 1;
       focused = focusOnActions;
       closeCamera = cameraClose;
       focusActions = cameraActions;
-      if (focused && cameraActions.length) {
+      if (fixedView) {
+        viewBounds = { xMin: 0, xMax: 100, yMin: 0, yMax: 140 };
+      } else if (focused && cameraActions.length) {
         const points = cameraActions.flatMap((action) =>
           action.type === "shot" ? [action.from] : [action.from, action.to],
         );
@@ -398,11 +412,12 @@ export async function createPitchScene(
     currentFrame = frame;
     renderer.domElement.dataset.iqActionCount = String(actions.length);
     renderer.domElement.dataset.iqCameraClose = String(cameraClose);
+    renderer.domElement.dataset.iqViewBounds = JSON.stringify(viewBounds);
     const controlled = players.find((p) => p.controlled);
     if (controlled) {
       const position = frame.positions.get(controlled.id)!;
       const floorPoint = world(position).project(camera),
-        headPoint = world(position, PLAYER_HEIGHT).project(camera);
+        headPoint = world(position, PLAYER_HEIGHT * figureScale).project(camera);
       renderer.domElement.dataset.iqControlledHeight = String(
         Math.hypot(
           ((headPoint.x - floorPoint.x) * renderWidth) / 2,

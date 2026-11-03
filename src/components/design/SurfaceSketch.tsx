@@ -21,11 +21,10 @@ export function SurfaceSketch({ kind, className = "" }: { kind: SketchKind; clas
       >
         {field && (
           <>
-            {/* 68 × 105 m proportions; markings share the same scale. */}
-            <path d="M38 8h88v136H38zM38 76h88" />
-            <circle cx="82" cy="76" r="11.85" />
-            <path d="M55.91 8v21.37h52.18V8M70.15 8v7.12h23.7V8M55.91 144v-21.37h52.18V144M70.15 144v-7.12h23.7V144" />
-            <path d="M72.51 29.37a11.85 11.85 0 0 0 18.98 0M72.51 122.63a11.85 11.85 0 0 1 18.98 0M80.8 76h2.4M82 74.8v2.4" />
+            {/* One quiet end of a 68 m pitch; markings retain their real proportions. */}
+            <path d="M10 150V24h140v126M38.49 24v33.97h83.02V24M61.14 24v11.32h37.72V24" />
+            <path d="M64.96 57.97a18.84 18.84 0 0 0 30.08 0M72.46 24v-5h15.08v5" />
+            <circle cx="80" cy="46.65" r=".75" fill="currentColor" stroke="none" />
           </>
         )}
         {kind === "track" && (

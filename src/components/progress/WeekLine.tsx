@@ -1,15 +1,6 @@
 import type { MicrocycleDay } from "@/lib/progress/center";
 import { TRAINING_CATEGORY_LABELS } from "@/lib/progress/progress";
-
-const DOT_TONE: Record<string, string> = {
-  gym: "bg-primary",
-  speed: "bg-primary",
-  endurance: "bg-primary/70",
-  club: "bg-foreground/70",
-  match: "bg-destructive",
-  recovery: "bg-muted-foreground/50",
-  ball: "bg-primary/80",
-};
+import { Check } from "lucide-react";
 
 /** Animowana linia ostatnich 7 dni: plan, wykonanie i rodzaj jednostki. */
 export function WeekLine({ days }: { days: MicrocycleDay[] }) {
@@ -31,14 +22,16 @@ export function WeekLine({ days }: { days: MicrocycleDay[] }) {
             </span>
             <span
               title={d.category ? TRAINING_CATEGORY_LABELS[d.category] : undefined}
-              className={`h-3.5 w-3.5 rounded-full border-2 transition-transform duration-200 ${
+              className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border transition-transform duration-200 ${
                 d.completed
-                  ? `${DOT_TONE[d.category ?? "gym"]} border-transparent scale-110`
+                  ? "border-transparent bg-[var(--bw-success)] text-white"
                   : d.planned
                     ? "border-primary/60 bg-background"
                     : "border-border bg-background"
               }`}
-            />
+            >
+              {d.completed && <Check size={10} strokeWidth={2} aria-hidden="true" />}
+            </span>
             <span className="text-[9px] text-muted-foreground">
               {d.completed ? `${d.durationMin || ""}` : d.planned ? "plan" : "—"}
             </span>

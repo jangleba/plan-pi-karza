@@ -74,7 +74,13 @@ export function ProgressDashboard({
               {micro.fromIso.slice(5, 7)}–{todayIso.slice(8)}.{todayIso.slice(5, 7)}
             </p>
           </div>
-          <span className="text-xs font-medium text-primary">
+          <span
+            className={`text-xs font-medium ${
+              micro.plannedCount > 0 && micro.completedCount >= micro.plannedCount
+                ? "bw-tone--success"
+                : "text-primary"
+            }`}
+          >
             Plan: {micro.completedCount}/{micro.plannedCount || "—"}
           </span>
         </div>
@@ -161,7 +167,7 @@ export function ProgressDashboard({
             params={{ date: missingRpeTarget.date }}
             search={{ slot: missingRpeTarget.slot, mod: missingRpeTarget.mod }}
             hash={`session-completion-${missingRpeTarget.sessionId}`}
-            className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-primary"
+            className="bw-tone--warning mt-2 inline-flex min-h-11 items-center text-sm font-semibold"
           >
             Uzupełnij RPE →
           </Link>

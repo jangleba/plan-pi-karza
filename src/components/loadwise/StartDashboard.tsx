@@ -63,10 +63,12 @@ export function StartDashboard({
       />
       <section className="bw-home-checks is-single" aria-label="Dzisiejsze ustawienia">
         <button onClick={onCheckin} disabled={busy} title={checkinDetail}>
-          <Check size={18} />
+          <Check size={18} className={checkinComplete ? "bw-tone--success" : undefined} />
           <span>
             <strong>Plan na dziś</strong>
-            <small>{checkinComplete ? "Potwierdzony · zmień" : "Sprawdź lub zmień"}</small>
+            <small className={checkinComplete ? "bw-tone--success" : undefined}>
+              {checkinComplete ? "Potwierdzony · zmień" : "Sprawdź lub zmień"}
+            </small>
           </span>
         </button>
       </section>

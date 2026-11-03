@@ -14,12 +14,7 @@ import {
 } from "lucide-react";
 import { TacticalPitch } from "./TacticalPitch";
 import { LessonChoicePanel } from "./LessonChoicePanel";
-import {
-  lessonFocus,
-  lessonInstruction,
-  lessonPreviewAction,
-  lessonPlaybackPoints,
-} from "./lessonPresentation";
+import { lessonFocus, lessonInstruction, lessonPreviewAction } from "./lessonPresentation";
 import { journeyBank, iqScenarioBank, roleLabels, rolesForPosition } from "./journeyBank";
 import { advancedJourneyBank } from "./advancedJourneyBank";
 import {
@@ -41,7 +36,6 @@ import {
   createJourney,
   createJourneyForRules,
   journeyDuration,
-  journeyCameraPoints,
   journeyFrame,
   journeyChoice,
   journeyPointChoice,
@@ -90,7 +84,7 @@ type Props = {
   historyOwner?: string;
   position?: string;
 };
-type View = "decision" | "playing" | "summary" | "review";
+type View = "decision" | "playing" | "feedback" | "summary" | "review";
 type Transport = {
   kind: "live" | "replay" | "step" | "alternative";
   from: number;
@@ -154,7 +148,7 @@ export function FootballIQJourney({
   const [takeover, setTakeover] = useState<{ scope: string; actor: string } | null>(null);
   const [mode, setMode] = useState<JourneyMode>("learn");
   const [preview, setPreview] = useState<{ scope: string; id: string } | null>(null);
-  const [overview, setOverview] = useState(false);
+  const [observedScope, setObservedScope] = useState<string | null>(null);
   const [delivery, setDelivery] = useState<BallDelivery | null>(null);
   const [intent, setIntent] = useState<{
     scope: string;
@@ -271,23 +265,22 @@ export function FootballIQJourney({
   );
   const decision = session.decisions[reviewIndex];
   const lesson = mode === "learn" && view === "decision" && !transport && !!selectedStep;
+  const decisionScope = `${session.definition.id}:${session.decisions.length}:${session.transition ?? "play"}`;
+  const observing = lesson && observedScope !== decisionScope;
+  const choosing = lesson && !observing;
   const previewScope = `${session.definition.id}:${session.step}:${selectedDelivery}:${mode}:${selectedGroup}:${selectedTiming}`;
   const previewChoice = lesson
     ? (visibleChoices.find((c) => preview?.scope === previewScope && c.id === preview.id) ??
       visibleChoices[0])
     : undefined;
   const instruction = lesson && selectedStep ? lessonInstruction(session, selectedStep) : null;
-  const focus = useMemo(() => lessonFocus(session, previewChoice), [session, previewChoice]);
-  const transportFrom = transport?.from ?? 0,
-    transportTo = transport?.to ?? 0,
-    transporting = transport !== null;
-  const movingFocus = useMemo(
-    () => (transporting ? lessonPlaybackPoints(session, transportFrom, transportTo) : []),
-    [session, transporting, transportFrom, transportTo],
+  const focus = useMemo(
+    () => lessonFocus(session, observing ? undefined : previewChoice),
+    [session, previewChoice, observing],
   );
   const previewActions = useMemo(
-    () => (lesson && previewChoice ? [lessonPreviewAction(session, previewChoice)] : null),
-    [lesson, previewChoice, session],
+    () => (choosing && previewChoice ? [lessonPreviewAction(session, previewChoice)] : null),
+    [choosing, previewChoice, session],
   );
   const setPreviewChoice = (id: string) => {
     if (visibleChoices.some((c) => c.id === id)) {
@@ -297,22 +290,6 @@ export function FootballIQJourney({
   };
   const duration = useMemo(() => journeyDuration(session), [session]);
   const debrief = useMemo(() => journeyDebrief(session), [session]);
-  const cameraActions = useMemo<PlannedAction[]>(
-    () =>
-      (mode === "learn" && !overview && (lesson || transporting)
-        ? transporting
-          ? movingFocus
-          : focus.points
-        : journeyCameraPoints(session, mode === "learn" || view === "review")
-      ).map((point, index) => ({
-        id: `camera-${index}`,
-        type: "run",
-        playerId: "you",
-        from: point,
-        to: point,
-      })),
-    [session, mode, view, lesson, overview, focus.points, movingFocus, transporting],
-  );
   const animationSession = transport?.kind === "alternative" && alternative ? alternative : session;
   const sampleLiveFrame = useCallback(
     () => sampleJourney(animationSession, playheadRef.current),
@@ -337,7 +314,8 @@ export function FootballIQJourney({
     showAfter,
     session,
   ]);
-  const interactive = booted && ready && view === "decision" && !transport && !picker && !help;
+  const interactive =
+    booted && ready && view === "decision" && !observing && !transport && !picker && !help;
   const selectable = useMemo(
     () =>
       interactive && selectedStep
@@ -398,6 +376,7 @@ export function FootballIQJourney({
     setDraftChanged(false);
     setSession(createJourney(initial));
     setTakeover(null);
+    setObservedScope(null);
     setMode("learn");
     setTransport(null);
     setView("decision");
@@ -573,7 +552,7 @@ export function FootballIQJourney({
     setTransport(null);
     choiceLock.current = false;
     if (kind === "live") {
-      setView(session.outcome ? "summary" : "decision");
+      setView(mode === "learn" ? "feedback" : session.outcome ? "summary" : "decision");
       elapsed.current = 0;
     } else if (kind === "replay") setView("summary");
     else {
@@ -630,7 +609,7 @@ export function FootballIQJourney({
     try {
       const next = chooseJourney(session, choiceId, elapsed.current);
       setPreview(null);
-      setOverview(false);
+
       if (offeredDraft) {
         draftBlocked.current = false;
         setOfferedDraft(null);
@@ -672,6 +651,7 @@ export function FootballIQJourney({
     setPlayhead(0);
     choiceLock.current = false;
     setSession(createJourney(definition));
+    setObservedScope(null);
     setTakeover(null);
     setDelivery(null);
     setView("decision");
@@ -805,59 +785,63 @@ export function FootballIQJourney({
   );
   const stepCount = tactical ? TACTICAL_TURNS : session.definition.steps.length;
   const footerTitle =
-    view === "summary"
-      ? session.finishTeam === "away"
-        ? "Rywal zakończył akcję strzałem."
-        : endings[session.outcome!]
-      : view === "review"
-        ? comparing
-          ? "Lepszy wariant"
-          : decision?.label
-        : transport
-          ? transport.kind === "live"
-            ? "Akcja trwa…"
-            : transport.kind === "alternative"
-              ? "Sprawdź inne rozwiązanie"
-              : "Twoja akcja"
-          : mode === "challenge"
-            ? "Twój ruch"
-            : selectedStep?.prompt;
-  const footerDetail =
-    view === "summary"
-      ? "Obejrzyj swoje wybory w całości albo zatrzymaj konkretną decyzję."
-      : view === "review"
-        ? comparing
-          ? decision?.alternative?.why
-          : decision?.why
-        : transport
-          ? mode === "learn" || transport.kind !== "live"
-            ? liveBeat?.text
-            : "Obserwuj piłkę i ruch zawodników."
-          : mode === "learn" && hinted
-            ? selectedStep?.cue
+    view === "feedback"
+      ? "Co zmienił Twój wybór?"
+      : view === "summary"
+        ? session.finishTeam === "away"
+          ? "Rywal zakończył akcję strzałem."
+          : endings[session.outcome!]
+        : view === "review"
+          ? comparing
+            ? "Lepszy wariant"
+            : decision?.label
+          : transport
+            ? transport.kind === "live"
+              ? "Akcja trwa…"
+              : transport.kind === "alternative"
+                ? "Sprawdź inne rozwiązanie"
+                : "Twoja akcja"
             : mode === "challenge"
-              ? tactical
-                ? selectedGroup === "pass"
-                  ? "Wybierz partnera na boisku. Nie musisz grać do przodu."
-                  : selectedGroup === "hold"
-                    ? "Wybierz poczekanie lub osłonę. Partnerzy i rywale nadal reagują."
-                    : selectedGroup === "shoot"
-                      ? "Sam zdecyduj, czy jest miejsce na próbę strzału."
-                      : selectedGroup === "decoy"
-                        ? "Wskaż własny bieg, który może otworzyć miejsce innemu partnerowi."
-                        : "Wybierz zamiar i moment, potem dotknij własnego miejsca na boisku."
+              ? "Twój ruch"
+              : selectedStep?.prompt;
+  const footerDetail =
+    view === "feedback"
+      ? session.decisions.at(-1)?.why
+      : view === "summary"
+        ? "Obejrzyj swoje wybory w całości albo zatrzymaj konkretną decyzję."
+        : view === "review"
+          ? comparing
+            ? decision?.alternative?.why
+            : decision?.why
+          : transport
+            ? mode === "learn" || transport.kind !== "live"
+              ? liveBeat?.text
+              : "Obserwuj piłkę i ruch zawodników."
+            : mode === "learn" && hinted
+              ? selectedStep?.cue
+              : mode === "challenge"
+                ? tactical
+                  ? selectedGroup === "pass"
+                    ? "Wybierz partnera na boisku. Nie musisz grać do przodu."
+                    : selectedGroup === "hold"
+                      ? "Wybierz poczekanie lub osłonę. Partnerzy i rywale nadal reagują."
+                      : selectedGroup === "shoot"
+                        ? "Sam zdecyduj, czy jest miejsce na próbę strzału."
+                        : selectedGroup === "decoy"
+                          ? "Wskaż własny bieg, który może otworzyć miejsce innemu partnerowi."
+                          : "Wybierz zamiar i moment, potem dotknij własnego miejsca na boisku."
+                  : selectedStep?.kind === "pass"
+                    ? "Dotknij partnera, żeby podać."
+                    : selectedStep?.kind === "finish"
+                      ? "Podaj do partnera albo wybierz strzał."
+                      : "Dotknij miejsca, do którego ruszysz."
                 : selectedStep?.kind === "pass"
-                  ? "Dotknij partnera, żeby podać."
+                  ? "Dotknij partnera lub wybierz jego numer."
                   : selectedStep?.kind === "finish"
                     ? "Podaj do partnera albo wybierz strzał."
-                    : "Dotknij miejsca, do którego ruszysz."
-              : selectedStep?.kind === "pass"
-                ? "Dotknij partnera lub wybierz jego numer."
-                : selectedStep?.kind === "finish"
-                  ? "Podaj do partnera albo wybierz strzał."
-                  : selectedStep?.kind === "transition"
-                    ? selectedStep.instruction
-                    : "Wybierz oznaczenie na boisku albo przycisk poniżej.";
+                    : selectedStep?.kind === "transition"
+                      ? selectedStep.instruction
+                      : "Wybierz oznaczenie na boisku albo przycisk poniżej.";
   const intentControl =
     tactical && selectedStep ? (
       <select
@@ -884,7 +868,19 @@ export function FootballIQJourney({
     ) : undefined;
   return (
     <section
-      className={`bwiq-app iq-journey${mode === "learn" && (lesson || transport) ? " iqL-lesson" : ""}`}
+      className={`bwiq-app iq-journey iqS-staged${mode === "learn" && (lesson || transport || view === "feedback") ? " iqL-lesson" : ""}`}
+      data-iq-phase={
+        transport
+          ? "playing"
+          : observing
+            ? "observe"
+            : view === "feedback"
+              ? "feedback"
+              : lesson
+                ? "choose"
+                : view
+      }
+      data-iq-quality={view === "feedback" ? session.decisions.at(-1)?.quality : undefined}
       data-iq-scenario={session.definition.id}
       aria-label="BallWise IQ — pełne akcje"
     >
@@ -930,13 +926,9 @@ export function FootballIQJourney({
         )}
         <div className="iqJ-title">
           <h1>
-            {instruction
-              ? instruction.title
-              : transport && mode === "learn"
-                ? "Obserwuj rozegranie"
-                : mode === "challenge" && !session.outcome
-                  ? "Rozegraj sytuację"
-                  : session.definition.title}
+            {mode === "challenge" && !session.outcome
+              ? "Rozegraj sytuację"
+              : session.definition.title}
           </h1>
           <span>
             {view === "review"
@@ -1002,7 +994,6 @@ export function FootballIQJourney({
             <span className={session.transition === "choose" ? "is-current" : "is-done"} />
           )}
         </div>
-        {instruction && <p className="iqL-situation">{instruction.situation}</p>}
       </header>
       <div className="iqJ-board-meta">
         <span>
@@ -1014,7 +1005,7 @@ export function FootballIQJourney({
             ? "↓ Bronisz"
             : "↑ Atakujesz"}
         </span>
-        {takeoverPlayer ? (
+        {takeoverPlayer && !observing && view === "decision" ? (
           <select
             className="iqT-control"
             aria-label="Sterowany zawodnik"
@@ -1039,40 +1030,25 @@ export function FootballIQJourney({
             <i /> Twoi <i /> Rywale
           </span>
         )}
-        {lesson ? (
-          <span className="iqL-tools">
-            <button type="button" onClick={() => setOverview((v) => !v)} aria-pressed={overview}>
-              {overview ? "Przybliż" : "Całość"}
-            </button>
-            <button
-              type="button"
-              aria-label={hinted ? "Ukryj wskazówkę" : "Wskazówka"}
-              aria-pressed={hinted}
-              onClick={() => setHinted((h) => !h)}
-            >
-              <Lightbulb size={17} />
-              <span className="sr-only">Wskazówka</span>
-            </button>
-          </span>
-        ) : (
-          <span className="iqJ-possession">
-            {transport
-              ? transport.kind === "live"
-                ? "Akcja w ruchu"
-                : "Powtórka"
-              : session.world.carrierId === "you"
-                ? "Masz piłkę"
-                : session.world.carrierId.startsWith("r")
-                  ? "Piłka rywali"
-                  : "Piłka u partnera"}
-          </span>
-        )}
+        <span className="iqJ-possession">
+          {transport
+            ? transport.kind === "live"
+              ? "Akcja w ruchu"
+              : "Powtórka"
+            : session.world.carrierId === "you"
+              ? "Masz piłkę"
+              : session.players.find((p) => p.id === session.world.carrierId)?.team === "away"
+                ? "Piłka rywali"
+                : "Piłka u partnera"}
+        </span>
       </div>
       <div className="iqJ-stage">
         {booted ? (
           <TacticalPitch
             scenario={session.scenario}
-            actions={previewActions ?? reviewActions}
+            actions={
+              observing || view === "feedback" ? EMPTY_ACTIONS : (previewActions ?? reviewActions)
+            }
             visibleLabelIds={
               mode === "learn"
                 ? view === "review" && decision
@@ -1091,11 +1067,11 @@ export function FootballIQJourney({
                     : focus.labelIds
                 : undefined
             }
-            cameraClose={mode === "learn" && !overview && (lesson || !!transport)}
+            cameraClose={false}
+            fixedView
             frameOverride={frame}
             frameSource={transport ? sampleLiveFrame : undefined}
-            focusOnActions
-            cameraActions={cameraActions}
+            focusOnActions={false}
             selectedPlayerId={view === "review" ? (decision?.actorId ?? "you") : controlled}
             mode={
               (tactical ? selectedGroup === "carry" : selectedStep?.kind === "carry")
@@ -1177,27 +1153,76 @@ export function FootballIQJourney({
         {!lesson && (
           <>
             <span className="iqJ-kicker">
-              {view === "summary"
-                ? verdictLabels[journeyVerdict(session)]
-                : view === "review"
-                  ? decision?.quality === "good"
-                    ? "Dobra decyzja"
-                    : decision?.quality === "possible"
-                      ? "Możliwe, ale trudniejsze"
-                      : "Moment do poprawy"
-                  : transport
-                    ? "Obserwuj reakcję"
-                    : selectedStep
-                      ? mode === "challenge"
-                        ? "Twoja decyzja"
-                        : labels[selectedStep.kind]
-                      : ""}
+              {view === "feedback"
+                ? session.decisions.at(-1)?.quality === "good"
+                  ? "Trafna decyzja"
+                  : "Sprawdź skutek"
+                : view === "summary"
+                  ? verdictLabels[journeyVerdict(session)]
+                  : view === "review"
+                    ? decision?.quality === "good"
+                      ? "Dobra decyzja"
+                      : decision?.quality === "possible"
+                        ? "Możliwe, ale trudniejsze"
+                        : "Moment do poprawy"
+                    : transport
+                      ? "Obserwuj reakcję"
+                      : selectedStep
+                        ? mode === "challenge"
+                          ? "Twoja decyzja"
+                          : labels[selectedStep.kind]
+                        : ""}
             </span>
             <h2>{footerTitle}</h2>
             <p>{footerDetail}</p>
           </>
         )}
-        {lesson && hinted && selectedStep && (
+        {observing && instruction && (
+          <section className="iqS-observe" aria-label="Obejrzyj sytuację">
+            <span className="iqS-phase-label">
+              <span>1</span> Obserwuj
+            </span>
+            <h2>{instruction.title}</h2>
+            <p>{instruction.situation}</p>
+            <button
+              type="button"
+              className="iqJ-button iqJ-primary iqS-continue"
+              disabled={!booted || !ready || picker || help}
+              onClick={() => setObservedScope(decisionScope)}
+            >
+              Wybierz rozwiązanie <ArrowRight size={17} />
+            </button>
+          </section>
+        )}
+        {view === "feedback" && (
+          <section className="iqS-reflection" aria-label="Skutek Twojej decyzji">
+            <button
+              type="button"
+              className="iqJ-button iqJ-primary iqS-continue"
+              onClick={() => {
+                setView(session.outcome ? "summary" : "decision");
+                setObservedScope(null);
+                elapsed.current = 0;
+              }}
+            >
+              {session.outcome ? "Przejdź do wniosków" : "Następny krok"} <ArrowRight size={17} />
+            </button>
+            <button
+              type="button"
+              className="iqJ-text"
+              onClick={() => {
+                const last = session.decisions.at(-1)!;
+                const from = session.beats
+                  .slice(0, last.firstBeat)
+                  .reduce((n, b) => n + b.duration, 0);
+                startTransport({ kind: "live", from, to: duration, paused: false });
+              }}
+            >
+              <RotateCcw size={15} /> Obejrzyj jeszcze raz
+            </button>
+          </section>
+        )}
+        {choosing && hinted && selectedStep && (
           <p className="iqL-cue" role="status">
             {selectedStep.cue}
           </p>
@@ -1261,7 +1286,7 @@ export function FootballIQJourney({
               ))}
             </div>
           )}
-        {lesson && previewChoice && selectedStep && (
+        {choosing && previewChoice && selectedStep && (
           <LessonChoicePanel
             session={session}
             step={selectedStep}
@@ -1271,6 +1296,17 @@ export function FootballIQJourney({
             onPreview={setPreviewChoice}
             onCommit={() => choose(previewChoice.id)}
             intentControl={intentControl}
+            hintControl={
+              <button
+                type="button"
+                className="iqJ-text"
+                aria-label={hinted ? "Ukryj wskazówkę" : "Wskazówka"}
+                aria-pressed={hinted}
+                onClick={() => setHinted((h) => !h)}
+              >
+                <Lightbulb size={16} /> <span>Wskazówka</span>
+              </button>
+            }
             deliveryControl={
               deliveries.length > 1 && (!tactical || selectedGroup === "pass") ? (
                 <select

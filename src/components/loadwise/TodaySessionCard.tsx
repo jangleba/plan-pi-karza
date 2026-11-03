@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Clock, PauseCircle, Play } from "lucide-react";
+import { ArrowRight, CalendarOff, CheckCircle2, Clock, PauseCircle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { professionalSessionTitle } from "@/lib/loadwise/labels";
@@ -42,6 +42,8 @@ export function TodaySessionCard({
   const target = "session" in summary ? summary : null;
   const active = summary.kind === "active";
   const blocked = summary.kind === "blocked";
+  const completed = summary.kind === "completed";
+  const unavailable = summary.kind === "unavailable";
   const title = target
     ? professionalSessionTitle(target.session.title)
     : summary.kind === "completed"
@@ -69,8 +71,26 @@ export function TodaySessionCard({
       aria-labelledby="today-session-title"
     >
       <SurfaceSketch kind="pitch" />
-      <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-primary">
-        {blocked ? <PauseCircle className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      <div
+        className={`flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] ${
+          blocked || unavailable
+            ? "bw-tone--error"
+            : completed
+              ? "bw-tone--success"
+              : active
+                ? "bw-tone--warning"
+                : "text-primary"
+        }`}
+      >
+        {blocked ? (
+          <PauseCircle className="h-4 w-4" />
+        ) : unavailable ? (
+          <CalendarOff className="h-4 w-4" />
+        ) : completed ? (
+          <CheckCircle2 className="h-4 w-4" />
+        ) : (
+          <Play className="h-4 w-4" />
+        )}
         {active ? "TRENING ROZPOCZĘTY" : "DZISIEJSZY TRENING"}
       </div>
       <h2 id="today-session-title" className="mt-3 text-[22px] font-semibold tracking-[-0.025em]">

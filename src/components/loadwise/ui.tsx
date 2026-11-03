@@ -66,9 +66,9 @@ export function AppHeader({
 }
 
 const intensityStyles: Record<Intensity, string> = {
-  niska: "bg-secondary text-secondary-foreground",
-  umiarkowana: "bg-accent text-accent-foreground",
-  wysoka: "bg-destructive/10 text-destructive",
+  niska: "bw-status--neutral",
+  umiarkowana: "bw-status--info",
+  wysoka: "bw-status--warning",
 };
 
 export function IntensityBadge({
@@ -81,17 +81,11 @@ export function IntensityBadge({
   const isOverride = Boolean(label);
   const classes = isOverride
     ? label === "Wstrzymaj trening"
-      ? "bg-destructive/10 text-destructive"
-      : "bg-primary/10 text-primary"
+      ? "bw-status--error"
+      : "bw-status--info"
     : intensityStyles[intensity];
 
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${classes}`}
-    >
-      {label ?? intensity}
-    </span>
-  );
+  return <span className={`bw-status ${classes}`}>{label ?? intensity}</span>;
 }
 
 const dayTypeLabels: Record<DayType, string> = {

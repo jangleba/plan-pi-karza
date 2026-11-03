@@ -70,6 +70,73 @@ async function render() {
   await act(async () => root.render(<TacticalPitch {...props} />));
 }
 describe("pitch guidance boundary", () => {
+  it("keeps a fixed camera in 3D even when a preview requests a close action crop", async () => {
+    props.fixedView = true;
+    props.cameraClose = true;
+    props.focusOnActions = true;
+    await render();
+    expect(bridge.update.mock.lastCall![4]).toBe(false);
+    expect(bridge.update.mock.lastCall![9]).toBe(false);
+    expect(bridge.update.mock.lastCall![10]).toBe(true);
+    props.actions = [
+      {
+        id: "different-route",
+        type: "run",
+        playerId: "you",
+        from: { x: 5, y: 8 },
+        to: { x: 90, y: 130 },
+      },
+    ];
+    await render();
+    expect(bridge.update.mock.lastCall![4]).toBe(false);
+    expect(bridge.update.mock.lastCall![9]).toBe(false);
+    expect(bridge.update.mock.lastCall![10]).toBe(true);
+  });
+  it("keeps the fallback field fixed across distant motion and maps taps with that same view", async () => {
+    props.fixedView = true;
+    props.freeMovement = true;
+    props.showGuidance = false;
+    vi.mocked(createPitchScene).mockRejectedValueOnce(new Error("No model"));
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      left: 10,
+      top: 20,
+      width: 360,
+      height: 280,
+    } as DOMRect);
+    await render();
+    const field = host.querySelector(".iqD-field > g")!;
+    const transform = field.getAttribute("transform");
+    props.frameOverride = {
+      ...props.frameOverride!,
+      positions: new Map(
+        [...props.frameOverride!.positions].map(([id, p]) => [
+          id,
+          { x: p.x, y: Math.min(138, p.y + 50) },
+        ]),
+      ),
+      ballVisual: { x: 83, y: 129 },
+    };
+    props.cameraClose = true;
+    props.cameraActions = [
+      { id: "crop", type: "run", playerId: "you", from: { x: 82, y: 127 }, to: { x: 83, y: 129 } },
+    ];
+    await render();
+    expect(field.getAttribute("transform")).toBe(transform);
+    expect(host.querySelectorAll("[data-iq-figure]")).toHaveLength(props.scenario.players.length);
+    const ball = host.querySelector<HTMLDivElement>(".iqD-ball")!;
+    await act(async () =>
+      host.querySelector(".iqD-board")!.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX: parseFloat(ball.style.left) + 10,
+          clientY: parseFloat(ball.style.top) + 20,
+        }),
+      ),
+    );
+    const point = vi.mocked(props.onPitchSelect).mock.lastCall![0];
+    expect(point.x).toBeCloseTo(83, 8);
+    expect(point.y).toBeCloseTo(129, 8);
+  });
   it("keeps only requested labels while retaining the real 3D scene and close camera", async () => {
     props.visibleLabelIds = ["you", "support"];
     props.cameraClose = true;

@@ -82,6 +82,7 @@
   --bw-body: 1rem;
   --bw-secondary-text: 0.8125rem;
   --bw-caption: 0.75rem;
+  --bw-hairline: 1px;
   --bw-card-radius: 20px;
   --bw-control-radius: 14px;
   --bw-control-height: 44px;
@@ -90,8 +91,24 @@
   --bw-segment-background: oklch(0.948 0.004 255);
   --bw-segment-selected: oklch(1 0 0);
   --bw-segment-text: oklch(0.255 0.018 255);
-  --bw-shadow-card: 0 1px 2px oklch(0.18 0.015 255 / .025);
-  --bw-shadow-float: 0 -8px 40px oklch(0.18 0.015 255 / .12);
+  --bw-shadow-card: 0 1px 2px oklch(0.18 0.015 255 / 0.025);
+  --bw-shadow-float: 0 -8px 40px oklch(0.18 0.015 255 / 0.12);
+  /* Status colour always accompanies a word or icon, never a medical judgement. */
+  --bw-success: oklch(0.4442 0.0832 166.1);
+  --bw-success-soft: oklch(0.969 0.0148 158.25);
+  --bw-success-line: oklch(0.8344 0.0578 161.56);
+  --bw-warning: oklch(0.4756 0.0955 66.24);
+  --bw-warning-soft: oklch(0.9759 0.0232 82.12);
+  --bw-warning-line: oklch(0.8583 0.0713 86.49);
+  --bw-error: oklch(0.4791 0.1482 20.43);
+  --bw-error-soft: oklch(0.9672 0.0163 12.78);
+  --bw-error-line: oklch(0.8191 0.0583 13.05);
+  --bw-info: oklch(0.3646 0.0784 251.36);
+  --bw-info-soft: oklch(0.9524 0.0196 245.64);
+  --bw-info-line: oklch(0.7662 0.0645 245.09);
+  --bw-neutral: oklch(0.513 0.026 254.51);
+  --bw-neutral-soft: oklch(0.954 0.0063 255.48);
+  --bw-neutral-line: oklch(0.8665 0.0152 251.17);
   --bw-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --bw-ease-emphasized: var(--bw-ease);
   --radius: 12px;

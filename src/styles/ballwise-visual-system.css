@@ -50,7 +50,7 @@ select {
 }
 .soft-card,
 .premium-flow .soft-card {
-  border: 1px solid var(--border);
+  border: var(--bw-hairline) solid var(--border);
   border-radius: var(--bw-card-radius);
   background: var(--card);
   box-shadow: var(--bw-shadow-card);
@@ -369,7 +369,7 @@ select {
 }
 .bw-home-compact .bw-today-compact {
   padding: 18px;
-  border-width: 1px;
+  border-width: var(--bw-hairline);
   border-radius: var(--bw-card-radius);
 }
 .bw-today-compact h2 {
@@ -398,7 +398,7 @@ select {
 .bw-home-checks button,
 .bw-home-tools button {
   min-width: 0;
-  border: 1px solid var(--border);
+  border: var(--bw-hairline) solid var(--border);
   border-radius: var(--bw-card-radius);
   background: var(--card);
   color: var(--primary);
@@ -531,24 +531,25 @@ select {
 .bw-surface-sketch {
   position: absolute;
   z-index: 0;
-  right: -24px;
-  top: -18px;
-  width: 140px;
-  height: 140px;
+  right: -16px;
+  top: -22px;
+  width: 168px;
+  height: 168px;
   color: var(--primary);
-  opacity: 0.04;
+  opacity: 0.115;
   pointer-events: none;
   user-select: none;
-  mask-image: linear-gradient(to left, black 45%, transparent 100%);
+  mask-image: linear-gradient(to left, black 15%, transparent 100%);
 }
 .bw-surface-sketch * {
   vector-effect: non-scaling-stroke;
 }
 .bw-page-header .bw-surface-sketch {
-  top: 10px;
-  right: 50px;
-  width: 120px;
-  height: 120px;
+  top: -12px;
+  right: 48px;
+  width: 152px;
+  height: 152px;
+  opacity: 0.1;
 }
 .bw-sketch-surface .bw-page-heading-copy {
   z-index: 1;
@@ -562,13 +563,83 @@ select {
   border-radius: var(--bw-card-radius);
 }
 .bw-grouped-list {
-  border: 1px solid var(--border);
+  border: var(--bw-hairline) solid var(--border);
   border-radius: var(--bw-card-radius);
   background: var(--card);
   overflow: hidden;
 }
 .bw-grouped-list > * + * {
-  border-top: 1px solid var(--border);
+  border-top: var(--bw-hairline) solid var(--border);
+}
+
+/* A small labelled accent, shared by intensity and real state indicators. */
+.bw-status {
+  --bw-status-ink: var(--bw-neutral);
+  --bw-status-fill: var(--bw-neutral-soft);
+  --bw-status-line: var(--bw-neutral-line);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: var(--bw-hairline) solid var(--bw-status-line);
+  border-radius: 6px;
+  background: var(--bw-status-fill);
+  color: var(--bw-status-ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.bw-status--success {
+  --bw-status-ink: var(--bw-success);
+  --bw-status-fill: var(--bw-success-soft);
+  --bw-status-line: var(--bw-success-line);
+}
+.bw-status--warning {
+  --bw-status-ink: var(--bw-warning);
+  --bw-status-fill: var(--bw-warning-soft);
+  --bw-status-line: var(--bw-warning-line);
+}
+.bw-status--error {
+  --bw-status-ink: var(--bw-error);
+  --bw-status-fill: var(--bw-error-soft);
+  --bw-status-line: var(--bw-error-line);
+}
+.bw-status--info {
+  --bw-status-ink: var(--bw-info);
+  --bw-status-fill: var(--bw-info-soft);
+  --bw-status-line: var(--bw-info-line);
+}
+.bw-status--neutral {
+  --bw-status-ink: var(--bw-neutral);
+  --bw-status-fill: var(--bw-neutral-soft);
+  --bw-status-line: var(--bw-neutral-line);
+}
+:root .bw-tone--success {
+  color: var(--bw-success);
+}
+:root .bw-tone--warning {
+  color: var(--bw-warning);
+}
+:root .bw-tone--error {
+  color: var(--bw-error);
+}
+:root .bw-tone--neutral {
+  color: var(--bw-neutral);
+}
+.fuel-v4 .bw-inline-error {
+  border: var(--bw-hairline) solid var(--bw-error-line);
+  background: var(--card);
+  color: var(--bw-error);
+}
+.fuel-v4 :is(.fuel-v4-time, .fuel-v4-hero) {
+  border-width: var(--bw-hairline);
+}
+@media (min-resolution: 2dppx) {
+  :root {
+    --bw-hairline: 0.5px;
+  }
 }
 /* Shared draggable sheet: its content viewport follows the selected detent. */
 .bw-sheet[data-vaul-drawer] {
