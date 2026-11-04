@@ -14,6 +14,7 @@ export function equipmentNamesFor(ids: string[]): string[] {
 // Główna dawka: serie × powtórzenia / czas — jedna zwięzła linia.
 function primaryDose(e: TrainingExercise): string {
   if (e.sets && e.reps) return `${e.sets} × ${e.reps}`;
+  if (e.sets && e.duration) return `${e.sets} × ${e.duration}`;
   if (e.reps) return e.reps;
   if (e.duration) return e.duration;
   if (e.sets) return `${e.sets} serie`;

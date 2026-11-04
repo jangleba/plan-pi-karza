@@ -1,3 +1,6 @@
+import { TrainingMethodPanel } from "@/components/loadwise/session/TrainingMethodPanel";
+import { MethodExecutionCoach } from "@/components/loadwise/session/MethodExecutionCoach";
+import { hasCurrentMethodRecipe } from "@/lib/loadwise/methods/planner";
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -215,7 +218,8 @@ function SessionDetail() {
     state.exerciseReplacements[date] ?? [],
   );
   const completed = session.dbId && state.completions[session.dbId]?.status === "completed";
-  const displayedSession = completed
+  const executionStarted = session.dbId && state.completions[session.dbId]?.status === "started";
+  const displayedSession = completed || executionStarted
     ? replacedSession
     : enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile));
 
@@ -234,9 +238,9 @@ function SessionDetail() {
               cooldown: [],
             })
           : [];
-  const sprintRunner = isSprintRunnerSession(session) && structured.length > 0;
+  const sprintRunner = isSprintRunnerSession(session) && structured.length > 0 && !hasCurrentMethodRecipe(session);
   const strengthRunner = isStrengthSession(session) && structured.length > 0;
-  const enduranceSession = isTrackableEnduranceRun(session);
+  const enduranceSession = isTrackableEnduranceRun(session) && !["M30","M31"].includes(session.trainingMethods?.primary ?? "");
   const trackableEndurance = enduranceSession && Boolean(session.dbId);
   const enduranceWarmup = structured
     .filter((s) => s.type === "warmup" || s.type === "prep")
@@ -307,12 +311,13 @@ function SessionDetail() {
         )}
 
         {strengthRunner && !completed && <StrengthExperienceSetup />}
+        <TrainingMethodPanel key={`methods:${session.dbId ?? `${date}:${slot}`}`} session={displayedSession} wholeDay={primary} slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1} locked={!!completed || hasStarted || !!(selectedAdd && session.dbId !== primary.dbId && session.dbId !== primary.secondSession?.dbId)} />
 
         {!sprintRunner &&
           (session.dayType === "match" ? (
             <MatchStartPanel session={session} isToday={isToday} />
           ) : (
-            <SessionStartPanel session={session} canStart={isToday} />
+            <SessionStartPanel session={displayedSession} canStart={isToday} />
           ))}
 
         {/* Sprint previews keep disclosure/teaching controls usable; the runner gates recording. */}
@@ -337,6 +342,8 @@ function SessionDetail() {
             </Link>
           )}
 
+          {!strengthRunner && structured.flatMap(s=>s.blocks.flatMap(b=>b.exercises)).filter(e=>e.methodExecution).map(e=><MethodExecutionCoach key={e.id} plan={e.methodExecution!} context={`${session.dbId ?? date}:${e.id}`} enabled={canExecute && !completion?.completed} />)}
+          {ballTechnicalSession && <div className="bw-method-reflection">Jedna rzecz na ten blok: spójrz przed przyjęciem. Po próbie nazwij sygnał, który zmienił Twój wybór — ustawienie rywala, partnera albo wolną przestrzeń.</div>}
           {enduranceSession && enduranceWarmup.length > 0 && (
             <WarmupCoach
               key={`${session.dbId ?? date}:warmup`}
@@ -439,7 +446,7 @@ function SessionDetail() {
 
         {sprintRunner && !hasStarted && isToday && (
           <div className="bw-sprint-start-panel">
-            <SessionStartPanel session={session} canStart />
+            <SessionStartPanel session={displayedSession} canStart />
           </div>
         )}
         {sprintRunner && !isToday && !canExecute && (

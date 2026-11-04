@@ -338,6 +338,15 @@ export type VisualResolution =
  * Zwraca { status: "missing" } gdy nie ma dedykowanej grafiki — NIGDY cudzej.
  */
 export function resolveExerciseVisual(e: TrainingExercise): VisualResolution {
+  const canonicalVisual =
+    e.exerciseId &&
+    (
+      { face_pull_band: "face_pull", long_lever_hamstring_iso: "long_lever_bridge_iso" } as Record<
+        string,
+        string
+      >
+    )[e.exerciseId];
+  if (canonicalVisual) return { status: "ready", visual: visualLibrary[canonicalVisual] };
   if (e.visualId) {
     const explicitVisual = visualLibrary[e.visualId];
 

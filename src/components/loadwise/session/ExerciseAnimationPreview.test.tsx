@@ -1,3 +1,4 @@
+import { APP_VERSION } from "@/lib/appVersion";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -38,7 +39,7 @@ describe("exercise animation integration", () => {
     await click("Pokaż animację ruchu");
     const frame = host.querySelector("iframe")!;
     expect(frame.getAttribute("src")).toBe(
-      "/technique/animations/index.html?id=a_skip&embed=1&v=2026.11.03.41",
+      `/technique/animations/index.html?id=a_skip&embed=1&v=${APP_VERSION}`,
     );
     expect(frame.title).toContain("Ćwiczenie");
     await click("Zamknij animację");

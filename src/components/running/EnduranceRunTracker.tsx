@@ -98,7 +98,7 @@ function RunTracker({
   onSave: (draft: RunningActivityDraft) => Promise<void>;
   onDelete: (activityId: string) => Promise<void>;
 }) {
-  const intervalProtocol = useMemo(() => deriveRunningIntervalProtocol(session), [session]);
+  const intervalProtocol = useMemo(() => session.trainingMethods?.recipeVersion === "47" ? null : deriveRunningIntervalProtocol(session), [session]);
   const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const nativeMode = !!ownerId && nativeRunningAvailable();

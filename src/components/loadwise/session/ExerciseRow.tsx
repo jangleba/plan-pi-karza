@@ -75,7 +75,8 @@ export function ExerciseRow({
         </button>
         <button
           type="button"
-          onClick={() => setExpanded((current) => !current)}
+          onClick={() => setDetailSheetOpen(true)}
+          aria-haspopup="dialog"
           className="min-w-0 flex-1 text-left"
         >
           <span
@@ -96,14 +97,23 @@ export function ExerciseRow({
         </button>
         <button
           type="button"
-          onClick={() => setExpanded((current) => !current)}
+          onClick={() => setDetailSheetOpen(true)}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground/60"
-          aria-label="Szczegóły"
+          aria-label={`Szczegóły: ${title}`}
+          aria-haspopup="dialog"
         >
           <ChevronRight className={`h-4 w-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
       </div>
       <ExerciseQuickGuide exercise={e} className="ml-11" />
+      <button
+        type="button"
+        className="ml-11 min-h-11 text-xs font-medium text-primary"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        {expanded ? "Zwiń narzędzia ćwiczenia" : "Narzędzia i notatka"}
+      </button>
       {expanded && (
         <div className="mt-3 space-y-3 rounded-xl bg-muted/40 p-3 text-xs">
           {details.purpose && (
@@ -180,7 +190,19 @@ export function ExerciseRow({
           <MovementBlueprint exercise={e} />
         </div>
       )}
-      <ExerciseDetailSheet exercise={e} open={detailSheetOpen} onOpenChange={setDetailSheetOpen} />
+      <ExerciseDetailSheet
+        exercise={e}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+        onRecord={
+          canLogSets && !e.executionBlockedReason
+            ? () => {
+                setDetailSheetOpen(false);
+                setLogging(true);
+              }
+            : undefined
+        }
+      />
       <ExerciseRunnerScreen
         exercise={e}
         sessionId={sessionId}

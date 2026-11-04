@@ -19,30 +19,45 @@ function Sheet({
   open,
   defaultOpen = false,
   onOpenChange,
-  direction = "bottom",
-  children,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Root>) {
+}: React.ComponentProps<typeof DrawerPrimitive.Root> & { initialDetent?: "medium" | "large" }) {
   const [localOpen, setLocalOpen] = React.useState(defaultOpen);
-  const [fraction, setFraction] = React.useState<number | string | null>(MEDIUM);
   const isOpen = open ?? localOpen;
+  const [opening, setOpening] = React.useState({ wasOpen: isOpen, cycle: 0 });
+  if (opening.wasOpen !== isOpen)
+    setOpening({ wasOpen: isOpen, cycle: opening.cycle + (isOpen ? 1 : 0) });
   const change = (next: boolean) => {
     setLocalOpen(next);
     onOpenChange?.(next);
   };
+  // Vaul resets the snap point on a delayed close timer. A fresh instance on
+  // reopening prevents that timer from collapsing a newly opened exercise.
+  // Closing keeps the same instance so the exit animation can finish.
+  return <SheetPanel key={opening.cycle} {...props} open={isOpen} onOpenChange={change} />;
+}
+
+function SheetPanel({
+  open,
+  initialDetent = "medium",
+  direction = "bottom",
+  children,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Root> & { initialDetent?: "medium" | "large" }) {
+  const [fraction, setFraction] = React.useState<number | string | null>(
+    initialDetent === "large" ? LARGE : MEDIUM,
+  );
   return (
     <SheetState.Provider
       value={{
         fraction: typeof fraction === "number" ? fraction : MEDIUM,
         setFraction,
-        close: () => change(false),
+        close: () => props.onOpenChange?.(false),
         direction,
       }}
     >
       <DrawerPrimitive.Root
         {...props}
-        open={isOpen}
-        onOpenChange={change}
+        open={open}
         direction={direction}
         snapPoints={SNAP_POINTS}
         fadeFromIndex={0}

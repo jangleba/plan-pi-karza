@@ -15,7 +15,12 @@ vi.mock("@/lib/loadwise/store", () => ({
 }));
 vi.mock("../MovementBlueprint", () => ({ MovementBlueprint: () => null }));
 vi.mock("../ExerciseDetailSheet", () => ({
-  ExerciseDetailSheet: () => null,
+  ExerciseDetailSheet: ({ open, onRecord }: { open: boolean; onRecord?: () => void }) =>
+    open ? (
+      <button type="button" onClick={onRecord}>
+        Zapisz serie
+      </button>
+    ) : null,
   resolveExerciseSheetViewModel: () => ({
     purpose: null,
     steps: [],
@@ -300,6 +305,7 @@ describe("session runners", () => {
         .click(),
     );
     await act(async () => host.querySelector<HTMLButtonElement>(".bw-exercise-open")!.click());
+    await click("Zapisz serie");
     expect(button("Zamknij runner").dataset.exerciseId).toBe("first");
     expect(button("Zamknij runner").dataset.sessionId).toBe("strength-1");
     await click("Zamknij runner");

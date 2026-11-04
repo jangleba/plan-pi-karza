@@ -1,5 +1,6 @@
 import type { RunningActivity } from "@/lib/running/types";
 import type { AccountOwnerType, OwnershipTransferStatus, SubscriptionPayerType } from "./agePolicy";
+import type { MethodExecution, TrainingMethodPlan, TrainingMethodPreferences } from "./methods/types";
 
 export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
 export type Level = "beginner" | "intermediate" | "advanced" | "elite";
@@ -73,6 +74,8 @@ export type DesiredPitchFeeling =
   | "prepared_for_higher_level";
 
 export interface Profile {
+  /** Optional training choices; stored with strength experience, outside onboarding. */
+  trainingMethodPreferences?: TrainingMethodPreferences;
   name: string;
   age: number;
   /** Dokładna data jest potrzebna wyłącznie do prawidłowego stosowania progów 13/16/18. */
@@ -261,6 +264,7 @@ export type SectionType = "warmup" | "prep" | "main" | "accessory" | "cooldown" 
 export type AgeSafetyLevel = "all" | "youth_ok" | "advanced_only";
 
 export interface TrainingExercise {
+  methodExecution?: MethodExecution;
   executionBlockedReason?: string;
   id: string;
   /** Stałe ID ćwiczenia z centralnej biblioteki; id powyżej oznacza instancję w sesji. */
@@ -556,6 +560,7 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
+  trainingMethods?: TrainingMethodPlan;
   executionSlot?: 1 | 2;
   /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
   isUnavailable?: boolean;

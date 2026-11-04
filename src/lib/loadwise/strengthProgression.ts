@@ -15,10 +15,18 @@ export interface StrengthProgressionContext {
   blockPhaseLabel?: string | null;
   mdLabel?: string | null;
   smallestIncrementKg?: number;
+  /** Testable clock; the recency window is a conservative product rule. */
+  now?: number;
   exercise?: Pick<
     TrainingExercise,
-    "name" | "purpose" | "loadTarget" | "progression" | "ageSafetyLevel" |
-    "sets" | "displayPrescription" | "tempo"
+    | "name"
+    | "purpose"
+    | "loadTarget"
+    | "progression"
+    | "ageSafetyLevel"
+    | "sets"
+    | "displayPrescription"
+    | "tempo"
   >;
 }
 
@@ -58,28 +66,42 @@ function targetRir(value: string | undefined): number {
   return numbers(value)[0] ?? 2;
 }
 
-function average(values: number[]): number {
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function sessionSummary(entry: { sets: SetLog[]; verification?: ExerciseSessionLog["verification"] }) {
+function sessionSummary(entry: {
+  sets: SetLog[];
+  verification?: ExerciseSessionLog["verification"];
+  performedAt?: string;
+}) {
   const sets = entry.sets;
   const complete = sets.filter(
-    (set) => set.weightKg != null && Number.isFinite(set.weightKg) && set.weightKg >= 0 &&
-      set.reps != null && Number.isFinite(set.reps) && set.reps > 0 &&
-      set.rir != null && Number.isFinite(set.rir) && set.rir >= 0 && set.rir <= 10,
+    (set) =>
+      set.weightKg != null &&
+      Number.isFinite(set.weightKg) &&
+      set.weightKg >= 0 &&
+      set.reps != null &&
+      Number.isFinite(set.reps) &&
+      set.reps > 0 &&
+      set.rir != null &&
+      Number.isFinite(set.rir) &&
+      set.rir >= 0 &&
+      set.rir <= 10,
   );
   if (complete.length === 0) return null;
   return {
     weightKg: Math.max(...complete.map((set) => set.weightKg!)),
-    uniformWeight: complete.every(set => set.weightKg === complete[0].weightKg),
+    uniformWeight: complete.every((set) => set.weightKg === complete[0].weightKg),
     minimumReps: Math.min(...complete.map((set) => set.reps!)),
-    averageRir: average(complete.map((set) => set.rir!)),
+    minimumRir: Math.min(...complete.map((set) => set.rir!)),
+    performedAt: entry.performedAt ? Date.parse(entry.performedAt) : NaN,
     prescriptionKey: entry.verification?.prescriptionKey,
-    allSetsLogged: Boolean(entry.verification && entry.verification.expectedSets > 0 &&
-      complete.length === entry.verification.expectedSets && sets.length === complete.length &&
-      Array.from({ length: entry.verification.expectedSets }, (_, index) => index + 1)
-        .every(number => complete.filter(set => set.setNumber === number).length === 1)),
+    allSetsLogged: Boolean(
+      entry.verification &&
+      entry.verification.expectedSets > 0 &&
+      complete.length === entry.verification.expectedSets &&
+      sets.length === complete.length &&
+      Array.from({ length: entry.verification.expectedSets }, (_, index) => index + 1).every(
+        (number) => complete.filter((set) => set.setNumber === number).length === 1,
+      ),
+    ),
   };
 }
 
@@ -88,23 +110,14 @@ function exerciseKind(
 ): "power" | "compound" | "accessory" {
   const text =
     `${exercise?.name ?? ""} ${exercise?.purpose ?? ""} ${exercise?.loadTarget ?? ""}`.toLowerCase();
-  if (/moc|power|eksplo|dynamic|skok|jump|rzut|throw|clean|swing/.test(text))
-    return "power";
-  if (
-    /przysiad|squat|martwy|deadlift|wyciskan|press|bench|wiosł|row|hip thrust/.test(
-      text,
-    )
-  ) {
+  if (/moc|power|eksplo|dynamic|skok|jump|rzut|throw|clean|swing/.test(text)) return "power";
+  if (/przysiad|squat|martwy|deadlift|wyciskan|press|bench|wiosł|row|hip thrust/.test(text)) {
     return "compound";
   }
   return "accessory";
 }
 
-function nearestAvailableIncrease(
-  current: number,
-  target: number,
-  increment: number,
-): number {
+function nearestAvailableIncrease(current: number, target: number, increment: number): number {
   const rounded = Math.round(target / increment) * increment;
   const candidate = rounded > current ? rounded : current + increment;
   return Math.round(candidate * 100) / 100;
@@ -135,28 +148,26 @@ export function recommendNextLoad(
   rir: string | undefined,
   context: StrengthProgressionContext = {},
 ): StrengthProgressionRecommendation | null {
-  const sessions: { sets: SetLog[]; verification?: ExerciseSessionLog["verification"] }[] =
-    Array.isArray(history[0]) ? (history as SetLog[][]).map(sets => ({ sets })) :
-      history[0] && "sets" in history[0] ? history as ExerciseSessionLog[] : [{ sets: history as SetLog[] }];
-  const summaries = sessions
-    .map(sessionSummary)
-    .slice(0, 3);
+  const sessions: {
+    sets: SetLog[];
+    verification?: ExerciseSessionLog["verification"];
+    performedAt?: string;
+  }[] = Array.isArray(history[0])
+    ? (history as SetLog[][]).map((sets) => ({ sets }))
+    : history[0] && "sets" in history[0]
+      ? (history as ExerciseSessionLog[])
+      : [{ sets: history as SetLog[] }];
+  const summaries = sessions.map(sessionSummary).slice(0, 3);
   const latest = summaries[0];
   if (!latest) return null;
 
   const current = latest.weightKg;
   const phase = String(context.blockPhaseLabel ?? "").toLowerCase();
   if (/deload|regener|odciąż|konsolid/.test(phase)) {
-    return repeat(
-      current,
-      "Tydzień odciążenia: utrzymujemy bodziec bez dokładania ciężaru.",
-    );
+    return repeat(current, "Tydzień odciążenia: utrzymujemy bodziec bez dokładania ciężaru.");
   }
   if (context.mdLabel === "MD" || context.mdLabel === "MD-1") {
-    return repeat(
-      current,
-      "Blisko meczu priorytetem jest świeżość, nie nowy ciężar.",
-    );
+    return repeat(current, "Blisko meczu priorytetem jest świeżość, nie nowy ciężar.");
   }
 
   const kind = exerciseKind(context.exercise);
@@ -167,13 +178,15 @@ export function recommendNextLoad(
     context.gymExperienceLevel == null ||
     context.gymExperienceLevel === "none" ||
     context.gymExperienceLevel === "beginner" ||
-    (context.strengthTrainingMonths ?? 0) < 12 ||
-    context.level === "beginner";
+    (context.strengthTrainingMonths ?? 0) < 12;
 
   if (
-    (context.age == null || young && context.supervisionLevel !== "some" && context.supervisionLevel !== "full") ||
-    context.movementCompetence == null || context.movementCompetence === "low" ||
-    context.gymExperienceLevel == null || context.strengthTrainingMonths == null
+    context.age == null ||
+    (young && context.supervisionLevel !== "some" && context.supervisionLevel !== "full") ||
+    context.movementCompetence == null ||
+    context.movementCompetence === "low" ||
+    context.gymExperienceLevel == null ||
+    context.strengthTrainingMonths == null
   ) {
     return repeat(
       current,
@@ -198,50 +211,73 @@ export function recommendNextLoad(
     rir,
     tempo: context.exercise?.tempo,
   });
-  if (candidates.some(item => !item?.allSetsLogged || item.prescriptionKey !== prescriptionKey)) {
-    return repeat(current,
-      "Potrzebujemy dwóch ukończonych, porównywalnych sesji z kompletem zaplanowanych serii.", "low");
+  if (candidates.some((item) => !item?.allSetsLogged || item.prescriptionKey !== prescriptionKey)) {
+    return repeat(
+      current,
+      "Potrzebujemy dwóch ukończonych, porównywalnych sesji z kompletem zaplanowanych serii.",
+      "low",
+    );
   }
   const recent = candidates as NonNullable<ReturnType<typeof sessionSummary>>[];
-  if (recent.some(item => item.weightKg !== current || !item.uniformWeight)) {
-    return repeat(current, "Powtórz obecny ciężar, aby potwierdzić wynik w dwóch porównywalnych sesjach.");
+  const now = context.now ?? Date.now();
+  if (
+    recent.some(
+      (item) =>
+        !Number.isFinite(item.performedAt) ||
+        item.performedAt > now + 86_400_000 ||
+        now - item.performedAt > 42 * 86_400_000,
+    )
+  ) {
+    return repeat(
+      current,
+      "Wyniki są nieaktualne lub nie mają daty. Powtórz ciężar i zbierz świeże, porównywalne serie.",
+      "low",
+    );
+  }
+  if (recent.some((item) => item.weightKg !== current || !item.uniformWeight)) {
+    return repeat(
+      current,
+      "Powtórz obecny ciężar, aby potwierdzić wynik w dwóch porównywalnych sesjach.",
+    );
   }
   const failed = recent.some(
     (item) =>
       !item.allSetsLogged ||
       item.minimumReps < target.low ||
-      item.averageRir < Math.max(0, plannedRir - 1),
+      item.minimumRir < Math.max(0, plannedRir - 1),
   );
   if (failed) {
     const repeatedFailure = recent.every(
-      (item) => item.minimumReps < target.low || item.averageRir <= 0,
+      (item) => item.minimumReps < target.low || item.minimumRir <= 0,
     );
     if (repeatedFailure) {
       const increment = Math.max(0.5, context.smallestIncrementKg ?? 2.5);
-      const reduced = Math.max(
-        increment,
+      const candidate = Math.min(
+        current - increment,
         Math.round((current * 0.95) / increment) * increment,
       );
+      const reduced =
+        candidate > 0 && candidate < current && candidate >= current * 0.9
+          ? Math.round(candidate * 100) / 100
+          : null;
       return {
         mode: "reduce",
         title: "Spokojna korekta ciężaru",
         currentWeightKg: current,
-        weightKg: Math.round(reduced * 100) / 100,
+        weightKg: reduced,
         reason:
-          "Dwie ostatnie ekspozycje nie domknęły celu; cofamy mały krok zamiast dokładać zmęczenie.",
+          reduced === null
+            ? "Dwie ekspozycje nie domknęły celu. Rozważ mniejszy opór; przy podanej podziałce nie wyznaczamy automatycznie konkretnego ciężaru."
+            : "Dwie ostatnie ekspozycje nie domknęły celu. Możesz rozważyć mały krok w dół i sprawdzić jakość kolejnych serii.",
         confidence: "medium",
       };
     }
-    return repeat(
-      current,
-      "Ostatnia sesja nie była jeszcze stabilna w zaplanowanym zakresie.",
-    );
+    return repeat(current, "Ostatnia sesja nie była jeszcze stabilna w zaplanowanym zakresie.");
   }
 
   const clearlyReady = recent.every(
     (item) =>
-      item.minimumReps >= target.high &&
-      item.averageRir >= plannedRir + (kind === "power" ? 1 : 0),
+      item.minimumReps >= target.high && item.minimumRir >= plannedRir + (kind === "power" ? 1 : 0),
   );
   if (!clearlyReady) {
     return repeat(
@@ -250,8 +286,7 @@ export function recommendNextLoad(
     );
   }
 
-  const footballSpeedPriority =
-    context.goal === "power" || context.goal === "speed";
+  const footballSpeedPriority = context.goal === "power" || context.goal === "speed";
   const percentage =
     kind === "power" || footballSpeedPriority || young || novice
       ? 0.025
@@ -259,11 +294,7 @@ export function recommendNextLoad(
         ? 0.05
         : 0.05;
   const increment = Math.max(0.5, context.smallestIncrementKg ?? 2.5);
-  const proposed = nearestAvailableIncrease(
-    current,
-    current * (1 + percentage),
-    increment,
-  );
+  const proposed = nearestAvailableIncrease(current, current * (1 + percentage), increment);
   const actualIncrease = (proposed - current) / current;
   const safeCeiling = young ? 0.05 : kind === "power" ? 0.03 : 0.1;
   if (proposed <= current || actualIncrease > safeCeiling) {
@@ -286,10 +317,7 @@ export function recommendNextLoad(
   };
 }
 
-export function strengthProgressionDecisionKey(
-  userId: string,
-  exerciseKey: string,
-): string {
+export function strengthProgressionDecisionKey(userId: string, exerciseKey: string): string {
   return `ballwise:strength-progression:v1:${userId}:${exerciseKey}`;
 }
 

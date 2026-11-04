@@ -40,14 +40,14 @@ export function parseTrainingNumber(raw: string): number | null {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-export function validateTrainingFields(values: TrainingFields, kind: string): string | null {
+export function validateTrainingFields(values: TrainingFields, kind: string, weightOptional = false): string | null {
   for (const id of kind === "load"
     ? (["weight", "reps", "rir"] as const)
     : (["value", "rir"] as const)) {
     if (values[id].trim() && parseTrainingNumber(values[id]) === null)
       return "Wpisz poprawną liczbę. Możesz użyć przecinka.";
   }
-  if (kind === "load" && parseTrainingNumber(values.weight) === null)
+  if (kind === "load" && !weightOptional && parseTrainingNumber(values.weight) === null)
     return "Wpisz używany ciężar. Przy pracy bez dodatkowego obciążenia wpisz 0.";
   const result = parseTrainingNumber(kind === "load" ? values.reps : values.value);
   if (result === null || result <= 0)
@@ -117,6 +117,7 @@ export function trainingFingerprint(exercises: TrainingExercise[]): string {
       e.tempo,
       e.restAfterExercise,
       e.restAfterPair,
+      e.methodExecution,
     ]),
   );
 }

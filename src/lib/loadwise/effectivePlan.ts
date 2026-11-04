@@ -1,3 +1,4 @@
+import { enforceMethodEligibility } from "./methods/planner";
 import type {
   Profile,
   Readiness,
@@ -8,6 +9,7 @@ import type {
 import { applyReadiness } from "./sessionRuntime";
 import { adaptMdPlusOneFromMatchMinutes } from "./adaptiveWeek";
 import { enforceSprintOnlyContent } from "./sprintContentPolicy";
+import { enforceStrengthEligibility } from "./strengthEligibility";
 
 export interface EffectivePlanContext {
   profile?: Profile | null;
@@ -35,17 +37,25 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
   const pin = (session: SessionDay): SessionDay => {
     const completion = session.dbId ? context.completions?.[session.dbId] : undefined;
     const snapshot = completion?.executionSnapshot;
-    return snapshot && (completion?.completed || completion?.status === "started")
-      ? {
-          ...snapshot,
-          dbId: session.dbId,
-          dayDbId: session.dayDbId,
-          planDbId: session.planDbId,
-          cycleId: session.cycleId,
-          date: session.date,
-          secondSession: null,
-        }
-      : session;
+    if (completion?.completed || completion?.status === "started" || session.executionProtected) {
+      return snapshot
+        ? {
+            ...snapshot,
+            dbId: session.dbId,
+            dayDbId: session.dayDbId,
+            planDbId: session.planDbId,
+            cycleId: session.cycleId,
+            date: session.date,
+            secondSession: null,
+          }
+        : session;
+    }
+    if (!context.profile) return session;
+    const repaired = enforceStrengthEligibility(
+      enforceMethodEligibility({ ...session, secondSession: null },context.profile),
+      context.profile,
+    );
+    return { ...repaired, secondSession: session.secondSession };
   };
   // An already executed second slot remains visible even if today's safety adaptation
   // removes future work. The safety warning still applies to any further exercise.
@@ -130,7 +140,9 @@ export function resolveEffectivePlan(
   modifications: Record<string, SessionModification[]> = {},
   context?: EffectivePlanContext,
 ): SessionDay[] {
-  const modified = plan.map((day) => enforceSprintOnlyContent(resolveModifiedDay(day, modifications[day.date] ?? [])));
+  const modified = plan.map((day) =>
+    enforceSprintOnlyContent(resolveModifiedDay(day, modifications[day.date] ?? [])),
+  );
   if (!context) return modified;
   const adapted = adaptMdPlusOneFromMatchMinutes(
     modified,

@@ -1,3 +1,4 @@
+import { hasCurrentMethodRecipe } from "./methods/planner";
 import type { Profile, SessionCompletion, SessionDay, SessionModification } from "./types";
 import {
   FOOTBALL_SPEED_GENERATOR_VERSION,
@@ -128,6 +129,7 @@ function externalExposures(
 }
 
 function isRepairableEngineSpeed(session: SessionDay): boolean {
+  if(hasCurrentMethodRecipe(session))return false;
   // Stare rekordy potrafią mieć częściowe `classification` (np. wyłącznie
   // `generatedBy`). Zawsze odbudowujemy pełną klasyfikację z treści sesji.
   const classification = classifySession(session);

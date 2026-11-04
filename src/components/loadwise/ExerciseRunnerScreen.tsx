@@ -1,3 +1,5 @@
+import { MethodBlueprint } from "./session/MethodBlueprint";
+import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft } from "lucide-react";
 import type { TrainingExercise } from "@/lib/loadwise/types";
@@ -174,7 +176,8 @@ export function ExerciseRunnerScreen({
   const values = draft.value;
   const setValues = draft.setValue;
   const metricKind = useMemo(() => metricKindForExercise(exercise), [exercise]);
-  const fields = useMemo(() => fieldsForMetric(metricKind), [metricKind]);
+  const repetitionsOnly = exercise.exerciseId === "flywheel_squat";
+  const fields = useMemo(() => repetitionsOnly ? fieldsForMetric("load").filter(f=>f.id==="reps") : fieldsForMetric(metricKind), [metricKind,repetitionsOnly]);
   const unit = metricUnit(metricKind);
   const illustration = getIllustration(illustrationKeyForExercise(exercise));
   const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
@@ -186,7 +189,7 @@ export function ExerciseRunnerScreen({
   const hasSavedLoad = [...Object.values(previous), ...Object.values(current)].some(
     (log) => log?.weightKg != null && log.weightKg >= 0,
   );
-  const needsStartingLoad = metricKind === "load" && !hasSavedLoad;
+  const needsStartingLoad = metricKind === "load" && !hasSavedLoad && !repetitionsOnly;
   const sessionContext = useMemo(
     () =>
       effectiveSessions(
@@ -200,7 +203,7 @@ export function ExerciseRunnerScreen({
   );
   const recommendation = useMemo(
     () =>
-      metricKind === "load"
+      metricKind === "load" && !repetitionsOnly && !["M15","M39"].includes(exercise.methodExecution?.methodId ?? "") && exercise.exerciseId !== "band_resisted_squat"
         ? recommendNextLoad(recentSessions, exercise.reps, exercise.rir, {
             age: state.profile?.age,
             level: state.profile?.level,
@@ -214,7 +217,7 @@ export function ExerciseRunnerScreen({
             exercise,
           })
         : null,
-    [metricKind, recentSessions, exercise, state.profile, sessionContext],
+    [metricKind, recentSessions, exercise, state.profile, sessionContext,repetitionsOnly],
   );
 
   useEffect(() => {
@@ -250,6 +253,7 @@ export function ExerciseRunnerScreen({
       <div className="bw-training-inline" role="status">
         <p>{exercise.executionBlockedReason}</p>
         <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
+
         <button type="button" onClick={onClose}>
           Zamknij ćwiczenie
         </button>
@@ -265,7 +269,7 @@ export function ExerciseRunnerScreen({
   const rest = exercise.restAfterPair || exercise.restAfterExercise;
 
   async function saveCurrentSet() {
-    const validationError = validateTrainingFields(values, metricKind);
+    const validationError = validateTrainingFields(values, metricKind, repetitionsOnly);
     if (validationError) {
       setBaselineError(validationError);
       return;
@@ -276,9 +280,9 @@ export function ExerciseRunnerScreen({
     const savingContext = context;
     const log: SetLog = {
       setNumber,
-      weightKg: metricKind === "load" ? weightKg : null,
+      weightKg: metricKind === "load" && !repetitionsOnly ? weightKg : null,
       reps: metricKind === "load" ? num(values.reps) : null,
-      rir: metricKind === "load" || metricKind === "contacts" ? num(values.rir) : null,
+      rir: !repetitionsOnly && (metricKind === "load" || metricKind === "contacts") ? num(values.rir) : null,
       metricKind: metricKind === "load" ? null : metricKind,
       metricValue: metricKind === "load" ? null : num(values.value),
     };
@@ -314,6 +318,10 @@ export function ExerciseRunnerScreen({
     return (
       <div className="bw-training-inline">
         <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
+        <MethodBlueprint exerciseId={exercise.exerciseId}/>
+        {repetitionsOnly && <p className="text-xs text-muted-foreground">Zapisujesz powtórzenia; ustawienie flywheel zapisz w notatce. Nie przeliczamy bezwładności na kilogramy.</p>}
+        {exercise.methodExecution && <MethodExecutionCoach key={`${exercise.id}:${setNumber}`} plan={{...exercise.methodExecution,rounds:1,roundRestSeconds:0}} context={`${sessionId ?? date}:${exercise.id}:${setNumber}`}/>}
+
         <div className="bw-set-heading">
           <label>
             Seria{" "}
@@ -442,6 +450,9 @@ export function ExerciseRunnerScreen({
       {view === "sets" ? (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
           <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
+          <MethodBlueprint exerciseId={exercise.exerciseId} />
+          {repetitionsOnly && <p className="text-xs text-muted-foreground">Zapisujesz wykonane powtórzenia. Bezwładność i ustawienie flywheel zapisuj w notatce ćwiczenia; nie przeliczamy ich na kilogramy.</p>}
+          {exercise.methodExecution && <MethodExecutionCoach key={`${exercise.id}:${setNumber}`} plan={{...exercise.methodExecution,rounds:1,roundRestSeconds:0}} context={`${sessionId ?? date}:${exercise.id}:${setNumber}`} />}
           <button
             type="button"
             onClick={() => setView("technique")}

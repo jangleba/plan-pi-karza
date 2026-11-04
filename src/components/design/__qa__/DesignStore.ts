@@ -23,6 +23,26 @@ const profile = buildProfile(
   },
   null,
 )!;
+if (new URLSearchParams(location.search).get("screen") === "strength-engine") {
+  const q = new URLSearchParams(location.search);
+  const experience = q.get("experience");
+  profile.goal = q.get("goal") === "power" ? "power" : "strength";
+  if (experience === "advanced" || experience === "intermediate" || experience === "beginner") {
+    profile.gymExperienceLevel = experience;
+    profile.strengthTrainingMonths =
+      experience === "advanced" ? 36 : experience === "intermediate" ? 12 : 3;
+    profile.movementCompetence = experience === "beginner" ? "low" : "high";
+    profile.supervisionLevel = "some";
+  }
+}
+if (new URLSearchParams(location.search).get("screen") === "methods")
+  Object.assign(profile, {
+    age: 25,
+    gymExperienceLevel: "advanced",
+    strengthTrainingMonths: 36,
+    movementCompetence: "high",
+    supervisionLevel: "full",
+  });
 let plan = generatePlan(profile, new Date(2026, 10, 2), 14);
 const startQA = new URLSearchParams(location.search).get("screen") === "start";
 if (startQA) {
@@ -121,6 +141,12 @@ export const useLoadwise = () => {
     loading: false,
     todayIso: today,
     todaySession: state.plan[0],
+    saveStrengthExperience: async (
+      value: import("@/lib/loadwise/strengthExperience").StrengthExperience,
+    ) => {
+      designState = { ...designState, profile: { ...designState.profile!, ...value } };
+      for (const fn of listeners) fn();
+    },
     updateProfile: async () => {},
     markEquipmentUnavailable: async () => {},
     completeOnboarding: async () => {},

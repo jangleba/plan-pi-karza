@@ -7,11 +7,13 @@ export function PreparationIllustration({
   label,
   side,
   small = false,
+  squeeze = false,
 }: {
   visual: PreparationVisual;
   label: string;
   side?: "left" | "right" | null;
   small?: boolean;
+  squeeze?: boolean;
 }) {
   const titleId = useId();
   const wall = visual === "calf" || visual === "soleus" || visual === "quad";
@@ -120,6 +122,15 @@ export function PreparationIllustration({
         ) : visual === "bridge" ? (
           <>
             <circle cx="64" cy="174" r="12" fill="#f0f2f3" />
+            {squeeze && (
+              <g>
+                <circle cx="195" cy="119" r="8" fill="#d3e4f0" stroke="#1b4066" strokeWidth="2" />
+                <path d="M208 105l-8 7" stroke="#1b4066" strokeWidth="2" />
+                <text x="205" y="98" fill="#1b4066" stroke="none" fontSize="11">
+                  lekki docisk
+                </text>
+              </g>
+            )}
             <path d="M81 171L143 119L157 136L91 183Z" fill="#e6ebef" />
             <path
               d="M151 128L195 108L222 183L243 187M88 182L128 187"

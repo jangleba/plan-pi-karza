@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { StrengthStructuredSections } from "./StrengthRunner";
 import { sectionFixture } from "./testFixtures";
+import { executionFor } from "@/lib/loadwise/methods/builders";
 
 const m = vi.hoisted(() => ({
   rows: [] as Record<string, unknown>[],
@@ -129,11 +130,11 @@ const sections = [
 ];
 let host: HTMLDivElement;
 let root: Root;
-async function render() {
+async function render(testSections = sections) {
   await act(async () => {
     root.render(
       <StrengthStructuredSections
-        sections={sections}
+        sections={testSections}
         date="2026-10-15"
         sessionId="session-test"
         onFinish={() => {}}
@@ -173,11 +174,16 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("inline strength execution", () => {
-  it("shows every exercise at once and loads history only for the opened exercise", async () => {
+  it("opens instructions first without reading or writing set history, then loads history only for logging", async () => {
     await render();
     expect(host.querySelectorAll(".bw-training-exercise")).toHaveLength(3);
     expect(m.reads).toBe(0);
     await click(".bw-exercise-open");
+    expect(document.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(document.body.textContent).toContain("Jak wykonać");
+    expect(m.reads).toBe(0);
+    expect(m.writes).toHaveLength(0);
+    await act(async () => document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
     expect(host.querySelector(".bw-training-inline")).not.toBeNull();
     expect(host.querySelector(".fixed")).toBeNull();
     expect(m.reads).toBe(1);
@@ -187,6 +193,7 @@ describe("inline strength execution", () => {
   it("saves real values and alternates paired exercises, starting rest after the pair", async () => {
     await render();
     await click(".bw-exercise-open");
+    await act(async () => document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
     await input("Ciężar", "20");
     await input("Powt.", "8");
     await save();
@@ -216,9 +223,31 @@ describe("inline strength execution", () => {
     expect(m.writes.map((r) => r.set_number)).toEqual([1, 1, 2, 2]);
     expect(host.querySelectorAll(".is-done")).toHaveLength(2);
   });
+  it("starts the prescribed rest between the heavy set and the next power exercise", async () => {
+    const paired = structuredClone(sections);
+    paired[0].blocks[0].exercises[0].restAfterExercise = "3 min";
+    await act(async () =>
+      root.render(
+        <StrengthStructuredSections
+          sections={paired}
+          date="2026-10-15"
+          sessionId="session-test"
+          onFinish={() => {}}
+        />,
+      ),
+    );
+    await click(".bw-exercise-open");
+    await act(async () => document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
+    await input("Ciężar", "20");
+    await input("Powt.", "8");
+    await save();
+    expect(host.querySelector('[role="timer"]')?.textContent).toContain("03:00");
+    expect(host.querySelector(".is-active strong")?.textContent).toContain("Most");
+  });
   it("keeps the form and does not advance after a rejected save", async () => {
     await render();
     await click(".bw-exercise-open");
+    await act(async () => document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
     m.fail = true;
     await input("Ciężar", "20");
     await input("Powt.", "8");
@@ -231,8 +260,34 @@ describe("inline strength execution", () => {
   it("refuses an empty result without creating logs", async () => {
     await render();
     await click(".bw-exercise-open");
+    await act(async () => document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
     await save();
     expect(m.writes).toHaveLength(0);
     expect(host.querySelector('[role="alert"]')).not.toBeNull();
   });
+});
+
+it("opens a cluster clock in the inline logger and does not save a set when confirming a group",async()=>{
+  await render([sectionFixture("main",[{id:"cluster",exerciseId:"goblet_squat",name:"Przysiad",sets:"3",reps:"6",methodExecution:executionFor("M08",{mode:"cluster",rounds:3,repetitions:3,repGroups:[2,2,2],restSeconds:20,roundRestSeconds:180})}])]);
+  await click(".bw-exercise-open");
+  await act(async()=>document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
+  const clock=host.querySelector('.bw-training-inline [data-testid="method-clock"]')!;
+  expect(clock).toBeTruthy();
+  const run=[...clock.querySelectorAll("button")].find(b=>b.textContent?.includes("Uruchom zegar"))!;
+  await act(async()=>run.click());
+  expect(clock.textContent).toContain("Blok 1/1");
+  const group=[...clock.querySelectorAll("button")].find(b=>b.textContent?.includes("Grupa wykonana"))!;
+  await act(async()=>group.click());
+  expect(clock.textContent).toContain("Odpoczynek");expect(m.writes).toHaveLength(0);
+  await input("Ciężar","20");await input("Powt.","6");await input("RIR","3");await save();
+  expect(m.writes).toHaveLength(1);expect(m.writes[0].reps).toBe(6);
+});
+it("records actual flywheel repetitions with a null weight, without inventing inertia in kg",async()=>{
+  await render([sectionFixture("main",[{id:"flywheel",exerciseId:"flywheel_squat",name:"Przysiad flywheel",sets:"2",reps:"6"}])]);
+  await click(".bw-exercise-open");
+  expect(document.querySelector('.bw-exercise-detail-media svg[role="img"]')).toBeTruthy();
+  expect(document.querySelector('.bw-exercise-detail-media')?.textContent).toContain("Linka i uprząż");
+  await act(async()=>document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
+  expect(host.querySelector('.bw-exercise-panel:not([hidden]) input[aria-label="Ciężar"]')).toBeNull();
+  await input("Powt.","6");await save();expect(m.writes).toHaveLength(1);expect(m.writes[0].weight_kg).toBeNull();expect(m.writes[0].reps).toBe(6);
 });

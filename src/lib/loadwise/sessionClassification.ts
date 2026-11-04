@@ -196,6 +196,13 @@ function resolveCategory(session: SessionDay): CategoryResult {
     };
   }
 
+  if(session.trainingMethods?.recipeVersion === "47") {
+    const id=session.trainingMethods.primary;
+    if(["M26","M27","M28","M29","M30","M31"].includes(id))return {category:"endurance_conditioning",subcategory:id==="M26"?"easy_run":"extensive_intervals",sourceRule:"method47=conditioning"};
+    if(["M18","M19","M20","M21","M22","M23","M24","M25"].includes(id))return {category:"speed_sprint",subcategory:id==="M19"?"max_velocity":id==="M23"?"deceleration":id==="M24"||id==="M25"?"change_of_direction":"acceleration",sourceRule:"method47=sprint"};
+    if(["M02","M03","M04","M05","M06","M07","M08","M09","M10","M11","M12","M13","M14","M15","M17","M39"].includes(id))return {category:"gym_strength",subcategory:classifyGym(header),sourceRule:"method47=strength"};
+  }
+
   // 3) Regeneracja / prehab / mobilność — NIE liczą się jako pełna siłownia.
   //    Sprawdzamy zanim spojrzymy na słowa siłowe (prehab ma ćwiczenia siłowe).
   if (session.dayType === "recovery" || has(explicitHeader, RE_RECOVERY)) {

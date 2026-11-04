@@ -497,7 +497,7 @@ export function buildAthleteTrainingProfile(
     maxSessionsPerDay: 2,
     availableTrainingDays: p.individualTrainingDays ?? [],
     availableTimePerSession: developmentStage === "child_foundation" ? 40 : 60,
-    equipmentAccess: p.equipment ?? [],
+    equipmentAccess: [...(p.equipment ?? []), ...(p.trainingMethodPreferences?.declaredEquipment ?? [])],
     gymAccess,
     homeEquipment: p.homeEquipment ?? [],
     unavailableEquipmentIds: p.unavailableEquipmentIds ?? [],

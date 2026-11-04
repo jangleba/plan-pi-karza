@@ -117,6 +117,12 @@ export type EquipmentId =
   | "sliders"
   | "nordic_setup"
   | "machine"
+  | "flywheel"
+  | "fixed_pins"
+  | "velocity_device"
+  | "assistance_rig"
+  | "chains"
+  | "hill"
   | "none";
 
 export interface EquipmentDefinition {
@@ -126,6 +132,12 @@ export interface EquipmentDefinition {
 }
 
 export const EQUIPMENT_REGISTRY: readonly EquipmentDefinition[] = [
+  { id: "flywheel", displayName: "Urządzenie flywheel", aliases: ["flywheel", "koło zamachowe"] },
+  { id: "fixed_pins", displayName: "Stałe piny do izometrii", aliases: ["fixed_pins"] },
+  { id: "velocity_device", displayName: "Sprawdzony miernik prędkości", aliases: ["velocity_device"] },
+  { id: "assistance_rig", displayName: "Kontrolowany system asysty sprintu", aliases: ["assistance_rig"] },
+  { id: "chains", displayName: "Łańcuchy treningowe", aliases: ["chains"] },
+  { id: "hill", displayName: "Bezpieczny podbieg", aliases: ["hill"] },
   { id: "none", displayName: "Masa ciała", aliases: ["bodyweight", "brak"] },
   { id: "barbell", displayName: "Sztanga", aliases: ["bar", "sztanga"] },
   { id: "trap_bar", displayName: "Trap bar", aliases: ["hex bar", "trap-bar"] },
@@ -439,6 +451,11 @@ const LIBRARY: ExerciseDefinition[] = [
   },
   {
     id: "dead_bug",
+    instructionsPl: [
+      "Połóż się na plecach, unieś ręce i ugięte nogi; ustaw żebra nad miednicą i oddychaj spokojnie.",
+      "Oddal przeciwną rękę i nogę tylko tak daleko, jak potrafisz bez odrywania lędźwi od podłoża.",
+      "Wróć do środka i zmień stronę. Skróć ruch, jeśli tracisz ustawienie tułowia.",
+    ],
     name: "Dead bug",
     displayNamePl: "Martwy robak",
     aliases: ["Dead-bug"],
@@ -758,7 +775,11 @@ const LIBRARY: ExerciseDefinition[] = [
     progressionIds: [],
     regressionIds: ["goblet_squat", "bodyweight_split_squat"],
     safeAlternativeIds: ["goblet_squat", "bodyweight_squat"],
-    coachingCues: ["Utrzymuj napięcie tułowia", "Cała stopa podparta; kolana zgodnie z kierunkiem stóp", "Kontroluj zejście, wstań zdecydowanie"],
+    coachingCues: [
+      "Utrzymuj napięcie tułowia",
+      "Cała stopa podparta; kolana zgodnie z kierunkiem stóp",
+      "Kontroluj zejście, wstań zdecydowanie",
+    ],
     commonErrors: ["Zaokrąglenie pleców", "Kolana do środka", "Zbyt duży ciężar"],
   },
   {
@@ -1136,8 +1157,37 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
       aliases: ["Soleus isometric hold", "Izometria łydki / soleus (holding)"],
     },
   ),
+  supportExercise(
+    "ankle_rock_forward",
+    "Knee over toe ankle mobilization",
+    "mobility",
+    "ankle range of motion",
+    {
+      displayNamePl: "Kolano nad stopę",
+      aliases: [],
+      instructionsPl: [
+        "Ustaw jedną stopę przed sobą, cała pięta pozostaje na podłożu.",
+        "Przesuń kolano w kierunku palców, bez zapadania stopy do środka i bez odrywania pięty.",
+        "Wróć spokojnie i powtórz, a następnie zmień stronę; zakres ma być swobodny.",
+      ],
+    },
+  ),
+  supportExercise("adductor_rockback", "Adductor rockback", "mobility", "hip range of motion", {
+    displayNamePl: "Cofanie bioder w podparciu",
+    aliases: [],
+    instructionsPl: [
+      "Przyjmij podparcie na dłoniach i jednym kolanie; drugą nogę wyprostuj w bok.",
+      "Cofnij biodra, zachowując spokojny kręgosłup i stopę wyprostowanej nogi w kontakcie z podłożem.",
+      "Wróć bez szarpania i zmień stronę po zaplanowanych powtórzeniach.",
+    ],
+  }),
   supportExercise("hip_mobility_flow", "Hip mobility flow", "mobility", "hip range of motion", {
     displayNamePl: "Mobilność bioder",
+    instructionsPl: [
+      "Ustaw się w wygodnym wykroku z tylnym kolanem na miękkim podłożu.",
+      "Przenieś miednicę lekko do przodu, utrzymując napięty brzuch i nie wyginając lędźwi.",
+      "Wróć, powtórz spokojnie i zmień stronę; nie wymuszaj końca zakresu.",
+    ],
     aliases: [
       "Hip mobility flow",
       "Mobilność bioder i tylnych ud",
@@ -1171,6 +1221,11 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "low intensity circulation",
     {
       displayNamePl: "Lekki rower regeneracyjny",
+      instructionsPl: [
+        "Ustaw siodełko tak, by przy najniższym położeniu pedału kolano pozostawało lekko ugięte.",
+        "Kręć swobodnie przy małym oporze; oddech powinien pozwalać na rozmowę.",
+        "Utrzymuj spokojne tempo przez podany czas. Nie traktuj tego odcinka jak kolejnego interwału.",
+      ],
       aliases: [
         "Easy cycle recovery",
         "Lekki rower / spacer",
@@ -1190,6 +1245,11 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
     "parasympathetic recovery",
     {
       displayNamePl: "Oddech przeponowy",
+      instructionsPl: [
+        "Usiądź albo połóż się wygodnie, rozluźnij barki i szczękę.",
+        "Zrób spokojny wdech bez unoszenia barków, a potem swobodny, nieco dłuższy wydech.",
+        "Nie wstrzymuj oddechu i nie próbuj nabierać maksymalnej ilości powietrza; wróć do zwykłego oddechu, jeśli czujesz zawroty głowy.",
+      ],
       aliases: ["Diaphragmatic breathing", "Oddech i wyciszenie", "Wyciszenie i oddech"],
     },
   ),
@@ -1264,14 +1324,43 @@ const REQUIRED_FAMILY_EXERCISES: ExerciseDefinition[] = [
       ],
     },
   ),
-  supportExercise("pallof_press", "Pallof press", "trunk", "anti-rotation trunk stability"),
+  supportExercise("pallof_press", "Pallof press", "trunk", "anti-rotation trunk stability", {
+    equipmentRequired: ["band"],
+    loadingType: "external",
+    regressionIds: ["dead_bug"],
+    safeAlternativeIds: ["dead_bug"],
+    instructionsPl: [
+      "Zamocuj gumę stabilnie na wysokości klatki piersiowej i stań bokiem do punktu zaczepienia.",
+      "Trzymaj gumę obiema dłońmi przy mostku; wyprostuj ręce przed siebie bez obracania miednicy i barków.",
+      "Wróć spokojnie, zachowując równy oddech, i wykonaj zaplanowaną pracę po drugiej stronie.",
+    ],
+  }),
   supportExercise("side_plank", "Side plank", "trunk", "lateral trunk stability", {
     displayNamePl: "Deska bokiem",
   }),
   supportExercise("copenhagen_plank", "Copenhagen plank", "trunk", "adductor and trunk stability", {
+    equipmentRequired: ["bench"],
+    loadingType: "bodyweight",
+    requiredMovementCompetenceLevel: "medium",
+    difficultyLevel: 2,
+    technicalComplexity: 2,
+    regressionIds: ["adductor_bridge_squeeze"],
+    safeAlternativeIds: ["adductor_bridge_squeeze"],
     displayNamePl: "Deska kopenhaska",
   }),
-  supportExercise("face_pull_band", "Face pull (guma / wyciąg)", "trunk", "scapular stability"),
+  supportExercise("face_pull_band", "Face pull (guma)", "strength", "scapular strength", {
+    displayNamePl: "Face pull z gumą",
+    aliases: ["Face pull (guma / wyciąg)", "Face pull (guma)", "Face pull"],
+    equipmentRequired: ["band"],
+    loadingType: "external",
+    movementPattern: "pull",
+    regressionIds: ["bodyweight_row"],
+    instructionsPl: [
+      "Zaczep gumę stabilnie mniej więcej na wysokości twarzy i ustaw się w pozycji z lekkim napięciem gumy.",
+      "Przyciągnij dłonie w kierunku skroni, prowadząc łokcie na boki i nie unosząc barków do uszu.",
+      "Wyprostuj ręce spokojnie; tułów nie powinien odchylać się w tył ani kołysać.",
+    ],
+  }),
   supportExercise("bodyweight_row", "Bodyweight row", "strength", "upper-body pulling strength", {
     movementPattern: "pull",
     allowedSessionCategories: ["strength_gym"],
@@ -1458,8 +1547,20 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
   }),
   phase3AExercise({
     id: "seated_leg_curl",
+    difficultyLevel: 1,
+    technicalComplexity: 1,
+    requiredGymExperienceLevel: "none",
+    requiredMovementCompetenceLevel: "low",
+    requiredSupervisionLevel: "none",
+    allowedForYouth: true,
+    allowedForBeginner: true,
     name: "Seated leg curl",
     displayNamePl: "Uginanie nóg siedząc",
+    instructionsPl: [
+      "Usiądź z plecami opartymi; dopasuj oś maszyny do kolana, a wałek do dolnej części podudzia.",
+      "Zegnij kolana, przyciągając wałek bez unoszenia bioder i bez szarpania ciężaru.",
+      "Wróć powoli do wygodnego wyprostu, bez uderzania stosem i bez przeprostu kolan.",
+    ],
     aliases: ["Seated leg curl", "Uginanie nóg na maszynie siedząc"],
     movementPattern: "hinge",
     equipmentRequired: ["machine"],
@@ -1470,8 +1571,20 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
   }),
   phase3AExercise({
     id: "lying_leg_curl",
+    difficultyLevel: 1,
+    technicalComplexity: 1,
+    requiredGymExperienceLevel: "none",
+    requiredMovementCompetenceLevel: "low",
+    requiredSupervisionLevel: "none",
+    allowedForYouth: true,
+    allowedForBeginner: true,
     name: "Lying leg curl",
     displayNamePl: "Uginanie nóg leżąc",
+    instructionsPl: [
+      "Połóż się przodem, dopasuj oś maszyny do kolan i ustaw wałek nad piętami; biodra pozostają na podparciu.",
+      "Zegnij kolana, przyciągając pięty bez odrywania bioder i bez wyginania lędźwi.",
+      "Opuść ciężar spokojnie do wygodnego wyprostu, nie puszczając napięcia.",
+    ],
     aliases: ["Lying leg curl", "Uginanie nóg na maszynie leżąc"],
     movementPattern: "hinge",
     equipmentRequired: ["machine"],
@@ -1482,6 +1595,19 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
   }),
   phase3AExercise({
     id: "standing_calf_raise",
+    minAge: 8,
+    recommendedDevelopmentStage: "child_foundation",
+    difficultyLevel: 1,
+    technicalComplexity: 1,
+    requiredGymExperienceLevel: "none",
+    requiredSupervisionLevel: "none",
+    allowedForYouth: true,
+    allowedForBeginner: true,
+    instructionsPl: [
+      "Stań przy stabilnym podparciu, ustaw stopy na szerokość bioder.",
+      "Unieś pięty, naciskając równomiernie przodostopie; nie uciekaj na zewnętrzną krawędź stopy.",
+      "Opuść pięty spokojnie, bez odbijania i bez kołysania tułowiem.",
+    ],
     name: "Standing calf raise",
     displayNamePl: "Wspięcia na palce stojąc",
     requiredMovementCompetenceLevel: "low",
@@ -1885,7 +2011,7 @@ const PHASE_3A_EXERCISES: ExerciseDefinition[] = [
     aliases: ["Band-assisted jump", "Skok asystowany gumą"],
     category: "power",
     movementPattern: "jump",
-    equipmentRequired: ["rack"],
+    equipmentRequired: ["rack", "band"],
     loadingType: "ballistic",
     difficultyLevel: 5,
     technicalComplexity: 5,
@@ -2162,9 +2288,12 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
   }),
   strengthDomainExercise({
     id: "prone_band_leg_curl",
+    requiredGymExperienceLevel: "none",
+    requiredMovementCompetenceLevel: "low",
+    technicalComplexity: 1,
+    difficultyLevel: 1,
     name: "Prone band leg curl",
     displayNamePl: "Uginanie nóg leżąc z gumą",
-    requiredMovementCompetenceLevel: "low",
     aliases: ["Prone band leg curl"],
     category: "strength",
     movementPattern: "hinge",
@@ -2457,6 +2586,10 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
   }),
   strengthDomainExercise({
     id: "adductor_bridge_squeeze",
+    minAge: 8,
+    recommendedDevelopmentStage: "child_foundation",
+    requiredGymExperienceLevel: "none",
+    requiredMovementCompetenceLevel: "low",
     name: "Adductor bridge squeeze",
     displayNamePl: "Most z dociskiem przywodzicieli",
     aliases: ["Adductor squeeze bridge", "Adductor squeeze (piłka)"],
@@ -2628,7 +2761,12 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
     id: "football_technical_self_selected",
     name: "Self-selected football technical block",
     displayNamePl: "Własny blok techniczny z piłką",
-    aliases: ["Własny blok techniczny", "Trener reakcji BallWise", "Swobodne prowadzenie piłki", "Spokojne zakończenie z piłką"],
+    aliases: [
+      "Własny blok techniczny",
+      "Trener reakcji BallWise",
+      "Swobodne prowadzenie piłki",
+      "Spokojne zakończenie z piłką",
+    ],
     requiresBall: true,
     allowedSessionCategories: ["football_ball_work"],
     participantMode: "solo",
@@ -2678,7 +2816,9 @@ const STRENGTH_DOMAIN_EXPANSIONS: ExerciseDefinition[] = [
 
 // Distinct canonical identities preserve the actual solo task and its
 // instructions after hydration and in the exercise runner.
-const footballTechniqueBase = STRENGTH_DOMAIN_EXPANSIONS.find((item) => item.id === "football_technical_self_selected")!;
+const footballTechniqueBase = STRENGTH_DOMAIN_EXPANSIONS.find(
+  (item) => item.id === "football_technical_self_selected",
+)!;
 for (const drill of INDIVIDUAL_FOOTBALL_DRILLS) {
   LIBRARY.push({
     ...footballTechniqueBase,
@@ -2691,7 +2831,9 @@ for (const drill of INDIVIDUAL_FOOTBALL_DRILLS) {
     commonErrors: [drill.mistake],
     instructionsPl: [...drill.steps],
     objective: drill.quality,
-    footballRelevance: ["Samodzielna praca techniczna; uzupełnia grę z partnerami i przeciwnikiem."],
+    footballRelevance: [
+      "Samodzielna praca techniczna; uzupełnia grę z partnerami i przeciwnikiem.",
+    ],
   });
 }
 
@@ -3329,6 +3471,25 @@ if (plannedCut) {
   }));
   plannedCut.footballRelevance = ["Zmiana kierunku po zaplanowanym bodźcu przestrzennym."];
 }
+const METHOD_SPECIFIC_EXERCISES: ExerciseDefinition[] = [
+  strengthDomainExercise({id:"clean_pull_from_hang",name:"Clean pull from hang",displayNamePl:"Pociągnięcie sztangi z zawieszenia",category:"power",movementPattern:"olympic",equipmentRequired:["barbell","platform"],loadingType:"ballistic",primaryAdaptation:"power",minAge:18,requiredGymExperienceLevel:"advanced",requiredMovementCompetenceLevel:"high",requiredSupervisionLevel:"full",difficultyLevel:4,technicalComplexity:4,allowedForYouth:false,allowedForBeginner:false,regressionIds:["kettlebell_swing"],safeAlternativeIds:["goblet_squat"],objective:"Eksplozywny wyprost bioder bez fazy chwytu sztangi.",instructionsPl:["Trener ustawia pozycję zawieszenia nad kolanami i dobiera lekki ciężar. Wyznacz wolne miejsce na platformie.","Utrzymując sztangę blisko ciała, szybko wyprostuj biodra i kolana; ręce pozostają długie do zakończenia wyprostu.","Opuść sztangę pod kontrolą i ustaw się ponownie. Nie wykonuj chwytu zarzutu ani kolejnych powtórzeń po utracie rytmu."],coachingCues:["Odepchnij podłoże","Sztanga blisko ciała"],commonErrors:["Wczesne ciągnięcie rękami","Odchylanie tułowia do tyłu"]}),
+  ...[
+    {id:"method_interval_run",name:"Timed aerobic interval run",displayNamePl:"Bieg interwałowy według czasu",category:"conditioning" as const,family:"aerobic conditioning",instructionsPl:["Wyznacz równy, wolny tor lub pętlę bez nagłych nawrotów. Rozgrzewkę wykonaj przed uruchomieniem bloku.","Biegnij przez zadany czas w równym tempie i odpoczywaj zgodnie z planem. Odcinek nie jest sprintem maksymalnym.","Jeżeli nie utrzymujesz tempa lub kontroli, wydłuż odpoczynek albo zakończ blok. Zapisz faktycznie wykonane odcinki."]},
+    {id:"method_repeated_sprint",name:"Repeated straight sprint conditioning",displayNamePl:"Powtarzane sprinty w linii prostej",category:"conditioning" as const,family:"repeated sprint conditioning",instructionsPl:["Zmierz odcinek 20 m i wolną drogę wyhamowania. Przygotuj starty w obie strony z odpoczynkiem po zatrzymaniu.","Przyspieszaj na odcinku i spokojnie wyhamuj. Krótki odpoczynek jest częścią tej metody wydolnościowej.","Zakończ blok przy wyraźnym spadku jakości. Ta dawka nie zastępuje treningu maksymalnej prędkości z pełnym odpoczynkiem."]},
+    {id:"method_speed_endurance",name:"Coached speed endurance run",displayNamePl:"Dłuższy odcinek szybkościowy",category:"speed" as const,family:"sprint-specific training",instructionsPl:["Trener wyznacza odcinek i długą, wolną strefę wyhamowania oraz dobiera intensywność. Wykonaj pełną rozgrzewkę.","Rozpędź się płynnie i utrzymuj rytm na zadanej długości. Nie wykonuj nagłego zatrzymania na końcu.","Odpocznij przez cały zadany czas. Przerwij serię przy utracie kontroli lub wyraźnym spadku jakości."]},
+    {id:"method_sprint_interval",name:"Coached sprint interval run",displayNamePl:"Interwał bardzo wysokiej intensywności",category:"conditioning" as const,family:"sprint interval conditioning",instructionsPl:["Trener wyznacza długi, bezpieczny tor bez ostrych nawrotów i dobiera formę wysiłku. Wykonaj rozgrzewkę.","Wykonaj zaplanowany krótki wysiłek o bardzo wysokiej intensywności, a następnie przejdź do pełnego odpoczynku.","Nie dokładaj powtórzeń ani kolejnej ciężkiej sesji nóg. Trener kończy blok, jeżeli nie utrzymujesz wykonania."]},
+  ].map(item=>supportExercise(item.id,item.name,item.category,item.family,{displayNamePl:item.displayNamePl,instructionsPl:item.instructionsPl,requiresBall:false,allowedSessionCategories:[item.category==="speed"?"speed_sprint":"endurance_conditioning"],movementPattern:"gait",requiredSupervisionLevel:/speed_endurance|sprint_interval/.test(item.id)?"full":"none",minAge:/speed_endurance|sprint_interval/.test(item.id)?18:12,allowedForBeginner:! /speed_endurance|sprint_interval/.test(item.id),allowedForYouth:! /speed_endurance|sprint_interval/.test(item.id)})),
+
+  strengthDomainExercise({id:"flywheel_squat",name:"Flywheel squat",displayNamePl:"Przysiad na urządzeniu flywheel",category:"strength",movementPattern:"squat",equipmentRequired:["flywheel"],spaceRequirement:"indoor_gym",loadingType:"external",minAge:18,requiredGymExperienceLevel:"advanced",requiredMovementCompetenceLevel:"high",requiredSupervisionLevel:"full",difficultyLevel:4,technicalComplexity:4,allowedForYouth:false,allowedForBeginner:false,regressionIds:["goblet_squat"],safeAlternativeIds:["goblet_squat"],objective:"Praca na urządzeniu izoinercyjnym z kontrolą rozpędzenia i hamowania.",instructionsPl:["Trener sprawdza uprząż, linkę i ustawienie urządzenia. Zacznij od lekkiej konfiguracji i spokojnych ruchów wprowadzających.","Wstań płynnie, rozpędzając koło; wracaj z napiętym tułowiem i kontroluj powrót linki.","Hamuj pod kontrolą zgodnie z instrukcją urządzenia. Zakończ przy utracie kontroli; ustawienia bezwładności zapisuj jako ustawienie urządzenia, nie kilogramy."],coachingCues:["Kontrola powrotu linki","Stabilny tułów"],commonErrors:["Niekontrolowane szarpnięcie linki","Zbyt duża bezwładność na pierwszą próbę"]}),
+  strengthDomainExercise({id:"band_resisted_squat",name:"Band-resisted squat",displayNamePl:"Przysiad z dodatkowym oporem gumy",category:"strength",movementPattern:"squat",equipmentRequired:["band","barbell","rack"],spaceRequirement:"indoor_gym",loadingType:"axial",minAge:18,requiredGymExperienceLevel:"advanced",requiredMovementCompetenceLevel:"high",requiredSupervisionLevel:"full",difficultyLevel:4,technicalComplexity:4,allowedForYouth:false,allowedForBeginner:false,regressionIds:["heavy_back_squat","goblet_squat"],safeAlternativeIds:["goblet_squat"],objective:"Zmiana przebiegu oporu z zachowaniem kontrolowanego wzorca przysiadu.",instructionsPl:["Trener dobiera gumy i sprawdza symetryczne mocowanie do stojaka oraz sztangi. Ustaw podpory asekuracyjne.","Wykonaj kontrolowane zejście, utrzymując całe stopy na podłożu i kolana w kierunku palców.","Wstań pod kontrolą mimo narastania oporu. Zacznij lżej niż w zwykłym przysiadzie; kolor gumy nie określa uniwersalnej liczby kilogramów."],coachingCues:["Równy opór po obu stronach","Zapas i stabilizacja"],commonErrors:["Niesymetryczne zakotwiczenie","Przeniesienie całego ciężaru ze zwykłego przysiadu"]}),
+  strengthDomainExercise({id:"overcoming_pin_squat",name:"Overcoming isometric squat at pins",displayNamePl:"Nacisk izometryczny przeciw stałym pinom",category:"prehab",movementPattern:"isometric",equipmentRequired:["fixed_pins","barbell","rack"],spaceRequirement:"indoor_gym",loadingType:"external",primaryAdaptation:"rfd",minAge:18,requiredGymExperienceLevel:"advanced",requiredMovementCompetenceLevel:"high",requiredSupervisionLevel:"full",difficultyLevel:4,technicalComplexity:4,allowedForYouth:false,allowedForBeginner:false,regressionIds:["bodyweight_squat"],safeAlternativeIds:["bodyweight_squat"],objective:"Wytwarzanie siły w ustawieniu wybranym przez trenera przeciw nieruchomemu oporowi.",instructionsPl:["Trener ustawia i sprawdza stałe piny oraz pozycję sztangi. Nie zastępuj pinów przypadkowym ciężarem lub niestabilną przeszkodą.","Ustaw napięty tułów i całe stopy na podłożu. Stopniowo zwiększ nacisk w kierunku wskazanym przez trenera bez zmiany pozycji.","Zakończ po zadanym czasie, odpuść nacisk i odpocznij. Nie dokładaj po tym bloku dodatkowej maksymalnej pracy nóg."],coachingCues:["Pewny opór","Niezmienna pozycja"],commonErrors:["Szarpnięcie bez przygotowania","Ruch zamiast nacisku w stałej pozycji"]}),
+  ...[
+    {id:"hill_acceleration",name:"Hill acceleration",displayNamePl:"Przyspieszenie na łagodnym podbiegu",equipmentRequired:["hill"] as EquipmentId[],instructionsPl:["Wybierz równy, łagodny i nieślizgający się podbieg oraz wolną drogę zatrzymania.","Przyspieszaj z aktywnym odepchnięciem i swobodną pracą ramion; zachowaj płynny bieg.","Zatrzymaj się pod kontrolą, wróć spacerem i odpocznij. Nachylenie nie może wymuszać utraty techniki."]},
+    {id:"band_resisted_acceleration",name:"Partner band resisted acceleration",displayNamePl:"Przyspieszenie z oporem gumy i partnera",equipmentRequired:["band"] as EquipmentId[],instructionsPl:["Partner sprawdza gumę, jej mocowanie i odległość; wyznaczcie wolny tor oraz sygnał zatrzymania.","Przyspieszaj, gdy partner podaje równy opór. Guma nie może szarpać ani przesuwać się po ciele.","Zakończcie na wspólny sygnał i spokojnie zmniejszcie napięcie. Partner nie puszcza napiętej gumy."]},
+    {id:"assisted_straight_sprint",name:"Controlled assisted sprint",displayNamePl:"Sprint ze sterowaną asystą",equipmentRequired:["assistance_rig"] as EquipmentId[],instructionsPl:["Trener ustawia i sprawdza kontrolowany system asysty, tor biegu oraz pełną drogę wyhamowania.","Wykonaj rozbieg i przyjmij wyłącznie zaplanowaną pomoc; nie wyciągaj kroku wymuszonym ciągnięciem.","Zakończ w wyznaczonej strefie. Przerwij przy utracie rytmu lub kontroli; samodzielne holowanie przypadkową gumą nie zastępuje tego stanowiska."]},
+  ].map(item=>supportExercise(item.id,item.name,"speed","sprint-specific training",{...item,requiresBall:false,allowedSessionCategories:["speed_sprint"],category:"speed",movementPattern:"sprint",speedIntensity:"high",spaceRequirement:"sprint_lane",minAge:item.id==="assisted_straight_sprint"?18:16,requiredGymExperienceLevel:"none",requiredMovementCompetenceLevel:"medium",requiredSupervisionLevel:item.id==="assisted_straight_sprint"?"full":"none",participantMode:item.id==="band_resisted_acceleration"?"partner":"solo",minParticipants:item.id==="band_resisted_acceleration"?2:1,allowedForYouth:item.id!=="assisted_straight_sprint",allowedForBeginner:false})),
+];
+LIBRARY.push(...METHOD_SPECIFIC_EXERCISES);
 LIBRARY.push(...STRENGTH_DOMAIN_EXPANSIONS);
 LIBRARY.push(...PHASE_3A_EXERCISES);
 LIBRARY.push(...FOOTBALL_SPEED_EXERCISES);
@@ -3372,6 +3533,42 @@ if (longLeverHamstringIso) {
   longLeverHamstringIso.aliases = longLeverHamstringIso.aliases.filter(
     (alias) => alias !== "Heel-dig bridge iso",
   );
+  longLeverHamstringIso.instructionsPl = [
+    "Połóż się na plecach. Ustaw obie pięty dalej od pośladków niż w zwykłym moście, z lekko ugiętymi kolanami.",
+    "Dociśnij pięty do podłoża i unieś biodra. Utrzymuj żebra nad miednicą, bez wyginania lędźwi.",
+    "Utrzymaj zadany czas, oddychając spokojnie. Zakończ, gdy biodra opadają; łatwiejszy wariant uzyskasz, przysuwając pięty bliżej.",
+  ];
+}
+const gymInstructionUpdates: Record<string, string[]> = {
+  goblet_squat: [
+    "Trzymaj hantel lub kettlebell oburącz blisko klatki. Ustaw stopy w wygodnym rozkroku i napnij brzuch.",
+    "Zejdź między biodra do zakresu, w którym utrzymujesz całe stopy na ziemi i kolana w kierunku palców.",
+    "Wstań, odpychając podłoże całą stopą. Utrzymuj ciężar przy klatce i nie wyginaj lędźwi.",
+  ],
+  heavy_back_squat: [
+    "Ustaw podpory asekuracyjne. Ułóż sztangę stabilnie na górze pleców i odejdź od stojaka krótkimi krokami.",
+    "Napnij tułów i zejdź kontrolowanie, prowadząc kolana w kierunku palców; utrzymuj całe stopy na podłożu.",
+    "Wstań bez utraty ustawienia tułowia. Zachowaj zaplanowany zapas powtórzeń, a sztangę odłóż dopiero po kontakcie ze stojakiem.",
+  ],
+  countermovement_jump: [
+    "Stań stabilnie, pozostawiając wolne miejsce nad głową i wokół miejsca lądowania.",
+    "Wykonaj krótki ruch bioder i kolan w dół, po czym od razu wybij się pionowo z pomocą ramion.",
+    "Wyląduj na obu stopach z ugięciem bioder i kolan. Ustabilizuj pozycję przed kolejnym skokiem.",
+  ],
+  broad_jump: [
+    "Stań za linią, ustaw stopy w wygodnym rozkroku i sprawdź wolną przestrzeń przed sobą.",
+    "Cofnij biodra i ramiona, następnie wybij się obunóż w przód z dynamicznym zamachem.",
+    "Wyląduj na obu stopach, amortyzując biodrami i kolanami. Zatrzymaj pozycję; nie łącz powtórzeń w serię odbić.",
+  ],
+  copenhagen_plank: [
+    "Ułóż się bokiem na przedramieniu. Oprzyj wewnętrzną stronę górnej stopy lub podudzia na stabilnej ławce; łokieć ustaw pod barkiem.",
+    "Unieś miednicę, utrzymując tułów i udo w jednej linii. Dolną nogę prowadź pod kontrolą, bez skręcania bioder.",
+    "Wykonaj zadane powtórzenia lub utrzymanie, a potem zmień stronę. Przerwij, jeśli tracisz pozycję lub pojawia się ból pachwiny.",
+  ],
+};
+for (const [id, instructions] of Object.entries(gymInstructionUpdates)) {
+  const definition = LIBRARY.find((exercise) => exercise.id === id);
+  if (definition && !definition.instructionsPl?.length) definition.instructionsPl = instructions;
 }
 for (const exercise of LIBRARY) {
   exercise.approved ??= true;
@@ -3891,7 +4088,8 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
 function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
   const value = normalizeExerciseName(name);
   const positiveBallWork = value.replace(/bez\s+(?:piłk|pilk)\w*/g, "");
-  if (/piłk|pilk|kontakt|podani|przyjęci|wykończeni|drybling|prowadzeni/.test(positiveBallWork)) return "football_ball_work";
+  if (/piłk|pilk|kontakt|podani|przyjęci|wykończeni|drybling|prowadzeni/.test(positiveBallWork))
+    return "football_ball_work";
   if (/sprint|przyspiesz|akceler|ankling|skip|prędkość|hamowani|zwrot/.test(value)) return "speed";
   if (/skok|pogo|bound|lądowani|plyo|zeskok/.test(value)) return "plyometric";
   if (/mobil|rozciąg|oddech|ramp|rozgrzew|ruchomo/.test(value)) return "mobility";
@@ -3919,9 +4117,7 @@ export function canonicalizeGeneratedExercise(
     getExerciseDefinition(
       GENERATED_FAMILY_FALLBACKS[
         family ??
-          inferGeneratedFamily(
-            `${exercise.name} ${exercise.prescription} ${exercise.cue ?? ""}`,
-          )
+          inferGeneratedFamily(`${exercise.name} ${exercise.prescription} ${exercise.cue ?? ""}`)
       ],
     );
 

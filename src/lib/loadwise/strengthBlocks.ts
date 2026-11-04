@@ -8,11 +8,17 @@ import type {
 } from "./types";
 import { buildAthleteTrainingProfile } from "./athleteProfile";
 import {
+  applyStrengthProgramming,
+  estimateStrengthMinutes,
+  selectStrengthMethod,
+} from "./strengthProgramming";
+import {
   getExerciseDefinition,
   hydrateTrainingExerciseFromDefinition,
   isApprovedCanonicalExercise,
   resolveExerciseByName,
   selectEquipmentAwareReplacement,
+  isExerciseAllowedForProfile,
 } from "./exerciseLibrary";
 
 /**
@@ -44,14 +50,42 @@ export function filterUnavailableEquipment(
         if (!result.exercise || result.blockRebuildRequired) return exercise;
         return result.exercise.id === exercise.exerciseId
           ? exercise
-          : {
+          : hydrateTrainingExerciseFromDefinition({
               ...exercise,
               exerciseId: result.exercise.id,
               name: result.exercise.displayNamePl,
+              visualId: result.exercise.id,
+              setup: undefined,
+              technique: undefined,
+              cue: undefined,
+              instructionSteps: undefined,
+              commonMistake: undefined,
+              purpose: undefined,
+              progression: undefined,
+              regression: undefined,
+              contraindications: undefined,
+              displayPrescription: undefined,
+              sets: "2",
+              ...(result.exercise.movementPattern === "isometric"
+                ? { reps: undefined, duration: "15 s" }
+                : {
+                    reps: ["power", "plyometric"].includes(result.exercise.category) ? "3" : "6–8",
+                    duration: undefined,
+                  }),
+              rpe: "RPE 5–6",
+              rir: "3–4",
+              loadTarget:
+                result.exercise.loadingType === "bodyweight"
+                  ? "Masa ciała, kontrola ruchu"
+                  : "Lekki ciężar na poznanie wariantu",
+              loadGuidance:
+                "Przy zmianie wariantu zacznij lekko. Nie przenoś ciężaru ze starego ćwiczenia.",
+              tempo: undefined,
+              groundContacts: undefined,
               equipment: result.exercise.equipmentRequired.join(", "),
               replacementForBlockedExercise: exercise.name,
               wasAdjustedForAthleteProfile: true,
-            };
+            });
       }),
     })),
   }));
@@ -233,7 +267,7 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "rower / spacer": "easy_cycle_recovery",
   "aktywacja pośladków i łydek": "glute_bridge",
   "mobilność całego ciała": "hip_mobility_flow",
-  "hamstring slider curl": "seated_leg_curl",
+  "hamstring slider curl": "bilateral_slider_leg_curl",
   "copenhagen plank": "copenhagen_plank",
   "face pull (guma / wyciąg)": "face_pull_band",
   "goblet squat (tempo)": "goblet_squat",
@@ -253,7 +287,10 @@ function canonicalizeExerciseDefinition(name: string) {
 
 function ex(e: Omit<TrainingExercise, "id"> & { canonicalize?: boolean }): TrainingExercise {
   const { canonicalize = true, ...exercise } = e;
-  const canonical = canonicalize ? canonicalizeExerciseDefinition(exercise.name) : undefined;
+  const canonical = canonicalize
+    ? ((exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined) ??
+      canonicalizeExerciseDefinition(exercise.name))
+    : undefined;
   const next = {
     id: uid("ex"),
     completed: false,
@@ -299,7 +336,6 @@ export function isAdvancedEligible(profile: Profile): boolean {
   if (profile.seasonPhase === "return_injury") return false;
   if (isYoung(profile.age)) return false;
   if (isDevelopingYouth(profile.age)) return false;
-  if (profile.level === "beginner") return false;
   return buildAthleteTrainingProfile(profile).exerciseSafetyProfile.allowHeavyCompounds;
 }
 
@@ -313,7 +349,13 @@ export function developingLoadingAllowed(profile: Profile): boolean {
   if (profile.seasonPhase === "return_injury") return false;
   if (profile.movementCompetence === "low") return false;
   if (!profile.hasGym) return false;
-  return profile.level !== "beginner";
+  const athlete = buildAthleteTrainingProfile(profile);
+  return (
+    ["intermediate", "advanced"].includes(athlete.gymExperienceLevel) &&
+    (athlete.strengthTrainingAge ?? 0) >= 6 &&
+    athlete.movementCompetenceLevel !== "low" &&
+    athlete.supervisionLevel === "full"
+  );
 }
 
 /** Czy w ogóle generować strukturalne bloki dla tej sesji (MD-restrictions). */
@@ -583,10 +625,17 @@ const HAM_POWER_PAIR: HamPower[] = [
 ];
 
 function hamProgressionLevel(profile: Profile): "beginner" | "intermediate" | "advanced" {
-  if (isYoung(profile.age) || profile.level === "beginner") return "beginner";
+  const athlete = buildAthleteTrainingProfile(profile);
+  if (
+    isYoung(profile.age) ||
+    ["none", "beginner"].includes(athlete.gymExperienceLevel) ||
+    (athlete.strengthTrainingAge ?? 0) < 6
+  )
+    return "beginner";
   // 15–16: realna praca ekscentryczna tylnej taśmy, ale bez najtrudniejszej drabinki.
   if (isDevelopingYouth(profile.age)) return "intermediate";
-  if (profile.level === "advanced" || profile.level === "elite") return "advanced";
+  if (athlete.gymExperienceLevel === "advanced" && (athlete.strengthTrainingAge ?? 0) >= 24)
+    return "advanced";
   return "intermediate";
 }
 
@@ -666,12 +715,7 @@ function selectHamPower(ctx: StrengthBlockContext, avoidNames: string[]): HamPow
   return ordered.find((p) => !avoidNames.includes(p.name)) ?? ordered[0];
 }
 
-const ADDUCTOR = [
-  "Copenhagen plank",
-  "Adductor squeeze (piłka)",
-  "Suwak boczny z gumą",
-  "Side-lying adduction",
-];
+const ADDUCTOR = ["Copenhagen plank", "Adductor squeeze (piłka)"];
 
 /** Opcjonalny finisher hipertroficzny (BLOK E) — tylko izolacja na końcu. */
 const HYPERTROPHY_FINISHER = [
@@ -1034,7 +1078,12 @@ interface Dosage {
 }
 
 function dosageFor(profile: Profile, ctx: StrengthBlockContext): Dosage {
-  const gentle = isYoung(profile.age) || profile.level === "beginner";
+  const athlete = buildAthleteTrainingProfile(profile);
+  const gentle =
+    isYoung(profile.age) ||
+    ["none", "beginner"].includes(athlete.gymExperienceLevel) ||
+    (athlete.strengthTrainingAge ?? 0) < 6 ||
+    athlete.movementCompetenceLevel === "low";
   let d: Dosage;
   switch (ctx.weekPhase) {
     case "adaptation":
@@ -1115,7 +1164,13 @@ function contacts(base: number, d: Dosage): number {
  */
 function gobletExceptionFor16Plus(profile: Profile, ctx: StrengthBlockContext): boolean {
   if (!profile.hasGym) return true; // brak sztangi/stojaków
-  if (profile.level === "beginner") return true; // początkujący
+  if (profile.unavailableEquipmentIds?.some((id) => id === "barbell" || id === "rack")) return true;
+  const athlete = buildAthleteTrainingProfile(profile);
+  if (
+    ["none", "beginner"].includes(athlete.gymExperienceLevel) ||
+    (athlete.strengthTrainingAge ?? 0) < 6
+  )
+    return true;
   if (profile.painInjury) return true; // ból / ograniczenie ruchowe
   if (profile.seasonPhase === "return_injury") return true; // powrót po urazie
   if (profile.movementCompetence === "low") return true; // regresja techniczna
@@ -1280,21 +1335,30 @@ function warmupSection(withBall = false): TrainingSection {
         exercises: [
           ex({
             name: "Rower / trucht",
-            duration: "5–7 min",
+            duration: "3 min",
             rpe: "RPE 3",
             cue: "Spokojny oddech, podnoś tętno.",
           }),
           ex({
-            name: "Mobilność: biodra, kostki, T-spine",
-            duration: "6 min",
-            cue: "Pełen zakres, kontrola tułowia.",
+            exerciseId: "ankle_rock_forward",
+            name: "Kolano nad stopę",
+            sets: "1",
+            reps: "8 / strona",
+            cue: "Pięta zostaje na podłożu.",
+          }),
+          ex({
+            exerciseId: "adductor_rockback",
+            name: "Cofanie bioder w podparciu",
+            sets: "1",
+            reps: "6 / strona",
+            cue: "Cofaj biodra bez zaokrąglania pleców.",
           }),
           ex({
             name: withBall
               ? "Aktywacja pośladków, core + czucie piłki"
               : "Aktywacja pośladków i core",
-            sets: "2",
-            reps: "10–12",
+            sets: "1",
+            reps: "8",
             cue: "Napięcie pośladka, neutralny kręgosłup.",
           }),
         ],
@@ -1313,9 +1377,9 @@ function cooldownSection(): TrainingSection {
         blockType: "single",
         intent: "mobility",
         exercises: [
-          ex({ name: "Lekki rower / spacer", duration: "5 min", cue: "Bardzo lekko." }),
-          ex({ name: "Mobilność bioder i tylnych ud", duration: "4 min" }),
-          ex({ name: "Oddech przeponowy", duration: "2 min", cue: "Długi wydech." }),
+          ex({ name: "Lekki rower / spacer", duration: "2 min", cue: "Bardzo lekko." }),
+          ex({ name: "Mobilność bioder i tylnych ud", duration: "2 min" }),
+          ex({ name: "Oddech przeponowy", duration: "1 min", cue: "Długi wydech." }),
         ],
       }),
     ],
@@ -1546,35 +1610,109 @@ function recoveryPrehab(ctx: StrengthBlockContext): GymSessionPlan {
 }
 
 // ---------------------------------------------------------------------------
-// KANONICZNA SESJA SIŁOWNI — jedna, stała struktura dla każdej sesji siły:
-//   Rozgrzewka → Izometria przezwyciężająca →
-//   BLOK A: główny ciężki lift → ruch mocy
-//   BLOK B: uzupełniająca siła/hipertrofia dolna → ruch mocy
-//   BLOK C: wyłącznie core / stabilizacja
-//   BLOK D: wsparcie atletyczne (łydki, przywodziciele, hamstring, góra/łopatka)
-//   BLOK E: opcjonalny finisher hipertroficzny (biceps/triceps/lateral raise)
-// Brak osobnego bloku „primer mocy”. Biceps/triceps tylko w bloku E na końcu.
+// Dobór roli określa wzorzec główny; strengthProgramming rozdziela serie
+// albo pozostawia jedną kwalifikowaną parę siła–moc. Bez domyślnej
+// maksymalnej izometrii i bez dokładania drugiego kontrastu.
 // ---------------------------------------------------------------------------
+
+function upperCoreSession(profile: Profile): GymSessionPlan {
+  const athlete = buildAthleteTrainingProfile(profile);
+  const chosen = [
+    ["push_up", "dumbbell_bench_press"],
+    ["one_arm_dumbbell_row", "bodyweight_row", "face_pull_band"],
+    ["pallof_press", "dead_bug"],
+    ["bird_dog"],
+  ]
+    .map((ids) =>
+      ids
+        .map(getExerciseDefinition)
+        .find((def) => def && isExerciseAllowedForProfile(def, athlete).ok),
+    )
+    .filter((def): def is NonNullable<typeof def> => !!def);
+  const main = section({
+    title: "Góra ciała i tułów",
+    type: "main",
+    blocks: chosen.map((def, index) =>
+      blockFactoryForUpper(def.id, def.displayNamePl, String(index + 1)),
+    ),
+  });
+  const sections = [warmupSection(), main, cooldownSection()];
+  return {
+    role: "upper_core",
+    title: "Siłownia: góra ciała i tułów",
+    sessionType: "Siła / góra ciała",
+    goalOfSession:
+      "Kontrolowana praca pchania, przyciągania i stabilizacji tułowia bez ciężkiej pracy nóg.",
+    intensity: "umiarkowana",
+    durationMin: estimateStrengthMinutes(sections),
+    sections,
+    mainPatterns: chosen.map((def) => def.displayNamePl),
+  };
+}
+
+function blockFactoryForUpper(exerciseId: string, name: string, label: string): TrainingBlock {
+  return block({
+    title: name,
+    blockType: "single",
+    intent: "strength",
+    exercises: [
+      ex({
+        exerciseId,
+        name,
+        label,
+        sets: "2",
+        reps: "6–10",
+        rir: "3",
+        rpe: "RPE 6–7",
+        restAfterExercise: "60–90 s",
+        cue: "Zostaw zapas, utrzymuj kontrolę tułowia.",
+      }),
+    ],
+  });
+}
 
 function canonicalGymSession(
   profile: Profile,
   ctx: StrengthBlockContext,
   role: GymRole,
 ): GymSessionPlan {
+  if (role === "posterior_sprint" && !ctx.forcedMainFamily)
+    ctx = { ...ctx, forcedMainFamily: "trap_bar" };
   const adult = isAdvancedEligible(profile);
+  const method = selectStrengthMethod(profile, ctx);
   const d = dosageFor(profile, ctx);
   const pd = primaryStrengthDose(profile, ctx);
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
 
   const trapBar = ctx.forcedMainFamily === "trap_bar";
   // Główny lift: przysiad (knee) lub trap bar / hinge total-body.
-  const mainPool = trapBar
-    ? adult
-      ? TRAP_BAR_HINGE_ADULT
-      : TRAP_BAR_HINGE_YOUTH
-    : squatPoolFor(profile, ctx);
+  const mainPool =
+    role === "unilateral_decel"
+      ? ["Bodyweight split squat", "Reverse lunge", "Bulgarian split squat"]
+      : trapBar
+        ? adult
+          ? TRAP_BAR_HINGE_ADULT
+          : TRAP_BAR_HINGE_YOUTH
+        : squatPoolFor(profile, ctx);
   // Główny lift ZABLOKOWANY na cały blok — progresja idzie dawką (fazą), nie zmianą ćwiczenia.
-  const main = lockedPick("main", mainPool, ctx, avoid);
+  const athlete = buildAthleteTrainingProfile(profile);
+  const usableMain = mainPool.filter((name) => {
+    const def = canonicalizeExerciseDefinition(name);
+    return (
+      isExerciseAllowedForProfile(def, athlete).ok &&
+      (def.primaryAdaptation !== "max_strength" ||
+        athlete.exerciseSafetyProfile.allowHeavyCompounds)
+    );
+  });
+  const fallbackMain = trapBar
+    ? ["romanian_deadlift_db", "glute_bridge"]
+    : ["goblet_squat", "bodyweight_squat"];
+  const fallback = fallbackMain
+    .map(getExerciseDefinition)
+    .find((def) => def && isExerciseAllowedForProfile(def, athlete).ok);
+  const main = usableMain.length
+    ? lockedPick("main", usableMain, ctx, avoid)
+    : (fallback?.displayNamePl ?? "Przysiad z masą ciała");
 
   // BLOK B — DWÓJKI / tylna taśma + moc.
   // B1 = jedno ćwiczenie hamstring / tylnej taśmy (siła lub odporność), dobierane
@@ -1592,13 +1730,16 @@ function canonicalGymSession(
   //  - dzień trap bar (hinge)  → A2 poziomo (broad jump / bounds)
   // Depth/poziom 4 dopuszczamy w A2 tylko, gdy zawodnik jest do tego uprawniony.
   const allowDepth = (ctx.maxPlyoLevel ?? 3) >= 4;
-  const aKinds: PlyoKind[] = trapBar
-    ? allowDepth
-      ? ["horizontal", "depth"]
-      : ["horizontal"]
-    : allowDepth
-      ? ["vertical", "depth"]
-      : ["vertical"];
+  const aKinds: PlyoKind[] =
+    role === "unilateral_decel"
+      ? ["lateral"]
+      : trapBar
+        ? allowDepth
+          ? ["horizontal", "depth"]
+          : ["horizontal"]
+        : allowDepth
+          ? ["vertical", "depth"]
+          : ["vertical"];
   // Temat mocy A2 zablokowany na blok — progresja kontaktami/objętością.
   const powerA = lockedJump("powerA", ctx, aKinds, avoid);
   // B2 = kompatybilna moc pozioma / biodrowa (skok w dal, bounds, KB swing, pogo...).
@@ -1610,15 +1751,9 @@ function canonicalGymSession(
   const finisher = rotatePick(HYPERTROPHY_FINISHER, ctx, avoid);
 
   // Tydzień 1 (kalibracja) — bez metod zaawansowanych domyślnie.
-  const week1 = ctx.weekPhase === "adaptation";
-  const readyHigh = ctx.readiness === undefined || ctx.readiness >= 7;
 
-  // Przezwyciężająca izometria (overcoming iso) — krótka, wysoka intencja, niska
-  // objętość, więc jest bezpieczna także w trap barze i in-season, byle z dala od
-  // meczu. Wariant dobierany przez isoForMain: "cała stopa" przed trap barem/hinge,
-  // "staw skokowy" przed przysiadem. Bramki: NIE w tygodniu 1, tylko przy dobrej
-  // gotowości i z dala od meczu (structuredStrengthAllowed blokuje MD-2/MD-1/MD/MD+1).
-  const includeIso = adult && !week1 && readyHigh && structuredStrengthAllowed(ctx.mdLabel);
+  // Maksymalna izometria nie jest automatycznym dodatkiem do siły i skoków.
+  const includeIso = false;
 
   // BLOK E (finisher hipertroficzny) NIE jest generowany domyślnie po sesji
   // dolnej o wysokim napędzie nerwowym. Pozostaje tylko poza pracą dolną.
@@ -1728,7 +1863,7 @@ function canonicalGymSession(
               rpe: pd.rpe,
               loadTarget: pd.loadTarget,
               tempo: adult ? "3-1-1" : "2-1-1",
-              restAfterExercise: "60–180 s do A2",
+              restAfterExercise: pd.rest,
               cue: `${pd.cue} ${trapBar ? "Klatka wysoko, biodra napięte, pchaj podłogę i wyprostuj biodra." : "Napnij tułów, kontrolowane zejście, mocne wyjście."}`,
               technique: trapBar
                 ? "Plecy proste, drążek blisko ciała, pełny wyprost bioder."
@@ -1800,6 +1935,30 @@ function canonicalGymSession(
     cooldownSection(),
   ];
 
+  const support = sections.find((s) => s.type === "accessory");
+  if (support) {
+    const push = ["push_up", "dumbbell_bench_press"]
+      .map(getExerciseDefinition)
+      .find((def) => def && isExerciseAllowedForProfile(def, athlete).ok);
+    const pull = ["one_arm_dumbbell_row", "bodyweight_row", "face_pull_band"]
+      .map(getExerciseDefinition)
+      .find((def) => def && isExerciseAllowedForProfile(def, athlete).ok);
+    if (push && pull) {
+      // Replace the second core and optional shoulder exercise: add balance without extending the session.
+      support.blocks = support.blocks
+        .map((b) => ({
+          ...b,
+          exercises: b.exercises.filter((e) => e.label !== "C2" && e.label !== "D2"),
+        }))
+        .filter((b) => b.exercises.length);
+      support.blocks.push(
+        blockFactoryForUpper(push.id, push.displayNamePl, "E1"),
+        blockFactoryForUpper(pull.id, pull.displayNamePl, "E2"),
+      );
+    }
+  }
+  const programmed = applyStrengthProgramming(sections, method);
+
   return {
     role,
     title: trapBar
@@ -1814,8 +1973,8 @@ function canonicalGymSession(
       ? "Trap bar / hinge total-body: maksymalna siła i moc wyprostu bioder + wsparcie atletyczne."
       : "Dzień przysiadu: maksymalna siła dolnych partii z transferem w skok + wsparcie atletyczne.",
     intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
-    durationMin: adult ? 60 : 50,
-    sections,
+    durationMin: estimateStrengthMinutes(programmed),
+    sections: programmed,
     mainPatterns: [main, hamB1.name, powerA.name, powerPair.name],
   };
 }
@@ -1925,8 +2084,10 @@ export function buildStrengthPowerStructured(
     case "lower_strength_power":
     case "posterior_sprint":
     case "unilateral_decel":
-    case "upper_core":
       plan = canonicalGymSession(profile, ctx, role);
+      break;
+    case "upper_core":
+      plan = upperCoreSession(profile);
       break;
     case "primer":
       plan = powerPrimer(profile, ctx);
@@ -1948,6 +2109,8 @@ export function buildStrengthPowerStructured(
     issues = validateGymSession(plan, ctx);
   }
   // Aktualizujemy mainPatterns po ewentualnych podmianach.
+  plan.sections = applyStrengthProgramming(plan.sections, selectStrengthMethod(profile, ctx));
+  plan.durationMin = estimateStrengthMinutes(plan.sections);
   plan.mainPatterns = collectMainPatterns(plan);
   return enrichLoadGuidance(plan);
 }
@@ -2018,18 +2181,14 @@ function rirFromRpe(rpe?: string): string | null {
       ? `${explicit[1].replace(".", ",")}–${explicit[2].replace(".", ",")} RIR`
       : `${explicit[1].replace(".", ",")} RIR`;
   }
-  const match = rpe?.match(
-    /RPE\s*(\d+(?:[.,]\d+)?)(?:\s*[–-]\s*(\d+(?:[.,]\d+)?))?/i,
-  );
+  const match = rpe?.match(/RPE\s*(\d+(?:[.,]\d+)?)(?:\s*[–-]\s*(\d+(?:[.,]\d+)?))?/i);
   if (!match) return null;
   const lo = Number(match[1].replace(",", "."));
   const hi = Number((match[2] ?? match[1]).replace(",", "."));
   const rirHi = Math.max(0, 10 - lo);
   const rirLo = Math.max(0, 10 - hi);
   const display = (value: number) => String(value).replace(".", ",");
-  return rirLo === rirHi
-    ? `${display(rirLo)} RIR`
-    : `${display(rirLo)}–${display(rirHi)} RIR`;
+  return rirLo === rirHi ? `${display(rirLo)} RIR` : `${display(rirLo)}–${display(rirHi)} RIR`;
 }
 
 function isMobilityName(name: string): boolean {
@@ -2144,6 +2303,24 @@ function hasAny(name: string, keywords: string[]): boolean {
 
 /** Klasyfikacja ćwiczenia po nazwie do dominującego wzorca ruchowego. */
 export function classifyExercise(ex: TrainingExercise): MovementPattern {
+  const definition = getExerciseDefinition(ex.exerciseId ?? "") ?? resolveExerciseByName(ex.name);
+  if (definition) {
+    const id = definition.id;
+    if (/trap_bar_deadlift/.test(id)) return "squat";
+    if (["power", "plyometric"].includes(definition.category)) return "power";
+    if (/nordic|leg_curl|hamstring|heel_bridge|glute_bridge/.test(id)) return "hamstring";
+    if (/calf|soleus/.test(id)) return "calf";
+    if (/copenhagen|adductor/.test(id)) return "adductor";
+    if (
+      definition.category === "core" ||
+      definition.movementPattern === "brace" ||
+      definition.movementPattern === "carry"
+    )
+      return "core";
+    if (definition.movementPattern === "hinge") return "hinge";
+    if (definition.movementPattern === "squat") return "squat";
+    if (definition.movementPattern === "lunge") return "unilateral";
+  }
   const n = ex.name.toLowerCase();
   if (
     (ex.groundContacts !== undefined && ex.groundContacts > 0) ||
@@ -2178,6 +2355,9 @@ export function classifyExercise(ex: TrainingExercise): MovementPattern {
     hasAny(n, [
       "nordic",
       "leg curl",
+      "uginanie nóg",
+      "uginanie nogi",
+      "most biodrowy",
       "slider",
       "hamstring",
       "glute bridge",
@@ -2207,7 +2387,7 @@ export function classifyExercise(ex: TrainingExercise): MovementPattern {
   )
     return "unilateral";
   if (hasAny(n, ["przysiad", "squat", "goblet", "leg press"])) return "squat";
-  if (hasAny(n, ["łydk", "soleus", "calf", "kostk"])) return "calf";
+  if (hasAny(n, ["łydk", "soleus", "calf", "kostk", "wspięcia na palce"])) return "calf";
   if (hasAny(n, ["copenhagen", "przywodzic", "adduct", "suwak"])) return "adductor";
   if (
     hasAny(n, [
@@ -2379,10 +2559,7 @@ function checkNoRepeatedPowerExercise(refs: ExerciseRef[]): GymValidationIssue[]
   return issues;
 }
 
-function checkMatchDaySafety(
-  ctx: StrengthBlockContext,
-  refs: ExerciseRef[],
-): GymValidationIssue[] {
+function checkMatchDaySafety(ctx: StrengthBlockContext, refs: ExerciseRef[]): GymValidationIssue[] {
   const md = ctx.mdLabel;
   const restricted = md === "MD-2" || md === "MD-1" || md === "MD" || md === "MD+1";
   if (!restricted) return [];
@@ -2728,6 +2905,29 @@ function demoteToLight(ex: TrainingExercise): void {
   // Zachowaj etykietę bloku (A1/B1/...) — bez niej UI renderuje pustą etykietę.
 }
 
+function replaceGymExercise(target: TrainingExercise, name: string) {
+  const definition = canonicalizeExerciseDefinition(name);
+  Object.assign(
+    target,
+    hydrateTrainingExerciseFromDefinition({
+      ...target,
+      exerciseId: definition.id,
+      name: definition.displayNamePl,
+      visualId: definition.id,
+      setup: undefined,
+      technique: undefined,
+      cue: undefined,
+      instructionSteps: undefined,
+      commonMistake: undefined,
+      purpose: undefined,
+      progression: undefined,
+      regression: undefined,
+      displayPrescription: undefined,
+      executionBlockedReason: undefined,
+    }),
+  );
+}
+
 export function repairGymSession(
   plan: GymSessionPlan,
   ctx: StrengthBlockContext,
@@ -2742,7 +2942,7 @@ export function repairGymSession(
     const key = ref.ex.name.toLowerCase();
     if (usedPower.includes(key)) {
       const alt = altJumpByName([...usedPower, ref.ex.name]);
-      ref.ex.name = alt.name;
+      replaceGymExercise(ref.ex, alt.name);
       ref.ex.cue = alt.cue;
       ref.ex.groundContacts = contacts(
         alt.contacts,
@@ -2772,9 +2972,14 @@ export function repairGymSession(
   }
 
   // 3) Brakujące jakości w sesji dolnej → dołóż blok wsparcia.
-  const needsHam = issues.some((i) => i.code === "missing_hamstring");
-  const needsSupport = issues.some((i) => i.code === "missing_support");
-  const needsPower = issues.some((i) => i.code === "missing_power");
+  const needsHam =
+    issues.some((i) => i.code === "missing_hamstring") &&
+    !refs.some((r) => r.pattern === "hamstring" || r.pattern === "hinge");
+  const needsSupport =
+    issues.some((i) => i.code === "missing_support") &&
+    !refs.some((r) => ["calf", "adductor", "core"].includes(r.pattern));
+  const needsPower =
+    issues.some((i) => i.code === "missing_power") && !refs.some((r) => r.pattern === "power");
 
   if (needsHam || needsSupport) {
     let accSec = plan.sections.find((s) => s.type === "accessory");
@@ -2870,7 +3075,7 @@ export function repairGymSession(
     ) {
       const target = refs.find((r) => r.ex.id === issue.exerciseId);
       if (target) {
-        target.ex.name = "Hamstring slider curl";
+        replaceGymExercise(target.ex, "Hamstring slider curl");
         target.ex.sets = "2";
         target.ex.reps = "6–8";
         target.ex.rpe = "RPE 5–6 (kontrola)";
@@ -2971,7 +3176,7 @@ export function repairGymSession(
     } else if (isAdvancedReactivePlyo(target)) {
       const safe =
         JUMPS.find((j) => j.level === 1 && (j.kind === "pogo" || j.kind === "snap")) ?? JUMPS[0];
-      target.ex.name = safe.name;
+      replaceGymExercise(target.ex, safe.name);
       target.ex.cue = safe.cue;
       target.ex.groundContacts = contacts(
         safe.contacts,

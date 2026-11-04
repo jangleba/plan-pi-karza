@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import type { TrainingSection, TrainingExercise, TrainingBlock } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
@@ -23,6 +23,7 @@ import {
 import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
 import { WarmupCoach } from "../preparation/PreparationGuide";
 import { ExerciseRunnerScreen } from "../ExerciseRunnerScreen";
+import { ExerciseDetailSheet } from "../ExerciseDetailSheet";
 import { PersistentExercisePanel } from "./PersistentExercisePanel";
 import { ExerciseQuickGuide } from "./ExerciseQuickGuide";
 import { SprintRestTimer } from "./SprintRestTimer";
@@ -62,9 +63,14 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
   const progress = progressForPrescription(local.value, fingerprint);
   const done = progress.done;
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const detailExercise = allExercises.find((e) => e.id === detailId) ?? null;
   const [pairRest, setPairRest] = useState({ label: "", token: 0, blockId: "" });
   useEffect(() => {
     setActiveId(null);
+    setDetailOpen(false);
+    setDetailId(null);
     setPairRest({ label: "", token: 0, blockId: "" });
   }, [progressKey, fingerprint]);
   function markDone(id: string, value: boolean) {
@@ -78,8 +84,10 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
     const index = block.exercises.findIndex((e) => e.id === exercise.id);
     const remaining = block.exercises.filter((e) => !updated[e.id]);
     const after = block.exercises.slice(index + 1).find((e) => !updated[e.id]);
-    if (!after && block.exercises.length > 1 && remaining.length) {
-      const label = exercise.restAfterPair || block.restAfterBlock;
+    if (block.exercises.length > 1 && remaining.length) {
+      const label = after
+        ? exercise.restAfterExercise
+        : exercise.restAfterPair || block.restAfterBlock;
       if (label) setPairRest((r) => ({ label, token: r.token + 1, blockId: block.id }));
     }
     const next = after ?? remaining.find((e) => e.id !== exercise.id) ?? remaining[0];
@@ -146,9 +154,9 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                         .map((e) => e.label)
                         .filter(Boolean)
                         .join(" + ") || "Para ćwiczeń"}{" "}
-                      · na zmianę
+                      · w kolejności
                       {block.restAfterBlock
-                        ? ` · przerwa ${normalizeStrengthBlockRest(block.restAfterBlock)} po parze`
+                        ? ` · przerwa ${normalizeStrengthBlockRest(block.restAfterBlock)} ${block.exercises.length > 2 ? "po rundzie" : "po parze"}`
                         : ""}
                     </p>
                   )}
@@ -157,6 +165,9 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                       <div className="bw-training-rest">
                         <SprintRestTimer
                           label={
+                            (pairRest.blockId === block.id && pairRest.token > 0
+                              ? pairRest.label
+                              : null) ||
                             block.exercises.find((e) => e.restAfterPair)?.restAfterPair ||
                             block.restAfterBlock ||
                             ""
@@ -195,8 +206,12 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                           <button
                             type="button"
                             className="bw-exercise-open"
-                            aria-expanded={active}
-                            onClick={() => setActiveId(active ? null : exercise.id)}
+                            aria-haspopup="dialog"
+                            aria-expanded={detailOpen && detailId === exercise.id}
+                            onClick={() => {
+                              setDetailId(exercise.id);
+                              setDetailOpen(true);
+                            }}
                           >
                             <span>
                               <strong>{title}</strong>
@@ -214,7 +229,7 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
                                 </span>
                               )}
                             </span>
-                            <ChevronDown size={17} className={active ? "is-open" : ""} />
+                            <ChevronRight size={17} aria-hidden="true" />
                           </button>
                         </div>
 
@@ -278,6 +293,21 @@ export const StrengthStructuredSections = memo(function StrengthStructuredSectio
           </section>
         ),
       )}
+      <ExerciseDetailSheet
+        exercise={detailExercise}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onRecord={
+          detailExercise &&
+          plannedSets(detailExercise) > 0 &&
+          !detailExercise.executionBlockedReason
+            ? () => {
+                setDetailOpen(false);
+                setActiveId(detailExercise.id);
+              }
+            : undefined
+        }
+      />
       <button type="button" className="bw-finish-workout" onClick={onFinish}>
         Zakończ trening
       </button>

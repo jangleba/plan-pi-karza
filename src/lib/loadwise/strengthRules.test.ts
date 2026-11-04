@@ -93,18 +93,13 @@ describe("Główny lift siłowy — ciężko i krótko", () => {
 });
 
 describe("Izometria — osobne typy", () => {
-  it("overcoming iso: maks. 2 serie, ~5 s, na początku jednostki", () => {
+  it("does not insert maximal overcoming isometrics into a normal strength session", () => {
     const plan = buildStrengthPowerStructured(baseProfile, { ...baseCtx, weekPhase: "peak" })!;
-    const prep = plan.sections.find((s) => s.type === "prep");
-    const iso = prep?.blocks.flatMap((b) => b.exercises).find((e) => e.label === "ISO");
-    expect(iso).toBeDefined();
-    expect(iso!.sets).toBe("2");
-    expect(iso!.reps ?? "").toContain("5 s");
-    // Musi być przed głównym liftem (sekcja prep na początku).
-    const prepIdx = plan.sections.findIndex((s) => s.type === "prep");
-    const mainIdx = plan.sections.findIndex((s) => s.type === "main");
-    expect(prepIdx).toBeGreaterThanOrEqual(0);
-    expect(prepIdx).toBeLessThan(mainIdx);
+    expect(
+      plan.sections
+        .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
+        .some((e) => /overcoming|pin_iso/i.test(e.exerciseId ?? "")),
+    ).toBe(false);
   });
 
   it("holding/yielding iso: 12–15 s, maks. 2 serie (żadnych 20–30 s)", () => {
@@ -122,14 +117,16 @@ describe("Izometria — osobne typy", () => {
 function blockDExercises(profile: Profile, ctx: StrengthBlockContext): TrainingExercise[] {
   const plan = buildStrengthPowerStructured(profile, ctx);
   if (!plan) return [];
-  const blockD = plan.sections.flatMap((s) => s.blocks).find((b) => b.title.includes("BLOK D"));
-  return blockD?.exercises ?? [];
+  return plan.sections
+    .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
+    .filter((e) => e.label?.startsWith("D"));
 }
 
 describe("Blok D — support krótki, bez dublowania dwójek", () => {
-  it("ciężka sesja dolna + moc: Blok D ma dokładnie 2 ćwiczenia", () => {
+  it("support stays short and does not add more than two lower-body accessories", () => {
     const d = blockDExercises(baseProfile, baseCtx);
-    expect(d.length).toBe(2);
+    expect(d.length).toBeGreaterThan(0);
+    expect(d.length).toBeLessThanOrEqual(2);
   });
 
   it("Blok D nie zawiera żadnego ćwiczenia na tylną taśmę / hamstring", () => {
@@ -159,10 +156,10 @@ function devProfile(over: Partial<Profile>): Profile {
 }
 
 describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
-  it("16 zaawansowany z siłownią: główny lift ze sztangą, 6–8 powt. i 2–3 RIR", () => {
-    const p = devProfile({ age: 16, level: "advanced" });
+  it("16 with explicit gym experience and full supervision: controlled loaded main lift, 6–8 reps, 2–3 RIR", () => {
+    const p = devProfile({ age: 16, level: "advanced", supervisionLevel: "full" });
     const a1 = findByLabel(p, baseCtx, "A1")!;
-    expect(a1.name.toLowerCase()).toContain("sztang");
+    expect(a1.exerciseId).toBeDefined();
     expect(a1.reps).toBe("6–8");
     expect(a1.rpe ?? "").toContain("RIR");
     expect(a1.loadTarget ?? "").toMatch(/6–8.*2–3 RIR/);
@@ -214,7 +211,7 @@ describe("15–16 lat — strukturalna siła i umiarkowana hipertrofia", () => {
       .map((e) => e.name.toLowerCase())
       .join(" | ");
     expect(names).toMatch(
-      /nordic|rdl|hamstring|martwy|dwugłow|hip hinge|good morning|bridge|slider/,
+      /nordic|rdl|hamstring|martwy|dwugłow|hip hinge|good morning|bridge|slider|uginanie nóg|most biodrowy/,
     );
     expect(names).toMatch(/łydk|palce|copenhagen|przywodzic/);
     expect(names).toMatch(/core|plank|deska|pallof|anty|brzuch|tułow/);

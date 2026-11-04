@@ -1,15 +1,29 @@
+import { MethodBlueprint, hasMethodBlueprint } from "./session/MethodBlueprint";
+import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import {
   getAllEquipmentDefinitions,
   getExerciseDefinition,
   resolveExerciseByName,
   specialistEquipmentForExercise,
+  hydrateTrainingExerciseFromDefinition,
 } from "@/lib/loadwise/exerciseLibrary";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { MovementBlueprint } from "./MovementBlueprint";
+import { PreparationIllustration } from "./preparation/PreparationIllustration";
+import { ExerciseAnimationPreview } from "./session/ExerciseAnimationPreview";
+import { resolveExerciseAnimation } from "@/lib/trainingCoach/animationCatalog";
 import { ExerciseQuickGuide } from "./session/ExerciseQuickGuide";
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
-import { ListChecks, ListOrdered, AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import {
+  Bike,
+  Wind,
+  ListChecks,
+  ListOrdered,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+} from "lucide-react";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 function doseChip(e: TrainingExercise): string | null {
@@ -18,6 +32,7 @@ function doseChip(e: TrainingExercise): string | null {
   if (display) return display;
 
   if (e.sets && e.reps) return `${e.sets} × ${e.reps}`;
+  if (e.sets && e.duration) return `${e.sets} × ${e.duration}`;
   if (e.reps) return e.reps;
   if (e.duration) return e.duration;
   if (e.sets) return `${e.sets} serie`;
@@ -64,13 +79,38 @@ function techniqueCues(e: TrainingExercise): string[] {
     .slice(0, 3);
 }
 
-export function resolveExerciseSheetViewModel(exercise: TrainingExercise) {
+export function resolveExerciseSheetViewModel(raw: TrainingExercise) {
+  const exercise = hydrateTrainingExerciseFromDefinition({
+    ...raw,
+    instructionSteps: raw.instructionSteps?.some(
+      (step) => step.title?.trim() || step.description?.trim(),
+    )
+      ? raw.instructionSteps
+      : undefined,
+    purpose:
+      /^(?:hypertrophy|strength|max_strength|power|stability|mobility|coordination|technique)$/i.test(
+        raw.purpose ?? "",
+      )
+        ? undefined
+        : raw.purpose,
+  });
   const definition =
     (exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined) ??
     resolveExerciseByName(exercise.name);
   const skip = getSkipGuide(definition?.id ?? exercise.exerciseId);
+  const standardTechniqueSteps =
+    definition &&
+    !["speed", "conditioning", "football_ball_work"].includes(
+      definition.family ?? definition.category,
+    )
+      ? definition.instructionsPl?.map((description, index) => ({
+          title: `Krok ${index + 1}`,
+          description,
+        }))
+      : undefined;
   const steps =
     skip?.steps.map((description) => ({ title: "", description })) ??
+    standardTechniqueSteps ??
     exercise.instructionSteps?.filter(
       (step) => step.title?.trim().length || step.description?.trim().length,
     ) ??
@@ -134,10 +174,12 @@ export function ExerciseDetailSheet({
   exercise,
   open,
   onOpenChange,
+  onRecord,
 }: {
   exercise: TrainingExercise | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onRecord?: () => void;
 }) {
   if (!exercise) return null;
   const e = exercise;
@@ -149,8 +191,8 @@ export function ExerciseDetailSheet({
   const skip = getSkipGuide(e.exerciseId);
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent aria-describedby={undefined}>
+    <Drawer open={open} onOpenChange={onOpenChange} initialDetent="large">
+      <DrawerContent aria-describedby={undefined} className="bw-exercise-detail-sheet">
         <div className="mx-auto w-full max-w-md pb-4">
           <div className="pt-1">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
@@ -196,24 +238,51 @@ export function ExerciseDetailSheet({
               </div>
             )}
           </div>
+          {e.methodExecution && <MethodExecutionCoach key={e.id} plan={e.methodExecution} context={e.id} enabled={false} />}
+          {onRecord && (
+            <button type="button" className="bw-detail-record" onClick={onRecord}>
+              Zapisz serie
+            </button>
+          )}
+          {e.executionBlockedReason && (
+            <p role="status" className="mt-3 text-sm text-muted-foreground">
+              {e.executionBlockedReason}
+            </p>
+          )}
           {skip ? (
-            <ExerciseQuickGuide exercise={e} className="mt-5" />
+            <ExerciseQuickGuide exercise={e} className="mt-5" autoAnimation initialExpanded />
           ) : (
             <>
-              {details.purpose && (
-                <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
-                    Po co to ćwiczenie
+              <div className="bw-exercise-detail-media">
+                {hasMethodBlueprint(e.exerciseId) ? <MethodBlueprint exerciseId={e.exerciseId}/> : resolveExerciseAnimation(e) ? (
+                  <ExerciseAnimationPreview exercise={e} autoOpen />
+                ) : e.exerciseId === "adductor_bridge_squeeze" ||
+                  e.exerciseId === "heel_dig_hamstring_iso_90" ? (
+                  <PreparationIllustration
+                    visual="bridge"
+                    label={
+                      e.exerciseId === "adductor_bridge_squeeze"
+                        ? "Most z dociskiem ręcznika między kolanami"
+                        : "Most z dociskiem pięt i kolanami ugiętymi około 90°"
+                    }
+                    squeeze={e.exerciseId === "adductor_bridge_squeeze"}
+                  />
+                ) : e.exerciseId === "hip_mobility_flow" ? (
+                  <PreparationIllustration visual="hip" label="Mobilizacja biodra w wykroku" />
+                ) : e.exerciseId === "easy_cycle_recovery" ||
+                  e.exerciseId === "diaphragmatic_breathing" ? (
+                  <div className="bw-activity-illustration" role="img" aria-label={e.name}>
+                    {e.exerciseId === "easy_cycle_recovery" ? (
+                      <Bike size={88} strokeWidth={1} />
+                    ) : (
+                      <Wind size={88} strokeWidth={1} />
+                    )}
                   </div>
-
-                  <p className="mt-1 text-sm leading-relaxed text-foreground">{details.purpose}</p>
-                </div>
-              )}
-              {/* Movement Blueprint */}
-              <div className="mt-5">
-                <MovementBlueprint exercise={e} />
+                ) : (
+                  <MovementBlueprint exercise={e} />
+                )}
               </div>
-
+              {details.purpose && <p className="bw-exercise-purpose">{details.purpose}</p>}
               <div className="mt-2 divide-y divide-border/50">
                 {details.setup && (
                   <Section

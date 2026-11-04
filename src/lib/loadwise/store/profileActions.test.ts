@@ -16,7 +16,7 @@ function setup(data: unknown = { user_id: "real-user" }) {
   const update = vi.fn((_value: { training_experience: string | null }) => ({ eq }));
   mocks.from.mockReturnValue({ update });
   const original = {
-    profile: { age: 14, strengthTrainingMonths: 24 },
+    profile: { age: 14, strengthTrainingMonths: 24,trainingMethodPreferences:{periodization:"undulating" as const,declaredEquipment:["flywheel"]} },
     plan: [{ date: "2026-10-15" }],
     readiness: { today: {} },
     modifications: { today: {} },
@@ -63,6 +63,17 @@ describe("strength experience profile update", () => {
     ] as const)
       expect(x.getState()[key]).toBe(x.original[key]);
     expect(x.rebuild).not.toHaveBeenCalled();
+  });
+  it("preserves method preferences when the existing experience form saves without them",async()=>{
+    const x=setup();await x.actions.saveStrengthExperience({gymExperienceLevel:"beginner",strengthTrainingMonths:3,movementCompetence:"low",supervisionLevel:"full"});
+    const saved=decodeStrengthExperience(x.update.mock.calls[0][0].training_experience);
+    expect(saved.trainingMethodPreferences).toEqual(x.original.profile.trainingMethodPreferences);
+    expect(x.getState().profile.trainingMethodPreferences).toEqual(saved.trainingMethodPreferences);
+  });
+  it("can deliberately clear optional method preferences in both database payload and state",async()=>{
+    const x=setup();await x.actions.saveStrengthExperience({gymExperienceLevel:"beginner",trainingMethodPreferences:{}});
+    expect(decodeStrengthExperience(x.update.mock.calls[0][0].training_experience).trainingMethodPreferences).toEqual({});
+    expect(x.getState().profile.trainingMethodPreferences).toEqual({});
   });
   it("does not pretend a missing database row was saved", async () => {
     const x = setup(null);

@@ -204,7 +204,11 @@ export function createProfileActions(
 
   async function saveStrengthExperience(value: StrengthExperience) {
     if (!user || !state.profile) throw new Error("Zaloguj się ponownie.");
-    const clean = normalizeStrengthExperience(value);
+    const clean = normalizeStrengthExperience({
+      ...value,
+      trainingMethodPreferences:
+        value.trainingMethodPreferences ?? state.profile.trainingMethodPreferences,
+    });
     const result = await supabase
       .from("athlete_profiles")
       .update({ training_experience: encodeStrengthExperience(clean) })
@@ -224,6 +228,8 @@ export function createProfileActions(
             strengthTrainingMonths: clean.strengthTrainingMonths,
             movementCompetence: clean.movementCompetence,
             supervisionLevel: clean.supervisionLevel,
+            trainingMethodPreferences:
+              clean.trainingMethodPreferences ?? current.profile.trainingMethodPreferences,
             serverProfileUpdatedAt: profileUpdatedAt,
             onboardingRevision: trainingProfileRevision({ ...current.profile, ...clean }),
           }

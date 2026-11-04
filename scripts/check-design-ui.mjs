@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import { checkMethodsUI } from "./check-methods-ui.mjs";
 /** Real app screens, inert account adapters and authored data; presentation/interaction verification. */
 import fs from "node:fs/promises";
+import { checkStrengthUI } from "./check-strength-ui.mjs";
 import path from "node:path";
 import os from "node:os";
 import http from "node:http";
@@ -105,7 +107,8 @@ const server = http.createServer(async (req, res) => {
     res.end();
   }
 });
-await new Promise((resolve, reject) => {
+const offline = process.argv.includes("--offline");
+if(!offline) await new Promise((resolve, reject) => {
   server.once("error", reject);
   server.listen(0, "127.0.0.1", resolve);
 });
@@ -122,12 +125,19 @@ try {
       ? { executablePath: process.env.BALLWISE_CHROMIUM_EXECUTABLE }
       : {}),
   });
+  if(offline){
+    const newContext=browser.newContext.bind(browser);
+    browser.newContext=async(options)=>{const context=await newContext(options);await context.route("**/*",async route=>{
+      try{const url=new URL(route.request().url());if(url.hostname!=="ballwise.test")return route.abort();const name=decodeURIComponent(url.pathname).replace(/^\/+/,"")||"index.html";if(name.split("/").includes(".."))return route.abort();let data;try{data=await fs.readFile(path.join(dist,name));}catch{data=await fs.readFile(path.join(root,"public",name));}return route.fulfill({status:200,contentType:types[path.extname(name)]||"application/octet-stream",body:data});}catch{return route.fulfill({status:404,body:""});}
+    });return context;};
+    browser.newPage=async(options)=>{const context=await browser.newContext(options);return context.newPage();};
+  }
   const page = await browser.newPage({
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
   });
   page.on("pageerror", (e) => errors.push(e.message));
-  const base = `http://127.0.0.1:${server.address().port}/`;
+  const base = offline ? "http://ballwise.test/" : `http://127.0.0.1:${server.address().port}/`;
   async function snap(name) {
     ensure(
       (await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1,
@@ -339,19 +349,25 @@ try {
         if (screen === "strength" && width === 390) {
           const rows = page.locator(".bw-exercise-open");
           await rows.first().click();
+          await page.getByRole("dialog").waitFor();
+          await snap("sila-szczegoly-od-dolu");
+          await page.getByRole("button", { name: "Zapisz serie", exact: true }).click();
           let panel = page.locator(".bw-exercise-panel:not([hidden])");
           await panel.locator(".bw-set-fields input").nth(0).fill("20");
           await panel.locator(".bw-set-fields input").nth(1).fill("8");
           if ((await panel.locator(".bw-set-fields input").count()) > 2)
             await panel.locator(".bw-set-fields input").nth(2).fill("3");
           await rows.nth(1).click();
+          await page.getByRole("button", { name: "Zapisz serie", exact: true }).click();
           await rows.first().click();
+          await page.getByRole("button", { name: "Zapisz serie", exact: true }).click();
           ensure(
             (await panel.locator(".bw-set-fields input").first().inputValue()) === "20",
             "Strength draft lost on folding",
           );
           await panel.getByRole("button", { name: "Zapisz serię", exact: true }).click();
           await rows.first().click();
+          await page.getByRole("button", { name: "Zapisz serie", exact: true }).click();
           panel = page.locator(".bw-exercise-panel:not([hidden])");
           ensure(
             (await panel.getByLabel("Wybierz serię").inputValue()) === "2",
@@ -371,6 +387,9 @@ try {
       await snap(screen + "-duzy-tekst");
     }
   }
+  if (!process.argv.includes("--motion-only"))
+    await checkStrengthUI({ browser, base, work, ensure, views });
+await checkMethodsUI({browser,base,work,ensure,views});
   // Real animated panels: two detents, a drag gesture, retained exit content and focus return.
   const motionContext = await browser.newContext({
     viewport: { width: 390, height: 844 },

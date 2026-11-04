@@ -37,6 +37,7 @@ export function trainingProfileRevision(profile: Profile): string {
     "strengthTrainingMonths",
     "movementCompetence",
     "supervisionLevel",
+    "trainingMethodPreferences",
   ] as const;
   const arrayKeys = new Set<string>([
     "clubTrainingDays",
@@ -68,6 +69,7 @@ export function sessionPrescription(session: SessionDay): string {
     session.safetyNote,
     session.sections,
     session.structuredSections ?? null,
+    session.trainingMethods ?? null,
   ]);
 }
 
