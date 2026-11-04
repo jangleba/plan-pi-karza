@@ -248,25 +248,30 @@ function PlanScreen() {
   const [needMatchWeek, setNeedMatchWeek] = useState<number | null>(null);
   const [switchingSeason, setSwitchingSeason] = useState(false);
   const autoWeekKeyRef = useRef<string | null>(null);
+  const observedTodayRef = useRef(todayIso);
 
   const weeks = useMemo(() => selectPlanWeeks(plan, profile), [plan, profile]);
 
   useEffect(() => {
     if (weeks.length === 0) return;
+    const weekRolledOver =
+      observedTodayRef.current !== todayIso &&
+      currentWeekIndex(weeks, observedTodayRef.current) !== currentWeekIndex(weeks, todayIso);
+    observedTodayRef.current = todayIso;
     const autoKey = `${todayIso}:${plan[0]?.date ?? ""}:${plan.length}:${requestedWeek ?? ""}`;
     if (autoWeekKeyRef.current === autoKey) return;
     autoWeekKeyRef.current = autoKey;
-    const requestedIndex = requestedWeek
-      ? weeks.findIndex((week) => week.startDate === requestedWeek)
-      : -1;
-    const todayWeekIndex =
-      requestedIndex >= 0 && weeks[requestedIndex].endDate >= todayIso
-        ? requestedIndex
-        : currentWeekIndex(weeks, todayIso);
+    const requestedIndex =
+      requestedWeek && !weekRolledOver
+        ? weeks.findIndex((week) => week.startDate === requestedWeek)
+        : -1;
+    const todayWeekIndex = requestedIndex >= 0 ? requestedIndex : currentWeekIndex(weeks, todayIso);
     if (todayWeekIndex >= 0) {
       setActiveWeek(todayWeekIndex);
     }
-  }, [weeks, todayIso, plan, requestedWeek]);
+    if (weekRolledOver && requestedWeek)
+      void navigate({ to: "/plan", search: { week: undefined }, replace: true });
+  }, [weeks, todayIso, plan, requestedWeek, navigate]);
 
   // Walidacja przed wyświetleniem: żaden tydzień nie może być lekki bez powodu.
   useEffect(() => {
@@ -330,6 +335,9 @@ function PlanScreen() {
     }
     if (canAccess(i)) {
       setActiveWeek(i);
+      // Keep one Plan entry in history, carrying its selected week. Opening a
+      // session and going back should restore that week, including past weeks.
+      void navigate({ to: "/plan", search: { week: weeks[i].startDate }, replace: true });
       return;
     }
     const locked = firstLockedUpTo(i);

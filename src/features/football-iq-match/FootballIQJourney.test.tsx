@@ -74,6 +74,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -354,6 +355,34 @@ describe("individual IQ screen", () => {
     await act(async () => callbacks.shift()!(2500));
     expect(host.textContent).toContain("2/4");
     expect(host.textContent).not.toContain("Akcja trwa…");
+  });
+  it("excludes time spent in a backgrounded phone tab even when its timers were suspended", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    let now = 0,
+      hidden = false;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    vi.spyOn(document, "hidden", "get").mockImplementation(() => hidden);
+    await mount("goalkeeper");
+    now = 1000;
+    await act(async () => vi.advanceTimersByTime(200));
+    hidden = true;
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    // iOS may suspend the interval entirely while another app is open.
+    now = 61000;
+    hidden = false;
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    now = 62000;
+    await act(async () => vi.advanceTimersByTime(200));
+    const s = createJourney(journeyBank[0]);
+    const choice = journeyStep(s).choices.find((c) => c.quality === "good")!;
+    await act(async () =>
+      bridge.props!.onPlayerSelect(
+        bridge.props!.scenario.players.find((p) => p.id === choice.targetId)!,
+      ),
+    );
+    await clickText("Zagraj tak");
+    const draft = JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    expect(draft.choices[0].seconds).toBe(2);
   });
   it("selects the onboarding position and removes hints in independent mode", async () => {
     await mount("goalkeeper");

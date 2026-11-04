@@ -115,7 +115,7 @@ function Strength() {
 entries.sprint = Sprint;
 entries.strength = Strength;
 entries["strength-engine"] = StrengthEngineFixture;
-entries.methods=MethodFixture;
+entries.methods = MethodFixture;
 const View = entries[screen] || entries.plan;
 const root = createRootRoute({
   component: () => (
@@ -123,9 +123,9 @@ const root = createRootRoute({
       <RouteMotion>
         <Outlet />
       </RouteMotion>
-      {!["auth", "onboarding", "sprint", "strength", "strength-engine", "methods"].includes(screen) && (
-        <BottomNav />
-      )}
+      {!["auth", "onboarding", "sprint", "strength", "strength-engine", "methods"].includes(
+        screen,
+      ) && <BottomNav />}
     </div>
   ),
 });
@@ -135,4 +135,5 @@ const router = createRouter({
   routeTree: root.addChildren([route]),
   history: createMemoryHistory({ initialEntries: ["/" + screen] }),
 });
-createRoot(document.getElementById("root")!).render(<RouterProvider router={router} />);
+if (screen === "journey") void import("./JourneyHarness");
+else createRoot(document.getElementById("root")!).render(<RouterProvider router={router} />);

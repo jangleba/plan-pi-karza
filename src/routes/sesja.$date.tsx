@@ -219,9 +219,10 @@ function SessionDetail() {
   );
   const completed = session.dbId && state.completions[session.dbId]?.status === "completed";
   const executionStarted = session.dbId && state.completions[session.dbId]?.status === "started";
-  const displayedSession = completed || executionStarted
-    ? replacedSession
-    : enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile));
+  const displayedSession =
+    completed || executionStarted
+      ? replacedSession
+      : enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile));
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
@@ -238,9 +239,12 @@ function SessionDetail() {
               cooldown: [],
             })
           : [];
-  const sprintRunner = isSprintRunnerSession(session) && structured.length > 0 && !hasCurrentMethodRecipe(session);
+  const sprintRunner =
+    isSprintRunnerSession(session) && structured.length > 0 && !hasCurrentMethodRecipe(session);
   const strengthRunner = isStrengthSession(session) && structured.length > 0;
-  const enduranceSession = isTrackableEnduranceRun(session) && !["M30","M31"].includes(session.trainingMethods?.primary ?? "");
+  const enduranceSession =
+    isTrackableEnduranceRun(session) &&
+    !["M30", "M31"].includes(session.trainingMethods?.primary ?? "");
   const trackableEndurance = enduranceSession && Boolean(session.dbId);
   const enduranceWarmup = structured
     .filter((s) => s.type === "warmup" || s.type === "prep")
@@ -310,8 +314,25 @@ function SessionDetail() {
           </div>
         )}
 
-        {strengthRunner && !completed && <StrengthExperienceSetup />}
-        <TrainingMethodPanel key={`methods:${session.dbId ?? `${date}:${slot}`}`} session={displayedSession} wholeDay={primary} slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1} locked={!!completed || hasStarted || !!(selectedAdd && session.dbId !== primary.dbId && session.dbId !== primary.secondSession?.dbId)} />
+        <div className={strengthRunner ? "bw-strength-session-tools" : undefined}>
+          {strengthRunner && !completed && <StrengthExperienceSetup compact />}
+          <TrainingMethodPanel
+            key={`methods:${session.dbId ?? `${date}:${slot}`}`}
+            session={displayedSession}
+            wholeDay={primary}
+            slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
+            locked={
+              !!completed ||
+              !!session.executionProtected ||
+              hasStarted ||
+              !!(
+                selectedAdd &&
+                session.dbId !== primary.dbId &&
+                session.dbId !== primary.secondSession?.dbId
+              )
+            }
+          />
+        </div>
 
         {!sprintRunner &&
           (session.dayType === "match" ? (
@@ -320,8 +341,8 @@ function SessionDetail() {
             <SessionStartPanel session={displayedSession} canStart={isToday} />
           ))}
 
-        {/* Sprint previews keep disclosure/teaching controls usable; the runner gates recording. */}
-        <fieldset className="min-w-0 space-y-3" disabled={!canExecute && !sprintRunner}>
+        {/* Teaching remains available in previews; each runner gates its recording controls. */}
+        <div className="min-w-0 space-y-3">
           {ballTechnicalSession && (
             <Link
               to="/reakcja"
@@ -342,8 +363,24 @@ function SessionDetail() {
             </Link>
           )}
 
-          {!strengthRunner && structured.flatMap(s=>s.blocks.flatMap(b=>b.exercises)).filter(e=>e.methodExecution).map(e=><MethodExecutionCoach key={e.id} plan={e.methodExecution!} context={`${session.dbId ?? date}:${e.id}`} enabled={canExecute && !completion?.completed} />)}
-          {ballTechnicalSession && <div className="bw-method-reflection">Jedna rzecz na ten blok: spójrz przed przyjęciem. Po próbie nazwij sygnał, który zmienił Twój wybór — ustawienie rywala, partnera albo wolną przestrzeń.</div>}
+          {!strengthRunner &&
+            structured
+              .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
+              .filter((e) => e.methodExecution)
+              .map((e) => (
+                <MethodExecutionCoach
+                  key={e.id}
+                  plan={e.methodExecution!}
+                  context={`${session.dbId ?? date}:${e.id}`}
+                  enabled={canExecute && !completion?.completed}
+                />
+              ))}
+          {ballTechnicalSession && (
+            <div className="bw-method-reflection">
+              Jedna rzecz na ten blok: spójrz przed przyjęciem. Po próbie nazwij sygnał, który
+              zmienił Twój wybór — ustawienie rywala, partnera albo wolną przestrzeń.
+            </div>
+          )}
           {enduranceSession && enduranceWarmup.length > 0 && (
             <WarmupCoach
               key={`${session.dbId ?? date}:warmup`}
@@ -355,7 +392,7 @@ function SessionDetail() {
                   ? "easy"
                   : "intervals"
               }
-              storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+              storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}${canExecute ? "" : ":preview"}`}
             />
           )}
           {trackableEndurance &&
@@ -381,7 +418,9 @@ function SessionDetail() {
             </div>
           ) : isClub ? (
             <>
-              <ClubMonitoring session={presentedSession} />
+              <fieldset className="min-w-0" disabled={!canExecute}>
+                <ClubMonitoring session={presentedSession} />
+              </fieldset>
               {structured.length > 0 && (
                 <details className="soft-card px-4 py-3 text-sm">
                   <summary className="cursor-pointer font-medium">Informacje o sesji</summary>
@@ -400,14 +439,16 @@ function SessionDetail() {
               )}
             </>
           ) : recoveryRunner ? (
-            <RecoveryCoach
-              key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
-              storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
-              context={recoveryContext}
-              blocked={session.loadLabelOverride === "Wstrzymaj trening"}
-              onDurationChange={setRecoveryDuration}
-              onFinish={() => setShowRecoveryCompletion(true)}
-            />
+            <fieldset className="min-w-0" disabled={!canExecute}>
+              <RecoveryCoach
+                key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
+                storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
+                context={recoveryContext}
+                blocked={session.loadLabelOverride === "Wstrzymaj trening"}
+                onDurationChange={setRecoveryDuration}
+                onFinish={() => setShowRecoveryCompletion(true)}
+              />
+            </fieldset>
           ) : sprintRunner ? (
             <SprintStructuredSections
               sections={structured}
@@ -421,10 +462,14 @@ function SessionDetail() {
             />
           ) : strengthRunner ? (
             <StrengthStructuredSections
+              key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
               sections={structured}
               date={date}
               sessionId={session.dbId}
-              onFinish={() => setShowStrengthCompletion(true)}
+              canRecord={canExecute}
+              onFinish={() => {
+                if (canExecute) setShowStrengthCompletion(true);
+              }}
             />
           ) : (
             <>
@@ -432,6 +477,7 @@ function SessionDetail() {
                 Do wykonania
               </div>
               <StructuredSections
+                key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
                 sections={
                   enduranceSession
                     ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
@@ -439,10 +485,11 @@ function SessionDetail() {
                 }
                 date={date}
                 sessionId={session.dbId}
+                canRecord={canExecute}
               />
             </>
           )}
-        </fieldset>
+        </div>
 
         {sprintRunner && !hasStarted && isToday && (
           <div className="bw-sprint-start-panel">

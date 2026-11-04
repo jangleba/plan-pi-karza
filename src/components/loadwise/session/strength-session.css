@@ -350,10 +350,93 @@
   margin-bottom: 0;
 }
 .bw-strength .bw-training-block {
-  border: 1px solid var(--border);
-  border-radius: var(--bw-card-radius);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: var(--bw-hairline, 1px) solid var(--border);
+  background: transparent;
+}
+.bw-strength .bw-training-block:last-child {
+  border-bottom: 0;
+}
+.bw-training-stage-list {
+  border: var(--bw-hairline, 1px) solid var(--border);
+  border-radius: 18px;
   overflow: hidden;
   background: var(--card);
+}
+.bw-strength .bw-pair-label {
+  margin: 0;
+  padding: 9px 12px;
+  border-bottom: var(--bw-hairline, 1px) solid var(--border);
+  background: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.bw-training-preview-summary {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.bw-strength-session-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.bw-strength-session-tools > :only-child {
+  grid-column: 1 / -1;
+}
+.bw-strength-session-tools .bw-method-trigger,
+.bw-strength-session-tools .bw-strength-experience-trigger {
+  height: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  gap: 8px;
+  font-size: 12px;
+  border-radius: 14px;
+}
+.bw-strength-session-tools .bw-method-trigger small,
+.bw-strength-session-tools button > svg:last-child {
+  display: none;
+}
+.bw-exercise-preview-warning {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--warning, #996015);
+}
+.bw-exercise-archived-count {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.bw-exercise-original-entries {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--muted);
+  font-size: 12px;
+}
+.bw-exercise-original-entries h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.bw-exercise-original-entries p {
+  margin: 6px 0 10px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.bw-exercise-original-entries li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  line-height: 1.5;
 }
 .bw-strength .bw-training-block > .bw-training-exercise:last-child {
   border-bottom: 0;

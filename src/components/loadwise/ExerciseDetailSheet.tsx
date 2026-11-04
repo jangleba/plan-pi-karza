@@ -13,6 +13,7 @@ import { MovementBlueprint } from "./MovementBlueprint";
 import { PreparationIllustration } from "./preparation/PreparationIllustration";
 import { ExerciseAnimationPreview } from "./session/ExerciseAnimationPreview";
 import { resolveExerciseAnimation } from "@/lib/trainingCoach/animationCatalog";
+import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 import { ExerciseQuickGuide } from "./session/ExerciseQuickGuide";
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
 import {
@@ -175,20 +176,31 @@ export function ExerciseDetailSheet({
   open,
   onOpenChange,
   onRecord,
+  planOccurrences,
 }: {
   exercise: TrainingExercise | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onRecord?: () => void;
+  planOccurrences?: TrainingExercise[];
 }) {
   if (!exercise) return null;
-  const e = exercise;
+  // Persisted aliases must resolve identically for the text and the visual.
+  // The instance id and original dose remain intact for the recording handoff.
+  const e = hydrateTrainingExerciseFromDefinition(exercise);
   const dose = doseChip(e);
   const rpe = rpeChip(e);
   const intensity = intensityChip(e);
   const tempo = tempoChip(e);
   const details = resolveExerciseSheetViewModel(e);
   const skip = getSkipGuide(e.exerciseId);
+  const supplementalAnimation = Boolean(
+    resolveExerciseAnimation(e) &&
+    getExerciseTechniqueImage(e.exerciseId) &&
+    ["strength", "power", "plyometric", "core", "prehab"].includes(
+      getExerciseDefinition(e.exerciseId ?? "")?.category ?? "",
+    ),
+  );
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} initialDetent="large">
@@ -238,7 +250,14 @@ export function ExerciseDetailSheet({
               </div>
             )}
           </div>
-          {e.methodExecution && <MethodExecutionCoach key={e.id} plan={e.methodExecution} context={e.id} enabled={false} />}
+          {e.methodExecution && (
+            <MethodExecutionCoach
+              key={e.id}
+              plan={e.methodExecution}
+              context={e.id}
+              enabled={false}
+            />
+          )}
           {onRecord && (
             <button type="button" className="bw-detail-record" onClick={onRecord}>
               Zapisz serie
@@ -254,7 +273,9 @@ export function ExerciseDetailSheet({
           ) : (
             <>
               <div className="bw-exercise-detail-media">
-                {hasMethodBlueprint(e.exerciseId) ? <MethodBlueprint exerciseId={e.exerciseId}/> : resolveExerciseAnimation(e) ? (
+                {hasMethodBlueprint(e.exerciseId) ? (
+                  <MethodBlueprint exerciseId={e.exerciseId} />
+                ) : resolveExerciseAnimation(e) && !supplementalAnimation ? (
                   <ExerciseAnimationPreview exercise={e} autoOpen />
                 ) : e.exerciseId === "adductor_bridge_squeeze" ||
                   e.exerciseId === "heel_dig_hamstring_iso_90" ? (
@@ -283,6 +304,26 @@ export function ExerciseDetailSheet({
                 )}
               </div>
               {details.purpose && <p className="bw-exercise-purpose">{details.purpose}</p>}
+              {planOccurrences && planOccurrences.length > 1 && (
+                <section className="bw-exercise-original-entries">
+                  <h3>Wpisy w zapisanym planie</h3>
+                  <p>
+                    Zgrupowano powtarzające się ćwiczenie. Oryginalne dawki pozostają zachowane.
+                  </p>
+                  <ul>
+                    {planOccurrences.map((item, index) => (
+                      <li key={`${item.id}:${index}`}>
+                        <strong>{item.label ?? index + 1}</strong>
+                        <span>
+                          {doseChip(item) ?? "Dawka w oryginalnym planie"}
+                          {item.rir ? ` · ${item.rir} RIR` : ""}
+                          {restChip(item) ? ` · przerwa ${restChip(item)}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               <div className="mt-2 divide-y divide-border/50">
                 {details.setup && (
                   <Section
@@ -377,6 +418,7 @@ export function ExerciseDetailSheet({
                   </Section>
                 )}
               </div>
+              {supplementalAnimation && <ExerciseAnimationPreview exercise={e} />}
             </>
           )}
         </div>

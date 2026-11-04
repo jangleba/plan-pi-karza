@@ -1,5 +1,5 @@
 import { SurfaceSketch } from "@/components/design/SurfaceSketch";
-import { Activity, Clock3, SignalHigh } from "lucide-react";
+import { Activity, ChevronLeft, Clock3, SignalHigh } from "lucide-react";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { formatDateFull, professionalSessionTitle } from "@/lib/loadwise/labels";
 import "./sprint-design.css";
@@ -50,6 +50,7 @@ export function SprintSessionHeader({
           title="Wróć do planu"
           onClick={onBack}
         >
+          <ChevronLeft size={18} aria-hidden="true" />
           <span className="bw-training-logo">
             <Activity aria-hidden="true" />
           </span>

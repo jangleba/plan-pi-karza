@@ -5,6 +5,8 @@ import type { SessionDay } from "@/lib/loadwise/types";
 import { initialState, buildProfile, applyExerciseReplacements } from "@/lib/loadwise/store/model";
 import type { LoadwiseContextValue } from "@/lib/loadwise/store/model";
 import { generatePlan } from "@/lib/loadwise/planEngine";
+import { isStrengthSession } from "@/lib/loadwise/sessionClassification";
+import { legacyStrengthSession } from "./LegacyStrengthSession";
 export { applyExerciseReplacements };
 const today = "2026-11-02";
 const profile = buildProfile(
@@ -23,6 +25,21 @@ const profile = buildProfile(
   },
   null,
 )!;
+const journeyQA = new URLSearchParams(location.search).get("screen") === "journey";
+if (journeyQA) {
+  profile.goal = "strength";
+  profile.seasonPhase = "offseason";
+  profile.individualTrainingDays = [1, 2, 3, 4, 5, 6, 7];
+  profile.unavailableDays = [];
+  profile.clubTrainingDays = [];
+  profile.matchDate = null;
+  profile.matchDates = [];
+  profile.weeklyMatches = false;
+  profile.gymExperienceLevel = "intermediate";
+  profile.strengthTrainingMonths = 12;
+  profile.movementCompetence = "high";
+  profile.supervisionLevel = "some";
+}
 if (new URLSearchParams(location.search).get("screen") === "strength-engine") {
   const q = new URLSearchParams(location.search);
   const experience = q.get("experience");
@@ -44,6 +61,19 @@ if (new URLSearchParams(location.search).get("screen") === "methods")
     supervisionLevel: "full",
   });
 let plan = generatePlan(profile, new Date(2026, 10, 2), 14);
+if (journeyQA) {
+  // Stable generated exercises, with a known session to exercise the actual route gates.
+  const strength = plan.find(isStrengthSession);
+  if (!strength) throw new Error("Navigation fixture requires a generated strength session");
+  plan = plan.map((day, index) => ({
+    ...(index === 0
+      ? { ...strength, date: day.date, dayName: day.dayName, secondSession: null }
+      : day),
+    dbId: `qa-journey-${index}`,
+  }));
+  if (new URLSearchParams(location.search).get("legacy") === "1")
+    plan = [legacyStrengthSession(), ...plan];
+}
 const startQA = new URLSearchParams(location.search).get("screen") === "start";
 if (startQA) {
   profile.healthPersonalizationEnabled = true;
@@ -130,6 +160,8 @@ const subscribe = (fn: () => void) => {
 const snapshot = () => designState;
 if (startQA)
   Object.assign(window, { __startQA: { plan: () => designState.plan, changes, healthWrites: 0 } });
+if (journeyQA)
+  Object.assign(window, { __journeyQA: { state: () => designState, starts: [] as string[] } });
 export const useLoadwise = () => {
   const state = useSyncExternalStore(subscribe, snapshot, snapshot);
   return {
@@ -150,7 +182,28 @@ export const useLoadwise = () => {
     updateProfile: async () => {},
     markEquipmentUnavailable: async () => {},
     completeOnboarding: async () => {},
-    startSession: async () => {},
+    startSession: async (session: SessionDay) => {
+      if (!journeyQA || !session.dbId) return;
+      (window as unknown as { __journeyQA: { starts: string[] } }).__journeyQA.starts.push(
+        session.dbId,
+      );
+      designState = {
+        ...designState,
+        completions: {
+          ...designState.completions,
+          [session.dbId]: {
+            completed: false,
+            status: "started",
+            rpe: null,
+            notes: "",
+            writeVersion: 1,
+            startedAt: new Date().toISOString(),
+            executionSnapshot: session,
+          },
+        },
+      };
+      for (const fn of listeners) fn();
+    },
     completeSession: async () => {},
     refreshPlanIfNeeded: async () => {},
     applyModification: async (date: string, _kind: string, replacement: SessionDay) => {

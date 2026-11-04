@@ -5,7 +5,7 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { hasStrengthExperience, type StrengthExperience } from "@/lib/loadwise/strengthExperience";
 import "./training-coach.css";
 
-export function StrengthExperienceSetup() {
+export function StrengthExperienceSetup({ compact = false }: { compact?: boolean } = {}) {
   const { state, saveStrengthExperience } = useLoadwise();
   const profile = state.profile;
   const [editing, setEditing] = useState(false);
@@ -37,6 +37,7 @@ export function StrengthExperienceSetup() {
         type="button"
         className="bw-strength-experience-trigger"
         aria-haspopup="dialog"
+        aria-label={known ? "Doświadczenie siłowe" : "Dopasuj trening siłowy"}
         onClick={() => {
           setDraft({
             gymExperienceLevel: profile.gymExperienceLevel ?? "beginner",
@@ -49,7 +50,15 @@ export function StrengthExperienceSetup() {
         }}
       >
         <SlidersHorizontal size={18} strokeWidth={1.5} aria-hidden="true" />
-        <span>{known ? "Doświadczenie siłowe" : "Dopasuj trening siłowy"}</span>
+        <span>
+          {compact
+            ? known
+              ? "Doświadczenie"
+              : "Dopasuj trening"
+            : known
+              ? "Doświadczenie siłowe"
+              : "Dopasuj trening siłowy"}
+        </span>
         <ChevronRight size={16} aria-hidden="true" />
       </button>
       <Sheet open={editing} onOpenChange={setEditing} initialDetent="large">

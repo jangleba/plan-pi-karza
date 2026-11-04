@@ -23,16 +23,20 @@ export const StructuredSections = memo(function StructuredSections({
   sections,
   date,
   sessionId,
+  canRecord = true,
 }: {
   sections: TrainingSection[];
   date: string;
   sessionId?: string | null;
+  canRecord?: boolean;
 }) {
   const { markEquipmentUnavailable } = useLoadwise();
 
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [activeSectionId, setActiveSectionId] = useState<string>(sections[0]?.id ?? "");
-  const toggle = (id: string) => setDone((current) => ({ ...current, [id]: !current[id] }));
+  const toggle = (id: string) => {
+    if (canRecord) setDone((current) => ({ ...current, [id]: !current[id] }));
+  };
 
   const activeSection = sections.find((s) => s.id === activeSectionId) ?? sections[0];
 
@@ -56,9 +60,9 @@ export const StructuredSections = memo(function StructuredSections({
               key={section.id}
               exercises={preparationExercises}
               kind={preparationExercises.length === 1 ? "easy" : "intervals"}
-              storageKey={`ballwise:warmup:${sessionId ?? date}:${section.id}`}
+              storageKey={`ballwise:warmup:${sessionId ?? date}:${section.id}${canRecord ? "" : ":preview"}`}
               onFinish={(all) => {
-                if (all)
+                if (canRecord && all)
                   setDone((current) => ({
                     ...current,
                     ...Object.fromEntries(preparationExercises.map((e) => [e.id, true])),
@@ -136,11 +140,13 @@ export const StructuredSections = memo(function StructuredSections({
                               done={!!done[exercise.id]}
                               onToggle={() => toggle(exercise.id)}
                               onUnavailable={() => {
-                                if (equipmentIds.length)
+                                if (canRecord && equipmentIds.length)
                                   markEquipmentUnavailable(date, exercise, equipmentIds);
                               }}
                               equipmentIds={equipmentIds}
                               sessionId={sessionId}
+                              date={date}
+                              canRecord={canRecord}
                             />
                           );
                         })}

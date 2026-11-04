@@ -58,6 +58,10 @@ function DailyPlanCheckinDialog({
 }) {
   const [step, setStep] = useState<CheckinStep>("confirm");
 
+  useEffect(() => {
+    if (open) setStep("confirm");
+  }, [open]);
+
   function changeOpen(nextOpen: boolean) {
     if (nextOpen) setStep("confirm");
     onOpenChange(nextOpen);
@@ -157,6 +161,10 @@ function SecondSessionCheckinDialog({
   onAction: (action: SecondSessionCheckinAction) => void;
 }) {
   const [step, setStep] = useState<SecondCheckinStep>("want");
+
+  useEffect(() => {
+    if (open) setStep("want");
+  }, [open]);
 
   function changeOpen(nextOpen: boolean) {
     if (nextOpen) setStep("want");

@@ -72,7 +72,14 @@ vi.mock("@/components/loadwise/AppLaunchScreen", () => ({
 vi.mock("@/components/loadwise/ModifySheet", () => ({ ModifySheet: () => null }));
 vi.mock("@/components/running/EnduranceRunTracker", () => ({ EnduranceRunTracker: () => null }));
 vi.mock("@/components/loadwise/session/GenericRunner", () => ({
-  StructuredSections: () => <div data-runner="generic" />,
+  StructuredSections: ({ canRecord }: { canRecord?: boolean }) => (
+    <>
+      <button data-generic-preview>Instrukcja ćwiczenia</button>
+      <button data-runner="generic" disabled={!canRecord}>
+        Zapisz wykonanie
+      </button>
+    </>
+  ),
 }));
 vi.mock("@/components/loadwise/session/SprintRunner", async (importOriginal) => {
   const { SprintStructuredSections } =
@@ -94,10 +101,19 @@ vi.mock("@/components/loadwise/session/SprintRunner", async (importOriginal) => 
   };
 });
 vi.mock("@/components/loadwise/session/StrengthRunner", () => ({
-  StrengthStructuredSections: ({ onFinish }: { onFinish: () => void }) => (
-    <button data-runner="strength" onClick={onFinish}>
-      Finish strength
-    </button>
+  StrengthStructuredSections: ({
+    onFinish,
+    canRecord,
+  }: {
+    onFinish: () => void;
+    canRecord?: boolean;
+  }) => (
+    <>
+      <button data-strength-preview>Instrukcja ćwiczenia</button>
+      <button data-runner="strength" disabled={!canRecord} onClick={onFinish}>
+        Finish strength
+      </button>
+    </>
   ),
 }));
 vi.mock("@/components/loadwise/session/SessionCompletion", () => ({
@@ -182,6 +198,46 @@ afterEach(async () => {
 });
 
 describe("session route gates", () => {
+  it.each(["2026-09-28", "2026-09-29", "2026-09-30"])(
+    "keeps strength instructions usable without enabling recording on %s",
+    async (today) => {
+      mocks.todayIso = today;
+      mocks.state.plan = [
+        sessionFixture({
+          type: "strength_power",
+          title: "Siła",
+          sessionType: "strength_power",
+          structuredSections: [
+            sectionFixture("main", [
+              { id: "squat", exerciseId: "goblet_squat", name: "Przysiad", sets: "2", reps: "8" },
+            ]),
+          ],
+        }),
+      ];
+      await render();
+      expect(
+        host.querySelector<HTMLButtonElement>("[data-strength-preview]")?.matches(":disabled"),
+      ).toBe(false);
+      expect(
+        host.querySelector<HTMLButtonElement>('[data-runner="strength"]')?.matches(":disabled"),
+      ).toBe(true);
+      expect(mocks.startSession).not.toHaveBeenCalled();
+    },
+  );
+  it("keeps generic exercise instructions usable without allowing preview completion", async () => {
+    mocks.state.plan = [
+      sessionFixture({
+        structuredSections: [sectionFixture("main", [{ id: "ball", name: "Technika z piłką" }])],
+      }),
+    ];
+    await render();
+    expect(
+      host.querySelector<HTMLButtonElement>("[data-generic-preview]")?.matches(":disabled"),
+    ).toBe(false);
+    expect(
+      host.querySelector<HTMLButtonElement>('[data-runner="generic"]')?.matches(":disabled"),
+    ).toBe(true);
+  });
   it("opens the completed sprint feedback from Progress without replaying the runner", async () => {
     const session = sessionFixture({
       title: "Zapisany sprint",

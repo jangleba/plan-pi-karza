@@ -527,6 +527,9 @@ export function FootballIQJourney({
   }, [interactive]);
   useEffect(() => {
     const visibility = () => {
+      // Mobile browsers suspend intervals in the background. Rebase on both
+      // edges so the first visible tick cannot count that suspended time.
+      lastTiming.current = performance.now();
       if (document.hidden) setTransport((p) => (p ? { ...p, paused: true } : p));
     };
     document.addEventListener("visibilitychange", visibility);

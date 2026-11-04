@@ -120,7 +120,20 @@ export function MethodExecutionCoach({
   useEffect(() => {
     if (!enabled) setClock((s) => pauseMethodClock(plan, s, Date.now()));
   }, [enabled, plan]);
-  if (plan.mode === "velocity") return <VelocityCoach plan={plan} context={context} />;
+  if (plan.mode === "velocity")
+    return enabled ? (
+      <VelocityCoach plan={plan} context={context} />
+    ) : (
+      <div className="bw-method-clock" data-testid="velocity-preview">
+        <strong>Pomiary z urządzenia</strong>
+        <p>
+          Wpisuj tę samą metrykę prędkości koncentrycznej z urządzenia sprawdzonego dla tego
+          ćwiczenia. Telefon jej nie mierzy.
+        </p>
+        <p>{plan.focus}</p>
+        <small>Pomiary możesz wpisać po rozpoczęciu treningu i otwarciu zapisu serii.</small>
+      </div>
+    );
   if (plan.mode === "none") return null;
   const manual = clock.phase === "work" && clock.deadline === null,
     remaining = clock.paused ? clock.remainingMs : Math.max(0, (clock.deadline ?? now) - now),
@@ -221,8 +234,8 @@ export function MethodExecutionCoach({
         <p>{plan.stopRule}</p>
         <p>
           Zegar prowadzi plan pracy i odpoczynku. Nie potwierdza wykonania, techniki, kierunku ani
-          czasu reakcji i nie zapisuje wyniku treningu. Praca w tle zależy od przeglądarki
-          — pozostaw ekran aktywny.
+          czasu reakcji i nie zapisuje wyniku treningu. Praca w tle zależy od przeglądarki —
+          pozostaw ekran aktywny.
         </p>
       </details>
     </div>

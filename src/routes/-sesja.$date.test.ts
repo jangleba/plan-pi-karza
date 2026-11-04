@@ -268,6 +268,19 @@ describe("sprint runner layout", () => {
     ).toBe("2 × 15–20 m");
   });
 
+  it.each(["4 powtórzenia: 2 w lewo + 2 w prawo", "2–3 × 4 powtórzenia", "6 powtórzeń"])(
+    "zachowuje całe polskie słowa w dawce: %s",
+    (prescription) => {
+      expect(
+        formatSprintPrescription({
+          id: "polish-dose",
+          name: "Cięcie",
+          displayPrescription: prescription,
+        }),
+      ).toBe(prescription);
+    },
+  );
+
   it("używa nazw kanonicznych zamiast etykiet intencji", () => {
     const blocks = buildSprintRunnerBlocks(sprintSectionsFixture());
     expect(blocks[0].exercises[0].canonicalName).toBe("Marsz A");

@@ -66,7 +66,7 @@ type SprintResolvedDetails = {
 
 function cleanSprintPrescription(value: string): string {
   return value
-    .replace(/\bpowt\.?\b/gi, "")
+    .replace(/(^|\s)powt\.?(?=\s|$|[,;:])/gi, "$1")
     .replace(/\b(\d+)\s*seri[aeyi]?\s*×\s*/gi, (_m, count: string) =>
       Number(count) > 1 ? `${count} × ` : "",
     )

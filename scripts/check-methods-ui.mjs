@@ -53,6 +53,14 @@ export async function checkMethodsUI({ browser, base, work, ensure, views }) {
         const row = main.locator(".bw-exercise-open").first();
         await row.click();
         await page.getByRole("dialog").waitFor();
+        if (id === "M39") {
+          const preview = page.getByRole("dialog").locator('[data-testid="velocity-preview"]');
+          ensure((await preview.count()) === 1, "Velocity instruction preview is missing");
+          ensure(
+            (await preview.locator("input, form, button").count()) === 0,
+            "Velocity instruction preview accepts measurements",
+          );
+        }
         ensure(
           (await page.getByRole("dialog").locator("ol li").count()) >= 2,
           `${id}: missing instructions`,

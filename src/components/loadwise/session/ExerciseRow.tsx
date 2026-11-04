@@ -25,6 +25,7 @@ export function ExerciseRow({
   equipmentIds,
   sessionId,
   date,
+  canRecord = true,
 }: {
   e: TrainingExercise;
   index?: number;
@@ -34,10 +35,11 @@ export function ExerciseRow({
   equipmentIds: string[];
   sessionId?: string | null;
   date?: string;
+  canRecord?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [logging, setLogging] = useState(false);
-  const canLogSets = plannedSets(e) > 0;
+  const canLogSets = canRecord && plannedSets(e) > 0;
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const { dose, meta } = exerciseDataLineParts(e);
   const title = canonicalExerciseName(e);
@@ -52,6 +54,7 @@ export function ExerciseRow({
         rest={restLabel(e)}
         done={done}
         onToggle={onToggle}
+        canRecord={canRecord}
       />
     );
   }
@@ -60,7 +63,10 @@ export function ExerciseRow({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={onToggle}
+          disabled={!canRecord || Boolean(e.executionBlockedReason)}
+          onClick={() => {
+            if (canRecord) onToggle();
+          }}
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors ${
             done ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
           }`}
@@ -161,7 +167,7 @@ export function ExerciseRow({
               <p className="mt-1">{details.replacement}</p>
             </div>
           </div>
-          {!done && equipmentIds.length > 0 && (
+          {canRecord && !done && equipmentIds.length > 0 && (
             <button
               type="button"
               onClick={onUnavailable}
@@ -207,7 +213,7 @@ export function ExerciseRow({
         exercise={e}
         sessionId={sessionId}
         date={date}
-        open={logging}
+        open={logging && canRecord}
         onClose={() => setLogging(false)}
         onComplete={() => {
           if (!done) onToggle();
