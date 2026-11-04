@@ -88,13 +88,14 @@ let snapshot: { state: LoadwiseState; hydrated: boolean };
 let mounted: boolean;
 let changeState: (update: (current: LoadwiseState) => LoadwiseState) => void;
 const onRender = vi.fn();
-function Harness({ user, recoveryMode = false }: { user: StoreUser; recoveryMode?: boolean }) {
+function Harness({ user, recoveryMode = false, profileWritePending=false }: { user: StoreUser; recoveryMode?: boolean;profileWritePending?:boolean }) {
   const [state, setState] = useState(initialState);
   changeState = setState;
   const hydrated = useHydration({
     user,
     authLoading: false,
     recoveryMode,
+    profileWritePending,
     todayIso: "2026-09-29",
     setState,
     state,
@@ -287,4 +288,14 @@ describe("store hydration", () => {
     const plan = mocks.persist.mock.calls[0][2] as { planDbId?: string }[];
     expect(plan[0].planDbId).toBe("existing-active-header");
   });
+});
+
+it("does not start hydration queries while an atomic profile write is active, then refreshes once",async()=>{
+  mocks.requests.set("a",Promise.resolve(remoteRows("Saved athlete")));
+  await act(async()=>root.render(<Harness user={{id:"a"}} profileWritePending/>));
+  expect(mocks.queries).not.toHaveBeenCalled();
+  await act(async()=>{window.dispatchEvent(new Event("ballwise:consent-changed"));window.dispatchEvent(new Event("ballwise:server-state-changed"));});
+  expect(mocks.queries).not.toHaveBeenCalled();
+  await render({id:"a"});
+  expect(mocks.queries.mock.calls.filter(([table])=>table==="training_plans")).toHaveLength(1);
 });

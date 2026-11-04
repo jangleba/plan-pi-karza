@@ -1,3 +1,11 @@
+import {
+  cancellableRequest,
+  profileCommandKey,
+  ProfileSaveTimeout,
+  withProfileDeadline,
+  type ProfileSaveRefs,
+  type ProfileSaveStage,
+} from "../profileSave";
 import { trainingProfileRevision } from "../planIdentity";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -32,6 +40,9 @@ export function createProfileActions(
   context: StoreActionContext & {
     generatingRef: RefObject<boolean>;
     setPlanGenerating: Dispatch<SetStateAction<boolean>>;
+    profileSaveRefs?: RefObject<ProfileSaveRefs>;
+    onProfileSaveStage?: (stage: ProfileSaveStage | null) => void;
+    isProfileOwnerCurrent?: () => boolean;
   },
 ): Pick<
   LoadwiseContextValue,
@@ -69,82 +80,209 @@ export function createProfileActions(
     }));
   }
 
-  async function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
-    if (!user) return;
-    let expectedRevision = (context.getState?.() ?? state).profile?.serverProfileUpdatedAt ?? null;
-    // Consent is persisted before enabling optional health processing. The DB
-    // trigger then refuses health mode unless the latest audit row is accepted.
-    if (consents) {
-      const decisions: ConsentDecision[] = [];
-      if (profile.accountOwnerType === "guardian") {
-        decisions.push({
-          type: "guardian_authorization",
-          accepted: Boolean(profile.guardianConsent),
-        });
-      }
-      decisions.push(
-        ...CONSENTS.map((consent) => ({
-          type: consent.type as CanonicalConsentType,
-          accepted: Boolean(consents[consent.type]),
-        })),
-      );
-      expectedRevision =
-        (await recordConsentDecisions(decisions, expectedRevision)) ?? expectedRevision;
+  const writeRefs =
+    context.profileSaveRefs?.current ??
+    ({ attempt: null, flight: null, key: null } as ProfileSaveRefs);
+  const stage = (value: ProfileSaveStage | null) => context.onProfileSaveStage?.(value);
+  async function confirmSavedPlan(
+    attempt: NonNullable<ProfileSaveRefs["attempt"]>,
+  ): Promise<string | null> {
+    if (!attempt.prepared || !user) return null;
+    try {
+      return await withProfileDeadline("verification", 5000, async (signal) => {
+        const result = await cancellableRequest(
+          supabase
+            .from("training_plans")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("id", attempt.prepared!.args.p_plan_id)
+            .eq("active", true)
+            .maybeSingle(),
+          signal,
+        );
+        if (result.error || result.data?.id !== attempt.prepared!.args.p_plan_id) return null;
+        const profile = await cancellableRequest(
+          supabase
+            .from("athlete_profiles")
+            .select("updated_at")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          signal,
+        );
+        return !profile.error && typeof profile.data?.updated_at === "string"
+          ? profile.data.updated_at
+          : null;
+      });
+    } catch {
+      return null;
     }
-    await updateProfile(
+  }
+  function completeOnboarding(profile: Profile, consents?: Record<string, boolean>) {
+    return writeProfile(
       { ...state.profile, ...profile, createdAt: state.profile?.createdAt ?? profile.createdAt },
-      expectedRevision,
+      consents,
     );
   }
-
-  async function updateProfile(profile: Profile, expectedRevision?: string | null) {
-    if (!user) return;
+  function updateProfile(profile: Profile, expectedRevision?: string | null) {
+    return writeProfile(profile, undefined, expectedRevision);
+  }
+  function writeProfile(
+    profile: Profile,
+    consents?: Record<string, boolean>,
+    expectedRevision?: string | null,
+  ): Promise<void> {
+    if (!user) return Promise.reject(new Error("Zaloguj się ponownie przed zapisaniem planu."));
+    const key = profileCommandKey(user.id, profile, consents);
+    if (writeRefs.flight) {
+      return writeRefs.key === key
+        ? writeRefs.flight
+        : Promise.reject(new Error("Trwa zapisywanie poprzedniej zmiany. Poczekaj na wynik."));
+    }
     const before = context.getState?.() ?? state;
-    let nextProfile = completedProfile(profile, null);
-    const revision = trainingProfileRevision(nextProfile);
-    nextProfile = { ...nextProfile, onboardingRevision: revision };
-    const trainingChanged =
-      !before.profile ||
-      !before.profile.onboardingComplete ||
-      trainingProfileRevision(before.profile) !== revision;
-    const calendar = (p: Profile) =>
-      JSON.stringify([
-        p.clubTrainingDays,
-        p.individualTrainingDays,
-        p.unavailableDays,
-        p.usualMatchDay,
-        p.matchDate,
-        p.matchDates,
-      ]);
-    const clearTransitions = !before.profile || calendar(before.profile) !== calendar(nextProfile);
-    const plan = trainingChanged
-      ? await savePlanToDb(nextProfile, revision, [], {}, !clearTransitions, false)
-      : before.plan;
-    const prepared = trainingChanged ? prepareMonthlyPlan(user.id, nextProfile, plan) : null;
-    const { profileRow, athleteRow } = profileWritePayloads(user.id, nextProfile, true);
-    const saved = await supabase.rpc("save_profile_and_plan", {
-      p_profile: profileRow as unknown as Json,
-      p_athlete: athleteRow as unknown as Json,
-      p_plan: prepared ? (prepared.args as unknown as Json) : null,
-      p_expected_profile_updated_at:
-        (expectedRevision !== undefined
-          ? expectedRevision
-          : before.profile?.serverProfileUpdatedAt) ?? undefined,
-      p_clear_transitions: trainingChanged && clearTransitions,
-      p_from_date: todayIso,
-    });
-    assertNoSupabaseError("save_profile_and_plan", saved.error);
-    const response = saved.data as Record<string, unknown> | null;
-    const athlete = response?.athlete as Record<string, unknown> | undefined;
-    nextProfile = {
-      ...nextProfile,
-      serverProfileUpdatedAt:
-        (athlete?.updated_at as string | undefined) ?? nextProfile.serverProfileUpdatedAt,
+    if (writeRefs.attempt?.key !== key) {
+      const next = completedProfile(profile, null),
+        revision = trainingProfileRevision(next);
+      writeRefs.attempt = {
+        key,
+        profile: { ...next, onboardingRevision: revision },
+        revision,
+        expectedRevision:
+          (expectedRevision !== undefined
+            ? expectedRevision
+            : before.profile?.serverProfileUpdatedAt) ?? null,
+      };
+    }
+    const attempt = writeRefs.attempt!,
+      deadline = Date.now() + 25000;
+    const remaining = (limit: number) => Math.max(1, Math.min(limit, deadline - Date.now()));
+    const assertOwner = () => {
+      if (context.isProfileOwnerCurrent?.() === false)
+        throw new Error("Konto zmieniło się podczas zapisu. Otwórz formularz ponownie.");
     };
-    if (trainingChanged) commitProfilePlan(nextProfile, prepared!.plan, clearTransitions);
-    else setState((current) => ({ ...current, profile: nextProfile }));
-    if (typeof window !== "undefined")
-      window.dispatchEvent(new Event("ballwise:server-state-changed"));
+    const work = async () => {
+      assertOwner();
+      let nextProfile = attempt.profile;
+      const trainingChanged =
+        !before.profile ||
+        !before.profile.onboardingComplete ||
+        trainingProfileRevision(before.profile) !== attempt.revision;
+      const calendar = (p: Profile) =>
+        JSON.stringify([
+          p.clubTrainingDays,
+          p.individualTrainingDays,
+          p.unavailableDays,
+          p.usualMatchDay,
+          p.matchDate,
+          p.matchDates,
+        ]);
+      const clearTransitions =
+        !before.profile || calendar(before.profile) !== calendar(nextProfile);
+      const publish = (updatedAt: string) => {
+        assertOwner();
+        nextProfile = { ...nextProfile, serverProfileUpdatedAt: updatedAt };
+        if (trainingChanged)
+          commitProfilePlan(nextProfile, attempt.prepared!.plan, clearTransitions);
+        else setState((current) => ({ ...current, profile: nextProfile }));
+        writeRefs.attempt = null;
+        if (typeof window !== "undefined")
+          window.dispatchEvent(new Event("ballwise:server-state-changed"));
+      };
+      if (attempt.uncertain) {
+        stage("verification");
+        const receipt = await confirmSavedPlan(attempt);
+        if (receipt) {
+          publish(receipt);
+          return;
+        }
+      }
+      if (consents && !attempt.consentsDone) {
+        stage("consents");
+        const decisions: ConsentDecision[] = [];
+        if (nextProfile.accountOwnerType === "guardian")
+          decisions.push({
+            type: "guardian_authorization",
+            accepted: Boolean(nextProfile.guardianConsent),
+          });
+        decisions.push(
+          ...CONSENTS.map((consent) => ({
+            type: consent.type as CanonicalConsentType,
+            accepted: Boolean(consents[consent.type]),
+          })),
+        );
+        attempt.expectedRevision =
+          (await withProfileDeadline("consents", remaining(10000), (signal) =>
+            recordConsentDecisions(decisions, attempt.expectedRevision, {
+              notify: false,
+              signal,
+              fromIndex: attempt.consentIndex ?? 0,
+              onAcknowledged: (count, revision) => {
+                attempt.consentIndex = count;
+                attempt.expectedRevision = revision ?? attempt.expectedRevision;
+              },
+            }),
+          )) ?? attempt.expectedRevision;
+        attempt.consentsDone = true;
+      }
+      assertOwner();
+      if (trainingChanged && !attempt.prepared) {
+        stage("generation");
+        const plan = await withProfileDeadline("generation", remaining(12000), (signal) =>
+          savePlanToDb(nextProfile, attempt.revision, [], {}, !clearTransitions, false, signal),
+        );
+        attempt.prepared = prepareMonthlyPlan(user.id, nextProfile, plan);
+      }
+      assertOwner();
+      const { profileRow, athleteRow } = profileWritePayloads(user.id, nextProfile, true);
+      stage("saving");
+      attempt.uncertain = true;
+      try {
+        const saved = await withProfileDeadline("saving", remaining(12000), (signal) =>
+          cancellableRequest(
+            supabase.rpc("save_profile_and_plan", {
+              p_profile: profileRow as unknown as Json,
+              p_athlete: athleteRow as unknown as Json,
+              p_plan: attempt.prepared ? (attempt.prepared.args as unknown as Json) : null,
+              p_expected_profile_updated_at: attempt.expectedRevision ?? undefined,
+              p_clear_transitions: trainingChanged && clearTransitions,
+              p_from_date: todayIso,
+            }),
+            signal,
+          ),
+        );
+        assertNoSupabaseError("save_profile_and_plan", saved.error);
+        const response = saved.data as Record<string, unknown> | null,
+          athlete = response?.athlete as Record<string, unknown> | undefined;
+        if (typeof athlete?.updated_at !== "string")
+          throw new Error("Serwer nie zwrócił potwierdzenia zapisu.");
+        publish(athlete.updated_at);
+      } catch (error) {
+        stage("verification");
+        const receipt = await confirmSavedPlan(attempt);
+        if (receipt) {
+          publish(receipt);
+          return;
+        }
+        if (
+          error instanceof ProfileSaveTimeout ||
+          /timeout|timed out|upstream|failed to fetch|network/i.test(
+            error instanceof Error ? error.message : String(error),
+          )
+        )
+          throw new Error(
+            "Nie udało się jeszcze potwierdzić zapisu planu. Odpowiedzi pozostają w formularzu. Spróbuj ponownie — najpierw sprawdzimy zapis, bez ponownego układania planu.",
+          );
+        throw error;
+      }
+    };
+    writeRefs.key = key;
+    writeRefs.flight = Promise.resolve()
+      .then(work)
+      .finally(() => {
+        writeRefs.flight = null;
+        writeRefs.key = null;
+        stage(null);
+      });
+    return writeRefs.flight;
   }
 
   async function saveFuelPrecision(enabled: boolean, weightKg: number | null) {

@@ -1,2 +1,2 @@
 /** User-visible release identifier for support and checking installed updates. */
-export const APP_VERSION = "2026.11.04.47";
+export const APP_VERSION = "2026.11.04.48";

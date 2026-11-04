@@ -455,6 +455,7 @@ export function rowToRunningActivity(row: AnyRow): RunningActivity | null {
 }
 
 export interface LoadwiseContextValue {
+  profileSaveStage?: import("../profileSave").ProfileSaveStage | null;
   state: LoadwiseState;
   hydrated: boolean;
   syncing: boolean;
@@ -544,5 +545,6 @@ export interface StoreActionContext {
     recentCompletions?: Record<string, SessionCompletion>,
     keepConfirmedCalendar?: boolean,
     persist?: boolean,
+    signal?:AbortSignal,
   ) => Promise<SessionDay[]>;
 }

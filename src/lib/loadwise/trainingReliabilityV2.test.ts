@@ -453,6 +453,7 @@ describe("training contracts after reliability repair", () => {
       generatingRef: { current: false },
       setPlanGenerating: vi.fn(),
     } as unknown as Parameters<typeof createProfileActions>[0]);
+    mocks.rpc.mockResolvedValueOnce({error:null,data:{athlete:{updated_at:"2026-11-04T15:00:00Z"}}});
     await actions.updateProfile({ ...profile, name: "New name" });
     expect(savePlan).not.toHaveBeenCalled();
     expect(mocks.rpc).toHaveBeenCalledWith(

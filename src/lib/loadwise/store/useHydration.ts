@@ -51,6 +51,7 @@ interface HydrationOptions {
   user: StoreUser;
   authLoading: boolean;
   recoveryMode: boolean;
+  profileWritePending?:boolean;
   todayIso: string;
   setState: StateSetter;
   state: LoadwiseState;
@@ -61,6 +62,7 @@ export function useHydration({
   user,
   authLoading,
   recoveryMode,
+  profileWritePending=false,
   todayIso,
   setState,
   state,
@@ -114,6 +116,8 @@ export function useHydration({
       setHydrated(true);
       return;
     }
+    // A profile command owns the transition: cancel previous reads and do not launch a new full hydration mid-save.
+    if(profileWritePending){setSyncing?.(false);return;}
     const sameUser = activeUserIdRef.current === user.id;
     activeUserIdRef.current = user.id;
     setSyncing?.(true);
@@ -651,6 +655,6 @@ export function useHydration({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [user?.id, authLoading, recoveryMode, refreshRevision]);
+  }, [user?.id, authLoading, recoveryMode, profileWritePending, refreshRevision]);
   return hydrated && (authLoading || !user || activeUserIdRef.current === user.id);
 }

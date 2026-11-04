@@ -234,6 +234,7 @@ export function createPlanPersistence(
     recentCompletions: Record<string, SessionCompletion> = {},
     keepConfirmedCalendar = true,
     persist = true,
+    signal?:AbortSignal,
   ): Promise<SessionDay[]> {
     const snapshot = getState?.() ?? state;
     const { persistMonthlyPlan } = await import("../persist");
@@ -243,7 +244,7 @@ export function createPlanPersistence(
         : localToday();
     const canonical = stampPlanRevision(
       await applyConfirmedCalendar(
-        (await generatePlanAsync(profile, start)).map((day) => ({
+        (await generatePlanAsync(profile, start,28,0,signal)).map((day) => ({
           ...day,
           cycleId:
             snapshot?.plan[0]?.date === isoDate(start) ? snapshot.plan[0].cycleId : undefined,
@@ -265,6 +266,7 @@ export function createPlanPersistence(
       todayIso,
     );
     plan = stampPlanRevision(plan, revision, ONBOARDING_SCHEMA_VERSION);
+    signal?.throwIfAborted();
     if (user && persist) return persistMonthlyPlan(user.id, profile, plan);
     return plan;
   }

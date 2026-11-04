@@ -1,4 +1,5 @@
-import { createContext, useContext, useRef, useState, type ReactNode } from "react";
+import type { ProfileSaveRefs, ProfileSaveStage } from "./profileSave";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
 import { initialState, type LoadwiseContextValue } from "./store/model";
 import { createPlanActions } from "./store/planActions";
@@ -25,6 +26,8 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const generatingRef = useRef(false);
+  const profileSaveRefs=useRef<ProfileSaveRefs>({attempt:null,flight:null,key:null});
+  const [profileSaveStage,setProfileSaveStage]=useState<ProfileSaveStage|null>(null);
   const [planGenerating, setPlanGenerating] = useState(false);
   const replacementInFlightRef = useRef(new Set<string>());
   const todayIso = useTodayIso();
@@ -34,6 +37,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
     user,
     authLoading,
     recoveryMode,
+    profileWritePending: profileSaveStage !== null,
     todayIso,
     setState,
     state,
@@ -44,6 +48,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   const activeUser = useRef(user?.id);
   activeUser.current = user?.id;
   const ownerId = user?.id;
+  useEffect(()=>{profileSaveRefs.current={attempt:null,flight:null,key:null};setProfileSaveStage(null);},[ownerId]);
   const guardedSetState: typeof setState = (update) => {
     setState(current => activeUser.current === ownerId ? (typeof update === "function" ? update(current) : update) : current);
   };
@@ -51,7 +56,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
   useOfflineTrainingSync(user, { setState: guardedSetState });
   usePersistedState(user, hydrated && !syncing, state);
   useMissedSessionSync({ ...context, hydrated: hydrated && !syncing && !hydrationError });
-  const profileActions = createProfileActions({ ...context, generatingRef, setPlanGenerating });
+  const profileActions = createProfileActions({ ...context, generatingRef, setPlanGenerating,profileSaveRefs,isProfileOwnerCurrent:()=>activeUser.current===ownerId,onProfileSaveStage:stage=>{if(activeUser.current===ownerId)setProfileSaveStage(stage);} });
   const sessionActions = createSessionActions(context);
   const planActions = createPlanActions({ ...context, replacementInFlightRef });
   const todaySession = state.plan.find((p) => p.date === todayIso) ?? null;
@@ -66,6 +71,7 @@ export function LoadwiseProvider({ children }: { children: ReactNode }) {
         todayIso,
         todaySession,
         planGenerating,
+        profileSaveStage,
         ...profileActions,
         ...sessionActions,
         ...planActions,

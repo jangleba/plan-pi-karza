@@ -1,3 +1,4 @@
+import { PROFILE_SAVE_LABELS } from "@/lib/loadwise/profileSave";
 import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -198,7 +199,7 @@ function ChoiceGrid<T extends string>({
 }
 
 function Onboarding() {
-  const { state, hydrated, completeOnboarding } = useLoadwise();
+  const { state, hydrated, completeOnboarding,profileSaveStage } = useLoadwise();
   const { user, loading, resendSignupConfirmation } = useAuth();
   const navigate = useNavigate();
   const { edit } = Route.useSearch();
@@ -206,6 +207,7 @@ function Onboarding() {
   const isEditing = Boolean(edit && existing?.onboardingComplete);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const submitBusy=useRef(false);
 
   // Require auth.
   useEffect(() => {
@@ -214,10 +216,10 @@ function Onboarding() {
       navigate({ to: "/auth", replace: true });
       return;
     }
-    if (state.profile?.onboardingComplete && !edit) {
+    if (state.profile?.onboardingComplete && !edit && !busy) {
       navigate({ to: "/start", replace: true });
     }
-  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate]);
+  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate,busy]);
 
   const metadataOwner =
     user?.user_metadata?.account_owner_type === "guardian" ? "guardian" : "athlete";
@@ -404,7 +406,7 @@ function Onboarding() {
   }
 
   async function handleSubmit() {
-    if (busy) return;
+    if (submitBusy.current) return;
     if (!position || !level || !goal || ageNum == null || ageNum < 13) {
       toast.error("Uzupełnij wymagane pola.");
       return;
@@ -526,10 +528,11 @@ function Onboarding() {
       currentPitchFeelings: normalizeCurrentPitchFeelings(currentFeelings),
       desiredPitchFeelings: normalizeDesiredPitchFeelings(desiredFeelings),
     };
+    submitBusy.current=true;
     setBusy(true);
     try {
       await completeOnboarding(profile, consents);
-      toast.success(isEditing ? "Profil zaktualizowany." : "Profil zapisany. Tworzę Twój plan…");
+      toast.success(isEditing ? "Profil zaktualizowany." : "Profil i plan zapisane.");
       navigate({ to: isEditing ? "/profil" : "/plan", replace: true });
     } catch (error) {
       console.error("[onboarding] save failed", error);
@@ -541,6 +544,7 @@ function Onboarding() {
           ?.trim() || "Nieznany błąd";
       toast.error(`Nie udało się zapisać. ${message}`);
     } finally {
+      submitBusy.current=false;
       setBusy(false);
     }
   }
@@ -1396,7 +1400,7 @@ function Onboarding() {
               handleSubmit();
             }}
           >
-            {busy ? "Zapisuję…" : "Zapisz i wygeneruj plan"}
+            {busy ? (profileSaveStage?PROFILE_SAVE_LABELS[profileSaveStage]:"Przygotowuję zapis…") : "Zapisz i wygeneruj plan"}
           </Button>
         )}
       </div>
