@@ -4,12 +4,10 @@ import type { TrainingExercise } from "@/lib/loadwise/types";
 import { resolveDefinitionForExercise } from "@/lib/loadwise/sessionPresentation";
 import { resolveQuickGuide } from "@/lib/courseMeasure/quickGuide";
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
-import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 import { techniqueHint } from "@/lib/trainingCoach/coach";
 import { resolveTechniqueLesson } from "@/lib/trainingCoach/biomechanics";
 import { TechniqueJointGuide } from "./TechniqueJointGuide";
 import { ExerciseAnimationPreview } from "./ExerciseAnimationPreview";
-import { resolveExerciseAnimation } from "@/lib/trainingCoach/animationCatalog";
 import "./training-coach.css";
 import "./sprint-session.css";
 
@@ -25,6 +23,7 @@ interface Props {
   showImage?: boolean;
   children?: ReactNode;
   autoAnimation?: boolean;
+  showAnimation?: boolean;
 }
 
 export function ExerciseQuickGuide(props: Props) {
@@ -38,8 +37,8 @@ function GuideContent({
   className = "",
   compact = false,
   initialExpanded = false,
-  showImage = true,
   autoAnimation = false,
+  showAnimation = true,
   children,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded);
@@ -50,10 +49,6 @@ function GuideContent({
   const lesson = resolveTechniqueLesson(exercise);
   const skip = getSkipGuide(exercise.exerciseId);
   const guide = resolveQuickGuide(exercise, resolveDefinitionForExercise(exercise));
-  const image =
-    skip && showImage && !resolveExerciseAnimation(exercise)
-      ? getExerciseTechniqueImage(skip.exerciseId)
-      : null;
   const reminder = guide.focus ?? lesson?.reminder ?? hint.intent;
   return (
     <section
@@ -65,18 +60,8 @@ function GuideContent({
         <span>Wskazówka na teraz</span>
       </div>
       <p className="bw-technique-reminder">{reminder}</p>
-      <ExerciseAnimationPreview exercise={exercise} autoOpen={autoAnimation} />
-      {image && (
-        <img
-          src={image.src}
-          alt={image.alt}
-          width={1536}
-          height={1024}
-          loading="lazy"
-          decoding="async"
-          className="bw-skip-image"
-        />
-      )}
+      {showAnimation && <ExerciseAnimationPreview exercise={exercise} autoOpen={autoAnimation} />}
+
       <button
         type="button"
         className="bw-technique-trigger"

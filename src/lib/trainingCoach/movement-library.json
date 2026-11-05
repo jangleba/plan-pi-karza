@@ -1,0 +1,2462 @@
+{
+  "version": 51,
+  "records": [
+    {
+      "id": "adductor_bridge_squeeze",
+      "title": "Most z dociskiem przywodzicieli",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "adductor_bridge_squeeze",
+        "equipment": "ball",
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż się na plecach, ugnij kolana i wsuń małą piłkę lub złożony ręcznik między kolana.",
+        "Ściśnij przedmiot kolanami i unieś biodra jak w moście, utrzymując napięcie obu stron pachwiny.",
+        "Opuść biodra bez rozluźniania docisku i nie pozwalaj kolanom rozjechać się na boki."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "ankle_mobility_flow",
+      "title": "Mobilność stawu skokowego",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "mobility_sequence",
+        "variant": "ankle_mobility_flow"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "assisted_nordic_hamstring",
+      "title": "Nordic hamstring wspomagany",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "assisted_nordic_hamstring",
+        "equipment": "assist_band"
+      },
+      "instructions": [
+        "Zakotwicz stopy, napnij pośladki i ustaw ciało od kolan do barków w jednej linii.",
+        "Opadaj do przodu powoli, wykorzystując gumę albo ręce tylko tyle, ile trzeba do utrzymania kontroli.",
+        "Dotknij podłoża rękami, wróć z pomocą i zacznij kolejne powtórzenie bez utraty ustawienia bioder."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "assisted_straight_sprint",
+      "title": "Sprint ze sterowaną asystą",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "resisted_run",
+        "variant": "assisted_straight_sprint"
+      },
+      "instructions": [
+        "Trener ustawia i sprawdza kontrolowany system asysty, tor biegu oraz pełną drogę wyhamowania.",
+        "Wykonaj rozbieg i przyjmij wyłącznie zaplanowaną pomoc; nie wyciągaj kroku wymuszonym ciągnięciem.",
+        "Zakończ w wyznaczonej strefie. Przerwij przy utracie rytmu lub kontroli; samodzielne holowanie przypadkową gumą nie zastępuje tego stanowiska."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "band_assisted_jump",
+      "title": "Skok z odciążeniem gumą",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "band_assisted_jump",
+        "equipment": "assist_band"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "band_resisted_acceleration",
+      "title": "Przyspieszenie z oporem gumy i partnera",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "resisted_run",
+        "variant": "band_resisted_acceleration"
+      },
+      "instructions": [
+        "Partner sprawdza gumę, jej mocowanie i odległość; wyznaczcie wolny tor oraz sygnał zatrzymania.",
+        "Przyspieszaj, gdy partner podaje równy opór. Guma nie może szarpać ani przesuwać się po ciele.",
+        "Zakończcie na wspólny sygnał i spokojnie zmniejszcie napięcie. Partner nie puszcza napiętej gumy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "band_resisted_squat",
+      "title": "Przysiad z dodatkowym oporem gumy",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "band_resisted_squat",
+        "equipment": "barbell_band"
+      },
+      "instructions": [
+        "Trener dobiera gumy i sprawdza symetryczne mocowanie do stojaka oraz sztangi. Ustaw podpory asekuracyjne.",
+        "Wykonaj kontrolowane zejście, utrzymując całe stopy na podłożu i kolana w kierunku palców.",
+        "Wstań pod kontrolą mimo narastania oporu. Zacznij lżej niż w zwykłym przysiadzie; kolor gumy nie określa uniwersalnej liczby kilogramów."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "barbell_deadlift",
+      "title": "Martwy ciąg klasyczny",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "barbell_deadlift",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Napięty core",
+        "Sztanga blisko goleni",
+        "Neutralny kręgosłup"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "barbell_jump_squat",
+      "title": "Wyskoki ze sztangą",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "barbell_jump_squat",
+        "equipment": "barbell_back"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "barbell_romanian_deadlift",
+      "title": "Martwy ciąg rumuński ze sztangą",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "barbell_romanian_deadlift",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bilateral_slider_leg_curl",
+      "title": "Uginanie nóg na ślizgach obunóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "bilateral_slider_leg_curl",
+        "equipment": "sliders"
+      },
+      "instructions": [
+        "Połóż pięty na ślizgach, unieś biodra do linii z tułowiem i napnij brzuch.",
+        "Przyciągnij pięty pod biodra, nie pozwalając, żeby miednica opadła albo skręciła się na bok.",
+        "Wyprostuj nogi wolniej niż je przyciągałeś i utrzymaj biodra wysoko do końca powtórzenia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bilateral_swiss_ball_leg_curl",
+      "title": "Uginanie nóg na piłce szwajcarskiej obunóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "bilateral_swiss_ball_leg_curl",
+        "equipment": "swiss_ball"
+      },
+      "instructions": [
+        "Połóż łydki na piłce, unieś biodra i ustaw żebra nad miednicą.",
+        "Przytocz piłkę do pośladków, trzymając biodra wysoko i kolana równolegle.",
+        "Odepnij piłkę z powrotem pod kontrolą, nie pozwalając, żeby pięty odjechały bez napięcia brzucha."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bird_dog",
+      "title": "Ptak-pies",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "bird_dog"
+      },
+      "instructions": [
+        "Neutralny kręgosłup",
+        "Wydłuż przeciwną rękę i nogę",
+        "Bez rotacji bioder"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_march_hold",
+      "title": "Marsz w miejscu z napięciem tułowia",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "bodyweight_march_hold",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Stań wysoko, napnij brzuch i ustaw ręce jak do spokojnego marszu.",
+        "Unoś naprzemiennie kolana do wysokości bioder, utrzymując nieruchomy tułów i stabilną miednicę.",
+        "Maszeruj pod kontrolą przez cały czas trwania serii, nie przyspieszając kosztem ustawienia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_row",
+      "title": "Bodyweight row",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "bodyweight_row",
+        "equipment": "low_bar"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_split_squat",
+      "title": "Przysiad wykroczny bez obciążenia",
+      "group": "Siła",
+      "motion": {
+        "family": "split",
+        "variant": "bodyweight_split_squat",
+        "unilateral": true
+      },
+      "instructions": [
+        "Tułów pionowo",
+        "Kolano nad stopą",
+        "Kontrolowane tempo"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_squat",
+      "title": "Przysiad z masą własnego ciała",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "bodyweight_squat"
+      },
+      "instructions": [
+        "Klatka wysoko",
+        "Biodra w tył",
+        "Pełny zakres bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "box_jump",
+      "title": "Wskok na skrzynię",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "box_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bridge_walkout",
+      "title": "Chód piętami z mostu",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "bridge_walkout"
+      },
+      "instructions": [
+        "Ustaw się w moście biodrowym i unieś biodra tak, żeby pośladki pracowały od pierwszej sekundy.",
+        "Małymi krokami oddalaj pięty od pośladków, nie pozwalając na opadanie miednicy.",
+        "Wróć tą samą drogą, utrzymując napięcie tylnej taśmy aż do końca powtórzenia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bulgarian_split_squat",
+      "title": "Przysiad bułgarski z obciążeniem",
+      "group": "Siła",
+      "motion": {
+        "family": "split",
+        "variant": "bulgarian_split_squat",
+        "equipment": "bench_dumbbells",
+        "unilateral": true
+      },
+      "instructions": [
+        "Tułów lekko w przód",
+        "Kolano stabilne",
+        "Kontrola w dole"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:adductor",
+      "title": "Rock-back przywodziciela",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "adductor_rockback",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:bridge",
+      "title": "Most biodrowy",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "bridge",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:calf",
+      "title": "Rozciąganie łydki",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_calf",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:cat",
+      "title": "Koci grzbiet",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "cat",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:hamstring",
+      "title": "Tył uda w półklęku",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_hamstring",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:hip",
+      "title": "Mobilizacja biodra w wykroku",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "hip_rock",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:quad",
+      "title": "Przód uda z podparciem",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_quad",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:rotation",
+      "title": "Rotacja odcinka piersiowego",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "rotation",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:soleus",
+      "title": "Łydka z ugiętym kolanem",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_soleus",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:squat",
+      "title": "Kontrolowany przysiad z masą ciała",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "squat",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:walk",
+      "title": "Spokojny marsz",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "walk",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "clean_pull_from_hang",
+      "title": "Pociągnięcie sztangi z zawieszenia",
+      "group": "Moc",
+      "motion": {
+        "family": "power_lift",
+        "variant": "clean_pull_from_hang",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Trener ustawia pozycję zawieszenia nad kolanami i dobiera lekki ciężar. Wyznacz wolne miejsce na platformie.",
+        "Utrzymując sztangę blisko ciała, szybko wyprostuj biodra i kolana; ręce pozostają długie do zakończenia wyprostu.",
+        "Opuść sztangę pod kontrolą i ustaw się ponownie. Nie wykonuj chwytu zarzutu ani kolejnych powtórzeń po utracie rytmu."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "copenhagen_plank",
+      "title": "Deska kopenhaska",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "copenhagen_plank",
+        "equipment": "bench",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Ułóż się bokiem na przedramieniu. Oprzyj wewnętrzną stronę górnej stopy lub podudzia na stabilnej ławce; łokieć ustaw pod barkiem.",
+        "Unieś miednicę, utrzymując tułów i udo w jednej linii. Dolną nogę prowadź pod kontrolą, bez skręcania bioder.",
+        "Wykonaj zadane powtórzenia lub utrzymanie, a potem zmień stronę. Przerwij, jeśli tracisz pozycję lub pojawia się ból pachwiny."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "countermovement_jump",
+      "title": "Skok z zamachem",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "countermovement_jump"
+      },
+      "instructions": [
+        "Stań stabilnie, pozostawiając wolne miejsce nad głową i wokół miejsca lądowania.",
+        "Wykonaj krótki ruch bioder i kolan w dół, po czym od razu wybij się pionowo z pomocą ramion.",
+        "Wyląduj na obu stopach z ugięciem bioder i kolan. Ustabilizuj pozycję przed kolejnym skokiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dead_bug",
+      "title": "Martwy robak",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "dead_bug"
+      },
+      "instructions": [
+        "Połóż się na plecach, unieś ręce i ugięte nogi; ustaw żebra nad miednicą i oddychaj spokojnie.",
+        "Oddal przeciwną rękę i nogę tylko tak daleko, jak potrafisz bez odrywania lędźwi od podłoża.",
+        "Wróć do środka i zmień stronę. Skróć ruch, jeśli tracisz ustawienie tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "depth_jump",
+      "title": "Drop jump",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "depth_jump"
+      },
+      "instructions": [
+        "Miękkie, ciche lądowanie",
+        "Krótki kontakt z podłożem",
+        "Kolana stabilne"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "diagonal_bound_to_stick",
+      "title": "Skok diagonalny z zatrzymaniem",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "diagonal_bound_to_stick",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "diaphragmatic_breathing",
+      "title": "Oddech przeponowy",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "breathing",
+        "variant": "diaphragmatic_breathing"
+      },
+      "instructions": [
+        "Usiądź albo połóż się wygodnie, rozluźnij barki i szczękę.",
+        "Zrób spokojny wdech bez unoszenia barków, a potem swobodny, nieco dłuższy wydech.",
+        "Nie wstrzymuj oddechu i nie próbuj nabierać maksymalnej ilości powietrza; wróć do zwykłego oddechu, jeśli czujesz zawroty głowy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "drop_landing",
+      "title": "Lądowanie po zejściu z podestu",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "drop_landing"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dumbbell_bench_press",
+      "title": "Wyciskanie hantli na ławce",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "dumbbell_bench_press",
+        "equipment": "bench_dumbbells"
+      },
+      "instructions": [
+        "Połóż się stabilnie na ławce, ustaw stopy szeroko i trzymaj hantle nad dolną częścią klatki.",
+        "Opuszczaj hantle po łuku do boków klatki, utrzymując łopatki ściągnięte i lekko opuszczone.",
+        "Wyciskaj w górę po tej samej ścieżce, nie odbijając ciężaru od klatki i nie tracąc kontaktu stóp z podłożem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dumbbell_jump_squat",
+      "title": "Wyskoki z hantlami",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "dumbbell_jump_squat",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dumbbell_overhead_press",
+      "title": "Wyciskanie hantli nad głowę",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "dumbbell_overhead_press",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Ustaw hantle na wysokości barków, napnij pośladki i schowaj żebra, żeby nie wyginać lędźwi.",
+        "Wyciskaj hantle pionowo nad barki, pozwalając głowie wejść lekko między ramiona na końcu ruchu.",
+        "Opuść hantle pod kontrolą do barków bez kołysania tułowiem i bez utraty napięcia brzucha."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "easy_aerobic_run",
+      "title": "Łatwy bieg tlenowy",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "easy_aerobic_run"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "easy_cycle_recovery",
+      "title": "Lekki rower regeneracyjny",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "cycle",
+        "variant": "easy_cycle_recovery"
+      },
+      "instructions": [
+        "Ustaw siodełko tak, by przy najniższym położeniu pedału kolano pozostawało lekko ugięte.",
+        "Kręć swobodnie przy małym oporze; oddech powinien pozwalać na rozmowę.",
+        "Utrzymuj spokojne tempo przez podany czas. Nie traktuj tego odcinka jak kolejnego interwału."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "eccentric_nordic_hamstring",
+      "title": "Nordic hamstring ekscentryczny",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "eccentric_nordic_hamstring"
+      },
+      "instructions": [
+        "Ustaw kolana na miękkim podłożu, stopy zablokuj stabilnie i napnij pośladki, żeby nie łamać bioder.",
+        "Opadaj jak najwolniej do przodu, cały czas utrzymując prostą linię od kolan do barków.",
+        "Podeprzyj się rękami przy utracie kontroli, wróć do góry z pomocą i zachowaj pełną przerwę przed następnym powtórzeniem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "face_pull_band",
+      "title": "Face pull z gumą",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "face_pull_band",
+        "equipment": "band"
+      },
+      "instructions": [
+        "Zaczep gumę stabilnie mniej więcej na wysokości twarzy i ustaw się w pozycji z lekkim napięciem gumy.",
+        "Przyciągnij dłonie w kierunku skroni, prowadząc łokcie na boki i nie unosząc barków do uszu.",
+        "Wyprostuj ręce spokojnie; tułów nie powinien odchylać się w tył ani kołysać."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "farmer_carry",
+      "title": "Spacer farmera",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "farmer_carry",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Stań wysoko z ciężarami po obu stronach, napnij chwyt i lekko schowaj brodę.",
+        "Maszeruj równymi krokami, nie kołysząc barkami i nie skracając oddechu.",
+        "Odstaw ciężary dopiero po pełnym zatrzymaniu, zamiast zrzucać je w marszu."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "field_mas_5_min_test",
+      "title": "Test biegowy 5 min",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "field_mas_5_min_test"
+      },
+      "instructions": [
+        "Po pełnej rozgrzewce biegnij możliwie równo przez dokładnie 5 minut",
+        "Zacznij kontrolowanie; nie sprintuj pierwszej minuty",
+        "Przerwij przy bólu lub niepokojącym objawie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "flywheel_squat",
+      "title": "Przysiad na urządzeniu flywheel",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "flywheel_squat",
+        "equipment": "flywheel"
+      },
+      "instructions": [
+        "Trener sprawdza uprząż, linkę i ustawienie urządzenia. Zacznij od lekkiej konfiguracji i spokojnych ruchów wprowadzających.",
+        "Wstań płynnie, rozpędzając koło; wracaj z napiętym tułowiem i kontroluj powrót linki.",
+        "Hamuj pod kontrolą zgodnie z instrukcją urządzenia. Zakończ przy utracie kontroli; ustawienia bezwładności zapisuj jako ustawienie urządzenia, nie kilogramy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_ball_mastery",
+      "title": "Czucie piłki obiema nogami",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_ball_mastery"
+      },
+      "instructions": [
+        "Przygotuj piłkę i wolny, równy kwadrat około 2 × 2 m.",
+        "Przetaczaj piłkę podeszwą i dotykaj ją wewnętrzną stroną stóp. Pracuj naprzemiennie obiema nogami.",
+        "Piłka zostaje w zasięgu jednego kroku. Co kilka kontaktów krótko spójrz przed siebie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_easy_contacts",
+      "title": "Spokojne kontakty z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_easy_contacts"
+      },
+      "instructions": [
+        "Zostań na równym, wolnym fragmencie podłoża z piłką blisko stóp.",
+        "Powoli przetaczaj piłkę naprzemiennie obiema nogami i stopniowo zwalniaj.",
+        "Oddychaj swobodnie. Zakończ pracę, jeśli pojawia się ból lub zawroty głowy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_gk_distribution",
+      "title": "Gra nogami bramkarza z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_gk_distribution"
+      },
+      "instructions": [
+        "Przygotuj dwie strefy podania i piłkę. Zacznij blisko: 1–2 m bez boiska lub 3–5 m na boisku.",
+        "Przetocz piłkę od siebie, podejdź małymi krokami i przyjmij ją do boku w kierunku wybranej strefy.",
+        "Zagraj krótkie podanie po ziemi do strefy, podejdź po piłkę i zmień stronę. Po pięciu próbach zmień nogę."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_scan_control",
+      "title": "Orientacja przed kontaktem z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_scan_control"
+      },
+      "instructions": [
+        "Wybierz dwa nieruchome punkty przed sobą i sprawdź, czy przestrzeń wokół jest wolna.",
+        "Spójrz na wybrany punkt zanim przetoczysz piłkę. Następnie skieruj ją pierwszym kontaktem do odpowiadającej mu strefy.",
+        "Wróć do początku i zmieniaj strony oraz nogi. To ćwiczenie orientacji przy piłce; nie symuluje presji przeciwnika."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_self_feed_first_touch",
+      "title": "Przyjęcie piłki z własnego podania",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_self_feed_first_touch"
+      },
+      "instructions": [
+        "Ustaw dwie strefy obok siebie w wolnym kwadracie około 2 × 2 m; wystarczą linie podłoża.",
+        "Lekko przetocz piłkę od siebie, podejdź i pierwszym kontaktem skieruj ją do wybranej strefy.",
+        "Zatrzymaj piłkę kolejnym kontaktem. Po pięciu próbach zmień nogę; porównuj te same odległości."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_target_pass",
+      "title": "Celne podanie piłki do strefy",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_target_pass"
+      },
+      "instructions": [
+        "Wybierz bezpieczny cel na podłożu: linię lub strefę. Bez boiska zacznij od 1–2 m, na boisku od 3–5 m.",
+        "Ustaw stopę postawną obok piłki i zagraj po ziemi wewnętrzną stroną stopy do celu.",
+        "Podejdź spokojnie po piłkę i powtórz. Po pięciu próbach zmień nogę; nie potrzebujesz bramki ani partnera."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_technical_self_selected",
+      "title": "Własny blok techniczny z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_technical_self_selected"
+      },
+      "instructions": [
+        "Wybierz jeden element techniczny i przygotuj bezpieczną, wolną przestrzeń.",
+        "Pracuj obiema nogami w tempie, w którym zachowujesz kontrolę nad piłką.",
+        "Zakończ serię, gdy spada dokładność albo pojawia się ból."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_turn_control",
+      "title": "Prowadzenie piłki i kontrolowany obrót",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_turn_control"
+      },
+      "instructions": [
+        "Wyznacz krótki odcinek na równym podłożu: bez boiska 1–2 m, na boisku 3–5 m.",
+        "Prowadź piłkę krótkimi kontaktami, zatrzymaj podeszwą i obróć się z nią do drugiej strony.",
+        "Wróć spokojnie drugą nogą. Obrót wykonuj płynnie, bez gwałtownego skręcania na zablokowanej stopie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_wall_first_touch",
+      "title": "Podanie o ścianę i przyjęcie piłki",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_wall_first_touch"
+      },
+      "instructions": [
+        "Wybierz wyłącznie dostępną, bezpieczną ścianę lub odbojnik i wolne miejsce do odbicia. Zacznij blisko.",
+        "Podaj piłkę wewnętrzną stroną stopy. Przyjmij wracającą piłkę do boku, w zasięgu kolejnego kroku.",
+        "Wróć do pozycji i podaj ponownie. Po pięciu próbach zmień nogę; celność jest ważniejsza od siły."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "front_rack_carry",
+      "title": "Spacer z ciężarem w racku z przodu",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "front_rack_carry",
+        "equipment": "front_kettlebells"
+      },
+      "instructions": [
+        "Ustaw ciężar na przedramieniu przy barku, trzymaj łokieć lekko z przodu i nadgarstek neutralnie.",
+        "Maszeruj bez odchylania tułowia do tyłu i bez opuszczania łokcia wraz ze zmęczeniem.",
+        "Zmierz taki sam dystans na drugą stronę, utrzymując żebra ustawione nad miednicą."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "front_squat",
+      "title": "Przysiad przedni",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "front_squat",
+        "equipment": "barbell_front"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "full_nordic_hamstring",
+      "title": "Nordic hamstring pełny",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "full_nordic_hamstring"
+      },
+      "instructions": [
+        "Zakotwicz stopy, ustaw kolana pod biodrami i zrób sztywny korpus z napiętymi pośladkami.",
+        "Opadaj pod kontrolą, a gdy zbliżysz się do podłoża, aktywnie dołóż zgięcie kolan, żeby wrócić bez załamania bioder.",
+        "Kończ serię natychmiast po utracie tempa albo ustawienia — tu liczy się jakość, nie liczba wymuszonych powtórzeń."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "glute_bridge",
+      "title": "Most biodrowy",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "glute_bridge"
+      },
+      "instructions": [
+        "Połóż się na plecach, ugnij kolana i ustaw całe stopy stabilnie na podłożu.",
+        "Napnij brzuch i pośladki, unieś biodra do linii ud i tułowia bez wyginania lędźwi.",
+        "Opuść biodra pod kontrolą i powtórz ruch bez odpychania się szyją."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "glute_bridge_march",
+      "title": "Marsz w moście biodrowym",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "glute_bridge_march"
+      },
+      "instructions": [
+        "Unieś biodra jak w klasycznym moście i ustaw miednicę równo.",
+        "Oderwij jedną stopę kilka centymetrów nad podłoże bez opadania bioder i bez skrętu tułowia.",
+        "Odstaw stopę, zmień stronę i utrzymuj ten sam poziom bioder przez całą serię."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "goblet_squat",
+      "title": "Przysiad goblet",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "goblet_squat",
+        "equipment": "kettlebell"
+      },
+      "instructions": [
+        "Trzymaj hantel lub kettlebell oburącz blisko klatki. Ustaw stopy w wygodnym rozkroku i napnij brzuch.",
+        "Zejdź między biodra do zakresu, w którym utrzymujesz całe stopy na ziemi i kolana w kierunku palców.",
+        "Wstań, odpychając podłoże całą stopą. Utrzymuj ciężar przy klatce i nie wyginaj lędźwi."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hamstring_45_back_extension",
+      "title": "Hamstring-biased back extension 45°",
+      "group": "Siła",
+      "motion": {
+        "family": "back_extension",
+        "variant": "hamstring_45_back_extension",
+        "equipment": "roman_chair"
+      },
+      "instructions": [
+        "Ustaw się na stanowisku 45° tak, żeby poduszka kończyła się tuż pod biodrami, a stopy były mocno zakotwiczone.",
+        "Zejdź w dół z długim kręgosłupem i lekkim zgięciem kolan, czując rozciągnięcie hamstringów.",
+        "Wracaj wyprostem bioder, a nie przeprostem pleców, kończąc ruch z napiętymi pośladkami."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "heavy_back_squat",
+      "title": "Przysiad ze sztangą (back squat)",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "heavy_back_squat",
+        "equipment": "barbell_back"
+      },
+      "instructions": [
+        "Ustaw podpory asekuracyjne. Ułóż sztangę stabilnie na górze pleców i odejdź od stojaka krótkimi krokami.",
+        "Napnij tułów i zejdź kontrolowanie, prowadząc kolana w kierunku palców; utrzymuj całe stopy na podłożu.",
+        "Wstań bez utraty ustawienia tułowia. Zachowaj zaplanowany zapas powtórzeń, a sztangę odłóż dopiero po kontakcie ze stojakiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "heel_dig_hamstring_iso_30",
+      "title": "Izometria hamstringów heel-dig 30°",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "heel_dig_hamstring_iso_30",
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż pięty na podłożu tak, żeby kolana były tylko lekko ugięte, a palce stóp skierowane do góry.",
+        "Wbij pięty w ziemię i lekko unieś biodra, utrzymując napięcie głównie w tylnej stronie uda.",
+        "Trzymaj pozycję bez kurczenia łydek i bez przenoszenia pracy do lędźwi."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "heel_dig_hamstring_iso_90",
+      "title": "Izometria hamstringów heel-dig 90°",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "heel_dig_hamstring_iso_90",
+        "isometric": true
+      },
+      "instructions": [
+        "Ustaw pięty bliżej pośladków, tak żeby kolana były ugięte mniej więcej do kąta prostego.",
+        "Wbij pięty mocno w podłoże, delikatnie unoś biodra i poczuj równy nacisk obu nóg.",
+        "Utrzymuj pozycję bez drżenia miednicy i bez unoszenia żeber do góry."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hill_acceleration",
+      "title": "Przyspieszenie na łagodnym podbiegu",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "resisted_run",
+        "variant": "hill_acceleration"
+      },
+      "instructions": [
+        "Wybierz równy, łagodny i nieślizgający się podbieg oraz wolną drogę zatrzymania.",
+        "Przyspieszaj z aktywnym odepchnięciem i swobodną pracą ramion; zachowaj płynny bieg.",
+        "Zatrzymaj się pod kontrolą, wróć spacerem i odpocznij. Nachylenie nie może wymuszać utraty techniki."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hip_mobility_flow",
+      "title": "Mobilność bioder",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "mobility_sequence",
+        "variant": "hip_mobility_flow"
+      },
+      "instructions": [
+        "Ustaw się w wygodnym wykroku z tylnym kolanem na miękkim podłożu.",
+        "Przenieś miednicę lekko do przodu, utrzymując napięty brzuch i nie wyginając lędźwi.",
+        "Wróć, powtórz spokojnie i zmień stronę; nie wymuszaj końca zakresu."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hip_thrust",
+      "title": "Wypychanie bioder ze sztangą",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "hip_thrust",
+        "equipment": "barbell_bench"
+      },
+      "instructions": [
+        "Broda w dół",
+        "Napnij pośladki",
+        "Pełny wyprost bioder"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hurdle_hops",
+      "title": "Przeskoki przez płotki",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "hurdle_hops"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "kettlebell_swing",
+      "title": "Wymach kettlebell",
+      "group": "Moc",
+      "motion": {
+        "family": "power_lift",
+        "variant": "kettlebell_swing",
+        "equipment": "kettlebell"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "kickstand_romanian_deadlift",
+      "title": "Martwy ciąg rumuński kickstand",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "kickstand_romanian_deadlift",
+        "equipment": "dumbbells",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw nogę pracującą z przodu, a tylną postaw lekko na palcach jak podpórkę do równowagi.",
+        "Cofnij biodra nad nogą pracującą, utrzymując większość ciężaru na przedniej pięcie.",
+        "Wróć do wyprostu bez odpychania się tylną nogą i bez rotowania miednicy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "lat_pulldown",
+      "title": "Ściąganie drążka wyciągu do klatki",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "lat_pulldown",
+        "equipment": "pulldown"
+      },
+      "instructions": [
+        "Usiądź stabilnie, zablokuj uda pod poduszką i chwyć drążek trochę szerzej niż barki.",
+        "Ściągnij drążek do górnej części klatki, prowadząc łokcie w dół i lekko do tyłu.",
+        "Wróć kontrolowanie do pełnego wyprostu barków bez szarpnięcia i bez odchylania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "lateral_lunge",
+      "title": "Wykrok boczny",
+      "group": "Siła",
+      "motion": {
+        "family": "lateral_lunge",
+        "variant": "lateral_lunge",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "leg_extension",
+      "title": "Prostowanie nóg na maszynie",
+      "group": "Siła",
+      "motion": {
+        "family": "machine",
+        "variant": "leg_extension",
+        "equipment": "leg_extension"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "leg_press",
+      "title": "Wypychanie ciężaru na suwnicy",
+      "group": "Siła",
+      "motion": {
+        "family": "machine",
+        "variant": "leg_press",
+        "equipment": "leg_press"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "long_lever_hamstring_iso",
+      "title": "Most hamstring izometryczny z długą dźwignią",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "long_lever_hamstring_iso",
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż się na plecach. Ustaw obie pięty dalej od pośladków niż w zwykłym moście, z lekko ugiętymi kolanami.",
+        "Dociśnij pięty do podłoża i unieś biodra. Utrzymuj żebra nad miednicą, bez wyginania lędźwi.",
+        "Utrzymaj zadany czas, oddychając spokojnie. Zakończ, gdy biodra opadają; łatwiejszy wariant uzyskasz, przysuwając pięty bliżej."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "lying_leg_curl",
+      "title": "Uginanie nóg leżąc",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "lying_leg_curl",
+        "equipment": "leg_curl_machine"
+      },
+      "instructions": [
+        "Połóż się przodem, dopasuj oś maszyny do kolan i ustaw wałek nad piętami; biodra pozostają na podparciu.",
+        "Zegnij kolana, przyciągając pięty bez odrywania bioder i bez wyginania lędźwi.",
+        "Opuść ciężar spokojnie do wygodnego wyprostu, nie puszczając napięcia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "med_ball_throw",
+      "title": "Wyrzut piłki lekarskiej sprzed klatki",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "med_ball_throw"
+      },
+      "instructions": [
+        "Szybko i technicznie",
+        "Lekki ciężar",
+        "Jakość przed ilością"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "medicine_ball_overhead_backward_throw",
+      "title": "Wyrzut piłki lekarskiej nad głową w tył",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "medicine_ball_overhead_backward_throw"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "medicine_ball_rotational_scoop_toss",
+      "title": "Rotacyjny wyrzut piłki lekarskiej z dołu",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "medicine_ball_rotational_scoop_toss"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "medicine_ball_slam",
+      "title": "Uderzenie piłką lekarską o podłoże",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "medicine_ball_slam"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_interval_run",
+      "title": "Bieg interwałowy według czasu",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "method_interval_run"
+      },
+      "instructions": [
+        "Wyznacz równy, wolny tor lub pętlę bez nagłych nawrotów. Rozgrzewkę wykonaj przed uruchomieniem bloku.",
+        "Biegnij przez zadany czas w równym tempie i odpoczywaj zgodnie z planem. Odcinek nie jest sprintem maksymalnym.",
+        "Jeżeli nie utrzymujesz tempa lub kontroli, wydłuż odpoczynek albo zakończ blok. Zapisz faktycznie wykonane odcinki."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_repeated_sprint",
+      "title": "Powtarzane sprinty w linii prostej",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "method_repeated_sprint"
+      },
+      "instructions": [
+        "Zmierz odcinek 20 m i wolną drogę wyhamowania. Przygotuj starty w obie strony z odpoczynkiem po zatrzymaniu.",
+        "Przyspieszaj na odcinku i spokojnie wyhamuj. Krótki odpoczynek jest częścią tej metody wydolnościowej.",
+        "Zakończ blok przy wyraźnym spadku jakości. Ta dawka nie zastępuje treningu maksymalnej prędkości z pełnym odpoczynkiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_speed_endurance",
+      "title": "Dłuższy odcinek szybkościowy",
+      "group": "Siła",
+      "motion": {
+        "family": "run",
+        "variant": "method_speed_endurance"
+      },
+      "instructions": [
+        "Trener wyznacza odcinek i długą, wolną strefę wyhamowania oraz dobiera intensywność. Wykonaj pełną rozgrzewkę.",
+        "Rozpędź się płynnie i utrzymuj rytm na zadanej długości. Nie wykonuj nagłego zatrzymania na końcu.",
+        "Odpocznij przez cały zadany czas. Przerwij serię przy utracie kontroli lub wyraźnym spadku jakości."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_sprint_interval",
+      "title": "Interwał bardzo wysokiej intensywności",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "method_sprint_interval"
+      },
+      "instructions": [
+        "Trener wyznacza długi, bezpieczny tor bez ostrych nawrotów i dobiera formę wysiłku. Wykonaj rozgrzewkę.",
+        "Wykonaj zaplanowany krótki wysiłek o bardzo wysokiej intensywności, a następnie przejdź do pełnego odpoczynku.",
+        "Nie dokładaj powtórzeń ani kolejnej ciężkiej sesji nóg. Trener kończy blok, jeżeli nie utrzymujesz wykonania."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "one_arm_dumbbell_row",
+      "title": "Wiosłowanie hantlą jednorącz",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "one_arm_dumbbell_row",
+        "equipment": "bench_dumbbell",
+        "unilateral": true
+      },
+      "instructions": [
+        "Oprzyj jedną rękę i kolano o ławkę, a drugą stopę mocno wbij w podłoże.",
+        "Pociągnij hantel w stronę biodra, zaczynając ruchem łopatki, a nie samym zgięciem łokcia.",
+        "Opuść ciężar powoli do pełnego wyprostu ramienia bez rotowania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "oscillatory_long_lever_bridge",
+      "title": "Pulsujący most hamstring z długą dźwignią",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "oscillatory_long_lever_bridge"
+      },
+      "instructions": [
+        "Ustaw most z długą dźwignią i unieś biodra do wysokości, którą potrafisz stabilnie utrzymać.",
+        "Wykonuj małe pulsacje góra–dół bez odkładania bioder i bez utraty napięcia pięt.",
+        "Zatrzymaj serię, gdy puls staje się duży albo napięcie przenosi się do lędźwi."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "overcoming_pin_squat",
+      "title": "Nacisk izometryczny przeciw stałym pinom",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "squat",
+        "variant": "overcoming_pin_squat",
+        "equipment": "pins",
+        "isometric": true
+      },
+      "instructions": [
+        "Trener ustawia i sprawdza stałe piny oraz pozycję sztangi. Nie zastępuj pinów przypadkowym ciężarem lub niestabilną przeszkodą.",
+        "Ustaw napięty tułów i całe stopy na podłożu. Stopniowo zwiększ nacisk w kierunku wskazanym przez trenera bez zmiany pozycji.",
+        "Zakończ po zadanym czasie, odpuść nacisk i odpocznij. Nie dokładaj po tym bloku dodatkowej maksymalnej pracy nóg."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "overhead_carry",
+      "title": "Spacer z ciężarem nad głową",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "overhead_carry",
+        "equipment": "overhead_dumbbells"
+      },
+      "instructions": [
+        "Wyciśnij ciężar nad bark i ustaw biceps przy uchu, nie unosząc żeber do góry.",
+        "Maszeruj spokojnie, utrzymując łokieć zablokowany i bark aktywnie ustawiony.",
+        "Zakończ odcinek zanim ramię zacznie uciekać do przodu albo łokieć zmięknie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "pallof_press",
+      "title": "Pallof press",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "pallof_press",
+        "equipment": "band"
+      },
+      "instructions": [
+        "Zamocuj gumę stabilnie na wysokości klatki piersiowej i stań bokiem do punktu zaczepienia.",
+        "Trzymaj gumę obiema dłońmi przy mostku; wyprostuj ręce przed siebie bez obracania miednicy i barków.",
+        "Wróć spokojnie, zachowując równy oddech, i wykonaj zaplanowaną pracę po drugiej stronie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "pike_push_up",
+      "title": "Pompka pike",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "pike_push_up"
+      },
+      "instructions": [
+        "Ustaw dłonie na szerokość barków, biodra wysoko i głowę między ramionami jak odwrócone V.",
+        "Uginaj łokcie, prowadząc czubek głowy w stronę podłoża między dłonie, a nie przed nie.",
+        "Wypchnij się z powrotem w górę, utrzymując napięty brzuch i barki aktywnie wypchnięte."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "plank",
+      "title": "Deska",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "plank",
+        "isometric": true
+      },
+      "instructions": [
+        "Neutralny kręgosłup",
+        "Napięty brzuch i pośladki"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "power_clean",
+      "title": "Zarzut siłowy z pozycji zwisu",
+      "group": "Moc",
+      "motion": {
+        "family": "power_lift",
+        "variant": "power_clean",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Wyprost bioder eksplozywnie",
+        "Łokcie szybko w przód",
+        "Sztanga blisko ciała"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "prone_band_leg_curl",
+      "title": "Uginanie nóg leżąc z gumą",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "prone_band_leg_curl",
+        "equipment": "band"
+      },
+      "instructions": [
+        "Połóż się na brzuchu, zaczep gumę stabilnie i załóż ją na kostki lub pięty.",
+        "Przyciągnij pięty w stronę pośladków bez odrywania miednicy od podłoża.",
+        "Wracaj wolniej niż przyciągasz, utrzymując stałe napięcie gumy przez cały zakres."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "pull_up",
+      "title": "Pull-up",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "pull_up",
+        "equipment": "high_bar"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "push_press",
+      "title": "Wyciskanie sztangi z wybiciem nóg",
+      "group": "Moc",
+      "motion": {
+        "family": "press",
+        "variant": "push_press",
+        "equipment": "barbell_front"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "push_up",
+      "title": "Pompka",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "push_up"
+      },
+      "instructions": [
+        "Ustaw dłonie trochę szerzej niż barki i napnij pośladki, żeby ciało było sztywne od głowy do pięt.",
+        "Schodź klatką między dłonie, prowadząc łokcie ukośnie do tyłu zamiast szeroko na boki.",
+        "Odepchnij podłoże równomiernie obiema rękami, kończąc w pełnym wyproście bez zapadania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "razor_curl",
+      "title": "Razor curl",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "razor_curl"
+      },
+      "instructions": [
+        "Ustaw się jak do nordica, ale pozwól biodrom lekko pracować zamiast trzymać je całkiem sztywno.",
+        "Opadaj do przodu pod kontrolą, utrzymując napięcie tylnej taśmy i aktywnie zginając kolana.",
+        "W drodze powrotnej dołóż pracę bioder, ale nie uciekaj przeprostem lędźwiowym."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_broad_jump",
+      "title": "Powtarzane skoki w dal",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "repeated_broad_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_curved_sprints",
+      "title": "Powtarzane sprinty po łuku",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "run",
+        "variant": "repeated_curved_sprints"
+      },
+      "instructions": [
+        "Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.",
+        "Kończ serię, gdy spada jakość."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_linear_short_sprints",
+      "title": "Powtarzane krótkie sprinty liniowe",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "run",
+        "variant": "repeated_linear_short_sprints"
+      },
+      "instructions": [
+        "Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.",
+        "Kończ serię, gdy spada jakość."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_shuttle_sprints",
+      "title": "Powtarzane sprinty wahadłowe",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "run",
+        "variant": "repeated_shuttle_sprints"
+      },
+      "instructions": [
+        "Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.",
+        "Kończ serię, gdy spada jakość."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "reverse_lunge",
+      "title": "Wykrok w tył",
+      "group": "Siła",
+      "motion": {
+        "family": "split",
+        "variant": "reverse_lunge",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "romanian_deadlift_db",
+      "title": "Martwy ciąg rumuński z hantlami",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "romanian_deadlift_db",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Biodra w tył",
+        "Plecy proste",
+        "Hantle blisko nóg"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "seated_leg_curl",
+      "title": "Uginanie nóg siedząc",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "seated_leg_curl",
+        "equipment": "seated_machine"
+      },
+      "instructions": [
+        "Usiądź z plecami opartymi; dopasuj oś maszyny do kolana, a wałek do dolnej części podudzia.",
+        "Zegnij kolana, przyciągając wałek bez unoszenia bioder i bez szarpania ciężaru.",
+        "Wróć powoli do wygodnego wyprostu, bez uderzania stosem i bez przeprostu kolan."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "seated_soleus_raise",
+      "title": "Wspięcia na palce siedząc",
+      "group": "Siła",
+      "motion": {
+        "family": "ankle",
+        "variant": "seated_soleus_raise",
+        "equipment": "bench_dumbbells"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "side_plank",
+      "title": "Deska bokiem",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "side_plank",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_glute_bridge",
+      "title": "Most biodrowy jednonóż",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "single_leg_glute_bridge",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw jedną stopę blisko pośladka, drugą nogę wyprostuj w powietrzu i napnij brzuch.",
+        "Wypchnij biodra w górę przez piętę nogi pracującej, nie skręcając miednicy na bok.",
+        "Opuść biodra pod kontrolą i utrzymuj stałą wysokość oraz rytm po obu stronach."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_hop_and_stick",
+      "title": "Skok jednonóż z zatrzymaniem",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "single_leg_hop_and_stick",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_long_lever_hamstring_iso",
+      "title": "Most hamstring izometryczny z długą dźwignią jednonóż",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "single_leg_long_lever_hamstring_iso",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż jedną piętę dalej od biodra niż w zwykłym moście, drugą nogę unieś i ustaw miednicę równo.",
+        "Unieś biodra tylko tyle, żeby poczuć mocną pracę tylnego uda, ale bez bólu ostrego.",
+        "Oddychaj spokojnie i utrzymaj pozycję, kończąc serię przy pierwszej utracie wysokości biodra."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_pogo",
+      "title": "Pogo jednonóż",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "single_leg_pogo",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_romanian_deadlift",
+      "title": "Martwy ciąg rumuński na jednej nodze",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "single_leg_romanian_deadlift",
+        "equipment": "dumbbell",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_slider_leg_curl",
+      "title": "Uginanie nogi na ślizgu jednonóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "single_leg_slider_leg_curl",
+        "equipment": "sliders",
+        "unilateral": true
+      },
+      "instructions": [
+        "Jedną piętę ustaw na ślizgu, drugą nogę trzymaj nad podłożem, a biodra ustaw wysoko i równo.",
+        "Przyciągaj piętę pracującej nogi pod biodro bez skręcania miednicy i bez utraty napięcia pośladka.",
+        "W fazie wyprostu wracaj powoli, zatrzymując serię przy pierwszym opadaniu bioder."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_swiss_ball_leg_curl",
+      "title": "Uginanie nogi na piłce szwajcarskiej jednonóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "single_leg_swiss_ball_leg_curl",
+        "equipment": "swiss_ball",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw jedną piętę na piłce, drugą nogę unieś i utrzymaj stabilne biodra.",
+        "Zwiń piłkę pod siebie pracującą nogą, pilnując, żeby kolano i biodro nie uciekały na boki.",
+        "Wyprostuj nogę pod pełną kontrolą i zatrzymaj serię, jeśli tracisz wysokość bioder."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "soleus_iso_hold",
+      "title": "Izometryczne wspięcie na mięsień płaszczkowaty",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "ankle",
+        "variant": "soleus_iso_hold",
+        "isometric": true
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "split_squat_jump",
+      "title": "Wyskoki z pozycji wykrocznej",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "split_squat_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "sprint_cooldown_walk",
+      "title": "Marsz i uspokojenie oddechu",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "walk",
+        "variant": "sprint_cooldown_walk"
+      },
+      "instructions": [
+        "Maszeruj spokojnie 3–4 min, aż oddech wyraźnie się uspokoi.",
+        "Nie dodawaj sprintów, interwałów ani intensywnego rozciągania po zakończeniu jakościowej pracy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "squat_jump",
+      "title": "Wyskocz z przysiadu",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "squat_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "standing_calf_raise",
+      "title": "Wspięcia na palce stojąc",
+      "group": "Siła",
+      "motion": {
+        "family": "ankle",
+        "variant": "standing_calf_raise",
+        "equipment": "wall"
+      },
+      "instructions": [
+        "Stań przy stabilnym podparciu, ustaw stopy na szerokość bioder.",
+        "Unieś pięty, naciskając równomiernie przodostopie; nie uciekaj na zewnętrzną krawędź stopy.",
+        "Opuść pięty spokojnie, bez odbijania i bez kołysania tułowiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "static_stretch_cooldown",
+      "title": "Rozciąganie statyczne (wyciszenie)",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "mobility_sequence",
+        "variant": "static_stretch_cooldown"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "step_up",
+      "title": "Wejście na podest",
+      "group": "Siła",
+      "motion": {
+        "family": "step_up",
+        "variant": "step_up",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "suitcase_carry",
+      "title": "Spacer walizkowy",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "suitcase_carry",
+        "equipment": "one_dumbbell",
+        "unilateral": true
+      },
+      "instructions": [
+        "Chwyć ciężar po jednej stronie ciała, ustaw żebra nad miednicą i wydłuż szyję.",
+        "Idź krótkimi, sprężystymi krokami bez przechylania się w stronę ciężaru ani od niego.",
+        "Zmień stronę po zakończeniu odcinka i utrzymuj taki sam rytm po obu stronach."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "tempo_conditioning_block",
+      "title": "Blok tempa tlenowego",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "tempo_conditioning_block"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "tibialis_raise",
+      "title": "Unoszenie palców stóp do góry",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "ankle",
+        "variant": "tibialis_raise",
+        "equipment": "wall"
+      },
+      "instructions": [
+        "Oprzyj plecy o ścianę albo usiądź tak, żeby pięty były stabilnie wbite w podłoże.",
+        "Unieś palce i przód stopy maksymalnie do góry bez odrywania pięt.",
+        "Wracaj wolno do podłoża i utrzymuj równy rytm zamiast machania stopami."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "trap_bar_deadlift",
+      "title": "Martwy ciąg z trap barem",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "trap_bar_deadlift",
+        "equipment": "trapbar"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "trap_bar_jump",
+      "title": "Wyskoki z trap barem",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "trap_bar_jump",
+        "equipment": "trapbar"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    }
+  ]
+}

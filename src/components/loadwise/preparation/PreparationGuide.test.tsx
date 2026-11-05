@@ -52,7 +52,7 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
   it("pokazuje obrazek, dwie instrukcje i prowadzi przez stronę, zmianę i przerwę", async () => {
     await render();
     await click("Rozpocznij regenerację");
-    expect(host.querySelector('svg[role="img"]')).not.toBeNull();
+    expect(host.querySelector('iframe[title^="Animacja ćwiczenia"]')).not.toBeNull();
     expect(host.querySelectorAll(".bw-prep-cues li")).toHaveLength(2);
     expect(host.querySelector('[role="timer"]')?.textContent).toBe("00:30");
     await tick(30000);

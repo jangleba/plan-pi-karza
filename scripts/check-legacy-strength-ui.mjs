@@ -51,21 +51,14 @@ export async function checkLegacyStrengthUI({ browser, base, work, ensure, views
       );
       for (const img of await media.locator("img").all())
         await img.evaluate((image) => image.decode());
-      if (index === 4) {
-        ensure(
-          (await media.locator("img").count()) === 1,
-          "Strength preview does not start with the technique illustration",
-        );
-        ensure(
-          (await sheet.locator("iframe").count()) === 0,
-          "Animation controls displace the first technique view",
-        );
-        const instructions = await sheet.getByText("Jak wykonać", { exact: true }).boundingBox();
-        ensure(
-          instructions && instructions.y < 844,
-          "Technique heading is pushed below the first screen",
-        );
-      }
+      const frameElement = media.locator("iframe");
+      ensure((await frameElement.count()) === 1, `Legacy row ${index}: no shared animation`);
+      const frame = await (await frameElement.elementHandle()).contentFrame();
+      await frame.waitForFunction(() => window.BWPlayer?.ready);
+      ensure((await frame.locator(".bw-human-natural").count()) === 1, "Missing natural figure");
+      ensure(await frame.locator("#phase").innerText(), "Missing movement phase");
+      ensure((await media.locator("img").count()) === 0, "Old technique photo remains");
+
       ensure(
         (await sheet.getByRole("button", { name: "Zapisz serie", exact: true }).count()) === 0,
         "Legacy preview allows recording",

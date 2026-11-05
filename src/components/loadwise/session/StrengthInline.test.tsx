@@ -355,10 +355,10 @@ it("records actual flywheel repetitions with a null weight, without inventing in
     ]),
   ]);
   await click(".bw-exercise-open");
-  expect(document.querySelector('.bw-exercise-detail-media svg[role="img"]')).toBeTruthy();
-  expect(document.querySelector(".bw-exercise-detail-media")?.textContent).toContain(
-    "Linka i uprząż",
-  );
+  expect(
+    document.querySelector<HTMLIFrameElement>(".bw-exercise-detail-media iframe")?.src,
+  ).toContain("id=flywheel_squat");
+  expect(document.querySelector(".bw-exercise-detail-media img")).toBeNull();
   await act(async () => document.querySelector<HTMLButtonElement>(".bw-detail-record")!.click());
   expect(
     host.querySelector('.bw-exercise-panel:not([hidden]) input[aria-label="Ciężar"]'),

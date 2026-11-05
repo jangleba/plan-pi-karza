@@ -1,4 +1,3 @@
-import { MethodBlueprint, hasMethodBlueprint } from "./session/MethodBlueprint";
 import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import {
@@ -10,21 +9,12 @@ import {
 } from "@/lib/loadwise/exerciseLibrary";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { MovementBlueprint } from "./MovementBlueprint";
-import { PreparationIllustration } from "./preparation/PreparationIllustration";
 import { ExerciseAnimationPreview } from "./session/ExerciseAnimationPreview";
 import { resolveExerciseAnimation } from "@/lib/trainingCoach/animationCatalog";
-import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
+import { boxTouchVariant } from "@/lib/trainingCoach/exerciseTempo";
 import { ExerciseQuickGuide } from "./session/ExerciseQuickGuide";
 import { getSkipGuide, SKIP_LANDING } from "@/lib/loadwise/skipGuides";
-import {
-  Bike,
-  Wind,
-  ListChecks,
-  ListOrdered,
-  AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-} from "lucide-react";
+import { ListChecks, ListOrdered, AlertTriangle, ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 const EQUIPMENT_DEFINITIONS = getAllEquipmentDefinitions();
 function doseChip(e: TrainingExercise): string | null {
@@ -187,20 +177,16 @@ export function ExerciseDetailSheet({
   if (!exercise) return null;
   // Persisted aliases must resolve identically for the text and the visual.
   // The instance id and original dose remain intact for the recording handoff.
-  const e = hydrateTrainingExerciseFromDefinition(exercise);
+  const e = {
+    ...hydrateTrainingExerciseFromDefinition(exercise),
+    animationVariant: exercise.animationVariant ?? boxTouchVariant(exercise.name) ?? undefined,
+  };
   const dose = doseChip(e);
   const rpe = rpeChip(e);
   const intensity = intensityChip(e);
   const tempo = tempoChip(e);
   const details = resolveExerciseSheetViewModel(e);
   const skip = getSkipGuide(e.exerciseId);
-  const supplementalAnimation = Boolean(
-    resolveExerciseAnimation(e) &&
-    getExerciseTechniqueImage(e.exerciseId) &&
-    ["strength", "power", "plyometric", "core", "prehab"].includes(
-      getExerciseDefinition(e.exerciseId ?? "")?.category ?? "",
-    ),
-  );
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} initialDetent="large">
@@ -273,32 +259,8 @@ export function ExerciseDetailSheet({
           ) : (
             <>
               <div className="bw-exercise-detail-media">
-                {hasMethodBlueprint(e.exerciseId) ? (
-                  <MethodBlueprint exerciseId={e.exerciseId} />
-                ) : resolveExerciseAnimation(e) && !supplementalAnimation ? (
+                {resolveExerciseAnimation(e) ? (
                   <ExerciseAnimationPreview exercise={e} autoOpen />
-                ) : e.exerciseId === "adductor_bridge_squeeze" ||
-                  e.exerciseId === "heel_dig_hamstring_iso_90" ? (
-                  <PreparationIllustration
-                    visual="bridge"
-                    label={
-                      e.exerciseId === "adductor_bridge_squeeze"
-                        ? "Most z dociskiem ręcznika między kolanami"
-                        : "Most z dociskiem pięt i kolanami ugiętymi około 90°"
-                    }
-                    squeeze={e.exerciseId === "adductor_bridge_squeeze"}
-                  />
-                ) : e.exerciseId === "hip_mobility_flow" ? (
-                  <PreparationIllustration visual="hip" label="Mobilizacja biodra w wykroku" />
-                ) : e.exerciseId === "easy_cycle_recovery" ||
-                  e.exerciseId === "diaphragmatic_breathing" ? (
-                  <div className="bw-activity-illustration" role="img" aria-label={e.name}>
-                    {e.exerciseId === "easy_cycle_recovery" ? (
-                      <Bike size={88} strokeWidth={1} />
-                    ) : (
-                      <Wind size={88} strokeWidth={1} />
-                    )}
-                  </div>
                 ) : (
                   <MovementBlueprint exercise={e} />
                 )}
@@ -418,7 +380,6 @@ export function ExerciseDetailSheet({
                   </Section>
                 )}
               </div>
-              {supplementalAnimation && <ExerciseAnimationPreview exercise={e} />}
             </>
           )}
         </div>

@@ -7,9 +7,9 @@ const exercise = (exerciseId: string, rest: Partial<TrainingExercise> = {}): Tra
 });
 
 describe("exercise animation identity and session rhythm", () => {
-  it("covers all88 distinct catalog entries without importing the renderer", () => {
-    expect(ANIMATION_CATALOG).toHaveLength(88);
-    expect(new Set(ANIMATION_CATALOG.map(entry => entry.id)).size).toBe(88);
+  it("covers the complete movement catalog without importing the renderer", () => {
+    expect(ANIMATION_CATALOG).toHaveLength(215);
+    expect(new Set(ANIMATION_CATALOG.map(entry => entry.id)).size).toBe(215);
     for (const entry of ANIMATION_CATALOG) {
       const result = resolveExerciseAnimation(exercise(entry.id));
       expect(result).not.toBeNull();
@@ -96,10 +96,9 @@ describe("exercise animation identity and session rhythm", () => {
     expect(resolveExerciseAnimation({ id: "old", name: "Narastające przebieżki (build-up)", visualId: "max_velocity_sprint" })?.id).toBe("progressive_build_up_sprint");
   });
 
-  it("returns null for unknown drills, strength exercises and ambiguous generic drawings", () => {
+  it("returns null for unknown drills and ambiguous generic drawings", () => {
     for (const value of [
       exercise("custom_technical", { name: "Skip B i zmiana kierunku" }),
-      exercise("goblet_squat", { name: "Goblet squat" }),
       exercise("custom_drill", { name: "Nowy drill sprinterski", visualId: "sprint_acceleration" }),
       exercise("custom_bounds", { name: "Nowa kombinacja", visualId: "bounds" }),
       exercise("custom_speed", { name: "Bieg", visualId: "max_velocity_sprint" }),

@@ -1,4 +1,4 @@
-import { MethodBlueprint } from "./session/MethodBlueprint";
+import { MovementBlueprint } from "./MovementBlueprint";
 import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft } from "lucide-react";
@@ -19,12 +19,6 @@ import { useLoadwise } from "@/lib/loadwise/store";
 import { useAuth } from "@/lib/loadwise/auth";
 import { effectiveSessions } from "@/lib/loadwise/effectivePlan";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
-import {
-  PoseFigure,
-  getIllustration,
-  illustrationKeyForExercise,
-} from "@/components/loadwise/exerciseIllustrations";
-import { getExerciseTechniqueImage } from "@/lib/loadwise/exerciseTechniqueImages";
 import {
   parseTrainingFields,
   parseTrainingNumber,
@@ -136,7 +130,6 @@ export function ExerciseRunnerScreen({
   const [setNumber, setSetNumber] = useState(1);
   const [saving, setSaving] = useState(false);
   const [baselineError, setBaselineError] = useState<string | null>(null);
-  const [frame, setFrame] = useState(0);
   const [progressionChoice, setProgressionChoice] = useState<"accepted" | "repeat" | null>(null);
   const { state } = useLoadwise();
   const { user } = useAuth();
@@ -177,11 +170,15 @@ export function ExerciseRunnerScreen({
   const setValues = draft.setValue;
   const metricKind = useMemo(() => metricKindForExercise(exercise), [exercise]);
   const repetitionsOnly = exercise.exerciseId === "flywheel_squat";
-  const fields = useMemo(() => repetitionsOnly ? fieldsForMetric("load").filter(f=>f.id==="reps") : fieldsForMetric(metricKind), [metricKind,repetitionsOnly]);
+  const fields = useMemo(
+    () =>
+      repetitionsOnly
+        ? fieldsForMetric("load").filter((f) => f.id === "reps")
+        : fieldsForMetric(metricKind),
+    [metricKind, repetitionsOnly],
+  );
   const unit = metricUnit(metricKind);
-  const illustration = getIllustration(illustrationKeyForExercise(exercise));
-  const techniqueImage = getExerciseTechniqueImage(exercise.exerciseId);
-  const frameIndex = Math.min(frame, Math.max(0, (illustration?.frames.length ?? 1) - 1));
+
   const displayName = exerciseDisplayName(canonicalExerciseName(exercise));
   const doneCount = Array.from({ length: total }, (_, index) => index + 1).filter(
     (number) => current[number],
@@ -203,7 +200,10 @@ export function ExerciseRunnerScreen({
   );
   const recommendation = useMemo(
     () =>
-      metricKind === "load" && !repetitionsOnly && !["M15","M39"].includes(exercise.methodExecution?.methodId ?? "") && exercise.exerciseId !== "band_resisted_squat"
+      metricKind === "load" &&
+      !repetitionsOnly &&
+      !["M15", "M39"].includes(exercise.methodExecution?.methodId ?? "") &&
+      exercise.exerciseId !== "band_resisted_squat"
         ? recommendNextLoad(recentSessions, exercise.reps, exercise.rir, {
             age: state.profile?.age,
             level: state.profile?.level,
@@ -217,7 +217,7 @@ export function ExerciseRunnerScreen({
             exercise,
           })
         : null,
-    [metricKind, recentSessions, exercise, state.profile, sessionContext,repetitionsOnly],
+    [metricKind, recentSessions, exercise, state.profile, sessionContext, repetitionsOnly],
   );
 
   useEffect(() => {
@@ -244,7 +244,6 @@ export function ExerciseRunnerScreen({
     setBaselineError(null);
     setProgressionChoice(null);
     setRestToken(0);
-    setFrame(0);
   }, [context]);
 
   if (!open) return null;
@@ -282,7 +281,10 @@ export function ExerciseRunnerScreen({
       setNumber,
       weightKg: metricKind === "load" && !repetitionsOnly ? weightKg : null,
       reps: metricKind === "load" ? num(values.reps) : null,
-      rir: !repetitionsOnly && (metricKind === "load" || metricKind === "contacts") ? num(values.rir) : null,
+      rir:
+        !repetitionsOnly && (metricKind === "load" || metricKind === "contacts")
+          ? num(values.rir)
+          : null,
       metricKind: metricKind === "load" ? null : metricKind,
       metricValue: metricKind === "load" ? null : num(values.value),
     };
@@ -318,9 +320,19 @@ export function ExerciseRunnerScreen({
     return (
       <div className="bw-training-inline">
         <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
-        <MethodBlueprint exerciseId={exercise.exerciseId}/>
-        {repetitionsOnly && <p className="text-xs text-muted-foreground">Zapisujesz powtórzenia; ustawienie flywheel zapisz w notatce. Nie przeliczamy bezwładności na kilogramy.</p>}
-        {exercise.methodExecution && <MethodExecutionCoach key={`${exercise.id}:${setNumber}`} plan={{...exercise.methodExecution,rounds:1,roundRestSeconds:0}} context={`${sessionId ?? date}:${exercise.id}:${setNumber}`}/>}
+        {repetitionsOnly && (
+          <p className="text-xs text-muted-foreground">
+            Zapisujesz powtórzenia; ustawienie flywheel zapisz w notatce. Nie przeliczamy
+            bezwładności na kilogramy.
+          </p>
+        )}
+        {exercise.methodExecution && (
+          <MethodExecutionCoach
+            key={`${exercise.id}:${setNumber}`}
+            plan={{ ...exercise.methodExecution, rounds: 1, roundRestSeconds: 0 }}
+            context={`${sessionId ?? date}:${exercise.id}:${setNumber}`}
+          />
+        )}
 
         <div className="bw-set-heading">
           <label>
@@ -450,39 +462,28 @@ export function ExerciseRunnerScreen({
       {view === "sets" ? (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
           <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
-          <MethodBlueprint exerciseId={exercise.exerciseId} />
-          {repetitionsOnly && <p className="text-xs text-muted-foreground">Zapisujesz wykonane powtórzenia. Bezwładność i ustawienie flywheel zapisuj w notatce ćwiczenia; nie przeliczamy ich na kilogramy.</p>}
-          {exercise.methodExecution && <MethodExecutionCoach key={`${exercise.id}:${setNumber}`} plan={{...exercise.methodExecution,rounds:1,roundRestSeconds:0}} context={`${sessionId ?? date}:${exercise.id}:${setNumber}`} />}
+          {repetitionsOnly && (
+            <p className="text-xs text-muted-foreground">
+              Zapisujesz wykonane powtórzenia. Bezwładność i ustawienie flywheel zapisuj w notatce
+              ćwiczenia; nie przeliczamy ich na kilogramy.
+            </p>
+          )}
+          {exercise.methodExecution && (
+            <MethodExecutionCoach
+              key={`${exercise.id}:${setNumber}`}
+              plan={{ ...exercise.methodExecution, rounds: 1, roundRestSeconds: 0 }}
+              context={`${sessionId ?? date}:${exercise.id}:${setNumber}`}
+            />
+          )}
           <button
             type="button"
             onClick={() => setView("technique")}
             className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 text-left"
           >
-            {showVisuals && (
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-primary/5">
-                {techniqueImage ? (
-                  <img
-                    src={techniqueImage.src}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    width={768}
-                    height={512}
-                    className="h-full w-full object-contain"
-                  />
-                ) : illustration ? (
-                  <PoseFigure pose={illustration.frames[0].pose} />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
-                    Technika
-                  </div>
-                )}
-              </div>
-            )}
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-foreground">Technika ruchu</div>
               <div className="truncate text-[12px] text-muted-foreground">
-                {showVisuals ? "Ilustracja, wskazówki i błędy" : "Krótka instrukcja i błędy"}
+                {showVisuals ? "Animacja, wskazówki i błędy" : "Krótka instrukcja i błędy"}
               </div>
             </div>
             <ChevronLeft className="h-4 w-4 rotate-180 text-muted-foreground/60" />
@@ -695,54 +696,14 @@ export function ExerciseRunnerScreen({
         </div>
       ) : (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
-          {!showVisuals ? (
-            <div className="text-lg font-semibold text-foreground">Technika ruchu</div>
-          ) : techniqueImage ? (
-            <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl border border-border/60 bg-[#faf9f5]">
-              <img
-                src={techniqueImage.src}
-                alt={techniqueImage.alt}
-                loading="eager"
-                decoding="async"
-                width={768}
-                height={512}
-                className="h-full w-full object-contain"
-              />
-            </div>
-          ) : illustration ? (
-            <>
-              <div className="aspect-square w-full overflow-hidden rounded-2xl bg-primary/5">
-                <PoseFigure pose={illustration.frames[frameIndex].pose} />
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="text-[13px] font-medium text-foreground">
-                  {illustration.frames[frameIndex].caption}
-                </span>
-                <span className="text-[11px] tabular-nums text-muted-foreground">
-                  {frameIndex + 1}/{illustration.frames.length}
-                </span>
-              </div>
-              <div className="mt-2 flex gap-1.5">
-                {illustration.frames.map((item, index) => (
-                  <button
-                    key={item.caption}
-                    type="button"
-                    onClick={() => setFrame(index)}
-                    className={`h-1.5 flex-1 rounded-full ${
-                      index === frame ? "bg-primary" : "bg-border"
-                    }`}
-                    aria-label={`Klatka ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
-              Ilustracja tego ruchu nie jest jeszcze dostępna.
-            </div>
-          )}
+          <MovementBlueprint exercise={exercise} />
 
-          <ExerciseQuickGuide exercise={exercise} initialExpanded showImage={false} />
+          <ExerciseQuickGuide
+            exercise={exercise}
+            initialExpanded
+            showImage={false}
+            showAnimation={false}
+          />
 
           <button
             type="button"

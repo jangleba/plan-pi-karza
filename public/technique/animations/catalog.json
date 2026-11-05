@@ -1,1 +1,3771 @@
-{"version":"42eba107b5ae269d","count":88,"gallery":["a_skip","b_skip","c_skip","d_skip","a_march","review:a_skip:gather","review:a_skip:extra_bounce","review:a_skip:continuous","review:b_skip:gather","review:b_skip:extra_bounce","review:b_skip:continuous","review:c_skip:gather","review:c_skip:extra_bounce","review:c_skip:continuous","review:d_skip:gather","review:d_skip:extra_bounce","review:d_skip:continuous","a_skip_add_step","a_skip_no_add_step","switch_skip_a","double_switch_skip_a","skip_a_to_d","skip_b_alternate_bounds","a_accent","c_accent","power_skip_height","power_skip_distance","a_switch_progression","wall_march","wall_single_switch","wall_double_switch","wall_triple_switch","ankling","low_dribble","high_dribble","dribble_to_sprint_transition","alternate_leg_bounds","scissor_exchange_jump","straight_leg_run_bound","scissor_bounds","bilateral_pogo","lateral_pogo","snap_down","lateral_bound_to_stick","single_leg_hops","broad_jump","acceleration_mechanics","max_velocity_high_volume","falling_start","split_stance_start","push_up_start","half_kneeling_start","lateral_start_acceleration","crossover_start_acceleration","turn_and_go_start","app_audio_reaction_start","free_acceleration_sprint","progressive_build_up_sprint","flying_sprint","upright_football_sprint","fast_relaxed_fast_run","football_curved_sprint","reactive_curved_sprint","resisted_sled_acceleration","progressive_run_three_step_stop","run_two_step_stop","progressive_deceleration_5_10_15","accel_decel_reaccel","deceleration_lateral_exit","planned_cut","planned_505","cut_and_reaccelerate","app_audio_forward_left_right","app_visual_colour_cue_cod","reactive_180_turn","sprint_ramp_warmup","bwprep:walk","bwprep:ankle","bwprep:adductor","bwprep:march","bwprep:run","legacy:6","legacy:8","legacy:11","legacy:12","legacy:14","legacy:15","legacy:16"],"records":[{"id":"a_skip","title":"Skip A","group":"Skipy i marsz — wersje bazowe","sourceUrl":"https://lran.org.uk/technique-drills-2","sourceTitle":"LRAN · A-skip","sourceStatus":"exact","notes":["Wyprost w wysokim podporze; niewielkie ugięcie przy amortyzacji.","Kolejność kontaktów odczytana z cyklu LRAN; trajektorie stawów są rekonstrukcją.","Ta sekwencja nie zastępuje wariantu ciągłego ani dostawienia."]},{"id":"b_skip","title":"Skip B","group":"Skipy i marsz — wersje bazowe","sourceUrl":"https://www.youtube.com/watch?v=bZ3ZJknckZk","sourceTitle":"Athletics Ireland · AAi Coach Sprints — B March & B Skip","sourceStatus":"exact","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Punkt odniesienia korekty35–40° pozostaje do uzgodnienia; liczby nie naniesiono na model."]},{"id":"c_skip","title":"Skip C","group":"Skipy i marsz — wersje bazowe","sourceUrl":"https://www.youtube.com/watch?v=SD5aZ_GMvWA","sourceTitle":"Athletics Ireland · Heel Flicks","sourceStatus":"exact","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania."]},{"id":"d_skip","title":"Skip D","group":"Skipy i marsz — wersje bazowe","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"exact","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania."]},{"id":"a_march","title":"Marsz A","group":"Skipy i marsz — wersje bazowe","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A March & A Skip","sourceStatus":"exact","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Stały kontakt co najmniej jednej stopy z podłożem."]},{"id":"review:a_skip:gather","title":"Skip A — z dostawieniem nóg","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A March & A Skip","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:a_skip:extra_bounce","title":"Skip A — z przejściem (dodatkowe odbicie)","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://lran.org.uk/technique-drills-2","sourceTitle":"LRAN · A-skip","sourceStatus":"partial","notes":["Wyprost w wysokim podporze; niewielkie ugięcie przy amortyzacji.","Kolejność kontaktów odczytana z cyklu LRAN; trajektorie stawów są rekonstrukcją.","Ta sekwencja nie zastępuje wariantu ciągłego ani dostawienia."]},{"id":"review:a_skip:continuous","title":"Skip A — ciągły","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A March & A Skip","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:b_skip:gather","title":"Skip B — z dostawieniem nóg","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=bZ3ZJknckZk","sourceTitle":"Athletics Ireland · AAi Coach Sprints — B March & B Skip","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:b_skip:extra_bounce","title":"Skip B — z przejściem (dodatkowe odbicie)","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=bZ3ZJknckZk","sourceTitle":"Athletics Ireland · AAi Coach Sprints — B March & B Skip","sourceStatus":"partial","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:b_skip:continuous","title":"Skip B — ciągły","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=bZ3ZJknckZk","sourceTitle":"Athletics Ireland · AAi Coach Sprints — B March & B Skip","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:c_skip:gather","title":"Skip C — z dostawieniem nóg","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=SD5aZ_GMvWA","sourceTitle":"Athletics Ireland · Heel Flicks","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:c_skip:extra_bounce","title":"Skip C — z przejściem (dodatkowe odbicie)","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=SD5aZ_GMvWA","sourceTitle":"Athletics Ireland · Heel Flicks","sourceStatus":"partial","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:c_skip:continuous","title":"Skip C — ciągły","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.youtube.com/watch?v=SD5aZ_GMvWA","sourceTitle":"Athletics Ireland · Heel Flicks","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:d_skip:gather","title":"Skip D — z dostawieniem nóg","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:d_skip:extra_bounce","title":"Skip D — z przejściem (dodatkowe odbicie)","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"partial","notes":["Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"review:d_skip:continuous","title":"Skip D — ciągły","group":"Rytmy skipów do osobnego uzgodnienia","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."]},{"id":"a_skip_add_step","title":"Skip A z add-step","group":"Warianty skipów i przejścia","sourceUrl":"https://coachtube.com/course/track-and-field/sprint-drills-chris-parno/18363570","sourceTitle":"Chris Parno · A Skip with Bounce (related, paid lesson)","sourceStatus":"partial","notes":["Użytkownik rozróżnia: z dostawieniem = obie stopy pod biodrami; z przejściem = dodatkowe odbicie na tej samej nodze.","Starsza nazwa add-step jest ogólna. Pokazujemy oba warianty po kolei; docelowy wybór musi wynikać z opisu jednostki."],"choices":[{"id":"review:a_skip:gather","title":"Z dostawieniem obu stóp"},{"id":"review:a_skip:extra_bounce","title":"Z przejściem — dodatkowe odbicie"}]},{"id":"a_skip_no_add_step","title":"Skip A bez add-step","group":"Warianty skipów i przejścia","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A Skip (related base reference)","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Naprzemienne kontakty, bez powrotu na tę samą nogę."]},{"id":"switch_skip_a","title":"Switch → Skip A","group":"Warianty skipów i przejścia","sourceUrl":"https://player.vimeo.com/video/1190046127?dnt=1","sourceTitle":"Jack Winnard · Static A-switch / Linear A-switch","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Szybka wymiana w miejscu, potem ciągły rytm. Dystans i prędkość biegu wynikają z sesji."]},{"id":"double_switch_skip_a","title":"Double switch → Skip A","group":"Warianty skipów i przejścia","sourceUrl":"https://player.vimeo.com/video/1190046127?dnt=1","sourceTitle":"Jack Winnard · Static A-switch / Linear A-switch","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Szybka wymiana w miejscu, potem ciągły rytm. Dystans i prędkość biegu wynikają z sesji."]},{"id":"skip_a_to_d","title":"Skip A → Skip D","group":"Warianty skipów i przejścia","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A Skip + Straight Legs (components only)","sourceStatus":"partial","notes":["Połączenie kilku wzorców. Moment i wykonanie przejścia wymagają oddzielnej oceny; poprawność części nie zatwierdza całego zestawu."]},{"id":"skip_b_alternate_bounds","title":"Skip B → wieloskok naprzemienny","group":"Warianty skipów i przejścia","sourceUrl":"https://www.youtube.com/watch?v=bZ3ZJknckZk","sourceTitle":"Athletics Ireland · B Skip (component only)","sourceStatus":"partial","notes":["Połączenie kilku wzorców. Moment i wykonanie przejścia wymagają oddzielnej oceny; poprawność części nie zatwierdza całego zestawu."]},{"id":"a_accent","title":"A-accent","group":"Warianty skipów i przejścia","sourceUrl":"https://ygsp.co.uk/your-gym-sports-performance/free-sc-resources/exercsie-library/","sourceTitle":"Your Gym Sports Performance · A-Skip single/double/alternating (related)","sourceStatus":"partial","notes":["Dwie oddzielne serie3+1. Drugą zacznij od przeciwnej nogi, aby akcent wykonała druga strona. Zmianę nogi pokazano po wygaszeniu widoku.","Akcent oznacza intencję kontaktu, nie wymuszony wysoki skok. W C czwarty cykl jest krótszy w obu seriach."]},{"id":"c_accent","title":"C-accent","group":"Warianty skipów i przejścia","sourceUrl":"https://www.youtube.com/watch?v=SD5aZ_GMvWA","sourceTitle":"Athletics Ireland · Heel Flicks (component only)","sourceStatus":"partial","notes":["Dwie oddzielne serie3+1. Drugą zacznij od przeciwnej nogi, aby akcent wykonała druga strona. Zmianę nogi pokazano po wygaszeniu widoku.","Akcent oznacza intencję kontaktu, nie wymuszony wysoki skok. W C czwarty cykl jest krótszy w obu seriach."]},{"id":"power_skip_height","title":"Power skip na wysokość","group":"Warianty skipów i przejścia","sourceUrl":"https://www.dvidshub.net/video/642016/power-skip-height","sourceTitle":"Power Skip for Height — U.S. Marine Corps Training and Education Command","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Propozycja wysokiego skipu z powrotem na tę samą nogę. Wyższa trajektoria i jej czas wymagają osobnego uzgodnienia."]},{"id":"power_skip_distance","title":"Power skip na odległość","group":"Warianty skipów i przejścia","sourceUrl":"https://www.dvidshub.net/video/642014/power-skip-distance","sourceTitle":"Power Skip for Distance — U.S. Marine Corps Training and Education Command","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Wariant zgodny z obecną instrukcją aplikacji: lądowanie na przeciwnej nodze. Wymaga porównania z docelową demonstracją.","Dystans pokazuje przesunięcie podłoża; stopa nie sięga po długość kroku daleko przed biodro."]},{"id":"a_switch_progression","title":"Zmiany A: pojedyncza → podwójna → potrójna","group":"Warianty skipów i przejścia","sourceUrl":"https://player.vimeo.com/video/1190046127?dnt=1","sourceTitle":"Jack Winnard · Static A-switch / Linear A-switch","sourceStatus":"partial","notes":["Sekwencja1→2→3 z zatrzymaniem nowej pozycji po serii. Małe pochylenie obejmuje nogę podporową i tułów, bez załamania w pasie. Model autorski wymaga porównania z zaakceptowanym wzorem."]},{"id":"wall_march","title":"Marsz przy ścianie","group":"Drille przy ścianie","sourceUrl":"https://www.youtube.com/watch?v=uwDEyE6phDc&t=76","sourceTitle":"Australian Athletics · Loren Landow: Wall Drill","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","W fazie podporu noga jest wydłużona, bez przeprostu."]},{"id":"wall_single_switch","title":"Pojedyncza zmiana przy ścianie","group":"Drille przy ścianie","sourceUrl":"https://www.youtube.com/watch?v=9LgV-S31nYQ","sourceTitle":"GAA Player Pathway · Dave Hare: The Wall Drill","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"wall_double_switch","title":"Podwójna zmiana przy ścianie","group":"Drille przy ścianie","sourceUrl":"https://www.youtube.com/watch?v=9LgV-S31nYQ","sourceTitle":"GAA Player Pathway · Dave Hare: The Wall Drill","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"wall_triple_switch","title":"Potrójna zmiana przy ścianie","group":"Drille przy ścianie","sourceUrl":"https://www.youtube.com/watch?v=9LgV-S31nYQ","sourceTitle":"GAA Player Pathway · Dave Hare: The Wall Drill","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"ankling","title":"Ankling","group":"Cykl nogi i kontakt z podłożem","sourceUrl":"https://www.youtube.com/watch?v=E8u20hnng7A","sourceTitle":"Athletics Ireland · Ankling","sourceStatus":"exact","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Athletics Ireland: małe kroki, z niskim przejściem stopy nad przeciwną kostką; tułów pozostaje wysoko.","Osobny tor stopy podkreśla przetoczenie w stawie skokowym i niski krok, bez unoszenia kolana jak w skipie A.","Tor i tempo podglądu są ilustracyjne; kadencji i czasów kontaktu nie mierzono z filmu."]},{"id":"low_dribble","title":"Niski dribble","group":"Cykl nogi i kontakt z podłożem","sourceUrl":"https://player.vimeo.com/video/1190046157?dnt=1","sourceTitle":"Jack Winnard · Calf dribble","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Tor krótkiego koła stopy na niskiej wysokości. To drill biegowy, bez piłki."]},{"id":"high_dribble","title":"Wysoki dribble","group":"Cykl nogi i kontakt z podłożem","sourceUrl":"https://www.youtube.com/watch?v=TRAcFUpCe0U","sourceTitle":"Athletics Ireland · Knee Step-Over","sourceStatus":"partial","notes":["Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.","Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.","Wyższy cykl nogi niż w niskim dribble; nie jest to kopnięcie prostą nogą."]},{"id":"dribble_to_sprint_transition","title":"Przejście z dribblingu do sprintu","group":"Cykl nogi i kontakt z podłożem","sourceUrl":"https://player.vimeo.com/video/980036705","sourceTitle":"Matt Tometz · Ankle-Shin-Knee Dribble to Sprint","sourceStatus":"exact","notes":["Połączenie kilku wzorców. Moment i wykonanie przejścia wymagają oddzielnej oceny; poprawność części nie zatwierdza całego zestawu."]},{"id":"alternate_leg_bounds","title":"Wieloskok naprzemienny","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://blog.overtimeathletes.com/fix-you-sprint-3-best-drills-for-linear-speed/","sourceTitle":"Alternating Bounds — Overtime Athletes","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Jedna noga wybija, przeciwna przyjmuje następny kontakt. Bez dodatkowego kontaktu tej samej stopy."]},{"id":"scissor_exchange_jump","title":"Naprzemienny skok nożycowy z wymianą","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://player.vimeo.com/video/1190046011?dnt=1","sourceTitle":"Jack Winnard · Scissor bound — frequency","sourceStatus":"partial","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Pełniejsza wymiana i dłuższa stabilizacja niż w niskich scissor bounds. Dokładna odmiana wymaga osobnego wyboru."]},{"id":"straight_leg_run_bound","title":"Bieg z prostą nogą / bound","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=14","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"partial","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Nazwa biblioteki łączy run/bound. Pokazano dwa jawnie rozdzielone fragmenty, nie uznano ich za ten sam ruch."],"choices":[{"id":"straight_leg_run_bound:run","title":"Bieg z prawie prostymi nogami"},{"id":"straight_leg_run_bound:bound","title":"Odbicia z prawie prostymi nogami"}]},{"id":"scissor_bounds","title":"Naprzemienne wyskoki nożycowe","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://player.vimeo.com/video/1190046011?dnt=1","sourceTitle":"Jack Winnard · Scissor bound — frequency","sourceStatus":"partial","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Dwa kontakty równocześnie w nowym ustawieniu, zgodnie z instrukcją aplikacji. To nie wieloskok naprzemienny."]},{"id":"bilateral_pogo","title":"Pogo obunóż","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://theprehabguys.com/vimeo-video/pogos-in-place-2/","sourceTitle":"[P]rehab · Pogos — In Place","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Obie stopy przyjmują kontakt i odbijają jednocześnie. Przodostopie pozostaje podporą, pięta opuszcza się pod kontrolą, potem unosi.","Niskie odbicie z pracy stawu skokowego; kolana miękkie, bez blokowania. Rytm podglądu jest poglądowy, nie zmierzony z filmu."]},{"id":"lateral_pogo","title":"Pogo boczne","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://theprehabguys.com/vimeo-video/pogos-frontal/","sourceTitle":"[P]rehab · Pogos — Frontal","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Dwa niskie podskoki w przeciwnych kierunkach w jednym cyklu; obie stopy lądują razem.","Widok z przodu pokazuje kierunek i jednoczesny kontakt. Szczegół pracy pięty i stawu skokowego porównuj z ujęciem bocznym, nie odczytuj kąta z projekcji czołowej."]},{"id":"snap_down","title":"Lądowanie snap-down","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://theprehabguys.com/vimeo-video/snap-down/","sourceTitle":"[P]rehab · Snap Down","sourceStatus":"partial","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Wybrano wersję z szybkiego zejścia, bez podskoku. Opis biblioteki miesza snap-down/niskie pogo; ta animacja nie pokazuje wersji pogo."]},{"id":"lateral_bound_to_stick","title":"Skok boczny z zatrzymaniem","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://vimeo.com/883311543","sourceTitle":"Peak Human Performance · BW — Lateral Bound w/Stick","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Przeciwna noga przyjmuje lądowanie, potem pozycja pozostaje nieruchoma przez ponad2sekundy. Widok z przodu; segmenty są skrócone przez projekcję."]},{"id":"single_leg_hops","title":"Podskoki jednonóż — element starszego zestawu","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://www.youtube.com/watch?v=wNxg19x7qHM","sourceTitle":"University of Calgary · Single leg hops","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Jedna noga pozostaje podporowa przez całą serię; zmiana strony jest osobnym powtórzeniem.","Pokazano niski sprężysty wariant. Pięta pracuje pod kontrolą, kolano lekko amortyzuje; nie blokuj nogi. Wyższe i dalsze skoki wymagają odrębnego wariantu."]},{"id":"broad_jump","title":"Skok w dal z miejsca — element starszego zestawu","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://theprehabguys.com/vimeo-video/broad-jump-2/","sourceTitle":"[P]rehab · Broad Jump","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Wyraźnie rozdzielono obunóż wybicie, lot i obunóż lądowanie. Wygaszenie po zatrzymaniu oznacza wyłącznie powtórkę animacji."]},{"id":"acceleration_mechanics","title":"Mechanika przyspieszenia","group":"Starty i technika biegu","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=9","sourceTitle":"Athletics Ireland · Acceleration","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Pokaz jednego cyklu, nie całego odcinka sprintu."]},{"id":"max_velocity_high_volume","title":"Prędkość maksymalna — wysoka objętość","group":"Starty i technika biegu","sourceUrl":"https://www.youtube.com/watch?v=ta-Ul_OqqWk","sourceTitle":"Athletics Ireland · Max Fly Runs","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Objętość wynika z planu; animacja pokazuje technikę pojedynczego cyklu."]},{"id":"falling_start","title":"Start z upadku","group":"Starty i technika biegu","sourceUrl":"https://www.dvidshub.net/video/640979/falling-start","sourceTitle":"Athletics Ireland · Falling Start","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"split_stance_start","title":"Start z pozycji wykrocznej","group":"Starty i technika biegu","sourceUrl":"https://drivelinebaseball.com/blogs/blog/off-season-speed-training-for-position-players-part-2-acceleration","sourceTitle":"Driveline Baseball · Acceleration: Split stance start","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"push_up_start","title":"Start z podporu","group":"Starty i technika biegu","sourceUrl":"https://www.dvidshub.net/video/641015/push-up-start","sourceTitle":"U.S. Marine Corps · Push up Start","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Położenie dłoni oraz pierwszy krok wymagają porównania z wybranym filmem."]},{"id":"half_kneeling_start","title":"Start z półklęku","group":"Starty i technika biegu","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=10","sourceTitle":"Athletics Ireland · Kneeling Start","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"lateral_start_acceleration","title":"Start boczny do przyspieszenia","group":"Starty i technika biegu","sourceUrl":"https://brucebolt.us/blogs/news/be-better-training-hack-improve-your-60","sourceTitle":"CJ Wellington / Tactic Performance · Lateral start","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Ustawienie pokazano z przodu, przyspieszenie z boku; przejście ujęcia nie jest pomiarem obrotu ciała."]},{"id":"crossover_start_acceleration","title":"Start skrzyżny do przyspieszenia","group":"Starty i technika biegu","sourceUrl":"https://brucebolt.us/blogs/news/be-better-training-hack-improve-your-60","sourceTitle":"CJ Wellington / Tactic Performance · Lateral start","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Skrzyżne ustawienie i wybór nogi do uzgodnienia; dwa ujęcia podglądu."]},{"id":"turn_and_go_start","title":"Start obróć się i biegnij","group":"Starty i technika biegu","sourceUrl":"","sourceTitle":"Dokładny wzór do uzupełnienia","sourceStatus":"missing","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Brak dokładnego wzorca źródłowego: pokazany obrót jest wariantem DO UZGODNIENIA, nie zatwierdzoną instrukcją."]},{"id":"app_audio_reaction_start","title":"Start reakcyjny na sygnał audio aplikacji","group":"Starty i technika biegu","sourceUrl":"https://www.dvidshub.net/video/641015/push-up-start","sourceTitle":"U.S. Marine Corps · Push up Start","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","W podglądzie sygnał pokazano wizualnie; reakcja następuje dopiero po sygnale."]},{"id":"free_acceleration_sprint","title":"Swobodny sprint akceleracyjny","group":"Starty i technika biegu","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=8","sourceTitle":"Athletics Ireland · Acceleration","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"progressive_build_up_sprint","title":"Progresywny bieg narastający","group":"Starty i technika biegu","sourceUrl":"https://www.youtube.com/watch?v=ta-Ul_OqqWk","sourceTitle":"Athletics Ireland · Acceleration / Max Fly Runs","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"flying_sprint","title":"Sprint lotny","group":"Starty i technika biegu","sourceUrl":"https://www.youtube.com/watch?v=ta-Ul_OqqWk","sourceTitle":"Athletics Ireland · Max Fly Runs","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Podział stref jest schematem; odległości i dawkę bierze się z sesji."]},{"id":"upright_football_sprint","title":"Piłkarski sprint wyprostowany 30–40 m","group":"Starty i technika biegu","sourceUrl":"https://www.youtube.com/watch?v=g9bdIque7JY","sourceTitle":"Athletics Ireland · Max Velocity / Wicket Running","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"fast_relaxed_fast_run","title":"Kontrolowany bieg szybko–luźno–szybko","group":"Starty i technika biegu","sourceUrl":"https://coachathletics.com.au/coaching-education/sprinting-physical-preparation","sourceTitle":"Australian Athletics · Ins and Outs / sprint–float–sprint","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"football_curved_sprint","title":"Piłkarski sprint po łuku","group":"Starty i technika biegu","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=19","sourceTitle":"Athletics Ireland · Bend Running","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Tor biegu pokazano dodatkowo z góry. Widok boczny nie odwzorowuje przechylenia do środka łuku; potrzebna ocena ujęcia przestrzennego."],"scope":"Schemat kroku i toru. Przechylenie całego ciała na łuku wymaga porównania z filmem."},{"id":"reactive_curved_sprint","title":"Reaktywny sprint po łuku lewo/prawo","group":"Starty i technika biegu","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=19","sourceTitle":"Athletics Ireland · Bend Running","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Wybór łuku pokazany schematycznie. Dokładne ustawienie ciała na łuku wymaga odrębnego ujęcia i oceny."],"scope":"Schemat kroku i toru. Przechylenie całego ciała na łuku wymaga porównania z filmem."},{"id":"resisted_sled_acceleration","title":"Przyspieszenie z oporem sań","group":"Starty i technika biegu","sourceUrl":"https://www.youtube.com/watch?v=uwDEyE6phDc&t=200","sourceTitle":"Australian Athletics / NSCA · Loren Landow: Resisted Run with Sled","sourceStatus":"exact","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Schemat pokazuje sanie ciągnięte pasem. Ciężar i opór dobiera się z planu, nie z animacji."]},{"id":"progressive_run_three_step_stop","title":"Progresywny bieg i zatrzymanie w trzech krokach","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://player.vimeo.com/video/980039663","sourceTitle":"Matt Tometz · Run-Stop / NSCA · Deceleration","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Trzy nowe kontakty hamowania: prawa, lewa, prawa; następnie widoczna stabilizacja."]},{"id":"run_two_step_stop","title":"Bieg i zatrzymanie w dwóch krokach","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://player.vimeo.com/video/980039663","sourceTitle":"Matt Tometz · Run-Stop / NSCA · Deceleration","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Dwa nowe kontakty hamowania: prawa, lewa; następnie widoczna stabilizacja."]},{"id":"progressive_deceleration_5_10_15","title":"Progresywne hamowanie 5 → 10 → 15 m","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://www.youtube.com/watch?v=QLkEvHvNl14","sourceTitle":"Master this skill to change direction explosively — The Rugby Speed Coach","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","5/10/15 m opisuje kolejne dystanse wejścia. Trzy kroki w animacji to przykład, nie sztywny wymóg dla każdego dystansu."]},{"id":"accel_decel_reaccel","title":"Przyspieszenie–hamowanie–ponowne przyspieszenie","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://yuja.ucalgary.ca/V/Video?a=178426558&autoplay=1&node=3872559&v=784938","sourceTitle":"Quick start and stops — University of Calgary SHRED","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Widoczne obniżenie bioder i krótka kontrola przed drugim startem."]},{"id":"deceleration_lateral_exit","title":"Hamowanie z wyjściem bocznym","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://yuja.ucalgary.ca/V/Video?a=14838950&autoplay=1&node=3872552&v=784937","sourceTitle":"Partner plant and cut — University of Calgary SHRED","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Zbliżenie pokazuje pierwsze dwa kroki bocznego wyjścia po hamowaniu; mapa wskazuje dalszy kierunek biegu.","Widok zmienia się na przedni przy detalu wyjścia."]},{"id":"planned_cut","title":"Zaplanowane cięcie","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://player.vimeo.com/video/358297957","sourceTitle":"Deceleration, Change of Direction, and Reacceleration — NSCA / James Radcliffe","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Kierunek jest znany przed rozpoczęciem: w tym powtórzeniu w lewo.","Widok z przodu przedstawia ustawienie stopy i kolana w detalu cięcia; mapa pokazuje kierunek całej akcji."],"scope":"Ogólny szczegół ustawienia przy cięciu. Kąt i kierunek wykonania są opisane w sesji."},{"id":"planned_505","title":"Zaplanowany test 5-0-5","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://www.youtube.com/watch?v=_aeYgmjCPi0","sourceTitle":"505 Agility — Dashr, własna instrukcja i demonstracja","sourceStatus":"exact","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Standard 5–0–5: 10 m rozbiegu przed bramką, 5 m do linii zwrotu i 5 m powrotu przez bramkę.","Plan nie przedstawia testu 5–10–5. Obrót sylwetki pokazano z krótkim przejściem widoku, bez skręcania kolana w miejscu."]},{"id":"cut_and_reaccelerate","title":"Cięcie i ponowne przyspieszenie","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://yuja.ucalgary.ca/V/Video?a=14838950&autoplay=1&node=3872552&v=784937","sourceTitle":"Partner plant and cut — University of Calgary SHRED","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Osobne ujęcia: detal cięcia z przodu, następnie dalszy bieg z boku. Krótkie wygaszenie rozdziela zmianę kamery."]},{"id":"app_audio_forward_left_right","title":"Sygnał audio aplikacji: przód/lewo/prawo","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://yuja.ucalgary.ca/V/Video?a=178426558&autoplay=1&node=3872559&v=784938","sourceTitle":"Quick start and stops — University of Calgary SHRED","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Symbol nuty zastępuje dźwięk w tym podglądzie. Najpierw sygnał, potem pierwszy ruch.","Sekwencja kierunków w podglądzie jest stała. Docelowe zadanie aplikacji wymaga losowania i równych stron."]},{"id":"app_visual_colour_cue_cod","title":"Zmiana kierunku na sygnał wizualny/kolor","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://yuja.ucalgary.ca/V/Video?a=14838950&autoplay=1&node=3872552&v=784937","sourceTitle":"Partner plant and cut — University of Calgary SHRED","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Kolor oraz strzałka wspólnie oznaczają kierunek.","Lekki ruch do przodu poprzedza sygnał; po sygnale pokazano dwa krótkie kontakty hamowania i dopiero wyjście. Frontalny widok jest projekcją, bez pomiaru głębokości."]},{"id":"reactive_180_turn","title":"Reaktywny obrót 180°","group":"Hamowanie i zmiany kierunku","sourceUrl":"https://www.youtube.com/watch?v=_aeYgmjCPi0","sourceTitle":"505 Agility — Dashr, własna instrukcja i demonstracja","sourceStatus":"partial","notes":["Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.","Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.","Pokaz ma z góry wybrany moment sygnału. Nie jest testem czasu reakcji.","Zwrot jest osobnym zdarzeniem po hamowaniu, bez wymuszania prostego kolana."]},{"id":"sprint_ramp_warmup","title":"Przygotowanie RAMP do sprintu","group":"Rozgrzewka jednostek biegowych","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=13","sourceTitle":"Athletics Ireland · Running Drills","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"bwprep:walk","title":"Lekki trucht","group":"Rozgrzewka jednostek biegowych","sourceUrl":"https://ucalgary.ca/shred-injuries/all-sports/soccer/forward-runbackward-run","sourceTitle":"University of Calgary · Jog: Forward & Backward","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.","Identyfikator historyczny „walk” oznacza w tej sesji lekki trucht."]},{"id":"bwprep:ankle","title":"Kolano nad stopę","group":"Rozgrzewka jednostek biegowych","sourceUrl":"https://theprehabguys.com/vimeo-video/ankle-dorsiflexion-mobilization-static/","sourceTitle":"[P]rehab · Ankle Dorsiflexion Mobilization — Static","sourceStatus":"partial","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Pokazano mobilizację wykroczną. Wysokość podparcia i dokładny zakres należy uzgodnić z wariantem sesji."]},{"id":"bwprep:adductor","title":"Cofanie bioder w podparciu","group":"Rozgrzewka jednostek biegowych","sourceUrl":"https://www.physitrack.com/exercise-library/how-to-perform-the-adductor-rockback-exercise","sourceTitle":"Physitrack · Adductor rockback","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Poglądowy widok ukośny: jedna noga wyprowadzona w bok, druga zgięta i podparta kolanem. Projekcja nie służy do odczytu kąta kolana."]},{"id":"bwprep:march","title":"Marsz z uniesieniem kolana","group":"Rozgrzewka jednostek biegowych","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A March & A Skip","sourceStatus":"exact","notes":["Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.","Ten sam wzorzec co marsz A, w spokojniejszej demonstracji przygotowania biegowego; bez dodatkowego odbicia."]},{"id":"bwprep:run","title":"Bieg narastająco","group":"Rozgrzewka jednostek biegowych","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=9","sourceTitle":"Athletics Ireland · Acceleration / build-up","sourceStatus":"partial","notes":["Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."]},{"id":"legacy:6","title":"Ankling + niskie dribbles","group":"Zestawy ze starszych jednostek","sourceUrl":"https://www.youtube.com/watch?v=E8u20hnng7A","sourceTitle":"Athletics Ireland · Ankling","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"legacy:8","title":"Pogo jumps + snap down","group":"Zestawy ze starszych jednostek","sourceUrl":"https://theprehabguys.com/vimeo-video/pogos-in-place-2/","sourceTitle":"[P]rehab · Pogos — In Place","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"legacy:11","title":"Single-leg hops + broad jump","group":"Zestawy ze starszych jednostek","sourceUrl":"https://theprehabguys.com/vimeo-video/broad-jump-2/","sourceTitle":"Broad Jump — [P]rehab oraz Single leg hops — University of Calgary","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"legacy:12","title":"Technika biegu (skip A/B, akcent)","group":"Zestawy ze starszych jednostek","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A March & A Skip","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"legacy:14","title":"Starty z różnych pozycji (split / lateral / push-up start)","group":"Zestawy ze starszych jednostek","sourceUrl":"https://drivelinebaseball.com/blogs/blog/off-season-speed-training-for-position-players-part-2-acceleration","sourceTitle":"Driveline Baseball · Acceleration: Split stance start","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"legacy:15","title":"Falling start + split stance start","group":"Zestawy ze starszych jednostek","sourceUrl":"https://www.dvidshub.net/video/640979/falling-start","sourceTitle":"Athletics Ireland · Falling Start","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"legacy:16","title":"Dynamiczna rozgrzewka biegowa + A-skip/B-skip","group":"Zestawy ze starszych jednostek","sourceUrl":"https://www.youtube.com/watch?v=fxov7KtPOTI","sourceTitle":"Athletics Ireland · A March & A Skip","sourceStatus":"partial","notes":["Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."]},{"id":"straight_leg_run_bound:run","title":"Bieg z prawie prostymi nogami","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=14","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"partial","notes":["Wybrany wariant: bieg. Schemat szczegółu ruchu z biodra i kontaktu stopy.","Kolana pozostają miękkie, bez blokowania. Dystans wykonania wynika z sesji."],"hidden":true},{"id":"straight_leg_run_bound:bound","title":"Odbicia z prawie prostymi nogami","group":"Odbicia, wieloskoki i lądowania","sourceUrl":"https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=14","sourceTitle":"Athletics Ireland · Straight Legs","sourceStatus":"partial","notes":["Wybrany wariant: odbicia. Dłuższy lot niż w biegu; ustawienie wymaga porównania z filmem dla tego wariantu."],"hidden":true}]}
+{
+  "version": 54,
+  "count": 215,
+  "gallery": [
+    "a_skip",
+    "b_skip",
+    "c_skip",
+    "d_skip",
+    "a_march",
+    "review:a_skip:gather",
+    "review:a_skip:extra_bounce",
+    "review:a_skip:continuous",
+    "review:b_skip:gather",
+    "review:b_skip:extra_bounce",
+    "review:b_skip:continuous",
+    "review:c_skip:gather",
+    "review:c_skip:extra_bounce",
+    "review:c_skip:continuous",
+    "review:d_skip:gather",
+    "review:d_skip:extra_bounce",
+    "review:d_skip:continuous",
+    "a_skip_add_step",
+    "a_skip_no_add_step",
+    "switch_skip_a",
+    "double_switch_skip_a",
+    "skip_a_to_d",
+    "skip_b_alternate_bounds",
+    "a_accent",
+    "c_accent",
+    "power_skip_height",
+    "power_skip_distance",
+    "a_switch_progression",
+    "wall_march",
+    "wall_single_switch",
+    "wall_double_switch",
+    "wall_triple_switch",
+    "ankling",
+    "low_dribble",
+    "high_dribble",
+    "dribble_to_sprint_transition",
+    "alternate_leg_bounds",
+    "scissor_exchange_jump",
+    "straight_leg_run_bound",
+    "scissor_bounds",
+    "bilateral_pogo",
+    "lateral_pogo",
+    "snap_down",
+    "lateral_bound_to_stick",
+    "single_leg_hops",
+    "broad_jump",
+    "acceleration_mechanics",
+    "max_velocity_high_volume",
+    "falling_start",
+    "split_stance_start",
+    "push_up_start",
+    "half_kneeling_start",
+    "lateral_start_acceleration",
+    "crossover_start_acceleration",
+    "turn_and_go_start",
+    "app_audio_reaction_start",
+    "free_acceleration_sprint",
+    "progressive_build_up_sprint",
+    "flying_sprint",
+    "upright_football_sprint",
+    "fast_relaxed_fast_run",
+    "football_curved_sprint",
+    "reactive_curved_sprint",
+    "resisted_sled_acceleration",
+    "progressive_run_three_step_stop",
+    "run_two_step_stop",
+    "progressive_deceleration_5_10_15",
+    "accel_decel_reaccel",
+    "deceleration_lateral_exit",
+    "planned_cut",
+    "planned_505",
+    "cut_and_reaccelerate",
+    "app_audio_forward_left_right",
+    "app_visual_colour_cue_cod",
+    "reactive_180_turn",
+    "sprint_ramp_warmup",
+    "bwprep:walk",
+    "bwprep:ankle",
+    "bwprep:adductor",
+    "bwprep:march",
+    "bwprep:run",
+    "legacy:6",
+    "legacy:8",
+    "legacy:11",
+    "legacy:12",
+    "legacy:14",
+    "legacy:15",
+    "legacy:16",
+    "adductor_bridge_squeeze",
+    "ankle_mobility_flow",
+    "assisted_nordic_hamstring",
+    "assisted_straight_sprint",
+    "band_assisted_jump",
+    "band_resisted_acceleration",
+    "band_resisted_squat",
+    "barbell_deadlift",
+    "barbell_jump_squat",
+    "barbell_romanian_deadlift",
+    "bilateral_slider_leg_curl",
+    "bilateral_swiss_ball_leg_curl",
+    "bird_dog",
+    "bodyweight_march_hold",
+    "bodyweight_row",
+    "bodyweight_split_squat",
+    "bodyweight_squat",
+    "box_jump",
+    "bridge_walkout",
+    "bulgarian_split_squat",
+    "bwprep:bridge",
+    "bwprep:calf",
+    "bwprep:cat",
+    "bwprep:hamstring",
+    "bwprep:hip",
+    "bwprep:quad",
+    "bwprep:rotation",
+    "bwprep:soleus",
+    "bwprep:squat",
+    "clean_pull_from_hang",
+    "copenhagen_plank",
+    "countermovement_jump",
+    "dead_bug",
+    "depth_jump",
+    "diagonal_bound_to_stick",
+    "diaphragmatic_breathing",
+    "drop_landing",
+    "dumbbell_bench_press",
+    "dumbbell_jump_squat",
+    "dumbbell_overhead_press",
+    "easy_aerobic_run",
+    "easy_cycle_recovery",
+    "eccentric_nordic_hamstring",
+    "face_pull_band",
+    "farmer_carry",
+    "field_mas_5_min_test",
+    "flywheel_squat",
+    "football_ball_mastery",
+    "football_easy_contacts",
+    "football_gk_distribution",
+    "football_scan_control",
+    "football_self_feed_first_touch",
+    "football_target_pass",
+    "football_technical_self_selected",
+    "football_turn_control",
+    "football_wall_first_touch",
+    "front_rack_carry",
+    "front_squat",
+    "full_nordic_hamstring",
+    "glute_bridge",
+    "glute_bridge_march",
+    "goblet_squat",
+    "hamstring_45_back_extension",
+    "heavy_back_squat",
+    "heel_dig_hamstring_iso_30",
+    "heel_dig_hamstring_iso_90",
+    "hill_acceleration",
+    "hip_mobility_flow",
+    "hip_thrust",
+    "hurdle_hops",
+    "kettlebell_swing",
+    "kickstand_romanian_deadlift",
+    "lat_pulldown",
+    "lateral_lunge",
+    "leg_extension",
+    "leg_press",
+    "long_lever_hamstring_iso",
+    "lying_leg_curl",
+    "med_ball_throw",
+    "medicine_ball_overhead_backward_throw",
+    "medicine_ball_rotational_scoop_toss",
+    "medicine_ball_slam",
+    "method_interval_run",
+    "method_repeated_sprint",
+    "method_speed_endurance",
+    "method_sprint_interval",
+    "one_arm_dumbbell_row",
+    "oscillatory_long_lever_bridge",
+    "overcoming_pin_squat",
+    "overhead_carry",
+    "pallof_press",
+    "pike_push_up",
+    "plank",
+    "power_clean",
+    "prone_band_leg_curl",
+    "pull_up",
+    "push_press",
+    "push_up",
+    "razor_curl",
+    "repeated_broad_jump",
+    "repeated_curved_sprints",
+    "repeated_linear_short_sprints",
+    "repeated_shuttle_sprints",
+    "reverse_lunge",
+    "romanian_deadlift_db",
+    "seated_leg_curl",
+    "seated_soleus_raise",
+    "side_plank",
+    "single_leg_glute_bridge",
+    "single_leg_hop_and_stick",
+    "single_leg_long_lever_hamstring_iso",
+    "single_leg_pogo",
+    "single_leg_romanian_deadlift",
+    "single_leg_slider_leg_curl",
+    "single_leg_swiss_ball_leg_curl",
+    "soleus_iso_hold",
+    "split_squat_jump",
+    "sprint_cooldown_walk",
+    "squat_jump",
+    "standing_calf_raise",
+    "static_stretch_cooldown",
+    "step_up",
+    "suitcase_carry",
+    "tempo_conditioning_block",
+    "tibialis_raise",
+    "trap_bar_deadlift",
+    "trap_bar_jump"
+  ],
+  "records": [
+    {
+      "id": "a_skip",
+      "title": "Skip A",
+      "group": "Skipy i marsz — wersje bazowe",
+      "sourceUrl": "https://lran.org.uk/technique-drills-2",
+      "sourceTitle": "LRAN · A-skip",
+      "sourceStatus": "exact",
+      "notes": [
+        "Wyprost w wysokim podporze; niewielkie ugięcie przy amortyzacji.",
+        "Kolejność kontaktów odczytana z cyklu LRAN; trajektorie stawów są rekonstrukcją.",
+        "Ta sekwencja nie zastępuje wariantu ciągłego ani dostawienia."
+      ]
+    },
+    {
+      "id": "b_skip",
+      "title": "Skip B",
+      "group": "Skipy i marsz — wersje bazowe",
+      "sourceUrl": "https://www.youtube.com/watch?v=bZ3ZJknckZk",
+      "sourceTitle": "Athletics Ireland · AAi Coach Sprints — B March & B Skip",
+      "sourceStatus": "exact",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Punkt odniesienia korekty35–40° pozostaje do uzgodnienia; liczby nie naniesiono na model."
+      ]
+    },
+    {
+      "id": "c_skip",
+      "title": "Skip C",
+      "group": "Skipy i marsz — wersje bazowe",
+      "sourceUrl": "https://www.youtube.com/watch?v=SD5aZ_GMvWA",
+      "sourceTitle": "Athletics Ireland · Heel Flicks",
+      "sourceStatus": "exact",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania."
+      ]
+    },
+    {
+      "id": "d_skip",
+      "title": "Skip D",
+      "group": "Skipy i marsz — wersje bazowe",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "exact",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania."
+      ]
+    },
+    {
+      "id": "a_march",
+      "title": "Marsz A",
+      "group": "Skipy i marsz — wersje bazowe",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A March & A Skip",
+      "sourceStatus": "exact",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Stały kontakt co najmniej jednej stopy z podłożem."
+      ]
+    },
+    {
+      "id": "review:a_skip:gather",
+      "title": "Skip A — z dostawieniem nóg",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A March & A Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:a_skip:extra_bounce",
+      "title": "Skip A — z przejściem (dodatkowe odbicie)",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://lran.org.uk/technique-drills-2",
+      "sourceTitle": "LRAN · A-skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Wyprost w wysokim podporze; niewielkie ugięcie przy amortyzacji.",
+        "Kolejność kontaktów odczytana z cyklu LRAN; trajektorie stawów są rekonstrukcją.",
+        "Ta sekwencja nie zastępuje wariantu ciągłego ani dostawienia."
+      ]
+    },
+    {
+      "id": "review:a_skip:continuous",
+      "title": "Skip A — ciągły",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A March & A Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:b_skip:gather",
+      "title": "Skip B — z dostawieniem nóg",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=bZ3ZJknckZk",
+      "sourceTitle": "Athletics Ireland · AAi Coach Sprints — B March & B Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:b_skip:extra_bounce",
+      "title": "Skip B — z przejściem (dodatkowe odbicie)",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=bZ3ZJknckZk",
+      "sourceTitle": "Athletics Ireland · AAi Coach Sprints — B March & B Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:b_skip:continuous",
+      "title": "Skip B — ciągły",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=bZ3ZJknckZk",
+      "sourceTitle": "Athletics Ireland · AAi Coach Sprints — B March & B Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:c_skip:gather",
+      "title": "Skip C — z dostawieniem nóg",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=SD5aZ_GMvWA",
+      "sourceTitle": "Athletics Ireland · Heel Flicks",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:c_skip:extra_bounce",
+      "title": "Skip C — z przejściem (dodatkowe odbicie)",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=SD5aZ_GMvWA",
+      "sourceTitle": "Athletics Ireland · Heel Flicks",
+      "sourceStatus": "partial",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:c_skip:continuous",
+      "title": "Skip C — ciągły",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.youtube.com/watch?v=SD5aZ_GMvWA",
+      "sourceTitle": "Athletics Ireland · Heel Flicks",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:d_skip:gather",
+      "title": "Skip D — z dostawieniem nóg",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:d_skip:extra_bounce",
+      "title": "Skip D — z przejściem (dodatkowe odbicie)",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "review:d_skip:continuous",
+      "title": "Skip D — ciągły",
+      "group": "Rytmy skipów do osobnego uzgodnienia",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Oddzielny rytm; akceptacja wersji bazowej nie zatwierdza tego wariantu."
+      ]
+    },
+    {
+      "id": "a_skip_add_step",
+      "title": "Skip A z add-step",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://coachtube.com/course/track-and-field/sprint-drills-chris-parno/18363570",
+      "sourceTitle": "Chris Parno · A Skip with Bounce (related, paid lesson)",
+      "sourceStatus": "partial",
+      "notes": [
+        "Użytkownik rozróżnia: z dostawieniem = obie stopy pod biodrami; z przejściem = dodatkowe odbicie na tej samej nodze.",
+        "Starsza nazwa add-step jest ogólna. Pokazujemy oba warianty po kolei; docelowy wybór musi wynikać z opisu jednostki."
+      ],
+      "choices": [
+        {
+          "id": "review:a_skip:gather",
+          "title": "Z dostawieniem obu stóp"
+        },
+        {
+          "id": "review:a_skip:extra_bounce",
+          "title": "Z przejściem — dodatkowe odbicie"
+        }
+      ]
+    },
+    {
+      "id": "a_skip_no_add_step",
+      "title": "Skip A bez add-step",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A Skip (related base reference)",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Naprzemienne kontakty, bez powrotu na tę samą nogę."
+      ]
+    },
+    {
+      "id": "switch_skip_a",
+      "title": "Switch → Skip A",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://player.vimeo.com/video/1190046127?dnt=1",
+      "sourceTitle": "Jack Winnard · Static A-switch / Linear A-switch",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Szybka wymiana w miejscu, potem ciągły rytm. Dystans i prędkość biegu wynikają z sesji."
+      ]
+    },
+    {
+      "id": "double_switch_skip_a",
+      "title": "Double switch → Skip A",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://player.vimeo.com/video/1190046127?dnt=1",
+      "sourceTitle": "Jack Winnard · Static A-switch / Linear A-switch",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Szybka wymiana w miejscu, potem ciągły rytm. Dystans i prędkość biegu wynikają z sesji."
+      ]
+    },
+    {
+      "id": "skip_a_to_d",
+      "title": "Skip A → Skip D",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A Skip + Straight Legs (components only)",
+      "sourceStatus": "partial",
+      "notes": [
+        "Połączenie kilku wzorców. Moment i wykonanie przejścia wymagają oddzielnej oceny; poprawność części nie zatwierdza całego zestawu."
+      ]
+    },
+    {
+      "id": "skip_b_alternate_bounds",
+      "title": "Skip B → wieloskok naprzemienny",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://www.youtube.com/watch?v=bZ3ZJknckZk",
+      "sourceTitle": "Athletics Ireland · B Skip (component only)",
+      "sourceStatus": "partial",
+      "notes": [
+        "Połączenie kilku wzorców. Moment i wykonanie przejścia wymagają oddzielnej oceny; poprawność części nie zatwierdza całego zestawu."
+      ]
+    },
+    {
+      "id": "a_accent",
+      "title": "A-accent",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://ygsp.co.uk/your-gym-sports-performance/free-sc-resources/exercsie-library/",
+      "sourceTitle": "Your Gym Sports Performance · A-Skip single/double/alternating (related)",
+      "sourceStatus": "partial",
+      "notes": [
+        "Dwie oddzielne serie3+1. Drugą zacznij od przeciwnej nogi, aby akcent wykonała druga strona. Zmianę nogi pokazano po wygaszeniu widoku.",
+        "Akcent oznacza intencję kontaktu, nie wymuszony wysoki skok. W C czwarty cykl jest krótszy w obu seriach."
+      ]
+    },
+    {
+      "id": "c_accent",
+      "title": "C-accent",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://www.youtube.com/watch?v=SD5aZ_GMvWA",
+      "sourceTitle": "Athletics Ireland · Heel Flicks (component only)",
+      "sourceStatus": "partial",
+      "notes": [
+        "Dwie oddzielne serie3+1. Drugą zacznij od przeciwnej nogi, aby akcent wykonała druga strona. Zmianę nogi pokazano po wygaszeniu widoku.",
+        "Akcent oznacza intencję kontaktu, nie wymuszony wysoki skok. W C czwarty cykl jest krótszy w obu seriach."
+      ]
+    },
+    {
+      "id": "power_skip_height",
+      "title": "Power skip na wysokość",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://www.dvidshub.net/video/642016/power-skip-height",
+      "sourceTitle": "Power Skip for Height — U.S. Marine Corps Training and Education Command",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Propozycja wysokiego skipu z powrotem na tę samą nogę. Wyższa trajektoria i jej czas wymagają osobnego uzgodnienia."
+      ]
+    },
+    {
+      "id": "power_skip_distance",
+      "title": "Power skip na odległość",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://www.dvidshub.net/video/642014/power-skip-distance",
+      "sourceTitle": "Power Skip for Distance — U.S. Marine Corps Training and Education Command",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Wariant zgodny z obecną instrukcją aplikacji: lądowanie na przeciwnej nodze. Wymaga porównania z docelową demonstracją.",
+        "Dystans pokazuje przesunięcie podłoża; stopa nie sięga po długość kroku daleko przed biodro."
+      ]
+    },
+    {
+      "id": "a_switch_progression",
+      "title": "Zmiany A: pojedyncza → podwójna → potrójna",
+      "group": "Warianty skipów i przejścia",
+      "sourceUrl": "https://player.vimeo.com/video/1190046127?dnt=1",
+      "sourceTitle": "Jack Winnard · Static A-switch / Linear A-switch",
+      "sourceStatus": "partial",
+      "notes": [
+        "Sekwencja1→2→3 z zatrzymaniem nowej pozycji po serii. Małe pochylenie obejmuje nogę podporową i tułów, bez załamania w pasie. Model autorski wymaga porównania z zaakceptowanym wzorem."
+      ]
+    },
+    {
+      "id": "wall_march",
+      "title": "Marsz przy ścianie",
+      "group": "Drille przy ścianie",
+      "sourceUrl": "https://www.youtube.com/watch?v=uwDEyE6phDc&t=76",
+      "sourceTitle": "Australian Athletics · Loren Landow: Wall Drill",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "W fazie podporu noga jest wydłużona, bez przeprostu."
+      ]
+    },
+    {
+      "id": "wall_single_switch",
+      "title": "Pojedyncza zmiana przy ścianie",
+      "group": "Drille przy ścianie",
+      "sourceUrl": "https://www.youtube.com/watch?v=9LgV-S31nYQ",
+      "sourceTitle": "GAA Player Pathway · Dave Hare: The Wall Drill",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "wall_double_switch",
+      "title": "Podwójna zmiana przy ścianie",
+      "group": "Drille przy ścianie",
+      "sourceUrl": "https://www.youtube.com/watch?v=9LgV-S31nYQ",
+      "sourceTitle": "GAA Player Pathway · Dave Hare: The Wall Drill",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "wall_triple_switch",
+      "title": "Potrójna zmiana przy ścianie",
+      "group": "Drille przy ścianie",
+      "sourceUrl": "https://www.youtube.com/watch?v=9LgV-S31nYQ",
+      "sourceTitle": "GAA Player Pathway · Dave Hare: The Wall Drill",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "ankling",
+      "title": "Ankling",
+      "group": "Cykl nogi i kontakt z podłożem",
+      "sourceUrl": "https://www.youtube.com/watch?v=E8u20hnng7A",
+      "sourceTitle": "Athletics Ireland · Ankling",
+      "sourceStatus": "exact",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Athletics Ireland: małe kroki, z niskim przejściem stopy nad przeciwną kostką; tułów pozostaje wysoko.",
+        "Osobny tor stopy podkreśla przetoczenie w stawie skokowym i niski krok, bez unoszenia kolana jak w skipie A.",
+        "Tor i tempo podglądu są ilustracyjne; kadencji i czasów kontaktu nie mierzono z filmu."
+      ]
+    },
+    {
+      "id": "low_dribble",
+      "title": "Niski dribble",
+      "group": "Cykl nogi i kontakt z podłożem",
+      "sourceUrl": "https://player.vimeo.com/video/1190046157?dnt=1",
+      "sourceTitle": "Jack Winnard · Calf dribble",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Tor krótkiego koła stopy na niskiej wysokości. To drill biegowy, bez piłki."
+      ]
+    },
+    {
+      "id": "high_dribble",
+      "title": "Wysoki dribble",
+      "group": "Cykl nogi i kontakt z podłożem",
+      "sourceUrl": "https://www.youtube.com/watch?v=TRAcFUpCe0U",
+      "sourceTitle": "Athletics Ireland · Knee Step-Over",
+      "sourceStatus": "partial",
+      "notes": [
+        "Schemat szczegółu pozycji i wymiany w miejscu. Przemieszczanie oraz dawkę wykonuj według sesji.",
+        "Propozycja ruchu i rytmu do wspólnej oceny; nie pomiar z nagrania.",
+        "Wyższy cykl nogi niż w niskim dribble; nie jest to kopnięcie prostą nogą."
+      ]
+    },
+    {
+      "id": "dribble_to_sprint_transition",
+      "title": "Przejście z dribblingu do sprintu",
+      "group": "Cykl nogi i kontakt z podłożem",
+      "sourceUrl": "https://player.vimeo.com/video/980036705",
+      "sourceTitle": "Matt Tometz · Ankle-Shin-Knee Dribble to Sprint",
+      "sourceStatus": "exact",
+      "notes": [
+        "Połączenie kilku wzorców. Moment i wykonanie przejścia wymagają oddzielnej oceny; poprawność części nie zatwierdza całego zestawu."
+      ]
+    },
+    {
+      "id": "alternate_leg_bounds",
+      "title": "Wieloskok naprzemienny",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://blog.overtimeathletes.com/fix-you-sprint-3-best-drills-for-linear-speed/",
+      "sourceTitle": "Alternating Bounds — Overtime Athletes",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Jedna noga wybija, przeciwna przyjmuje następny kontakt. Bez dodatkowego kontaktu tej samej stopy."
+      ]
+    },
+    {
+      "id": "scissor_exchange_jump",
+      "title": "Naprzemienny skok nożycowy z wymianą",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://player.vimeo.com/video/1190046011?dnt=1",
+      "sourceTitle": "Jack Winnard · Scissor bound — frequency",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Pełniejsza wymiana i dłuższa stabilizacja niż w niskich scissor bounds. Dokładna odmiana wymaga osobnego wyboru."
+      ]
+    },
+    {
+      "id": "straight_leg_run_bound",
+      "title": "Bieg z prostą nogą / bound",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=14",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Nazwa biblioteki łączy run/bound. Pokazano dwa jawnie rozdzielone fragmenty, nie uznano ich za ten sam ruch."
+      ],
+      "choices": [
+        {
+          "id": "straight_leg_run_bound:run",
+          "title": "Bieg z prawie prostymi nogami"
+        },
+        {
+          "id": "straight_leg_run_bound:bound",
+          "title": "Odbicia z prawie prostymi nogami"
+        }
+      ]
+    },
+    {
+      "id": "scissor_bounds",
+      "title": "Naprzemienne wyskoki nożycowe",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://player.vimeo.com/video/1190046011?dnt=1",
+      "sourceTitle": "Jack Winnard · Scissor bound — frequency",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Dwa kontakty równocześnie w nowym ustawieniu, zgodnie z instrukcją aplikacji. To nie wieloskok naprzemienny."
+      ]
+    },
+    {
+      "id": "bilateral_pogo",
+      "title": "Pogo obunóż",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/pogos-in-place-2/",
+      "sourceTitle": "[P]rehab · Pogos — In Place",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Obie stopy przyjmują kontakt i odbijają jednocześnie. Przodostopie pozostaje podporą, pięta opuszcza się pod kontrolą, potem unosi.",
+        "Niskie odbicie z pracy stawu skokowego; kolana miękkie, bez blokowania. Rytm podglądu jest poglądowy, nie zmierzony z filmu."
+      ]
+    },
+    {
+      "id": "lateral_pogo",
+      "title": "Pogo boczne",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/pogos-frontal/",
+      "sourceTitle": "[P]rehab · Pogos — Frontal",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Dwa niskie podskoki w przeciwnych kierunkach w jednym cyklu; obie stopy lądują razem.",
+        "Widok z przodu pokazuje kierunek i jednoczesny kontakt. Szczegół pracy pięty i stawu skokowego porównuj z ujęciem bocznym, nie odczytuj kąta z projekcji czołowej."
+      ]
+    },
+    {
+      "id": "snap_down",
+      "title": "Lądowanie snap-down",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/snap-down/",
+      "sourceTitle": "[P]rehab · Snap Down",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Wybrano wersję z szybkiego zejścia, bez podskoku. Opis biblioteki miesza snap-down/niskie pogo; ta animacja nie pokazuje wersji pogo."
+      ]
+    },
+    {
+      "id": "lateral_bound_to_stick",
+      "title": "Skok boczny z zatrzymaniem",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://vimeo.com/883311543",
+      "sourceTitle": "Peak Human Performance · BW — Lateral Bound w/Stick",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Przeciwna noga przyjmuje lądowanie, potem pozycja pozostaje nieruchoma przez ponad2sekundy. Widok z przodu; segmenty są skrócone przez projekcję."
+      ]
+    },
+    {
+      "id": "single_leg_hops",
+      "title": "Podskoki jednonóż — element starszego zestawu",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://www.youtube.com/watch?v=wNxg19x7qHM",
+      "sourceTitle": "University of Calgary · Single leg hops",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Jedna noga pozostaje podporowa przez całą serię; zmiana strony jest osobnym powtórzeniem.",
+        "Pokazano niski sprężysty wariant. Pięta pracuje pod kontrolą, kolano lekko amortyzuje; nie blokuj nogi. Wyższe i dalsze skoki wymagają odrębnego wariantu."
+      ]
+    },
+    {
+      "id": "broad_jump",
+      "title": "Skok w dal z miejsca — element starszego zestawu",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/broad-jump-2/",
+      "sourceTitle": "[P]rehab · Broad Jump",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Wyraźnie rozdzielono obunóż wybicie, lot i obunóż lądowanie. Wygaszenie po zatrzymaniu oznacza wyłącznie powtórkę animacji."
+      ]
+    },
+    {
+      "id": "acceleration_mechanics",
+      "title": "Mechanika przyspieszenia",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=9",
+      "sourceTitle": "Athletics Ireland · Acceleration",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Pokaz jednego cyklu, nie całego odcinka sprintu."
+      ]
+    },
+    {
+      "id": "max_velocity_high_volume",
+      "title": "Prędkość maksymalna — wysoka objętość",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.youtube.com/watch?v=ta-Ul_OqqWk",
+      "sourceTitle": "Athletics Ireland · Max Fly Runs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Objętość wynika z planu; animacja pokazuje technikę pojedynczego cyklu."
+      ]
+    },
+    {
+      "id": "falling_start",
+      "title": "Start z upadku",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.dvidshub.net/video/640979/falling-start",
+      "sourceTitle": "Athletics Ireland · Falling Start",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "split_stance_start",
+      "title": "Start z pozycji wykrocznej",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://drivelinebaseball.com/blogs/blog/off-season-speed-training-for-position-players-part-2-acceleration",
+      "sourceTitle": "Driveline Baseball · Acceleration: Split stance start",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "push_up_start",
+      "title": "Start z podporu",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.dvidshub.net/video/641015/push-up-start",
+      "sourceTitle": "U.S. Marine Corps · Push up Start",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Położenie dłoni oraz pierwszy krok wymagają porównania z wybranym filmem."
+      ]
+    },
+    {
+      "id": "half_kneeling_start",
+      "title": "Start z półklęku",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=10",
+      "sourceTitle": "Athletics Ireland · Kneeling Start",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "lateral_start_acceleration",
+      "title": "Start boczny do przyspieszenia",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://brucebolt.us/blogs/news/be-better-training-hack-improve-your-60",
+      "sourceTitle": "CJ Wellington / Tactic Performance · Lateral start",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Ustawienie pokazano z przodu, przyspieszenie z boku; przejście ujęcia nie jest pomiarem obrotu ciała."
+      ]
+    },
+    {
+      "id": "crossover_start_acceleration",
+      "title": "Start skrzyżny do przyspieszenia",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://brucebolt.us/blogs/news/be-better-training-hack-improve-your-60",
+      "sourceTitle": "CJ Wellington / Tactic Performance · Lateral start",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Skrzyżne ustawienie i wybór nogi do uzgodnienia; dwa ujęcia podglądu."
+      ]
+    },
+    {
+      "id": "turn_and_go_start",
+      "title": "Start obróć się i biegnij",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "",
+      "sourceTitle": "Dokładny wzór do uzupełnienia",
+      "sourceStatus": "missing",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Brak dokładnego wzorca źródłowego: pokazany obrót jest wariantem DO UZGODNIENIA, nie zatwierdzoną instrukcją."
+      ]
+    },
+    {
+      "id": "app_audio_reaction_start",
+      "title": "Start reakcyjny na sygnał audio aplikacji",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.dvidshub.net/video/641015/push-up-start",
+      "sourceTitle": "U.S. Marine Corps · Push up Start",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "W podglądzie sygnał pokazano wizualnie; reakcja następuje dopiero po sygnale."
+      ]
+    },
+    {
+      "id": "free_acceleration_sprint",
+      "title": "Swobodny sprint akceleracyjny",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=8",
+      "sourceTitle": "Athletics Ireland · Acceleration",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "progressive_build_up_sprint",
+      "title": "Progresywny bieg narastający",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.youtube.com/watch?v=ta-Ul_OqqWk",
+      "sourceTitle": "Athletics Ireland · Acceleration / Max Fly Runs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "flying_sprint",
+      "title": "Sprint lotny",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.youtube.com/watch?v=ta-Ul_OqqWk",
+      "sourceTitle": "Athletics Ireland · Max Fly Runs",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Podział stref jest schematem; odległości i dawkę bierze się z sesji."
+      ]
+    },
+    {
+      "id": "upright_football_sprint",
+      "title": "Piłkarski sprint wyprostowany 30–40 m",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.youtube.com/watch?v=g9bdIque7JY",
+      "sourceTitle": "Athletics Ireland · Max Velocity / Wicket Running",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "fast_relaxed_fast_run",
+      "title": "Kontrolowany bieg szybko–luźno–szybko",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://coachathletics.com.au/coaching-education/sprinting-physical-preparation",
+      "sourceTitle": "Australian Athletics · Ins and Outs / sprint–float–sprint",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "football_curved_sprint",
+      "title": "Piłkarski sprint po łuku",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=19",
+      "sourceTitle": "Athletics Ireland · Bend Running",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Tor biegu pokazano dodatkowo z góry. Widok boczny nie odwzorowuje przechylenia do środka łuku; potrzebna ocena ujęcia przestrzennego."
+      ],
+      "scope": "Schemat kroku i toru. Przechylenie całego ciała na łuku wymaga porównania z filmem."
+    },
+    {
+      "id": "reactive_curved_sprint",
+      "title": "Reaktywny sprint po łuku lewo/prawo",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=19",
+      "sourceTitle": "Athletics Ireland · Bend Running",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Wybór łuku pokazany schematycznie. Dokładne ustawienie ciała na łuku wymaga odrębnego ujęcia i oceny."
+      ],
+      "scope": "Schemat kroku i toru. Przechylenie całego ciała na łuku wymaga porównania z filmem."
+    },
+    {
+      "id": "resisted_sled_acceleration",
+      "title": "Przyspieszenie z oporem sań",
+      "group": "Starty i technika biegu",
+      "sourceUrl": "https://www.youtube.com/watch?v=uwDEyE6phDc&t=200",
+      "sourceTitle": "Australian Athletics / NSCA · Loren Landow: Resisted Run with Sled",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania.",
+        "Schemat pokazuje sanie ciągnięte pasem. Ciężar i opór dobiera się z planu, nie z animacji."
+      ]
+    },
+    {
+      "id": "progressive_run_three_step_stop",
+      "title": "Progresywny bieg i zatrzymanie w trzech krokach",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://player.vimeo.com/video/980039663",
+      "sourceTitle": "Matt Tometz · Run-Stop / NSCA · Deceleration",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Trzy nowe kontakty hamowania: prawa, lewa, prawa; następnie widoczna stabilizacja."
+      ]
+    },
+    {
+      "id": "run_two_step_stop",
+      "title": "Bieg i zatrzymanie w dwóch krokach",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://player.vimeo.com/video/980039663",
+      "sourceTitle": "Matt Tometz · Run-Stop / NSCA · Deceleration",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Dwa nowe kontakty hamowania: prawa, lewa; następnie widoczna stabilizacja."
+      ]
+    },
+    {
+      "id": "progressive_deceleration_5_10_15",
+      "title": "Progresywne hamowanie 5 → 10 → 15 m",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://www.youtube.com/watch?v=QLkEvHvNl14",
+      "sourceTitle": "Master this skill to change direction explosively — The Rugby Speed Coach",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "5/10/15 m opisuje kolejne dystanse wejścia. Trzy kroki w animacji to przykład, nie sztywny wymóg dla każdego dystansu."
+      ]
+    },
+    {
+      "id": "accel_decel_reaccel",
+      "title": "Przyspieszenie–hamowanie–ponowne przyspieszenie",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://yuja.ucalgary.ca/V/Video?a=178426558&autoplay=1&node=3872559&v=784938",
+      "sourceTitle": "Quick start and stops — University of Calgary SHRED",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Widoczne obniżenie bioder i krótka kontrola przed drugim startem."
+      ]
+    },
+    {
+      "id": "deceleration_lateral_exit",
+      "title": "Hamowanie z wyjściem bocznym",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://yuja.ucalgary.ca/V/Video?a=14838950&autoplay=1&node=3872552&v=784937",
+      "sourceTitle": "Partner plant and cut — University of Calgary SHRED",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Zbliżenie pokazuje pierwsze dwa kroki bocznego wyjścia po hamowaniu; mapa wskazuje dalszy kierunek biegu.",
+        "Widok zmienia się na przedni przy detalu wyjścia."
+      ]
+    },
+    {
+      "id": "planned_cut",
+      "title": "Zaplanowane cięcie",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://player.vimeo.com/video/358297957",
+      "sourceTitle": "Deceleration, Change of Direction, and Reacceleration — NSCA / James Radcliffe",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Kierunek jest znany przed rozpoczęciem: w tym powtórzeniu w lewo.",
+        "Widok z przodu przedstawia ustawienie stopy i kolana w detalu cięcia; mapa pokazuje kierunek całej akcji."
+      ],
+      "scope": "Ogólny szczegół ustawienia przy cięciu. Kąt i kierunek wykonania są opisane w sesji."
+    },
+    {
+      "id": "planned_505",
+      "title": "Zaplanowany test 5-0-5",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://www.youtube.com/watch?v=_aeYgmjCPi0",
+      "sourceTitle": "505 Agility — Dashr, własna instrukcja i demonstracja",
+      "sourceStatus": "exact",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Standard 5–0–5: 10 m rozbiegu przed bramką, 5 m do linii zwrotu i 5 m powrotu przez bramkę.",
+        "Plan nie przedstawia testu 5–10–5. Obrót sylwetki pokazano z krótkim przejściem widoku, bez skręcania kolana w miejscu."
+      ]
+    },
+    {
+      "id": "cut_and_reaccelerate",
+      "title": "Cięcie i ponowne przyspieszenie",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://yuja.ucalgary.ca/V/Video?a=14838950&autoplay=1&node=3872552&v=784937",
+      "sourceTitle": "Partner plant and cut — University of Calgary SHRED",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Osobne ujęcia: detal cięcia z przodu, następnie dalszy bieg z boku. Krótkie wygaszenie rozdziela zmianę kamery."
+      ]
+    },
+    {
+      "id": "app_audio_forward_left_right",
+      "title": "Sygnał audio aplikacji: przód/lewo/prawo",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://yuja.ucalgary.ca/V/Video?a=178426558&autoplay=1&node=3872559&v=784938",
+      "sourceTitle": "Quick start and stops — University of Calgary SHRED",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Symbol nuty zastępuje dźwięk w tym podglądzie. Najpierw sygnał, potem pierwszy ruch.",
+        "Sekwencja kierunków w podglądzie jest stała. Docelowe zadanie aplikacji wymaga losowania i równych stron."
+      ]
+    },
+    {
+      "id": "app_visual_colour_cue_cod",
+      "title": "Zmiana kierunku na sygnał wizualny/kolor",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://yuja.ucalgary.ca/V/Video?a=14838950&autoplay=1&node=3872552&v=784937",
+      "sourceTitle": "Partner plant and cut — University of Calgary SHRED",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Kolor oraz strzałka wspólnie oznaczają kierunek.",
+        "Lekki ruch do przodu poprzedza sygnał; po sygnale pokazano dwa krótkie kontakty hamowania i dopiero wyjście. Frontalny widok jest projekcją, bez pomiaru głębokości."
+      ]
+    },
+    {
+      "id": "reactive_180_turn",
+      "title": "Reaktywny obrót 180°",
+      "group": "Hamowanie i zmiany kierunku",
+      "sourceUrl": "https://www.youtube.com/watch?v=_aeYgmjCPi0",
+      "sourceTitle": "505 Agility — Dashr, własna instrukcja i demonstracja",
+      "sourceStatus": "partial",
+      "notes": [
+        "Animacja robocza do wspólnego sprawdzenia; trajektorie i czasy nie są pomiarem nagrania.",
+        "Kolana uginają się przy hamowaniu. Nie przenosimy prostego wysokiego podporu skipu A na lądowanie i cięcie.",
+        "Pokaz ma z góry wybrany moment sygnału. Nie jest testem czasu reakcji.",
+        "Zwrot jest osobnym zdarzeniem po hamowaniu, bez wymuszania prostego kolana."
+      ]
+    },
+    {
+      "id": "sprint_ramp_warmup",
+      "title": "Przygotowanie RAMP do sprintu",
+      "group": "Rozgrzewka jednostek biegowych",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=13",
+      "sourceTitle": "Athletics Ireland · Running Drills",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "bwprep:ankle",
+      "title": "Kolano nad stopę",
+      "group": "Rozgrzewka jednostek biegowych",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/ankle-dorsiflexion-mobilization-static/",
+      "sourceTitle": "[P]rehab · Ankle Dorsiflexion Mobilization — Static",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Pokazano mobilizację wykroczną. Wysokość podparcia i dokładny zakres należy uzgodnić z wariantem sesji."
+      ]
+    },
+    {
+      "id": "bwprep:march",
+      "title": "Marsz z uniesieniem kolana",
+      "group": "Rozgrzewka jednostek biegowych",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A March & A Skip",
+      "sourceStatus": "exact",
+      "notes": [
+        "Rekonstrukcja do osobnej oceny: ustawienie, lądowanie i rytm nie są pomiarem nagrania.",
+        "Ten sam wzorzec co marsz A, w spokojniejszej demonstracji przygotowania biegowego; bez dodatkowego odbicia."
+      ]
+    },
+    {
+      "id": "bwprep:run",
+      "title": "Bieg narastająco",
+      "group": "Rozgrzewka jednostek biegowych",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=9",
+      "sourceTitle": "Athletics Ireland · Acceleration / build-up",
+      "sourceStatus": "partial",
+      "notes": [
+        "Rekonstrukcja poglądowa do wspólnego sprawdzenia; rytm i pozycje stawów nie są pomiarem nagrania."
+      ]
+    },
+    {
+      "id": "legacy:6",
+      "title": "Ankling + niskie dribbles",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://www.youtube.com/watch?v=E8u20hnng7A",
+      "sourceTitle": "Athletics Ireland · Ankling",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "legacy:8",
+      "title": "Pogo jumps + snap down",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/pogos-in-place-2/",
+      "sourceTitle": "[P]rehab · Pogos — In Place",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "legacy:11",
+      "title": "Single-leg hops + broad jump",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://theprehabguys.com/vimeo-video/broad-jump-2/",
+      "sourceTitle": "Broad Jump — [P]rehab oraz Single leg hops — University of Calgary",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "legacy:12",
+      "title": "Technika biegu (skip A/B, akcent)",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A March & A Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "legacy:14",
+      "title": "Starty z różnych pozycji (split / lateral / push-up start)",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://drivelinebaseball.com/blogs/blog/off-season-speed-training-for-position-players-part-2-acceleration",
+      "sourceTitle": "Driveline Baseball · Acceleration: Split stance start",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "legacy:15",
+      "title": "Falling start + split stance start",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://www.dvidshub.net/video/640979/falling-start",
+      "sourceTitle": "Athletics Ireland · Falling Start",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "legacy:16",
+      "title": "Dynamiczna rozgrzewka biegowa + A-skip/B-skip",
+      "group": "Zestawy ze starszych jednostek",
+      "sourceUrl": "https://www.youtube.com/watch?v=fxov7KtPOTI",
+      "sourceTitle": "Athletics Ireland · A March & A Skip",
+      "sourceStatus": "partial",
+      "notes": [
+        "Zestaw kilku ćwiczeń. Każdy składnik i przejście wymagają osobnej oceny."
+      ]
+    },
+    {
+      "id": "straight_leg_run_bound:run",
+      "title": "Bieg z prawie prostymi nogami",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=14",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Wybrany wariant: bieg. Schemat szczegółu ruchu z biodra i kontaktu stopy.",
+        "Kolana pozostają miękkie, bez blokowania. Dystans wykonania wynika z sesji."
+      ],
+      "hidden": true
+    },
+    {
+      "id": "straight_leg_run_bound:bound",
+      "title": "Odbicia z prawie prostymi nogami",
+      "group": "Odbicia, wieloskoki i lądowania",
+      "sourceUrl": "https://www.athleticsireland.ie/wp-content/uploads/2024/10/AAI-Coach_Sprints_Manual.pdf#page=14",
+      "sourceTitle": "Athletics Ireland · Straight Legs",
+      "sourceStatus": "partial",
+      "notes": [
+        "Wybrany wariant: odbicia. Dłuższy lot niż w biegu; ustawienie wymaga porównania z filmem dla tego wariantu."
+      ],
+      "hidden": true
+    },
+    {
+      "id": "adductor_bridge_squeeze",
+      "title": "Most z dociskiem przywodzicieli",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "adductor_bridge_squeeze",
+        "equipment": "ball",
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż się na plecach, ugnij kolana i wsuń małą piłkę lub złożony ręcznik między kolana.",
+        "Ściśnij przedmiot kolanami i unieś biodra jak w moście, utrzymując napięcie obu stron pachwiny.",
+        "Opuść biodra bez rozluźniania docisku i nie pozwalaj kolanom rozjechać się na boki."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "ankle_mobility_flow",
+      "title": "Mobilność stawu skokowego",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "mobility_sequence",
+        "variant": "ankle_mobility_flow"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "assisted_nordic_hamstring",
+      "title": "Nordic hamstring wspomagany",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "assisted_nordic_hamstring",
+        "equipment": "assist_band"
+      },
+      "instructions": [
+        "Zakotwicz stopy, napnij pośladki i ustaw ciało od kolan do barków w jednej linii.",
+        "Opadaj do przodu powoli, wykorzystując gumę albo ręce tylko tyle, ile trzeba do utrzymania kontroli.",
+        "Dotknij podłoża rękami, wróć z pomocą i zacznij kolejne powtórzenie bez utraty ustawienia bioder."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "assisted_straight_sprint",
+      "title": "Sprint ze sterowaną asystą",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "resisted_run",
+        "variant": "assisted_straight_sprint"
+      },
+      "instructions": [
+        "Trener ustawia i sprawdza kontrolowany system asysty, tor biegu oraz pełną drogę wyhamowania.",
+        "Wykonaj rozbieg i przyjmij wyłącznie zaplanowaną pomoc; nie wyciągaj kroku wymuszonym ciągnięciem.",
+        "Zakończ w wyznaczonej strefie. Przerwij przy utracie rytmu lub kontroli; samodzielne holowanie przypadkową gumą nie zastępuje tego stanowiska."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "band_assisted_jump",
+      "title": "Skok z odciążeniem gumą",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "band_assisted_jump",
+        "equipment": "assist_band"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "band_resisted_acceleration",
+      "title": "Przyspieszenie z oporem gumy i partnera",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "resisted_run",
+        "variant": "band_resisted_acceleration"
+      },
+      "instructions": [
+        "Partner sprawdza gumę, jej mocowanie i odległość; wyznaczcie wolny tor oraz sygnał zatrzymania.",
+        "Przyspieszaj, gdy partner podaje równy opór. Guma nie może szarpać ani przesuwać się po ciele.",
+        "Zakończcie na wspólny sygnał i spokojnie zmniejszcie napięcie. Partner nie puszcza napiętej gumy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "band_resisted_squat",
+      "title": "Przysiad z dodatkowym oporem gumy",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "band_resisted_squat",
+        "equipment": "barbell_band"
+      },
+      "instructions": [
+        "Trener dobiera gumy i sprawdza symetryczne mocowanie do stojaka oraz sztangi. Ustaw podpory asekuracyjne.",
+        "Wykonaj kontrolowane zejście, utrzymując całe stopy na podłożu i kolana w kierunku palców.",
+        "Wstań pod kontrolą mimo narastania oporu. Zacznij lżej niż w zwykłym przysiadzie; kolor gumy nie określa uniwersalnej liczby kilogramów."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "barbell_deadlift",
+      "title": "Martwy ciąg klasyczny",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "barbell_deadlift",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Napięty core",
+        "Sztanga blisko goleni",
+        "Neutralny kręgosłup"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "barbell_jump_squat",
+      "title": "Wyskoki ze sztangą",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "barbell_jump_squat",
+        "equipment": "barbell_back"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "barbell_romanian_deadlift",
+      "title": "Martwy ciąg rumuński ze sztangą",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "barbell_romanian_deadlift",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bilateral_slider_leg_curl",
+      "title": "Uginanie nóg na ślizgach obunóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "bilateral_slider_leg_curl",
+        "equipment": "sliders"
+      },
+      "instructions": [
+        "Połóż pięty na ślizgach, unieś biodra do linii z tułowiem i napnij brzuch.",
+        "Przyciągnij pięty pod biodra, nie pozwalając, żeby miednica opadła albo skręciła się na bok.",
+        "Wyprostuj nogi wolniej niż je przyciągałeś i utrzymaj biodra wysoko do końca powtórzenia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bilateral_swiss_ball_leg_curl",
+      "title": "Uginanie nóg na piłce szwajcarskiej obunóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "bilateral_swiss_ball_leg_curl",
+        "equipment": "swiss_ball"
+      },
+      "instructions": [
+        "Połóż łydki na piłce, unieś biodra i ustaw żebra nad miednicą.",
+        "Przytocz piłkę do pośladków, trzymając biodra wysoko i kolana równolegle.",
+        "Odepnij piłkę z powrotem pod kontrolą, nie pozwalając, żeby pięty odjechały bez napięcia brzucha."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bird_dog",
+      "title": "Ptak-pies",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "bird_dog"
+      },
+      "instructions": [
+        "Neutralny kręgosłup",
+        "Wydłuż przeciwną rękę i nogę",
+        "Bez rotacji bioder"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_march_hold",
+      "title": "Marsz w miejscu z napięciem tułowia",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "bodyweight_march_hold",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Stań wysoko, napnij brzuch i ustaw ręce jak do spokojnego marszu.",
+        "Unoś naprzemiennie kolana do wysokości bioder, utrzymując nieruchomy tułów i stabilną miednicę.",
+        "Maszeruj pod kontrolą przez cały czas trwania serii, nie przyspieszając kosztem ustawienia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_row",
+      "title": "Bodyweight row",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "bodyweight_row",
+        "equipment": "low_bar"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_split_squat",
+      "title": "Przysiad wykroczny bez obciążenia",
+      "group": "Siła",
+      "motion": {
+        "family": "split",
+        "variant": "bodyweight_split_squat",
+        "unilateral": true
+      },
+      "instructions": [
+        "Tułów pionowo",
+        "Kolano nad stopą",
+        "Kontrolowane tempo"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bodyweight_squat",
+      "title": "Przysiad z masą własnego ciała",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "bodyweight_squat"
+      },
+      "instructions": [
+        "Klatka wysoko",
+        "Biodra w tył",
+        "Pełny zakres bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "box_jump",
+      "title": "Wskok na skrzynię",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "box_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bridge_walkout",
+      "title": "Chód piętami z mostu",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "bridge_walkout"
+      },
+      "instructions": [
+        "Ustaw się w moście biodrowym i unieś biodra tak, żeby pośladki pracowały od pierwszej sekundy.",
+        "Małymi krokami oddalaj pięty od pośladków, nie pozwalając na opadanie miednicy.",
+        "Wróć tą samą drogą, utrzymując napięcie tylnej taśmy aż do końca powtórzenia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bulgarian_split_squat",
+      "title": "Przysiad bułgarski z obciążeniem",
+      "group": "Siła",
+      "motion": {
+        "family": "split",
+        "variant": "bulgarian_split_squat",
+        "equipment": "bench_dumbbells",
+        "unilateral": true
+      },
+      "instructions": [
+        "Tułów lekko w przód",
+        "Kolano stabilne",
+        "Kontrola w dole"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:adductor",
+      "title": "Rock-back przywodziciela",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "adductor_rockback",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:bridge",
+      "title": "Most biodrowy",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "bridge",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:calf",
+      "title": "Rozciąganie łydki",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_calf",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:cat",
+      "title": "Koci grzbiet",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "cat",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:hamstring",
+      "title": "Tył uda w półklęku",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_hamstring",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:hip",
+      "title": "Mobilizacja biodra w wykroku",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "hip_rock",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:quad",
+      "title": "Przód uda z podparciem",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_quad",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:rotation",
+      "title": "Rotacja odcinka piersiowego",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "rotation",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:soleus",
+      "title": "Łydka z ugiętym kolanem",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "stretch_soleus",
+        "unilateral": true
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:squat",
+      "title": "Kontrolowany przysiad z masą ciała",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "squat",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "bwprep:walk",
+      "title": "Spokojny marsz",
+      "group": "Przygotowanie i mobilność",
+      "motion": {
+        "family": "preparation",
+        "variant": "walk",
+        "unilateral": false
+      },
+      "instructions": [],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "clean_pull_from_hang",
+      "title": "Pociągnięcie sztangi z zawieszenia",
+      "group": "Moc",
+      "motion": {
+        "family": "power_lift",
+        "variant": "clean_pull_from_hang",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Trener ustawia pozycję zawieszenia nad kolanami i dobiera lekki ciężar. Wyznacz wolne miejsce na platformie.",
+        "Utrzymując sztangę blisko ciała, szybko wyprostuj biodra i kolana; ręce pozostają długie do zakończenia wyprostu.",
+        "Opuść sztangę pod kontrolą i ustaw się ponownie. Nie wykonuj chwytu zarzutu ani kolejnych powtórzeń po utracie rytmu."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "copenhagen_plank",
+      "title": "Deska kopenhaska",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "copenhagen_plank",
+        "equipment": "bench",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Ułóż się bokiem na przedramieniu. Oprzyj wewnętrzną stronę górnej stopy lub podudzia na stabilnej ławce; łokieć ustaw pod barkiem.",
+        "Unieś miednicę, utrzymując tułów i udo w jednej linii. Dolną nogę prowadź pod kontrolą, bez skręcania bioder.",
+        "Wykonaj zadane powtórzenia lub utrzymanie, a potem zmień stronę. Przerwij, jeśli tracisz pozycję lub pojawia się ból pachwiny."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "countermovement_jump",
+      "title": "Skok z zamachem",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "countermovement_jump"
+      },
+      "instructions": [
+        "Stań stabilnie, pozostawiając wolne miejsce nad głową i wokół miejsca lądowania.",
+        "Wykonaj krótki ruch bioder i kolan w dół, po czym od razu wybij się pionowo z pomocą ramion.",
+        "Wyląduj na obu stopach z ugięciem bioder i kolan. Ustabilizuj pozycję przed kolejnym skokiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dead_bug",
+      "title": "Martwy robak",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "dead_bug"
+      },
+      "instructions": [
+        "Połóż się na plecach, unieś ręce i ugięte nogi; ustaw żebra nad miednicą i oddychaj spokojnie.",
+        "Oddal przeciwną rękę i nogę tylko tak daleko, jak potrafisz bez odrywania lędźwi od podłoża.",
+        "Wróć do środka i zmień stronę. Skróć ruch, jeśli tracisz ustawienie tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "depth_jump",
+      "title": "Drop jump",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "depth_jump"
+      },
+      "instructions": [
+        "Miękkie, ciche lądowanie",
+        "Krótki kontakt z podłożem",
+        "Kolana stabilne"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "diagonal_bound_to_stick",
+      "title": "Skok diagonalny z zatrzymaniem",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "diagonal_bound_to_stick",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "diaphragmatic_breathing",
+      "title": "Oddech przeponowy",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "breathing",
+        "variant": "diaphragmatic_breathing"
+      },
+      "instructions": [
+        "Usiądź albo połóż się wygodnie, rozluźnij barki i szczękę.",
+        "Zrób spokojny wdech bez unoszenia barków, a potem swobodny, nieco dłuższy wydech.",
+        "Nie wstrzymuj oddechu i nie próbuj nabierać maksymalnej ilości powietrza; wróć do zwykłego oddechu, jeśli czujesz zawroty głowy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "drop_landing",
+      "title": "Lądowanie po zejściu z podestu",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "drop_landing"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dumbbell_bench_press",
+      "title": "Wyciskanie hantli na ławce",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "dumbbell_bench_press",
+        "equipment": "bench_dumbbells"
+      },
+      "instructions": [
+        "Połóż się stabilnie na ławce, ustaw stopy szeroko i trzymaj hantle nad dolną częścią klatki.",
+        "Opuszczaj hantle po łuku do boków klatki, utrzymując łopatki ściągnięte i lekko opuszczone.",
+        "Wyciskaj w górę po tej samej ścieżce, nie odbijając ciężaru od klatki i nie tracąc kontaktu stóp z podłożem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dumbbell_jump_squat",
+      "title": "Wyskoki z hantlami",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "dumbbell_jump_squat",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "dumbbell_overhead_press",
+      "title": "Wyciskanie hantli nad głowę",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "dumbbell_overhead_press",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Ustaw hantle na wysokości barków, napnij pośladki i schowaj żebra, żeby nie wyginać lędźwi.",
+        "Wyciskaj hantle pionowo nad barki, pozwalając głowie wejść lekko między ramiona na końcu ruchu.",
+        "Opuść hantle pod kontrolą do barków bez kołysania tułowiem i bez utraty napięcia brzucha."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "easy_aerobic_run",
+      "title": "Łatwy bieg tlenowy",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "easy_aerobic_run"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "easy_cycle_recovery",
+      "title": "Lekki rower regeneracyjny",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "cycle",
+        "variant": "easy_cycle_recovery"
+      },
+      "instructions": [
+        "Ustaw siodełko tak, by przy najniższym położeniu pedału kolano pozostawało lekko ugięte.",
+        "Kręć swobodnie przy małym oporze; oddech powinien pozwalać na rozmowę.",
+        "Utrzymuj spokojne tempo przez podany czas. Nie traktuj tego odcinka jak kolejnego interwału."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "eccentric_nordic_hamstring",
+      "title": "Nordic hamstring ekscentryczny",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "eccentric_nordic_hamstring"
+      },
+      "instructions": [
+        "Ustaw kolana na miękkim podłożu, stopy zablokuj stabilnie i napnij pośladki, żeby nie łamać bioder.",
+        "Opadaj jak najwolniej do przodu, cały czas utrzymując prostą linię od kolan do barków.",
+        "Podeprzyj się rękami przy utracie kontroli, wróć do góry z pomocą i zachowaj pełną przerwę przed następnym powtórzeniem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "face_pull_band",
+      "title": "Face pull z gumą",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "face_pull_band",
+        "equipment": "band"
+      },
+      "instructions": [
+        "Zaczep gumę stabilnie mniej więcej na wysokości twarzy i ustaw się w pozycji z lekkim napięciem gumy.",
+        "Przyciągnij dłonie w kierunku skroni, prowadząc łokcie na boki i nie unosząc barków do uszu.",
+        "Wyprostuj ręce spokojnie; tułów nie powinien odchylać się w tył ani kołysać."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "farmer_carry",
+      "title": "Spacer farmera",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "farmer_carry",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Stań wysoko z ciężarami po obu stronach, napnij chwyt i lekko schowaj brodę.",
+        "Maszeruj równymi krokami, nie kołysząc barkami i nie skracając oddechu.",
+        "Odstaw ciężary dopiero po pełnym zatrzymaniu, zamiast zrzucać je w marszu."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "field_mas_5_min_test",
+      "title": "Test biegowy 5 min",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "field_mas_5_min_test"
+      },
+      "instructions": [
+        "Po pełnej rozgrzewce biegnij możliwie równo przez dokładnie 5 minut",
+        "Zacznij kontrolowanie; nie sprintuj pierwszej minuty",
+        "Przerwij przy bólu lub niepokojącym objawie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "flywheel_squat",
+      "title": "Przysiad na urządzeniu flywheel",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "flywheel_squat",
+        "equipment": "flywheel"
+      },
+      "instructions": [
+        "Trener sprawdza uprząż, linkę i ustawienie urządzenia. Zacznij od lekkiej konfiguracji i spokojnych ruchów wprowadzających.",
+        "Wstań płynnie, rozpędzając koło; wracaj z napiętym tułowiem i kontroluj powrót linki.",
+        "Hamuj pod kontrolą zgodnie z instrukcją urządzenia. Zakończ przy utracie kontroli; ustawienia bezwładności zapisuj jako ustawienie urządzenia, nie kilogramy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_ball_mastery",
+      "title": "Czucie piłki obiema nogami",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_ball_mastery"
+      },
+      "instructions": [
+        "Przygotuj piłkę i wolny, równy kwadrat około 2 × 2 m.",
+        "Przetaczaj piłkę podeszwą i dotykaj ją wewnętrzną stroną stóp. Pracuj naprzemiennie obiema nogami.",
+        "Piłka zostaje w zasięgu jednego kroku. Co kilka kontaktów krótko spójrz przed siebie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_easy_contacts",
+      "title": "Spokojne kontakty z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_easy_contacts"
+      },
+      "instructions": [
+        "Zostań na równym, wolnym fragmencie podłoża z piłką blisko stóp.",
+        "Powoli przetaczaj piłkę naprzemiennie obiema nogami i stopniowo zwalniaj.",
+        "Oddychaj swobodnie. Zakończ pracę, jeśli pojawia się ból lub zawroty głowy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_gk_distribution",
+      "title": "Gra nogami bramkarza z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_gk_distribution"
+      },
+      "instructions": [
+        "Przygotuj dwie strefy podania i piłkę. Zacznij blisko: 1–2 m bez boiska lub 3–5 m na boisku.",
+        "Przetocz piłkę od siebie, podejdź małymi krokami i przyjmij ją do boku w kierunku wybranej strefy.",
+        "Zagraj krótkie podanie po ziemi do strefy, podejdź po piłkę i zmień stronę. Po pięciu próbach zmień nogę."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_scan_control",
+      "title": "Orientacja przed kontaktem z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_scan_control"
+      },
+      "instructions": [
+        "Wybierz dwa nieruchome punkty przed sobą i sprawdź, czy przestrzeń wokół jest wolna.",
+        "Spójrz na wybrany punkt zanim przetoczysz piłkę. Następnie skieruj ją pierwszym kontaktem do odpowiadającej mu strefy.",
+        "Wróć do początku i zmieniaj strony oraz nogi. To ćwiczenie orientacji przy piłce; nie symuluje presji przeciwnika."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_self_feed_first_touch",
+      "title": "Przyjęcie piłki z własnego podania",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_self_feed_first_touch"
+      },
+      "instructions": [
+        "Ustaw dwie strefy obok siebie w wolnym kwadracie około 2 × 2 m; wystarczą linie podłoża.",
+        "Lekko przetocz piłkę od siebie, podejdź i pierwszym kontaktem skieruj ją do wybranej strefy.",
+        "Zatrzymaj piłkę kolejnym kontaktem. Po pięciu próbach zmień nogę; porównuj te same odległości."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_target_pass",
+      "title": "Celne podanie piłki do strefy",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_target_pass"
+      },
+      "instructions": [
+        "Wybierz bezpieczny cel na podłożu: linię lub strefę. Bez boiska zacznij od 1–2 m, na boisku od 3–5 m.",
+        "Ustaw stopę postawną obok piłki i zagraj po ziemi wewnętrzną stroną stopy do celu.",
+        "Podejdź spokojnie po piłkę i powtórz. Po pięciu próbach zmień nogę; nie potrzebujesz bramki ani partnera."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_technical_self_selected",
+      "title": "Własny blok techniczny z piłką",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_technical_self_selected"
+      },
+      "instructions": [
+        "Wybierz jeden element techniczny i przygotuj bezpieczną, wolną przestrzeń.",
+        "Pracuj obiema nogami w tempie, w którym zachowujesz kontrolę nad piłką.",
+        "Zakończ serię, gdy spada dokładność albo pojawia się ból."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_turn_control",
+      "title": "Prowadzenie piłki i kontrolowany obrót",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_turn_control"
+      },
+      "instructions": [
+        "Wyznacz krótki odcinek na równym podłożu: bez boiska 1–2 m, na boisku 3–5 m.",
+        "Prowadź piłkę krótkimi kontaktami, zatrzymaj podeszwą i obróć się z nią do drugiej strony.",
+        "Wróć spokojnie drugą nogą. Obrót wykonuj płynnie, bez gwałtownego skręcania na zablokowanej stopie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "football_wall_first_touch",
+      "title": "Podanie o ścianę i przyjęcie piłki",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "football",
+        "variant": "football_wall_first_touch"
+      },
+      "instructions": [
+        "Wybierz wyłącznie dostępną, bezpieczną ścianę lub odbojnik i wolne miejsce do odbicia. Zacznij blisko.",
+        "Podaj piłkę wewnętrzną stroną stopy. Przyjmij wracającą piłkę do boku, w zasięgu kolejnego kroku.",
+        "Wróć do pozycji i podaj ponownie. Po pięciu próbach zmień nogę; celność jest ważniejsza od siły."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "front_rack_carry",
+      "title": "Spacer z ciężarem w racku z przodu",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "front_rack_carry",
+        "equipment": "front_kettlebells"
+      },
+      "instructions": [
+        "Ustaw ciężar na przedramieniu przy barku, trzymaj łokieć lekko z przodu i nadgarstek neutralnie.",
+        "Maszeruj bez odchylania tułowia do tyłu i bez opuszczania łokcia wraz ze zmęczeniem.",
+        "Zmierz taki sam dystans na drugą stronę, utrzymując żebra ustawione nad miednicą."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "front_squat",
+      "title": "Przysiad przedni",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "front_squat",
+        "equipment": "barbell_front"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "full_nordic_hamstring",
+      "title": "Nordic hamstring pełny",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "full_nordic_hamstring"
+      },
+      "instructions": [
+        "Zakotwicz stopy, ustaw kolana pod biodrami i zrób sztywny korpus z napiętymi pośladkami.",
+        "Opadaj pod kontrolą, a gdy zbliżysz się do podłoża, aktywnie dołóż zgięcie kolan, żeby wrócić bez załamania bioder.",
+        "Kończ serię natychmiast po utracie tempa albo ustawienia — tu liczy się jakość, nie liczba wymuszonych powtórzeń."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "glute_bridge",
+      "title": "Most biodrowy",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "glute_bridge"
+      },
+      "instructions": [
+        "Połóż się na plecach, ugnij kolana i ustaw całe stopy stabilnie na podłożu.",
+        "Napnij brzuch i pośladki, unieś biodra do linii ud i tułowia bez wyginania lędźwi.",
+        "Opuść biodra pod kontrolą i powtórz ruch bez odpychania się szyją."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "glute_bridge_march",
+      "title": "Marsz w moście biodrowym",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "glute_bridge_march"
+      },
+      "instructions": [
+        "Unieś biodra jak w klasycznym moście i ustaw miednicę równo.",
+        "Oderwij jedną stopę kilka centymetrów nad podłoże bez opadania bioder i bez skrętu tułowia.",
+        "Odstaw stopę, zmień stronę i utrzymuj ten sam poziom bioder przez całą serię."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "goblet_squat",
+      "title": "Przysiad goblet",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "goblet_squat",
+        "equipment": "kettlebell"
+      },
+      "instructions": [
+        "Trzymaj hantel lub kettlebell oburącz blisko klatki. Ustaw stopy w wygodnym rozkroku i napnij brzuch.",
+        "Zejdź między biodra do zakresu, w którym utrzymujesz całe stopy na ziemi i kolana w kierunku palców.",
+        "Wstań, odpychając podłoże całą stopą. Utrzymuj ciężar przy klatce i nie wyginaj lędźwi."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hamstring_45_back_extension",
+      "title": "Hamstring-biased back extension 45°",
+      "group": "Siła",
+      "motion": {
+        "family": "back_extension",
+        "variant": "hamstring_45_back_extension",
+        "equipment": "roman_chair"
+      },
+      "instructions": [
+        "Ustaw się na stanowisku 45° tak, żeby poduszka kończyła się tuż pod biodrami, a stopy były mocno zakotwiczone.",
+        "Zejdź w dół z długim kręgosłupem i lekkim zgięciem kolan, czując rozciągnięcie hamstringów.",
+        "Wracaj wyprostem bioder, a nie przeprostem pleców, kończąc ruch z napiętymi pośladkami."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "heavy_back_squat",
+      "title": "Przysiad ze sztangą (back squat)",
+      "group": "Siła",
+      "motion": {
+        "family": "squat",
+        "variant": "heavy_back_squat",
+        "equipment": "barbell_back"
+      },
+      "instructions": [
+        "Ustaw podpory asekuracyjne. Ułóż sztangę stabilnie na górze pleców i odejdź od stojaka krótkimi krokami.",
+        "Napnij tułów i zejdź kontrolowanie, prowadząc kolana w kierunku palców; utrzymuj całe stopy na podłożu.",
+        "Wstań bez utraty ustawienia tułowia. Zachowaj zaplanowany zapas powtórzeń, a sztangę odłóż dopiero po kontakcie ze stojakiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "heel_dig_hamstring_iso_30",
+      "title": "Izometria hamstringów heel-dig 30°",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "heel_dig_hamstring_iso_30",
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż pięty na podłożu tak, żeby kolana były tylko lekko ugięte, a palce stóp skierowane do góry.",
+        "Wbij pięty w ziemię i lekko unieś biodra, utrzymując napięcie głównie w tylnej stronie uda.",
+        "Trzymaj pozycję bez kurczenia łydek i bez przenoszenia pracy do lędźwi."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "heel_dig_hamstring_iso_90",
+      "title": "Izometria hamstringów heel-dig 90°",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "heel_dig_hamstring_iso_90",
+        "isometric": true
+      },
+      "instructions": [
+        "Ustaw pięty bliżej pośladków, tak żeby kolana były ugięte mniej więcej do kąta prostego.",
+        "Wbij pięty mocno w podłoże, delikatnie unoś biodra i poczuj równy nacisk obu nóg.",
+        "Utrzymuj pozycję bez drżenia miednicy i bez unoszenia żeber do góry."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hill_acceleration",
+      "title": "Przyspieszenie na łagodnym podbiegu",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "resisted_run",
+        "variant": "hill_acceleration"
+      },
+      "instructions": [
+        "Wybierz równy, łagodny i nieślizgający się podbieg oraz wolną drogę zatrzymania.",
+        "Przyspieszaj z aktywnym odepchnięciem i swobodną pracą ramion; zachowaj płynny bieg.",
+        "Zatrzymaj się pod kontrolą, wróć spacerem i odpocznij. Nachylenie nie może wymuszać utraty techniki."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hip_mobility_flow",
+      "title": "Mobilność bioder",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "mobility_sequence",
+        "variant": "hip_mobility_flow"
+      },
+      "instructions": [
+        "Ustaw się w wygodnym wykroku z tylnym kolanem na miękkim podłożu.",
+        "Przenieś miednicę lekko do przodu, utrzymując napięty brzuch i nie wyginając lędźwi.",
+        "Wróć, powtórz spokojnie i zmień stronę; nie wymuszaj końca zakresu."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hip_thrust",
+      "title": "Wypychanie bioder ze sztangą",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "hip_thrust",
+        "equipment": "barbell_bench"
+      },
+      "instructions": [
+        "Broda w dół",
+        "Napnij pośladki",
+        "Pełny wyprost bioder"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "hurdle_hops",
+      "title": "Przeskoki przez płotki",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "hurdle_hops"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "kettlebell_swing",
+      "title": "Wymach kettlebell",
+      "group": "Moc",
+      "motion": {
+        "family": "power_lift",
+        "variant": "kettlebell_swing",
+        "equipment": "kettlebell"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "kickstand_romanian_deadlift",
+      "title": "Martwy ciąg rumuński kickstand",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "kickstand_romanian_deadlift",
+        "equipment": "dumbbells",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw nogę pracującą z przodu, a tylną postaw lekko na palcach jak podpórkę do równowagi.",
+        "Cofnij biodra nad nogą pracującą, utrzymując większość ciężaru na przedniej pięcie.",
+        "Wróć do wyprostu bez odpychania się tylną nogą i bez rotowania miednicy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "lat_pulldown",
+      "title": "Ściąganie drążka wyciągu do klatki",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "lat_pulldown",
+        "equipment": "pulldown"
+      },
+      "instructions": [
+        "Usiądź stabilnie, zablokuj uda pod poduszką i chwyć drążek trochę szerzej niż barki.",
+        "Ściągnij drążek do górnej części klatki, prowadząc łokcie w dół i lekko do tyłu.",
+        "Wróć kontrolowanie do pełnego wyprostu barków bez szarpnięcia i bez odchylania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "lateral_lunge",
+      "title": "Wykrok boczny",
+      "group": "Siła",
+      "motion": {
+        "family": "lateral_lunge",
+        "variant": "lateral_lunge",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "leg_extension",
+      "title": "Prostowanie nóg na maszynie",
+      "group": "Siła",
+      "motion": {
+        "family": "machine",
+        "variant": "leg_extension",
+        "equipment": "leg_extension"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "leg_press",
+      "title": "Wypychanie ciężaru na suwnicy",
+      "group": "Siła",
+      "motion": {
+        "family": "machine",
+        "variant": "leg_press",
+        "equipment": "leg_press"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "long_lever_hamstring_iso",
+      "title": "Most hamstring izometryczny z długą dźwignią",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "long_lever_hamstring_iso",
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż się na plecach. Ustaw obie pięty dalej od pośladków niż w zwykłym moście, z lekko ugiętymi kolanami.",
+        "Dociśnij pięty do podłoża i unieś biodra. Utrzymuj żebra nad miednicą, bez wyginania lędźwi.",
+        "Utrzymaj zadany czas, oddychając spokojnie. Zakończ, gdy biodra opadają; łatwiejszy wariant uzyskasz, przysuwając pięty bliżej."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "lying_leg_curl",
+      "title": "Uginanie nóg leżąc",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "lying_leg_curl",
+        "equipment": "leg_curl_machine"
+      },
+      "instructions": [
+        "Połóż się przodem, dopasuj oś maszyny do kolan i ustaw wałek nad piętami; biodra pozostają na podparciu.",
+        "Zegnij kolana, przyciągając pięty bez odrywania bioder i bez wyginania lędźwi.",
+        "Opuść ciężar spokojnie do wygodnego wyprostu, nie puszczając napięcia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "med_ball_throw",
+      "title": "Wyrzut piłki lekarskiej sprzed klatki",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "med_ball_throw"
+      },
+      "instructions": [
+        "Szybko i technicznie",
+        "Lekki ciężar",
+        "Jakość przed ilością"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "medicine_ball_overhead_backward_throw",
+      "title": "Wyrzut piłki lekarskiej nad głową w tył",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "medicine_ball_overhead_backward_throw"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "medicine_ball_rotational_scoop_toss",
+      "title": "Rotacyjny wyrzut piłki lekarskiej z dołu",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "medicine_ball_rotational_scoop_toss"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "medicine_ball_slam",
+      "title": "Uderzenie piłką lekarską o podłoże",
+      "group": "Moc",
+      "motion": {
+        "family": "throw",
+        "variant": "medicine_ball_slam"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_interval_run",
+      "title": "Bieg interwałowy według czasu",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "method_interval_run"
+      },
+      "instructions": [
+        "Wyznacz równy, wolny tor lub pętlę bez nagłych nawrotów. Rozgrzewkę wykonaj przed uruchomieniem bloku.",
+        "Biegnij przez zadany czas w równym tempie i odpoczywaj zgodnie z planem. Odcinek nie jest sprintem maksymalnym.",
+        "Jeżeli nie utrzymujesz tempa lub kontroli, wydłuż odpoczynek albo zakończ blok. Zapisz faktycznie wykonane odcinki."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_repeated_sprint",
+      "title": "Powtarzane sprinty w linii prostej",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "method_repeated_sprint"
+      },
+      "instructions": [
+        "Zmierz odcinek 20 m i wolną drogę wyhamowania. Przygotuj starty w obie strony z odpoczynkiem po zatrzymaniu.",
+        "Przyspieszaj na odcinku i spokojnie wyhamuj. Krótki odpoczynek jest częścią tej metody wydolnościowej.",
+        "Zakończ blok przy wyraźnym spadku jakości. Ta dawka nie zastępuje treningu maksymalnej prędkości z pełnym odpoczynkiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_speed_endurance",
+      "title": "Dłuższy odcinek szybkościowy",
+      "group": "Siła",
+      "motion": {
+        "family": "run",
+        "variant": "method_speed_endurance"
+      },
+      "instructions": [
+        "Trener wyznacza odcinek i długą, wolną strefę wyhamowania oraz dobiera intensywność. Wykonaj pełną rozgrzewkę.",
+        "Rozpędź się płynnie i utrzymuj rytm na zadanej długości. Nie wykonuj nagłego zatrzymania na końcu.",
+        "Odpocznij przez cały zadany czas. Przerwij serię przy utracie kontroli lub wyraźnym spadku jakości."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "method_sprint_interval",
+      "title": "Interwał bardzo wysokiej intensywności",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "method_sprint_interval"
+      },
+      "instructions": [
+        "Trener wyznacza długi, bezpieczny tor bez ostrych nawrotów i dobiera formę wysiłku. Wykonaj rozgrzewkę.",
+        "Wykonaj zaplanowany krótki wysiłek o bardzo wysokiej intensywności, a następnie przejdź do pełnego odpoczynku.",
+        "Nie dokładaj powtórzeń ani kolejnej ciężkiej sesji nóg. Trener kończy blok, jeżeli nie utrzymujesz wykonania."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "one_arm_dumbbell_row",
+      "title": "Wiosłowanie hantlą jednorącz",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "one_arm_dumbbell_row",
+        "equipment": "bench_dumbbell",
+        "unilateral": true
+      },
+      "instructions": [
+        "Oprzyj jedną rękę i kolano o ławkę, a drugą stopę mocno wbij w podłoże.",
+        "Pociągnij hantel w stronę biodra, zaczynając ruchem łopatki, a nie samym zgięciem łokcia.",
+        "Opuść ciężar powoli do pełnego wyprostu ramienia bez rotowania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "oscillatory_long_lever_bridge",
+      "title": "Pulsujący most hamstring z długą dźwignią",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "oscillatory_long_lever_bridge"
+      },
+      "instructions": [
+        "Ustaw most z długą dźwignią i unieś biodra do wysokości, którą potrafisz stabilnie utrzymać.",
+        "Wykonuj małe pulsacje góra–dół bez odkładania bioder i bez utraty napięcia pięt.",
+        "Zatrzymaj serię, gdy puls staje się duży albo napięcie przenosi się do lędźwi."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "overcoming_pin_squat",
+      "title": "Nacisk izometryczny przeciw stałym pinom",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "squat",
+        "variant": "overcoming_pin_squat",
+        "equipment": "pins",
+        "isometric": true
+      },
+      "instructions": [
+        "Trener ustawia i sprawdza stałe piny oraz pozycję sztangi. Nie zastępuj pinów przypadkowym ciężarem lub niestabilną przeszkodą.",
+        "Ustaw napięty tułów i całe stopy na podłożu. Stopniowo zwiększ nacisk w kierunku wskazanym przez trenera bez zmiany pozycji.",
+        "Zakończ po zadanym czasie, odpuść nacisk i odpocznij. Nie dokładaj po tym bloku dodatkowej maksymalnej pracy nóg."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "overhead_carry",
+      "title": "Spacer z ciężarem nad głową",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "overhead_carry",
+        "equipment": "overhead_dumbbells"
+      },
+      "instructions": [
+        "Wyciśnij ciężar nad bark i ustaw biceps przy uchu, nie unosząc żeber do góry.",
+        "Maszeruj spokojnie, utrzymując łokieć zablokowany i bark aktywnie ustawiony.",
+        "Zakończ odcinek zanim ramię zacznie uciekać do przodu albo łokieć zmięknie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "pallof_press",
+      "title": "Pallof press",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "pallof_press",
+        "equipment": "band"
+      },
+      "instructions": [
+        "Zamocuj gumę stabilnie na wysokości klatki piersiowej i stań bokiem do punktu zaczepienia.",
+        "Trzymaj gumę obiema dłońmi przy mostku; wyprostuj ręce przed siebie bez obracania miednicy i barków.",
+        "Wróć spokojnie, zachowując równy oddech, i wykonaj zaplanowaną pracę po drugiej stronie."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "pike_push_up",
+      "title": "Pompka pike",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "pike_push_up"
+      },
+      "instructions": [
+        "Ustaw dłonie na szerokość barków, biodra wysoko i głowę między ramionami jak odwrócone V.",
+        "Uginaj łokcie, prowadząc czubek głowy w stronę podłoża między dłonie, a nie przed nie.",
+        "Wypchnij się z powrotem w górę, utrzymując napięty brzuch i barki aktywnie wypchnięte."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "plank",
+      "title": "Deska",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "plank",
+        "isometric": true
+      },
+      "instructions": [
+        "Neutralny kręgosłup",
+        "Napięty brzuch i pośladki"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "power_clean",
+      "title": "Zarzut siłowy z pozycji zwisu",
+      "group": "Moc",
+      "motion": {
+        "family": "power_lift",
+        "variant": "power_clean",
+        "equipment": "barbell"
+      },
+      "instructions": [
+        "Wyprost bioder eksplozywnie",
+        "Łokcie szybko w przód",
+        "Sztanga blisko ciała"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "prone_band_leg_curl",
+      "title": "Uginanie nóg leżąc z gumą",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "prone_band_leg_curl",
+        "equipment": "band"
+      },
+      "instructions": [
+        "Połóż się na brzuchu, zaczep gumę stabilnie i załóż ją na kostki lub pięty.",
+        "Przyciągnij pięty w stronę pośladków bez odrywania miednicy od podłoża.",
+        "Wracaj wolniej niż przyciągasz, utrzymując stałe napięcie gumy przez cały zakres."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "pull_up",
+      "title": "Pull-up",
+      "group": "Siła",
+      "motion": {
+        "family": "pull",
+        "variant": "pull_up",
+        "equipment": "high_bar"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "push_press",
+      "title": "Wyciskanie sztangi z wybiciem nóg",
+      "group": "Moc",
+      "motion": {
+        "family": "press",
+        "variant": "push_press",
+        "equipment": "barbell_front"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "push_up",
+      "title": "Pompka",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "push_up"
+      },
+      "instructions": [
+        "Ustaw dłonie trochę szerzej niż barki i napnij pośladki, żeby ciało było sztywne od głowy do pięt.",
+        "Schodź klatką między dłonie, prowadząc łokcie ukośnie do tyłu zamiast szeroko na boki.",
+        "Odepchnij podłoże równomiernie obiema rękami, kończąc w pełnym wyproście bez zapadania tułowia."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "razor_curl",
+      "title": "Razor curl",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "nordic",
+        "variant": "razor_curl"
+      },
+      "instructions": [
+        "Ustaw się jak do nordica, ale pozwól biodrom lekko pracować zamiast trzymać je całkiem sztywno.",
+        "Opadaj do przodu pod kontrolą, utrzymując napięcie tylnej taśmy i aktywnie zginając kolana.",
+        "W drodze powrotnej dołóż pracę bioder, ale nie uciekaj przeprostem lędźwiowym."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_broad_jump",
+      "title": "Powtarzane skoki w dal",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "repeated_broad_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_curved_sprints",
+      "title": "Powtarzane sprinty po łuku",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "run",
+        "variant": "repeated_curved_sprints"
+      },
+      "instructions": [
+        "Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.",
+        "Kończ serię, gdy spada jakość."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_linear_short_sprints",
+      "title": "Powtarzane krótkie sprinty liniowe",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "run",
+        "variant": "repeated_linear_short_sprints"
+      },
+      "instructions": [
+        "Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.",
+        "Kończ serię, gdy spada jakość."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "repeated_shuttle_sprints",
+      "title": "Powtarzane sprinty wahadłowe",
+      "group": "Bieganie i drille",
+      "motion": {
+        "family": "run",
+        "variant": "repeated_shuttle_sprints"
+      },
+      "instructions": [
+        "Wykonuj ruch rytmicznie i naturalnie, bez sztucznego usztywniania miednicy.",
+        "Kończ serię, gdy spada jakość."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "reverse_lunge",
+      "title": "Wykrok w tył",
+      "group": "Siła",
+      "motion": {
+        "family": "split",
+        "variant": "reverse_lunge",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "romanian_deadlift_db",
+      "title": "Martwy ciąg rumuński z hantlami",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "romanian_deadlift_db",
+        "equipment": "dumbbells"
+      },
+      "instructions": [
+        "Biodra w tył",
+        "Plecy proste",
+        "Hantle blisko nóg"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "seated_leg_curl",
+      "title": "Uginanie nóg siedząc",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "seated_leg_curl",
+        "equipment": "seated_machine"
+      },
+      "instructions": [
+        "Usiądź z plecami opartymi; dopasuj oś maszyny do kolana, a wałek do dolnej części podudzia.",
+        "Zegnij kolana, przyciągając wałek bez unoszenia bioder i bez szarpania ciężaru.",
+        "Wróć powoli do wygodnego wyprostu, bez uderzania stosem i bez przeprostu kolan."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "seated_soleus_raise",
+      "title": "Wspięcia na palce siedząc",
+      "group": "Siła",
+      "motion": {
+        "family": "ankle",
+        "variant": "seated_soleus_raise",
+        "equipment": "bench_dumbbells"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "side_plank",
+      "title": "Deska bokiem",
+      "group": "Stabilizacja",
+      "motion": {
+        "family": "core",
+        "variant": "side_plank",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_glute_bridge",
+      "title": "Most biodrowy jednonóż",
+      "group": "Siła",
+      "motion": {
+        "family": "bridge",
+        "variant": "single_leg_glute_bridge",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw jedną stopę blisko pośladka, drugą nogę wyprostuj w powietrzu i napnij brzuch.",
+        "Wypchnij biodra w górę przez piętę nogi pracującej, nie skręcając miednicy na bok.",
+        "Opuść biodra pod kontrolą i utrzymuj stałą wysokość oraz rytm po obu stronach."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_hop_and_stick",
+      "title": "Skok jednonóż z zatrzymaniem",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "single_leg_hop_and_stick",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_long_lever_hamstring_iso",
+      "title": "Most hamstring izometryczny z długą dźwignią jednonóż",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "bridge",
+        "variant": "single_leg_long_lever_hamstring_iso",
+        "unilateral": true,
+        "isometric": true
+      },
+      "instructions": [
+        "Połóż jedną piętę dalej od biodra niż w zwykłym moście, drugą nogę unieś i ustaw miednicę równo.",
+        "Unieś biodra tylko tyle, żeby poczuć mocną pracę tylnego uda, ale bez bólu ostrego.",
+        "Oddychaj spokojnie i utrzymaj pozycję, kończąc serię przy pierwszej utracie wysokości biodra."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_pogo",
+      "title": "Pogo jednonóż",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "single_leg_pogo",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_romanian_deadlift",
+      "title": "Martwy ciąg rumuński na jednej nodze",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "single_leg_romanian_deadlift",
+        "equipment": "dumbbell",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_slider_leg_curl",
+      "title": "Uginanie nogi na ślizgu jednonóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "single_leg_slider_leg_curl",
+        "equipment": "sliders",
+        "unilateral": true
+      },
+      "instructions": [
+        "Jedną piętę ustaw na ślizgu, drugą nogę trzymaj nad podłożem, a biodra ustaw wysoko i równo.",
+        "Przyciągaj piętę pracującej nogi pod biodro bez skręcania miednicy i bez utraty napięcia pośladka.",
+        "W fazie wyprostu wracaj powoli, zatrzymując serię przy pierwszym opadaniu bioder."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "single_leg_swiss_ball_leg_curl",
+      "title": "Uginanie nogi na piłce szwajcarskiej jednonóż",
+      "group": "Siła",
+      "motion": {
+        "family": "leg_curl",
+        "variant": "single_leg_swiss_ball_leg_curl",
+        "equipment": "swiss_ball",
+        "unilateral": true
+      },
+      "instructions": [
+        "Ustaw jedną piętę na piłce, drugą nogę unieś i utrzymaj stabilne biodra.",
+        "Zwiń piłkę pod siebie pracującą nogą, pilnując, żeby kolano i biodro nie uciekały na boki.",
+        "Wyprostuj nogę pod pełną kontrolą i zatrzymaj serię, jeśli tracisz wysokość bioder."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "soleus_iso_hold",
+      "title": "Izometryczne wspięcie na mięsień płaszczkowaty",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "ankle",
+        "variant": "soleus_iso_hold",
+        "isometric": true
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "split_squat_jump",
+      "title": "Wyskoki z pozycji wykrocznej",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "split_squat_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "sprint_cooldown_walk",
+      "title": "Marsz i uspokojenie oddechu",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "walk",
+        "variant": "sprint_cooldown_walk"
+      },
+      "instructions": [
+        "Maszeruj spokojnie 3–4 min, aż oddech wyraźnie się uspokoi.",
+        "Nie dodawaj sprintów, interwałów ani intensywnego rozciągania po zakończeniu jakościowej pracy."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "squat_jump",
+      "title": "Wyskocz z przysiadu",
+      "group": "Skoki i lądowania",
+      "motion": {
+        "family": "jump",
+        "variant": "squat_jump"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "standing_calf_raise",
+      "title": "Wspięcia na palce stojąc",
+      "group": "Siła",
+      "motion": {
+        "family": "ankle",
+        "variant": "standing_calf_raise",
+        "equipment": "wall"
+      },
+      "instructions": [
+        "Stań przy stabilnym podparciu, ustaw stopy na szerokość bioder.",
+        "Unieś pięty, naciskając równomiernie przodostopie; nie uciekaj na zewnętrzną krawędź stopy.",
+        "Opuść pięty spokojnie, bez odbijania i bez kołysania tułowiem."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "static_stretch_cooldown",
+      "title": "Rozciąganie statyczne (wyciszenie)",
+      "group": "Mobilność i rozciąganie",
+      "motion": {
+        "family": "mobility_sequence",
+        "variant": "static_stretch_cooldown"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "step_up",
+      "title": "Wejście na podest",
+      "group": "Siła",
+      "motion": {
+        "family": "step_up",
+        "variant": "step_up",
+        "unilateral": true
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "suitcase_carry",
+      "title": "Spacer walizkowy",
+      "group": "Siła",
+      "motion": {
+        "family": "carry",
+        "variant": "suitcase_carry",
+        "equipment": "one_dumbbell",
+        "unilateral": true
+      },
+      "instructions": [
+        "Chwyć ciężar po jednej stronie ciała, ustaw żebra nad miednicą i wydłuż szyję.",
+        "Idź krótkimi, sprężystymi krokami bez przechylania się w stronę ciężaru ani od niego.",
+        "Zmień stronę po zakończeniu odcinka i utrzymuj taki sam rytm po obu stronach."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "tempo_conditioning_block",
+      "title": "Blok tempa tlenowego",
+      "group": "Bieganie",
+      "motion": {
+        "family": "run",
+        "variant": "tempo_conditioning_block"
+      },
+      "instructions": [
+        "Kontrolowany ruch",
+        "Bez bólu"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "tibialis_raise",
+      "title": "Unoszenie palców stóp do góry",
+      "group": "Ćwiczenia uzupełniające",
+      "motion": {
+        "family": "ankle",
+        "variant": "tibialis_raise",
+        "equipment": "wall"
+      },
+      "instructions": [
+        "Oprzyj plecy o ścianę albo usiądź tak, żeby pięty były stabilnie wbite w podłoże.",
+        "Unieś palce i przód stopy maksymalnie do góry bez odrywania pięt.",
+        "Wracaj wolno do podłoża i utrzymuj równy rytm zamiast machania stopami."
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "trap_bar_deadlift",
+      "title": "Martwy ciąg z trap barem",
+      "group": "Siła",
+      "motion": {
+        "family": "hinge",
+        "variant": "trap_bar_deadlift",
+        "equipment": "trapbar"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "trap_bar_jump",
+      "title": "Wyskoki z trap barem",
+      "group": "Moc",
+      "motion": {
+        "family": "jump",
+        "variant": "trap_bar_jump",
+        "equipment": "trapbar"
+      },
+      "instructions": [
+        "Kontroluj pozycję wyjściową",
+        "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    }
+  ]
+}

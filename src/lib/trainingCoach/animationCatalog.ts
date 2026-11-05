@@ -1,4 +1,5 @@
 import type { TrainingExercise } from "@/lib/loadwise/types";
+import movementIdentities from "./movement-identities.json";
 
 export interface AnimationCatalogEntry {
   id: string;
@@ -14,7 +15,7 @@ export interface AnimationSelection extends AnimationCatalogEntry {
 }
 
 /** Animation identities only. Source identity does not certify reconstructed technique. */
-export const ANIMATION_CATALOG: readonly AnimationCatalogEntry[] = [
+const originalCatalog: readonly AnimationCatalogEntry[] = [
   {
     id: "a_skip",
     title: "Skip A",
@@ -666,6 +667,12 @@ function normalise(value: string | null | undefined): string {
     .replace(/\s+/g, " ");
 }
 
+export const ANIMATION_CATALOG: readonly AnimationCatalogEntry[] = [
+  ...originalCatalog.filter(
+    (entry) => !movementIdentities.some((record) => record.id === entry.id),
+  ),
+  ...movementIdentities,
+];
 const byId = new Map(ANIMATION_CATALOG.map((entry) => [entry.id, entry]));
 const byName = new Map<string, string>();
 for (const entry of ANIMATION_CATALOG) byName.set(normalise(entry.title), entry.id);

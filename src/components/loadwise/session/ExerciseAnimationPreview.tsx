@@ -6,13 +6,16 @@ import {
   type AnimationSelection,
 } from "@/lib/trainingCoach/animationCatalog";
 import { APP_VERSION } from "@/lib/appVersion";
+import { boxTouchVariant, parseHoldSeconds } from "@/lib/trainingCoach/exerciseTempo";
 
 export function ExerciseAnimationPreview({
   exercise,
   autoOpen = false,
+  mirror = false,
 }: {
   exercise: TrainingExercise;
   autoOpen?: boolean;
+  mirror?: boolean;
 }) {
   const selection = resolveExerciseAnimation(exercise);
   if (!selection) return null;
@@ -22,6 +25,10 @@ export function ExerciseAnimationPreview({
       selection={selection}
       exerciseName={exercise.name}
       autoOpen={autoOpen}
+      mirror={mirror}
+      tempo={exercise.tempo}
+      holdSeconds={parseHoldSeconds(exercise.duration) ?? parseHoldSeconds(exercise.reps)}
+      variant={boxTouchVariant(exercise.name, exercise.animationVariant)}
     />
   );
 }
@@ -30,10 +37,18 @@ function AnimationCard({
   selection,
   exerciseName,
   autoOpen,
+  mirror,
+  tempo,
+  holdSeconds,
+  variant,
 }: {
   selection: AnimationSelection;
   exerciseName: string;
   autoOpen: boolean;
+  mirror: boolean;
+  tempo?: string;
+  holdSeconds: number | null;
+  variant: string | null;
 }) {
   const [selected, setSelected] = useState(selection.needsChoice ? "" : selection.id);
   const [opened, setOpened] = useState(autoOpen && !selection.needsChoice);
@@ -45,7 +60,7 @@ function AnimationCard({
   const panelId = useId();
   const selectId = useId();
   const frameId = selected || selection.id;
-  const src = `/technique/animations/index.html?id=${encodeURIComponent(frameId)}&embed=1&v=${encodeURIComponent(APP_VERSION)}${catalog ? "&catalog=1" : autoOpen ? "&compact=1" : ""}`;
+  const src = `/technique/animations/index.html?id=${encodeURIComponent(frameId)}&embed=1&autoplay=1&v=${encodeURIComponent(APP_VERSION)}${mirror ? "&mirror=1" : ""}${tempo?.trim() ? `&tempo=${encodeURIComponent(tempo.trim().slice(0, 48))}` : ""}${holdSeconds !== null ? `&hold=${holdSeconds}` : ""}${variant ? `&variant=${encodeURIComponent(variant)}` : ""}${catalog ? "&catalog=1" : autoOpen ? "&compact=1" : ""}`;
 
   useEffect(() => {
     if (!opened) return;
@@ -60,6 +75,11 @@ function AnimationCard({
     const message = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow)
         return;
+      if (event.data?.type === "ballwise-animation-playing") {
+        window.dispatchEvent(
+          new CustomEvent("ballwise-active-animation", { detail: frame.current?.contentWindow }),
+        );
+      }
       if (event.data?.type === "ballwise-animation-height" && Number.isFinite(event.data.height)) {
         setHeight(
           Math.max(autoOpen && !catalog ? 280 : 440, Math.min(1200, Math.ceil(event.data.height))),
@@ -68,6 +88,10 @@ function AnimationCard({
     };
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("message", message);
+    const otherPlayer = (event: Event) => {
+      if ((event as CustomEvent).detail !== frame.current?.contentWindow) pause();
+    };
+    window.addEventListener("ballwise-active-animation", otherPlayer);
     const observer =
       typeof IntersectionObserver === "undefined"
         ? null
@@ -80,6 +104,7 @@ function AnimationCard({
       observer?.disconnect();
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("message", message);
+      window.removeEventListener("ballwise-active-animation", otherPlayer);
     };
   }, [opened, autoOpen, catalog]);
 
@@ -133,12 +158,14 @@ function AnimationCard({
         </div>
       ) : (
         <div id={panelId} className="bw-animation-panel">
-          <div className="bw-animation-panel-heading">
-            <strong>Animacja poglądowa</strong>
-            <button type="button" aria-label="Zamknij animację" onClick={() => setOpened(false)}>
-              <X aria-hidden="true" />
-            </button>
-          </div>
+          {!autoOpen && (
+            <div className="bw-animation-panel-heading">
+              <strong>Animacja poglądowa</strong>
+              <button type="button" aria-label="Zamknij animację" onClick={() => setOpened(false)}>
+                <X aria-hidden="true" />
+              </button>
+            </div>
+          )}
           {!loaded && (
             <p role="status" className="bw-animation-loading">
               Wczytuję animację…

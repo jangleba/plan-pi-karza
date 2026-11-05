@@ -33,13 +33,46 @@ async function click(label: string) {
   await act(async () => button.click());
 }
 describe("exercise animation integration", () => {
+  it("passes the saved tempo, hold time and explicit box variant to the shared player", async () => {
+    await act(async () =>
+      root.render(
+        <ExerciseAnimationPreview
+          exercise={exercise("heavy_back_squat", {
+            tempo: "3–0–1–0",
+            animationVariant: "box_touch",
+          })}
+          autoOpen
+        />,
+      ),
+    );
+    let query = new URL(host.querySelector("iframe")!.src).searchParams;
+    expect(query.get("tempo")).toBe("3–0–1–0");
+    expect(query.get("variant")).toBe("box_touch");
+    await act(async () =>
+      root.render(
+        <ExerciseAnimationPreview
+          exercise={exercise("plank", { duration: "30 s / stronę" })}
+          autoOpen
+        />,
+      ),
+    );
+    query = new URL(host.querySelector("iframe")!.src).searchParams;
+    expect(query.get("hold")).toBe("30");
+    await act(async () =>
+      root.render(
+        <ExerciseAnimationPreview exercise={exercise("plank", { duration: "20–30 s" })} autoOpen />,
+      ),
+    );
+    query = new URL(host.querySelector("iframe")!.src).searchParams;
+    expect(query.has("hold")).toBe(false);
+  });
   it("does not load a player until requested and closes it completely", async () => {
     await act(async () => root.render(<ExerciseAnimationPreview exercise={exercise("a_skip")} />));
     expect(host.querySelector("iframe")).toBeNull();
     await click("Pokaż animację ruchu");
     const frame = host.querySelector("iframe")!;
     expect(frame.getAttribute("src")).toBe(
-      `/technique/animations/index.html?id=a_skip&embed=1&v=${APP_VERSION}`,
+      `/technique/animations/index.html?id=a_skip&embed=1&autoplay=1&v=${APP_VERSION}`,
     );
     expect(frame.title).toContain("Ćwiczenie");
     await click("Zamknij animację");

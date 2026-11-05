@@ -1,0 +1,518 @@
+[
+  {
+    "id": "adductor_bridge_squeeze",
+    "title": "Most z dociskiem przywodzicieli"
+  },
+  {
+    "id": "ankle_mobility_flow",
+    "title": "Mobilność stawu skokowego"
+  },
+  {
+    "id": "assisted_nordic_hamstring",
+    "title": "Nordic hamstring wspomagany"
+  },
+  {
+    "id": "assisted_straight_sprint",
+    "title": "Sprint ze sterowaną asystą"
+  },
+  {
+    "id": "band_assisted_jump",
+    "title": "Skok z odciążeniem gumą"
+  },
+  {
+    "id": "band_resisted_acceleration",
+    "title": "Przyspieszenie z oporem gumy i partnera"
+  },
+  {
+    "id": "band_resisted_squat",
+    "title": "Przysiad z dodatkowym oporem gumy"
+  },
+  {
+    "id": "barbell_deadlift",
+    "title": "Martwy ciąg klasyczny"
+  },
+  {
+    "id": "barbell_jump_squat",
+    "title": "Wyskoki ze sztangą"
+  },
+  {
+    "id": "barbell_romanian_deadlift",
+    "title": "Martwy ciąg rumuński ze sztangą"
+  },
+  {
+    "id": "bilateral_slider_leg_curl",
+    "title": "Uginanie nóg na ślizgach obunóż"
+  },
+  {
+    "id": "bilateral_swiss_ball_leg_curl",
+    "title": "Uginanie nóg na piłce szwajcarskiej obunóż"
+  },
+  {
+    "id": "bird_dog",
+    "title": "Ptak-pies"
+  },
+  {
+    "id": "bodyweight_march_hold",
+    "title": "Marsz w miejscu z napięciem tułowia"
+  },
+  {
+    "id": "bodyweight_row",
+    "title": "Bodyweight row"
+  },
+  {
+    "id": "bodyweight_split_squat",
+    "title": "Przysiad wykroczny bez obciążenia"
+  },
+  {
+    "id": "bodyweight_squat",
+    "title": "Przysiad z masą własnego ciała"
+  },
+  {
+    "id": "box_jump",
+    "title": "Wskok na skrzynię"
+  },
+  {
+    "id": "bridge_walkout",
+    "title": "Chód piętami z mostu"
+  },
+  {
+    "id": "bulgarian_split_squat",
+    "title": "Przysiad bułgarski z obciążeniem"
+  },
+  {
+    "id": "bwprep:adductor",
+    "title": "Rock-back przywodziciela"
+  },
+  {
+    "id": "bwprep:bridge",
+    "title": "Most biodrowy"
+  },
+  {
+    "id": "bwprep:calf",
+    "title": "Rozciąganie łydki"
+  },
+  {
+    "id": "bwprep:cat",
+    "title": "Koci grzbiet"
+  },
+  {
+    "id": "bwprep:hamstring",
+    "title": "Tył uda w półklęku"
+  },
+  {
+    "id": "bwprep:hip",
+    "title": "Mobilizacja biodra w wykroku"
+  },
+  {
+    "id": "bwprep:quad",
+    "title": "Przód uda z podparciem"
+  },
+  {
+    "id": "bwprep:rotation",
+    "title": "Rotacja odcinka piersiowego"
+  },
+  {
+    "id": "bwprep:soleus",
+    "title": "Łydka z ugiętym kolanem"
+  },
+  {
+    "id": "bwprep:squat",
+    "title": "Kontrolowany przysiad z masą ciała"
+  },
+  {
+    "id": "bwprep:walk",
+    "title": "Spokojny marsz"
+  },
+  {
+    "id": "clean_pull_from_hang",
+    "title": "Pociągnięcie sztangi z zawieszenia"
+  },
+  {
+    "id": "copenhagen_plank",
+    "title": "Deska kopenhaska"
+  },
+  {
+    "id": "countermovement_jump",
+    "title": "Skok z zamachem"
+  },
+  {
+    "id": "dead_bug",
+    "title": "Martwy robak"
+  },
+  {
+    "id": "depth_jump",
+    "title": "Drop jump"
+  },
+  {
+    "id": "diagonal_bound_to_stick",
+    "title": "Skok diagonalny z zatrzymaniem"
+  },
+  {
+    "id": "diaphragmatic_breathing",
+    "title": "Oddech przeponowy"
+  },
+  {
+    "id": "drop_landing",
+    "title": "Lądowanie po zejściu z podestu"
+  },
+  {
+    "id": "dumbbell_bench_press",
+    "title": "Wyciskanie hantli na ławce"
+  },
+  {
+    "id": "dumbbell_jump_squat",
+    "title": "Wyskoki z hantlami"
+  },
+  {
+    "id": "dumbbell_overhead_press",
+    "title": "Wyciskanie hantli nad głowę"
+  },
+  {
+    "id": "easy_aerobic_run",
+    "title": "Łatwy bieg tlenowy"
+  },
+  {
+    "id": "easy_cycle_recovery",
+    "title": "Lekki rower regeneracyjny"
+  },
+  {
+    "id": "eccentric_nordic_hamstring",
+    "title": "Nordic hamstring ekscentryczny"
+  },
+  {
+    "id": "face_pull_band",
+    "title": "Face pull z gumą"
+  },
+  {
+    "id": "farmer_carry",
+    "title": "Spacer farmera"
+  },
+  {
+    "id": "field_mas_5_min_test",
+    "title": "Test biegowy 5 min"
+  },
+  {
+    "id": "flywheel_squat",
+    "title": "Przysiad na urządzeniu flywheel"
+  },
+  {
+    "id": "football_ball_mastery",
+    "title": "Czucie piłki obiema nogami"
+  },
+  {
+    "id": "football_easy_contacts",
+    "title": "Spokojne kontakty z piłką"
+  },
+  {
+    "id": "football_gk_distribution",
+    "title": "Gra nogami bramkarza z piłką"
+  },
+  {
+    "id": "football_scan_control",
+    "title": "Orientacja przed kontaktem z piłką"
+  },
+  {
+    "id": "football_self_feed_first_touch",
+    "title": "Przyjęcie piłki z własnego podania"
+  },
+  {
+    "id": "football_target_pass",
+    "title": "Celne podanie piłki do strefy"
+  },
+  {
+    "id": "football_technical_self_selected",
+    "title": "Własny blok techniczny z piłką"
+  },
+  {
+    "id": "football_turn_control",
+    "title": "Prowadzenie piłki i kontrolowany obrót"
+  },
+  {
+    "id": "football_wall_first_touch",
+    "title": "Podanie o ścianę i przyjęcie piłki"
+  },
+  {
+    "id": "front_rack_carry",
+    "title": "Spacer z ciężarem w racku z przodu"
+  },
+  {
+    "id": "front_squat",
+    "title": "Przysiad przedni"
+  },
+  {
+    "id": "full_nordic_hamstring",
+    "title": "Nordic hamstring pełny"
+  },
+  {
+    "id": "glute_bridge",
+    "title": "Most biodrowy"
+  },
+  {
+    "id": "glute_bridge_march",
+    "title": "Marsz w moście biodrowym"
+  },
+  {
+    "id": "goblet_squat",
+    "title": "Przysiad goblet"
+  },
+  {
+    "id": "hamstring_45_back_extension",
+    "title": "Hamstring-biased back extension 45°"
+  },
+  {
+    "id": "heavy_back_squat",
+    "title": "Przysiad ze sztangą (back squat)"
+  },
+  {
+    "id": "heel_dig_hamstring_iso_30",
+    "title": "Izometria hamstringów heel-dig 30°"
+  },
+  {
+    "id": "heel_dig_hamstring_iso_90",
+    "title": "Izometria hamstringów heel-dig 90°"
+  },
+  {
+    "id": "hill_acceleration",
+    "title": "Przyspieszenie na łagodnym podbiegu"
+  },
+  {
+    "id": "hip_mobility_flow",
+    "title": "Mobilność bioder"
+  },
+  {
+    "id": "hip_thrust",
+    "title": "Wypychanie bioder ze sztangą"
+  },
+  {
+    "id": "hurdle_hops",
+    "title": "Przeskoki przez płotki"
+  },
+  {
+    "id": "kettlebell_swing",
+    "title": "Wymach kettlebell"
+  },
+  {
+    "id": "kickstand_romanian_deadlift",
+    "title": "Martwy ciąg rumuński kickstand"
+  },
+  {
+    "id": "lat_pulldown",
+    "title": "Ściąganie drążka wyciągu do klatki"
+  },
+  {
+    "id": "lateral_lunge",
+    "title": "Wykrok boczny"
+  },
+  {
+    "id": "leg_extension",
+    "title": "Prostowanie nóg na maszynie"
+  },
+  {
+    "id": "leg_press",
+    "title": "Wypychanie ciężaru na suwnicy"
+  },
+  {
+    "id": "long_lever_hamstring_iso",
+    "title": "Most hamstring izometryczny z długą dźwignią"
+  },
+  {
+    "id": "lying_leg_curl",
+    "title": "Uginanie nóg leżąc"
+  },
+  {
+    "id": "med_ball_throw",
+    "title": "Wyrzut piłki lekarskiej sprzed klatki"
+  },
+  {
+    "id": "medicine_ball_overhead_backward_throw",
+    "title": "Wyrzut piłki lekarskiej nad głową w tył"
+  },
+  {
+    "id": "medicine_ball_rotational_scoop_toss",
+    "title": "Rotacyjny wyrzut piłki lekarskiej z dołu"
+  },
+  {
+    "id": "medicine_ball_slam",
+    "title": "Uderzenie piłką lekarską o podłoże"
+  },
+  {
+    "id": "method_interval_run",
+    "title": "Bieg interwałowy według czasu"
+  },
+  {
+    "id": "method_repeated_sprint",
+    "title": "Powtarzane sprinty w linii prostej"
+  },
+  {
+    "id": "method_speed_endurance",
+    "title": "Dłuższy odcinek szybkościowy"
+  },
+  {
+    "id": "method_sprint_interval",
+    "title": "Interwał bardzo wysokiej intensywności"
+  },
+  {
+    "id": "one_arm_dumbbell_row",
+    "title": "Wiosłowanie hantlą jednorącz"
+  },
+  {
+    "id": "oscillatory_long_lever_bridge",
+    "title": "Pulsujący most hamstring z długą dźwignią"
+  },
+  {
+    "id": "overcoming_pin_squat",
+    "title": "Nacisk izometryczny przeciw stałym pinom"
+  },
+  {
+    "id": "overhead_carry",
+    "title": "Spacer z ciężarem nad głową"
+  },
+  {
+    "id": "pallof_press",
+    "title": "Pallof press"
+  },
+  {
+    "id": "pike_push_up",
+    "title": "Pompka pike"
+  },
+  {
+    "id": "plank",
+    "title": "Deska"
+  },
+  {
+    "id": "power_clean",
+    "title": "Zarzut siłowy z pozycji zwisu"
+  },
+  {
+    "id": "prone_band_leg_curl",
+    "title": "Uginanie nóg leżąc z gumą"
+  },
+  {
+    "id": "pull_up",
+    "title": "Pull-up"
+  },
+  {
+    "id": "push_press",
+    "title": "Wyciskanie sztangi z wybiciem nóg"
+  },
+  {
+    "id": "push_up",
+    "title": "Pompka"
+  },
+  {
+    "id": "razor_curl",
+    "title": "Razor curl"
+  },
+  {
+    "id": "repeated_broad_jump",
+    "title": "Powtarzane skoki w dal"
+  },
+  {
+    "id": "repeated_curved_sprints",
+    "title": "Powtarzane sprinty po łuku"
+  },
+  {
+    "id": "repeated_linear_short_sprints",
+    "title": "Powtarzane krótkie sprinty liniowe"
+  },
+  {
+    "id": "repeated_shuttle_sprints",
+    "title": "Powtarzane sprinty wahadłowe"
+  },
+  {
+    "id": "reverse_lunge",
+    "title": "Wykrok w tył"
+  },
+  {
+    "id": "romanian_deadlift_db",
+    "title": "Martwy ciąg rumuński z hantlami"
+  },
+  {
+    "id": "seated_leg_curl",
+    "title": "Uginanie nóg siedząc"
+  },
+  {
+    "id": "seated_soleus_raise",
+    "title": "Wspięcia na palce siedząc"
+  },
+  {
+    "id": "side_plank",
+    "title": "Deska bokiem"
+  },
+  {
+    "id": "single_leg_glute_bridge",
+    "title": "Most biodrowy jednonóż"
+  },
+  {
+    "id": "single_leg_hop_and_stick",
+    "title": "Skok jednonóż z zatrzymaniem"
+  },
+  {
+    "id": "single_leg_long_lever_hamstring_iso",
+    "title": "Most hamstring izometryczny z długą dźwignią jednonóż"
+  },
+  {
+    "id": "single_leg_pogo",
+    "title": "Pogo jednonóż"
+  },
+  {
+    "id": "single_leg_romanian_deadlift",
+    "title": "Martwy ciąg rumuński na jednej nodze"
+  },
+  {
+    "id": "single_leg_slider_leg_curl",
+    "title": "Uginanie nogi na ślizgu jednonóż"
+  },
+  {
+    "id": "single_leg_swiss_ball_leg_curl",
+    "title": "Uginanie nogi na piłce szwajcarskiej jednonóż"
+  },
+  {
+    "id": "soleus_iso_hold",
+    "title": "Izometryczne wspięcie na mięsień płaszczkowaty"
+  },
+  {
+    "id": "split_squat_jump",
+    "title": "Wyskoki z pozycji wykrocznej"
+  },
+  {
+    "id": "sprint_cooldown_walk",
+    "title": "Marsz i uspokojenie oddechu"
+  },
+  {
+    "id": "squat_jump",
+    "title": "Wyskocz z przysiadu"
+  },
+  {
+    "id": "standing_calf_raise",
+    "title": "Wspięcia na palce stojąc"
+  },
+  {
+    "id": "static_stretch_cooldown",
+    "title": "Rozciąganie statyczne (wyciszenie)"
+  },
+  {
+    "id": "step_up",
+    "title": "Wejście na podest"
+  },
+  {
+    "id": "suitcase_carry",
+    "title": "Spacer walizkowy"
+  },
+  {
+    "id": "tempo_conditioning_block",
+    "title": "Blok tempa tlenowego"
+  },
+  {
+    "id": "tibialis_raise",
+    "title": "Unoszenie palców stóp do góry"
+  },
+  {
+    "id": "trap_bar_deadlift",
+    "title": "Martwy ciąg z trap barem"
+  },
+  {
+    "id": "trap_bar_jump",
+    "title": "Wyskoki z trap barem"
+  }
+]

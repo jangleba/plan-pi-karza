@@ -256,7 +256,7 @@ scope.BWAnim={models,register,compose,math:{mod,clamp,mix,smooth,bezier,ik,leg,s
     return [154, mix(EXIT_HIP, ENTRY_HIP, smooth(u)) - (end - start > .1 ? 7 : 3) * Math.sin(Math.PI * u)];
   }
   function peak(kind) {
-    if (kind === 'c') return [-14, 4]; // Heel folds under hip; knee remains slightly forward and below hip.
+    if (kind === 'c') return [-17, 11]; // Heel folds under hip; knee remains slightly forward and below hip.
     if (kind === 'd') { const a = 25 * Math.PI / 180; return [112.8 * Math.sin(a), 112.8 * Math.cos(a)]; }
     if (kind === 'ankling') return [12, 110];
     if (kind === 'low') return [28, 83];
@@ -535,6 +535,7 @@ scope.BWAnim={models,register,compose,math:{mod,clamp,mix,smooth,bezier,ik,leg,s
  }
  function airMove(hip,from,to,u,angleFrom,angleTo,lift=12){const v=smooth(clamp(u)),end=pt(from,to,v);end[1]-=lift*Math.sin(Math.PI*v);return limb(hip,end,false,mix(angleFrom,angleTo,v));}
 
+ A.runningSample=run;
  // Wall tasks: hands remain on the wall; the support foot stays fixed.
  function wallPose(p,side=0){
   const hip=[155,151.25],support=[106,253],raised=[194,194],right=side<.5?limb(hip,support,true):limb(hip,raised,false,-12),left=side<.5?limb(hip,raised,false,-12):limb(hip,support,true);
@@ -676,9 +677,10 @@ scope.BWAnim={models,register,compose,math:{mod,clamp,mix,smooth,bezier,ik,leg,s
     return { knee, ankle, contact, footAngle: 0, local: 0 };
   };
   const armIK = (shoulder, wrist, bend) => {
-    const dx=wrist[0]-shoulder[0],dy=wrist[1]-shoulder[1],d=Math.hypot(dx,dy);
+    const dx=wrist[0]-shoulder[0],dy=wrist[1]-shoulder[1],raw=Math.max(.001,Math.hypot(dx,dy)),d=Math.max(13.5,Math.min(52.8,raw));
+    wrist=[shoulder[0]+dx/raw*d,shoulder[1]+dy/raw*d];
     const a=(30*30-23*23+d*d)/(2*d),h=Math.sqrt(Math.max(0,30*30-a*a));
-    return { elbow:[shoulder[0]+a*dx/d+bend*h*dy/d,shoulder[1]+a*dy/d-bend*h*dx/d],wrist };
+    return { shoulder, elbow:[shoulder[0]+a*dx/d+bend*h*dy/d,shoulder[1]+a*dy/d-bend*h*dx/d],wrist };
   };
 
   // Alternating contacts without a same-foot extra contact: this follows the
@@ -1432,9 +1434,12 @@ for(const id of Object.keys(A.models))resolveClock(id);
     const push = (joint, side, center, rx, ry, rotation = 0) => {
       if (point(center)) out.push({ joint, side, point: [...center], center: [...center], rx, ry, rotation });
     };
-    const hip = () => push('hip', 'center', scene.hip, 18, 15, angle);
-    const knee = side => push('knee', side, scene[side].knee, 12, 12);
-    const ankle = side => push('ankle', side, scene[side].ankle, 15, 10);
+    const projected = (side, joint, fallback) => scene.spatial
+      ? scope.BWSpatial.project(side === 'center' ? scene.spatial.hip : scene.spatial.joints[side][joint], scene.spatial.camera)
+      : fallback;
+    const hip = () => push('hip', 'center', projected('center', 'hip', scene.hip), 18, 15, angle);
+    const knee = side => push('knee', side, projected(side, 'knee', scene[side].knee), 12, 12);
+    const ankle = side => push('ankle', side, projected(side, 'ankle', scene[side].ankle), 15, 10);
     const arms = () => {
       for (const side of ['left', 'right']) {
         const arm = scope.BWDrawHuman?.armPoints(scene, side, angle, scene.view === 'front');
