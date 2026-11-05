@@ -299,6 +299,7 @@ export interface TrainingExercise {
   loadGuidance?: string; // jak dobrać ciężar
   loadReduceWhen?: string; // kiedy zmniejszyć obciążenie
   plyoLevel?: number; // 1–4 poziom progresji plyometrycznej
+  /** Planned ground contacts in ONE set; bilateral/left-right work is included. */
   groundContacts?: number;
   equipment?: string;
   cue?: string;

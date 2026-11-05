@@ -12,10 +12,11 @@ import {
 } from "./sessionClassification";
 import { calculateWeeklyMinimumRequirements } from "./weeklyRequirements";
 import { profileMatchDates } from "./matchSchedule";
-import { gymSpacingIssues } from "./strengthScheduling";
+import { hasHighGymToSpeedConflict, gymSpacingIssues } from "./strengthScheduling";
 import {
   finalPolicyMissingTargets,
-  secondSessionPolicyViolation, isConservativeReturnContext,
+  secondSessionPolicyViolation,
+  isConservativeReturnContext,
 } from "./finalPlanPolicy";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 
@@ -27,6 +28,7 @@ export type PersistedPlanIssueCode =
   | "adjacent-speed-days"
   | "duplicate-gym-same-day"
   | "adjacent-gym-days"
+  | "high-gym-before-speed"
   | "duplicate-dominant-stimulus"
   | "invalid-beginner-double"
   | "double-sessions-disabled"
@@ -117,35 +119,75 @@ export function validatePersistedPlan(
       });
     }
 
+    const prior = plan.find((d) => d.date === isoDate(addDays(parseIso(day.date), -1)));
+    if (prior && hasHighGymToSpeedConflict(prior, day))
+      issues.push({
+        code: "high-gym-before-speed",
+        date: day.date,
+        message:
+          "Pełny sprint nie jest domyślnie dodawany dzień po ciężkiej pracy nóg. Zmień dzień lub rodzaj sesji.",
+      });
     const speed = assessDaySpeedLoad(day);
 
     const secondViolation = secondSessionPolicyViolation(day, profile);
-    if (secondViolation) issues.push({
-      code: secondViolation, date: day.date,
-      message: secondViolation === "double-sessions-disabled"
-        ? "Profil nie dopuszcza drugiej sesji tego dnia."
-        : secondViolation === "invalid-beginner-double"
-          ? "Profil dopuszcza wyłącznie lekką drugą sesję."
-          : "Dwie sesje tego dnia mają ten sam główny bodziec.",
-    });
-    const ownSessions = [day, day.secondSession].filter((session): session is SessionDay =>
-      !!session && !session.executionProtected && session.dayType !== "rest" &&
-      session.dayType !== "club" && session.dayType !== "match" &&
-      !session.externalCommitment && session.durationMin > 0);
+    if (secondViolation)
+      issues.push({
+        code: secondViolation,
+        date: day.date,
+        message:
+          secondViolation === "double-sessions-disabled"
+            ? "Profil nie dopuszcza drugiej sesji tego dnia."
+            : secondViolation === "invalid-beginner-double"
+              ? "Profil dopuszcza wyłącznie lekką drugą sesję."
+              : "Dwie sesje tego dnia mają ten sam główny bodziec.",
+      });
+    const ownSessions = [day, day.secondSession].filter(
+      (session): session is SessionDay =>
+        !!session &&
+        !session.executionProtected &&
+        session.dayType !== "rest" &&
+        session.dayType !== "club" &&
+        session.dayType !== "match" &&
+        !session.externalCommitment &&
+        session.durationMin > 0,
+    );
     const weekday = isoDayOfWeek(parseIso(day.date));
-    if (ownSessions.length && ((profile.unavailableDays ?? []).includes(weekday) ||
-      (Array.isArray(profile.individualTrainingDays) && !profile.individualTrainingDays.includes(weekday))))
-      issues.push({ code: "own-training-unavailable", date: day.date,
-        message: "Własny trening wypada w dniu niedostępnym." });
-    if (profile.hasSprintSpace === false && ownSessions.some(session =>
-      assessDaySpeedLoad({ ...session, secondSession: null }).realExposureCount > 0))
-      issues.push({ code: "sprint-space-unavailable", date: day.date,
-        message: "Trening szybkościowy wymaga niedostępnego miejsca do sprintu." });
-    if (isConservativeReturnContext(profile) && ownSessions.some(session =>
-      session.intensity === "wysoka" || classifySession(session).subcategory === "field_mas_test" ||
-      assessDaySpeedLoad({ ...session, secondSession: null }).realExposureCount > 0))
-      issues.push({ code: "conservative-return-violation", date: day.date,
-        message: "Maksymalny lub mocny trening nie pasuje do ostrożnego etapu powrotu." });
+    if (
+      ownSessions.length &&
+      ((profile.unavailableDays ?? []).includes(weekday) ||
+        (Array.isArray(profile.individualTrainingDays) &&
+          !profile.individualTrainingDays.includes(weekday)))
+    )
+      issues.push({
+        code: "own-training-unavailable",
+        date: day.date,
+        message: "Własny trening wypada w dniu niedostępnym.",
+      });
+    if (
+      profile.hasSprintSpace === false &&
+      ownSessions.some(
+        (session) => assessDaySpeedLoad({ ...session, secondSession: null }).realExposureCount > 0,
+      )
+    )
+      issues.push({
+        code: "sprint-space-unavailable",
+        date: day.date,
+        message: "Trening szybkościowy wymaga niedostępnego miejsca do sprintu.",
+      });
+    if (
+      isConservativeReturnContext(profile) &&
+      ownSessions.some(
+        (session) =>
+          session.intensity === "wysoka" ||
+          classifySession(session).subcategory === "field_mas_test" ||
+          assessDaySpeedLoad({ ...session, secondSession: null }).realExposureCount > 0,
+      )
+    )
+      issues.push({
+        code: "conservative-return-violation",
+        date: day.date,
+        message: "Maksymalny lub mocny trening nie pasuje do ostrożnego etapu powrotu.",
+      });
 
     if (speed.hasDuplicateRealSpeedExposures) {
       issues.push({
@@ -255,7 +297,8 @@ export function validatePersistedPlan(
     // A current final-policy pass can explicitly reduce soft goals; hard checks
     // above still reject the plan. This prevents regenerating an infeasible week forever.
     const actualMissing = isConservativeReturnContext(profile)
-      ? finalPolicyMissingTargets(week, profile) : missing;
+      ? finalPolicyMissingTargets(week, profile)
+      : missing;
     if (actualMissing.length > 0 && !acceptsReducedTargets) {
       issues.push({
         code: "missing-weekly-minimum",

@@ -6,7 +6,7 @@ import {
   isMainGymSession,
   normalizeSessionCategory,
 } from "./sessionClassification";
-import { assessDaySpeedLoad } from "./speedLoad";
+import { assessSpeedLoad, assessDaySpeedLoad } from "./speedLoad";
 import { isProfileMatchDate } from "./matchSchedule";
 
 type Slot = { index: number; second: boolean };
@@ -14,6 +14,19 @@ export type GymSpacingIssue = {
   code: "duplicate-gym-same-day" | "adjacent-gym-days";
   date: string;
 };
+
+export const isHighLowerGym = (s: SessionDay) =>
+  isMainGymSession(s) && s.intensity === "wysoka" && classifySession(s).isHeavyLegs;
+export const isFullSpeedSession = (s: SessionDay) =>
+  assessSpeedLoad(s).countsAsSpeedExposure && s.intensity === "wysoka";
+/** Product default for high lower-body loads, not an individual recovery measurement. */
+export function hasHighGymToSpeedConflict(previous: SessionDay, current: SessionDay): boolean {
+  return (
+    previous.date === isoDate(addDays(parseIso(current.date), -1)) &&
+    [previous, previous.secondSession].some((s) => s && isHighLowerGym(s)) &&
+    [current, current.secondSession].some((s) => s && isFullSpeedSession(s))
+  );
+}
 
 export function dayHasGym(day: SessionDay): boolean {
   return isMainGymSession(day) || Boolean(day.secondSession && isMainGymSession(day.secondSession));

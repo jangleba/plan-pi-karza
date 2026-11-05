@@ -8,8 +8,8 @@ const exercise = (exerciseId: string, rest: Partial<TrainingExercise> = {}): Tra
 
 describe("exercise animation identity and session rhythm", () => {
   it("covers the complete movement catalog without importing the renderer", () => {
-    expect(ANIMATION_CATALOG).toHaveLength(215);
-    expect(new Set(ANIMATION_CATALOG.map(entry => entry.id)).size).toBe(215);
+    expect(ANIMATION_CATALOG).toHaveLength(216);
+    expect(new Set(ANIMATION_CATALOG.map(entry => entry.id)).size).toBe(216);
     for (const entry of ANIMATION_CATALOG) {
       const result = resolveExerciseAnimation(exercise(entry.id));
       expect(result).not.toBeNull();

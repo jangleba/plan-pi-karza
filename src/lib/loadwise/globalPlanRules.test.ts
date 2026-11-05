@@ -91,7 +91,9 @@ describe("globalPlanRules — kontekst i reguły celu", () => {
   });
 
   it("getSupportSessions zawiera akcent pozycyjny", () => {
-    const ctx = buildTrainingContext(baseProfile({ position: "forward", secondaryLimiter: "speed" }));
+    const ctx = buildTrainingContext(
+      baseProfile({ position: "forward", secondaryLimiter: "speed" }),
+    );
     const support = getSupportSessions(ctx);
     expect(support.some((s) => s.source === "position")).toBe(true);
     expect(support.some((s) => s.source === "limitation")).toBe(true);
@@ -277,12 +279,23 @@ describe("globalPlanRules — walidacja tygodnia i planu", () => {
       expect(report.weekScores).toHaveLength(4);
       expect(report.weekScores.every((score) => Number.isFinite(score) && score > 0)).toBe(true);
       expect(report.errors.some((error) => error.startsWith("progression:"))).toBe(false);
-      // brak copy-paste między kolejnymi tygodniami
+      // Stable main exercises are allowed; similarity is descriptive, not a safety failure.
       for (const sim of report.weekSimilarityScores) {
-        expect(sim).toBeLessThanOrEqual(0.75);
+        expect(sim).toBeGreaterThanOrEqual(0);
+        expect(sim).toBeLessThanOrEqual(1);
       }
       expect(report.valid).toBe(true);
     }
+  });
+
+  it("nie przebudowuje bezpiecznego tygodnia wyłącznie dlatego, że zawodnik utrzymuje główne ćwiczenia", () => {
+    const p = baseProfile({ goal: "strength" }),
+      week = fullWeeks(generatePlan(p, START, 28))[0];
+    const report = validatePlan([week, structuredClone(week)], buildTrainingContext(p));
+    expect(report.weekSimilarityScores).toEqual([1]);
+    expect(report.errors.some((e) => e.startsWith("copy-paste:"))).toBe(false);
+    expect(report.warnings).toContain("stable-prescriptions:w1-w2");
+    expect(report.weekErrors.every((errors) => errors.length === 0)).toBe(true);
   });
 
   it("compareWeekSimilarity: identyczny tydzień = 1, różne < 1", () => {
@@ -292,10 +305,12 @@ describe("globalPlanRules — walidacja tygodnia i planu", () => {
     expect(compareWeekSimilarity(weeks[0], weeks[2])).toBeLessThan(1);
   });
 
-  it("calculateWeeklyLoadScore rośnie z intensywnością", () => {
-    const plan = generatePlan(baseProfile({ goal: "general" }), START, 28);
-    const scores = fullWeeks(plan).map((w) => calculateWeeklyLoadScore(w));
-    expect(Math.max(...scores)).toBe(scores[2]);
+  it("calculateWeeklyLoadScore porównuje intensywność przy identycznej treści i liczbie sesji", () => {
+    const week = fullWeeks(generatePlan(baseProfile({ goal: "general" }), START, 28))[0];
+    const low = week.map((day) => ({ ...day, intensity: "niska" as const }));
+    const high = week.map((day) => ({ ...day, intensity: "wysoka" as const }));
+    expect(calculateWeeklyLoadScore(high)).toBeGreaterThan(calculateWeeklyLoadScore(low));
+    // A reduced/adjusted week need not be the month's maximum merely because it is week 3.
   });
 });
 
@@ -320,7 +335,12 @@ describe("globalPlanRules — profil zawodnika (twarde zasady)", () => {
   });
 
   it("Test 7: return — brak agresywnych bodźców, obowiązkowy bodziec zachowany", () => {
-    const profile = baseProfile({ goal: "return", seasonPhase: "return_injury", painInjury: true, painLocations: ["hamstring"] });
+    const profile = baseProfile({
+      goal: "return",
+      seasonPhase: "return_injury",
+      painInjury: true,
+      painLocations: ["hamstring"],
+    });
     const plan = generatePlan(profile, START, 28);
     const ctx = buildTrainingContext(profile);
     for (const week of fullWeeks(plan)) {

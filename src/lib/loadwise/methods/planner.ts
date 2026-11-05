@@ -1,3 +1,5 @@
+import { applyStrengthProgramming } from "../strengthProgramming";
+import { balanceStrengthSections } from "../strengthSessionBalance";
 import { computeLoadTags } from "../sessionLoadTags";
 import type { Profile, SessionDay, TrainingSection } from "../types";
 import {
@@ -112,11 +114,29 @@ export function createMethodSession(
   if (!gate.allowed) throw new Error(gate.reasons.join(" "));
   const m = getTrainingMethod(id)!,
     strength = m.domain === "strength" || m.domain === "power";
-  const sections = strength
-    ? buildStrengthMethod(session, profile, id, conditions)
-    : buildFieldMethod(session, profile, id, conditions);
+  const preserveAutomatic =
+    strength &&
+    selection === "automatic" &&
+    (!profile.trainingMethodPreferences?.strength ||
+      profile.trainingMethodPreferences.strength === "auto") &&
+    session.structuredSections?.some((s) => s.type === "main");
+  const sections = preserveAutomatic
+    ? balanceStrengthSections(
+        applyStrengthProgramming(session.structuredSections!, {
+          method: id === "M02" ? "foundation" : id === "M06" ? "power_first" : "straight_sets",
+          reason: "Zachowano kompletny trening oraz dawkę wynikającą z fazy i poziomu.",
+        }),
+        profile,
+      )
+    : strength
+      ? buildStrengthMethod(session, profile, id, conditions)
+      : buildFieldMethod(session, profile, id, conditions);
   const athlete = buildAthleteTrainingProfile(profileWithMethodEquipment(profile, conditions));
+  const instances = new Set<string>();
   for (const e of sections.flatMap((s) => s.blocks.flatMap((b) => b.exercises))) {
+    if (instances.has(e.id))
+      throw new Error("Dwa ćwiczenia mają ten sam zapis serii. Wybierz ponownie metodę.");
+    instances.add(e.id);
     const def = getExerciseDefinition(e.exerciseId ?? "");
     const allowed = isExerciseAllowedForProfile(def, athlete);
     if (!allowed.ok) throw new Error(`${e.name}: ${allowed.reasons.join(" ")}`);

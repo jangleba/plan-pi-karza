@@ -1,6 +1,7 @@
 import { addIsoDays } from "@/lib/isoDate";
 import {
   getExerciseDefinition,
+  isExerciseAllowedForProfile,
   getFootballSpeedCatalog,
   type ExerciseDefinition,
   type FootballSpeedQuality,
@@ -16,6 +17,7 @@ import type {
 import { validateFootballSpeedDate } from "./footballSpeedScheduling";
 import { enforceSprintOnlyContent } from "./sprintContentPolicy";
 import { isProfileMatchDate, profileMatchDates } from "./matchSchedule";
+import { buildAthleteTrainingProfile } from "./athleteProfile";
 
 export type FootballSpeedFamily =
   | "acceleration"
@@ -134,7 +136,7 @@ export interface FootballSpeedSession {
 }
 
 const REPEATED_SPRINT: FootballSpeedQuality = "repeated_sprint";
-export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v7-ball-free";
+export const FOOTBALL_SPEED_GENERATOR_VERSION = "football-speed-v8-profile-dose";
 
 type DoseMode = "full" | "reduced" | "activation";
 
@@ -801,7 +803,7 @@ const PLYO_BY_FAMILY: Record<FootballSpeedFamily, RowSpec> = {
   },
 };
 
-function plyoSpec(input: FootballSpeedEngineInput): RowSpec {
+function preferredPlyoSpec(input: FootballSpeedEngineInput): RowSpec {
   const advancedReactive = PLYO_BY_FAMILY.reactive_agility_reacceleration;
   if (
     input.family === "reactive_agility_reacceleration" &&
@@ -818,6 +820,39 @@ function plyoSpec(input: FootballSpeedEngineInput): RowSpec {
   return input.family === "reactive_agility_reacceleration"
     ? advancedReactive
     : PLYO_BY_FAMILY[input.family];
+}
+
+function plyoSpec(input: FootballSpeedEngineInput): RowSpec | undefined {
+  const athlete = buildAthleteTrainingProfile(
+    input.profile,
+    {},
+    {
+      readiness: input.readiness,
+      fatigue: input.fatigue,
+    },
+  );
+  const preferred = preferredPlyoSpec(input);
+  if (isExerciseAllowedForProfile(approved(preferred.id), athlete).ok) return preferred;
+  // The football level does not prove landing competence or strength experience.
+  const landing = PLYO_BY_FAMILY.deceleration_cod;
+  return isExerciseAllowedForProfile(approved(landing.id), athlete).ok ? landing : undefined;
+}
+
+/** A displayed complete dose is split ONCE for logging. Contacts are per set. */
+export function speedDoseFields(
+  dose: string,
+  landingTask = false,
+): Pick<FootballSpeedExercise, "sets" | "reps" | "distanceOrDuration" | "groundContacts"> {
+  const split = dose.match(/^(\d+(?:\s*[–-]\s*\d+)?)\s*(?:akcje|serie|rundy)?\s*[×x]\s*(.+)$/i);
+  const sets = split?.[1] ?? "1",
+    reps = split?.[2] ?? dose;
+  const contacts = reps.match(landingTask ? /^(\d+)\s*(?:kont|powt|na stron)/i : /^(\d+)\s*kont/i);
+  return {
+    sets,
+    reps,
+    distanceOrDuration: /^\d+(?:\s*[–-]\s*\d+)?\s*(?:s|sek|min)\b/i.test(reps) ? reps : undefined,
+    groundContacts: contacts ? Number(contacts[1]) * (/na stron/i.test(reps) ? 2 : 1) : undefined,
+  };
 }
 
 const RESISTED_BODYWEIGHT: RowSpec = {
@@ -976,9 +1011,7 @@ function resolveDoseMode(input: FootballSpeedEngineInput): DoseMode {
 }
 
 function hasHardConflict(input: FootballSpeedEngineInput): boolean {
-  const canShareClubDay =
-    input.profile.age >= 16 &&
-    input.profile.level !== "beginner";
+  const canShareClubDay = input.profile.age >= 16 && input.profile.level !== "beginner";
   return (input.externalSessions ?? []).some((exposure) => {
     const adjacent = [addIsoDays(input.date, -1), addIsoDays(input.date, 1)].includes(
       exposure.date,
@@ -1052,9 +1085,7 @@ function buildRow(
     direction: spec.direction,
     pass,
     variant: variant ?? spec.variant,
-    sets: "1",
-    reps: dose,
-    distanceOrDuration: dose,
+    ...speedDoseFields(dose, role === "secondary"),
     restBetweenReps: spec.rest,
     restBetweenSets: spec.rest,
   };
@@ -1247,9 +1278,14 @@ export function generateFootballSpeedSession(
     .filter((exercise) => exercise.speedQualities?.includes(REPEATED_SPRINT))
     .map((exercise) => exercise.id);
 
-  if (hasPain(input) || input.profile.hasSprintSpace === false ||
-      input.profile.goal === "return" || input.profile.secondaryLimiter === "return" ||
-      input.profile.secondaryLimiter === "fatigue" || input.profile.seasonPhase === "return_injury") {
+  if (
+    hasPain(input) ||
+    input.profile.hasSprintSpace === false ||
+    input.profile.goal === "return" ||
+    input.profile.secondaryLimiter === "return" ||
+    input.profile.secondaryLimiter === "fatigue" ||
+    input.profile.seasonPhase === "return_injury"
+  ) {
     return {
       status: "blocked",
       date: input.date,
@@ -1271,9 +1307,7 @@ export function generateFootballSpeedSession(
     validateFootballSpeedDate(input.date, {
       matchDate: input.profile.matchDate,
       matchDates: profileMatchDates(input.profile),
-    }).issues.includes(
-      "match_minus_one",
-    ) ||
+    }).issues.includes("match_minus_one") ||
     isMatchPlusOne(input) ||
     hasHardConflict(input)
   ) {
@@ -1301,16 +1335,12 @@ export function generateFootballSpeedSession(
   }
   for (const [index, drill] of selectPostSkipDrills(input, spec).entries()) {
     const row = buildRow(drill, order++, "technical", input, mode, index + 1);
-    row.sets = "2";
     exercises.push(row);
   }
-  const plyo = buildRow(plyoSpec(input), order++, "secondary", input, mode);
-  plyo.sets = mode === "full" ? "2–3" : "2";
-  plyo.groundContacts = mode === "full" ? 4 : 3;
-  exercises.push(plyo);
+  const selectedPlyo = plyoSpec(input);
+  if (selectedPlyo) exercises.push(buildRow(selectedPlyo, order++, "secondary", input, mode));
 
   const resisted = buildRow(resistedSpec(input.profile), order++, "resisted", input, mode);
-  resisted.sets = mode === "full" ? "3" : "2";
   exercises.push(resisted);
 
   // Dwa uzupełniające się zadania główne zamiast jednego ogólnego wiersza.
@@ -1318,11 +1348,9 @@ export function generateFootballSpeedSession(
   // rozwiązania, a następnie przenosi je do swobodniejszego sprintu.
   for (const mainRow of mainSprintRows(input, spec)) {
     const primary = buildRow(mainRow, order++, "primary", input, mode);
-    primary.sets = mode === "full" ? "2–3" : "1–2";
     exercises.push(primary);
   }
   const terminal = buildRow(TERMINAL_BY_FAMILY[input.family], order++, "terminal", input, mode);
-  terminal.sets = "2";
   exercises.push(terminal);
   exercises.push(buildRow(COOLDOWN, order++, "cooldown", input, mode));
 

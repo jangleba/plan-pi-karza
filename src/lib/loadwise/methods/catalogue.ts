@@ -24,7 +24,7 @@ const support = (domain: MethodDomain, extra: Partial<Rules> = {}): Rules => ({
   role: "support",
   ...extra,
 });
-const loaded=["barbell","dumbbell","kettlebell","trap_bar","machine"];
+const loaded = ["barbell", "dumbbell", "kettlebell", "trap_bar", "machine"];
 const experienced = {
   minAge: 18,
   minMonths: 12,
@@ -50,19 +50,26 @@ const RULES: Record<TrainingMethodId, Rules> = {
     minCompetence: "medium",
   }),
   M07: workout("power", "none", { ...coached, equipment: ["barbell", "platform"], highCost: true }),
-  M08: workout("strength", "cluster", {...experienced,anyEquipment:loaded}),
+  M08: workout("strength", "cluster", {
+    ...experienced,
+    anyEquipment: loaded,
+    evidenceNote:
+      "Klastry pomagają zachować prędkość w danej sesji. Nie oznacza to stałej przewagi długoterminowej nad zwykłymi seriami.",
+  }),
   M09: workout("power", "none", {
     ...experienced,
     minMonths: 24,
     minGymLevel: "advanced",
     highCost: true,
+    evidenceNote:
+      "Para siła–moc jest opcją dla doświadczonego zawodnika. Nie gwarantuje PAPE; potrzebna przerwa i reakcja na zmęczenie są indywidualne.",
   }),
   M10: workout("power", "none", {
     ...coached,
     equipment: ["band", "dumbbell", "rack"],
     highCost: true,
     evidenceNote:
-      "Metaanaliza u dorosłych daje zachęcające wyniki; protokoły i grupy porównawcze są zróżnicowane.",
+      "Mała baza badań u dorosłych daje zachęcające wyniki. Nie wykazano pewnej przewagi nad innymi kontrastami; to opcja pod nadzorem, nie obowiązkowy kolejny poziom.",
   }),
   M11: workout("strength", "none", {
     minMonths: 6,
@@ -70,8 +77,18 @@ const RULES: Record<TrainingMethodId, Rules> = {
     minCompetence: "medium",
     manualOnly: true,
   }),
-  M12: workout("strength", "none", { ...coached, equipment: ["flywheel"], highCost: true }),
-  M13: workout("strength", "hold", { manualOnly: true }),
+  M12: workout("strength", "none", {
+    ...coached,
+    equipment: ["flywheel"],
+    highCost: true,
+    evidenceNote:
+      "Najpierw zapoznanie z urządzeniem i hamowaniem. Inercja nie jest kilogramami, a samo użycie flywheel nie potwierdza przeciążenia ekscentrycznego.",
+  }),
+  M13: workout("strength", "hold", {
+    manualOnly: true,
+    evidenceNote:
+      "Efekt zależy od kąta, długości mięśnia, siły i intencji. Utrzymanie 20 s jest dawką wprowadzającą, nie uniwersalną terapią ani zamiennikiem całej siły.",
+  }),
   M14: workout("strength", "hold", {
     ...coached,
     equipment: ["fixed_pins", "barbell", "rack"],

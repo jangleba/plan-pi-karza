@@ -68,7 +68,8 @@
   function policy(c) {
     if (selected.has(c.family) && c.equipment !== "flywheel") return true;
     return (
-      (c.family === "press" && !["push_up", "pike_push_up"].includes(c.variant)) ||
+      (c.family === "press" &&
+        !["push_up", "pike_push_up", "incline_push_up"].includes(c.variant)) ||
       c.family === "power_lift" ||
       c.variant === "hip_thrust" ||
       c.variant === "pallof_press" ||

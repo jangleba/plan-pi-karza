@@ -514,5 +514,9 @@
   {
     "id": "trap_bar_jump",
     "title": "Wyskoki z trap barem"
+  },
+  {
+    "id": "incline_push_up",
+    "title": "Pompka z dłońmi na podwyższeniu"
   }
 ]

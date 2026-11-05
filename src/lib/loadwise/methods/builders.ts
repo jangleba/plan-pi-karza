@@ -1,3 +1,4 @@
+import { balanceStrengthSections, supportPriority } from "../strengthSessionBalance";
 import { isFieldMasCurrent, paceRangeFromMas } from "@/lib/running/engine";
 import type { Profile, SessionDay, TrainingExercise, TrainingSection, WeekPhase } from "../types";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
@@ -12,6 +13,7 @@ import {
   isExerciseAllowedForProfile,
 } from "../exerciseLibrary";
 import { getTrainingMethod } from "./catalogue";
+import { methodEquipment } from "./eligibility";
 import type { MethodExecution, MethodSessionConditions, TrainingMethodId } from "./types";
 
 export function profileWithMethodEquipment(
@@ -112,6 +114,7 @@ function capSupport(sections: TrainingSection[], maximum = 3): TrainingSection[]
                     ],
                   })),
               )
+              .sort((a, b) => supportPriority(a.exercises[0]) - supportPriority(b.exercises[0]))
               .filter(() => kept++ < maximum),
           },
     )
@@ -131,19 +134,35 @@ export function buildStrengthMethod(
     ?.flatMap((s) => s.blocks.flatMap((b) => b.exercises))
     .find((e) => e.label === "A1");
   const hinge = getExerciseDefinition(originalMain?.exerciseId ?? "")?.movementPattern === "hinge";
-  const supplied=session.structuredSections;
-  const athlete=buildAthleteTrainingProfile(p);
-  const reusable= (!session.trainingMethods || ["M02","M03","M04","M05","M06","M08","M09","M11","M17","M39"].includes(session.trainingMethods.primary)) && supplied?.some(s=>s.type==="main") && supplied.every(s=>s.blocks.every(b=>b.exercises.every(e=>!e.executionBlockedReason&&isExerciseAllowedForProfile(getExerciseDefinition(e.exerciseId??""),athlete).ok)));
-  const base = reusable ? {sections:supplied!} : buildStrengthPowerStructured(p, {
-    mdLabel: session.mdLabel,
-    weekPhase: phase,
-    weekIndex: week,
-    gymSessionIndexInWeek: hinge ? 1 : 0,
-    gymSessionsThisWeekTotal: 2,
-    forcedMainFamily: hinge ? "trap_bar" : "squat",
-    powerFocus: p.goal === "power" || p.goal === "speed",
-    history: { usedMainThisWeek: [], usedMainLastWeek: [], usedRolesThisWeek: [] },
-  });
+  const supplied = session.structuredSections;
+  const athlete = buildAthleteTrainingProfile(p);
+  const reusable =
+    (!session.trainingMethods ||
+      ["M02", "M03", "M04", "M05", "M06", "M08", "M09", "M11", "M17", "M39"].includes(
+        session.trainingMethods.primary,
+      )) &&
+    supplied?.some((s) => s.type === "main") &&
+    supplied.every((s) =>
+      s.blocks.every((b) =>
+        b.exercises.every(
+          (e) =>
+            !e.executionBlockedReason &&
+            isExerciseAllowedForProfile(getExerciseDefinition(e.exerciseId ?? ""), athlete).ok,
+        ),
+      ),
+    );
+  const base = reusable
+    ? { sections: supplied! }
+    : buildStrengthPowerStructured(p, {
+        mdLabel: session.mdLabel,
+        weekPhase: phase,
+        weekIndex: week,
+        gymSessionIndexInWeek: hinge ? 1 : 0,
+        gymSessionsThisWeekTotal: 2,
+        forcedMainFamily: hinge ? "trap_bar" : "squat",
+        powerFocus: p.goal === "power" || p.goal === "speed",
+        history: { usedMainThisWeek: [], usedMainLastWeek: [], usedRolesThisWeek: [] },
+      });
   if (!base) throw new Error("Nie udało się przygotować metody dla tej sesji.");
   let sections = clone(base.sections);
   let main = sections.find((s) => s.type === "main");
@@ -264,7 +283,7 @@ export function buildStrengthMethod(
         methodExecution: executionFor(id, {
           mode: "velocity",
           rounds: Number(first.sets) || 3,
-          repetitions: 5,
+          repetitions: Math.max(...(first.reps?.match(/\d+/g)?.map(Number) ?? [5])),
           restSeconds: 180,
           roundRestSeconds: 0,
           assessment: "external_validated_measurement",
@@ -299,7 +318,7 @@ export function buildStrengthMethod(
     }
   } else if (id === "M07") {
     rows = [
-      exercise("clean_pull_from_hang", primary.id, {
+      exercise("clean_pull_from_hang", `${primary.id}:pull`, {
         label: "A",
         sets: "3",
         reps: "3",
@@ -316,7 +335,7 @@ export function buildStrengthMethod(
         label: "A",
         sets: phase === "deload" ? "2" : "3",
         reps: "3",
-        groundContacts: phase === "deload" ? 6 : 9,
+        groundContacts: 3,
         restAfterExercise: "2 min",
         loadTarget: "Szybki ruch i stabilne lądowanie",
       },
@@ -348,7 +367,7 @@ export function buildStrengthMethod(
         label: "A2",
         sets: String(rounds),
         reps: "3",
-        groundContacts: rounds * 3,
+        groundContacts: 3,
         restAfterExercise: id === "M10" ? "45 s" : undefined,
         restAfterPair: id === "M09" ? "3 min" : undefined,
         loadTarget: "Każde odbicie szybkie i kontrolowane",
@@ -361,7 +380,7 @@ export function buildStrengthMethod(
           label: "A3",
           sets: String(rounds),
           reps: "3",
-          groundContacts: rounds * 3,
+          groundContacts: 3,
           restAfterExercise: "45 s",
           loadTarget: "Lekki opór dobrany z trenerem; zachowaj szybkość",
         }),
@@ -369,7 +388,7 @@ export function buildStrengthMethod(
           label: "A4",
           sets: String(rounds),
           reps: "3",
-          groundContacts: rounds * 3,
+          groundContacts: 3,
           restAfterPair: "3 min",
           loadTarget: "Kontrolowana pomoc gumy, bez szarpnięcia",
         }),
@@ -426,28 +445,44 @@ export function buildStrengthMethod(
         }),
       }),
     ];
+    if (id === "M13") {
+      // Holding isometrics complement the session; choosing a hamstring hold
+      // must not erase its only squat/hinge strength exercise.
+      rows[0] = { ...rows[0], id: `${primary.id}:isometric`, label: "B1" };
+      rows.unshift(stamp(primary, compoundDose));
+    }
   }
   if (rows.length) main.blocks = singles(rows);
   sections = capSupport(sections, id === "M10" || id === "M14" ? 2 : 3);
   if (availableMinutes !== undefined && availableMinutes <= 25) {
     main = sections.find((s) => s.type === "main");
     if (main)
-      main.blocks = main.blocks.slice(0, 1).map((b) => ({
-        ...b,
-        blockType: "single",
-        exercises: b.exercises.slice(0, 1).map((e) => ({
-          ...e,
-          sets: "2",
-          reps: e.duration ? undefined : "4–6",
-          restAfterPair: undefined,
-          restAfterExercise: "2 min",
-          methodExecution: undefined,
-          displayPrescription: undefined,
-        })),
-      }));
+      main.blocks = [
+        main.blocks.find((b) => b.exercises.some((e) => !isPower(e))) ?? main.blocks[0],
+      ]
+        .filter(Boolean)
+        .map((b) => ({
+          ...b,
+          blockType: "single",
+          exercises: [b.exercises.find((e) => !isPower(e)) ?? b.exercises[0]]
+            .filter(Boolean)
+            .map((e) => ({
+              ...e,
+              sets: "2",
+              reps: e.duration ? undefined : "4–6",
+              restAfterPair: undefined,
+              restAfterExercise: "2 min",
+              methodExecution: undefined,
+              displayPrescription: undefined,
+            })),
+        }));
     sections = capSupport(sections, 1);
   }
-  return sections;
+  return balanceStrengthSections(
+    sections,
+    p,
+    availableMinutes === undefined || availableMinutes > 25,
+  );
 }
 
 export function buildFieldMethod(
@@ -536,11 +571,7 @@ export function buildFieldMethod(
       intensityLabel: "Lotny odcinek po płynnym rozbiegu; pełna droga wyhamowania.",
     });
   } else if (id === "M20") {
-    const gear = new Set([
-      ...(p.equipment ?? []),
-      ...(p.trainingMethodPreferences?.declaredEquipment ?? []),
-      ...(p.hasGym ? ["sled"] : []),
-    ]);
+    const gear = methodEquipment(p, conditions);
     canonical = gear.has("hill")
       ? "hill_acceleration"
       : gear.has("sled")

@@ -1,4 +1,4 @@
-/** Source catalogue: targeted review, 2026-11-04; not a formal GRADE assessment. */
+/** Source catalogue: targeted review, 2026-11-05; not a formal GRADE assessment. */
 export const METHOD_RESEARCH_SOURCES = [
   {
     id: "S01",
@@ -143,7 +143,7 @@ export const METHOD_RESEARCH_SOURCES = [
   },
   {
     id: "S29",
-    title: "Przegląd RCT (2026) — FIFA 11+",
+    title: "Przegląd badań kontrolowanych (2025) — FIFA 11+",
     url: "https://pubmed.ncbi.nlm.nih.gov/41625863/",
   },
   {
@@ -191,6 +191,21 @@ export const METHOD_RESEARCH_SOURCES = [
     id: "S38",
     title: "Metaanaliza (2025) — objętość treningu jednostronnego i obustronnego",
     url: "https://doi.org/10.1016/j.jesf.2025.06.003",
+  },
+  {
+    id: "S39",
+    title: "Cowley i wsp. (2026) — metody zaawansowane a serie tradycyjne; brak stałej przewagi",
+    url: "https://pubmed.ncbi.nlm.nih.gov/41951916/",
+  },
+  {
+    id: "S40",
+    title: "Metaanaliza (2025/2026) — opór zmienny z gumami lub łańcuchami a wolne ciężary",
+    url: "https://pubmed.ncbi.nlm.nih.gov/41460711/",
+  },
+  {
+    id: "S41",
+    title: "Konsensus (2024) — wdrażanie treningu flywheel i nauka hamowania",
+    url: "https://doi.org/10.1007/s40279-023-01979-x",
   },
 ] as const;
 
@@ -250,21 +265,21 @@ export const METHOD_RESEARCH_SUMMARY = [
     method: "Klastry i redystrybucja przerw",
     purpose: "Utrzymanie prędkości powtórzeń",
     requirements: "Krótkie przerwy wewnątrz pracy; porównanie podobnej objętości i odpoczynku",
-    sourceIds: ["S08"],
+    sourceIds: ["S08", "S39"],
   },
   {
     id: "M09",
     method: "Complex-contrast: para siła–moc",
     purpose: "Łączenie silnego i szybkiego ruchu",
     requirements: "Doświadczenie i dopasowana para; indywidualny odpoczynek; kontrola jakości",
-    sourceIds: ["S09"],
+    sourceIds: ["S09", "S39"],
   },
   {
     id: "M10",
     method: "French contrast",
     purpose: "Czteroelementowy wariant pracy siły i mocy",
     requirements: "Wysokie wymagania sprzętowe i techniczne; dodatkowy koszt całego bloku",
-    sourceIds: ["S10"],
+    sourceIds: ["S10", "S39"],
   },
   {
     id: "M11",
@@ -279,7 +294,7 @@ export const METHOD_RESEARCH_SUMMARY = [
     purpose: "Praca koncentryczna i ekscentryczna",
     requirements:
       "Nauka obsługi i hamowania; bez automatycznego utożsamiania z przeciążeniem ekscentrycznym",
-    sourceIds: ["S12"],
+    sourceIds: ["S12", "S41", "S39"],
   },
   {
     id: "M13",
@@ -302,7 +317,7 @@ export const METHOD_RESEARCH_SUMMARY = [
     purpose: "Zmiana przebiegu oporu lub ułatwienie ruchu",
     requirements:
       "Sprawdzone mocowanie; opis rzeczywistej roli gumy; brak jednej dawki według koloru",
-    sourceIds: ["S13"],
+    sourceIds: ["S13", "S40", "S39"],
   },
   {
     id: "M16",

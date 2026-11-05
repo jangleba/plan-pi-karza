@@ -1,3 +1,4 @@
+import { balanceStrengthSections } from "./strengthSessionBalance";
 import { hasCurrentMethodRecipe } from "./methods/planner";
 import { profileWithMethodEquipment } from "./methods/builders";
 import { trainingMethodEligibility } from "./methods/eligibility";
@@ -37,7 +38,9 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
     (!isStrengthSession(session) && !/^Siłownia:/i.test(session.title))
   )
     return secondSession === session.secondSession ? session : { ...session, secondSession };
-  const athlete = buildAthleteTrainingProfile(profileWithMethodEquipment(profile,session.trainingMethods?.conditions));
+  const athlete = buildAthleteTrainingProfile(
+    profileWithMethodEquipment(profile, session.trainingMethods?.conditions),
+  );
   const allowed = (def: ExerciseDefinition) => {
     if (!isExerciseAllowedForProfile(def, athlete).ok) return false;
     if (def.technicalComplexity >= 4 || ADVANCED.test(def.id)) {
@@ -180,7 +183,18 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
     ...section,
     blocks: section.blocks.map((block) => ({ ...block, exercises: block.exercises.map(fix) })),
   }));
-  if (structuredSections?.length && !(hasCurrentMethodRecipe(session) && trainingMethodEligibility(session.trainingMethods!.primary,profile,session,session.trainingMethods?.conditions).allowed)) {
+  if (
+    structuredSections?.length &&
+    !(
+      hasCurrentMethodRecipe(session) &&
+      trainingMethodEligibility(
+        session.trainingMethods!.primary,
+        profile,
+        session,
+        session.trainingMethods?.conditions,
+      ).allowed
+    )
+  ) {
     const phaseText = session.blockPhaseLabel ?? "";
     const weekPhase = /kalibr|wprowad|adapt/i.test(phaseText)
       ? "adaptation"
@@ -194,6 +208,22 @@ export function enforceStrengthEligibility(session: SessionDay, profile: Profile
     if (programmed !== structuredSections) {
       changed = true;
       structuredSections = programmed;
+    }
+  }
+  if (structuredSections?.length) {
+    const balanced = balanceStrengthSections(
+      structuredSections,
+      profile,
+      session.durationMin > 25 &&
+        !session.readinessAdjustedDate &&
+        !session.readinessOriginalSession &&
+        !["MD-2", "MD-1", "MD", "MD+1"].includes(session.mdLabel ?? "") &&
+        !profile.painInjury &&
+        profile.seasonPhase !== "return_injury",
+    );
+    if (balanced !== structuredSections) {
+      structuredSections = balanced;
+      changed = true;
     }
   }
   const exercises = session.exercises?.map(fix);

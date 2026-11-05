@@ -112,8 +112,7 @@ export function requiresGymEquipment(session: SessionDay): boolean {
 
 /** Buduje kontekst treningowy z profilu zawodnika (onboarding). */
 export function buildTrainingContext(profile: Profile): TrainingContext {
-  const lowerLimbPain =
-    (profile.painLocations ?? []).some((p) => LOWER_LIMB_PAIN.has(p)) || false;
+  const lowerLimbPain = (profile.painLocations ?? []).some((p) => LOWER_LIMB_PAIN.has(p)) || false;
   const returnAfterBreak =
     profile.goal === "return" ||
     profile.seasonPhase === "return_injury" ||
@@ -357,8 +356,8 @@ export function scoreSessionLoad(session: SessionDay): SessionLoadProfile {
   const isEnd = isEnduranceSession(session);
   const isGym = isMainGymSession(session);
 
-  const neuromuscularLoad = (isSpeed || isGym) ? i * 3 : i * 1.2;
-  const metabolicLoad = (isEnd || highRun) ? i * 3 : i * 1.1;
+  const neuromuscularLoad = isSpeed || isGym ? i * 3 : i * 1.2;
+  const metabolicLoad = isEnd || highRun ? i * 3 : i * 1.1;
   const lowerBodyLoad = heavyLegs || isSpeed || highRun ? i * 2.5 : i * 0.8;
   const technicalLoad = cat === "other" || isSpeed ? i * 1.5 : i * 0.6;
   const recoveryCost = i * (duration / 30) * (isRecoverySession(session) ? 0.3 : 1);
@@ -403,10 +402,7 @@ function oneHasHeavyLegs(s: SessionDay): boolean {
 }
 function dayHasHeavyLegs(day: SessionDay | undefined | null): boolean {
   if (!day) return false;
-  return (
-    oneHasHeavyLegs(day) ||
-    (day.secondSession ? oneHasHeavyLegs(day.secondSession) : false)
-  );
+  return oneHasHeavyLegs(day) || (day.secondSession ? oneHasHeavyLegs(day.secondSession) : false);
 }
 function dayHasMatch(day: SessionDay | undefined | null): boolean {
   if (!day) return false;
@@ -459,28 +455,26 @@ function repeatsDominantStimulus(
 
 function restrictedToLightSecondSession(context?: TrainingContext): boolean {
   return (
-    context?.trainingLevel === "beginner" ||
-    (typeof context?.age === "number" && context.age <= 15)
+    context?.trainingLevel === "beginner" || (typeof context?.age === "number" && context.age <= 15)
   );
 }
 
 function dayHasHardEndurance(day: SessionDay | undefined | null): boolean {
-  return sessionsOnDay(day).some(
-    (item) => isEnduranceSession(item) && item.intensity === "wysoka",
-  );
+  return sessionsOnDay(day).some((item) => isEnduranceSession(item) && item.intensity === "wysoka");
 }
 
 function dayHasHardClub(day: SessionDay | undefined | null): boolean {
-  return sessionsOnDay(day).some(
-    (item) => isClubSession(item) && item.intensity === "wysoka",
-  );
+  return sessionsOnDay(day).some((item) => isClubSession(item) && item.intensity === "wysoka");
 }
 
 function contextAllowsHeavyClubEndurance(context?: TrainingContext): boolean {
   if (!context || context.age < 17) return false;
-  if (!(["intermediate", "advanced", "elite"] as const).includes(
-    context.trainingLevel as "intermediate" | "advanced" | "elite",
-  )) return false;
+  if (
+    !(["intermediate", "advanced", "elite"] as const).includes(
+      context.trainingLevel as "intermediate" | "advanced" | "elite",
+    )
+  )
+    return false;
   return !context.injuryStatus.hasPainOrInjury && !context.fatigueStatus.highFatigue;
 }
 
@@ -503,7 +497,8 @@ export function canPlaceSession(
   const isHardCOD = isCOD && session.intensity === "wysoka";
   const isHeavyLower = isHeavyLegsSession(session) && session.intensity !== "niska";
   const isHardEnd = isEnduranceSession(session) && session.intensity === "wysoka";
-  const isPlyoHeavy = session.intensity === "wysoka" && (session.loadTags ?? []).includes("plyometric_contacts");
+  const isPlyoHeavy =
+    session.intensity === "wysoka" && (session.loadTags ?? []).includes("plyometric_contacts");
 
   // max 2 jednostki dziennie
   if (realSessionsOnDay(current) >= 2) {
@@ -530,17 +525,26 @@ export function canPlaceSession(
   }
   // speed + speed tego samego dnia
   if (isSpeed && dayHasSpeed(current)) {
-    return { allowed: false, reason: "Dwie jednostki szybkościowe tego samego dnia są zabronione." };
+    return {
+      allowed: false,
+      reason: "Dwie jednostki szybkościowe tego samego dnia są zabronione.",
+    };
   }
   // speed dzień po speed / dzień przed speed (minimum 1 dzień przerwy)
   if (isSpeed && (dayHasSpeed(prev) || dayHasSpeed(next))) {
-    return { allowed: false, reason: "Speed_sprint musi mieć minimum 1 dzień przerwy od kolejnego speed." };
+    return {
+      allowed: false,
+      reason: "Speed_sprint musi mieć minimum 1 dzień przerwy od kolejnego speed.",
+    };
   }
   // Speed po ciężkich nogach nie jest automatycznie blokowany. Scoring i
   // check-in decydują, czy zachować pełny bodziec, czy zejść do microdose.
   // hard COD dzień po speed / po heavy lower gym
   if (isHardCOD && (dayHasSpeed(prev) || dayHasHeavyLegs(prev))) {
-    return { allowed: false, reason: "Hard COD dzień po speed lub ciężkiej siłowni nóg jest zabroniony." };
+    return {
+      allowed: false,
+      reason: "Hard COD dzień po speed lub ciężkiej siłowni nóg jest zabroniony.",
+    };
   }
   // heavy lower gym dzień przed meczem
   if (isHeavyLower && dayHasMatch(next)) {
@@ -562,8 +566,12 @@ export function canPlaceSession(
   if (dayHasClub(current)) {
     const addsGym = isMainGymSession(session);
     const addsRun = isEnduranceSession(session) || isHeavyRunningSession(session);
-    const currentHasGym = isMainGymSession(current) || (current.secondSession && isMainGymSession(current.secondSession));
-    const currentHasRun = isEnduranceSession(current) || (current.secondSession && isEnduranceSession(current.secondSession));
+    const currentHasGym =
+      isMainGymSession(current) ||
+      (current.secondSession && isMainGymSession(current.secondSession));
+    const currentHasRun =
+      isEnduranceSession(current) ||
+      (current.secondSession && isEnduranceSession(current.secondSession));
     if ((addsGym && currentHasRun) || (addsRun && currentHasGym)) {
       return { allowed: false, reason: "Club + gym + running w jeden dzień jest zabronione." };
     }
@@ -611,33 +619,33 @@ export function calculateWeeklyLoadScore(week: SessionDay[]): number {
 // ---------------------------------------------------------------------------
 
 function sessionContentKey(session: SessionDay): string {
-  const exerciseNames = [
-    ...(session.sections?.main ?? []),
-    ...(session.sections?.accessory ?? []),
-    ...(session.sections?.footballTransfer ?? []),
-  ]
-    .slice(0, 3)
-    .map((exercise) =>
-      `${exercise.name ?? ""} ${exercise.prescription ?? ""}`
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim(),
-    )
-    .filter(Boolean)
-    .join("|");
-
-  return (
-    exerciseNames ||
-    (session.title ?? "")
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim()
-  );
+  const structured = session.structuredSections
+    ?.filter((s) => ["main", "accessory"].includes(s.type))
+    .flatMap((s) =>
+      s.blocks.flatMap((b) =>
+        b.exercises.map((e) => [
+          e.exerciseId ?? e.name,
+          e.sets,
+          e.reps,
+          e.duration,
+          e.rir,
+          e.tempo,
+          e.restAfterExercise,
+          e.restAfterPair,
+        ]),
+      ),
+    );
+  return structured?.length
+    ? JSON.stringify(structured)
+    : JSON.stringify(
+        [...(session.sections?.main ?? []), ...(session.sections?.accessory ?? [])].map((e) => [
+          e.exerciseId ?? e.name,
+          e.prescription,
+        ]),
+      );
 }
 
-function weekSignatureCounts(
-  week: SessionDay[],
-): Map<string, number> {
+function weekSignatureCounts(week: SessionDay[]): Map<string, number> {
   const counts = new Map<string, number>();
 
   for (const day of week) {
@@ -645,22 +653,15 @@ function weekSignatureCounts(
       continue;
     }
 
-    const sessions = [
-      day,
-      ...(day.secondSession ? [day.secondSession] : []),
-    ];
+    const sessions = [day, ...(day.secondSession ? [day.secondSession] : [])];
 
     for (const session of sessions) {
-      const category =
-        session.classification?.category ?? session.dayType;
-      const subcategory =
-        session.classification?.subcategory ?? "unknown";
+      const category = session.classification?.category ?? session.dayType;
+      const subcategory = session.classification?.subcategory ?? "unknown";
       const duration = session.durationMin ?? 0;
       const content = sessionContentKey(session);
 
-      const key =
-        `${category}:${subcategory}:` +
-        `${session.intensity}:${duration}:${content}`;
+      const key = `${category}:${subcategory}:` + `${session.intensity}:${duration}:${content}`;
 
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
@@ -668,8 +669,6 @@ function weekSignatureCounts(
 
   return counts;
 }
-
-
 
 /** Zwraca podobieństwo tygodni 0..1 (multiset overlap / większy rozmiar). */
 export function compareWeekSimilarity(weekA: SessionDay[], weekB: SessionDay[]): number {
@@ -739,13 +738,19 @@ export function validateWeek(
   // (bodyweight_strength jest dozwolony jako wariant bez sprzętu).
   if (!context.gymAccess) {
     const hasEquipGym = week.some(
-      (d) => requiresGymEquipment(d) || (d.secondSession ? requiresGymEquipment(d.secondSession) : false),
+      (d) =>
+        requiresGymEquipment(d) ||
+        (d.secondSession ? requiresGymEquipment(d.secondSession) : false),
     );
     if (hasEquipGym) errors.push("gym-generated-without-access");
   }
   // gymAccess=true nie może być ignorowany dla celów, które używają siłowni.
-  if (context.gymAccess && view.usesGymWhenAvailable && opts.isFullWeek &&
-    !hasAcknowledgedReducedTargets(week)) {
+  if (
+    context.gymAccess &&
+    view.usesGymWhenAvailable &&
+    opts.isFullWeek &&
+    !hasAcknowledgedReducedTargets(week)
+  ) {
     const hasGym = week.some(
       (d) => isMainGymSession(d) || (d.secondSession && isMainGymSession(d.secondSession)),
     );
@@ -773,19 +778,17 @@ export function findWeekConflicts(week: SessionDay[], context: TrainingContext):
     // heavy lower dzień przed meczem
     if (dayHasHeavyLegs(day) && dayHasMatch(next)) conflicts.push("heavy-lower-before-match");
     // hard endurance dzień przed meczem
-    if (
-      isEnduranceSession(day) &&
-      day.intensity === "wysoka" &&
-      dayHasMatch(next)
-    )
+    if (isEnduranceSession(day) && day.intensity === "wysoka" && dayHasMatch(next))
       conflicts.push("hard-endurance-before-match");
     // dwa ciężkie dolne dni z rzędu
     // Uwaga: "dwa ciężkie dolne dni z rzędu" jest egzekwowane osobnym passem
     // schedulera (enforceConsecutiveLowerBodySafety) — nie duplikujemy go tutaj.
     // club + gym + running jeden dzień
     if (dayHasClub(day)) {
-      const gym = isMainGymSession(day) || (day.secondSession && isMainGymSession(day.secondSession));
-      const run = isEnduranceSession(day) || (day.secondSession && isEnduranceSession(day.secondSession));
+      const gym =
+        isMainGymSession(day) || (day.secondSession && isMainGymSession(day.secondSession));
+      const run =
+        isEnduranceSession(day) || (day.secondSession && isEnduranceSession(day.secondSession));
       if (gym && run) conflicts.push("club-gym-running-same-day");
     }
     // Dwie mocne jednostki są blokowane dla beginnerów i młodszych graczy.
@@ -815,16 +818,18 @@ export interface PlanValidation {
   weekScores: number[];
   weekSimilarityScores: number[]; // podobieństwo kolejnych par tygodni
   weekErrors: string[][];
+  warnings: string[];
 }
 
 /**
  * Waliduje pełny blok (lista tygodni). Sprawdza obowiązkowe sesje mainGoal,
- * gymAccess, progresję (w1<w2<w3, w4<w3, w3 najwyższy), brak copy-paste
- * (similarity > 75%) i konflikty.
+ * gymAccess oraz konflikty. Podobieństwo tygodni jest informacją o stabilności
+ * receptur, a nie podstawą do losowania nowych ćwiczeń lub wymuszania większego obciążenia.
  */
 export function validatePlan(weeks: SessionDay[][], context: TrainingContext): PlanValidation {
   const errors: string[] = [];
   const weekErrors: string[][] = [];
+  const warnings: string[] = [];
   const fullWeeks = weeks.filter((w) => countRealDays(w) === 7);
 
   // walidacja per tydzień
@@ -841,12 +846,13 @@ export function validatePlan(weeks: SessionDay[][], context: TrainingContext): P
   // progresji ich sumy. Każdy silnik rozwija własną zdolność osobno.
   void fullWeeks;
 
-  // similarity — kolejne pary tygodni nie mogą przekraczać 75%.
+  // Similarity is informational. Stable exercises permit skill learning and load progression;
+  // it must not force random substitutions or rebuilding a safe plan.
   const weekSimilarityScores: number[] = [];
   for (let i = 1; i < weeks.length; i++) {
     const sim = compareWeekSimilarity(weeks[i - 1], weeks[i]);
-    weekSimilarityScores.push(round1(sim));
-    if (sim > 0.75) errors.push(`copy-paste:w${i}-w${i + 1}`);
+    weekSimilarityScores.push(Math.round(sim * 100) / 100);
+    if (sim > 0.75) warnings.push(`stable-prescriptions:w${i}-w${i + 1}`);
   }
 
   return {
@@ -855,6 +861,7 @@ export function validatePlan(weeks: SessionDay[][], context: TrainingContext): P
     weekScores,
     weekSimilarityScores,
     weekErrors,
+    warnings,
   };
 }
 

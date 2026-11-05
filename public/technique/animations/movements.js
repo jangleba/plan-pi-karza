@@ -570,6 +570,25 @@
   function press(c, p) {
     let s;
     const r = rep(p);
+    if (c.variant === "incline_push_up") {
+      const beta = ((34 - 16 * r) * Math.PI) / 180,
+        ankle = foot(85, F, 35);
+      s = pose(
+        p,
+        [ankle[0] + 113 * Math.cos(beta), ankle[1] - 113 * Math.sin(beta)],
+        ankle,
+        foot(94, F, 35),
+        90 - (beta * 180) / Math.PI,
+      );
+      s.right.footAngle = s.left.footAngle = 35;
+      hands(s, [270, 199], [261, 199]);
+      bench(s, 254, 205, 44);
+      return phase(s, p, [
+        "Ugnij łokcie · tułów pozostaje w jednej linii",
+        "Zbliż klatkę do stabilnego podparcia",
+        "Odepchnij podparcie i wróć bez zapadania bioder",
+      ]);
+    }
     if (c.variant === "push_up") {
       const beta = ((17 - 16 * r) * Math.PI) / 180,
         ankle = foot(85, F, 35),
@@ -1649,7 +1668,7 @@
       };
     if (c.family === "press")
       return rep(
-        ["push_up", "pike_push_up"].includes(c.variant),
+        ["push_up", "pike_push_up", "incline_push_up"].includes(c.variant),
         "Opuszczanie",
         "Wyciskanie / odepchnięcie",
       );

@@ -10,6 +10,10 @@ const profile = (overrides: Partial<Profile> = {}): Profile => ({
   age: 24,
   position: "midfielder",
   level: "advanced",
+  gymExperienceLevel: "intermediate",
+  strengthTrainingMonths: 12,
+  movementCompetence: "high",
+  supervisionLevel: "some",
   goal: "speed",
   secondaryLimiter: null,
   clubTrainingDays: [],
@@ -35,13 +39,26 @@ const profile = (overrides: Partial<Profile> = {}): Profile => ({
 
 describe("football speed session engine", () => {
   it("preserves each skip rhythm in structured and legacy session rows", () => {
-    const result = generateFootballSpeedSession({ profile: profile(), date: "2026-08-20", family: "acceleration" });
-    const expected = result.exercises.filter(e => e.role === "primer").map(e => e.variant);
+    const result = generateFootballSpeedSession({
+      profile: profile(),
+      date: "2026-08-20",
+      family: "acceleration",
+    });
+    const expected = result.exercises.filter((e) => e.role === "primer").map((e) => e.variant);
     expect(new Set(expected)).toEqual(new Set(["step_in", "continuous"]));
-    const structured = result.session?.structuredSections?.flatMap(s => s.blocks.flatMap(b => b.exercises)).filter(e => e.speedRole === "primer") ?? [];
-    expect(structured.map(e => e.animationVariant)).toEqual(expected);
-    const legacy = [result.session?.sections.warmup ?? [], result.session?.sections.main ?? [], result.session?.sections.cooldown ?? []].flat().filter(e => e.speedRole === "primer");
-    expect(legacy.map(e => e.animationVariant)).toEqual(expected);
+    const structured =
+      result.session?.structuredSections
+        ?.flatMap((s) => s.blocks.flatMap((b) => b.exercises))
+        .filter((e) => e.speedRole === "primer") ?? [];
+    expect(structured.map((e) => e.animationVariant)).toEqual(expected);
+    const legacy = [
+      result.session?.sections.warmup ?? [],
+      result.session?.sections.main ?? [],
+      result.session?.sections.cooldown ?? [],
+    ]
+      .flat()
+      .filter((e) => e.speedRole === "primer");
+    expect(legacy.map((e) => e.animationVariant)).toEqual(expected);
   });
   it("keeps the mandatory A → C → B → D skips and three rotating drills", () => {
     const result = generateFootballSpeedSession({
@@ -62,7 +79,9 @@ describe("football speed session engine", () => {
     ]);
     expect(result.exercises.filter((e) => e.role === "technical")).toHaveLength(3);
     expect(
-      result.exercises.filter((e) => e.role === "technical").every((e) => e.sets === "2"),
+      result.exercises
+        .filter((e) => e.role === "technical")
+        .every((e) => e.dose.startsWith(`${e.sets} × `) && !e.reps?.includes("×")),
     ).toBe(true);
     expect(result.exercises.every((e) => e.equipment.replacementStatus !== "blocked")).toBe(true);
     expect(result.exercises.some((e) => e.role === "secondary")).toBe(true);

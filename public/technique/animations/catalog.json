@@ -1,6 +1,6 @@
 {
-  "version": 54,
-  "count": 215,
+  "version": 55,
+  "count": 216,
   "gallery": [
     "a_skip",
     "b_skip",
@@ -216,7 +216,8 @@
     "tempo_conditioning_block",
     "tibialis_raise",
     "trap_bar_deadlift",
-    "trap_bar_jump"
+    "trap_bar_jump",
+    "incline_push_up"
   ],
   "records": [
     {
@@ -3760,6 +3761,25 @@
       "instructions": [
         "Kontroluj pozycję wyjściową",
         "Wykonuj ruch dynamicznie i technicznie"
+      ],
+      "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
+      "sourceStatus": "instructional",
+      "notes": [
+        "Podgląd ruchu nie mierzy wykonania zawodnika."
+      ]
+    },
+    {
+      "id": "incline_push_up",
+      "title": "Pompka z dłońmi na podwyższeniu",
+      "group": "Siła",
+      "motion": {
+        "family": "press",
+        "variant": "incline_push_up"
+      },
+      "instructions": [
+        "Ustaw dłonie trochę szerzej niż barki i napnij pośladki, żeby ciało było sztywne od głowy do pięt.",
+        "Schodź klatką między dłonie, prowadząc łokcie ukośnie do tyłu zamiast szeroko na boki.",
+        "Odepchnij podłoże równomiernie obiema rękami, kończąc w pełnym wyproście bez zapadania tułowia."
       ],
       "scope": "Instruktaż faz ruchu. Dawkę i obciążenie określa Twoja sesja.",
       "sourceStatus": "instructional",

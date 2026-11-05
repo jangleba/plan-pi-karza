@@ -104,7 +104,6 @@ export function methodEquipment(
         "platform",
         "swiss_ball",
         "med_ball",
-        "sled",
         "sliders",
         "nordic_setup",
         "machine",
@@ -124,7 +123,13 @@ export function methodEquipment(
 export function trainingMethodEligibility(
   id: TrainingMethodId,
   profile: Profile,
-  session?: Pick<SessionDay, "mdLabel" | "dayType" | "externalCommitment" | "loadLabelOverride">,
+  session?: Pick<SessionDay, "mdLabel" | "dayType" | "externalCommitment" | "loadLabelOverride"> &
+    Partial<
+      Pick<
+        SessionDay,
+        "blockPhaseLabel" | "blockWeekNumber" | "readinessAdjustedDate" | "readinessAdjustmentKey"
+      >
+    >,
   rawConditions: MethodSessionConditions = {},
 ): MethodEligibility {
   const m = getTrainingMethod(id),
@@ -140,6 +145,41 @@ export function trainingMethodEligibility(
     session?.loadLabelOverride === "Wstrzymaj trening"
   )
     reasons.push("Aktualne ograniczenia mają pierwszeństwo przed wyborem metody.");
+  // A method choice must not restore work removed by today's check-in. Healthy
+  // check-ins (8–10, no severe signal) leave the normal choice available.
+  if (session?.readinessAdjustedDate) {
+    let unrestricted = false;
+    try {
+      const r = JSON.parse(session.readinessAdjustmentKey ?? "null");
+      unrestricted =
+        r &&
+        typeof r.overall === "number" &&
+        r.overall >= 8 &&
+        r.overall <= 10 &&
+        typeof r.sleep === "number" &&
+        r.sleep > 2 &&
+        typeof r.fatigue === "number" &&
+        r.fatigue < 9 &&
+        typeof r.soreness === "number" &&
+        r.soreness < 9 &&
+        typeof r.jointPain === "number" &&
+        r.jointPain < 4 &&
+        !r.altersMovement &&
+        !r.redFlags?.length;
+    } catch {
+      /* Missing or invalid context must not unlock a full rebuild. */
+    }
+    if (!unrestricted)
+      reasons.push(
+        "Po dzisiejszej korekcie zachowaj dopasowaną dawkę; zmiana metody nie może odtworzyć pełnego treningu.",
+      );
+  }
+  if (
+    ["M09", "M10"].includes(id) &&
+    (/deload|odciąż|konsolid|świeżość|kalibr|adapt|wprowad/i.test(session?.blockPhaseLabel ?? "") ||
+      session?.blockWeekNumber === 4)
+  )
+    reasons.push("W etapie wprowadzającym lub odciążeniu wybierz osobne serie zamiast kontrastu.");
   if (
     session &&
     (session.dayType === "club" || session.dayType === "match" || session.externalCommitment)
@@ -170,7 +210,11 @@ export function trainingMethodEligibility(
   for (const equipment of m.equipment ?? [])
     if (!gear.has(equipment)) reasons.push(`Potrzebny sprzęt: ${equipment}.`);
   if (m.anyEquipment?.length && !m.anyEquipment.some((e) => gear.has(e)))
-    reasons.push(id === "M20" ? "Potrzebne są sanie, bezpiecznie użyta guma albo potwierdzony podbieg." : "Potrzebny jest dostępny opór zewnętrzny, np. sztanga lub hantle.");
+    reasons.push(
+      id === "M20"
+        ? "Potrzebne są sanie, bezpiecznie użyta guma albo potwierdzony podbieg."
+        : "Potrzebny jest dostępny opór zewnętrzny, np. sztanga lub hantle.",
+    );
   if (
     id === "M20" &&
     !gear.has("sled") &&

@@ -3344,10 +3344,14 @@ export function generatePlan(
   // Silnik korzysta z ZWALIDOWANEGO okresu sezonu: jeśli zapisany okres jest
   // sprzeczny z kalendarzem i nie włączono trybu niestandardowego, używamy
   // sugestii kalendarzowej, by load i dobór sesji były wiarygodne.
-  const needsReintroduction = rawProfile.goal === "return" ||
-    rawProfile.secondaryLimiter === "return" || rawProfile.secondaryLimiter === "fatigue";
-  const effPhase = needsReintroduction && !rawProfile.painInjury && rawProfile.seasonPhase !== "return_injury"
-    ? "transition" : effectiveSeasonPhase(rawProfile, startDate);
+  const needsReintroduction =
+    rawProfile.goal === "return" ||
+    rawProfile.secondaryLimiter === "return" ||
+    rawProfile.secondaryLimiter === "fatigue";
+  const effPhase =
+    needsReintroduction && !rawProfile.painInjury && rawProfile.seasonPhase !== "return_injury"
+      ? "transition"
+      : effectiveSeasonPhase(rawProfile, startDate);
   const profile: Profile =
     effPhase === rawProfile.seasonPhase ? rawProfile : { ...rawProfile, seasonPhase: effPhase };
   const out: SessionDay[] = [];
@@ -3355,7 +3359,6 @@ export function generatePlan(
 
   let lastWasHard = false;
   let doublesThisWeek = 0;
-  let highDaysThisWeek = 0;
   let weeklyMaxDoubles = 0;
   const ranges = weekRanges(startDate, days);
   const totalWeeks = Math.max(1, ranges.length);
@@ -3554,7 +3557,6 @@ export function generatePlan(
     const iso = isoDate(date);
     if (maxDoublesAtStart.has(i)) {
       doublesThisWeek = 0;
-      highDaysThisWeek = 0;
       weeklyMaxDoubles = maxDoublesAtStart.get(i)!;
       const wc = weekContextAtStart.get(i);
       if (wc) {
@@ -3886,20 +3888,6 @@ export function generatePlan(
     if (session.secondSession) {
       session.secondSession = decorateSession(session.secondSession, 2);
     }
-    if (session.intensity === "wysoka") {
-      if (highDaysThisWeek >= 3) {
-        session = {
-          ...session,
-          intensity: "umiarkowana",
-          reason: `${session.reason} Obniżono intensywność, bo tydzień bez meczu nie powinien mieć więcej niż 3 bardzo ciężkich dni.`,
-          safetyNote:
-            session.safetyNote ??
-            "Limit wysokich obciążeń w mikrocyklu: maksymalnie 3 dni bardzo ciężkie.",
-        };
-      } else {
-        highDaysThisWeek++;
-      }
-    }
     session.generatorVersion = PLAN_ENGINE_VERSION;
     // Kontekst bloku/mezocyklu + tagi obciążenia (1-based numer tygodnia w bloku).
     session.blockWeekNumber = (curWeekIndex % (days <= 7 ? 4 : totalWeeks)) + 1;
@@ -4189,9 +4177,25 @@ export function generatePlan(
       session.loadTags = computeLoadTags(session);
     }
   }
-  const constrainedPlan = applyPlanTrainingMethods(enforceFinalPlanPolicy(finalPlan.map(enforceSprintOnlyContent), rawProfile),rawProfile);
-  for(const range of metadataRanges){const week=constrainedPlan.slice(range.start,range.end);const score=computeWeeklyLoadScore(week);for(const d of week){if(d.weekMeta)d.weekMeta={...d.weekMeta,weeklyLoadScore:score};if(d.secondSession?.weekMeta)d.secondSession.weekMeta={...d.secondSession.weekMeta,weeklyLoadScore:score};}}
-  for(const day of constrainedPlan)for(const session of [day,day.secondSession].filter(Boolean) as SessionDay[]){session.generatorVersion=PLAN_ENGINE_VERSION;session.loadTags=computeLoadTags(session);}
+  const methodPlan = applyPlanTrainingMethods(
+    enforceFinalPlanPolicy(finalPlan.map(enforceSprintOnlyContent), rawProfile),
+    rawProfile,
+  );
+  const constrainedPlan = enforceFinalPlanPolicy(methodPlan, rawProfile);
+  for (const range of metadataRanges) {
+    const week = constrainedPlan.slice(range.start, range.end);
+    const score = computeWeeklyLoadScore(week);
+    for (const d of week) {
+      if (d.weekMeta) d.weekMeta = { ...d.weekMeta, weeklyLoadScore: score };
+      if (d.secondSession?.weekMeta)
+        d.secondSession.weekMeta = { ...d.secondSession.weekMeta, weeklyLoadScore: score };
+    }
+  }
+  for (const day of constrainedPlan)
+    for (const session of [day, day.secondSession].filter(Boolean) as SessionDay[]) {
+      session.generatorVersion = PLAN_ENGINE_VERSION;
+      session.loadTags = computeLoadTags(session);
+    }
   assertPlanExerciseContract(constrainedPlan);
   return constrainedPlan;
 }

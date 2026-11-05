@@ -40,7 +40,7 @@ if (process.argv.includes("--check")) {
 const additions = new Map(library.records.map((record) => [record.id, record]));
 const records = [...old.records.filter((record) => !additions.has(record.id)), ...library.records];
 const gallery = [...new Set([...old.gallery, ...library.records.map((record) => record.id)])];
-const next = { ...old, version: 54, count: gallery.length, records, gallery };
+const next = { ...old, version: 55, count: gallery.length, records, gallery };
 const content = JSON.stringify(next, null, 2) + "\n";
 if (process.argv.includes("--check")) {
   if (content !== (await readFile(path, "utf8")))

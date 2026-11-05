@@ -1,3 +1,4 @@
+import { balanceStrengthSections } from "./strengthSessionBalance";
 import type {
   Profile,
   Intensity,
@@ -1961,17 +1962,11 @@ function canonicalGymSession(
 
   return {
     role,
-    title: trapBar
-      ? adult
-        ? "Siłownia: trap bar / hinge total-body"
-        : "Siłownia: hinge total-body (technika)"
-      : adult
-        ? "Siłownia: siła dolna + moc"
-        : "Siłownia: siła dolna (technika)",
-    sessionType: "Siła / moc",
+    title: `Siłownia: całe ciało${role === "full_body_athletic" ? "" : trapBar ? " B" : " A"}${method.method === "foundation" ? " — podstawy" : ""}`,
+    sessionType: "Siła / całe ciało",
     goalOfSession: trapBar
-      ? "Trap bar / hinge total-body: maksymalna siła i moc wyprostu bioder + wsparcie atletyczne."
-      : "Dzień przysiadu: maksymalna siła dolnych partii z transferem w skok + wsparcie atletyczne.",
+      ? "Akcent wyprostu bioder, uzupełniony o pracę kolan, pchanie, przyciąganie i stabilizację. Jeden główny ruch nie zastępuje całego treningu."
+      : "Akcent siły nóg, uzupełniony o tylną taśmę, pchanie, przyciąganie i stabilizację. Obciążenie i poziom ćwiczeń wynikają z doświadczenia siłowego.",
     intensity: adult && ctx.weekPhase !== "deload" ? "wysoka" : "umiarkowana",
     durationMin: estimateStrengthMinutes(programmed),
     sections: programmed,
@@ -2110,6 +2105,11 @@ export function buildStrengthPowerStructured(
   }
   // Aktualizujemy mainPatterns po ewentualnych podmianach.
   plan.sections = applyStrengthProgramming(plan.sections, selectStrengthMethod(profile, ctx));
+  plan.sections = balanceStrengthSections(
+    plan.sections,
+    profile,
+    !["primer", "recovery_prehab", "upper_core"].includes(plan.role),
+  );
   plan.durationMin = estimateStrengthMinutes(plan.sections);
   plan.mainPatterns = collectMainPatterns(plan);
   return enrichLoadGuidance(plan);
@@ -2752,6 +2752,12 @@ function isHeavyBilateralCompound(ref: ExerciseRef): boolean {
 /** Spójność prescription: skok ma kontakty, lift główny ma serie i powtórzenia. */
 function hasInconsistentPrescription(ref: ExerciseRef): boolean {
   const e = ref.ex;
+  if (
+    getExerciseDefinition(e.exerciseId ?? "")?.movementPattern === "isometric" &&
+    e.sets &&
+    e.duration
+  )
+    return false;
   if (ref.pattern === "power") {
     const hasContacts = e.groundContacts !== undefined && e.groundContacts > 0;
     const hasReps = !!(e.reps && e.reps.trim());

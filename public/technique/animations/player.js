@@ -27,7 +27,7 @@
     $("player").append(details);
   }
 
-  const response = await fetch("./catalog.json?v=2026.11.05.54", { cache: "no-cache" });
+  const response = await fetch("./catalog.json?v=2026.11.05.55", { cache: "no-cache" });
   if (!response.ok) throw new Error("Animation catalog unavailable");
   const data = await response.json(),
     records = new Map(data.records.map((r) => [r.id, r]));
