@@ -82,7 +82,8 @@ jobs:
           npm ci --no-audit --no-fund
       - name: Typy, testy, lint i obie kompilacje
         if: steps.apply.outputs.changed == 'true'
-        run: npm run typecheck
+        run: |
+          npm run typecheck
           npm run test -- --testTimeout=30000 --maxWorkers=2
           npm run lint
           npm run build
