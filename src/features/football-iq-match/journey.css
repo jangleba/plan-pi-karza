@@ -1304,3 +1304,132 @@
 .iqS-staged[data-iq-phase="feedback"][data-iq-quality="good"] .iqJ-kicker {
   color: var(--bw-success, var(--primary));
 }
+
+/* IQ 60: one focused prediction and next-step plan; pitch and player scale stay fixed. */
+.iqF-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: min(100%, 540px);
+  max-height: 88dvh;
+  margin: 0 auto;
+  padding: 18px 22px max(22px, env(safe-area-inset-bottom));
+  border: 1px solid #dce2e8;
+  border-radius: 26px 26px 0 0;
+  background: #fff;
+  color: #152536;
+  overflow-y: auto;
+  box-shadow: 0 -12px 40px #142f4818;
+}
+.iqF-sheet::backdrop {
+  background: #132b4552;
+}
+.iqF-sheet h2 {
+  font-size: 22px;
+  line-height: 1.22;
+  letter-spacing: -0.5px;
+  margin: 12px 0;
+}
+.iqF-sheet p {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #616c77;
+  margin: 0 0 16px;
+}
+.iqF-close {
+  margin-bottom: 16px;
+}
+.iqF-answers {
+  display: grid;
+  gap: 9px;
+}
+.iqF-answers button {
+  text-align: left;
+  padding: 14px;
+  min-height: 48px;
+  border: 1px solid #dce2e8;
+  border-radius: 13px;
+  background: white;
+  color: #183958;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.iqF-answers button[aria-pressed="true"] {
+  border-color: #527a9e;
+  background: #edf4fa;
+  box-shadow: inset 3px 0 #244d73;
+}
+.iqF-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.iqF-actions .iqJ-primary {
+  flex: 1;
+}
+.iqF-feedback {
+  border-left: 2px solid #6f92b1;
+  padding: 2px 0 2px 12px;
+  margin: 6px 0 16px;
+}
+.iqF-feedback p {
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 6px 0;
+}
+.iqF-observe {
+  font-size: 14px !important;
+  line-height: 1.4;
+  color: #285273 !important;
+}
+.iqF-intent {
+  padding: 12px 6px 16px;
+}
+.iqF-intent select {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #dce2e8;
+  border-radius: 13px;
+  color: #183958;
+  background: white;
+  font-size: 15px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .iqF-sheet[open] {
+    animation: iqF-rise 180ms ease-out;
+  }
+  @keyframes iqF-rise {
+    from {
+      transform: translateY(24px);
+      opacity: 0.5;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+.iq-journey .iqF-consequence {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  margin-bottom: 10px;
+}
+.iqF-consequence summary {
+  cursor: pointer;
+  padding: 3px 0;
+}
+.iqF-feedback-details summary {
+  font-size: 12px;
+  padding-block: 10px;
+  min-height: 44px;
+  color: var(--primary);
+  cursor: pointer;
+}
+.iq-journey .iqF-feedback {
+  margin-bottom: 4px;
+}
+.iqF-feedback p {
+  margin: 4px 0;
+}

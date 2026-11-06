@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { JourneyAttempt } from "./journeyTypes";
 import { advancedJourneyBank } from "./advancedJourneyBank";
 import {
   freshJourneyEntry,
@@ -23,6 +24,40 @@ const storage = {
 };
 beforeEach(() => map.clear());
 describe("fresh IQ entries", () => {
+  it("uses earlier prediction mistakes even when seen entries were filtered out of candidates", () => {
+    const pool = advancedJourneyBank.filter((d) => d.role === "wing");
+    const failed = pool.find((d) => d.concept === "overload-switch" && d.context === 0)!;
+    const current = pool.find((d) => d.concept === "press-cover" && d.context === 0)!;
+    const history: JourneyAttempt[] = [failed, current].map((d) => ({
+      version: 1,
+      bankVersion: "2026-11-06.7",
+      id: d.id,
+      scenarioId: d.id,
+      role: d.role,
+      mode: "learn",
+      createdAt: new Date().toISOString(),
+      choices: [],
+      outcome: "retained",
+      verdict: "strong",
+      ...(d === failed
+        ? {
+            forecasts: [
+              {
+                decisionIndex: 0,
+                rivalId: "r0",
+                predicted: "ball",
+                actual: "follow",
+                plan: "scan",
+              } as const,
+            ],
+          }
+        : {}),
+    }));
+    const next = freshJourneyEntry(pool, history, "learn", current, [failed.id, current.id]);
+    expect(next.topicId).toBe(failed.topicId);
+    expect(next.id).not.toBe(failed.id);
+    expect(next.id).not.toBe(current.id);
+  });
   it("rotates even without any completed attempt, avoids recent topics, and starts another rotation", () => {
     const pool = advancedJourneyBank.filter((d) => d.role === "wing");
     const starts: string[] = [];

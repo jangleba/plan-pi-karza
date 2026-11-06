@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { advancedJourneyBank } from "./advancedJourneyBank";
 import {
   chooseJourney,
-  createJourney,
   createJourneyForRules,
   journeyChoice,
   journeyFrame,
@@ -14,10 +13,17 @@ import {
 import { makeJourneyAttempt, makeJourneyDraft, restoreJourney } from "./journeyHistory";
 import { agentOptions, autonomousTurn, carryAssessment, performCarry } from "./tacticalAgents";
 import { controlTacticalActor, tacticalGroup, tacticalGroups } from "./tacticalJourney";
-import { copyWorld, distance, TACTICAL_BANK_VERSION, TACTICAL_TURNS } from "./tacticalWorld";
+import {
+  copyWorld,
+  distance,
+  LEGACY_TACTICAL_BANK_VERSION as TACTICAL_BANK_VERSION,
+  TACTICAL_TURNS,
+} from "./tacticalWorld";
 import { journeyDebrief, journeyDebriefText } from "./journeyDebrief";
 import type { DribbleStyle, JourneySession } from "./journeyTypes";
 
+const createJourney = (d: Parameters<typeof createJourneyForRules>[0]) =>
+  createJourneyForRules(d, 6);
 const definition = advancedJourneyBank.find(
   (d) => d.role === "six" && d.concept === "third-player",
 )!;

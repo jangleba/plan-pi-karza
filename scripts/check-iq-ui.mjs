@@ -96,7 +96,7 @@ try {
     ...(process.env.BALLWISE_CHROMIUM_EXECUTABLE
       ? { executablePath: process.env.BALLWISE_CHROMIUM_EXECUTABLE }
       : {}),
-    args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
+    args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
   });
   const base = `http://127.0.0.1:${server.address().port}/`;
   const page = await browser.newPage({
@@ -132,8 +132,24 @@ try {
       (await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1,
       "Horizontal overflow " + name,
     );
-    await page.screenshot({ path: path.join(work, name + ".png") });
+    await page.screenshot({ path: path.join(work, name + ".png"), animations: "disabled" });
     views.push(name);
+  }
+  async function confirmForecast(target) {
+    await target.getByRole("button", { name: "Przesunie się do piłki", exact: true }).click();
+    await target.getByRole("button", { name: "Zaplanuj kolejny krok", exact: true }).click();
+    await target
+      .getByRole("button", { name: "Sprawdzę ponownie grę do przodu", exact: true })
+      .click();
+    await target.getByRole("button", { name: "Rozegraj i sprawdź", exact: true }).click();
+  }
+  async function visibleContinue(target = page) {
+    const button = await target.locator(".iqS-continue").boundingBox();
+    const nav = await target.locator(".bw-tab-bar").boundingBox();
+    ensure(
+      button && nav && button.height >= 44 && button.y + button.height <= nav.y + 1,
+      "Continue button is behind navigation " + JSON.stringify({ button, nav }),
+    );
   }
   const starts = [];
   for (const [width, height] of [
@@ -155,8 +171,20 @@ try {
       (await page.locator("[data-iq-commit]").count()) === 0,
       "Observation reveals a suggested choice",
     );
+    await visibleContinue();
     await snap("iq-obserwacja-" + width + "x" + height);
     await page.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
+    ensure(
+      (await page.locator("[data-iq-commit]").count()) === 0,
+      "Intent must be chosen explicitly",
+    );
+    const firstIntent = await page
+      .locator('select[aria-label="Zamiar i moment"] option:not([disabled])')
+      .first()
+      .getAttribute("value");
+    await page
+      .getByRole("combobox", { name: "Zamiar i moment", exact: true })
+      .selectOption(firstIntent);
     const choices = await page.locator("[data-iq-commit]").all();
     ensure(choices.length === 1, "Expected one preview and one explicit execution");
     const footer = await page.locator(".iqJ-footer").boundingBox();
@@ -179,7 +207,10 @@ try {
         await page.locator(".bwiq-pitch-canvas canvas").getAttribute("data-iq-controlled-height"),
       );
       const field = await page.locator(".iqJ-stage").boundingBox();
-      ensure(playerHeight >= 14, "Footballer is illegible in fixed view: " + playerHeight);
+      ensure(
+        playerHeight >= 14 && playerHeight <= 24,
+        "Footballer size outside fixed-view bounds: " + playerHeight,
+      );
       ensure(field.height >= 220, "Too little space for the pitch: " + field.height);
     }
     await snap("iq-3d-" + width + "x" + height);
@@ -199,6 +230,9 @@ try {
   );
   await setMode("Z podpowiedziami");
   await page.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Zamiar i moment", exact: true })
+    .selectOption(plan[0].group);
   const beforePreview = await page.evaluate(() =>
     localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
   );
@@ -250,6 +284,20 @@ try {
       index === 0 ? await page.locator(".bwiq-pitch-canvas canvas").screenshot() : null;
     await page.getByRole("button", { name: "Zagraj tak", exact: true }).click();
     if (index === 0) {
+      await page.locator("dialog.iqF-sheet[open]").waitFor();
+      const beforeForecast = await page.evaluate(() =>
+        localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
+      );
+      await snap("iq-przewidywanie");
+      await page.getByRole("button", { name: "Zwiń i wróć do boiska", exact: true }).click();
+      ensure(
+        (await page.evaluate(() =>
+          localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft"),
+        )) === beforeForecast,
+        "Cancelled forecast changed saved decisions",
+      );
+      await page.getByRole("button", { name: "Zagraj tak", exact: true }).click();
+      await confirmForecast(page);
       await page.getByRole("heading", { name: "Akcja trwa…", exact: true }).waitFor();
       ensure(
         (await page.locator("[data-iq-commit]").count()) === 0,
@@ -276,7 +324,28 @@ try {
       (await page.locator("[data-iq-commit]").count()) === 0,
       "Feedback overlaps the next choice",
     );
-    if (index === 0) await snap("iq-skutek-decyzji");
+    if (index === 0) {
+      ensure((await page.locator(".iqF-feedback").count()) === 1, "Missing prediction reflection");
+      await visibleContinue();
+      await snap("iq-skutek-decyzji");
+      for (const [width, height] of [
+        [320, 640],
+        [390, 740],
+        [844, 390],
+      ]) {
+        await page.setViewportSize({ width, height });
+        await page.locator(".iqJ-footer").evaluate((el) => {
+          el.scrollTop = 0;
+        });
+        await visibleContinue();
+        await snap(`iq-skutek-${width}x${height}`);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+    } else
+      ensure(
+        (await page.locator("dialog.iqF-sheet[open]").count()) === 0,
+        "Forecast repeated on every turn",
+      );
     if (await page.getByRole("button", { name: "Następny krok", exact: true }).count()) {
       await page.getByRole("button", { name: "Następny krok", exact: true }).click();
       await page.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
@@ -290,6 +359,14 @@ try {
       () => JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa")).length,
     )) === 1,
     "Action was not saved exactly once",
+  );
+  ensure(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa"))[0].forecasts
+          .length === 1,
+    ),
+    "Prediction was not persisted",
   );
   await snap("iq-wnioski");
   const download = page.waitForEvent("download");
@@ -342,6 +419,7 @@ try {
   await partner.screenshot({ path: path.join(work, "iq-decyzja-partnera.png") });
   views.push("iq-decyzja-partnera");
   await partner.getByRole("button", { name: "Zagraj tak", exact: true }).click();
+  await confirmForecast(partner);
   await partner.waitForFunction(() => !document.querySelector(".iqJ-transport"));
   const partnerRecord = await partner.evaluate(
     () =>
@@ -364,7 +442,15 @@ try {
   );
   ensure((await fallback.locator("[data-iq-player]").count()) <= 3, "Fallback shows every number");
   await fallback.getByRole("button", { name: "Wybierz rozwiązanie", exact: true }).click();
+  const fallbackIntent = await fallback
+    .locator('select[aria-label="Zamiar i moment"] option:not([disabled])')
+    .first()
+    .getAttribute("value");
+  await fallback
+    .getByRole("combobox", { name: "Zamiar i moment", exact: true })
+    .selectOption(fallbackIntent);
   await fallback.getByRole("button", { name: "Zagraj tak", exact: true }).click();
+  await confirmForecast(fallback);
   await fallback.waitForFunction(() => !document.querySelector(".iqJ-transport"));
   await fallback.screenshot({ path: path.join(work, "iq-zawodnicy-bez-webgl.png") });
   views.push("iq-zawodnicy-bez-webgl");

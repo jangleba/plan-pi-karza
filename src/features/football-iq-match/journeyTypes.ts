@@ -119,9 +119,17 @@ export type JourneyDecision = {
   decisionSeconds: number;
   actorId?: string;
 };
+export type TacticalForecast = {
+  decisionIndex: number;
+  rivalId: string;
+  predicted: "ball" | "follow" | "cover";
+  actual: "ball" | "follow" | "cover" | "mixed";
+  plan: "support" | "protect" | "scan";
+};
 export type JourneySession = {
+  forecasts?: TacticalForecast[];
   /** Absent in saved pre-22 engines; their replays retain the original rules. */
-  rulesVersion?: 4 | 5 | 6;
+  rulesVersion?: 4 | 5 | 6 | 7;
   controlledId?: string;
   finishTeam?: "home" | "away";
   definition: JourneyDefinition;
@@ -136,6 +144,7 @@ export type JourneySession = {
   transition?: "choose" | "done";
 };
 export type JourneyAttempt = {
+  forecasts?: TacticalForecast[];
   version: 1;
   bankVersion: string;
   id: string;

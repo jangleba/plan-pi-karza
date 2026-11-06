@@ -7,7 +7,7 @@ import type {
 } from "./journeyTypes";
 import { journeyExpansion } from "./journeyExpansion";
 import { advancedJourneyBank, ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
-import { TACTICAL_BANK_VERSION } from "./tacticalWorld";
+import { TACTICAL_BANK_VERSION, LEGACY_TACTICAL_BANK_VERSION } from "./tacticalWorld";
 
 export const JOURNEY_BANK_VERSION = "2026-10-31.4";
 export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
@@ -16,6 +16,7 @@ export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
   "2026-10-15.3",
   JOURNEY_BANK_VERSION,
   ADVANCED_JOURNEY_BANK_VERSION,
+  LEGACY_TACTICAL_BANK_VERSION,
   TACTICAL_BANK_VERSION,
 ];
 export const roleLabels: Record<IQRole, string> = {

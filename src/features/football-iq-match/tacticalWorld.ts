@@ -4,7 +4,8 @@ import type { BallDelivery } from "./ballFlight";
 import type { MatchPlayer, Point } from "./types";
 import type { JourneyBeat, JourneyQuality, JourneySession, JourneyWorld } from "./journeyTypes";
 
-export const TACTICAL_BANK_VERSION = "2026-11-01.6";
+export const LEGACY_TACTICAL_BANK_VERSION = "2026-11-01.6";
+export const TACTICAL_BANK_VERSION = "2026-11-06.7";
 export const TACTICAL_TURNS = 8;
 export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export const bound = (x: number, y: number): Point => ({

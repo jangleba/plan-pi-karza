@@ -93,6 +93,13 @@ function readRecords(
             "outcome",
             "verdict",
           ]),
+          ...(row.forecasts?.length
+            ? {
+                forecasts: row.forecasts.map((f) =>
+                  pick(f, ["decisionIndex", "rivalId", "predicted", "actual", "plan"]),
+                ),
+              }
+            : {}),
           choices: row.choices.map((choice) => pick(choice, ["id", "seconds"])),
         })),
       ),
@@ -101,6 +108,13 @@ function readRecords(
         return draft
           ? {
               ...pick(draft, ["version", "bankVersion", "id", "scenarioId", "mode"]),
+              ...(draft.forecasts?.length
+                ? {
+                    forecasts: draft.forecasts.map((f) =>
+                      pick(f, ["decisionIndex", "rivalId", "predicted", "actual", "plan"]),
+                    ),
+                  }
+                : {}),
               choices: draft.choices.map((choice) => pick(choice, ["id", "seconds"])),
             }
           : null;

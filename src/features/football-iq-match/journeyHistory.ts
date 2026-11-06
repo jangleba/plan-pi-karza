@@ -4,11 +4,14 @@ import {
   iqScenarioBank,
 } from "./journeyBank";
 import { ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
-import { TACTICAL_BANK_VERSION } from "./tacticalWorld";
+import { TACTICAL_BANK_VERSION, LEGACY_TACTICAL_BANK_VERSION } from "./tacticalWorld";
+import { observedReaction, forecastRival } from "./tacticalForecast";
+import { controlTacticalActor } from "./tacticalJourney";
 import { chooseJourney, createJourneyForRules, journeyVerdict } from "./journeyEngine";
-import type { JourneyAttempt, JourneyMode, JourneySession } from "./journeyTypes";
+import type { JourneyAttempt, JourneyMode, JourneySession, TacticalForecast } from "./journeyTypes";
 
 export type JourneyDraft = {
+  forecasts?: TacticalForecast[];
   version: 1;
   bankVersion: string;
   id: string;
@@ -52,13 +55,35 @@ function validBase(v: unknown): v is JourneyDraft {
     v.id.length <= 100 &&
     typeof v.scenarioId === "string" &&
     definitionById.has(v.scenarioId) &&
-    [ADVANCED_JOURNEY_BANK_VERSION, TACTICAL_BANK_VERSION].includes(v.bankVersion) ===
+    [ADVANCED_JOURNEY_BANK_VERSION, LEGACY_TACTICAL_BANK_VERSION, TACTICAL_BANK_VERSION].includes(
+      v.bankVersion,
+    ) ===
       (definitionById.get(v.scenarioId)?.revision === 3) &&
     (v.bankVersion !== "2026-10-15.1" || definitionById.get(v.scenarioId)?.revision !== 2) &&
     ["learn", "challenge"].includes(String(v.mode)) &&
     Array.isArray(v.choices) &&
     v.choices.length <= 10 &&
     v.choices.every(validChoice) &&
+    (v.forecasts === undefined ||
+      (v.bankVersion === TACTICAL_BANK_VERSION &&
+        Array.isArray(v.forecasts) &&
+        v.forecasts.length <= v.choices.length &&
+        v.forecasts.every(
+          (f) =>
+            object(f) &&
+            Number.isInteger(f.decisionIndex) &&
+            (f.decisionIndex as number) >= 0 &&
+            (f.decisionIndex as number) < (v.choices as unknown[]).length &&
+            typeof f.rivalId === "string" &&
+            f.rivalId.length < 50 &&
+            typeof f.predicted === "string" &&
+            ["ball", "follow", "cover"].includes(f.predicted) &&
+            typeof f.actual === "string" &&
+            ["ball", "follow", "cover", "mixed"].includes(f.actual) &&
+            typeof f.plan === "string" &&
+            ["support", "protect", "scan"].includes(f.plan),
+        ) &&
+        new Set(v.forecasts.map((f) => f.decisionIndex)).size === v.forecasts.length)) &&
     v.choices.every(
       (c) =>
         (!c.id.startsWith("free:") && !/^(?:as6:[a-z0-9-]+:)?free6:/.test(c.id)) ||
@@ -66,6 +91,7 @@ function validBase(v: unknown): v is JourneyDraft {
           "2026-10-15.3",
           JOURNEY_BANK_VERSION,
           ADVANCED_JOURNEY_BANK_VERSION,
+          LEGACY_TACTICAL_BANK_VERSION,
           TACTICAL_BANK_VERSION,
         ].includes(v.bankVersion as string) &&
           v.mode === "challenge"),
@@ -90,14 +116,30 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
   let session = createJourneyForRules(
     definitionById.get(value.scenarioId)!,
     value.bankVersion === TACTICAL_BANK_VERSION
-      ? 6
-      : value.bankVersion === ADVANCED_JOURNEY_BANK_VERSION
-        ? 5
-        : value.bankVersion === JOURNEY_BANK_VERSION
-          ? 4
-          : 3,
+      ? 7
+      : value.bankVersion === LEGACY_TACTICAL_BANK_VERSION
+        ? 6
+        : value.bankVersion === ADVANCED_JOURNEY_BANK_VERSION
+          ? 5
+          : value.bankVersion === JOURNEY_BANK_VERSION
+            ? 4
+            : 3,
   );
-  for (const choice of value.choices) session = chooseJourney(session, choice.id, choice.seconds);
+  for (const [index, choice] of value.choices.entries()) {
+    const before = session;
+    session = chooseJourney(session, choice.id, choice.seconds);
+    const forecast = value.forecasts?.find((f) => f.decisionIndex === index);
+    if (forecast) {
+      const actor = session.decisions.at(-1)?.actorId;
+      const controlled = actor && actor !== "you" ? controlTacticalActor(before, actor) : before;
+      if (
+        forecastRival(controlled)?.id !== forecast.rivalId ||
+        observedReaction(session, index, forecast.rivalId) !== forecast.actual
+      )
+        throw new Error("Prognoza nie zgadza się z przebiegiem akcji.");
+    }
+  }
+  if (value.forecasts?.length) session.forecasts = value.forecasts.map((f) => ({ ...f }));
   return session;
 }
 export function loadJourneyHistory(
@@ -129,18 +171,21 @@ export function makeJourneyAttempt(
   return {
     version: 1,
     bankVersion:
-      session.rulesVersion === 6
+      session.rulesVersion === 7
         ? TACTICAL_BANK_VERSION
-        : session.rulesVersion === 5
-          ? ADVANCED_JOURNEY_BANK_VERSION
-          : session.rulesVersion === 4
-            ? JOURNEY_BANK_VERSION
-            : "2026-10-15.3",
+        : session.rulesVersion === 6
+          ? LEGACY_TACTICAL_BANK_VERSION
+          : session.rulesVersion === 5
+            ? ADVANCED_JOURNEY_BANK_VERSION
+            : session.rulesVersion === 4
+              ? JOURNEY_BANK_VERSION
+              : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     role: session.definition.role,
     mode,
     createdAt: now.toISOString(),
+    ...(session.forecasts?.length ? { forecasts: session.forecasts.map((f) => ({ ...f })) } : {}),
     choices: session.decisions.map((d) => ({
       id: d.choiceId,
       seconds: Math.min(86400, d.decisionSeconds),
@@ -195,6 +240,13 @@ const attemptSignature = (attempt: JourneyAttempt) =>
     attempt.choices.map((choice) => [choice.id, choice.seconds]),
     attempt.outcome,
     attempt.verdict,
+    (attempt.forecasts ?? []).map((f) => [
+      f.decisionIndex,
+      f.rivalId,
+      f.predicted,
+      f.actual,
+      f.plan,
+    ]),
   ]);
 const sameAttempt = (a: JourneyAttempt, b: JourneyAttempt) =>
   attemptSignature(a) === attemptSignature(b);
@@ -228,16 +280,19 @@ export function makeJourneyDraft(
   return {
     version: 1,
     bankVersion:
-      session.rulesVersion === 6
+      session.rulesVersion === 7
         ? TACTICAL_BANK_VERSION
-        : session.rulesVersion === 5
-          ? ADVANCED_JOURNEY_BANK_VERSION
-          : session.rulesVersion === 4
-            ? JOURNEY_BANK_VERSION
-            : "2026-10-15.3",
+        : session.rulesVersion === 6
+          ? LEGACY_TACTICAL_BANK_VERSION
+          : session.rulesVersion === 5
+            ? ADVANCED_JOURNEY_BANK_VERSION
+            : session.rulesVersion === 4
+              ? JOURNEY_BANK_VERSION
+              : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     mode,
+    ...(session.forecasts?.length ? { forecasts: session.forecasts.map((f) => ({ ...f })) } : {}),
     choices: session.decisions.map((d) => ({
       id: d.choiceId,
       seconds: Math.min(86400, d.decisionSeconds),

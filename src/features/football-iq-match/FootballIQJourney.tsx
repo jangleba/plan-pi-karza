@@ -1,3 +1,13 @@
+import { TacticalForecastSheet } from "./TacticalForecastSheet";
+import {
+  addForecast,
+  forecastRival,
+  forecastReflection,
+  observationCue,
+  reactionLabels,
+  planLabels,
+} from "./tacticalForecast";
+import type { TacticalForecast } from "./journeyTypes";
 import { SurfaceSketch } from "@/components/design/SurfaceSketch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -162,6 +172,7 @@ export function FootballIQJourney({
     [ready, setReady] = useState(false);
   const [hinted, setHinted] = useState(false),
     [note, setNote] = useState("");
+  const [forecastChoice, setForecastChoice] = useState<string | null>(null);
   const [history, setHistory] = useState<JourneyAttempt[]>([]),
     [legacyCount, setLegacyCount] = useState(0);
   const [picker, setPicker] = useState(false),
@@ -215,13 +226,16 @@ export function FootballIQJourney({
     pickerTrigger = useRef<HTMLButtonElement>(null);
   const allowedRoles = useMemo(() => rolesForPosition(position), [position]);
   const selectedStep = useMemo(() => (!session.outcome ? journeyStep(session) : null), [session]);
-  const tactical = session.rulesVersion === 6;
+  const tactical = session.rulesVersion === 6 || session.rulesVersion === 7;
   const controlled = session.controlledId ?? "you";
   const rivalHasBall =
     session.players.find((p) => p.id === session.world.carrierId)?.team === "away";
   const selectedDefense = rivalHasBall ? defenseIntent : "cover";
   const takeoverPlayer =
-    session.rulesVersion === 6 && !session.outcome && view === "decision" && !transport
+    (session.rulesVersion === 6 || session.rulesVersion === 7) &&
+    !session.outcome &&
+    view === "decision" &&
+    !transport
       ? session.players.find(
           (p) => p.id === session.world.carrierId && p.team === "home" && p.id !== "you",
         )
@@ -269,10 +283,12 @@ export function FootballIQJourney({
   const observing = lesson && observedScope !== decisionScope;
   const choosing = lesson && !observing;
   const previewScope = `${session.definition.id}:${session.step}:${selectedDelivery}:${mode}:${selectedGroup}:${selectedTiming}`;
-  const previewChoice = lesson
-    ? (visibleChoices.find((c) => preview?.scope === previewScope && c.id === preview.id) ??
-      visibleChoices[0])
-    : undefined;
+  const needsIntent = session.rulesVersion === 7 && lesson && intent?.scope !== intentScope;
+  const previewChoice =
+    lesson && !needsIntent
+      ? (visibleChoices.find((c) => preview?.scope === previewScope && c.id === preview.id) ??
+        visibleChoices[0])
+      : undefined;
   const instruction = lesson && selectedStep ? lessonInstruction(session, selectedStep) : null;
   const focus = useMemo(
     () => lessonFocus(session, observing ? undefined : previewChoice),
@@ -318,12 +334,12 @@ export function FootballIQJourney({
     booted && ready && view === "decision" && !observing && !transport && !picker && !help;
   const selectable = useMemo(
     () =>
-      interactive && selectedStep
+      interactive && selectedStep && !needsIntent
         ? visibleChoices.flatMap((c) =>
             c.targetId && (!tactical || c.intent === "pass") ? [c.targetId] : [],
           )
         : EMPTY_IDS,
-    [interactive, selectedStep, visibleChoices, tactical],
+    [interactive, selectedStep, visibleChoices, tactical, needsIntent],
   );
   const destinations = EMPTY_DESTINATIONS;
   const currentChoices = useMemo(() => {
@@ -374,6 +390,7 @@ export function FootballIQJourney({
     setIncomingDraft(null);
     setOfferedDraft(null);
     setDraftChanged(false);
+    setForecastChoice(null);
     setSession(createJourney(initial));
     setTakeover(null);
     setObservedScope(null);
@@ -607,10 +624,29 @@ export function FootballIQJourney({
     setView("playing");
   }
   function choose(choiceId: string) {
+    if (
+      session.rulesVersion === 7 &&
+      mode === "learn" &&
+      !session.forecasts?.length &&
+      forecastRival(session) &&
+      interactive &&
+      !choiceLock.current
+    ) {
+      setForecastChoice(choiceId);
+      return;
+    }
+    performChoice(choiceId);
+  }
+  function performChoice(
+    choiceId: string,
+    forecast?: Pick<TacticalForecast, "predicted" | "plan">,
+  ) {
     if (!interactive || choiceLock.current) return;
     choiceLock.current = true;
     try {
-      const next = chooseJourney(session, choiceId, elapsed.current);
+      let next = chooseJourney(session, choiceId, elapsed.current);
+      if (forecast) next = addForecast(next, session, forecast);
+      setForecastChoice(null);
       setPreview(null);
 
       if (offeredDraft) {
@@ -639,6 +675,7 @@ export function FootballIQJourney({
     setShowAfter(false);
   }
   function newScenario(definition: JourneyDefinition) {
+    setForecastChoice(null);
     if (pendingAttempt) {
       setNote("Pobierz niezapisaną próbę albo ponów zapis przed rozpoczęciem kolejnej akcji.");
       return;
@@ -849,7 +886,7 @@ export function FootballIQJourney({
     tactical && selectedStep ? (
       <select
         aria-label="Zamiar i moment"
-        value={`${selectedGroup}:${selectedTiming}`}
+        value={needsIntent ? "" : `${selectedGroup}:${selectedTiming}`}
         disabled={!interactive}
         onChange={(event) => {
           const [group, timing] = event.target.value.split(":") as [TacticalGroup, ActionTiming];
@@ -859,6 +896,11 @@ export function FootballIQJourney({
           setNote("");
         }}
       >
+        {needsIntent && (
+          <option value="" disabled>
+            Co chcesz osiągnąć?
+          </option>
+        )}
         {groups.map((group) => (
           <optgroup key={group} label={tacticalGroupLabels[group]}>
             <option value={`${group}:now`}>{tacticalGroupLabels[group]} — teraz</option>
@@ -887,6 +929,14 @@ export function FootballIQJourney({
       data-iq-scenario={session.definition.id}
       aria-label="BallWise IQ — pełne akcje"
     >
+      {forecastChoice && forecastRival(session) && (
+        <TacticalForecastSheet
+          key={`${decisionScope}:${forecastChoice}`}
+          rivalNumber={forecastRival(session)!.number}
+          onClose={() => setForecastChoice(null)}
+          onConfirm={(forecast) => performChoice(forecastChoice, forecast)}
+        />
+      )}
       <header className="iqJ-header">
         <div className="iqJ-header-line">
           <button
@@ -987,12 +1037,15 @@ export function FootballIQJourney({
               : `Decyzja ${Math.min(session.step + 1, stepCount)} z ${stepCount}`
           }
         >
-          {session.definition.steps.map((_, i) => (
-            <span
-              key={i}
-              className={i < session.step ? "is-done" : i === session.step ? "is-current" : ""}
-            />
-          ))}
+          {Array.from(
+            { length: tactical ? TACTICAL_TURNS : session.definition.steps.length },
+            (_, i) => (
+              <span
+                key={i}
+                className={i < session.step ? "is-done" : i === session.step ? "is-current" : ""}
+              />
+            ),
+          )}
           {session.transition && (
             <span className={session.transition === "choose" ? "is-current" : "is-done"} />
           )}
@@ -1081,7 +1134,7 @@ export function FootballIQJourney({
                 ? "carry"
                 : "pass"
             }
-            interactive={interactive}
+            interactive={interactive && !forecastChoice && !needsIntent}
             playing={playing && !reduced}
             onReadyChange={setReady}
             selectablePlayerIds={selectable}
@@ -1177,7 +1230,14 @@ export function FootballIQJourney({
                         : ""}
             </span>
             <h2>{footerTitle}</h2>
-            <p>{footerDetail}</p>
+            {session.rulesVersion === 7 && view === "feedback" ? (
+              <details className="iqF-consequence">
+                <summary>{(footerDetail ?? "").split(/(?<=[.!?])\s/)[0]}</summary>
+                <p>{footerDetail}</p>
+              </details>
+            ) : (
+              <p>{footerDetail}</p>
+            )}
           </>
         )}
         {observing && instruction && (
@@ -1186,7 +1246,8 @@ export function FootballIQJourney({
               <span>1</span> Obserwuj
             </span>
             <h2>{instruction.title}</h2>
-            <p>{instruction.situation}</p>
+            {session.rulesVersion !== 7 && <p>{instruction.situation}</p>}
+            {session.rulesVersion === 7 && <p className="iqF-observe">{observationCue(session)}</p>}
             <button
               type="button"
               className="iqJ-button iqJ-primary iqS-continue"
@@ -1199,6 +1260,23 @@ export function FootballIQJourney({
         )}
         {view === "feedback" && (
           <section className="iqS-reflection" aria-label="Skutek Twojej decyzji">
+            {session.forecasts
+              ?.filter((f) => f.decisionIndex === session.decisions.length - 1)
+              .map((f) => {
+                const result = forecastReflection(f);
+                return (
+                  <div className="iqF-feedback" key={f.decisionIndex}>
+                    <strong>
+                      {result.matches === null
+                        ? "Sprawdź reakcję"
+                        : result.matches
+                          ? "Przewidziałeś reakcję"
+                          : "Rywal wybrał inaczej"}
+                    </strong>
+                    <p>{result.reaction}</p>
+                  </div>
+                );
+              })}
             <button
               type="button"
               className="iqJ-button iqJ-primary iqS-continue"
@@ -1223,6 +1301,17 @@ export function FootballIQJourney({
             >
               <RotateCcw size={15} /> Obejrzyj jeszcze raz
             </button>
+            {session.forecasts
+              ?.filter((f) => f.decisionIndex === session.decisions.length - 1)
+              .map((f) => (
+                <details className="iqF-feedback-details" key={f.decisionIndex}>
+                  <summary>Twoja prognoza i następny krok</summary>
+                  <p>Twoja prognoza: {reactionLabels[f.predicted].toLowerCase()}.</p>
+                  <p>
+                    Twój plan: {planLabels[f.plan].toLowerCase()}. {forecastReflection(f).plan}
+                  </p>
+                </details>
+              ))}
           </section>
         )}
         {choosing && hinted && selectedStep && (
@@ -1289,6 +1378,7 @@ export function FootballIQJourney({
               ))}
             </div>
           )}
+        {choosing && needsIntent && <div className="iqF-intent">{intentControl}</div>}
         {choosing && previewChoice && selectedStep && (
           <LessonChoicePanel
             session={session}
@@ -1430,6 +1520,22 @@ export function FootballIQJourney({
                 </p>
                 <p>{debrief.observation}</p>
                 <p>{debrief.rule.action}</p>
+                {!!session.forecasts?.length && (
+                  <details>
+                    <summary>Twoje przewidywanie i następny krok</summary>
+                    {session.forecasts.map((f) => (
+                      <div key={f.decisionIndex}>
+                        <p>
+                          <strong>Prognoza:</strong> {reactionLabels[f.predicted]}.{" "}
+                          {forecastReflection(f).reaction}
+                        </p>
+                        <p>
+                          <strong>Plan:</strong> {planLabels[f.plan]}. {forecastReflection(f).plan}
+                        </p>
+                      </div>
+                    ))}
+                  </details>
+                )}
                 <details>
                   <summary>Dlaczego tutaj i kiedy zagrać inaczej</summary>
                   <p>
@@ -1837,6 +1943,13 @@ export function FootballIQJourney({
                   ? "W nowych akcjach wybierz tor podania, a potem partnera. Po stracie wybierz doskok albo powrót do obrony."
                   : "Rodzaj podania wybierasz przyciskami. Po stracie także sam wskazujesz miejsce reakcji."}
             </p>
+            {session.rulesVersion === 7 && mode === "learn" && (
+              <p>
+                Raz w akcji przewidzisz pierwszą reakcję wskazanego rywala i wybierzesz zamiar na
+                następny krok. Po animacji porównasz prognozę z przebiegiem. Niejasna reakcja nie
+                dostaje oceny trafności. Plan możesz zmienić, gdy zmieni się sytuacja.
+              </p>
+            )}
             <p>
               Po wyborze zobaczysz reakcję zawodników i kolejne zadanie. Po końcu odtworzysz własną
               akcję i sprawdzisz konkretne decyzje.

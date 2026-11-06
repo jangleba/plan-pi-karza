@@ -1,3 +1,4 @@
+import { pressingAssessment } from "./tacticalLearning";
 import { createAdvancedJourney } from "./advancedJourney";
 import {
   autonomousTurn,
@@ -36,9 +37,12 @@ import type {
 } from "./journeyTypes";
 import type { BallDelivery } from "./ballFlight";
 
-export function createTacticalJourney(definition: JourneyDefinition): JourneySession {
+export function createTacticalJourney(
+  definition: JourneyDefinition,
+  rulesVersion: 6 | 7 = 7,
+): JourneySession {
   const s = createAdvancedJourney(definition);
-  s.rulesVersion = 6;
+  s.rulesVersion = rulesVersion;
   s.controlledId = "you";
   // Keep the immutable scenario definition: old step metadata also seeds its starting shape.
   if (definition.concept === "overload-switch") {
@@ -112,7 +116,12 @@ export const dribbleLabels: Record<DribbleStyle, string> = {
 };
 /** Explicit, single-decision takeover. It never transfers control to an opponent. */
 export function controlTacticalActor(s: JourneySession, id: string): JourneySession {
-  if (s.rulesVersion !== 6 || s.outcome || id !== s.world.carrierId || teamOf(s, id) !== "home")
+  if (
+    (s.rulesVersion !== 6 && s.rulesVersion !== 7) ||
+    s.outcome ||
+    id !== s.world.carrierId ||
+    teamOf(s, id) !== "home"
+  )
     throw new Error("Możesz przejąć tylko partnera, który aktualnie ma piłkę.");
   return { ...s, controlledId: id };
 }
@@ -174,7 +183,9 @@ function moveAssessment(s: JourneySession, p: Point, intent: TacticalIntent) {
     const goal = { x: 50, y: team === "home" ? 136 : 4 },
       row = segment(p, ball, goal),
       goalSide = direction(team) * (p.y - ball.y) < 0;
-    if (intent === "press") {
+    if (intent === "press" && s.rulesVersion === 7) {
+      ({ quality, why } = pressingAssessment(s, p));
+    } else if (intent === "press") {
       const near = distance(p, ball),
         covered = coverCount(s, p) > 0;
       quality = near < 6 && covered ? "good" : near < 12 ? "possible" : "error";
@@ -281,6 +292,31 @@ function assess(s: JourneySession, c: Omit<JourneyChoice, "quality" | "why">): J
               : "Zyskujesz czas na odczytanie ruchu partnerów, ale rywal również może skrócić odległość.",
         };
   } else result = moveAssessment(prepared, c.point, c.intent ?? "move");
+  if (s.rulesVersion === 7 && c.intent === "wait") {
+    const ownTeam = teamOf(prepared, id),
+      at = prepared.world.positions[id];
+    if (teamOf(prepared, owner) !== ownTeam) {
+      const goal = { x: 50, y: ownTeam === "home" ? 136 : 4 };
+      const ball = prepared.world.positions[owner];
+      const lane = segment(at, ball, goal);
+      const holdsLane = direction(ownTeam) * (at.y - ball.y) < 0 && lane.gap < 10;
+      result = {
+        quality: holdsLane ? "possible" : "error",
+        why: holdsLane
+          ? "Zachowujesz korytarz do bramki, ale czekanie daje rywalowi czas. Sprawdź najbliższego odbiorcę i moment skrócenia dystansu; samo pozostanie nie jest wygraną decyzją."
+          : "Pozostając tutaj, nie osłaniasz korytarza do bramki. Wolne miejsce wokół Ciebie nie oznacza, że drużyna ma zabezpieczenie.",
+      };
+    } else {
+      const lane = passAssessment(prepared, owner, id);
+      const available = lane.quality === "good" && pressure(prepared, at, ownTeam) > 5;
+      result = {
+        quality: available ? "good" : "possible",
+        why: available
+          ? "Utrzymujesz dostępną linię dla partnera zamiast zbiegać do piłki. Po jego następnym kontakcie ponownie sprawdź krycie i kąt wsparcia."
+          : "Czekanie nie otwiera wyraźnej linii do Ciebie. Porównaj nowy kąt wsparcia z zachowaniem miejsca dla innego partnera.",
+      };
+    }
+  }
   return { ...c, quality: result.quality, why: result.why, point };
 }
 function authoredChoices(s: JourneySession, onlyId?: string): JourneyChoice[] {
@@ -673,15 +709,39 @@ export function chooseTacticalJourney(
   }
   if (findAlternative && s.decisions.at(-1)!.quality !== "good") {
     s.decisions.at(-1)!.alternative =
-      tacticalStep(previous)
-        .choices.filter(
-          (x) => x.id !== id && x.quality === "good" && tacticalGroup(x) === tacticalGroup(c),
-        )
-        .slice(0, 3)
-        .find(
-          (x) =>
-            chooseTacticalJourney(previous, x.id, 0, false).decisions.at(-1)?.quality !== "error",
-        ) ?? null;
+      (previous.rulesVersion === 7
+        ? tacticalAlternatives(previous, c).filter((x) => x.quality === "good")
+        : tacticalStep(previous)
+            .choices.filter(
+              (x) => x.id !== id && x.quality === "good" && tacticalGroup(x) === tacticalGroup(c),
+            )
+            .slice(0, 3)
+      ).find(
+        (x) =>
+          chooseTacticalJourney(previous, x.id, 0, false).decisions.at(-1)?.quality !== "error",
+      ) ?? null;
   }
   return s;
+}
+
+/** Compare intentions as well as coordinates; bound simulation work per decision. */
+export function tacticalAlternatives(s: JourneySession, chosen: JourneyChoice) {
+  const candidates = tacticalStep(s).choices.filter(
+    (c) => c.id !== chosen.id && c.quality !== "error",
+  );
+  candidates.sort(
+    (a, b) =>
+      Number(b.quality === "good") - Number(a.quality === "good") ||
+      Number(tacticalGroup(a) === tacticalGroup(chosen)) -
+        Number(tacticalGroup(b) === tacticalGroup(chosen)) ||
+      Number(a.timing === "delay") - Number(b.timing === "delay"),
+  );
+  const distinct = new Set<TacticalGroup>();
+  const diverse = candidates.filter((c) => {
+    const group = tacticalGroup(c);
+    if (distinct.has(group)) return false;
+    distinct.add(group);
+    return true;
+  });
+  return [...diverse, ...candidates.filter((c) => !diverse.includes(c))].slice(0, 8);
 }

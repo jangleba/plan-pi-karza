@@ -1,3 +1,4 @@
+import { planLabels, reactionLabels, forecastReflection } from "./tacticalForecast";
 import {
   chooseJourney,
   createJourneyForRules,
@@ -6,7 +7,7 @@ import {
   journeyStep,
 } from "./journeyEngine";
 import type { JourneyChoice, JourneyDecision, JourneySession } from "./journeyTypes";
-import { controlTacticalActor, tacticalGroup } from "./tacticalJourney";
+import { controlTacticalActor, tacticalGroup, tacticalAlternatives } from "./tacticalJourney";
 
 export const IQ_COACHING_SOURCES = [
   {
@@ -46,6 +47,19 @@ function ruleFor(
   decision: JourneyDecision,
   choice?: JourneyChoice,
 ): MatchRule {
+  if (
+    session.rulesVersion === 7 &&
+    session.players.find((p) => p.id === decision.before.carrierId)?.team === "away" &&
+    ["move", "wait", "cover", "mark", "press"].includes(choice?.intent ?? "")
+  )
+    return {
+      signal: "Rywal ma piłkę, a jego partner szuka odbioru między Tobą a bramką.",
+      action:
+        "Porównaj doskok z zamknięciem groźnego podania. Zanim przyspieszysz, znajdź bliskiego partnera z pola w osłonie. Gdy osłony brakuje, opóźnij grę i utrzymuj pozycję ograniczającą drogę do bramki; sama bliskość piłki nie wystarcza.",
+      exception:
+        "Jeżeli partner już wyszedł do piłki albo rywal przeniósł grę na drugą stronę, zabezpiecz odsłonięty korytarz i ponownie sprawdź odbiorcę za plecami.",
+      reminder: "Zamknij groźną linię, sprawdź osłonę, wybierz moment doskoku.",
+    };
   if (decision.why.toLowerCase().includes("spalon"))
     return {
       signal: "Podający podnosi głowę, a obrona wychodzi w górę.",
@@ -55,7 +69,7 @@ function ruleFor(
         "Jeśli podający nadal jest pod naciskiem i nie może zagrać, nie zakładaj, że piłka ruszy zgodnie z Twoim pierwszym biegiem.",
       reminder: "Zobacz podającego, potem uruchom bieg.",
     };
-  if (session.rulesVersion === 6 && choice?.intent === "carry")
+  if ((session.rulesVersion === 6 || session.rulesVersion === 7) && choice?.intent === "carry")
     return {
       signal:
         "Obrońca skraca dystans lub przenosi ciężar ciała, a za nim pojawia się wolne wyjście.",
@@ -67,7 +81,10 @@ function ruleFor(
         "Jeśli drugi rywal zamyka wyjście albo partner ma lepszą linię, przerwij pojedynek: odegraj, osłoń piłkę lub zawróć. Sam zwód nie tworzy jeszcze przewagi.",
       reminder: "Miń nacisk, zobacz drugiego rywala i partnera.",
     };
-  if (session.rulesVersion === 6 && ["decoy", "move", "wait"].includes(choice?.intent ?? ""))
+  if (
+    (session.rulesVersion === 6 || session.rulesVersion === 7) &&
+    ["decoy", "move", "wait"].includes(choice?.intent ?? "")
+  )
     return {
       signal: "Partner ma piłkę, a rywal wybiera między kryciem Ciebie a zamknięciem innej linii.",
       action:
@@ -76,7 +93,7 @@ function ruleFor(
         "Jeśli krycie nie podąża albo partner jest już pod naciskiem, skróć wsparcie lub utrzymaj szerokość. Bieg bez dostępnego kolejnego zagrania może jedynie ścisnąć przestrzeń.",
       reminder: "Twórz opcję dla akcji, nie tylko podanie do siebie.",
     };
-  if (session.rulesVersion === 6 && choice?.intent === "hold")
+  if ((session.rulesVersion === 6 || session.rulesVersion === 7) && choice?.intent === "hold")
     return {
       signal:
         "Linia jest chwilowo zamknięta, lecz partnerzy zmieniają pozycje i masz odstęp od nacisku.",
@@ -130,13 +147,16 @@ function observationAt(
   const before = decision.before,
     you = before.positions[decision.actorId ?? "you"];
   const playerNumber = (id: string) => session.players.find((p) => p.id === id)?.number;
-  if (session.rulesVersion === 6 && choice?.intent === "shoot")
+  if ((session.rulesVersion === 6 || session.rulesVersion === 7) && choice?.intent === "shoot")
     return "Wybrałeś próbę zakończenia zamiast kontynuacji akcji. Oceniaj dostępny tor i pozycję partnerów; wynik strzału nie przesądza o jakości całej decyzji.";
-  if (session.rulesVersion === 6 && choice?.intent === "carry")
+  if ((session.rulesVersion === 6 || session.rulesVersion === 7) && choice?.intent === "carry")
     return `${choice.label}. ${choice.why} ${choice.timing === "delay" ? "Przed działaniem rywale mieli czas na przesunięcie." : "Ruch rozpoczął się od razu."}`;
-  if (session.rulesVersion === 6 && choice?.intent === "decoy")
+  if ((session.rulesVersion === 6 || session.rulesVersion === 7) && choice?.intent === "decoy")
     return "Twój bieg był ruchem dla dalszej gry zespołu. Sprawdź w odtworzeniu, kto poszedł za Tobą i jaką linię wybrał zawodnik z piłką; otrzymanie podania nie jest warunkiem powodzenia takiego ruchu.";
-  if (session.rulesVersion === 6 && ["hold", "wait"].includes(choice?.intent ?? ""))
+  if (
+    (session.rulesVersion === 6 || session.rulesVersion === 7) &&
+    ["hold", "wait"].includes(choice?.intent ?? "")
+  )
     return `Wybrałeś pozostanie w pozycji. ${decision.before.carrierId === "you" ? "Partnerzy szukali linii, a rywale mogli skrócić odstęp." : "Piłka pozostała w grze innych zawodników; Twój brak biegu również zmienił dostępne im opcje."}`;
   if (choice?.targetId) {
     const lane = journeyDeliveryLane(
@@ -163,7 +183,13 @@ function observationAt(
         : `Nr ${receiver} miał dostępny tor i przestrzeń na przyjęcie. Kluczowy był Twój następny kąt wsparcia, zanim obrona przesunęła się do piłki.`;
   }
   const cover = session.players.filter(
-    (p) => p.team === "home" && p.id !== "you" && before.positions[p.id].y > you.y + 3,
+    (p) =>
+      p.team === "home" &&
+      p.id !== "you" &&
+      (session.rulesVersion !== 7 ||
+        (!p.goalkeeper &&
+          Math.hypot(before.positions[p.id].x - you.x, before.positions[p.id].y - you.y) < 30)) &&
+      before.positions[p.id].y > you.y + 3,
   ).length;
   if (["press", "cover", "mark", "transition"].includes(decision.action))
     return cover
@@ -195,22 +221,29 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
   let before = createJourneyForRules(session.definition, session.rulesVersion ?? 3);
   for (const d of session.decisions.slice(0, decisionIndex))
     before = chooseJourney(before, d.choiceId, d.decisionSeconds);
-  if (session.rulesVersion === 6 && decision.actorId && decision.actorId !== "you")
+  if (
+    (session.rulesVersion === 6 || session.rulesVersion === 7) &&
+    decision.actorId &&
+    decision.actorId !== "you"
+  )
     before = controlTacticalActor(before, decision.actorId);
   const choice = journeyChoice(before, decision.choiceId);
-  const candidates = journeyStep(before)
-    .choices.filter(
-      (c) =>
-        c.id !== decision.choiceId &&
-        (!choice?.delivery || !c.delivery || c.delivery === choice.delivery) &&
-        (session.rulesVersion !== 6 || !choice || tacticalGroup(c) === tacticalGroup(choice)),
-    )
-    .slice(0, session.rulesVersion === 6 ? 6 : undefined);
+  const candidates =
+    session.rulesVersion === 7 && choice
+      ? tacticalAlternatives(before, choice)
+      : journeyStep(before)
+          .choices.filter(
+            (c) =>
+              c.id !== decision.choiceId &&
+              (!choice?.delivery || !c.delivery || c.delivery === choice.delivery) &&
+              (session.rulesVersion !== 6 || !choice || tacticalGroup(c) === tacticalGroup(choice)),
+          )
+          .slice(0, session.rulesVersion === 6 || session.rulesVersion === 7 ? 6 : undefined);
   const viable = candidates
     .map((c) => ({ choice: c, next: chooseJourney(before, c.id, 0, false) }))
     .filter(
       ({ next }) =>
-        !["loss", "blocked"].includes(next.outcome ?? "") &&
+        (session.rulesVersion === 7 || !["loss", "blocked"].includes(next.outcome ?? "")) &&
         next.decisions.at(-1)?.quality !== "error",
     );
   const alternative =
@@ -225,7 +258,7 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
     consequence: decision.why,
     comparison,
     rule: ruleFor(session, decision, choice),
-    ...(session.rulesVersion === 6
+    ...(session.rulesVersion === 6 || session.rulesVersion === 7
       ? {
           teamDecisions: [
             ...new Set(
@@ -240,11 +273,13 @@ export function journeyDebrief(session: JourneySession): JourneyDebrief | null {
         }
       : {}),
     mission:
-      session.rulesVersion === 6
-        ? "W następnym meczu sprawdź jedną akcję, w której pomagasz partnerowi bez otrzymania piłki, i jedną, w której po przyciągnięciu nacisku wybierasz nowe zagranie. Obserwuj reakcję rywala, nie odtwarzaj schematu na pamięć."
-        : session.definition.concept === "press-cover"
-          ? "W meczu przed pierwszym doskokiem znajdź partnera osłaniającego Twoje plecy i odbiorcę w środku. Sprawdź, czy po Twoim ruchu linia do niego rzeczywiście znika."
-          : "W meczu po następnym odegraniu sprawdź reakcję najbliższego rywala i otwórz nowy kąt. Oceń, czy kolejne podanie stało się łatwiejsze — nie tylko czy sam ruszyłeś do przodu.",
+      session.rulesVersion === 7
+        ? matchMission(session, choice, decision)
+        : session.rulesVersion === 6
+          ? "W następnym meczu sprawdź jedną akcję, w której pomagasz partnerowi bez otrzymania piłki, i jedną, w której po przyciągnięciu nacisku wybierasz nowe zagranie. Obserwuj reakcję rywala, nie odtwarzaj schematu na pamięć."
+          : session.definition.concept === "press-cover"
+            ? "W meczu przed pierwszym doskokiem znajdź partnera osłaniającego Twoje plecy i odbiorcę w środku. Sprawdź, czy po Twoim ruchu linia do niego rzeczywiście znika."
+            : "W meczu po następnym odegraniu sprawdź reakcję najbliższego rywala i otwórz nowy kąt. Oceń, czy kolejne podanie stało się łatwiejsze — nie tylko czy sam ruszyłeś do przodu.",
   };
 }
 export function journeyDebriefText(session: JourneySession, report: JourneyDebrief) {
@@ -258,6 +293,12 @@ export function journeyDebriefText(session: JourneySession, report: JourneyDebri
     report.comparison ? `Inny wariant: ${report.comparison}` : "",
     ...(report.teamDecisions?.length ? ["DECYZJE INNYCH ZAWODNIKÓW", ...report.teamDecisions] : []),
     "",
+    ...(session.forecasts ?? []).flatMap((f) => [
+      `PROGNOZA — DECYZJA ${f.decisionIndex + 1}`,
+      `Przewidywanie: ${reactionLabels[f.predicted]}. ${forecastReflection(f).reaction}`,
+      `Plan: ${planLabels[f.plan]}. ${forecastReflection(f).plan}`,
+      "",
+    ]),
     "DO WYKORZYSTANIA W MECZU",
     `Sygnał: ${report.rule.signal}`,
     `Reakcja: ${report.rule.action}`,
@@ -270,4 +311,47 @@ export function journeyDebriefText(session: JourneySession, report: JourneyDebri
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function matchMission(
+  s: JourneySession,
+  choice: JourneyChoice | undefined,
+  decision: JourneyDecision,
+) {
+  const defending = s.players.find((p) => p.id === decision.before.carrierId)?.team === "away";
+  const roleCue = defending
+    ? {
+        gk: "Jako bramkarz sprawdź przestrzeń za obroną i możliwość asekuracji",
+        cb: "Jako środkowy obrońca sprawdź napastnika i odległość partnera obok",
+        fb: "Jako boczny obrońca sprawdź skrzydłowego i korytarz do środka",
+        six: "Jako szóstka sprawdź odbiorcę między liniami i drogę podania do niego",
+        eight: "Jako ósemka sprawdź doskok partnera i odsłonięty korytarz",
+        ten: "Jako dziesiątka sprawdź pomocnika rywali za pierwszą linią nacisku",
+        wing: "Jako skrzydłowy sprawdź bocznego obrońcę rywali i podanie do środka",
+        nine: "Jako napastnik sprawdź kierunek pierwszego podania i osłonę pomocnika",
+      }[s.definition.role]
+    : {
+        gk: "Jako bramkarz przed przyjęciem sprawdź obie strony pierwszej linii nacisku",
+        cb: "Jako środkowy obrońca sprawdź linię do pomocnika oraz partnera za naciskiem",
+        fb: "Jako boczny obrońca sprawdź skrzydło i zabezpieczenie środka",
+        six: "Jako szóstka sprawdź przestrzeń za plecami przed pokazaniem się między liniami",
+        eight: "Jako ósemka porównaj wsparcie pod piłką z ruchem za pomocnika rywali",
+        ten: "Jako dziesiątka sprawdź cień krycia i możliwość gry przez trzeciego",
+        wing: "Jako skrzydłowy sprawdź drugiego obrońcę i partnera w półprzestrzeni",
+        nine: "Jako napastnik sprawdź podającego i reakcję środkowego obrońcy",
+      }[s.definition.role];
+  const task =
+    s.players.find((p) => p.id === decision.before.carrierId)?.team === "away" ||
+    ["press", "cover", "mark"].includes(choice?.intent ?? "")
+      ? "Przed doskokiem wskaż sobie partnera z pola w osłonie i odbiorcę, którego odcinasz. Po ruchu rywala sprawdź, czy korytarz rzeczywiście pozostał zamknięty."
+      : choice?.intent === "carry"
+        ? "Przed pojedynkiem nazwij sobie wyjście po zwodzie i podanie awaryjne. Po pierwszej reakcji obrońcy porównaj je ponownie; nie kończ zwodu za wszelką cenę."
+        : "Przed ruchem przewidź reakcję jednego rywala i wybierz następny kąt wsparcia. Po jego reakcji sprawdź, czy plan nadal pomaga akcji, nawet jeśli piłkę dostał ktoś inny.";
+  const context =
+    s.definition.context === 0
+      ? "Przy prowadzeniu uwzględnij koszt straty."
+      : s.definition.context === 2
+        ? "Przy niekorzystnym wyniku szukaj postępu, ale porównaj go z ryzykiem kontry."
+        : "Zachowaj możliwość wyjścia z nacisku przez drugą stronę.";
+  return `${roleCue}. ${task} ${context}`;
 }

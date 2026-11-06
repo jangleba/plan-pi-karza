@@ -1,6 +1,7 @@
 import type { JourneyChoice, JourneySession, JourneyStep } from "./journeyTypes";
 import type { PlannedAction, Point } from "./types";
 import { dribbleLabels } from "./tacticalJourney";
+import { forecastRival } from "./tacticalForecast";
 import { actorId } from "./tacticalWorld";
 const gap = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const kindTitles: Record<string, string> = {
@@ -26,7 +27,7 @@ export function lessonInstruction(session: JourneySession, step: JourneyStep) {
           ? `Piłkę ma Twój partner nr ${holder.number}.`
           : `Piłkę ma rywal nr ${holder.number}.`;
   const task =
-    session.rulesVersion === 6
+    session.rulesVersion === 6 || session.rulesVersion === 7
       ? holder.id === (session.controlledId ?? "you")
         ? acting === "you"
           ? "TY wybierasz zamiar, miejsce i moment działania."
@@ -42,7 +43,7 @@ export function lessonInstruction(session: JourneySession, step: JourneyStep) {
             ? "Sprawdź odbiorcę i rywala na drodze piłki."
             : "TY wybierasz ustawienie między piłką a swoją bramką.";
   const title =
-    session.rulesVersion === 6
+    session.rulesVersion === 6 || session.rulesVersion === 7
       ? holder.id === (session.controlledId ?? "you")
         ? "Co zrobisz z piłką?"
         : holder.team === "home"
@@ -137,6 +138,9 @@ export function lessonFocus(session: JourneySession, choice?: JourneyChoice) {
   const points = [from, holder, target, ...rivals.map((p) => world.positions[p.id])];
   const labels = [
     actorId(session),
+    ...(session.rulesVersion === 7
+      ? [world.carrierId, forecastRival(session)?.id].filter((id): id is string => !!id)
+      : []),
     ...(choice?.targetId ? [choice.targetId] : []),
     world.carrierId,
     "you",

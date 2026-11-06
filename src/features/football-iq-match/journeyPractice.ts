@@ -31,9 +31,10 @@ export function nextPractice(
   mode: JourneyMode,
   current: JourneyDefinition,
   now = new Date(),
+  knownDefinitions: readonly JourneyDefinition[] = pool,
 ) {
   if (!pool.length) return current;
-  const byId = new Map(pool.map((definition) => [definition.id, definition]));
+  const byId = new Map(knownDefinitions.map((definition) => [definition.id, definition]));
   const attempts = history.filter((a) => a.mode === mode && byId.has(a.scenarioId));
   const seen = new Set(attempts.map((a) => a.scenarioId));
   const seenSetups = new Set([
@@ -49,7 +50,11 @@ export function nextPractice(
       const original = byId.get(a.scenarioId)!;
       if (checkedTopics.has(original.topicId)) continue;
       checkedTopics.add(original.topicId);
-      if (a.verdict !== "risky") continue;
+      if (
+        a.verdict !== "risky" &&
+        !a.forecasts?.some((f) => f.actual !== "mixed" && f.actual !== f.predicted)
+      )
+        continue;
       const repeat =
         original && original.topicId !== current.topicId
           ? pool.find((d) => d.topicId === original.topicId && !seen.has(d.id))

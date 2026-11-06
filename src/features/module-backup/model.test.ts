@@ -9,6 +9,8 @@ import {
   journeyDraftKey,
   makeJourneyDraft,
 } from "../football-iq-match/journeyHistory";
+import { advancedJourneyBank } from "../football-iq-match/advancedJourneyBank";
+import { addForecast } from "../football-iq-match/tacticalForecast";
 import { journeyBank } from "../football-iq-match/journeyBank";
 import { createJourney, chooseJourney, journeyStep } from "../football-iq-match/journeyEngine";
 import { emptyFuelData, fuelStorageKey } from "@/lib/fuel/experience";
@@ -65,6 +67,31 @@ function lab() {
   });
 }
 describe("explicit per-device module snapshots", () => {
+  it("keeps IQ predictions in both a draft and completed history across snapshot restore", () => {
+    const store = memory();
+    const initial = createJourney(advancedJourneyBank[0]);
+    let session = addForecast(
+      chooseJourney(initial, journeyStep(initial).choices[0].id, 1, false),
+      initial,
+      { predicted: "ball", plan: "protect" },
+    );
+    const draft = makeJourneyDraft(session, "learn", "forecast-draft");
+    while (!session.outcome)
+      session = chooseJourney(session, journeyStep(session).choices[0].id, 1, false);
+    const final = makeJourneyAttempt(session, "learn", "forecast-final", new Date(now));
+    store.setItem(journeyDraftKey("source"), JSON.stringify(draft));
+    store.setItem(journeyHistoryKey("source"), JSON.stringify([final]));
+    const snapshot = createModuleSnapshot("iq", "source", store, false, now);
+    expect((snapshot.records.draft as typeof draft).forecasts).toEqual(draft.forecasts);
+    expect((snapshot.records.history as (typeof final)[])[0].forecasts).toEqual(final.forecasts);
+    applyModuleRestore(previewModuleRestore(snapshot, "target", store, now), "target", store);
+    expect(JSON.parse(store.getItem(journeyDraftKey("target"))!).forecasts).toEqual(
+      draft.forecasts,
+    );
+    expect(JSON.parse(store.getItem(journeyHistoryKey("target"))!)[0].forecasts).toEqual(
+      final.forecasts,
+    );
+  });
   it("uses only exact account module keys", () => {
     expect(moduleKeys("iq", "a")).toEqual({
       history: journeyHistoryKey("a"),

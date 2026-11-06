@@ -64,5 +64,12 @@ export function freshJourneyEntry(
   const newSetups = candidatePool.filter((d) => !lastSetups.has(fingerprint(d)));
   const eligible = newSetups.length ? newSetups : candidatePool;
   const otherTopic = eligible.filter((d) => d.topicId !== last.topicId);
-  return nextPractice(otherTopic.length ? otherTopic : eligible, history, mode, last);
+  return nextPractice(
+    otherTopic.length ? otherTopic : eligible,
+    history,
+    mode,
+    last,
+    undefined,
+    pool,
+  );
 }

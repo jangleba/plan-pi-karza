@@ -130,6 +130,34 @@ function complete(s: JourneySession): JourneySession | null {
   return null;
 }
 describe("individual IQ screen", () => {
+  it("requires an intention and lets a forecast be cancelled without advancing or saving", async () => {
+    await act(async () =>
+      root.render(<FootballIQJourney position="forward" historyOwner="account-a" />),
+    );
+    await enterChoices();
+    expect(host.querySelector("[data-iq-commit]")).toBeNull();
+    expect(bridge.props!.actions).toEqual([]);
+    const intents = host.querySelector<HTMLSelectElement>('select[aria-label="Zamiar i moment"]')!;
+    await select("Zamiar i moment", [...intents.options].find((o) => o.value !== "")!.value);
+    const before = localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft");
+    await clickText("Zagraj tak");
+    expect(host.querySelector(".iqF-sheet")?.hasAttribute("open")).toBe(true);
+    await clickText("Zwiń i wróć do boiska");
+    expect(host.querySelector(".iqF-sheet")).toBeNull();
+    expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
+    await clickText("Zagraj tak");
+    await clickText("Utrzyma lub skoryguje pozycję");
+    await clickText("Zaplanuj kolejny krok");
+    await clickText("Sprawdzę ponownie grę do przodu");
+    await clickText("Rozegraj i sprawdź");
+    expect(host.querySelector('[data-iq-phase="feedback"]')).toBeTruthy();
+    expect(host.textContent).toContain("Twoja prognoza");
+    const stored =
+      JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft") ?? "null") ??
+      loadJourneyHistory("account-a").at(-1);
+    expect(stored.forecasts).toHaveLength(1);
+    expect(restoreJourney(stored).forecasts![0].predicted).toBe("cover");
+  });
   it("separates observation, choice and evidence-based reflection without moving the camera", async () => {
     await act(async () =>
       root.render(
@@ -202,6 +230,12 @@ describe("individual IQ screen", () => {
     expect(id).toMatch(/^as6:/);
     expect(bridge.props!.actions[0].playerId).toBe(base.world.carrierId);
     await clickText("Zagraj tak");
+    expect(host.querySelector("dialog.iqF-sheet")?.hasAttribute("open")).toBe(true);
+    expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
+    await clickText("Przesunie się do piłki");
+    await clickText("Zaplanuj kolejny krok");
+    await clickText("Otworzę kolejny kąt wsparcia");
+    await clickText("Rozegraj i sprawdź");
     expect(bridge.props!.selectedPlayerId).toBe("you");
     const history = loadJourneyHistory("account-a");
     const stored = history.length

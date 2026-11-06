@@ -31,6 +31,15 @@ describe("short IQ practice series", () => {
     expect(next.id).not.toBe(pool[0].id);
     expect(practiceToday(history, "learn", now)).toBe(2);
   });
+  it("revisits a mistaken prediction even when the football decision was strong", () => {
+    const first = attempt(pool[0].id, "strong");
+    first.forecasts = [
+      { decisionIndex: 0, rivalId: "r0", predicted: "ball", actual: "follow", plan: "scan" },
+    ];
+    const next = nextPractice(pool, [first, attempt(current.id, "strong")], "learn", current, now);
+    expect(next.topicId).toBe(pool[0].topicId);
+    expect(next.id).not.toBe(first.scenarioId);
+  });
   it("isolates modes and counts only today's actual attempts", () => {
     const history = [
       attempt(pool[0].id, "risky", "challenge"),
