@@ -113,14 +113,6 @@ async function changeDelivery(value: string) {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
-async function select(label: string, value: string) {
-  const input = host.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!;
-  expect(input).toBeTruthy();
-  await act(async () => {
-    input.value = value;
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-}
 function complete(s: JourneySession): JourneySession | null {
   if (s.outcome) return s.step === 4 && !["loss", "blocked"].includes(s.outcome) ? s : null;
   for (const c of journeyStep(s).choices) {
@@ -130,33 +122,47 @@ function complete(s: JourneySession): JourneySession | null {
   return null;
 }
 describe("individual IQ screen", () => {
-  it("requires an intention and lets a forecast be cancelled without advancing or saving", async () => {
+  it("starts with the board, allows a novel point, and keeps prediction optional and cancellable", async () => {
+    const initial = createJourney(advancedJourneyBank[0]);
+    saveJourneyDraft("account-a", initial, "learn", "spatial");
+    await mount("goalkeeper");
+    expect(host.querySelector('[data-iq-phase="board"]')).toBeTruthy();
     await act(async () =>
-      root.render(<FootballIQJourney position="forward" historyOwner="account-a" />),
+      host.querySelector<HTMLButtonElement>('[aria-label="Wybierz sytuację i rolę"]')!.click(),
     );
-    await enterChoices();
+    const roleSelect = host.querySelector<HTMLSelectElement>(".iqJ-dialog select")!;
+    await act(async () => {
+      roleSelect.value = "all";
+      roleSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(host.querySelectorAll(".iqJ-scenario")).toHaveLength(72);
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Zamknij wybór akcji"]')!.click(),
+    );
+    expect(host.querySelector('select[aria-label="Zamiar i moment"]')).toBeNull();
     expect(host.querySelector("[data-iq-commit]")).toBeNull();
     expect(bridge.props!.actions).toEqual([]);
-    const intents = host.querySelector<HTMLSelectElement>('select[aria-label="Zamiar i moment"]')!;
-    await select("Zamiar i moment", [...intents.options].find((o) => o.value !== "")!.value);
     const before = localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft");
-    await clickText("Zagraj tak");
-    expect(host.querySelector(".iqF-sheet")?.hasAttribute("open")).toBe(true);
-    await clickText("Zwiń i wróć do boiska");
-    expect(host.querySelector(".iqF-sheet")).toBeNull();
+    const point = {
+      x: initial.world.positions.you.x + 9.17,
+      y: initial.world.positions.you.y - 8.43,
+    };
+    await act(async () => bridge.props!.onPitchSelect(point));
+    expect(host.querySelector<HTMLElement>("[data-iq-commit]")!.dataset.iqCommit).toContain(
+      "free6:",
+    );
     expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
-    await clickText("Zagraj tak");
-    await clickText("Utrzyma lub skoryguje pozycję");
-    await clickText("Zaplanuj kolejny krok");
-    await clickText("Sprawdzę ponownie grę do przodu");
-    await clickText("Rozegraj i sprawdź");
+    await clickText("Przewidź");
+    expect(host.querySelector("dialog.iqF-sheet")?.hasAttribute("open")).toBe(true);
+    await clickText("Zwiń i wróć do boiska");
+    expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
+    await clickText("Rozegraj");
+    expect(host.querySelector("dialog.iqF-sheet")).toBeNull();
     expect(host.querySelector('[data-iq-phase="feedback"]')).toBeTruthy();
-    expect(host.textContent).toContain("Twoja prognoza");
-    const stored =
-      JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft") ?? "null") ??
-      loadJourneyHistory("account-a").at(-1);
-    expect(stored.forecasts).toHaveLength(1);
-    expect(restoreJourney(stored).forecasts![0].predicted).toBe("cover");
+    const stored = JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    const restored = restoreJourney(stored);
+    expect(restored.decisions[0].choiceId).toBe(journeyPointChoice(initial, point, "carry").id);
+    expect(restored.forecasts).toBeUndefined();
   });
   it("separates observation, choice and evidence-based reflection without moving the camera", async () => {
     await act(async () =>
@@ -190,60 +196,57 @@ describe("individual IQ screen", () => {
     expect(host.querySelector('[data-iq-phase="observe"]')).toBeTruthy();
   });
 
-  it("lets the player choose a dribble, location and timing without revealing authored destinations", async () => {
+  it("lets the player set their own dribble, location and timing without preset destinations", async () => {
     const s = createJourney(advancedJourneyBank[0]);
     saveJourneyDraft("account-a", s, "learn", "free-tactical");
     await mount("goalkeeper");
-    await clickText("Bez podpowiedzi");
-    await select("Zamiar i moment", "carry:delay");
-    await select("Sposób dryblingu", "cut-left");
-    expect(bridge.props!.actions).toEqual([]);
-    expect(bridge.props!.destinations).toEqual([]);
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Podpowiedzi na życzenie"]')!.click(),
+    );
     const p = { x: s.world.positions.you.x - 8.23, y: s.world.positions.you.y - 4.5 };
+    await act(async () => bridge.props!.onPitchSelect(p));
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Sposób i moment wykonania"]')!.click(),
+    );
+    await clickText("Zwód i zmiana w lewo");
+    await clickText("Po chwili");
+    await clickText("Wróć do boiska");
     const c = journeyPointChoice(s, p, "carry", "cut-left", "delay"),
       expected = chooseJourney(s, c.id);
-    await act(async () => bridge.props!.onPitchSelect(p));
+    expect(host.querySelector<HTMLElement>("[data-iq-commit]")!.dataset.iqCommit).toBe(c.id);
+    expect(bridge.props!.destinations).toEqual([]);
+    await clickText("Rozegraj");
     expect(Object.fromEntries(bridge.props!.frameOverride!.positions)).toEqual(
       expected.world.positions,
     );
+    expect(host.querySelector('[data-iq-phase="feedback"]')).toBeNull();
     const stored = expected.outcome
       ? loadJourneyHistory("account-a")[0]
       : JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
     expect(stored.choices[0].id).toBe(c.id);
   });
-  it("explicitly takes over the partner for one decision and saves that actor in the replay", async () => {
-    const initial = createJourney(advancedJourneyBank[0]);
-    const pass = journeyStep(initial).choices.find((c) => c.id === "t:pass:support:ground")!;
-    const base = chooseJourney(initial, pass.id);
-    expect(base.outcome).toBeNull();
-    expect(base.world.carrierId).not.toBe("you");
+  it("takes over a partner from the board and records that actor for one confirmed decision", async () => {
+    const initial = createJourney(advancedJourneyBank[0]),
+      base = chooseJourney(initial, "t:pass:support:ground");
     saveJourneyDraft("account-a", base, "learn", "partner-control");
     await mount("goalkeeper");
-    expect(bridge.props!.selectedPlayerId).toBe("you");
     const before = localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft");
-    await select("Sterowany zawodnik", base.world.carrierId);
-    expect(bridge.props!.selectedPlayerId).toBe(base.world.carrierId);
+    const actor = base.players.find((p) => p.id === base.world.carrierId)!;
+    await clickText(`Zdecyduj za ${actor.number}`);
+    expect(bridge.props!.selectedPlayerId).toBe(actor.id);
     expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
-    await select("Zamiar i moment", "pass:delay");
-    await changeDelivery("ground");
+    await act(async () => bridge.props!.onPlayerSelect(base.players.find((p) => p.id === "you")!));
     const id = host.querySelector<HTMLElement>("[data-iq-commit]")!.dataset.iqCommit!;
     expect(id).toMatch(/^as6:/);
-    expect(bridge.props!.actions[0].playerId).toBe(base.world.carrierId);
-    await clickText("Zagraj tak");
-    expect(host.querySelector("dialog.iqF-sheet")?.hasAttribute("open")).toBe(true);
-    expect(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")).toBe(before);
-    await clickText("Przesunie się do piłki");
-    await clickText("Zaplanuj kolejny krok");
-    await clickText("Otworzę kolejny kąt wsparcia");
-    await clickText("Rozegraj i sprawdź");
+    expect(bridge.props!.actions[0].playerId).toBe(actor.id);
+    await clickText("Rozegraj");
     expect(bridge.props!.selectedPlayerId).toBe("you");
-    const history = loadJourneyHistory("account-a");
-    const stored = history.length
-      ? history[0]
-      : JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
-    const replay = restoreJourney(stored);
-    expect(replay.decisions.at(-1)!.actorId).toBe(base.world.carrierId);
-    expect(replay.decisions.at(-1)!.choiceId).toBe(id);
+    const history = loadJourneyHistory("account-a"),
+      stored = history.length
+        ? history[0]
+        : JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:account-a:draft")!);
+    expect(restoreJourney(stored).decisions.at(-1)!.actorId).toBe(actor.id);
+    expect(restoreJourney(stored).decisions.at(-1)!.choiceId).toBe(id);
   });
   it("starts a different advanced action on every fresh entry even without a completed attempt", async () => {
     await act(async () =>

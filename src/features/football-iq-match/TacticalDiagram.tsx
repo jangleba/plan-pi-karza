@@ -1,6 +1,12 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPlayback, samplePlayback } from "./playback";
-import { diagramView, pickDiagram, placeDiagramLabels, projectDiagram } from "./diagramGeometry";
+import {
+  diagramView,
+  landscapeDiagramView,
+  pickDiagram,
+  placeDiagramLabels,
+  projectDiagram,
+} from "./diagramGeometry";
 import type { DiagramLabel, DiagramSize } from "./diagramGeometry";
 import type { PlaybackFrame } from "./animation";
 import type { TacticalPitchProps } from "./TacticalPitch";
@@ -39,6 +45,8 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     visibleLabelIds,
     cameraClose = false,
     fixedView = false,
+    landscapeView = false,
+    compactFigures = false,
   } = props;
   const root = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<DiagramSize>({ width: 360, height: 280 });
@@ -59,22 +67,26 @@ export function TacticalDiagram(props: TacticalPitchProps) {
   const shownDestinations = showGuidance ? destinations : EMPTY_DESTINATIONS;
   const baseView = useMemo(
     () =>
-      diagramView(
-        fixedView
-          ? FIXED_PITCH_CORNERS
-          : [
-              ...(cameraClose && cameraActions?.length
-                ? []
-                : scenario.players
-                    .filter((p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId)
-                    .map((p) => frame.positions.get(p.id) ?? p)),
-              frame.ballVisual,
-              ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
-              ...shownDestinations.map((d) => d.point),
-            ],
-        figures ? { ...size, height: Math.max(60, size.height - 48) } : size,
-        !fixedView && cameraClose,
-      ),
+      landscapeView
+        ? landscapeDiagramView(size)
+        : diagramView(
+            fixedView
+              ? FIXED_PITCH_CORNERS
+              : [
+                  ...(cameraClose && cameraActions?.length
+                    ? []
+                    : scenario.players
+                        .filter(
+                          (p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId,
+                        )
+                        .map((p) => frame.positions.get(p.id) ?? p)),
+                  frame.ballVisual,
+                  ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
+                  ...shownDestinations.map((d) => d.point),
+                ],
+            figures && !compactFigures ? { ...size, height: Math.max(60, size.height - 48) } : size,
+            !fixedView && cameraClose,
+          ),
     [
       scenario.players,
       frame,
@@ -82,17 +94,20 @@ export function TacticalDiagram(props: TacticalPitchProps) {
       shownDestinations,
       size,
       figures,
+      compactFigures,
       cameraClose,
       fixedView,
+      landscapeView,
     ],
   );
-  const view = figures
-    ? {
-        ...baseView,
-        y: baseView.y - 48 / baseView.scale,
-        height: baseView.height + 48 / baseView.scale,
-      }
-    : baseView;
+  const view =
+    figures && !compactFigures
+      ? {
+          ...baseView,
+          y: baseView.y - 48 / baseView.scale,
+          height: baseView.height + 48 / baseView.scale,
+        }
+      : baseView;
   const canSelectPlayer = (id: string) =>
     interactive && (freeMovement || !selectablePlayerIds || selectablePlayerIds.includes(id));
   function layout(live: PlaybackFrame) {
@@ -102,7 +117,9 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         id: `player:${player.id}`,
         anchor: (() => {
           const p = projectDiagram(live.positions.get(player.id) ?? player, view);
-          return visibleLabelIds ? { ...p, y: p.y - (figures ? 54 : 20) } : p;
+          return visibleLabelIds
+            ? { ...p, y: p.y - (figures ? (compactFigures ? 25 : 54) : 20) }
+            : p;
         })(),
         kind: "player",
         priority: player.id === selectedPlayerId ? 1 : canSelectPlayer(player.id) ? 2 : 3,
@@ -232,22 +249,27 @@ export function TacticalDiagram(props: TacticalPitchProps) {
           const label = placed.get(`player:${player.id}`);
           return {
             player,
-            distance: label
-              ? Math.min(
-                  Math.hypot(pixel.x - label.center.x, pixel.y - label.center.y),
-                  Math.hypot(pixel.x - label.anchor.x, pixel.y - label.anchor.y),
+            distance: landscapeView
+              ? Math.hypot(
+                  pixel.x - projectDiagram(frame.positions.get(player.id) ?? player, view).x,
+                  pixel.y - projectDiagram(frame.positions.get(player.id) ?? player, view).y + 10,
                 )
-              : Infinity,
+              : label
+                ? Math.min(
+                    Math.hypot(pixel.x - label.center.x, pixel.y - label.center.y),
+                    Math.hypot(pixel.x - label.anchor.x, pixel.y - label.anchor.y),
+                  )
+                : Infinity,
           };
         })
         .sort((a, b) => a.distance - b.distance)[0];
-      if (nearest && nearest.distance <= 22) {
+      if (nearest && nearest.distance <= (landscapeView ? 16 : 22)) {
         onPlayerSelect(nearest.player);
         return;
       }
     }
     // Use the same crop/scale as the drawn field, including after rotation.
-    const point = pickDiagram(pixel, view);
+    const point = pickDiagram(pixel, view, compactFigures);
     if (point) onPitchSelect(point);
   }
   const ballPoint = projectDiagram(frame.ballVisual, view);
@@ -311,7 +333,7 @@ export function TacticalDiagram(props: TacticalPitchProps) {
           </marker>
         </defs>
         <g
-          transform={`translate(${-view.x * view.scale} ${-view.y * view.scale}) scale(${view.scale})`}
+          transform={`translate(${-view.x * view.scale} ${-view.y * view.scale}) scale(${view.scale})${view.rotated ? " matrix(0 1 -1 0 140 0)" : ""}`}
         >
           <rect className="iqD-turf" x="0" y="0" width="100" height="140" />
           {[0, 2, 4, 6].map((n) => (

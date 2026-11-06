@@ -17,6 +17,9 @@ export type TacticalPitchProps = {
   cameraClose?: boolean;
   /** Keep the pitch reference frame unchanged while the action unfolds. */
   fixedView?: boolean;
+  /** Fit the entire pitch to the viewport; use a wide orientation on short screens. */
+  landscapeView?: boolean;
+  compactFigures?: boolean;
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -78,6 +81,7 @@ function TacticalScenePitch({
   visibleLabelIds,
   cameraClose = false,
   fixedView = false,
+  landscapeView: adaptiveView = false,
 }: TacticalPitchProps) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -91,6 +95,18 @@ function TacticalScenePitch({
   const destinationDots = useRef(new Map<string, SVGCircleElement>());
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [attempt, setAttempt] = useState(0);
+  const [widePitch, setWidePitch] = useState(false);
+  const landscapeView = adaptiveView && widePitch;
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    const update = () =>
+      setWidePitch(window.innerWidth / Math.max(1, window.innerHeight) > 1 / 1.8);
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    update();
+    return () => observer.disconnect();
+  }, []);
   const hasRecordedFrame = frameOverride != null;
   const playback = useMemo(
     () => (hasRecordedFrame ? null : createPlayback(scenario, actions)),
@@ -121,6 +137,8 @@ function TacticalScenePitch({
     visibleLabelIds,
     cameraClose,
     fixedView,
+    landscapeView,
+    adaptiveView,
   });
   latest.current = {
     frame,
@@ -143,6 +161,8 @@ function TacticalScenePitch({
     visibleLabelIds,
     cameraClose,
     fixedView,
+    landscapeView,
+    adaptiveView,
   };
 
   function sync() {
@@ -167,6 +187,8 @@ function TacticalScenePitch({
       state.showGuidance,
       !state.fixedView && state.cameraClose,
       state.fixedView,
+      state.landscapeView,
+      state.adaptiveView,
     );
     const items: DiagramLabel[] = [];
     playerLabels.current.forEach((_element, id) => {
@@ -174,7 +196,12 @@ function TacticalScenePitch({
       if (!point) return;
       items.push({
         id: `player:${id}`,
-        anchor: api.project(point, 7.5 * (state.fixedView ? 2 : 1)),
+        anchor: api.project(
+          point,
+          state.adaptiveView
+            ? (api.figureHeight?.() ?? 10.2) + 1.5
+            : 7.5 * (state.fixedView ? 2 : 1),
+        ),
         kind: "player",
         priority: id === state.selectedPlayerId ? 1 : 3,
         interactive:
@@ -322,6 +349,8 @@ function TacticalScenePitch({
     visibleLabelIds,
     cameraClose,
     fixedView,
+    landscapeView,
+    adaptiveView,
   ]);
   useEffect(() => {
     if (!playing || !frameSource) return;
@@ -359,7 +388,7 @@ function TacticalScenePitch({
       !freeMovement &&
       ["pass", "through", "cross", "hold", "press", "mark"].includes(mode) &&
       nearest &&
-      nearest.distance <= 23 &&
+      nearest.distance <= (adaptiveView ? 16 : 23) &&
       (!selectablePlayerIds || selectablePlayerIds.includes(nearest.player.id))
     ) {
       onPlayerSelect(nearest.player);
@@ -379,6 +408,7 @@ function TacticalScenePitch({
     <div
       className={`bwiq-pitch-wrap ${diagram ? "bwiq-pitch-wrap--diagram" : "bwiq-pitch-wrap--3d"}${showGuidance ? "" : " bwiq-pitch-wrap--independent"}`}
       data-iq-renderer={status}
+      data-iq-layout={landscapeView ? "wide" : "tall"}
       onClick={selectPoint}
     >
       <div className="bwiq-pitch-canvas" ref={host} />
@@ -413,6 +443,8 @@ function TacticalScenePitch({
             visibleLabelIds,
             cameraClose,
             fixedView,
+            landscapeView,
+            compactFigures: adaptiveView,
           }}
           figures
         />

@@ -222,6 +222,8 @@ export async function createPitchScene(
   renderer.domElement.addEventListener("webglcontextlost", lost);
 
   let viewBounds = defaultBounds;
+  let figureScale = 1;
+  let smallPlayers = false;
   let renderWidth = 1,
     renderHeight = 1;
   const resize = () => {
@@ -245,6 +247,12 @@ export async function createPitchScene(
     camera.top = halfHeight;
     camera.bottom = -halfHeight;
     camera.updateProjectionMatrix();
+    if (smallPlayers) {
+      const floor = world({ x: 50, y: 70 }).project(camera),
+        head = world({ x: 50, y: 70 }, PLAYER_HEIGHT).project(camera);
+      const base = Math.hypot(((head.x - floor.x) * width) / 2, ((head.y - floor.y) * height) / 2);
+      figureScale = Math.max(1, Math.min(2.2, 16 / Math.max(0.01, base)));
+    }
     renderer.setSize(width, height, false);
   };
   const clearRoutes = () => {
@@ -347,7 +355,7 @@ export async function createPitchScene(
   let focused = false;
   let closeCamera = false;
   let fixedCamera = false;
-  let figureScale = 1;
+  let wideCamera = false;
   let focusActions: PlannedAction[] | null = null;
   const update = (
     frame: PlaybackFrame,
@@ -361,16 +369,22 @@ export async function createPitchScene(
     showGuidance = true,
     cameraClose = false,
     fixedView = false,
+    landscapeView = false,
+    compactPlayers = false,
   ) => {
     if (disposed || contextLost) return;
     if (
       fixedCamera !== fixedView ||
+      wideCamera !== landscapeView ||
+      smallPlayers !== compactPlayers ||
       focused !== focusOnActions ||
       closeCamera !== cameraClose ||
       (focusOnActions && focusActions !== cameraActions)
     ) {
       fixedCamera = fixedView;
-      figureScale = fixedView ? 2 : 1;
+      wideCamera = landscapeView;
+      smallPlayers = compactPlayers;
+      figureScale = compactPlayers ? 1.5 : fixedView ? 2 : 1;
       focused = focusOnActions;
       closeCamera = cameraClose;
       focusActions = cameraActions;
@@ -404,15 +418,45 @@ export async function createPitchScene(
       });
       camera.position
         .copy(center)
-        .add(cameraClose ? new Vector3(0, 105, 145) : new Vector3(0, 170, 120));
+        .add(
+          landscapeView
+            ? new Vector3(125, 240, 0)
+            : cameraClose
+              ? new Vector3(0, 105, 145)
+              : new Vector3(0, 170, 120),
+        );
       camera.lookAt(center);
       camera.updateMatrixWorld();
       resize();
     }
     currentFrame = frame;
     renderer.domElement.dataset.iqActionCount = String(actions.length);
+    renderer.domElement.dataset.iqLandscapeView = String(landscapeView);
     renderer.domElement.dataset.iqCameraClose = String(cameraClose);
     renderer.domElement.dataset.iqViewBounds = JSON.stringify(viewBounds);
+    const groundCorners = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 0, y: 140 },
+      { x: 100, y: 140 },
+    ].map((p) => {
+      const q = world(p).project(camera);
+      return { x: ((q.x + 1) * renderWidth) / 2, y: ((1 - q.y) * renderHeight) / 2 };
+    });
+    renderer.domElement.dataset.iqFieldWidth = String(
+      Math.max(...groundCorners.map((p) => p.x)) - Math.min(...groundCorners.map((p) => p.x)),
+    );
+    if (host.closest("[data-iq-qa]")) {
+      renderer.domElement.dataset.iqPitchCorners = JSON.stringify(groundCorners);
+      renderer.domElement.dataset.iqProjectedPlayers = JSON.stringify(
+        Object.fromEntries(
+          players.map((p) => {
+            const q = world(frame.positions.get(p.id)!, 7.5).project(camera);
+            return [p.id, { x: ((q.x + 1) * renderWidth) / 2, y: ((1 - q.y) * renderHeight) / 2 }];
+          }),
+        ),
+      );
+    }
     const controlled = players.find((p) => p.controlled);
     if (controlled) {
       const position = frame.positions.get(controlled.id)!;
@@ -485,8 +529,17 @@ export async function createPitchScene(
       camera,
     );
     const hit = raycaster.ray.intersectPlane(floor, new Vector3());
-    if (!hit || hit.x < -48 || hit.x > 48 || hit.z < -67 || hit.z > 67) return null;
-    return { x: Math.max(3, Math.min(97, hit.x + 50)), y: Math.max(4, Math.min(136, hit.z + 70)) };
+    if (
+      !hit ||
+      hit.x < (smallPlayers ? -50 : -48) ||
+      hit.x > (smallPlayers ? 50 : 48) ||
+      hit.z < (smallPlayers ? -72 : -67) ||
+      hit.z > (smallPlayers ? 72 : 67)
+    )
+      return null;
+    return smallPlayers
+      ? { x: hit.x + 50, y: hit.z + 70 }
+      : { x: Math.max(3, Math.min(97, hit.x + 50)), y: Math.max(4, Math.min(136, hit.z + 70)) };
   };
   const dispose = () => {
     if (disposed) return;
@@ -505,6 +558,13 @@ export async function createPitchScene(
     renderer.domElement.remove();
   };
   resize();
-  return { update, resize, project, pick, dispose };
+  return {
+    update,
+    resize,
+    project,
+    pick,
+    dispose,
+    figureHeight: () => PLAYER_HEIGHT * figureScale,
+  };
 }
 export type PitchScene = Awaited<ReturnType<typeof createPitchScene>>;

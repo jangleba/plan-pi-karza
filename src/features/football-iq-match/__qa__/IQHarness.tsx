@@ -14,21 +14,26 @@ import { advancedJourneyBank } from "../advancedJourneyBank";
 import { chooseJourney, createJourney, journeyChoice, journeyStep } from "../journeyEngine";
 import { deliveryLabels } from "../ballFlight";
 import { tacticalGroup } from "../tacticalJourney";
-import { makeJourneyDraft } from "../journeyHistory";
+import { makeJourneyDraft, restoreJourney } from "../journeyHistory";
 import type { JourneySession } from "../journeyTypes";
 import "@/styles.css";
 import "@/styles/ballwise-visual-system.css";
 const query = new URLSearchParams(location.search);
-if (query.get("fixture") === "partner") {
+document.body.dataset.iqQa = "true";
+if (
+  ["partner", "carry"].includes(query.get("fixture") ?? "") &&
+  JSON.parse(localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft") ?? "null")
+    ?.scenarioId !== advancedJourneyBank[0].id
+) {
   const base = createJourney(advancedJourneyBank[0]);
-  const partial = chooseJourney(base, "t:pass:support:ground", 2);
-  if (partial.outcome || partial.world.carrierId === "you")
-    throw new Error("Partner QA fixture no longer provides a takeover");
+  const partial =
+    query.get("fixture") === "partner" ? chooseJourney(base, "t:pass:support:ground", 2) : base;
   localStorage.setItem(
     "ballwise:iq:journeys:v1:iq-browser-qa:draft",
-    JSON.stringify(makeJourneyDraft(partial, "learn", "qa-partner")),
+    JSON.stringify(makeJourneyDraft(partial, "learn", "qa-spatial")),
   );
 }
+
 function complete(s: JourneySession): JourneySession | null {
   while (!s.outcome) {
     const choices = journeyStep(s).choices;
@@ -42,6 +47,13 @@ function complete(s: JourneySession): JourneySession | null {
 }
 Object.assign(window, {
   __iqQA: {
+    current: (id: string) => {
+      const raw = localStorage.getItem("ballwise:iq:journeys:v1:iq-browser-qa:draft");
+      const draft = raw ? JSON.parse(raw) : null;
+      return draft?.scenarioId === id
+        ? restoreJourney(draft)
+        : createJourney(advancedJourneyBank.find((d) => d.id === id)!);
+    },
     plan: (id: string) => {
       const definition = advancedJourneyBank.find((d) => d.id === id)!;
       const final = complete(createJourney(definition))!;
@@ -74,7 +86,7 @@ const iq = createRoute({
     <FootballIQJourney
       position={query.get("position") ?? "forward"}
       historyOwner="iq-browser-qa"
-      initialScenario={query.get("fixture") === "partner" ? 0 : undefined}
+      initialScenario={["partner", "carry"].includes(query.get("fixture") ?? "") ? 0 : undefined}
     />
   ),
 });

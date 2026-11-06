@@ -94,7 +94,7 @@ function validBase(v: unknown): v is JourneyDraft {
           LEGACY_TACTICAL_BANK_VERSION,
           TACTICAL_BANK_VERSION,
         ].includes(v.bankVersion as string) &&
-          v.mode === "challenge"),
+          (v.mode === "challenge" || v.bankVersion === TACTICAL_BANK_VERSION)),
     )
   );
 }

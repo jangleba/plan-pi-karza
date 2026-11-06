@@ -1,7 +1,7 @@
 import type { Point } from "./types";
 
 export type DiagramSize = { width: number; height: number };
-export type DiagramView = DiagramSize & { x: number; y: number; scale: number };
+export type DiagramView = DiagramSize & { x: number; y: number; scale: number; rotated?: boolean };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 /** The same scale on both axes: the field and its circles retain their shape. */
@@ -38,12 +38,19 @@ export function diagramView(
 }
 
 export function projectDiagram(point: Point, view: DiagramView): Point {
+  if (view.rotated) point = { x: 140 - point.y, y: point.x };
   return { x: (point.x - view.x) * view.scale, y: (point.y - view.y) * view.scale };
 }
 
-export function pickDiagram(point: Point, view: DiagramView): Point | null {
-  const world = { x: point.x / view.scale + view.x, y: point.y / view.scale + view.y };
-  return world.x >= 0 && world.x <= 100 && world.y >= 0 && world.y <= 140 ? world : null;
+export function pickDiagram(point: Point, view: DiagramView, includeGoal = false): Point | null {
+  let world = { x: point.x / view.scale + view.x, y: point.y / view.scale + view.y };
+  if (view.rotated) world = { x: world.y, y: 140 - world.x };
+  return world.x >= 0 &&
+    world.x <= 100 &&
+    world.y >= (includeGoal ? -2 : 0) &&
+    world.y <= (includeGoal ? 142 : 140)
+    ? world
+    : null;
 }
 
 export type DiagramLabel = {
@@ -119,4 +126,12 @@ export function placeDiagramLabels(
     placed.push({ ...item, center, radius });
   }
   return new Map(placed.map((p) => [p.id, p]));
+}
+
+/** Whole pitch, attack to the right. Same geometry for drawing and picking. */
+export function landscapeDiagramView(size: DiagramSize): DiagramView {
+  const scale = Math.min(Math.max(1, size.width) / 152, Math.max(1, size.height) / 112);
+  const width = size.width / scale,
+    height = size.height / scale;
+  return { width, height, x: 70 - width / 2, y: 50 - height / 2, scale, rotated: true };
 }
