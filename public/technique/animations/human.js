@@ -1,8 +1,26 @@
 /* Shared human figure for every instructional motion. Pose inputs remain untouched. */
 (function (scope) {
   "use strict";
-  const fmt = (n) => Number(n).toFixed(3);
-  const xy = (p) => p.map(fmt).join(",");
+  // Local bindings: global lookups are slow when the renderer runs inside a
+  // sandboxed context (tests, snapshot generation), and this runs per frame.
+  const { Math, Number, Array, String } = scope,
+    round = Math.round,
+    finite = Number.isFinite;
+  const fmt = (n) => {
+    // Integer hundredths: two decimals stay far below a screen pixel, and
+    // integer-to-string is much cheaper than formatting a double.
+    if (!finite(n)) return String(n);
+    let v = round(n * 100);
+    const sign = v < 0 ? "-" : "";
+    if (v < 0) v = -v;
+    const r = v % 100;
+    return (
+      sign +
+      (v - r) / 100 +
+      (r === 0 ? "" : r < 10 ? ".0" + r : r % 10 === 0 ? "." + r / 10 : "." + r)
+    );
+  };
+  const xy = (p) => fmt(p[0]) + "," + fmt(p[1]);
   const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
   const scale = (a, n) => [a[0] * n, a[1] * n];
   const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -1144,6 +1162,7 @@
   scope.BWDrawHuman = {
     draw,
     seamless,
+    fmt,
     armPoints,
     points,
     geometry: {

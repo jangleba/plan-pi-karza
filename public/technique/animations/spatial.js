@@ -3,6 +3,8 @@
  * not a measurement or an individual athlete's prescribed range of motion. */
 (function (scope) {
   "use strict";
+  // Local bindings: global lookups are slow inside sandboxed contexts.
+  const { Math, Number, Array, String } = scope;
   const H = scope.BWDrawHuman,
     A = scope.BWAnim,
     G = H.geometry;
@@ -18,8 +20,8 @@
   const smooth = A.math.smooth;
   const rep = (p) => (p < 0.44 ? smooth(p / 0.44) : p < 0.56 ? 1 : 1 - smooth((p - 0.56) / 0.44));
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-  const f = (n) => Number(n).toFixed(3),
-    xy = (a) => a.map(f).join(",");
+  const f = H.fmt,
+    xy = (a) => f(a[0]) + "," + f(a[1]);
   const path = (d, fill = "#fff", extra = "") => `<path d="${d}" fill="${fill}" ${extra}/>`;
   function local(s, p) {
     const a = (s.torsoAngle || 0) * rad;

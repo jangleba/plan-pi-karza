@@ -97,8 +97,7 @@ describe("complete shared exercise demonstrations", () => {
         ).toBe(true);
         expect(pose.phase, id).toBeTruthy();
       }
-    // Renders every phase of all ~220 demonstrations: give it room on slow runners.
-  }, 20_000);
+  });
   it("keeps the new limb geometry within the shared rig's dimensions", () => {
     for (const record of library.records)
       for (let i = 0; i < 80; i++) {
