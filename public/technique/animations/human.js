@@ -41,6 +41,115 @@
     }
     return d + "Z";
   }
+  /** Open Catmull-Rom curve, used for anatomical detail lines. */
+  function smoothOpen(ps) {
+    let d = `M${xy(ps[0])}`;
+    for (let i = 0; i < ps.length - 1; i++) {
+      const p0 = ps[Math.max(0, i - 1)],
+        p1 = ps[i],
+        p2 = ps[i + 1],
+        p3 = ps[Math.min(ps.length - 1, i + 2)];
+      d += `C${xy(add(p1, scale(add(p2, scale(p0, -1)), 1 / 6)))} ${xy(add(p2, scale(add(p3, scale(p1, -1)), -1 / 6)))} ${xy(p2)}`;
+    }
+    return d;
+  }
+  // Fine anatomy lines (fingers, toes, kneecap, face): thinner and lighter
+  // than the outline, and never part of the merged silhouette.
+  const DETAIL_INK = (far) => (far ? "#a9b7c2" : "#6c8294");
+  const details = (lines, far, map = (p) => p) =>
+    lines.length
+      ? `<g class="bw-human-detail" fill="none" stroke="${DETAIL_INK(far)}" stroke-width=".7">` +
+        lines.map((ps) => `<path d="${smoothOpen(ps.map(map))}"/>`).join("") +
+        "</g>"
+      : "";
+  /* Hands in a local frame: x runs from the wrist along the hand, the thumb
+   * sits on the -y side. "open" is a flat hand with fingers together (support
+   * and reaching), "fist" a relaxed running hand with curled fingers. */
+  const HANDS = {
+    open: {
+      outline: [
+        [-0.6, -3],
+        [3, -4],
+        [6.2, -5.8],
+        [8.8, -6.6],
+        [9.6, -5.4],
+        [8, -4.1],
+        [11.4, -3.6],
+        [16, -2.8],
+        [18, -1.3],
+        [17.9, 0.9],
+        [15.6, 2.6],
+        [10.4, 3.6],
+        [5, 4],
+        [-0.6, 3],
+      ],
+      lines: [
+        [
+          [10.8, -1.4],
+          [14, -1.3],
+          [16.8, -1.1],
+        ],
+        [
+          [10.8, 1],
+          [13.8, 1.2],
+          [16.4, 1.5],
+        ],
+        [
+          [3.2, -2.4],
+          [5.6, -3],
+          [7.6, -3.9],
+        ],
+      ],
+    },
+    fist: {
+      outline: [
+        [-0.6, -3],
+        [3, -4.3],
+        [7, -4.9],
+        [10.2, -3.8],
+        [11.4, -0.8],
+        [10.6, 2.6],
+        [7.6, 4.4],
+        [3, 4.2],
+        [-0.6, 3],
+      ],
+      lines: [
+        [
+          [2.6, -3.5],
+          [5.6, -3],
+          [8.6, -1.6],
+        ],
+        [
+          [9.2, -2.4],
+          [10.2, -1],
+          [9.8, 0.4],
+        ],
+        [
+          [9.6, 0.8],
+          [10.2, 2],
+          [9, 3.2],
+        ],
+      ],
+    },
+  };
+  /** Hand outline and finger lines, placed at the wrist along `axis`. */
+  function handShape(wrist, axis, kind, far, map = (p) => p) {
+    const n = normal(axis),
+      // Thumb toward the front and up: forward for a hanging arm, on top for a
+      // reaching one.
+      thumb = n[0] - n[1] > 0 ? 1 : -1,
+      hand = HANDS[kind] ?? HANDS.open,
+      place = ([x, y]) => map(add(wrist, add(scale(axis, x), scale(n, -thumb * y))));
+    return (
+      `<g class="bw-human-hand bw-human-hand-${kind}">` +
+      path(smoothClosed(hand.outline.map(place))) +
+      details(
+        hand.lines.map((ps) => ps.map(place)),
+        far,
+      ) +
+      "</g>"
+    );
+  }
   const ease = (t) => t * t * (3 - 2 * t);
   /** One body segment as a rounded, muscle-shaped capsule. The radius eases
    * from r0 to its widest point and down to r1 with zero slope at both ends,
@@ -382,6 +491,60 @@
     [4, -1.6],
     [4.2, -4],
   ];
+  // Toe crease, toe split and the ankle bone, in the same frame as FOOT.
+  const FOOT_LINES = [
+    [
+      [14.4, 5.4],
+      [15.6, 7.6],
+      [15.3, 10],
+    ],
+    [
+      [18.2, 7],
+      [19, 8.3],
+      [18.6, 9.7],
+    ],
+    [
+      [-1.2, -0.4],
+      [0.2, -1.5],
+      [1.5, -0.3],
+    ],
+  ];
+  /** Lowest point of any planted foot (the floor under the figure), or null. */
+  function groundLevel(scene) {
+    let floor = null;
+    for (const side of ["right", "left"]) {
+      const l = scene[side];
+      if (!l.contact || !point(l.ankle)) continue;
+      const a = footAngle(l);
+      for (const p of FOOT) {
+        const y = add(l.ankle, rotate(p, a))[1];
+        if (floor === null || y > floor) floor = y;
+      }
+    }
+    return floor;
+  }
+  /** Inner elbow crease, only once the elbow is visibly bent. */
+  function elbowCrease(shoulder, elbow, wrist) {
+    if (flexion(shoulder, elbow, wrist) < 25) return null;
+    const u = unit(shoulder, elbow),
+      v = unit(elbow, wrist),
+      front = scale(normal(u), -1),
+      c = add(elbow, scale(front, 2.6));
+    return [add(c, scale(u, -2.4)), add(c, scale(front, 0.8)), add(c, scale(v, 2.4))];
+  }
+  /** Kneecap: a soft arc over the front of the knee. */
+  function kneecap(hip, knee, ankle) {
+    if (flexion(hip, knee, ankle) < 20) return null;
+    const u = unit(hip, knee),
+      v = unit(knee, ankle),
+      front = scale(normal(u), -1),
+      frontShin = scale(normal(v), -1);
+    return [
+      add(knee, add(scale(front, 4.4), scale(u, -4.2))),
+      add(knee, scale(unit([0, 0], add(front, frontShin)), 6.2)),
+      add(knee, add(scale(frontShin, 4.2), scale(v, 3.4))),
+    ];
+  }
   /** Ankle angle between the shin and the foot, kept in an anatomical range
    * whenever the foot is in the air; a planted foot keeps its pose angle. */
   function footAngle(l) {
@@ -403,10 +566,11 @@
     return shin + sign * clamped;
   }
   /** Bare anatomical foot: heel, arch, ball and toes in one smooth contour. */
-  function shoe(l) {
+  function shoe(l, far = false) {
     return (
       `<g class="bw-human-shoe bw-human-foot" transform="translate(${xy(l.ankle)}) rotate(${fmt(footAngle(l))})" fill="${colours.shoe}">` +
       path(smoothClosed(FOOT)) +
+      details(FOOT_LINES, far) +
       "</g>"
     );
   }
@@ -439,36 +603,103 @@
       `<g class="bw-human-leg bw-human-leg-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
       limb(hip, knee, l.ankle, LEG) +
       muscleLines(hip, knee, l.ankle, "leg", far, scene, side) +
-      shoe(l, front) +
+      (front ? "" : details([kneecap(hip, knee, l.ankle)].filter(Boolean), far)) +
+      shoe(l, far) +
       "</g>"
     );
   }
   function arm(scene, side, angle, front) {
     const { shoulder, elbow, wrist } = armPoints(scene, side, angle, front),
       far = side === "left";
-    const axis = unit(elbow, wrist),
-      hand = add(wrist, scale(axis, 3.5)),
-      degrees = (Math.atan2(axis[1], axis[0]) * 180) / Math.PI;
+    const supported = point(scene.handTargets?.[side]) || !!scene.arms?.[side];
+    // A supporting hand at floor level lies flat, fingers forward, palm on
+    // the ground; other reaching hands open along the forearm; swinging arms
+    // carry a relaxed fist.
+    const floor = groundLevel(scene),
+      flat =
+        supported && !front && floor !== null && floor - wrist[1] > -2 && floor - wrist[1] < 11;
+    const axis = flat ? [1, 0] : unit(elbow, wrist),
+      root = flat ? [wrist[0] - 1, floor - 4] : wrist;
     return (
       `<g class="bw-human-arm bw-human-arm-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
       limb(shoulder, elbow, wrist, ARM) +
       muscleLines(shoulder, elbow, wrist, "arm", far, scene, side) +
-      `<g class="bw-human-hand" transform="translate(${xy(hand)}) rotate(${fmt(degrees)})">` +
-      path(
-        smoothClosed([
-          [-3.2, -2.8],
-          [1, -3.6],
-          [5, -2.8],
-          [7, -0.4],
-          [5.6, 2.6],
-          [1, 3.4],
-          [-3.2, 2.8],
-        ]),
-      ) +
-      "</g></g>"
+      details([elbowCrease(shoulder, elbow, wrist)].filter(Boolean), far) +
+      handShape(root, axis, supported ? "open" : "fist", far) +
+      "</g>"
     );
   }
-  /** Smooth faceless head and neck: a calm silhouette, no hair or features. */
+  const HEAD_SIDE = [
+    [1, -108.6],
+    [8.6, -105.4],
+    [11.8, -98],
+    [11.8, -94.6],
+    [14.2, -89.8],
+    [12.2, -88],
+    [12.6, -85.4],
+    [11.8, -83.6],
+    [11.8, -80.6],
+    [8.6, -77.4],
+    [3.4, -78.4],
+    [-1.4, -82],
+    [-7.8, -86.4],
+    [-10.4, -94],
+    [-7.2, -104.6],
+  ];
+  const FACE_SIDE = [
+    [
+      [-0.8, -94.2],
+      [2.4, -93.4],
+      [2.6, -88.6],
+      [0, -87.6],
+    ],
+    [
+      [7.4, -95.4],
+      [9, -96],
+      [10.4, -95.3],
+    ],
+    [
+      [9.8, -84.8],
+      [11.2, -84.6],
+      [12.1, -84.9],
+    ],
+  ];
+  const FACE_FRONT = [
+    [
+      [-6.2, -94],
+      [-4.2, -94.9],
+      [-2.4, -94],
+    ],
+    [
+      [6.2, -94],
+      [4.2, -94.9],
+      [2.4, -94],
+    ],
+    [
+      [0.4, -92.4],
+      [1, -88.6],
+      [-0.6, -88.1],
+    ],
+    [
+      [-2.8, -83.8],
+      [0, -83.2],
+      [2.8, -83.8],
+    ],
+    [
+      [-10.4, -95.4],
+      [-12.2, -93.4],
+      [-11.8, -88.8],
+      [-10.2, -88],
+    ],
+    [
+      [10.4, -95.4],
+      [12.2, -93.4],
+      [11.8, -88.8],
+      [10.2, -88],
+    ],
+  ];
+  /** Head and neck: skull, face profile and jaw as one smooth outline, with
+   * light lines for the ear, eye and mouth. */
   function face(front) {
     const neck = path(
       smoothClosed([
@@ -488,11 +719,8 @@
         ? path(
             "M0,-108C7.5,-108 11,-102.5 10.6,-94.5C10.3,-87 7,-77 0,-75.5C-7,-77 -10.3,-87 -10.6,-94.5C-11,-102.5 -7.5,-108 0,-108Z",
             'fill="#fff"',
-          )
-        : path(
-            "M1,-108.5C9,-108.5 12.6,-102 12.2,-95L13.6,-90.6Q14.6,-88.2 12.2,-87.6L11.6,-82Q10,-75.4 2.6,-75.2C-4.6,-75.6 -9,-81.4 -10,-89C-11,-100 -6,-108.5 1,-108.5Z",
-            'fill="#fff"',
-          ))
+          ) + details(FACE_FRONT, false)
+        : path(smoothClosed(HEAD_SIDE), 'fill="#fff"') + details(FACE_SIDE, false))
     );
   }
   /** One continuous trunk outline: shoulders, chest, waist and pelvis,
@@ -539,6 +767,33 @@
     return (
       `<g class="bw-human-torso" transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})"><g transform="translate(0 -67) rotate(${fmt(scene.headAngle ?? 0)}) scale(1) translate(0 67)">${face(front)}</g><g transform="scale(${fmt(expansion)} 1)">` +
       path(trunkPath(front, scene.spineCurve ?? 0), `fill="${colours.shirt}"`) +
+      details(
+        front
+          ? [
+              [
+                [-3.6, -63],
+                [-10, -64.6],
+                [-17, -62.6],
+              ],
+              [
+                [3.6, -63],
+                [10, -64.6],
+                [17, -62.6],
+              ],
+              [
+                [0, -50],
+                [0, -38],
+              ],
+            ]
+          : [
+              [
+                [9.6, -63.6],
+                [7.4, -61.6],
+                [3.8, -61.2],
+              ],
+            ],
+        false,
+      ) +
       torsoMuscles(scene, (p) => p, false, !front) +
       "</g></g>"
     );
@@ -581,7 +836,10 @@
   function seamless(svg) {
     // Plain SVG attributes, no stylesheet: the same markup works inside static
     // snapshot files as well as in the player.
-    const ink = svg.replace(/class="bw-muscle-traces/g, 'display="none" class="bw-muscle-traces');
+    const ink = svg.replace(
+      /class="(bw-muscle-traces|bw-human-detail)/g,
+      'display="none" class="$1',
+    );
     const fill = svg.replace(/stroke="(#7c8e9d|#344b5e)"/g, 'stroke="none"');
     return `<g class="bw-silhouette-ink" stroke-width="2.3">${ink}</g><g class="bw-silhouette-fill" stroke="none">${fill}</g>`;
   }
@@ -627,13 +885,18 @@
       LEG,
       ARM,
       FOOT,
+      FOOT_LINES,
+      HEAD_SIDE,
+      FACE_SIDE,
+      details,
+      handShape,
       muscleLines,
       torsoMuscles,
       belly,
       trunkPath,
     },
     muscles,
-    style: "anatomical-outline-56",
-    version: 56,
+    style: "anatomical-outline-57",
+    version: 57,
   };
 })(typeof window === "object" ? window : globalThis);

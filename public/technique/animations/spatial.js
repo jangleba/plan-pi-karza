@@ -559,6 +559,7 @@
         add(j.ankle, [5, 5, 0]),
         '<g class="bw-human-shoe bw-human-foot">' +
           path(G.smoothClosed(G.FOOT.map(([x, y]) => P(shoePoint(x, y))))) +
+          G.details(G.FOOT_LINES, far, ([x, y]) => P(shoePoint(x, y))) +
           "</g>",
       );
       const armSvg =
@@ -568,11 +569,10 @@
         mix(j.shoulder, j.wrist, 0.55),
         `<g class="bw-human-arm bw-human-arm-${side}">${armSvg}</g>`,
       );
-      // Closed hand surrounds the grip instead of floating beyond the shaft.
-      layer(
-        add(j.wrist, [0, 0, 1.8]),
-        `<g class="bw-human-hand">${path(ellipse(j.wrist, [3.2, 0, 0], [0, 4, 1], c))}${path(ellipse(add(j.wrist, [0, -0.4, 1.5]), [1.6, 0, 0], [0, 1.3, 0], c), "none", 'stroke-width=".45" opacity=".4"')}</g>`,
-      );
+      // Hand with fingers, at the projected wrist along the projected forearm.
+      const wrist2d = P(j.wrist),
+        forearm = sub(wrist2d, P(j.elbow));
+      layer(add(j.wrist, [0, 0, 1.8]), G.handShape(wrist2d, unit(forearm), "fist", far));
     }
     // Torso as overlapping slices between neighbouring cross-sections. Each
     // slice is convex, but their union keeps the waist, chest and pelvis shape
@@ -634,25 +634,12 @@
         x * Math.sin(headAngle) + y * Math.cos(headAngle),
         z,
       ]);
-    // Smooth skull, face and jaw profile; no facial features.
-    const head = path(
-      G.smoothClosed(
-        [
-          [1, -16],
-          [8, -13.4],
-          [11.2, -6.5],
-          [11.6, 0],
-          [10.6, 5],
-          [8, 9.4],
-          [3, 11],
-          [-2, 9.2],
-          [-5.5, 5.6],
-          [-9.4, 0.6],
-          [-10.2, -6.4],
-          [-7, -13.4],
-        ].map(([x, y]) => P(hp(rear ? -x : x, y))),
-      ),
-    );
+    // The shared side-view head (skull, face profile, jaw) with its ear, eye
+    // and mouth lines, scaled to this rig and turned with the head.
+    const headPoint = ([x, y]) => P(hp((rear ? -x : x) * 0.88, (y + 93) * 0.88));
+    const head =
+      path(G.smoothClosed(G.HEAD_SIDE.map(headPoint))) +
+      G.details(rear ? G.FACE_SIDE.slice(0, 1) : G.FACE_SIDE, false, headPoint);
     layer(sp.head, '<g class="bw-human-head bw-athlete-portrait">' + head + "</g>");
     for (const g of sp.gear) {
       if (g.kind === "barbell") {
