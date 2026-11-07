@@ -33,7 +33,6 @@ async function answer(sleep = "Dobrze") {
   await choose("Jak spałeś?", sleep);
   await choose("Zmęczenie", "Małe");
   await choose("Obolałość mięśni", "Mała");
-  await choose("Ból poza zwykłymi zakwasami", "Brak");
 }
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -83,19 +82,19 @@ describe("optional wellness entry", () => {
     await act(async () => button("Zapisz samopoczucie").click());
     expect(save.mock.calls[0][0].overall).toBeLessThanOrEqual(3);
   });
-  it("preserves an alarm symptom even when no joint pain was reported", async () => {
+  it("asks no pain, injury or medical-symptom questions", async () => {
     await act(async () => root.render(<WellnessCheckin {...options} />));
+    const text = document.querySelector("[role=dialog]")!.textContent ?? "";
+    expect(text).not.toMatch(/ból|bólu|objaw|klatce|omdleni|duszno|uraz/i);
+    expect(document.querySelectorAll("fieldset")).toHaveLength(3);
+    expect(document.querySelector("select")).toBeNull();
     await answer();
-    const label = [...document.querySelectorAll("label")].find((item) =>
-      item.textContent?.includes("Ból w klatce piersiowej"),
-    )!;
-    await act(async () => label.querySelector("input")!.click());
-    expect(document.querySelector('[role="status"]')?.textContent).toContain("Wstrzymaj wysiłek");
     await act(async () => button("Zapisz samopoczucie").click());
     expect(save.mock.calls[0][0]).toMatchObject({
       jointPain: 0,
-      redFlags: ["chest_pain"],
-      overall: 1,
+      painLocation: null,
+      altersMovement: false,
+      redFlags: [],
     });
   });
   it("retains answers and reports a failed save without claiming success", async () => {
