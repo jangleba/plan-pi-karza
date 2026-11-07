@@ -634,12 +634,28 @@
         x * Math.sin(headAngle) + y * Math.cos(headAngle),
         z,
       ]);
-    // The shared side-view head (skull, face profile, jaw) with its ear, eye
-    // and mouth lines, scaled to this rig and turned with the head.
-    const headPoint = ([x, y]) => P(hp((rear ? -x : x) * 0.88, (y + 93) * 0.88));
-    const head =
-      path(G.smoothClosed(G.HEAD_SIDE.map(headPoint))) +
-      G.details(rear ? G.FACE_SIDE.slice(0, 1) : G.FACE_SIDE, false, headPoint);
+    // The shared head, scaled to this rig and turned with the head. When the
+    // camera sees the face (or the back of the head) more than the profile,
+    // use the front-view head on the head's lateral plane; otherwise the
+    // side profile, so the nose always points the way the body faces.
+    const centre = P(hp(0, 0)),
+      forwardSpan = length(sub(P(hp(10, 0)), centre)),
+      lateralSpan = length(sub(P(hp(0, 0, 10)), centre));
+    let head;
+    if (lateralSpan > forwardSpan) {
+      const facePoint = ([x, y]) => P(hp(0, (y + 93) * 0.88, x * 0.88));
+      head =
+        path(G.smoothClosed(G.HEAD_FRONT.map(facePoint))) +
+        (rear
+          ? G.hair(G.HAIR_BACK, facePoint)
+          : G.hair(G.HAIR_FRONT, facePoint) + G.details(G.FACE_FRONT, false, facePoint));
+    } else {
+      const headPoint = ([x, y]) => P(hp(x * 0.88, (y + 93) * 0.88));
+      head =
+        path(G.smoothClosed(G.HEAD_SIDE.map(headPoint))) +
+        G.hair(G.HAIR_SIDE, headPoint) +
+        G.details(rear ? G.FACE_SIDE.slice(0, 1) : G.FACE_SIDE, false, headPoint);
+    }
     layer(sp.head, '<g class="bw-human-head bw-athlete-portrait">' + head + "</g>");
     for (const g of sp.gear) {
       if (g.kind === "barbell") {

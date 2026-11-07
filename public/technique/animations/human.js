@@ -156,7 +156,7 @@
    * so the semicircular caps join the sides without a kink. Two segments that
    * meet at a joint overlap in round caps, which reads as a natural knee or
    * elbow at any bend instead of a pinched fold. */
-  function segment(a, b, r0, rm, tm, r1) {
+  function segment(a, b, r0, rm, tm, r1, skew = 0) {
     const u = unit(a, b),
       n = normal(u),
       radius = (t) =>
@@ -167,9 +167,12 @@
     for (let i = 0; i <= steps; i++) {
       const t = i / steps,
         c = mix(a, b, t),
-        r = radius(t);
-      left.push(add(c, scale(n, r)));
-      right.push(add(c, scale(n, -r)));
+        r = radius(t),
+        // Muscle belly sits more on one side: +n is posterior (calf,
+        // hamstrings), -n anterior (quadriceps, forearm flexors).
+        bump = skew * (t < tm ? ease(t / tm) : 1 - ease((t - tm) / (1 - tm)));
+      left.push(add(c, scale(n, r + bump)));
+      right.push(add(c, scale(n, -r + bump)));
     }
     const side = (ps) => {
       let d = "";
@@ -188,10 +191,10 @@
     );
   }
   /** Upper and lower limb segments; widths are half-widths in figure units. */
-  function limb(a, b, c, width) {
+  function limb(a, b, c, width, skew = [0, 0]) {
     return (
-      segment(a, b, width.root, width.upper, 0.3, width.joint) +
-      segment(b, c, width.joint * 1.04, width.lower, 0.28, width.end)
+      segment(a, b, width.root, width.upper, 0.3, width.joint, skew[0]) +
+      segment(b, c, width.joint * 1.04, width.lower, 0.28, width.end, skew[1])
     );
   }
 
@@ -601,7 +604,7 @@
     }
     return (
       `<g class="bw-human-leg bw-human-leg-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
-      limb(hip, knee, l.ankle, LEG) +
+      limb(hip, knee, l.ankle, LEG, front ? [0, 0] : [-1.2, 2]) +
       muscleLines(hip, knee, l.ankle, "leg", far, scene, side) +
       (front ? "" : details([kneecap(hip, knee, l.ankle)].filter(Boolean), far)) +
       shoe(l, far) +
@@ -622,46 +625,116 @@
       root = flat ? [wrist[0] - 1, floor - 4] : wrist;
     return (
       `<g class="bw-human-arm bw-human-arm-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
-      limb(shoulder, elbow, wrist, ARM) +
+      limb(shoulder, elbow, wrist, ARM, front ? [0, 0] : [0.4, -0.7]) +
       muscleLines(shoulder, elbow, wrist, "arm", far, scene, side) +
       details([elbowCrease(shoulder, elbow, wrist)].filter(Boolean), far) +
       handShape(root, axis, supported ? "open" : "fist", far) +
       "</g>"
     );
   }
+  // Side-view head facing +x: cranium, brow, nose, lips, chin and jaw.
   const HEAD_SIDE = [
-    [1, -108.6],
-    [8.6, -105.4],
-    [11.8, -98],
+    [0, -109],
+    [7.6, -107],
+    [11.2, -101.6],
+    [12.4, -96.8],
     [11.8, -94.6],
-    [14.2, -89.8],
-    [12.2, -88],
-    [12.6, -85.4],
-    [11.8, -83.6],
-    [11.8, -80.6],
-    [8.6, -77.4],
-    [3.4, -78.4],
-    [-1.4, -82],
-    [-7.8, -86.4],
-    [-10.4, -94],
-    [-7.2, -104.6],
+    [14.4, -89.8],
+    [12.4, -88.2],
+    [12.9, -86.1],
+    [12.4, -84.7],
+    [12.7, -83.4],
+    [11.6, -81.9],
+    [12, -79.6],
+    [9.4, -77.3],
+    [4.6, -78.2],
+    [0.6, -81.4],
+    [-6.4, -84.8],
+    [-11.4, -90],
+    [-12.6, -97.2],
+    [-9.4, -105.4],
   ];
+  // Short hair: a cap over the crown down to the nape, cut out around the ear.
+  const HAIR_SIDE = [
+    [11, -102.6],
+    [8.4, -108],
+    [0, -110.6],
+    [-10, -106.4],
+    [-13.8, -97.4],
+    [-12.6, -89.4],
+    [-7.8, -85],
+    [-3.6, -87.8],
+    [-1.6, -92.2],
+    [3.4, -92.6],
+    [4.8, -89.4],
+    [5.4, -97.6],
+    [9, -100.6],
+  ];
+  const HAIR_FRONT = [
+    [-11.2, -94.6],
+    [-11.8, -102],
+    [-7.2, -108.8],
+    [0, -110.4],
+    [7.2, -108.8],
+    [11.8, -102],
+    [11.2, -94.6],
+    [9.8, -97.4],
+    [6, -101.4],
+    [0, -102.4],
+    [-6, -101.4],
+    [-9.8, -97.4],
+  ];
+  const HEAD_FRONT = [
+    [0, -108.4],
+    [7.6, -106.6],
+    [10.8, -100],
+    [10.6, -93],
+    [9.4, -86.6],
+    [6.6, -79.6],
+    [0, -75.8],
+    [-6.6, -79.6],
+    [-9.4, -86.6],
+    [-10.6, -93],
+    [-10.8, -100],
+    [-7.6, -106.6],
+  ];
+  // Back of the head: hair down to the nape.
+  const HAIR_BACK = [
+    [-11, -89.6],
+    [-11.6, -100],
+    [-7.8, -107.8],
+    [0, -110.2],
+    [7.8, -107.8],
+    [11.6, -100],
+    [11, -89.6],
+    [7, -85.2],
+    [0, -84.4],
+    [-7, -85.2],
+  ];
+  const HAIR_FILL = "#52626f";
+  const hair = (ps, map = (p) => p) =>
+    `<path class="bw-human-hair" d="${smoothClosed(ps.map(map))}" fill="${HAIR_FILL}"/>`;
   const FACE_SIDE = [
     [
-      [-0.8, -94.2],
-      [2.4, -93.4],
-      [2.6, -88.6],
-      [0, -87.6],
+      [-0.4, -92],
+      [2.6, -91.6],
+      [2.8, -87.4],
+      [0.4, -86.6],
     ],
     [
-      [7.4, -95.4],
-      [9, -96],
-      [10.4, -95.3],
+      [7.8, -95],
+      [9.4, -95.6],
+      [10.8, -94.9],
     ],
     [
-      [9.8, -84.8],
-      [11.2, -84.6],
-      [12.1, -84.9],
+      [8.6, -97.6],
+      [10.4, -98.4],
+      [12, -97.8],
+    ],
+    [
+      [10.4, -84.9],
+      [11.6, -84.6],
+      [12.5, -84.8],
     ],
   ];
   const FACE_FRONT = [
@@ -702,25 +775,40 @@
    * light lines for the ear, eye and mouth. */
   function face(front) {
     const neck = path(
-      smoothClosed([
-        [-5.6, -84],
-        [-6.2, -72],
-        [-9.5, -65],
-        [0, -62.5],
-        [9.5, -65],
-        [6.2, -72],
-        [5.6, -84],
-      ]),
+      smoothClosed(
+        front
+          ? [
+              [-6.4, -84],
+              [-6.8, -72],
+              [-10.5, -65.4],
+              [0, -62.5],
+              [10.5, -65.4],
+              [6.8, -72],
+              [6.4, -84],
+            ]
+          : [
+              [-6.6, -86],
+              [-7.2, -76],
+              [-9.6, -68],
+              [0, -62],
+              [9.4, -64.6],
+              [7.8, -72],
+              [7.4, -79.4],
+              [3, -81],
+            ],
+      ),
       'fill="#fff"',
     );
+
     return (
       neck +
       (front
-        ? path(
-            "M0,-108C7.5,-108 11,-102.5 10.6,-94.5C10.3,-87 7,-77 0,-75.5C-7,-77 -10.3,-87 -10.6,-94.5C-11,-102.5 -7.5,-108 0,-108Z",
-            'fill="#fff"',
-          ) + details(FACE_FRONT, false)
-        : path(smoothClosed(HEAD_SIDE), 'fill="#fff"') + details(FACE_SIDE, false))
+        ? path(smoothClosed(HEAD_FRONT), 'fill="#fff"') +
+          hair(HAIR_FRONT) +
+          details(FACE_FRONT, false)
+        : path(smoothClosed(HEAD_SIDE), 'fill="#fff"') +
+          hair(HAIR_SIDE) +
+          details(FACE_SIDE, false))
     );
   }
   /** One continuous trunk outline: shoulders, chest, waist and pelvis,
@@ -743,23 +831,27 @@
     }
     const k = spineCurve;
     return smoothClosed([
-      [5, -67],
-      [11.5, -62],
-      [15, -52],
-      [14, -41],
-      [11, -30],
-      [10.6, -18],
-      [11.4, -7],
-      [8.5, 3],
-      [1, 7.2],
-      [-7, 6.8],
-      [-12.6, 1.6],
-      [-13.4, -8],
-      [-11.8 - k, -21],
-      [-14.2 - k, -34],
-      [-16, -47],
-      [-14, -59],
-      [-6, -66.5],
+      [8, -66.4],
+      [12, -63.4],
+      [14.8, -58],
+      [16.4, -51],
+      [15.2, -45.4],
+      [13.2, -40],
+      [11.6, -32],
+      [11, -22],
+      [11.8, -12],
+      [10, -1.4],
+      [5, 5.4],
+      [-1.4, 7.4],
+      [-9.6, 6.6],
+      [-15, -0.6],
+      [-14.2, -9.4],
+      [-11 - k, -19.6],
+      [-13.4 - k, -31],
+      [-16.2, -45],
+      [-15.4, -56],
+      [-12.4, -62.4],
+      [-8.6, -66.4],
     ]);
   }
   function torso(scene, angle, front) {
@@ -887,7 +979,13 @@
       FOOT,
       FOOT_LINES,
       HEAD_SIDE,
+      HAIR_SIDE,
+      HAIR_FRONT,
+      HAIR_BACK,
+      HEAD_FRONT,
       FACE_SIDE,
+      FACE_FRONT,
+      hair,
       details,
       handShape,
       muscleLines,
@@ -896,7 +994,7 @@
       trunkPath,
     },
     muscles,
-    style: "anatomical-outline-57",
-    version: 57,
+    style: "anatomical-outline-58",
+    version: 58,
   };
 })(typeof window === "object" ? window : globalThis);
