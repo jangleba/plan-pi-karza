@@ -131,64 +131,44 @@
       return ["quadriceps", "calves", "glutes"];
     return [];
   }
+  // Working muscles: filled bellies inside the outline, only for the groups the
+  // exercise trains. A teaching cue, never measured activation.
+  const MUSCLE_STYLE = (far) =>
+    `fill="#f59e6b" fill-opacity="${far ? 0.16 : 0.3}" stroke="#d9622b" stroke-width=".8" stroke-opacity="${far ? 0.45 : 0.9}"`;
+  function belly(a, b, t0, t1, normalVector, base, bulge) {
+    const start = add(mix(a, b, t0), scale(normalVector, base)),
+      end = add(mix(a, b, t1), scale(normalVector, base)),
+      middle = mix(a, b, (t0 + t1) / 2),
+      outer = add(middle, scale(normalVector, base + bulge * 2)),
+      inner = add(middle, scale(normalVector, base - bulge * 0.35));
+    return `M${xy(start)}Q${xy(outer)} ${xy(end)}Q${xy(inner)} ${xy(start)}Z`;
+  }
   function muscleLines(a, b, c, kind, far, scene, side = "right") {
+    // The figure faces +x before mirroring, so a segment's anterior side is
+    // the negative normal: quadriceps, tibialis and biceps in front, the
+    // posterior chain behind.
     const groups = muscles(scene),
-      u = unit(a, b),
-      n = normal(u),
-      v = unit(b, c),
-      m = normal(v);
-    const thin = `stroke="#718392" stroke-width=".6" opacity="${far ? 0.27 : 0.43}"`;
+      front = scale(normal(unit(a, b)), -1),
+      lowerFront = scale(normal(unit(b, c)), -1);
     let svg = "";
-    const trace = (name, points) => {
-      if (!groups.includes(name)) return;
-      svg +=
-        `<g data-muscle="${name}">` +
-        detail(`M${xy(points[0])}Q${xy(points[1])} ${xy(points[2])}`, thin) +
-        "</g>";
+    const shape = (name, d) => {
+      if (groups.includes(name))
+        svg += `<g data-muscle="${name}">${path(d, MUSCLE_STYLE(far))}</g>`;
     };
-    const along = (x, y, t, offset, normalVector) => add(mix(x, y, t), scale(normalVector, offset));
     if (kind === "leg") {
-      trace("quadriceps", [
-        along(a, b, 0.22, 3, n),
-        along(a, b, 0.49, 8, n),
-        along(a, b, 0.82, 2, n),
-      ]);
-      trace("hamstrings", [
-        along(a, b, 0.21, -4, n),
-        along(a, b, 0.5, -7, n),
-        along(a, b, 0.8, -2, n),
-      ]);
-      trace("adductors", [
-        along(a, b, 0.19, -2, n),
-        along(a, b, 0.42, -5, n),
-        along(a, b, 0.7, -1, n),
-      ]);
-      trace("glutes", [
-        along(a, b, 0.02, -6, n),
-        along(a, b, 0.13, -12, n),
-        along(a, b, 0.27, -6, n),
-      ]);
-      for (const group of ["calves", "soleus"])
-        trace(group, [
-          along(b, c, group === "soleus" ? 0.32 : 0.15, 4, m),
-          along(b, c, 0.45, 8, m),
-          along(b, c, 0.76, 1, m),
-        ]);
-      trace("tibialis", [
-        along(b, c, 0.23, -2, m),
-        along(b, c, 0.54, -4, m),
-        along(b, c, 0.88, -1, m),
-      ]);
+      shape("quadriceps", belly(a, b, 0.16, 0.86, front, 1.2, 4.6));
+      shape("hamstrings", belly(a, b, 0.18, 0.84, front, -1.4, -4.4));
+      shape("adductors", belly(a, b, 0.14, 0.62, front, -0.6, -2.6));
+      shape("glutes", belly(a, b, -0.08, 0.26, front, -3.5, -4.2));
+      shape("calves", belly(b, c, 0.1, 0.62, lowerFront, -0.8, -3.4));
+      shape("soleus", belly(b, c, 0.3, 0.8, lowerFront, -0.6, -2.6));
+      shape("tibialis", belly(b, c, 0.14, 0.78, lowerFront, 0.6, 1.9));
     } else {
-      trace("biceps", [along(a, b, 0.29, 2, n), along(a, b, 0.55, 5, n), along(a, b, 0.83, 1, n)]);
-      trace("triceps", [
-        along(a, b, 0.27, -2, n),
-        along(a, b, 0.53, -5, n),
-        along(a, b, 0.82, -1, n),
-      ]);
-      for (const group of ["delts", "rear_delts"])
-        trace(group, [along(a, b, 0.03, 1, n), along(a, b, 0.13, 7, n), along(a, b, 0.32, 2, n)]);
-      trace("forearms", [along(b, c, 0.17, 1, m), along(b, c, 0.43, 4, m), along(b, c, 0.8, 1, m)]);
+      shape("biceps", belly(a, b, 0.22, 0.86, front, 0.5, 2.4));
+      shape("triceps", belly(a, b, 0.16, 0.84, front, -0.6, -2.5));
+      shape("delts", belly(a, b, -0.06, 0.34, front, 0.2, 3.1));
+      shape("rear_delts", belly(a, b, -0.06, 0.32, front, -0.3, -2.8));
+      shape("forearms", belly(b, c, 0.08, 0.62, lowerFront, 0.3, 1.9));
     }
     return `<g class="bw-muscle-traces" data-side="${side}">${svg}</g>`;
   }
@@ -223,98 +203,107 @@
       "</g>"
     );
   }
-  function torsoMuscles(scene, transform, rear = false) {
-    const groups = muscles(scene),
-      d = (name, points) =>
-        groups.includes(name)
-          ? `<g data-muscle="${name}">` +
-            detail(
-              `M${xy(transform(points[0]))}Q${xy(transform(points[1]))} ${xy(transform(points[2]))}`,
-              'stroke="#718392" stroke-width=".6" opacity=".36"',
-            ) +
-            "</g>"
-          : "";
+  function torsoMuscles(scene, transform, rear = false, profile = false) {
+    const groups = muscles(scene);
+    const shape = (name, points) => {
+      if (!groups.includes(name)) return "";
+      const [p0, p1, p2, p3] = points.map(transform);
+      return `<g data-muscle="${name}">${path(`M${xy(p0)}Q${xy(p1)} ${xy(p2)}Q${xy(p3)} ${xy(p0)}Z`, MUSCLE_STYLE(false))}</g>`;
+    };
+    const pair = (name, points) =>
+      shape(name, points) +
+      shape(
+        name,
+        points.map(([x, y]) => [-x, y]),
+      );
+    if (profile)
+      // Side view: x is anterior, so each group sits on its own surface.
+      return (
+        '<g class="bw-muscle-traces bw-torso-muscles">' +
+        shape("pecs", [
+          [6, -61],
+          [15.5, -55],
+          [12.5, -45],
+          [6.5, -51],
+        ]) +
+        shape("abdominals", [
+          [8, -42],
+          [13, -30],
+          [9.5, -17],
+          [7, -30],
+        ]) +
+        shape("obliques", [
+          [2, -39],
+          [6.5, -28],
+          [2, -17],
+          [-1.5, -28],
+        ]) +
+        shape("lats", [
+          [-8, -53],
+          [-14.5, -41],
+          [-6, -28],
+          [-6, -43],
+        ]) +
+        shape("upper_back", [
+          [-6, -63],
+          [-15.5, -58],
+          [-12, -49],
+          [-7.5, -56],
+        ]) +
+        shape("erectors", [
+          [-12, -46],
+          [-16, -32],
+          [-12.5, -16],
+          [-10, -32],
+        ]) +
+        "</g>"
+      );
     let svg = "";
     if (rear) {
-      svg +=
-        d("upper_back", [
-          [-12, -54],
-          [-6, -46],
-          [-2, -42],
-        ]) +
-        d("upper_back", [
-          [12, -54],
-          [6, -46],
-          [2, -42],
-        ]);
-      svg +=
-        d("lats", [
-          [-14, -48],
-          [-12, -34],
-          [-6, -25],
-        ]) +
-        d("lats", [
-          [14, -48],
-          [12, -34],
-          [6, -25],
-        ]);
-      svg +=
-        d("erectors", [
-          [-4, -43],
-          [-5, -31],
-          [-4, -19],
-        ]) +
-        d("erectors", [
-          [4, -43],
-          [5, -31],
-          [4, -19],
-        ]);
-    } else {
-      svg +=
-        d("pecs", [
-          [-13, -51],
-          [-8, -44],
-          [-1, -47],
-        ]) +
-        d("pecs", [
-          [13, -51],
-          [8, -44],
-          [1, -47],
-        ]);
-      svg +=
-        d("abdominals", [
-          [-4, -40],
-          [-5, -30],
-          [-3, -20],
-        ]) +
-        d("abdominals", [
-          [4, -40],
-          [5, -30],
-          [3, -20],
-        ]);
-      svg +=
-        d("lats", [
-          [-14, -48],
-          [-12, -34],
-          [-8, -27],
-        ]) +
-        d("lats", [
-          [14, -48],
-          [12, -34],
-          [8, -27],
-        ]);
-    }
-    svg +=
-      d("obliques", [
-        [-14, -36],
-        [-12, -28],
-        [-8, -21],
-      ]) +
-      d("obliques", [
-        [14, -36],
-        [12, -28],
-        [8, -21],
+      svg += pair("upper_back", [
+        [-3, -60],
+        [-15, -58],
+        [-7, -46],
+        [-4, -52],
       ]);
+      svg += pair("lats", [
+        [-14, -50],
+        [-17, -36],
+        [-7, -26],
+        [-9, -40],
+      ]);
+      svg += pair("erectors", [
+        [-2.5, -44],
+        [-6, -32],
+        [-3, -18],
+        [-1.5, -31],
+      ]);
+    } else {
+      svg += pair("pecs", [
+        [-1.5, -58],
+        [-15, -57],
+        [-12, -46],
+        [-3, -47],
+      ]);
+      svg += pair("abdominals", [
+        [-1.5, -43],
+        [-7, -32],
+        [-2, -19],
+        [-1, -31],
+      ]);
+      svg += pair("lats", [
+        [-15, -50],
+        [-18, -38],
+        [-12, -30],
+        [-13, -42],
+      ]);
+    }
+    svg += pair("obliques", [
+      [-13, -36],
+      [-15, -26],
+      [-9, -18],
+      [-10, -28],
+    ]);
     return '<g class="bw-muscle-traces bw-torso-muscles">' + svg + "</g>";
   }
 
@@ -359,17 +348,19 @@
       a = swing * 0.6;
     const elbow = front
       ? [(far ? -1 : 1) * (11 + 3 * Math.abs(swing)), 27 - 4 * swing]
-      : [Math.sin(a) * 30, Math.cos(a) * 30];
+      : [Math.sin(a) * 36, Math.cos(a) * 36];
+    // Same segment lengths as reaching arms (36 / 32), not a shortened swing arm.
     const wrist = front
-      ? [(far ? -1 : 1) * (5 + 2 * Math.abs(swing)), 46 - 14 * swing]
-      : [elbow[0] + Math.cos(a) * 23, elbow[1] - Math.sin(a) * 23];
+      ? [(far ? -1 : 1) * (5 + 2 * Math.abs(swing)), 52 - 16 * swing]
+      : [elbow[0] + Math.cos(a) * 31, elbow[1] - Math.sin(a) * 31];
     return {
       shoulder,
       elbow: add(shoulder, rotate(elbow, angle)),
       wrist: add(shoulder, rotate(wrist, angle)),
     };
   }
-  function shoe(l, front) {
+  /** Bare anatomical foot: heel, arch and toes in one contour. */
+  function shoe(l) {
     const phase = Math.max(0, Math.min(1, ((l.local ?? 0) - 0.34) / 0.66));
     const angle = Number.isFinite(l.footAngle)
       ? l.footAngle
@@ -377,12 +368,10 @@
         ? 0
         : -16 * Math.sin(Math.PI * phase);
     return (
-      `<g class="bw-human-shoe" transform="translate(${xy(l.ankle)}) rotate(${fmt(angle)})" fill="${colours.shoe}">` +
-      path("M-4,-11Q0,-9 4,-11L4,-3Q0,-1 -4,-3Z", 'fill="#fff" stroke-width=".65"') +
-      detail("M-3.5,-8Q0,-7 3.5,-8", 'stroke-width=".5"') +
-      path("M-5,-5 Q-1,-7 4,-4 L7,1 Q10,4 15,5 Q17,7 16,10 L-7,10 L-7,1 Q-7,-3 -5,-5Z") +
-      path("M-7,8 Q5,9 16,8 L16,11 L-7,11Z", 'fill="#fff" stroke-width=".6"') +
-      detail("M-1,-1L5,0 M0,2L7,3 M-4,5Q-1,3 2,5", 'stroke-width=".65" opacity=".55"') +
+      `<g class="bw-human-shoe bw-human-foot" transform="translate(${xy(l.ankle)}) rotate(${fmt(angle)})" fill="${colours.shoe}">` +
+      path(
+        "M-3.4,-6 Q-6.6,1 -5.8,7.4 Q-5,10.2 -1.5,10.2 L13.4,10.2 Q16.8,10 16.4,7.6 Q15.6,5.4 11,4.6 Q6,3.4 3.6,-1.6 L3.2,-6 Z",
+      ) +
       "</g>"
     );
   }
@@ -393,7 +382,6 @@
     return (
       `<g class="bw-human-leg bw-human-leg-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
       limb(hip, l.knee, l.ankle, { root: 10.5, upper: 14.2, joint: 5.8, lower: 9.4, end: 3.7 }) +
-      shorts(hip, l.knee, far) +
       muscleLines(hip, l.knee, l.ankle, "leg", far, scene, side) +
       shoe(l, front) +
       "</g>"
@@ -408,56 +396,41 @@
     return (
       `<g class="bw-human-arm bw-human-arm-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
       limb(shoulder, elbow, wrist, { root: 7.2, upper: 8.8, joint: 4.0, lower: 5.8, end: 2.7 }) +
-      sleeve(shoulder, elbow) +
       muscleLines(shoulder, elbow, wrist, "arm", far, scene, side) +
       `<g class="bw-human-hand" transform="translate(${xy(hand)}) rotate(${fmt(degrees)})">` +
       path("M-3,-2.2 Q-2,-4 0,-3.6 L3,-3.3 Q6,-2.5 5.2,-.2 Q6,2 3.8,2.8 L-.5,3 Q-3,3 -3,-.2Z") +
-      detail("M.5,-1.9L3.5,-1.4 M.6,0L3.7,.4", 'stroke-width=".5" opacity=".5"') +
       "</g></g>"
     );
   }
+  /** Smooth faceless head and neck: a calm silhouette, no hair or features. */
   function face(front) {
-    const neck = path("M-5,-79L-5,-65Q0,-62 5,-66L5,-80Z", 'fill="#fff"');
+    const neck = path("M-5,-80L-5.4,-64Q0,-61.5 5.4,-64L5,-80Z", 'fill="#fff"');
     return (
       neck +
       (front
         ? path(
-            "M-10,-93C-11,-103 -6,-108 0,-108C8,-108 12,-102 11,-93L10,-83Q7,-75 0,-74Q-7,-75 -10,-83Z",
+            "M0,-108C7.5,-108 11,-102.5 10.6,-94.5C10.3,-87 7,-77 0,-75.5C-7,-77 -10.3,-87 -10.6,-94.5C-11,-102.5 -7.5,-108 0,-108Z",
             'fill="#fff"',
-          ) +
-          detail(
-            "M-6,-91h2M4,-91h2M0,-89l-1,4 2,0M-2,-81q2,1 4,0M-9,-97q8,-7 16,-1 M-8,-101q6,-10 15,-3 M-4,-102q6,-7 13,1",
-            'stroke-width=".5" opacity=".55"',
           )
         : path(
-            "M-10,-93C-12,-103 -6,-109 1,-108C9,-108 13,-101 12,-94L11.7,-90L15,-85.6Q15.6,-84 12,-83.8L11.8,-79Q9,-73 3,-75C-3,-76 -7,-81 -8,-86Z",
+            "M1,-108.5C9,-108.5 12.6,-102 12.2,-95L13.6,-90.6Q14.6,-88.2 12.2,-87.6L11.6,-82Q10,-75.4 2.6,-75.2C-4.6,-75.6 -9,-81.4 -10,-89C-11,-100 -6,-108.5 1,-108.5Z",
             'fill="#fff"',
-          ) +
-          path(
-            "M-10,-96Q-14,-103 -8,-108Q-6,-113 2,-110Q10,-112 13,-104L12,-97Q6,-101 2,-99Q-1,-94 -3,-90L-6,-93Z",
-            'fill="#fff"',
-          ) +
-          detail(
-            "M-7,-89q4,-4 5,2l-2,3M8,-92l2,.3M9,-80h2M-9,-98q8,-7 16,-1 M-9,-101q4,-10 13,-8 M-5,-103q5,-6 12,-3 M-2,-104q5,-5 11,0",
-            'stroke-width=".5" opacity=".55"',
           ))
     );
   }
+  /** One continuous trunk outline: shoulders, ribcage, waist and pelvis. */
+  function trunkPath(front, spineCurve = 0) {
+    if (front)
+      return "M-6,-66.5Q-18,-67 -23.5,-60Q-25.5,-52 -21,-43Q-16.5,-33 -15.6,-22Q-15.4,-13 -17,-5Q-16,4 -8,7.5Q0,9 8,7.5Q16,4 17,-5Q15.4,-13 15.6,-22Q16.5,-33 21,-43Q25.5,-52 23.5,-60Q18,-67 6,-66.5Q0,-63 -6,-66.5Z";
+    const k = spineCurve;
+    return `M-5.6,-66.4Q-14.6,-65.4 -17.4,-56.6Q-19.6,-47 ${fmt(-15.8 - k)},-37Q${fmt(-12.4 - k)},-27 -14.6,-16.5Q-18.4,-6 -12.4,3.4Q-4,9 6,6Q12.6,3.6 13,-5Q13.2,-14 11.2,-22Q10.2,-30 13.6,-39Q17.6,-48 15.2,-57Q11.8,-65.4 5.6,-66.4Q0,-63.2 -5.6,-66.4Z`;
+  }
   function torso(scene, angle, front) {
     const expansion = 1 + Math.max(0, scene.breath ?? 0) * 0.015;
-    const shirt = front
-      ? "M-7,-65 Q-19,-68 -25,-58 L-21,-43 Q-16,-35 -16,-13 Q0,-8 16,-13 Q16,-35 21,-43 L25,-58 Q19,-68 7,-65 Q0,-58 -7,-65Z"
-      : `M-7,-65 Q2,-70 12,-60 Q21,-51 18,-40 Q14,-28 17,-13 Q1,-8 -19,-13 Q${-21 - (scene.spineCurve ?? 0)},-33 ${-20 - (scene.spineCurve ?? 0)},-46 Q-23,-58 -7,-65Z`;
     return (
       `<g class="bw-human-torso" transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})"><g transform="translate(0 -67) rotate(${fmt(scene.headAngle ?? 0)}) scale(1) translate(0 67)">${face(front)}</g><g transform="scale(${fmt(expansion)} 1)">` +
-      path(shirt, `fill="${colours.shirt}"`) +
-      detail(
-        front
-          ? "M-7,-64Q0,-59 7,-64 M-11,-18Q0,-16 11,-18"
-          : "M-5,-64Q1,-58 6,-63 M-12,-18Q0,-15 10,-18",
-        'stroke="#71899b" opacity=".32" stroke-width=".45"',
-      ) +
-      torsoMuscles(scene, (p) => p, !front && Math.sin((angle * Math.PI) / 180) < -0.6) +
+      path(trunkPath(front, scene.spineCurve ?? 0), `fill="${colours.shirt}"`) +
+      torsoMuscles(scene, (p) => p, false, !front) +
       "</g></g>"
     );
   }
@@ -493,6 +466,16 @@
     }
     return result;
   }
+  /** One body part group as a single silhouette: a heavier ink pass underneath,
+   * then the same shapes in white without strokes, so overlapping segments of
+   * one depth layer merge without inner seams. Muscles keep their own stroke. */
+  function seamless(svg) {
+    // Plain SVG attributes, no stylesheet: the same markup works inside static
+    // snapshot files as well as in the player.
+    const ink = svg.replace(/class="bw-muscle-traces/g, 'display="none" class="bw-muscle-traces');
+    const fill = svg.replace(/stroke="(#7c8e9d|#344b5e)"/g, 'stroke="none"');
+    return `<g class="bw-silhouette-ink" stroke-width="2.3">${ink}</g><g class="bw-silhouette-fill" stroke="none">${fill}</g>`;
+  }
   function draw(scene) {
     if (
       !scene ||
@@ -510,20 +493,26 @@
       nearArm = arm(scene, "right", angle, front),
       farLeg = leg(scene, "left", front),
       nearLeg = leg(scene, "right", front);
-    const waist = `<g transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})" fill="#fff" stroke="none">${path("M-14,-13Q0,-9 13,-13L13,5Q3,14 -7,9Q-13,5 -14,-13Z")}${detail("M-14,-13Q-16,-1 -10,8M13,-13Q17,-1 11,8", 'stroke="' + colours.ink + '" stroke-width=".85"')}</g>`;
+    const waist = `<g transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})" fill="#fff" stroke="none">${path("M-12,-12Q0,-9 11.6,-12L11.4,3Q3,9.6 -6,7Q-11.4,4 -12,-12Z")}</g>`;
     const layers = front
-      ? farLeg + nearLeg + torso(scene, angle, true) + waist + farArm + nearArm
-      : farArm + farLeg + torso(scene, angle, false) + nearLeg + waist + nearArm;
+      ? seamless(farLeg + nearLeg + torso(scene, angle, true) + waist) +
+        seamless(farArm) +
+        seamless(nearArm)
+      : seamless(farArm) +
+        seamless(farLeg) +
+        seamless(torso(scene, angle, false) + nearLeg + waist) +
+        seamless(nearArm);
     return `<g class="bw-human-athlete bw-human-outline bw-human-natural bw-human-sketch bw-human-${front ? "front" : "side"}" stroke="${colours.ink}" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"${mirror}>${layers}</g>`;
   }
   scope.drawBallwiseAthlete = draw;
   scope.BWDrawHuman = {
     draw,
+    seamless,
     armPoints,
     points,
-    geometry: { limb, muscleLines, shorts, sleeve, torsoMuscles },
+    geometry: { limb, muscleLines, shorts, sleeve, torsoMuscles, belly, trunkPath },
     muscles,
-    style: "athletic-sketch-54",
-    version: 54,
+    style: "anatomical-outline-55",
+    version: 55,
   };
 })(typeof window === "object" ? window : globalThis);

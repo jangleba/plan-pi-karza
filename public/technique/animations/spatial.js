@@ -551,9 +551,7 @@
             joint: 5.8,
             lower: 9.2,
             end: 3.6,
-          }) +
-          G.shorts(P(j.hip), P(j.knee), far) +
-          G.muscleLines(P(j.hip), P(j.knee), P(j.ankle), "leg", far, s, side);
+          }) + G.muscleLines(P(j.hip), P(j.knee), P(j.ankle), "leg", far, s, side);
       layer(
         mix(j.hip, j.ankle, 0.48),
         `<g class="bw-human-leg bw-human-leg-${side}" fill="#fff">${legSvg}</g>`,
@@ -561,45 +559,22 @@
       const a = j.footAngle * rad;
       const shoePoint = (x, y, z = 0) =>
         add(j.ankle, [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z]);
-      const shoe = [];
-      for (const z of [-4.2, 4.2])
+      // Bare foot: heel, arch and toes as one soft contour.
+      const foot = [];
+      for (const z of [-3.6, 3.6])
         for (const [x, y] of [
-          [-6, -4],
-          [4, -3],
-          [8, 3],
-          [16, 7],
-          [16, 11],
-          [-7, 11],
-          [-7, 0],
+          [-3.5, -5],
+          [3.2, -5],
+          [6, 3],
+          [15, 6.5],
+          [16, 10],
+          [-5.5, 10],
+          [-6, 4],
         ])
-          shoe.push(P(shoePoint(x, y, z)));
+          foot.push(P(shoePoint(x, y, z)));
       layer(
         add(j.ankle, [5, 5, 0]),
-        '<g class="bw-human-shoe">' +
-          path(
-            softHull(
-              [-10, -3].flatMap((y) =>
-                [-3.7, 3.7].flatMap((x) => [-4.1, 4.1].map((z) => P(shoePoint(x, y, z)))),
-              ),
-            ),
-          ) +
-          path(
-            `M${xy(P(shoePoint(-3.7, -8, 4.2)))}L${xy(P(shoePoint(3.7, -8, 4.2)))}`,
-            "none",
-            'stroke-width=".55"',
-          ) +
-          path(softHull(shoe)) +
-          path(
-            `M${xy(P(shoePoint(0, 0, 4.2)))}L${xy(P(shoePoint(6, 1, 4.2)))}M${xy(P(shoePoint(1, 2, 4.2)))}L${xy(P(shoePoint(8, 3, 4.2)))}`,
-            "none",
-            'stroke-width=".6"',
-          ) +
-          path(
-            `M${xy(P(shoePoint(-5, 8, 4.3)))}L${xy(P(shoePoint(15, 8, 4.3)))}`,
-            "none",
-            'stroke-width=".55"',
-          ) +
-          "</g>",
+        '<g class="bw-human-shoe bw-human-foot">' + path(softHull(foot)) + "</g>",
       );
       const armSvg =
         G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), {
@@ -608,9 +583,7 @@
           joint: 3.8,
           lower: 5.7,
           end: 2.6,
-        }) +
-        G.sleeve(P(j.shoulder), P(j.elbow)) +
-        G.muscleLines(P(j.shoulder), P(j.elbow), P(j.wrist), "arm", far, s, side);
+        }) + G.muscleLines(P(j.shoulder), P(j.elbow), P(j.wrist), "arm", far, s, side);
       layer(
         mix(j.shoulder, j.wrist, 0.55),
         `<g class="bw-human-arm bw-human-arm-${side}">${armSvg}</g>`,
@@ -623,11 +596,13 @@
     }
     const rings = [];
     for (const [y, rx, rz] of [
-      [-9, 17, 16],
-      [-17, 16, 18],
-      [-36, 17, 22],
-      [-55, 16, 24],
-      [-64, 9, 12],
+      [-2, 14, 15],
+      [-10, 15, 16],
+      [-22, 12.5, 14.5],
+      [-38, 15.5, 19],
+      [-52, 15, 23],
+      [-60, 12, 21],
+      [-65, 7.5, 10],
     ])
       for (let i = 0; i < 16; i++)
         rings.push(
@@ -635,28 +610,12 @@
         );
     const rear = c.view === "rear-quarter";
     let torso = path(softHull(rings));
-    const shirtLine = (ps) =>
-      path(
-        `M${xy(P(local(s, ps[0])))}Q${xy(P(local(s, ps[1])))} ${xy(P(local(s, ps[2])))}`,
-        "none",
-        'stroke-width=".65" opacity=".55"',
-      );
-    torso += shirtLine([
-      [0, -64, -7],
-      [rear ? -10 : 10, -57, 0],
-      [0, -64, 7],
-    ]);
-    torso += shirtLine([
-      [rear ? -17 : 17, -12, -14],
-      [rear ? -18 : 18, -9, 0],
-      [rear ? -17 : 17, -12, 14],
-    ]);
     torso += G.torsoMuscles(s, (p) => P(local(s, [rear ? -16 : 16, p[1], p[0]])), rear);
-    layer(local(s, [0, -32, 0]), '<g class="bw-human-torso bw-human-shirt">' + torso + "</g>");
+    layer(local(s, [0, -32, 0]), '<g class="bw-human-torso">' + torso + "</g>");
     const neckPoints = [];
     for (const y of [-73, -63])
       for (const z of [-5, 5]) for (const x of [-4, 4]) neckPoints.push(P(local(s, [x, y, z])));
-    layer(sp.neck, path(softHull(neckPoints)));
+    layer(sp.neck, '<g class="bw-human-neck">' + path(softHull(neckPoints)) + "</g>");
     const headAngle = (sp.config.variant === "hip_thrust" ? 0 : s.torsoAngle || 0) * rad;
     const hp = (x, y, z = 0) =>
       add(sp.head, [
@@ -685,61 +644,7 @@
       ])
         headPoints.push(P(hp(...p)));
     headPoints.push(P(hp(7, -17, 2)));
-    let head = path(softHull(headPoints));
-    // A white hair cap with a swept contour, never a mechanical oval head.
-    const headLine = (ps, extra = "") =>
-      path(
-        `M${xy(P(hp(...ps[0])))}Q${xy(P(hp(...ps[1])))} ${xy(P(hp(...ps[2])))}`,
-        "none",
-        `stroke-width=".75" ${extra}`,
-      );
-    head += headLine([
-      [-8, -2, 7],
-      [-12, -10, 9],
-      [1, -11, 9],
-    ]);
-    for (const z of [-4, 0, 4])
-      head += headLine([
-        [-7, -9, z],
-        [-3, -18, z],
-        [8, -13, z],
-      ]);
-    head +=
-      headLine([
-        [-4, -7, 8],
-        [0, -10, 10],
-        [2, -5, 9],
-      ]) +
-      headLine([
-        [2, -5, 9],
-        [0, 2, 10],
-        [-3, -1, 8],
-      ]);
-    if (!rear) {
-      head += headLine([
-        [8, -4, 4],
-        [10, -5, 4],
-        [11, -3, 3],
-      ]);
-      head += headLine([
-        [9, 6, 2],
-        [11, 7, 1],
-        [9, 7, 0],
-      ]);
-      head += headLine([
-        [8, 9, 0],
-        [3, 14, 3],
-        [-2, 10, 6],
-      ]);
-    } else
-      head += headLine(
-        [
-          [-8, -5, 3],
-          [-8, 2, 4],
-          [-5, 6, 5],
-        ],
-        'opacity=".55"',
-      );
+    const head = path(softHull(headPoints));
     layer(sp.head, '<g class="bw-human-head bw-athlete-portrait">' + head + "</g>");
     for (const g of sp.gear) {
       if (g.kind === "barbell") {
@@ -805,7 +710,7 @@
       '<g class="bw-human-athlete bw-human-outline bw-human-natural bw-human-sketch bw-human-spatial" fill="#fff" stroke="#344b5e" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round">' +
       layers
         .sort((a, b) => a.z - b.z)
-        .map((l) => l.svg)
+        .map((l) => (l.svg.includes('class="bw-human-') ? H.seamless(l.svg) : l.svg))
         .join("") +
       "</g>"
     );

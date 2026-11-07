@@ -84,7 +84,7 @@ describe("complete shared exercise demonstrations", () => {
     }
   });
   it("renders finite poses in the same human style through every phase", () => {
-    expect(runtime.BWDrawHuman.style).toBe("athletic-sketch-54");
+    expect(runtime.BWDrawHuman.style).toBe("anatomical-outline-55");
     for (const [id, model] of Object.entries(runtime.BWAnim.models))
       for (let i = 0; i < 40; i++) {
         const pose = model.sample(i / 40),
