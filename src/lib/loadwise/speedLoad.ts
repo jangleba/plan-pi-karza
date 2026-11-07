@@ -78,6 +78,29 @@ const MICRODOSE_PERCENT_RE =
   /(?:8[0-9]|90)\s*%/i;
 
 /**
+ * The same handful of exercise texts is matched against every pattern many
+ * times per generated plan. Regex results depend only on the text, so cache
+ * them per string (bounded, so long sessions cannot grow it without limit).
+ */
+const TEXT_MATCH_CACHE_LIMIT = 5_000;
+const textMatchCache = new Map<string, Map<RegExp, boolean>>();
+
+function matches(pattern: RegExp, text: string): boolean {
+  let results = textMatchCache.get(text);
+  if (!results) {
+    if (textMatchCache.size >= TEXT_MATCH_CACHE_LIMIT) textMatchCache.clear();
+    results = new Map();
+    textMatchCache.set(text, results);
+  }
+  let result = results.get(pattern);
+  if (result === undefined) {
+    result = pattern.test(text);
+    results.set(pattern, result);
+  }
+  return result;
+}
+
+/**
  * Te podkategorie zawsze oznaczają pełną ekspozycję.
  * Prędkość maksymalna nie może zostać zdegradowana do mikrodawki
  * tylko dlatego, że objętość wynosi np. 60–80 m.
@@ -132,7 +155,43 @@ function sessionExercises(session: SessionDay): ExerciseItem[] {
     : (session.exercises ?? []);
 }
 
+type ExerciseTextCacheEntry = {
+  exerciseId: ExerciseItem["exerciseId"];
+  name: ExerciseItem["name"];
+  prescription: ExerciseItem["prescription"];
+  cue: ExerciseItem["cue"];
+  text: string;
+};
+
+/**
+ * Plan generation re-assesses the same exercises thousands of times. Cache the
+ * normalized text per exercise object, keyed on every field it is built from,
+ * so a mutated exercise is never served stale text.
+ */
+const exerciseTextCache = new WeakMap<ExerciseItem, ExerciseTextCacheEntry>();
+
 function exerciseText(exercise: ExerciseItem): string {
+  const cached = exerciseTextCache.get(exercise);
+  if (
+    cached &&
+    cached.exerciseId === exercise.exerciseId &&
+    cached.name === exercise.name &&
+    cached.prescription === exercise.prescription &&
+    cached.cue === exercise.cue
+  )
+    return cached.text;
+  const text = buildExerciseText(exercise);
+  exerciseTextCache.set(exercise, {
+    exerciseId: exercise.exerciseId,
+    name: exercise.name,
+    prescription: exercise.prescription,
+    cue: exercise.cue,
+    text,
+  });
+  return text;
+}
+
+function buildExerciseText(exercise: ExerciseItem): string {
   const definition = getExerciseDefinition(exercise.exerciseId ?? "");
   // A stationary strength cue can mention its transfer to sprinting. That is
   // not a prescribed sprint; keep explicit actions in name/dose detectable.
@@ -166,8 +225,8 @@ function positiveSpeedTexts(session: SessionDay): string[] {
     .map(exerciseText)
     .filter(
       (text) =>
-        SPEED_ACTION_RE.test(text) &&
-        !NEGATED_SPEED_RE.test(text),
+        matches(SPEED_ACTION_RE, text) &&
+        !matches(NEGATED_SPEED_RE, text),
     );
 }
 
@@ -190,9 +249,9 @@ function hasSpeedPercentage(
 ): boolean {
   return texts.some(
     (text) =>
-      SPEED_ACTION_RE.test(text) &&
-      !NEGATED_SPEED_RE.test(text) &&
-      percentagePattern.test(text),
+      matches(SPEED_ACTION_RE, text) &&
+      !matches(NEGATED_SPEED_RE, text) &&
+      matches(percentagePattern, text),
   );
 }
 
@@ -261,8 +320,8 @@ export function estimateSprintMeters(
       const text = exerciseText(exercise);
 
       if (
-        !SPEED_ACTION_RE.test(text) ||
-        NEGATED_SPEED_RE.test(text)
+        !matches(SPEED_ACTION_RE, text) ||
+        matches(NEGATED_SPEED_RE, text)
       ) {
         return total;
       }
@@ -331,23 +390,23 @@ export function assessSpeedLoad(
     positiveSprintTexts.length > 0;
 
   const containsRsa = texts.some((text) =>
-    RSA_RE.test(text),
+    matches(RSA_RE, text),
   );
 
   const containsMaxVelocity = texts.some((text) =>
-    MAX_VELOCITY_RE.test(text),
+    matches(MAX_VELOCITY_RE, text),
   );
 
   const containsCod = texts.some((text) =>
-    COD_RE.test(text),
+    matches(COD_RE, text),
   );
 
   const containsRunningTechnique = texts.some(
-    (text) => RUNNING_TECHNIQUE_RE.test(text),
+    (text) => matches(RUNNING_TECHNIQUE_RE, text),
   );
 
   const explicitMicrodose =
-    texts.some((text) => MICRODOSE_RE.test(text)) ||
+    texts.some((text) => matches(MICRODOSE_RE, text)) ||
     hasSpeedPercentage(
       texts,
       MICRODOSE_PERCENT_RE,
