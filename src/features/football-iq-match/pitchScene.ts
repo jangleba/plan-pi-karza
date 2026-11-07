@@ -251,7 +251,7 @@ export async function createPitchScene(
       const floor = world({ x: 50, y: 70 }).project(camera),
         head = world({ x: 50, y: 70 }, PLAYER_HEIGHT).project(camera);
       const base = Math.hypot(((head.x - floor.x) * width) / 2, ((head.y - floor.y) * height) / 2);
-      figureScale = Math.max(1, Math.min(2.2, 16 / Math.max(0.01, base)));
+      figureScale = Math.max(1, Math.min(2.2, 13 / Math.max(0.01, base)));
     }
     renderer.setSize(width, height, false);
   };

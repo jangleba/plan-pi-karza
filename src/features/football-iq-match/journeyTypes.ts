@@ -1,7 +1,8 @@
 import type { MatchPlayer, Point, Scenario, EvaluationLevel } from "./types";
 import type { BallDelivery } from "./ballFlight";
 
-export type IQRole = "gk" | "cb" | "fb" | "six" | "eight" | "ten" | "wing" | "nine";
+export type IQRole =
+  "gk" | "cb" | "fb" | "six" | "eight" | "ten" | "wing" | "nine";
 export type IQPosition = "goalkeeper" | "defender" | "midfielder" | "forward";
 export type JourneyMode = "learn" | "challenge";
 export type JourneyPattern =
@@ -35,12 +36,28 @@ export type JourneyAction =
   | "play"
   | "wait";
 export type TacticalIntent =
-  "pass" | "carry" | "move" | "decoy" | "cover" | "press" | "mark" | "hold" | "wait" | "shoot";
-export type DribbleStyle = "direct" | "cut-left" | "cut-right" | "stop-go" | "turn-back" | "shield";
+  | "pass"
+  | "carry"
+  | "move"
+  | "decoy"
+  | "cover"
+  | "press"
+  | "mark"
+  | "hold"
+  | "wait"
+  | "shoot";
+export type DribbleStyle =
+  "direct" | "cut-left" | "cut-right" | "stop-go" | "turn-back" | "shield";
 export type ActionTiming = "now" | "delay";
 export type JourneyQuality = "good" | "possible" | "error";
 export type JourneyOutcome =
-  "progress" | "retained" | "chance" | "blocked" | "loss" | "recovered" | "contained";
+  | "progress"
+  | "retained"
+  | "chance"
+  | "blocked"
+  | "loss"
+  | "recovered"
+  | "contained";
 export type JourneyDefinition = {
   id: string;
   topicId: string;
@@ -57,6 +74,7 @@ export type JourneyDefinition = {
   delivery?: Exclude<BallDelivery, "ground">;
 };
 export type JourneyWorld = {
+  looseBall?: Point;
   positions: Record<string, Point>;
   carrierId: string;
   headings: Record<string, number>;
@@ -82,6 +100,17 @@ export type JourneyStep = {
   choices: JourneyChoice[];
 };
 export type JourneyBeat = {
+  /** Version 8: simultaneous, deterministic simulation samples; never used by old replays. */
+  live?: {
+    time: number;
+    world: JourneyWorld;
+    ball: Point;
+    height: number;
+    inFlight: boolean;
+    kicker?: string;
+    kickTime?: number;
+  }[];
+  events?: { time: number; text: string }[];
   revision?: 2;
   id: string;
   before: JourneyWorld;
@@ -102,7 +131,11 @@ export type JourneyBeat = {
   landingHeight?: number;
   flightDistance?: number;
   receiveAt?: Point;
-  autonomous?: { intent: TacticalIntent; reason: string; team: "home" | "away" };
+  autonomous?: {
+    intent: TacticalIntent;
+    reason: string;
+    team: "home" | "away";
+  };
 };
 export type JourneyDecision = {
   index: number;
@@ -129,7 +162,7 @@ export type TacticalForecast = {
 export type JourneySession = {
   forecasts?: TacticalForecast[];
   /** Absent in saved pre-22 engines; their replays retain the original rules. */
-  rulesVersion?: 4 | 5 | 6 | 7;
+  rulesVersion?: 4 | 5 | 6 | 7 | 8;
   controlledId?: string;
   finishTeam?: "home" | "away";
   definition: JourneyDefinition;

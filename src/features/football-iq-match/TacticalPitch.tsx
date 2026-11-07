@@ -3,7 +3,13 @@ import type { MouseEvent } from "react";
 import { createPlayback, samplePlayback } from "./playback";
 import type { TeachingMarker } from "./teaching";
 import type { PitchScene } from "./pitchScene";
-import type { ActionMode, MatchPlayer, PlannedAction, Point, Scenario } from "./types";
+import type {
+  ActionMode,
+  MatchPlayer,
+  PlannedAction,
+  Point,
+  Scenario,
+} from "./types";
 import type { PlaybackFrame } from "./animation";
 import { TacticalDiagram } from "./TacticalDiagram";
 import { placeDiagramLabels } from "./diagramGeometry";
@@ -20,6 +26,7 @@ export type TacticalPitchProps = {
   /** Fit the entire pitch to the viewport; use a wide orientation on short screens. */
   landscapeView?: boolean;
   compactFigures?: boolean;
+  portraitThreshold?: number;
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -41,14 +48,23 @@ export type TacticalPitchProps = {
   frameOverride?: PlaybackFrame;
   frameSource?: () => PlaybackFrame;
   selectablePlayerIds?: string[];
-  destinations?: { id: string; point: Point; label: string; shortLabel?: string }[];
+  destinations?: {
+    id: string;
+    point: Point;
+    label: string;
+    shortLabel?: string;
+  }[];
   onDestinationSelect?: (id: string) => void;
   showActionOrders?: boolean;
   showGuidance?: boolean;
   freeMovement?: boolean;
 };
 export function TacticalPitch(props: TacticalPitchProps) {
-  return props.diagram ? <TacticalDiagram {...props} /> : <TacticalScenePitch {...props} />;
+  return props.diagram ? (
+    <TacticalDiagram {...props} />
+  ) : (
+    <TacticalScenePitch {...props} />
+  );
 }
 function TacticalScenePitch({
   diagram = false,
@@ -82,6 +98,7 @@ function TacticalScenePitch({
   cameraClose = false,
   fixedView = false,
   landscapeView: adaptiveView = false,
+  portraitThreshold = 1 / 1.8,
 }: TacticalPitchProps) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -93,7 +110,9 @@ function TacticalScenePitch({
   const destinationLabels = useRef(new Map<string, HTMLButtonElement>());
   const labelLeaders = useRef(new Map<string, SVGLineElement>());
   const destinationDots = useRef(new Map<string, SVGCircleElement>());
-  const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "fallback">(
+    "loading",
+  );
   const [attempt, setAttempt] = useState(0);
   const [widePitch, setWidePitch] = useState(false);
   const landscapeView = adaptiveView && widePitch;
@@ -101,19 +120,23 @@ function TacticalScenePitch({
     const el = host.current;
     if (!el) return;
     const update = () =>
-      setWidePitch(window.innerWidth / Math.max(1, window.innerHeight) > 1 / 1.8);
+      setWidePitch(
+        window.innerWidth / Math.max(1, window.innerHeight) > portraitThreshold,
+      );
     const observer = new ResizeObserver(update);
     observer.observe(el);
     update();
     return () => observer.disconnect();
-  }, []);
+  }, [portraitThreshold]);
   const hasRecordedFrame = frameOverride != null;
   const playback = useMemo(
     () => (hasRecordedFrame ? null : createPlayback(scenario, actions)),
     [scenario, actions, hasRecordedFrame],
   );
   const frame = useMemo(
-    () => frameOverride ?? samplePlayback(playback!, interactive ? 1 : playbackProgress),
+    () =>
+      frameOverride ??
+      samplePlayback(playback!, interactive ? 1 : playbackProgress),
     [frameOverride, playback, interactive, playbackProgress],
   );
   const latest = useRef({
@@ -182,7 +205,8 @@ function TacticalScenePitch({
       state.cameraActions,
       state.activeActionId,
       state.showGuidance
-        ? state.teachingMarkers.find((m) => m.id === state.activeTeachingId)?.point
+        ? state.teachingMarkers.find((m) => m.id === state.activeTeachingId)
+            ?.point
         : undefined,
       state.showGuidance,
       !state.fixedView && state.cameraClose,
@@ -207,7 +231,8 @@ function TacticalScenePitch({
         interactive:
           state.interactive &&
           !state.freeMovement &&
-          (!state.selectablePlayerIds || state.selectablePlayerIds.includes(id)),
+          (!state.selectablePlayerIds ||
+            state.selectablePlayerIds.includes(id)),
       });
     });
     if (state.showGuidance)
@@ -233,7 +258,10 @@ function TacticalScenePitch({
       element.style.left = `${point.x}px`;
       element.style.top = `${point.y}px`;
       element.hidden =
-        point.x < 12 || point.x > hostWidth - 12 || point.y < 12 || point.y > hostHeight - 12;
+        point.x < 12 ||
+        point.x > hostWidth - 12 ||
+        point.y < 12 ||
+        point.y > hostHeight - 12;
       const line = labelLeaders.current.get(id);
       line?.setAttribute("x1", String(label.anchor.x));
       line?.setAttribute("y1", String(label.anchor.y));
@@ -243,8 +271,12 @@ function TacticalScenePitch({
       dot?.setAttribute("cx", String(label.anchor.x));
       dot?.setAttribute("cy", String(label.anchor.y));
     };
-    playerLabels.current.forEach((element, id) => syncLabel(element, `player:${id}`));
-    destinationLabels.current.forEach((element, id) => syncLabel(element, `destination:${id}`));
+    playerLabels.current.forEach((element, id) =>
+      syncLabel(element, `player:${id}`),
+    );
+    destinationLabels.current.forEach((element, id) =>
+      syncLabel(element, `destination:${id}`),
+    );
     if (ballLabel.current) {
       const p = api.project(liveFrame.ballVisual, liveFrame.ballHeight);
       ballLabel.current.style.left = `${p.x}px`;
@@ -303,7 +335,12 @@ function TacticalScenePitch({
     void import("./pitchScene")
       .then(async ({ createPitchScene }) => {
         if (cancelled) return;
-        api = await createPitchScene(element, scenario.players, fail, controller.signal);
+        api = await createPitchScene(
+          element,
+          scenario.players,
+          fail,
+          controller.signal,
+        );
         if (cancelled || failed) {
           api.dispose();
           return;
@@ -367,7 +404,9 @@ function TacticalScenePitch({
       cancelAnimationFrame(handle);
     };
   }, [playing, frameSource, status]);
-  const selectPoint = (event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">) => {
+  const selectPoint = (
+    event: Pick<MouseEvent<HTMLDivElement>, "clientX" | "clientY">,
+  ) => {
     if (!interactive || status !== "ready") return;
     const api = scene.current;
     if (!host.current) return;
@@ -375,12 +414,18 @@ function TacticalScenePitch({
     const x = event.clientX - bounds.left,
       y = event.clientY - bounds.top;
     const nearest = scenario.players
-      .filter((player) => !selectablePlayerIds || selectablePlayerIds.includes(player.id))
+      .filter(
+        (player) =>
+          !selectablePlayerIds || selectablePlayerIds.includes(player.id),
+      )
       .map((player) => {
         const point = frame.positions.get(player.id)!;
         const p = api
           ? api.project(point, 7.5)
-          : { x: (point.x / 100) * bounds.width, y: (point.y / 140) * bounds.height };
+          : {
+              x: (point.x / 100) * bounds.width,
+              y: (point.y / 140) * bounds.height,
+            };
         return { player, distance: Math.hypot(p.x - x, p.y - y) };
       })
       .sort((a, b) => a.distance - b.distance)[0];
@@ -476,7 +521,9 @@ function TacticalScenePitch({
                 <div
                   key={i}
                   className={
-                    highlightGood ? "bwiq-highlight bwiq-highlight--good" : "bwiq-highlight"
+                    highlightGood
+                      ? "bwiq-highlight bwiq-highlight--good"
+                      : "bwiq-highlight"
                   }
                   ref={(element) => {
                     if (element) highlightLabels.current.set(i, element);
@@ -484,10 +531,17 @@ function TacticalScenePitch({
                   }}
                   style={
                     status !== "ready"
-                      ? { left: `${point.x}%`, top: `${(point.y / 140) * 100}%` }
+                      ? {
+                          left: `${point.x}%`,
+                          top: `${(point.y / 140) * 100}%`,
+                        }
                       : { left: p!.x, top: p!.y }
                   }
-                  aria-label={highlightGood ? "Miejsce stworzenia przewagi" : "Miejsce do poprawy"}
+                  aria-label={
+                    highlightGood
+                      ? "Miejsce stworzenia przewagi"
+                      : "Miejsce do poprawy"
+                  }
                 />
               ) : null;
             })}
@@ -497,7 +551,10 @@ function TacticalScenePitch({
                 key={marker.id}
                 style={
                   status !== "ready"
-                    ? { left: `${marker.point.x}%`, top: `${(marker.point.y / 140) * 100}%` }
+                    ? {
+                        left: `${marker.point.x}%`,
+                        top: `${(marker.point.y / 140) * 100}%`,
+                      }
                     : undefined
                 }
                 ref={(element) => {
@@ -562,7 +619,8 @@ function TacticalScenePitch({
                       ? {
                           left: `${frame.positions.get(player.id)?.x ?? player.x}%`,
                           top: `${((frame.positions.get(player.id)?.y ?? player.y) / 140) * 100}%`,
-                          background: player.team === "home" ? "#44a6d8" : "#ecebe2",
+                          background:
+                            player.team === "home" ? "#44a6d8" : "#ecebe2",
                           borderRadius: "50%",
                         }
                       : undefined
@@ -582,7 +640,11 @@ function TacticalScenePitch({
                   aria-label={`Zawodnik ${player.number}, ${player.role}${player.controlled ? ", Ty" : ""}${frame.ballCarrierId === player.id && !frame.ballInFlight ? ", z piłką" : ""}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    if (interactive && (mode === "carry" || freeMovement) && event.detail > 0)
+                    if (
+                      interactive &&
+                      (mode === "carry" || freeMovement) &&
+                      event.detail > 0
+                    )
                       selectPoint(event);
                     else onPlayerSelect(player);
                   }}
@@ -590,7 +652,11 @@ function TacticalScenePitch({
                   <span>{player.controlled ? "TY" : player.number}</span>
                 </button>
               ))}
-            <div ref={ballLabel} className="bwiq-ball-marker" aria-label="Piłka">
+            <div
+              ref={ballLabel}
+              className="bwiq-ball-marker"
+              aria-label="Piłka"
+            >
               <span />
             </div>
             {showGuidance &&
@@ -626,7 +692,8 @@ function TacticalScenePitch({
                 type="button"
                 className="bwiq-destination"
                 ref={(element) => {
-                  if (element) destinationLabels.current.set(destination.id, element);
+                  if (element)
+                    destinationLabels.current.set(destination.id, element);
                   else destinationLabels.current.delete(destination.id);
                 }}
                 aria-label={destination.label}

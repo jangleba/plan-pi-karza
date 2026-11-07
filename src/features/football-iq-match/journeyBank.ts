@@ -1,3 +1,4 @@
+import { LIVE_BANK_VERSION } from "./liveLesson";
 import type {
   IQPosition,
   IQRole,
@@ -6,8 +7,14 @@ import type {
   JourneyPattern,
 } from "./journeyTypes";
 import { journeyExpansion } from "./journeyExpansion";
-import { advancedJourneyBank, ADVANCED_JOURNEY_BANK_VERSION } from "./advancedJourneyBank";
-import { TACTICAL_BANK_VERSION, LEGACY_TACTICAL_BANK_VERSION } from "./tacticalWorld";
+import {
+  advancedJourneyBank,
+  ADVANCED_JOURNEY_BANK_VERSION,
+} from "./advancedJourneyBank";
+import {
+  TACTICAL_BANK_VERSION,
+  LEGACY_TACTICAL_BANK_VERSION,
+} from "./tacticalWorld";
 
 export const JOURNEY_BANK_VERSION = "2026-10-31.4";
 export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
@@ -18,6 +25,7 @@ export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
   ADVANCED_JOURNEY_BANK_VERSION,
   LEGACY_TACTICAL_BANK_VERSION,
   TACTICAL_BANK_VERSION,
+  LIVE_BANK_VERSION,
 ];
 export const roleLabels: Record<IQRole, string> = {
   gk: "Bramkarz",
@@ -93,8 +101,16 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "keeper-sweep",
       "Zmień pozycję razem z piłką bez odsłonięcia środka bramki.",
     ],
-    ["Samotny napastnik w głębi", "keeper-sweep", "Oceń głębię przed decyzją o wyjściu."],
-    ["Odbiór i pierwsze podanie", "keeper-sweep", "Po przejęciu poszukaj partnera poza naciskiem."],
+    [
+      "Samotny napastnik w głębi",
+      "keeper-sweep",
+      "Oceń głębię przed decyzją o wyjściu.",
+    ],
+    [
+      "Odbiór i pierwsze podanie",
+      "keeper-sweep",
+      "Po przejęciu poszukaj partnera poza naciskiem.",
+    ],
     [
       "Uspokój rozegranie",
       "keeper-build",
@@ -107,8 +123,16 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "build",
       "Wyciągnij napastnika i otwórz drogę za pressing.",
     ],
-    ["Prowadzenie otwiera linię", "counter", "Wprowadź piłkę w wolny korytarz przed podaniem."],
-    ["Przez trzeciego zawodnika", "third", "Po odegraniu przygotuj się na następne podanie."],
+    [
+      "Prowadzenie otwiera linię",
+      "counter",
+      "Wprowadź piłkę w wolny korytarz przed podaniem.",
+    ],
+    [
+      "Przez trzeciego zawodnika",
+      "third",
+      "Po odegraniu przygotuj się na następne podanie.",
+    ],
     [
       "Powrót i zmiana strony",
       "build",
@@ -119,7 +143,11 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "receive",
       "Otwórz partnerowi kąt wyjścia z pressingu przy linii.",
     ],
-    ["Wyjdź czy zabezpiecz głębię", "cover", "Oceń zagrożenie za plecami przed wyjściem z linii."],
+    [
+      "Wyjdź czy zabezpiecz głębię",
+      "cover",
+      "Oceń zagrożenie za plecami przed wyjściem z linii.",
+    ],
     [
       "Asekuracja partnera",
       "recover",
@@ -130,7 +158,11 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "cover",
       "Zamknij korytarz podania bez porzucania asekuracji.",
     ],
-    ["Odcięcie napastnika", "press", "Zbliż się tak, aby ograniczyć grę do przodu."],
+    [
+      "Odcięcie napastnika",
+      "press",
+      "Zbliż się tak, aby ograniczyć grę do przodu.",
+    ],
     [
       "Pierwsza decyzja po odbiorze",
       "recover",
@@ -143,42 +175,98 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "build",
       "Współpracuj ze środkiem zamiast prowadzić w zamknięty korytarz.",
     ],
-    ["Obiegnięcie skrzydłowego", "wide", "Zbuduj przewagę ruchem po zewnętrznej stronie."],
-    ["Wejście do środka", "third", "Zaproponuj podanie wewnątrz i zwolnij szeroki korytarz."],
-    ["Dwa na jednego przy linii", "wide", "Zwiąż rywala i wybierz moment oddania piłki."],
-    ["Podanie za linię i kontynuacja", "receive", "Po zagraniu zapewnij partnerowi kolejną opcję."],
-    ["Dalszy słupek bez piłki", "recover", "Ustaw się pomiędzy rywalem a własną bramką."],
+    [
+      "Obiegnięcie skrzydłowego",
+      "wide",
+      "Zbuduj przewagę ruchem po zewnętrznej stronie.",
+    ],
+    [
+      "Wejście do środka",
+      "third",
+      "Zaproponuj podanie wewnątrz i zwolnij szeroki korytarz.",
+    ],
+    [
+      "Dwa na jednego przy linii",
+      "wide",
+      "Zwiąż rywala i wybierz moment oddania piłki.",
+    ],
+    [
+      "Podanie za linię i kontynuacja",
+      "receive",
+      "Po zagraniu zapewnij partnerowi kolejną opcję.",
+    ],
+    [
+      "Dalszy słupek bez piłki",
+      "recover",
+      "Ustaw się pomiędzy rywalem a własną bramką.",
+    ],
     [
       "Skrzydłowy schodzi do środka",
       "cover",
       "Chroń wewnętrzny korytarz, obserwując ruch partnera.",
     ],
-    ["Pressing przy linii", "press", "Doskocz z asekuracją, ograniczając wyjście do środka."],
-    ["Powrót po stracie", "recover", "Najpierw odzyskaj pozycję chroniącą głębię."],
-    ["Wahadłowy w kontrataku", "counter", "Po odbiorze wybierz szerokość albo podanie do przodu."],
+    [
+      "Pressing przy linii",
+      "press",
+      "Doskocz z asekuracją, ograniczając wyjście do środka.",
+    ],
+    [
+      "Powrót po stracie",
+      "recover",
+      "Najpierw odzyskaj pozycję chroniącą głębię.",
+    ],
+    [
+      "Wahadłowy w kontrataku",
+      "counter",
+      "Po odbiorze wybierz szerokość albo podanie do przodu.",
+    ],
   ],
   six: [
-    ["Wyjdź z cienia napastnika", "third", "Zmień kąt względem piłki i kryjącego rywala."],
+    [
+      "Wyjdź z cienia napastnika",
+      "third",
+      "Zmień kąt względem piłki i kryjącego rywala.",
+    ],
     [
       "Przyjęcie między pierwszą linią",
       "receive",
       "Przygotuj miejsce na dalszą grę przed otrzymaniem piłki.",
     ],
-    ["Gra na trzeciego pod presją", "third", "Odegraj i pokaż się za naciskającym rywalem."],
-    ["Zmiana strony przez środek", "build", "Rozpoznaj stronę z większą przestrzenią."],
+    [
+      "Gra na trzeciego pod presją",
+      "third",
+      "Odegraj i pokaż się za naciskającym rywalem.",
+    ],
+    [
+      "Zmiana strony przez środek",
+      "build",
+      "Rozpoznaj stronę z większą przestrzenią.",
+    ],
     [
       "Wprowadź piłkę po odbiorze",
       "counter",
       "Wykorzystaj wolny korytarz, zanim obrona się ustawi.",
     ],
-    ["Zabezpieczenie ataku", "cover", "Pozostań w miejscu ograniczającym pierwsze podanie kontry."],
+    [
+      "Zabezpieczenie ataku",
+      "cover",
+      "Pozostań w miejscu ograniczającym pierwsze podanie kontry.",
+    ],
     [
       "Zamknij podanie do dziesiątki",
       "recover",
       "Przesuwaj się razem z piłką i osłoń grę między liniami.",
     ],
-    ["Doskocz czy osłoń stoperów", "cover", "Porównaj nacisk na piłkę z ryzykiem otwarcia środka."],
-    ["Kontrpressing w środku", "press", "Zamknij najbliższe wyjście rywala po stracie."],
+    [
+      "Doskocz czy osłoń stoperów",
+      "cover",
+      "Porównaj nacisk na piłkę z ryzykiem otwarcia środka.",
+    ],
+    [
+      "Kontrpressing w środku",
+      "press",
+      "Zamknij najbliższe wyjście rywala po stracie.",
+    ],
     [
       "Druga piłka przed obroną",
       "recover",
@@ -186,12 +274,36 @@ const topics: Record<IQRole, readonly Topic[]> = {
     ],
   ],
   eight: [
-    ["Wyciągnij pressing", "build", "Zagraj, rusz za rywala i wykorzystaj nową linię podania."],
-    ["Trzeci zawodnik w półprzestrzeni", "third", "Przygotuj się na podanie przez partnera."],
-    ["Zmiana strony i wbiegnięcie", "build", "Po przeniesieniu gry znajdź kolejną rolę bez piłki."],
-    ["Przyjęcie przodem do gry", "receive", "Wyjdź poza cień krycia przed otrzymaniem piłki."],
-    ["Wejście z drugiej linii", "finish", "Dopasuj wbiegnięcie do położenia piłki i obrońców."],
-    ["Partner pod presją przy linii", "third", "Zaproponuj podanie pod odpowiednim kątem."],
+    [
+      "Wyciągnij pressing",
+      "build",
+      "Zagraj, rusz za rywala i wykorzystaj nową linię podania.",
+    ],
+    [
+      "Trzeci zawodnik w półprzestrzeni",
+      "third",
+      "Przygotuj się na podanie przez partnera.",
+    ],
+    [
+      "Zmiana strony i wbiegnięcie",
+      "build",
+      "Po przeniesieniu gry znajdź kolejną rolę bez piłki.",
+    ],
+    [
+      "Przyjęcie przodem do gry",
+      "receive",
+      "Wyjdź poza cień krycia przed otrzymaniem piłki.",
+    ],
+    [
+      "Wejście z drugiej linii",
+      "finish",
+      "Dopasuj wbiegnięcie do położenia piłki i obrońców.",
+    ],
+    [
+      "Partner pod presją przy linii",
+      "third",
+      "Zaproponuj podanie pod odpowiednim kątem.",
+    ],
     [
       "Kontra przez środkowy korytarz",
       "counter",
@@ -202,12 +314,28 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "recover",
       "Chroń przestrzeń i obserwuj gracza wchodzącego w Twoją strefę.",
     ],
-    ["Doskok po stracie", "press", "Wybierz kierunek nacisku zamykający progresję."],
-    ["Asekuruj boczny sektor", "cover", "Uzupełnij miejsce po partnerze bez otwarcia środka."],
+    [
+      "Doskok po stracie",
+      "press",
+      "Wybierz kierunek nacisku zamykający progresję.",
+    ],
+    [
+      "Asekuruj boczny sektor",
+      "cover",
+      "Uzupełnij miejsce po partnerze bez otwarcia środka.",
+    ],
   ],
   ten: [
-    ["Między liniami", "receive", "Daj się znaleźć poza zasięgiem kryjącego pomocnika."],
-    ["Odegranie i obrót akcji", "third", "Wykorzystaj partnera do wyjścia z nacisku."],
+    [
+      "Między liniami",
+      "receive",
+      "Daj się znaleźć poza zasięgiem kryjącego pomocnika.",
+    ],
+    [
+      "Odegranie i obrót akcji",
+      "third",
+      "Wykorzystaj partnera do wyjścia z nacisku.",
+    ],
     [
       "Ostatnie podanie czy kontynuacja",
       "finish",
@@ -218,12 +346,36 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "third",
       "Po podaniu zajmij przestrzeń otwartą przez ruch dziewiątki.",
     ],
-    ["Wbiegnięcie po zmianie strony", "finish", "Wybierz wolny korytarz po przesunięciu obrony."],
-    ["Kontra trzy na dwa", "counter", "Zwiąż obrońcę i uwolnij partnera podaniem."],
-    ["Zejście po piłkę", "receive", "Podejdź tak, aby zachować możliwość gry do przodu."],
-    ["Nacisk na szóstkę rywala", "press", "Zamknij podanie do środka podczas doskoku."],
-    ["Powrót do bloku", "cover", "Po nieudanym nacisku odzyskaj osłonę środkowego sektora."],
-    ["Odbiór między liniami", "recover", "Przejmij piłkę i od razu przygotuj następną akcję."],
+    [
+      "Wbiegnięcie po zmianie strony",
+      "finish",
+      "Wybierz wolny korytarz po przesunięciu obrony.",
+    ],
+    [
+      "Kontra trzy na dwa",
+      "counter",
+      "Zwiąż obrońcę i uwolnij partnera podaniem.",
+    ],
+    [
+      "Zejście po piłkę",
+      "receive",
+      "Podejdź tak, aby zachować możliwość gry do przodu.",
+    ],
+    [
+      "Nacisk na szóstkę rywala",
+      "press",
+      "Zamknij podanie do środka podczas doskoku.",
+    ],
+    [
+      "Powrót do bloku",
+      "cover",
+      "Po nieudanym nacisku odzyskaj osłonę środkowego sektora.",
+    ],
+    [
+      "Odbiór między liniami",
+      "recover",
+      "Przejmij piłkę i od razu przygotuj następną akcję.",
+    ],
   ],
   wing: [
     [
@@ -231,17 +383,41 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "wide",
       "Rozpoznaj ustawienie drugiego obrońcy przed wejściem w drybling.",
     ],
-    ["Środek czy linia", "wide", "Wybierz przestrzeń w zależności od kierunku nacisku."],
-    ["Współpraca z bocznym obrońcą", "third", "Oddaj piłkę i wykorzystaj ruch partnera."],
-    ["Za plecami bocznego obrońcy", "receive", "Zmień pozycję, gdy partner otworzy linię podania."],
-    ["Dalszy słupek w ataku", "finish", "Zajmij wolny korytarz zamiast podążać za piłką."],
-    ["Cofnięte podanie", "finish", "Oceń miejsce na zakończenie i partnera przed polem karnym."],
+    [
+      "Środek czy linia",
+      "wide",
+      "Wybierz przestrzeń w zależności od kierunku nacisku.",
+    ],
+    [
+      "Współpraca z bocznym obrońcą",
+      "third",
+      "Oddaj piłkę i wykorzystaj ruch partnera.",
+    ],
+    [
+      "Za plecami bocznego obrońcy",
+      "receive",
+      "Zmień pozycję, gdy partner otworzy linię podania.",
+    ],
+    [
+      "Dalszy słupek w ataku",
+      "finish",
+      "Zajmij wolny korytarz zamiast podążać za piłką.",
+    ],
+    [
+      "Cofnięte podanie",
+      "finish",
+      "Oceń miejsce na zakończenie i partnera przed polem karnym.",
+    ],
     [
       "Kontra szerokim sektorem",
       "counter",
       "Utrzymaj szerokość i wybierz moment przyspieszenia akcji.",
     ],
-    ["Pressing na bocznego obrońcę", "press", "Naciskaj, odcinając proste wyjście do środka."],
+    [
+      "Pressing na bocznego obrońcę",
+      "press",
+      "Naciskaj, odcinając proste wyjście do środka.",
+    ],
     [
       "Powrót za wbiegającym partnerem rywala",
       "recover",
@@ -254,15 +430,31 @@ const topics: Record<IQRole, readonly Topic[]> = {
     ],
   ],
   nine: [
-    ["Zejście i ruch za linię", "third", "Po odegraniu zmień wysokość i kierunek ruchu."],
-    ["Wbiegnięcie między stoperów", "finish", "Wybierz przestrzeń pomiędzy obrońcami."],
-    ["Odciągnij stopera", "receive", "Zmień pozycję, otwierając miejsce dla następnej akcji."],
+    [
+      "Zejście i ruch za linię",
+      "third",
+      "Po odegraniu zmień wysokość i kierunek ruchu.",
+    ],
+    [
+      "Wbiegnięcie między stoperów",
+      "finish",
+      "Wybierz przestrzeń pomiędzy obrońcami.",
+    ],
+    [
+      "Odciągnij stopera",
+      "receive",
+      "Zmień pozycję, otwierając miejsce dla następnej akcji.",
+    ],
     [
       "Bliższy czy dalszy korytarz",
       "finish",
       "Dopasuj ruch do kierunku podania i ustawienia obrońcy.",
     ],
-    ["Gra tyłem i odegranie", "third", "Po przyjęciu pod presją wykorzystaj partnera."],
+    [
+      "Gra tyłem i odegranie",
+      "third",
+      "Po przyjęciu pod presją wykorzystaj partnera.",
+    ],
     [
       "Trzy na dwa w kontrze",
       "counter",
@@ -273,7 +465,11 @@ const topics: Record<IQRole, readonly Topic[]> = {
       "finish",
       "Poczekaj na otwarcie przestrzeni zamiast zajmować ją za wcześnie.",
     ],
-    ["Zamknij grę między stoperami", "press", "Skieruj nacisk tak, aby ograniczyć zmianę strony."],
+    [
+      "Zamknij grę między stoperami",
+      "press",
+      "Skieruj nacisk tak, aby ograniczyć zmianę strony.",
+    ],
     ["Odetnij szóstkę", "cover", "Utrzymuj przeciwnika w cieniu nacisku."],
     [
       "Odbiór po podaniu wstecz",
@@ -285,9 +481,14 @@ const topics: Record<IQRole, readonly Topic[]> = {
 const contexts = [
   { label: "Pierwszy doskok", cue: "Rywal rusza do piłki." },
   { label: "Zamknięty korytarz", cue: "Rywal osłania najkrótsze podanie." },
-  { label: "Zmiana ustawienia", cue: "Partner i rywal zmieniają swoje pozycje." },
+  {
+    label: "Zmiana ustawienia",
+    cue: "Partner i rywal zmieniają swoje pozycje.",
+  },
 ] as const;
-const originalBank: JourneyDefinition[] = (Object.keys(topics) as IQRole[]).flatMap((role) =>
+const originalBank: JourneyDefinition[] = (
+  Object.keys(topics) as IQRole[]
+).flatMap((role) =>
   topics[role].flatMap(([title, pattern, focus], ordinal) =>
     contexts.map((context, variant) => ({
       id: `iqj-${role}-${String(ordinal + 1).padStart(2, "0")}-${variant}`,
@@ -304,9 +505,18 @@ const originalBank: JourneyDefinition[] = (Object.keys(topics) as IQRole[]).flat
   ),
 );
 // Existing IDs and routes stay stable so old attempts reproduce exactly.
-export const journeyBank: JourneyDefinition[] = [...originalBank, ...journeyExpansion];
-export const iqScenarioBank: JourneyDefinition[] = [...advancedJourneyBank, ...journeyBank];
-export const journeyTopicCount = new Set(journeyBank.map((s) => s.topicId)).size;
-export function scenariosForRoles(roles: readonly IQRole[]): JourneyDefinition[] {
+export const journeyBank: JourneyDefinition[] = [
+  ...originalBank,
+  ...journeyExpansion,
+];
+export const iqScenarioBank: JourneyDefinition[] = [
+  ...advancedJourneyBank,
+  ...journeyBank,
+];
+export const journeyTopicCount = new Set(journeyBank.map((s) => s.topicId))
+  .size;
+export function scenariosForRoles(
+  roles: readonly IQRole[],
+): JourneyDefinition[] {
   return journeyBank.filter((s) => roles.includes(s.role));
 }
