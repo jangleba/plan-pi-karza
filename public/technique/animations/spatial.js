@@ -545,7 +545,7 @@
       const j = sp.joints[side],
         far = sign < 0,
         legSvg =
-          G.limb(P(j.hip), P(j.knee), P(j.ankle), G.LEG) +
+          G.limb(P(j.hip), P(j.knee), P(j.ankle), G.LEG, true) +
           G.muscleLines(P(j.hip), P(j.knee), P(j.ankle), "leg", far, s, side);
       layer(
         mix(j.hip, j.ankle, 0.48),
@@ -563,7 +563,7 @@
           "</g>",
       );
       const armSvg =
-        G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), G.ARM) +
+        G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), G.ARM, true) +
         G.muscleLines(P(j.shoulder), P(j.elbow), P(j.wrist), "arm", far, s, side);
       layer(
         mix(j.shoulder, j.wrist, 0.55),

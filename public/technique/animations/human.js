@@ -151,28 +151,32 @@
     );
   }
   const ease = (t) => t * t * (3 - 2 * t);
-  /** One body segment as a rounded, muscle-shaped capsule. The radius eases
-   * from r0 to its widest point and down to r1 with zero slope at both ends,
-   * so the semicircular caps join the sides without a kink. Two segments that
-   * meet at a joint overlap in round caps, which reads as a natural knee or
-   * elbow at any bend instead of a pinched fold. */
-  function segment(a, b, r0, rm, tm, r1, skew = 0) {
+  /** One body segment shaped by anatomical knots [t, front, back]: the
+   * half-width in front of (anterior, -normal) and behind (posterior,
+   * +normal) the bone line at fraction t. Widths ease between knots with zero
+   * slope, and both ends close in round caps, so two segments overlapping at
+   * a joint read as a natural knee or elbow at any bend. `symmetric` averages
+   * front and back for views where the limb faces the camera. */
+  function segment(a, b, knots, symmetric = false) {
     const u = unit(a, b),
       n = normal(u),
-      radius = (t) =>
-        t < tm ? r0 + (rm - r0) * ease(t / tm) : rm + (r1 - rm) * ease((t - tm) / (1 - tm));
-    const steps = 6,
-      left = [],
-      right = [];
+      ks = symmetric ? knots.map(([t, f, k]) => [t, (f + k) / 2, (f + k) / 2]) : knots;
+    const at = (t, side) => {
+      let i = 0;
+      while (i < ks.length - 2 && t > ks[i + 1][0]) i++;
+      const [t0, ...r0] = ks[i],
+        [t1, ...r1] = ks[i + 1],
+        e = ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
+      return r0[side] + (r1[side] - r0[side]) * e;
+    };
+    const steps = 10,
+      back = [],
+      front = [];
     for (let i = 0; i <= steps; i++) {
       const t = i / steps,
-        c = mix(a, b, t),
-        r = radius(t),
-        // Muscle belly sits more on one side: +n is posterior (calf,
-        // hamstrings), -n anterior (quadriceps, forearm flexors).
-        bump = skew * (t < tm ? ease(t / tm) : 1 - ease((t - tm) / (1 - tm)));
-      left.push(add(c, scale(n, r + bump)));
-      right.push(add(c, scale(n, -r + bump)));
+        c = mix(a, b, t);
+      back.push(add(c, scale(n, at(t, 1))));
+      front.push(add(c, scale(n, -at(t, 0))));
     }
     const side = (ps) => {
       let d = "";
@@ -185,18 +189,32 @@
       }
       return d;
     };
-    const arc = (r, to) => `A${fmt(r)},${fmt(r)} 0 0 0 ${xy(to)}`;
+    // Caps: a half circle spanning the front and back edge at each end.
+    const cap = (p, q, dir) => {
+      const r = Math.hypot(q[0] - p[0], q[1] - p[1]) / 2,
+        tip = add(mix(p, q, 0.5), scale(dir, r));
+      return `A${fmt(r)},${fmt(r)} 0 0 0 ${xy(tip)}A${fmt(r)},${fmt(r)} 0 0 0 ${xy(q)}`;
+    };
     return path(
-      `M${xy(left[0])}${side(left)}${arc(r1, add(b, scale(u, r1)))}${arc(r1, right[steps])}${side(right.slice().reverse())}${arc(r0, add(a, scale(u, -r0)))}${arc(r0, left[0])}Z`,
+      `M${xy(back[0])}${side(back)}${cap(back[steps], front[steps], u)}${side(front.slice().reverse())}${cap(front[0], back[0], scale(u, -1))}Z`,
     );
   }
-  /** Upper and lower limb segments; widths are half-widths in figure units. */
-  function limb(a, b, c, width, skew = [0, 0]) {
-    return (
-      segment(a, b, width.root, width.upper, 0.3, width.joint, skew[0]) +
-      segment(b, c, width.joint * 1.04, width.lower, 0.28, width.end, skew[1])
-    );
+  /** Average half-width of a profile at fraction t (front views). */
+  function widthAt(knots, t) {
+    let i = 0;
+    while (i < knots.length - 2 && t > knots[i + 1][0]) i++;
+    const [t0, f0, b0] = knots[i],
+      [t1, f1, b1] = knots[i + 1],
+      e = ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
+    return (f0 + b0 + (f1 + b1 - f0 - b0) * e) / 2;
   }
+  /** Upper and lower limb segments from an anatomical profile. */
+  function limb(a, b, c, profile, symmetric = false) {
+    return segment(a, b, profile.upper, symmetric) + segment(b, c, profile.lower, symmetric);
+  }
+  /** A point on a segment: fraction t along it, `off` units behind (+) or in
+   * front (-) of the bone line. */
+  const onSegment = (a, b, t, off) => add(mix(a, b, t), scale(normal(unit(a, b)), off));
 
   const colours = {
     skin: "#fff",
@@ -477,8 +495,38 @@
     };
   }
   // Half-widths: thigh, knee, calf and ankle (or upper arm, elbow, forearm, wrist).
-  const LEG = { root: 10, upper: 12.2, joint: 7, lower: 8.4, end: 4.3 };
-  const ARM = { root: 6.6, upper: 7, joint: 4.4, lower: 5.2, end: 3 };
+  // Half-widths [t, front, back] from typical adult proportions.
+  const LEG = {
+    upper: [
+      [0, 9.6, 11.4],
+      [0.16, 11.6, 11.6],
+      [0.42, 12, 10],
+      [0.76, 9.6, 8],
+      [1, 7, 6.6],
+    ],
+    lower: [
+      [0, 6.9, 6.8],
+      [0.2, 6.6, 8.8],
+      [0.42, 6.1, 7.8],
+      [0.78, 4.3, 4.4],
+      [1, 3.8, 4.1],
+    ],
+  };
+  const ARM = {
+    upper: [
+      [0, 7.4, 7.4],
+      [0.18, 7.6, 7],
+      [0.42, 5.5, 5.6],
+      [0.66, 6.2, 5.9],
+      [1, 4.4, 4.6],
+    ],
+    lower: [
+      [0, 4.6, 4.5],
+      [0.26, 5.9, 5],
+      [0.72, 3.9, 3.6],
+      [1, 3, 2.8],
+    ],
+  };
   // Foot outline around the ankle centre: x forward, y down, sole at y=10.2.
   const FOOT = [
     [-4.2, -4],
@@ -526,6 +574,41 @@
     }
     return floor;
   }
+  /** Anatomy lines on a side-view leg: quadriceps separation, the teardrop
+   * of the inner quad above the knee, hamstring edge, calf and shin. */
+  function legLines(hip, knee, ankle) {
+    const T = (t, off) => onSegment(hip, knee, t, off),
+      S = (t, off) => onSegment(knee, ankle, t, off);
+    return [
+      [T(0.2, -5.6), T(0.5, -6.8), T(0.8, -4.6)],
+      [T(0.74, -9.6), T(0.88, -8.4), T(0.96, -5.6)],
+      [T(0.3, 6.4), T(0.55, 6.8), T(0.78, 5)],
+      [S(0.1, 6.2), S(0.32, 6.6), S(0.52, 3.6)],
+      [S(0.18, -3.4), S(0.5, -3.2), S(0.84, -2.4)],
+    ];
+  }
+  /** Front view: the inner contour of a leg, which would otherwise vanish
+   * where both legs merge into one silhouette below the pelvis. */
+  function innerLeg(hip, knee, ankle, medial) {
+    if (!medial) return [];
+    const T = (t) => onSegment(hip, knee, t, medial * widthAt(LEG.upper, t)),
+      S = (t) => onSegment(knee, ankle, t, medial * widthAt(LEG.lower, t));
+    return [
+      [T(0.2), T(0.45), T(0.7), T(0.95)],
+      [S(0.05), S(0.3), S(0.6), S(0.9)],
+    ];
+  }
+  /** Anatomy lines on a side-view arm: the deltoid's lower border, the
+   * biceps/triceps groove and the forearm flexor edge. */
+  function armLines(shoulder, elbow, wrist) {
+    const U = (t, off) => onSegment(shoulder, elbow, t, off),
+      F = (t, off) => onSegment(elbow, wrist, t, off);
+    return [
+      [U(0.08, -6.4), U(0.3, -3.6), U(0.44, 0), U(0.3, 3.8), U(0.1, 6.2)],
+      [U(0.52, 0.6), U(0.7, 0.8), U(0.88, 0.4)],
+      [F(0.12, -1.8), F(0.4, -1.6), F(0.66, -0.6)],
+    ];
+  }
   /** Inner elbow crease, only once the elbow is visibly bent. */
   function elbowCrease(shoulder, elbow, wrist) {
     if (flexion(shoulder, elbow, wrist) < 25) return null;
@@ -569,11 +652,36 @@
     return shin + sign * clamped;
   }
   /** Bare anatomical foot: heel, arch, ball and toes in one smooth contour. */
-  function shoe(l, far = false) {
+  // Foot seen from the front: ankle, instep and toes foreshortened.
+  const FOOT_FRONT = [
+    [-3.8, -3],
+    [-4.4, 3],
+    [-6, 7.6],
+    [-5.2, 10.2],
+    [5.2, 10.2],
+    [6, 7.6],
+    [4.4, 3],
+    [3.8, -3],
+  ];
+  const FOOT_FRONT_LINES = [
+    [
+      [-2.6, 8],
+      [-2.8, 10],
+    ],
+    [
+      [0, 8.2],
+      [0, 10.1],
+    ],
+    [
+      [2.6, 8],
+      [2.8, 10],
+    ],
+  ];
+  function shoe(l, far = false, front = false) {
     return (
-      `<g class="bw-human-shoe bw-human-foot" transform="translate(${xy(l.ankle)}) rotate(${fmt(footAngle(l))})" fill="${colours.shoe}">` +
-      path(smoothClosed(FOOT)) +
-      details(FOOT_LINES, far) +
+      `<g class="bw-human-shoe bw-human-foot" transform="translate(${xy(l.ankle)}) rotate(${fmt(front ? 0 : footAngle(l))})" fill="${colours.shoe}">` +
+      path(smoothClosed(front ? FOOT_FRONT : FOOT)) +
+      details(front ? FOOT_FRONT_LINES : FOOT_LINES, far) +
       "</g>"
     );
   }
@@ -581,7 +689,17 @@
     const l = scene[side],
       far = side === "left";
     let hip = l.hip ?? scene.hip,
-      knee = l.knee;
+      knee = l.knee,
+      medial = 0;
+    // Front view: each thigh starts at its own hip joint, not the pelvis
+    // centre, so the legs stay two legs instead of one merged column.
+    if (front && !l.hip) {
+      const other = scene[far ? "right" : "left"],
+        dx = l.knee[0] + l.ankle[0] - other.knee[0] - other.ankle[0],
+        sign = Math.abs(dx) > 0.5 ? Math.sign(dx) : far ? 1 : -1;
+      hip = add(scene.hip, rotate([sign * 6.8, 0], scene.torsoAngle ?? 0));
+      medial = sign;
+    }
     // Planted, straight-legged holds (plank, push-up, side plank, row) place
     // the far foot a few units over as a depth cue. Solving the far knee to
     // that shorter reach folded it through the floor, so draw the far leg as
@@ -604,10 +722,13 @@
     }
     return (
       `<g class="bw-human-leg bw-human-leg-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
-      limb(hip, knee, l.ankle, LEG, front ? [0, 0] : [-1.2, 2]) +
+      limb(hip, knee, l.ankle, LEG, front) +
+      (front
+        ? details(innerLeg(hip, knee, l.ankle, medial), far)
+        : details(legLines(hip, knee, l.ankle), far)) +
       muscleLines(hip, knee, l.ankle, "leg", far, scene, side) +
       (front ? "" : details([kneecap(hip, knee, l.ankle)].filter(Boolean), far)) +
-      shoe(l, far) +
+      shoe(l, far, front) +
       "</g>"
     );
   }
@@ -625,7 +746,8 @@
       root = flat ? [wrist[0] - 1, floor - 4] : wrist;
     return (
       `<g class="bw-human-arm bw-human-arm-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
-      limb(shoulder, elbow, wrist, ARM, front ? [0, 0] : [0.4, -0.7]) +
+      limb(shoulder, elbow, wrist, ARM, front) +
+      (front ? "" : details(armLines(shoulder, elbow, wrist), far)) +
       muscleLines(shoulder, elbow, wrist, "arm", far, scene, side) +
       details([elbowCrease(shoulder, elbow, wrist)].filter(Boolean), far) +
       handShape(root, axis, supported ? "open" : "fist", far) +
@@ -872,16 +994,71 @@
                 [10, -64.6],
                 [17, -62.6],
               ],
+              // Pectorals, linea alba, abdominal segments and the obliques'
+              // V toward the groin.
+              [
+                [-17, -52],
+                [-9, -44.6],
+                [-1.2, -46.6],
+              ],
+              [
+                [17, -52],
+                [9, -44.6],
+                [1.2, -46.6],
+              ],
               [
                 [0, -50],
-                [0, -38],
+                [0, -30],
+                [0, -12],
+              ],
+              [
+                [-7.6, -35],
+                [0, -34],
+                [7.6, -35],
+              ],
+              [
+                [-7.4, -26],
+                [0, -25],
+                [7.4, -26],
+              ],
+              [
+                [-13.4, -14],
+                [-8.6, -6],
+                [-3, 2],
+              ],
+              [
+                [13.4, -14],
+                [8.6, -6],
+                [3, 2],
               ],
             ]
           : [
+              // Clavicle, lower pectoral edge, lat edge from the armpit,
+              // the abdominal wall's outer border and the iliac crest.
               [
                 [9.6, -63.6],
                 [7.4, -61.6],
                 [3.8, -61.2],
+              ],
+              [
+                [15.2, -45.6],
+                [11, -44],
+                [6.4, -46.6],
+              ],
+              [
+                [-6.4, -54],
+                [-9.6, -42],
+                [-9, -30],
+              ],
+              [
+                [10.2, -38],
+                [7.6, -27],
+                [8.2, -14],
+              ],
+              [
+                [-8, -14.6],
+                [0, -13.2],
+                [7.6, -9],
               ],
             ],
         false,
@@ -933,7 +1110,7 @@
       'display="none" class="$1',
     );
     const fill = svg.replace(/stroke="(#7c8e9d|#344b5e)"/g, 'stroke="none"');
-    return `<g class="bw-silhouette-ink" stroke-width="2.3">${ink}</g><g class="bw-silhouette-fill" stroke="none">${fill}</g>`;
+    return `<g class="bw-silhouette-ink" stroke-width="1.9">${ink}</g><g class="bw-silhouette-fill" stroke="none">${fill}</g>`;
   }
   function draw(scene) {
     if (
@@ -976,6 +1153,9 @@
       footAngle,
       LEG,
       ARM,
+      onSegment,
+      legLines,
+      armLines,
       FOOT,
       FOOT_LINES,
       HEAD_SIDE,
@@ -994,7 +1174,7 @@
       trunkPath,
     },
     muscles,
-    style: "anatomical-outline-58",
-    version: 58,
+    style: "anatomical-outline-59",
+    version: 59,
   };
 })(typeof window === "object" ? window : globalThis);
