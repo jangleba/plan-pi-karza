@@ -72,12 +72,6 @@ export function parseCompletionNotes(raw: string): {
   };
 }
 
-export function composeCompletionNotes(notes: string, pain: number, legFatigue: number): string {
-  const safePain = Math.max(0, Math.min(10, Math.round(pain)));
-  const safeFatigue = Math.max(0, Math.min(10, Math.round(legFatigue)));
-  return `[Monitoring] pain=${safePain};legFatigue=${safeFatigue}\n${notes.trim()}`.trimEnd();
-}
-
 // Pierwsza linia: dawka + max jeden kwalifikator.
 export function compactPrescription(e: TrainingExercise): string {
   const display = e.displayPrescription?.trim();
