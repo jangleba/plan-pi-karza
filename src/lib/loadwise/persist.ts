@@ -10,12 +10,13 @@ function extractDistance(name: string, prescription: string): string | null {
   if (!/sprint|zryw|przyspiesz|bieg|tempo|lotne|odcin/i.test(name + prescription)) {
     return null;
   }
-  const total = prescription.match(/łącznie\s*(\d+)\s*m/i);
+  // "m" must be a standalone unit: "3 min" or "8–10 min" is a duration, not metres.
+  const total = prescription.match(/łącznie\s*(\d+)\s*m(?![a-ząćęłńóśźż])/i);
   if (total) return `${total[1]} m`;
   // np. "6 × 20 m"
-  const mult = prescription.match(/(\d+)\s*[×x]\s*(\d+)\s*m/i);
+  const mult = prescription.match(/(\d+)\s*[×x]\s*(\d+)\s*m(?![a-ząćęłńóśźż])/i);
   if (mult) return `${Number(mult[1]) * Number(mult[2])} m`;
-  const single = prescription.match(/(\d+)\s*m/i);
+  const single = prescription.match(/(\d+)\s*m(?![a-ząćęłńóśźż])/i);
   if (single) return `${single[1]} m`;
   return null;
 }

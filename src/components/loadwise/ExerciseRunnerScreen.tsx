@@ -132,7 +132,7 @@ export function ExerciseRunnerScreen({
   const [saving, setSaving] = useState(false);
   const [baselineError, setBaselineError] = useState<string | null>(null);
   const [progressionChoice, setProgressionChoice] = useState<"accepted" | "repeat" | null>(null);
-  const { state } = useLoadwise();
+  const { state, todayIso } = useLoadwise();
   const { user } = useAuth();
   const selectedContext = useRef<string | null>(null);
   const activeContext = useRef<string>("");
@@ -202,7 +202,7 @@ export function ExerciseRunnerScreen({
   const feedback = recentSessionFeedback(
     state.profile,
     state.completions,
-    sessionContext?.date ?? date ?? new Date().toISOString().slice(0, 10),
+    sessionContext?.date ?? date ?? todayIso,
     sessionId ?? undefined,
   );
   const recommendation = useMemo(
