@@ -46,6 +46,7 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
+import { OWN_EQUIPMENT_OPTIONS } from "@/lib/loadwise/equipmentOptions";
 import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -200,7 +201,7 @@ function ChoiceGrid<T extends string>({
 }
 
 function Onboarding() {
-  const { state, hydrated, completeOnboarding,profileSaveStage } = useLoadwise();
+  const { state, hydrated, completeOnboarding, profileSaveStage } = useLoadwise();
   const { user, loading, resendSignupConfirmation } = useAuth();
   const navigate = useNavigate();
   const { edit } = Route.useSearch();
@@ -208,7 +209,7 @@ function Onboarding() {
   const isEditing = Boolean(edit && existing?.onboardingComplete);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const submitBusy=useRef(false);
+  const submitBusy = useRef(false);
 
   // Require auth.
   useEffect(() => {
@@ -220,7 +221,7 @@ function Onboarding() {
     if (state.profile?.onboardingComplete && !edit && !busy) {
       navigate({ to: "/start", replace: true });
     }
-  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate,busy]);
+  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate, busy]);
 
   const metadataOwner =
     user?.user_metadata?.account_owner_type === "guardian" ? "guardian" : "athlete";
@@ -529,7 +530,7 @@ function Onboarding() {
       currentPitchFeelings: normalizeCurrentPitchFeelings(currentFeelings),
       desiredPitchFeelings: normalizeDesiredPitchFeelings(desiredFeelings),
     };
-    submitBusy.current=true;
+    submitBusy.current = true;
     setBusy(true);
     try {
       await completeOnboarding(profile, consents);
@@ -545,7 +546,7 @@ function Onboarding() {
           ?.trim() || "Nieznany błąd";
       toast.error(`Nie udało się zapisać. ${message}`);
     } finally {
-      submitBusy.current=false;
+      submitBusy.current = false;
       setBusy(false);
     }
   }
@@ -1063,6 +1064,29 @@ function Onboarding() {
                   <span className="text-sm">Mam bezpieczną ścianę lub odbojnik do podań</span>
                 </label>
                 <div className="rounded-xl border border-border bg-card p-3.5">
+                  <p className="text-sm font-medium">Sprzęt, który masz poza siłownią</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Plan dobierze ćwiczenia siłowe i piłkarskie do tego, co zaznaczysz.
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-1">
+                    {OWN_EQUIPMENT_OPTIONS.map((item) => (
+                      <label key={item} className="flex min-h-11 items-center gap-3 text-sm">
+                        <Checkbox
+                          checked={equipment.includes(item)}
+                          onCheckedChange={(checked) =>
+                            setEquipment((items) =>
+                              checked === true
+                                ? [...items.filter((value) => value !== item), item]
+                                : items.filter((value) => value !== item),
+                            )
+                          }
+                        />
+                        {item}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-3.5">
                   <Label htmlFor="double-sessions">Dwie sesje jednego dnia</Label>
                   <select
                     id="double-sessions"
@@ -1402,7 +1426,11 @@ function Onboarding() {
               handleSubmit();
             }}
           >
-            {busy ? (profileSaveStage?PROFILE_SAVE_LABELS[profileSaveStage]:"Przygotowuję zapis…") : "Zapisz i wygeneruj plan"}
+            {busy
+              ? profileSaveStage
+                ? PROFILE_SAVE_LABELS[profileSaveStage]
+                : "Przygotowuję zapis…"
+              : "Zapisz i wygeneruj plan"}
           </Button>
         )}
       </div>

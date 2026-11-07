@@ -2857,7 +2857,8 @@ for (const drill of INDIVIDUAL_FOOTBALL_DRILLS) {
     name: drill.name,
     displayNamePl: drill.name,
     aliases: [],
-    spaceRequirement: "home_small",
+    spaceRequirement:
+      drill.space === "pitch" ? "pitch" : drill.space === "yard" ? "open_field" : "home_small",
     coachingCues: [drill.quality, "Obie nogi", "Kontrola przed intensywnością"],
     commonErrors: [drill.mistake],
     instructionsPl: [...drill.steps],
