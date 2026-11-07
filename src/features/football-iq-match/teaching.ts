@@ -1,4 +1,4 @@
-import type { ActionMode, Point, Scenario } from "./types";
+import type { Point, Scenario } from "./types";
 
 export type TacticalLesson = {
   observe: string;
@@ -164,53 +164,6 @@ export const lessons: Record<string, TacticalLesson> = {
   },
 };
 
-export const actionAdvice: Record<ActionMode, { when: string; why: string }> = {
-  pass: {
-    when: "Partner jest dostępny, a rywal nie zamyka toru piłki.",
-    why: "Zmieniasz posiadacza i kąt dalszej akcji.",
-  },
-  through: {
-    when: "Przed partnerem jest miejsce i może on ruszyć do podania.",
-    why: "Odbiór w biegu pomaga wykorzystać przestrzeń.",
-  },
-  cross: {
-    when: "Dostępny partner jest w strefie, do której możesz zagrać górą.",
-    why: "Wybierasz sposób dotarcia do odbiorcy, zamiast zagrywać w tłok.",
-  },
-  carry: {
-    when: "Masz piłkę i wolny korytarz poza kierunkiem doskoku.",
-    why: "Zajmujesz przestrzeń albo skłaniasz rywala do wyjścia.",
-  },
-  shot: {
-    when: "Rozpoznałeś miejsce i opcje partnerów przed zakończeniem.",
-    why: "To opcjonalny koniec planu. Ocena dotyczy wcześniejszego celu taktycznego, bez symulowania gola.",
-  },
-  hold: {
-    when: "Masz czas i czekasz na pojawienie się dostępnej opcji.",
-    why: "Dajesz partnerom czas na ruch, ale także rywalom na doskok.",
-  },
-  run: {
-    when: "Partner ma piłkę, a Twój ruch może stworzyć nową opcję.",
-    why: "Zmieniasz ustawienie bez piłki i otwierasz przestrzeń do zagrania.",
-  },
-  shift: {
-    when: "Posiadacz potrzebuje partnera pod innym kątem lub za piłką.",
-    why: "Oferujesz podanie i możliwość zachowania piłki.",
-  },
-  press: {
-    when: "Możesz doskoczyć do piłki i masz zabezpieczenie za sobą.",
-    why: "Ograniczasz czas rywala oraz jego dostępne kierunki.",
-  },
-  cover: {
-    when: "Partner doskakuje, a przestrzeń za nim wymaga ochrony.",
-    why: "Przygotowujesz reakcję na minięcie pierwszego obrońcy.",
-  },
-  mark: {
-    when: "Odbiorca rywala stanowi zagrożenie w Twojej strefie.",
-    why: "Utrudniasz przyjęcie i kontrolujesz jego ruch, zachowując ustawienie zespołu.",
-  },
-};
-
 export function teachingMarkers(s: Scenario): TeachingMarker[] {
   const lesson = lessons[s.id];
   if (!lesson) return [];
@@ -228,24 +181,3 @@ export function teachingMarkers(s: Scenario): TeachingMarker[] {
       point: { ...a.to },
     }));
 }
-
-export const quickObservations: Record<string, string> = {
-  "overload-switch-01": "Znajdź miejsce po dalszej stronie.",
-  "wall-pass-02": "Podaj i rusz za obrońcę.",
-  "third-player-03": "Otwórz drogę przez pośrednika.",
-  "counter-04": "Przyciągnij rywala i uwolnij partnera.",
-  "press-escape-05": "Wyjdź przez wsparcie spod nacisku.",
-  "overlap-06": "Stwórz opcję po zewnętrznej stronie.",
-  "underlap-07": "Znajdź korytarz po wewnętrznej stronie.",
-  "support-angle-08": "Wyjdź z cienia krycia.",
-  "between-lines-09": "Znajdź partnera między liniami.",
-  "switch-left-10": "Przenieś piłkę poza zagęszczenie.",
-  "recycle-11": "Zachowaj piłkę i zmień kierunek.",
-  "cutback-12": "Znajdź odbiorcę podania wstecz.",
-  "through-13": "Zagraj przed partnera w biegu.",
-  "cross-14": "Sprawdź odbiorcę przed dośrodkowaniem.",
-  "shot-15": "Najpierw znajdź wolne miejsce.",
-  "press-16": "Sprawdź doskok i wsparcie za sobą.",
-  "cover-17": "Zabezpiecz przestrzeń za partnerem.",
-  "mark-18": "Kontroluj odbiorcę i linię podania.",
-};

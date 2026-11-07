@@ -9,7 +9,6 @@ import {
   type TrainingCategoryKey,
   type ProgressPeriod,
 } from "@/lib/progress/progress";
-import type { MicrocycleReport } from "@/lib/progress/center";
 
 export interface CycleBar {
   goalLabel: string;
@@ -188,65 +187,6 @@ export function buildLoadReport(
     previousCount: previous.length,
     comparable,
   };
-}
-
-export type EvidenceKind = "training" | "regularity" | "match";
-
-export interface EvidenceCard {
-  id: string;
-  kind: EvidenceKind;
-  title: string;
-  detail: string;
-  value?: number;
-  suffix?: string;
-}
-
-export function buildEvidence(
-  micro: MicrocycleReport,
-  history: CompletedSessionEntry[],
-  todayIso: string,
-  periodDays: ProgressPeriod = 7,
-): EvidenceCard[] {
-  const cards: EvidenceCard[] = [];
-  const weekAgo = addIsoDays(todayIso, 1 - periodDays);
-  const recent = uniqueTrainingHistory(history).filter(
-    (item) => item.date >= weekAgo && item.date <= todayIso,
-  );
-
-  if (recent.length > 0) {
-    cards.push({
-      id: "trainings-week",
-      kind: "training",
-      title: "Wykonana praca",
-      detail: `${recent.reduce((sum, item) => sum + item.durationMin, 0)} min w ostatnich ${periodDays} dniach`,
-      value: recent.length,
-      suffix: recent.length === 1 ? "jednostka" : "jednostki",
-    });
-  }
-
-  if (micro.executionPct != null && micro.plannedCount > 0) {
-    cards.push({
-      id: "regularity",
-      kind: "regularity",
-      title: "Realizacja planu",
-      detail: `${micro.completedCount}/${micro.plannedCount} jednostek`,
-      value: micro.executionPct,
-      suffix: "%",
-    });
-  }
-
-  const matches = recent.filter((item) => item.category === "match");
-  if (matches.length > 0) {
-    cards.push({
-      id: "matches-week",
-      kind: "match",
-      title: "Zapisane mecze",
-      detail: `Ostatnie ${periodDays} dni`,
-      value: matches.length,
-    });
-  }
-
-  return cards;
 }
 
 export type TimelineKind = "training" | "match";

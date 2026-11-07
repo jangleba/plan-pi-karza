@@ -625,17 +625,6 @@ async function markWriteFailure(
   changed(userId);
 }
 
-export async function enqueueRejectedTrainingWrite(
-  userId: string,
-  write: PendingTrainingWrite,
-  failure: unknown,
-): Promise<boolean> {
-  const operationId = write.operationId ?? crypto.randomUUID();
-  const stored = await enqueueDurableTrainingWrite(userId, { ...write, operationId });
-  if (stored) await markWriteFailure(userId, operationId, failure);
-  return stored;
-}
-
 /** Commit the user's intent locally before touching the network; force-quit is recoverable. */
 export async function withDurableTrainingWrite<T extends { error: unknown }>(
   userId: string,

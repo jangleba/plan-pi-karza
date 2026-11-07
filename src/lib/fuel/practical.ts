@@ -1,11 +1,4 @@
-import {
-  FOOD_BY_ID,
-  RECIPES,
-  mealNutrition,
-  suggestRecipes,
-  foodAllowed,
-  type FuelRecipe,
-} from "./catalog";
+import { FOOD_BY_ID, mealNutrition, suggestRecipes, foodAllowed, type FuelRecipe } from "./catalog";
 import {
   localDate,
   minutesToFuelStart,
@@ -154,13 +147,6 @@ export function completeMeal(
     : null;
 }
 
-export function repeatableRecipe(entries: FuelEntry[], available: FuelRecipe[]): FuelRecipe | null {
-  const match = entries.find(
-    (entry) => entry.status === "eaten" && available.some((r) => r.id === entry.recipeId),
-  );
-  return match ? (available.find((r) => r.id === match.recipeId) ?? null) : null;
-}
-
 export function createRecipeEntry(
   recipe: FuelRecipe,
   contextKey: string,
@@ -190,8 +176,6 @@ export function packList(
     portion: householdPortion(line),
   }));
 }
-
-export const ALL_RECIPE_IDS = new Set(RECIPES.map((r) => r.id));
 
 export function fuelEntryAllowed(
   entry: Pick<FuelEntry, "lines">,

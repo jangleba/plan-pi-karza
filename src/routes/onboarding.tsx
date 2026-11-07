@@ -35,6 +35,7 @@ import {
   SEASON_PHASE_LABELS,
   SEASON_STAGE_LABELS,
   COMPETITION_LEVEL_LABELS,
+  localToday,
 } from "@/lib/loadwise/labels";
 import { CONSENTS, MEDICAL_DISCLAIMER } from "@/lib/loadwise/legal";
 import {
@@ -549,7 +550,8 @@ function Onboarding() {
     }
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Local calendar day: a UTC date would allow yesterday after midnight in Poland.
+  const today = localToday();
 
   if (loading || !hydrated || !user) {
     return <AppLaunchScreen />;
@@ -978,7 +980,7 @@ function Onboarding() {
                             setNoMatch(false);
                           }
                         }}
-                        disabled={(d) => d < new Date(`${todayStr}T00:00:00`)}
+                        disabled={(d) => d < today}
                         initialFocus
                         className="pointer-events-auto p-3"
                       />

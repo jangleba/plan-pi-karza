@@ -2,11 +2,7 @@ import { balanceStrengthSections, supportPriority } from "../strengthSessionBala
 import { isFieldMasCurrent, paceRangeFromMas } from "@/lib/running/engine";
 import type { Profile, SessionDay, TrainingExercise, TrainingSection, WeekPhase } from "../types";
 import { buildAthleteTrainingProfile } from "../athleteProfile";
-import {
-  buildStrengthPowerStructured,
-  flatToStructured,
-  structuredToFlat,
-} from "../strengthBlocks";
+import { buildStrengthPowerStructured, flatToStructured } from "../strengthBlocks";
 import {
   getExerciseDefinition,
   hydrateTrainingExerciseFromDefinition,
@@ -729,8 +725,4 @@ export function buildFieldMethod(
     },
     ...edges.filter((s) => s.type === "cooldown"),
   ];
-}
-
-export function flatMethodSections(sections: TrainingSection[]) {
-  return structuredToFlat(sections);
 }

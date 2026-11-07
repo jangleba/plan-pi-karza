@@ -201,47 +201,6 @@ export function clockFuelStart(clock: string, now: number): number | null {
   // A past clock is not silently turned into tomorrow's training.
   return date.getTime() > now ? date.getTime() : null;
 }
-export function contextGuidance(
-  context: FuelContext,
-  timing: FuelTiming,
-  now: number,
-): { title: string; body: string } {
-  const minutes = minutesToFuelStart(timing, now);
-  if (timing.phase === "training")
-    return {
-      title: "Trening trwa",
-      body: "Przygotuj posiłek na później. Gdy skończysz, wybierz „Już po treningu”.",
-    };
-  if (timing.phase === "after")
-    return {
-      title: "Posiłek po sesji",
-      body: "Wybierz zestaw z węglowodanami i białkiem. Uwzględnij też to, co już jadłeś.",
-    };
-  if (timing.phase === "ordinary")
-    return {
-      title: "Zwykły posiłek",
-      body: "Dopasuj wybór do apetytu, preferencji i dostępnych produktów.",
-    };
-  if (minutes === null)
-    return {
-      title: "Za ile zaczynasz?",
-      body: "Ustaw czas, żeby dopasować propozycje. Na razie pokazuję ogólne zestawy.",
-    };
-  if (minutes === 0)
-    return {
-      title: "Zaczynasz czy przesuwasz?",
-      body: "Ustawiony czas minął. Potwierdź rozpoczęcie lub zmień godzinę — trening nie został oznaczony jako wykonany.",
-    };
-  if (minutes <= 60)
-    return {
-      title: "Blisko treningu: prosty wybór",
-      body: "Wśród propozycji są małe, proste przekąski. Wybierz to, co dobrze tolerujesz; nie nadrabiaj całego dnia jednym posiłkiem.",
-    };
-  return {
-    title: context.load === "high" ? "Przygotuj posiłek na mocną sesję" : "Masz czas na posiłek",
-    body: "Wybierz zestaw i dopasuj porcję do apetytu.",
-  };
-}
 
 export function foodRestrictionTerms(profile: Profile | null): string[] {
   return [
@@ -503,14 +462,6 @@ export function writeFuelData(
 export function localDate(now: number): string {
   const date = new Date(now);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-export function markFuelEntryEaten(entry: FuelEntry, fraction: number, now: number): FuelEntry {
-  return {
-    ...entry,
-    status: "eaten",
-    fraction: Math.min(1, Math.max(0.1, fraction)),
-    eatenAt: now,
-  };
 }
 
 /** A backup includes preferences and exact edited portions, not just recipe IDs. */
