@@ -345,14 +345,17 @@
         ? scene.armDrive
         : Math.sin((scene.p ?? 0) * Math.PI * 2),
       swing = far ? -drive : drive,
-      a = swing * 0.6;
+      // Running arm action: about ±50° at the shoulder; the elbow closes in
+      // front (~70°) and opens behind (~110°) instead of a fixed right angle.
+      a = swing * 0.9,
+      fore = rotate([Math.sin(a), Math.cos(a)], -(90 + 22 * swing));
     const elbow = front
-      ? [(far ? -1 : 1) * (11 + 3 * Math.abs(swing)), 27 - 4 * swing]
+      ? [(far ? -1 : 1) * (11 + 3 * Math.abs(swing)), 33 - 5 * swing]
       : [Math.sin(a) * 36, Math.cos(a) * 36];
-    // Same segment lengths as reaching arms (36 / 32), not a shortened swing arm.
+    // Same segment lengths as reaching arms (36 / 31), not a shortened swing arm.
     const wrist = front
       ? [(far ? -1 : 1) * (5 + 2 * Math.abs(swing)), 52 - 16 * swing]
-      : [elbow[0] + Math.cos(a) * 31, elbow[1] - Math.sin(a) * 31];
+      : [elbow[0] + fore[0] * 31, elbow[1] + fore[1] * 31];
     return {
       shoulder,
       elbow: add(shoulder, rotate(elbow, angle)),
