@@ -1,7 +1,12 @@
 import type { JourneySession } from "./journeyTypes";
 
+export const ATTACK_BANK_VERSION = "2026-11-07.9";
 export const LIVE_BANK_VERSION = "2026-11-06.8";
 export function lessonGoal(s: JourneySession) {
+  if (s.rulesVersion === 9)
+    return s.definition.concept === "press-cover"
+      ? "Odbierz piłkę, zbuduj atak i doprowadź do gola."
+      : "Zbuduj całą akcję: wyjdź spod nacisku, stwórz szansę i zdobądź gola.";
   if (s.definition.role === "wing" && s.definition.concept === "third-player")
     return "Pomóż ósemce wyjść spod nacisku. Przygotuj też możliwość kolejnego zagrania.";
   if (s.definition.concept === "press-cover")
@@ -11,6 +16,16 @@ export function lessonGoal(s: JourneySession) {
   return "Przejdź poza pierwszy nacisk i przygotuj następne zagranie, zachowując wsparcie.";
 }
 export function lessonQuestion(s: JourneySession) {
+  if (s.rulesVersion === 9) {
+    if (s.world.looseBall)
+      return "Piłka jest wolna. Jak dojdziesz do niej przed rywalem?";
+    if (s.players.find((p) => p.id === s.world.carrierId)?.team === "away")
+      return "Strata to część akcji. Gdzie zamkniesz wyjście rywala i odzyskasz piłkę?";
+    if (s.world.positions[s.world.carrierId].y < 32)
+      return "Strzał czy dodatkowe podanie? Sprawdź bramkarza i obrońcę.";
+    if (s.step > 2)
+      return "Akcja trwa. Jak przesuniesz grę bliżej bramki i przygotujesz kolejne zagranie?";
+  }
   if (s.step === 0)
     return s.world.carrierId === "you"
       ? "Gdzie będzie miejsce, gdy rywal ruszy do piłki?"
@@ -25,6 +40,14 @@ export function lessonHint(s: JourneySession) {
     : "Porównaj dwie przestrzenie. Który rywal może zamknąć podanie i co zostawi za sobą?";
 }
 export function lessonTakeaway(s: JourneySession) {
+  if (s.attack?.finish === "goal")
+    return s.attack.home
+      ? "Gol zamyka całą akcję. W powtórce sprawdź, który ruch otworzył podanie i skąd pojawiła się okazja do strzału."
+      : "Gol rywali. W powtórce znajdź stratę i moment, w którym zabrakło osłony.";
+  if (s.attack?.finish === "miss")
+    return "Niecelny strzał kończy akcję. Porównaj kąt uderzenia, ustawienie bramkarza i dostępną opcję podania.";
+  if (s.attack?.finish === "stopped")
+    return "Przerwano bardzo długą akcję bez rozstrzygnięcia. Nie zdobyto gola. Spróbuj zmienić kierunek gry zamiast powtarzać te same ruchy.";
   const movedRival = s.beats
     .flatMap((b) => b.events ?? [])
     .find((e) => /kryjąc|za Twoim/.test(e.text));

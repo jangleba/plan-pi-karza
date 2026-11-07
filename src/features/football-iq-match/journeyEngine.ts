@@ -1,4 +1,11 @@
 import {
+  createAttackJourney,
+  attackStep,
+  attackChoice,
+  parseAttackChoice,
+  chooseAttackJourney,
+} from "./attackJourney";
+import {
   createLiveJourney,
   liveStep,
   liveChoice,
@@ -92,8 +99,12 @@ export function createJourney(definition: JourneyDefinition): JourneySession {
 
 export function createJourneyForRules(
   definition: JourneyDefinition,
-  rulesVersion: 3 | 4 | 5 | 6 | 7 | 8 = 4,
+  rulesVersion: 3 | 4 | 5 | 6 | 7 | 8 | 9 = 4,
 ): JourneySession {
+  if (rulesVersion === 9) {
+    if (definition.revision !== 3) throw new Error("Niezgodna wersja zadania.");
+    return createAttackJourney(definition);
+  }
   if (rulesVersion === 8) {
     if (definition.revision !== 3) throw new Error("Niezgodna wersja zadania.");
     return createLiveJourney(definition);
@@ -624,6 +635,7 @@ function movementChoices(
   ];
 }
 export function journeyStep(session: JourneySession): JourneyStep {
+  if (session.rulesVersion === 9) return attackStep(session);
   if (session.rulesVersion === 8) return liveStep(session);
   if (session.rulesVersion === 6 || session.rulesVersion === 7)
     return tacticalStep(session);
@@ -783,6 +795,18 @@ export function journeyPointChoice(
   style?: DribbleStyle,
   timing?: ActionTiming,
 ): JourneyChoice {
+  if (session.rulesVersion === 9)
+    return attackChoice(
+      session,
+      intent ??
+        (session.world.carrierId === (session.controlledId ?? "you")
+          ? "carry"
+          : "move"),
+      location,
+      undefined,
+      "ground",
+      timing,
+    );
   if (session.rulesVersion === 8)
     return liveChoice(
       session,
@@ -928,6 +952,7 @@ export function journeyChoice(
   session: JourneySession,
   id: string,
 ): JourneyChoice | undefined {
+  if (session.rulesVersion === 9) return parseAttackChoice(session, id);
   if (session.rulesVersion === 8) return parseLiveChoice(session, id);
   if (session.rulesVersion === 6 || session.rulesVersion === 7)
     return tacticalChoice(session, id);
@@ -951,6 +976,13 @@ export function chooseJourney(
   decisionSeconds = 0,
   findAlternative = true,
 ): JourneySession {
+  if (previous.rulesVersion === 9)
+    return chooseAttackJourney(
+      previous,
+      choiceId,
+      decisionSeconds,
+      findAlternative,
+    );
   if (previous.rulesVersion === 8)
     return chooseLiveJourney(
       previous,
@@ -1459,7 +1491,8 @@ export function journeyVerdict(session: JourneySession): EvaluationLevel {
   if (
     session.rulesVersion === 6 ||
     session.rulesVersion === 7 ||
-    session.rulesVersion === 8
+    session.rulesVersion === 8 ||
+    session.rulesVersion === 9
   )
     return session.decisions.some((d) => d.quality === "error")
       ? "risky"

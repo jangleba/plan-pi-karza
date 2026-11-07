@@ -1,4 +1,4 @@
-import { LIVE_BANK_VERSION } from "./liveLesson";
+import { LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
 import type {
   IQPosition,
   IQRole,
@@ -26,6 +26,7 @@ export const SUPPORTED_JOURNEY_BANK_VERSIONS = [
   LEGACY_TACTICAL_BANK_VERSION,
   TACTICAL_BANK_VERSION,
   LIVE_BANK_VERSION,
+  ATTACK_BANK_VERSION,
 ];
 export const roleLabels: Record<IQRole, string> = {
   gk: "Bramkarz",

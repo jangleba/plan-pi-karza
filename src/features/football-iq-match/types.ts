@@ -42,8 +42,16 @@ export type PassAction = {
   to: Point;
 };
 
-export type ShotAction = { id: string; type: "shot"; playerId: string; from: Point; to: Point };
-export type PlannedAction = MovementAction | PassAction | ShotAction;
+export type ShotAction = {
+  id: string;
+  type: "shot";
+  playerId: string;
+  from: Point;
+  to: Point;
+};
+export type PlannedAction = (MovementAction | PassAction | ShotAction) & {
+  analysisColor?: string;
+};
 export type DecisionGoal = {
   id: string;
   type: PlannedAction["type"];

@@ -1,5 +1,7 @@
 import {
   AnimationClip,
+  Color,
+  Float32BufferAttribute,
   AnimationMixer,
   Bone,
   Box3,
@@ -19,17 +21,25 @@ import runningUrl from "./assets/running.fbx?url";
 import { RUN_STRIDE_UNITS, WALK_STRIDE_UNITS } from "./playback";
 import type { PlayerMotion } from "./playback";
 import type { MatchPlayer } from "./types";
-import { aerialAnimationNames, aerialCalibrations, validateAerialCalibration } from "./aerialClips";
+import {
+  aerialAnimationNames,
+  aerialCalibrations,
+  validateAerialCalibration,
+} from "./aerialClips";
 import type { AerialAnimation, AerialCalibrations } from "./aerialClips";
 
 export const PLAYER_HEIGHT = 6.8;
-export type AdditionalAnimation = "idle" | "walking" | "soccer-pass" | "receive" | AerialAnimation;
+export type AdditionalAnimation =
+  "idle" | "walking" | "soccer-pass" | "receive" | AerialAnimation;
 type AdditionalClips = Partial<Record<AdditionalAnimation, AnimationClip>>;
-const originalUrls = import.meta.glob<string>("./assets/{idle,walking,soccer-pass,receive}.fbx", {
-  eager: true,
-  query: "?url",
-  import: "default",
-});
+const originalUrls = import.meta.glob<string>(
+  "./assets/{idle,walking,soccer-pass,receive}.fbx",
+  {
+    eager: true,
+    query: "?url",
+    import: "default",
+  },
+);
 const compactUrls = import.meta.glob<string>(
   "./assets/{idle,walking,soccer-pass,receive}.clip.json",
   {
@@ -41,7 +51,10 @@ const compactUrls = import.meta.glob<string>(
 const additionalUrls = {
   ...originalUrls,
   ...Object.fromEntries(
-    Object.entries(compactUrls).map(([path, url]) => [path.replace(".clip.json", ".fbx"), url]),
+    Object.entries(compactUrls).map(([path, url]) => [
+      path.replace(".clip.json", ".fbx"),
+      url,
+    ]),
   ),
 };
 const aerialUrls = import.meta.glob<string>("./assets/{long-kick,header}.fbx", {
@@ -49,7 +62,8 @@ const aerialUrls = import.meta.glob<string>("./assets/{long-kick,header}.fbx", {
   query: "?url",
   import: "default",
 });
-export type AerialAssetStatus = "missing" | "uncalibrated" | "ready" | "invalid";
+export type AerialAssetStatus =
+  "missing" | "uncalibrated" | "ready" | "invalid";
 
 // Optional new clips cannot make the installed running/idle/pass set unusable.
 // The reader is injected so missing/corrupt/changed exports can be tested without WebGL.
@@ -64,7 +78,11 @@ export async function attachAerialClips(
     delete asset.aerial[name];
     const url = urls[name],
       calibration = calibrations[name];
-    asset.aerialStatus[name] = !url ? "missing" : !calibration ? "uncalibrated" : "invalid";
+    asset.aerialStatus[name] = !url
+      ? "missing"
+      : !calibration
+        ? "uncalibrated"
+        : "invalid";
     if (!url || !calibration) continue;
     let source: Group | undefined;
     try {
@@ -77,20 +95,28 @@ export async function attachAerialClips(
         durationSeconds: clip.duration,
       });
       if (name === "header") {
-        const hips = clip.tracks.find((track) => track.name === "mixamorigHips.position")!;
+        const hips = clip.tracks.find(
+          (track) => track.name === "mixamorigHips.position",
+        )!;
         const interpolant = hips.InterpolantFactoryMethodLinear();
-        const height = (frame: number) => Number(interpolant.evaluate(frame / calibration.fps)[1]);
+        const height = (frame: number) =>
+          Number(interpolant.evaluate(frame / calibration.fps)[1]);
         const floor = Math.max(
           height(calibration.takeoffFrame!),
           height(calibration.landingFrame!),
         );
         if ((height(calibration.contactFrame) - floor) * asset.scale < 0.2)
-          throw new Error("Klip nie zawiera wyskoku w zaznaczonym momencie główki.");
+          throw new Error(
+            "Klip nie zawiera wyskoku w zaznaczonym momencie główki.",
+          );
       }
       asset.clips[name] = clip;
       // Use the parsed duration for phase sampling (FBX times are float32).
       // The contact remains the exact frame / FPS marker from calibration.
-      asset.aerial[name] = { ...structuredClone(calibration), durationSeconds: clip.duration };
+      asset.aerial[name] = {
+        ...structuredClone(calibration),
+        durationSeconds: clip.duration,
+      };
       asset.aerialStatus[name] = "ready";
     } catch {
       // Keep the existing clips. Diagnostics are available to developer tooling.
@@ -112,10 +138,16 @@ function restingClip(model: Group) {
       .getWorldPosition(new Vector3())
       .sub(arm.getWorldPosition(new Vector3()))
       .normalize();
-    const desired = new Vector3(side === "Left" ? 0.12 : -0.12, -1, 0.06).normalize();
+    const desired = new Vector3(
+      side === "Left" ? 0.12 : -0.12,
+      -1,
+      0.06,
+    ).normalize();
     const correction = new Quaternion().setFromUnitVectors(direction, desired);
     const world = correction.multiply(arm.getWorldQuaternion(new Quaternion()));
-    arm.quaternion.copy(arm.parent.getWorldQuaternion(new Quaternion()).invert().multiply(world));
+    arm.quaternion.copy(
+      arm.parent.getWorldQuaternion(new Quaternion()).invert().multiply(world),
+    );
     model.updateMatrixWorld(true);
   }
   const tracks: (QuaternionKeyframeTrack | VectorKeyframeTrack)[] = [];
@@ -124,18 +156,34 @@ function restingClip(model: Group) {
     if (!(object instanceof Bone) || names.has(object.name)) return;
     names.add(object.name);
     tracks.push(
-      new QuaternionKeyframeTrack(`${object.name}.quaternion`, [0], object.quaternion.toArray()),
+      new QuaternionKeyframeTrack(
+        `${object.name}.quaternion`,
+        [0],
+        object.quaternion.toArray(),
+      ),
     );
-    tracks.push(new VectorKeyframeTrack(`${object.name}.position`, [0], object.position.toArray()));
+    tracks.push(
+      new VectorKeyframeTrack(
+        `${object.name}.position`,
+        [0],
+        object.position.toArray(),
+      ),
+    );
   });
   return new AnimationClip("neutral-stance", 1, tracks);
 }
 
 /** Every request is bounded; scene cancellation also stops compressed asset downloads. */
-export async function readAnimationFile(url: string, signal?: AbortSignal, timeoutMs = 15_000) {
+export async function readAnimationFile(
+  url: string,
+  signal?: AbortSignal,
+  timeoutMs = 15_000,
+) {
   const controller = new AbortController();
   const abort = () =>
-    controller.abort(signal?.reason ?? new DOMException("Anulowano", "AbortError"));
+    controller.abort(
+      signal?.reason ?? new DOMException("Anulowano", "AbortError"),
+    );
   signal?.throwIfAborted();
   signal?.addEventListener("abort", abort, { once: true });
   const timeout = setTimeout(
@@ -165,12 +213,16 @@ export async function attachOptionalClips(
 ) {
   await Promise.allSettled(
     Object.entries(urls).map(async ([path, url]) => {
-      const name = path.split("/").at(-1)!.replace(".fbx", "") as AdditionalAnimation;
+      const name = path
+        .split("/")
+        .at(-1)!
+        .replace(".fbx", "") as AdditionalAnimation;
       if (asset.clips[name] || signal?.aborted) return;
       let source: Group | undefined;
       try {
         source = await read(url);
-        if (!signal?.aborted) asset.clips[name] = prepareAdditionalClip(source, asset.model, name);
+        if (!signal?.aborted)
+          asset.clips[name] = prepareAdditionalClip(source, asset.model, name);
       } catch {
         /* optional network, parser and skeleton errors retain the neutral/base motion */
       } finally {
@@ -194,7 +246,9 @@ function loadOptionalAnimations(
     additionalUrls,
     async (url) => {
       const bytes = await readAnimationFile(url, signal);
-      return /\.json(?:\?|$)/.test(url) ? parseCompactAnimation(bytes) : loader.parse(bytes, "");
+      return /\.json(?:\?|$)/.test(url)
+        ? parseCompactAnimation(bytes)
+        : loader.parse(bytes, "");
     },
     signal,
   );
@@ -240,21 +294,34 @@ export function parseCompactAnimation(bytes: ArrayBuffer): Group {
   return source;
 }
 
-export function prepareAdditionalClip(source: Group, target: Group, name: AdditionalAnimation) {
+export function prepareAdditionalClip(
+  source: Group,
+  target: Group,
+  name: AdditionalAnimation,
+) {
   const clip = source.animations
     .find((animation) => animation.duration > 0 && animation.tracks.length > 0)
     ?.clone();
   const bones = new Map<string, Bone>();
   target.traverse((object) => {
-    if (object instanceof Bone && !bones.has(object.name)) bones.set(object.name, object);
+    if (object instanceof Bone && !bones.has(object.name))
+      bones.set(object.name, object);
   });
-  const required = ["mixamorigHips", "mixamorigLeftUpLeg", "mixamorigRightUpLeg"];
+  const required = [
+    "mixamorigHips",
+    "mixamorigLeftUpLeg",
+    "mixamorigRightUpLeg",
+  ];
   if (name === "header") required.push("mixamorigSpine", "mixamorigHead");
   if (
     !clip ||
-    !required.every((bone) => clip.tracks.some((track) => track.name === `${bone}.quaternion`))
+    !required.every((bone) =>
+      clip.tracks.some((track) => track.name === `${bone}.quaternion`),
+    )
   )
-    throw new Error(`Animacja ${name} musi pochodzić z tego samego Y Bot w Mixamo.`);
+    throw new Error(
+      `Animacja ${name} musi pochodzić z tego samego Y Bot w Mixamo.`,
+    );
   if (
     (name === "header" || name === "long-kick") &&
     (!clip.tracks.some((track) => track.name === "mixamorigHips.position") ||
@@ -275,22 +342,29 @@ export function prepareAdditionalClip(source: Group, target: Group, name: Additi
     const hips = bones.get("mixamorigHips")!;
     const firstX = track.values[0];
     const firstY = track.values[1];
-    const sourceBindY = source.getObjectByName("mixamorigHips")?.position.y ?? firstY;
+    const sourceBindY =
+      source.getObjectByName("mixamorigHips")?.position.y ?? firstY;
     const firstZ = track.values[2];
     for (let i = 0; i < track.values.length; i += 3) {
       // Locomotion follows the plan; the kick retains its small local weight transfer.
-      const localGesture = ["soccer-pass", "long-kick", "header"].includes(name);
-      track.values[i] = hips.position.x + (localGesture ? track.values[i] - firstX : 0);
+      const localGesture = ["soccer-pass", "long-kick", "header"].includes(
+        name,
+      );
+      track.values[i] =
+        hips.position.x + (localGesture ? track.values[i] - firstX : 0);
       // Use the bind pose, not the first animated frame: Idle bends its knees.
       track.values[i + 1] = hips.position.y + track.values[i + 1] - sourceBindY;
-      track.values[i + 2] = hips.position.z + (localGesture ? track.values[i + 2] - firstZ : 0);
+      track.values[i + 2] =
+        hips.position.z + (localGesture ? track.values[i + 2] - firstZ : 0);
     }
   }
   return clip;
 }
 
 export function prepareRunningModel(model: Group) {
-  const source = model.animations.find((clip) => clip.duration > 0 && clip.tracks.length > 0);
+  const source = model.animations.find(
+    (clip) => clip.duration > 0 && clip.tracks.length > 0,
+  );
   if (
     !source ||
     !source.tracks.some((t) => /LeftUpLeg/.test(t.name)) ||
@@ -354,27 +428,72 @@ export async function loadRunningModel(signal?: AbortSignal) {
 }
 export type RunningModel = Awaited<ReturnType<typeof loadRunningModel>>;
 
-export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOffset = 0) {
+export function makeActor(
+  asset: RunningModel,
+  player: MatchPlayer,
+  idlePhaseOffset = 0,
+) {
   // Object3D.clone alone would share the bones between teammates.
   const model = clone(asset.model) as Group;
   model.scale.setScalar(asset.scale);
   model.position.y = -asset.floor * asset.scale;
+  const actorGeometry = new Set<import("three").BufferGeometry>();
   model.traverse((object) => {
     if (!(object instanceof Mesh)) return;
-    const joints = object.name.includes("Joints");
-    object.material = new MeshStandardMaterial({
-      color: player.goalkeeper
-        ? joints
-          ? "#874f1e"
-          : "#ee923b"
+    object.geometry = object.geometry.clone();
+    actorGeometry.add(object.geometry);
+    object.geometry.computeBoundingBox();
+    const box = object.geometry.boundingBox!,
+      positions = object.geometry.getAttribute("position");
+    const colors = new Float32Array(positions.count * 3);
+    const kit = new Color(
+      player.goalkeeper
+        ? "#f1bd48"
         : player.team === "home"
-          ? joints
-            ? "#102d49"
-            : "#44a6d8"
-          : joints
-            ? "#9fada9"
-            : "#ecebe2",
-      roughness: 0.88,
+          ? "#3e9eea"
+          : "#ec795d",
+    );
+    const shorts = new Color(player.team === "home" ? "#163b61" : "#743e47");
+    const skin = new Color(
+      ["#deb796", "#bd8663", "#efceb0", "#99664e"][player.number % 4],
+    );
+    const boots = new Color("#172e43"),
+      socks = new Color("#eef4f7"),
+      hair = new Color("#3b342f");
+    const height = Math.max(1, box.max.y - box.min.y),
+      centerX = (box.min.x + box.max.x) / 2,
+      width = Math.max(1, box.max.x - box.min.x);
+    for (let i = 0; i < positions.count; i++) {
+      const y = (positions.getY(i) - box.min.y) / height,
+        lateral = Math.abs(positions.getX(i) - centerX) / width;
+      const color =
+        y > 0.975
+          ? hair
+          : y > 0.84
+            ? skin
+            : y < 0.085
+              ? boots
+              : y < 0.145
+                ? socks
+                : y < 0.435
+                  ? skin
+                  : y < 0.575
+                    ? shorts
+                    : lateral > 0.27
+                      ? skin
+                      : kit;
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+    }
+    object.geometry.setAttribute(
+      "color",
+      new Float32BufferAttribute(colors, 3),
+    );
+    object.material = new MeshStandardMaterial({
+      color: "#ffffff",
+      vertexColors: true,
+      roughness: 0.82,
       metalness: 0,
     });
   });
@@ -383,7 +502,9 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
   const mixer = new AnimationMixer(model);
   let idle = mixer.clipAction(asset.clips.idle ?? asset.idle).play();
   const run = mixer.clipAction(asset.running).play();
-  let walk = asset.clips.walking ? mixer.clipAction(asset.clips.walking).play() : null;
+  let walk = asset.clips.walking
+    ? mixer.clipAction(asset.clips.walking).play()
+    : null;
   let pass = asset.clips["soccer-pass"]
     ? mixer.clipAction(asset.clips["soccer-pass"]).setLoop(LoopOnce, 1).play()
     : null;
@@ -398,9 +519,14 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
         : null,
     ]),
   );
-  let actions = [idle, run, walk, pass, receive, ...Object.values(aerial)].filter(
-    (action) => action !== null,
-  );
+  let actions = [
+    idle,
+    run,
+    walk,
+    pass,
+    receive,
+    ...Object.values(aerial),
+  ].filter((action) => action !== null);
   actions.forEach((action) => {
     action.paused = true;
     action.clampWhenFinished = true;
@@ -408,10 +534,12 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
   });
   // AnimationMixer can skip writing unchanged tracks while paused. Restore the
   // unmodified pose first so procedural offsets never accumulate on redraw.
-  const gestureBones = ["RightUpLeg", "RightLeg", "Spine", "LeftArm"].flatMap((name) => {
-    const bone = model.getObjectByName(`mixamorig${name}`);
-    return bone ? [{ bone, base: bone.quaternion.clone() }] : [];
-  });
+  const gestureBones = ["RightUpLeg", "RightLeg", "Spine", "LeftArm"].flatMap(
+    (name) => {
+      const bone = model.getObjectByName(`mixamorig${name}`);
+      return bone ? [{ bone, base: bone.quaternion.clone() }] : [];
+    },
+  );
 
   const attached = new Map(Object.entries(asset.clips));
   const pose = (motion: PlayerMotion, idleClock = motion.clock ?? 0) => {
@@ -433,9 +561,14 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
         else if (name === "receive") receive = next;
         else aerial[name] = next;
       }
-      actions = [idle, run, walk, pass, receive, ...Object.values(aerial)].filter(
-        (action) => action !== null,
-      );
+      actions = [
+        idle,
+        run,
+        walk,
+        pass,
+        receive,
+        ...Object.values(aerial),
+      ].filter((action) => action !== null);
     }
     gestureBones.forEach(({ bone, base }) => bone.quaternion.copy(base));
     const movement = motion.gait === "walk" && walk ? walk : run;
@@ -454,7 +587,10 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
             1,
             motion.weight ??
               (motion.moving
-                ? Math.min(motion.elapsed / 0.12, (motion.duration - motion.elapsed) / 0.12)
+                ? Math.min(
+                    motion.elapsed / 0.12,
+                    (motion.duration - motion.elapsed) / 0.12,
+                  )
                 : 0),
           ),
         )
@@ -467,7 +603,8 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
       active.setEffectiveWeight(blend);
       const duration = active.getClip().duration;
       active.time = motion.moving
-        ? ((motion.distance / (active === walk ? WALK_STRIDE_UNITS : RUN_STRIDE_UNITS)) *
+        ? ((motion.distance /
+            (active === walk ? WALK_STRIDE_UNITS : RUN_STRIDE_UNITS)) *
             duration) %
           duration
         : Math.min(duration - 0.000001, (motion.phase ?? 0) * duration);
@@ -485,13 +622,17 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
       motion.delivery !== "ground"
     ) {
       const follow =
-        Math.sin(Math.PI * Math.max(0, Math.min(1, (phase - 14 / 48) / (1 - 14 / 48)))) * blend;
+        Math.sin(
+          Math.PI * Math.max(0, Math.min(1, (phase - 14 / 48) / (1 - 14 / 48))),
+        ) * blend;
       model.getObjectByName("mixamorigRightUpLeg")?.rotateX(-0.3 * follow);
       model.getObjectByName("mixamorigSpine")?.rotateX(-0.11 * follow);
       model.getObjectByName("mixamorigLeftArm")?.rotateZ(-0.15 * follow);
     }
     if (motion.state === "receive" && motion.control === "aerial") {
-      const touch = Math.sin(Math.PI * Math.max(0, Math.min(1, phase))) * (motion.weight ?? 1);
+      const touch =
+        Math.sin(Math.PI * Math.max(0, Math.min(1, phase))) *
+        (motion.weight ?? 1);
       model.getObjectByName("mixamorigRightUpLeg")?.rotateX(-0.46 * touch);
       model.getObjectByName("mixamorigRightLeg")?.rotateX(0.42 * touch);
       model.getObjectByName("mixamorigSpine")?.rotateX(0.1 * touch);
@@ -501,11 +642,15 @@ export function makeActor(asset: RunningModel, player: MatchPlayer, idlePhaseOff
   const dispose = () => {
     mixer.stopAllAction();
     mixer.uncacheRoot(model);
+    actorGeometry.forEach((g) => g.dispose());
     model.traverse((object) => {
       if (!(object instanceof Mesh)) return;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      const materials = Array.isArray(object.material)
+        ? object.material
+        : [object.material];
       materials.forEach((material) => material.dispose());
-      if ("skeleton" in object) (object as import("three").SkinnedMesh).skeleton.dispose();
+      if ("skeleton" in object)
+        (object as import("three").SkinnedMesh).skeleton.dispose();
     });
   };
   return { root, pose, dispose };
@@ -517,10 +662,12 @@ export function disposeModel(model: Group) {
   model.traverse((object) => {
     if (!(object instanceof Mesh)) return;
     geometries.add(object.geometry);
-    (Array.isArray(object.material) ? object.material : [object.material]).forEach((m) =>
-      materials.add(m),
-    );
-    if ("skeleton" in object) (object as import("three").SkinnedMesh).skeleton.dispose();
+    (Array.isArray(object.material)
+      ? object.material
+      : [object.material]
+    ).forEach((m) => materials.add(m));
+    if ("skeleton" in object)
+      (object as import("three").SkinnedMesh).skeleton.dispose();
   });
   geometries.forEach((geometry) => geometry.dispose());
   materials.forEach((material) => material.dispose());

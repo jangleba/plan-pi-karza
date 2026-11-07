@@ -61,7 +61,9 @@ export function TacticalDiagram(props: TacticalPitchProps) {
     [scenario, actions, frameOverride],
   );
   const frame = useMemo(
-    () => frameOverride ?? samplePlayback(playback!, interactive ? 1 : playbackProgress),
+    () =>
+      frameOverride ??
+      samplePlayback(playback!, interactive ? 1 : playbackProgress),
     [frameOverride, playback, interactive, playbackProgress],
   );
   const shownDestinations = showGuidance ? destinations : EMPTY_DESTINATIONS;
@@ -77,14 +79,19 @@ export function TacticalDiagram(props: TacticalPitchProps) {
                     ? []
                     : scenario.players
                         .filter(
-                          (p) => !p.goalkeeper || p.controlled || p.id === frame.ballCarrierId,
+                          (p) =>
+                            !p.goalkeeper ||
+                            p.controlled ||
+                            p.id === frame.ballCarrierId,
                         )
                         .map((p) => frame.positions.get(p.id) ?? p)),
                   frame.ballVisual,
                   ...(cameraActions?.flatMap((a) => [a.from, a.to]) ?? []),
                   ...shownDestinations.map((d) => d.point),
                 ],
-            figures && !compactFigures ? { ...size, height: Math.max(60, size.height - 48) } : size,
+            figures && !compactFigures
+              ? { ...size, height: Math.max(60, size.height - 48) }
+              : size,
             !fixedView && cameraClose,
           ),
     [
@@ -109,20 +116,29 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         }
       : baseView;
   const canSelectPlayer = (id: string) =>
-    interactive && (freeMovement || !selectablePlayerIds || selectablePlayerIds.includes(id));
+    interactive &&
+    (freeMovement || !selectablePlayerIds || selectablePlayerIds.includes(id));
   function layout(live: PlaybackFrame) {
     const items: DiagramLabel[] = scenario.players
       .filter((p) => !visibleLabelIds || visibleLabelIds.includes(p.id))
       .map((player) => ({
         id: `player:${player.id}`,
         anchor: (() => {
-          const p = projectDiagram(live.positions.get(player.id) ?? player, view);
+          const p = projectDiagram(
+            live.positions.get(player.id) ?? player,
+            view,
+          );
           return visibleLabelIds
             ? { ...p, y: p.y - (figures ? (compactFigures ? 25 : 54) : 20) }
             : p;
         })(),
         kind: "player",
-        priority: player.id === selectedPlayerId ? 1 : canSelectPlayer(player.id) ? 2 : 3,
+        priority:
+          player.id === selectedPlayerId
+            ? 1
+            : canSelectPlayer(player.id)
+              ? 2
+              : 3,
         interactive: canSelectPlayer(player.id) && !freeMovement,
       }));
     items.push(
@@ -144,7 +160,10 @@ export function TacticalDiagram(props: TacticalPitchProps) {
               item.anchor.y >= 12 &&
               item.anchor.y <= size.height - 12,
           )
-          .map((item) => [item.id, { ...item, center: item.anchor, radius: 16 }]),
+          .map((item) => [
+            item.id,
+            { ...item, center: item.anchor, radius: 16 },
+          ]),
       );
     return placeDiagramLabels(
       items.filter(
@@ -170,10 +189,15 @@ export function TacticalDiagram(props: TacticalPitchProps) {
       const width = element.clientWidth || bounds.width,
         height = element.clientHeight || bounds.height;
       if (width > 0 && height > 0)
-        setSize((old) => (old.width === width && old.height === height ? old : { width, height }));
+        setSize((old) =>
+          old.width === width && old.height === height
+            ? old
+            : { width, height },
+        );
     };
     resize();
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
+    const observer =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
     observer?.observe(element);
     window.addEventListener("resize", resize);
     return () => {
@@ -224,7 +248,9 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         if (ball.current) {
           ball.current.style.left = `${point.x}px`;
           ball.current.style.top = `${point.y}px`;
-          ball.current.dataset.airborne = String(live.ballInFlight && live.ballHeight > 2);
+          ball.current.dataset.airborne = String(
+            live.ballInFlight && live.ballHeight > 2,
+          );
         }
       }
       handle = requestAnimationFrame(tick);
@@ -242,7 +268,10 @@ export function TacticalDiagram(props: TacticalPitchProps) {
       x: clientX - bounds.left - root.current.clientLeft,
       y: clientY - bounds.top - root.current.clientTop,
     };
-    if (!freeMovement && ["pass", "through", "cross", "hold", "press", "mark"].includes(mode)) {
+    if (
+      !freeMovement &&
+      ["pass", "through", "cross", "hold", "press", "mark"].includes(mode)
+    ) {
       const nearest = scenario.players
         .filter((p) => canSelectPlayer(p.id))
         .map((player) => {
@@ -251,13 +280,28 @@ export function TacticalDiagram(props: TacticalPitchProps) {
             player,
             distance: landscapeView
               ? Math.hypot(
-                  pixel.x - projectDiagram(frame.positions.get(player.id) ?? player, view).x,
-                  pixel.y - projectDiagram(frame.positions.get(player.id) ?? player, view).y + 10,
+                  pixel.x -
+                    projectDiagram(
+                      frame.positions.get(player.id) ?? player,
+                      view,
+                    ).x,
+                  pixel.y -
+                    projectDiagram(
+                      frame.positions.get(player.id) ?? player,
+                      view,
+                    ).y +
+                    10,
                 )
               : label
                 ? Math.min(
-                    Math.hypot(pixel.x - label.center.x, pixel.y - label.center.y),
-                    Math.hypot(pixel.x - label.anchor.x, pixel.y - label.anchor.y),
+                    Math.hypot(
+                      pixel.x - label.center.x,
+                      pixel.y - label.center.y,
+                    ),
+                    Math.hypot(
+                      pixel.x - label.anchor.x,
+                      pixel.y - label.anchor.y,
+                    ),
                   )
                 : Infinity,
           };
@@ -337,7 +381,14 @@ export function TacticalDiagram(props: TacticalPitchProps) {
         >
           <rect className="iqD-turf" x="0" y="0" width="100" height="140" />
           {[0, 2, 4, 6].map((n) => (
-            <rect key={n} className="iqD-stripe" x="0" y={n * 20} width="100" height="20" />
+            <rect
+              key={n}
+              className="iqD-stripe"
+              x="0"
+              y={n * 20}
+              width="100"
+              height="20"
+            />
           ))}
           <g className="iqD-lines">
             <rect x="1" y="1" width="98" height="138" />
@@ -353,6 +404,9 @@ export function TacticalDiagram(props: TacticalPitchProps) {
                 key={a.id}
                 d={`M${a.from.x} ${a.from.y}L${a.to.x} ${a.to.y}`}
                 className="iqD-route"
+                style={
+                  a.analysisColor ? { stroke: a.analysisColor } : undefined
+                }
                 strokeDasharray={a.type === "pass" ? "2 2" : undefined}
                 markerEnd={`url(#${arrowId})`}
               />
@@ -368,12 +422,16 @@ export function TacticalDiagram(props: TacticalPitchProps) {
               />
             ))}
         </g>
-        {!visibleLabelIds && scenario.players.map((p) => marker(`player:${p.id}`, p.team))}
+        {!visibleLabelIds &&
+          scenario.players.map((p) => marker(`player:${p.id}`, p.team))}
         {shownDestinations.map((d) => marker(`destination:${d.id}`))}
       </svg>
       {figures &&
         scenario.players.map((player) => {
-          const p = projectDiagram(frame.positions.get(player.id) ?? player, view);
+          const p = projectDiagram(
+            frame.positions.get(player.id) ?? player,
+            view,
+          );
           const motion = frame.motions.get(player.id)!;
           return (
             <svg
@@ -402,7 +460,9 @@ export function TacticalDiagram(props: TacticalPitchProps) {
               type="button"
               hidden={!placed.has(id)}
               data-iq-player={player.id}
-              data-has-ball={frame.ballCarrierId === player.id && !frame.ballInFlight}
+              data-has-ball={
+                frame.ballCarrierId === player.id && !frame.ballInFlight
+              }
               className={`iqD-player iqD-player--${player.team}${player.id === selectedPlayerId ? " is-you" : ""}`}
               style={styleAt(id)}
               disabled={!canSelectPlayer(player.id)}
@@ -414,7 +474,8 @@ export function TacticalDiagram(props: TacticalPitchProps) {
               onClick={(event) => {
                 event.stopPropagation();
                 if (!interactive) return;
-                if (freeMovement) onPitchSelect(frame.positions.get(player.id) ?? player);
+                if (freeMovement)
+                  onPitchSelect(frame.positions.get(player.id) ?? player);
                 else onPlayerSelect(player);
               }}
             >

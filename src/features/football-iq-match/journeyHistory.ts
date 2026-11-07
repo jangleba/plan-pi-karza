@@ -1,4 +1,4 @@
-import { LIVE_BANK_VERSION } from "./liveLesson";
+import { LIVE_BANK_VERSION, ATTACK_BANK_VERSION } from "./liveLesson";
 import {
   JOURNEY_BANK_VERSION,
   SUPPORTED_JOURNEY_BANK_VERSIONS,
@@ -75,13 +75,14 @@ function validBase(v: unknown): v is JourneyDraft {
       LEGACY_TACTICAL_BANK_VERSION,
       TACTICAL_BANK_VERSION,
       LIVE_BANK_VERSION,
+      ATTACK_BANK_VERSION,
     ].includes(v.bankVersion) ===
       (definitionById.get(v.scenarioId)?.revision === 3) &&
     (v.bankVersion !== "2026-10-15.1" ||
       definitionById.get(v.scenarioId)?.revision !== 2) &&
     ["learn", "challenge"].includes(String(v.mode)) &&
     Array.isArray(v.choices) &&
-    v.choices.length <= 10 &&
+    v.choices.length <= (v.bankVersion === ATTACK_BANK_VERSION ? 80 : 10) &&
     v.choices.every(validChoice) &&
     (v.forecasts === undefined ||
       ([TACTICAL_BANK_VERSION, LIVE_BANK_VERSION].includes(v.bankVersion) &&
@@ -142,17 +143,19 @@ export function restoreJourney(value: JourneyDraft): JourneySession {
   if (!validBase(value)) throw new Error("Nieobsługiwana wersja zapisu akcji.");
   let session = createJourneyForRules(
     definitionById.get(value.scenarioId)!,
-    value.bankVersion === LIVE_BANK_VERSION
-      ? 8
-      : value.bankVersion === TACTICAL_BANK_VERSION
-        ? 7
-        : value.bankVersion === LEGACY_TACTICAL_BANK_VERSION
-          ? 6
-          : value.bankVersion === ADVANCED_JOURNEY_BANK_VERSION
-            ? 5
-            : value.bankVersion === JOURNEY_BANK_VERSION
-              ? 4
-              : 3,
+    value.bankVersion === ATTACK_BANK_VERSION
+      ? 9
+      : value.bankVersion === LIVE_BANK_VERSION
+        ? 8
+        : value.bankVersion === TACTICAL_BANK_VERSION
+          ? 7
+          : value.bankVersion === LEGACY_TACTICAL_BANK_VERSION
+            ? 6
+            : value.bankVersion === ADVANCED_JOURNEY_BANK_VERSION
+              ? 5
+              : value.bankVersion === JOURNEY_BANK_VERSION
+                ? 4
+                : 3,
   );
   for (const [index, choice] of value.choices.entries()) {
     const before = session;
@@ -204,17 +207,19 @@ export function makeJourneyAttempt(
   return {
     version: 1,
     bankVersion:
-      session.rulesVersion === 8
-        ? LIVE_BANK_VERSION
-        : session.rulesVersion === 7
-          ? TACTICAL_BANK_VERSION
-          : session.rulesVersion === 6
-            ? LEGACY_TACTICAL_BANK_VERSION
-            : session.rulesVersion === 5
-              ? ADVANCED_JOURNEY_BANK_VERSION
-              : session.rulesVersion === 4
-                ? JOURNEY_BANK_VERSION
-                : "2026-10-15.3",
+      session.rulesVersion === 9
+        ? ATTACK_BANK_VERSION
+        : session.rulesVersion === 8
+          ? LIVE_BANK_VERSION
+          : session.rulesVersion === 7
+            ? TACTICAL_BANK_VERSION
+            : session.rulesVersion === 6
+              ? LEGACY_TACTICAL_BANK_VERSION
+              : session.rulesVersion === 5
+                ? ADVANCED_JOURNEY_BANK_VERSION
+                : session.rulesVersion === 4
+                  ? JOURNEY_BANK_VERSION
+                  : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     role: session.definition.role,
@@ -317,17 +322,19 @@ export function makeJourneyDraft(
   return {
     version: 1,
     bankVersion:
-      session.rulesVersion === 8
-        ? LIVE_BANK_VERSION
-        : session.rulesVersion === 7
-          ? TACTICAL_BANK_VERSION
-          : session.rulesVersion === 6
-            ? LEGACY_TACTICAL_BANK_VERSION
-            : session.rulesVersion === 5
-              ? ADVANCED_JOURNEY_BANK_VERSION
-              : session.rulesVersion === 4
-                ? JOURNEY_BANK_VERSION
-                : "2026-10-15.3",
+      session.rulesVersion === 9
+        ? ATTACK_BANK_VERSION
+        : session.rulesVersion === 8
+          ? LIVE_BANK_VERSION
+          : session.rulesVersion === 7
+            ? TACTICAL_BANK_VERSION
+            : session.rulesVersion === 6
+              ? LEGACY_TACTICAL_BANK_VERSION
+              : session.rulesVersion === 5
+                ? ADVANCED_JOURNEY_BANK_VERSION
+                : session.rulesVersion === 4
+                  ? JOURNEY_BANK_VERSION
+                  : "2026-10-15.3",
     id,
     scenarioId: session.definition.id,
     mode,

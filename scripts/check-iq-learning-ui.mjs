@@ -17,7 +17,7 @@ const { default: tailwindcss } = await import(
 );
 const work =
   process.env.BALLWISE_IQ_UI_DIR ||
-  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-iq-learning-62");
+  path.join(process.env.RUNNER_TEMP || os.tmpdir(), "ballwise-iq-learning-63");
 await fs.mkdir(work, { recursive: true });
 await fs.writeFile(
   path.join(work, "index.html"),
@@ -118,7 +118,7 @@ try {
   await page.waitForFunction(()=>!document.querySelector('.iqE-loading'));
   for (const [width,height] of [[390,700],[390,560],[375,667],[844,390]]) {
     await page.setViewportSize({width,height});
-    await page.screenshot({path:path.join(work,`IQ-62-${width}x${height}.png`)});
+    await page.screenshot({path:path.join(work,`IQ-63-${width}x${height}.png`)});
     const result=await page.evaluate(()=>{const p=document.querySelector('.iqE-pitch').getBoundingClientRect();return {width:innerWidth,height:innerHeight,pitch:{width:p.width,height:p.height},overflow:document.documentElement.scrollWidth>innerWidth,bodyHeight:document.documentElement.scrollHeight,nav:getComputedStyle(document.querySelector('.bw-tab-bar')).display};});
     ensure(!result.overflow,'Horizontal overflow'); ensure(result.bodyHeight <= height + 1,'Real tab shell left blank scrolling space'); ensure(result.pitch.height>=150,'Pitch too short'); ensure(result.nav==='none','Navigation should release pitch space');views.push(result);
   }
@@ -130,18 +130,34 @@ try {
   await page.getByRole('button',{name:'Jak grać',exact:true}).click();
   await page.getByRole('button',{name:'Pomiń',exact:true}).click();
   await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
-  await page.screenshot({path:path.join(work,'IQ-62-REAKCJA.png')});
+  await page.screenshot({path:path.join(work,'IQ-63-REAKCJA.png')});
   for(let step=0;step<3;step++) {
-    const conclusion=page.getByRole('button',{name:'Zobacz wniosek',exact:true});
-    if(await conclusion.count()){await conclusion.click();break;}
+    ensure((await page.getByRole('button',{name:'Zobacz wniosek',exact:true}).count())===0,'Action ended at the old three-decision limit');
     await page.getByRole('button',{name:'Podejmij następną decyzję',exact:true}).click();
     await page.getByRole('button',{name:'Pozostań w pozycji',exact:true}).click();
     await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
     await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
   }
-  await page.waitForSelector('.iqE-summary');
-  await page.screenshot({path:path.join(work,'IQ-62-WNIOSEK.png')});
-  ensure((await page.locator('.iqE-save').innerText())==='Zapisano','Attempt not saved');
+  await page.goto(url+'?fixture=finish');
+  await page.waitForSelector('[data-iq-phase="decision"]');
+  await page.waitForSelector('[data-iq-renderer="ready"]');
+  await page.getByRole('button',{name:'Jedno zagranie za 10',exact:true}).click();
+  await page.getByRole('button',{name:'Strzał',exact:true}).click();
+  await page.getByRole('button',{name:'Lewy róg',exact:true}).click();
+  await page.screenshot({path:path.join(work,'IQ-63-STRZAL.png')});
+  await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
+  await page.waitForSelector('[data-iq-phase="feedback"]',{timeout:20000});
+  await page.getByRole('button',{name:'Zobacz wniosek',exact:true}).click();
+  await page.getByRole('heading',{name:'Gol!',exact:true}).waitFor();
+  ensure((await page.locator('.iqE-save').innerText())==='Zapisano','Goal attempt not saved');
+  await page.screenshot({path:path.join(work,'IQ-63-GOL.png')});
+  await page.getByRole('button',{name:'Cała akcja',exact:true}).click();
+  await page.waitForSelector('.iqE-replay-key');
+  await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill('5');
+  await page.screenshot({path:path.join(work,'IQ-63-ANALIZA.png')});
+  await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill('13.95');
+  await page.getByRole('button',{name:'Wznów akcję',exact:true}).click();
+  await page.waitForSelector('.iqE-summary',{timeout:20000});
   await page.getByRole('button',{name:'Sprawdź w nowym układzie',exact:true}).click();
   ensure((await page.locator('.iqE-context').innerText()).includes('Nowy układ'),'No transfer variant');
   await page.getByRole('button',{name:'Obserwuj · zaczynam',exact:true}).click();
@@ -151,11 +167,11 @@ try {
   if(await takeover.count()) {
     await takeover.click(); await tapSpace();
     await page.getByRole('button',{name:'Rozegraj',exact:true}).click();
-    await page.waitForFunction(()=>['decision','summary'].includes(document.querySelector('[data-iq-engine="8"]').dataset.iqPhase),{timeout:20000});
+    await page.waitForFunction(()=>['decision','summary'].includes(document.querySelector('[data-iq-engine="9"]').dataset.iqPhase),{timeout:20000});
     ensure((await page.locator('[data-iq-phase="feedback"]').count())===0,'Intermediate grade in independent mode');
     const raw=await page.evaluate(()=>localStorage.getItem('ballwise:iq:journeys:v1:iq-browser-qa:draft')??localStorage.getItem('ballwise:iq:journeys:v1:iq-browser-qa'));
     ensure(raw.includes(':pass:'),'Free-space pass did not reach stored decisions');
   }
-  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'intro → observation → own decision → actual reaction → feedback → conclusion → new independent variant'},null,2));
+  await fs.writeFile(path.join(work,'wynik-iq-learning.json'),JSON.stringify({views,errors,flow:'tutorial → full attack beyond 3 decisions → aimed shot → actual goal → saved result → colored replay and seeking → independent variant'},null,2));
   ensure(errors.length===0,JSON.stringify(errors));
 } catch(e) { console.error(e); console.error("UI errors",errors); await activePage?.screenshot({path:path.join(work,"FAILURE.png")}); console.error(await activePage?.locator("body").innerText()); await fs.writeFile(path.join(work,"failure.json"),JSON.stringify({error:String(e),errors})); throw e; } finally { await browser?.close(); await new Promise(resolve=>server.close(resolve)); }

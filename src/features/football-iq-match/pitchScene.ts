@@ -54,7 +54,9 @@ export async function createPitchScene(
   const defaultBounds = {
     xMin: Math.max(0, Math.min(...relevant.map((p) => p.x)) - 16),
     xMax: Math.min(100, Math.max(...relevant.map((p) => p.x)) + 16),
-    yMin: showGoal ? 0 : Math.max(0, Math.min(...relevant.map((p) => p.y)) - 16),
+    yMin: showGoal
+      ? 0
+      : Math.max(0, Math.min(...relevant.map((p) => p.y)) - 16),
     yMax: Math.min(140, Math.max(...relevant.map((p) => p.y)) + 16),
   };
   const initialCenter = world({
@@ -69,7 +71,9 @@ export async function createPitchScene(
   sun.position.set(-40, 90, 45);
   scene.add(sun);
   const ownedGeometries = new Set<BufferGeometry>();
-  const ownedMaterials = new Set<MeshBasicMaterial | MeshStandardMaterial | LineBasicMaterial>();
+  const ownedMaterials = new Set<
+    MeshBasicMaterial | MeshStandardMaterial | LineBasicMaterial
+  >();
   const ground = new Group();
   scene.add(ground);
   function plane(x: number, y: number, w: number, h: number, color: string) {
@@ -82,11 +86,18 @@ export async function createPitchScene(
     mesh.position.copy(world({ x, y }, 0));
     ground.add(mesh);
   }
-  for (let i = 0; i < 10; i++) plane(50, 7 + i * 14, 100, 14, i % 2 ? "#205347" : "#1c4e43");
-  const paint = new LineBasicMaterial({ color: "#c5dacb", transparent: true, opacity: 0.6 });
+  for (let i = 0; i < 10; i++)
+    plane(50, 7 + i * 14, 100, 14, i % 2 ? "#205347" : "#1c4e43");
+  const paint = new LineBasicMaterial({
+    color: "#c5dacb",
+    transparent: true,
+    opacity: 0.6,
+  });
   ownedMaterials.add(paint);
   function line(points: Point[], height = 0.04) {
-    const geometry = new BufferGeometry().setFromPoints(points.map((p) => world(p, height)));
+    const geometry = new BufferGeometry().setFromPoints(
+      points.map((p) => world(p, height)),
+    );
     ownedGeometries.add(geometry);
     ground.add(new Line(geometry, paint));
   }
@@ -99,7 +110,13 @@ export async function createPitchScene(
       { x, y },
     ]);
   }
-  function arc(x: number, y: number, radius: number, from = 0, to = Math.PI * 2) {
+  function arc(
+    x: number,
+    y: number,
+    radius: number,
+    from = 0,
+    to = Math.PI * 2,
+  ) {
     line(
       Array.from({ length: 65 }, (_, i) => ({
         x: x + Math.cos(from + ((to - from) * i) / 64) * radius,
@@ -187,7 +204,10 @@ export async function createPitchScene(
   cue.visible = false;
   scene.add(cue);
   const ballGeometry = new SphereGeometry(BALL_RADIUS, 12, 8);
-  const ballMaterial = new MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 });
+  const ballMaterial = new MeshStandardMaterial({
+    color: "#ffffff",
+    roughness: 0.9,
+  });
   ownedGeometries.add(ballGeometry);
   ownedMaterials.add(ballMaterial);
   const ball = new Mesh(ballGeometry, ballMaterial);
@@ -237,7 +257,9 @@ export async function createPitchScene(
     for (const x of [viewBounds.xMin, viewBounds.xMax])
       for (const y of [viewBounds.yMin, viewBounds.yMax])
         for (const h of [0, 14]) {
-          const view = world({ x, y }, h).applyMatrix4(camera.matrixWorldInverse);
+          const view = world({ x, y }, h).applyMatrix4(
+            camera.matrixWorldInverse,
+          );
           maxX = Math.max(maxX, Math.abs(view.x));
           maxY = Math.max(maxY, Math.abs(view.y));
         }
@@ -250,8 +272,11 @@ export async function createPitchScene(
     if (smallPlayers) {
       const floor = world({ x: 50, y: 70 }).project(camera),
         head = world({ x: 50, y: 70 }, PLAYER_HEIGHT).project(camera);
-      const base = Math.hypot(((head.x - floor.x) * width) / 2, ((head.y - floor.y) * height) / 2);
-      figureScale = Math.max(1, Math.min(2.2, 13 / Math.max(0.01, base)));
+      const base = Math.hypot(
+        ((head.x - floor.x) * width) / 2,
+        ((head.y - floor.y) * height) / 2,
+      );
+      figureScale = Math.max(1, Math.min(2.2, 14 / Math.max(0.01, base)));
     }
     renderer.setSize(width, height, false);
   };
@@ -315,19 +340,26 @@ export async function createPitchScene(
       const motion = frame.motions.get(id)!;
       // Leg stride follows map distance at this display scale; field coordinates stay unchanged.
       actor.pose(
-        figureScale === 1 ? motion : { ...motion, distance: motion.distance / figureScale },
+        figureScale === 1
+          ? motion
+          : { ...motion, distance: motion.distance / figureScale },
         clock,
       );
     });
     ball.position.copy(world(frame.ballVisual, frame.ballHeight));
     ballShadow.position.copy(world(frame.ballVisual, 0.08));
     ballShadow.scale.setScalar(1 + Math.min(frame.ballHeight, 14) * 0.055);
-    ballShadowMaterial.opacity = Math.max(0.12, 0.36 - frame.ballHeight * 0.016);
+    ballShadowMaterial.opacity = Math.max(
+      0.12,
+      0.36 - frame.ballHeight * 0.016,
+    );
     carrierRing.visible = guidanceVisible && !frame.ballInFlight;
     const carrierPoint = frame.positions.get(frame.ballCarrierId);
     if (carrierPoint) carrierRing.position.copy(world(carrierPoint, 0.11));
     if (cue.visible)
-      cue.scale.setScalar(reducedMotion.matches ? 1 : 1 + Math.sin(clock * 2.2) * 0.045);
+      cue.scale.setScalar(
+        reducedMotion.matches ? 1 : 1 + Math.sin(clock * 2.2) * 0.045,
+      );
     renderer.render(scene, camera);
   };
   const tickIdle = (time: number) => {
@@ -342,7 +374,8 @@ export async function createPitchScene(
     idleAnimation = requestAnimationFrame(tickIdle);
   };
   const scheduleIdle = () => {
-    if (canIdle() && idleAnimation === null) idleAnimation = requestAnimationFrame(tickIdle);
+    if (canIdle() && idleAnimation === null)
+      idleAnimation = requestAnimationFrame(tickIdle);
   };
   const refreshIdle = () => {
     stopIdle();
@@ -401,8 +434,14 @@ export async function createPitchScene(
         const minWidth = cameraClose ? 18 : 35,
           minHeight = cameraClose ? 18 : 31,
           padding = cameraClose ? 7 : 10;
-        const cx = Math.max(minWidth, Math.min(100 - minWidth, (minX + maxX) / 2));
-        const cy = Math.max(minHeight, Math.min(140 - minHeight, (minY + maxY) / 2));
+        const cx = Math.max(
+          minWidth,
+          Math.min(100 - minWidth, (minX + maxX) / 2),
+        );
+        const cy = Math.max(
+          minHeight,
+          Math.min(140 - minHeight, (minY + maxY) / 2),
+        );
         const hx = Math.max(minWidth, (maxX - minX) / 2 + padding);
         const hy = Math.max(minHeight, (maxY - minY) / 2 + padding);
         viewBounds = {
@@ -441,18 +480,29 @@ export async function createPitchScene(
       { x: 100, y: 140 },
     ].map((p) => {
       const q = world(p).project(camera);
-      return { x: ((q.x + 1) * renderWidth) / 2, y: ((1 - q.y) * renderHeight) / 2 };
+      return {
+        x: ((q.x + 1) * renderWidth) / 2,
+        y: ((1 - q.y) * renderHeight) / 2,
+      };
     });
     renderer.domElement.dataset.iqFieldWidth = String(
-      Math.max(...groundCorners.map((p) => p.x)) - Math.min(...groundCorners.map((p) => p.x)),
+      Math.max(...groundCorners.map((p) => p.x)) -
+        Math.min(...groundCorners.map((p) => p.x)),
     );
     if (host.closest("[data-iq-qa]")) {
-      renderer.domElement.dataset.iqPitchCorners = JSON.stringify(groundCorners);
+      renderer.domElement.dataset.iqPitchCorners =
+        JSON.stringify(groundCorners);
       renderer.domElement.dataset.iqProjectedPlayers = JSON.stringify(
         Object.fromEntries(
           players.map((p) => {
             const q = world(frame.positions.get(p.id)!, 7.5).project(camera);
-            return [p.id, { x: ((q.x + 1) * renderWidth) / 2, y: ((1 - q.y) * renderHeight) / 2 }];
+            return [
+              p.id,
+              {
+                x: ((q.x + 1) * renderWidth) / 2,
+                y: ((1 - q.y) * renderHeight) / 2,
+              },
+            ];
           }),
         ),
       );
@@ -461,7 +511,9 @@ export async function createPitchScene(
     if (controlled) {
       const position = frame.positions.get(controlled.id)!;
       const floorPoint = world(position).project(camera),
-        headPoint = world(position, PLAYER_HEIGHT * figureScale).project(camera);
+        headPoint = world(position, PLAYER_HEIGHT * figureScale).project(
+          camera,
+        );
       renderer.domElement.dataset.iqControlledHeight = String(
         Math.hypot(
           ((headPoint.x - floorPoint.x) * renderWidth) / 2,
@@ -475,18 +527,20 @@ export async function createPitchScene(
     if (previousRoutes !== actions) {
       clearRoutes();
       actions.forEach((action) => {
-        if (action.type === "shot") return;
         const delta = world(action.to).sub(world(action.from));
         if (delta.length() < 0.1) return;
         const arrow = new ArrowHelper(
           delta.clone().normalize(),
           world(action.from, 0.12),
           delta.length(),
-          action.type === "pass"
-            ? "#b5deff"
-            : ["cover", "mark", "press"].includes(action.type)
-              ? "#376951"
-              : "#347eb4",
+          action.analysisColor ??
+            (action.type === "shot"
+              ? "#f3cf73"
+              : action.type === "pass"
+                ? "#b5deff"
+                : ["cover", "mark", "press"].includes(action.type)
+                  ? "#376951"
+                  : "#347eb4"),
           2.5,
           1.25,
         );
@@ -502,7 +556,10 @@ export async function createPitchScene(
           ? 1
           : 0.24
         : 0.85;
-      for (const material of [arrow.line.material, arrow.cone.material].flat()) {
+      for (const material of [
+        arrow.line.material,
+        arrow.cone.material,
+      ].flat()) {
         material.transparent = true;
         material.opacity = opacity;
       }
@@ -517,7 +574,10 @@ export async function createPitchScene(
   };
   const project = (point: Point, height = 0) => {
     const p = world(point, height).project(camera);
-    return { x: ((p.x + 1) * renderWidth) / 2, y: ((1 - p.y) * renderHeight) / 2 };
+    return {
+      x: ((p.x + 1) * renderWidth) / 2,
+      y: ((1 - p.y) * renderHeight) / 2,
+    };
   };
   const pick = (clientX: number, clientY: number): Point | null => {
     const bounds = renderer.domElement.getBoundingClientRect();
@@ -539,7 +599,10 @@ export async function createPitchScene(
       return null;
     return smallPlayers
       ? { x: hit.x + 50, y: hit.z + 70 }
-      : { x: Math.max(3, Math.min(97, hit.x + 50)), y: Math.max(4, Math.min(136, hit.z + 70)) };
+      : {
+          x: Math.max(3, Math.min(97, hit.x + 50)),
+          y: Math.max(4, Math.min(136, hit.z + 70)),
+        };
   };
   const dispose = () => {
     if (disposed) return;

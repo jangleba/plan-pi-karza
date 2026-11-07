@@ -162,7 +162,14 @@ export type TacticalForecast = {
 export type JourneySession = {
   forecasts?: TacticalForecast[];
   /** Absent in saved pre-22 engines; their replays retain the original rules. */
-  rulesVersion?: 4 | 5 | 6 | 7 | 8;
+  rulesVersion?: 4 | 5 | 6 | 7 | 8 | 9;
+  attack?: {
+    elapsed: number;
+    home: number;
+    away: number;
+    shots: number;
+    finish?: "goal" | "miss" | "offside" | "stopped";
+  };
   controlledId?: string;
   finishTeam?: "home" | "away";
   definition: JourneyDefinition;
