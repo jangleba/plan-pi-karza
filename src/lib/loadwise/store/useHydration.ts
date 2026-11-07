@@ -58,6 +58,24 @@ interface HydrationOptions {
   setSyncing?: (value: boolean) => void;
   setHydrationError?: (value: string | null) => void;
 }
+
+/**
+ * Modules needed later in hydration are requested up front, in parallel with
+ * the queue recovery and Supabase reads, instead of one after another once the
+ * data has arrived. On the web each lazy chunk is a separate round trip.
+ */
+function preloadHydrationModules() {
+  const modules = {
+    dailyCheckin: import("../dailyCheckin"),
+    speedSessionMigration: import("../speedSessionMigration"),
+    persistedPlanValidation: import("../persistedPlanValidation"),
+    persist: import("../persist"),
+  };
+  // A failed prefetch surfaces where the module is awaited; never as an unhandled rejection.
+  for (const module of Object.values(modules)) module.catch(() => undefined);
+  return modules;
+}
+
 export function useHydration({
   user,
   authLoading,
@@ -136,6 +154,7 @@ export function useHydration({
       setState(initialState);
       setHydrated(false);
     }
+    const modules = preloadHydrationModules();
     (async () => {
       let safeProfile: Profile | null = cachedState?.profile ?? null;
       const safeLocal: LocalState = loadLocal(user.id);
@@ -374,7 +393,7 @@ export function useHydration({
         const planRow = planRes.data as AnyRow | null;
         const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
         if (planRow && Array.isArray(planRow.plan_json)) {
-          const { normalizeLegacyPersistedPlan } = await import("../dailyCheckin");
+          const { normalizeLegacyPersistedPlan } = await modules.dailyCheckin;
           plan = (planRow.plan_json as SessionDay[]).map((day) => ({
             ...day,
             planDbId: planRow.id as string,
@@ -391,7 +410,7 @@ export function useHydration({
           }
         }
         if (profile && plan.length > 0) {
-          const { migratePersistedSpeedSessions } = await import("../speedSessionMigration");
+          const { migratePersistedSpeedSessions } = await modules.speedSessionMigration;
           const persistedModifications: Record<string, SessionModification[]> = {};
           for (const row of (modRes.data as AnyRow[] | null) ?? []) {
             const mod = rowToModification(row);
@@ -415,7 +434,7 @@ export function useHydration({
           plan = [];
           planGeneratedFor = null;
         } else {
-          const { persistedPlanNeedsRegeneration } = await import("../persistedPlanValidation");
+          const { persistedPlanNeedsRegeneration } = await modules.persistedPlanValidation;
           const revisionInfo = planRevisionInfo(plan);
           const profileRevision = profile.onboardingRevision ?? null;
           const schemaMissingOrMismatched =
@@ -443,7 +462,7 @@ export function useHydration({
             planOlderThanProfile;
 
           if (shouldRebuildCanonical) {
-            const { persistMonthlyPlan } = await import("../persist");
+            const { persistMonthlyPlan } = await modules.persist;
             const canonical = stampPlanRevision(
               await applyConfirmedCalendar(
                 await generatePlanAsync(
@@ -478,14 +497,14 @@ export function useHydration({
             planGeneratedFor = todayIso;
             clearFutureOverlays = true;
           } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
-            const { persistMonthlyPlan } = await import("../persist");
+            const { persistMonthlyPlan } = await modules.persist;
             plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
             if (cancelled) return;
             if (canWritePlan()) plan = await persistMonthlyPlan(user.id, profile, plan);
             planGeneratedFor = todayIso;
           } else if (migrationOriginalPlan && migrationChanged) {
             if (canWritePlan()) {
-              const { persistMonthlyPlan } = await import("../persist");
+              const { persistMonthlyPlan } = await modules.persist;
               const migrated = stampPlanRevision(
                 reconcilePlanIdentity(plan, migrationOriginalPlan, completions, todayIso),
                 profileRevision,
