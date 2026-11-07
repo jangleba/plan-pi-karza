@@ -42,6 +42,64 @@
     return 180 - (Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1]))) * 180) / Math.PI;
   };
   const path = (d, extra = "") => `<path d="${d}" ${extra}/>`;
+  /* Volume shading. Every body part gets a translucent overlay in its own
+   * frame: light from the front and above, the far side turning into shade,
+   * so limbs read as rounded forms instead of flat cut-outs. Far-side limbs
+   * sit a step darker, which also separates them in depth. The overlay is
+   * never part of the merged outline. */
+  const SHADE = "#6f87a0";
+  const stops = (list) =>
+    list
+      .map(([o, a]) => `<stop offset="${o}" stop-color="${SHADE}" stop-opacity="${a}"/>`)
+      .join("");
+  const SHADE_DEFS =
+    '<defs class="bw-human-shading">' +
+    `<linearGradient id="bw-shade-limb" x1="0" y1="0" x2="0" y2="1">${stops([
+      [0, 0.16],
+      [0.28, 0],
+      [0.55, 0.04],
+      [1, 0.5],
+    ])}</linearGradient>` +
+    `<linearGradient id="bw-shade-round" x1="0" y1="0" x2="0" y2="1">${stops([
+      [0, 0.38],
+      [0.3, 0.02],
+      [0.62, 0.02],
+      [1, 0.42],
+    ])}</linearGradient>` +
+    `<linearGradient id="bw-shade-far" x1="0" y1="0" x2="0" y2="1">${stops([
+      [0, 0.4],
+      [0.35, 0.26],
+      [1, 0.62],
+    ])}</linearGradient>` +
+    `<linearGradient id="bw-shade-trunk" x1="1" y1="0" x2="0" y2="0">${stops([
+      [0, 0.14],
+      [0.3, 0],
+      [0.62, 0.06],
+      [1, 0.48],
+    ])}</linearGradient>` +
+    `<linearGradient id="bw-shade-trunk-front" x1="0" y1="0" x2="1" y2="0">${stops([
+      [0, 0.42],
+      [0.28, 0.02],
+      [0.72, 0.02],
+      [1, 0.42],
+    ])}</linearGradient>` +
+    `<linearGradient id="bw-shade-foot" x1="0" y1="0" x2="0" y2="1">${stops([
+      [0, 0.04],
+      [0.5, 0.06],
+      [1, 0.42],
+    ])}</linearGradient>` +
+    `<radialGradient id="bw-shade-hand" cx=".45" cy=".4" r=".7">${stops([
+      [0, 0],
+      [0.6, 0.1],
+      [1, 0.42],
+    ])}</radialGradient>` +
+    `<radialGradient id="bw-shade-head" cx=".62" cy=".36" r=".72">${stops([
+      [0, 0],
+      [0.55, 0.06],
+      [1, 0.48],
+    ])}</radialGradient>` +
+    "</defs>";
+  const shaded = (d, id) => `<path class="bw-human-shade" d="${d}" fill="url(#${id})"/>`;
   const detail = (d, extra = "") =>
     path(d, `fill="none" ${extra.includes("stroke-width=") ? "" : 'stroke-width=".72"'} ${extra}`);
 
@@ -161,6 +219,7 @@
     return (
       `<g class="bw-human-hand bw-human-hand-${kind}">` +
       path(smoothClosed(hand.outline.map(place))) +
+      shaded(smoothClosed(hand.outline.map(place)), "bw-shade-hand") +
       details(
         hand.lines.map((ps) => ps.map(place)),
         far,
@@ -175,9 +234,9 @@
    * slope, and both ends close in round caps, so two segments overlapping at
    * a joint read as a natural knee or elbow at any bend. `symmetric` averages
    * front and back for views where the limb faces the camera. */
-  function segment(a, b, knots, symmetric = false) {
+  function segment(a, b, knots, symmetric = false, shade = "bw-shade-limb") {
     const u = unit(a, b),
-      n = normal(u),
+      L = Math.hypot(b[0] - a[0], b[1] - a[1]),
       ks = symmetric ? knots.map(([t, f, k]) => [t, (f + k) / 2, (f + k) / 2]) : knots;
     const at = (t, side) => {
       let i = 0;
@@ -187,14 +246,16 @@
         e = ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
       return r0[side] + (r1[side] - r0[side]) * e;
     };
+    // Built in the segment's own frame (x along the bone, +y behind it) and
+    // placed with one rotation, so the volume shading below can use a single
+    // shared gradient across the limb.
     const steps = 10,
       back = [],
       front = [];
     for (let i = 0; i <= steps; i++) {
-      const t = i / steps,
-        c = mix(a, b, t);
-      back.push(add(c, scale(n, at(t, 1))));
-      front.push(add(c, scale(n, -at(t, 0))));
+      const t = i / steps;
+      back.push([t * L, at(t, 1)]);
+      front.push([t * L, -at(t, 0)]);
     }
     const side = (ps) => {
       let d = "";
@@ -209,12 +270,16 @@
     };
     // Caps: a half circle spanning the front and back edge at each end.
     const cap = (p, q, dir) => {
-      const r = Math.hypot(q[0] - p[0], q[1] - p[1]) / 2,
-        tip = add(mix(p, q, 0.5), scale(dir, r));
+      const r = Math.abs(q[1] - p[1]) / 2,
+        tip = [p[0] + dir * r, (p[1] + q[1]) / 2];
       return `A${fmt(r)},${fmt(r)} 0 0 0 ${xy(tip)}A${fmt(r)},${fmt(r)} 0 0 0 ${xy(q)}`;
     };
-    return path(
-      `M${xy(back[0])}${side(back)}${cap(back[steps], front[steps], u)}${side(front.slice().reverse())}${cap(front[0], back[0], scale(u, -1))}Z`,
+    const d = `M${xy(back[0])}${side(back)}${cap(back[steps], front[steps], 1)}${side(front.slice().reverse())}${cap(front[0], back[0], -1)}Z`;
+    return (
+      `<g transform="matrix(${fmt(u[0])} ${fmt(u[1])} ${fmt(-u[1])} ${fmt(u[0])} ${xy(a)})">` +
+      path(d) +
+      shaded(d, shade) +
+      "</g>"
     );
   }
   /** Average half-width of a profile at fraction t (front views). */
@@ -227,8 +292,12 @@
     return (f0 + b0 + (f1 + b1 - f0 - b0) * e) / 2;
   }
   /** Upper and lower limb segments from an anatomical profile. */
-  function limb(a, b, c, profile, symmetric = false) {
-    return segment(a, b, profile.upper, symmetric) + segment(b, c, profile.lower, symmetric);
+  function limb(a, b, c, profile, symmetric = false, far = false) {
+    const shade = far ? "bw-shade-far" : symmetric ? "bw-shade-round" : "bw-shade-limb";
+    return (
+      segment(a, b, profile.upper, symmetric, shade) +
+      segment(b, c, profile.lower, symmetric, shade)
+    );
   }
   /** A point on a segment: fraction t along it, `off` units behind (+) or in
    * front (-) of the bone line. */
@@ -699,6 +768,7 @@
     return (
       `<g class="bw-human-shoe bw-human-foot" transform="translate(${xy(l.ankle)}) rotate(${fmt(front ? 0 : footAngle(l))})" fill="${colours.shoe}">` +
       path(smoothClosed(front ? FOOT_FRONT : FOOT)) +
+      shaded(smoothClosed(front ? FOOT_FRONT : FOOT), "bw-shade-foot") +
       details(front ? FOOT_FRONT_LINES : FOOT_LINES, far) +
       "</g>"
     );
@@ -740,7 +810,7 @@
     }
     return (
       `<g class="bw-human-leg bw-human-leg-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
-      limb(hip, knee, l.ankle, LEG, front) +
+      limb(hip, knee, l.ankle, LEG, front, far) +
       (front
         ? details(innerLeg(hip, knee, l.ankle, medial), far)
         : details(legLines(hip, knee, l.ankle), far)) +
@@ -764,7 +834,7 @@
       root = flat ? [wrist[0] - 1, floor - 4] : wrist;
     return (
       `<g class="bw-human-arm bw-human-arm-${side}" fill="${far ? colours.farSkin : colours.skin}" stroke="${far ? "#7c8e9d" : colours.ink}">` +
-      limb(shoulder, elbow, wrist, ARM, front) +
+      limb(shoulder, elbow, wrist, ARM, front, far) +
       (front ? "" : details(armLines(shoulder, elbow, wrist), far)) +
       muscleLines(shoulder, elbow, wrist, "arm", far, scene, side) +
       details([elbowCrease(shoulder, elbow, wrist)].filter(Boolean), far) +
@@ -944,9 +1014,11 @@
       neck +
       (front
         ? path(smoothClosed(HEAD_FRONT), 'fill="#fff"') +
+          shaded(smoothClosed(HEAD_FRONT), "bw-shade-trunk-front") +
           hair(HAIR_FRONT) +
           details(FACE_FRONT, false)
         : path(smoothClosed(HEAD_SIDE), 'fill="#fff"') +
+          shaded(smoothClosed(HEAD_SIDE), "bw-shade-head") +
           hair(HAIR_SIDE) +
           details(FACE_SIDE, false))
     );
@@ -999,6 +1071,10 @@
     return (
       `<g class="bw-human-torso" transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})"><g transform="translate(0 -67) rotate(${fmt(scene.headAngle ?? 0)}) scale(1) translate(0 67)">${face(front)}</g><g transform="scale(${fmt(expansion)} 1)">` +
       path(trunkPath(front, scene.spineCurve ?? 0), `fill="${colours.shirt}"`) +
+      shaded(
+        trunkPath(front, scene.spineCurve ?? 0),
+        front ? "bw-shade-trunk-front" : "bw-shade-trunk",
+      ) +
       details(
         front
           ? [
@@ -1123,10 +1199,10 @@
   function seamless(svg) {
     // Plain SVG attributes, no stylesheet: the same markup works inside static
     // snapshot files as well as in the player.
-    const ink = svg.replace(
-      /class="(bw-muscle-traces|bw-human-detail)/g,
-      'display="none" class="$1',
-    );
+    // The outline pass needs no shading overlays at all.
+    const ink = svg
+      .replace(/<path class="bw-human-shade"[^>]*\/>/g, "")
+      .replace(/class="(bw-muscle-traces|bw-human-detail)/g, 'display="none" class="$1');
     const fill = svg.replace(/stroke="(#7c8e9d|#344b5e)"/g, 'stroke="none"');
     return `<g class="bw-silhouette-ink" stroke-width="1.9">${ink}</g><g class="bw-silhouette-fill" stroke="none">${fill}</g>`;
   }
@@ -1147,22 +1223,24 @@
       nearArm = arm(scene, "right", angle, front),
       farLeg = leg(scene, "left", front),
       nearLeg = leg(scene, "right", front);
-    const waist = `<g transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})" fill="#fff" stroke="none">${path("M-12,-12Q0,-9 11.6,-12L11.4,3Q3,9.6 -6,7Q-11.4,4 -12,-12Z")}</g>`;
+    const waist = `<g transform="translate(${xy(scene.hip)}) rotate(${fmt(angle)})" fill="#fff" stroke="none">${path("M-12,-12Q0,-9 11.6,-12L11.4,3Q3,9.6 -6,7Q-11.4,4 -12,-12Z")}${shaded("M-12,-12Q0,-9 11.6,-12L11.4,3Q3,9.6 -6,7Q-11.4,4 -12,-12Z", front ? "bw-shade-trunk-front" : "bw-shade-trunk")}</g>`;
     const layers = front
-      ? seamless(farLeg + nearLeg + torso(scene, angle, true) + waist) +
+      ? seamless(farLeg + nearLeg + torso(scene, angle, true)) +
         seamless(farArm) +
         seamless(nearArm)
       : seamless(farArm) +
         seamless(farLeg) +
         seamless(torso(scene, angle, false) + nearLeg + waist) +
         seamless(nearArm);
-    return `<g class="bw-human-athlete bw-human-outline bw-human-natural bw-human-sketch bw-human-${front ? "front" : "side"}" stroke="${colours.ink}" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"${mirror}>${layers}</g>`;
+    return `<g class="bw-human-athlete bw-human-outline bw-human-natural bw-human-sketch bw-human-${front ? "front" : "side"}" stroke="${colours.ink}" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"${mirror}>${SHADE_DEFS}${layers}</g>`;
   }
   scope.drawBallwiseAthlete = draw;
   scope.BWDrawHuman = {
     draw,
     seamless,
     fmt,
+    SHADE_DEFS,
+    shaded,
     armPoints,
     points,
     geometry: {
@@ -1193,7 +1271,7 @@
       trunkPath,
     },
     muscles,
-    style: "anatomical-outline-59",
-    version: 59,
+    style: "anatomical-outline-60",
+    version: 60,
   };
 })(typeof window === "object" ? window : globalThis);

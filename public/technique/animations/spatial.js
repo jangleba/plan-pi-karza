@@ -561,6 +561,7 @@
         add(j.ankle, [5, 5, 0]),
         '<g class="bw-human-shoe bw-human-foot">' +
           path(G.smoothClosed(G.FOOT.map(([x, y]) => P(shoePoint(x, y))))) +
+          H.shaded(G.smoothClosed(G.FOOT.map(([x, y]) => P(shoePoint(x, y)))), "bw-shade-foot") +
           G.details(G.FOOT_LINES, far, ([x, y]) => P(shoePoint(x, y))) +
           "</g>",
       );
@@ -614,7 +615,8 @@
       leftSide.push(lo.q);
       rightSide.push(hi.q);
     }
-    const torsoShape = path(G.smoothClosed(leftSide.concat(rightSide.reverse())));
+    const torsoD = G.smoothClosed(leftSide.concat(rightSide.reverse())),
+      torsoShape = path(torsoD) + H.shaded(torsoD, "bw-shade-trunk-front");
     const rear = c.view === "rear-quarter";
     let torso = torsoShape;
     torso += G.torsoMuscles(s, (p) => P(local(s, [rear ? -16 : 16, p[1], p[0]])), rear);
@@ -648,6 +650,7 @@
       const facePoint = ([x, y]) => P(hp(0, (y + 93) * 0.88, x * 0.88));
       head =
         path(G.smoothClosed(G.HEAD_FRONT.map(facePoint))) +
+        H.shaded(G.smoothClosed(G.HEAD_FRONT.map(facePoint)), "bw-shade-head") +
         (rear
           ? G.hair(G.HAIR_BACK, facePoint)
           : G.hair(G.HAIR_FRONT, facePoint) + G.details(G.FACE_FRONT, false, facePoint));
@@ -655,6 +658,7 @@
       const headPoint = ([x, y]) => P(hp(x * 0.88, (y + 93) * 0.88));
       head =
         path(G.smoothClosed(G.HEAD_SIDE.map(headPoint))) +
+        H.shaded(G.smoothClosed(G.HEAD_SIDE.map(headPoint)), "bw-shade-head") +
         G.hair(G.HAIR_SIDE, headPoint) +
         G.details(rear ? G.FACE_SIDE.slice(0, 1) : G.FACE_SIDE, false, headPoint);
     }
@@ -721,6 +725,7 @@
     }
     return (
       '<g class="bw-human-athlete bw-human-outline bw-human-natural bw-human-sketch bw-human-spatial" fill="#fff" stroke="#344b5e" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round">' +
+      H.SHADE_DEFS +
       layers
         .sort((a, b) => a.z - b.z)
         .map((l) => (l.svg.includes('class="bw-human-') ? H.seamless(l.svg) : l.svg))
