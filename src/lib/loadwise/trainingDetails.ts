@@ -1,7 +1,6 @@
 import type { TrainingExercise } from "./types";
 
 export type TrainingFields = { weight: string; reps: string; rir: string; value: string };
-export const EMPTY_TRAINING_FIELDS: TrainingFields = { weight: "", reps: "", rir: "", value: "" };
 
 /** Form drafts contain user input, never completed sets or estimated measurements. */
 export function parseTrainingFields(value: unknown): TrainingFields | undefined {

@@ -514,10 +514,3 @@ export const iqScenarioBank: JourneyDefinition[] = [
   ...advancedJourneyBank,
   ...journeyBank,
 ];
-export const journeyTopicCount = new Set(journeyBank.map((s) => s.topicId))
-  .size;
-export function scenariosForRoles(
-  roles: readonly IQRole[],
-): JourneyDefinition[] {
-  return journeyBank.filter((s) => roles.includes(s.role));
-}

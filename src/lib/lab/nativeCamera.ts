@@ -29,20 +29,6 @@ export function isNativeIosLab() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
 }
 
-export async function getCameraCapabilities(): Promise<BallWiseCameraCapabilities> {
-  if (!isNativeIosLab()) {
-    return {
-      supported: false,
-      fps: 0,
-      width: 0,
-      height: 0,
-      camera: "back",
-      reason: "Nagrywanie 240 FPS działa w natywnej aplikacji BallWise na iPhone.",
-    };
-  }
-  return NativeCamera.capabilities();
-}
-
 export async function recordLabVideo(maxDurationSeconds: number) {
   if (!isNativeIosLab()) {
     throw new Error("Otwórz BallWise na iPhone, aby nagrać test w 240 FPS.");

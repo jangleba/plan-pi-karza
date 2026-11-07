@@ -833,7 +833,6 @@ scenarios.push(
     true,
   ),
 );
-export const variantLabels = ["Podstawowy", "Druga strona", "Większa presja"] as const;
 export function scenarioVariant(base: Scenario, variant: number): Scenario {
   const s = structuredClone(base);
   if (variant === 1) {

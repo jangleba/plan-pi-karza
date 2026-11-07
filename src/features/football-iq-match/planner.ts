@@ -1,48 +1,6 @@
 import { simulate, insidePitch } from "./simulation";
 import { currentBallCarrier, currentPlayerPoint } from "./engine";
 import type { ActionMode, PlannedAction, Point, Scenario } from "./types";
-
-export const actionGroups = [
-  { id: "ball", label: "Z piłką", modes: ["pass", "through", "cross", "carry", "shot", "hold"] },
-  { id: "move", label: "Bez piłki", modes: ["run", "shift"] },
-  { id: "defence", label: "Obrona", modes: ["press", "cover", "mark"] },
-] as const;
-export const modeLabels: Record<ActionMode, string> = {
-  pass: "Podanie",
-  through: "W przestrzeń",
-  cross: "Dośrodkuj",
-  carry: "Prowadzenie",
-  shot: "Strzał",
-  hold: "Utrzymaj",
-  run: "Wybiegnięcie",
-  shift: "Wsparcie",
-  press: "Pressing",
-  cover: "Asekuracja",
-  mark: "Krycie",
-};
-export const modeHints: Record<ActionMode, string> = {
-  pass: "Dotknij partnera.",
-  through: "Dotknij odbiorcy podania w biegu.",
-  cross: "Dotknij odbiorcy dośrodkowania.",
-  carry: "Dotknij miejsca prowadzenia.",
-  shot: "Opcjonalne zakończenie planu.",
-  hold: "Dotknij posiadacza piłki.",
-  run: "Zawodnik → miejsce biegu.",
-  shift: "Zawodnik → miejsce wsparcia.",
-  press: "Zawodnik → rywal z piłką.",
-  cover: "Zawodnik → miejsce asekuracji.",
-  mark: "Zawodnik → kryty rywal.",
-};
-export function plannedActionMode(action: PlannedAction | undefined): ActionMode {
-  if (!action) return "pass";
-  return action.type === "pass"
-    ? action.delivery === "through"
-      ? "through"
-      : action.delivery === "cross"
-        ? "cross"
-        : "pass"
-    : action.type;
-}
 export function plannedState(s: Scenario, actions: PlannedAction[]) {
   if (s.simulation) return simulate(s, actions).final;
   return {

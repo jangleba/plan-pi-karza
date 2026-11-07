@@ -167,65 +167,6 @@ export async function persistMonthlyPlan(
   return prepared.plan;
 }
 
-/**
- * Zapisuje sesję dodaną lub zamienioną przez zawodnika w tym samym modelu,
- * którego używa plan. Dzięki temu można ją ukończyć i zachować w historii.
- */
-export async function persistModifiedSession(
-  userId: string,
-  trainingDayId: string,
-  session: SessionDay,
-): Promise<SessionDay> {
-  const sessionId = crypto.randomUUID();
-  const persisted: SessionDay = {
-    ...session,
-    dbId: sessionId,
-    dayDbId: trainingDayId,
-  };
-  const sessionInsert = await supabase.from("training_sessions").insert({
-    id: sessionId,
-    user_id: userId,
-    training_day_id: trainingDayId,
-    session_type: session.type ?? session.sessionType,
-    title: session.title,
-    goal: session.goalOfSession,
-    duration_min: session.durationMin,
-    intensity: session.intensity,
-    warmup_json: session.sections.warmup as unknown as Json,
-    main_work_json: [
-      ...session.sections.main,
-      ...session.sections.accessory,
-      ...session.sections.footballTransfer,
-    ] as unknown as Json,
-    cooldown_json: session.sections.cooldown as unknown as Json,
-    safety_notes: session.safetyNote,
-  });
-  assertNoSupabaseError("training_sessions.insert_modified", sessionInsert.error);
-
-  const rows: ExerciseRow[] = [];
-  let index = 0;
-  const push = (label: string, items: ExerciseItem[]) => {
-    const next = buildExerciseRows(userId, sessionId, index, label, items);
-    index += next.length;
-    rows.push(...next);
-  };
-  push("warmup", session.sections.warmup);
-  push("main", session.sections.main);
-  push("accessory", session.sections.accessory);
-  push("footballTransfer", session.sections.footballTransfer);
-  push("cooldown", session.sections.cooldown);
-
-  if (rows.length > 0) {
-    const exerciseInsert = await supabase.from("session_exercises").insert(rows);
-    if (exerciseInsert.error) {
-      await supabase.from("training_sessions").delete().eq("id", sessionId).eq("user_id", userId);
-      assertNoSupabaseError("session_exercises.insert_modified", exerciseInsert.error);
-    }
-  }
-
-  return persisted;
-}
-
 /** Prepare a command payload without performing any partial database writes. */
 export function prepareModifiedSession(
   userId: string,

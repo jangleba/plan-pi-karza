@@ -113,13 +113,6 @@ export function exerciseDataLineParts(e: TrainingExercise): {
   return { dose, meta };
 }
 
-export function restSecondsFromLabel(label: string): number {
-  const values = [...label.matchAll(/\d+/g)].map(([value]) => Number(value));
-  if (values.length === 0) return 90;
-  if (values.length === 1) return values[0];
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-}
-
 export function resolveDefinitionForExercise(e: TrainingExercise) {
   return (
     (e.exerciseId ? getExerciseDefinition(e.exerciseId) : undefined) ??
@@ -176,17 +169,6 @@ export function normalizeStrengthBlockRest(value: string | undefined): string | 
     normalized = normalized.replace(/^przerwa po bloku:\s*/i, "").trim();
   }
   return normalized || null;
-}
-
-export function splitStrengthBlockTitle(title: string): {
-  heading: string;
-  detail: string | null;
-} {
-  const clean = title.trim() || "Blok ćwiczeń";
-  const match = clean.match(/^(BLOK\s+[A-Z0-9]+)\s*[—–-]\s*(.+)$/i);
-  return match
-    ? { heading: match[1].toUpperCase(), detail: match[2].trim() }
-    : { heading: clean, detail: null };
 }
 
 // Krótki komunikat decyzji — max 1 zdanie, tylko jeśli naprawdę potrzebne.
