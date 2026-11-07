@@ -545,14 +545,7 @@
       const j = sp.joints[side],
         far = sign < 0,
         legSvg =
-          G.limb(P(j.hip), P(j.knee), P(j.ankle), {
-            root: 10.0,
-            upper: 13.8,
-            joint: 5.8,
-            lower: 9.2,
-            end: 3.6,
-          }) +
-          G.shorts(P(j.hip), P(j.knee), far) +
+          G.limb(P(j.hip), P(j.knee), P(j.ankle), G.LEG) +
           G.muscleLines(P(j.hip), P(j.knee), P(j.ankle), "leg", far, s, side);
       layer(
         mix(j.hip, j.ankle, 0.48),
@@ -561,102 +554,79 @@
       const a = j.footAngle * rad;
       const shoePoint = (x, y, z = 0) =>
         add(j.ankle, [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z]);
-      const shoe = [];
-      for (const z of [-4.2, 4.2])
-        for (const [x, y] of [
-          [-6, -4],
-          [4, -3],
-          [8, 3],
-          [16, 7],
-          [16, 11],
-          [-7, 11],
-          [-7, 0],
-        ])
-          shoe.push(P(shoePoint(x, y, z)));
+      // Bare foot: the shared side-view foot contour, placed in 3D and projected.
       layer(
         add(j.ankle, [5, 5, 0]),
-        '<g class="bw-human-shoe">' +
-          path(
-            softHull(
-              [-10, -3].flatMap((y) =>
-                [-3.7, 3.7].flatMap((x) => [-4.1, 4.1].map((z) => P(shoePoint(x, y, z)))),
-              ),
-            ),
-          ) +
-          path(
-            `M${xy(P(shoePoint(-3.7, -8, 4.2)))}L${xy(P(shoePoint(3.7, -8, 4.2)))}`,
-            "none",
-            'stroke-width=".55"',
-          ) +
-          path(softHull(shoe)) +
-          path(
-            `M${xy(P(shoePoint(0, 0, 4.2)))}L${xy(P(shoePoint(6, 1, 4.2)))}M${xy(P(shoePoint(1, 2, 4.2)))}L${xy(P(shoePoint(8, 3, 4.2)))}`,
-            "none",
-            'stroke-width=".6"',
-          ) +
-          path(
-            `M${xy(P(shoePoint(-5, 8, 4.3)))}L${xy(P(shoePoint(15, 8, 4.3)))}`,
-            "none",
-            'stroke-width=".55"',
-          ) +
+        '<g class="bw-human-shoe bw-human-foot">' +
+          path(G.smoothClosed(G.FOOT.map(([x, y]) => P(shoePoint(x, y))))) +
+          G.details(G.FOOT_LINES, far, ([x, y]) => P(shoePoint(x, y))) +
           "</g>",
       );
       const armSvg =
-        G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), {
-          root: 7.2,
-          upper: 8.6,
-          joint: 3.8,
-          lower: 5.7,
-          end: 2.6,
-        }) +
-        G.sleeve(P(j.shoulder), P(j.elbow)) +
+        G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), G.ARM) +
         G.muscleLines(P(j.shoulder), P(j.elbow), P(j.wrist), "arm", far, s, side);
       layer(
         mix(j.shoulder, j.wrist, 0.55),
         `<g class="bw-human-arm bw-human-arm-${side}">${armSvg}</g>`,
       );
-      // Closed hand surrounds the grip instead of floating beyond the shaft.
-      layer(
-        add(j.wrist, [0, 0, 1.8]),
-        `<g class="bw-human-hand">${path(ellipse(j.wrist, [3.2, 0, 0], [0, 4, 1], c))}${path(ellipse(add(j.wrist, [0, -0.4, 1.5]), [1.6, 0, 0], [0, 1.3, 0], c), "none", 'stroke-width=".45" opacity=".4"')}</g>`,
-      );
+      // Hand with fingers, at the projected wrist along the projected forearm.
+      const wrist2d = P(j.wrist),
+        forearm = sub(wrist2d, P(j.elbow));
+      layer(add(j.wrist, [0, 0, 1.8]), G.handShape(wrist2d, unit(forearm), "fist", far));
     }
-    const rings = [];
-    for (const [y, rx, rz] of [
-      [-9, 17, 16],
-      [-17, 16, 18],
-      [-36, 17, 22],
-      [-55, 16, 24],
-      [-64, 9, 12],
-    ])
-      for (let i = 0; i < 16; i++)
-        rings.push(
-          P(local(s, [rx * Math.cos((i * Math.PI) / 8), y, rz * Math.sin((i * Math.PI) / 8)])),
+    // Torso as overlapping slices between neighbouring cross-sections. Each
+    // slice is convex, but their union keeps the waist, chest and pelvis shape
+    // that a single convex hull flattened into a box.
+    const sections = [
+      [9, 5, 8],
+      [5, 10, 13.5],
+      [-2, 12, 15],
+      [-10, 12.5, 14.8],
+      [-22, 11, 12.6],
+      [-36, 13.5, 16.5],
+      [-50, 14, 20.5],
+      [-58, 12, 21],
+      [-63, 9, 15],
+      [-66, 6.5, 8],
+    ];
+    // Outline from the extreme points of each projected cross-section,
+    // measured across the projected spine: one smooth contour with waist,
+    // chest and shoulders instead of a convex box.
+    const spineTop = P(local(s, [0, -66, 0])),
+      spineBottom = P(local(s, [0, 9, 0])),
+      along = sub(spineTop, spineBottom),
+      across = unit([-along[1], along[0]]);
+    const leftSide = [],
+      rightSide = [];
+    for (const [y, rx, rz] of sections) {
+      let lo = null,
+        hi = null;
+      for (let i = 0; i < 16; i++) {
+        const q = P(
+          local(s, [rx * Math.cos((i * Math.PI) / 8), y, rz * Math.sin((i * Math.PI) / 8)]),
         );
+        const d = dot(q, across);
+        if (!lo || d < lo.d) lo = { q, d };
+        if (!hi || d > hi.d) hi = { q, d };
+      }
+      leftSide.push(lo.q);
+      rightSide.push(hi.q);
+    }
+    const torsoShape = path(G.smoothClosed(leftSide.concat(rightSide.reverse())));
     const rear = c.view === "rear-quarter";
-    let torso = path(softHull(rings));
-    const shirtLine = (ps) =>
-      path(
-        `M${xy(P(local(s, ps[0])))}Q${xy(P(local(s, ps[1])))} ${xy(P(local(s, ps[2])))}`,
-        "none",
-        'stroke-width=".65" opacity=".55"',
-      );
-    torso += shirtLine([
-      [0, -64, -7],
-      [rear ? -10 : 10, -57, 0],
-      [0, -64, 7],
-    ]);
-    torso += shirtLine([
-      [rear ? -17 : 17, -12, -14],
-      [rear ? -18 : 18, -9, 0],
-      [rear ? -17 : 17, -12, 14],
-    ]);
+    let torso = torsoShape;
     torso += G.torsoMuscles(s, (p) => P(local(s, [rear ? -16 : 16, p[1], p[0]])), rear);
-    layer(local(s, [0, -32, 0]), '<g class="bw-human-torso bw-human-shirt">' + torso + "</g>");
+    layer(local(s, [0, -32, 0]), '<g class="bw-human-torso">' + torso + "</g>");
     const neckPoints = [];
-    for (const y of [-73, -63])
-      for (const z of [-5, 5]) for (const x of [-4, 4]) neckPoints.push(P(local(s, [x, y, z])));
-    layer(sp.neck, path(softHull(neckPoints)));
+    for (const [y, r] of [
+      [-75, 4.6],
+      [-64, 6.4],
+    ])
+      for (let i = 0; i < 12; i++)
+        neckPoints.push(
+          P(local(s, [r * Math.cos((i * Math.PI) / 6), y, r * 1.1 * Math.sin((i * Math.PI) / 6)])),
+        );
+    layer(sp.neck, '<g class="bw-human-neck">' + path(softHull(neckPoints)) + "</g>");
     const headAngle = (sp.config.variant === "hip_thrust" ? 0 : s.torsoAngle || 0) * rad;
     const hp = (x, y, z = 0) =>
       add(sp.head, [
@@ -664,82 +634,12 @@
         x * Math.sin(headAngle) + y * Math.cos(headAngle),
         z,
       ]);
-    const headPoints = [];
-    for (const [y, rx, rz] of [
-      [-15, 6, 6],
-      [-11, 10, 9],
-      [0, 10, 8.5],
-      [7, 8, 7],
-      [12, 4, 4],
-    ])
-      for (let i = 0; i < 16; i++)
-        headPoints.push(
-          P(hp(rx * Math.cos((i * Math.PI) / 8), y, rz * Math.sin((i * Math.PI) / 8))),
-        );
-    if (!rear)
-      for (const p of [
-        [10, -3, 0],
-        [14, 1, 0],
-        [10, 4, 0],
-        [8, 9, 0],
-      ])
-        headPoints.push(P(hp(...p)));
-    headPoints.push(P(hp(7, -17, 2)));
-    let head = path(softHull(headPoints));
-    // A white hair cap with a swept contour, never a mechanical oval head.
-    const headLine = (ps, extra = "") =>
-      path(
-        `M${xy(P(hp(...ps[0])))}Q${xy(P(hp(...ps[1])))} ${xy(P(hp(...ps[2])))}`,
-        "none",
-        `stroke-width=".75" ${extra}`,
-      );
-    head += headLine([
-      [-8, -2, 7],
-      [-12, -10, 9],
-      [1, -11, 9],
-    ]);
-    for (const z of [-4, 0, 4])
-      head += headLine([
-        [-7, -9, z],
-        [-3, -18, z],
-        [8, -13, z],
-      ]);
-    head +=
-      headLine([
-        [-4, -7, 8],
-        [0, -10, 10],
-        [2, -5, 9],
-      ]) +
-      headLine([
-        [2, -5, 9],
-        [0, 2, 10],
-        [-3, -1, 8],
-      ]);
-    if (!rear) {
-      head += headLine([
-        [8, -4, 4],
-        [10, -5, 4],
-        [11, -3, 3],
-      ]);
-      head += headLine([
-        [9, 6, 2],
-        [11, 7, 1],
-        [9, 7, 0],
-      ]);
-      head += headLine([
-        [8, 9, 0],
-        [3, 14, 3],
-        [-2, 10, 6],
-      ]);
-    } else
-      head += headLine(
-        [
-          [-8, -5, 3],
-          [-8, 2, 4],
-          [-5, 6, 5],
-        ],
-        'opacity=".55"',
-      );
+    // The shared side-view head (skull, face profile, jaw) with its ear, eye
+    // and mouth lines, scaled to this rig and turned with the head.
+    const headPoint = ([x, y]) => P(hp((rear ? -x : x) * 0.88, (y + 93) * 0.88));
+    const head =
+      path(G.smoothClosed(G.HEAD_SIDE.map(headPoint))) +
+      G.details(rear ? G.FACE_SIDE.slice(0, 1) : G.FACE_SIDE, false, headPoint);
     layer(sp.head, '<g class="bw-human-head bw-athlete-portrait">' + head + "</g>");
     for (const g of sp.gear) {
       if (g.kind === "barbell") {
@@ -805,7 +705,7 @@
       '<g class="bw-human-athlete bw-human-outline bw-human-natural bw-human-sketch bw-human-spatial" fill="#fff" stroke="#344b5e" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round">' +
       layers
         .sort((a, b) => a.z - b.z)
-        .map((l) => l.svg)
+        .map((l) => (l.svg.includes('class="bw-human-') ? H.seamless(l.svg) : l.svg))
         .join("") +
       "</g>"
     );

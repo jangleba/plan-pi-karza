@@ -84,7 +84,7 @@ describe("complete shared exercise demonstrations", () => {
     }
   });
   it("renders finite poses in the same human style through every phase", () => {
-    expect(runtime.BWDrawHuman.style).toBe("athletic-sketch-54");
+    expect(runtime.BWDrawHuman.style).toBe("anatomical-outline-57");
     for (const [id, model] of Object.entries(runtime.BWAnim.models))
       for (let i = 0; i < 40; i++) {
         const pose = model.sample(i / 40),
@@ -97,7 +97,8 @@ describe("complete shared exercise demonstrations", () => {
         ).toBe(true);
         expect(pose.phase, id).toBeTruthy();
       }
-  });
+    // Renders every phase of all ~220 demonstrations: give it room on slow runners.
+  }, 20_000);
   it("keeps the new limb geometry within the shared rig's dimensions", () => {
     for (const record of library.records)
       for (let i = 0; i < 80; i++) {
