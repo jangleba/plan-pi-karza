@@ -80,3 +80,46 @@ it("reports completed IQ practice in separate modes without treating it as a mat
     independent: 1,
   });
 });
+it("retains low-rate sprint results but does not turn their difference into progress", () => {
+  const t = buildJumpTimeline(
+    Array.from({ length: 120 }, (_, cts) => ({ cts, timescale: 30, duration: 1 })),
+  );
+  const sprintSeries = (sessionId: string, date: string, end: number, seed: number) =>
+    attemptPlan(["sprint_10m"]).map((attempt, i) => ({
+      ...createBrowserResult({
+        attempt,
+        sessionId,
+        timeline: t,
+        start: 20,
+        end,
+        sourceName: "sprint.mp4",
+        sourceHash: (seed + i).toString(16).padStart(64, "0"),
+        sourceBytes: 1000,
+        codec: "avc1.640029",
+        guidePositions: [0.3, 0.7],
+        notes: "",
+      }),
+      recordedAt: `${date}T12:00:00.000Z`,
+    }));
+  const rows = [
+    ...sprintSeries("older-sprint-session", "2026-10-29", 95, 100),
+    ...sprintSeries("newer-sprint-session", today, 90, 200),
+  ];
+  const report = buildLabProgress(rows, today, 7)[0];
+  expect(report.complete).toBe(true);
+  expect(report.previous).not.toBeNull();
+  expect(report.delta).toBeNull();
+  expect(report.timingQuality?.status).toBe("indicative");
+});
+
+it("keeps a low-rate CMJ series visible without declaring a performance trend", () => {
+  const rows = [
+    ...series("older-cmj", "2026-10-29", 139, 200),
+    ...series("newer-cmj", today, 140, 300),
+  ].map((row) => ({ ...row, fps: 60 }));
+  const report = buildLabProgress(rows, today, 7)[0];
+  expect(report.complete).toBe(true);
+  expect(report.previous).not.toBeNull();
+  expect(report.delta).toBeNull();
+  expect(report.timingQuality?.status).toBe("indicative");
+});

@@ -65,8 +65,8 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
         <SheetContent className="bw-strength-experience-sheet">
           <SheetTitle>Doświadczenie siłowe</SheetTitle>
           <SheetDescription>
-            Poziom piłkarski nie określa doświadczenia na siłowni. Te odpowiedzi dobierają ćwiczenia
-            i układ sesji.
+            Dopasuj ćwiczenia do swojego stażu i techniki. To osobne ustawienie od poziomu
+            piłkarskiego.
           </SheetDescription>
           <div className="bw-coach-experience bw-coach-experience-fields">
             <label>
@@ -84,10 +84,33 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
               >
                 <option value="none">Jeszcze nie trenowałem</option>
                 <option value="beginner">Uczę się podstaw</option>
-                <option value="intermediate">Trenuję regularnie i znam podstawy</option>
-                <option value="advanced">Mam duże doświadczenie siłowe</option>
+                <option value="intermediate">Regularny trening, znam podstawy</option>
+                <option value="advanced">Duże doświadczenie siłowe</option>
               </select>
             </label>
+            <div className="bw-strength-tenure" role="group" aria-label="Szybki wybór stażu">
+              <span className="bw-strength-tenure-title">Staż regularnego treningu</span>
+              {[
+                { label: "Poniżej 6 mies.", value: 0, max: 6 },
+                { label: "6–11 mies.", value: 6, max: 12 },
+                { label: "1–2 lata", value: 12, max: 24 },
+                { label: "2 lata lub więcej", value: 24, max: 721 },
+              ].map((option) => (
+                <button
+                  type="button"
+                  key={option.value}
+                  disabled={saving}
+                  aria-pressed={
+                    draft.strengthTrainingMonths !== undefined &&
+                    draft.strengthTrainingMonths >= option.value &&
+                    draft.strengthTrainingMonths < option.max
+                  }
+                  onClick={() => setDraft((d) => ({ ...d, strengthTrainingMonths: option.value }))}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
             <label>
               Ile miesięcy regularnego treningu?
               <input
@@ -97,7 +120,7 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 step="1"
                 inputMode="numeric"
                 value={draft.strengthTrainingMonths ?? ""}
-                placeholder="Możesz zostawić puste"
+                placeholder="np. 18"
                 disabled={saving}
                 onChange={(e) =>
                   setDraft((d) => ({
@@ -108,6 +131,12 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 }
               />
             </label>
+            {draft.gymExperienceLevel !== "none" && draft.strengthTrainingMonths === undefined && (
+              <p className="bw-strength-tenure-note" role="status">
+                Wybierz staż, aby dopasować trudność. Przy pustym polu plan zachowa wariant
+                wprowadzający.
+              </p>
+            )}
             <label>
               Technika podstawowych ćwiczeń
               <select
@@ -121,8 +150,8 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
                 }
               >
                 <option value="low">Dopiero się uczę</option>
-                <option value="medium">Znam podstawowe ustawienie i kontroluję ruch</option>
-                <option value="high">Utrzymuję technikę także przy trudniejszych wariantach</option>
+                <option value="medium">Kontroluję podstawowe ruchy</option>
+                <option value="high">Kontroluję też trudniejsze warianty</option>
               </select>
             </label>
             <label>
@@ -143,7 +172,12 @@ export function StrengthExperienceSetup({ compact = false }: { compact?: boolean
               </select>
             </label>
             {error && <p role="alert">{error}</p>}
-            <button type="button" disabled={saving} onClick={() => void save()}>
+            <button
+              type="button"
+              className="bw-strength-experience-save"
+              disabled={saving}
+              onClick={() => void save()}
+            >
               {saving ? "Zapisywanie…" : "Zapisz odpowiedzi"}
             </button>
           </div>

@@ -6,7 +6,11 @@ import { protocolFor } from "./protocols";
 export type TimedTestId = Exclude<BrowserTestId, "standing_long_jump">;
 export type TimedPoseFrame = DetectedPose & { frameIndex: number };
 export interface TimedEventProposal {
+  /** A search anchor, not an automatically accepted first movement. */
   start: number;
+  /** Sprint starts are chosen manually, beginning before the movement threshold. */
+  startReviewFrom?: number;
+  endReviewFrom?: number;
   end: number;
   turn?: number;
   confidence: number;
@@ -73,6 +77,20 @@ export function selectTimedEvents(
         "Potrzebny jest jeden wyraźny skok z widocznym wybiciem i lądowaniem. Możesz oznaczyć je ręcznie.",
       );
     ({ start, end } = windows[0]);
+    if (test === "single_leg_cmj") {
+      const other = side === "left" ? "right" : "left";
+      if (
+        frames.some(
+          (p) =>
+            p.frameIndex > start!.frameIndex &&
+            p.frameIndex < end!.frameIndex &&
+            footY(p, other) >= floor - Math.max(0.004, h * 0.012),
+        )
+      )
+        throw new Error(
+          "Możliwy kontakt drugiej stopy. Sprawdź próbę ręcznie lub nagraj ponownie.",
+        );
+    }
     const after = frames.filter((p) => seconds(p) > seconds(end!) + 0.08);
     if (
       after.length < 2 ||
@@ -166,6 +184,24 @@ export function selectTimedEvents(
   const jumping = test === "cmj" || test === "single_leg_cmj";
   return {
     start: start.frameIndex,
+    ...(test === "sprint_10m" || jumping
+      ? {
+          startReviewFrom: Math.max(
+            1,
+            timeline.frames.findIndex(
+              (frame) => frame.seconds >= Math.max(first, seconds(start) - (jumping ? 0.12 : 0.35)),
+            ),
+          ),
+        }
+      : {}),
+    ...(jumping
+      ? {
+          endReviewFrom: Math.max(
+            start.frameIndex + 1,
+            timeline.frames.findIndex((frame) => frame.seconds >= seconds(end) - 0.08),
+          ),
+        }
+      : {}),
     end: end.frameIndex,
     ...(turn ? { turn: turn.frameIndex } : {}),
     confidence: Math.min(start.confidence, end.confidence, turn?.confidence ?? 1),

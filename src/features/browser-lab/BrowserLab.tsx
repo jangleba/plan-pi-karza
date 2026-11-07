@@ -27,6 +27,7 @@ import { SafariTools } from "./SafariTools";
 import { LabButton, LabConfirm, LabNotice, messageOf } from "./LabUI";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import "./browser-lab.css";
+import { TimedTestGuide } from "./TimedTestGuide";
 
 interface Session {
   id: string;
@@ -55,9 +56,11 @@ function RestReminder({ until }: { until: number }) {
 export default function BrowserLab({
   ownerId,
   initialTab = "tests",
+  initialTest,
 }: {
   ownerId: string;
   initialTab?: "tests" | "history";
+  initialTest?: BrowserTestId;
 }) {
   const tabsId = useId();
   const [tab, setTab] = useState<"tests" | "history">(initialTab);
@@ -67,7 +70,7 @@ export default function BrowserLab({
   const [exit, setExit] = useState(false);
   const [capable, setCapable] = useState<boolean | null>(null);
   const [finished, setFinished] = useState<number | null>(null);
-  const [preparing, setPreparing] = useState<BrowserTestId | null>(null);
+  const [preparing, setPreparing] = useState<BrowserTestId | null>(initialTest ?? null);
   const preparation = useClosingSnapshot(preparing, preparing !== null).value;
   function tabKeys(event: KeyboardEvent<HTMLButtonElement>, current: "tests" | "history") {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -149,6 +152,7 @@ export default function BrowserLab({
   return (
     <div className="browser-lab">
       <Sheet
+        initialDetent="large"
         open={preparing !== null}
         onOpenChange={(open) => {
           if (!open) setPreparing(null);
@@ -163,11 +167,37 @@ export default function BrowserLab({
           </SheetDescription>
           {preparation && (
             <>
+              {["sprint_10m", "cod_505"].includes(preparation) && (
+                <TimedTestGuide turn={preparation === "cod_505"} />
+              )}
               <ol className="my-4 list-decimal space-y-3 pl-5 text-sm">
-                {protocolFor(preparation).setup.map((step) => (
+                {(preparation === "sprint_10m"
+                  ? [
+                      "Taśmą odmierz 10 m. Oznacz start i metę.",
+                      "Telefon stoi z boku. Cały odcinek i tułów muszą być widoczne.",
+                      "Stój sekundę, rusz i biegnij przez metę. Najlepiej nagraj oryginał 120/240 FPS.",
+                    ]
+                  : preparation === "cod_505"
+                    ? [
+                        "10 m rozbiegu, potem 5 m od linii pomiarowej do nawrotu.",
+                        "Telefon stoi z boku. Pokaż oba przecięcia linii i stopę w nawrocie.",
+                        "Nawrót na wybranej nodze. Najlepiej nagraj oryginał 120/240 FPS.",
+                      ]
+                    : protocolFor(preparation).setup
+                ).map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ol>
+              {["sprint_10m", "cod_505"].includes(preparation) && (
+                <details className="bl-details mb-4">
+                  <summary>Szczegóły ustawienia</summary>
+                  <ol className="bl-steps bl-muted">
+                    {protocolFor(preparation).setup.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </details>
+              )}
               <LabButton
                 className="bl-wide"
                 onClick={() => {

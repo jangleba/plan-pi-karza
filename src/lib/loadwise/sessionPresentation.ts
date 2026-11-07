@@ -27,12 +27,15 @@ function stripRpe(text: string): string {
 
 // Jeden dodatkowy parametr wg hierarchii typu ćwiczenia. Nigdy RPE.
 function primaryQualifier(e: TrainingExercise): string | null {
+  // Keep the collapsed row unambiguous. Full load guidance belongs in details.
+  const rir = e.rir?.trim().replace(/\s*RIR\s*$/i, "");
+  if (rir) return `${rir} RIR`;
   const load = e.loadTarget ? stripRpe(e.loadTarget) : "";
-  if (load && /RIR|ciężar na/i.test(load)) return load;
+  const fromLoad = load.match(/(\d+(?:[.,]\d+)?(?:\s*[–-]\s*\d+(?:[.,]\d+)?)?)\s*RIR/i);
+  if (fromLoad) return `${fromLoad[1]} RIR`;
   const repsHasContacts = /kontakt|odbi/i.test(e.reps ?? "");
   if (typeof e.groundContacts === "number" && !repsHasContacts)
     return `${e.groundContacts} kontaktów`; // moc / plyo
-  if (e.rir) return e.rir; // akcesoria
   return null;
 }
 
@@ -145,7 +148,7 @@ const STRENGTH_STAGE_META: Array<{
   sectionTypes: string[];
 }> = [
   { key: "warmup", label: "Rozgrzewka", sectionTypes: ["warmup", "prep"] },
-  { key: "main", label: "Siła i moc", sectionTypes: ["main"] },
+  { key: "main", label: "Część główna", sectionTypes: ["main"] },
   {
     key: "accessory",
     label: "Akcesoria",

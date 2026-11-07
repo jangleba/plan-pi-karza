@@ -801,3 +801,34 @@ describe.sequential("full migration runtime contracts", () => {
     ).toBe(2);
   });
 });
+
+it("persists explicit completion marks and timing sources without health-note consent or invented loads", async () => {
+  const session = await seedSession("Zapis wykonania 66");
+  for (const [index, kind] of [
+    "completion",
+    "sprint_manual",
+    "sprint_video:12345",
+    "run_clock_partial",
+  ].entries()) {
+    const payload = {
+      user_id: owner,
+      session_id: session,
+      exercise_key: `case66:${index}`,
+      exercise_name: "Ćwiczenie",
+      set_number: 1,
+      weight_kg: null,
+      reps: null,
+      rir: null,
+      metric_kind: kind,
+      metric_value: kind === "completion" ? 1 : 2.1,
+      performed_at: "2026-10-17T12:00:00Z",
+    };
+    const result = await db.query<{ r: Record<string, unknown> }>(
+      "select save_exercise_set($1,$2::jsonb,$3) r",
+      [uid(), JSON.stringify(payload), 0],
+    );
+    expect(result.rows[0].r.metric_kind).toBe(kind);
+    expect(result.rows[0].r.weight_kg).toBeNull();
+    expect(result.rows[0].r.reps).toBeNull();
+  }
+});

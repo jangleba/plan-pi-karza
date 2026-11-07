@@ -17,6 +17,7 @@ import {
   finalPolicyMissingTargets,
   secondSessionPolicyViolation,
   isConservativeReturnContext,
+  matchWeekPolicyViolation,
 } from "./finalPlanPolicy";
 import { hasAcknowledgedReducedTargets } from "./planPolicyStamp";
 
@@ -35,6 +36,7 @@ export type PersistedPlanIssueCode =
   | "sprint-space-unavailable"
   | "own-training-unavailable"
   | "conservative-return-violation"
+  | "match-week-load"
   | "missing-weekly-minimum"
   | "match-date-mismatch"
   | "invalid-exercise-contract";
@@ -152,6 +154,12 @@ export function validatePersistedPlan(
         session.durationMin > 0,
     );
     const weekday = isoDayOfWeek(parseIso(day.date));
+    if (ownSessions.some((session) => matchWeekPolicyViolation(session, day.mdLabel)))
+      issues.push({
+        code: "match-week-load",
+        date: day.date,
+        message: "Pełny bodziec narusza domyślne ograniczenie obciążenia przed meczem.",
+      });
     if (
       ownSessions.length &&
       ((profile.unavailableDays ?? []).includes(weekday) ||

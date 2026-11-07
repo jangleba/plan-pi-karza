@@ -4,6 +4,10 @@ import { useAuth } from "@/lib/loadwise/auth";
 import { ProgressWorkspace } from "@/components/progress/ProgressWorkspace";
 
 export const Route = createFileRoute("/_tabs/postep")({
+  validateSearch: (s: Record<string, unknown>): { view?: "history"; session?: string } => ({
+    view: s.view === "history" ? ("history" as const) : undefined,
+    session: typeof s.session === "string" ? s.session : undefined,
+  }),
   component: ProgressScreen,
   head: () => ({
     meta: [
@@ -27,12 +31,15 @@ export const Route = createFileRoute("/_tabs/postep")({
 function ProgressScreen() {
   const { state, todayIso, hydrated, syncing } = useLoadwise();
   const { user } = useAuth();
+  const search = Route.useSearch();
   return (
     <ProgressWorkspace
       key={user?.id ?? "signed-out"}
       state={state}
       todayIso={todayIso}
       ownerId={user?.id}
+      initialTab={search.view}
+      focusSessionId={search.session}
       loading={!hydrated || syncing}
     />
   );

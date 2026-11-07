@@ -71,50 +71,32 @@ vi.mock("@/components/loadwise/AppLaunchScreen", () => ({
 }));
 vi.mock("@/components/loadwise/ModifySheet", () => ({ ModifySheet: () => null }));
 vi.mock("@/components/running/EnduranceRunTracker", () => ({ EnduranceRunTracker: () => null }));
-vi.mock("@/components/loadwise/session/GenericRunner", () => ({
-  StructuredSections: ({ canRecord }: { canRecord?: boolean }) => (
-    <>
-      <button data-generic-preview>Instrukcja ćwiczenia</button>
-      <button data-runner="generic" disabled={!canRecord}>
-        Zapisz wykonanie
-      </button>
-    </>
-  ),
-}));
-vi.mock("@/components/loadwise/session/SprintRunner", async (importOriginal) => {
-  const { SprintStructuredSections } =
-    await importOriginal<typeof import("@/components/loadwise/session/SprintRunner")>();
+vi.mock("@/components/loadwise/session/FocusedSessionRunner", async (importOriginal) => {
+  const { FocusedSessionRunner } =
+    await importOriginal<typeof import("@/components/loadwise/session/FocusedSessionRunner")>();
   return {
-    SprintStructuredSections: (props: ComponentProps<typeof SprintStructuredSections>) =>
+    FocusedSessionRunner: (props: ComponentProps<typeof FocusedSessionRunner>) =>
       mocks.realSprint ? (
-        <SprintStructuredSections {...props} />
+        <FocusedSessionRunner {...props} />
       ) : (
         <>
-          <button type="button" data-preview-control>
-            Obejrzyj ćwiczenie
+          <button data-strength-preview data-generic-preview data-preview-control>
+            Instrukcja ćwiczenia
           </button>
-          <button data-runner="sprint" disabled={!props.canRecord} onClick={props.onFinish}>
-            Finish sprint
+          <button
+            data-runner={props.kind === "general" ? "generic" : props.kind}
+            disabled={!props.canRecord}
+            onClick={props.onFinish}
+          >
+            Finish
           </button>
         </>
       ),
   };
 });
-vi.mock("@/components/loadwise/session/StrengthRunner", () => ({
-  StrengthStructuredSections: ({
-    onFinish,
-    canRecord,
-  }: {
-    onFinish: () => void;
-    canRecord?: boolean;
-  }) => (
-    <>
-      <button data-strength-preview>Instrukcja ćwiczenia</button>
-      <button data-runner="strength" disabled={!canRecord} onClick={onFinish}>
-        Finish strength
-      </button>
-    </>
-  ),
+vi.mock("@/lib/loadwise/setLogs", () => ({
+  useExerciseSetLogs: () => ({ sets: [], saveSet: vi.fn().mockResolvedValue(true) }),
+  plannedSets: () => 2,
 }));
 vi.mock("@/components/loadwise/session/SessionCompletion", () => ({
   CompletionPanel: ({ session }: { session: SessionDay }) => <div data-completion={session.dbId} />,
@@ -137,7 +119,14 @@ async function render() {
   );
 }
 function completionId() {
-  return host.querySelector<HTMLElement>("[data-completion]")?.dataset.completion;
+  return document.querySelector<HTMLElement>("[data-completion]")?.dataset.completion;
+}
+async function openSummary() {
+  const b = [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+    ["Zakończ trening", "Edytuj podsumowanie"].includes(b.textContent?.trim() ?? ""),
+  );
+  expect(b).toBeDefined();
+  await act(async () => b!.click());
 }
 async function startSelectedSession() {
   const button = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
@@ -258,6 +247,7 @@ describe("session route gates", () => {
     };
     await render();
     expect(host.querySelector('[data-runner="sprint"]')).not.toBeNull();
+    await openSummary();
     expect(completionId()).toBe("session-1");
     expect(mocks.startSession).not.toHaveBeenCalled();
   });
@@ -275,24 +265,17 @@ describe("session route gates", () => {
       }),
     ];
     await render();
-    expect(host.querySelector(".bw-training-hero")).not.toBeNull();
-    expect(host.querySelector(".bw-sprint-page")).not.toBeNull();
-    const stage = [...host.querySelectorAll<HTMLElement>(".bw-stage-header")].find((el) =>
-      el.textContent?.includes("Drille"),
+    expect(host.querySelector(".bw-focused-runner")).not.toBeNull();
+    const technique = [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      b.textContent?.includes("Technika i animacja"),
     )!;
-    const panel = stage.closest(".bw-sprint-stage")!;
-    await act(async () =>
-      panel.querySelector<HTMLElement>(".bw-exercise-name")!.closest("button")!.click(),
-    );
-    await act(async () => panel.querySelector<HTMLButtonElement>(".bw-technique-trigger")!.click());
-    expect(panel.querySelector(".bw-technique-panel")?.textContent).toContain("Wykonanie");
-    expect(panel.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
+    await act(async () => technique.click());
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Ankling");
+    expect(document.querySelector("iframe")?.getAttribute("src")).toContain("id=ankling&embed=1");
+    expect(host.textContent).toContain("Zapis wykonania będzie dostępny po rozpoczęciu");
     expect(
-      panel
-        .querySelector<HTMLButtonElement>('[aria-label="Oznacz jako wykonane"]')
-        ?.matches(":disabled"),
-    ).toBe(true);
-    expect(host.querySelector(".bw-sprint-action")).toBeNull();
+      [...host.querySelectorAll("button")].some((b) => b.textContent?.includes("Wykonane ·")),
+    ).toBe(false);
     expect(mocks.startSession).not.toHaveBeenCalled();
     expect(mocks.state.completions).toEqual({});
     expect(window.localStorage.getItem("loadwise:sprint-progress:user-1:session-1")).toBeNull();
@@ -321,7 +304,7 @@ describe("session route gates", () => {
       expect(mocks.startSession).not.toHaveBeenCalled();
       expect(completionId()).toBeUndefined();
       if (today !== "2026-09-29")
-        expect(host.textContent).toContain("Podgląd treningu z innego dnia");
+        expect(host.textContent).toContain("Podgląd jednostki z innego dnia");
     },
   );
   it("waits for authentication and opens today's runner without forcing a check-in", async () => {
@@ -411,6 +394,7 @@ describe("session route gates", () => {
     expect(mocks.startSession).toHaveBeenLastCalledWith(
       expect.objectContaining({ dbId: "added-session" }),
     );
+    await openSummary();
     expect(completionId()).toBe("added-session");
   });
 
@@ -425,6 +409,7 @@ describe("session route gates", () => {
       notes: "",
     };
     await render();
+    await openSummary();
     expect(completionId()).toBe("session-1");
     mocks.state.plan = [sessionFixture({ loadLabelOverride: "Wstrzymaj trening" })];
     await render();
@@ -477,6 +462,7 @@ describe("session route gates", () => {
       ],
     };
     await render();
+    await openSummary();
     expect(completionId()).toBe("session-1");
   });
 });

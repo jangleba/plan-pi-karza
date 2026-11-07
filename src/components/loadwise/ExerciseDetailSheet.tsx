@@ -1,4 +1,3 @@
-import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import type { TrainingExercise } from "@/lib/loadwise/types";
 import {
   getAllEquipmentDefinitions,
@@ -79,7 +78,7 @@ export function resolveExerciseSheetViewModel(raw: TrainingExercise) {
       ? raw.instructionSteps
       : undefined,
     purpose:
-      /^(?:hypertrophy|strength|max_strength|power|stability|mobility|coordination|technique)$/i.test(
+      /^(?:hypertrophy|strength|max_strength|power|stability|mobility|coordination|technique|rfd)$/i.test(
         raw.purpose ?? "",
       )
         ? undefined
@@ -236,14 +235,6 @@ export function ExerciseDetailSheet({
               </div>
             )}
           </div>
-          {e.methodExecution && (
-            <MethodExecutionCoach
-              key={e.id}
-              plan={e.methodExecution}
-              context={e.id}
-              enabled={false}
-            />
-          )}
           {onRecord && (
             <button type="button" className="bw-detail-record" onClick={onRecord}>
               Zapisz serie
@@ -265,7 +256,7 @@ export function ExerciseDetailSheet({
                   <MovementBlueprint exercise={e} />
                 )}
               </div>
-              {details.purpose && <p className="bw-exercise-purpose">{details.purpose}</p>}
+              {details.cues[0] && <p className="bw-exercise-purpose">{details.cues[0]}</p>}
               {planOccurrences && planOccurrences.length > 1 && (
                 <section className="bw-exercise-original-entries">
                   <h3>Wpisy w zapisanym planie</h3>
@@ -325,60 +316,66 @@ export function ExerciseDetailSheet({
                     </ol>
                   </Section>
                 )}
-                {details.cues.length > 0 && (
-                  <Section icon={<ListChecks className="h-3.5 w-3.5" />} title="Technika">
-                    <ul className="space-y-1.5">
-                      {details.cues.map((c, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-foreground">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
-                          <span>{c}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </Section>
-                )}
+                <details className="bw-session-extra">
+                  <summary>Więcej wskazówek i warianty</summary>
+                  {details.cues.length > 0 && (
+                    <Section icon={<ListChecks className="h-3.5 w-3.5" />} title="Technika">
+                      <ul className="space-y-1.5">
+                        {details.cues.map((c, i) => (
+                          <li key={i} className="flex gap-2 text-sm text-foreground">
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
+                            <span>{c}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </Section>
+                  )}
 
-                {details.errors.length > 0 && (
-                  <Section
-                    icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                    title="Najczęstsze błędy"
-                  >
-                    <ul className="space-y-1.5 text-sm text-muted-foreground">
-                      {details.errors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                  </Section>
-                )}
+                  {details.errors.length > 0 && (
+                    <Section
+                      icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                      title="Najczęstsze błędy"
+                    >
+                      <ul className="space-y-1.5 text-sm text-muted-foreground">
+                        {details.errors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </Section>
+                  )}
 
-                {e.regression && (
-                  <Section
-                    icon={<ArrowDownRight className="h-3.5 w-3.5" />}
-                    title="Łatwiejsza wersja"
-                  >
-                    <p className="text-sm text-muted-foreground">{e.regression}</p>
-                  </Section>
-                )}
+                  {e.regression && (
+                    <Section
+                      icon={<ArrowDownRight className="h-3.5 w-3.5" />}
+                      title="Łatwiejsza wersja"
+                    >
+                      <p className="text-sm text-muted-foreground">{e.regression}</p>
+                    </Section>
+                  )}
 
-                {e.progression && (
-                  <Section
-                    icon={<ArrowUpRight className="h-3.5 w-3.5" />}
-                    title="Trudniejsza wersja"
-                  >
-                    <p className="text-sm text-muted-foreground">{e.progression}</p>
+                  {e.progression && (
+                    <Section
+                      icon={<ArrowUpRight className="h-3.5 w-3.5" />}
+                      title="Trudniejsza wersja"
+                    >
+                      <p className="text-sm text-muted-foreground">{e.progression}</p>
+                    </Section>
+                  )}
+                  <Section icon={<ListChecks className="h-3.5 w-3.5" />} title="Sprzęt i zamiana">
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <p>Sprzęt: {details.equipment}</p>
+                      <p>Zamiana bez sprzętu: {details.replacement}</p>
+                    </div>
                   </Section>
-                )}
-                <Section icon={<ListChecks className="h-3.5 w-3.5" />} title="Sprzęt i zamiana">
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>Sprzęt: {details.equipment}</p>
-                    <p>Zamiana bez sprzętu: {details.replacement}</p>
-                  </div>
-                </Section>
-                {details.stopRule && (
-                  <Section icon={<AlertTriangle className="h-3.5 w-3.5" />} title="Kiedy przerwać">
-                    <p className="text-sm text-muted-foreground">{details.stopRule}</p>
-                  </Section>
-                )}
+                  {details.stopRule && (
+                    <Section
+                      icon={<AlertTriangle className="h-3.5 w-3.5" />}
+                      title="Kiedy przerwać"
+                    >
+                      <p className="text-sm text-muted-foreground">{details.stopRule}</p>
+                    </Section>
+                  )}
+                </details>
               </div>
             </>
           )}

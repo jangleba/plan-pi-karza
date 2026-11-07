@@ -74,6 +74,27 @@ function external(session: SessionDay): boolean {
   return session.dayType === "club" || session.dayType === "match" || !!session.externalCommitment;
 }
 
+/** Conservative default for an unsupervised app. A team may use different
+ * match-week doses; a weekly category target cannot override this default. */
+export function matchWeekPolicyViolation(session: SessionDay, mdLabel = session.mdLabel): boolean {
+  if (mdLabel !== "MD-1" && mdLabel !== "MD-2") return false;
+  if (!hasWork(session) || external(session) || session.executionProtected) return false;
+  const fullSprint = assessSpeedLoad({ ...session, secondSession: null }).exposure === "full";
+  if (mdLabel === "MD-1")
+    return (
+      isEnduranceSession(session) ||
+      isMainGymSession(session) ||
+      fullSprint ||
+      session.intensity === "wysoka"
+    );
+  return (
+    mdLabel === "MD-2" &&
+    (fullSprint ||
+      heavyGym(session) ||
+      (isEnduranceSession(session) && session.intensity === "wysoka"))
+  );
+}
+
 /** Shared by generation and saved-plan validation; do not "fix" intensity labels alone. */
 export function secondSessionPolicyViolation(
   day: SessionDay,
@@ -167,6 +188,12 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
     list.add(text);
     notes.set(key, list);
   };
+  // Generation calls this final pass twice (before/after method composition).
+  // Retain the actual reason for a previous reduction; recalculate quota notes.
+  for (const day of input)
+    if (day.weekMeta?.finalPolicyVersion === FINAL_PLAN_POLICY_VERSION)
+      for (const text of day.weekMeta.planningNotes ?? [])
+        if (!text.startsWith("Nie zmieszczono wszystkich celów tygodnia:")) note(day.date, text);
   const remove = (index: number, second: boolean, reason: string): boolean => {
     const day = plan[index],
       target = second ? day.secondSession : day;
@@ -351,6 +378,11 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
   for (let index = 0; index < plan.length; index++) {
     const day = plan[index];
     if (day.executionProtected) continue;
+    removeMatching(
+      index,
+      (session) => matchWeekPolicyViolation(session, day.mdLabel),
+      "Świeżość przed meczem: nie dokładamy pełnego sprintu na MD-2 ani biegu wydolnościowego lub pełnej siły na MD-1, żeby uzupełnić liczbę treningów.",
+    );
     const weekday = isoDayOfWeek(parseIso(day.date));
     const unavailable =
       (profile.unavailableDays ?? []).includes(weekday) ||
@@ -542,7 +574,10 @@ export function enforceFinalPlanPolicy(input: SessionDay[], profile: Profile): S
       validationStatus: "valid",
       planningStatus: healthLimited
         ? "health_limited"
-        : missing.length || conservative || (droppedCounts.get(key) ?? 0) > 0
+        : missing.length ||
+            conservative ||
+            (droppedCounts.get(key) ?? 0) > 0 ||
+            weekNotes.length > 0
           ? "reduced"
           : "complete",
       planningNotes: weekNotes,

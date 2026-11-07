@@ -1,7 +1,10 @@
+import { eventGapLimit } from "./timingQuality";
+
 export const GRAVITY = 9.80665;
 export const MIN_VIDEO_FPS = 14.9;
 export const MAX_VIDEO_FPS = 300;
 export const MAX_EVENT_FRAME_GAP = 0.125;
+export class LabEventGapError extends Error {}
 
 /** A recording tier, not a validated total measurement error. */
 export function videoPrecision(fps: number) {
@@ -23,13 +26,9 @@ export interface JumpTimeline {
   durationSeconds: number;
 }
 
-export function buildJumpTimeline(
-  samples: readonly TimedSample[],
-): JumpTimeline {
+export function buildJumpTimeline(samples: readonly TimedSample[]): JumpTimeline {
   if (samples.length < 3 || samples.length > 6500)
-    throw new Error(
-      "Wybierz krótkie nagranie jednej próby (maksymalnie 20 sekund).",
-    );
+    throw new Error("Wybierz krótkie nagranie jednej próby (maksymalnie 20 sekund).");
   const timescale = samples[0].timescale;
   if (
     !Number.isSafeInteger(timescale) ||
@@ -42,9 +41,7 @@ export function buildJumpTimeline(
         s.duration <= 0,
     )
   )
-    throw new Error(
-      "Film nie ma poprawnych czasów klatek. Wybierz oryginalny plik.",
-    );
+    throw new Error("Film nie ma poprawnych czasów klatek. Wybierz oryginalny plik.");
   const ordered = samples
     .map((s, sampleIndex) => ({ sampleIndex, ticks: s.cts }))
     .sort((a, b) => a.ticks - b.ticks);
@@ -55,15 +52,8 @@ export function buildJumpTimeline(
     timestampUs: Math.round(((s.ticks - origin) * 1_000_000) / timescale),
   }));
   const gaps = frames.slice(1).map((f, i) => f.seconds - frames[i].seconds);
-  if (
-    gaps.some(
-      (gap, i) =>
-        gap <= 0 || frames[i + 1].timestampUs <= frames[i].timestampUs,
-    )
-  )
-    throw new Error(
-      "Film ma powtórzone czasy klatek. Pomiar jest zablokowany.",
-    );
+  if (gaps.some((gap, i) => gap <= 0 || frames[i + 1].timestampUs <= frames[i].timestampUs))
+    throw new Error("Film ma powtórzone czasy klatek. Pomiar jest zablokowany.");
   const sortedGaps = [...gaps].sort((a, b) => a - b);
   const intervalSeconds = sortedGaps[Math.floor(sortedGaps.length / 2)];
   const fps = (frames.length - 1) / frames.at(-1)!.seconds;
@@ -78,20 +68,13 @@ export function buildJumpTimeline(
       "W nagraniu jest przerwa ponad 0,25 s. Nagraj ponownie bez przełączania aplikacji.",
     );
   const durationSeconds =
-    frames.at(-1)!.seconds +
-    samples[frames.at(-1)!.sampleIndex].duration / timescale;
+    frames.at(-1)!.seconds + samples[frames.at(-1)!.sampleIndex].duration / timescale;
   if (durationSeconds > 20.05)
-    throw new Error(
-      "Film jest za długi. Nagraj nowy, krótki klip jednej próby (do 20 sekund).",
-    );
+    throw new Error("Film jest za długi. Nagraj nowy, krótki klip jednej próby (do 20 sekund).");
   return { frames, fps, intervalSeconds, durationSeconds };
 }
 
-export function measureJump(
-  timeline: JumpTimeline,
-  takeoff: number,
-  landing: number,
-) {
+export function measureJump(timeline: JumpTimeline, takeoff: number, landing: number) {
   if (
     !Number.isInteger(takeoff) ||
     !Number.isInteger(landing) ||
@@ -103,19 +86,14 @@ export function measureJump(
       "Zaznacz wybicie i późniejsze lądowanie. Przed wybiciem musi być widoczna poprzednia klatka.",
     );
   // Both events use the first frame after the transition: first airborne / first contact.
-  const flightSeconds =
-    timeline.frames[landing].seconds - timeline.frames[takeoff].seconds;
+  const flightSeconds = timeline.frames[landing].seconds - timeline.frames[takeoff].seconds;
   if (flightSeconds < 0.15 || flightSeconds > 1.1)
-    throw new Error(
-      "Czas lotu jest nietypowy dla CMJ. Sprawdź klatki wybicia i lądowania.",
-    );
+    throw new Error("Czas lotu jest nietypowy dla CMJ. Sprawdź klatki wybicia i lądowania.");
   // Exact event times lie in the adjacent-frame brackets. This is temporal resolution,
   // not a confidence interval or the total biomechanical error of flight-time height.
-  const minSeconds =
-    timeline.frames[landing - 1].seconds - timeline.frames[takeoff].seconds;
-  const maxSeconds =
-    timeline.frames[landing].seconds - timeline.frames[takeoff - 1].seconds;
-  validateEventGaps(timeline, takeoff, landing);
+  const minSeconds = timeline.frames[landing - 1].seconds - timeline.frames[takeoff].seconds;
+  const maxSeconds = timeline.frames[landing].seconds - timeline.frames[takeoff - 1].seconds;
+  validateEventGaps(timeline, takeoff, landing, true);
   const height = (t: number) => ((GRAVITY * t * t) / 8) * 100;
   return {
     flightSeconds,
@@ -131,13 +109,14 @@ export function validateEventGaps(
   timeline: JumpTimeline,
   start: number,
   end: number,
+  strict = false,
 ) {
   for (const index of [start, end]) {
     if (
       timeline.frames[index].seconds - timeline.frames[index - 1].seconds >
-      MAX_EVENT_FRAME_GAP
+      (strict ? eventGapLimit(timeline.fps) + 1e-7 : MAX_EVENT_FRAME_GAP)
     )
-      throw new Error(
+      throw new LabEventGapError(
         "Brakuje klatek przy oznaczonym zdarzeniu. Nagraj ponownie przy lepszym świetle.",
       );
   }
@@ -149,11 +128,7 @@ export function validateEdits(
     media_rate_fraction: number;
   }[] = [],
 ) {
-  if (
-    edits.some(
-      (edit) => edit.media_rate_integer !== 1 || edit.media_rate_fraction !== 0,
-    )
-  )
+  if (edits.some((edit) => edit.media_rate_integer !== 1 || edit.media_rate_fraction !== 0))
     throw new Error(
       "Film zawiera zmianę tempa slow motion. Potrzebny jest oryginalny plik z kamery.",
     );

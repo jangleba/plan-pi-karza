@@ -177,6 +177,38 @@
   display: grid;
   gap: 5px;
 }
+.bw-strength-tenure {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.bw-strength-tenure-title {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  font-weight: 500;
+}
+.bw-coach-experience .bw-strength-tenure button {
+  padding: 10px 6px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.bw-coach-experience .bw-strength-tenure button[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--accent);
+  color: var(--primary);
+}
+.bw-coach-experience .bw-strength-experience-save {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+  font-weight: 600;
+}
+.bw-strength-tenure-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  margin: 0;
+}
 .bw-technique-help :focus-visible,
 .bw-exercise-coach :focus-visible,
 .bw-coach-experience :focus-visible {

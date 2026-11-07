@@ -176,7 +176,7 @@ export function createSessionActions(
       status: "completed",
       rpe,
       notes,
-      durationMin: details.durationMin ?? session.durationMin ?? null,
+      durationMin: details.durationMin ?? existing?.durationMin ?? null,
       activityType: details.activityType ?? null,
       startedAt: existing?.startedAt ?? endedAt,
       endedAt,
@@ -224,7 +224,8 @@ export function createSessionActions(
           date: session.date,
           title: snapshot.title,
           category,
-          durationMin: completion.durationMin ?? session.durationMin ?? 0,
+          durationMin: completion.durationMin ?? 0,
+          durationEstimated: completion.durationMin == null,
           rpe: completion.rpe,
           notes: completion.notes,
         }

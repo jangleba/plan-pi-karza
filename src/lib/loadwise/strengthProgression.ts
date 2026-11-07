@@ -15,6 +15,9 @@ export interface StrengthProgressionContext {
   blockPhaseLabel?: string | null;
   mdLabel?: string | null;
   smallestIncrementKg?: number;
+  recentSessionRpe?: number | null;
+  recentPain?: number;
+  recentLegFatigue?: number;
   /** Testable clock; the recency window is a conservative product rule. */
   now?: number;
   exercise?: Pick<
@@ -162,6 +165,16 @@ export function recommendNextLoad(
   if (!latest) return null;
 
   const current = latest.weightKg;
+  if (
+    (context.recentPain ?? 0) > 0 ||
+    (context.recentLegFatigue ?? 0) >= 8 ||
+    (context.recentSessionRpe ?? 0) >= 9
+  )
+    return repeat(
+      current,
+      "Po ostatniej sesji zgłoszono duży wysiłek lub dyskomfort. Nie dokładamy teraz ciężaru; najpierw oceń aktualną gotowość.",
+      "high",
+    );
   const phase = String(context.blockPhaseLabel ?? "").toLowerCase();
   if (/deload|regener|odciąż|konsolid/.test(phase)) {
     return repeat(current, "Tydzień odciążenia: utrzymujemy bodziec bez dokładania ciężaru.");

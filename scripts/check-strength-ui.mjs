@@ -14,7 +14,7 @@ export async function checkStrengthUI({ browser, base, work, ensure, views }) {
       ["advanced", "power"],
     ]) {
       await page.goto(base + `?screen=strength-engine&experience=${experience}&goal=${goal}`);
-      await page.locator(".bw-exercise-open").last().waitFor();
+      await page.locator(".bw-exercise-open:visible").first().waitFor();
       await page.evaluate(() => document.fonts.ready);
       const count = await page.locator(".bw-exercise-open").count();
       ensure(count > 5 && count < 18, `Unexpected generated strength count: ${count}`);
@@ -33,6 +33,8 @@ export async function checkStrengthUI({ browser, base, work, ensure, views }) {
           path: path.join(work, "sila-silnik-podstawy.png"),
         });
         views.push("sila-silnik-podstawy");
+        for (const toggle of await page.locator(".bw-preparation-toggle").all())
+          if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
         for (let i = 0; i < count; i++) {
           const row = page.locator(".bw-exercise-open").nth(i);
           await row.click();
@@ -84,6 +86,8 @@ export async function checkStrengthUI({ browser, base, work, ensure, views }) {
           .click();
         views.push("sila-doswiadczenie-w-panelu");
       } else {
+        for (const toggle of await page.locator(".bw-preparation-toggle").all())
+          if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
         await page.locator(".bw-exercise-open").nth(4).click();
         await page.getByRole("dialog").waitFor();
         await page.screenshot({ path: path.join(work, `sila-${experience}-szczegoly.png`) });
@@ -96,9 +100,68 @@ export async function checkStrengthUI({ browser, base, work, ensure, views }) {
         views.push(`sila-${experience}-panel-i-zapis-serii`);
       }
     }
+    // Exact reported path: advanced declaration, blank tenure, Thursday B.
+    await page.goto(base + "?screen=strength-engine&experience=advanced&tenure=blank&slot=B");
+    await page.locator(".bw-exercise-open:visible").first().waitFor();
+    ensure(
+      (await page.locator('.bw-preparation-toggle[aria-expanded="false"]').count()) === 2,
+      "Preparation stages should start compact",
+    );
+    ensure(
+      (await page.locator(".bw-exercise-open:visible").count()) === 6,
+      "Blank-tenure B should have six purposeful work rows",
+    );
+    ensure(
+      (await page.locator(".bw-exercise-open:visible").first().textContent()).includes(
+        "Martwy ciąg rumuński",
+      ),
+      "Thursday should begin with the hip compound",
+    );
+    ensure(
+      (await page.locator(".bw-exercise-open:visible").nth(1).textContent()).includes("Przysiad"),
+      "Knee compound must precede isolation",
+    );
+    await page.screenshot({
+      path: path.join(work, "sila-czwartek-kompaktowo.png"),
+      fullPage: true,
+    });
+    views.push("sila-czwartek-kolejnosc-i-zwijane-przygotowanie");
+    await page.getByRole("button", { name: "Dopasuj trening siłowy", exact: true }).click();
+    const experienceSheet = page.getByRole("dialog", { name: "Doświadczenie siłowe", exact: true });
+    await experienceSheet.waitFor();
+    ensure(
+      (await experienceSheet.getByRole("status").textContent()).includes("wprowadzający"),
+      "Unknown tenure effect must be explained",
+    );
+    await experienceSheet.getByRole("button", { name: "2 lata lub więcej", exact: true }).click();
+    ensure(
+      (await experienceSheet.getByLabel("Ile miesięcy regularnego treningu?").inputValue()) ===
+        "24",
+      "Explicit tenure choice was not saved to the draft",
+    );
+    await page.screenshot({ path: path.join(work, "sila-szybki-wybor-stazu.png") });
+    await experienceSheet.getByRole("button", { name: "Zapisz odpowiedzi", exact: true }).click();
+    await page.getByRole("button", { name: "Doświadczenie siłowe", exact: true }).waitFor();
+    ensure(
+      !(await page.locator("h1").textContent()).includes("podstawy"),
+      "Confirmed strength experience must update the generated session",
+    );
+    ensure(
+      (await page.locator(".bw-exercise-open:visible").allTextContents()).some((t) =>
+        t.includes("Wyciskanie hantli"),
+      ),
+      "Confirmed experience must affect available upper-body work",
+    );
+    await page.screenshot({
+      path: path.join(work, "sila-czwartek-potwierdzony-staz.png"),
+      fullPage: true,
+    });
+    views.push("sila-staz-wybor-zapis-i-rzeczywiste-przeliczenie");
     await page.setViewportSize({ width: 320, height: 740 });
     await page.goto(base + "?screen=strength-engine");
-    await page.locator(".bw-exercise-open").last().waitFor();
+    await page.locator(".bw-exercise-open:visible").first().waitFor();
+    for (const toggle of await page.locator(".bw-preparation-toggle").all())
+      if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
     await page.locator(".bw-exercise-open").nth(4).click();
     const sheet = page.getByRole("dialog");
     await sheet.waitFor();

@@ -226,3 +226,8 @@ describe("strength progression", () => {
     expect([...values.values()][0]).not.toContain("pain");
   });
 });
+
+it("does not propose extra load after a recent very hard session despite good set history", () => {
+  const result = recommendNextLoad(history(), "6", "2", { ...adult, recentSessionRpe: 9 });
+  expect(result?.mode).toBe("repeat");
+});

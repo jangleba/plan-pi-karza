@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  closestLongJumpCandidate,
   findBallWiseCalibrationMarkers,
   findReferenceRectangle,
   longJumpMeasurement,
@@ -349,6 +350,8 @@ describe("measurement evidence and migration", () => {
         version: "ballwise-browser-lab-1.0",
         turnFrameIndex: undefined,
         turnSeconds: undefined,
+        turnPreviousSeconds: undefined,
+        timingReview: undefined,
       }).primaryValue,
     ).toBe(2.5);
   });
@@ -357,6 +360,8 @@ describe("measurement evidence and migration", () => {
     const cmj = createBrowserResult({ ...source, attempt: attemptPlan(["cmj"])[0], end: 164 });
     const flying = {
       ...cmj,
+      version: "ballwise-browser-lab-1.0",
+      jumpReview: undefined,
       testId: "flying_10m",
       endFrameIndex: 300,
       endSeconds: 1.25,
@@ -370,4 +375,29 @@ describe("measurement evidence and migration", () => {
     };
     expect(validatedResult(flying).averageSpeedMps).toBe(10);
   });
+});
+
+// Never silently choose the farther heel when the nearer candidate is out of range.
+it("rejects an ambiguous heel pair and chooses the closer of two valid ground points", () => {
+  const floor = automaticFloor();
+  const at = (distance: number) => ({ ...floor, heel: automaticPoint(7, distance) });
+  expect(() => closestLongJumpCandidate([at(5), at(45)])).toThrow();
+  expect(closestLongJumpCandidate([at(215), at(214)]).heel).toEqual(at(214).heel);
+});
+
+it("requires a reviewed ground contact in new long-jump records and preserves old pose records", () => {
+  const spatial = { ...automaticFloor(), method: "ballwise-marker-pose-v4" as const };
+  const data = { ...source, attempt: attemptPlan(["standing_long_jump"])[0], spatial };
+  expect(() => createBrowserResult(data)).toThrow("kontakt");
+  const result = createBrowserResult({ ...data, spatial: { ...spatial, heelSource: "manual" } });
+  expect(result.version).toBe("ballwise-browser-lab-1.5");
+  expect(result.jumpReview?.groundContactConfirmed).toBe(true);
+  expect(() => validatedResult({ ...result, jumpReview: undefined })).toThrow();
+  const legacy = validatedResult({
+    ...result,
+    version: "ballwise-browser-lab-1.4",
+    jumpReview: undefined,
+    spatial,
+  });
+  expect(legacy.spatial).toMatchObject({ heelSource: "pose" });
 });

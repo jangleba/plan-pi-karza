@@ -1,3 +1,4 @@
+import { recentSessionFeedback } from "@/lib/loadwise/postSessionFeedback";
 import { MovementBlueprint } from "./MovementBlueprint";
 import { MethodExecutionCoach } from "./session/MethodExecutionCoach";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -198,6 +199,12 @@ export function ExerciseRunnerScreen({
       ).find((item) => item.dbId === sessionId || item.sessionId === sessionId) ?? null,
     [state.plan, state.modifications, state.profile, state.readiness, state.completions, sessionId],
   );
+  const feedback = recentSessionFeedback(
+    state.profile,
+    state.completions,
+    sessionContext?.date ?? date ?? new Date().toISOString().slice(0, 10),
+    sessionId ?? undefined,
+  );
   const recommendation = useMemo(
     () =>
       metricKind === "load" &&
@@ -215,9 +222,22 @@ export function ExerciseRunnerScreen({
             blockPhaseLabel: sessionContext?.blockPhaseLabel,
             mdLabel: sessionContext?.mdLabel,
             exercise,
+            recentSessionRpe: feedback?.rpe,
+            recentPain: feedback?.pain,
+            recentLegFatigue: feedback?.legFatigue,
           })
         : null,
-    [metricKind, recentSessions, exercise, state.profile, sessionContext, repetitionsOnly],
+    [
+      metricKind,
+      recentSessions,
+      exercise,
+      state.profile,
+      sessionContext,
+      repetitionsOnly,
+      feedback?.rpe,
+      feedback?.pain,
+      feedback?.legFatigue,
+    ],
   );
 
   useEffect(() => {
@@ -251,7 +271,7 @@ export function ExerciseRunnerScreen({
     return (
       <div className="bw-training-inline" role="status">
         <p>{exercise.executionBlockedReason}</p>
-        <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
+        {showVisuals && <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />}
 
         <button type="button" onClick={onClose}>
           Zamknij ćwiczenie
@@ -319,7 +339,7 @@ export function ExerciseRunnerScreen({
   if (inline)
     return (
       <div className="bw-training-inline">
-        <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
+        {showVisuals && <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />}
         {repetitionsOnly && (
           <p className="text-xs text-muted-foreground">
             Zapisujesz powtórzenia; ustawienie flywheel zapisz w notatce. Nie przeliczamy
@@ -327,11 +347,14 @@ export function ExerciseRunnerScreen({
           </p>
         )}
         {exercise.methodExecution && (
-          <MethodExecutionCoach
-            key={`${exercise.id}:${setNumber}`}
-            plan={{ ...exercise.methodExecution, rounds: 1, roundRestSeconds: 0 }}
-            context={`${sessionId ?? date}:${exercise.id}:${setNumber}`}
-          />
+          <details className="bw-session-extra">
+            <summary>Prowadzenie metody</summary>
+            <MethodExecutionCoach
+              key={`${exercise.id}:${setNumber}`}
+              plan={{ ...exercise.methodExecution, rounds: 1, roundRestSeconds: 0 }}
+              context={`${sessionId ?? date}:${exercise.id}:${setNumber}`}
+            />
+          </details>
         )}
 
         <div className="bw-set-heading">
@@ -358,6 +381,9 @@ export function ExerciseRunnerScreen({
           )}
         </div>
         {last && <p className="bw-last-result">{hint}</p>}
+        <p className="bw-session-muted">
+          Zapisz wynik serii. RIR to liczba powtórzeń, które zostały w zapasie.
+        </p>
         <div className="bw-set-fields">
           {fields.map((field) => (
             <NumberField
@@ -407,23 +433,66 @@ export function ExerciseRunnerScreen({
         )}
         <div className="bw-exercise-options">
           {(recommendation || needsStartingLoad) && (
-            <details className="bw-load-advice">
-              <summary>Dobór ciężaru</summary>
-              <p>
+            <div className="bw-load-proposal">
+              <strong>
+                {recommendation?.weightKg != null
+                  ? `${recommendation.title}: ${formatKg(recommendation.weightKg)} kg`
+                  : "Dobierz ciężar do zapasu"}
+              </strong>
+              <p className="bw-session-muted">
                 {recommendation?.reason ??
-                  "Wpisz ciężar, którym wykonasz dzisiejszą dawkę z podanym zapasem powtórzeń. 0 kg oznacza brak dodatkowego obciążenia."}
+                  "Wpisz ciężar zgodny z dzisiejszą dawką i zapasem powtórzeń. 0 kg oznacza brak dodatkowego obciążenia."}
               </p>
               {recommendation?.weightKg != null && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setValues((v) => ({ ...v, weight: String(recommendation.weightKg) }))
-                  }
+                  onClick={() => {
+                    setValues((v) => ({ ...v, weight: String(recommendation.weightKg) }));
+                    setProgressionChoice("accepted");
+                    if (user && sessionId && recommendation.currentWeightKg != null)
+                      saveStrengthProgressionDecision(user.id, {
+                        sessionId,
+                        exerciseKey: key,
+                        decision: "accepted",
+                        currentWeightKg: recommendation.currentWeightKg,
+                        proposedWeightKg: recommendation.weightKg!,
+                        decidedAt: new Date().toISOString(),
+                      });
+                  }}
                 >
-                  Ustaw {formatKg(recommendation.weightKg)} kg
+                  {recommendation.mode === "repeat"
+                    ? "Użyj ostatniego ciężaru"
+                    : `Ustaw ${formatKg(recommendation.weightKg)} kg`}
                 </button>
               )}
-            </details>
+              {recommendation?.mode === "increase" && recommendation.currentWeightKg != null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValues((v) => ({ ...v, weight: String(recommendation.currentWeightKg) }));
+                    setProgressionChoice("repeat");
+                    if (user && sessionId)
+                      saveStrengthProgressionDecision(user.id, {
+                        sessionId,
+                        exerciseKey: key,
+                        decision: "repeat",
+                        currentWeightKg: recommendation.currentWeightKg!,
+                        proposedWeightKg: recommendation.weightKg!,
+                        decidedAt: new Date().toISOString(),
+                      });
+                  }}
+                >
+                  Zostaję przy {formatKg(recommendation.currentWeightKg)} kg
+                </button>
+              )}
+              {progressionChoice && (
+                <p className="bw-session-muted" role="status">
+                  {progressionChoice === "accepted"
+                    ? "Ciężar ustawiony."
+                    : "Ciężar pozostaje bez zmiany."}
+                </p>
+              )}
+            </div>
           )}
           <ExercisePersonalNote exercise={exercise} />
         </div>
@@ -461,7 +530,7 @@ export function ExerciseRunnerScreen({
 
       {view === "sets" ? (
         <div className="mx-auto w-full max-w-md px-5 pb-10 pt-4">
-          <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />
+          {showVisuals && <ExerciseQuickGuide exercise={exercise} compact autoAnimation={inline} />}
           {repetitionsOnly && (
             <p className="text-xs text-muted-foreground">
               Zapisujesz wykonane powtórzenia. Bezwładność i ustawienie flywheel zapisuj w notatce

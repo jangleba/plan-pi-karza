@@ -143,6 +143,8 @@ export interface StrengthBlockContext {
 }
 
 export interface GymSessionPlan {
+  /** A goal-dependent power requirement, not a compulsory addition to every strength session. */
+  requiresPower?: boolean;
   role: GymRole;
   title: string;
   sessionType: string;
@@ -655,8 +657,12 @@ function selectHamstringB1(
   const highFatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
   const inseason = profile.seasonPhase === "inseason";
   let ladder: HamEx[];
-  if (aHeavyHinge || nearMatch || highFatigue || inseason) {
+  if (aHeavyHinge || nearMatch || highFatigue) {
     ladder = HAM_LADDER_FATIGUE;
+  } else if (inseason && hamProgressionLevel(profile) !== "beginner") {
+    // The season is not a fatigue measurement. Use controlled knee-flexion
+    // strength on the squat day, without introducing unfamiliar maximal Nordics.
+    ladder = HAM_LADDER_INTERMEDIATE.filter((h) => h.kind === "curl");
   } else {
     const lvl = hamProgressionLevel(profile);
     ladder =
@@ -666,6 +672,11 @@ function selectHamstringB1(
           ? HAM_LADDER_INTERMEDIATE
           : HAM_LADDER_ADVANCED;
   }
+  const athlete = buildAthleteTrainingProfile(profile);
+  const available = ladder.filter(
+    (h) => isExerciseAllowedForProfile(canonicalizeExerciseDefinition(h.name), athlete).ok,
+  );
+  if (available.length) ladder = available;
   const avoid = [...ctx.history.usedMainThisWeek, ...ctx.history.usedMainLastWeek];
   const seed = ctx.weekIndex; // rotacja progresji w czasie
   const ordered = ladder.map((_, i) => ladder[(seed + i) % ladder.length]);
@@ -997,7 +1008,7 @@ function lockedHamB1(profile: Profile, ctx: StrengthBlockContext, aHeavyHinge: b
   // zablokowanego wysokostresowego wariantu, jeśli kontekst go nie dopuszcza.
   const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
   const highFatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
-  const mustControl = aHeavyHinge || nearMatch || highFatigue || profile.seasonPhase === "inseason";
+  const mustControl = aHeavyHinge || nearMatch || highFatigue;
   const existing = lock[key];
   if (existing) {
     const found = all.find((h) => h.name === existing);
@@ -1720,8 +1731,7 @@ function canonicalGymSession(
   // wg progresji + zmęczenia. Po ciężkim hinge (trap bar) używamy kontrolowanej
   // drabinki (assisted / eccentric-only / izometria), nigdy drugiego ciężkiego RDL.
   const nearMatch = ctx.mdLabel === "MD-2" || ctx.mdLabel === "MD-1" || ctx.mdLabel === "MD";
-  const fatigue =
-    (ctx.readiness !== undefined && ctx.readiness <= 5) || profile.seasonPhase === "inseason";
+  const fatigue = ctx.readiness !== undefined && ctx.readiness <= 5;
   // Hamstring B1 zablokowany na blok (jeśli kontekst zmęczenia pozwala utrzymać wybór).
   const hamB1 = lockedHamB1(profile, ctx, trapBar);
   const hamDose = hamB1Dose(hamB1, { aHeavyHinge: trapBar, nearMatch, fatigue });
@@ -1938,7 +1948,11 @@ function canonicalGymSession(
 
   const support = sections.find((s) => s.type === "accessory");
   if (support) {
-    const push = ["push_up", "dumbbell_bench_press"]
+    const push = (
+      (athlete.strengthTrainingAge ?? 0) >= 6 && athlete.movementCompetenceLevel !== "low"
+        ? ["dumbbell_bench_press", "push_up", "incline_push_up"]
+        : ["push_up", "incline_push_up", "dumbbell_bench_press"]
+    )
       .map(getExerciseDefinition)
       .find((def) => def && isExerciseAllowedForProfile(def, athlete).ok);
     const pull = ["one_arm_dumbbell_row", "bodyweight_row", "face_pull_band"]
@@ -1958,10 +1972,34 @@ function canonicalGymSession(
       );
     }
   }
-  const programmed = applyStrengthProgramming(sections, method);
+  // A strength foundation does not need an automatic landing/power block.
+  // Power work is kept when it serves the declared speed/power goal.
+  const includePower = profile.goal === "power" || profile.goal === "speed";
+  const purposeful = includePower
+    ? sections
+    : sections.map((s) =>
+        s.type !== "main"
+          ? s
+          : {
+              ...s,
+              blocks: s.blocks
+                .map((b) => ({
+                  ...b,
+                  exercises: b.exercises.filter(
+                    (e) =>
+                      !["power", "plyometric"].includes(
+                        getExerciseDefinition(e.exerciseId ?? "")?.category ?? "",
+                      ),
+                  ),
+                }))
+                .filter((b) => b.exercises.length),
+            },
+      );
+  const programmed = applyStrengthProgramming(purposeful, method);
 
   return {
     role,
+    requiresPower: includePower,
     title: `Siłownia: całe ciało${role === "full_body_athletic" ? "" : trapBar ? " B" : " A"}${method.method === "foundation" ? " — podstawy" : ""}`,
     sessionType: "Siła / całe ciało",
     goalOfSession: trapBar
@@ -2109,6 +2147,7 @@ export function buildStrengthPowerStructured(
     plan.sections,
     profile,
     !["primer", "recovery_prehab", "upper_core"].includes(plan.role),
+    true,
   );
   plan.durationMin = estimateStrengthMinutes(plan.sections);
   plan.mainPatterns = collectMainPatterns(plan);
@@ -2235,7 +2274,7 @@ function enrichLoadGuidance(plan: GymSessionPlan): GymSessionPlan {
             e.loadGuidance = "Dobierz ciężar, przy którym technika jest idealna, z dużym zapasem.";
             e.loadReduceWhen = GUIDE_MAIN.loadReduceWhen;
           } else {
-            e.rir = rirFromRpe(e.rpe) ?? "2–3 RIR";
+            e.rir = e.rir ?? rirFromRpe(e.rpe) ?? "2–3 RIR";
             e.loadTarget = `Ciężar na ${e.reps ?? "docelowe powt."} · ${e.rir}`;
             e.loadGuidance =
               "Pierwszy raz dobierz ciężar z wymaganym zapasem. Kolejne sesje wyliczymy z zapisanych serii.";
@@ -2502,7 +2541,7 @@ function checkComplementaryQualities(
   plan: GymSessionPlan,
   refs: ExerciseRef[],
 ): GymValidationIssue[] {
-  if (!LOWER_BODY_ROLES.includes(plan.role)) return [];
+  if (!LOWER_BODY_ROLES.includes(plan.role) || plan.requiresPower === false) return [];
   const hasPower = refs.some(isPowerExercise);
   return hasPower
     ? []

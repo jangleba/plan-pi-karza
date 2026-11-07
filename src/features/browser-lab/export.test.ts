@@ -26,3 +26,26 @@ it("exports valid measurements with quoted cells, BOM and escaped spreadsheet fo
   expect(csv).toContain('"\'=HYPERLINK(""x"")\nnotatka"');
   expect(() => historyCSV([{ ...row, primaryValue: 1000 }])).toThrow();
 });
+it("keeps reviewed event evidence in CSV rather than dropping it during export", () => {
+  const row = createBrowserResult({
+    attempt: attemptPlan(["cod_505"])[0],
+    sessionId: "reviewed-export-64",
+    timeline: buildJumpTimeline(
+      Array.from({ length: 960 }, (_, cts) => ({ cts, timescale: 240, duration: 1 })),
+    ),
+    start: 100,
+    end: 800,
+    turnFrameIndex: 450,
+    sourceName: "original.mov",
+    sourceHash: "f".repeat(64),
+    sourceBytes: 1000,
+    codec: "avc1.640029",
+    guidePositions: [0.5, 0.5],
+    notes: "",
+    timingMethod: "assisted",
+  });
+  const csv = historyCSV([row]);
+  expect(csv).toContain('"timingReview"');
+  expect(csv).toContain('"turnPreviousSeconds"');
+  expect(csv).toContain('""method"":""assisted""');
+});

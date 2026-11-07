@@ -8,6 +8,7 @@ import { protocolFor, sideLabel } from "@/features/browser-lab/protocols";
 import type { JourneyAttempt } from "@/features/football-iq-match/journeyTypes";
 import { addIsoDays } from "@/lib/isoDate";
 import type { ProgressPeriod } from "./progress";
+import { resultRecordingQuality } from "@/features/browser-lab/timingQuality";
 
 function localDate(timestamp: string): string {
   const date = new Date(timestamp);
@@ -65,9 +66,10 @@ export function buildLabProgress(
         trials: group.rows.length,
         expected: group.expected,
         complete: group.complete,
-        delta: compared?.difference ?? null,
+        delta: compared?.canAssessChange ? compared.difference : null,
         overlaps: compared?.overlaps ?? null,
         previous: prior?.best.primaryValue ?? null,
+        timingQuality: resultRecordingQuality(latest),
       },
     ];
   });

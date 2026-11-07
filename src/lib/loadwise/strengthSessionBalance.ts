@@ -13,6 +13,10 @@ const identity = (e: TrainingExercise) =>
 const held = (e: TrainingExercise) =>
   definition(e)?.movementPattern === "isometric" ||
   /^(?:side_plank|plank|copenhagen_plank|bodyweight_march_hold)$/.test(definition(e)?.id ?? "");
+const kneeFlexion = (e: TrainingExercise) =>
+  /leg_curl|nordic|heel_dig|hamstring_iso/.test(identity(e));
+const compound = (e: TrainingExercise) =>
+  ["squat", "hinge", "lunge"].includes(definition(e)?.movementPattern ?? "") && !kneeFlexion(e);
 export function normalizeStrengthHold(e: TrainingExercise): TrainingExercise {
   if (!held(e)) return e;
   const duration =
@@ -39,6 +43,7 @@ export function balanceStrengthSections(
   input: TrainingSection[],
   profile: Profile,
   complete = true,
+  compactIntroHinge = false,
 ): TrainingSection[] {
   const athlete = buildAthleteTrainingProfile(profile);
   const work = input
@@ -95,7 +100,6 @@ export function balanceStrengthSections(
           sets: "2",
           reps: d.movementPattern === "lunge" ? "6–8 / strona" : "6–10",
           rir: "3–4",
-          rpe: "RPE 5–6",
           restAfterExercise: "60–90 s",
           loadTarget: "Kontrola i zapas; bez dokładania drugiego ciężkiego ruchu nóg",
         }),
@@ -111,7 +115,13 @@ export function balanceStrengthSections(
     };
     // Hip emphasis still needs a knee-dominant movement, not three hip variants.
     if (!all().some((e) => ["squat", "lunge"].includes(definition(e)?.movementPattern ?? "")))
-      add(["bodyweight_split_squat", "reverse_lunge", "bodyweight_squat"], "B", main);
+      add(
+        (athlete.strengthTrainingAge ?? 0) >= 6
+          ? ["goblet_squat", "reverse_lunge", "bodyweight_split_squat", "bodyweight_squat"]
+          : ["bodyweight_split_squat", "reverse_lunge", "bodyweight_squat"],
+        "B",
+        main,
+      );
     let support = sections.find((s) => s.type === "accessory");
     if (!support) {
       support = {
@@ -127,6 +137,44 @@ export function balanceStrengthSections(
       add(["push_up", "incline_push_up", "dumbbell_bench_press"], "C", support);
     if (!all().some((e) => definition(e)?.movementPattern === "pull"))
       add(["one_arm_dumbbell_row", "bodyweight_row", "face_pull_band"], "D", support);
+  }
+  if (complete && lower && main) {
+    const mainWork = main.blocks.flatMap((b) => b.exercises);
+    // A hinge session already loads the posterior chain. Keep its knee complement
+    // before any isolation, rather than appending it after a second hamstring task.
+    const hipMain = mainWork.find((e) => e.label === "A1") ?? mainWork.find(compound);
+    const hasHipMain = definition(hipMain ?? { id: "", name: "" })?.movementPattern === "hinge";
+    if (
+      compactIntroHinge &&
+      (athlete.strengthTrainingAge ?? 0) < 6 &&
+      hasHipMain &&
+      mainWork.some((e) => ["squat", "lunge"].includes(definition(e)?.movementPattern ?? ""))
+    ) {
+      // Keep an introductory session concise once hip and knee patterns are
+      // covered. This is a dose limit, not a claim that RDL and knee flexion are
+      // equivalent. Experienced sessions and explicit eccentric methods retain
+      // their separate knee-flexion stimulus.
+      main.blocks = main.blocks
+        .map((b) => ({ ...b, exercises: b.exercises.filter((e) => !kneeFlexion(e)) }))
+        .filter((b) => b.exercises.length);
+    }
+    // Preserve an explicitly paired contrast/cluster block; order whole blocks.
+    main.blocks = main.blocks
+      .map((block, index) => ({ block, index }))
+      .sort((a, b) => {
+        const priority = (b: typeof a.block) =>
+          b.blockType === "contrast"
+            ? 0
+            : b.exercises.some((e) =>
+                  ["power", "plyometric"].includes(definition(e)?.category ?? ""),
+                )
+              ? 0
+              : b.exercises.some(compound)
+                ? 1
+                : 2;
+        return priority(a.block) - priority(b.block) || a.index - b.index;
+      })
+      .map((x) => x.block);
   }
   if (complete && lower) {
     const supports = sections
@@ -154,6 +202,14 @@ export function balanceStrengthSections(
             },
       )
       .filter((s) => s.blocks.length);
+    // The selected priority must also become the visible/execution order.
+    for (const s of sections)
+      if (s.type === "accessory")
+        s.blocks.sort(
+          (a, b) =>
+            Math.min(...a.exercises.map(supportPriority)) -
+            Math.min(...b.exercises.map(supportPriority)),
+        );
   }
   return JSON.stringify(sections) === JSON.stringify(input) ? input : sections;
 }

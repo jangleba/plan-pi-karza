@@ -9,6 +9,9 @@ import {
 } from "@/lib/loadwise/preparation/protocols";
 let host: HTMLDivElement;
 let root: Root;
+vi.mock("@/lib/loadwise/setLogs", () => ({
+  useExerciseSetLogs: () => ({ sets: [], saveSet: vi.fn().mockResolvedValue(true) }),
+}));
 const finished = vi.fn();
 function button(text: string) {
   const found = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === text);
@@ -93,7 +96,10 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
     expect(finished).not.toHaveBeenCalled();
     expect(host.textContent).toContain("Pominięte ćwiczenia: 2");
     await click("Potwierdź zakończenie");
-    expect(finished).toHaveBeenCalledWith(false);
+    expect(finished).toHaveBeenCalledWith(
+      false,
+      expect.arrayContaining([expect.objectContaining({ completed: false })]),
+    );
   });
   it("ćwiczenie na powtórzenia czeka na świadome potwierdzenie", async () => {
     const p = buildRecoveryProtocol("back");
@@ -105,7 +111,10 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
     await click("Wykonane");
     expect(finished).not.toHaveBeenCalled();
     await click("Potwierdź zakończenie");
-    expect(finished).toHaveBeenCalledWith(true);
+    expect(finished).toHaveBeenCalledWith(
+      true,
+      expect.arrayContaining([expect.objectContaining({ completed: true })]),
+    );
   });
   it("wybór łydki zmienia zestaw i zaczyna go jednym przyciskiem", async () => {
     await act(async () =>

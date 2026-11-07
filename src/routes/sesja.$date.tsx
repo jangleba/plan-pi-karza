@@ -1,3 +1,7 @@
+import { FocusedSessionRunner } from "@/components/loadwise/session/FocusedSessionRunner";
+import { RunClock } from "@/components/running/RunClock";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import "@/components/loadwise/session/session-focus.css";
 import { TrainingMethodPanel } from "@/components/loadwise/session/TrainingMethodPanel";
 import { MethodExecutionCoach } from "@/components/loadwise/session/MethodExecutionCoach";
 import { hasCurrentMethodRecipe } from "@/lib/loadwise/methods/planner";
@@ -18,7 +22,7 @@ import type { SessionDay, TrainingSection } from "@/lib/loadwise/types";
 import { flatToStructured } from "@/lib/loadwise/strengthBlocks";
 import { ArrowRight, Plus, Repeat, Undo2 } from "lucide-react";
 import { EnduranceRunTracker } from "@/components/running/EnduranceRunTracker";
-import { isTrackableEnduranceRun } from "@/lib/running/session";
+import { isTrackableEnduranceRun, normalizeRunningPreparation } from "@/lib/running/session";
 import { isBallTechnicalSession, isStrengthSession } from "@/lib/loadwise/sessionClassification";
 import {
   canShowPostSessionForm,
@@ -34,11 +38,7 @@ import {
   canGuideRecoverySession,
   recoveryContextForSession,
 } from "@/lib/loadwise/preparation/protocols";
-import { StructuredSections } from "@/components/loadwise/session/GenericRunner";
-import { SprintStructuredSections } from "@/components/loadwise/session/SprintRunner";
-import { StrengthStructuredSections } from "@/components/loadwise/session/StrengthRunner";
 import { SessionStartPanel } from "@/components/loadwise/session/SessionStartPanel";
-import { SprintSessionHeader } from "@/components/loadwise/session/SprintSessionHeader";
 import {
   ClubMonitoring,
   CompletionPanel,
@@ -78,15 +78,16 @@ function SessionDetail() {
     deleteRunningActivity,
   } = useLoadwise();
   const [modifyOpen, setModifyOpen] = useState(false);
-  const [showSprintCompletion, setShowSprintCompletion] = useState(false);
-  const [showStrengthCompletion, setShowStrengthCompletion] = useState(false);
-  const [showRecoveryCompletion, setShowRecoveryCompletion] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [runMode, setRunMode] = useState<"gps" | "timer">("gps");
+  const [runBusy, setRunBusy] = useState(false);
+  const [clockDuration, setClockDuration] = useState<number | null>(null);
   const [recoveryDuration, setRecoveryDuration] = useState<number | null>(null);
   const goBack = useInstantBack("/plan");
   useEffect(() => {
-    setShowSprintCompletion(false);
-    setShowStrengthCompletion(false);
-    setShowRecoveryCompletion(false);
+    setFinishOpen(false);
+    setRunBusy(false);
+    setClockDuration(null);
     setRecoveryDuration(null);
   }, [date, slot, mod]);
   useEffect(() => {
@@ -222,7 +223,9 @@ function SessionDetail() {
   const displayedSession =
     completed || executionStarted
       ? replacedSession
-      : enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile));
+      : normalizeRunningPreparation(
+          enforceSprintOnlyContent(enforceStrengthEligibility(replacedSession, state.profile)),
+        );
 
   // Strukturalne sekcje: wygenerowane bloki, inaczej fallback z płaskich danych.
   const structured: TrainingSection[] =
@@ -280,20 +283,10 @@ function SessionDetail() {
 
   return (
     <div
-      className={`app-shell bw-session-page min-h-screen pb-[100px] ${sprintRunner ? "bw-sprint-page" : strengthRunner ? "bw-training-page" : ""}`}
+      className={`app-shell bw-session-page bw-session-66 min-h-screen pb-[100px] ${sprintRunner ? "bw-sprint-page" : strengthRunner ? "bw-training-page" : ""}`}
     >
-      {sprintRunner ? (
-        <SprintSessionHeader session={presentedSession} onBack={goBack} />
-      ) : (
-        <SessionHeader
-          session={presentedSession}
-          strengthRunner={strengthRunner}
-          isToday={isToday}
-          onBack={goBack}
-        />
-      )}
-
-      <div className={sprintRunner ? "bw-sprint-content" : "bw-session-body mt-5 space-y-3 px-5"}>
+      <SessionHeader session={presentedSession} strengthRunner isToday={isToday} onBack={goBack} />
+      <div className="bw-session-body space-y-3 px-5">
         {/* Sesje dnia — przełącznik gdy są dwie */}
         <SessionSlotSwitcher
           primary={primary}
@@ -314,32 +307,33 @@ function SessionDetail() {
           </div>
         )}
 
-        <div className={strengthRunner ? "bw-strength-session-tools" : undefined}>
-          {strengthRunner && !completed && <StrengthExperienceSetup compact />}
-          <TrainingMethodPanel
-            key={`methods:${session.dbId ?? `${date}:${slot}`}`}
-            session={displayedSession}
-            wholeDay={primary}
-            slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
-            locked={
-              !!completed ||
-              !!session.executionProtected ||
-              hasStarted ||
-              !!(
-                selectedAdd &&
-                session.dbId !== primary.dbId &&
-                session.dbId !== primary.secondSession?.dbId
-              )
-            }
-          />
-        </div>
-
-        {!sprintRunner &&
-          (session.dayType === "match" ? (
-            <MatchStartPanel session={session} isToday={isToday} />
-          ) : (
-            <SessionStartPanel session={displayedSession} canStart={isToday} />
-          ))}
+        <details className="bw-session-settings">
+          <summary>Opcje i metoda treningu</summary>
+          <div className={strengthRunner ? "bw-strength-session-tools" : undefined}>
+            {strengthRunner && !completed && <StrengthExperienceSetup compact />}
+            <TrainingMethodPanel
+              key={`methods:${session.dbId ?? `${date}:${slot}`}`}
+              session={displayedSession}
+              wholeDay={primary}
+              slot={session.dbId && session.dbId === primary.secondSession?.dbId ? 2 : 1}
+              locked={
+                !!completed ||
+                !!session.executionProtected ||
+                hasStarted ||
+                !!(
+                  selectedAdd &&
+                  session.dbId !== primary.dbId &&
+                  session.dbId !== primary.secondSession?.dbId
+                )
+              }
+            />
+          </div>
+        </details>
+        {session.dayType === "match" ? (
+          <MatchStartPanel session={session} isToday={isToday} />
+        ) : (
+          <SessionStartPanel session={displayedSession} canStart={isToday} />
+        )}
 
         {/* Teaching remains available in previews; each runner gates its recording controls. */}
         <div className="min-w-0 space-y-3">
@@ -364,6 +358,7 @@ function SessionDetail() {
           )}
 
           {!strengthRunner &&
+            !enduranceSession &&
             structured
               .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
               .filter((e) => e.methodExecution)
@@ -381,37 +376,85 @@ function SessionDetail() {
               zmienił Twój wybór — ustawienie rywala, partnera albo wolną przestrzeń.
             </div>
           )}
-          {enduranceSession && enduranceWarmup.length > 0 && (
-            <WarmupCoach
-              key={`${session.dbId ?? date}:warmup`}
-              exercises={enduranceWarmup}
-              kind={
-                /spokojny|easy aerobic|baza tlenowa/i.test(
-                  `${session.title} ${session.sessionType}`,
-                )
-                  ? "easy"
-                  : "intervals"
-              }
-              storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}${canExecute ? "" : ":preview"}`}
-            />
-          )}
           {trackableEndurance &&
             session.dbId &&
-            (hasStarted || state.runningActivities[session.dbId]) &&
+            hasStarted &&
             session.loadLabelOverride !== "Wstrzymaj trening" && (
-              <EnduranceRunTracker
-                key={`${user.id}:${session.dbId}`}
-                ownerId={user.id}
-                session={session}
-                sessionId={session.dbId}
-                date={session.date}
-                canRecord={canExecute && !completion?.completed}
-                activity={state.runningActivities[session.dbId] ?? null}
-                onSave={saveRunningActivity}
-                onDelete={deleteRunningActivity}
-              />
+              <>
+                {session.classification?.subcategory !== "field_mas_test" && (
+                  <div className="bw-run-mode" role="group" aria-label="Sposób pomiaru biegu">
+                    <button
+                      type="button"
+                      disabled={runBusy}
+                      aria-pressed={runMode === "gps"}
+                      onClick={() => setRunMode("gps")}
+                    >
+                      Z GPS
+                    </button>
+                    <button
+                      type="button"
+                      disabled={runBusy}
+                      aria-pressed={runMode === "timer"}
+                      onClick={() => setRunMode("timer")}
+                    >
+                      Bez GPS
+                    </button>
+                  </div>
+                )}
+                {runMode === "timer" && session.classification?.subcategory !== "field_mas_test" ? (
+                  <RunClock
+                    key={`${user.id}:${session.dbId}`}
+                    session={session}
+                    enabled={canExecute && !completion?.completed}
+                    onBusy={setRunBusy}
+                    onFinish={(seconds) => {
+                      setClockDuration(seconds / 60);
+                      setFinishOpen(true);
+                    }}
+                  />
+                ) : (
+                  <EnduranceRunTracker
+                    key={`${user.id}:${session.dbId}`}
+                    ownerId={user.id}
+                    session={session}
+                    sessionId={session.dbId}
+                    date={session.date}
+                    canRecord={canExecute && !completion?.completed}
+                    activity={state.runningActivities[session.dbId] ?? null}
+                    onSave={saveRunningActivity}
+                    onDelete={deleteRunningActivity}
+                    onRecordingChange={setRunBusy}
+                    onFinish={() => setFinishOpen(true)}
+                  />
+                )}
+              </>
             )}
-
+          {enduranceSession && (
+            <details className="bw-session-extra">
+              <summary>Rozgrzewka i zakończenie</summary>
+              {enduranceWarmup.length > 0 && (
+                <WarmupCoach
+                  key={`${session.dbId ?? date}:warmup`}
+                  exercises={enduranceWarmup}
+                  kind={
+                    /spokojny|easy aerobic|baza tlenowa/i.test(
+                      `${session.title} ${session.sessionType}`,
+                    )
+                      ? "easy"
+                      : "intervals"
+                  }
+                  storageKey={`ballwise:warmup:${user.id}:${session.dbId ?? date}${canExecute ? "" : ":preview"}`}
+                />
+              )}
+              <FocusedSessionRunner
+                sections={structured.filter((s) => s.type === "cooldown")}
+                sessionId={session.dbId}
+                date={date}
+                canRecord={canExecute && !completion?.completed}
+                onFinish={() => setFinishOpen(true)}
+              />
+            </details>
+          )}
           {session.loadLabelOverride === "Wstrzymaj trening" ? (
             <div className="soft-card p-4" role="alert">
               Wstrzymaj dalszy wysiłek. Zapis wcześniejszej części sesji pozostaje w historii.
@@ -444,63 +487,23 @@ function SessionDetail() {
                 key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
                 storageKey={`ballwise:recovery:${user.id}:${session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}`}
                 context={recoveryContext}
+                sessionId={session.dbId}
                 blocked={session.loadLabelOverride === "Wstrzymaj trening"}
                 onDurationChange={setRecoveryDuration}
-                onFinish={() => setShowRecoveryCompletion(true)}
+                onFinish={() => setFinishOpen(true)}
               />
             </fieldset>
-          ) : sprintRunner ? (
-            <SprintStructuredSections
+          ) : enduranceSession ? null : (
+            <FocusedSessionRunner
               sections={structured}
-              date={date}
-              session={session}
-              canRecord={canExecute}
-              autoStart={hasStarted && canExecute}
-              onFinish={() => {
-                if (canExecute) setShowSprintCompletion(true);
-              }}
-            />
-          ) : strengthRunner ? (
-            <StrengthStructuredSections
-              key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
-              sections={structured}
-              date={date}
               sessionId={session.dbId}
-              canRecord={canExecute}
-              onFinish={() => {
-                if (canExecute) setShowStrengthCompletion(true);
-              }}
+              date={date}
+              kind={strengthRunner ? "strength" : sprintRunner ? "sprint" : "general"}
+              canRecord={canExecute && !completion?.completed}
+              onFinish={() => setFinishOpen(true)}
             />
-          ) : (
-            <>
-              <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Do wykonania
-              </div>
-              <StructuredSections
-                key={session.dbId ?? `${date}:${slot}:${mod ?? "primary"}`}
-                sections={
-                  enduranceSession
-                    ? structured.filter((s) => s.type !== "warmup" && s.type !== "prep")
-                    : structured
-                }
-                date={date}
-                sessionId={session.dbId}
-                canRecord={canExecute}
-              />
-            </>
           )}
         </div>
-
-        {sprintRunner && !hasStarted && isToday && (
-          <div className="bw-sprint-start-panel">
-            <SessionStartPanel session={displayedSession} canStart />
-          </div>
-        )}
-        {sprintRunner && !isToday && !canExecute && (
-          <p className="bw-sprint-preview-note">
-            Podgląd treningu z innego dnia. Możesz oglądać wszystkie ćwiczenia.
-          </p>
-        )}
 
         {(state.exerciseReplacements[date] ?? []).length > 0 && (
           <div className="soft-card flex flex-wrap items-center gap-3 p-3 text-xs">
@@ -532,16 +535,36 @@ function SessionDetail() {
 
         {canShowPostSessionForm(session) &&
           hasStarted &&
-          matchCanBeCompleted(
-            session,
-            session.dbId ? state.completions[session.dbId]?.status : undefined,
-          ) &&
+          matchCanBeCompleted(session, completion?.status) &&
           (session.classification?.subcategory !== "field_mas_test" ||
-            Boolean(session.dbId && state.runningActivities[session.dbId])) &&
-          (!sprintRunner || showSprintCompletion || completion?.completed) &&
-          (!strengthRunner || showStrengthCompletion || completion?.completed) &&
-          (!recoveryRunner || showRecoveryCompletion || completion?.completed) && (
-            <CompletionPanel key={session.dbId} session={presentedSession} />
+            Boolean(session.dbId && state.runningActivities[session.dbId])) && (
+            <>
+              <button
+                type="button"
+                className="bw-session-finish-trigger"
+                disabled={runBusy}
+                onClick={() => setFinishOpen(true)}
+              >
+                {completion?.completed ? "Edytuj podsumowanie" : "Zakończ trening"}
+              </button>
+              <Drawer open={finishOpen} onOpenChange={setFinishOpen} initialDetent="large">
+                <DrawerContent aria-describedby={undefined}>
+                  <DrawerTitle>Podsumowanie treningu</DrawerTitle>
+                  <CompletionPanel
+                    key={session.dbId}
+                    session={clockDuration != null ? { ...presentedSession } : presentedSession}
+                    suggestedDurationMin={clockDuration ?? undefined}
+                    onSaved={() => {
+                      setFinishOpen(false);
+                      void navigate({
+                        to: "/postep",
+                        search: { view: "history", session: session.dbId ?? undefined },
+                      });
+                    }}
+                  />
+                </DrawerContent>
+              </Drawer>
+            </>
           )}
 
         {/* Status zmiany + cofnij */}
@@ -583,7 +606,14 @@ function SessionDetail() {
                   <Undo2 className="h-3.5 w-3.5" /> Cofnij
                 </button>
               </div>
-              <StructuredSections sections={flatToStructured(m.session.sections)} date={date} />
+              <Link
+                to="/sesja/$date"
+                params={{ date }}
+                search={{ slot: 1, mod: m.id }}
+                className="bw-session-primary"
+              >
+                Otwórz dodaną sesję
+              </Link>
             </div>
           ))}
 

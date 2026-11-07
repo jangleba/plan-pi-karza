@@ -22,6 +22,8 @@ import { prepareManualJump, completeManualJump, type ManualJumpStart } from "./m
 import { paintVideoFrame } from "./videoFrame";
 import { APP_VERSION } from "@/lib/appVersion";
 import { orientStartMarker } from "./markerGeometry";
+import { LabEventGapError, validateEventGaps } from "./measurement";
+import { resultRecordingQuality } from "./timingQuality";
 
 export function VideoAnalyzer({
   ownerId,
@@ -47,6 +49,7 @@ export function VideoAnalyzer({
   const [timedProposal, setTimedProposal] = useState<TimedEventProposal | null>(null);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [proofReady, setProofReady] = useState(false);
+  const [reviewWide, setReviewWide] = useState(false);
   const [manualJump, setManualJump] = useState<{ start?: ManualJumpStart } | null>(null);
   const [manualCursor, setManualCursor] = useState<[number, number]>([0.5, 0.8]);
   const [video, setVideo] = useState<OpenedVideo | null>(null);
@@ -236,6 +239,7 @@ export function VideoAnalyzer({
     setReviewIndex(0);
     setProofReady(false);
     setManualJump(null);
+    setReviewWide(false);
     setOriginal(false);
     setConfirmed(false);
     setDraft(null);
@@ -263,7 +267,7 @@ export function VideoAnalyzer({
           setEnd(automatic.heelFrameIndex);
           setFrameIndex(automatic.heelFrameIndex);
           setMarking("end");
-          setEditing(false);
+          setEditing(true);
           setAutoStatus("ready");
         } catch (reason) {
           if (current !== version.current || controller.signal.aborted) return;
@@ -284,6 +288,7 @@ export function VideoAnalyzer({
     controller: AbortController,
     current: number,
     line?: number,
+    chosenStart?: number,
   ) {
     setAutoStatus("analyzing");
     setAutoProgress(0);
@@ -302,13 +307,15 @@ export function VideoAnalyzer({
         },
       );
       if (current !== version.current || controller.signal.aborted) return;
-      setStart(proposal.start);
+      setStart(chosenStart ?? proposal.start);
       setEnd(proposal.end);
       setTurnFrame(proposal.turn ?? null);
       setTimedProposal(proposal);
-      setReviewIndex(0);
-      setFrameIndex(proposal.start);
-      setMarking("start");
+      setReviewIndex(chosenStart !== undefined ? 1 : 0);
+      setFrameIndex(
+        chosenStart !== undefined ? proposal.end : (proposal.startReviewFrom ?? proposal.start),
+      );
+      setMarking(chosenStart !== undefined ? "end" : "start");
       setEditing(true);
       setConfirmed(false);
       setOriginal(false);
@@ -328,7 +335,11 @@ export function VideoAnalyzer({
     load.current = controller;
     const current = ++version.current;
     setReading(true);
-    setStart(null);
+    const chosenStart =
+      attempt.testId === "sprint_10m" && timedProposal === null && start !== null
+        ? start
+        : undefined;
+    setStart(chosenStart ?? null);
     setEnd(null);
     setTurnFrame(null);
     setDraft(null);
@@ -338,6 +349,7 @@ export function VideoAnalyzer({
       controller,
       current,
       protocol.category === "jump" ? undefined : guides[is505 ? 0 : 1],
+      chosenStart,
     );
     if (current === version.current) setReading(false);
   }
@@ -359,6 +371,7 @@ export function VideoAnalyzer({
       > & { uncertaintyCm?: number; cameraShiftPx?: number })
     | null = null;
   let invalid = "";
+  let needsNewRecording = false;
   if (video && start !== null && end !== null) {
     try {
       if (isLongJump) {
@@ -375,10 +388,13 @@ export function VideoAnalyzer({
         measure = timedMeasurement(attempt.testId, video.timeline, start, end);
         if (is505 && (turnFrame === null || turnFrame <= start || turnFrame >= end))
           throw new Error("Oznacz nawrót pomiędzy wejściem a powrotem.");
+        if (is505 && turnFrame !== null)
+          validateEventGaps(video.timeline, turnFrame, turnFrame, true);
       }
     } catch (reason) {
       measure = null;
       invalid = messageOf(reason);
+      needsNewRecording = reason instanceof LabEventGapError;
     }
   }
   function move(index: number) {
@@ -443,8 +459,9 @@ export function VideoAnalyzer({
       reading ||
       editing ||
       reviewing ||
-      (!isLongJump && (!original || !confirmed)) ||
-      (isLongJump && (editing || !ready)) ||
+      !original ||
+      !confirmed ||
+      (isLongJump && spatial?.heelSource !== "manual") ||
       saved
     )
       return;
@@ -463,6 +480,7 @@ export function VideoAnalyzer({
           codec: video.config.codec,
           guidePositions: guides,
           notes,
+          timingMethod: timedProposal ? "assisted" : "manual",
           ...(isLongJump ? { spatial: longJumpSchema.parse(spatial) } : {}),
           ...(is505 && turnFrame !== null ? { turnFrameIndex: turnFrame } : {}),
         });
@@ -508,6 +526,7 @@ export function VideoAnalyzer({
     setDraft(null);
     setConfirmed(false);
     setProofReady(false);
+    setReviewWide(false);
     const next = reviewIndex + 1;
     setReviewIndex(next);
     if (next >= reviewStages.length) {
@@ -516,7 +535,13 @@ export function VideoAnalyzer({
     }
     const target = reviewStages[next];
     setMarking(target === "start" ? "start" : "end");
-    move(target === "turn" ? turnFrame! : target === "end" ? end! : start!);
+    move(
+      target === "turn"
+        ? turnFrame!
+        : target === "end"
+          ? (timedProposal?.endReviewFrom ?? end!)
+          : start!,
+    );
   }
   function changeGuide(value: number, index: number) {
     setGuides((old) =>
@@ -525,11 +550,13 @@ export function VideoAnalyzer({
     setDraft(null);
     setConfirmed(false);
     if (protocol.category !== "jump") {
+      const keepStart =
+        attempt.testId === "sprint_10m" && start !== null && (!timedProposal || reviewIndex > 0);
       setTimedProposal(null);
-      setStart(null);
+      setStart(keepStart ? start : null);
       setEnd(null);
       setTurnFrame(null);
-      setMarking("start");
+      setMarking(keepStart ? "end" : "start");
       setEditing(true);
       setAutoStatus("idle");
     }
@@ -588,7 +615,7 @@ export function VideoAnalyzer({
     ],
     standing_long_jump: [
       "Automatyka wykrywa linię START przed odbiciem.",
-      "Automatyka wykrywa bliższą piętę; poprawiasz ją tylko w razie potrzeby.",
+      "Wskaż kontakt bliższej pięty z podłożem i sprawdź, czy lądowanie było prawidłowe.",
     ],
     cod_505: [
       "Środek tułowia pierwszy raz przecina linię pomiarową.",
@@ -596,6 +623,17 @@ export function VideoAnalyzer({
     ],
   } as const;
   const precision = video && video.timeline.fps < 119 ? " · orientacyjny" : "";
+  const recordingQuality =
+    video && start !== null && end !== null
+      ? resultRecordingQuality({
+          testId: attempt.testId,
+          fps: video.timeline.fps,
+          startSeconds: video.timeline.frames[start].seconds,
+          startPreviousSeconds: video.timeline.frames[Math.max(0, start - 1)].seconds,
+          endSeconds: video.timeline.frames[end].seconds,
+          endPreviousSeconds: video.timeline.frames[Math.max(0, end - 1)].seconds,
+        })
+      : null;
   function selectFile(input: HTMLInputElement) {
     const file = input.files?.[0];
     input.value = "";
@@ -652,7 +690,7 @@ export function VideoAnalyzer({
         {saved && <span className="bl-saved-badge">Zapisano</span>}
       </header>
       <ol className="bl-flow-steps" aria-label="Etapy pomiaru">
-        {["Film", "Pomiar", "Wynik"].map((title, index) => {
+        {["Film", "Sprawdź", "Wynik"].map((title, index) => {
           const current = saved || (measure && !editing) ? 2 : video ? 1 : 0;
           return (
             <li
@@ -704,6 +742,12 @@ export function VideoAnalyzer({
         <section className="bl-card bl-source-card">
           <h3>Dodaj nagranie</h3>
           <p className="bl-muted">{shortSetup}</p>
+          {protocol.category !== "jump" && (
+            <p className="bl-timing-tip">
+              Najlepiej: nagraj w aparacie telefonu 120 lub 240 FPS i wybierz oryginalny film. Przed
+              startem stój spokojnie przez sekundę.
+            </p>
+          )}
           {isLongJump && (
             <div className="bl-auto-setup">
               <span>1</span>
@@ -856,157 +900,185 @@ export function VideoAnalyzer({
       {video && !isLongJump && autoStatus === "error" && (
         <LabNotice>{autoError} Ręczne oznaczanie pozostaje dostępne.</LabNotice>
       )}
-      {video && measure && !reviewing && (
-        <section className="bl-card bl-result" aria-label="Wynik próby">
-          <p className="bl-kicker">{saved ? "ZAPISANO LOKALNIE" : "WYNIK PRÓBY"}</p>
-          <div className="bl-big-value">
-            {resultValue(measure.primaryValue, measure.primaryUnit)}
-          </div>
-          <p className="bl-muted">
-            {video.timeline.fps.toFixed(0)} FPS{precision}
-          </p>
-          <p className="bl-muted">
-            {isLongJump ? (
-              <>Czułość geometrii: ±{measure.uncertaintyCm?.toFixed(1)} cm</>
-            ) : (
+      {video &&
+        measure &&
+        !reviewing &&
+        (!isLongJump || (spatial?.heelSource === "manual" && !editing)) && (
+          <section className="bl-card bl-result" aria-label="Wynik próby">
+            <p className="bl-kicker">{saved ? "ZAPISANO LOKALNIE" : "WYNIK PRÓBY"}</p>
+            <div className="bl-big-value">
+              {resultValue(measure.primaryValue, measure.primaryUnit)}
+            </div>
+            {!recordingQuality && (
+              <p className="bl-muted">
+                {video.timeline.fps.toFixed(0)} FPS{precision}
+              </p>
+            )}
+            {recordingQuality && (
+              <div className={`bl-timing-quality bl-timing-quality-${recordingQuality.status}`}>
+                <strong>
+                  {!isLongJump && `${video.timeline.fps.toFixed(0)} FPS · `}
+                  {recordingQuality.label}
+                </strong>
+                <p>{recordingQuality.description}</p>
+              </div>
+            )}
+            {!recordingQuality && (
+              <p className="bl-muted">
+                {isLongJump ? (
+                  <>Czułość geometrii: ±{measure.uncertaintyCm?.toFixed(1)} cm</>
+                ) : (
+                  <>
+                    Zakres z klatek: {resultValue(measure.resolutionMin!, measure.primaryUnit)}–
+                    {resultValue(measure.resolutionMax!, measure.primaryUnit)}
+                  </>
+                )}
+              </p>
+            )}
+
+            {measure.averageSpeedMps !== undefined && (
+              <p>Średnia prędkość: {(measure.averageSpeedMps * 3.6).toFixed(1)} km/h</p>
+            )}
+            {!saved && (
               <>
-                Zakres z klatek: {resultValue(measure.resolutionMin!, measure.primaryUnit)}–
-                {resultValue(measure.resolutionMax!, measure.primaryUnit)}
+                {
+                  <label className="bl-check">
+                    <input
+                      type="checkbox"
+                      checked={original && confirmed}
+                      onChange={(event) => {
+                        setOriginal(event.target.checked);
+                        setConfirmed(event.target.checked);
+                        setDraft(null);
+                      }}
+                    />
+                    {protocol.confirmation}
+                  </label>
+                }
+                {isLongJump && (
+                  <div className="bl-auto-checks">
+                    <span>✓ Oba wzorce rozpoznane</span>
+                    <span>✓ Kamera stabilna ({measure.cameraShiftPx?.toFixed(1)} px)</span>
+                    <span>✓ Linia START i punkt pięty</span>
+                  </div>
+                )}
+                <LabButton
+                  className="bl-wide"
+                  disabled={
+                    !ready ||
+                    reading ||
+                    editing ||
+                    !original ||
+                    !confirmed ||
+                    (isLongJump && spatial?.heelSource !== "manual")
+                  }
+                  onClick={save}
+                >
+                  Zapisz wynik
+                </LabButton>
+                {!isLongJump && (
+                  <LabButton
+                    className="bl-link bl-wide"
+                    onClick={() => setEditing((value) => !value)}
+                  >
+                    {editing ? "Zamknij korektę" : "Popraw oznaczenia"}
+                  </LabButton>
+                )}
+                {isLongJump && (
+                  <p className="bl-auto-confirm">
+                    Zapisując potwierdzasz 3,00 m między linią START a krzyżykiem, nieruchomy
+                    telefon i poprawny punkt pięty.
+                  </p>
+                )}
               </>
             )}
-          </p>
-          {isLongJump && (
-            <p className="bl-muted">
-              Sprawdź punkt pięty i porównaj odległość z taśmą. Warunki nagrania wpływają na wynik;
-              podany zakres nie obejmuje błędu automatycznego rozpoznania.
-            </p>
-          )}
-          {measure.averageSpeedMps !== undefined && (
-            <p>Średnia prędkość: {(measure.averageSpeedMps * 3.6).toFixed(1)} km/h</p>
-          )}
-          {!saved && (
-            <>
-              {!isLongJump && (
-                <label className="bl-check">
-                  <input
-                    type="checkbox"
-                    checked={original && confirmed}
-                    onChange={(event) => {
-                      setOriginal(event.target.checked);
-                      setConfirmed(event.target.checked);
-                      setDraft(null);
-                    }}
-                  />
-                  {is505
-                    ? protocol.confirmation
-                    : "Film w oryginalnym tempie. Próba zgodna z instrukcją."}
-                </label>
-              )}
-              {isLongJump && (
-                <div className="bl-auto-checks">
-                  <span>✓ Oba wzorce rozpoznane</span>
-                  <span>✓ Kamera stabilna ({measure.cameraShiftPx?.toFixed(1)} px)</span>
-                  <span>✓ Linia START i punkt pięty</span>
-                </div>
-              )}
-              <LabButton
-                className="bl-wide"
-                disabled={
-                  !ready || reading || editing || (!isLongJump && (!original || !confirmed))
-                }
-                onClick={save}
-              >
-                Zapisz wynik
-              </LabButton>
-              {!isLongJump && (
-                <LabButton
-                  className="bl-link bl-wide"
-                  onClick={() => setEditing((value) => !value)}
-                >
-                  {editing ? "Zamknij korektę" : "Popraw oznaczenia"}
-                </LabButton>
-              )}
-              {isLongJump && (
-                <p className="bl-auto-confirm">
-                  Zapisując potwierdzasz 3,00 m między linią START a krzyżykiem, nieruchomy telefon
-                  i poprawny punkt pięty.
+            <details className="bl-details">
+              <summary>Szczegóły pomiaru</summary>
+              {recordingQuality && !isLongJump && (
+                <p>
+                  Zakres z klatek: {resultValue(measure.resolutionMin!, measure.primaryUnit)}–
+                  {resultValue(measure.resolutionMax!, measure.primaryUnit)}.
                 </p>
               )}
-            </>
-          )}
-          <details className="bl-details">
-            <summary>Szczegóły pomiaru</summary>
-            {lastFile && (
-              <LabButton className="bl-secondary" onClick={() => void downloadOriginal()}>
-                Pobierz film
-              </LabButton>
-            )}
-            <p>
-              {isLongJump
-                ? "Między oznaczonymi klatkami (nie służy do obliczania odległości)"
-                : protocol.category === "jump"
-                  ? "Czas lotu"
-                  : "Czas odcinka"}
-              : {measure.elapsedSeconds.toFixed(3)} s · {video.timeline.fps.toFixed(2)} FPS.
-            </p>
-            <p className="bl-muted">
-              Zakres dotyczy odstępów między klatkami. Nie obejmuje błędu oznaczenia zdarzeń,
-              ustawienia kamery ani techniki. Przy 30/60 FPS wynik jest orientacyjny.
-            </p>
-            {protocol.category === "jump" && !isLongJump && (
-              <p className="bl-muted">
-                Wysokość z czasu lotu: h = g · t² / 8. Ustawienie nóg przy wybiciu i pierwszym
-                kontakcie powinno być podobne.
+              {isLongJump && (
+                <p>
+                  Czułość geometrii na przesunięcie punktów: ±{measure.uncertaintyCm?.toFixed(1)}{" "}
+                  cm. To wskaźnik wrażliwości kadru, nie całkowity błąd pomiaru.
+                </p>
+              )}
+              {lastFile && (
+                <LabButton className="bl-secondary" onClick={() => void downloadOriginal()}>
+                  Pobierz film
+                </LabButton>
+              )}
+              <p>
+                {isLongJump
+                  ? "Między oznaczonymi klatkami (nie służy do obliczania odległości)"
+                  : protocol.category === "jump"
+                    ? "Czas lotu"
+                    : "Czas odcinka"}
+                : {measure.elapsedSeconds.toFixed(3)} s · {video.timeline.fps.toFixed(2)} FPS.
               </p>
-            )}
-            {isLongJump && (
-              <p className="bl-muted">
-                Odległość prostopadle od krawędzi START (20 cm) do bliższej pięty. Automatyka nie
-                zapisuje wyniku, jeśli wzorzec jest za mały, kamera się poruszyła albo szacowana
-                niepewność geometrii przekracza 5 cm. To nadal pomiar z filmu, nie certyfikowany
-                system laboratoryjny.
-              </p>
-            )}
-            {is505 && turnFrame !== null && (
-              <p className="bl-muted">
-                505 tradycyjny: 10 m rozbiegu + 5 m do nawrotu + 5 m powrotu. Nawrót: klatka{" "}
-                {turnFrame + 1}. Czas liczymy między dwoma przecięciami tej samej linii.
-              </p>
-            )}
-            <p className="bl-muted">{protocol.confirmation}</p>
-            {!saved && (
-              <label className="bl-label">
-                Notatka (opcjonalnie)
-                <textarea
-                  aria-label="Notatka do próby"
-                  maxLength={280}
-                  rows={2}
-                  value={notes}
-                  onChange={(event) => {
-                    setNotes(event.target.value);
-                    setDraft(null);
-                  }}
-                  placeholder="Obuwie, nawierzchnia…"
-                />
-              </label>
-            )}
-            {saved && notes && <p>{notes}</p>}
-            {saved && (
-              <p className="bl-muted">Wynik zapisany na tym urządzeniu. Zachowaj film osobno.</p>
-            )}
-            {draft && saved && (
-              <LabButton className="bl-link" onClick={downloadDraft}>
+              {!isLongJump && (
+                <p className="bl-muted">
+                  Zakres dotyczy odstępów między klatkami. Nie obejmuje błędu oznaczenia zdarzeń,
+                  ustawienia kamery ani techniki. Przy 30/60 FPS wynik jest orientacyjny.
+                </p>
+              )}
+              {protocol.category === "jump" && !isLongJump && (
+                <p className="bl-muted">
+                  Wysokość z czasu lotu: h = g · t² / 8. Ustawienie nóg przy wybiciu i pierwszym
+                  kontakcie powinno być podobne.
+                </p>
+              )}
+              {isLongJump && (
+                <p className="bl-muted">
+                  Odległość prostopadle od krawędzi START (20 cm) do bliższej pięty. Automatyka nie
+                  zapisuje wyniku, jeśli wzorzec jest za mały, wykryto ruch kamery albo czułość
+                  geometrii przekracza 5 cm. Kontakt pięty z podłożem wskazujesz ręcznie. Odległość
+                  sprawdź także taśmą.
+                </p>
+              )}
+              {is505 && turnFrame !== null && (
+                <p className="bl-muted">
+                  505 tradycyjny: 10 m rozbiegu + 5 m do nawrotu + 5 m powrotu. Nawrót: klatka{" "}
+                  {turnFrame + 1}. Czas liczymy między dwoma przecięciami tej samej linii.
+                </p>
+              )}
+              <p className="bl-muted">{protocol.confirmation}</p>
+              {!saved && (
+                <label className="bl-label">
+                  Notatka (opcjonalnie)
+                  <textarea
+                    aria-label="Notatka do próby"
+                    maxLength={280}
+                    rows={2}
+                    value={notes}
+                    onChange={(event) => {
+                      setNotes(event.target.value);
+                      setDraft(null);
+                    }}
+                    placeholder="Obuwie, nawierzchnia…"
+                  />
+                </label>
+              )}
+              {saved && notes && <p>{notes}</p>}
+              {saved && (
+                <p className="bl-muted">Wynik zapisany na tym urządzeniu. Zachowaj film osobno.</p>
+              )}
+              {draft && saved && (
+                <LabButton className="bl-link" onClick={downloadDraft}>
+                  Pobierz kopię tej próby
+                </LabButton>
+              )}
+            </details>
+            {draft && !saved && (
+              <LabButton className="bl-secondary bl-wide" onClick={downloadDraft}>
                 Pobierz kopię tej próby
               </LabButton>
             )}
-          </details>
-          {draft && !saved && (
-            <LabButton className="bl-secondary bl-wide" onClick={downloadDraft}>
-              Pobierz kopię tej próby
-            </LabButton>
-          )}
-        </section>
-      )}
+          </section>
+        )}
       {video && (!isLongJump || (autoStatus === "ready" && spatial) || manualJump) && (
         <section
           ref={correctionRef}
@@ -1025,6 +1097,17 @@ export function VideoAnalyzer({
           }`}
           hidden={saved || (!!measure && !editing && !isLongJump)}
         >
+          {needsNewRecording && (
+            <div className="bl-gap-recovery">
+              <LabNotice error>{invalid}</LabNotice>
+              <LabButton
+                className="bl-secondary bl-wide"
+                onClick={() => galleryInput.current?.click()}
+              >
+                Wybierz inny film
+              </LabButton>
+            </div>
+          )}
           {!isLongJump ? (
             <>
               {protocol.category !== "jump" && !reviewing && !saved && (
@@ -1037,7 +1120,7 @@ export function VideoAnalyzer({
                       aria-label="Linia do automatycznej analizy"
                       min={0.03}
                       max={0.97}
-                      step={0.005}
+                      step={0.0005}
                       value={guides[is505 ? 0 : 1]}
                       disabled={reading}
                       onChange={(event) => changeGuide(Number(event.target.value), is505 ? 0 : 1)}
@@ -1048,7 +1131,11 @@ export function VideoAnalyzer({
                     disabled={!ready}
                     onClick={() => void findTimedEvents()}
                   >
-                    Linia ustawiona — znajdź zdarzenia
+                    {attempt.testId === "sprint_10m"
+                      ? start !== null && !timedProposal
+                        ? "Pomóż mi znaleźć metę"
+                        : "Pomóż mi znaleźć start i metę"
+                      : "Linia ustawiona — znajdź zdarzenia"}
                   </LabButton>
                 </div>
               )}
@@ -1075,12 +1162,17 @@ export function VideoAnalyzer({
               <p className="bl-step-instruction">
                 {reviewing && reviewTarget === "turn"
                   ? "Sprawdź kontakt wybranej nogi na linii nawrotu. Sam zwrot tułowia nie wystarcza."
-                  : shortInstructions[attempt.testId][stepIndex]}
+                  : attempt.testId === "sprint_10m" && reviewing && reviewTarget === "start"
+                    ? "Wskaż pierwszy widoczny ruch tułowia. Poprzednia klatka ma pokazywać pozycję przed ruszeniem. Przesuwaj film −1 / +1."
+                    : shortInstructions[attempt.testId][stepIndex]}
               </p>
               {reviewing && timedProposal && (
                 <>
                   <p className="bl-kicker">
-                    Sprawdź propozycję {reviewIndex + 1}/{reviewStages.length}
+                    {attempt.testId === "sprint_10m" && reviewTarget === "start"
+                      ? "Wskaż start"
+                      : "Sprawdź propozycję"}{" "}
+                    {reviewIndex + 1}/{reviewStages.length}
                   </p>
                   <EventFrameProof
                     video={video}
@@ -1088,7 +1180,9 @@ export function VideoAnalyzer({
                     focus={timedProposal.focus[reviewTarget]!}
                     onReady={setProofReady}
                     line={
-                      protocol.category === "jump" || reviewTarget === "turn"
+                      protocol.category === "jump" ||
+                      reviewTarget === "turn" ||
+                      (attempt.testId === "sprint_10m" && reviewTarget === "start")
                         ? undefined
                         : guides[is505 ? 0 : 1]
                     }
@@ -1096,6 +1190,13 @@ export function VideoAnalyzer({
                   <p className="bl-muted">
                     Porównaj poprzednią i wybraną klatkę. W razie potrzeby popraw −1 / +1.
                   </p>
+                  <LabButton
+                    className="bl-link"
+                    onClick={() => setReviewWide((value) => !value)}
+                    aria-expanded={reviewWide}
+                  >
+                    {reviewWide ? "Zwiń cały kadr" : "Pokaż cały kadr"}
+                  </LabButton>
                 </>
               )}
             </>
@@ -1119,13 +1220,14 @@ export function VideoAnalyzer({
                     ? "Wybierz lądowanie i dotknij bliższej pięty"
                     : "Wybierz klatkę tuż przed skokiem"
                   : editing
-                    ? "Przesuń punkt dokładnie na bliższą piętę"
+                    ? "Dotknij kontaktu bliższej pięty z podłożem"
                     : "Czy niebieski punkt leży na bliższej pięcie?"}
               </h2>
             </div>
           )}
           <div
             className="bl-frame"
+            hidden={reviewing && !reviewWide}
             style={{
               aspectRatio: aspect,
               maxWidth: `${(isLongJump ? (editing ? 58 : 48) : 38) * aspect}${isLongJump && editing ? "dvh" : "svh"}`,
@@ -1256,7 +1358,9 @@ export function VideoAnalyzer({
               {!isLongJump &&
                 guides
                   .filter((_, i) => !protocol.sharedGuide || i === 0)
-                  .map((guide, i) => (
+                  .map((guide, i) => ({ guide, i }))
+                  .filter(({ i }) => attempt.testId !== "sprint_10m" || i === 1)
+                  .map(({ guide, i }) => (
                     <div
                       key={i}
                       className={`bl-guide ${protocol.guideAxis === "vertical" ? "bl-guide-vertical" : "bl-guide-horizontal"}`}
@@ -1404,10 +1508,14 @@ export function VideoAnalyzer({
                 disabled={!ready || !proofReady}
                 onClick={confirmProposedEvent}
               >
-                Potwierdź{" "}
+                {attempt.testId === "sprint_10m" && reviewTarget === "start"
+                  ? "Wybieram"
+                  : "Potwierdź"}{" "}
                 {reviewTarget === "turn"
                   ? "nawrót"
-                  : protocol.markers[reviewTarget === "start" ? 0 : 1].toLocaleLowerCase("pl-PL")}
+                  : attempt.testId === "sprint_10m" && reviewTarget === "end"
+                    ? "metę 10 m"
+                    : protocol.markers[reviewTarget === "start" ? 0 : 1].toLocaleLowerCase("pl-PL")}
               </LabButton>
               <LabButton className="bl-link bl-wide" disabled={reading} onClick={useManualTiming}>
                 Oznacz wszystko ręcznie
@@ -1417,7 +1525,12 @@ export function VideoAnalyzer({
             <LabButton
               className="bl-wide"
               disabled={
-                !ready || saved || !measure || !spatial || spatial.heelFrameIndex !== frameIndex
+                !ready ||
+                saved ||
+                !measure ||
+                !spatial ||
+                spatial.heelSource !== "manual" ||
+                spatial.heelFrameIndex !== frameIndex
               }
               onClick={() => {
                 correctionBefore.current = null;
@@ -1447,13 +1560,16 @@ export function VideoAnalyzer({
               }
               onClick={() => mark(marking)}
             >
-              Oznacz {protocol.markers[stepIndex].toLocaleLowerCase("pl-PL")}
+              Oznacz{" "}
+              {attempt.testId === "sprint_10m" && marking === "end"
+                ? "metę 10 m"
+                : protocol.markers[stepIndex].toLocaleLowerCase("pl-PL")}
             </LabButton>
           )}
           {!isLongJump && selectedIndex !== null && (
             <p className="bl-muted">Wybrano klatkę {selectedIndex + 1}.</p>
           )}
-          {invalid && <LabNotice error>{invalid}</LabNotice>}
+          {invalid && !needsNewRecording && <LabNotice error>{invalid}</LabNotice>}
           {!isLongJump && (
             <details className="bl-details">
               <summary>Powiększenie i pomoc</summary>
@@ -1516,7 +1632,7 @@ export function VideoAnalyzer({
                         aria-label={`Linia ${i + 1}`}
                         min={0}
                         max={1}
-                        step={0.005}
+                        step={0.0005}
                         value={guide}
                         disabled={saved}
                         onChange={(event) => {

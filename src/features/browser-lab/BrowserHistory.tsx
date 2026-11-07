@@ -10,6 +10,7 @@ import {
 import { LabButton, LabConfirm, LabNotice } from "./LabUI";
 import { videoPrecision } from "./measurement";
 import { longJumpMeasurement } from "./longJump";
+import { resultRecordingQuality, timingMethodLabel } from "./timingQuality";
 
 const dateOf = (date: string) =>
   new Date(date).toLocaleString("pl-PL", {
@@ -18,10 +19,25 @@ const dateOf = (date: string) =>
   });
 function ResultDetails({ result }: { result: BrowserResult }) {
   const geometry = result.spatial ? longJumpMeasurement(result.spatial) : null;
+  const timing = resultRecordingQuality(result);
   return (
     <dl className="bl-result-details">
-      <dt>Dokładność nagrania</dt>
-      <dd>{videoPrecision(result.fps)}</dd>
+      <dt>Klatki nagrania</dt>
+      <dd>
+        {timing ? `${timing.label} · ${result.fps.toFixed(0)} FPS` : videoPrecision(result.fps)}
+      </dd>
+      {timing && (
+        <>
+          <dt>Ocena zapisu</dt>
+          <dd>{timing.description}</dd>
+        </>
+      )}
+      {result.timingReview && (
+        <>
+          <dt>Oznaczenie zdarzeń</dt>
+          <dd>{timingMethodLabel(result.timingReview.method)}</dd>
+        </>
+      )}
       <dt>Film</dt>
       <dd>{result.sourceName}</dd>
       <dt>Klatki / FPS</dt>
@@ -298,7 +314,10 @@ export function BrowserHistory({
             </select>
           </label>
           {first && !candidates.length && (
-            <p className="bl-muted">Potrzebna jest jeszcze jedna próba tego samego testu i nogi.</p>
+            <p className="bl-muted">
+              Potrzebna jest jeszcze jedna próba tego samego testu, nogi i wersji pomiaru. Starsze
+              wyniki pozostają w historii.
+            </p>
           )}
           {compared && (
             <div className="bl-comparison">
@@ -328,11 +347,15 @@ export function BrowserHistory({
                   : "Krótszy czas oznacza szybszą próbę."}
               </p>
               <LabNotice>
-                {compared.overlaps === null
-                  ? "Dokładność pomiaru odległości wymaga sprawdzenia taśmą. Małych zmian nie traktuj jako potwierdzonego postępu."
-                  : compared.overlaps
-                    ? "Przedziały rozdzielczości klatek nakładają się. Ten pomiar nie pozwala pewnie rozróżnić tak małej zmiany."
-                    : "Przedziały rozdzielczości klatek są rozłączne. Nadal uwzględnij warunki i błąd oznaczenia zdarzeń."}
+                {!compared.canAssessChange
+                  ? first!.testId === "standing_long_jump"
+                    ? "Odległość z filmu wymaga kontroli taśmą. Mała różnica nie potwierdza zmiany formy."
+                    : "To zapis orientacyjny lub z luką przy zdarzeniu. Nie oceniaj z niego małych zmian wyniku; powtórz test na oryginale 120/240 FPS."
+                  : compared.overlaps === null
+                    ? "Dokładność pomiaru odległości wymaga sprawdzenia taśmą. Małych zmian nie traktuj jako potwierdzonego postępu."
+                    : compared.overlaps
+                      ? "Przedziały rozdzielczości klatek nakładają się. Ten pomiar nie pozwala pewnie rozróżnić tak małej zmiany."
+                      : "Przedziały rozdzielczości klatek są rozłączne. Nadal uwzględnij warunki i błąd oznaczenia zdarzeń."}
               </LabNotice>
             </div>
           )}

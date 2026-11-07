@@ -124,6 +124,7 @@ export async function loadSessionHistory(
           : typeof session.duration_min === "number"
             ? session.duration_min
             : 0,
+      durationEstimated: typeof log.duration_minutes !== "number",
       rpe: typeof log.rpe === "number" ? log.rpe : null,
       notes: typeof log.notes === "string" ? log.notes : "",
     });
@@ -234,7 +235,7 @@ export function createPlanPersistence(
     recentCompletions: Record<string, SessionCompletion> = {},
     keepConfirmedCalendar = true,
     persist = true,
-    signal?:AbortSignal,
+    signal?: AbortSignal,
   ): Promise<SessionDay[]> {
     const snapshot = getState?.() ?? state;
     const { persistMonthlyPlan } = await import("../persist");
@@ -244,7 +245,7 @@ export function createPlanPersistence(
         : localToday();
     const canonical = stampPlanRevision(
       await applyConfirmedCalendar(
-        (await generatePlanAsync(profile, start,28,0,signal)).map((day) => ({
+        (await generatePlanAsync(profile, start, 28, 0, signal)).map((day) => ({
           ...day,
           cycleId:
             snapshot?.plan[0]?.date === isoDate(start) ? snapshot.plan[0].cycleId : undefined,

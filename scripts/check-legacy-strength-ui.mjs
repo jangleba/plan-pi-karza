@@ -12,7 +12,7 @@ export async function checkLegacyStrengthUI({ browser, base, work, ensure, views
   try {
     await page.goto(base + "?screen=journey&legacy=1");
     await page
-      .locator('[data-journey-path="/sesja/2026-11-01"] .bw-exercise-open')
+      .locator('[data-journey-path="/sesja/2026-11-01"] .bw-exercise-open:visible')
       .first()
       .waitFor();
     const original = await page.evaluate(() =>
@@ -27,6 +27,7 @@ export async function checkLegacyStrengthUI({ browser, base, work, ensure, views
       "Missing instruction preview caption",
     );
     await page.screenshot({ path: path.join(work, "stara-sesja-390.png"), fullPage: false });
+    for (const toggle of await page.locator(".bw-preparation-toggle").all()) await toggle.tap();
     await page.locator(".bw-exercise-check").first().tap();
     await page.getByRole("dialog").waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "Zamknij", exact: true }).tap();

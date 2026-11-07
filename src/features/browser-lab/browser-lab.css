@@ -7,6 +7,98 @@
 .browser-lab * {
   box-sizing: border-box;
 }
+.bl-timing-guide {
+  margin: 16px 0;
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--primary) 3%, var(--card));
+  padding: 16px;
+}
+.bl-timing-guide svg {
+  display: block;
+  width: 100%;
+  max-height: 110px;
+  overflow: visible;
+}
+.bl-timing-guide text {
+  font-size: 10px;
+  fill: currentColor;
+  font-family: inherit;
+}
+.bl-timing-guide .bl-guide-distance {
+  font-size: 12px;
+  font-weight: 600;
+}
+.bl-timing-guide p {
+  font-size: 11px;
+  text-align: center;
+  margin: 10px 0 0;
+}
+.bl-timing-tip {
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+.bl-timing-quality {
+  padding: 10px 12px;
+  margin: 12px 0;
+  border-radius: 12px;
+  text-align: left;
+}
+.bl-timing-quality strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.bl-timing-quality p {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 3px 0 0;
+}
+.bl-timing-quality-reviewed {
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  color: var(--primary);
+}
+.bl-timing-quality-indicative {
+  background: #fff5e5;
+  color: #775019;
+}
+.bl-timing-quality-incomplete {
+  background: #fff0ee;
+  color: #983d35;
+}
+.bl-result .bl-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+}
+.bl-result .bl-details summary::-webkit-details-marker {
+  display: none;
+}
+.bl-result .bl-details summary::after {
+  content: "›";
+  font-size: 20px;
+  font-weight: 400;
+}
+.bl-result .bl-details[open] summary::after {
+  transform: rotate(90deg);
+}
+@media (prefers-color-scheme: dark) {
+  .dark .bl-timing-quality-indicative {
+    background: #342719;
+    color: #f1cb8e;
+  }
+  .dark .bl-timing-quality-incomplete {
+    background: #3b2423;
+    color: #f4b0a6;
+  }
+}
 .browser-lab h2 {
   font-size: var(--bw-heading);
   font-weight: 600;
@@ -200,6 +292,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   margin-block: 10px;
+}
+.bl-frame[hidden] {
+  display: none;
 }
 .bl-event-proof figure {
   margin: 0;

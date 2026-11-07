@@ -34,10 +34,13 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
     await at("/start");
     await page.getByRole("button", { name: /Otwórz trening/ }).click();
     await at("/sesja/2026-11-02");
-    const main = page
-      .locator(".bw-training-stage")
-      .filter({ has: page.locator("h2", { hasText: "Siła i moc" }) });
-    await main.locator(".bw-exercise-open").first().click();
+    await page.getByRole("button", { name: "Plan sesji", exact: true }).click();
+    await page
+      .locator(".bw-focus-plan button")
+      .filter({ hasText: /Przysiad/i })
+      .first()
+      .click();
+    await page.getByRole("button", { name: /Technika i animacja/ }).click();
     const details = page.getByRole("dialog");
     await details.waitFor();
     ensure((await details.locator("ol li").count()) >= 2, "Full route has no instruction steps");
@@ -57,9 +60,13 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
       (await page.evaluate(() => window.__journeyQA.starts.length)) === 1,
       "Explicit start was duplicated",
     );
-    await main.locator(".bw-exercise-open").first().click();
-    await page.getByRole("button", { name: "Zapisz serie", exact: true }).click();
-    await page.locator(".bw-exercise-panel:not([hidden]) .bw-set-fields").waitFor();
+    await page.getByRole("button", { name: "Plan sesji", exact: true }).click();
+    await page
+      .locator(".bw-focus-plan button")
+      .filter({ hasText: /Przysiad/i })
+      .first()
+      .click();
+    await page.locator(".bw-focus-card .bw-set-fields").waitFor();
     await snap("przejscie-instrukcja-do-zapisu");
     await page
       .getByRole("button", { name: /Wstecz|Wróć do planu/ })
@@ -78,7 +85,7 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
     const nextWeek = await page.locator(".bw-week-nav strong").textContent();
     await page.locator('.bw-plan-day-link[href^="/sesja/2026-11-09"]').first().click();
     await at("/sesja/2026-11-09");
-    await page.locator(".bw-training-header").waitFor();
+    await page.locator(".bw-session-header").waitFor();
     ensure(
       !/\d\s+órze/.test(await page.locator("body").textContent()),
       "Sprint dose contains an amputated repetition label",
@@ -109,9 +116,12 @@ export async function checkNavigationUI({ browser, base, work, ensure, views }) 
     await page.getByRole("tab", { name: "Historia", exact: true }).click();
     await snap("przejscie-postep-historia");
     await tab("IQ", "/football-iq");
-    await page.locator("[data-iq-scenario]").waitFor();
+    await page.locator('[data-iq-renderer="ready"]').waitFor();
+    const skipTutorial = page.getByRole("button", {name:"Pomiń",exact:true});
+    if(await skipTutorial.count()) await skipTutorial.click();
     await snap("przejscie-iq");
-    await tab("Start", "/start");
+    await page.getByRole("button",{name:"Wróć do aplikacji",exact:true}).click();
+    await at("/start");
     await page.getByRole("button", { name: /BallWise Lab/ }).click();
     await at("/lab");
     await page.locator(".bl-test-card").first().waitFor();

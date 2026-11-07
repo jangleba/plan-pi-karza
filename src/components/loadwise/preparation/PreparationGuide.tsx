@@ -1,3 +1,4 @@
+import { useExerciseSetLogs } from "@/lib/loadwise/setLogs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
@@ -137,7 +138,10 @@ export function PreparationGuide({
   protocol: PreparationProtocol;
   storageKey: string;
   autoStart?: boolean;
-  onFinish?: (allStepsCompleted: boolean) => void;
+  onFinish?: (
+    allStepsCompleted: boolean,
+    execution?: { name: string; completed: boolean }[],
+  ) => void | Promise<void>;
 }) {
   const steps = useMemo(() => expandPreparationSteps(protocol), [protocol]);
   const persistenceKey = `${storageKey}:${protocol.id}:${protocol.exercises.map((e) => `${e.id}:${e.seconds ?? e.reps}:${e.sets ?? 1}:${e.sides}`).join("|")}`;
@@ -151,6 +155,8 @@ export function PreparationGuide({
   const [voice, setVoice] = useState(true);
   const [hiddenPause, setHiddenPause] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
   const current = steps[progress.index];
   const exercise = current ? protocol.exercises[current.exerciseIndex] : null;
   const remaining = remainingPlaybackMs(progress, now || progress.anchorMs);
@@ -267,14 +273,35 @@ export function PreparationGuide({
           <button
             type="button"
             className="bw-prep-primary"
-            onClick={() => {
-              setConfirmed(true);
-              onFinish?.(progress.skipped.length === 0);
+            disabled={confirming}
+            onClick={async () => {
+              setConfirming(true);
+              setConfirmationError(null);
+              try {
+                await onFinish?.(
+                  progress.skipped.length === 0,
+                  protocol.exercises.map((e, i) => ({
+                    name: e.name,
+                    completed: !steps.some(
+                      (step, index) =>
+                        step.exerciseIndex === i &&
+                        step.type === "work" &&
+                        progress.skipped.includes(index),
+                    ),
+                  })),
+                );
+                setConfirmed(true);
+              } catch {
+                setConfirmationError("Nie zapisano zestawu. Zachowano postęp do ponowienia.");
+              } finally {
+                setConfirming(false);
+              }
             }}
           >
             Potwierdź zakończenie
           </button>
         )}
+        {confirmationError && <p role="alert">{confirmationError}</p>}
         <button
           type="button"
           className="bw-prep-text"
@@ -301,19 +328,22 @@ export function PreparationGuide({
           <span>ok. {Math.ceil(estimated.seconds / 60)} min</span>
         </div>
         <p className="bw-prep-reason">{protocol.reason}</p>
-        <ol className="bw-prep-overview">
-          {protocol.exercises.map((e, i) => (
-            <li key={e.id}>
-              <PreparationIllustration small visual={e.visual} label={e.name} />
-              <div>
-                <strong>
-                  {i + 1}. {e.name}
-                </strong>
-                <span>{exerciseDose(e)}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <details className="bw-prep-preview">
+          <summary>Ćwiczenia w zestawie · {protocol.exercises.length}</summary>
+          <ol className="bw-prep-overview">
+            {protocol.exercises.map((e, i) => (
+              <li key={e.id}>
+                <PreparationIllustration small visual={e.visual} label={e.name} />
+                <div>
+                  <strong>
+                    {i + 1}. {e.name}
+                  </strong>
+                  <span>{exerciseDose(e)}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </details>
         <PreparationEvidence protocol={protocol} />
         <button
           type="button"
@@ -478,12 +508,14 @@ export function RecoveryCoach({
   context,
   onFinish,
   onDurationChange,
+  sessionId,
   blocked = false,
 }: {
   storageKey: string;
   context: RecoveryContext;
   onFinish: () => void;
   onDurationChange?: (minutes: number) => void;
+  sessionId?: string | null;
   blocked?: boolean;
 }) {
   const focus = useTrainingLocalState(`${storageKey}:focus`, "whole" as RecoveryFocus, parseFocus);
@@ -493,6 +525,7 @@ export function RecoveryCoach({
     () => buildRecoveryProtocol(focus.value, { afterMatch, highLoad, limited, nextDemandingDay }),
     [focus.value, afterMatch, highLoad, limited, nextDemandingDay],
   );
+  const logs = useExerciseSetLogs(sessionId, `recovery:${protocol.id}`);
   const estimate = protocolDuration(protocol);
   const estimatedMinutes = Math.ceil(estimate.seconds / 60);
   useEffect(() => {
@@ -505,20 +538,23 @@ export function RecoveryCoach({
           <small>REGENERACJA</small>
           <h2>Na czym się skupić?</h2>
           <p className="bw-prep-reason">Wybierz obszar.</p>
-          <div className="bw-prep-focus">
-            {RECOVERY_FOCI.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                aria-pressed={focus.value === item.id}
-                onClick={() => focus.setValue(item.id)}
-              >
-                <RecoveryFocusIcon focus={item.id} />
-                <strong>{item.label}</strong>
-                {focus.value === item.id && <Check size={16} className="bw-prep-selected" />}
-              </button>
-            ))}
-          </div>
+          <details className="bw-prep-preview">
+            <summary>Obszar: {RECOVERY_FOCI.find((f) => f.id === focus.value)?.label}</summary>
+            <div className="bw-prep-focus">
+              {RECOVERY_FOCI.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  aria-pressed={focus.value === item.id}
+                  onClick={() => focus.setValue(item.id)}
+                >
+                  <RecoveryFocusIcon focus={item.id} />
+                  <strong>{item.label}</strong>
+                  {focus.value === item.id && <Check size={16} className="bw-prep-selected" />}
+                </button>
+              ))}
+            </div>
+          </details>
           <p className="bw-prep-reason">{protocol.reason}</p>
           <div className="bw-prep-summary">
             <span>ok. {Math.ceil(estimate.seconds / 60)} min</span>
@@ -557,7 +593,22 @@ export function RecoveryCoach({
             protocol={protocol}
             storageKey={storageKey}
             autoStart
-            onFinish={onFinish}
+            onFinish={async (_all, execution) => {
+              if (sessionId)
+                for (const [index, item] of (execution ?? []).entries()) {
+                  const ok = await logs.saveSet({
+                    setNumber: index + 1,
+                    exerciseName: item.name,
+                    weightKg: null,
+                    reps: null,
+                    rir: null,
+                    metricKind: "completion",
+                    metricValue: item.completed ? 1 : 0,
+                  });
+                  if (!ok) throw new Error("Recovery save failed");
+                }
+              onFinish();
+            }}
           />
         </>
       )}

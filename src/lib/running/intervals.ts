@@ -114,6 +114,67 @@ function uniqueMainExercises(session: SessionDay): ExerciseLike[] {
 export function deriveRunningIntervalProtocol(session: SessionDay): RunningIntervalProtocol | null {
   const steps: RunningIntervalStep[] = [];
   const summaries: string[] = [];
+  // Numeric method recipes are authoritative; do not reparse their display strings.
+  const methodRows =
+    session.trainingMethods?.recipeVersion === "47"
+      ? (session.structuredSections
+          ?.filter((s) => s.type === "main")
+          .flatMap((s) => s.blocks.flatMap((b) => b.exercises))
+          .filter((e) => e.methodExecution) ?? [])
+      : [];
+  if (methodRows.length) {
+    for (const exercise of methodRows) {
+      const plan = exercise.methodExecution!;
+      if (!plan.workSeconds && !plan.distanceM) continue;
+      const count = Math.min(30, Math.max(1, plan.rounds * plan.repetitions));
+      const work: RunningIntervalTarget = plan.workSeconds
+        ? {
+            mode: "time",
+            value: plan.workSeconds,
+            label: formatTarget("time", plan.workSeconds),
+            autoAdvance: true,
+          }
+        : {
+            mode: "distance",
+            value: plan.distanceM!,
+            label: `${plan.distanceM} m`,
+            autoAdvance: plan.distanceM! >= 80,
+          };
+      work.paceTarget = paceTargetFromText(
+        `${exercise.displayPrescription ?? ""} ${plan.intensityLabel}`,
+      );
+      summaries.push(`${count} × ${work.label}`);
+      for (let i = 1; i <= count && steps.length < 80; i++) {
+        steps.push({
+          id: `${exercise.id}:work:${i}`,
+          kind: "work",
+          label: count === 1 ? "Bieg" : "Odcinek",
+          instruction: plan.focus,
+          repeatIndex: i,
+          repeatTotal: count,
+          target: work,
+        });
+        const betweenRounds = i % plan.repetitions === 0;
+        const pause = betweenRounds ? plan.roundRestSeconds : plan.restSeconds;
+        if (i < count && pause > 0)
+          steps.push({
+            id: `${exercise.id}:rest:${i}`,
+            kind: "recovery",
+            label: "Przerwa",
+            instruction: "Odpocznij zgodnie z planem",
+            repeatIndex: i,
+            repeatTotal: count,
+            target: {
+              mode: "time",
+              value: pause,
+              label: formatTarget("time", pause),
+              autoAdvance: true,
+            },
+          });
+      }
+    }
+    return steps.length ? { title: session.title, summary: summaries.join(" · "), steps } : null;
+  }
 
   for (const exercise of uniqueMainExercises(session)) {
     const text = `${exercise.name} ${exercise.prescription} ${exercise.rest ?? ""}`;

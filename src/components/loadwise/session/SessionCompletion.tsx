@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, Flag, Clock3, Gauge, NotebookPen } from "lucide-react";
+import { useState } from "react";
+import { Flag, Clock3, Gauge, NotebookPen } from "lucide-react";
 import { toast } from "sonner";
 import type { SessionDay } from "@/lib/loadwise/types";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -7,7 +7,11 @@ import { composeCompletionNotes, parseCompletionNotes } from "@/lib/loadwise/ses
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
+import { useAuth } from "@/lib/loadwise/auth";
+import { useTrainingLocalState } from "@/lib/loadwise/useTrainingLocalState";
+import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
+import { measuredSessionMinutes } from "@/lib/loadwise/sessionExecution";
+import { readPendingTrainingWrites } from "@/lib/loadwise/offlineTrainingQueue";
 import {
   Select,
   SelectContent,
@@ -107,152 +111,209 @@ export function MatchStartPanel({ session, isToday }: { session: SessionDay; isT
   );
 }
 
-export function CompletionPanel({ session }: { session: SessionDay }) {
+type CompletionProps = { session: SessionDay; onSaved?: () => void; suggestedDurationMin?: number };
+export function CompletionPanel(props: CompletionProps) {
+  return <CompletionContent key={props.session.dbId ?? props.session.date} {...props} />;
+}
+function CompletionContent({ session, onSaved, suggestedDurationMin }: CompletionProps) {
   const { state, completeSession } = useLoadwise();
-  const healthPersonalizationEnabled = state.profile?.healthPersonalizationEnabled === true;
+  const { user } = useAuth();
   const existing = session.dbId ? state.completions[session.dbId] : undefined;
+  const activity = session.dbId ? state.runningActivities?.[session.dbId] : undefined;
+  const consent = state.profile?.healthPersonalizationEnabled === true;
   const parsed = parseCompletionNotes(existing?.notes ?? "");
-  const [rpe, setRpe] = useState(existing?.rpe ?? 6);
-  const [pain, setPain] = useState(parsed.pain);
-  const [legFatigue, setLegFatigue] = useState(parsed.legFatigue);
-  const [notes, setNotes] = useState(parsed.notes);
-  const externalSession = session.dayType === "club" || session.dayType === "match";
-  const [durationMin, setDurationMin] = useState(
-    existing?.durationMin ?? session.durationMin ?? 90,
+  const initialMinutes =
+    existing?.durationMin ??
+    (suggestedDurationMin == null ? null : Math.max(1, Math.round(suggestedDurationMin))) ??
+    (activity ? Math.max(1, Math.round(activity.durationSec / 60)) : null) ??
+    measuredSessionMinutes(existing);
+  const draft = useTrainingLocalState(
+    trainingStorageKey("finish", user?.id, session.dbId ?? session.date),
+    {
+      rpe: existing?.rpe ?? null,
+      minutes: initialMinutes == null ? "" : String(initialMinutes),
+      later: false,
+    },
+    parseFinishDraft,
   );
+  const [pain, setPain] = useState(parsed.pain),
+    [legFatigue, setLegFatigue] = useState(parsed.legFatigue),
+    [notes, setNotes] = useState(parsed.notes);
   const [activityType, setActivityType] = useState(existing?.activityType ?? "mixed");
-  const [saving, setSaving] = useState(false);
-  const done = existing?.completed ?? false;
-  const existingRpe = existing?.rpe ?? 6;
-  const existingNotes = existing?.notes ?? "";
-
-  useEffect(() => {
-    const next = parseCompletionNotes(existingNotes);
-    setRpe(existingRpe);
-    setPain(next.pain);
-    setLegFatigue(next.legFatigue);
-    setNotes(next.notes);
-    setDurationMin(existing?.durationMin ?? session.durationMin ?? 90);
-    setActivityType(existing?.activityType ?? "mixed");
-  }, [
-    session.dbId,
-    existingRpe,
-    existingNotes,
-    existing?.durationMin,
-    existing?.activityType,
-    session.durationMin,
-  ]);
-
+  const [saving, setSaving] = useState(false),
+    [error, setError] = useState<string | null>(null);
+  const external = session.dayType === "club" || session.dayType === "match";
+  const minutes = Number(draft.value.minutes),
+    rpe = draft.value.rpe;
+  const valid =
+    Number.isInteger(minutes) &&
+    minutes >= 1 &&
+    minutes <= 300 &&
+    (rpe !== null || draft.value.later);
   if (!session.dbId) return null;
-
   async function save() {
+    if (!valid || saving) return;
     setSaving(true);
+    setError(null);
     try {
       await completeSession(
         session,
         rpe,
-        healthPersonalizationEnabled ? composeCompletionNotes(notes, pain, legFatigue) : "",
-        externalSession ? { durationMin, activityType } : { durationMin: session.durationMin },
+        consent ? composeCompletionNotes(notes, pain, legFatigue) : "",
+        { durationMin: minutes, ...(external ? { activityType } : {}) },
       );
-      toast.success(done ? "Wpis został zaktualizowany." : "Trening zapisany w historii.");
+      const pending =
+        user &&
+        readPendingTrainingWrites(user.id).some(
+          (w) => "session_id" in w.payload && w.payload.session_id === session.dbId,
+        );
+      toast.success(
+        pending
+          ? "Zapisano na urządzeniu. Synchronizacja po połączeniu."
+          : existing?.completed
+            ? "Wpis został zaktualizowany."
+            : "Trening zapisany w historii.",
+      );
+      draft.clear();
+      onSaved?.();
     } catch {
-      toast.error("Nie udało się zapisać treningu. Spróbuj ponownie.");
+      setError("Nie udało się zapisać. Twoje odpowiedzi pozostały w formularzu.");
     } finally {
       setSaving(false);
     }
   }
-
   return (
-    <div id={`session-completion-${session.dbId}`} className="soft-card scroll-mt-5 p-4">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 className={`h-4 w-4 ${done ? "text-primary" : "text-muted-foreground"}`} />
-        <h3 className="text-sm font-semibold">
-          {done ? "Sesja oznaczona jako wykonana" : "Oznacz sesję jako wykonaną"}
-        </h3>
-      </div>
-
-      <div className="mt-3">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-medium">RPE (ciężkość) 0–10</span>
-          <span className="text-muted-foreground">{rpe}/10</span>
-        </div>
-        <Slider min={0} max={10} step={1} value={[rpe]} onValueChange={(v) => setRpe(v[0])} />
-      </div>
-
-      {externalSession && (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1.5 text-sm font-medium">
-            Dokładne minuty
-            <Input
-              type="number"
-              min={0}
-              max={300}
-              value={durationMin}
-              onChange={(event) =>
-                setDurationMin(Math.max(0, Math.min(300, Number(event.target.value) || 0)))
-              }
-            />
-          </label>
-          <label className="space-y-1.5 text-sm font-medium">
-            Charakter wysiłku
-            <Select
-              value={activityType}
-              onValueChange={(value) => setActivityType(value as typeof activityType)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="technical">Głównie z piłką</SelectItem>
-                <SelectItem value="mixed">Mieszany</SelectItem>
-                <SelectItem value="running_endurance">Głównie biegowy / wydolnościowy</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-          <p className="text-xs text-muted-foreground sm:col-span-2">
-            Minuty × RPE opisują rzeczywiste obciążenie. Rodzaj wysiłku pomaga nie dokładać
-            podobnego mocnego bodźca.
-          </p>
-        </div>
-      )}
-
-      {healthPersonalizationEnabled && (
-        <div className="mt-3 space-y-2">
-          <LogField label="Ból 0–10" value={pain} onChange={setPain} />
-          <LogField label="Zmęczenie nóg 0–10" value={legFatigue} onChange={setLegFatigue} />
-        </div>
-      )}
-
-      {healthPersonalizationEnabled ? (
-        <div className="mt-3 space-y-2">
-          <span className="text-sm text-muted-foreground">Notatki po sesji</span>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Jak poszło? Sen, ból, dodatkowe uwagi…"
-            rows={2}
-          />
-          <p className="text-xs text-muted-foreground">
-            Notatka może zawierać dane o zdrowiu i jest zapisywana tylko przy aktywnej zgodzie
-            zdrowotnej.
-          </p>
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Notatki tekstowe są wyłączone bez opcjonalnej zgody zdrowotnej. RPE, czas i rodzaj wysiłku
-          nadal zapisują się normalnie.
+    <section
+      id={`session-completion-${session.dbId}`}
+      className="bw-finish-form"
+      aria-label="Podsumowanie treningu"
+    >
+      <p className="bw-session-eyebrow">
+        {existing?.completed ? "Zapisany trening" : "Podsumowanie"}
+      </p>
+      <h2>{session.title}</h2>
+      {activity && (
+        <p className="bw-session-muted">
+          Bieg: {Math.round(activity.durationSec / 60)} min ·{" "}
+          {(activity.distanceM / 1000).toLocaleString("pl-PL", { maximumFractionDigits: 2 })} km
         </p>
       )}
-
+      <label className="bw-finish-duration">
+        <span>Czas całej sesji</span>
+        <span>
+          <Input
+            aria-label="Czas całej sesji w minutach"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={300}
+            value={draft.value.minutes}
+            onChange={(e) => draft.setValue((v) => ({ ...v, minutes: e.target.value }))}
+          />{" "}
+          min
+        </span>
+      </label>
+      <p className="bw-session-muted">
+        Uwzględnij rozgrzewkę i przerwy. Plan: {session.durationMin} min.
+      </p>
+      <fieldset className="bw-rpe-field">
+        <legend>Jak ciężki był trening?</legend>
+        <p className="bw-session-muted">0 — bez wysiłku · 10 — maksymalnie ciężko</p>
+        <div className="bw-rpe-options">
+          {Array.from({ length: 11 }, (_, n) => (
+            <button
+              key={n}
+              type="button"
+              aria-label={`RPE ${n}`}
+              aria-pressed={rpe === n}
+              onClick={() => draft.setValue((v) => ({ ...v, rpe: n, later: false }))}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="bw-text-button"
+          aria-pressed={draft.value.later}
+          onClick={() => draft.setValue((v) => ({ ...v, rpe: null, later: !v.later }))}
+        >
+          {draft.value.later ? "RPE uzupełnię później ✓" : "Uzupełnię RPE później"}
+        </button>
+      </fieldset>
+      {(consent || external) && (
+        <details className="bw-session-extra">
+          <summary>Dodatkowe informacje</summary>
+          {external && (
+            <label className="block space-y-2 text-sm">
+              Charakter wysiłku
+              <Select
+                value={activityType}
+                onValueChange={(v) => setActivityType(v as typeof activityType)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="technical">Głównie z piłką</SelectItem>
+                  <SelectItem value="mixed">Mieszany</SelectItem>
+                  <SelectItem value="running_endurance">Głównie biegowy / wydolnościowy</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+          {consent && (
+            <>
+              <LogField label="Ból 0–10" value={pain} onChange={setPain} />
+              <LogField label="Zmęczenie nóg 0–10" value={legFatigue} onChange={setLegFatigue} />
+              <label className="block text-sm">
+                Notatki po sesji
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+              </label>
+              <p className="bw-session-muted">
+                Dane zdrowotne zapisujemy zgodnie z Twoją opcjonalną zgodą.
+              </p>
+            </>
+          )}
+        </details>
+      )}
+      {error && (
+        <p role="alert" className="bw-training-error">
+          {error}
+        </p>
+      )}
+      {!valid && (
+        <p className="bw-session-muted">
+          Podaj rzeczywisty czas i wybierz RPE lub odłóż jego uzupełnienie.
+        </p>
+      )}
       <button
-        onClick={save}
-        disabled={saving}
-        className="mt-3 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        type="button"
+        onClick={() => void save()}
+        disabled={saving || !valid}
+        className="bw-session-primary"
       >
-        {saving ? "Zapisywanie…" : done ? "Zaktualizuj wpis" : "Oznacz jako wykonane"}
+        {saving ? "Zapisywanie…" : existing?.completed ? "Zaktualizuj wpis" : "Zapisz trening"}
       </button>
-    </div>
+    </section>
   );
+}
+function parseFinishDraft(
+  value: unknown,
+): { rpe: number | null; minutes: string; later: boolean } | undefined {
+  if (!value || typeof value !== "object") return;
+  const v = value as Record<string, unknown>;
+  if (
+    typeof v.minutes !== "string" ||
+    v.minutes.length > 4 ||
+    typeof v.later !== "boolean" ||
+    !(
+      v.rpe === null ||
+      (typeof v.rpe === "number" && Number.isInteger(v.rpe) && v.rpe >= 0 && v.rpe <= 10)
+    )
+  )
+    return;
+  return { rpe: v.rpe as number | null, minutes: v.minutes, later: v.later };
 }
 
 export function ClubMonitoring({ session }: { session?: SessionDay }) {

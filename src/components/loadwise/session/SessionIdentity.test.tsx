@@ -14,6 +14,7 @@ vi.mock("@/lib/loadwise/store", () => ({
     completeSession: mocks.complete,
   }),
 }));
+vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "completion-test" } }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 let root: Root, host: HTMLDivElement;
 beforeEach(() => {
@@ -34,6 +35,7 @@ beforeEach(() => {
       clearWatch: mocks.clear,
     },
   });
+  localStorage.clear();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -63,7 +65,15 @@ test("REPRO: resets unsaved notes when session identity changes", async () => {
   expect(host.querySelector("#session-completion-one")).toBeNull();
   expect(host.querySelector("#session-completion-two")).not.toBeNull();
   expect(host.querySelector("textarea")!.value).toBe("");
-  await act(async () => button("Oznacz jako wykonane").click());
+  const minutes = host.querySelector<HTMLInputElement>(
+    '[aria-label="Czas całej sesji w minutach"]',
+  )!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(minutes, "20");
+    minutes.dispatchEvent(new Event("input", { bubbles: true }));
+    host.querySelector<HTMLButtonElement>('[aria-label="RPE 7"]')!.click();
+  });
+  await act(async () => button("Zapisz trening").click());
   expect(mocks.complete.mock.calls[0][0].dbId).toBe("two");
   expect(mocks.complete.mock.calls[0][2]).not.toContain("NOTATKA PIERWSZEJ SESJI");
 });

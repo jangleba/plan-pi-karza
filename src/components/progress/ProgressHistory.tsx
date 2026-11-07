@@ -1,3 +1,5 @@
+import { SessionResultDetails } from "./SessionResultDetails";
+import type { SessionCompletion } from "@/lib/loadwise/types";
 import { useMemo, useState } from "react";
 import { formatDate } from "@/lib/loadwise/labels";
 import {
@@ -43,11 +45,17 @@ export function ProgressHistory({
   runningActivities,
   targets = {},
   initialMissingRpe = false,
+  ownerId,
+  completions = {},
+  focusSessionId,
 }: {
   events: TimelineEvent[];
   runningActivities: Record<string, RunningActivity>;
   targets?: Record<string, ProgressSessionTarget>;
   initialMissingRpe?: boolean;
+  ownerId?: string;
+  completions?: Record<string, SessionCompletion>;
+  focusSessionId?: string;
 }) {
   const [kind, setKind] = useState<TimelineKind | "all">("all");
   const [month, setMonth] = useState<string>("all");
@@ -148,7 +156,11 @@ export function ProgressHistory({
                 const run = runningActivities[event.sessionKey];
                 const target = targets[event.sessionKey];
                 return (
-                  <article key={event.id} className="px-4 py-3">
+                  <article
+                    key={event.id}
+                    id={`session-result-${event.sessionKey}`}
+                    className={`px-4 py-3 ${focusSessionId === event.sessionKey ? "bg-primary/[.035]" : ""}`}
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-12 shrink-0 text-[11px] text-muted-foreground">
                         {formatDate(event.date)}
@@ -183,12 +195,18 @@ export function ProgressHistory({
                         {TIMELINE_LABELS[event.kind]}
                       </span>
                     </div>
+                    <ResultDisclosure
+                      ownerId={ownerId}
+                      sessionId={event.sessionKey}
+                      completion={completions[event.sessionKey]}
+                      completions={completions}
+                    />
                     {run && (
                       <details className="mt-3 border-t border-border pt-3">
                         <summary className="cursor-pointer text-xs font-medium">
                           Szczegóły biegu
                         </summary>
-                        <RunActivitySummary activity={run} compact showSplits={false} />
+                        <RunActivitySummary activity={run} compact showSplits />
                       </details>
                     )}
                   </article>
@@ -223,5 +241,18 @@ function Chip({ active, onClick, label }: { active: boolean; onClick: () => void
     >
       {label}
     </button>
+  );
+}
+
+function ResultDisclosure(props: React.ComponentProps<typeof SessionResultDetails>) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="mt-2 border-t border-border pt-2"
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary className="min-h-10 cursor-pointer text-xs font-medium">Wyniki sesji</summary>
+      {open && <SessionResultDetails {...props} />}
+    </details>
   );
 }

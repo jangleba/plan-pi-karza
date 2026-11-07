@@ -23,13 +23,14 @@ vi.mock("@/lib/loadwise/store", () => ({
     startSession: mocks.start,
   }),
 }));
+vi.mock("@/lib/loadwise/auth", () => ({ useAuth: () => ({ user: { id: "completion-test" } }) }));
 vi.mock("sonner", () => ({ toast: { success: mocks.success, error: mocks.error } }));
 
 let host: HTMLDivElement;
 let root: Root;
 function saveButton() {
   return [...host.querySelectorAll("button")].find((item) =>
-    /Oznacz jako wykonane|Zaktualizuj wpis|Zapisywanie/.test(item.textContent ?? ""),
+    /Zapisz trening|Zaktualizuj wpis|Zapisywanie/.test(item.textContent ?? ""),
   )!;
 }
 
@@ -43,6 +44,7 @@ beforeEach(() => {
       disconnect() {}
     },
   );
+  localStorage.clear();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -103,6 +105,7 @@ describe("session completion", () => {
     await act(async () => root.render(<CompletionPanel session={session} />));
     expect(host.querySelector("textarea")).toBeNull();
     expect(host.textContent).not.toContain("Prywatna notatka");
+    await minutes(45);
     await act(async () => saveButton().click());
     expect(mocks.complete).toHaveBeenCalledWith(session, 5, "", { durationMin: 45 });
   });
@@ -110,8 +113,10 @@ describe("session completion", () => {
   it("allows retry after a completion save fails", async () => {
     mocks.complete.mockRejectedValueOnce(new Error("offline"));
     await act(async () => root.render(<CompletionPanel session={sessionFixture()} />));
+    await minutes(30);
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 7"]')!.click());
     await act(async () => saveButton().click());
-    expect(mocks.error).toHaveBeenCalledOnce();
+    expect(host.querySelector('[role="alert"]')).toBeTruthy();
     expect(saveButton().disabled).toBe(false);
     await act(async () => saveButton().click());
     expect(mocks.complete).toHaveBeenCalledTimes(2);
@@ -136,4 +141,40 @@ describe("session completion", () => {
     expect(host.textContent).toContain("Mecz rozpoczęty");
     expect(host.querySelector("button")).toBeNull();
   });
+});
+
+async function minutes(value: number) {
+  const input = host.querySelector<HTMLInputElement>('[aria-label="Czas całej sesji w minutach"]')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+      input,
+      String(value),
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+it("does not invent RPE or copy planned minutes into a new completion", async () => {
+  await act(async () =>
+    root.render(<CompletionPanel session={sessionFixture({ durationMin: 50 })} />),
+  );
+  expect(saveButton().disabled).toBe(true);
+  expect(
+    host.querySelector<HTMLInputElement>('[aria-label="Czas całej sesji w minutach"]')!.value,
+  ).toBe("");
+  await minutes(12);
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="RPE 0"]')!.click());
+  await act(async () => saveButton().click());
+  expect(mocks.complete).toHaveBeenCalledWith(expect.anything(), 0, expect.any(String), {
+    durationMin: 12,
+  });
+});
+it("allows missing RPE explicitly without substituting six", async () => {
+  await act(async () => root.render(<CompletionPanel session={sessionFixture()} />));
+  await minutes(20);
+  const later = [...host.querySelectorAll("button")].find((b) =>
+    b.textContent?.includes("Uzupełnię RPE później"),
+  )!;
+  await act(async () => later.click());
+  await act(async () => saveButton().click());
+  expect(mocks.complete.mock.calls[0][1]).toBeNull();
 });

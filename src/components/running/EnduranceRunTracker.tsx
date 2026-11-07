@@ -88,6 +88,8 @@ function RunTracker({
   activity,
   onSave,
   onDelete,
+  onFinish,
+  onRecordingChange,
 }: {
   ownerId?: string;
   session: SessionDay;
@@ -97,8 +99,10 @@ function RunTracker({
   activity: RunningActivity | null;
   onSave: (draft: RunningActivityDraft) => Promise<void>;
   onDelete: (activityId: string) => Promise<void>;
+  onFinish?: (draft: RunningActivityDraft) => void;
+  onRecordingChange?: (busy: boolean) => void;
 }) {
-  const intervalProtocol = useMemo(() => session.trainingMethods?.recipeVersion === "47" ? null : deriveRunningIntervalProtocol(session), [session]);
+  const intervalProtocol = useMemo(() => deriveRunningIntervalProtocol(session), [session]);
   const isFieldMasTest = session.classification?.subcategory === "field_mas_test";
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const nativeMode = !!ownerId && nativeRunningAvailable();
@@ -106,6 +110,9 @@ function RunTracker({
   const checkpointBlockedRef = useRef(false);
   const checkpointSourceRef = useRef<"native" | "web">("web");
   const [phase, setPhase] = useState<TrackerPhase>("idle");
+  useEffect(() => {
+    onRecordingChange?.(phase === "recording" || phase === "paused" || phase === "review");
+  }, [phase, onRecordingChange]);
   const [routePointCount, setRoutePointCount] = useState(0);
   const mountedRef = useRef(true);
   const startingRef = useRef(false);
@@ -749,6 +756,7 @@ function RunTracker({
       setPending(null);
       setPhase("idle");
       toast.success("Zapisano dystans, czas i średnie tempo biegu.");
+      onFinish?.(pending);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -825,10 +833,14 @@ function RunTracker({
             prywatny
           </span>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          GPS włącza się dopiero po Twoim kliknięciu. Trasa służy tylko do obliczenia wyniku w
-          pamięci telefonu. Do bazy trafiają wyłącznie dystans, czas i średnie tempo.
-        </p>
+        <details className="bw-session-extra">
+          <summary>GPS i prywatność</summary>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            GPS włącza się dopiero po Twoim kliknięciu. Trasa służy tylko do obliczenia wyniku w
+            pamięci telefonu. Do bazy trafiają wyłącznie wyniki biegu i odcinków, bez współrzędnych
+            trasy.
+          </p>
+        </details>
       </div>
       {checkpointBlockedRef.current && ownerId && (
         <button
@@ -888,24 +900,28 @@ function RunTracker({
             <Volume2 className="h-3.5 w-3.5" aria-hidden="true" /> Prowadzenie biegu
           </div>
           <div className="mt-1.5 text-sm font-semibold">{intervalProtocol.summary}</div>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            BallWise automatycznie zmienia odcinek i przerwę, mówi komendę oraz wibruje. Krótkie
-            odcinki poniżej 80 m potwierdzasz ręcznie, bo GPS telefonu nie mierzy ich dość
-            dokładnie.
-          </p>
-          {nativeMode && (
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              GPS może działać przy blokadzie telefonu. Komendy i prowadzenie interwałów wymagają
-              widocznego ekranu; po jego ukryciu bieżący odcinek trzeba uruchomić ponownie.
+          <details className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            <summary className="cursor-pointer text-primary">Jak działa prowadzenie?</summary>
+            <p className="mt-2">
+              BallWise automatycznie zmienia odcinek i przerwę, mówi komendę oraz wibruje. Krótkie
+              odcinki poniżej 80 m potwierdzasz ręcznie, bo GPS telefonu nie mierzy ich dość
+              dokładnie.
             </p>
-          )}
-          {intervalProtocol.steps.some((step) => step.target.paceTarget) && (
-            <p className="mt-2 rounded-xl bg-background/70 px-3 py-2 text-xs leading-relaxed">
-              Tempo widzisz w min/km. <strong>Dwie krótkie wibracje</strong> oznaczają: przyspiesz.
-              <strong> Jedna długa</strong>: zwolnij. Sygnał pojawia się dopiero po 8 sekundach poza
-              zakresem, żeby pojedynczy błąd GPS nie sterował biegiem.
-            </p>
-          )}
+            {nativeMode && (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                GPS może działać przy blokadzie telefonu. Komendy i prowadzenie interwałów wymagają
+                widocznego ekranu; po jego ukryciu bieżący odcinek trzeba uruchomić ponownie.
+              </p>
+            )}
+            {intervalProtocol.steps.some((step) => step.target.paceTarget) && (
+              <p className="mt-2 rounded-xl bg-background/70 px-3 py-2 text-xs leading-relaxed">
+                Tempo widzisz w min/km. <strong>Dwie krótkie wibracje</strong> oznaczają:
+                przyspiesz.
+                <strong> Jedna długa</strong>: zwolnij. Sygnał pojawia się dopiero po 8 sekundach
+                poza zakresem, żeby pojedynczy błąd GPS nie sterował biegiem.
+              </p>
+            )}
+          </details>
         </div>
       )}
 
@@ -1099,7 +1115,8 @@ function RunTracker({
                 onClick={() => void savePending()}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                <Save className="h-4 w-4" /> {saving ? "Zapisuję…" : "Zapisz bieg"}
+                <Save className="h-4 w-4" />{" "}
+                {saving ? "Zapisuję…" : onFinish ? "Dalej · podsumowanie" : "Zapisz bieg"}
               </button>
               <button
                 type="button"

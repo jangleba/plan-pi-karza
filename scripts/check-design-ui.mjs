@@ -182,6 +182,8 @@ try {
     await checkLegacyStrengthUI({ browser, base, work, ensure, views });
   } else if (process.argv.includes("--navigation-only")) {
     await checkNavigationUI({ browser, base, work, ensure, views });
+  } else if (process.argv.includes("--strength-only")) {
+    await checkStrengthUI({ browser, base, work, ensure, views });
   } else {
     if (!process.argv.includes("--motion-only")) {
       for (const [width, height] of [
@@ -386,7 +388,7 @@ try {
             await snap("sprint-zachowana-przerwa");
           }
           if (screen === "strength" && width === 390) {
-            const rows = page.locator(".bw-exercise-open");
+            const rows = page.locator(".bw-exercise-open:visible");
             await rows.first().click();
             await page.getByRole("dialog").waitFor();
             await snap("sila-szczegoly-od-dolu");

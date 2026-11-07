@@ -35,6 +35,10 @@ describe("conservative timed-event proposals", () => {
     expect(Math.abs(t.frames[p.end].seconds - 1.2)).toBeLessThan(0.06);
     expect(p.focus.start[1]).toBeGreaterThan(0.7);
     expect(p.method).toBe("pose-proposal-v1");
+    expect(p.startReviewFrom).toBeLessThan(p.start);
+    expect(p.endReviewFrom).toBeLessThan(p.end);
+    expect(t.frames[p.startReviewFrom!].seconds).toBeLessThan(0.8);
+    expect(t.frames[p.endReviewFrom!].seconds).toBeLessThan(1.2);
   });
   it("uses the selected support leg rather than the foot held in the air", () => {
     const t = timeline(),
@@ -130,4 +134,16 @@ describe("conservative timed-event proposals", () => {
     const p = selectTimedEvents("cmj", t, points, null);
     expect(t.frames[p.end].seconds - t.frames[p.start].seconds).toBeCloseTo(0.4, 1);
   });
+});
+
+it("refuses a single-leg proposal when the other foot contacts first", () => {
+  const t = timeline();
+  const points = sample(t, (s, i) => {
+    const lift = s > 0.8 && s < 1.2 ? 0.14 * Math.sin((Math.PI * (s - 0.8)) / 0.4) : 0;
+    const p = pose(i, 0.5, lift);
+    p.heels[1][1] = s > 0.98 && s < 1.14 ? 0.82 : p.heels[1][1] - 0.15;
+    p.toes[1][1] = s > 0.98 && s < 1.14 ? 0.84 : p.toes[1][1] - 0.15;
+    return p;
+  });
+  expect(() => selectTimedEvents("single_leg_cmj", t, points, "left")).toThrow("kontakt");
 });

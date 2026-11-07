@@ -12,6 +12,8 @@ export const CALIBRATED_LAB_PROTOCOL = "ballwise-browser-lab-1.1";
 export const AUTOMATED_LAB_PROTOCOL = "ballwise-browser-lab-1.2";
 export const PERSPECTIVE_LAB_PROTOCOL = "ballwise-browser-lab-1.3";
 export const ORIENTED_LAB_PROTOCOL = "ballwise-browser-lab-1.4";
+export const REVIEWED_JUMP_PROTOCOL = "ballwise-browser-lab-2.1";
+export const GROUND_CONTACT_PROTOCOL = "ballwise-browser-lab-1.5";
 export type TestSide = "left" | "right" | null;
 
 export interface BrowserProtocol {
@@ -78,7 +80,7 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
       "Wybierz nogę, którą wykonujesz próbę. Zrób trzy poprawne próby na każdą nogę.",
     ],
     confirmation:
-      "Skok i lądowanie wykonuję na wybranej nodze. Stopa jest widoczna, bez podciągania nogi w locie i zmiany ustawienia przy pierwszym kontakcie.",
+      "Wybicie i pierwszy kontakt są na wybranej nodze. Druga stopa nie podpiera próby. Nie podciągam nogi w locie. Film jest w oryginalnym tempie.",
     guideAxis: "horizontal",
     sharedGuide: true,
     minimumSeconds: 0.15,
@@ -99,8 +101,8 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
     ],
     setup: [
       "Odmierz taśmą dokładnie 10 m i oznacz obie linie wysokimi pachołkami.",
-      "Telefon nieruchomo, bokiem do toru. Start i meta widoczne w jednym kadrze. Unikaj ukośnego ujęcia.",
-      "Start samodzielny, z tej samej pozycji w każdej próbie. Biegnij przez metę, nie do mety.",
+      "Telefon na stabilnym podparciu, z boku. Start i meta w kadrze. Znaczniki ustaw przy torze biegu; linia mety ma odpowiadać przecięciu tułowia, nie dłoni lub stopy.",
+      "Stój spokojnie przez sekundę, potem rusz samodzielnie. Ta sama pozycja w każdej próbie. Biegnij przez metę. Start wskażesz na filmie; do porównań wybierz oryginał 120/240 FPS.",
     ],
     confirmation:
       "Odcinek ma zmierzone 10 m. Telefon jest nieruchomy, obie linie i tułów widoczne. Wynik liczę od ruchu, bez czasu reakcji.",
@@ -121,7 +123,7 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
     markers: ["Przed odbiciem", "Lądowanie"],
     instructions: [
       "Automatyka wybiera pozycję przed odbiciem i krawędź START (20 cm) ustawioną przy palcach.",
-      "Automatyka wybiera stabilne lądowanie i bliższą piętę. Punkt możesz poprawić jednym dotknięciem.",
+      "Wskaż kontakt bliższej pięty z podłożem. Punkt na bucie ponad podłożem nie wyznacza odległości.",
     ],
     setup: [
       "Wydrukuj dwa wzorce w skali 100%: niebieski START i pomarańczowy 3 METRY. Sprawdź ramkę każdego: 20,0 × 24,0 cm.",
@@ -130,7 +132,7 @@ export const PROTOCOLS: readonly BrowserProtocol[] = [
       "Skocz obunóż i zatrzymaj lądowanie na chwilę, bez cofnięcia stóp ani podparcia ręką za piętą.",
     ],
     confirmation:
-      "Odległość od linii START do krzyżyka wynosi 3,00 m, oba wzorce i pięta leżą na jednym płaskim podłożu, kamera jest nieruchoma, a punkt oznacza bliższą piętę.",
+      "Odbicie obunóż i lądowanie bez cofnięcia stóp ani podparcia za piętą. Wskazany punkt to kontakt bliższej pięty z podłożem. Wzorce dzieli zmierzone 3,00 m; telefon stał nieruchomo.",
     guideAxis: "horizontal",
     sharedGuide: true,
     minimumSeconds: 0.1,

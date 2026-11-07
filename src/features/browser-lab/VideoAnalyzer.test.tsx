@@ -166,7 +166,10 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
-async function render(save = vi.fn(), testId: "cmj" | "standing_long_jump" | "cod_505" = "cmj") {
+async function render(
+  save = vi.fn(),
+  testId: "cmj" | "standing_long_jump" | "cod_505" | "sprint_10m" = "cmj",
+) {
   await act(async () =>
     root.render(
       <VideoAnalyzer attempt={attemptPlan([testId])[0]} sessionId="session-123456" onSave={save} />,
@@ -176,6 +179,64 @@ async function render(save = vi.fn(), testId: "cmj" | "standing_long_jump" | "co
 }
 
 describe("browser video measurement flow", () => {
+  it("keeps a manually selected sprint start when the finish line moves or AI finds the finish", async () => {
+    mocks.timed.mockResolvedValue({
+      start: 90,
+      startReviewFrom: 6,
+      end: 300,
+      confidence: 0.9,
+      method: "pose-proposal-v1",
+      focus: { start: [0.3, 0.4], end: [0.7, 0.4] },
+    });
+    const save = await render(vi.fn(), "sprint_10m");
+    await importFile();
+    await go(61);
+    await act(async () => button("Oznacz pierwszy ruch").click());
+    const line = host.querySelector<HTMLInputElement>(
+      '[aria-label="Linia do automatycznej analizy"]',
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(line, "0.74");
+      line.dispatchEvent(new Event("input", { bubbles: true }));
+      line.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(host.querySelector(".bl-step-tabs")?.textContent).toContain("Pierwszy ruch ✓");
+    await act(async () => button("Pomóż mi znaleźć metę").click());
+    expect(host.querySelector("[data-lab-frame]")?.getAttribute("data-lab-frame")).toBe("300");
+    await act(async () => button("Potwierdź metę 10 m").click());
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    await act(async () => button("Zapisz wynik").click());
+    expect(save.mock.calls[0][0]).toMatchObject({ startFrameIndex: 61, endFrameIndex: 300 });
+  });
+  it("starts sprint review before the movement anchor and saves the manually chosen first movement", async () => {
+    mocks.timed.mockResolvedValue({
+      start: 90,
+      startReviewFrom: 6,
+      end: 300,
+      confidence: 0.9,
+      method: "pose-proposal-v1",
+      focus: { start: [0.3, 0.4], end: [0.7, 0.4] },
+    });
+    const save = await render(vi.fn(), "sprint_10m");
+    await importFile();
+    await act(async () => button("Pomóż mi znaleźć start i metę").click());
+    expect(host.querySelector("[data-lab-frame]")?.getAttribute("data-lab-frame")).toBe("6");
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+    await go(61);
+    await act(async () => button("Wybieram pierwszy ruch").click());
+    expect(host.querySelector('[aria-label="Wynik próby"]')).toBeNull();
+    await act(async () => button("Potwierdź metę 10 m").click());
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    await act(async () => button("Zapisz wynik").click());
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0][0]).toMatchObject({
+      version: "ballwise-browser-lab-2.0",
+      startFrameIndex: 61,
+      endFrameIndex: 300,
+      timingReview: { method: "assisted", eventsConfirmed: true, setupConfirmed: true },
+    });
+    expect(save.mock.calls[0][0].elapsedSeconds).toBeCloseTo(239 / 240, 8);
+  });
   it("measures a manually identified heel without inventing a pose confidence when AUTO fails", async () => {
     mocks.auto.mockRejectedValue(new Error("Sylwetka niewidoczna."));
     const save = await render(vi.fn(), "standing_long_jump");
@@ -205,10 +266,12 @@ describe("browser video measurement flow", () => {
         ),
     );
     expect(host.querySelector('[aria-label="Wynik próby"]')).toBeTruthy();
+    expect(button("Zapisz wynik").disabled).toBe(true);
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
     await act(async () => button("Zapisz wynik").click());
     expect(save).toHaveBeenCalledOnce();
     expect(save.mock.calls[0][0]).toMatchObject({
-      version: "ballwise-browser-lab-1.4",
+      version: "ballwise-browser-lab-1.5",
       spatial: { method: "ballwise-marker-pose-v4", heelSource: "manual", poseConfidence: 0 },
     });
     expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(214, 4);
@@ -490,15 +553,14 @@ it("analyzes long jump automatically, exposes one heel correction and saves the 
   const save = await render(vi.fn(), "standing_long_jump");
   await importFile();
   expect(mocks.auto).toHaveBeenCalledOnce();
-  expect(host.querySelector(".bl-result")?.textContent).toContain("214,0 cm");
-  expect(host.querySelector(".bl-result")?.textContent).toContain("Oba wzorce rozpoznane");
-  expect(host.querySelector(".bl-result")?.textContent).not.toContain("Zakres z klatek");
-  expect(button("Zapisz wynik").disabled).toBe(false);
-  await act(async () => button("Popraw punkt pięty").click());
-  expect(button("Zapisz wynik").disabled).toBe(true);
+  expect(host.querySelector(".bl-result")).toBeNull();
+  expect(button("Zatwierdź punkt pięty").disabled).toBe(true);
   await floorPoint(...groundPoint(7, 215));
   await act(async () => button("Zatwierdź punkt pięty").click());
   expect(host.querySelector(".bl-result")?.textContent).toContain("215,0 cm");
+  expect(host.querySelector(".bl-result")?.textContent).toContain("Oba wzorce rozpoznane");
+  expect(button("Zapisz wynik").disabled).toBe(true);
+  await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
   await act(async () => button("Zapisz wynik").click());
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].primaryValue).toBeCloseTo(215, 7);
@@ -516,9 +578,10 @@ it("keeps portrait footage and its heel overlay in the same aspect ratio at a vi
   await importFile();
   const frame = host.querySelector<HTMLElement>(".bl-frame")!;
   expect(parseFloat(frame.style.aspectRatio)).toBeCloseTo(0.5625, 8);
-  expect(frame.style.maxWidth).toBe("27svh");
-  await act(async () => button("Popraw punkt pięty").click());
   expect(frame.style.maxWidth).toBe("32.625dvh");
+  await floorPoint(...groundPoint(7, 214));
+  await act(async () => button("Zatwierdź punkt pięty").click());
+  expect(frame.style.maxWidth).toBe("27svh");
 });
 
 it.each(["button", "escape"])(
@@ -532,9 +595,11 @@ it.each(["button", "escape"])(
     }));
     const save = await render(vi.fn(), "standing_long_jump");
     await importFile();
+    await floorPoint(...groundPoint(7, 214));
+    await act(async () => button("Zatwierdź punkt pięty").click());
     await act(async () => button("Popraw punkt pięty").click());
     await floorPoint(...groundPoint(7, 215));
-    expect(host.querySelector(".bl-result")?.textContent).toContain("215,0 cm");
+    expect(host.querySelector(".bl-result")).toBeNull();
     if (via === "button") {
       const cancel = [...host.querySelectorAll("button")].find(
         (b) => b.getAttribute("aria-label") === "Anuluj korektę",
@@ -576,7 +641,6 @@ it.each(["moved", "missing"])(
     }));
     const save = await render(vi.fn(), "standing_long_jump");
     await importFile();
-    await act(async () => button("Popraw punkt pięty").click());
     await go(191);
     mocks.markers.mockReturnValue(
       problem === "missing"
@@ -592,8 +656,7 @@ it.each(["moved", "missing"])(
       problem === "missing" ? "nie widać obu wzorców" : "Telefon poruszył się",
     );
     expect(button("Zatwierdź punkt pięty").disabled).toBe(true);
-    expect(button("Zapisz wynik").disabled).toBe(true);
-    await act(async () => button("Zapisz wynik").click());
+    expect(host.querySelector(".bl-result")).toBeNull();
     expect(save).not.toHaveBeenCalled();
   },
 );
@@ -607,11 +670,11 @@ it("retains the new frame's calibration and time after a successful heel correct
   }));
   const save = await render(vi.fn(), "standing_long_jump");
   await importFile();
-  await act(async () => button("Popraw punkt pięty").click());
   await go(191);
   await floorPoint(...groundPoint(7, 215));
   expect(mocks.markers).toHaveBeenCalledOnce();
   await act(async () => button("Zatwierdź punkt pięty").click());
+  await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
   await act(async () => button("Zapisz wynik").click());
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0]).toMatchObject({
@@ -649,4 +712,32 @@ it("blocks 505 return marking until a turn contact between events is selected", 
   expect(save).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].primaryValue).toBe(2.5);
   expect(save.mock.calls[0][0].turnFrameIndex).toBe(350);
+});
+
+it("starts jump review before the pose anchor and records reviewed physical contacts", async () => {
+  mocks.timed.mockResolvedValue({
+    start: 90,
+    end: 190,
+    startReviewFrom: 61,
+    endReviewFrom: 170,
+    confidence: 0.9,
+    method: "pose-proposal-v1",
+    focus: { start: [0.5, 0.8], end: [0.5, 0.8] },
+  });
+  const save = await render();
+  await importFile();
+  expect(host.querySelector("[data-lab-frame]")?.getAttribute("data-lab-frame")).toBe("61");
+  await go(70);
+  await act(async () => button("Potwierdź wybicie").click());
+  expect(host.querySelector("[data-lab-frame]")?.getAttribute("data-lab-frame")).toBe("170");
+  await go(180);
+  await act(async () => button("Potwierdź lądowanie").click());
+  await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+  await act(async () => button("Zapisz wynik").click());
+  expect(save.mock.calls[0][0]).toMatchObject({
+    version: "ballwise-browser-lab-2.1",
+    startFrameIndex: 70,
+    endFrameIndex: 180,
+    jumpReview: { eventsConfirmed: true, techniqueConfirmed: true },
+  });
 });

@@ -4,7 +4,7 @@ import { createPoseDetector, type DetectedPose } from "./poseWorkerClient";
 import {
   automaticLongJumpSchema,
   findBallWiseCalibrationMarkers,
-  longJumpMeasurement,
+  closestLongJumpCandidate,
   type AutomaticLongJumpCalibration,
 } from "./longJump";
 import { orientStartMarker, takeoffEdgeFromMarkers } from "./markerGeometry";
@@ -66,6 +66,25 @@ export function selectLongJumpWindow(input: readonly PoseFrame[]) {
     }
   }
   if (!end) throw new Error("Nie widzę stabilnego lądowania. Zatrzymaj pozycję po skoku.");
+  const middle = frames.filter(
+    (frame) => frame.frameIndex > start.frameIndex && frame.frameIndex < end!.frameIndex,
+  );
+  const airborne = (frame: PoseFrame) => {
+    const fraction = Math.max(0, Math.min(1, progress(frame)));
+    const ground = startFloor + (endFloor - startFloor) * fraction;
+    return footY(frame) < ground - Math.max(0.006, bodyHeight * 0.025);
+  };
+  let flights = 0,
+    wasAirborne = false;
+  for (const frame of middle) {
+    const flying = airborne(frame);
+    if (flying && !wasAirborne) flights++;
+    wasAirborne = flying;
+  }
+  if (flights !== 1)
+    throw new Error(
+      "Nie widzę jednej wyraźnej fazy lotu obu stóp. Sprawdź próbę ręcznie lub nagraj ponownie.",
+    );
   return {
     start,
     end,
@@ -169,22 +188,9 @@ export async function analyzeLongJump(
       ),
       heelSource: "pose",
     };
-    const candidates = selected.end.heels
-      .map((heel) => automaticLongJumpSchema.parse({ ...common, heel }))
-      .map((calibration) => {
-        try {
-          return { calibration, measurement: longJumpMeasurement(calibration) };
-        } catch {
-          return null;
-        }
-      })
-      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
-      .sort((left, right) => left.measurement.primaryValue - right.measurement.primaryValue);
-    const result = candidates[0]?.calibration;
-    if (!result)
-      throw new Error(
-        "Automatyczny punkt pięty nie daje wiarygodnego wyniku. Popraw kadr i nagraj próbę ponownie.",
-      );
+    const result = closestLongJumpCandidate(
+      selected.end.heels.map((heel) => automaticLongJumpSchema.parse({ ...common, heel })),
+    );
     onProgress(100);
     return result;
   } finally {

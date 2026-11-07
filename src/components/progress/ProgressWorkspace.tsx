@@ -21,14 +21,18 @@ export function ProgressWorkspace({
   ownerId,
   brand = true,
   loading = false,
+  initialTab,
+  focusSessionId,
 }: {
   state: LoadwiseState;
   todayIso: string;
   ownerId?: string;
   brand?: boolean;
   loading?: boolean;
+  initialTab?: "history";
+  focusSessionId?: string;
 }) {
-  const [tab, setTab] = useState<"dashboard" | "history">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "history">(initialTab ?? "dashboard");
   const [period, setPeriod] = useState<ProgressPeriod>(7);
   const [measurements, setMeasurements] = useState(false);
   const [historyScope, setHistoryScope] = useState(false);
@@ -216,6 +220,9 @@ export function ProgressWorkspace({
                   </div>
                 )}
                 <ProgressHistory
+                  focusSessionId={focusSessionId}
+                  ownerId={ownerId}
+                  completions={state.completions}
                   key={`${historyScope}:${historyMissingRpe}`}
                   events={
                     historyScope ? timeline.filter((row) => row.date >= micro.fromIso) : timeline

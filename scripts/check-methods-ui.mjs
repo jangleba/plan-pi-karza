@@ -49,7 +49,7 @@ export async function checkMethodsUI({ browser, base, work, ensure, views }) {
       if (["M08", "M12", "M14", "M39"].includes(id)) {
         const main = page
           .locator(".bw-training-stage")
-          .filter({ has: page.locator("h2", { hasText: /Siła i moc/ }) });
+          .filter({ has: page.locator("h2", { hasText: /Część główna/ }) });
         const row = main.locator(".bw-exercise-open").first();
         await row.click();
         await page.getByRole("dialog").waitFor();

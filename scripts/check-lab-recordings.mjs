@@ -6,6 +6,7 @@ import path from "node:path";
 import os from "node:os";
 import http from "node:http";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url)),
@@ -24,7 +25,15 @@ const esbuild = require("esbuild"),
   corePath = path.join(work, "core.mjs");
 await esbuild.build({
   stdin: {
-    contents: ["videoParser", "results", "protocols", "manualLongJump"]
+    contents: [
+      "videoParser",
+      "results",
+      "protocols",
+      "manualLongJump",
+      "longJump",
+      "markerGeometry",
+      "timingQuality",
+    ]
       .map(
         (name) =>
           `export * from ${JSON.stringify(path.join(root, "src/features/browser-lab", name + ".ts"))};`,
@@ -301,10 +310,14 @@ try {
         await page.getByRole("button", { name: "Oznacz nawrót", exact: true }).click();
       }
       await goFrame(clip.end);
-      await page.getByRole("button", { name: /^Oznacz (lądowanie|meta 10 m|powrót)$/i }).click();
-      await page.locator('input[type="checkbox"]').check();
+      await page.getByRole("button", { name: /^Oznacz (lądowanie|metę 10 m|powrót)$/i }).click();
     }
     await page.getByRole("region", { name: "Wynik próby" }).waitFor();
+    ensure(
+      await page.getByRole("button", { name: "Zapisz wynik", exact: true }).isDisabled(),
+      "Unchecked technique was saveable",
+    );
+    await page.locator('input[type="checkbox"]').check();
     await page.getByRole("button", { name: "Zapisz wynik", exact: true }).click();
     await page.locator("[data-lab-saved]").waitFor();
     const saved = await page.evaluate(() => window.__labRealQA.saved);
@@ -323,6 +336,222 @@ try {
       expected: clip.expected,
     });
   }
+  const sprint = manifest.clips.find((clip) => clip.id === "sprint_10m");
+  const qualityControls = [];
+  // Real MP4 changes preserve presentation time; no mocked decoder or source timestamps.
+  for (const kind of ["missing-start-frame", "30fps"]) {
+    const file = path.join(work, `sprint-${kind}.mp4`);
+    execFileSync("ffmpeg", [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-i",
+      path.join(clipsDir, sprint.file),
+      "-vf",
+      kind === "30fps" ? "fps=30" : `select=not(eq(n\\,${sprint.start - 1}))`,
+      "-fps_mode",
+      "vfr",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "20",
+      "-an",
+      file,
+    ]);
+    const buffer = await fs.readFile(file);
+    const video = core.parseJumpVideo(
+      buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+    );
+    const at = (seconds) =>
+      video.timeline.frames.findIndex((frame) => frame.seconds >= seconds - 1e-6);
+    const start = at(sprint.start / sprint.fps),
+      end = at(sprint.end / sprint.fps);
+    await page.unrouteAll();
+    await page.goto(base + "?case=sprint_10m");
+    await page.locator('input[aria-label="Wybierz oryginalny film"]').setInputFiles(file);
+    await page.waitForFunction(() => {
+      const el = document.querySelector("[data-lab-loaded]");
+      return el?.dataset.labLoaded === "true" && el.dataset.labReading === "false";
+    });
+    await goFrame(start);
+    await page.getByRole("button", { name: "Oznacz pierwszy ruch", exact: true }).click();
+    await goFrame(end);
+    await page.getByRole("button", { name: "Oznacz metę 10 m", exact: true }).click();
+    if (kind === "missing-start-frame") {
+      ensure(
+        !(await page.locator('[aria-label="Wynik próby"]').count()),
+        "Missing event frame exposed a result",
+      );
+      await page.getByRole("alert").filter({ hasText: "Brakuje klatek" }).waitFor();
+      ensure(!(await page.locator("[data-lab-saved]").count()), "Missing event frame was saved");
+      qualityControls.push({ kind, blocked: true, fps: video.timeline.fps });
+    } else {
+      await page.locator(".bl-timing-quality-indicative").waitFor();
+      await page.locator('input[type="checkbox"]').check();
+      await page.getByRole("button", { name: "Zapisz wynik", exact: true }).click();
+      await page.locator("[data-lab-saved]").waitFor();
+      const saved = await page.evaluate(() => window.__labRealQA.saved);
+      ensure(
+        saved.length === 1 && Math.abs(saved[0].fps - 30) < 0.01,
+        "Low-rate recording was not saved accurately",
+      );
+      ensure(saved[0].timingReview?.method === "manual", "Manual review method was lost");
+      qualityControls.push({ kind, indicative: true, saved: true, fps: video.timeline.fps });
+    }
+    await page.screenshot({ path: path.join(work, `sprint-${kind}.png`) });
+  }
+  // A real VFR jump with a 95.8 ms gap at takeoff must never save as a short flight.
+  const single = manifest.clips.find(
+    (clip) => clip.id === "single_leg_cmj" && clip.side === "left",
+  );
+  const brokenFile = path.join(work, "single-leg-missing-takeoff.mp4");
+  execFileSync("ffmpeg", [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-i",
+    path.join(clipsDir, single.file),
+    "-vf",
+    "select=not(between(n\\,192\\,213))",
+    "-fps_mode",
+    "vfr",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-crf",
+    "20",
+    "-an",
+    brokenFile,
+  ]);
+  const broken = await fs.readFile(brokenFile);
+  const brokenVideo = core.parseJumpVideo(
+    broken.buffer.slice(broken.byteOffset, broken.byteOffset + broken.byteLength),
+  );
+  const brokenAt = (seconds) =>
+    brokenVideo.timeline.frames.findIndex((frame) => frame.seconds >= seconds - 1e-6);
+  await page.unrouteAll();
+  await page.route("**/models/pose_landmarker_lite.task", (route) => route.abort());
+  await page.goto(base + "?case=single_leg_cmj&side=left");
+  await page.locator('input[aria-label="Wybierz oryginalny film"]').setInputFiles(brokenFile);
+  await page.waitForFunction(() => {
+    const el = document.querySelector("[data-lab-loaded]");
+    return el?.dataset.labLoaded === "true" && el.dataset.labReading === "false";
+  });
+  await goFrame(brokenAt(214 / 240));
+  await page.getByRole("button", { name: "Oznacz wybicie", exact: true }).click();
+  await goFrame(brokenAt(single.end / single.fps));
+  await page.getByRole("button", { name: "Oznacz lądowanie", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "Brakuje klatek" }).waitFor();
+  ensure(
+    !(await page.locator('[aria-label="Wynik próby"]').count()),
+    "Incomplete jump exposed a result",
+  );
+  ensure(
+    !(await page.getByRole("button", { name: "Zapisz wynik", exact: true }).count()),
+    "Incomplete jump exposed a save",
+  );
+  qualityControls.push({
+    kind: "single-leg-missing-takeoff",
+    blocked: true,
+    fps: brokenVideo.timeline.fps,
+  });
+  await page.screenshot({ path: path.join(work, "single-leg-missing-takeoff.png") });
+
+  // Rasterize exactly the SVG files supplied to athletes, with their real printed text.
+  const targetDir = path.join(work, "printed-targets");
+  await fs.mkdir(targetDir, { recursive: true });
+  await page.setViewportSize({ width: 840, height: 1188 });
+  for (const name of ["start", "range"]) {
+    const svg = await fs.readFile(
+      path.join(root, name === "start" ? "public/lab-wzorzec.svg" : "public/lab-wzorzec-3m.svg"),
+      "utf8",
+    );
+    await page.setContent(
+      "<style>html,body{margin:0}svg{width:840px;height:1188px;display:block}</style>" + svg,
+    );
+    await page.screenshot({ path: path.join(targetDir, name + "-printed-asset.png") });
+  }
+  execFileSync("python3", [path.join(root, "scripts/generate-lab-target-scenes.py"), targetDir], {
+    stdio: "inherit",
+  });
+  const targetCases = JSON.parse(
+    await fs.readFile(path.join(targetDir, "printed-target-cases.json"), "utf8"),
+  );
+  const targetControls = [];
+  for (const c of targetCases) {
+    const image = {
+      width: c.width,
+      height: c.height,
+      data: new Uint8ClampedArray(await fs.readFile(path.join(targetDir, c.name + ".rgba"))),
+    };
+    const markers = core.findBallWiseCalibrationMarkers(image);
+    ensure(markers, "Actual printed target not detected: " + c.name);
+    const start = core.orientStartMarker(markers.start.corners, markers.range.corners);
+    let measurement;
+    try {
+      measurement = core.longJumpMeasurement({
+        method: "ballwise-marker-pose-v4",
+        referenceCorners: start,
+        rangeCorners: markers.range.corners,
+        landingReferenceCorners: start,
+        landingRangeCorners: markers.range.corners,
+        referenceWidthCm: 20,
+        referenceDepthCm: 24,
+        baselineCm: 300,
+        imageWidth: c.width,
+        imageHeight: c.height,
+        calibrationFrameIndex: 1,
+        lineFrameIndex: 1,
+        heelFrameIndex: 2,
+        takeoffLine: core.takeoffEdgeFromMarkers(start, markers.range.corners),
+        heel: c.heel,
+        poseConfidence: 0,
+        markerQuality: Math.min(markers.start.quality, markers.range.quality),
+        heelSource: "manual",
+      });
+    } catch (e) {
+      ensure(
+        /wrażliwa|wzorzec|geometrii|kadr/i.test(e.message),
+        "Unexpected target geometry failure: " + e.message,
+      );
+    }
+    if (measurement)
+      ensure(
+        Math.abs(measurement.primaryValue - c.expectedCm) < 3,
+        "Printed target distance mismatch: " + c.name,
+      );
+    targetControls.push({
+      name: c.name,
+      detected: true,
+      accepted: !!measurement,
+      actualCm: measurement?.primaryValue,
+    });
+    // Black rectangular frames alone must not masquerade as the coloured BallWise targets.
+    for (let i = 0; i < image.data.length; i += 4) {
+      const grey = Math.round((image.data[i] + image.data[i + 1] + image.data[i + 2]) / 3);
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = grey;
+    }
+    ensure(
+      !core.findBallWiseCalibrationMarkers(image),
+      "Greyscale scene accepted as coloured targets: " + c.name,
+    );
+  }
+  ensure(
+    targetControls.some((c) => c.accepted),
+    "All target scenes rejected by geometry",
+  );
+  await fs.writeFile(
+    path.join(work, "wynik-wzorcow.json"),
+    JSON.stringify({ passed: true, synthetic: true, targetControls }, null, 2),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(base + "?case=sprint_10m");
+  await page.screenshot({ path: path.join(work, "sprint-przygotowanie.png") });
   ensure(!errors.length, errors.join("; "));
   ensure(
     browserResults.filter((r) => r.supported).length >= 5,
@@ -330,7 +559,11 @@ try {
   );
   await fs.writeFile(
     path.join(work, "wynik-przegladarki.json"),
-    JSON.stringify({ passed: true, synthetic: true, browserResults }, null, 2),
+    JSON.stringify(
+      { passed: true, synthetic: true, browserResults, qualityControls, targetControls },
+      null,
+      2,
+    ),
   );
   console.log(JSON.stringify({ browserPassed: true, clips: browserResults.length }));
 } finally {

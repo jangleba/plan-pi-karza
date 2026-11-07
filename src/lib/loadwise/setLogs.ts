@@ -154,6 +154,7 @@ export function useExerciseSetLogs(sessionId: string | null | undefined, key: st
         user_id: userId,
         session_id: sessionId ?? null,
         exercise_key: key,
+        exercise_name: log.exerciseName ?? null,
         set_number: log.setNumber,
         weight_kg: log.weightKg,
         reps: log.reps,

@@ -1,4 +1,6 @@
-import { enforceMethodEligibility } from "./methods/planner";
+import { recentSessionFeedback } from "./postSessionFeedback";
+import { reduceSessionDose } from "./doseAdjustment";
+import { enforceMethodEligibility, clearMethodRecipe } from "./methods/planner";
 import type {
   Profile,
   Readiness,
@@ -24,6 +26,30 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
       ? context.readiness?.[day.date]
       : undefined;
   const readinessKey = readiness ? JSON.stringify(readiness) : undefined;
+  const feedback = recentSessionFeedback(
+    context.profile,
+    context.completions ?? {},
+    day.date,
+    day.dbId,
+  );
+  const own = !["club", "match", "rest"].includes(day.dayType);
+  const active = day.dbId ? context.completions?.[day.dbId] : undefined;
+  const feedbackDose =
+    !readiness &&
+    own &&
+    !active?.completed &&
+    active?.status !== "started" &&
+    feedback &&
+    feedback.legFatigue >= 8 &&
+    day.postSessionFeedbackKey !== feedback.key
+      ? {
+          ...clearMethodRecipe(reduceSessionDose(day.readinessOriginalSession ?? day, 0.8)),
+          readinessOriginalSession: day.readinessOriginalSession ?? day,
+          postSessionFeedbackKey: feedback.key,
+          safetyNote:
+            "Po ostatniej sesji zgłoszono duże zmęczenie nóg. Dziś mniejsza dawka; sprawdź aktualną gotowość.",
+        }
+      : day;
   const adjusted =
     context.profile && readiness && day.readinessAdjustmentKey !== readinessKey
       ? {
@@ -33,7 +59,7 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
           readinessAdjustmentKey: readinessKey,
           readinessOriginalSession: day.readinessOriginalSession ?? day,
         }
-      : day;
+      : feedbackDose;
   const pin = (session: SessionDay): SessionDay => {
     const completion = session.dbId ? context.completions?.[session.dbId] : undefined;
     const snapshot = completion?.executionSnapshot;
@@ -52,7 +78,7 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
     }
     if (!context.profile) return session;
     const repaired = enforceStrengthEligibility(
-      enforceMethodEligibility({ ...session, secondSession: null },context.profile),
+      enforceMethodEligibility({ ...session, secondSession: null }, context.profile),
       context.profile,
     );
     return { ...repaired, secondSession: session.secondSession };
@@ -70,8 +96,9 @@ export function resolveExecutionDay(day: SessionDay, context: EffectivePlanConte
     ...primary,
     secondSession: second ? pin(second) : null,
     slotLabel: second ? "Sesja 1" : null,
-    ...(readiness &&
-    (readiness.jointPain >= 7 || readiness.altersMovement || readiness.redFlags?.length)
+    ...((readiness &&
+      (readiness.jointPain >= 7 || readiness.altersMovement || readiness.redFlags?.length)) ||
+    (!readiness && feedback && feedback.pain >= 7)
       ? {
           loadLabelOverride: "Wstrzymaj trening",
           safetyNote:

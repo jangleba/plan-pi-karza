@@ -114,6 +114,13 @@ export default function ProgressMeasurements({
                   {row.date} · najlepsza próba · {row.trials}/{row.expected}
                   {!row.complete ? " · niepełna seria" : ""}
                 </p>
+                {row.timingQuality && (
+                  <p
+                    className={`mt-1 text-[11px] ${row.timingQuality.status === "reviewed" ? "text-primary" : "text-amber-700"}`}
+                  >
+                    {row.timingQuality.label}
+                  </p>
+                )}
                 {row.delta !== null ? (
                   <p className="mt-1 text-xs">
                     Zmiana zapisu: {row.delta > 0 ? "+" : ""}
@@ -125,9 +132,11 @@ export default function ProgressMeasurements({
                   </p>
                 ) : (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {row.complete
-                      ? "Do porównania potrzebna jest wcześniejsza pełna seria tą samą metodą."
-                      : "Porównanie po ukończeniu pełnej serii."}
+                    {row.timingQuality && row.timingQuality.status !== "reviewed"
+                      ? "Ten zapis nie służy do oceny małych zmian wyniku."
+                      : row.complete
+                        ? "Do porównania potrzebna jest wcześniejsza pełna seria tą samą metodą."
+                        : "Porównanie po ukończeniu pełnej serii."}
                   </p>
                 )}
               </li>

@@ -32,6 +32,7 @@ function useJourneyParams() {
 PlanRoute.useSearch = useJourneySearch as typeof PlanRoute.useSearch;
 SessionRoute.useSearch = useJourneySearch as typeof SessionRoute.useSearch;
 SessionRoute.useParams = useJourneyParams as typeof SessionRoute.useParams;
+ProgressRoute.useSearch = useJourneySearch as typeof ProgressRoute.useSearch;
 LabRoute.useSearch = useJourneySearch as typeof LabRoute.useSearch;
 function Shell() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });

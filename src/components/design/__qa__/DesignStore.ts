@@ -44,12 +44,34 @@ if (new URLSearchParams(location.search).get("screen") === "strength-engine") {
   const q = new URLSearchParams(location.search);
   const experience = q.get("experience");
   profile.goal = q.get("goal") === "power" ? "power" : "strength";
+  if (q.get("slot") === "B")
+    Object.assign(profile, {
+      age: 24,
+      position: "midfielder",
+      level: "advanced",
+      createdAt: "2026-11-02",
+      seasonPhase: "inseason",
+      seasonPhaseOverride: true,
+      seasonStage: "match_week",
+      usualMatchDay: 7,
+      matchDate: "2026-11-08",
+      weeklyMatches: true,
+      clubTrainingDays: [1, 3],
+      individualTrainingDays: [1, 2, 3, 4, 5, 6, 7],
+      unavailableDays: [],
+      doubleSessionsAllowed: "no",
+      competitionLevel: "iv_liga",
+    });
   if (experience === "advanced" || experience === "intermediate" || experience === "beginner") {
     profile.gymExperienceLevel = experience;
     profile.strengthTrainingMonths =
       experience === "advanced" ? 36 : experience === "intermediate" ? 12 : 3;
     profile.movementCompetence = experience === "beginner" ? "low" : "high";
     profile.supervisionLevel = "some";
+    if (q.get("tenure") === "blank") {
+      profile.strengthTrainingMonths = undefined;
+      profile.supervisionLevel = "none";
+    }
   }
 }
 if (new URLSearchParams(location.search).get("screen") === "methods")

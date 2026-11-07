@@ -17,9 +17,12 @@ import {
   AUTOMATED_LAB_PROTOCOL,
   PERSPECTIVE_LAB_PROTOCOL,
   ORIENTED_LAB_PROTOCOL,
+  REVIEWED_JUMP_PROTOCOL,
+  GROUND_CONTACT_PROTOCOL,
 } from "./protocols";
 
 import { longJumpSchema, longJumpMeasurement, type LongJumpCalibration } from "./longJump";
+import { REVIEWED_TIMING_PROTOCOL, eventGapLimit, resultRecordingQuality } from "./timingQuality";
 
 const time = z.number().finite().min(0).max(21);
 const resultSchema = z.object({
@@ -29,6 +32,9 @@ const resultSchema = z.object({
     AUTOMATED_LAB_PROTOCOL,
     PERSPECTIVE_LAB_PROTOCOL,
     ORIENTED_LAB_PROTOCOL,
+    REVIEWED_TIMING_PROTOCOL,
+    REVIEWED_JUMP_PROTOCOL,
+    GROUND_CONTACT_PROTOCOL,
   ]),
   id: z.string().min(8).max(100),
   sessionId: z.string().min(8).max(100),
@@ -63,8 +69,23 @@ const resultSchema = z.object({
   spatial: longJumpSchema.optional(),
   turnFrameIndex: z.number().int().min(2).optional(),
   turnSeconds: time.optional(),
+  turnPreviousSeconds: time.optional(),
   originalConfirmed: z.literal(true),
   protocolConfirmed: z.literal(true),
+  jumpReview: z
+    .object({
+      eventsConfirmed: z.literal(true),
+      techniqueConfirmed: z.literal(true),
+      groundContactConfirmed: z.literal(true).optional(),
+    })
+    .optional(),
+  timingReview: z
+    .object({
+      method: z.enum(["manual", "assisted"]),
+      eventsConfirmed: z.literal(true),
+      setupConfirmed: z.literal(true),
+    })
+    .optional(),
 });
 export type BrowserResult = z.infer<typeof resultSchema>;
 
@@ -84,7 +105,7 @@ function eventTimes(testId: StoredTestId, timeline: JumpTimeline, start: number,
   const startPreviousSeconds = timeline.frames[start - 1].seconds;
   const endPreviousSeconds = timeline.frames[end - 1].seconds;
   const elapsedSeconds = endSeconds - startSeconds;
-  validateEventGaps(timeline, start, end);
+  validateEventGaps(timeline, start, end, testId !== "standing_long_jump");
   const protocol = protocolFor(testId);
   if (elapsedSeconds < protocol.minimumSeconds || elapsedSeconds > protocol.maximumSeconds)
     throw new Error(
@@ -120,6 +141,31 @@ export function validatedResult(input: unknown): BrowserResult {
   if (!parsed.success) throw new Error("Dane pomiaru są niekompletne albo uszkodzone.");
   const result = parsed.data;
   const protocol = protocolFor(result.testId);
+  if (
+    result.version === REVIEWED_TIMING_PROTOCOL &&
+    (protocol.category === "jump" || !result.timingReview)
+  )
+    throw new Error("Nowy pomiar czasu wymaga sprawdzenia zdarzeń i ustawienia odcinka.");
+  if (result.version !== REVIEWED_TIMING_PROTOCOL && result.timingReview)
+    throw new Error("Kontrola zdarzeń należy do nowego protokołu pomiaru czasu.");
+  if (
+    result.version === REVIEWED_JUMP_PROTOCOL &&
+    (!["cmj", "single_leg_cmj"].includes(result.testId) || !result.jumpReview)
+  )
+    throw new Error("Sprawdź wybicie, pierwszy kontakt i technikę skoku.");
+  if (
+    result.version === GROUND_CONTACT_PROTOCOL &&
+    (result.testId !== "standing_long_jump" ||
+      result.spatial?.method !== "ballwise-marker-pose-v4" ||
+      result.spatial.heelSource !== "manual" ||
+      !result.jumpReview?.groundContactConfirmed)
+  )
+    throw new Error("Wskaż i potwierdź kontakt bliższej pięty z podłożem.");
+  if (
+    ![REVIEWED_JUMP_PROTOCOL, GROUND_CONTACT_PROTOCOL].includes(result.version) &&
+    result.jumpReview
+  )
+    throw new Error("Kontrola skoku nie zgadza się z wersją pomiaru.");
   const elapsed = result.endSeconds - result.startSeconds;
   const value = (t: number) => (protocol.category === "jump" ? (GRAVITY * t * t * 100) / 8 : t);
   if (
@@ -157,6 +203,7 @@ export function validatedResult(input: unknown): BrowserResult {
         AUTOMATED_LAB_PROTOCOL,
         PERSPECTIVE_LAB_PROTOCOL,
         ORIENTED_LAB_PROTOCOL,
+        GROUND_CONTACT_PROTOCOL,
       ].includes(result.version) ||
       !result.spatial ||
       result.resolutionMin !== undefined ||
@@ -175,12 +222,15 @@ export function validatedResult(input: unknown): BrowserResult {
       (result.spatial.method === "ballwise-marker-pose-v3" &&
         result.version !== PERSPECTIVE_LAB_PROTOCOL) ||
       (result.spatial.method === "ballwise-marker-pose-v4" &&
-        result.version !== ORIENTED_LAB_PROTOCOL)
+        ![ORIENTED_LAB_PROTOCOL, GROUND_CONTACT_PROTOCOL].includes(result.version))
     )
       throw new Error("Metoda skoku w dal nie zgadza się z wersją protokołu.");
   } else if (result.spatial !== undefined)
     throw new Error("Kalibracja podłoża należy wyłącznie do skoku w dal.");
-  if (result.testId === "cod_505" && result.version === CALIBRATED_LAB_PROTOCOL) {
+  if (
+    result.testId === "cod_505" &&
+    [CALIBRATED_LAB_PROTOCOL, REVIEWED_TIMING_PROTOCOL].includes(result.version)
+  ) {
     if (
       result.turnFrameIndex === undefined ||
       result.turnSeconds === undefined ||
@@ -192,11 +242,25 @@ export function validatedResult(input: unknown): BrowserResult {
         result.turnSeconds <= result.startSeconds)
     )
       throw new Error("Oznacz kontakt nogi stawnej na linii nawrotu pomiędzy wejściem a powrotem.");
-  } else if (result.turnFrameIndex !== undefined || result.turnSeconds !== undefined)
+    if (
+      result.version === REVIEWED_TIMING_PROTOCOL &&
+      (result.turnPreviousSeconds === undefined ||
+        result.turnPreviousSeconds >= result.turnSeconds ||
+        result.turnSeconds - result.turnPreviousSeconds > eventGapLimit(result.fps) + 1e-7)
+    )
+      throw new Error("Brakuje sąsiednich klatek przy nawrocie. Nagraj próbę ponownie.");
+  } else if (
+    result.turnFrameIndex !== undefined ||
+    result.turnSeconds !== undefined ||
+    result.turnPreviousSeconds !== undefined
+  )
     throw new Error("Nawrót należy do protokołu 505.");
   const startGap = result.startSeconds - result.startPreviousSeconds;
   const endGap = result.endSeconds - result.endPreviousSeconds;
-  if (startGap > MAX_EVENT_FRAME_GAP || endGap > MAX_EVENT_FRAME_GAP)
+  const gapLimit = [REVIEWED_TIMING_PROTOCOL, REVIEWED_JUMP_PROTOCOL].includes(result.version)
+    ? eventGapLimit(result.fps) + 1e-7
+    : MAX_EVENT_FRAME_GAP;
+  if (startGap > gapLimit || endGap > gapLimit)
     throw new Error("Odstęp klatek pomiaru jest nieprawidłowy.");
   return result;
 }
@@ -215,6 +279,7 @@ export function createBrowserResult(data: {
   notes: string;
   spatial?: LongJumpCalibration;
   turnFrameIndex?: number;
+  timingMethod?: "manual" | "assisted";
 }): BrowserResult {
   if (data.attempt.testId === "cod_505" && data.turnFrameIndex !== undefined) {
     if (
@@ -223,21 +288,21 @@ export function createBrowserResult(data: {
       data.turnFrameIndex >= data.end
     )
       throw new Error("Oznacz nawrót pomiędzy wejściem a powrotem.");
-    validateEventGaps(data.timeline, data.turnFrameIndex, data.turnFrameIndex);
+    validateEventGaps(data.timeline, data.turnFrameIndex, data.turnFrameIndex, true);
   }
   return validatedResult({
     version:
       data.attempt.testId === "standing_long_jump"
         ? data.spatial?.method === "ballwise-marker-pose-v4"
-          ? ORIENTED_LAB_PROTOCOL
+          ? GROUND_CONTACT_PROTOCOL
           : data.spatial?.method === "floor-homography-v1"
             ? CALIBRATED_LAB_PROTOCOL
             : data.spatial?.method === "ballwise-marker-pose-v3"
               ? PERSPECTIVE_LAB_PROTOCOL
               : AUTOMATED_LAB_PROTOCOL
-        : data.attempt.testId === "cod_505"
-          ? CALIBRATED_LAB_PROTOCOL
-          : BROWSER_LAB_PROTOCOL,
+        : protocolFor(data.attempt.testId).category !== "jump"
+          ? REVIEWED_TIMING_PROTOCOL
+          : REVIEWED_JUMP_PROTOCOL,
     id: crypto.randomUUID(),
     sessionId: data.sessionId,
     testId: data.attempt.testId,
@@ -256,6 +321,29 @@ export function createBrowserResult(data: {
     guidePositions: data.guidePositions,
     originalConfirmed: true,
     protocolConfirmed: true,
+    ...(["cmj", "single_leg_cmj"].includes(data.attempt.testId)
+      ? {
+          jumpReview: { eventsConfirmed: true, techniqueConfirmed: true },
+        }
+      : data.attempt.testId === "standing_long_jump" &&
+          data.spatial?.method === "ballwise-marker-pose-v4"
+        ? {
+            jumpReview: {
+              eventsConfirmed: true,
+              techniqueConfirmed: true,
+              groundContactConfirmed: true,
+            },
+          }
+        : {}),
+    ...(protocolFor(data.attempt.testId).category !== "jump"
+      ? {
+          timingReview: {
+            method: data.timingMethod ?? "manual",
+            eventsConfirmed: true,
+            setupConfirmed: true,
+          },
+        }
+      : {}),
     ...(data.attempt.testId === "standing_long_jump"
       ? {
           ...eventTimes(data.attempt.testId, data.timeline, data.start, data.end),
@@ -267,6 +355,7 @@ export function createBrowserResult(data: {
       ? {
           turnFrameIndex: data.turnFrameIndex,
           turnSeconds: data.timeline.frames[data.turnFrameIndex]?.seconds,
+          turnPreviousSeconds: data.timeline.frames[data.turnFrameIndex - 1]?.seconds,
         }
       : {}),
   });
@@ -326,11 +415,13 @@ export function comparison(a: BrowserResult, b: BrowserResult) {
   if (a.testId !== b.testId || a.side !== b.side || a.version !== b.version)
     throw new Error("Porównuj ten sam test, tę samą nogę i ten sam protokół.");
   const [older, newer] = a.recordedAt <= b.recordedAt ? [a, b] : [b, a];
+  const canAssessChange = [a, b].every((row) => resultRecordingQuality(row).status === "reviewed");
   return {
     older,
     newer,
     difference: newer.primaryValue - older.primaryValue,
     percent: ((newer.primaryValue - older.primaryValue) / older.primaryValue) * 100,
+    canAssessChange,
     overlaps:
       newer.resolutionMin === undefined ||
       older.resolutionMin === undefined ||
@@ -347,7 +438,11 @@ export function sideDifference(
   testId: StoredTestId,
 ) {
   const groups = resultGroups(results).filter(
-    (g) => g.best.sessionId === sessionId && g.best.testId === testId && g.complete,
+    (g) =>
+      g.best.sessionId === sessionId &&
+      g.best.testId === testId &&
+      g.complete &&
+      g.rows.every((row) => resultRecordingQuality(row).status === "reviewed"),
   );
   const independent = (left: (typeof groups)[number], right: (typeof groups)[number]) =>
     !left.rows.some((a) => right.rows.some((b) => sameTrial(a, b)));

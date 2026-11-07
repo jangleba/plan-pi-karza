@@ -59,7 +59,13 @@ export async function analyzeTimedVideo(
         events.flatMap((event) => {
           const seconds = video.timeline.frames[event].seconds;
           return video.timeline.frames.flatMap((frame, i) =>
-            i >= 1 && i <= last && Math.abs(frame.seconds - seconds) <= 0.18 ? [i] : [],
+            i >= 1 &&
+            i <= last &&
+            frame.seconds <= seconds + 0.18 &&
+            frame.seconds >=
+              seconds - (test === "sprint_10m" && event === coarse.start ? 0.35 : 0.18)
+              ? [i]
+              : [],
           );
         }),
       ),

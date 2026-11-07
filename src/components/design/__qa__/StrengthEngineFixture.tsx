@@ -7,11 +7,19 @@ import { StrengthStructuredSections } from "@/components/loadwise/session/Streng
 import { StrengthExperienceSetup } from "@/components/loadwise/session/StrengthExperienceSetup";
 import { SessionHeader } from "@/components/loadwise/session/SessionChrome";
 import { sessionFixture } from "@/components/loadwise/session/testFixtures";
+import { generatePlan } from "@/lib/loadwise/planEngine";
 
 export function StrengthEngineFixture() {
   const { state } = useLoadwise();
   const profile = state.profile!;
   const session = useMemo(() => {
+    if (new URLSearchParams(location.search).get("slot") === "B") {
+      const day = generatePlan(profile, new Date(2026, 10, 2), 7).find(
+        (day) => day.date === "2026-11-05",
+      );
+      if (!day?.structuredSections) throw new Error("Missing full-engine Thursday fixture");
+      return { ...day, dbId: "qa-thursday-strength" };
+    }
     const plan = buildStrengthPowerStructured(profile, {
       mdLabel: "MD-5",
       weekPhase: "development",

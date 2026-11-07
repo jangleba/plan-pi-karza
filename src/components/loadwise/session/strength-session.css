@@ -513,3 +513,51 @@
   max-height: 190px;
   width: 100%;
 }
+.bw-preparation-group {
+  margin: 0;
+}
+.bw-strength.bw-training-list {
+  gap: 16px;
+}
+.bw-preparation-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+.bw-preparation-toggle strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.bw-preparation-toggle small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.bw-preparation-toggle svg {
+  flex: none;
+  transition: transform 180ms ease;
+}
+.bw-preparation-toggle .is-open {
+  transform: rotate(180deg);
+}
+.bw-preparation-steps > .bw-training-stage {
+  margin-top: 8px;
+}
+.bw-preparation-steps > .bw-training-stage > h2 {
+  display: none;
+}
+.bw-preparation-steps[hidden] {
+  display: none;
+}

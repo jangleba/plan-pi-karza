@@ -1,6 +1,10 @@
 import type { RunningActivity } from "@/lib/running/types";
 import type { AccountOwnerType, OwnershipTransferStatus, SubscriptionPayerType } from "./agePolicy";
-import type { MethodExecution, TrainingMethodPlan, TrainingMethodPreferences } from "./methods/types";
+import type {
+  MethodExecution,
+  TrainingMethodPlan,
+  TrainingMethodPreferences,
+} from "./methods/types";
 
 export type Position = "goalkeeper" | "defender" | "midfielder" | "forward";
 export type Level = "beginner" | "intermediate" | "advanced" | "elite";
@@ -561,6 +565,7 @@ export interface SessionClassification {
 }
 
 export interface SessionDay {
+  postSessionFeedbackKey?: string;
   trainingMethods?: TrainingMethodPlan;
   executionSlot?: 1 | 2;
   /** Dzień całkowicie zablokowany przez dostępność zawodnika. */
@@ -687,6 +692,7 @@ export type SessionHistoryCategory =
 
 /** Ukończona jednostka niezależna od aktualnie aktywnego planu. */
 export interface SessionHistoryRecord {
+  durationEstimated?: boolean;
   key: string;
   date: string;
   title: string;

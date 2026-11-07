@@ -197,7 +197,9 @@ export function longJumpMeasurement(input: unknown) {
       b = data.referenceCorners[(i + 1) % 4];
     if (Math.hypot((a[0] - b[0]) * data.imageWidth, (a[1] - b[1]) * data.imageHeight) < 24)
       throw new Error(
-        "Wzorzec jest zbyt mały w filmie. Zastosuj większy prostokąt na podłożu lub bliższy kadr.",
+        data.method === "floor-homography-v1"
+          ? "Wzorzec jest zbyt mały w filmie. Zastosuj większy prostokąt na podłożu lub bliższy kadr."
+          : "Wzorzec jest zbyt mały w filmie. Wybierz bliższy kadr lub wyższą rozdzielczość. Ramka nadal musi mieć 20 × 24 cm.",
       );
   }
   const area =
@@ -282,7 +284,7 @@ export function longJumpMeasurement(input: unknown) {
     data.method !== "floor-homography-v1" ? spatialUncertainty(data) : undefined;
   if (uncertaintyCm !== undefined && uncertaintyCm > MAX_LONG_JUMP_UNCERTAINTY_CM)
     throw new Error(
-      `Kadr nie pozwala na dokładny wynik (niepewność około ±${uncertaintyCm.toFixed(1)} cm). Ustaw telefon bliżej i wzorzec bardziej centralnie.`,
+      `Geometria jest zbyt wrażliwa na ustawienie punktów (${uncertaintyCm.toFixed(1)} cm). Ustaw telefon bliżej i wzorzec bardziej centralnie.`,
     );
   return {
     primaryValue,
@@ -292,6 +294,22 @@ export function longJumpMeasurement(input: unknown) {
     ...(cameraShiftPx === undefined ? {} : { cameraShiftPx }),
     ...(uncertaintyCm === undefined ? {} : { uncertaintyCm }),
   };
+}
+
+/** A failed nearer heel must never be silently replaced with the farther foot. */
+export function closestLongJumpCandidate(candidates: readonly AutomaticLongJumpCalibration[]) {
+  if (candidates.length !== 2) throw new Error("Potrzebne są dwa czytelne punkty pięt.");
+  let measured;
+  try {
+    measured = candidates.map((calibration) => ({
+      calibration,
+      measurement: longJumpMeasurement(calibration),
+    }));
+  } catch {
+    throw new Error("Nie można ocenić obu pięt. Wskaż ręcznie kontakt bliższej pięty z podłożem.");
+  }
+  return measured.sort((a, b) => a.measurement.primaryValue - b.measurement.primaryValue)[0]
+    .calibration;
 }
 
 function spatialUncertainty(data: AutomaticLongJumpCalibration) {
@@ -422,6 +440,7 @@ function refinedCorner(
 
 function referenceRectangles(
   image: Pick<ImageData, "data" | "width" | "height">,
+  printed = false,
 ): { score: number; points: RectangleCorners }[] {
   const { data, width, height } = image;
   const step = Math.max(1, Math.ceil(Math.max(width, height) / 1280));
@@ -434,6 +453,35 @@ function referenceRectangles(
       const offset = (y * step * width + x * step) * 4;
       grey[y * w + x] = data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114;
     }
+  if (printed) {
+    // Close tiny breaks introduced by downsampling thin printed borders and
+    // white lettering. Identity still requires four original colour patches.
+    const expanded = new Uint8Array(w * h),
+      closed = new Uint8Array(w * h).fill(255);
+    for (let y = 1; y < h - 1; y++)
+      for (let x = 1; x < w - 1; x++) {
+        let dark = false;
+        for (let dy = -1; dy <= 1 && !dark; dy++)
+          for (let dx = -1; dx <= 1; dx++)
+            if (grey[(y + dy) * w + x + dx] <= 85) {
+              dark = true;
+              break;
+            }
+        expanded[y * w + x] = dark ? 1 : 0;
+      }
+    for (let y = 2; y < h - 2; y++)
+      for (let x = 2; x < w - 2; x++) {
+        let dark = true;
+        for (let dy = -1; dy <= 1 && dark; dy++)
+          for (let dx = -1; dx <= 1; dx++)
+            if (!expanded[(y + dy) * w + x + dx]) {
+              dark = false;
+              break;
+            }
+        if (dark) closed[y * w + x] = 0;
+      }
+    grey.set(closed);
+  }
   const candidates: { score: number; points: RectangleCorners }[] = [];
   const queue = new Int32Array(w * h);
   for (let seed = 0; seed < grey.length; seed++) {
@@ -524,7 +572,9 @@ function referenceRectangles(
         y = Math.round(centre[1] + dy * (maxY - minY));
       return grey[y * w + x] >= (index === 0 ? 120 : 175);
     });
-    if (!white) continue;
+    // Printed BallWise sheets contain text. Their identity is checked using all
+    // four coloured fiducials below, not assumed empty pixels in the interior.
+    if (!printed && !white) continue;
     const score = boxArea;
     candidates.push({ score, points });
   }
@@ -549,93 +599,91 @@ export interface BallWiseCalibrationMarkers {
 
 /** Detects the BallWise target, not an arbitrary dark rectangle. Four blue
  * fiducials inside the black frame are required before metric automation is allowed. */
+/** Samples the physical fiducials through the projective map, at each quarter-turn.
+ * A black frame and all four matching patches are required. Text is unrestricted. */
+function markerColourQuality(
+  image: Pick<ImageData, "data" | "width" | "height">,
+  corners: RectangleCorners,
+  colour: "blue" | "orange",
+) {
+  const toImage = projectiveTransform(
+    [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ],
+    corners,
+  );
+  const centres = [
+    [0.18, 0.2],
+    [0.82, 0.2],
+    [0.82, 0.8],
+    [0.18, 0.8],
+  ];
+  const variants = Array.from({ length: 4 }, (_, rotation) =>
+    centres.map(([u, v]) => {
+      for (let i = 0; i < rotation; i++) [u, v] = [v, 1 - u];
+      return [u, v];
+    }),
+  );
+  const score = (u: number, v: number) => {
+    let matched = 0,
+      total = 0;
+    for (let row = -2; row <= 2; row++)
+      for (let col = -2; col <= 2; col++) {
+        const [x, y] = toImage([u + col * 0.01, v + row * 0.008]);
+        const px = Math.round(x * image.width),
+          py = Math.round(y * image.height);
+        total++;
+        if (px < 0 || py < 0 || px >= image.width || py >= image.height) continue;
+        const offset = (py * image.width + px) * 4;
+        const r = image.data[offset],
+          g = image.data[offset + 1],
+          b = image.data[offset + 2];
+        if (
+          colour === "blue"
+            ? b > 100 && b - r > 45 && b > g * 1.08
+            : r > 135 && g > 55 && r - b > 65 && r > g * 1.12
+        )
+          matched++;
+      }
+    return matched / total;
+  };
+  return Math.max(
+    ...variants.map((centres) => {
+      const scores = centres.map(([u, v]) => score(u, v));
+      return scores.every((s) => s >= 0.35) ? scores.reduce((sum, s) => sum + s, 0) / 4 : 0;
+    }),
+  );
+}
+
 export function findBallWiseMarker(
   image: Pick<ImageData, "data" | "width" | "height">,
 ): BallWiseMarkerDetection | null {
-  const { data, width, height } = image;
-  const qualityFor = (corners: RectangleCorners, colour: "blue" | "orange") => {
-    const sample = (u: number, v: number) => {
-      const [a, b, c, d] = corners;
-      const x = (1 - u) * (1 - v) * a[0] + u * (1 - v) * b[0] + u * v * c[0] + (1 - u) * v * d[0];
-      const y = (1 - u) * (1 - v) * a[1] + u * (1 - v) * b[1] + u * v * c[1] + (1 - u) * v * d[1];
-      const markerSpan = Math.min(
-        Math.hypot((a[0] - b[0]) * width, (a[1] - b[1]) * height),
-        Math.hypot((b[0] - c[0]) * width, (b[1] - c[1]) * height),
-      );
-      const radius = Math.max(2, Math.round(markerSpan * 0.075));
-      let matched = 0,
-        total = 0;
-      const cx = Math.round(x * width),
-        cy = Math.round(y * height);
-      for (let py = Math.max(0, cy - radius); py <= Math.min(height - 1, cy + radius); py++)
-        for (let px = Math.max(0, cx - radius); px <= Math.min(width - 1, cx + radius); px++) {
-          const offset = (py * width + px) * 4;
-          const red = data[offset],
-            green = data[offset + 1],
-            value = data[offset + 2];
-          const blue = value > 100 && value - red > 45 && value > green * 1.08;
-          const orange = red > 135 && green > 55 && red - value > 65 && red > green * 1.12;
-          if (colour === "blue" ? blue : orange) matched++;
-          total++;
-        }
-      return matched / Math.max(1, total);
-    };
-    const scores = [sample(0.18, 0.2), sample(0.82, 0.2), sample(0.82, 0.8), sample(0.18, 0.8)];
-    const quality =
-      scores.reduce((sum, score) => sum + Math.min(1, score / 0.35), 0) / scores.length;
-    return scores.every((score) => score >= 0.12) ? quality : 0;
-  };
-  const detected = referenceRectangles(image)
-    .map(({ points }) => ({ corners: points, quality: qualityFor(points, "blue") }))
-    .filter(({ quality }) => quality > 0)
-    .sort((a, b) => b.quality - a.quality);
-  return detected[0] ?? null;
+  return (
+    referenceRectangles(image, true)
+      .map(({ points }) => ({
+        corners: points,
+        quality: markerColourQuality(image, points, "blue"),
+      }))
+      .filter((marker) => marker.quality > 0)
+      .sort((a, b) => b.quality - a.quality)[0] ?? null
+  );
 }
 
-/** START uses blue fiducials and the marker centred exactly 3 m away uses
- * orange fiducials. Both must be present, which prevents a random rectangle
- * in the scene from becoming a distance scale. */
+/** Both distinct, colour-coded printed frames must be present. */
 export function findBallWiseCalibrationMarkers(
   image: Pick<ImageData, "data" | "width" | "height">,
 ): BallWiseCalibrationMarkers | null {
-  const { data, width, height } = image;
-  const candidates = referenceRectangles(image);
-  const score = (corners: RectangleCorners, colour: "blue" | "orange") => {
-    const [a, b, c, d] = corners;
-    const markerSpan = Math.min(
-      Math.hypot((a[0] - b[0]) * width, (a[1] - b[1]) * height),
-      Math.hypot((b[0] - c[0]) * width, (b[1] - c[1]) * height),
-    );
-    const radius = Math.max(2, Math.round(markerSpan * 0.075));
-    const sample = (u: number, v: number) => {
-      const x = (1 - u) * (1 - v) * a[0] + u * (1 - v) * b[0] + u * v * c[0] + (1 - u) * v * d[0];
-      const y = (1 - u) * (1 - v) * a[1] + u * (1 - v) * b[1] + u * v * c[1] + (1 - u) * v * d[1];
-      const cx = Math.round(x * width),
-        cy = Math.round(y * height);
-      let matched = 0,
-        total = 0;
-      for (let py = Math.max(0, cy - radius); py <= Math.min(height - 1, cy + radius); py++)
-        for (let px = Math.max(0, cx - radius); px <= Math.min(width - 1, cx + radius); px++) {
-          const offset = (py * width + px) * 4;
-          const red = data[offset],
-            green = data[offset + 1],
-            blueValue = data[offset + 2];
-          const blue = blueValue > 100 && blueValue - red > 45 && blueValue > green * 1.08;
-          const orange = red > 135 && green > 55 && red - blueValue > 65 && red > green * 1.12;
-          if (colour === "blue" ? blue : orange) matched++;
-          total++;
-        }
-      return matched / Math.max(1, total);
-    };
-    const values = [sample(0.18, 0.2), sample(0.82, 0.2), sample(0.82, 0.8), sample(0.18, 0.8)];
-    return values.every((value) => value >= 0.12)
-      ? values.reduce((sum, value) => sum + Math.min(1, value / 0.35), 0) / values.length
-      : 0;
-  };
+  const candidates = referenceRectangles(image, true);
   const pick = (colour: "blue" | "orange") =>
     candidates
-      .map(({ points }) => ({ corners: points, quality: score(points, colour) }))
-      .filter(({ quality }) => quality > 0)
+      .map(({ points }) => ({
+        corners: points,
+        quality: markerColourQuality(image, points, colour),
+      }))
+      .filter((marker) => marker.quality > 0)
       .sort((a, b) => b.quality - a.quality)[0];
   const start = pick("blue"),
     range = pick("orange");

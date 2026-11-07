@@ -13,7 +13,12 @@ export interface MetricField {
 
 /** Deterministyczny typ pomiaru wynikający z danych ćwiczenia. */
 export function metricKindForExercise(e: TrainingExercise): MetricKind {
-  if(e.methodExecution?.mode !== "none" && e.methodExecution?.workSeconds && !e.methodExecution.distanceM) return e.methodExecution.mode === "hold" ? "hold" : "time";
+  if (
+    e.methodExecution?.mode !== "none" &&
+    e.methodExecution?.workSeconds &&
+    !e.methodExecution.distanceM
+  )
+    return e.methodExecution.mode === "hold" ? "hold" : "time";
   // Solo football rows prescribe timed technique bouts, including when a flat
   // session adapter carries that dose in `reps`. Never ask for kg or RIR here.
   if (getExerciseDefinition(e.exerciseId ?? "")?.family === "football_ball_work") return "time";
@@ -35,10 +40,7 @@ export function fieldsForMetric(kind: MetricKind): MetricField[] {
     case "distance":
       return [{ id: "value", label: "Dystans", suffix: "m", step: 1 }];
     case "contacts":
-      return [
-        { id: "value", label: "Kontakty", step: 1 },
-        { id: "rir", label: "RIR", step: 1 },
-      ];
+      return [{ id: "value", label: "Kontakty", step: 1 }];
     case "load":
     default:
       return [

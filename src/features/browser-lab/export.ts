@@ -20,13 +20,18 @@ export function historyCSV(input: readonly BrowserResult[]) {
     "startFrameIndex",
     "endFrameIndex",
     "startSeconds",
+    "startPreviousSeconds",
     "endSeconds",
+    "endPreviousSeconds",
     "resolutionMin",
     "resolutionMax",
     "averageSpeedMps",
     "spatial",
     "turnFrameIndex",
     "turnSeconds",
+    "turnPreviousSeconds",
+    "timingReview",
+    "jumpReview",
     "version",
     "sourceName",
     "sourceHash",
@@ -41,7 +46,11 @@ export function historyCSV(input: readonly BrowserResult[]) {
         .map((row) =>
           columns
             .map((key) =>
-              cell(key === "spatial" && row.spatial ? JSON.stringify(row.spatial) : row[key]),
+              cell(
+                (key === "spatial" || key === "timingReview" || key === "jumpReview") && row[key]
+                  ? JSON.stringify(row[key])
+                  : row[key],
+              ),
             )
             .join(";"),
         ),
