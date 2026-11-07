@@ -545,13 +545,8 @@
       const j = sp.joints[side],
         far = sign < 0,
         legSvg =
-          G.limb(P(j.hip), P(j.knee), P(j.ankle), {
-            root: 10.0,
-            upper: 13.8,
-            joint: 5.8,
-            lower: 9.2,
-            end: 3.6,
-          }) + G.muscleLines(P(j.hip), P(j.knee), P(j.ankle), "leg", far, s, side);
+          G.limb(P(j.hip), P(j.knee), P(j.ankle), G.LEG) +
+          G.muscleLines(P(j.hip), P(j.knee), P(j.ankle), "leg", far, s, side);
       layer(
         mix(j.hip, j.ankle, 0.48),
         `<g class="bw-human-leg bw-human-leg-${side}" fill="#fff">${legSvg}</g>`,
@@ -559,31 +554,16 @@
       const a = j.footAngle * rad;
       const shoePoint = (x, y, z = 0) =>
         add(j.ankle, [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z]);
-      // Bare foot: heel, arch and toes as one soft contour.
-      const foot = [];
-      for (const z of [-3.6, 3.6])
-        for (const [x, y] of [
-          [-3.5, -5],
-          [3.2, -5],
-          [6, 3],
-          [15, 6.5],
-          [16, 10],
-          [-5.5, 10],
-          [-6, 4],
-        ])
-          foot.push(P(shoePoint(x, y, z)));
+      // Bare foot: the shared side-view foot contour, placed in 3D and projected.
       layer(
         add(j.ankle, [5, 5, 0]),
-        '<g class="bw-human-shoe bw-human-foot">' + path(softHull(foot)) + "</g>",
+        '<g class="bw-human-shoe bw-human-foot">' +
+          path(G.smoothClosed(G.FOOT.map(([x, y]) => P(shoePoint(x, y))))) +
+          "</g>",
       );
       const armSvg =
-        G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), {
-          root: 7.2,
-          upper: 8.6,
-          joint: 3.8,
-          lower: 5.7,
-          end: 2.6,
-        }) + G.muscleLines(P(j.shoulder), P(j.elbow), P(j.wrist), "arm", far, s, side);
+        G.limb(P(j.shoulder), P(j.elbow), P(j.wrist), G.ARM) +
+        G.muscleLines(P(j.shoulder), P(j.elbow), P(j.wrist), "arm", far, s, side);
       layer(
         mix(j.shoulder, j.wrist, 0.55),
         `<g class="bw-human-arm bw-human-arm-${side}">${armSvg}</g>`,
@@ -594,27 +574,58 @@
         `<g class="bw-human-hand">${path(ellipse(j.wrist, [3.2, 0, 0], [0, 4, 1], c))}${path(ellipse(add(j.wrist, [0, -0.4, 1.5]), [1.6, 0, 0], [0, 1.3, 0], c), "none", 'stroke-width=".45" opacity=".4"')}</g>`,
       );
     }
-    const rings = [];
-    for (const [y, rx, rz] of [
-      [-2, 14, 15],
-      [-10, 15, 16],
-      [-22, 12.5, 14.5],
-      [-38, 15.5, 19],
-      [-52, 15, 23],
-      [-60, 12, 21],
-      [-65, 7.5, 10],
-    ])
-      for (let i = 0; i < 16; i++)
-        rings.push(
-          P(local(s, [rx * Math.cos((i * Math.PI) / 8), y, rz * Math.sin((i * Math.PI) / 8)])),
+    // Torso as overlapping slices between neighbouring cross-sections. Each
+    // slice is convex, but their union keeps the waist, chest and pelvis shape
+    // that a single convex hull flattened into a box.
+    const sections = [
+      [9, 5, 8],
+      [5, 10, 13.5],
+      [-2, 12, 15],
+      [-10, 12.5, 14.8],
+      [-22, 11, 12.6],
+      [-36, 13.5, 16.5],
+      [-50, 14, 20.5],
+      [-58, 12, 21],
+      [-63, 9, 15],
+      [-66, 6.5, 8],
+    ];
+    // Outline from the extreme points of each projected cross-section,
+    // measured across the projected spine: one smooth contour with waist,
+    // chest and shoulders instead of a convex box.
+    const spineTop = P(local(s, [0, -66, 0])),
+      spineBottom = P(local(s, [0, 9, 0])),
+      along = sub(spineTop, spineBottom),
+      across = unit([-along[1], along[0]]);
+    const leftSide = [],
+      rightSide = [];
+    for (const [y, rx, rz] of sections) {
+      let lo = null,
+        hi = null;
+      for (let i = 0; i < 16; i++) {
+        const q = P(
+          local(s, [rx * Math.cos((i * Math.PI) / 8), y, rz * Math.sin((i * Math.PI) / 8)]),
         );
+        const d = dot(q, across);
+        if (!lo || d < lo.d) lo = { q, d };
+        if (!hi || d > hi.d) hi = { q, d };
+      }
+      leftSide.push(lo.q);
+      rightSide.push(hi.q);
+    }
+    const torsoShape = path(G.smoothClosed(leftSide.concat(rightSide.reverse())));
     const rear = c.view === "rear-quarter";
-    let torso = path(softHull(rings));
+    let torso = torsoShape;
     torso += G.torsoMuscles(s, (p) => P(local(s, [rear ? -16 : 16, p[1], p[0]])), rear);
     layer(local(s, [0, -32, 0]), '<g class="bw-human-torso">' + torso + "</g>");
     const neckPoints = [];
-    for (const y of [-73, -63])
-      for (const z of [-5, 5]) for (const x of [-4, 4]) neckPoints.push(P(local(s, [x, y, z])));
+    for (const [y, r] of [
+      [-75, 4.6],
+      [-64, 6.4],
+    ])
+      for (let i = 0; i < 12; i++)
+        neckPoints.push(
+          P(local(s, [r * Math.cos((i * Math.PI) / 6), y, r * 1.1 * Math.sin((i * Math.PI) / 6)])),
+        );
     layer(sp.neck, '<g class="bw-human-neck">' + path(softHull(neckPoints)) + "</g>");
     const headAngle = (sp.config.variant === "hip_thrust" ? 0 : s.torsoAngle || 0) * rad;
     const hp = (x, y, z = 0) =>
@@ -623,28 +634,25 @@
         x * Math.sin(headAngle) + y * Math.cos(headAngle),
         z,
       ]);
-    const headPoints = [];
-    for (const [y, rx, rz] of [
-      [-15, 6, 6],
-      [-11, 10, 9],
-      [0, 10, 8.5],
-      [7, 8, 7],
-      [12, 4, 4],
-    ])
-      for (let i = 0; i < 16; i++)
-        headPoints.push(
-          P(hp(rx * Math.cos((i * Math.PI) / 8), y, rz * Math.sin((i * Math.PI) / 8))),
-        );
-    if (!rear)
-      for (const p of [
-        [10, -3, 0],
-        [14, 1, 0],
-        [10, 4, 0],
-        [8, 9, 0],
-      ])
-        headPoints.push(P(hp(...p)));
-    headPoints.push(P(hp(7, -17, 2)));
-    const head = path(softHull(headPoints));
+    // Smooth skull, face and jaw profile; no facial features.
+    const head = path(
+      G.smoothClosed(
+        [
+          [1, -16],
+          [8, -13.4],
+          [11.2, -6.5],
+          [11.6, 0],
+          [10.6, 5],
+          [8, 9.4],
+          [3, 11],
+          [-2, 9.2],
+          [-5.5, 5.6],
+          [-9.4, 0.6],
+          [-10.2, -6.4],
+          [-7, -13.4],
+        ].map(([x, y]) => P(hp(rear ? -x : x, y))),
+      ),
+    );
     layer(sp.head, '<g class="bw-human-head bw-athlete-portrait">' + head + "</g>");
     for (const g of sp.gear) {
       if (g.kind === "barbell") {
