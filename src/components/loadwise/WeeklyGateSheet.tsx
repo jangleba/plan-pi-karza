@@ -1,10 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLoadwise } from "@/lib/loadwise/store";
-import { formatDate } from "@/lib/loadwise/labels";
+import {
+  ISO_DAY_LABELS,
+  formatDate,
+  formatDateFull,
+  isoDayOfWeek,
+  parseIso,
+} from "@/lib/loadwise/labels";
+import { addIsoDays } from "@/lib/isoDate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { transitionMatchesBlock } from "@/lib/loadwise/confirmedCalendar";
 
 export function WeeklyGateSheet({
@@ -57,6 +64,30 @@ export function WeeklyGateSheet({
     }
   }, [open, existing, allowNoMatch, plannedMatches]);
 
+  const weekDays = useMemo(() => {
+    const days: { iso: string; short: string; label: string; day: number }[] = [];
+    for (let iso = nextWeekStart; iso <= nextWeekEnd && days.length < 7; iso = addIsoDays(iso, 1)) {
+      const date = parseIso(iso);
+      const index = isoDayOfWeek(date) - 1;
+      days.push({
+        iso,
+        short: ISO_DAY_LABELS[index].short,
+        label: ISO_DAY_LABELS[index].label,
+        day: date.getDate(),
+      });
+    }
+    return days;
+  }, [nextWeekStart, nextWeekEnd]);
+
+  function toggleDay(iso: string) {
+    const picked = [matchDate, secondMatchDate].filter(Boolean);
+    const next = picked.includes(iso)
+      ? picked.filter((date) => date !== iso)
+      : [...picked, iso].sort().slice(-2);
+    setMatchDate(next[0] ?? "");
+    setSecondMatchDate(next[1] ?? "");
+  }
+
   const canSave =
     noMatch || (matchDate !== "" && (secondMatchDate === "" || secondMatchDate > matchDate));
 
@@ -93,51 +124,44 @@ export function WeeklyGateSheet({
         </DialogHeader>
 
         <p className="text-sm text-muted-foreground">
-          Podaj datę kolejnego meczu, żeby BallWise dobrze ułożył następny tydzień.
+          Zaznacz dzień meczu, a ułożymy treningi wokół niego.
         </p>
 
         <div className="mt-1 rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
           Kolejny tydzień: {formatDate(nextWeekStart)} – {formatDate(nextWeekEnd)}
         </div>
 
-        {/* Data meczu */}
-        <div className="mt-2">
-          <label className="mb-1.5 block text-sm font-medium">Data kolejnego meczu</label>
-          <div className="relative">
-            <CalendarClock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="date"
-              value={matchDate}
-              min={nextWeekStart}
-              max={nextWeekEnd}
-              disabled={noMatch}
-              onChange={(e) => setMatchDate(e.target.value)}
-              className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-            />
+        {/* Dni tygodnia: jedno dotknięcie wybiera mecz, drugie dodaje drugi mecz. */}
+        <fieldset className="mt-2 min-w-0" disabled={noMatch}>
+          <legend className="mb-1.5 text-sm font-medium">Kiedy grasz mecz?</legend>
+          <div className="grid grid-cols-7 gap-1.5">
+            {weekDays.map((day) => {
+              const selected = matchDate === day.iso || secondMatchDate === day.iso;
+              return (
+                <button
+                  key={day.iso}
+                  type="button"
+                  aria-pressed={selected}
+                  aria-label={`${day.label} ${day.day}`}
+                  onClick={() => toggleDay(day.iso)}
+                  className={`flex min-w-0 flex-col items-center rounded-xl border py-2 text-xs transition disabled:opacity-40 ${
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input bg-background text-foreground"
+                  }`}
+                >
+                  <span className="font-medium">{day.short}</span>
+                  <span className="text-base font-semibold leading-6">{day.day}</span>
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        {!noMatch && (
-          <div className="mt-2">
-            <label className="mb-1.5 block text-sm font-medium">Drugi mecz (opcjonalnie)</label>
-            <div className="relative">
-              <CalendarClock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="date"
-                value={secondMatchDate}
-                min={matchDate || nextWeekStart}
-                max={nextWeekEnd}
-                onChange={(e) => setSecondMatchDate(e.target.value)}
-                className="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            {secondMatchDate !== "" && secondMatchDate <= matchDate && (
-              <p className="mt-1 text-xs font-medium text-destructive">
-                Drugi mecz musi być później niż pierwszy.
-              </p>
-            )}
-          </div>
-        )}
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {matchDate
+              ? `Mecz: ${formatDateFull(matchDate).toLocaleLowerCase("pl-PL")}${secondMatchDate ? `, drugi: ${formatDateFull(secondMatchDate).toLocaleLowerCase("pl-PL")}` : ""}. Dotknij dzień jeszcze raz, żeby go odznaczyć.`
+              : "Dotknij dzień meczu. Drugi dzień doda drugi mecz."}
+          </p>
+        </fieldset>
 
         {/* Tryb bez meczu — tylko poza sezonem / przejściowy */}
         {allowNoMatch && (
@@ -151,7 +175,7 @@ export function WeeklyGateSheet({
             }`}
           >
             <CheckCircle2 className={`h-4 w-4 ${noMatch ? "opacity-100" : "opacity-30"}`} />
-            Nie mam meczu w kolejnym tygodniu
+            Nie mam meczu w tym tygodniu
           </button>
         )}
 
