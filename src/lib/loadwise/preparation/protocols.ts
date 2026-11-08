@@ -82,6 +82,14 @@ export const EVIDENCE: Record<string, EvidenceSource> = {
     scope:
       "Stanowisko ACSM: rozciąganie statyczne 10–30 s na powtórzenie, łącznie ok. 60 s na grupę mięśniową. Dotyczy dorosłych i gibkości ogólnej, nie regeneracji po meczu.",
   },
+  behm: {
+    id: "behm",
+    title:
+      "Behm i wsp., 2016 — Acute effects of muscle stretching on physical performance, range of motion, and injury incidence (Appl Physiol Nutr Metab)",
+    url: "https://pubmed.ncbi.nlm.nih.gov/26642915/",
+    scope:
+      "Przegląd systematyczny: rozciąganie statyczne zwiększa zakres ruchu; 60 s lub więcej na grupę mięśniową tuż przed wysiłkiem obniża sprawność bardziej niż krócej. Dlatego pełna dawka jest w regeneracji i po treningu, nie przed sprintem.",
+  },
   match: {
     id: "match",
     title: "Marqués-Jiménez i wsp., 2025 — Recovery After an Official Soccer Match",
@@ -161,7 +169,7 @@ const exercise = (
   ...dose,
 });
 const STRETCH_DOSE =
-  "2 serie po 30 s na stronę to razem 60 s na mięsień. Taką łączną dawkę rozciągania statycznego podają wytyczne ACSM; trzymanie dłużej niż 30 s naraz nie daje wyraźnie więcej. Po dużym obciążeniu serie są krótsze (20 s), żeby nie dokładać napięcia.";
+  "Rozciągaj do łagodnego napięcia, nie do bólu, i trzymaj nieruchomo, bez sprężynowania, spokojnie oddychając. 2 serie po 30 s na stronę to razem 60 s na mięsień: taką dawkę na jedno ćwiczenie podają wytyczne ACSM (30 s naraz wystarczy, dłużej nie daje wyraźnie więcej), a zakres ruchu rośnie, gdy robisz to co najmniej 2–3 razy w tygodniu. Pełne 60 s na mięsień robimy w regeneracji i po treningu, nie tuż przed sprintem, bo wtedy obniża sprawność. Po dużym obciążeniu serie są krótsze (20 s).";
 const MOVES = {
   walk: exercise(
     "walk",
@@ -191,7 +199,7 @@ const MOVES = {
     "Łagodna ekspozycja na zgięcie grzbietowe stawu skokowego. Celem jest komfort zakresu ruchu, nie usunięcie DOMS.",
     "Dłonie na ścianie na wysokości barków. Jedna noga z tyłu, około jednego kroku za przednią. Obie stopy ustawione prosto palcami do ściany, tylne kolano wyprostowane, cała pięta tylnej nogi na podłożu.",
     STRETCH_DOSE,
-    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm", "behm"] },
   ),
   soleus: exercise(
     "soleus",
@@ -201,7 +209,7 @@ const MOVES = {
     "Zmiana ustawienia kolana modyfikuje warunki rozciągania łydki; nie izoluje jednego mięśnia.",
     "Jak przy rozciąganiu łydki, ale tylna stopa bliżej (pół kroku). Ugnij tylne kolano i prowadź je nad palce; pięta cały czas na podłożu.",
     STRETCH_DOSE,
-    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm", "behm"] },
   ),
   hamstring: exercise(
     "hamstring",
@@ -211,7 +219,7 @@ const MOVES = {
     "Łagodne utrzymanie tolerowanego zakresu. Bez sprężynowania i pogłębiania na siłę.",
     "Uklęknij na jednym kolanie (pod kolanem coś miękkiego). Przednią nogę wyprostuj: pięta na podłożu, palce do góry. Dłonie na udzie albo po bokach na podłożu, plecy proste.",
     STRETCH_DOSE,
-    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm", "behm"] },
   ),
   quad: exercise(
     "quad",
@@ -221,7 +229,7 @@ const MOVES = {
     "Łagodna ekspozycja na długość przedniej części uda. Podparcie ogranicza wymagania równowagi.",
     "Stań bokiem do ściany i oprzyj o nią dłoń. Drugą ręką chwyć stopę od zewnątrz i przyciągnij piętę do pośladka. Kolana obok siebie, zgięte kolano skierowane w dół, miednica lekko podwinięta.",
     STRETCH_DOSE,
-    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm", "behm"] },
   ),
   hip: exercise(
     "hip",
@@ -231,7 +239,7 @@ const MOVES = {
     "Ruch biodra bez zastępowania go przeprostem lędźwiowym.",
     "Półklęk: tylne kolano na miękkim podłożu pod biodrem, przednia stopa tak daleko, żeby przednie kolano było nad kostką (kąt ok. 90°). Stopy na szerokość bioder, tułów prosto.",
     STRETCH_DOSE,
-    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm", "behm"] },
   ),
   adductor: exercise(
     "adductor",
@@ -313,13 +321,15 @@ export function buildRecoveryProtocol(
   context: RecoveryContext = {},
 ): PreparationProtocol {
   const selected: Record<RecoveryFocus, PreparationVisual[]> = {
-    whole: ["walk", "cat", "rotation", "ankle", "adductor", "hip", "hamstring", "calf"],
-    calves: ["walk", "ankle", "calf", "soleus"],
-    hamstrings: ["walk", "hamstring", "hip", "cat"],
-    quadriceps: ["walk", "quad", "hip", "ankle"],
-    hips: ["walk", "hip", "adductor", "rotation"],
-    adductors: ["walk", "adductor", "hip", "cat"],
-    back: ["walk", "cat", "rotation", "hip"],
+    // Mobility first (joints through their range), then static stretches of
+    // the chosen area. No walking: this is the athlete's own mobility time.
+    whole: ["cat", "rotation", "ankle", "adductor", "hip", "hamstring", "quad", "calf"],
+    calves: ["ankle", "calf", "soleus"],
+    hamstrings: ["cat", "hamstring", "adductor", "hip"],
+    quadriceps: ["ankle", "hip", "quad"],
+    hips: ["rotation", "adductor", "hip", "quad"],
+    adductors: ["adductor", "hip", "hamstring"],
+    back: ["cat", "rotation", "hip", "hamstring"],
   };
   const gentle = Boolean(
     context.highLoad || context.limited || context.nextDemandingDay || context.afterMatch,
@@ -345,7 +355,7 @@ export function buildRecoveryProtocol(
         id === "walk" ? (gentle ? 120 : 180) : MOVES[id].seconds ? (gentle ? 20 : 30) : undefined,
       reps: MOVES[id].reps ? (gentle ? 6 : MOVES[id].reps) : undefined,
     })),
-    sources: ["recovery", "stretch", ...(context.afterMatch ? ["match"] : [])],
+    sources: ["recovery", "stretch", "acsm", "behm", ...(context.afterMatch ? ["match"] : [])],
     note: "Praktyczna adaptacja zasad z badań. Ten dokładny zestaw i jego dawki nie były badane jako osobny protokół. Rozciąganie służy tu komfortowi zakresu ruchu, nie przyspieszaniu naprawy mięśni.",
   };
 }

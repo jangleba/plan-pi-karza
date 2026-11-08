@@ -26,7 +26,7 @@ async function tick(milliseconds: number) {
 }
 function bilateral(): PreparationProtocol {
   const p = buildRecoveryProtocol("calves");
-  return { ...p, id: "test-bilateral", exercises: [p.exercises[2], p.exercises[3]] };
+  return { ...p, id: "test-bilateral", exercises: [p.exercises[1], p.exercises[2]] };
 }
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -68,7 +68,9 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
   it("pokazuje obrazek, dwie instrukcje i prowadzi przez stronę, zmianę i przerwę", async () => {
     await render();
     await click("Rozpocznij regenerację");
-    expect(host.querySelector('iframe[title^="Animacja ćwiczenia"]')).not.toBeNull();
+    // Mobility and stretching show a still picture of the position, not an animation.
+    expect(host.querySelector('iframe[title^="Animacja ćwiczenia"]')).toBeNull();
+    expect(host.querySelector(".bw-prep-still img")).not.toBeNull();
     expect(host.querySelectorAll(".bw-prep-cues li")).toHaveLength(2);
     expect(host.querySelector('[role="timer"]')?.textContent).toBe("00:30");
     await tick(30000);
@@ -116,7 +118,7 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
   });
   it("ćwiczenie na powtórzenia czeka na świadome potwierdzenie", async () => {
     const p = buildRecoveryProtocol("back");
-    await render({ ...p, id: "manual", exercises: [p.exercises[1]] });
+    await render({ ...p, id: "manual", exercises: [p.exercises[0]] });
     await click("Rozpocznij regenerację");
     await tick(120000);
     expect(host.textContent).toContain("6 powtórzeń");
@@ -143,7 +145,9 @@ describe("prowadzenie ćwiczeń na ekranie", () => {
     expect(button("Łydki").getAttribute("aria-pressed")).toBe("true");
     expect(host.textContent).toContain("Łydka z ugiętym kolanem");
     await click("Rozpocznij");
-    expect(host.querySelector('[role="timer"]')?.textContent).toBe("02:00");
+    // Starts with the ankle mobilisation (repetitions), no walking.
+    expect(host.querySelector("h3")?.textContent).toBe("Kolano nad stopę");
+    expect(host.textContent).not.toContain("Spokojny marsz");
     expect(host.querySelector(".bw-prep-player")).not.toBeNull();
     expect(host.querySelectorAll(".bw-prep-evidence a").length).toBeGreaterThan(0);
   });
