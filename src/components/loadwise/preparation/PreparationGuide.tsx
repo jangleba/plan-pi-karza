@@ -35,7 +35,7 @@ import {
   tickPlayback,
   type PreparationPlayback,
 } from "@/lib/loadwise/preparation/playback";
-import { PreparationIllustration, RecoveryFocusIcon } from "./PreparationIllustration";
+import { PreparationIllustration } from "./PreparationIllustration";
 import "./preparation.css";
 
 function usePreparationPlayback(key: string, fallback: PreparationPlayback) {
@@ -103,6 +103,38 @@ function buzz(type: "work" | "switch" | "rest") {
   } catch {
     /* Vibration is optional. */
   }
+}
+/** Plain-language dose: what to do, how long and on which side. */
+function plainDose(e: PreparationProtocol["exercises"][number]): string {
+  const work =
+    e.seconds != null
+      ? e.seconds >= 60
+        ? `${Math.round(e.seconds / 60)} min`
+        : `${e.seconds} s`
+      : `${e.reps ?? 1} powtórzeń`;
+  const sets = (e.sets ?? 1) > 1 ? `${e.sets} serie × ` : "";
+  return `${sets}${work}${e.sides ? " na każdą stronę" : ""}`;
+}
+
+/**
+ * Every exercise visible before the start: drawing, dose and the exact
+ * starting position. Nothing important is hidden behind a toggle.
+ */
+function ExerciseOverview({ protocol }: { protocol: PreparationProtocol }) {
+  return (
+    <ol className="bw-prep-list">
+      {protocol.exercises.map((e, i) => (
+        <li key={`${e.id}:${i}`}>
+          <PreparationIllustration small visual={e.visual} label={e.name} />
+          <div>
+            <strong>{e.name}</strong>
+            <span className="bw-prep-list-dose">{plainDose(e)}</span>
+            <p>{e.setup}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
 }
 export function PreparationEvidence({ protocol }: { protocol: PreparationProtocol }) {
   const ids = [...new Set([...protocol.sources, ...protocol.exercises.flatMap((e) => e.sources)])];
@@ -350,23 +382,7 @@ export function PreparationGuide({
           <span>ok. {Math.ceil(estimated.seconds / 60)} min</span>
         </div>
         <p className="bw-prep-reason">{protocol.reason}</p>
-        <details className="bw-prep-preview">
-          <summary>Ćwiczenia w zestawie · {protocol.exercises.length}</summary>
-          <ol className="bw-prep-overview">
-            {protocol.exercises.map((e, i) => (
-              <li key={e.id}>
-                <PreparationIllustration small visual={e.visual} label={e.name} />
-                <div>
-                  <strong>
-                    {i + 1}. {e.name}
-                  </strong>
-                  <span>{exerciseDose(e)}</span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </details>
-        <PreparationEvidence protocol={protocol} />
+        <ExerciseOverview protocol={protocol} />
         <button
           type="button"
           className="bw-prep-primary"
@@ -375,6 +391,7 @@ export function PreparationGuide({
           <Play size={18} />
           {protocol.kind === "recovery" ? "Rozpocznij regenerację" : "Rozpocznij rozgrzewkę"}
         </button>
+        <PreparationEvidence protocol={protocol} />
       </section>
     );
 
@@ -569,41 +586,30 @@ export function RecoveryCoach({
     <div className="bw-prep-recovery">
       {choosing || blocked ? (
         <section className="bw-prep">
-          <small>REGENERACJA</small>
-          <h2>Na czym się skupić?</h2>
-          <p className="bw-prep-reason">Wybierz obszar.</p>
-          <details className="bw-prep-preview">
-            <summary>Obszar: {RECOVERY_FOCI.find((f) => f.id === focus.value)?.label}</summary>
-            <div className="bw-prep-focus">
-              {RECOVERY_FOCI.map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  aria-pressed={focus.value === item.id}
-                  onClick={() => focus.setValue(item.id)}
-                >
-                  <RecoveryFocusIcon focus={item.id} />
-                  <strong>{item.label}</strong>
-                  {focus.value === item.id && <Check size={16} className="bw-prep-selected" />}
-                </button>
-              ))}
+          <div className="bw-prep-heading">
+            <div>
+              <small>REGENERACJA</small>
+              <h2>{RECOVERY_FOCI.find((f) => f.id === focus.value)?.label}</h2>
             </div>
-          </details>
-          <p className="bw-prep-reason">{protocol.reason}</p>
-          <div className="bw-prep-summary">
-            <span>ok. {Math.ceil(estimate.seconds / 60)} min</span>
-            <span>{protocol.exercises.length} ćwiczenia</span>
+            <span>ok. {estimatedMinutes} min</span>
           </div>
-          <details className="bw-prep-preview">
-            <summary>Pokaż ćwiczenia</summary>
-            <ol>
-              {protocol.exercises.map((e) => (
-                <li key={e.id}>
-                  {e.name} · {exerciseDose(e)}
-                </li>
-              ))}
-            </ol>
-          </details>
+          <div className="bw-prep-chips" role="group" aria-label="Obszar">
+            {RECOVERY_FOCI.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                aria-pressed={focus.value === item.id}
+                onClick={() => focus.setValue(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <p className="bw-prep-reason">{protocol.reason}</p>
+          <ExerciseOverview protocol={protocol} />
+          <p className="bw-prep-rep-note">
+            Minutnik prowadzi każdą stronę i serię, a głos mówi, kiedy zmienić stronę.
+          </p>
           <button
             type="button"
             className="bw-prep-primary"
