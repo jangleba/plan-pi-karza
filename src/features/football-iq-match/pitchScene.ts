@@ -324,6 +324,8 @@ export async function createPitchScene(
   // Close to real proportions: players smaller against the pitch, like a TV picture.
   const BROADCAST_SCALE = 0.45;
   const markScale = () => (broadcast ? 0.6 : 1);
+  // Ball close to real size against the player (about 1/8 of their height).
+  const ballScale = () => (broadcast ? 0.35 : 1);
   // TV side camera: on the touchline, low and close, attack runs left to right.
   const BROADCAST_ELEVATION = (28 * Math.PI) / 180;
   const scaleNow = () => (broadcast ? BROADCAST_SCALE : figureScale);
@@ -446,16 +448,16 @@ export async function createPitchScene(
         clock,
       );
     });
-    ball.scale.setScalar(markScale());
+    ball.scale.setScalar(ballScale());
     ball.position.copy(
       world(
         frame.ballVisual,
-        frame.ballHeight - BALL_RADIUS * (1 - markScale()),
+        frame.ballHeight - BALL_RADIUS * (1 - ballScale()),
       ),
     );
     ballShadow.position.copy(world(frame.ballVisual, 0.08));
     ballShadow.scale.setScalar(
-      markScale() * (1 + Math.min(frame.ballHeight, 14) * 0.055),
+      ballScale() * (1 + Math.min(frame.ballHeight, 14) * 0.055),
     );
     ballShadowMaterial.opacity = Math.max(
       0.12,
