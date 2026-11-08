@@ -22,17 +22,11 @@ import {
   type FootballSpeedFamily,
 } from "./footballSpeedSessionEngine";
 import { PLAN_ENGINE_VERSION } from "./planVersion";
+import { generalCooldown, recoverySessionContent } from "./recoveryContent";
 import type { WeekPhase } from "./types";
 
 export function cooldown(): ExerciseItem[] {
-  return [
-    { name: "Trucht wyciszający", prescription: "3–5 min, bardzo lekko" },
-    {
-      name: "Rozciąganie statyczne",
-      prescription: "łydki, uda, biodra — 5 min",
-    },
-    { name: "Oddech przeponowy", prescription: "2 min, spokojny rytm" },
-  ];
+  return generalCooldown();
 }
 
 export interface Built {
@@ -48,37 +42,26 @@ export interface Built {
   avoidToday: string;
   /** Structured sections preserved when built via buildStrengthPowerStructured. */
   structuredSections?: TrainingSection[];
+  /** Session-specific warm-up and cool-down; callers fall back to the general ones. */
+  warmup?: ExerciseItem[];
+  cooldown?: ExerciseItem[];
 }
 
 export function recoverySession(): Built {
+  const content = recoverySessionContent();
   return {
     title: "Regeneracja i mobilność",
     sessionType: "Regeneracja",
     intensity: "niska",
     durationMin: 30,
     goalOfSession:
-      "Przyspieszenie regeneracji i zmniejszenie sztywności bez dokładania obciążenia.",
+      "Rozruszanie po obciążeniu: krążenie, mobilność stawów, lekka praca tkanek i rozciąganie bez dokładania zmęczenia.",
     riskManaged: "Brak intensywności — żadnego ukrytego kondycyjnego.",
     avoidToday: "Bez interwałów, sprintów i ciężkich obciążeń.",
-    main: [
-      {
-        name: "Spacer / bardzo lekki trucht lub rower",
-        prescription: "10–20 min, opcjonalnie",
-        cue: "Bardzo lekko, tylko rozruszanie.",
-      },
-      {
-        name: "Mobilność całego ciała",
-        prescription: "10 min",
-        cue: "Spokojnie, kontroluj zakres.",
-      },
-      {
-        name: "Oddech i wyciszenie",
-        prescription: "5 min wydłużony wydech",
-        cue: "Nos–wdech, długi wydech, rozluźnij barki.",
-      },
-    ],
-    accessory: [],
+    main: [...content.warmup, ...content.main],
+    accessory: content.accessory,
     footballTransfer: [],
+    cooldown: content.cooldown,
   };
 }
 
@@ -838,7 +821,7 @@ export function applyReadiness(
         main: built.main,
         accessory: built.accessory,
         footballTransfer: [],
-        cooldown: cooldown(),
+        cooldown: built.cooldown ?? cooldown(),
       },
       structuredSections: undefined,
       exercises: undefined,

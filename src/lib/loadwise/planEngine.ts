@@ -1,4 +1,10 @@
 import { alignSessionTitleWithContent } from "./sessionTitleAlignment";
+import {
+  mobilityCircuit,
+  recoveryStretches,
+  runningCooldown,
+  runningPreparation,
+} from "./recoveryContent";
 import { computeLoadTags } from "./sessionLoadTags";
 import { applyPlanTrainingMethods } from "./methods/planner";
 import type { Profile, SessionDay, ExerciseItem, DayType } from "./types";
@@ -149,11 +155,6 @@ function warmup(): ExerciseItem[] {
       name: "Rozgrzewka dynamiczna (RAMP)",
       prescription: "wykroki, krążenia, otwieranie bioder — 6 min",
       cue: "Pełen zakres ruchu, kontroluj tułów.",
-    },
-    {
-      name: "Aktywacja bioder i stóp",
-      prescription: "marsz, ankling i mobilizacja — 4 min",
-      cue: "Spokojny oddech i kontrolowany zakres ruchu.",
     },
   ];
 }
@@ -364,14 +365,9 @@ function buildByGoal(profile: Profile): Built {
             cue: "Utrzymaj równe tempo i technikę biegu.",
           },
         ],
-        accessory: [
-          {
-            name: "Mobilność po biegu",
-            prescription: "6 min: biodra, łydki, tylna taśma",
-            cue: "Spokojny zakres, bez bólu.",
-          },
-        ],
+        accessory: [],
         footballTransfer: [],
+        cooldown: runningCooldown(),
       };
     case "power":
       return buildPower(profile);
@@ -390,11 +386,7 @@ function buildByGoal(profile: Profile): Built {
         riskManaged: "Niska intensywność — bezpieczne uzupełnienie obciążenia.",
         avoidToday: "Bez zrywów maksymalnych i ciężkich obciążeń.",
         main: [
-          {
-            name: "Mobilność bioder i kostek",
-            prescription: "6 ćwiczeń × 8 powtórzeń",
-            cue: "Powoli, kontroluj końcowy zakres.",
-          },
+          ...mobilityCircuit(2),
           {
             name: "Technika podań obunóż",
             prescription: "10 min przy ścianie / z partnerem",
@@ -1009,6 +1001,8 @@ function buildLightAlternative(profile: Profile): Built {
         ],
         accessory: [],
         footballTransfer: [],
+        warmup: runningPreparation(),
+        cooldown: runningCooldown(),
       };
     default: {
       if (
@@ -1442,6 +1436,8 @@ function buildEnduranceLight(profile: Profile): Built {
     ],
     accessory: [],
     footballTransfer: [],
+    warmup: runningPreparation(),
+    cooldown: runningCooldown(),
   };
 }
 
@@ -1484,30 +1480,41 @@ function buildBall(profile: Profile): Built {
 }
 
 /** Tylne uda i przywodziciele: najmocniejszy wariant dozwolony dla profilu. */
-function prehabHamstringAdductor(profile: Profile): Built["main"][number] {
+function prehabHamstringAdductor(profile: Profile): Built["main"] {
   const athlete = buildAthleteTrainingProfile(profile);
   const ok = (id: string) => isExerciseAllowedForProfile(id, athlete).ok;
-  if (ok("eccentric_nordic_hamstring"))
-    return {
-      name: "Copenhagen + Nordic (lekko)",
-      exerciseId: "eccentric_nordic_hamstring",
-      prescription: "2 × 6 przywodziciele, 2 × 4 nordic",
-      cue: "Kontrola, bez bólu.",
-      easier: "Wersje z kolan / mniejszy zakres.",
-    };
-  if (ok("assisted_nordic_hamstring"))
-    return {
-      name: "Copenhagen z kolan + Nordic wspomagany",
-      exerciseId: "assisted_nordic_hamstring",
-      prescription: "2 × 6 przywodziciele z kolan, 2 × 4 nordic z asekuracją gumą lub rękami",
-      cue: "Powoli w dół, asekuruj się rękami, bez bólu.",
-    };
-  return {
-    name: "Ściskanie piłki w mostku + mostek biodrowy",
-    exerciseId: "adductor_bridge_squeeze",
-    prescription: "2 × 6 ściśnięć po 5 s, 2 × 10 mostków",
-    cue: "Kolana w linii stóp, napięty brzuch, bez bólu.",
-  };
+  // One movement per row: the animation, name and dose must describe the
+  // same exercise, so the hamstring and adductor work are listed separately.
+  const hamstring: Built["main"][number] = ok("eccentric_nordic_hamstring")
+    ? {
+        name: "Nordic hamstring ekscentryczny",
+        exerciseId: "eccentric_nordic_hamstring",
+        prescription: "2 × 4",
+        cue: "Powoli w dół, kontrola, bez bólu.",
+        easier: "Mniejszy zakres lub asekuracja gumą.",
+      }
+    : ok("assisted_nordic_hamstring")
+      ? {
+          name: "Nordic hamstring wspomagany",
+          exerciseId: "assisted_nordic_hamstring",
+          prescription: "2 × 4",
+          cue: "Powoli w dół, asekuruj się rękami lub gumą, bez bólu.",
+        }
+      : {
+          name: "Most hamstring izometryczny z długą dźwignią",
+          exerciseId: "long_lever_hamstring_iso",
+          prescription: "2 × 20 s",
+          cue: "Pięty wbite w podłoże, biodra uniesione.",
+        };
+  return [
+    hamstring,
+    {
+      name: "Most z dociskiem przywodzicieli",
+      exerciseId: "adductor_bridge_squeeze",
+      prescription: "2 × 6 ściśnięć po 5 s",
+      cue: "Kolana w linii stóp, napięty brzuch, bez bólu.",
+    },
+  ];
 }
 
 /** Sesja prehab / mobilność / stabilizacja. */
@@ -1520,22 +1527,23 @@ function buildPrehab(profile: Profile): Built {
     goalOfSession: "Odporność bioder, przywodzicieli, ścięgien udowych i łydek oraz jakość ruchu.",
     riskManaged: "Lekka praca prewencyjna — bez przeciążenia.",
     avoidToday: "Bez zrywów maksymalnych i ciężkich obciążeń.",
-    main: [
+    main: [...mobilityCircuit(2), ...prehabHamstringAdductor(profile)],
+    accessory: [
       {
-        name: "Mobilność bioder, kostek i kręgosłupa",
-        prescription: "10 min",
-        cue: "Powoli, kontroluj końcowy zakres.",
-      },
-      prehabHamstringAdductor(profile),
-      {
-        name: "Balans, lądowania i core",
+        name: "Martwy robak",
         exerciseId: "dead_bug",
-        prescription: "8 min: stabilizacja jednonóż, plank, dead bug",
-        cue: "Napięcie tułowia, miękkie lądowanie.",
+        prescription: "2 × 8 / strona",
+        cue: "Lędźwie przy podłożu, spokojny wydech.",
+      },
+      {
+        name: "Deska bokiem",
+        exerciseId: "side_plank",
+        prescription: "2 × 20–30 s / strona",
+        cue: "Biodra wysoko, ciało w jednej linii.",
       },
     ],
-    accessory: [],
     footballTransfer: [],
+    cooldown: recoveryStretches(),
   };
 }
 
@@ -1565,14 +1573,10 @@ function buildEnduranceAerobic(profile: Profile): Built {
         harder: young ? undefined : "Dołóż 2 powtórzenia.",
       },
     ],
-    accessory: [
-      {
-        name: "Mobilność po biegu",
-        prescription: "6 min: biodra, łydki, tylna taśma",
-        cue: "Spokojny zakres, bez bólu.",
-      },
-    ],
+    accessory: [],
     footballTransfer: [],
+    warmup: runningPreparation(),
+    cooldown: runningCooldown(),
   };
 }
 
@@ -1611,6 +1615,7 @@ function buildEnduranceSpecial(profile: Profile): Built {
       },
     ],
     footballTransfer: [],
+    cooldown: runningCooldown(),
   };
 }
 
@@ -1643,14 +1648,9 @@ function buildEnduranceRSA(profile: Profile): Built {
         cue: "Uspokój oddech i zachowaj jakość drugiej serii.",
       },
     ],
-    accessory: [
-      {
-        name: "Mobilność i prehab tylnej taśmy",
-        prescription: "6 min: przywodziciele, tylne uda, łydki",
-        cue: "Kontrola, przygotuj się na kolejne powtórzenia.",
-      },
-    ],
+    accessory: [],
     footballTransfer: [],
+    cooldown: runningCooldown(),
   };
 }
 
@@ -1682,6 +1682,7 @@ function buildEnduranceDeload(profile: Profile): Built {
     ],
     accessory: [],
     footballTransfer: [],
+    cooldown: runningCooldown(),
   };
 }
 
@@ -2638,11 +2639,11 @@ function enforceConsecutiveLowerBodySafety(out: SessionDay[], profile: Profile):
     cur.durationMin = light.durationMin;
     cur.structuredSections = undefined;
     cur.sections = {
-      warmup: warmup(),
+      warmup: light.warmup ?? warmup(),
       main: light.main,
       accessory: light.accessory,
       footballTransfer: light.footballTransfer,
-      cooldown: cooldown(),
+      cooldown: light.cooldown ?? cooldown(),
     };
     cur.reason =
       "Po ciężkim dniu dolnej części ciała nie wstawiamy drugiego z rzędu — dziś lżejsza, regeneracyjna praca chroni adaptację.";
@@ -2718,11 +2719,11 @@ function replaceEnduranceConflictWithNonRecovery(
   session.durationMin = light.durationMin;
   session.structuredSections = undefined;
   session.sections = {
-    warmup: warmup(),
+    warmup: light.warmup ?? warmup(),
     main: light.main,
     accessory: light.accessory,
     footballTransfer: light.footballTransfer,
-    cooldown: cooldown(),
+    cooldown: light.cooldown ?? cooldown(),
   };
   session.reason = reason;
   session.safetyNote =
@@ -2910,11 +2911,11 @@ function replaceMainRecoveryPrehab(session: SessionDay, profile: Profile, reason
   session.riskManaged = built.riskManaged;
   session.avoidToday = built.avoidToday;
   session.sections = {
-    warmup: warmup(),
+    warmup: built.warmup ?? warmup(),
     main: built.main,
     accessory: built.accessory,
     footballTransfer: built.footballTransfer,
-    cooldown: cooldown(),
+    cooldown: built.cooldown ?? cooldown(),
   };
   session.structuredSections = undefined;
   session.reason = reason;
@@ -3034,11 +3035,11 @@ function convertRecoveryToBuilt(
   day.avoidToday = built.avoidToday;
   day.structuredSections = built.structuredSections;
   day.sections = {
-    warmup: warmup(),
+    warmup: built.warmup ?? warmup(),
     main: built.main,
     accessory: built.accessory,
     footballTransfer: built.footballTransfer,
-    cooldown: cooldown(),
+    cooldown: built.cooldown ?? cooldown(),
   };
   day.reason = reason;
   day.loadTags = computeLoadTags(day);
@@ -3552,7 +3553,7 @@ export function generatePlan(
           main: fallback.main,
           accessory: fallback.accessory,
           footballTransfer: fallback.footballTransfer,
-          cooldown: cooldown(),
+          cooldown: fallback.cooldown ?? cooldown(),
         },
         structuredSections: undefined,
         speedGeneratorVersion: undefined,
@@ -3712,11 +3713,11 @@ export function generatePlan(
         mdLabel: "MD-1",
         slotLabel: null,
         sections: {
-          warmup: warmup(),
+          warmup: built.warmup ?? warmup(),
           main: built.main,
           accessory: built.accessory,
           footballTransfer: built.footballTransfer,
-          cooldown: cooldown(),
+          cooldown: built.cooldown ?? cooldown(),
         },
         secondSession: null,
       };
@@ -3747,7 +3748,7 @@ export function generatePlan(
           main: built.main,
           accessory: built.accessory,
           footballTransfer: built.footballTransfer,
-          cooldown: cooldown(),
+          cooldown: built.cooldown ?? cooldown(),
         },
         secondSession: null,
       };
@@ -3851,11 +3852,11 @@ export function generatePlan(
         mdLabel: mdLabelFor(date, profile),
         slotLabel: null,
         sections: {
-          warmup: warmup(),
+          warmup: built.warmup ?? warmup(),
           main: built.main,
           accessory: built.accessory,
           footballTransfer: built.footballTransfer,
-          cooldown: cooldown(),
+          cooldown: built.cooldown ?? cooldown(),
         },
         secondSession: null,
       };

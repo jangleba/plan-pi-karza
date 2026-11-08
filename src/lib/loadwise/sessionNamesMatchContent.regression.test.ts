@@ -97,6 +97,21 @@ function rows(
   );
 }
 
+/** Placeholders that say "do some mobility" without saying what. */
+const GENERIC_RECOVERY_IDS = new Set([
+  "hip_mobility_flow",
+  "static_stretch_cooldown",
+  "ankle_mobility_flow",
+]);
+
+function dose(exercise: object): string {
+  const row = exercise as Record<string, unknown>;
+  return ["prescription", "sets", "reps", "duration", "displayPrescription"]
+    .map((key) => row[key])
+    .filter((value) => typeof value === "string")
+    .join(" ");
+}
+
 const restLike = (s: SessionDay) =>
   s.dayType === "rest" || /^(odpoczynek|dzień wolny)/i.test(s.title);
 
@@ -143,6 +158,33 @@ function problems(session: SessionDay): string[] {
   const ids = work.map((row) => `${row.exercise.exerciseId}/${row.exercise.name}`);
   const duplicate = ids.find((id, index) => ids.indexOf(id) !== index);
   if (duplicate) found.push(`${where}: powtórzone ćwiczenie ${duplicate}`);
+  // Recovery, mobility and cool-down work must name concrete movements with a
+  // dose, and an easy run must not be repeated as its own warm-up/cool-down.
+  const sectionsWithEasyRun = new Set(
+    all.filter((row) => row.exercise.exerciseId === "easy_aerobic_run").map((row) => row.section),
+  );
+  if (
+    sectionsWithEasyRun.has("main") &&
+    (sectionsWithEasyRun.has("warmup") || sectionsWithEasyRun.has("cooldown"))
+  )
+    found.push(`${where}: łatwy bieg powtórzony w rozgrzewce lub wyciszeniu`);
+  if (/regenerac|mobilno|prehab/i.test(session.title)) {
+    const named = new Set(all.map((row) => row.exercise.exerciseId).filter(Boolean));
+    if (named.size < 5) found.push(`${where}: regeneracja ma tylko ${named.size} ćwiczeń`);
+  }
+  for (const { section, exercise } of all) {
+    if (
+      GENERIC_RECOVERY_IDS.has(exercise.exerciseId ?? "") ||
+      /mobilność całego ciała|mobilność po biegu|^rozciąganie$|^wyciszenie$/i.test(exercise.name)
+    )
+      found.push(`${where}: ogólnik „${exercise.name}” zamiast konkretnego ćwiczenia`);
+    const def = getExerciseDefinition(exercise.exerciseId ?? "");
+    if (
+      (section === "cooldown" || def?.family === "mobility" || def?.family === "recovery") &&
+      !/\d/.test(dose(exercise))
+    )
+      found.push(`${where}: „${exercise.name}” bez dawki`);
+  }
   for (const { exercise } of all) {
     if (
       /hamowani|zmian\w* kierunku/i.test(exercise.name) &&

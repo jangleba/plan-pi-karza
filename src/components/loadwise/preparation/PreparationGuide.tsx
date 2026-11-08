@@ -92,6 +92,18 @@ function speak(text: string) {
     /* Visual guidance remains available when speech is blocked. */
   }
 }
+/**
+ * Short buzz when the step changes (switch side, next set, rest), so the
+ * athlete does not have to watch the screen while holding a stretch.
+ * Browsers without the Vibration API (iOS WebView) rely on the voice cue.
+ */
+function buzz(type: "work" | "switch" | "rest") {
+  try {
+    navigator.vibrate?.(type === "switch" ? [120, 80, 120] : type === "rest" ? 200 : [60]);
+  } catch {
+    /* Vibration is optional. */
+  }
+}
 export function PreparationEvidence({ protocol }: { protocol: PreparationProtocol }) {
   const ids = [...new Set([...protocol.sources, ...protocol.exercises.flatMap((e) => e.sources)])];
   return (
@@ -108,7 +120,10 @@ export function PreparationEvidence({ protocol }: { protocol: PreparationProtoco
             <strong>{e.name}</strong>
             <p>{e.anatomy}</p>
             <p>{e.mechanism}</p>
-            <small>Dawka praktyczna: {exerciseDose(e)}.</small>
+            <p>Ustawienie: {e.setup}</p>
+            <small>
+              Dawka: {exerciseDose(e)}. {e.doseReason}
+            </small>
           </div>
         ))}
       </div>
@@ -217,6 +232,13 @@ export function PreparationGuide({
       document.removeEventListener("visibilitychange", suspend);
     };
   }, [commit]);
+  const lastBuzz = useRef<number | null>(null);
+  useEffect(() => {
+    if (!progress.running) return;
+    const step = steps[progress.index];
+    if (step && lastBuzz.current !== null && lastBuzz.current !== progress.index) buzz(step.type);
+    lastBuzz.current = progress.index;
+  }, [progress.index, progress.running, steps]);
   useEffect(() => {
     if (!progress.running || !voice) return;
     const step = steps[progress.index];
@@ -393,14 +415,26 @@ export function PreparationGuide({
       <h3>{exercise.name}</h3>
       <PreparationIllustration visual={exercise.visual} label={exercise.name} side={current.side} />
       {current.type === "work" ? (
-        <ol className="bw-prep-cues">
-          {exercise.cues.map((cue, i) => (
-            <li key={cue}>
-              <span>{i + 1}</span>
-              {cue}
-            </li>
-          ))}
-        </ol>
+        <>
+          <p className="bw-prep-setup">
+            <strong>Ustawienie:</strong> {exercise.setup}
+          </p>
+          <ol className="bw-prep-cues">
+            {exercise.cues.map((cue, i) => (
+              <li key={cue}>
+                <span>{i + 1}</span>
+                {cue}
+              </li>
+            ))}
+          </ol>
+          <details className="bw-prep-why">
+            <summary>Co pracuje i dlaczego tyle</summary>
+            <p>{exercise.anatomy}</p>
+            <p>
+              <strong>{exerciseDose(exercise)}.</strong> {exercise.doseReason}
+            </p>
+          </details>
+        </>
       ) : (
         <p className="bw-prep-transition">
           {current.type === "switch"
@@ -628,6 +662,26 @@ export function WarmupCoach({
   onFinish?: (allStepsCompleted: boolean) => void;
 }) {
   const protocol = useMemo(() => warmupFromExercises(exercises, kind), [exercises, kind]);
+  return (
+    <PreparationGuide
+      key={`${storageKey}:${protocol.id}`}
+      protocol={protocol}
+      storageKey={storageKey}
+      onFinish={onFinish}
+    />
+  );
+}
+
+/** Guided cool-down: the planned stretches with side switches, sets and timer. */
+export function CooldownCoach({
+  protocol,
+  storageKey,
+  onFinish,
+}: {
+  protocol: PreparationProtocol;
+  storageKey: string;
+  onFinish?: (allStepsCompleted: boolean) => void | Promise<void>;
+}) {
   return (
     <PreparationGuide
       key={`${storageKey}:${protocol.id}`}

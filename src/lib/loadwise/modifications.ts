@@ -11,6 +11,7 @@ import type {
 import { parseIso, isoDayOfWeek, dayName, addDays, isoDate } from "./labels";
 import { canonicalizeGeneratedExercise } from "./exerciseLibrary";
 import { gymChangeBlockReason } from "./strengthScheduling";
+import { gymCooldown, mobilityCircuit } from "./recoveryContent";
 
 export type Place = "dom" | "boisko" | "silownia";
 
@@ -237,28 +238,28 @@ const CANDIDATES: Candidate[] = [
     intensityLabel: "bardzo niska",
     baseDuration: 15,
     reason: "Najlepsza opcja przy zmęczeniu.",
-    build: (_place, timeMin) => ({
+    build: () => ({
       warmup: [],
       main: [
         {
-          name: "Spacer / bardzo lekki rower",
-          prescription: `${clampTime(15, timeMin)} min, opcjonalnie`,
+          exerciseId: "easy_cycle_recovery",
+          name: "Lekki rower regeneracyjny",
+          prescription: "8 min spacer lub rower, bardzo lekko",
           cue: "Bardzo lekko, tylko rozruszanie.",
         },
-        {
-          name: "Mobilność całego ciała",
-          prescription: "8 min",
-          cue: "Spokojnie, kontroluj zakres.",
-        },
-        {
-          name: "Oddech i wyciszenie",
-          prescription: "4 min wydłużony wydech",
-          cue: "Nos–wdech, długi wydech, rozluźnij barki.",
-        },
+        ...mobilityCircuit(1),
       ],
       accessory: [],
       footballTransfer: [],
-      cooldown: [],
+      cooldown: [
+        ...gymCooldown().slice(0, 3),
+        {
+          exerciseId: "diaphragmatic_breathing",
+          name: "Oddech przeponowy",
+          prescription: "3 min wydłużony wydech",
+          cue: "Nos–wdech, długi wydech, rozluźnij barki.",
+        },
+      ],
     }),
   },
   {

@@ -75,6 +75,13 @@ export const EVIDENCE: Record<string, EvidenceSource> = {
     scope:
       "12 badań; rozciąganie nie zmniejsza istotnie praktycznie opóźnionej bolesności mięśni. Nie przypisujemy mu naprawy tkanek.",
   },
+  acsm: {
+    id: "acsm",
+    title: "Garber i wsp., 2011 — ACSM: zalecenia dotyczące ćwiczeń (w tym gibkości)",
+    url: "https://pubmed.ncbi.nlm.nih.gov/21694556/",
+    scope:
+      "Stanowisko ACSM: rozciąganie statyczne 10–30 s na powtórzenie, łącznie ok. 60 s na grupę mięśniową. Dotyczy dorosłych i gibkości ogólnej, nie regeneracji po meczu.",
+  },
   match: {
     id: "match",
     title: "Marqués-Jiménez i wsp., 2025 — Recovery After an Official Soccer Match",
@@ -90,6 +97,10 @@ export interface PreparationExercise {
   cues: [string, string];
   anatomy: string;
   mechanism: string;
+  /** Exact starting position: feet, knees, hands, trunk. */
+  setup: string;
+  /** Why this number of sets, seconds or repetitions. */
+  doseReason: string;
   sources: string[];
   seconds?: number;
   reps?: number;
@@ -132,6 +143,8 @@ const exercise = (
   cues: [string, string],
   anatomy: string,
   mechanism: string,
+  setup: string,
+  doseReason: string,
   dose: Partial<PreparationExercise>,
 ): PreparationExercise => ({
   id,
@@ -140,11 +153,15 @@ const exercise = (
   cues,
   anatomy,
   mechanism,
+  setup,
+  doseReason,
   sources: ["recovery", "stretch"],
   switchSec: 10,
   restSec: 15,
   ...dose,
 });
+const STRETCH_DOSE =
+  "2 serie po 30 s na stronę to razem 60 s na mięsień. Taką łączną dawkę rozciągania statycznego podają wytyczne ACSM; trzymanie dłużej niż 30 s naraz nie daje wyraźnie więcej. Po dużym obciążeniu serie są krótsze (20 s), żeby nie dokładać napięcia.";
 const MOVES = {
   walk: exercise(
     "walk",
@@ -152,6 +169,8 @@ const MOVES = {
     ["Idź swobodnie.", "Oddychaj bez zadyszki."],
     "Kończyny dolne; ruch naprzemienny.",
     "Lekki ruch i stopniowe przejście od bezruchu do aktywności. Nie jest pomiarem ani gwarancją odbudowy mięśni.",
+    "Równa trasa, korytarz lub boisko. Stawiaj stopy od pięty, ramiona luźno, wzrok przed siebie.",
+    "Około 3 minut wystarczy, żeby tętno i oddech spokojnie zeszły w dół. To przejście do dalszych ćwiczeń, nie dodatkowy trening.",
     { seconds: 180, restSec: 10, sources: ["recovery"] },
   ),
   ankle: exercise(
@@ -160,54 +179,68 @@ const MOVES = {
     ["Pięta pozostaje na ziemi.", "Prowadź kolano w kierunku palców."],
     "Staw skokowy: zgięcie grzbietowe; łydka.",
     "Kontrolowana ekspozycja na zakres ruchu potrzebny w podporze.",
+    "Wykrok przodem do ściany: przednia stopa ok. 10 cm od ściany, palce prosto do przodu, cała pięta na podłożu. Tylna noga swobodnie z tyłu, dłonie na ścianie.",
+    "8 spokojnych powtórzeń na stronę to kilka przejść przez pełny, komfortowy zakres. To praktyczny wybór trenerski: badania nie wskazują lepszej konkretnej liczby, a więcej powtórzeń nie zwiększa zakresu wyraźnie.",
     { reps: 8, sides: true },
   ),
   calf: exercise(
     "calf",
     "Rozciąganie łydki",
     ["Tylna noga prosta, pięta na ziemi.", "Przenieś ciężar lekko do przodu."],
-    "Łydka, ze względnym naciskiem na mięsień brzuchaty przy prostym kolanie.",
+    "Mięsień brzuchaty łydki i ścięgno Achillesa. Brzuchaty przechodzi przez kolano i staw skokowy, dlatego rozciąga się przy prostym kolanie. Pracuje przy każdym odbiciu w biegu i wyskoku.",
     "Łagodna ekspozycja na zgięcie grzbietowe stawu skokowego. Celem jest komfort zakresu ruchu, nie usunięcie DOMS.",
-    { seconds: 30, sides: true },
+    "Dłonie na ścianie na wysokości barków. Jedna noga z tyłu, około jednego kroku za przednią. Obie stopy ustawione prosto palcami do ściany, tylne kolano wyprostowane, cała pięta tylnej nogi na podłożu.",
+    STRETCH_DOSE,
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
   ),
   soleus: exercise(
     "soleus",
     "Łydka z ugiętym kolanem",
     ["Ugnij lekko tylne kolano.", "Pięta cały czas na ziemi."],
-    "Łydka, ze względnym naciskiem na płaszczkowaty przy ugiętym kolanie.",
+    "Mięsień płaszczkowaty: leży pod brzuchatym i nie przechodzi przez kolano, więc rozciąga się dopiero przy ugiętym kolanie. Mocno obciążony przy bieganiu, hamowaniu i lądowaniu.",
     "Zmiana ustawienia kolana modyfikuje warunki rozciągania łydki; nie izoluje jednego mięśnia.",
-    { seconds: 30, sides: true },
+    "Jak przy rozciąganiu łydki, ale tylna stopa bliżej (pół kroku). Ugnij tylne kolano i prowadź je nad palce; pięta cały czas na podłożu.",
+    STRETCH_DOSE,
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
   ),
   hamstring: exercise(
     "hamstring",
     "Tył uda w półklęku",
     ["Wyprostuj nogę z przodu, oprzyj piętę.", "Cofnij biodra, zachowaj długie plecy."],
-    "Mięśnie kulszowo-goleniowe; zgięcie biodra przy wyproście kolana.",
+    "Mięśnie kulszowo-goleniowe (dwugłowy uda, półścięgnisty, półbłoniasty). Przechodzą przez biodro i kolano, więc rozciągają się przy zgiętym biodrze i prostym kolanie. To grupa najczęściej naciągana u piłkarzy przy sprincie.",
     "Łagodne utrzymanie tolerowanego zakresu. Bez sprężynowania i pogłębiania na siłę.",
-    { seconds: 30, sides: true },
+    "Uklęknij na jednym kolanie (pod kolanem coś miękkiego). Przednią nogę wyprostuj: pięta na podłożu, palce do góry. Dłonie na udzie albo po bokach na podłożu, plecy proste.",
+    STRETCH_DOSE,
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
   ),
   quad: exercise(
     "quad",
     "Przód uda z podparciem",
     ["Przytrzymaj stopę za sobą, podeprzyj się.", "Trzymaj kolana blisko, nie wyginaj pleców."],
-    "Przednia grupa uda; zgięcie kolana i ustawienie biodra.",
+    "Mięsień czworogłowy uda, zwłaszcza prosty uda — jedyna głowa przechodząca przez biodro, dlatego podwinięcie miednicy pogłębia rozciąganie. Pracuje przy strzale i hamowaniu.",
     "Łagodna ekspozycja na długość przedniej części uda. Podparcie ogranicza wymagania równowagi.",
-    { seconds: 30, sides: true },
+    "Stań bokiem do ściany i oprzyj o nią dłoń. Drugą ręką chwyć stopę od zewnątrz i przyciągnij piętę do pośladka. Kolana obok siebie, zgięte kolano skierowane w dół, miednica lekko podwinięta.",
+    STRETCH_DOSE,
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
   ),
   hip: exercise(
     "hip",
     "Biodro w półklęku",
     ["Napnij lekko pośladek tylnej nogi.", "Przesuń biodra odrobinę do przodu."],
-    "Przód biodra; wyprost biodra z kontrolą miednicy.",
+    "Zginacze biodra tylnej nogi: mięsień biodrowo-lędźwiowy i prosty uda. Pracują przy każdym kroku biegowym i zamachu do strzału; skracają się przy długim siedzeniu.",
     "Ruch biodra bez zastępowania go przeprostem lędźwiowym.",
-    { seconds: 30, sides: true },
+    "Półklęk: tylne kolano na miękkim podłożu pod biodrem, przednia stopa tak daleko, żeby przednie kolano było nad kostką (kąt ok. 90°). Stopy na szerokość bioder, tułów prosto.",
+    STRETCH_DOSE,
+    { seconds: 30, sides: true, sets: 2, sources: ["recovery", "stretch", "acsm"] },
   ),
   adductor: exercise(
     "adductor",
     "Cofanie bioder w podparciu",
     ["Odstaw jedną nogę w bok.", "Powoli cofaj biodra i wracaj."],
-    "Przywodziciele; odwiedzenie i zgięcie biodra.",
+    "Przywodziciele (wewnętrzna strona uda). U piłkarzy obciążone przy podaniu wewnętrzną częścią stopy i zmianach kierunku; to częste miejsce urazów pachwiny.",
     "Kontrolowany ruch w tolerowanym zakresie, bez dużego obciążenia siłowego.",
+    "Klęk podparty: dłonie pod barkami, jedno kolano pod biodrem. Drugą nogę wyprostuj w bok, cała stopa na podłożu, palce do przodu.",
+    "6 powolnych powtórzeń na stronę: każde z krótkim zatrzymaniem w końcowym, komfortowym zakresie. Przy tej liczbie ruch pozostaje kontrolowany; to praktyczny dobór, nie wynik konkretnego badania.",
     { reps: 6, sides: true },
   ),
   cat: exercise(
@@ -216,14 +249,21 @@ const MOVES = {
     ["Oprzyj dłonie i kolana.", "Powoli zaokrąglaj i prostuj plecy."],
     "Kręgosłup i miednica: łagodne zgięcie i wyprost.",
     "Spokojne poruszanie tułowiem w komfortowym zakresie.",
+    "Klęk podparty: dłonie pod barkami, kolana pod biodrami na szerokość bioder, grzbiety stóp na podłożu.",
+    "6 powtórzeń w rytmie oddechu (wydech przy zaokrąglaniu, wdech przy prostowaniu) zajmuje około minuty. Tyle wystarczy, żeby rozruszać kręgosłup bez zmęczenia.",
     { reps: 6 },
   ),
   rotation: exercise(
     "rotation",
-    "Otwieranie klatki w leżeniu",
-    ["Połóż się na boku, kolana razem.", "Otwieraj górną rękę, wracaj powoli."],
-    "Rotacja tułowia z podparciem dolnej części ciała.",
+    "Rotacja odcinka piersiowego w klęku",
+    [
+      "Obracaj klatkę i łokieć w górę, wzrok za łokciem.",
+      "Biodra zostają nad kolanami, wracaj powoli.",
+    ],
+    "Odcinek piersiowy kręgosłupa (rotacja) i mięśnie między łopatkami. Swobodny obrót tułowia odciąża lędźwie przy strzale i podaniu.",
     "Kontrolowana rotacja bez wymuszania końcowego zakresu.",
+    "Klęk podparty: dłonie pod barkami, kolana pod biodrami. Jedną dłoń połóż za głową, łokieć skierowany w bok.",
+    "6 powtórzeń na stronę, każde z 1–2 s zatrzymaniem na górze. Wystarczy, żeby kilka razy przejść przez pełny zakres obrotu; więcej nie daje wyraźnie więcej.",
     { reps: 6, sides: true },
   ),
   squat: exercise(
@@ -232,6 +272,8 @@ const MOVES = {
     ["Całe stopy na ziemi.", "Zejdź do wygodnej głębokości i wstań."],
     "Biodro, kolano i staw skokowy; wzorzec przysiadu.",
     "Próba wzorca ruchu przed dalszą pracą; bez obciążenia zewnętrznego.",
+    "Stopy na szerokość barków, palce lekko na zewnątrz, ciężar na całej stopie.",
+    "6 powtórzeń to próba wzorca przed właściwą pracą, bez zmęczenia.",
     { reps: 6, sources: ["warmup", "strength"] },
   ),
   bridge: exercise(
@@ -240,6 +282,8 @@ const MOVES = {
     ["Oprzyj stopy, ugnij kolana.", "Unieś biodra bez wyginania pleców."],
     "Wyprost biodra; mięśnie pośladkowe i tylna grupa uda.",
     "Przećwiczenie wyprostu biodra z małym obciążeniem.",
+    "Leżenie na plecach, kolana ugięte, stopy na szerokość bioder ok. 30 cm od pośladków, ręce wzdłuż ciała.",
+    "8 powtórzeń aktywuje pośladki przed pracą, nie męcząc ich.",
     { reps: 8, sources: ["warmup"] },
   ),
   march: exercise(
@@ -248,6 +292,8 @@ const MOVES = {
     ["Unieś kolano, utrzymaj prosty tułów.", "Pracuj przeciwną ręką i zmieniaj nogi."],
     "Koordynacja biodra, kolana, stawu skokowego i ramion.",
     "Przygotowanie rytmu ruchu biegowego przy małej prędkości.",
+    "Wyprostowana sylwetka, stopa stawiana pod biodrem, ramiona zgięte ok. 90°.",
+    "40 s to kilkanaście kroków na nogę: wystarczy, żeby złapać rytm biegowy.",
     { seconds: 40, sources: ["warmup", "dynamic"] },
   ),
   run: exercise(
@@ -256,6 +302,8 @@ const MOVES = {
     ["Zacznij swobodnie, zwiększaj tempo płynnie.", "Zakończ z zapasem, bez sprintu maksymalnego."],
     "Wielostawowa praca kończyn dolnych i ramion.",
     "Stopniowe przybliżenie do intensywności kolejnego zadania.",
+    "Prosty odcinek 30–60 m, równe podłoże, wolne miejsce na wybieganie.",
+    "2 narastające odcinki stopniowo podnoszą prędkość przed główną częścią; więcej zaczęłoby męczyć.",
     { seconds: 20, sets: 2, restSec: 40, sources: ["warmup", "dynamic"] },
   ),
 } satisfies Record<PreparationVisual, PreparationExercise>;
@@ -265,7 +313,7 @@ export function buildRecoveryProtocol(
   context: RecoveryContext = {},
 ): PreparationProtocol {
   const selected: Record<RecoveryFocus, PreparationVisual[]> = {
-    whole: ["walk", "ankle", "adductor", "rotation"],
+    whole: ["walk", "cat", "rotation", "ankle", "adductor", "hip", "hamstring", "calf"],
     calves: ["walk", "ankle", "calf", "soleus"],
     hamstrings: ["walk", "hamstring", "hip", "cat"],
     quadriceps: ["walk", "quad", "hip", "ankle"],
@@ -489,24 +537,96 @@ export function warmupFromExercises(
     exercises.some((e) => /ramp|mobilność: biodra, kostki|aktywacja pośladków i core/i.test(e.name))
   )
     return base;
+  const mapped = mapPrescribed(exercises, base.sources);
+  return mapped ? { ...base, id: `${base.id}:prescribed`, exercises: mapped } : base;
+}
+
+/** Plan exercises that have a guided counterpart (same movement and drawing). */
+const VISUAL_BY_EXERCISE: Record<string, PreparationVisual> = {
+  sprint_cooldown_walk: "walk",
+  calf_wall_stretch: "calf",
+  soleus_bent_knee_stretch: "soleus",
+  half_kneeling_hamstring_stretch: "hamstring",
+  standing_quad_stretch: "quad",
+  half_kneeling_hip_flexor_stretch: "hip",
+  adductor_rockback: "adductor",
+  ankle_rock_forward: "ankle",
+  cat_cow: "cat",
+  quadruped_thoracic_rotation: "rotation",
+  a_march: "march",
+};
+
+export function preparationVisualFor(
+  exercise: Pick<TrainingExercise, "exerciseId" | "visualId">,
+): PreparationVisual | undefined {
+  const fromVisual = exercise.visualId?.replace(/^bwprep:/, "");
+  if (fromVisual && fromVisual in MOVES) return fromVisual as PreparationVisual;
+  return exercise.exerciseId ? VISUAL_BY_EXERCISE[exercise.exerciseId] : undefined;
+}
+
+/** Guided description of a planned movement: anatomy, setup and the reason for its dose. */
+export function preparationMoveFor(
+  exercise: Pick<TrainingExercise, "exerciseId" | "visualId">,
+): PreparationExercise | undefined {
+  const visual = preparationVisualFor(exercise);
+  return visual ? MOVES[visual] : undefined;
+}
+
+/**
+ * Keeps the planned sets, seconds, repetitions and sides. Returns undefined
+ * when any exercise has no guided counterpart, so the caller shows the list.
+ */
+function mapPrescribed(
+  exercises: TrainingExercise[],
+  sources: string[],
+): PreparationExercise[] | undefined {
   const mapped: PreparationExercise[] = [];
   for (const e of exercises) {
-    const id = e.visualId?.replace(/^bwprep:/, "") as PreparationVisual;
-    const known = id && id in MOVES ? MOVES[id] : undefined;
-    if (!known) return base;
-    const raw = e.displayPrescription || e.duration || e.reps || "";
-    const seconds = raw.match(/^(?:\d+\s*[×x]\s*)?(\d+)\s*s\b/);
-    const reps = raw.match(/^(?:\d+\s*[×x]\s*)?(\d+)\s*(?:powt|\/)/);
+    const visual = preparationVisualFor(e);
+    if (!visual) return undefined;
+    const known = MOVES[visual];
+    const raw = [
+      e.sets && !/×/.test(e.duration || e.reps || "") ? `${e.sets} ×` : "",
+      e.displayPrescription || e.duration || e.reps || "",
+    ]
+      .join(" ")
+      .trim();
+    const sets = raw.match(/^(\d+)\s*[×x]\s*/);
+    const body = sets ? raw.slice(sets[0].length) : raw;
+    const minutes = body.match(/^(\d+)\s*min\b/);
+    const seconds = body.match(/^(\d+)\s*s\b/);
+    const distance = /^\d+\s*m\b/.test(body);
+    const reps = distance ? null : body.match(/^(\d+)\s*(?:powt|\/)?/);
+    const timed = minutes ? Number(minutes[1]) * 60 : seconds ? Number(seconds[1]) : undefined;
     mapped.push({
       ...known,
       sourceId: e.id,
       name: e.name,
-      seconds: seconds ? Number(seconds[1]) : known.seconds,
-      reps: seconds ? undefined : reps ? Number(reps[1]) : known.reps,
+      sets: sets ? Number(sets[1]) : 1,
+      seconds: timed ?? (reps ? undefined : known.seconds),
+      reps: timed != null ? undefined : reps ? Number(reps[1]) : known.reps,
       sides: /stron/i.test(raw),
       cues: known.cues,
-      sources: base.sources,
+      sources: [...new Set([...sources, ...known.sources])],
     });
   }
-  return { ...base, id: `${base.id}:prescribed`, exercises: mapped };
+  return mapped.length ? mapped : undefined;
+}
+
+/** Cool-down guided step by step, or undefined when it contains unguided items. */
+export function cooldownFromExercises(
+  exercises: TrainingExercise[],
+): PreparationProtocol | undefined {
+  const mapped = mapPrescribed(exercises, ["recovery", "stretch"]);
+  if (!mapped) return undefined;
+  return {
+    id: `cooldown-v1:${mapped.map((e) => `${e.id}:${e.sets}:${e.seconds ?? e.reps}`).join("|")}`,
+    title: "Wyciszenie",
+    kind: "recovery",
+    goal: "Spokojne zejście z tętna i komfort zakresu ruchu po treningu.",
+    reason: "Każde ćwiczenie prowadzi minutnik: strona, zmiana strony i seria.",
+    exercises: mapped,
+    sources: ["recovery", "stretch", "acsm"],
+    note: "Rozciąganie po treningu służy komfortowi zakresu ruchu. Nie przyspiesza naprawy mięśni i nie zapobiega bolesności.",
+  };
 }

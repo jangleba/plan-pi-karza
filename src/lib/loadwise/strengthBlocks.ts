@@ -1,4 +1,5 @@
 import { balanceStrengthSections } from "./strengthSessionBalance";
+import { gymCooldown, mobilityCircuit, recoveryStretches } from "./recoveryContent";
 import type {
   Profile,
   Intensity,
@@ -263,7 +264,7 @@ const LEGACY_EXERCISE_IDS: Record<string, string> = {
   "izometria łydki / soleus (holding)": "soleus_iso_hold",
   "lądowanie jednonóż (low pogo / stick)": "single_leg_hop_and_stick",
   "decel step (kontrolowane zatrzymanie po biegu)": "drop_landing",
-  "praca rotatorów barku (guma)": "hip_mobility_flow",
+  "praca rotatorów barku (guma)": "face_pull_band",
   "wspięcia na palce (łydka)": "standing_calf_raise",
   "izometria napędowa (split squat iso / wall drive)": "long_lever_hamstring_iso",
   "band acceleration (3–5 kroków z oporem)": "acceleration_mechanics",
@@ -309,6 +310,19 @@ function ex(e: Omit<TrainingExercise, "id"> & { canonicalize?: boolean }): Train
       : {}),
   };
   return canonicalize ? hydrateTrainingExerciseFromDefinition(next) : next;
+}
+/** Converts a flat recovery item ("2 × 30 s / strona", "3 min") into a structured row. */
+function fromRecoveryItem(item: ExerciseItem): TrainingExercise {
+  const sets = item.prescription.match(/^(\d+)\s*×\s*(.+)$/);
+  const dose = sets ? sets[2] : item.prescription;
+  const timed = /\b(?:s|min)\b/.test(dose) && !/powt/.test(dose);
+  return ex({
+    exerciseId: item.exerciseId,
+    name: item.name,
+    sets: sets ? sets[1] : "1",
+    ...(timed ? { duration: dose } : { reps: dose }),
+    cue: item.cue,
+  });
 }
 function block(b: Omit<TrainingBlock, "id">): TrainingBlock {
   return { id: uid("blk"), ...b };
@@ -1388,11 +1402,7 @@ function cooldownSection(): TrainingSection {
         title: "Wyciszenie",
         blockType: "single",
         intent: "mobility",
-        exercises: [
-          ex({ name: "Lekki rower / spacer", duration: "2 min", cue: "Bardzo lekko." }),
-          ex({ name: "Mobilność bioder i tylnych ud", duration: "2 min" }),
-          ex({ name: "Oddech przeponowy", duration: "1 min", cue: "Długi wydech." }),
-        ],
+        exercises: gymCooldown().map(fromRecoveryItem),
       }),
     ],
   });
@@ -1597,7 +1607,7 @@ function recoveryPrehab(ctx: StrengthBlockContext): GymSessionPlan {
           blockType: "single",
           intent: "mobility",
           exercises: [
-            ex({ name: "Mobilność całego ciała", duration: "8 min" }),
+            ...[...mobilityCircuit(1).slice(0, 2), ...recoveryStretches()].map(fromRecoveryItem),
             ex({
               name: "Oddech przeponowy",
               duration: "3 min",
