@@ -17,7 +17,6 @@ import type {
   SecondaryLimiter,
   CurrentPitchFeeling,
   DesiredPitchFeeling,
-  PainLocation,
   DoubleSessions,
 } from "@/lib/loadwise/types";
 import {
@@ -46,7 +45,6 @@ import {
   type AccountOwnerType,
 } from "@/lib/loadwise/agePolicy";
 import { validateSeason } from "@/lib/loadwise/seasonValidation";
-import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -200,7 +198,7 @@ function ChoiceGrid<T extends string>({
 }
 
 function Onboarding() {
-  const { state, hydrated, completeOnboarding,profileSaveStage } = useLoadwise();
+  const { state, hydrated, completeOnboarding, profileSaveStage } = useLoadwise();
   const { user, loading, resendSignupConfirmation } = useAuth();
   const navigate = useNavigate();
   const { edit } = Route.useSearch();
@@ -208,7 +206,7 @@ function Onboarding() {
   const isEditing = Boolean(edit && existing?.onboardingComplete);
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const submitBusy=useRef(false);
+  const submitBusy = useRef(false);
 
   // Require auth.
   useEffect(() => {
@@ -220,7 +218,7 @@ function Onboarding() {
     if (state.profile?.onboardingComplete && !edit && !busy) {
       navigate({ to: "/start", replace: true });
     }
-  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate,busy]);
+  }, [loading, hydrated, user, state.profile?.onboardingComplete, edit, navigate, busy]);
 
   const metadataOwner =
     user?.user_metadata?.account_owner_type === "guardian" ? "guardian" : "athlete";
@@ -253,8 +251,6 @@ function Onboarding() {
   const [matchDate, setMatchDate] = useState(existing?.matchDate ?? "");
   const [noMatch, setNoMatch] = useState(!existing?.matchDate && existing?.weeklyMatches === false);
   const [equipment, setEquipment] = useState<string[]>(existing?.equipment ?? []);
-  const [painInjury, setPainInjury] = useState(existing?.painInjury ?? false);
-  const [painLocations, setPainLocations] = useState<PainLocation[]>(existing?.painLocations ?? []);
   const [consent, setConsent] = useState(existing?.guardianConsent ?? false);
   const [unavailableDays, setUnavailableDays] = useState<number[]>(existing?.unavailableDays ?? []);
   const [matchDateTouched, setMatchDateTouched] = useState(false);
@@ -372,14 +368,6 @@ function Onboarding() {
       prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
     );
   }
-  function togglePainLocation(location: PainLocation) {
-    setPainLocations((current) =>
-      current.includes(location)
-        ? current.filter((item) => item !== location)
-        : [...current, location],
-    );
-  }
-
   function canNext(): boolean {
     if (step === 0) return requiredConsentsOk;
     if (step === 1)
@@ -400,8 +388,7 @@ function Onboarding() {
         !seasonBlocksContinue
       );
     if (step === 3) return goal !== null && secondaryLimiter !== null;
-    if (step === 4)
-      return (noMatch || matchDate.trim().length > 0) && (!painInjury || painLocations.length > 0);
+    if (step === 4) return noMatch || matchDate.trim().length > 0;
     if (step === 5) return currentFeelings.length > 0 && desiredFeelings.length > 0;
     return true;
   }
@@ -444,11 +431,6 @@ function Onboarding() {
     if (!noMatch && !matchDate) {
       toast.error("Podaj datę najbliższego meczu, żeby dobrze ustawić obciążenia.");
       setTriedNext(true);
-      setStep(4);
-      return;
-    }
-    if (painInjury && painLocations.length === 0) {
-      toast.error("Wybierz obszar bólu lub dyskomfortu.");
       setStep(4);
       return;
     }
@@ -508,8 +490,9 @@ function Onboarding() {
             ? [matchDate]
             : [],
       equipment,
-      painInjury: Boolean(consents.health_data && painInjury),
-      painLocations: consents.health_data && painInjury ? painLocations : [],
+      // Onboarding nie zbiera danych o bólu ani urazach (dane wrażliwe, RODO art. 9).
+      painInjury: false,
+      painLocations: [],
       doubleSessionsAllowed:
         level === "beginner" && doubleSessionsAllowed === "yes_if_safe"
           ? "light_only"
@@ -529,7 +512,7 @@ function Onboarding() {
       currentPitchFeelings: normalizeCurrentPitchFeelings(currentFeelings),
       desiredPitchFeelings: normalizeDesiredPitchFeelings(desiredFeelings),
     };
-    submitBusy.current=true;
+    submitBusy.current = true;
     setBusy(true);
     try {
       await completeOnboarding(profile, consents);
@@ -545,7 +528,7 @@ function Onboarding() {
           ?.trim() || "Nieznany błąd";
       toast.error(`Nie udało się zapisać. ${message}`);
     } finally {
-      submitBusy.current=false;
+      submitBusy.current = false;
       setBusy(false);
     }
   }
@@ -1079,60 +1062,6 @@ function Onboarding() {
                     )}
                   </select>
                 </div>
-                {consents.health_data ? (
-                  <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
-                    <Checkbox
-                      checked={painInjury}
-                      onCheckedChange={(v) => setPainInjury(v === true)}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm">
-                      Mam aktualnie ból lub dyskomfort
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        Ograniczymy obciążenie treningowe. BallWise nie diagnozuje urazu, nie
-                        prowadzi rehabilitacji i nie wyznacza powrotu do gry.
-                      </span>
-                    </span>
-                  </label>
-                ) : (
-                  <p className="rounded-xl border border-border bg-card p-3.5 text-xs text-muted-foreground">
-                    Personalizacja danymi o bólu jest wyłączona. Aplikacja pozostanie dostępna i
-                    zastosuje ostrożny wariant planu.
-                  </p>
-                )}
-                {consents.health_data && painInjury && (
-                  <div className="rounded-xl border border-border bg-card p-3.5">
-                    <p className="text-sm font-medium">Gdzie odczuwasz ból lub dyskomfort?</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Wybierz wszystkie pasujące obszary. Służy to tylko do ograniczenia obciążenia
-                      ćwiczeń.
-                    </p>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      {PAIN_LOCATION_OPTIONS.map((option) => {
-                        const selected = painLocations.includes(option.value);
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => togglePainLocation(option.value)}
-                            className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                              selected
-                                ? "border-primary bg-primary/[0.08] text-primary"
-                                : "border-border bg-background text-foreground"
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {painLocations.length === 0 && (
-                      <p className="mt-2 text-xs font-medium text-destructive">
-                        Wybierz przynajmniej jeden obszar.
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Dni całkowicie niedostępne */}
@@ -1402,7 +1331,11 @@ function Onboarding() {
               handleSubmit();
             }}
           >
-            {busy ? (profileSaveStage?PROFILE_SAVE_LABELS[profileSaveStage]:"Przygotowuję zapis…") : "Zapisz i wygeneruj plan"}
+            {busy
+              ? profileSaveStage
+                ? PROFILE_SAVE_LABELS[profileSaveStage]
+                : "Przygotowuję zapis…"
+              : "Zapisz i wygeneruj plan"}
           </Button>
         )}
       </div>

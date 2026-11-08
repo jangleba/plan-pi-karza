@@ -20,7 +20,6 @@ import {
   normalizeCurrentPitchFeelings,
   normalizeDesiredPitchFeelings,
 } from "@/lib/loadwise/playerDirection";
-import { PAIN_LOCATION_OPTIONS } from "@/lib/loadwise/readinessModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -133,10 +132,6 @@ function ProfileScreen() {
     profile.age >= 16 &&
     profile.accountOwnerType === "guardian" &&
     profile.ownershipTransferStatus !== "completed";
-  const painLocationLabel = (profile.painLocations ?? [])
-    .map((location) => PAIN_LOCATION_OPTIONS.find((option) => option.value === location)?.label)
-    .filter(Boolean)
-    .join(", ");
   const currentFeelings = normalizeCurrentPitchFeelings(profile.currentPitchFeelings);
   const desiredFeelings = normalizeDesiredPitchFeelings(profile.desiredPitchFeelings);
   const usualMatchDay =
@@ -345,23 +340,6 @@ function ProfileScreen() {
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Bezpieczeństwo
           </div>
           <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              {!profile.healthPersonalizationEnabled ? (
-                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-              ) : profile.painInjury ? (
-                <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
-              ) : (
-                <CircleCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-              )}
-              {!profile.healthPersonalizationEnabled
-                ? "Dane zdrowotne wyłączone — używany jest ostrożny wariant planu"
-                : profile.painInjury
-                  ? "Zgłoszony ból lub dyskomfort — obciążenie ograniczone"
-                  : "Brak zgłoszonego bólu lub dyskomfortu"}
-            </div>
-            {profile.painInjury && painLocationLabel && (
-              <div className="pl-6 text-xs text-muted-foreground">Obszar: {painLocationLabel}</div>
-            )}
             <div className="flex items-center gap-2 text-sm">
               {requiresGuardianOwner && !profile.guardianConsent ? (
                 <CircleAlert className="h-4 w-4 text-destructive" aria-hidden="true" />
