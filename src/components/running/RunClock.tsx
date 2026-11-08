@@ -6,6 +6,7 @@ import { trainingStorageKey } from "@/lib/loadwise/trainingDetails";
 import { useAuth } from "@/lib/loadwise/auth";
 import { useExerciseSetLogs } from "@/lib/loadwise/setLogs";
 import { formatRunDuration } from "@/lib/running/metrics";
+import { professionalSessionTitle } from "@/lib/loadwise/labels";
 
 type Observed = { number: number; seconds: number; kind: string; saved: boolean };
 type ClockDraft = {
@@ -233,7 +234,7 @@ export function RunClock({
         <span>{step?.kind === "recovery" ? "Przerwa" : "Bieg bez GPS"}</span>
         <span>{step ? `${step.repeatIndex}/${step.repeatTotal}` : "Stoper"}</span>
       </div>
-      <h2>{protocol?.summary ?? session.title}</h2>
+      <h2>{protocol?.summary ?? professionalSessionTitle(session.title)}</h2>
       <div className="bw-run-readout" role="timer">
         {formatRunDuration(remaining)}
       </div>

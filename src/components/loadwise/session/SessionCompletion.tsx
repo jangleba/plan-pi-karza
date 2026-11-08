@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { professionalSessionTitle } from "@/lib/loadwise/labels";
 
 export function MatchStartPanel({ session, isToday }: { session: SessionDay; isToday: boolean }) {
   const { state, startSession } = useLoadwise();
@@ -154,7 +155,7 @@ function CompletionContent({ session, onSaved, suggestedDurationMin }: Completio
       <p className="bw-session-eyebrow">
         {existing?.completed ? "Zapisany trening" : "Podsumowanie"}
       </p>
-      <h2>{session.title}</h2>
+      <h2>{professionalSessionTitle(session.title)}</h2>
       {activity && (
         <p className="bw-session-muted">
           Bieg: {Math.round(activity.durationSec / 60)} min ·{" "}

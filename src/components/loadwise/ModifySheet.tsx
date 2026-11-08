@@ -11,6 +11,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, Clock, Gauge } from "lucide-react";
+import { professionalSessionTitle } from "@/lib/loadwise/labels";
 
 type Step = "choice" | "details" | "proposals";
 export type ModificationChoice = "add" | "swap";
@@ -212,7 +213,9 @@ export function ModifySheet({
               <div key={p.id} className="soft-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">{p.session.title}</div>
+                    <div className="text-sm font-semibold">
+                      {professionalSessionTitle(p.session.title)}
+                    </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
                       {p.session.durationMin} min · {p.session.intensity}
                     </div>

@@ -1,3 +1,4 @@
+import { unifiedSessionTitle } from "./sessionTitles";
 import type {
   Goal,
   Position,
@@ -38,15 +39,7 @@ export const COMPETITION_LEVEL_LABELS: Record<CompetitionLevel, string> = {
   pro: "Profesjonalny",
 };
 
-const PL_DAYS = [
-  "Niedziela",
-  "Poniedziałek",
-  "Wtorek",
-  "Środa",
-  "Czwartek",
-  "Piątek",
-  "Sobota",
-];
+const PL_DAYS = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"];
 
 const PL_MONTHS = [
   "stycznia",
@@ -120,28 +113,9 @@ export function formatDateFull(s: string): string {
   return `${PL_DAYS[d.getDay()]}, ${d.getDate()} ${PL_MONTHS[d.getMonth()]}`;
 }
 
-/** Spójna, profesjonalna nazwa jednostki w warstwie interfejsu. */
+/** Spójna, krótka nazwa jednostki w warstwie interfejsu („Kategoria: akcent”). */
 export function professionalSessionTitle(title: string): string {
-  const normalized = title.trim().toLocaleLowerCase("pl-PL");
-  if (
-    normalized === "siła dolnych partii" ||
-    normalized === "siła nóg" ||
-    normalized === "siła dolnej części ciała"
-  ) {
-    return "Trening siłowy kończyn dolnych";
-  }
-  if (
-    normalized === "siła górnych partii" ||
-    normalized === "siła góry" ||
-    normalized === "siła górnej części ciała"
-  ) {
-    return "Trening siłowy górnej części ciała";
-  }
-  if (normalized === "wytrzymałość") return "Trening wytrzymałościowy";
-  if (normalized === "szybkość") return "Trening szybkości";
-  if (normalized === "wolne" || normalized === "odpoczynek") return "Dzień wolny";
-  if (normalized === "klub") return "Trening klubowy";
-  return title;
+  return unifiedSessionTitle(title);
 }
 
 export const GOAL_LABELS: Record<Goal, string> = {
@@ -181,13 +155,12 @@ export const LEVEL_LABELS: Record<Level, string> = {
   elite: "Wysoki poziom / elite youth",
 };
 
-export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] =
-  [
-    { value: 1, label: "Poniedziałek", short: "Pn" },
-    { value: 2, label: "Wtorek", short: "Wt" },
-    { value: 3, label: "Środa", short: "Śr" },
-    { value: 4, label: "Czwartek", short: "Cz" },
-    { value: 5, label: "Piątek", short: "Pt" },
-    { value: 6, label: "Sobota", short: "So" },
-    { value: 7, label: "Niedziela", short: "Nd" },
-  ];
+export const ISO_DAY_LABELS: { value: number; label: string; short: string }[] = [
+  { value: 1, label: "Poniedziałek", short: "Pn" },
+  { value: 2, label: "Wtorek", short: "Wt" },
+  { value: 3, label: "Środa", short: "Śr" },
+  { value: 4, label: "Czwartek", short: "Cz" },
+  { value: 5, label: "Piątek", short: "Pt" },
+  { value: 6, label: "Sobota", short: "So" },
+  { value: 7, label: "Niedziela", short: "Nd" },
+];

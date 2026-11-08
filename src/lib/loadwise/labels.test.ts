@@ -17,14 +17,12 @@ describe("local day resolution", () => {
 });
 
 describe("professional session titles", () => {
-  it("replaces shorthand strength labels with professional Polish names", () => {
-    expect(professionalSessionTitle("Siła nóg")).toBe("Trening siłowy kończyn dolnych");
-    expect(professionalSessionTitle("Siła górnej części ciała")).toBe(
-      "Trening siłowy górnej części ciała",
-    );
+  it("replaces shorthand strength labels with the unified names", () => {
+    expect(professionalSessionTitle("Siła nóg")).toBe("Siła: nogi");
+    expect(professionalSessionTitle("Siła górnej części ciała")).toBe("Siła: góra ciała");
   });
 
-  it("keeps an already specific title unchanged", () => {
-    expect(professionalSessionTitle("Przyspieszenie 10–20 m")).toBe("Przyspieszenie 10–20 m");
+  it("names a sprint by its focus", () => {
+    expect(professionalSessionTitle("Przyspieszenie 10–20 m")).toBe("Sprint: przyspieszenie");
   });
 });

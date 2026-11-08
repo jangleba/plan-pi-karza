@@ -69,13 +69,6 @@ function sessionIcon(day: SessionDay): LucideIcon {
   return Dumbbell;
 }
 
-/** Keep the overview brief; the session page always shows the complete title. */
-function compactSessionTitle(title: string): string {
-  const full = professionalSessionTitle(title);
-  const short = full.replace(/^Siłownia:\s*/i, "").replace(/\s*\(technika\)\s*$/i, "");
-  return short.charAt(0).toLocaleUpperCase("pl-PL") + short.slice(1);
-}
-
 /** Jednowyrazowy tag pod nazwą sesji. */
 function shortTag(day: SessionDay): string {
   switch (day.dayType) {
@@ -92,7 +85,7 @@ function shortTag(day: SessionDay): string {
     default: {
       const t = day.sessionType.toLowerCase();
       if (t.includes("szybk") || t.includes("sprint")) return "Szybkość";
-      if (t.includes("sił")) return "Główna jednostka";
+      if (t.includes("sił")) return "Siła";
       if (t.includes("moc")) return "Moc";
       if (t.includes("wytrzym")) return "Wytrzymałość";
       if (t.includes("piłk") || t.includes("techn")) return "Technika";
@@ -526,7 +519,7 @@ function PlanScreen() {
                   <div className="bw-plan-day-copy">
                     <div className="bw-plan-title-line">
                       <h3 className="bw-plan-day-title" title={fullTitle}>
-                        {compactSessionTitle(day.title)}
+                        {professionalSessionTitle(day.title)}
                       </h3>
                       {done && (
                         <CheckCircle2 className="bw-plan-completed" size={15} aria-hidden="true" />
