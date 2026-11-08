@@ -138,7 +138,6 @@ export function LearningJourney(props: Props) {
     [fieldTask, setFieldTask] = useState<FieldTask | null>(null),
     [broadcast, setBroadcast] = useState(readBroadcastView);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
-    [takeover, setTakeover] = useState(false),
     [ready, setReady] = useState(false);
   const [archive, setArchive] = useState(false),
     [replay, setReplay] = useState<JourneySession | null>(null);
@@ -154,7 +153,8 @@ export function LearningJourney(props: Props) {
     completed = useRef(new Set<string>());
   const allowedReplacement = useRef(false);
   const guided = mode === "learn" && !transfer;
-  const actor = takeover ? session.world.carrierId : "you";
+  // Only TY is controlled: the player learns their own position, with and without the ball.
+  const actor = "you";
   const controlled = useMemo(() => ({ ...session, controlledId: actor }), [session, actor]);
   const displayed = replay ?? session;
   current.current = displayed;
@@ -298,7 +298,6 @@ export function LearningJourney(props: Props) {
       setDraft(null);
       setOptionKey(null);
       setRevealed(false);
-      setTakeover(false);
       play(
         next,
         from,
@@ -316,7 +315,6 @@ export function LearningJourney(props: Props) {
     setId(newId());
     setPhase("intro");
     setDraft(null);
-    setTakeover(false);
     setReplay(null);
     setSaved(false);
     setSheet(null);
@@ -724,32 +722,6 @@ export function LearningJourney(props: Props) {
                 </button>
               )}
             </div>
-            {!own && carrier.team === "home" && !takeover && (
-              <button
-                type="button"
-                className="iqE-link"
-                onClick={() => {
-                  setTakeover(true);
-                  setDraft(null);
-                  setOptionKey(null);
-                }}
-              >
-                Zagraj jedno zagranie za {carrier.number}
-              </button>
-            )}
-            {takeover && (
-              <button
-                type="button"
-                className="iqE-link"
-                onClick={() => {
-                  setTakeover(false);
-                  setDraft(null);
-                  setOptionKey(null);
-                }}
-              >
-                Wróć do TY
-              </button>
-            )}
           </>
         ) : phase === "playing" ? (
           <div className="iqE-coach" aria-live="polite">
