@@ -9,8 +9,9 @@ export function normalizedFoodText(value: string): string {
 const groups: Record<string, RegExp> = {
   milk: /mlek|mlecz|nabial|laktoz|lactos|milk|dairy/,
   eggs: /jaj|\beggs?\b/,
-  peanuts: /arachid|orzech.{0,8}ziemn|peanut/,
-  nuts: /orzech|migdal|nerkow|pistac|hazelnut|walnut|almond|cashew|pistachio|\bnuts?\b/,
+  peanuts: /arachid|orze(?:ch|sz).{0,8}ziemn|peanut/,
+  // "orzeszki ziemne" are peanuts; other "orzeszki" (laskowe, pinii) are tree nuts.
+  nuts: /orzech|orzeszk(?!i\s*ziemn)|laskow|migdal|nerkow|pistac|makadami|pekan|hazelnut|walnut|almond|cashew|pistachio|macadamia|pecan|\bnuts?\b/,
   gluten: /gluten|celiak|pszen|jeczm|zytni|zyto|wheat|barley|rye/,
   oats: /owies|owsian|\boats?\b/,
   soy: /soj|soy/,

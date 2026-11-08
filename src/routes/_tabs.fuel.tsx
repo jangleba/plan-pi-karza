@@ -44,13 +44,15 @@ function FuelScreen() {
     planFuelContexts(effectivePlan, tomorrowIso, state.completions).find(
       (c) => c.kind === "match",
     ) ?? null;
+  // A stable array keeps FuelWorkspace from recomputing recipes on every render.
+  const profileRestrictions = useMemo(() => foodRestrictionTerms(state.profile), [state.profile]);
   return (
     <FuelWorkspace
       key={user?.id ?? "guest"}
       userId={user?.id ?? "guest"}
       contexts={contexts}
       tomorrowContext={tomorrowContext}
-      profileRestrictions={foodRestrictionTerms(state.profile)}
+      profileRestrictions={profileRestrictions}
     />
   );
 }

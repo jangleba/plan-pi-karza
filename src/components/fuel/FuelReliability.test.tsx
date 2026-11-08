@@ -129,4 +129,29 @@ describe("Fuel persistent user choices", () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalledWith(expect.stringContaining("Nie zapisano posiłku"));
   });
+  it("keeps logging drinks when the history is full by dropping the oldest one", async () => {
+    const now = Date.now();
+    const data = emptyFuelData();
+    data.drinks = Array.from({ length: 100 }, (_, i) => ({
+      id: `d${i}`,
+      contextKey: "old",
+      at: now - (i + 1) * 60_000,
+      ml: 200,
+      kind: "water" as const,
+    }));
+    localStorage.setItem(fuelStorageKey("u"), JSON.stringify(data));
+    await render();
+    const form = host.querySelector<HTMLFormElement>(".fuel-drink-form")!;
+    const input = form.querySelector<HTMLInputElement>("input")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "300");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => form.requestSubmit());
+    const saved = readFuelData(localStorage, "u").drinks ?? [];
+    expect(saved).toHaveLength(100);
+    expect(saved[0].ml).toBe(300);
+    expect(saved.some((d) => d.id === "d99")).toBe(false);
+    expect(toast.info).not.toHaveBeenCalled();
+  });
 });

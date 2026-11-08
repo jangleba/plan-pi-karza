@@ -26,6 +26,7 @@ import {
   manualFuelContext,
   minutesToFuelStart,
   readFuelData,
+  FUEL_HISTORY_LIMIT,
   resolveFuelTiming,
   writeFuelData,
   fuelStorageKey,
@@ -440,19 +441,13 @@ export function FuelWorkspace({
     }
     if (entry.minutesBefore != null && entry.minutesBefore > 1440)
       entry = { ...entry, minutesBefore: null };
-    if (
-      !previous &&
-      !data.entries.some((existing) => existing.id === entry.id) &&
-      data.entries.length >= 100
-    ) {
-      toast.info(
-        "Historia ma 100 wpisów. Pobierz kopię i usuń starsze wpisy, żeby zapisać nowy posiłek.",
-      );
-      return;
-    }
     setData((d) => ({
       ...d,
-      entries: [entry, ...d.entries.filter((e) => e.id !== (replaceId ?? entry.id))].slice(0, 100),
+      // Newest first; the oldest entry drops out instead of blocking a new meal.
+      entries: [entry, ...d.entries.filter((e) => e.id !== (replaceId ?? entry.id))].slice(
+        0,
+        FUEL_HISTORY_LIMIT,
+      ),
     }));
     pendingSaveFeedback.current = {
       message:
@@ -971,16 +966,16 @@ export function FuelWorkspace({
             setPanel("pack");
           }}
           onDrink={(ml, kind) => {
-            if ((data.drinks ?? []).length >= 100) {
-              toast.info("Historia napojów ma 100 wpisów. Pobierz kopię i usuń starsze wpisy.");
-              return;
-            }
             const id = crypto.randomUUID();
             const at = Date.now();
             setNow(at);
             setData((d) => ({
               ...d,
-              drinks: [{ id, contextKey: context.key, at, ml, kind }, ...(d.drinks ?? [])],
+              // Newest first; the oldest drink drops out instead of blocking new logs.
+              drinks: [{ id, contextKey: context.key, at, ml, kind }, ...(d.drinks ?? [])].slice(
+                0,
+                FUEL_HISTORY_LIMIT,
+              ),
             }));
             pendingSaveFeedback.current = {
               message: "Zapisano wypity napój.",
