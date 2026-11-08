@@ -30,6 +30,8 @@ import { BALL_RADIUS } from "./playback";
 import type { MatchPlayer, PlannedAction, Point } from "./types";
 
 const world = (p: Point, height = 0) => new Vector3(p.x - 50, height, p.y - 70);
+/** Crossbar height in pitch units (goal is 16 units wide). */
+const GOAL_HEIGHT = 5.3;
 
 export async function createPitchScene(
   host: HTMLDivElement,
@@ -84,9 +86,11 @@ export async function createPitchScene(
   >();
   const ground = new Group();
   scene.add(ground);
+  const stripes: MeshBasicMaterial[] = [];
   function plane(x: number, y: number, w: number, h: number, color: string) {
     const geometry = new PlaneGeometry(w, h);
     const material = new MeshBasicMaterial({ color });
+    stripes.push(material);
     ownedGeometries.add(geometry);
     ownedMaterials.add(material);
     const mesh = new Mesh(geometry, material);
@@ -146,6 +150,33 @@ export async function createPitchScene(
   arc(50, 116, 11, Math.PI + 0.56, 2 * Math.PI - 0.56);
   rect(42, 0, 16, 3);
   rect(42, 137, 16, 3);
+  // Goal frames: posts and crossbar, visible in the side view.
+  const goalPaint = new LineBasicMaterial({ color: "#f4f7f5" });
+  ownedMaterials.add(goalPaint);
+  for (const y of [3, 137]) {
+    const geometry = new BufferGeometry().setFromPoints([
+      world({ x: 42, y }, 0),
+      world({ x: 42, y }, GOAL_HEIGHT),
+      world({ x: 58, y }, GOAL_HEIGHT),
+      world({ x: 58, y }, 0),
+    ]);
+    ownedGeometries.add(geometry);
+    ground.add(new Line(geometry, goalPaint));
+  }
+  /** Board colours for the top view, natural grass and white paint for the TV side view. */
+  const paintPitch = (tv: boolean) => {
+    stripes.forEach((m, i) =>
+      m.color.set(
+        tv ? (i % 2 ? "#3f8a3c" : "#47963f") : i % 2 ? "#205347" : "#1c4e43",
+      ),
+    );
+    paint.color.set(tv ? "#f2f5ef" : "#c5dacb");
+    paint.opacity = tv ? 0.85 : 0.6;
+    scene.background = new Color(tv ? "#1d2f24" : "#1b4a40");
+    shadowMaterial.opacity = tv ? 0.34 : 0.24;
+    if (tv) sun.position.set(70, 90, -25);
+    else sun.position.set(-40, 90, 45);
+  };
 
   const routes = new Group();
   scene.add(routes);
@@ -290,7 +321,9 @@ export async function createPitchScene(
     broadcastCamera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
   };
-  const BROADCAST_SCALE = 1;
+  // Close to real proportions: players smaller against the pitch, like a TV picture.
+  const BROADCAST_SCALE = 0.45;
+  const markScale = () => (broadcast ? 0.6 : 1);
   // TV side camera: on the touchline, low and close, attack runs left to right.
   const BROADCAST_ELEVATION = (28 * Math.PI) / 180;
   const scaleNow = () => (broadcast ? BROADCAST_SCALE : figureScale);
@@ -305,7 +338,7 @@ export async function createPitchScene(
     };
     // Along the pitch is the screen width, across the pitch is the screen depth.
     const spanAlong = Math.max(
-      34,
+      30,
       Math.min(80, Math.abs(ballAt.y - you.y) + 22),
     );
     const spanAcross = Math.max(
@@ -314,9 +347,9 @@ export async function createPitchScene(
     );
     const halfV = (broadcastCamera.fov * Math.PI) / 360;
     const halfH = Math.atan(Math.tan(halfV) * broadcastCamera.aspect);
-    // Never closer than 55 m: wide, short screens would otherwise put a giant player in front.
+    // Never closer than 42 m: wide, short screens would otherwise put a giant player in front.
     const wanted = Math.max(
-      55,
+      42,
       spanAlong / 2 / Math.tan(halfH),
       (spanAcross * Math.sin(BROADCAST_ELEVATION)) / 2 / Math.tan(halfV),
     );
@@ -403,6 +436,7 @@ export async function createPitchScene(
       actor.root.position.copy(world(point));
       actor.root.scale.setScalar(scaleNow());
       actor.shadow.position.copy(world(point, 0.06));
+      actor.shadow.scale.setScalar(markScale());
       const motion = frame.motions.get(id)!;
       // Leg stride follows map distance at this display scale; field coordinates stay unchanged.
       actor.pose(
@@ -412,9 +446,17 @@ export async function createPitchScene(
         clock,
       );
     });
-    ball.position.copy(world(frame.ballVisual, frame.ballHeight));
+    ball.scale.setScalar(markScale());
+    ball.position.copy(
+      world(
+        frame.ballVisual,
+        frame.ballHeight - BALL_RADIUS * (1 - markScale()),
+      ),
+    );
     ballShadow.position.copy(world(frame.ballVisual, 0.08));
-    ballShadow.scale.setScalar(1 + Math.min(frame.ballHeight, 14) * 0.055);
+    ballShadow.scale.setScalar(
+      markScale() * (1 + Math.min(frame.ballHeight, 14) * 0.055),
+    );
     ballShadowMaterial.opacity = Math.max(
       0.12,
       0.36 - frame.ballHeight * 0.016,
@@ -422,6 +464,8 @@ export async function createPitchScene(
     carrierRing.visible = guidanceVisible && !frame.ballInFlight;
     const carrierPoint = frame.positions.get(frame.ballCarrierId);
     if (carrierPoint) carrierRing.position.copy(world(carrierPoint, 0.11));
+    carrierRing.scale.setScalar(markScale());
+    ring.scale.setScalar(markScale());
     if (cue.visible)
       cue.scale.setScalar(
         reducedMotion.matches ? 1 : 1 + Math.sin(clock * 2.2) * 0.045,
@@ -478,6 +522,7 @@ export async function createPitchScene(
     if (wantBroadcast !== broadcast) {
       broadcast = wantBroadcast;
       view = broadcast ? broadcastCamera : camera;
+      paintPitch(broadcast);
       followTarget = null;
     }
     if (broadcast) followBall(frame, isPlaying);
