@@ -313,6 +313,9 @@ export function isYouthOrBeginner(athlete?: AthleteSchedProfile | null): boolean
   ) {
     return true;
   }
+  // Onboarding nie pyta o staż na siłowni; bez tej informacji decyduje ogólny
+  // poziom. Wcześniej początkujący bez gymExperienceLevel dostawał ciężką „Siłę ogólną”.
+  if (athlete.gymExperienceLevel == null) return athlete.trainingLevel === "beginner";
   return athlete.gymExperienceLevel === "none" || athlete.gymExperienceLevel === "beginner";
 }
 

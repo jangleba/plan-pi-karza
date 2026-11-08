@@ -4335,6 +4335,32 @@ const GENERATED_FAMILY_FALLBACKS: Record<CanonicalExerciseFamily, string> = {
   football_ball_work: "football_technical_self_selected",
 };
 
+/**
+ * Generated names that have no exact library record but a clear canonical
+ * counterpart. Without these the family fallback renamed e.g. a running
+ * warm-up to "Lekki rower regeneracyjny", Nordic curls to a bodyweight squat
+ * and a falling start to a side plank, so the athlete saw the wrong exercise.
+ */
+const GENERATED_NAME_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/akcj\w* (?:pozycyjn|meczow)|akcje pewności/i, "football_technical_self_selected"],
+  [/nordic/i, "eccentric_nordic_hamstring"],
+  [/copenhagen/i, "adductor_bridge_squeeze"],
+  [/wspięcia na (?:łydki|palce)/i, "standing_calf_raise"],
+  [/wykrok bułgarski/i, "bodyweight_split_squat"],
+  [/snap[- ]down/i, "snap_down"],
+  [/przysiad skoczny|trap-bar jump/i, "squat_jump"],
+  [/falling start|wall drill|przebieżk|build-up|budowanie prędkości|koordynacja i zwinność/i, "acceleration_mechanics"],
+  [/rozgrzewka dynamiczna|dynamiczna rozgrzewka biegowa|\bramp\b/i, "sprint_ramp_warmup"],
+  [/interwał\w* biegow|odcinki tempowe/i, "method_interval_run"],
+  [/trucht|bieg ciągły|rozgrzewka tlenowa|lekka praca tlenowa/i, "easy_aerobic_run"],
+];
+
+function hintedCanonical(name: string): ExerciseDefinition | undefined {
+  const match = GENERATED_NAME_HINTS.find(([pattern]) => pattern.test(name));
+  const def = match ? getExerciseDefinition(match[1]) : undefined;
+  return isApprovedCanonicalExercise(def) ? def : undefined;
+}
+
 function inferGeneratedFamily(name: string): CanonicalExerciseFamily {
   const value = normalizeExerciseName(name);
   const positiveBallWork = value.replace(/bez\s+(?:piłk|pilk)\w*/g, "");
@@ -4364,6 +4390,7 @@ export function canonicalizeGeneratedExercise(
   const canonical =
     (isApprovedCanonicalExercise(byId) && byId) ||
     (isApprovedCanonicalExercise(byName) && byName) ||
+    hintedCanonical(exercise.name) ||
     getExerciseDefinition(
       GENERATED_FAMILY_FALLBACKS[
         family ??

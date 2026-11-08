@@ -461,12 +461,42 @@ function sprintDrills(seed: number): CatExercise[] {
 }
 
 // Blok C — krótka plyometria / stiffness BEZ sprzętu (opcjonalna dla młodszych).
-function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] {
+// Każdy wariant ma jawne exerciseId: bez niego kanonizacja podstawiała
+// „Skok z zamachem”, a opis i dawka mówiły o czymś innym.
+function fieldPlyo(
+  seed: number,
+  young: boolean,
+  light: boolean,
+  level: Profile["level"],
+  age: number,
+): CatExercise[] {
+  // Pogo w bibliotece wymaga min. 14 lat; początkujący i najmłodsi uczą się lądowania.
+  if (level === "beginner" || age < 14) {
+    return [
+      mk(
+        {
+          name: "Lądowanie snap-down",
+          exerciseId: "snap_down",
+          prescription: "3 × 4 lądowania",
+          rest: "60 s",
+          cue: "Szybko w dół do pozycji atletycznej, ciche lądowanie, kolano nad stopą.",
+        },
+        {
+          isPlyometric: true,
+          isSprintSpecific: true,
+          primaryQuality: "kontrola lądowania",
+          allowedSessionTypes: ["sport_performance"],
+          tissueLoadTags: ["kolano"],
+        },
+      ),
+    ];
+  }
   if (young || light) {
     return [
       mk(
         {
           name: "Niskie pogo jumps",
+          exerciseId: "bilateral_pogo",
           prescription: "3 × 6 kontaktów",
           rest: "60 s",
           cue: "Sztywna kostka, krótki, cichy kontakt z podłożem.",
@@ -486,6 +516,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] 
       mk(
         {
           name: "Pogo jumps + snap down",
+          exerciseId: "bilateral_pogo",
           prescription: "3 × 6 pogo + 3 snap down",
           rest: "60 s",
           cue: "Krótki kontakt, sztywna kostka, jakość ponad ilość.",
@@ -503,6 +534,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] 
       mk(
         {
           name: "Bounds (wieloskoki) — niska objętość",
+          exerciseId: "repeated_broad_jump",
           prescription: "3 × 4 wieloskoki",
           rest: "75 s",
           cue: "Daleki, sprężysty krok, lądowanie pod biodrem.",
@@ -521,6 +553,7 @@ function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] 
       mk(
         {
           name: "Single-leg hops + broad jump",
+          exerciseId: "single_leg_hop_and_stick",
           prescription: "3 × 4 podskoki na nogę + 3 skoki w dal",
           rest: "75 s",
           cue: "Stabilne lądowanie, miękkie kolano, kontrola.",
@@ -536,7 +569,14 @@ function fieldPlyo(seed: number, young: boolean, light: boolean): CatExercise[] 
       ),
     ],
   ];
-  return pick(variants, seed);
+  // Warianty „advanced_only” (wieloskoki, skoki jednonóż) tylko dla zaawansowanych.
+  const allowed =
+    level === "advanced" || level === "elite"
+      ? variants
+      : variants.filter((variant) =>
+          variant.every((item) => item.meta.ageSafety !== "advanced_only"),
+        );
+  return pick(allowed, seed);
 }
 
 export function buildSportPerformance(
@@ -754,7 +794,7 @@ export function buildSportPerformance(
   }
 
   // Blok C — krótka plyometria / stiffness bez sprzętu (przed sprintami).
-  const plyo = fieldPlyo(opts.seed, young, light);
+  const plyo = fieldPlyo(opts.seed, young, light, profile.level, profile.age);
 
   return {
     title,
