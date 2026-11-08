@@ -21,6 +21,7 @@ import { migratePersistedExerciseData } from "../exerciseLibrary";
 import { localToday, parseIso } from "../labels";
 import { normalizeMatchDates } from "../matchSchedule";
 import { PLAN_ENGINE_VERSION } from "../planVersion";
+import { guardedPlanWrite, planWriteKey } from "./planWriteGuard";
 import type {
   ExerciseReplacement,
   Profile,
@@ -461,6 +462,16 @@ export function useHydration({
             revisionMismatch ||
             planOlderThanProfile;
 
+          const storedPlan = plan;
+          const writeKey = (kind: string) =>
+            planWriteKey([
+              user.id,
+              kind,
+              (planRow?.id as string | undefined) ?? null,
+              PLAN_ENGINE_VERSION,
+              profileRevision,
+              todayIso,
+            ]);
           if (shouldRebuildCanonical) {
             const { persistMonthlyPlan } = await modules.persist;
             const canonical = stampPlanRevision(
@@ -493,14 +504,31 @@ export function useHydration({
             // Even a corrupted empty snapshot still has a real active header for optimistic locking.
             if (plan[0] && planRow?.id && !plan[0].planDbId) plan[0].planDbId = String(planRow.id);
             if (cancelled) return;
-            if (canWritePlan()) plan = await persistMonthlyPlan(user.id, profile, plan);
-            planGeneratedFor = todayIso;
-            clearFutureOverlays = true;
+            if (canWritePlan()) {
+              const rebuilt = plan;
+              const saved = await guardedPlanWrite(writeKey("rebuild"), () =>
+                persistMonthlyPlan(user.id, profile, rebuilt),
+              );
+              if (saved) {
+                plan = saved;
+                planGeneratedFor = todayIso;
+                clearFutureOverlays = true;
+              } else plan = storedPlan; // rejected: keep showing what is actually stored
+            } else {
+              planGeneratedFor = todayIso;
+              clearFutureOverlays = true;
+            }
           } else if (revisionInfo.revision !== profileRevision || schemaMissingOrMismatched) {
             const { persistMonthlyPlan } = await modules.persist;
             plan = stampPlanRevision(plan, profileRevision, ONBOARDING_SCHEMA_VERSION);
             if (cancelled) return;
-            if (canWritePlan()) plan = await persistMonthlyPlan(user.id, profile, plan);
+            if (canWritePlan()) {
+              const stamped = plan;
+              plan =
+                (await guardedPlanWrite(writeKey("stamp"), () =>
+                  persistMonthlyPlan(user.id, profile, stamped),
+                )) ?? storedPlan;
+            }
             planGeneratedFor = todayIso;
           } else if (migrationOriginalPlan && migrationChanged) {
             if (canWritePlan()) {
@@ -510,7 +538,10 @@ export function useHydration({
                 profileRevision,
                 ONBOARDING_SCHEMA_VERSION,
               );
-              plan = await persistMonthlyPlan(user.id, profile, migrated);
+              plan =
+                (await guardedPlanWrite(writeKey("migrate"), () =>
+                  persistMonthlyPlan(user.id, profile, migrated),
+                )) ?? migrationOriginalPlan;
             } else plan = migrationOriginalPlan;
           }
         }
