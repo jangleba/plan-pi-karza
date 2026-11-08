@@ -39,7 +39,7 @@ describe("practical Fuel user flow", () => {
     await click("1 h");
     expect(Object.values(saved().timings)[0].presetMin).toBe(60);
     await click("Zamień");
-    await click("Nie chcę produktu");
+    await click("Nie lubię tego");
     await click("Banan");
     await click("Gotowe");
     expect(saved().preferences.excludedFoodIds).toContain("banana");

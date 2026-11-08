@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { FuelWorkspace } from "@/components/fuel/FuelWorkspace";
-import { planFuelContexts, foodRestrictionTerms } from "@/lib/fuel/experience";
+import { planFuelContexts } from "@/lib/fuel/experience";
+import { legacyDislikedFoodIds } from "@/lib/fuel/practical";
 import { useAuth } from "@/lib/loadwise/auth";
 import { selectEffectivePlan } from "@/lib/loadwise/effectivePlanSelector";
 import { useLoadwise } from "@/lib/loadwise/store";
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/_tabs/fuel")({
       {
         name: "description",
         content:
-          "Wybierz czas do treningu, prosty zestaw lub zamiennik. Zapisz produkty, których nie chcesz.",
+          "Wybierz czas do treningu, prosty zestaw lub zamiennik. Zapisz produkty, których nie lubisz.",
       },
     ],
   }),
@@ -44,15 +45,14 @@ function FuelScreen() {
     planFuelContexts(effectivePlan, tomorrowIso, state.completions).find(
       (c) => c.kind === "match",
     ) ?? null;
-  // A stable array keeps FuelWorkspace from recomputing recipes on every render.
-  const profileRestrictions = useMemo(() => foodRestrictionTerms(state.profile), [state.profile]);
+  const legacyDislikes = useMemo(() => legacyDislikedFoodIds(state.profile), [state.profile]);
   return (
     <FuelWorkspace
       key={user?.id ?? "guest"}
       userId={user?.id ?? "guest"}
       contexts={contexts}
       tomorrowContext={tomorrowContext}
-      profileRestrictions={profileRestrictions}
+      legacyDislikedFoodIds={legacyDislikes}
     />
   );
 }

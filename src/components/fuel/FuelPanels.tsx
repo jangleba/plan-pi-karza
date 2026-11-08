@@ -88,7 +88,7 @@ interface Props {
 const titles: Record<Exclude<FuelPanelName, null>, string> = {
   time: "Kiedy trenujesz?",
   swap: "Co zmieniamy?",
-  exclude: "Tego nie chcę",
+  exclude: "Czego nie lubię",
   preferences: "Twoje preferencje",
   own: "Dokończ mój posiłek",
   pantry: "Co masz pod ręką?",
@@ -252,7 +252,7 @@ export function FuelPanels(incoming: Props) {
                 </button>
                 <button onClick={() => p.setPanel("exclude")}>
                   <Ban size={20} />
-                  Nie chcę produktu
+                  Nie lubię tego
                   <ChevronRight size={17} />
                 </button>
                 <button onClick={p.onQuick}>
@@ -296,10 +296,10 @@ export function FuelPanels(incoming: Props) {
           )}
           {p.panel === "exclude" && (
             <>
-              <p className="fuel-note">Wybierz produkty, które pomijać w propozycjach.</p>
+              <p className="fuel-note">Zaznacz, czego nie lubisz. Pominę to w propozycjach.</p>
               <input
                 className="fuel-input"
-                aria-label="Szukaj produktu do pominięcia"
+                aria-label="Szukaj produktu, którego nie lubisz"
                 placeholder="Szukaj produktu"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -386,11 +386,11 @@ export function FuelPanels(incoming: Props) {
                   </label>
                 ))}
               </div>
-              <h3 className="mt-4">Tego nie chcę</h3>
-              <p className="fuel-note">Zaznacz produkty, które pomijać. Nie pytamy o powód.</p>
+              <h3 className="mt-4">Czego nie lubię</h3>
+              <p className="fuel-note">Zaznacz, czego nie lubisz. Pominę to w propozycjach.</p>
               <input
                 className="fuel-input"
-                aria-label="Szukaj produktu do pominięcia"
+                aria-label="Szukaj produktu, którego nie lubisz"
                 placeholder="Szukaj produktu"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

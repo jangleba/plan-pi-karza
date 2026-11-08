@@ -11,7 +11,8 @@ import {
   manualFuelContext,
   readFuelData,
 } from "@/lib/fuel/experience";
-import { createRecipeEntry } from "@/lib/fuel/practical";
+import { createRecipeEntry, legacyDislikedFoodIds } from "@/lib/fuel/practical";
+import type { Profile } from "@/lib/loadwise/types";
 import { RECIPES } from "@/lib/fuel/catalog";
 const exports = vi.hoisted(() => ({ deliver: vi.fn() }));
 vi.mock("@/lib/loadwise/deliverExportFile", () => ({ deliverExportFile: exports.deliver }));
@@ -20,9 +21,9 @@ vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => false, isPluginAvailable: () => false },
 }));
 let host: HTMLDivElement, root: Root;
-const render = async (restrictions: string[] = []) =>
+const render = async (legacyDislikes: string[] = []) =>
   act(async () =>
-    root.render(<FuelWorkspace userId="u" contexts={[]} profileRestrictions={restrictions} />),
+    root.render(<FuelWorkspace userId="u" contexts={[]} legacyDislikedFoodIds={legacyDislikes} />),
   );
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -153,5 +154,13 @@ describe("Fuel persistent user choices", () => {
     expect(saved[0].ml).toBe(300);
     expect(saved.some((d) => d.id === "d99")).toBe(false);
     expect(toast.info).not.toHaveBeenCalled();
+  });
+  it("moves old profile food terms into the local dislikes list once", async () => {
+    const ids = legacyDislikedFoodIds({ foodAllergies: ["orzechy"] } as Profile);
+    expect(ids).toContain("peanut_butter");
+    await render(ids);
+    await render(ids);
+    const excluded = readFuelData(localStorage, "u").preferences.excludedFoodIds;
+    expect(excluded.filter((id) => id === "peanut_butter")).toHaveLength(1);
   });
 });

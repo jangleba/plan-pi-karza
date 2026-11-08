@@ -1,4 +1,13 @@
-import { FOOD_BY_ID, mealNutrition, suggestRecipes, foodAllowed, type FuelRecipe } from "./catalog";
+import {
+  FOOD_BY_ID,
+  FOODS,
+  mealNutrition,
+  suggestRecipes,
+  foodAllowed,
+  type FuelRecipe,
+} from "./catalog";
+import { normalizeFuelText } from "./assistant";
+import type { Profile } from "../loadwise/types";
 import {
   localDate,
   minutesToFuelStart,
@@ -191,4 +200,21 @@ export function fuelEntryAllowed(
         foodAllowed(FOOD_BY_ID[line.foodId], restrictions, preferences.diet),
     )
   );
+}
+
+/**
+ * Fuel no longer keeps allergy data. Older profiles may still carry free-text
+ * allergy, intolerance or exclusion terms; they are turned once into the local
+ * "Czego nie lubię" list (catalogue food IDs) and are not used in any other way.
+ */
+export function legacyDislikedFoodIds(profile: Profile | null): string[] {
+  const terms = [
+    ...(profile?.foodAllergies ?? []),
+    ...(profile?.foodIntolerances ?? []),
+    ...(profile?.foodExclusions ?? []),
+  ]
+    .map(normalizeFuelText)
+    .filter(Boolean);
+  if (!terms.length) return [];
+  return FOODS.filter((food) => !foodAllowed(food, terms, "all")).map((food) => food.id);
 }

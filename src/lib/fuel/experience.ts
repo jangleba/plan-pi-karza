@@ -1,5 +1,5 @@
-import { normalizeFuelText, type FuelLoadBand, type FuelMoment } from "./assistant";
-import type { SessionDay, SessionCompletion, Profile } from "../loadwise/types";
+import type { FuelLoadBand, FuelMoment } from "./assistant";
+import type { SessionDay, SessionCompletion } from "../loadwise/types";
 import { sessionKindFrom } from "./planAdapter";
 import type { SessionKind } from "./types";
 import type { StoreProduct } from "./storeCheck";
@@ -200,16 +200,6 @@ export function clockFuelStart(clock: string, now: number): number | null {
   date.setHours(hours, minutes, 0, 0);
   // A past clock is not silently turned into tomorrow's training.
   return date.getTime() > now ? date.getTime() : null;
-}
-
-export function foodRestrictionTerms(profile: Profile | null): string[] {
-  return [
-    ...(profile?.foodAllergies ?? []),
-    ...(profile?.foodIntolerances ?? []),
-    ...(profile?.foodExclusions ?? []),
-  ]
-    .map(normalizeFuelText)
-    .filter(Boolean);
 }
 
 /** Rolling cap per list. New rows are prepended, so slicing drops the oldest ones. */
