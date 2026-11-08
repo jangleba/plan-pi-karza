@@ -54,6 +54,74 @@ export const fieldTasks: Record<string, string[]> = {
     "Gdy skrzydłowy schodzi z piłką do środka, obiegnij go po zewnętrznej.",
     "Po obiegnięciu dośrodkuj albo zagraj wzdłuż pola karnego w 2 kontaktach.",
   ],
+  "gk-switch": [
+    "Zanim dostaniesz piłkę, sprawdź, po której stronie rywal ma mniej zawodników.",
+    "Przy wyprowadzeniu od bramki zagraj raz długo na wolną stronę.",
+  ],
+  "gk-sweep": [
+    "Gdy Twoja obrona stoi wysoko, stój kilka metrów przed bramką.",
+    "Przy każdym podaniu za obrońców ruszaj od razu, zanim piłka spadnie.",
+  ],
+  "gk-counter": [
+    "Po złapaniu piłki od razu szukaj wzrokiem wolnego skrzydłowego.",
+    "Po złapaniu piłki wznów grę w ciągu 3 sekund, gdy partner jest wolny.",
+  ],
+  "cb-carry": [
+    "Gdy nikt Cię nie atakuje, wprowadź piłkę 10 metrów do przodu.",
+    "Prowadź piłkę na rywala i podaj, gdy on ruszy do Ciebie.",
+  ],
+  "cb-step-out": [
+    "Wychodź do rywala między liniami tylko wtedy, gdy partner Cię asekuruje.",
+    "Gdy rywal stoi tyłem do bramki, doskocz blisko i nie pozwól mu się obrócić.",
+  ],
+  "fb-inverted": [
+    "Gdy skrzydłowy stoi szeroko, zejdź bliżej środka i zabierz ze sobą rywala.",
+    "Przed podaniem od stopera sprawdź, czy rywal idzie za Tobą.",
+  ],
+  "fb-2v1": [
+    "Przy dwóch rywalach przy linii cofaj się bokiem i zamykaj podanie do środka.",
+    "Nie doskakuj od razu: czekaj, aż partner wróci i będzie dwóch na dwóch.",
+  ],
+  "six-pivot": [
+    "Ustaw się tak, żeby stoper widział Cię między dwoma rywalami.",
+    "Zanim dostaniesz piłkę, spójrz, gdzie stoi rywal za Twoimi plecami.",
+  ],
+  "six-screen": [
+    "Gdy rywal ma piłkę z boku, stań między nim a rywalem za Twoimi plecami.",
+    "Co kilka sekund sprawdź, kto stoi za Tobą przed Twoimi stoperami.",
+  ],
+  "six-switch": [
+    "Gdy po jednej stronie jest tłok, zagraj na drugą stronę w 2 kontaktach.",
+    "Przed przyjęciem spójrz na drugą stronę boiska.",
+  ],
+  "eight-third-man": [
+    "Gdy rywal kryje Cię z tyłu, zrób krok do piłki i odejdź za jego plecy.",
+    "Po odegraniu od razu ruszaj w nowe miejsce do przodu.",
+  ],
+  "eight-box": [
+    "Przy dośrodkowaniu wbiegaj w pole karne później niż napastnik.",
+    "Przy akcji skrzydłem stań na skraju pola karnego na zgranie do tyłu.",
+  ],
+  "ten-turn": [
+    "Zanim dostaniesz piłkę między liniami, sprawdź, czy rywal stoi za Tobą.",
+    "Gdy nikt Cię nie naciska, przyjmij piłkę przodem do bramki rywala.",
+  ],
+  "ten-press": [
+    "Doskakuj do stopera tak, żeby szóstka rywala była za Twoimi plecami.",
+    "Biegnij do piłki po łuku i zamykaj podanie do środka.",
+  ],
+  "wing-press": [
+    "Doskakuj do stopera po łuku od strony linii bocznej.",
+    "Gdy stoper podaje do bocznego obrońcy, doskocz do niego od razu.",
+  ],
+  "nine-press": [
+    "Doskakuj do stopera po łuku, żeby nie mógł podać do drugiego stopera.",
+    "Po pierwszym doskoku wróć zasłonić szóstkę rywala.",
+  ],
+  "nine-depth": [
+    "Stój na linii ostatniego obrońcy i ruszaj w chwili podania.",
+    "Gdy obrońcy stoją wysoko, raz w akcji wbiegnij za ich plecy.",
+  ],
   "third-player": [
     "Po podaniu od razu ruszaj w nowe miejsce, żeby dostać piłkę od trzeciego zawodnika.",
     SCAN,

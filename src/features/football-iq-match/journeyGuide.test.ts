@@ -55,7 +55,7 @@ describe("situation picker", () => {
     expect(own.every((i) => i.own)).toBe(true);
     expect(all.length).toBeGreaterThan(own.length);
     expect(new Set(all.map((i) => i.def.topicId)).size).toBe(all.length);
-    expect(all.length).toBe(24 + 9);
+    expect(all.length).toBe(26);
     expect(all.some((i) => i.moment === "transition")).toBe(true);
   });
 

@@ -98,7 +98,8 @@ try {
   const page = activePage = await browser.newPage({viewport:{width:390,height:700}, deviceScaleFactor:1});
   page.on("pageerror", e => { errors.push(e.message); console.error("UI ERROR",e.message); });
   const url = `http://127.0.0.1:${server.address().port}/`;
-  await page.goto(url);
+  // Fixed older lesson (index 54 = iqx-wing-0-0) so the multi-decision flow is deterministic.
+  await page.goto(url+'?scenario=54');
   await page.waitForSelector('.iqE-start');
   await page.waitForSelector('[data-iq-renderer="ready"]');
   // Free space well ahead of the ball: a quarter of the pitch below the far goal line.
