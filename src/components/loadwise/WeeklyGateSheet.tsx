@@ -133,7 +133,9 @@ export function WeeklyGateSheet({
 
         {/* Dni tygodnia: jedno dotknięcie wybiera mecz, drugie dodaje drugi mecz. */}
         <fieldset className="mt-2 min-w-0" disabled={noMatch}>
-          <legend className="mb-1.5 text-sm font-medium">Kiedy grasz mecz?</legend>
+          <legend className="mb-1.5 text-sm font-medium">
+            Kiedy grasz mecz? Możesz zaznaczyć dwa dni.
+          </legend>
           <div className="grid grid-cols-7 gap-1.5">
             {weekDays.map((day) => {
               const selected = matchDate === day.iso || secondMatchDate === day.iso;
@@ -159,7 +161,7 @@ export function WeeklyGateSheet({
           <p className="mt-1.5 text-xs text-muted-foreground">
             {matchDate
               ? `Mecz: ${formatDateFull(matchDate).toLocaleLowerCase("pl-PL")}${secondMatchDate ? `, drugi: ${formatDateFull(secondMatchDate).toLocaleLowerCase("pl-PL")}` : ""}. Dotknij dzień jeszcze raz, żeby go odznaczyć.`
-              : "Dotknij dzień meczu. Drugi dzień doda drugi mecz."}
+              : "Dotknij dzień meczu. Jeśli grasz dwa mecze, dotknij też drugi dzień."}
           </p>
         </fieldset>
 
