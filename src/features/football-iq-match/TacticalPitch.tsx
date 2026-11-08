@@ -27,6 +27,8 @@ export type TacticalPitchProps = {
   landscapeView?: boolean;
   compactFigures?: boolean;
   portraitThreshold?: number;
+  /** 2.5D: perspective camera behind the attack that follows the ball. */
+  broadcastView?: boolean;
   scenario: Scenario;
   actions: PlannedAction[];
   selectedPlayerId: string;
@@ -99,6 +101,7 @@ function TacticalScenePitch({
   fixedView = false,
   landscapeView: adaptiveView = false,
   portraitThreshold = 1 / 1.8,
+  broadcastView = false,
 }: TacticalPitchProps) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<PitchScene | null>(null);
@@ -162,6 +165,7 @@ function TacticalScenePitch({
     fixedView,
     landscapeView,
     adaptiveView,
+    broadcastView,
   });
   latest.current = {
     frame,
@@ -186,6 +190,7 @@ function TacticalScenePitch({
     fixedView,
     landscapeView,
     adaptiveView,
+    broadcastView,
   };
 
   function sync() {
@@ -213,6 +218,7 @@ function TacticalScenePitch({
       state.fixedView,
       state.landscapeView,
       state.adaptiveView,
+      state.broadcastView,
     );
     const items: DiagramLabel[] = [];
     playerLabels.current.forEach((_element, id) => {
@@ -388,6 +394,7 @@ function TacticalScenePitch({
     fixedView,
     landscapeView,
     adaptiveView,
+    broadcastView,
   ]);
   useEffect(() => {
     if (!playing || !frameSource) return;

@@ -149,7 +149,7 @@ try {
   await page.goto(url+'?fixture=finish');
   await page.waitForSelector('[data-iq-phase="decision"]');
   await page.waitForSelector('[data-iq-renderer="ready"]');
-  await page.getByRole('button',{name:'Zagraj jedno zagranie za 10',exact:true}).click();
+  ensure((await page.getByRole('button',{name:/^Zagraj jedno zagranie za/}).count())===0,'Only TY is controlled: no partner takeover');
   await page.screenshot({path:path.join(work,'IQ-64-OPCJE.png')});
   for (let i=0;i<12 && !(await page.locator('.iqE-summary').count());i++) {
     if (await page.locator('[data-iq-phase="feedback"]').count()) {
@@ -171,7 +171,7 @@ try {
   await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill('5');
   await page.screenshot({path:path.join(work,'IQ-64-ANALIZA.png')});
   const max = await page.getByRole('slider',{name:'Czas powtórki',exact:true}).getAttribute('max');
-  await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill(String(+max - 0.05));
+  await page.getByRole('slider',{name:'Czas powtórki',exact:true}).fill(String(Number((+max - 0.05).toFixed(2))));
   await page.getByRole('button',{name:'Wznów akcję',exact:true}).click();
   await page.waitForSelector('.iqE-summary',{timeout:20000});
   await page.getByRole('button',{name:'Sprawdź w nowym układzie',exact:true}).click();
@@ -182,9 +182,12 @@ try {
   await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
   ensure((await options.count())>=2,'Options not revealed on demand');
   ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
-  const takeover = page.getByRole('button',{name:/^Zagraj jedno zagranie za/});
-  if(await takeover.count()) {
-    await takeover.click(); await tapSpace();
+  ensure(await page.locator('canvas[data-iq-broadcast="true"]').count()===1,'2.5D should be the default view');
+  await page.getByRole('button',{name:'Widok z góry',exact:true}).click();
+  await page.waitForSelector('canvas[data-iq-broadcast="false"]');
+  ensure(await page.evaluate(()=>localStorage.getItem('ballwise:iq:view:v1'))==='board','View choice not remembered');
+  if(await page.getByText('Masz piłkę.',{exact:false}).count()) {
+    await tapSpace();
     const planned = await page.locator('.iqE-plan').innerText();
     ensure(planned.includes('Podanie'),`Free tap far from the ball should plan a pass, got: ${planned}`);
     await page.getByRole('button',{name:'Zagraj',exact:true}).click();

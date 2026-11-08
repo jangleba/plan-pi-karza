@@ -12,6 +12,7 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   OrthographicCamera,
+  PerspectiveCamera,
   Plane,
   PlaneGeometry,
   Raycaster,
@@ -29,6 +30,8 @@ import { BALL_RADIUS } from "./playback";
 import type { MatchPlayer, PlannedAction, Point } from "./types";
 
 const world = (p: Point, height = 0) => new Vector3(p.x - 50, height, p.y - 70);
+/** Crossbar height in pitch units (goal is 16 units wide). */
+const GOAL_HEIGHT = 5.3;
 
 export async function createPitchScene(
   host: HTMLDivElement,
@@ -49,6 +52,13 @@ export async function createPitchScene(
   const scene = new Scene();
   scene.background = new Color("#1b4a40");
   const camera = new OrthographicCamera(-50, 50, 70, -70, 0.1, 600);
+  // "2.5D": a TV-like perspective camera from the side that follows the ball.
+  const broadcastCamera = new PerspectiveCamera(38, 1, 0.5, 900);
+  let view: OrthographicCamera | PerspectiveCamera = camera;
+  let broadcast = false;
+  let followTarget: Vector3 | null = null;
+  let lastFollow = 0;
+  let followDistance = 0;
   const relevant = players.filter((p) => !p.goalkeeper || p.controlled);
   const showGoal = (players.find((p) => p.controlled)?.y ?? Infinity) < 60;
   const defaultBounds = {
@@ -76,9 +86,11 @@ export async function createPitchScene(
   >();
   const ground = new Group();
   scene.add(ground);
+  const stripes: MeshBasicMaterial[] = [];
   function plane(x: number, y: number, w: number, h: number, color: string) {
     const geometry = new PlaneGeometry(w, h);
     const material = new MeshBasicMaterial({ color });
+    stripes.push(material);
     ownedGeometries.add(geometry);
     ownedMaterials.add(material);
     const mesh = new Mesh(geometry, material);
@@ -138,6 +150,33 @@ export async function createPitchScene(
   arc(50, 116, 11, Math.PI + 0.56, 2 * Math.PI - 0.56);
   rect(42, 0, 16, 3);
   rect(42, 137, 16, 3);
+  // Goal frames: posts and crossbar, visible in the side view.
+  const goalPaint = new LineBasicMaterial({ color: "#f4f7f5" });
+  ownedMaterials.add(goalPaint);
+  for (const y of [3, 137]) {
+    const geometry = new BufferGeometry().setFromPoints([
+      world({ x: 42, y }, 0),
+      world({ x: 42, y }, GOAL_HEIGHT),
+      world({ x: 58, y }, GOAL_HEIGHT),
+      world({ x: 58, y }, 0),
+    ]);
+    ownedGeometries.add(geometry);
+    ground.add(new Line(geometry, goalPaint));
+  }
+  /** Board colours for the top view, natural grass and white paint for the TV side view. */
+  const paintPitch = (tv: boolean) => {
+    stripes.forEach((m, i) =>
+      m.color.set(
+        tv ? (i % 2 ? "#3f8a3c" : "#47963f") : i % 2 ? "#205347" : "#1c4e43",
+      ),
+    );
+    paint.color.set(tv ? "#f2f5ef" : "#c5dacb");
+    paint.opacity = tv ? 0.85 : 0.6;
+    scene.background = new Color(tv ? "#1d2f24" : "#1b4a40");
+    shadowMaterial.opacity = tv ? 0.34 : 0.24;
+    if (tv) sun.position.set(70, 90, -25);
+    else sun.position.set(-40, 90, 45);
+  };
 
   const routes = new Group();
   scene.add(routes);
@@ -278,7 +317,69 @@ export async function createPitchScene(
       );
       figureScale = Math.max(1, Math.min(2.2, 14 / Math.max(0.01, base)));
     }
+    broadcastCamera.aspect = aspect;
+    broadcastCamera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
+  };
+  // Close to real proportions: players smaller against the pitch, like a TV picture.
+  const BROADCAST_SCALE = 0.45;
+  const markScale = () => (broadcast ? 0.6 : 1);
+  // Ball close to real size against the player (about 1/8 of their height).
+  const ballScale = () => (broadcast ? 0.35 : 1);
+  // TV side camera: on the touchline, low and close, attack runs left to right.
+  const BROADCAST_ELEVATION = (28 * Math.PI) / 180;
+  const scaleNow = () => (broadcast ? BROADCAST_SCALE : figureScale);
+  /** Frames the ball and your player together, eased while the action runs. */
+  const followBall = (frame: PlaybackFrame, moving: boolean) => {
+    const ballAt = frame.ballVisual;
+    const controlled = players.find((p) => p.controlled);
+    const you = (controlled && frame.positions.get(controlled.id)) || ballAt;
+    const aim = {
+      x: Math.max(12, Math.min(88, ballAt.x * 0.6 + you.x * 0.4)),
+      y: Math.max(14, Math.min(126, ballAt.y * 0.6 + you.y * 0.4)),
+    };
+    // Along the pitch is the screen width, across the pitch is the screen depth.
+    const spanAlong = Math.max(
+      30,
+      Math.min(80, Math.abs(ballAt.y - you.y) + 22),
+    );
+    const spanAcross = Math.max(
+      28,
+      Math.min(70, Math.abs(ballAt.x - you.x) + 22),
+    );
+    const halfV = (broadcastCamera.fov * Math.PI) / 360;
+    const halfH = Math.atan(Math.tan(halfV) * broadcastCamera.aspect);
+    // Never closer than 42 m: wide, short screens would otherwise put a giant player in front.
+    const wanted = Math.max(
+      42,
+      spanAlong / 2 / Math.tan(halfH),
+      (spanAcross * Math.sin(BROADCAST_ELEVATION)) / 2 / Math.tan(halfV),
+    );
+    // Aim a little toward the camera so players on the near side keep their feet in frame.
+    const desired = world({ x: aim.x + 5, y: aim.y });
+    const now = performance.now();
+    if (!followTarget || !moving) {
+      followTarget = desired;
+      followDistance = wanted;
+    } else {
+      const dt = Math.min(0.1, Math.max(0, (now - lastFollow) / 1000));
+      const ease = 1 - Math.exp(-dt * 2.2);
+      followTarget = followTarget.clone().lerp(desired, ease);
+      followDistance += (wanted - followDistance) * ease;
+    }
+    lastFollow = now;
+    const distance = followDistance;
+    broadcastCamera.position
+      .copy(followTarget)
+      .add(
+        new Vector3(
+          Math.cos(BROADCAST_ELEVATION) * distance,
+          Math.sin(BROADCAST_ELEVATION) * distance,
+          0,
+        ),
+      );
+    broadcastCamera.lookAt(followTarget);
+    broadcastCamera.updateMatrixWorld();
   };
   const clearRoutes = () => {
     routeObjects.forEach((arrow) => arrow.dispose());
@@ -335,20 +436,29 @@ export async function createPitchScene(
     actors.forEach((actor, id) => {
       const point = frame.positions.get(id)!;
       actor.root.position.copy(world(point));
-      actor.root.scale.setScalar(figureScale);
+      actor.root.scale.setScalar(scaleNow());
       actor.shadow.position.copy(world(point, 0.06));
+      actor.shadow.scale.setScalar(markScale());
       const motion = frame.motions.get(id)!;
       // Leg stride follows map distance at this display scale; field coordinates stay unchanged.
       actor.pose(
-        figureScale === 1
+        scaleNow() === 1
           ? motion
-          : { ...motion, distance: motion.distance / figureScale },
+          : { ...motion, distance: motion.distance / scaleNow() },
         clock,
       );
     });
-    ball.position.copy(world(frame.ballVisual, frame.ballHeight));
+    ball.scale.setScalar(ballScale());
+    ball.position.copy(
+      world(
+        frame.ballVisual,
+        frame.ballHeight - BALL_RADIUS * (1 - ballScale()),
+      ),
+    );
     ballShadow.position.copy(world(frame.ballVisual, 0.08));
-    ballShadow.scale.setScalar(1 + Math.min(frame.ballHeight, 14) * 0.055);
+    ballShadow.scale.setScalar(
+      ballScale() * (1 + Math.min(frame.ballHeight, 14) * 0.055),
+    );
     ballShadowMaterial.opacity = Math.max(
       0.12,
       0.36 - frame.ballHeight * 0.016,
@@ -356,11 +466,13 @@ export async function createPitchScene(
     carrierRing.visible = guidanceVisible && !frame.ballInFlight;
     const carrierPoint = frame.positions.get(frame.ballCarrierId);
     if (carrierPoint) carrierRing.position.copy(world(carrierPoint, 0.11));
+    carrierRing.scale.setScalar(markScale());
+    ring.scale.setScalar(markScale());
     if (cue.visible)
       cue.scale.setScalar(
         reducedMotion.matches ? 1 : 1 + Math.sin(clock * 2.2) * 0.045,
       );
-    renderer.render(scene, camera);
+    renderer.render(scene, view);
   };
   const tickIdle = (time: number) => {
     idleAnimation = null;
@@ -404,8 +516,18 @@ export async function createPitchScene(
     fixedView = false,
     landscapeView = false,
     compactPlayers = false,
+    broadcastView = false,
   ) => {
     if (disposed || contextLost) return;
+    // The side camera suits landscape screens too, like a TV picture.
+    const wantBroadcast = broadcastView;
+    if (wantBroadcast !== broadcast) {
+      broadcast = wantBroadcast;
+      view = broadcast ? broadcastCamera : camera;
+      paintPitch(broadcast);
+      followTarget = null;
+    }
+    if (broadcast) followBall(frame, isPlaying);
     if (
       fixedCamera !== fixedView ||
       wideCamera !== landscapeView ||
@@ -472,6 +594,7 @@ export async function createPitchScene(
     renderer.domElement.dataset.iqActionCount = String(actions.length);
     renderer.domElement.dataset.iqLandscapeView = String(landscapeView);
     renderer.domElement.dataset.iqCameraClose = String(cameraClose);
+    renderer.domElement.dataset.iqBroadcast = String(broadcast);
     renderer.domElement.dataset.iqViewBounds = JSON.stringify(viewBounds);
     const groundCorners = [
       { x: 0, y: 0 },
@@ -479,7 +602,7 @@ export async function createPitchScene(
       { x: 0, y: 140 },
       { x: 100, y: 140 },
     ].map((p) => {
-      const q = world(p).project(camera);
+      const q = world(p).project(view);
       return {
         x: ((q.x + 1) * renderWidth) / 2,
         y: ((1 - q.y) * renderHeight) / 2,
@@ -495,7 +618,7 @@ export async function createPitchScene(
       renderer.domElement.dataset.iqProjectedPlayers = JSON.stringify(
         Object.fromEntries(
           players.map((p) => {
-            const q = world(frame.positions.get(p.id)!, 7.5).project(camera);
+            const q = world(frame.positions.get(p.id)!, 7.5).project(view);
             return [
               p.id,
               {
@@ -510,10 +633,8 @@ export async function createPitchScene(
     const controlled = players.find((p) => p.controlled);
     if (controlled) {
       const position = frame.positions.get(controlled.id)!;
-      const floorPoint = world(position).project(camera),
-        headPoint = world(position, PLAYER_HEIGHT * figureScale).project(
-          camera,
-        );
+      const floorPoint = world(position).project(view),
+        headPoint = world(position, PLAYER_HEIGHT * scaleNow()).project(view);
       renderer.domElement.dataset.iqControlledHeight = String(
         Math.hypot(
           ((headPoint.x - floorPoint.x) * renderWidth) / 2,
@@ -573,7 +694,7 @@ export async function createPitchScene(
     scheduleIdle();
   };
   const project = (point: Point, height = 0) => {
-    const p = world(point, height).project(camera);
+    const p = world(point, height).project(view);
     return {
       x: ((p.x + 1) * renderWidth) / 2,
       y: ((1 - p.y) * renderHeight) / 2,
@@ -586,7 +707,7 @@ export async function createPitchScene(
         ((clientX - bounds.left) / bounds.width) * 2 - 1,
         1 - ((clientY - bounds.top) / bounds.height) * 2,
       ),
-      camera,
+      view,
     );
     const hit = raycaster.ray.intersectPlane(floor, new Vector3());
     if (
@@ -627,7 +748,7 @@ export async function createPitchScene(
     project,
     pick,
     dispose,
-    figureHeight: () => PLAYER_HEIGHT * figureScale,
+    figureHeight: () => PLAYER_HEIGHT * scaleNow(),
   };
 }
 export type PitchScene = Awaited<ReturnType<typeof createPitchScene>>;

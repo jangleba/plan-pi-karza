@@ -60,6 +60,21 @@ type Phase = "intro" | "decision" | "playing" | "feedback" | "summary";
 type Sheet = "help" | "roles" | "settings" | "history" | null;
 const EMPTY: PlannedAction[] = [];
 const CARRY_TAP_RADIUS = 14;
+const VIEW_KEY = "ballwise:iq:view:v1";
+function readBroadcastView() {
+  try {
+    return localStorage.getItem(VIEW_KEY) !== "board";
+  } catch {
+    return true;
+  }
+}
+function storeBroadcastView(on: boolean) {
+  try {
+    localStorage.setItem(VIEW_KEY, on ? "broadcast" : "board");
+  } catch {
+    /* View choice is a convenience only. */
+  }
+}
 const newId = () => `iq8-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 function startDefinition(position?: string, index?: number) {
   const roles = rolesForPosition(position);
@@ -120,9 +135,9 @@ export function LearningJourney(props: Props) {
     [pickAll, setPickAll] = useState(false),
     [optionKey, setOptionKey] = useState<string | null>(null),
     [revealed, setRevealed] = useState(false),
-    [fieldTask, setFieldTask] = useState<FieldTask | null>(null);
+    [fieldTask, setFieldTask] = useState<FieldTask | null>(null),
+    [broadcast, setBroadcast] = useState(readBroadcastView);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
-    [takeover, setTakeover] = useState(false),
     [ready, setReady] = useState(false);
   const [archive, setArchive] = useState(false),
     [replay, setReplay] = useState<JourneySession | null>(null);
@@ -138,7 +153,8 @@ export function LearningJourney(props: Props) {
     completed = useRef(new Set<string>());
   const allowedReplacement = useRef(false);
   const guided = mode === "learn" && !transfer;
-  const actor = takeover ? session.world.carrierId : "you";
+  // Only TY is controlled: the player learns their own position, with and without the ball.
+  const actor = "you";
   const controlled = useMemo(() => ({ ...session, controlledId: actor }), [session, actor]);
   const displayed = replay ?? session;
   current.current = displayed;
@@ -282,7 +298,6 @@ export function LearningJourney(props: Props) {
       setDraft(null);
       setOptionKey(null);
       setRevealed(false);
-      setTakeover(false);
       play(
         next,
         from,
@@ -300,7 +315,6 @@ export function LearningJourney(props: Props) {
     setId(newId());
     setPhase("intro");
     setDraft(null);
-    setTakeover(false);
     setReplay(null);
     setSaved(false);
     setSheet(null);
@@ -513,7 +527,20 @@ export function LearningJourney(props: Props) {
           onReadyChange={setReady}
           showActionOrders={false}
           showGuidance={showAnalysis || !!draft || showOptions}
+          broadcastView={broadcast}
         />
+        <button
+          type="button"
+          className="iqE-view"
+          aria-pressed={broadcast}
+          aria-label={broadcast ? "Widok z góry" : "Widok 2.5D"}
+          onClick={() => {
+            storeBroadcastView(!broadcast);
+            setBroadcast(!broadcast);
+          }}
+        >
+          {broadcast ? "Z góry" : "2.5D"}
+        </button>
         {showAnalysis && (
           <div className="iqE-replay-key">
             <span>Podanie</span>
@@ -695,32 +722,6 @@ export function LearningJourney(props: Props) {
                 </button>
               )}
             </div>
-            {!own && carrier.team === "home" && !takeover && (
-              <button
-                type="button"
-                className="iqE-link"
-                onClick={() => {
-                  setTakeover(true);
-                  setDraft(null);
-                  setOptionKey(null);
-                }}
-              >
-                Zagraj jedno zagranie za {carrier.number}
-              </button>
-            )}
-            {takeover && (
-              <button
-                type="button"
-                className="iqE-link"
-                onClick={() => {
-                  setTakeover(false);
-                  setDraft(null);
-                  setOptionKey(null);
-                }}
-              >
-                Wróć do TY
-              </button>
-            )}
           </>
         ) : phase === "playing" ? (
           <div className="iqE-coach" aria-live="polite">
