@@ -10,6 +10,7 @@ import type { LoadwiseState, SessionDay } from "../types";
 import { buildProfile, initialState, type StoreActionContext } from "./model";
 import { createProfileActions } from "./profileActions";
 import { createSessionActions } from "./sessionActions";
+import { resetPlanWriteGuard, trackPlanWrite } from "./planWriteGuard";
 
 const mocks = vi.hoisted(() => ({
   events: [] as string[],
@@ -176,6 +177,18 @@ beforeEach(() => {
 });
 
 describe("store action contracts", () => {
+  it("starts a session only after the plan shown at login has reached the server", async () => {
+    resetPlanWriteGuard();
+    let land!: () => void;
+    void trackPlanWrite("athlete", new Promise<void>((resolve) => (land = resolve)));
+    const started = createSessionActions(context()).startSession(session());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mocks.events).not.toContain("save_training_log");
+    land();
+    await started;
+    expect(mocks.events).toContain("save_training_log");
+  });
+
   it("shows the generated plan at once, then records consent before the server save", async () => {
     state.profile!.unavailableEquipmentIds = ["sled"];
     const profile = { ...state.profile!, unavailableEquipmentIds: [] };

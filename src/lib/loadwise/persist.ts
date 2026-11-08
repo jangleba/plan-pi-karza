@@ -155,17 +155,35 @@ export function prepareMonthlyPlan(
   };
 }
 
+/**
+ * Assigns the final database ids (one small read) without writing. The returned plan
+ * can be shown at once; `commit` sends the atomic snapshot and resolves to the same plan.
+ */
+export async function stageMonthlyPlan(
+  userId: string,
+  profile: Profile,
+  plan: SessionDay[],
+  transition?: WeeklyTransition,
+): Promise<{ plan: SessionDay[]; commit: () => Promise<SessionDay[]> }> {
+  const { preparePlanWrite } = await import("./preparePlanWrite");
+  const prepared = await preparePlanWrite(userId, profile, plan, transition);
+  return {
+    plan: prepared.plan,
+    commit: async () => {
+      const atomicWrite = await supabase.rpc("persist_training_plan_v2", prepared.args);
+      assertNoSupabaseError("persist_training_plan_v2", atomicWrite.error);
+      return prepared.plan;
+    },
+  };
+}
+
 export async function persistMonthlyPlan(
   userId: string,
   profile: Profile,
   plan: SessionDay[],
   transition?: WeeklyTransition,
 ): Promise<SessionDay[]> {
-  const { preparePlanWrite } = await import("./preparePlanWrite");
-  const prepared = await preparePlanWrite(userId, profile, plan, transition);
-  const atomicWrite = await supabase.rpc("persist_training_plan_v2", prepared.args);
-  assertNoSupabaseError("persist_training_plan_v2", atomicWrite.error);
-  return prepared.plan;
+  return (await stageMonthlyPlan(userId, profile, plan, transition)).commit();
 }
 
 /** Prepare a command payload without performing any partial database writes. */

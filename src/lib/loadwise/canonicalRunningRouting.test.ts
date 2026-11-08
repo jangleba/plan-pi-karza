@@ -129,7 +129,10 @@ describe("aktywny Plan korzysta z jednego silnika biegowego", () => {
     );
     for (const session of sessions) {
       expect(session.sections.main.map((exercise) => exercise.prescription).join(" ")).toContain("/km");
-      expect(exerciseText(session)).not.toMatch(/piłk|podani|przyjęci|dryblin/i);
+      // „bez piłki” describes a run, not ball work.
+      expect(exerciseText(session).replace(/bez\s+piłki/gi, "")).not.toMatch(
+        /piłk|podani|przyjęci|dryblin/i,
+      );
     }
   });
 });

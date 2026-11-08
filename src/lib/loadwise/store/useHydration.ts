@@ -404,6 +404,7 @@ export function useHydration({
           plan: SessionDay[];
           fallback: SessionDay[];
           fallbackGeneratedFor: string | null;
+          commit?: () => Promise<SessionDay[]>;
         } | null = null;
         const planRow = planRes.data as AnyRow | null;
         const planRowCreatedAt = (planRow?.created_at as string | undefined) ?? null;
@@ -567,6 +568,23 @@ export function useHydration({
             } else plan = migrationOriginalPlan;
           }
         }
+        if (backgroundWrite && profile) {
+          // Final ids come from one small read, so the shown sessions can be started
+          // as soon as the background snapshot lands.
+          try {
+            const { stageMonthlyPlan } = await modules.persist;
+            const staged = await stageMonthlyPlan(user.id, profile, backgroundWrite.plan);
+            plan = staged.plan;
+            backgroundWrite = { ...backgroundWrite, plan, commit: staged.commit };
+          } catch (error) {
+            console.warn("[loadwise] plan snapshot could not be prepared; showing the stored plan", error);
+            plan = backgroundWrite.fallback;
+            planGeneratedFor = backgroundWrite.fallbackGeneratedFor;
+            clearFutureOverlays = false;
+            backgroundWrite = null;
+          }
+          if (cancelled) return;
+        }
 
         const persistedReadiness: Record<string, Readiness> = {};
         if (profile?.healthPersonalizationEnabled) {
@@ -677,7 +695,7 @@ export function useHydration({
         setState((current) => mergeHydratedState(current, baselineState, remoteState));
         setHydrated(true);
         if (backgroundWrite && profile) {
-          const { key, plan: shown, fallback, fallbackGeneratedFor } = backgroundWrite;
+          const { key, plan: shown, fallback, fallbackGeneratedFor, commit } = backgroundWrite;
           const futureModificationIds = ((modRes.data as AnyRow[] | null) ?? [])
             .filter((row) => String(row.date) >= todayIso)
             .map((row) => String(row.id));
@@ -685,10 +703,7 @@ export function useHydration({
           void trackPlanWrite(
             user.id,
             (async () => {
-              const { persistMonthlyPlan } = await modules.persist;
-              const saved = await guardedPlanWrite(key, () =>
-                persistMonthlyPlan(user.id, profile, shown),
-              );
+              const saved = commit ? await guardedPlanWrite(key, commit) : null;
               if (!saved) throw new Error("plan snapshot rejected");
               // Saved copies carry the database ids. A local edit made meanwhile wins.
               if (ownerStillActive())
