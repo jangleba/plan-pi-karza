@@ -17,6 +17,7 @@ import { assertNoSupabaseError } from "@/integrations/supabase/errors";
 import type { Json } from "@/integrations/supabase/types";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { toast } from "sonner";
+import { trackPlanWrite } from "./planWriteGuard";
 import {
   recordConsentDecision,
   recordConsentDecisions,
@@ -335,6 +336,8 @@ export function createProfileActions(
         writeRefs.key = null;
         stage(null);
       });
+    // Session writes wait for this save, because the shown sessions are not on the server yet.
+    if (optimistic) void trackPlanWrite(user.id, flight);
     writeRefs.key = key;
     writeRefs.flight = Promise.race([flight, shown]);
     return writeRefs.flight;

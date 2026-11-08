@@ -4391,10 +4391,11 @@ export function canonicalizeGeneratedExercise(
 ): ExerciseItem {
   const byId = exercise.exerciseId ? getExerciseDefinition(exercise.exerciseId) : undefined;
   const byName = resolveExerciseByName(exercise.name);
+  const hint = hintedCanonical(exercise.name);
   const canonical =
     (isApprovedCanonicalExercise(byId) && byId) ||
     (isApprovedCanonicalExercise(byName) && byName) ||
-    hintedCanonical(exercise.name) ||
+    hint ||
     getExerciseDefinition(
       GENERATED_FAMILY_FALLBACKS[
         family ??
@@ -4412,7 +4413,15 @@ export function canonicalizeGeneratedExercise(
     name: canonical.displayNamePl,
   });
 
-  return canonical.id === "football_technical_self_selected"
+  // Only an exact name match proves the generated drill is that library exercise.
+  // Otherwise the canonical record supplies safety metadata and technique, but the
+  // athlete keeps seeing the drill that was actually prescribed: five different
+  // acceleration drills must not all read „Mechanika przyspieszenia”.
+  // A family fallback keeps the library name: there the generated name is unknown.
+  const exactName = isApprovedCanonicalExercise(byName) && byName.id === canonical.id;
+  const hinted = Boolean(hint) && hint!.id === canonical.id;
+  const specific = (isApprovedCanonicalExercise(byId) && byId.id === canonical.id) || hinted;
+  return canonical.id === "football_technical_self_selected" || (specific && !exactName)
     ? { ...hydrated, name: exercise.name }
     : hydrated;
 }

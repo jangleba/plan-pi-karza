@@ -7,6 +7,7 @@ import { fieldMasFromActivity } from "@/lib/running/engine";
 import type { RunningActivity, RunningActivityDraft } from "@/lib/running/types";
 import { toast } from "sonner";
 import { isRetryableWriteError, withDurableTrainingWrite } from "../offlineTrainingQueue";
+import { waitForPlanWrites } from "./planWriteGuard";
 import type { Profile, SessionCompletion, SessionDay, SessionHistoryRecord } from "../types";
 import {
   findSessionByDbId,
@@ -96,6 +97,8 @@ export function createSessionActions(
   async function startSession(session: SessionDay) {
     const sid = session.dbId;
     if (!user || !sid) throw new Error("Nie można rozpocząć tej sesji.");
+    // A plan shown right after login or onboarding may still be on its way to the server.
+    await waitForPlanWrites(user.id);
     if (session.loadLabelOverride === "Wstrzymaj trening")
       throw new Error("Ta sesja została wstrzymana ze względów ostrożnościowych.");
     const existing = latest().completions[sid];
@@ -165,6 +168,7 @@ export function createSessionActions(
   ) {
     const sid = session.dbId;
     if (!user || !sid) throw new Error("Nie można zapisać tej sesji.");
+    await waitForPlanWrites(user.id);
     const before = latest(),
       existing = before.completions[sid],
       operationId = crypto.randomUUID();

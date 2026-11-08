@@ -48,7 +48,13 @@ vi.mock("@/integrations/supabase/client", () => ({
     },
   },
 }));
-vi.mock("../persist", () => ({ persistMonthlyPlan: mocks.persist }));
+vi.mock("../persist", () => ({
+  persistMonthlyPlan: mocks.persist,
+  stageMonthlyPlan: async (userId: string, profile: unknown, plan: unknown) => ({
+    plan,
+    commit: () => mocks.persist(userId, profile, plan),
+  }),
+}));
 vi.mock("../legalStatus", () => ({ primeConsentRows: vi.fn() }));
 vi.mock("../bootCache", () => ({
   loadBootState: (userId: string) => mocks.cached.get(userId) ?? null,
