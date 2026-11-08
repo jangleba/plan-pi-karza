@@ -96,6 +96,16 @@
   position: absolute;
   inset: 0;
 }
+.bwiq-pitch-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffffd9;
+  font-size: 13px;
+  font-weight: 600;
+  background: repeating-linear-gradient(90deg, #3f8a3c 0 12%, #47963f 12% 24%);
+}
 .bwiq-pitch-canvas canvas {
   display: block;
   width: 100%;

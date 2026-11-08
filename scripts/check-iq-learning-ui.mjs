@@ -101,6 +101,7 @@ try {
   // Fixed older lesson (index 54 = iqx-wing-0-0) so the multi-decision flow is deterministic.
   await page.goto(url+'?scenario=54');
   await page.waitForSelector('.iqE-start');
+  ensure(await page.locator('[data-iq-renderer="loading"] .bwiq-figure, [data-iq-renderer="loading"] svg').count()===0,'Flat figures shown while the 3D view loads');
   await page.waitForSelector('[data-iq-renderer="ready"]');
   // Free space well ahead of the ball: a quarter of the pitch below the far goal line.
   const tapSpace = async () => {
@@ -183,10 +184,8 @@ try {
   await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
   ensure((await options.count())>=2,'Options not revealed on demand');
   ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
-  ensure(await page.locator('canvas[data-iq-broadcast="true"]').count()===1,'2.5D should be the default view');
-  await page.getByRole('button',{name:'Widok z góry',exact:true}).click();
-  await page.waitForSelector('canvas[data-iq-broadcast="false"]');
-  ensure(await page.evaluate(()=>localStorage.getItem('ballwise:iq:view:v1'))==='board','View choice not remembered');
+  ensure(await page.locator('canvas[data-iq-broadcast="true"]').count()===1,'The TV side view is the only view');
+  ensure(await page.getByRole('button',{name:/^Widok /}).count()===0,'No view toggle');
   if(await page.getByText('Masz piłkę.',{exact:false}).count()) {
     await tapSpace();
     const planned = await page.locator('.iqE-plan').innerText();
