@@ -5,7 +5,7 @@
 import { attackChoice } from "./attackJourney";
 import { bound, distance, offside, pressure, segment, teamOf } from "./tacticalWorld";
 import type { JourneyChoice, JourneySession } from "./journeyTypes";
-import type { Point } from "./types";
+import type { PlannedAction, Point } from "./types";
 
 export type DecisionOption = {
   key: string;
@@ -85,6 +85,8 @@ function freeAhead(s: JourneySession, at: Point, step: number) {
   );
 }
 
+const laneSafetyScore = (r: { lane: number; space: number }) => r.lane + r.space;
+
 function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
   const at = s.world.positions[actor];
   const out: DecisionOption[] = [];
@@ -96,13 +98,20 @@ function ownOptions(s: JourneySession, actor: string): DecisionOption[] {
       return {
         p,
         to,
+        lane,
+        space,
         safe: lane >= 4 && space >= 4 && !offside(s, actor, p.id),
         score: lane + space + Math.max(-10, Math.min(20, at.y - to.y)) * 0.6,
       };
     })
     .filter((r) => r.safe && (!r.p.goalkeeper || r.to.y > at.y + 25))
     .sort((a, b) => b.score - a.score);
-  for (const r of passes.slice(0, 2))
+  // One pass that moves the game on, one that keeps the ball safest (often a lay-off).
+  const best = passes[0];
+  const safest = passes
+    .filter((r) => r !== best)
+    .sort((a, b) => laneSafetyScore(b) - laneSafetyScore(a))[0];
+  for (const r of [best, safest].filter(Boolean))
     out.push({
       key: `pass-${r.p.id}`,
       label: passLabel(at, r.to, r.p.number),
@@ -253,4 +262,38 @@ export function decisionOptions(s: JourneySession): DecisionOption[] {
           : looseOptions(s, actor);
   const seen = new Set<string>();
   return raw.filter((o) => !seen.has(o.choice.id) && !!seen.add(o.choice.id)).slice(0, MAX_OPTIONS);
+}
+
+/** Tactics-board marker colours, readable on the green pitch and distinct from both kits. */
+export const OPTION_MARKS = [
+  { letter: "A", color: "#ffd84d" },
+  { letter: "B", color: "#ffffff" },
+  { letter: "C", color: "#ff7ad9" },
+  { letter: "D", color: "#8ee86b" },
+] as const;
+
+/** Arrows for the options, like chalk on a tactics board. With a selection only that arrow stays. */
+export function optionPaths(
+  s: JourneySession,
+  options: DecisionOption[],
+  selectedKey?: string | null,
+): PlannedAction[] {
+  const actor = s.controlledId ?? "you";
+  const from = s.world.positions[actor];
+  return options.flatMap((o, i): PlannedAction[] => {
+    if (selectedKey && o.key !== selectedKey) return [];
+    const to = o.choice.point;
+    if (distance(from, to) < 1) return [];
+    const color: string = OPTION_MARKS[i % OPTION_MARKS.length].color;
+    const intent = o.choice.intent;
+    const base = { id: `option-${o.key}`, playerId: actor, from, to, analysisColor: color };
+    if (intent === "pass")
+      return [{ ...base, type: "pass" as const, targetId: o.choice.targetId ?? "space" }];
+    if (intent === "shoot") return [{ ...base, type: "shot" as const }];
+    const type =
+      intent === "carry" || intent === "press" || intent === "cover" || intent === "mark"
+        ? intent
+        : ("run" as const);
+    return [{ ...base, type }];
+  });
 }

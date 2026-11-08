@@ -101,10 +101,12 @@ try {
   await page.goto(url);
   await page.waitForSelector('.iqE-start');
   await page.waitForSelector('[data-iq-renderer="ready"]');
+  // Free space well ahead of the ball: a quarter of the pitch below the far goal line.
   const tapSpace = async () => {
     const at = await page.locator('canvas[data-iq-pitch-corners]').evaluate(el=>{
-      const box=el.getBoundingClientRect(), corners=JSON.parse(el.dataset.iqPitchCorners);
-      return {x:box.left+corners.reduce((v,p)=>v+p.x,0)/4+10,y:box.top+corners.reduce((v,p)=>v+p.y,0)/4+10};
+      const box=el.getBoundingClientRect(), c=JSON.parse(el.dataset.iqPitchCorners);
+      const top=Math.min(...c.map(p=>p.y)), bottom=Math.max(...c.map(p=>p.y));
+      return {x:box.left+c.reduce((v,p)=>v+p.x,0)/4+25,y:box.top+top+(bottom-top)*0.22};
     });
     await page.mouse.click(at.x,at.y);
   };
@@ -174,9 +176,15 @@ try {
   ensure((await page.locator('.iqE-context').innerText()).includes('Nowy układ'),'No transfer variant');
   await page.getByRole('button',{name:'Start',exact:true}).click();
   await page.waitForSelector('[data-iq-phase="decision"]');
+  ensure((await options.count())===0,'Independent mode should start without ready options');
+  await page.getByRole('button',{name:'Pokaż opcje',exact:true}).click();
+  ensure((await options.count())>=2,'Options not revealed on demand');
+  ensure((await page.locator('.iqE-options .iqE-mark').count())===(await options.count()),'Options lack board marks');
   const takeover = page.getByRole('button',{name:/^Zagraj jedno zagranie za/});
   if(await takeover.count()) {
     await takeover.click(); await tapSpace();
+    const planned = await page.locator('.iqE-plan').innerText();
+    ensure(planned.includes('Podanie'),`Free tap far from the ball should plan a pass, got: ${planned}`);
     await page.getByRole('button',{name:'Zagraj',exact:true}).click();
     await page.waitForFunction(()=>['decision','summary'].includes(document.querySelector('[data-iq-engine="9"]').dataset.iqPhase),{timeout:20000});
     ensure((await page.locator('[data-iq-phase="feedback"]').count())===0,'Intermediate grade in independent mode');

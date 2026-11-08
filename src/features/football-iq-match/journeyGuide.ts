@@ -25,11 +25,13 @@ export function startLines(s: JourneySession, mode: JourneyMode): string[] {
   const count = decisionOptions({ ...s, controlledId: "you" }).length;
   return [
     `Grasz jako TY – nr ${you.number}, ${roleLabels[s.definition.role].toLowerCase()}. ${ball}`,
-    `Przy każdej decyzji wybierasz jedną z ${count} opcji na dole albo dotykasz boiska.`,
+    mode === "learn"
+      ? `Przy każdej decyzji wybierasz jedną z ${count} opcji (strzałki na boisku) albo dotykasz boiska.`
+      : `Przy każdej decyzji najpierw sam dotykasz boiska. ${count} gotowe opcje pokażesz przyciskiem.`,
     `Akcja toczy się dalej sama: do gola, niecelnego strzału albo spalonego, najdłużej ${ACTION_TIME_LIMIT_SECONDS / 60} minuty gry. Po stracie bronisz dalej.`,
     mode === "learn"
       ? "Po każdej decyzji zobaczysz, co się stało."
-      : "Bez podpowiedzi. Wynik zobaczysz na końcu.",
+      : "Bez podsumowań po drodze. Wynik zobaczysz na końcu.",
   ];
 }
 

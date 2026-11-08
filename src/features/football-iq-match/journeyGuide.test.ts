@@ -30,7 +30,10 @@ describe("start instruction", () => {
 
   it("promises a summary after each decision only in learning mode", () => {
     const s = createJourneyForRules(situationBank[0], 9);
-    expect(startLines(s, "challenge")[3]).toMatch(/Bez podpowiedzi/);
+    const [, choose, , mode] = startLines(s, "challenge");
+    expect(choose).toMatch(/najpierw sam dotykasz boiska/);
+    expect(choose).toContain(`${decisionOptions(s).length} gotowe opcje`);
+    expect(mode).toMatch(/Bez podsumowań/);
   });
 
   it("keeps the promised end conditions of a whole action", () => {

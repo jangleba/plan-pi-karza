@@ -12,7 +12,7 @@ import {
   Settings2,
   X,
 } from "lucide-react";
-import { decisionOptions, situationLine } from "./decisionOptions";
+import { decisionOptions, OPTION_MARKS, optionPaths, situationLine } from "./decisionOptions";
 import {
   momentLabel,
   momentOf,
@@ -117,7 +117,8 @@ export function LearningJourney(props: Props) {
     [saved, setSaved] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null),
     [pickAll, setPickAll] = useState(false),
-    [optionKey, setOptionKey] = useState<string | null>(null);
+    [optionKey, setOptionKey] = useState<string | null>(null),
+    [revealed, setRevealed] = useState(false);
   const [draft, setDraft] = useState<JourneyChoice | null>(null),
     [takeover, setTakeover] = useState(false),
     [ready, setReady] = useState(false);
@@ -271,6 +272,7 @@ export function LearningJourney(props: Props) {
       setSession(next);
       setDraft(null);
       setOptionKey(null);
+      setRevealed(false);
       setTakeover(false);
       play(
         next,
@@ -294,6 +296,7 @@ export function LearningJourney(props: Props) {
     setSaved(false);
     setSheet(null);
     setOptionKey(null);
+    setRevealed(false);
     setTransfer(test);
   }
   function exportAttempt() {
@@ -389,6 +392,15 @@ export function LearningJourney(props: Props) {
     [controlled, phase],
   );
   const situation = situationFor(session.definition);
+  // Learning shows the options at once; on your own you first read the pitch yourself.
+  const showOptions = phase === "decision" && (mode === "learn" || revealed);
+  const boardActions = showAnalysis
+    ? analysisPaths
+    : draft && !optionKey
+      ? preview
+      : showOptions
+        ? optionPaths(controlled, options, optionKey)
+        : preview;
   const scoreReached = !isPlaying || playTime >= journeyDuration(displayed) - 0.001;
   const visibleHome = scoreReached ? (displayed.attack?.home ?? 0) : 0;
   const visibleAway = scoreReached ? (displayed.attack?.away ?? 0) : 0;
@@ -469,7 +481,7 @@ export function LearningJourney(props: Props) {
       <main className="iqE-pitch" aria-label="Boisko do podejmowania decyzji">
         <TacticalPitch
           scenario={displayed.scenario}
-          actions={showAnalysis ? analysisPaths : preview}
+          actions={boardActions}
           selectedPlayerId={actor}
           mode={draft?.intent === "shoot" ? "shot" : draft?.intent === "pass" ? "pass" : "run"}
           interactive={playable && !isPlaying}
@@ -478,7 +490,11 @@ export function LearningJourney(props: Props) {
           landscapeView
           compactFigures
           portraitThreshold={0.62}
-          visibleLabelIds={["you", carrier.id].filter((v, i, a) => a.indexOf(v) === i)}
+          visibleLabelIds={
+            phase === "decision"
+              ? displayed.players.filter((p) => !p.goalkeeper).map((p) => p.id)
+              : ["you", carrier.id].filter((v, i, a) => a.indexOf(v) === i)
+          }
           selectablePlayerIds={displayed.players.map((p) => p.id)}
           frameOverride={isPlaying ? liveFrame : idleFrame}
           frameSource={isPlaying ? sampleFrame : undefined}
@@ -486,7 +502,7 @@ export function LearningJourney(props: Props) {
           onPitchSelect={(p) => choosePoint(p)}
           onReadyChange={setReady}
           showActionOrders={false}
-          showGuidance={showAnalysis || !!draft}
+          showGuidance={showAnalysis || !!draft || showOptions}
         />
         {showAnalysis && (
           <div className="iqE-replay-key">
@@ -569,7 +585,7 @@ export function LearningJourney(props: Props) {
                 aria-pressed={mode === "learn"}
                 onClick={() => setMode("learn")}
               >
-                Z podsumowaniem decyzji
+                Nauka z opcjami
               </button>
               <button
                 type="button"
@@ -591,41 +607,64 @@ export function LearningJourney(props: Props) {
         ) : phase === "decision" ? (
           <>
             <p className="iqE-now">{nowLine}</p>
-            <div className="iqE-options" role="group" aria-label="Twoje opcje">
-              {options.map((o) => (
+            {showOptions ? (
+              <div className="iqE-options" role="group" aria-label="Twoje opcje">
+                {options.map((o, i) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    aria-pressed={optionKey === o.key}
+                    disabled={!playable}
+                    onClick={() => chooseOption(o.key)}
+                  >
+                    <b
+                      className="iqE-mark"
+                      style={{ background: OPTION_MARKS[i % OPTION_MARKS.length].color }}
+                      aria-hidden="true"
+                    >
+                      {OPTION_MARKS[i % OPTION_MARKS.length].letter}
+                    </b>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="iqE-think">
+                <p>Pomyśl sam: gdzie jest wolne miejsce? Dotknij boiska.</p>
                 <button
-                  key={o.key}
                   type="button"
-                  aria-pressed={optionKey === o.key}
+                  className="iqE-secondary"
                   disabled={!playable}
-                  onClick={() => chooseOption(o.key)}
+                  onClick={() => setRevealed(true)}
                 >
-                  {o.label}
+                  Pokaż opcje
                 </button>
-              ))}
-            </div>
-            <div className="iqE-plan">
-              <span>
-                {draft && !optionKey
-                  ? `Własny ruch: ${draft.label}`
-                  : own
-                    ? "Albo dotknij boiska: blisko siebie – prowadzenie, dalej – podanie."
-                    : "Albo dotknij boiska, by wybrać własne miejsce."}
-              </span>
-              {draft && (
-                <button
-                  className="iqE-icon"
-                  type="button"
-                  aria-label="Usuń wybór"
-                  onClick={() => {
-                    setDraft(null);
-                    setOptionKey(null);
-                  }}
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
+              </div>
+            )}
+            {(showOptions || draft) && (
+              <div className="iqE-plan">
+                <span>
+                  {draft && !optionKey
+                    ? `Własny ruch: ${draft.label}`
+                    : own
+                      ? "Albo dotknij boiska: blisko siebie – prowadzenie, dalej – podanie."
+                      : "Albo dotknij boiska, by wybrać własne miejsce."}
+                </span>
+                {draft && (
+                  <button
+                    className="iqE-icon"
+                    type="button"
+                    aria-label="Usuń wybór"
+                    onClick={() => {
+                      setDraft(null);
+                      setOptionKey(null);
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            )}
             <div className="iqE-actions">
               <button
                 className="iqE-primary"

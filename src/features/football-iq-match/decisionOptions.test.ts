@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { advancedJourneyBank } from "./advancedJourneyBank";
-import { decisionOptions, decisionSituation, situationLine } from "./decisionOptions";
+import {
+  decisionOptions,
+  decisionSituation,
+  OPTION_MARKS,
+  optionPaths,
+  situationLine,
+} from "./decisionOptions";
 import { chooseJourney, createJourneyForRules } from "./journeyEngine";
 import { makeJourneyAttempt, makeJourneyDraft, restoreJourney } from "./journeyHistory";
 import { iqScenarioBank } from "./journeyBank";
@@ -104,6 +110,31 @@ describe("situation bank", () => {
         ),
       );
       expect(new Set([a, b, c]).size).toBe(3);
+    }
+  });
+});
+
+describe("tactics-board arrows", () => {
+  it("draws one coloured arrow per moving option and only the chosen one after a pick", () => {
+    for (const def of situationBank) {
+      const s = createJourneyForRules(def, 9);
+      const options = decisionOptions(s);
+      const paths = optionPaths(s, options);
+      const moving = options.filter(
+        (o) =>
+          Math.hypot(
+            o.choice.point.x - s.world.positions.you.x,
+            o.choice.point.y - s.world.positions.you.y,
+          ) >= 1,
+      );
+      expect(paths).toHaveLength(moving.length);
+      expect(new Set(paths.map((p) => p.analysisColor)).size).toBe(paths.length);
+      const picked = moving[0];
+      if (picked) {
+        const one = optionPaths(s, options, picked.key);
+        expect(one).toHaveLength(1);
+        expect(one[0].analysisColor).toBe(OPTION_MARKS[options.indexOf(picked)].color);
+      }
     }
   });
 });
