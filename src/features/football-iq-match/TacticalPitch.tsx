@@ -464,7 +464,13 @@ function TacticalScenePitch({
       onClick={selectPoint}
     >
       <div className="bwiq-pitch-canvas" ref={host} />
-      {status !== "ready" && (
+      {/* The TV view never shows flat figures while the 3D players load. */}
+      {status === "loading" && broadcastView && (
+        <div className="bwiq-pitch-loading" role="status">
+          Ładuję boisko…
+        </div>
+      )}
+      {status !== "ready" && !(status === "loading" && broadcastView) && (
         <TacticalDiagram
           {...{
             scenario,
